@@ -97,9 +97,17 @@ Terrane package
     ├── function
     │   ├── parameter                          positional or named
     │   ├── optional parameter                 has a default expression
-    │   └── return type                        declared scalar type
+    │   ├── return type                        declared value type
+    │   ├── anonymous function                 value-capturing closure
+    │   └── bound method                       receiver captured once
+    ├── class
+    │   ├── field                              inherited or directly declared state
+    │   ├── construct / destruct               compiler-recognized lifecycle methods
+    │   └── method                             receiver-bound function
+    ├── interface                              named structural dispatch contract
+    ├── trait                                  reusable fields and methods
     └── lexical block
-        └── binding                            local typed value
+        └── binding                            local typed value, reference, or weak reference
 ```
 
 ## Implemented value types
@@ -421,22 +429,20 @@ function name ReturnType; required Type, optional Type = default
 Implemented callable contract:
 
 ```text
-source function
-├── parameters
-│   ├── required positional or named parameters
-│   └── trailing optional parameters with default expressions
-├── arguments
-│   ├── positional
-│   ├── named
-│   └── omitted optional arguments filled from defaults
-├── return
-│   ├── declared scalar return type
-│   └── bare return / fallthrough for no-value functions
-└── call result
-    └── participates in type checking and later member/operator resolution
+callable value
+├── source function or anonymous closure
+├── stored bound method
+├── typed parameters and return
+├── positional, named, and defaulted arguments
+└── value capture
+    └── captures the visible value once when the closure or bound method is created
 ```
 
-The compiler checks duplicate, unknown, missing, and excess arguments, and rejects positional arguments after named arguments. Variadic source-declared functions, overloads, function values, closures, and generic functions are not implemented.
+Function values use `function from ... to ...` annotations and may cross bindings, parameters,
+and return boundaries. Anonymous functions use ordinary `function` syntax without a declaration
+name. The compiler checks duplicate, unknown, missing, and excess arguments, and rejects positional
+arguments after named arguments. Variadic functions, overloads, and generic functions are not
+implemented.
 
 ## Source object and name model
 
@@ -453,6 +459,19 @@ Namespaces form a package-wide tree assembled before reference resolution. Paths
 A top-level plain assignment creates a namespace variable. Functions cannot read or write namespace variables across that boundary; mutable state must cross as an explicit `global`, parameter, or return value. Namespace variables cannot be `public`.
 
 `constant` declarations are non-rebindable at every supported identity tier. In one lexical scope, an ordinary assignment to an already initialized local creates a replacement binding; its initializer sees the earlier binding, and its inferred type may change. Assignment to an uninitialized local, an enclosing-scope binding, a parameter, or a `for` target remains mutation. Generated Rust marks only genuinely mutated storage mutable.
+
+## Classes, interfaces, traits, and references
+
+Classes provide typed fields, ordinary methods, single inheritance, default invocation through
+`construct`, and deterministic `destruct` invocation from generated ownership drop. Subclass
+values retain inherited and directly declared state. Named interfaces are structural dispatch
+contracts; traits reuse declared fields and methods. Interface conversion and base-class dispatch
+preserve the concrete value behind generated protocol/base wrappers.
+
+`ref T` values are strong, cloneable aliases backed by synchronized shared storage; `weak ref T`
+does not keep that storage alive. Prefix `ref`, `weak ref`, and `move` construct those respective
+ownership forms. Move provenance rejects later reads until the binding is rebound, and a
+type-changing replacement is rejected while a reference observes the originating binding.
 
 ## Properties and methods index
 
@@ -505,8 +524,6 @@ The authoritative language draft proposes a much larger ontology. None of the fo
 
 ```text
 collection checked lookup children and source-visible typed lookup errors
-protocols and interfaces
-classes, structs, enums, traits, and constructors
 reflection beyond canonical scalar `.type`
 user-defined error objects, source-visible error fields, and error hierarchies
 bytes indexing and slicing

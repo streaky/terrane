@@ -63,6 +63,9 @@ impl Parser<'_> {
     fn parse_statement(&mut self) -> SyntaxNode {
         match self.text() {
             "namespace" => self.parse_namespace(),
+            "class" => self.parse_object_declaration(SyntaxKind::ClassDeclaration),
+            "interface" => self.parse_object_declaration(SyntaxKind::InterfaceDeclaration),
+            "trait" => self.parse_object_declaration(SyntaxKind::TraitDeclaration),
             "global" | "constant" if self.peek_text(1) == Some("function") => {
                 self.parse_invalid_function_qualifier()
             }
@@ -93,8 +96,8 @@ impl Parser<'_> {
                 self.parse_binding()
             }
             "import" => self.parse_import_selection(),
-            "class" | "yield" | "match" | "unsafe" | "rust" | "label" | "goto" | "when" | "use"
-            | "catch" | "finally" | "case" => self.parse_unsupported(),
+            "yield" | "match" | "unsafe" | "rust" | "label" | "goto" | "when" | "use" | "catch"
+            | "finally" | "case" => self.parse_unsupported(),
             _ if self.looks_like_binding() => self.parse_binding(),
             _ => self.parse_expression_statement(),
         }
@@ -151,6 +154,52 @@ impl Parser<'_> {
             self.position,
             children,
         )
+    }
+
+    fn parse_object_declaration(&mut self, kind: SyntaxKind) -> SyntaxNode {
+        let start = self.position;
+        self.bump();
+        let mut children = Vec::new();
+        if self.at(TokenKind::Identifier) {
+            children.push(self.leaf(SyntaxKind::Name));
+        } else {
+            self.error_here("S1030", "object declaration requires a name");
+        }
+        while !self.at_line_end() {
+            let clause_kind = match self.text() {
+                "extends" => SyntaxKind::ExtendsClause,
+                "implements" => SyntaxKind::ImplementsClause,
+                "uses" => SyntaxKind::UsesClause,
+                _ => {
+                    self.error_here(
+                        "S1031",
+                        "expected `extends`, `implements`, or `uses` in object declaration",
+                    );
+                    self.recover_line();
+                    break;
+                }
+            };
+            let clause_start = self.position;
+            self.bump();
+            let mut names = Vec::new();
+            loop {
+                if self.at(TokenKind::Identifier) {
+                    names.push(self.leaf(SyntaxKind::Name));
+                } else {
+                    self.error_here("S1031", "object clause requires a declared object name");
+                    break;
+                }
+                if !self.eat(TokenKind::Comma) {
+                    break;
+                }
+            }
+            if clause_kind == SyntaxKind::ExtendsClause && names.len() > 1 {
+                self.error_here("S1032", "classes support only single inheritance");
+            }
+            children.push(self.node(clause_kind, clause_start, self.position, names));
+        }
+        children.push(self.parse_block());
+        self.node(kind, start, self.position, children)
     }
 
     fn parse_import_declaration(&mut self) -> SyntaxNode {
@@ -366,6 +415,29 @@ impl Parser<'_> {
         children.push(self.parse_block());
         self.node(
             SyntaxKind::FunctionDeclaration,
+            start,
+            self.position,
+            children,
+        )
+    }
+
+    fn parse_anonymous_function(&mut self) -> SyntaxNode {
+        let start = self.position;
+        self.expect_text("function", "S1005", "expected `function`");
+        let mut children = Vec::new();
+        if !self.at(TokenKind::Semicolon) && !self.at_line_end() {
+            children.push(self.parse_type_expression());
+        }
+        if self.eat(TokenKind::Semicolon) {
+            children.push(self.parse_parameter_list());
+        }
+        if !self.at(TokenKind::Newline) {
+            self.error_here("S1006", "unexpected content in anonymous function header");
+            self.recover_line();
+        }
+        children.push(self.parse_block());
+        self.node(
+            SyntaxKind::AnonymousFunction,
             start,
             self.position,
             children,
@@ -709,20 +781,26 @@ impl Parser<'_> {
 
     fn parse_prefix(&mut self, allow_call: bool) -> SyntaxNode {
         if matches!(self.text(), "not" | "ref" | "move" | "await")
+            || (self.text() == "weak" && self.peek_text(1) == Some("ref"))
             || (self.at(TokenKind::Operator) && matches!(self.text(), "-" | "~"))
         {
             let start = self.position;
-            let restricted = matches!(self.text(), "ref" | "move" | "await");
+            let restricted = self.text() == "await";
             if restricted {
-                let feature = self.text().to_owned();
                 self.diagnostics.push(Diagnostic::error(
                     "S1090",
-                    format!("`{feature}` expressions are not supported by this compiler milestone"),
+                    "`await` expressions are not supported by this compiler milestone",
                     self.current().span,
                 ));
             }
+            if self.text() == "weak" {
+                self.bump();
+            }
             self.bump();
-            let operand = if restricted {
+            let operand = if matches!(
+                self.source.text()[self.tokens[start].span.start..self.current().span.start].trim(),
+                "ref" | "move" | "weak ref" | "await"
+            ) {
                 self.parse_postfix(false)
             } else {
                 self.parse_prefix(allow_call)
@@ -827,6 +905,7 @@ impl Parser<'_> {
             TokenKind::Identifier if self.at_text("true") || self.at_text("false") => {
                 self.leaf(SyntaxKind::Literal)
             }
+            TokenKind::Identifier if self.at_text("function") => self.parse_anonymous_function(),
             TokenKind::Identifier => self.leaf(SyntaxKind::Name),
             TokenKind::Number
             | TokenKind::String
@@ -890,6 +969,12 @@ impl Parser<'_> {
 
     fn parse_prefix_type(&mut self) -> SyntaxNode {
         let start = self.position;
+        if self.at_text("weak") && self.peek_text(1) == Some("ref") {
+            self.bump();
+            self.bump();
+            let inner = self.parse_prefix_type();
+            return self.node(SyntaxKind::PrefixType, start, self.position, vec![inner]);
+        }
         if self.eat_text("ref") {
             let inner = self.parse_prefix_type();
             return self.node(SyntaxKind::PrefixType, start, self.position, vec![inner]);

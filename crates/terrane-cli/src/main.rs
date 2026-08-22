@@ -393,6 +393,7 @@ fn write_generated_crate(
         .map_err(|error| CliFailure::backend(format!("cannot create generated crate: {error}")))?;
     let manifest = "[package]\nname = \"terrane_program\"\nversion = \"0.0.0\"\nedition = \"2024\"\n\n\
         [dependencies]\nterrane-int-support = { path = \"support/terrane-int-support\" }\n\
+        parking_lot = \"0.12\"\n\
         terrane-collection-support = { path = \"support/terrane-collection-support\" }\n\
         terrane-scalar-support = { path = \"support/terrane-scalar-support\" }\n\
         terrane-string-support = { path = \"support/terrane-string-support\" }\n\n[workspace]\n";

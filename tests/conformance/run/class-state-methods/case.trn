@@ -1,0 +1,25 @@
+namespace class-state-methods
+
+class counter
+    value int = 0
+
+    function construct; start int
+        this.value = start
+
+    function add int; amount int
+        this.value = this.value + amount
+        return this.value
+
+    function shifted int; amount int
+        return this.value + amount
+
+    function destruct
+        print; 'destruct'
+
+function main
+    first counter = counter; 10
+    second counter = first
+    shift function from int to int = first.shifted
+    print; (first.add; 5)
+    print; (second.add; 2)
+    print; (shift; 3)

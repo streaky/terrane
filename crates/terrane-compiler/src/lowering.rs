@@ -7,10 +7,10 @@ use crate::{
     rust_ir::{Item, Module, Program},
     semantics::{
         ArithmeticFamily, CoercionPolicy, ContextualConstant, ElementType, FunctionContract,
-        MemberFamily, SemanticPackage, SemanticUnit, StringFamily, SymbolKind, TypedBinding,
-        ValueType, binding_span_is_mutated, binding_store_value_is_read, bound_method,
-        contextual_constant, narrowed_optional_type, narrowed_value_type, promoted_integer_type,
-        string_call_selection,
+        MemberFamily, ObjectContract, ObjectField, ObjectKind, SemanticPackage, SemanticUnit,
+        StringFamily, SymbolKind, TypedBinding, ValueType, binding_span_is_mutated,
+        binding_store_value_is_read, bound_method, contextual_constant, narrowed_optional_type,
+        narrowed_value_type, promoted_integer_type, string_call_selection,
     },
     syntax::{SyntaxKind, SyntaxNode},
 };
@@ -56,6 +56,9 @@ pub(crate) fn lower(package: &SemanticPackage) -> Program {
                         emitter.namespace_binding(node);
                     }
                     SyntaxKind::FunctionDeclaration => emitter.function(node),
+                    SyntaxKind::ClassDeclaration
+                    | SyntaxKind::InterfaceDeclaration
+                    | SyntaxKind::TraitDeclaration => emitter.object(node),
                     _ => {}
                 }
                 if !emitter.output.is_empty() {
@@ -514,7 +517,399 @@ impl Emitter<'_> {
         self.indent -= 1;
         self.line("});");
     }
+    #[expect(
+        clippy::too_many_lines,
+        reason = "object lowering emits one complete, ordered Rust object contract"
+    )]
+    fn object(&mut self, node: &SyntaxNode) {
+        let object = self
+            .unit
+            .objects
+            .iter()
+            .find(|object| object.span == node.span)
+            .expect("analyzed object declaration must have a semantic contract");
+        match object.kind {
+            ObjectKind::Interface => {
+                let name = rust_object_name(&object.name);
+                let protocol = format!("{name}Protocol");
+                let methods = effective_object_methods(self.unit, object);
+                self.line(&format!("pub trait {protocol} {{"));
+                self.indent += 1;
+                self.line(&format!("fn clone_box(&self) -> Box<dyn {protocol}>;"));
+                for method in &methods {
+                    self.line_start();
+                    let receiver = if method.mutates_receiver {
+                        "&mut self"
+                    } else {
+                        "&self"
+                    };
+                    write!(self.output, "fn {}({receiver}", rust_name(&method.name)).unwrap();
+                    for parameter in &method.parameters {
+                        let ty = parameter
+                            .value_type
+                            .clone()
+                            .map_or_else(|| "i128".to_owned(), rust_value_type);
+                        write!(self.output, ", {}: {ty}", rust_name(&parameter.name)).unwrap();
+                    }
+                    self.output.push(')');
+                    if let Some(result) = method
+                        .return_type
+                        .clone()
+                        .filter(|result| *result != ValueType::Scalar(ScalarType::None))
+                    {
+                        write!(self.output, " -> {}", rust_value_type(result)).unwrap();
+                    }
+                    self.output.push_str(";\n");
+                }
+                self.indent -= 1;
+                self.line("}");
+                self.line(&format!(
+                    "impl Clone for Box<dyn {protocol}> {{ fn clone(&self) -> Self {{ self.clone_box() }} }}"
+                ));
+                self.line("#[derive(Clone)]");
+                self.line(&format!("pub struct {name}(Box<dyn {protocol}>);"));
+                self.line(&format!("impl {name} {{"));
+                self.indent += 1;
+                for method in &methods {
+                    self.line_start();
+                    let receiver = if method.mutates_receiver {
+                        "&mut self"
+                    } else {
+                        "&self"
+                    };
+                    write!(self.output, "pub fn {}({receiver}", rust_name(&method.name)).unwrap();
+                    for parameter in &method.parameters {
+                        let ty = parameter
+                            .value_type
+                            .clone()
+                            .map_or_else(|| "i128".to_owned(), rust_value_type);
+                        write!(self.output, ", {}: {ty}", rust_name(&parameter.name)).unwrap();
+                    }
+                    self.output.push(')');
+                    if let Some(result) = method
+                        .return_type
+                        .clone()
+                        .filter(|result| *result != ValueType::Scalar(ScalarType::None))
+                    {
+                        write!(self.output, " -> {}", rust_value_type(result)).unwrap();
+                    }
+                    self.output.push_str(" {\n");
+                    self.indent += 1;
+                    let arguments = method
+                        .parameters
+                        .iter()
+                        .map(|parameter| rust_name(&parameter.name))
+                        .collect::<Vec<_>>()
+                        .join(", ");
+                    self.line(&format!("self.0.{}({arguments})", rust_name(&method.name)));
+                    self.indent -= 1;
+                    self.line("}");
+                }
+                self.indent -= 1;
+                self.line("}");
+            }
+            ObjectKind::Trait => {}
+            ObjectKind::Class => {
+                let fields = effective_object_fields(self.unit, object);
+                let class_type = rust_object_name(&object.name);
+                let descendants = object_descendants(self.unit, object);
+                let storage_type = if descendants.is_empty() {
+                    class_type.clone()
+                } else {
+                    format!("{class_type}Own")
+                };
+                self.line("#[derive(Clone)]");
+                self.line(&format!("pub struct {storage_type} {{"));
+                self.indent += 1;
+                for field in &fields {
+                    self.line(&format!(
+                        "pub {}: {},",
+                        rust_name(&field.name),
+                        rust_value_type(field.value_type.clone())
+                    ));
+                }
+                self.indent -= 1;
+                self.line("}");
+                self.line(&format!("impl {storage_type} {{"));
+                self.indent += 1;
+                let methods = effective_object_methods(self.unit, object);
+                if let Some(construct) = methods.iter().find(|method| method.name == "construct") {
+                    self.line_start();
+                    write!(self.output, "pub fn terrane_construct(").unwrap();
+                    for (index, parameter) in construct.parameters.iter().enumerate() {
+                        if index != 0 {
+                            self.output.push_str(", ");
+                        }
+                        let ty = parameter
+                            .value_type
+                            .clone()
+                            .map_or_else(|| "i128".to_owned(), rust_value_type);
+                        write!(self.output, "{}: {ty}", rust_name(&parameter.name)).unwrap();
+                    }
+                    self.output.push_str(") -> Self {\n");
+                    self.indent += 1;
+                    self.line("let mut value = Self {");
+                    self.indent += 1;
+                    for field in &fields {
+                        let initializer = find_node_by_span(&self.unit.tree.root, field.span)
+                            .and_then(|binding| {
+                                binding
+                                    .children
+                                    .iter()
+                                    .position(|child| child.kind == SyntaxKind::Name)
+                                    .and_then(|index| binding_initializer(binding, index))
+                            });
+                        let value = initializer.map_or_else(
+                            || "panic!(\"object field was not initialized\")".to_owned(),
+                            |initializer| self.expression_as(initializer, field.value_type.clone()),
+                        );
+                        self.line(&format!("{}: {value},", rust_name(&field.name)));
+                    }
+                    self.indent -= 1;
+                    self.line("};");
+                    let arguments = construct
+                        .parameters
+                        .iter()
+                        .map(|parameter| rust_name(&parameter.name))
+                        .collect::<Vec<_>>()
+                        .join(", ");
+                    self.line(&format!("value.construct({arguments});"));
+                    self.line("value");
+                    self.indent -= 1;
+                    self.line("}");
+                } else {
+                    self.line("pub fn terrane_construct() -> Self {");
+                    self.indent += 1;
+                    self.line("Self {");
+                    self.indent += 1;
+                    for field in &fields {
+                        let initializer = find_node_by_span(&self.unit.tree.root, field.span)
+                            .and_then(|binding| {
+                                binding
+                                    .children
+                                    .iter()
+                                    .position(|child| child.kind == SyntaxKind::Name)
+                                    .and_then(|index| binding_initializer(binding, index))
+                            });
+                        let value = initializer.map_or_else(
+                            || "panic!(\"object field was not initialized\")".to_owned(),
+                            |initializer| self.expression_as(initializer, field.value_type.clone()),
+                        );
+                        self.line(&format!("{}: {value},", rust_name(&field.name)));
+                    }
+                    self.indent -= 1;
+                    self.line("}");
+                    self.indent -= 1;
+                    self.line("}");
+                }
+                for method in &methods {
+                    let method_node = find_node(
+                        &self.unit.tree.root,
+                        SyntaxKind::FunctionDeclaration,
+                        method.span,
+                    )
+                    .expect("object method contract must retain its syntax");
+                    self.object_method(method_node);
+                }
+                self.indent -= 1;
+                self.line("}");
+                if !descendants.is_empty() {
+                    self.line("#[derive(Clone)]");
+                    self.line(&format!("pub enum {class_type} {{"));
+                    self.indent += 1;
+                    self.line(&format!("Own({storage_type}),"));
+                    for descendant in &descendants {
+                        let descendant_type = rust_object_name(&descendant.name);
+                        self.line(&format!("{descendant_type}({descendant_type}),"));
+                    }
+                    self.indent -= 1;
+                    self.line("}");
+                    self.line(&format!("impl {class_type} {{"));
+                    self.indent += 1;
+                    if let Some(construct) =
+                        methods.iter().find(|method| method.name == "construct")
+                    {
+                        self.line_start();
+                        self.output.push_str("pub fn terrane_construct(");
+                        for (index, parameter) in construct.parameters.iter().enumerate() {
+                            if index != 0 {
+                                self.output.push_str(", ");
+                            }
+                            let ty = parameter
+                                .value_type
+                                .clone()
+                                .map_or_else(|| "i128".to_owned(), rust_value_type);
+                            write!(self.output, "{}: {ty}", rust_name(&parameter.name)).unwrap();
+                        }
+                        self.output.push_str(") -> Self {\n");
+                        self.indent += 1;
+                        let arguments = construct
+                            .parameters
+                            .iter()
+                            .map(|parameter| rust_name(&parameter.name))
+                            .collect::<Vec<_>>()
+                            .join(", ");
+                        self.line(&format!(
+                            "Self::Own({storage_type}::terrane_construct({arguments}))"
+                        ));
+                        self.indent -= 1;
+                        self.line("}");
+                    } else {
+                        self.line(&format!(
+                            "pub fn terrane_construct() -> Self {{ Self::Own({storage_type}::terrane_construct()) }}"
+                        ));
+                    }
+                    for method in methods
+                        .iter()
+                        .filter(|method| !matches!(method.name.as_str(), "construct" | "destruct"))
+                    {
+                        self.line_start();
+                        let receiver = if method.mutates_receiver {
+                            "&mut self"
+                        } else {
+                            "&self"
+                        };
+                        write!(self.output, "pub fn {}({receiver}", rust_name(&method.name))
+                            .unwrap();
+                        for parameter in &method.parameters {
+                            let ty = parameter
+                                .value_type
+                                .clone()
+                                .map_or_else(|| "i128".to_owned(), rust_value_type);
+                            write!(self.output, ", {}: {ty}", rust_name(&parameter.name)).unwrap();
+                        }
+                        self.output.push(')');
+                        if let Some(result) = method
+                            .return_type
+                            .clone()
+                            .filter(|result| *result != ValueType::Scalar(ScalarType::None))
+                        {
+                            write!(self.output, " -> {}", rust_value_type(result)).unwrap();
+                        }
+                        self.output.push_str(" {\n");
+                        self.indent += 1;
+                        self.line("match self {");
+                        self.indent += 1;
+                        let arguments = method
+                            .parameters
+                            .iter()
+                            .map(|parameter| rust_name(&parameter.name))
+                            .collect::<Vec<_>>()
+                            .join(", ");
+                        self.line(&format!(
+                            "Self::Own(value) => value.{}({arguments}),",
+                            rust_name(&method.name)
+                        ));
+                        for descendant in &descendants {
+                            let descendant_type = rust_object_name(&descendant.name);
+                            self.line(&format!(
+                                "Self::{descendant_type}(value) => value.{}({arguments}),",
+                                rust_name(&method.name)
+                            ));
+                        }
+                        self.indent -= 1;
+                        self.line("}");
+                        self.indent -= 1;
+                        self.line("}");
+                    }
+                    self.indent -= 1;
+                    self.line("}");
+                }
+                for interface_name in &object.interfaces {
+                    let interface = self
+                        .unit
+                        .objects
+                        .iter()
+                        .find(|candidate| candidate.name == *interface_name)
+                        .expect("validated interface reference");
+                    let interface_type = rust_object_name(interface_name);
+                    let protocol = format!("{interface_type}Protocol");
+                    let class_type = rust_object_name(&object.name);
+                    self.line(&format!("impl {protocol} for {class_type} {{"));
+                    self.indent += 1;
+                    self.line(&format!(
+                        "fn clone_box(&self) -> Box<dyn {protocol}> {{ Box::new(self.clone()) }}"
+                    ));
+                    for method in effective_object_methods(self.unit, interface) {
+                        self.line_start();
+                        let receiver = if method.mutates_receiver {
+                            "&mut self"
+                        } else {
+                            "&self"
+                        };
+                        write!(self.output, "fn {}({receiver}", rust_name(&method.name)).unwrap();
+                        for parameter in &method.parameters {
+                            let ty = parameter
+                                .value_type
+                                .clone()
+                                .map_or_else(|| "i128".to_owned(), rust_value_type);
+                            write!(self.output, ", {}: {ty}", rust_name(&parameter.name)).unwrap();
+                        }
+                        self.output.push(')');
+                        if let Some(result) = method
+                            .return_type
+                            .clone()
+                            .filter(|result| *result != ValueType::Scalar(ScalarType::None))
+                        {
+                            write!(self.output, " -> {}", rust_value_type(result)).unwrap();
+                        }
+                        self.output.push_str(" {\n");
+                        self.indent += 1;
+                        let arguments = method
+                            .parameters
+                            .iter()
+                            .map(|parameter| rust_name(&parameter.name))
+                            .collect::<Vec<_>>()
+                            .join(", ");
+                        self.line(&format!(
+                            "{class_type}::{}(self, {arguments})",
+                            rust_name(&method.name)
+                        ));
+                        self.indent -= 1;
+                        self.line("}");
+                    }
+                    self.indent -= 1;
+                    self.line("}");
+                    self.line(&format!(
+                        "impl From<{class_type}> for {interface_type} {{ fn from(value: {class_type}) -> Self {{ Self(Box::new(value)) }} }}"
+                    ));
+                }
+                if methods.iter().any(|method| method.name == "destruct") {
+                    self.line(&format!("impl Drop for {storage_type} {{"));
+                    self.indent += 1;
+                    self.line("fn drop(&mut self) {");
+                    self.indent += 1;
+                    self.line("self.destruct();");
+                    self.indent -= 1;
+                    self.line("}");
+                    self.indent -= 1;
+                    self.line("}");
+                }
+            }
+        }
+    }
+
     fn function(&mut self, node: &SyntaxNode) {
+        self.emit_function(node, None);
+    }
+
+    fn object_method(&mut self, node: &SyntaxNode) {
+        let receiver = self
+            .unit
+            .functions
+            .iter()
+            .find(|contract| contract.span == node.span)
+            .is_some_and(|contract| contract.mutates_receiver)
+            .then_some("&mut self")
+            .or(Some("&self"));
+        self.emit_function(node, receiver);
+    }
+
+    #[expect(
+        clippy::too_many_lines,
+        reason = "function lowering preserves one ordered signature and body pipeline"
+    )]
+    fn emit_function(&mut self, node: &SyntaxNode, receiver: Option<&str>) {
         let contract = self
             .unit
             .functions
@@ -523,9 +918,17 @@ impl Emitter<'_> {
             .expect("analyzed function declaration must have a semantic contract");
         self.line_start();
         let name = function_name(contract);
-        write!(self.output, "fn {name}(").unwrap();
+        write!(
+            self.output,
+            "{}fn {name}(",
+            if receiver.is_some() { "pub " } else { "" }
+        )
+        .unwrap();
+        if let Some(receiver) = receiver {
+            self.output.push_str(receiver);
+        }
         for (index, parameter) in contract.parameters.iter().enumerate() {
-            if index != 0 {
+            if receiver.is_some() || index != 0 {
                 self.output.push_str(", ");
             }
             let ty = parameter
@@ -572,6 +975,9 @@ impl Emitter<'_> {
                 .collect(),
         );
         self.indent += 1;
+        if receiver.is_some() {
+            self.line("let _ = &self;");
+        }
         let block = node
             .children
             .iter()
@@ -612,6 +1018,82 @@ impl Emitter<'_> {
         self.current_function = outer_function;
         self.indent -= 1;
         self.line("}");
+    }
+
+    fn anonymous_function(&mut self, node: &SyntaxNode) -> String {
+        let contract = self
+            .unit
+            .functions
+            .iter()
+            .find(|contract| contract.span == node.span)
+            .expect("analyzed closure must have a semantic contract");
+        let parameters = contract
+            .parameters
+            .iter()
+            .map(|parameter| {
+                let ty = parameter
+                    .value_type
+                    .clone()
+                    .map_or_else(|| "i128".to_owned(), rust_value_type);
+                format!("{}: {ty}", rust_name(&parameter.name))
+            })
+            .collect::<Vec<_>>()
+            .join(", ");
+        let result = contract
+            .return_type
+            .clone()
+            .unwrap_or(ValueType::Scalar(ScalarType::None));
+        let result_type = rust_value_type(result.clone());
+        let outer_output = std::mem::take(&mut self.output);
+        let outer_indent = self.indent;
+        let outer_return_type = self.return_type.replace(result);
+        let outer_function_errors = std::mem::replace(&mut self.function_errors, false);
+        let outer_propagation = std::mem::replace(&mut self.propagate_errors, false);
+        let outer_parameter_types = std::mem::replace(
+            &mut self.parameter_types,
+            contract
+                .parameters
+                .iter()
+                .filter_map(|parameter| {
+                    parameter
+                        .value_type
+                        .clone()
+                        .map(|ty| (parameter.name.clone(), ty))
+                })
+                .collect(),
+        );
+        self.indent = outer_indent + 1;
+        if let Some(block) = node
+            .children
+            .iter()
+            .find(|child| child.kind == SyntaxKind::Block)
+        {
+            self.block(block);
+        }
+        let body = std::mem::replace(&mut self.output, outer_output);
+        self.indent = outer_indent;
+        self.return_type = outer_return_type;
+        self.function_errors = outer_function_errors;
+        self.propagate_errors = outer_propagation;
+        self.parameter_types = outer_parameter_types;
+        let captures = self
+            .unit
+            .typed_bindings
+            .iter()
+            .filter(|binding| {
+                binding.is_visible_at(self.source.id(), node.span.start)
+                    && syntax_contains_name(self.source, node, &binding.name)
+            })
+            .map(|binding| {
+                let name = rust_name(&binding.name);
+                format!("let {name} = {name}.clone();")
+            })
+            .collect::<Vec<_>>()
+            .join(" ");
+        format!(
+            "{{ {captures} std::sync::Arc::new(move |{parameters}| -> {result_type} {{\n{body}{}}}) }}",
+            "    ".repeat(outer_indent)
+        )
     }
 
     fn block(&mut self, block: &SyntaxNode) {
@@ -792,8 +1274,8 @@ impl Emitter<'_> {
         if callee.kind != SyntaxKind::MemberExpression {
             return None;
         }
-        let receiver_type = self.value_type(receiver)?;
-        let receiver = self.expression(receiver);
+        let receiver_type = self.receiver_value_type(receiver)?;
+        let receiver = self.receiver_guard_expression(receiver);
         let values = arguments
             .children
             .iter()
@@ -835,9 +1317,9 @@ impl Emitter<'_> {
         if let [target, value] = node.children.as_slice()
             && target.kind == SyntaxKind::IndexExpression
             && let [receiver, index] = target.children.as_slice()
-            && let Some(receiver_type) = self.value_type(receiver)
+            && let Some(receiver_type) = self.receiver_value_type(receiver)
         {
-            let receiver_value = self.expression(receiver);
+            let receiver_value = self.receiver_guard_expression(receiver);
             match receiver_type {
                 ValueType::List(item) => {
                     let index = self.expression_as(index, ValueType::Scalar(ScalarType::Int));
@@ -1159,7 +1641,13 @@ impl Emitter<'_> {
             initializer.is_some() || !self.text(node).contains('='),
             "analyzed initialized value binding must have a selected initializer"
         );
-        let mutable = binding.is_some_and(|binding| binding.mutable);
+        let mutable = binding.is_some_and(|binding| {
+            binding.mutable
+                && !matches!(
+                    binding.value_type,
+                    ValueType::Reference(_) | ValueType::WeakReference(_)
+                )
+        });
         if self
             .package
             .is_lexical_replacement(self.unit, node.span, self.text(name_node))
@@ -1378,6 +1866,7 @@ impl Emitter<'_> {
     fn expression(&mut self, node: &SyntaxNode) -> String {
         match node.kind {
             SyntaxKind::Literal => literal(self.text(node)),
+            SyntaxKind::AnonymousFunction => self.anonymous_function(node),
             SyntaxKind::Name => self.name(node),
             SyntaxKind::GroupExpression => node
                 .children
@@ -1387,6 +1876,23 @@ impl Emitter<'_> {
                 let Some(operand) = node.children.last() else {
                     return String::new();
                 };
+                let source_operator =
+                    self.source.text()[node.span.start..operand.span.start].trim();
+                if source_operator == "ref" {
+                    return format!(
+                        "std::sync::Arc::new(parking_lot::Mutex::new({}))",
+                        self.expression(operand)
+                    );
+                }
+                if source_operator == "weak ref" {
+                    return format!("std::sync::Arc::downgrade(&{})", self.expression(operand));
+                }
+                if source_operator == "move" {
+                    return match operand.kind {
+                        SyntaxKind::Name => self.name(operand),
+                        _ => self.expression(operand),
+                    };
+                }
                 if self.is_adaptive_expression(operand) {
                     return self.adaptive_expression(node);
                 }
@@ -1515,6 +2021,37 @@ impl Emitter<'_> {
                 )
             };
         }
+        if matches!(
+            value_type,
+            ValueType::Reference(_) | ValueType::WeakReference(_)
+        ) && self.value_type(node) == Some(value_type.clone())
+        {
+            return format!("({}).clone()", self.expression(node));
+        }
+        if let ValueType::Object(expected) = &value_type
+            && let Some(ValueType::Object(actual)) = self.value_type(node)
+            && actual != *expected
+            && let Some(destination) = self
+                .unit
+                .objects
+                .iter()
+                .find(|object| object.name == *expected)
+        {
+            let expression = self.expression_as(node, ValueType::Object(actual.clone()));
+            if destination.kind == ObjectKind::Interface {
+                return format!("{}::from({expression})", rust_object_name(expected));
+            }
+            if object_descendants(self.unit, destination)
+                .iter()
+                .any(|descendant| descendant.name == actual)
+            {
+                return format!(
+                    "{}::{}({expression})",
+                    rust_object_name(expected),
+                    rust_object_name(&actual)
+                );
+            }
+        }
         if let ValueType::Scalar(destination) = value_type
             && (node.kind != SyntaxKind::Literal
                 || self.value_type(node) != Some(ValueType::Scalar(destination)))
@@ -1545,6 +2082,14 @@ impl Emitter<'_> {
         {
             let operator = self.source.text()[node.span.start..operand.span.start].trim();
             return format!("{operator}{}", self.expression(operand));
+        }
+        if node.kind == SyntaxKind::MemberExpression
+            && matches!(
+                &value_type,
+                ValueType::Scalar(ScalarType::String | ScalarType::Bytes)
+            )
+        {
+            return format!("({}).clone()", self.expression(node));
         }
         match value_type {
             ValueType::Scalar(ScalarType::Int) => self.adaptive_expression(node),
@@ -1623,9 +2168,47 @@ impl Emitter<'_> {
             | ValueType::Entry(_, _)
             | ValueType::UnorderedMap(_, _)
             | ValueType::UnorderedSet(_)
+            | ValueType::Object(_)
                 if node.kind == SyntaxKind::Name =>
             {
                 format!("({}).clone()", self.expression(node))
+            }
+            ValueType::Function(parameters, _) if node.kind == SyntaxKind::MemberExpression => {
+                let [receiver, member] = node.children.as_slice() else {
+                    return String::new();
+                };
+                let receiver_type = self
+                    .value_type(receiver)
+                    .expect("bound object method receiver must have a static type");
+                let receiver = self.expression_as(receiver, receiver_type);
+                let declarations = parameters
+                    .iter()
+                    .enumerate()
+                    .map(|(index, parameter)| {
+                        format!("argument_{index}: {}", rust_element_type(parameter.clone()))
+                    })
+                    .collect::<Vec<_>>()
+                    .join(", ");
+                let arguments = (0..parameters.len())
+                    .map(|index| format!("argument_{index}"))
+                    .collect::<Vec<_>>()
+                    .join(", ");
+                format!(
+                    "{{ let receiver = {receiver}; std::sync::Arc::new(move |{declarations}| receiver.{}({arguments})) }}",
+                    rust_name(self.text(member))
+                )
+            }
+            ValueType::Function(_, _) if node.kind == SyntaxKind::Name => {
+                if let Some(contract) = self
+                    .unit
+                    .functions
+                    .iter()
+                    .find(|contract| contract.name == self.text(node))
+                {
+                    format!("std::sync::Arc::new({})", function_name(contract))
+                } else {
+                    format!("({}).clone()", self.expression(node))
+                }
             }
             _ => self.expression(node),
         }
@@ -1703,6 +2286,16 @@ impl Emitter<'_> {
                     .is_some_and(|member| self.text(member) == "length") =>
             {
                 format!("terrane_int_support::Int::from({})", self.expression(node))
+            }
+            SyntaxKind::MemberExpression
+                if node.children.first().is_some_and(|receiver| {
+                    matches!(
+                        self.receiver_value_type(receiver),
+                        Some(ValueType::Object(_))
+                    )
+                }) =>
+            {
+                format!("({}).clone()", self.expression(node))
             }
             _ => self.expression(node),
         }
@@ -2136,8 +2729,8 @@ impl Emitter<'_> {
         let [receiver, index] = node.children.as_slice() else {
             return String::new();
         };
-        let receiver_type = self.value_type(receiver);
-        let receiver = self.expression(receiver);
+        let receiver_type = self.receiver_value_type(receiver);
+        let receiver = self.receiver_expression(receiver);
         match receiver_type {
             Some(ValueType::List(_) | ValueType::Tuple(_, _)) => {
                 let index = if self.value_type(index) == Some(ValueType::Scalar(ScalarType::Int)) {
@@ -2156,6 +2749,32 @@ impl Emitter<'_> {
                 self.fallible(format!("({receiver}).get_or_error(&({index_value}))"), node)
             }
             _ => String::new(),
+        }
+    }
+
+    fn receiver_value_type(&self, receiver: &SyntaxNode) -> Option<ValueType> {
+        self.value_type(receiver).map(|value_type| {
+            if let ValueType::Reference(item) = value_type {
+                item.value_type()
+            } else {
+                value_type
+            }
+        })
+    }
+
+    fn receiver_expression(&mut self, receiver: &SyntaxNode) -> String {
+        if matches!(self.value_type(receiver), Some(ValueType::Reference(_))) {
+            format!("({{ {}.lock().clone() }})", self.expression(receiver))
+        } else {
+            self.expression(receiver)
+        }
+    }
+
+    fn receiver_guard_expression(&mut self, receiver: &SyntaxNode) -> String {
+        if matches!(self.value_type(receiver), Some(ValueType::Reference(_))) {
+            format!("{}.lock()", self.expression(receiver))
+        } else {
+            self.expression(receiver)
         }
     }
 
@@ -2178,13 +2797,13 @@ impl Emitter<'_> {
         let [receiver, member] = node.children.as_slice() else {
             return String::new();
         };
-        let receiver_type = self.value_type(receiver);
+        let receiver_type = self.receiver_value_type(receiver);
         if let Some(length) =
             self.direct_string_view_length(receiver, receiver_type.clone(), member)
         {
             return length;
         }
-        let receiver = self.expression(receiver);
+        let receiver = self.receiver_expression(receiver);
         match self.text(member) {
             "bytes" if receiver_type == Some(ValueType::Scalar(ScalarType::String)) => {
                 format!("({receiver}).as_bytes().to_vec()")
@@ -2295,17 +2914,48 @@ impl Emitter<'_> {
         let [callee, arguments] = node.children.as_slice() else {
             return String::new();
         };
+        if callee.kind == SyntaxKind::Name
+            && let Some(object) =
+                self.unit.objects.iter().find(|object| {
+                    object.kind == ObjectKind::Class && object.name == self.text(callee)
+                })
+        {
+            let construct = effective_object_methods(self.unit, object)
+                .into_iter()
+                .find(|method| method.name == "construct");
+            let values = arguments
+                .children
+                .iter()
+                .enumerate()
+                .map(|(index, argument)| {
+                    let value = argument.children.last().unwrap_or(argument);
+                    let destination = construct
+                        .and_then(|contract| contract.parameters.get(index))
+                        .and_then(|parameter| parameter.value_type.clone());
+                    if let Some(ty) = destination {
+                        self.expression_as(value, ty)
+                    } else {
+                        self.expression(value)
+                    }
+                })
+                .collect::<Vec<_>>()
+                .join(", ");
+            return format!(
+                "{}::terrane_construct({values})",
+                rust_object_name(&object.name)
+            );
+        }
         if callee.kind == SyntaxKind::MemberExpression
             && let [family, child] = callee.children.as_slice()
             && self.text(child) == "checked"
             && family.kind == SyntaxKind::MemberExpression
             && let [receiver, member] = family.children.as_slice()
             && self.text(member) == "get"
-            && let Some(receiver_type) = self.value_type(receiver)
+            && let Some(receiver_type) = self.receiver_value_type(receiver)
             && let Some(argument) = arguments.children.first()
         {
             let argument = argument.children.last().unwrap_or(argument);
-            let receiver_value = self.expression(receiver);
+            let receiver_value = self.receiver_expression(receiver);
             return match receiver_type {
                 ValueType::List(_) | ValueType::Tuple(_, _) => {
                     let index = self.expression_as(argument, ValueType::Scalar(ScalarType::Int));
@@ -2325,9 +2975,9 @@ impl Emitter<'_> {
         }
         if callee.kind == SyntaxKind::MemberExpression
             && let [receiver, member] = callee.children.as_slice()
-            && let Some(receiver_type) = self.value_type(receiver)
+            && let Some(receiver_type) = self.receiver_value_type(receiver)
         {
-            let receiver_value = self.expression(receiver);
+            let receiver_value = self.receiver_guard_expression(receiver);
             let member_name = self.text(member).to_owned();
             let values = arguments
                 .children
@@ -2382,7 +3032,13 @@ impl Emitter<'_> {
                 return call;
             }
         }
-        if let Some(method) = bound_method(self.source, callee) {
+        if let Some(method) = bound_method(self.source, callee)
+            && !matches!(
+                find_node_by_span(&self.unit.tree.root, method.receiver)
+                    .and_then(|receiver| self.value_type(receiver)),
+                Some(ValueType::Object(_))
+            )
+        {
             let receiver_node = find_node_by_span(&self.unit.tree.root, method.receiver)
                 .expect("validated bound method receiver");
             let receiver = self.expression(receiver_node);
@@ -2649,10 +3305,26 @@ impl Emitter<'_> {
             }
             self.append_defaults(contract, &mut ordered);
             values = ordered.into_iter().flatten().collect();
+        } else if let Some(ValueType::Function(parameters, _)) = self.value_type(callee) {
+            values = arguments
+                .children
+                .iter()
+                .zip(parameters)
+                .map(|(argument, parameter)| {
+                    self.expression_as(
+                        argument.children.last().unwrap_or(argument),
+                        parameter.value_type(),
+                    )
+                })
+                .collect();
         }
-        let name = contract
-            .as_ref()
-            .map_or_else(|| self.expression(callee), function_name);
+        let name = if let Some(contract) = &contract
+            && contract.owner.is_none()
+        {
+            function_name(contract)
+        } else {
+            self.expression(callee)
+        };
         let call = format!("{name}({})", values.join(", "));
         if contract.is_some_and(|contract| contract.throws) {
             let context = self.error_context(node);
@@ -3091,6 +3763,19 @@ impl Emitter<'_> {
     }
 
     fn contract_for_call(&self, callee: &SyntaxNode) -> Option<&FunctionContract> {
+        if let [receiver, member] = callee.children.as_slice()
+            && callee.kind == SyntaxKind::MemberExpression
+            && let Some(ValueType::Object(object_name)) = self.value_type(receiver)
+            && let Some(object) = self
+                .unit
+                .objects
+                .iter()
+                .find(|object| object.name == object_name)
+        {
+            return effective_object_methods(self.unit, object)
+                .into_iter()
+                .find(|contract| contract.name == self.text(member));
+        }
         if callee.kind != SyntaxKind::Name {
             return None;
         }
@@ -3109,6 +3794,9 @@ impl Emitter<'_> {
         let source_name = self.text(node);
         if source_name == "none" {
             return "()".to_owned();
+        }
+        if source_name == "this" {
+            return "self".to_owned();
         }
         let narrowed =
             narrowed_value_type(self.unit, node, &self.unit.typed_bindings).or_else(|| {
@@ -3452,6 +4140,15 @@ fn float64_literal(value: f64) -> String {
     }
 }
 
+fn syntax_contains_name(source: &SourceFile, node: &SyntaxNode, expected: &str) -> bool {
+    (node.kind == SyntaxKind::Name
+        && source.text()[node.span.start..node.span.end].trim() == expected)
+        || node
+            .children
+            .iter()
+            .any(|child| syntax_contains_name(source, child, expected))
+}
+
 fn integer_literal(text: &str) -> Option<BigInt> {
     let (radix, digits) =
         if let Some(digits) = text.strip_prefix("0x").or_else(|| text.strip_prefix("0X")) {
@@ -3505,6 +4202,115 @@ fn unescape(value: &str) -> String {
         }
     }
     output
+}
+
+fn effective_object_fields<'a>(
+    unit: &'a SemanticUnit,
+    object: &'a ObjectContract,
+) -> Vec<&'a ObjectField> {
+    fn collect<'a>(
+        unit: &'a SemanticUnit,
+        object: &'a ObjectContract,
+        fields: &mut Vec<&'a ObjectField>,
+    ) {
+        if let Some(base) = object
+            .base
+            .as_deref()
+            .and_then(|name| unit.objects.iter().find(|object| object.name == name))
+        {
+            collect(unit, base, fields);
+        }
+        for reused in &object.traits {
+            if let Some(reused) = unit
+                .objects
+                .iter()
+                .find(|candidate| candidate.name == *reused)
+            {
+                collect(unit, reused, fields);
+            }
+        }
+        for field in &object.fields {
+            if let Some(index) = fields
+                .iter()
+                .position(|existing| existing.name == field.name)
+            {
+                fields[index] = field;
+            } else {
+                fields.push(field);
+            }
+        }
+    }
+    let mut fields = Vec::new();
+    collect(unit, object, &mut fields);
+    fields
+}
+
+fn object_descendants<'a>(
+    unit: &'a SemanticUnit,
+    object: &ObjectContract,
+) -> Vec<&'a ObjectContract> {
+    unit.objects
+        .iter()
+        .filter(|candidate| {
+            let mut base = candidate.base.as_deref();
+            while let Some(name) = base {
+                if name == object.name {
+                    return true;
+                }
+                base = unit
+                    .objects
+                    .iter()
+                    .find(|candidate| candidate.name == name)
+                    .and_then(|candidate| candidate.base.as_deref());
+            }
+            false
+        })
+        .collect()
+}
+
+fn effective_object_methods<'a>(
+    unit: &'a SemanticUnit,
+    object: &'a ObjectContract,
+) -> Vec<&'a FunctionContract> {
+    fn collect<'a>(
+        unit: &'a SemanticUnit,
+        object: &'a ObjectContract,
+        methods: &mut Vec<&'a FunctionContract>,
+    ) {
+        if let Some(base) = object
+            .base
+            .as_deref()
+            .and_then(|name| unit.objects.iter().find(|object| object.name == name))
+        {
+            collect(unit, base, methods);
+        }
+        for reused in &object.traits {
+            if let Some(reused) = unit
+                .objects
+                .iter()
+                .find(|candidate| candidate.name == *reused)
+            {
+                collect(unit, reused, methods);
+            }
+        }
+        for method in unit
+            .functions
+            .iter()
+            .filter(|method| method.owner.as_deref() == Some(object.name.as_str()))
+        {
+            if let Some(index) = methods
+                .iter()
+                .position(|existing| existing.name == method.name)
+            {
+                methods[index] = method;
+            } else {
+                methods.push(method);
+            }
+        }
+    }
+    let mut methods = Vec::new();
+    collect(unit, object, &mut methods);
+    methods
 }
 
 fn union_type_name(binding: &TypedBinding) -> String {
@@ -3618,6 +4424,24 @@ fn rust_value_type(ty: ValueType) -> String {
             )
         }
         ValueType::TextRangeList => "Vec<terrane_string_support::TextRange>".to_owned(),
+        ValueType::Function(parameters, result) => format!(
+            "std::sync::Arc<dyn Fn({}) -> {}>",
+            parameters
+                .into_iter()
+                .map(rust_element_type)
+                .collect::<Vec<_>>()
+                .join(", "),
+            rust_element_type(result)
+        ),
+        ValueType::Object(name) => rust_object_name(&name),
+        ValueType::Reference(item) => format!(
+            "std::sync::Arc<parking_lot::Mutex<{}>>",
+            rust_element_type(item)
+        ),
+        ValueType::WeakReference(item) => format!(
+            "std::sync::Weak<parking_lot::Mutex<{}>>",
+            rust_element_type(item)
+        ),
     }
 }
 
@@ -3770,6 +4594,23 @@ fn namespace_binding_name(file: u32, name: &str) -> String {
 
 fn global_binding_name(name: &str) -> String {
     format!("__TERRANE_GLOBAL_{}", rust_name(name).to_uppercase())
+}
+
+fn rust_object_name(name: &str) -> String {
+    let mut uppercase = true;
+    name.chars()
+        .filter_map(|character| {
+            if character == '-' {
+                uppercase = true;
+                None
+            } else if uppercase {
+                uppercase = false;
+                Some(character.to_ascii_uppercase())
+            } else {
+                Some(character)
+            }
+        })
+        .collect()
 }
 
 fn rust_name(name: &str) -> String {

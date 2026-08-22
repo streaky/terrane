@@ -417,21 +417,18 @@ fn rejects_malformed_declarations_and_reserved_constructs() {
     rejected("function map of T; value T\n", "S1090");
     rejected("function main; values int ...\n", "S1090");
     rejected("value = await thing\n", "S1090");
-    rejected("value = move thing\n", "S1090");
-    rejected("value = ref thing\n", "S1090");
     rejected("catch problem\n", "S1090");
     rejected("finally\n", "S1090");
     rejected("case value\n", "S1090");
     rejected("from import thing\n", "S1026");
     rejected("from /core/output import print, , ]\n", "S1026");
     rejected("import with anything at all\n", "S1025");
-    rejected("class thing\n", "S1090");
 }
 
 #[test]
 fn rejects_every_reserved_statement_keyword() {
     for keyword in [
-        "class", "yield", "match", "unsafe", "rust", "label", "goto", "when", "use", "case",
+        "yield", "match", "unsafe", "rust", "label", "goto", "when", "use", "case",
     ] {
         rejected(&format!("{keyword}\n"), "S1090");
     }
