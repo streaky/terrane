@@ -1476,7 +1476,10 @@ fn validate_referenced_replacements(package: &SemanticPackage) -> Result<(), Sem
         if node.kind == SyntaxKind::UnaryExpression
             && let Some(operand) = node.children.last()
             && operand.kind == SyntaxKind::Name
-            && unit.source.text()[node.span.start..operand.span.start].trim() == "ref"
+            && matches!(
+                unit.source.text()[node.span.start..operand.span.start].trim(),
+                "ref" | "weak ref"
+            )
         {
             let name = node_text(&unit.source, operand);
             if let Some((index, _)) =

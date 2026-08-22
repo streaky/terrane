@@ -1,0 +1,6 @@
+namespace weak-referenced-binding-retyping
+
+function main
+    value int8 = 12
+    observer weak ref int8 = weak ref value
+    value int = value.coerce; int
