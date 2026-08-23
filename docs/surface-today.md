@@ -478,6 +478,12 @@ respective ownership forms. Move provenance rejects later reads until the bindin
 including paths on which the move is conditional, and a type-changing replacement is rejected
 while either a strong or weak reference observes the originating binding.
 
+This is the compiler's current, superseded strong/weak implementation, not the settled version-one
+reference contract. Milestone 17 is reopened to migrate `ref T` to non-owning provenance-checked
+observation, replace `weak ref T` with explicit owning `shared ref T`, and remove the old runtime
+upgrade behavior. Until that migration passes conformance, the tree above intentionally records the
+pipeline that exists rather than the proposed surface in `surface-v1.md`.
+
 ## Properties and methods index
 
 | Receiver | Member | Kind | Result / effect |

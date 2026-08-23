@@ -36,7 +36,7 @@ The language is designed around a deliberately small set of ideas:
 - Not everything must be boxed or dynamically represented at runtime.
 - Values are typed; bindings are dynamic unless explicitly constrained.
 - Ordinary assignment has value semantics.
-- Value assignment is copy-on-write by default; explicit `ref` shares mutable identity and `move` transfers ownership.
+- Value assignment may use copy-on-write; `ref` observes mutable identity without owning it, `shared ref` shares ownership, and `move` transfers ownership.
 - The default global namespace is extremely small and clean.
 - Engineers may define or replace their own global and namespace-local bindings, including facilities such as `print`; compile-time constructs such as `import` use separate structural extension slots.
 - Imports bind ordinary names, scoped to the block, function, or namespace containing them.
@@ -304,13 +304,14 @@ b = a
 
 means value assignment.
 
-Shared identity is explicit:
+Source-visible identity is explicit:
 
 ```terrane
 b = ref a
 ```
 
-The implementation should satisfy ordinary value assignment through copy-on-write sharing until either logical value is modified.
+This does not make `b` an owner. The implementation should satisfy ordinary value assignment
+through copy-on-write sharing until either logical value is modified.
 
 A transfer of ownership for a linear value is explicit:
 
@@ -1585,9 +1586,13 @@ a int = a      # reads the int8, widens it exactly, then `a` is an int
 
 One name means one thing at each point in a scope, read top to bottom, which is what makes this safe to read locally. The rule is lexical: a declaration at namespace top level may not replace another, because namespace initialization is ordered by dependency rather than by source position, and a replaced namespace name would have no single answer for the declarations that read it.
 
-Replacement of an identical type is an assignment carrying a redundant annotation, and any outstanding reference observes the new value because the storage is the same. Where the type changes, the binding's type changes with it, and the replaced value is released at the point of replacement, after its initializer has been evaluated. That release is deterministic and earlier than scope exit: nothing can name the old value again, so holding it to the end of the scope would retain a resource — a file handle, a lock — that the program can no longer reach.
-
-Version one rejects a type-changing replacement while an outstanding reference observes the binding. Retyping a value that another scope holds a reference to would change that scope's view of it without anything explicit appearing there. See §42 for the direction this leaves open.
+Replacement first evaluates its initializer, then releases the value previously owned by the
+binding and installs the replacement. An identical type is still an assignment carrying a
+redundant annotation; it does not preserve the old value's identity. A non-owning reference to the
+old identity therefore becomes unusable at that release point, while a `shared ref` continues to
+own and observe the old identity without being retargeted. Where the type changes, the binding's
+type changes with it. Release is deterministic and earlier than scope exit, which avoids retaining
+a resource that the program can no longer reach through its former owner.
 
 Function bodies and every indented control-flow body create lexical scopes. A binding declared in an `if`, `else`, loop, or other nested body is visible from its declaration through the end of that body, including deeper scopes, but not in a sibling body or after the body exits. A `for` target belongs to the loop's lexical scope: it is visible in the loop body and unavailable after the loop. Declaring a nearer name shadows an enclosing binding only until the nested scope exits; an untyped assignment to a name already found in an enclosing scope assigns that binding rather than declaring a shadow. Values owned by a nested scope are released on each exit from that scope, so a loop-body local is released on every iteration.
 
@@ -1737,7 +1742,7 @@ The word `of` applies a parameterised type constructor using the language's fixe
 ```terrane
 items list of string = list;
 stacks array of vm-struct|none, nr-cached-stacks
-callback function from int, borrowed-ref of opaque to int
+callback function from int, ref opaque to int
 ```
 
 Packages may supply type-constructor objects, but they cannot add type-expression grammar. Every constructor argument is parsed into the same unified constructor-argument syntax node; the parser does not guess whether an identifier denotes a type or a compile-time value. Semantic analysis resolves each argument against the constructor's declared signature and reports whether a type, constant value, or other permitted compile-time object was required. Thus `array of vm-struct|none, nr-cached-stacks` can accept a type followed by a constant extent without lexer or parser knowledge of `array`.
@@ -1879,7 +1884,7 @@ Mutable values used as hash keys must either be rejected or use a stable immutab
 
 ### 12.1 The central rule
 
-> Assignment creates an independently mutable value using copy-on-write. `ref` shares mutable identity. `move` transfers ownership.
+> Assignment creates an independently mutable value and may use copy-on-write. `ref` observes mutable identity without owning it. `shared ref` shares ownership. `move` transfers ownership.
 
 ### 12.2 Value assignment
 
@@ -1916,11 +1921,21 @@ b.profile.name = 'new name'
 
 An implementation may use reference-counted backing storage, persistent data structures, path copying, a trivial machine copy, Rust `Copy`, copy elision, or an immutable representation. These representation references are not source-language `ref` values and are not observable as shared identity.
 
-By-value containment cannot create an identity cycle: a cyclic or back-reference edge must use an explicit `ref`. Implementations may therefore share acyclic value storage without turning every program into a tracing-GC program.
+By-value containment cannot create an ownership cycle. A cyclic ownership edge requires an explicit
+`shared ref`; an ordinary `ref` may close a graph but remains a non-owning back-edge. Implementations
+may therefore share acyclic value storage without turning every program into a tracing-GC program.
 
-Creating `ref a` makes the logical value currently denoted by `a` and every alias in the resulting reference group identity-bearing; this is why `a is c` is true after `c = ref a`. It does not give identity to independent values that merely share copy-on-write storage.
+Creating `ref a` makes the logical value currently denoted by `a` and its references identity-bearing;
+this is why `a is c` is true after `c = ref a`. It does not give identity to independent values that
+merely share copy-on-write storage, and it does not give the reference ownership.
 
-A reference to a field, element, or other path inside a copy-on-write value is permitted only while the compiler can preserve a stable logical owner. Taking `ref items[0]` first separates `items` from any independent values with which it shares backing storage, then creates identity for that element path and pins that path against relocation while the reference is live. A later value assignment of `items` produces an independent logical value; mutations of that copy separate from the pinned owner. The reference continues to reach the element in the original `items`, never whichever backing allocation happens to survive a split. Operations that could invalidate or remove the referenced path, such as removing that element or replacing its container wholesale, are rejected while the reference is live. If a container cannot implement this contract for an operation or target, taking the interior `ref` is rejected at compile time.
+A reference to a field, element, or other path inside a copy-on-write value is permitted only while
+the compiler can preserve a stable logical owner. Taking `ref items[0]` first separates `items` from
+any independent values with which it shares backing storage, then creates identity for that element
+path and pins the path against relocation while the reference is live. A later replacement of
+`items` releases the original owner and makes the reference unusable; it never retargets the
+reference to the replacement. Operations that could invalidate or remove the referenced path are
+rejected while the reference is live.
 
 Tracing and profiling must distinguish:
 
@@ -1930,15 +1945,15 @@ Tracing and profiling must distinguish:
 - copy-on-write splits;
 - copies elided by optimisation.
 
-### 12.4 Explicit reference
+### 12.4 Explicit references
 
 ```terrane
 b = ref a
 ```
 
-creates shared mutable identity for the logical value currently held by `a`.
-
-Mutations through either identity are visible through the other:
+creates a non-owning alias to the logical value identity currently held by `a`. The reference
+observes that identity but does not keep it alive. Mutations through either access path are visible
+through the other while the reference remains valid:
 
 ```terrane
 a = thing;
@@ -1948,7 +1963,8 @@ b.value = 10
 print; a.value  # 10
 ```
 
-If `a` previously received its value through ordinary assignment, creating or mutating an explicit reference must not pull other independently mutable values into the reference group:
+If `a` previously received its value through ordinary assignment, creating or mutating an explicit
+reference must not pull other independently mutable values into the identity group:
 
 ```terrane
 original = thing;
@@ -1960,50 +1976,86 @@ print; copy.value      # 10
 print; original.value  # unchanged
 ```
 
-The implementation separates `copy` from `original` when required, while `copy` and `alias` intentionally retain shared identity.
+The implementation separates `copy` from `original` when required, while `copy` owns the identity
+observed by `alias`. Rebinding or destroying `copy` ends that identity's lifetime; `alias` does not
+retain it. The compiler rejects any later direct use of `alias` and identifies the originating
+binding and lifetime-ending operation.
 
-In this draft, `ref` aliases the logical value identity, not the lexical binding slot. Rebinding `a` later does not retarget `b`:
+`ref` aliases a logical value identity, not a lexical binding slot. Rebinding `a` does not retarget
+an existing reference to the replacement value. Binding-slot aliases are deliberately not part of
+the core language because they complicate closures, concurrency, and source reasoning.
+
+Shared ownership is separate and explicit:
 
 ```terrane
-a = other;
+b = shared ref a
 ```
 
-`b` still refers to the original value.
-
-Binding-slot aliases are deliberately not part of the core draft because they complicate closures, concurrency, and source reasoning. They may be revisited only if a compelling use case survives those costs.
+`shared ref` observes the same identity and also becomes one of its owners. The identity therefore
+remains alive until its final ordinary or shared owner is released. This lifetime extension, and
+the possibility of shared-ownership cycles, is why `shared` appears at the construction site
+rather than being implicit in `ref`.
 
 ### 12.5 Reference type contracts
 
-`ref` is also a prefix type constructor for a binding whose contract requires source-visible shared identity:
+`ref` and `shared ref` are prefix type constructors symmetric with their value operations:
 
 ```terrane
-p ref task-struct
-p = ref task
+observer ref task-struct = ref task
+owner shared ref task-struct = shared ref task
 
-function update-task; task ref task-struct
+function inspect-task; task ref task-struct
+function retain-task; task shared ref task-struct
 ```
 
-The two positions are deliberately symmetric. `ref task-struct` is a type expression; `ref task` is an expression that obtains shared identity. Parsing is unambiguous because a type expression follows a declared binding name, while the operation appears where a value expression is required.
+A value assigned or passed to either reference type must already carry the compatible reference
+contract or be produced by its explicit operation at that boundary. The compiler must not silently
+turn an ordinary value into a reference, or a non-owning `ref T` into an owning `shared ref T`,
+merely because the destination expects it.
 
-A value assigned or passed to `ref T` must already carry compatible reference identity or be produced with the explicit `ref` operation at that boundary. The compiler must not silently turn value assignment into reference sharing merely because the destination expects `ref T`.
+`reference T`, `reference<T>`, `weak ref T`, and `strong ref T` are not core spellings. `ref T`
+means a safe, non-owning, provenance- and lifetime-checked alias to source-visible object identity;
+`shared ref T` adds shared ownership. Neither means “some machine address”. `void` means that an
+operation produces no value, principally as a return contract; it is not an erased storage type,
+and references to `void` are invalid.
 
-`reference T`, `reference<T>`, and adapter-shaped aliases such as `function-reference<...>` are not core spellings. The unqualified `ref T` contract means a safe, lifetime-checked alias to source-visible object identity; it does not mean “some machine address”. `void` means that an operation produces no value, principally as a return contract; it is not an erased storage type and `ref void` is invalid.
+`opaque` is the core type whose representation is unavailable at the current boundary. It supplies
+no operations by itself. Reference and adapter contracts compose with it explicitly: `ref opaque`
+is a lifetime-checked erased reference, while `raw-address of opaque`, `user-ref of opaque`, or a
+package-owned `c-pointer of opaque` retain their distinct provenance and safety rules. An adapter
+must not translate `void *` mechanically: it selects the narrowest contract actually guaranteed by
+that API.
 
-`opaque` is the core type whose representation is unavailable at the current boundary. It supplies no operations by itself. Reference and adapter contracts compose with it explicitly: `borrowed-ref of opaque` is a lifetime-bounded erased borrow, while `raw-address of opaque`, `user-ref of opaque`, or a package-owned `c-pointer of opaque` retain their distinct provenance and safety rules. An adapter must not translate `void *` mechanically: it selects the narrowest contract actually guaranteed by that API.
+Lower-level packages may expose stricter type constructors when the distinction changes what
+operations are legal:
 
-Lower-level packages may expose stricter type constructors when the distinction changes what operations are legal:
-
-- `borrowed-ref of T` is a non-owning, lifetime-bounded borrow and cannot outlive its lender;
 - `user-ref of T` is an untrusted userspace address that cannot be dereferenced until an adapter validates or copies it;
 - `raw-address of T` is an integer-like machine address with provenance and alignment obligations, usable only in `unsafe`;
-- `array-ref of T` is a borrowed contiguous view whose extent is carried by its value or an accompanying contract;
-- `function from A, B to R` is the core callable type; `ref function from A, B to R` adds safe source-visible callable identity, while a package-owned ABI-address constructor may impose a calling convention or foreign provenance.
+- `array-ref of T` is a non-owning contiguous view whose extent is carried by its value or an accompanying contract;
+- `function from A, B to R` is the core callable type; `ref function from A, B to R` adds safe non-owning callable identity, `shared ref function from A, B to R` adds shared ownership, and a package-owned ABI-address constructor may impose a calling convention or foreign provenance.
 
-These contracts are not aliases for one another. Adapters define package-owned operations and lowering, but may not weaken the core guarantees: a `user-ref` never silently becomes `ref`, a `raw-address` never silently becomes dereferenceable, and a borrow cannot escape its proven lifetime. Use `ref T` when shared language-level identity is intended; use a narrower domain type only when provenance, address space, extent, ABI, or lifetime differs observably.
+These contracts are not aliases for one another. Adapters define package-owned operations and
+lowering, but may not weaken the core guarantees: a `user-ref` never silently becomes `ref`, a
+`raw-address` never silently becomes dereferenceable, and a reference cannot escape its proven
+lifetime. Use `ref T` for non-owning language-level identity, `shared ref T` only when an alias must
+extend that identity's lifetime, and a narrower domain type when provenance, address space, extent,
+ABI, or lifetime differs observably.
 
-Linear resource values are inherently identity-bearing because their unique ownership denotes one source-visible resource even before `ref` is taken. Moving such a value preserves that identity; the moved-from binding becomes unavailable. If the type permits `ref`, aliases compare identical to the resource. Foreign-runtime proxies follow the same rule because the proxy contract denotes a particular foreign object.
+Linear resource values are inherently identity-bearing because their unique ownership denotes one
+source-visible resource even before a reference is taken. Moving such a value preserves that
+identity; the moved-from binding becomes unavailable. A `ref` may observe a linear resource without
+owning it when the resource contract permits; `shared ref` is invalid for a uniquely owned linear
+resource. Foreign-runtime proxies follow the same rule unless their declared adapter explicitly
+provides shared ownership.
 
-Every borrow carries compiler-assigned provenance and a compiler-assigned lifetime region; ordinary source does not name these regions. Member lookup, indexing, iteration, destructuring, calls, and other values derived from a borrow preserve its provenance and may retain or narrow its lifetime, but never widen it. Assignment, return, closure capture, field storage, global storage, and async suspension must preserve that constraint. A borrowed collection yields borrowed elements unless its declared protocol explicitly returns independently owned values or shared identity. Diagnostics identify the source binding that originated the borrow and the operation that would let it escape.
+Every `ref` carries compiler-assigned provenance and a compiler-assigned lifetime region; ordinary
+source does not name these regions. Member lookup, indexing, iteration, destructuring, calls, and
+other values derived from a reference preserve its provenance and may retain or narrow its
+lifetime, but never widen it. Assignment, return, closure capture, field storage, global storage,
+and async suspension must preserve that constraint. A referenced collection yields referenced
+elements unless its declared protocol explicitly returns independently owned values. Diagnostics
+identify the source binding that originated the reference and the operation that would let it
+escape or use it after the owner is released.
 
 ### 12.6 Ownership transfer
 
@@ -2059,86 +2111,98 @@ actually occurs; this is an implementation detail and does not add reference sem
 
 Deeply immutable/frozen values should be expressed through the object/type contract rather than conflated with binding constancy.
 
-### 12.9 Choosing `ref` and `weak ref`
+### 12.9 Choosing `ref` and `shared ref`
 
 Most code should use ordinary values.
 
 Ordinary value semantics do not imply eager copying. The compiler may let unchanged values share
 copy-on-write backing storage, so passing, returning, or assigning a large read-only value can be
 as cheap as copying an internal reference. If one copy is later mutated, it separates before the
-change becomes observable to the others. Therefore, use `ref` for shared *identity and mutation*,
-not merely to avoid copying or to pass a value efficiently; ordinary values already permit that
-optimization without exposing aliases.
+change becomes observable to the others. Therefore, use a reference for shared *identity and
+mutation*, not merely to avoid copying or pass a value efficiently.
 
-When shared identity is intentional, `ref` is the normal reference form:
-
-```terrane
-shared = ref value
-```
-
-Holding `shared` keeps `value` alive. Mutations made through one strong reference are visible
-through the other strong references to the same identity.
-
-`weak ref` is the uncommon, non-owning form:
+`ref` is the normal, non-owning reference:
 
 ```terrane
-observer = weak ref shared
+observer = ref value
 ```
 
-Holding `observer` does not keep the shared value alive. Access must therefore account for the
-value having expired. Use a weak reference when one relationship should observe an object without
-owning its lifetime—commonly a child-to-parent back-pointer, subscriber-to-publisher link, cache
-entry, or other edge used to break an ownership cycle.
+It observes `value` without extending its lifetime. Use it for a bounded alias, a child-to-parent
+back-pointer, subscriber-to-publisher link, cache entry, or another relationship whose target is
+owned elsewhere. The compiler accepts direct access only while provenance proves that target is
+alive; it rejects an escape or later use that could outlive the owner.
+
+`shared ref` is the uncommon owning form:
+
+```terrane
+owner = shared ref value
+```
+
+It observes the same identity and keeps it alive independently of the originating binding. Use it
+only when several aliases genuinely need to share ownership, rather than when one clear lexical or
+containing owner can govern the lifetime.
 
 As a rule of thumb:
 
 - use an ordinary value when independent value semantics are sufficient;
-- use `ref` when aliases must share identity and keep it alive;
-- use `weak ref` only when an alias must not keep that identity alive.
+- use `ref` when an alias must observe an identity owned elsewhere;
+- use `shared ref` only when an alias must also extend that identity's lifetime.
 
-The compiler may optimize how either form is represented, but it must not silently strengthen a
-weak reference or weaken a strong one: doing so would change lifetime, expiry, destruction, and
-cycle behavior.
+The compiler may optimize how either form is represented, but it must not silently promote `ref`
+to `shared ref` or discard shared ownership: doing so would change lifetime, destruction, and cycle
+behavior.
 
 #### Reference implementation strategy
-The generated Rust may realise references as:
 
-- ordinary borrows when statically provable;
-- mutable borrows when exclusive mutation is provable;
+Generated Rust may realise a `ref` as:
+
+- an ordinary or mutable borrow when its provenance is directly representable;
+- a target-specific non-owning handle where stable indirection is required.
+
+It may realise a `shared ref` as:
+
 - `Rc`-like ownership in single-threaded hosted code;
-- `Arc`-like ownership where cross-thread sharing is required;
-- target-specific handles;
-- custom runtime references for dynamic object graphs.
+- `Arc`-like ownership where cross-thread sharing is declared and valid;
+- a target-specific owning handle.
 
-The compiler must not silently introduce locks merely to make an unsafe sharing pattern compile.
+The source contracts do not mandate reference counting, allocation, locking, or a universal runtime
+value. The compiler must not silently introduce locks merely to make an unsafe sharing pattern
+compile.
 
 ### 12.10 Reference cycles
 
-Ordinary value assignment does not create shared-identity cycles.
-
-Explicit references can.
-
-The core model therefore includes a weak reference form:
+Ordinary value assignment does not create shared-identity cycles, and non-owning `ref` edges do not
+create ownership cycles. The standard back-edge in an owned graph is therefore an ordinary
+reference:
 
 ```terrane
-parent = weak ref child
+parent = ref owner
 ```
 
-A hosted runtime may optionally provide cycle detection/collection for dynamic reference graphs, but the language does not require a tracing garbage collector for all programs. Collection of an unreachable strong-reference cycle does not have a deterministic time.
+Only `shared ref` edges can form shared-ownership cycles. A hosted runtime may optionally provide
+cycle detection or collection for dynamic shared-reference graphs, but the language does not
+require a tracing garbage collector for all programs. Collection of an unreachable shared-reference
+cycle does not have a deterministic time.
 
 For allocator-free targets:
 
-- strong cycles must be rejected when provable;
-- runtime-created uncollectable cycles are a program error or leak;
-- weak references are the standard back-reference mechanism.
+- shared-ownership cycles must be rejected when provable;
+- runtime-created uncollectable shared cycles are a program error or leak;
+- non-owning `ref` is the standard back-reference mechanism.
 
-The profiler should report retained strong-reference cycles where runtime metadata permits.
+The profiler should report retained shared-reference cycles where runtime metadata permits.
 
 ### 12.11 Deterministic lifetime
 
-Owned values are destroyed deterministically when they leave scope. Acyclic reference-backed objects are destroyed when the final strong owner is released.
+Owned values are destroyed deterministically when they leave scope. A non-owning `ref` never delays
+that destruction. An identity with shared owners is destroyed when its final ordinary or
+`shared ref` owner is released.
 
-This guarantee does not extend to unreachable strong-reference cycles: they may leak, be rejected by a target profile, or be reclaimed later by optional hosted cycle collection. Code must not depend on a cycle's collection time or finalisation order. Scarce resources and externally visible cleanup should use lexical ownership, a scoped guard, or an explicit close/release protocol rather than rely on cyclic graph collection.
+This guarantee does not extend to unreachable shared-reference cycles: they may leak, be rejected
+by a target profile, or be reclaimed later by optional hosted cycle collection. Code must not
+depend on a cycle's collection time or finalisation order. Scarce resources and externally visible
+cleanup should use lexical ownership, a scoped guard, or an explicit close/release protocol rather
+than rely on cyclic graph collection.
 
 These guarantees permit ordinary lexical code to manage resources without requiring a Python-style context-manager ceremony for every resource.
 
@@ -2277,7 +2341,8 @@ handler = function; request
 
 Closures capture outer values by value by default, following ordinary assignment semantics.
 
-To share mutable identity with a closure, capture or assign an explicit reference before creating it:
+A closure may capture a non-owning reference when its own lifetime is proven not to exceed the
+owner's:
 
 ```terrane
 counter-ref = ref counter
@@ -2286,7 +2351,9 @@ handler = function
   counter-ref.increment;
 ```
 
-This keeps closure capture consistent with the rest of the object model.
+If the closure must keep that mutable identity alive independently, the author captures
+`shared ref counter` instead. An escaping closure never silently promotes a captured `ref` to shared
+ownership.
 
 ### 13.9 Recursion
 
@@ -4027,8 +4094,8 @@ binding           local
 binding contract  dynamic
 identity          value
 physical storage  shared copy-on-write
-strong refs       2
-weak refs         0
+shared owners      2
+non-owning refs    0
 size              8.2 mb
 rust type          CowBytes
 ```
@@ -4058,7 +4125,7 @@ Compiler-supported tracepoints should cover:
 - value assignments;
 - physical copies;
 - copy-on-write splits;
-- refs and weak refs;
+- non-owning and shared refs;
 - moves;
 - native FFI calls;
 - foreign-runtime entry/exit, conversions, copies, lock acquisition, and exceptions;
@@ -4227,7 +4294,7 @@ Possible components include:
 - type/object descriptors;
 - callable/default-invocation adapters;
 - copy-on-write collections;
-- reference and weak-reference support;
+- non-owning and shared-reference support;
 - throw/error propagation;
 - reflection registry;
 - trace event support;
@@ -4331,8 +4398,8 @@ The compiler analyses:
 
 - value assignment;
 - COW opportunities;
-- explicit refs;
-- weak refs;
+- non-owning refs;
+- shared refs;
 - moves;
 - closure capture;
 - task crossing;
@@ -5090,7 +5157,8 @@ union-type
   = prefix-type { "|" prefix-type }
 
 prefix-type
-  = "ref" prefix-type
+  = "shared" "ref" prefix-type
+  | "ref" prefix-type
   | function-type
   | applied-type
 
@@ -5267,7 +5335,7 @@ multiplicative-expression
 
 prefix-expression
   = ( "not" | "-" | "~" ) prefix-expression
-  | ( "ref" | "move" | "await" ) postfix-expression
+  | ( "shared" "ref" | "ref" | "move" | "await" ) postfix-expression
   | postfix-expression
 
 postfix-expression
@@ -5307,7 +5375,7 @@ A maximal compact token matching `identifier-unit identifier-joiner-run digit { 
 
 A bare `identifier = expression` is the ordinary assignment form: it initializes a new binding when declaration is permitted and no binding resolves, otherwise it rebinds the resolved mutable binding. Visibility, declaration modifiers, `global`, `constant`, and an uninitialised declaration always use `binding`, so `private cache = map;` is structurally unambiguous.
 
-Each function qualifier may appear at most once, and incompatible combinations are rejected semantically. The recursive operator production permits conventional combinations such as `not -value`, while `ref`, `move`, and `await` consume a postfix operand and therefore reject accidental forms such as `ref ref value` and `move move value`. Unary `+` is not a core operation.
+Each function qualifier may appear at most once, and incompatible combinations are rejected semantically. The recursive operator production permits conventional combinations such as `not -value`, while `shared ref`, `ref`, `move`, and `await` consume a postfix operand and therefore reject accidental forms such as `ref ref value`, `shared ref ref value`, and `move move value`. `shared ref` is parsed as one compound source operator in type and expression position; bare prefix `shared` is invalid. Unary `+` is not a core operation.
 
 The `is a` alternative is selected only when `a` is followed by a complete `type-expression`; otherwise the comparison alternative treats `a` as an ordinary identifier. `call-free-expression` is the expression grammar instantiated with the optional `call-clause` on `postfix-expression` disabled. This parameterisation avoids duplicating every precedence production; parser-generator sources must expand it mechanically. A parenthesised `expression` re-enables calls, which is why nested invocation requires grouping.
 
@@ -5407,7 +5475,7 @@ b = a
 # b is independently mutable; storage may initially be shared by cow
 
 c = ref a
-# c shares a's identity
+# c observes a's identity without owning it
 
 handle = device-handle;
 worker-handle = move handle
@@ -5602,13 +5670,14 @@ Source:
 b = ref a
 ```
 
-Possible Rust depends on escape analysis:
+Possible Rust depends on provenance analysis:
 
 ```rust
 let b = &mut a;
 ```
 
-or a generated reference-counted identity wrapper when the lifetime escapes.
+or a generated non-owning handle when stable indirection is required. The representation may change,
+but `b` must not retain `a`, and an escape beyond `a`'s proven lifetime remains a source error.
 
 ---
 
@@ -5693,15 +5762,15 @@ Unless a snippet explicitly tests unresolved lookup, the conformance harness sup
 33. `==`, `is`, and `is a` respectively test value equality, source-visible identity, and type membership; a numeric constant uses the queried type as context and returns false rather than failing when inadmissible, while a typed numeric value is not a member of a merely convertible concrete type; exact type-and-value comparison uses an explicit conjunction and `===` is rejected.
 34. labels are function-local; `goto` cannot enter a deeper lexical scope or cross initialisation/lifetime transitions unsafely, and every accepted jump lowers to sound Rust with identical cleanup order.
 35. `when build` selects namespace declarations and function statements deterministically, excludes inactive branches from the current build, and records every selection input in the build cache key.
-36. `ref T`, `borrowed-ref of T`, `user-ref of T`, `raw-address of T`, `array-ref of T`, `c-pointer of T`, and `function from ... to ...` enforce distinct identity, lifetime, address-space, provenance, extent, and ABI contracts without implicit conversion between them.
+36. `ref T`, `shared ref T`, `user-ref of T`, `raw-address of T`, `array-ref of T`, `c-pointer of T`, and `function from ... to ...` enforce distinct ownership, identity, lifetime, address-space, provenance, extent, and ABI contracts without implicit conversion between them.
 37. `with per-cpu, (aligned; 64) global x int = 0` applies two package-supplied modifiers resolved through ordinary lexical scope; the comma delimits the clause, an argument-taking modifier is parenthesised, a trailing comma is an error, and `with global` is rejected because core declaration words never take `with`.
 38. `constant` declarations parse in every binding position and `const` is rejected as a declaration word.
 39. `array of vm-struct|none, nr-cached-stacks` parses as one constructor application whose signature classifies its first argument as a type and its second as a compile-time integer.
 40. `function from int, c-pointer of opaque to int` associates to the right; nested callable parameters format with grouping whenever the ungrouped form would be difficult to scan.
 41. `void` is accepted only as the no-produced-value contract, while `opaque` is accepted as a type with hidden representation; neither substitutes for the other.
-42. a borrow derived through member access or collection iteration retains the origin borrow's anonymous provenance and cannot escape or widen its inferred lifetime.
+42. a reference derived through member access or collection iteration retains its origin's anonymous provenance and cannot escape or widen its inferred lifetime.
 43. reflection reports source name, generated Rust name, and native symbol independently, and `native-name; mmdrop, "__mmdrop"` changes only the last.
-44. lexical ownership and acyclic strong references destroy deterministically, while a provable strong cycle is rejected and an uncollectable runtime cycle is diagnosed or documented as a leak rather than promised deterministic reclamation.
+44. lexical ownership and acyclic shared ownership destroy deterministically, while a provable `shared ref` cycle is rejected and an uncollectable runtime cycle is diagnosed or documented as a leak rather than promised deterministic reclamation.
 45. imports obey lexical and namespace scope, nearer imports shadow farther ones, same-scope collisions are rejected, and `as` retains both objects when two exports collide.
 46. plain top-level assignment remains namespace-local even in the root namespace; creating or replacing a program-global binding without `global` is rejected.
 47. the default prelude contains exactly `print`, `int`, `float`, `bool`, `string`, `bytes`, and `none`; disabling it removes those defaults while explicit `/core` imports still work.
@@ -5720,7 +5789,7 @@ Unless a snippet explicitly tests unresolved lookup, the conformance harness sup
 60. precedence, associativity, comparison non-associativity, short-circuiting, receiver/index evaluation, assignment-target evaluation, argument order, and default-argument order match §34 exactly under both interpreted tooling and generated Rust.
 61. `private cache = map;`, `protected state = none`, bare rebinding, member assignment, and index assignment parse; literals, calls, postfix updates, non-assignable temporaries, and ownership-invalid paths are rejected as assignment targets.
 62. every statement form in §34 parses with empty and non-empty bodies where allowed; `else`, `catch`, `finally`, and `case` bind only to their owning constructs, and `return`, loop control, throw, yield, labels, and jumps preserve required cleanup.
-63. unary `-`, `~`, and `not` compose according to precedence; unary `+`, `ref ref value`, and `move move value` are rejected.
+63. unary `-`, `~`, and `not` compose according to precedence; unary `+`, `ref ref value`, `shared ref ref value`, and `move move value` are rejected.
 64. unconstrained integer literals beyond `int64` and `int128` range remain `int`; runtime addition, subtraction, and negation promote exactly from the compact tier through `i128` to arbitrary precision without a source-visible overflow.
 65. completed `int` operations normalise back to the smallest exact tier, including an `i128`-tier value crossing into `int64` range and a big value producing a small result; equality and hashing remain identical across every tier.
 66. multiplying two small `int` values uses an exact `i128` intermediate, wider multiplication produces the exact arbitrary-precision result, and multiplication by `0`, `1`, or `-1` preserves promotion and normalisation edge cases.
@@ -5858,13 +5927,13 @@ The following are the design’s constitutional layer. They govern the entire do
 36. Value equality, source-visible identity, and type membership are distinct predicates; no combined equality operator obscures which relation is intended.
 37. Labels and `goto` are function-local, lifetime-checked low-level control flow; no accepted jump may compromise deterministic cleanup or sound Rust lowering.
 38. `when build` is deterministic compile-time source selection over declared build inputs, never hidden runtime branching or untracked configuration.
-39. A safe object reference, a bounded borrow, an untrusted userspace address, a raw machine address, an ABI-erased pointer, a contiguous view, and a callable ABI address are distinct contracts; adapters may refine but never silently weaken them.
+39. A non-owning object reference, a shared owner, an untrusted userspace address, a raw machine address, an ABI-erased pointer, a contiguous view, and a callable ABI address are distinct contracts; adapters may refine but never silently weaken them.
 40. Package-supplied modifiers are introduced by `with` and are available on any declaration including a local binding; core structural words remain bare keywords.
 41. Package-defined type constructors classify a common constructor-argument syntax as type or compile-time value without extending the parser grammar.
 42. `void` means no produced value and never acts as erased storage; `opaque` names unavailable representation, whose reference contract must still identify ownership, lifetime, address space, and operations.
-43. Every derived borrow retains compiler-assigned provenance and may preserve or narrow, but never widen, the origin lifetime.
+43. Every derived reference retains compiler-assigned provenance and may preserve or narrow, but never widen, the origin lifetime.
 44. Source names, generated Rust names, and native ABI/link symbols are independent reflected identities.
-45. Deterministic destruction is guaranteed by lexical ownership and acyclic final strong-reference release, not by arbitrary strong-cycle reachability.
+45. Deterministic destruction is guaranteed by lexical ownership and acyclic final shared-owner release, not by arbitrary shared-cycle reachability.
 46. `int` denotes an exact arbitrary-precision signed value with compact adaptive representation; representation overflow promotes and completed results normalise, fixed-width arithmetic alone exposes width overflow, and numeric destination conversions preserve the exact mathematical value or throw.
 
 ---
@@ -5903,7 +5972,6 @@ The following already-motivated features may be specified later when implementat
 - arbitrary C++ ABI integration beyond C-compatible shims and Rust bridges;
 - multimethod or generic-function dispatch supplied as a library or language feature without making overload resolution implicit;
 - additional foreign-runtime adapters governed by the same explicit boundary contracts as Python;
-- type-changing replacement of an observed binding. Version one rejects replacing a binding's type while an outstanding reference observes it, and the same exclusion covers a closure capture once closures exist. What a later version might offer is an explicit way for the holder to accept the new type, so the retyping appears in the scope that is affected by it rather than only in the scope that caused it. Silently retyping through a reference is not a candidate.
 
 This list is intentionally non-exhaustive. Adding an item here protects a design direction from accidental closure; it does not give that feature priority over the version-one compiler plan.
 

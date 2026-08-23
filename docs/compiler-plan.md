@@ -728,12 +728,11 @@ Deliver:
 - allow a declaration to replace an earlier binding of the same name in the same lexical scope, with
   the initializer reading the earlier binding: `a int8 = 12` followed by `a int = a.coerce; int`.
   `S2012` rejects this today, and `S2023` rejects the initializer's read, so both change. An
-  identical type is an assignment with a redundant annotation; a changed type changes the binding's
-  type and releases the replaced value at that point, after its initializer is evaluated. The rule is
-  lexical: `S2005` continues to reject a replacement at namespace top level, where initialization is
-  ordered by dependency rather than source position. The version-one exclusion for a binding observed
-  by a reference needs no check yet — `ref` is milestone 17 — but the diagnostic belongs with `ref`
-  when it lands, not here;
+  identical type is an assignment with a redundant annotation; every replacement evaluates the
+  initializer, releases the previous owned identity, and installs the replacement. A changed type
+  also changes the binding's type. The rule is lexical: `S2005` continues to reject a replacement at
+  namespace top level, where initialization is ordered by dependency rather than source position.
+  Reference invalidation and continued shared ownership belong with milestone 17;
 - rewrite the assignment and visibility diagnostics so none of them advertises `global`. A fixit is
   read when the author is most willing to be told what to do, so it should teach the value path —
   a parameter, a return, or `constant` where the value never varies. `S2021` currently says
@@ -1155,27 +1154,36 @@ Destruct over drop for Terrane. drop is excellent Rust terminology, but construc
 
 ### Milestone 17 — References and provenance
 
-Value semantics, separation, and drop land with collections in milestone 14; this milestone adds the
-explicit-reference half over them.
+Value semantics, separation, and drop land with collections in milestone 14; this milestone adds
+non-owning observation and explicit shared ownership over them.
 
 Deliver:
 
-- explicit references as a declared form of semantic value assignment, distinguished from the independent-value assignment milestone 14 delivers;
-- `ref`, `move`, and weak references with lifetime and provenance analysis reported in source terms;
-- the diagnostic that milestone 4.8 defers to this one: a type-changing replacement of a binding is
-  rejected while an outstanding reference observes it, since retyping a value another scope holds
-  must not happen without something explicit appearing there. Same-type replacement stays legal and
-  the reference observes the new value.
+- `ref` as the ordinary non-owning reference to an existing owned identity, with compiler-tracked
+  provenance and lifetime;
+- `shared ref` as the conspicuous operation and type form that shares ownership and extends that
+  identity's lifetime;
+- `move` as explicit ownership transfer;
+- preservation or narrowing of reference provenance through member access, indexing, iteration,
+  calls, capture, fields, and other derived values;
+- rejection of reference escape and use after the originating owner's lifetime ends, reported at
+  the originating binding and lifetime-ending operation;
+- rejection of provable `shared ref` ownership cycles, without treating ordinary `ref` back-edges
+  as cycles;
+- replacement and ordinary rebinding end the lifetime of the previously owned identity: a `ref`
+  becomes unusable, while a `shared ref` continues to own the old identity and neither form is
+  silently retargeted to the replacement;
 
-Exit criterion: borrow escape is diagnosed at the originating binding, and a reference observing a binding is proven against the value semantics already exercised by collections.
+Exit criterion: a bounded non-owning reference works without extending its owner's lifetime; escape
+and use after release are diagnosed in source terms; a shared owner keeps an identity alive; and
+the distinction is proven against the value semantics already exercised by collections.
 
-Implemented evidence: `ref T` and `weak ref T` cross the typed pipeline as strong and weak aliases
-over synchronized storage, while `move` transfers a value and provenance analysis rejects later
-use until rebinding, including conditionally moved paths. Type-changing lexical replacement is
-rejected while either a strong or weak reference observes the originating binding. Conformance
-mutates a collection through one alias and observes it through another, constructs and upgrades a
-weak alias, rejects weak references to temporary values, transfers ownership, and checks
-use-after-move and referenced-retyping diagnostics.
+Status: reopened after the ownership contract was simplified. The earlier implementation established
+typed `ref T`/`weak ref T`, synchronized strong/weak aliases, `move`, conditional move analysis,
+referenced-retyping checks, collection aliasing, weak upgrade, and temporary-source rejection. That
+evidence remains useful but describes the superseded strong/weak model. Completion now requires a
+clean migration to non-owning `ref T` and owning `shared ref T`, including lifetime and cycle cases;
+the current implementation surface remains recorded in `surface-today.md` until those cases pass.
 
 ### Milestone 18 — Capabilities, effects, and reflection
 
@@ -1387,7 +1395,7 @@ The release pipeline must prove, from a clean checkout:
 - the iterator protocol with `iteration-step of Item`, and list, map, set, tuple, range, and entry under `/core/collections`;
 - function values, closures, and storable bound method families;
 - classes, single inheritance, structural interfaces, traits, `construct`, and deterministic drop;
-- ownership: semantic value assignment, linear resources, explicit `ref`/`move`/weak references, and the drop pipeline;
+- ownership: semantic value assignment, linear resources, non-owning `ref`, owning `shared ref`, explicit `move`, and the drop pipeline;
 - the closed effect vocabulary, capability authority objects, and profile-governed reflection retention;
 - async with `await`, task objects, the structured-concurrency scope, cooperative cancellation, and scope-propagated deadlines;
 - byte and text stream protocols, process standard streams, files, paths, and race-resistant filesystem traversal;
