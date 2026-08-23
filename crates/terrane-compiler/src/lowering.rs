@@ -3562,7 +3562,7 @@ impl Emitter<'_> {
             .expect("selected string receiver belongs to this syntax tree");
         let family = selection.family.source_name();
         let child = selection.child.as_str();
-        let receiver = self.expression(subject);
+        let receiver = self.receiver_expression(subject);
         let values = arguments
             .children
             .iter()

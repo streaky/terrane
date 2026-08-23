@@ -4005,8 +4005,9 @@ fn declared_value_type(
         let inner = ElementType::new(declared_value_type(unit, inner, aliases)?);
         return Ok(
             if node_text(&unit.source, shape)
-                .trim()
-                .starts_with("shared ref")
+                .split_whitespace()
+                .take(2)
+                .eq(["shared", "ref"])
             {
                 ValueType::SharedReference(inner)
             } else {
