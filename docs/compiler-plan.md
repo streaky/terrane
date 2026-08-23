@@ -271,6 +271,7 @@ Implementation status (completed on the `indentation-lexer` capability branch):
 
 Lexical diagnostics own the `L` code range and are the sole reporter of every condition listed here; the bootstrap parser keeps the `S` range for the value-level rules it still owns:
 
+```text
 L0001 invalid source character
 L0002 unterminated block comment
 L0003 indentation style
@@ -1121,12 +1122,13 @@ Deliver:
 
 Exit criterion: a selected method family can be stored, passed, and invoked; the previously rejected form is accepted with a case proving the receiver still evaluates once.
 
-Implemented evidence: typed, synchronous function values cross binding and parameter boundaries;
-anonymous functions capture resolver-selected outer bindings once; and stored bound methods capture
-their receiver once before later invocation. Generated Rust uses statically typed `Arc<dyn Fn>`
-values rather than a universal runtime value and compiles receiver-free methods without lint
-suppression. Conformance executes a passed closure, distinguishes parameter shadowing from an outer
-capture, and invokes a stored receiver-bound method.
+Implemented evidence (partial; the exit criterion remains open): typed, synchronous function values
+cross binding and parameter boundaries; anonymous functions capture resolver-selected outer bindings
+once; and stored bound methods capture their receiver once before later invocation. Generated Rust
+uses statically typed `Arc<dyn Fn>` values rather than a universal runtime value and compiles
+receiver-free methods without lint suppression. Conformance executes a passed closure,
+distinguishes parameter shadowing from an outer capture, and invokes a stored receiver-bound method.
+Caller-supplied pair conversion callbacks are not implemented.
 
 ### Milestone 16 — Classes, interfaces, and traits
 
@@ -1139,15 +1141,17 @@ Deliver:
 
 Exit criterion: each of construction, inheritance, interface conformance, and trait reuse has an executable slice; dynamic-object state is preserved end to end.
 
-Implemented evidence: source classes lower typed fields, custom `construct`, lifecycle-lineage
-`destruct`, mutating receivers inferred transitively from effective method contracts, immutable
-methods, and separated value state. Single inheritance retains base and subclass fields, dispatches
-overridden methods through a generated base wrapper, and safely widens inherited `this` returns.
-Declared interface conformance lowers through typed protocol wrappers, while traits reuse fields
-and methods. Executable cases cover construction, separated state, final-lineage destruction,
-inheritance, inherited self-typed returns, interface dispatch, and trait reuse; rejected cases cover
-uninitialized fields, missing interface methods, incompatible signatures, and unresolved trait
-conflicts.
+Implemented evidence (partial; the exit criterion remains open): source classes lower typed fields,
+custom `construct`, lifecycle-lineage `destruct`, mutating receivers inferred transitively from
+effective method contracts, immutable methods, and separated value state. Single inheritance
+retains base and subclass fields, dispatches overridden methods through a generated base wrapper,
+and safely widens inherited `this` returns. Declared, nominal interface conformance lowers through
+typed protocol wrappers, while traits reuse fields and methods. Executable cases cover construction,
+separated state, final-lineage destruction, inheritance, inherited self-typed returns, interface
+dispatch, and trait reuse; rejected cases cover uninitialized fields, missing interface methods,
+incompatible signatures, and unresolved trait conflicts. Structural conformance and integration
+with the descriptor model remain outstanding; object analysis currently uses a compiler-owned
+parallel contract table.
 
 Construct/destruct notes, and the docs should be updated to reflect this when we get there:
 
@@ -1204,9 +1208,11 @@ now use non-owning `ref T` and owning `shared ref T`; lowering represents them w
 and strong storage respectively. Conformance proves ordinary references to named owned bindings,
 shared mutation through an owner, bounded non-owning observation, explicit ownership transfer,
 temporary-source rejection, source-diagnosed return escape, replacement invalidation of non-owning
-references, and continued access through shared owners after replacement. Lifetime analysis beyond
-return escape and direct replacement, shared-ownership cycle analysis, and complete
-derived-provenance coverage remain outstanding.
+references, and continued access through shared owners after replacement. The current generated
+representation clones the referenced value for each read; this is a correctness-first lowering, not
+the intended reference cost model. Lifetime analysis beyond return escape and direct replacement,
+shared-ownership cycle analysis, complete derived-provenance coverage, and borrow-oriented lowering
+remain outstanding.
 
 ### Milestone 18 — Capabilities, effects, and reflection
 

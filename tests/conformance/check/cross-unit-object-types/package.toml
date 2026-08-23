@@ -1,0 +1,5 @@
+package = "cross-unit-object-types"
+prelude = false
+[namespaces]
+app = "app"
+models = "models"

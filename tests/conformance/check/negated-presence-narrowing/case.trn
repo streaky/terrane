@@ -1,0 +1,7 @@
+namespace negated-presence-narrowing
+from /core/types import int8
+
+function main
+    value int8|none = 7
+    if not (value is a none)
+        print; value

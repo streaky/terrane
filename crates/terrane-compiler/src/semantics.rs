@@ -858,6 +858,55 @@ fn populate_namespace_function_contracts(package: &mut SemanticPackage) {
     }
 }
 
+fn populate_object_aliases(package: &mut SemanticPackage) {
+    let contracts = package
+        .units
+        .iter()
+        .flat_map(|unit| unit.objects.iter())
+        .map(|contract| {
+            (
+                (contract.span.file, contract.span.start, contract.span.end),
+                contract.clone(),
+            )
+        })
+        .collect::<BTreeMap<_, _>>();
+    for unit in &mut package.units {
+        let mut aliases = package
+            .namespaces
+            .get(&unit.namespace)
+            .into_iter()
+            .flat_map(|namespace| &namespace.symbols)
+            .chain(
+                unit.scopes
+                    .iter()
+                    .flat_map(|scope| &scope.symbols)
+                    .flat_map(|(name, symbols)| symbols.iter().map(move |symbol| (name, symbol))),
+            )
+            .filter_map(|(visible_name, symbol)| {
+                let span = symbol.declaration_span?;
+                matches!(
+                    symbol.kind,
+                    SymbolKind::Class | SymbolKind::Interface | SymbolKind::Trait
+                )
+                .then(|| contracts.get(&(span.file, span.start, span.end)))
+                .flatten()
+                .cloned()
+                .map(|mut contract| {
+                    contract.name.clone_from(visible_name);
+                    contract
+                })
+            })
+            .collect::<Vec<_>>();
+        aliases.retain(|alias| {
+            !unit
+                .objects
+                .iter()
+                .any(|contract| contract.name == alias.name)
+        });
+        unit.objects.extend(aliases);
+    }
+}
+
 fn populate_function_aliases(package: &mut SemanticPackage) {
     let contracts = package
         .units
@@ -2988,6 +3037,7 @@ fn analyze_types(package: &mut SemanticPackage) -> Result<(), SemanticFailure> {
         let alias_history = descriptor_construct_alias_history(package, unit);
         package.units[index].objects = analyze_object_contracts(unit, &alias_history)?;
     }
+    populate_object_aliases(package);
     for index in 0..package.units.len() {
         let unit = &package.units[index];
         let mut alias_history = descriptor_construct_alias_history(package, unit);
@@ -3998,12 +4048,7 @@ fn declared_value_type(
         }
     }
     let type_name = node_text(&unit.source, type_node).trim();
-    if unit.tree.root.children.iter().any(|node| {
-        matches!(
-            node.kind,
-            SyntaxKind::ClassDeclaration | SyntaxKind::InterfaceDeclaration
-        ) && declaration_name(node, &unit.source).as_deref() == Some(type_name)
-    }) {
+    if unit.objects.iter().any(|object| object.name == type_name) {
         return Ok(ValueType::Object(type_name.to_owned()));
     }
     parse_declared_value_type(type_name, aliases).ok_or_else(|| {
@@ -4464,10 +4509,15 @@ fn condition_proves_present(source: &SourceFile, node: &SyntaxNode, name: &str) 
             && matches!(names, (left, "none") | ("none", left) if left == name);
     }
     if node.kind == SyntaxKind::UnaryExpression
-        && let Some(child) = node.children.first()
-        && source.text()[node.span.start..child.span.start].trim() == "not"
+        && node.children.iter().any(|child| {
+            child.kind == SyntaxKind::UnaryOperator && node_text(source, child) == "not"
+        })
+        && let Some(child) = node
+            .children
+            .iter()
+            .find(|child| child.kind != SyntaxKind::UnaryOperator)
     {
-        let child = child.children.first().unwrap_or(child);
+        let child = ungrouped_expression(child);
         return child.kind == SyntaxKind::TypeMembershipExpression
             && membership_names(source, child).is_some_and(|names| names == (name, "none"));
     }
