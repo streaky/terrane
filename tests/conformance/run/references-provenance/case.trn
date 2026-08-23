@@ -3,12 +3,11 @@ from /core/collections import list
 from /core/output import print
 
 function main
-  initial list of int = list; 1
-  values shared ref list of int = shared ref initial
-  alias shared ref list of int = values
+  values list of int = list; 1
+  owner shared ref list of int = shared ref values
   observer ref list of int = ref values
-  alias.append; 2
-  print; observer.length, observer[1]
+  owner.append; 2
+  print; values.length, observer[1]
   owned list of int = list; 9
   transferred list of int = move owned
   print; transferred[0]

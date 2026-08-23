@@ -16,20 +16,16 @@ impl Counter {
         value
     }
     pub fn construct(&mut self, start: terrane_int_support::Int) {
-        let _ = &self;
         self.value = start.clone();
     }
-    pub fn add(&mut self, amount: terrane_int_support::Int) -> terrane_int_support::Int {
-        let _ = &self;
+    pub fn increase(&mut self, amount: terrane_int_support::Int) -> terrane_int_support::Int {
         self.value = (self.value).clone() + amount.clone();
         return (self.value).clone();
     }
     pub fn shifted(&self, amount: terrane_int_support::Int) -> terrane_int_support::Int {
-        let _ = &self;
         return (self.value).clone() + amount.clone();
     }
     pub fn destruct(&self) {
-        let _ = &self;
         println!("{}", terrane_scalar_support::scalar_text(&(String::from("destruct"))));
     }
 }
@@ -44,7 +40,7 @@ fn main() {
     let mut first: Counter = Counter::terrane_construct(terrane_int_support::Int::from(10_i128));
     let mut second: Counter = (first).clone();
     let shift: std::sync::Arc<dyn Fn(terrane_int_support::Int) -> terrane_int_support::Int> = { let receiver = (first).clone(); std::sync::Arc::new(move |argument_0: terrane_int_support::Int| receiver.shifted(argument_0)) };
-    println!("{}", terrane_scalar_support::scalar_text(&(first.add(terrane_int_support::Int::from(5_i128)))));
-    println!("{}", terrane_scalar_support::scalar_text(&(second.add(terrane_int_support::Int::from(2_i128)))));
+    println!("{}", terrane_scalar_support::scalar_text(&(first.increase(terrane_int_support::Int::from(5_i128)))));
+    println!("{}", terrane_scalar_support::scalar_text(&(second.increase(terrane_int_support::Int::from(2_i128)))));
     println!("{}", terrane_scalar_support::scalar_text(&(shift(terrane_int_support::Int::from(3_i128)))));
 }

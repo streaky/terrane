@@ -41,8 +41,10 @@ pub(crate) fn lower(package: &SemanticPackage) -> Program {
                 try_counter: 0,
                 current_error: None,
                 current_function: None,
+                current_object: None,
                 try_completion: false,
                 in_loop: false,
+                closure_depth: 0,
             };
             emitter.emit_union_types();
             let mut items = Vec::new();
@@ -103,8 +105,10 @@ struct Emitter<'a> {
     try_counter: usize,
     current_error: Option<String>,
     current_function: Option<String>,
+    current_object: Option<String>,
     try_completion: bool,
     in_loop: bool,
+    closure_depth: usize,
 }
 
 fn package_uses_structured_errors(package: &SemanticPackage) -> bool {
@@ -268,8 +272,10 @@ fn emit_global_storage(package: &SemanticPackage, output: &mut String) {
             try_counter: 0,
             current_error: None,
             current_function: None,
+            current_object: None,
             try_completion: false,
             in_loop: false,
+            closure_depth: 0,
         };
         let value_type = unit
             .typed_bindings
@@ -326,8 +332,10 @@ fn emit_global_storage(package: &SemanticPackage, output: &mut String) {
                 try_counter: 0,
                 current_error: None,
                 current_function: None,
+                current_object: None,
                 try_completion: false,
                 in_loop: false,
+                closure_depth: 0,
             };
             Some(initial_emitter.expression_as(initializer, ValueType::Scalar(scalar)))
         });
@@ -712,6 +720,7 @@ impl Emitter<'_> {
                     self.indent -= 1;
                     self.line("}");
                 }
+                let previous_object = self.current_object.replace(object.name.clone());
                 for method in &methods {
                     let method_node = find_node(
                         &self.unit.tree.root,
@@ -721,6 +730,7 @@ impl Emitter<'_> {
                     .expect("object method contract must retain its syntax");
                     self.object_method(method_node);
                 }
+                self.current_object = previous_object;
                 self.indent -= 1;
                 self.line("}");
                 if !descendants.is_empty() {
@@ -908,15 +918,18 @@ impl Emitter<'_> {
     }
 
     fn object_method(&mut self, node: &SyntaxNode) {
-        let receiver = self
+        let contract = self
             .unit
             .functions
             .iter()
             .find(|contract| contract.span == node.span)
-            .is_some_and(|contract| contract.mutates_receiver)
-            .then_some("&mut self")
-            .or(Some("&self"));
-        self.emit_function(node, receiver);
+            .expect("object method must have an analyzed contract");
+        let receiver = if contract.mutates_receiver {
+            "&mut self"
+        } else {
+            "&self"
+        };
+        self.emit_function(node, Some(receiver));
     }
 
     #[expect(
@@ -989,9 +1002,6 @@ impl Emitter<'_> {
                 .collect(),
         );
         self.indent += 1;
-        if receiver.is_some() {
-            self.line("let _ = &self;");
-        }
         let block = node
             .children
             .iter()
@@ -1076,6 +1086,7 @@ impl Emitter<'_> {
                 })
                 .collect(),
         );
+        self.closure_depth += 1;
         self.indent = outer_indent + 1;
         if let Some(block) = node
             .children
@@ -1084,6 +1095,7 @@ impl Emitter<'_> {
         {
             self.block(block);
         }
+        self.closure_depth -= 1;
         let body = std::mem::replace(&mut self.output, outer_output);
         self.indent = outer_indent;
         self.return_type = outer_return_type;
@@ -1093,7 +1105,8 @@ impl Emitter<'_> {
         let mut captures = String::new();
         for capture in &contract.captures {
             let name = rust_name(capture);
-            write!(captures, "let {name} = {name}.clone(); ")
+            let source = if capture == "this" { "self" } else { &name };
+            write!(captures, "let {name} = {source}.clone(); ")
                 .expect("writing to a String cannot fail");
         }
         format!(
@@ -1384,13 +1397,18 @@ impl Emitter<'_> {
             self.expression(right)
         };
         let value = Self::unwrapped_expression(value);
-        let target = if left.kind == SyntaxKind::Name {
+        let reference_backed =
+            assigned_binding.is_some_and(|binding| self.reference_backed(binding));
+        let target = if reference_backed {
+            format!("*{}.lock()", rust_name(self.text(left)))
+        } else if left.kind == SyntaxKind::Name {
             rust_name(self.text(left))
         } else {
             self.expression(left)
         };
         self.line(&format!("{target} = {value};"));
         if let Some(binding) = assigned_binding
+            && !reference_backed
             && !binding_store_value_is_read(self.package, binding.span, node.span)
         {
             self.line(&format!("let _ = &mut {target};"));
@@ -1633,27 +1651,34 @@ impl Emitter<'_> {
         let storage_type = binding
             .and_then(|binding| binding.storage_type)
             .filter(|_| !binding_span_is_mutated(self.package, self.unit, node.span, true));
+        let reference_backed = binding.is_some_and(|binding| self.reference_backed(binding));
         let ty = binding.map(|binding| {
-            if !binding.destination_arms.is_empty() {
-                return union_type_name(binding);
+            let value_type = if !binding.destination_arms.is_empty() {
+                union_type_name(binding)
+            } else if let Some(storage_type) = storage_type {
+                rust_type(storage_type).to_owned()
+            } else {
+                rust_value_type(binding.value_type.clone())
+            };
+            if reference_backed {
+                format!("std::sync::Arc<parking_lot::Mutex<{value_type}>>")
+            } else {
+                value_type
             }
-            if let Some(storage_type) = storage_type {
-                return rust_type(storage_type).to_owned();
-            }
-            rust_value_type(binding.value_type.clone())
         });
         let initializer = binding_initializer(node, name_index);
         assert!(
             initializer.is_some() || !self.text(node).contains('='),
             "analyzed initialized value binding must have a selected initializer"
         );
-        let mutable = binding.is_some_and(|binding| {
-            binding.mutable
-                && !matches!(
-                    binding.value_type,
-                    ValueType::Reference(_) | ValueType::SharedReference(_)
-                )
-        });
+        let mutable = !reference_backed
+            && binding.is_some_and(|binding| {
+                binding.mutable
+                    && !matches!(
+                        binding.value_type,
+                        ValueType::Reference(_) | ValueType::SharedReference(_)
+                    )
+            });
         if self
             .package
             .is_lexical_replacement(self.unit, node.span, self.text(name_node))
@@ -1682,6 +1707,11 @@ impl Emitter<'_> {
                 self.expression(initializer)
             };
             let value = Self::unwrapped_expression(value);
+            let value = if reference_backed {
+                format!("std::sync::Arc::new(parking_lot::Mutex::new({value}))")
+            } else {
+                value
+            };
             write!(self.output, " = {value}").unwrap();
         }
         self.output.push_str(";\n");
@@ -1882,14 +1912,16 @@ impl Emitter<'_> {
                 let Some(operand) = node.children.last() else {
                     return String::new();
                 };
-                let source_operator =
-                    self.source.text()[node.span.start..operand.span.start].trim();
+                let source_operator = self.unary_operator(node).unwrap_or_default();
                 if source_operator == "ref" {
                     return match self.value_type(operand) {
                         Some(ValueType::Reference(_)) => {
                             format!("({}).clone()", self.expression(operand))
                         }
-                        _ => format!("std::sync::Arc::downgrade(&{})", self.expression(operand)),
+                        _ => format!(
+                            "std::sync::Arc::downgrade(&{})",
+                            self.reference_storage_expression(operand)
+                        ),
                     };
                 }
                 if source_operator == "shared ref" {
@@ -1901,10 +1933,7 @@ impl Emitter<'_> {
                             "{}.upgrade().expect(\"reference expired\")",
                             self.expression(operand)
                         ),
-                        _ => format!(
-                            "std::sync::Arc::new(parking_lot::Mutex::new({}))",
-                            self.expression(operand)
-                        ),
+                        _ => self.reference_storage_expression(operand),
                     };
                 }
                 if source_operator == "move" {
@@ -1916,8 +1945,7 @@ impl Emitter<'_> {
                 if self.is_adaptive_expression(operand) {
                     return self.adaptive_expression(node);
                 }
-                let operator = self.source.text()[node.span.start..operand.span.start].trim();
-                let operator = match operator {
+                let operator = match source_operator.as_str() {
                     "not" => "!",
                     other => other,
                 };
@@ -2049,6 +2077,29 @@ impl Emitter<'_> {
             return format!("({}).clone()", self.expression(node));
         }
         if let ValueType::Object(expected) = &value_type
+            && self.text(node) == "this"
+            && let Some(actual) = &self.current_object
+            && let Some(destination) = self
+                .unit
+                .objects
+                .iter()
+                .find(|object| object.name == *expected)
+        {
+            if actual == expected && !object_descendants(self.unit, destination).is_empty() {
+                return format!("{}::Own(self.clone())", rust_object_name(expected));
+            }
+            if object_descendants(self.unit, destination)
+                .iter()
+                .any(|descendant| descendant.name == *actual)
+            {
+                return format!(
+                    "{}::{}(self.clone())",
+                    rust_object_name(expected),
+                    rust_object_name(actual)
+                );
+            }
+        }
+        if let ValueType::Object(expected) = &value_type
             && let Some(ValueType::Object(actual)) = self.value_type(node)
             && actual != *expected
             && let Some(destination) = self
@@ -2057,7 +2108,11 @@ impl Emitter<'_> {
                 .iter()
                 .find(|object| object.name == *expected)
         {
-            let expression = self.expression_as(node, ValueType::Object(actual.clone()));
+            let expression = if self.text(node) == "this" {
+                "self.clone()".to_owned()
+            } else {
+                self.expression_as(node, ValueType::Object(actual.clone()))
+            };
             if destination.kind == ObjectKind::Interface {
                 return format!("{}::from({expression})", rust_object_name(expected));
             }
@@ -2100,7 +2155,7 @@ impl Emitter<'_> {
             && node.kind == SyntaxKind::UnaryExpression
             && let Some(operand) = node.children.last()
         {
-            let operator = self.source.text()[node.span.start..operand.span.start].trim();
+            let operator = self.unary_operator(node).unwrap_or_default();
             return format!("{operator}{}", self.expression(operand));
         }
         if node.kind == SyntaxKind::MemberExpression
@@ -2295,7 +2350,7 @@ impl Emitter<'_> {
                 let Some(operand) = node.children.last() else {
                     return String::new();
                 };
-                let operator = self.source.text()[node.span.start..operand.span.start].trim();
+                let operator = self.unary_operator(node).unwrap_or_default();
                 format!("{operator}{}", self.adaptive_expression(operand))
             }
             SyntaxKind::BinaryExpression => self.adaptive_binary(node),
@@ -2782,11 +2837,12 @@ impl Emitter<'_> {
 
     fn receiver_expression(&mut self, receiver: &SyntaxNode) -> String {
         match self.value_type(receiver) {
-            Some(ValueType::SharedReference(_)) => {
-                format!("({{ {}.lock().clone() }})", self.expression(receiver))
-            }
+            Some(ValueType::SharedReference(_)) => format!(
+                "({{ let __terrane_value = {}.lock().clone(); __terrane_value }})",
+                self.expression(receiver)
+            ),
             Some(ValueType::Reference(_)) => format!(
-                "({{ {}.upgrade().expect(\"reference expired\").lock().clone() }})",
+                "({{ let __terrane_owner = {}.upgrade().expect(\"reference expired\"); let __terrane_value = __terrane_owner.lock().clone(); __terrane_value }})",
                 self.expression(receiver)
             ),
             _ => self.expression(receiver),
@@ -2800,6 +2856,9 @@ impl Emitter<'_> {
                 "parking_lot::Mutex::lock_arc(&{}.upgrade().expect(\"reference expired\"))",
                 self.expression(receiver)
             ),
+            _ if self.reference_backed_name(receiver).is_some() => {
+                format!("{}.lock()", rust_name(self.text(receiver)))
+            }
             _ => self.expression(receiver),
         }
     }
@@ -3822,7 +3881,12 @@ impl Emitter<'_> {
             return "()".to_owned();
         }
         if source_name == "this" {
-            return "self".to_owned();
+            return if self.closure_depth == 0 {
+                "self"
+            } else {
+                "this"
+            }
+            .to_owned();
         }
         let narrowed =
             narrowed_value_type(self.unit, node, &self.unit.typed_bindings).or_else(|| {
@@ -3887,6 +3951,18 @@ impl Emitter<'_> {
         let Some(span) = symbol.declaration_span else {
             return rust_name(source_name);
         };
+        if let Some(binding) = self
+            .unit
+            .typed_bindings
+            .iter()
+            .find(|binding| binding.span == span)
+            && self.reference_backed(binding)
+        {
+            return format!(
+                "({{ let __terrane_value = {}.lock().clone(); __terrane_value }})",
+                rust_name(source_name)
+            );
+        }
         let name = namespace_binding_name(span.file, &symbol.name);
         if self.lazy_namespace_binding_type(node).is_some() {
             format!("&*{name}")
@@ -4034,6 +4110,66 @@ impl Emitter<'_> {
         self.package
             .resolve_name_at(self.unit, node.span.start, self.text(node))
             .is_some_and(|symbol| symbol.identity == identity)
+    }
+
+    fn unary_operator(&self, node: &SyntaxNode) -> Option<String> {
+        node.children
+            .iter()
+            .find(|child| child.kind == SyntaxKind::UnaryOperator)
+            .map(|operator| self.text(operator).to_owned())
+    }
+
+    fn reference_storage_expression(&mut self, operand: &SyntaxNode) -> String {
+        if self.reference_backed_name(operand).is_some() {
+            rust_name(self.text(operand))
+        } else {
+            self.expression(operand)
+        }
+    }
+
+    fn reference_backed_name(&self, node: &SyntaxNode) -> Option<&TypedBinding> {
+        if node.kind != SyntaxKind::Name {
+            return None;
+        }
+        let span = self
+            .package
+            .resolve_name_at(self.unit, node.span.start, self.text(node))?
+            .declaration_span?;
+        self.unit
+            .typed_bindings
+            .iter()
+            .find(|binding| binding.span == span && self.reference_backed(binding))
+    }
+
+    fn reference_backed(&self, binding: &TypedBinding) -> bool {
+        if matches!(
+            binding.value_type,
+            ValueType::Reference(_) | ValueType::SharedReference(_)
+        ) {
+            return false;
+        }
+        self.node_references_binding(&self.unit.tree.root, binding)
+    }
+
+    fn node_references_binding(&self, node: &SyntaxNode, binding: &TypedBinding) -> bool {
+        if node.kind == SyntaxKind::UnaryExpression
+            && matches!(
+                self.unary_operator(node).as_deref(),
+                Some("ref" | "shared ref")
+            )
+            && let Some(operand) = node.children.last()
+            && operand.kind == SyntaxKind::Name
+            && self
+                .package
+                .resolve_name_at(self.unit, operand.span.start, self.text(operand))
+                .and_then(|symbol| symbol.declaration_span)
+                == Some(binding.span)
+        {
+            return true;
+        }
+        node.children
+            .iter()
+            .any(|child| self.node_references_binding(child, binding))
     }
 
     fn text(&self, node: &SyntaxNode) -> &str {

@@ -1,0 +1,10 @@
+namespace method-without-receiver-use
+from /core/output import print
+
+class answerer
+ function answer int
+  return 42
+
+function main
+ value answerer = answerer;
+ print; (value.answer;)

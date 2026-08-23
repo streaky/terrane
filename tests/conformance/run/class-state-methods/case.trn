@@ -6,7 +6,7 @@ class counter
     function construct; start int
         this.value = start
 
-    function add int; amount int
+    function increase int; amount int
         this.value = this.value + amount
         return this.value
 
@@ -20,6 +20,6 @@ function main
     first counter = counter; 10
     second counter = first
     shift function from int to int = first.shifted
-    print; (first.add; 5)
-    print; (second.add; 2)
+    print; (first.increase; 5)
+    print; (second.increase; 2)
     print; (shift; 3)

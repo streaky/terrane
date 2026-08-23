@@ -469,8 +469,8 @@ fn rejects_non_associative_identity_and_recovers_layout_errors_once() {
 
     for (text, code) in [
         ("value = 1\n    deeper = 2\n", "S1001"),
-        ("if a = b\n    value = 1\n", "S1030"),
-        ("while a = b\n    value = 1\n", "S1030"),
+        ("if a = b\n    value = 1\n", "S1037"),
+        ("while a = b\n    value = 1\n", "S1037"),
     ] {
         let source = SourceFile::new(0, "case.trn".into(), text.to_owned());
         let diagnostics = parse(&source, lex(&source).unwrap()).diagnostics;
@@ -484,6 +484,15 @@ fn rejects_non_associative_identity_and_recovers_layout_errors_once() {
         diagnostics[0].help.as_deref(),
         Some("use `==` for equality")
     );
+
+    let source = SourceFile::new(
+        0,
+        "case.trn".into(),
+        "class item extends\nfunction main\n".to_owned(),
+    );
+    let diagnostics = parse(&source, lex(&source).unwrap()).diagnostics;
+    assert_eq!(diagnostics.len(), 1, "{diagnostics:#?}");
+    assert_eq!(diagnostics[0].code, "S1035");
 
     let source = SourceFile::new(
         0,

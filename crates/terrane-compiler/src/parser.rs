@@ -163,7 +163,7 @@ impl Parser<'_> {
         if self.at(TokenKind::Identifier) {
             children.push(self.leaf(SyntaxKind::Name));
         } else {
-            self.error_here("S1030", "object declaration requires a name");
+            self.error_here("S1034", "object declaration requires a name");
         }
         while !self.at_line_end() {
             let clause_kind = match self.text() {
@@ -172,7 +172,7 @@ impl Parser<'_> {
                 "uses" => SyntaxKind::UsesClause,
                 _ => {
                     self.error_here(
-                        "S1031",
+                        "S1035",
                         "expected `extends`, `implements`, or `uses` in object declaration",
                     );
                     self.recover_line();
@@ -186,7 +186,8 @@ impl Parser<'_> {
                 if self.at(TokenKind::Identifier) {
                     names.push(self.leaf(SyntaxKind::Name));
                 } else {
-                    self.error_here("S1031", "object clause requires a declared object name");
+                    self.error_here("S1035", "object clause requires a declared object name");
+                    self.recover_line();
                     break;
                 }
                 if !self.eat(TokenKind::Comma) {
@@ -194,7 +195,7 @@ impl Parser<'_> {
                 }
             }
             if clause_kind == SyntaxKind::ExtendsClause && names.len() > 1 {
-                self.error_here("S1032", "classes support only single inheritance");
+                self.error_here("S1036", "classes support only single inheritance");
             }
             children.push(self.node(clause_kind, clause_start, self.position, names));
         }
@@ -1122,7 +1123,7 @@ impl Parser<'_> {
     fn reject_assignment_in_condition(&mut self) {
         if self.at(TokenKind::Assign) {
             self.error_here_with_help(
-                "S1030",
+                "S1037",
                 "assignment is not allowed in a condition",
                 "use `==` for equality",
             );

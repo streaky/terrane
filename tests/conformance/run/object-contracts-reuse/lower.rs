@@ -24,7 +24,6 @@ impl BaseStorage {
         }
     }
     pub fn describe(&self, prefix: String) -> String {
-        let _ = &self;
         return format!("{}{}", terrane_scalar_support::scalar_text(&(prefix)), terrane_scalar_support::scalar_text(&(String::from("base"))));
     }
 }
@@ -57,11 +56,9 @@ impl Child {
         }
     }
     pub fn describe(&self, prefix: String) -> String {
-        let _ = &self;
         return format!("{}{}", terrane_scalar_support::scalar_text(&(prefix)), terrane_scalar_support::scalar_text(&(String::from("child"))));
     }
     pub fn tagged_value(&self) -> String {
-        let _ = &self;
         return (self.tag).clone();
     }
 }

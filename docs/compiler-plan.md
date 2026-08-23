@@ -347,17 +347,35 @@ S1011 value on a value-free statement     S1026 malformed `from` import
 S1012 chained non-associative test        S1027 malformed importer selection
 S1013 invalid member adjacency            S1028 malformed collection target
 S1014 missing member name                 S1029 invalid declaration prefix
-S1015 unclosed index expression           S1030 assignment in condition
-S1016 unparenthesized nested call         S1090 reserved unsupported syntax
+S1015 unclosed index expression           S1030 expression after `try`
+S1016 unparenthesized nested call         S1032 missing `catch as` binding
+S1033 `try` without `catch`/`finally`     S1034 missing object declaration name
+S1035 malformed object clause             S1036 multiple class bases
+S1037 assignment in condition             S1090 reserved unsupported syntax
 S1091 unsupported `===`                   S1092 unsupported angle generic
 ```
 
-`S1010` is intentionally unassigned. Diagnostics whose correction is not
-fully expressed by the primary message carry structured help; CLI rendering
+`S1010` and `S1031` are intentionally unassigned. Diagnostics whose correction is
+not fully expressed by the primary message carry structured help; CLI rendering
 prints that help separately from the stable code and message.
 
 Language work must introduce its accepted and rejected cases in the same
 vertical work unit as the behavior.
+
+The type-analysis additions through milestones 15–17 reserve and register these
+stable diagnostics:
+
+```text
+T0052 untyped stored-function parameter   T0061 class field missing initializer
+T0053 missing object declaration name     T0062 missing interface member
+T0054 invalid object-clause target         T0063 conflicting reused trait member
+T0055 unknown object member               T0064 invalid non-owning ref source
+T0058 use after move                      T0065 uninferable object field type
+T0059 referenced binding changes type     T0066 field missing type and initializer
+T0067 incompatible interface signature    T0068 escaping non-owning reference
+```
+
+`T0056`, `T0057`, and `T0060` are intentionally unassigned.
 
 ### Milestone 3 — Namespaces, scopes, and bootstrap environment
 
@@ -1106,8 +1124,9 @@ Exit criterion: a selected method family can be stored, passed, and invoked; the
 Implemented evidence: typed, synchronous function values cross binding and parameter boundaries;
 anonymous functions capture resolver-selected outer bindings once; and stored bound methods capture
 their receiver once before later invocation. Generated Rust uses statically typed `Arc<dyn Fn>`
-values rather than a universal runtime value. Conformance executes a passed closure, distinguishes
-parameter shadowing from an outer capture, and invokes a stored receiver-bound method.
+values rather than a universal runtime value and compiles receiver-free methods without lint
+suppression. Conformance executes a passed closure, distinguishes parameter shadowing from an outer
+capture, and invokes a stored receiver-bound method.
 
 ### Milestone 16 — Classes, interfaces, and traits
 
@@ -1121,12 +1140,14 @@ Deliver:
 Exit criterion: each of construction, inheritance, interface conformance, and trait reuse has an executable slice; dynamic-object state is preserved end to end.
 
 Implemented evidence: source classes lower typed fields, custom `construct`, lifecycle-lineage
-`destruct`, mutable and immutable methods, and separated value state. Single inheritance retains
-base and subclass fields and dispatches overridden methods through a generated base wrapper.
+`destruct`, mutating receivers inferred transitively from effective method contracts, immutable
+methods, and separated value state. Single inheritance retains base and subclass fields, dispatches
+overridden methods through a generated base wrapper, and safely widens inherited `this` returns.
 Declared interface conformance lowers through typed protocol wrappers, while traits reuse fields
 and methods. Executable cases cover construction, separated state, final-lineage destruction,
-inheritance, interface dispatch, and trait reuse; rejected cases cover uninitialized fields,
-missing interface methods, incompatible signatures, and unresolved trait conflicts.
+inheritance, inherited self-typed returns, interface dispatch, and trait reuse; rejected cases cover
+uninitialized fields, missing interface methods, incompatible signatures, and unresolved trait
+conflicts.
 
 Construct/destruct notes, and the docs should be updated to reflect this when we get there:
 
@@ -1180,10 +1201,11 @@ the distinction is proven against the value semantics already exercised by colle
 
 Implemented evidence (partial; exit criterion remains open): the source interface and typed pipeline
 now use non-owning `ref T` and owning `shared ref T`; lowering represents them with synchronized weak
-and strong storage respectively. Conformance proves shared mutation through an owner, bounded
-non-owning observation, explicit ownership transfer, reference-aware retyping rejection, and
-temporary-source rejection. Compile-time lifetime and escape analysis, release invalidation,
-shared-ownership cycle analysis, and complete derived-provenance coverage remain outstanding.
+and strong storage respectively. Conformance proves ordinary references to named owned bindings,
+shared mutation through an owner, bounded non-owning observation, explicit ownership transfer,
+reference-aware retyping rejection for both ownership forms, temporary-source rejection, and
+source-diagnosed return escape. Release invalidation beyond return escape, shared-ownership cycle
+analysis, and complete derived-provenance coverage remain outstanding.
 
 ### Milestone 18 — Capabilities, effects, and reflection
 

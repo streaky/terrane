@@ -729,8 +729,8 @@ pub fn analyze(package: &Package) -> Result<SemanticPackage, SemanticFailure> {
     validate_error_clauses(&semantic)?;
     analyze_types(&mut semantic)?;
     validate_moves(&semantic)?;
-    validate_referenced_replacements(&semantic)?;
     validate_reference_origins(&semantic)?;
+    validate_referenced_replacements(&semantic)?;
     infer_throwing_effects(&mut semantic);
     validate_constant_reassignment(&semantic)?;
     validate_global_definite_assignment(&semantic)?;
@@ -1418,7 +1418,7 @@ fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFailure> {
     ) -> Result<(), SemanticFailure> {
         if node.kind == SyntaxKind::UnaryExpression
             && let Some(operand) = node.children.last()
-            && unit.source.text()[node.span.start..operand.span.start].trim() == "move"
+            && unary_operator_text(unit, node) == Some("move")
             && operand.kind == SyntaxKind::Name
         {
             let name = node_text(&unit.source, operand);
@@ -1535,7 +1535,7 @@ fn validate_reference_origins(package: &SemanticPackage) -> Result<(), SemanticF
     fn visit(unit: &SemanticUnit, node: &SyntaxNode) -> Result<(), SemanticFailure> {
         if node.kind == SyntaxKind::UnaryExpression
             && let Some(operand) = node.children.last()
-            && unit.source.text()[node.span.start..operand.span.start].trim() == "ref"
+            && unary_operator_text(unit, node) == Some("ref")
         {
             let valid_origin = operand.kind == SyntaxKind::Name
                 && unit.typed_bindings.iter().rev().any(|binding| {
@@ -1551,6 +1551,20 @@ fn validate_reference_origins(package: &SemanticPackage) -> Result<(), SemanticF
                 ));
             }
         }
+        if node.kind == SyntaxKind::ReturnStatement
+            && let Some(value) = node.children.first()
+            && matches!(
+                infer_value_type(unit, value, &unit.typed_bindings)?,
+                Some(ValueType::Reference(_))
+            )
+        {
+            return Err(failure(
+                &unit.source,
+                "T0068",
+                "a non-owning reference cannot escape its proven source lifetime",
+                value.span,
+            ));
+        }
         for child in &node.children {
             visit(unit, child)?;
         }
@@ -1564,51 +1578,46 @@ fn validate_reference_origins(package: &SemanticPackage) -> Result<(), SemanticF
 }
 
 fn validate_referenced_replacements(package: &SemanticPackage) -> Result<(), SemanticFailure> {
-    fn collect(unit: &SemanticUnit, node: &SyntaxNode, referenced: &mut BTreeSet<usize>) {
+    fn collect_origins(unit: &SemanticUnit, node: &SyntaxNode, origins: &mut Vec<Span>) {
         if node.kind == SyntaxKind::UnaryExpression
+            && matches!(unary_operator_text(unit, node), Some("ref" | "shared ref"))
             && let Some(operand) = node.children.last()
             && operand.kind == SyntaxKind::Name
-            && matches!(
-                unit.source.text()[node.span.start..operand.span.start].trim(),
-                "ref" | "shared ref"
-            )
+            && let Some(binding) = unit.typed_bindings.iter().rev().find(|binding| {
+                binding.name == node_text(&unit.source, operand)
+                    && binding.is_visible_at(unit.source.id(), operand.span.start)
+            })
         {
-            let name = node_text(&unit.source, operand);
-            if let Some((index, _)) =
-                unit.typed_bindings
-                    .iter()
-                    .enumerate()
-                    .rev()
-                    .find(|(_, binding)| {
-                        binding.name == name
-                            && binding.is_visible_at(unit.source.id(), operand.span.start)
-                    })
-            {
-                referenced.insert(index);
-            }
+            origins.push(binding.span);
         }
         for child in &node.children {
-            collect(unit, child, referenced);
+            collect_origins(unit, child, origins);
         }
     }
 
     for unit in &package.units {
-        let mut referenced = BTreeSet::new();
-        collect(unit, &unit.tree.root, &mut referenced);
-        for origin_index in referenced {
-            let origin = &unit.typed_bindings[origin_index];
-            if let Some(replacement) = unit.typed_bindings.iter().find(|candidate| {
-                candidate.name == origin.name
-                    && candidate.scope == origin.scope
-                    && candidate.span.start > origin.span.start
-                    && candidate.value_type != origin.value_type
-            }) {
+        let mut origins = Vec::new();
+        collect_origins(unit, &unit.tree.root, &mut origins);
+        for replacement in &unit.typed_bindings {
+            let previous = unit
+                .typed_bindings
+                .iter()
+                .filter(|binding| {
+                    binding.name == replacement.name
+                        && binding.scope == replacement.scope
+                        && binding.visible_from < replacement.visible_from
+                })
+                .max_by_key(|binding| binding.visible_from);
+            if let Some(previous) = previous
+                && previous.value_type != replacement.value_type
+                && origins.contains(&previous.span)
+            {
                 return Err(failure(
                     &unit.source,
                     "T0059",
                     format!(
                         "`{}` cannot change from `{}` to `{}` while a reference observes it",
-                        origin.name, origin.value_type, replacement.value_type
+                        replacement.name, previous.value_type, replacement.value_type
                     ),
                     replacement.span,
                 ));
@@ -2929,8 +2938,12 @@ fn validate_object_conformance(package: &SemanticPackage) -> Result<(), Semantic
 fn analyze_types(package: &mut SemanticPackage) -> Result<(), SemanticFailure> {
     for index in 0..package.units.len() {
         let unit = &package.units[index];
+        let alias_history = descriptor_construct_alias_history(package, unit);
+        package.units[index].objects = analyze_object_contracts(unit, &alias_history)?;
+    }
+    for index in 0..package.units.len() {
+        let unit = &package.units[index];
         let mut alias_history = descriptor_construct_alias_history(package, unit);
-        let objects = analyze_object_contracts(unit, &alias_history)?;
         let mut functions = Vec::new();
         collect_type_declarations(
             unit,
@@ -2941,7 +2954,6 @@ fn analyze_types(package: &mut SemanticPackage) -> Result<(), SemanticFailure> {
         )?;
         package.units[index].descriptor_aliases = alias_history;
         package.units[index].functions = functions;
-        package.units[index].objects = objects;
     }
     populate_namespace_function_contracts(package);
     populate_function_aliases(package);
@@ -4590,7 +4602,11 @@ fn infer_value_type(
                 narrowed_value_type(unit, node, bindings).unwrap_or(binding.value_type.clone()),
             ));
         }
-        if let Some(contract) = unit.functions.iter().find(|contract| contract.name == name) {
+        if let Some(contract) = unit
+            .functions
+            .iter()
+            .find(|contract| contract.owner.is_none() && contract.name == name)
+        {
             let parameters = contract
                 .parameters
                 .iter()
@@ -5694,7 +5710,7 @@ fn infer_unary_type(
             "unary operator requires an operand",
         ));
     };
-    let operator = unit.source.text()[node.span.start..operand_node.span.start].trim();
+    let operator = unary_operator_text(unit, node).unwrap_or_default();
     if matches!(operator, "ref" | "shared ref" | "move") {
         let Some(operand) = infer_value_type(unit, operand_node, bindings)? else {
             return Err(operator_failure(
@@ -8731,6 +8747,23 @@ pub(crate) fn binding_span_is_mutated(
         iterator_binding: bool,
         node: &SyntaxNode,
     ) -> usize {
+        fn object_method_mutates(
+            unit: &SemanticUnit,
+            object_name: &str,
+            method_name: &str,
+        ) -> bool {
+            if let Some(method) = unit.functions.iter().find(|method| {
+                method.owner.as_deref() == Some(object_name) && method.name == method_name
+            }) {
+                return method.mutates_receiver;
+            }
+            unit.objects
+                .iter()
+                .find(|object| object.name == object_name)
+                .and_then(|object| object.base.as_deref())
+                .is_some_and(|base| object_method_mutates(unit, base, method_name))
+        }
+
         let resolves_to_binding = |target: &SyntaxNode| {
             target.kind == SyntaxKind::Name
                 && !package.is_lexical_replacement(unit, node.span, node_text(&unit.source, target))
@@ -8753,10 +8786,18 @@ pub(crate) fn binding_span_is_mutated(
                     return false;
                 };
                 callee.kind == SyntaxKind::MemberExpression
-                    && matches!(
+                    && (matches!(
                         node_text(&unit.source, member),
                         "append" | "set" | "add" | "remove"
-                    )
+                    ) || matches!(
+                        infer_value_type(unit, receiver, &unit.typed_bindings),
+                        Ok(Some(ValueType::Object(object)))
+                            if object_method_mutates(
+                                unit,
+                                &object,
+                                node_text(&unit.source, member)
+                            )
+                    ))
                     && resolves_to_binding(receiver)
             });
         let iterator_advance = iterator_binding
@@ -8847,6 +8888,13 @@ fn declaration_name(node: &SyntaxNode, source: &SourceFile) -> Option<String> {
         .iter()
         .find(|child| child.kind == SyntaxKind::Name)
         .map(|child| node_text(source, child).to_owned())
+}
+
+fn unary_operator_text<'a>(unit: &'a SemanticUnit, node: &SyntaxNode) -> Option<&'a str> {
+    node.children
+        .iter()
+        .find(|child| child.kind == SyntaxKind::UnaryOperator)
+        .map(|operator| node_text(&unit.source, operator))
 }
 
 fn node_text<'a>(source: &'a SourceFile, node: &SyntaxNode) -> &'a str {
