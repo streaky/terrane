@@ -3,6 +3,7 @@
 // Namespace: object-contracts-reuse
 pub trait DescribableProtocol {
     fn clone_box(&self) -> Box<dyn DescribableProtocol>;
+    fn separate_box(&self) -> Box<dyn DescribableProtocol>;
     fn describe(&self, prefix: String) -> String;
 }
 impl Clone for Box<dyn DescribableProtocol> { fn clone(&self) -> Self { self.clone_box() } }
@@ -40,6 +41,18 @@ impl Base {
             Self::Child(value) => value.describe(prefix),
         }
     }
+    pub fn terrane_field_value(&self) -> &terrane_int_support::Int {
+        match self {
+            Self::Own(value) => &value.value,
+            Self::Child(value) => &value.value,
+        }
+    }
+    pub fn terrane_field_value_mut(&mut self) -> &mut terrane_int_support::Int {
+        match self {
+            Self::Own(value) => &mut value.value,
+            Self::Child(value) => &mut value.value,
+        }
+    }
 }
 #[derive(Clone)]
 pub struct Child {
@@ -64,6 +77,7 @@ impl Child {
 }
 impl DescribableProtocol for Child {
     fn clone_box(&self) -> Box<dyn DescribableProtocol> { Box::new(self.clone()) }
+    fn separate_box(&self) -> Box<dyn DescribableProtocol> { Box::new(self.clone()) }
     fn describe(&self, prefix: String) -> String {
         Child::describe(self, prefix)
     }

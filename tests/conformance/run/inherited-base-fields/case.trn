@@ -1,0 +1,14 @@
+namespace inherited-base-fields
+
+class base
+    value int = 2
+
+class child extends base
+    extra int = 3
+
+function main
+    concrete child = child;
+    view base = concrete
+    print; view.value
+    view.value = 9
+    print; view.value

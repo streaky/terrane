@@ -2913,7 +2913,6 @@ fn validate_object_conformance(package: &SemanticPackage) -> Result<(), Semantic
                 })
             && left.return_type == right.return_type
             && left.throws == right.throws
-            && left.mutates_receiver == right.mutates_receiver
     }
 
     fn effective_method<'a>(
@@ -3035,6 +3034,91 @@ fn validate_object_conformance(package: &SemanticPackage) -> Result<(), Semantic
     Ok(())
 }
 
+fn propagate_interface_receiver_mutability(package: &mut SemanticPackage) {
+    fn effective_method<'a>(
+        unit: &'a SemanticUnit,
+        object: &'a ObjectContract,
+        name: &str,
+    ) -> Option<&'a FunctionContract> {
+        unit.functions
+            .iter()
+            .find(|method| method.owner.as_deref() == Some(&object.name) && method.name == name)
+            .or_else(|| {
+                object
+                    .base
+                    .as_deref()
+                    .and_then(|base| unit.objects.iter().find(|candidate| candidate.name == base))
+                    .and_then(|base| effective_method(unit, base, name))
+            })
+            .or_else(|| {
+                object.traits.iter().find_map(|used_trait| {
+                    unit.objects
+                        .iter()
+                        .find(|candidate| candidate.name == *used_trait)
+                        .and_then(|used_trait| effective_method(unit, used_trait, name))
+                })
+            })
+    }
+
+    let mut mutating = BTreeSet::<(u32, usize, usize, String)>::new();
+    for unit in &package.units {
+        for class in unit
+            .objects
+            .iter()
+            .filter(|object| object.kind == ObjectKind::Class)
+        {
+            for interface_name in &class.interfaces {
+                let Some(interface) = unit
+                    .objects
+                    .iter()
+                    .find(|candidate| candidate.name == *interface_name)
+                else {
+                    continue;
+                };
+                for required in unit
+                    .functions
+                    .iter()
+                    .filter(|method| method.owner.as_deref() == Some(&interface.name))
+                {
+                    if effective_method(unit, class, &required.name)
+                        .is_some_and(|actual| actual.mutates_receiver)
+                    {
+                        mutating.insert((
+                            interface.span.file,
+                            interface.span.start,
+                            interface.span.end,
+                            required.name.clone(),
+                        ));
+                    }
+                }
+            }
+        }
+    }
+
+    for unit in &mut package.units {
+        for method in &mut unit.functions {
+            let Some(owner) = method.owner.as_deref() else {
+                continue;
+            };
+            let Some(interface) = unit
+                .objects
+                .iter()
+                .find(|object| object.kind == ObjectKind::Interface && object.name == owner)
+            else {
+                continue;
+            };
+            if mutating.contains(&(
+                interface.span.file,
+                interface.span.start,
+                interface.span.end,
+                method.name.clone(),
+            )) {
+                method.mutates_receiver = true;
+            }
+        }
+    }
+}
+
 fn analyze_types(package: &mut SemanticPackage) -> Result<(), SemanticFailure> {
     for index in 0..package.units.len() {
         let unit = &package.units[index];
@@ -3058,6 +3142,7 @@ fn analyze_types(package: &mut SemanticPackage) -> Result<(), SemanticFailure> {
     }
     populate_namespace_function_contracts(package);
     populate_function_aliases(package);
+    propagate_interface_receiver_mutability(package);
     validate_object_conformance(package)?;
     validate_descriptor_value_uses(package)?;
 
@@ -8878,8 +8963,10 @@ pub(crate) fn binding_span_is_mutated(
         ) && node.span != declaration_span
             && node.children.first().is_some_and(|target| {
                 resolves_to_binding(target)
-                    || (target.kind == SyntaxKind::IndexExpression
-                        && target.children.first().is_some_and(resolves_to_binding))
+                    || (matches!(
+                        target.kind,
+                        SyntaxKind::IndexExpression | SyntaxKind::MemberExpression
+                    ) && target.children.first().is_some_and(resolves_to_binding))
             });
         let mutator_call = node.kind == SyntaxKind::CallExpression
             && node.children.first().is_some_and(|callee| {

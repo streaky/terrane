@@ -544,6 +544,7 @@ impl Emitter<'_> {
                 self.line(&format!("pub trait {protocol} {{"));
                 self.indent += 1;
                 self.line(&format!("fn clone_box(&self) -> Box<dyn {protocol}>;"));
+                self.line(&format!("fn separate_box(&self) -> Box<dyn {protocol}>;"));
                 for method in &methods {
                     self.line_start();
                     let receiver = if method.mutates_receiver {
@@ -612,6 +613,9 @@ impl Emitter<'_> {
                     self.line(&format!("self.0.{}({arguments})", rust_name(&method.name)));
                     self.indent -= 1;
                     self.line("}");
+                }
+                if self.object_requires_separation(&object.name) {
+                    self.line("fn terrane_separate(&self) -> Self { Self(self.0.separate_box()) }");
                 }
                 self.indent -= 1;
                 self.line("}");
@@ -878,6 +882,44 @@ impl Emitter<'_> {
                         self.indent -= 1;
                         self.line("}");
                     }
+                    for field in &fields {
+                        let field_name = rust_name(&field.name);
+                        let field_type = rust_value_type(field.value_type.clone());
+                        self.line(&format!(
+                            "pub fn terrane_field_{field_name}(&self) -> &{field_type} {{"
+                        ));
+                        self.indent += 1;
+                        self.line("match self {");
+                        self.indent += 1;
+                        self.line(&format!("Self::Own(value) => &value.{field_name},"));
+                        for descendant in &descendants {
+                            let descendant_type = rust_object_name(&descendant.name);
+                            self.line(&format!(
+                                "Self::{descendant_type}(value) => &value.{field_name},"
+                            ));
+                        }
+                        self.indent -= 1;
+                        self.line("}");
+                        self.indent -= 1;
+                        self.line("}");
+                        self.line(&format!(
+                            "pub fn terrane_field_{field_name}_mut(&mut self) -> &mut {field_type} {{"
+                        ));
+                        self.indent += 1;
+                        self.line("match self {");
+                        self.indent += 1;
+                        self.line(&format!("Self::Own(value) => &mut value.{field_name},"));
+                        for descendant in &descendants {
+                            let descendant_type = rust_object_name(&descendant.name);
+                            self.line(&format!(
+                                "Self::{descendant_type}(value) => &mut value.{field_name},"
+                            ));
+                        }
+                        self.indent -= 1;
+                        self.line("}");
+                        self.indent -= 1;
+                        self.line("}");
+                    }
                     self.indent -= 1;
                     self.line("}");
                 }
@@ -896,6 +938,15 @@ impl Emitter<'_> {
                     self.line(&format!(
                         "fn clone_box(&self) -> Box<dyn {protocol}> {{ Box::new(self.clone()) }}"
                     ));
+                    if self.object_requires_separation(&object.name) {
+                        self.line(&format!(
+                            "fn separate_box(&self) -> Box<dyn {protocol}> {{ Box::new(self.terrane_separate()) }}"
+                        ));
+                    } else {
+                        self.line(&format!(
+                            "fn separate_box(&self) -> Box<dyn {protocol}> {{ Box::new(self.clone()) }}"
+                        ));
+                    }
                     for method in effective_object_methods(self.unit, interface) {
                         self.line_start();
                         let receiver = if method.mutates_receiver {
@@ -1449,6 +1500,15 @@ impl Emitter<'_> {
             format!("*{}.lock()", rust_name(self.text(left)))
         } else if left.kind == SyntaxKind::Name {
             rust_name(self.text(left))
+        } else if let [receiver, member] = left.children.as_slice()
+            && left.kind == SyntaxKind::MemberExpression
+            && self.wrapped_object_field(receiver, self.text(member))
+        {
+            format!(
+                "*({}).terrane_field_{}_mut()",
+                self.receiver_expression(receiver),
+                rust_name(self.text(member))
+            )
         } else {
             self.expression(left)
         };
@@ -2976,6 +3036,7 @@ impl Emitter<'_> {
         {
             return length;
         }
+        let wrapped_field = self.wrapped_object_field(receiver, self.text(member));
         let receiver = self.receiver_expression(receiver);
         match self.text(member) {
             "bytes" if receiver_type == Some(ValueType::Scalar(ScalarType::String)) => {
@@ -3074,6 +3135,9 @@ impl Emitter<'_> {
                 format!(
                     "terrane_int_support::unwrap_or_fail(terrane_int_support::{helper}({receiver}, terrane_int_support::FloatRounding::{mode}))"
                 )
+            }
+            name if wrapped_field => {
+                format!("({receiver}).terrane_field_{}().clone()", rust_name(name))
             }
             name => format!("{receiver}.{}", rust_name(name)),
         }
@@ -4212,6 +4276,24 @@ impl Emitter<'_> {
             })
     }
 
+    fn wrapped_object_field(&self, receiver: &SyntaxNode, name: &str) -> bool {
+        let Some(ValueType::Object(identity)) = self.receiver_value_type(receiver) else {
+            return false;
+        };
+        let Some(object) = self
+            .unit
+            .objects
+            .iter()
+            .find(|object| object.name == identity)
+        else {
+            return false;
+        };
+        !object_descendants(self.unit, object).is_empty()
+            && effective_object_fields(self.unit, object)
+                .iter()
+                .any(|field| field.name == name)
+    }
+
     fn object_requires_separation(&self, name: &str) -> bool {
         let Some(object) = self.unit.objects.iter().find(|object| object.name == name) else {
             return false;
@@ -4226,6 +4308,20 @@ impl Emitter<'_> {
                         .iter()
                         .any(|method| method.name == "destruct")
                 })
+            || (object.kind == ObjectKind::Interface
+                && self.unit.objects.iter().any(|candidate| {
+                    candidate.interfaces.contains(&object.name)
+                        && (effective_object_methods(self.unit, candidate)
+                            .iter()
+                            .any(|method| method.name == "destruct")
+                            || object_descendants(self.unit, candidate)
+                                .iter()
+                                .any(|descendant| {
+                                    effective_object_methods(self.unit, descendant)
+                                        .iter()
+                                        .any(|method| method.name == "destruct")
+                                }))
+                }))
     }
 
     fn reference_storage_expression(&mut self, operand: &SyntaxNode) -> String {
