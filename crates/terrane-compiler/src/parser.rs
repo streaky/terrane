@@ -781,12 +781,12 @@ impl Parser<'_> {
 
     fn parse_prefix(&mut self, allow_call: bool) -> SyntaxNode {
         if matches!(self.text(), "not" | "ref" | "move" | "await")
-            || (self.text() == "weak" && self.peek_text(1) == Some("ref"))
+            || (self.text() == "shared" && self.peek_text(1) == Some("ref"))
             || (self.at(TokenKind::Operator) && matches!(self.text(), "-" | "~"))
         {
             let start = self.position;
-            let operator_text = if self.text() == "weak" {
-                "weak ref".to_owned()
+            let operator_text = if self.text() == "shared" {
+                "shared ref".to_owned()
             } else {
                 self.text().to_owned()
             };
@@ -798,14 +798,14 @@ impl Parser<'_> {
                     self.current().span,
                 ));
             }
-            if self.text() == "weak" {
+            if self.text() == "shared" {
                 self.bump();
             }
             self.bump();
             let operator = self.node(SyntaxKind::UnaryOperator, start, self.position, Vec::new());
             let operand = if matches!(
                 operator_text.as_str(),
-                "ref" | "move" | "weak ref" | "await"
+                "ref" | "move" | "shared ref" | "await"
             ) {
                 self.parse_postfix(false)
             } else {
@@ -975,7 +975,7 @@ impl Parser<'_> {
 
     fn parse_prefix_type(&mut self) -> SyntaxNode {
         let start = self.position;
-        if self.at_text("weak") && self.peek_text(1) == Some("ref") {
+        if self.at_text("shared") && self.peek_text(1) == Some("ref") {
             self.bump();
             self.bump();
             let inner = self.parse_prefix_type();

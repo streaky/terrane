@@ -1,0 +1,4 @@
+namespace reference-requires-binding
+
+function main
+    observer ref int = ref 1

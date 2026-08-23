@@ -1,0 +1,6 @@
+namespace shared-referenced-binding-retyping
+
+function main
+    value int8 = 12
+    owner shared ref int8 = shared ref value
+    value int = value.coerce; int

@@ -73,7 +73,7 @@ fn expression_tree_respects_precedence_and_postfix_binding() {
 
 #[test]
 fn preserves_unary_operator_identity_in_the_syntax_tree() {
-    let text = "strong = ref value\nweak = weak ref value\nmoved = move value\n";
+    let text = "observer = ref value\nowner = shared ref value\nmoved = move value\n";
     let tree = parse_source(text);
     let operators = tree
         .root
@@ -87,7 +87,7 @@ fn preserves_unary_operator_identity_in_the_syntax_tree() {
             text[operator.span.start..operator.span.end].trim()
         })
         .collect::<Vec<_>>();
-    assert_eq!(operators, ["ref", "weak ref", "move"]);
+    assert_eq!(operators, ["ref", "shared ref", "move"]);
 }
 
 #[test]

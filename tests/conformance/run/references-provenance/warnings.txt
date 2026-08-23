@@ -1,1 +1,0 @@
-case.trn:9:3: warning[W4001]: binding `weak` is never read

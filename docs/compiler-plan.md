@@ -1178,12 +1178,12 @@ Exit criterion: a bounded non-owning reference works without extending its owner
 and use after release are diagnosed in source terms; a shared owner keeps an identity alive; and
 the distinction is proven against the value semantics already exercised by collections.
 
-Status: reopened after the ownership contract was simplified. The earlier implementation established
-typed `ref T`/`weak ref T`, synchronized strong/weak aliases, `move`, conditional move analysis,
-referenced-retyping checks, collection aliasing, weak upgrade, and temporary-source rejection. That
-evidence remains useful but describes the superseded strong/weak model. Completion now requires a
-clean migration to non-owning `ref T` and owning `shared ref T`, including lifetime and cycle cases;
-the current implementation surface remains recorded in `surface-today.md` until those cases pass.
+Implemented evidence (partial; exit criterion remains open): the source interface and typed pipeline
+now use non-owning `ref T` and owning `shared ref T`; lowering represents them with synchronized weak
+and strong storage respectively. Conformance proves shared mutation through an owner, bounded
+non-owning observation, explicit ownership transfer, reference-aware retyping rejection, and
+temporary-source rejection. Compile-time lifetime and escape analysis, release invalidation,
+shared-ownership cycle analysis, and complete derived-provenance coverage remain outstanding.
 
 ### Milestone 18 — Capabilities, effects, and reflection
 

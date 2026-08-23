@@ -107,7 +107,7 @@ Terrane package
     ├── interface                              named structural dispatch contract
     ├── trait                                  reusable fields and methods
     └── lexical block
-        └── binding                            local typed value, reference, or weak reference
+        └── binding                            local typed value, ref, or shared ref
 ```
 
 ## Implemented value types
@@ -471,18 +471,18 @@ typed dispatch contracts; traits reuse declared fields and methods, with unresol
 member conflicts rejected. Interface conversion and base-class dispatch preserve the concrete
 value behind generated protocol/base wrappers.
 
-`ref T` values are strong, cloneable aliases backed by synchronized shared storage; `weak ref T`
-does not keep that storage alive and member use upgrades it or fails deterministically if expired.
-Both reference forms require a source binding. Prefix `ref`, `weak ref`, and `move` construct those
-respective ownership forms. Move provenance rejects later reads until the binding is rebound,
-including paths on which the move is conditional, and a type-changing replacement is rejected
-while either a strong or weak reference observes the originating binding.
+`ref T` values are non-owning aliases backed by synchronized weak storage; member use upgrades the
+target or fails deterministically if it has expired. `shared ref T` values are cloneable shared
+owners backed by synchronized strong storage. Prefix `ref`, `shared ref`, and `move` construct those
+respective ownership forms. A `ref` currently requires a named source with reference-backed storage;
+the compiler does not yet prove arbitrary owner lifetimes or reject all escapes. Move provenance
+rejects later reads until the binding is rebound, including conditional paths, and a type-changing
+replacement is rejected while either reference form observes the originating binding.
 
-This is the compiler's current, superseded strong/weak implementation, not the settled version-one
-reference contract. Milestone 17 is reopened to migrate `ref T` to non-owning provenance-checked
-observation, replace `weak ref T` with explicit owning `shared ref T`, and remove the old runtime
-upgrade behavior. Until that migration passes conformance, the tree above intentionally records the
-pipeline that exists rather than the proposed surface in `surface-v1.md`.
+The source interface now matches the settled version-one ownership vocabulary. Milestone 17 remains
+open for compile-time lifetime and escape analysis, release invalidation, shared-ownership cycle
+analysis, and the remaining provenance paths; runtime expiry checking is still the implemented
+fallback where a non-owning reference's validity is not statically proven.
 
 ## Properties and methods index
 

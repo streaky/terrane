@@ -1,4 +1,0 @@
-namespace weak-reference-requires-binding
-
-function main
-    observer weak ref int = weak ref 1

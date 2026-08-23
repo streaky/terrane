@@ -1651,7 +1651,7 @@ impl Emitter<'_> {
             binding.mutable
                 && !matches!(
                     binding.value_type,
-                    ValueType::Reference(_) | ValueType::WeakReference(_)
+                    ValueType::Reference(_) | ValueType::SharedReference(_)
                 )
         });
         if self
@@ -1885,13 +1885,27 @@ impl Emitter<'_> {
                 let source_operator =
                     self.source.text()[node.span.start..operand.span.start].trim();
                 if source_operator == "ref" {
-                    return format!(
-                        "std::sync::Arc::new(parking_lot::Mutex::new({}))",
-                        self.expression(operand)
-                    );
+                    return match self.value_type(operand) {
+                        Some(ValueType::Reference(_)) => {
+                            format!("({}).clone()", self.expression(operand))
+                        }
+                        _ => format!("std::sync::Arc::downgrade(&{})", self.expression(operand)),
+                    };
                 }
-                if source_operator == "weak ref" {
-                    return format!("std::sync::Arc::downgrade(&{})", self.expression(operand));
+                if source_operator == "shared ref" {
+                    return match self.value_type(operand) {
+                        Some(ValueType::SharedReference(_)) => {
+                            format!("({}).clone()", self.expression(operand))
+                        }
+                        Some(ValueType::Reference(_)) => format!(
+                            "{}.upgrade().expect(\"reference expired\")",
+                            self.expression(operand)
+                        ),
+                        _ => format!(
+                            "std::sync::Arc::new(parking_lot::Mutex::new({}))",
+                            self.expression(operand)
+                        ),
+                    };
                 }
                 if source_operator == "move" {
                     return match operand.kind {
@@ -2029,7 +2043,7 @@ impl Emitter<'_> {
         }
         if matches!(
             value_type,
-            ValueType::Reference(_) | ValueType::WeakReference(_)
+            ValueType::Reference(_) | ValueType::SharedReference(_)
         ) && self.value_type(node) == Some(value_type.clone())
         {
             return format!("({}).clone()", self.expression(node));
@@ -2761,18 +2775,18 @@ impl Emitter<'_> {
     fn receiver_value_type(&self, receiver: &SyntaxNode) -> Option<ValueType> {
         self.value_type(receiver)
             .map(|value_type| match value_type {
-                ValueType::Reference(item) | ValueType::WeakReference(item) => item.value_type(),
+                ValueType::Reference(item) | ValueType::SharedReference(item) => item.value_type(),
                 value_type => value_type,
             })
     }
 
     fn receiver_expression(&mut self, receiver: &SyntaxNode) -> String {
         match self.value_type(receiver) {
-            Some(ValueType::Reference(_)) => {
+            Some(ValueType::SharedReference(_)) => {
                 format!("({{ {}.lock().clone() }})", self.expression(receiver))
             }
-            Some(ValueType::WeakReference(_)) => format!(
-                "({{ {}.upgrade().expect(\"weak reference expired\").lock().clone() }})",
+            Some(ValueType::Reference(_)) => format!(
+                "({{ {}.upgrade().expect(\"reference expired\").lock().clone() }})",
                 self.expression(receiver)
             ),
             _ => self.expression(receiver),
@@ -2781,9 +2795,9 @@ impl Emitter<'_> {
 
     fn receiver_guard_expression(&mut self, receiver: &SyntaxNode) -> String {
         match self.value_type(receiver) {
-            Some(ValueType::Reference(_)) => format!("{}.lock()", self.expression(receiver)),
-            Some(ValueType::WeakReference(_)) => format!(
-                "parking_lot::Mutex::lock_arc(&{}.upgrade().expect(\"weak reference expired\"))",
+            Some(ValueType::SharedReference(_)) => format!("{}.lock()", self.expression(receiver)),
+            Some(ValueType::Reference(_)) => format!(
+                "parking_lot::Mutex::lock_arc(&{}.upgrade().expect(\"reference expired\"))",
                 self.expression(receiver)
             ),
             _ => self.expression(receiver),
@@ -4437,11 +4451,11 @@ fn rust_value_type(ty: ValueType) -> String {
             rust_element_type(result)
         ),
         ValueType::Object(name) => rust_object_name(&name),
-        ValueType::Reference(item) => format!(
+        ValueType::SharedReference(item) => format!(
             "std::sync::Arc<parking_lot::Mutex<{}>>",
             rust_element_type(item)
         ),
-        ValueType::WeakReference(item) => format!(
+        ValueType::Reference(item) => format!(
             "std::sync::Weak<parking_lot::Mutex<{}>>",
             rust_element_type(item)
         ),

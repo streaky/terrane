@@ -148,7 +148,7 @@ pub enum ValueType {
     Function(Vec<ElementType>, ElementType),
     Object(String),
     Reference(ElementType),
-    WeakReference(ElementType),
+    SharedReference(ElementType),
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -269,7 +269,7 @@ impl std::fmt::Display for ValueType {
             }
             Self::Object(name) => formatter.write_str(name),
             Self::Reference(item) => write!(formatter, "ref {}", item.value_type()),
-            Self::WeakReference(item) => write!(formatter, "weak ref {}", item.value_type()),
+            Self::SharedReference(item) => write!(formatter, "shared ref {}", item.value_type()),
         }
     }
 }
@@ -730,7 +730,7 @@ pub fn analyze(package: &Package) -> Result<SemanticPackage, SemanticFailure> {
     analyze_types(&mut semantic)?;
     validate_moves(&semantic)?;
     validate_referenced_replacements(&semantic)?;
-    validate_weak_references(&semantic)?;
+    validate_reference_origins(&semantic)?;
     infer_throwing_effects(&mut semantic);
     validate_constant_reassignment(&semantic)?;
     validate_global_definite_assignment(&semantic)?;
@@ -1531,11 +1531,11 @@ fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFailure> {
     Ok(())
 }
 
-fn validate_weak_references(package: &SemanticPackage) -> Result<(), SemanticFailure> {
+fn validate_reference_origins(package: &SemanticPackage) -> Result<(), SemanticFailure> {
     fn visit(unit: &SemanticUnit, node: &SyntaxNode) -> Result<(), SemanticFailure> {
         if node.kind == SyntaxKind::UnaryExpression
             && let Some(operand) = node.children.last()
-            && unit.source.text()[node.span.start..operand.span.start].trim() == "weak ref"
+            && unit.source.text()[node.span.start..operand.span.start].trim() == "ref"
         {
             let valid_origin = operand.kind == SyntaxKind::Name
                 && unit.typed_bindings.iter().rev().any(|binding| {
@@ -1546,7 +1546,7 @@ fn validate_weak_references(package: &SemanticPackage) -> Result<(), SemanticFai
                 return Err(failure(
                     &unit.source,
                     "T0064",
-                    "`weak ref` requires a named binding with reference-backed storage",
+                    "`ref` requires a named binding with reference-backed storage",
                     operand.span,
                 ));
             }
@@ -1570,7 +1570,7 @@ fn validate_referenced_replacements(package: &SemanticPackage) -> Result<(), Sem
             && operand.kind == SyntaxKind::Name
             && matches!(
                 unit.source.text()[node.span.start..operand.span.start].trim(),
-                "ref" | "weak ref"
+                "ref" | "shared ref"
             )
         {
             let name = node_text(&unit.source, operand);
@@ -3893,9 +3893,9 @@ fn declared_value_type(
         return Ok(
             if node_text(&unit.source, shape)
                 .trim()
-                .starts_with("weak ref")
+                .starts_with("shared ref")
             {
-                ValueType::WeakReference(inner)
+                ValueType::SharedReference(inner)
             } else {
                 ValueType::Reference(inner)
             },
@@ -5377,12 +5377,9 @@ fn infer_receiver_value_type(
     bindings: &[TypedBinding],
 ) -> Result<Option<ValueType>, SemanticFailure> {
     Ok(
-        infer_value_type(unit, receiver, bindings)?.map(|value_type| {
-            if let ValueType::Reference(item) = value_type {
-                item.value_type()
-            } else {
-                value_type
-            }
+        infer_value_type(unit, receiver, bindings)?.map(|value_type| match value_type {
+            ValueType::Reference(item) | ValueType::SharedReference(item) => item.value_type(),
+            value_type => value_type,
         }),
     )
 }
@@ -5698,7 +5695,7 @@ fn infer_unary_type(
         ));
     };
     let operator = unit.source.text()[node.span.start..operand_node.span.start].trim();
-    if matches!(operator, "ref" | "weak ref" | "move") {
+    if matches!(operator, "ref" | "shared ref" | "move") {
         let Some(operand) = infer_value_type(unit, operand_node, bindings)? else {
             return Err(operator_failure(
                 unit,
@@ -5707,10 +5704,17 @@ fn infer_unary_type(
             ));
         };
         return Ok(match operator {
-            "ref" => ValueType::Reference(ElementType::new(operand)),
-            "weak ref" => match operand {
-                ValueType::Reference(item) => ValueType::WeakReference(item),
-                value_type => ValueType::WeakReference(ElementType::new(value_type)),
+            "ref" => match operand {
+                ValueType::Reference(item) | ValueType::SharedReference(item) => {
+                    ValueType::Reference(item)
+                }
+                value_type => ValueType::Reference(ElementType::new(value_type)),
+            },
+            "shared ref" => match operand {
+                ValueType::Reference(item) | ValueType::SharedReference(item) => {
+                    ValueType::SharedReference(item)
+                }
+                value_type => ValueType::SharedReference(ElementType::new(value_type)),
             },
             "move" => operand,
             _ => unreachable!(),
