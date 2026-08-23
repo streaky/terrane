@@ -476,8 +476,9 @@ target or fails deterministically if it has expired. `shared ref T` values are c
 owners backed by synchronized strong storage. Prefix `ref`, `shared ref`, and `move` construct those
 respective ownership forms. A `ref` currently requires a named source with reference-backed storage;
 the compiler does not yet prove arbitrary owner lifetimes or reject all escapes. Move provenance
-rejects later reads until the binding is rebound, including conditional paths, and a type-changing
-replacement is rejected while either reference form observes the originating binding.
+rejects later reads until the binding is rebound, including conditional paths. Replacing a binding
+ends the old identity's lifetime: a later non-owning-reference use is rejected, while a `shared ref`
+continues to own and observe the old identity.
 
 The source interface now matches the settled version-one ownership vocabulary. Milestone 17 remains
 open for compile-time lifetime and escape analysis, release invalidation, shared-ownership cycle

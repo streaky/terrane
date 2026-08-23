@@ -2069,6 +2069,12 @@ impl Emitter<'_> {
                 )
             };
         }
+        if matches!(value_type, ValueType::Reference(_))
+            && node.kind == SyntaxKind::UnaryExpression
+            && self.unary_operator(node).as_deref() == Some("ref")
+        {
+            return self.expression(node);
+        }
         if matches!(
             value_type,
             ValueType::Reference(_) | ValueType::SharedReference(_)

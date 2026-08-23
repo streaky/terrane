@@ -371,7 +371,7 @@ T0053 missing object declaration name     T0062 missing interface member
 T0054 invalid object-clause target         T0063 conflicting reused trait member
 T0055 unknown object member               T0064 invalid non-owning ref source
 T0058 use after move                      T0065 uninferable object field type
-T0059 referenced binding changes type     T0066 field missing type and initializer
+T0059 reference used after replacement     T0066 field missing type and initializer
 T0067 incompatible interface signature    T0068 escaping non-owning reference
 ```
 
@@ -1203,9 +1203,10 @@ Implemented evidence (partial; exit criterion remains open): the source interfac
 now use non-owning `ref T` and owning `shared ref T`; lowering represents them with synchronized weak
 and strong storage respectively. Conformance proves ordinary references to named owned bindings,
 shared mutation through an owner, bounded non-owning observation, explicit ownership transfer,
-reference-aware retyping rejection for both ownership forms, temporary-source rejection, and
-source-diagnosed return escape. Release invalidation beyond return escape, shared-ownership cycle
-analysis, and complete derived-provenance coverage remain outstanding.
+temporary-source rejection, source-diagnosed return escape, replacement invalidation of non-owning
+references, and continued access through shared owners after replacement. Lifetime analysis beyond
+return escape and direct replacement, shared-ownership cycle analysis, and complete
+derived-provenance coverage remain outstanding.
 
 ### Milestone 18 — Capabilities, effects, and reflection
 

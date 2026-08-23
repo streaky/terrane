@@ -1578,9 +1578,24 @@ fn validate_reference_origins(package: &SemanticPackage) -> Result<(), SemanticF
 }
 
 fn validate_referenced_replacements(package: &SemanticPackage) -> Result<(), SemanticFailure> {
-    fn collect_origins(unit: &SemanticUnit, node: &SyntaxNode, origins: &mut Vec<Span>) {
+    fn collect_origins(
+        unit: &SemanticUnit,
+        node: &SyntaxNode,
+        observer: Option<Span>,
+        origins: &mut Vec<(Span, Span)>,
+    ) {
+        let observer = if node.kind == SyntaxKind::Binding {
+            unit.typed_bindings
+                .iter()
+                .find(|binding| binding.span == node.span)
+                .map(|binding| binding.span)
+                .or(observer)
+        } else {
+            observer
+        };
         if node.kind == SyntaxKind::UnaryExpression
-            && matches!(unary_operator_text(unit, node), Some("ref" | "shared ref"))
+            && unary_operator_text(unit, node) == Some("ref")
+            && let Some(observer) = observer
             && let Some(operand) = node.children.last()
             && operand.kind == SyntaxKind::Name
             && let Some(binding) = unit.typed_bindings.iter().rev().find(|binding| {
@@ -1588,16 +1603,37 @@ fn validate_referenced_replacements(package: &SemanticPackage) -> Result<(), Sem
                     && binding.is_visible_at(unit.source.id(), operand.span.start)
             })
         {
-            origins.push(binding.span);
+            origins.push((binding.span, observer));
         }
         for child in &node.children {
-            collect_origins(unit, child, origins);
+            collect_origins(unit, child, observer, origins);
         }
+    }
+
+    fn first_use_after(
+        package: &SemanticPackage,
+        unit: &SemanticUnit,
+        node: &SyntaxNode,
+        declaration: Span,
+        position: usize,
+    ) -> Option<Span> {
+        if node.kind == SyntaxKind::Name
+            && node.span.start > position
+            && package
+                .resolve_name_at(unit, node.span.start, node_text(&unit.source, node))
+                .and_then(|symbol| symbol.declaration_span)
+                == Some(declaration)
+        {
+            return Some(node.span);
+        }
+        node.children
+            .iter()
+            .find_map(|child| first_use_after(package, unit, child, declaration, position))
     }
 
     for unit in &package.units {
         let mut origins = Vec::new();
-        collect_origins(unit, &unit.tree.root, &mut origins);
+        collect_origins(unit, &unit.tree.root, None, &mut origins);
         for replacement in &unit.typed_bindings {
             let previous = unit
                 .typed_bindings
@@ -1610,16 +1646,27 @@ fn validate_referenced_replacements(package: &SemanticPackage) -> Result<(), Sem
                 .max_by_key(|binding| binding.visible_from);
             if let Some(previous) = previous
                 && previous.value_type != replacement.value_type
-                && origins.contains(&previous.span)
+                && let Some(use_span) = origins
+                    .iter()
+                    .filter(|(origin, _)| *origin == previous.span)
+                    .find_map(|(_, observer)| {
+                        first_use_after(
+                            package,
+                            unit,
+                            &unit.tree.root,
+                            *observer,
+                            replacement.span.end,
+                        )
+                    })
             {
                 return Err(failure(
                     &unit.source,
                     "T0059",
                     format!(
-                        "`{}` cannot change from `{}` to `{}` while a reference observes it",
-                        replacement.name, previous.value_type, replacement.value_type
+                        "a reference to the previous `{}` value is unavailable after replacement",
+                        replacement.name
                     ),
-                    replacement.span,
+                    use_span,
                 ));
             }
         }
