@@ -1205,10 +1205,11 @@ the distinction is proven against the value semantics already exercised by colle
 
 Implemented evidence (partial; exit criterion remains open): the source interface and typed pipeline
 now use non-owning `ref T` and owning `shared ref T`; lowering represents them with synchronized weak
-and strong storage respectively. Conformance proves ordinary references to named owned bindings,
-shared mutation through an owner, bounded non-owning observation, explicit ownership transfer,
-temporary-source rejection, source-diagnosed return escape, replacement invalidation of non-owning
-references, and continued access through shared owners after replacement. The current generated
+and strong storage respectively. Conformance proves ordinary references to named owned local
+bindings, transparent scalar member and consumer access, shared mutation through an owner, bounded
+non-owning observation, explicit ownership transfer, temporary and parameter-source rejection,
+source-diagnosed return escape, replacement invalidation of non-owning references, and continued
+access through shared owners after replacement. The current generated
 representation clones the referenced value for each read; this is a correctness-first lowering, not
 the intended reference cost model. Lifetime analysis beyond return escape and direct replacement,
 shared-ownership cycle analysis, complete derived-provenance coverage, and borrow-oriented lowering

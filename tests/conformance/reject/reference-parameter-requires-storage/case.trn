@@ -1,0 +1,8 @@
+namespace reference-parameter-requires-storage
+from /core/types import int8
+
+function observe; value int8
+    observer ref int8 = ref value
+
+function main
+    observe; 7

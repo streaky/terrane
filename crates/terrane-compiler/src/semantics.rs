@@ -1467,7 +1467,7 @@ fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFailure> {
     ) -> Result<(), SemanticFailure> {
         if node.kind == SyntaxKind::UnaryExpression
             && let Some(operand) = node.children.last()
-            && unary_operator_text(unit, node) == Some("move")
+            && unary_operator_text(unit, node).as_deref() == Some("move")
             && operand.kind == SyntaxKind::Name
         {
             let name = node_text(&unit.source, operand);
@@ -1584,12 +1584,15 @@ fn validate_reference_origins(package: &SemanticPackage) -> Result<(), SemanticF
     fn visit(unit: &SemanticUnit, node: &SyntaxNode) -> Result<(), SemanticFailure> {
         if node.kind == SyntaxKind::UnaryExpression
             && let Some(operand) = node.children.last()
-            && unary_operator_text(unit, node) == Some("ref")
+            && unary_operator_text(unit, node).as_deref() == Some("ref")
         {
             let valid_origin = operand.kind == SyntaxKind::Name
                 && unit.typed_bindings.iter().rev().any(|binding| {
                     binding.name == node_text(&unit.source, operand)
                         && binding.is_visible_at(unit.source.id(), operand.span.start)
+                        && binding.scope.is_some()
+                        && find_node_by_span(&unit.tree.root, binding.span)
+                            .is_some_and(|origin| origin.kind == SyntaxKind::Binding)
                 });
             if !valid_origin {
                 return Err(failure(
@@ -1643,7 +1646,7 @@ fn validate_referenced_replacements(package: &SemanticPackage) -> Result<(), Sem
             observer
         };
         if node.kind == SyntaxKind::UnaryExpression
-            && unary_operator_text(unit, node) == Some("ref")
+            && unary_operator_text(unit, node).as_deref() == Some("ref")
             && let Some(observer) = observer
             && let Some(operand) = node.children.last()
             && operand.kind == SyntaxKind::Name
@@ -2289,7 +2292,8 @@ fn validate_call_nodes<'a>(
                 active_function,
                 scoped_bindings,
             )?;
-            let value_type = infer_value_type(unit, value, scoped_bindings)?;
+            let value_type =
+                transparent_value_type(infer_value_type(unit, value, scoped_bindings)?);
             if !matches!(
                 value_type,
                 Some(ValueType::Scalar(
@@ -5657,7 +5661,6 @@ fn infer_member_value_type(
             None => Ok(None),
         };
     }
-    let receiver_type = infer_value_type(unit, receiver, bindings)?;
     if matches!(
         receiver_type,
         Some(ValueType::Scalar(ScalarType::String | ScalarType::Bytes))
@@ -5725,7 +5728,7 @@ fn infer_string_call_type(
         .expect("selected string receiver belongs to this syntax tree");
     let family = selection.family.source_name();
     let child = selection.child.as_str();
-    let subject_type = infer_value_type(unit, subject, bindings)?;
+    let subject_type = transparent_value_type(infer_value_type(unit, subject, bindings)?);
     let receiver_valid = match family {
         "decode" => subject_type == Some(ValueType::Scalar(ScalarType::Bytes)),
         _ => subject_type == Some(ValueType::Scalar(ScalarType::String)),
@@ -5808,7 +5811,7 @@ fn infer_unary_type(
         ));
     };
     let operator = unary_operator_text(unit, node).unwrap_or_default();
-    if matches!(operator, "ref" | "shared ref" | "move") {
+    if matches!(operator.as_str(), "ref" | "shared ref" | "move") {
         let Some(operand) = infer_value_type(unit, operand_node, bindings)? else {
             return Err(operator_failure(
                 unit,
@@ -5816,7 +5819,7 @@ fn infer_unary_type(
                 format!("operator `{operator}` requires a value operand"),
             ));
         };
-        return Ok(match operator {
+        return Ok(match operator.as_str() {
             "ref" => match operand {
                 ValueType::Reference(item) | ValueType::SharedReference(item) => {
                     ValueType::Reference(item)
@@ -5841,7 +5844,7 @@ fn infer_unary_type(
         ));
     };
 
-    let valid = match operator {
+    let valid = match operator.as_str() {
         "-" => operand.is_integer() || matches!(operand, ScalarType::Float32 | ScalarType::Float64),
         "~" => operand.is_integer(),
         "not" => operand == ScalarType::Bool,
@@ -8987,11 +8990,23 @@ fn declaration_name(node: &SyntaxNode, source: &SourceFile) -> Option<String> {
         .map(|child| node_text(source, child).to_owned())
 }
 
-fn unary_operator_text<'a>(unit: &'a SemanticUnit, node: &SyntaxNode) -> Option<&'a str> {
+fn unary_operator_text(unit: &SemanticUnit, node: &SyntaxNode) -> Option<String> {
     node.children
         .iter()
         .find(|child| child.kind == SyntaxKind::UnaryOperator)
-        .map(|operator| node_text(&unit.source, operator))
+        .map(|operator| {
+            node_text(&unit.source, operator)
+                .split_whitespace()
+                .collect::<Vec<_>>()
+                .join(" ")
+        })
+}
+
+fn transparent_value_type(value_type: Option<ValueType>) -> Option<ValueType> {
+    value_type.map(|value_type| match value_type {
+        ValueType::Reference(item) | ValueType::SharedReference(item) => item.value_type(),
+        value_type => value_type,
+    })
 }
 
 fn node_text<'a>(source: &'a SourceFile, node: &SyntaxNode) -> &'a str {

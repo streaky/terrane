@@ -2880,6 +2880,17 @@ impl Emitter<'_> {
         self.expression(node)
     }
 
+    fn display_expression(&mut self, node: &SyntaxNode) -> String {
+        if matches!(
+            self.value_type(node),
+            Some(ValueType::Reference(_) | ValueType::SharedReference(_))
+        ) {
+            self.receiver_expression(node)
+        } else {
+            self.borrowed_expression(node)
+        }
+    }
+
     #[expect(
         clippy::too_many_lines,
         reason = "member lowering keeps one ordered dispatch across scalar and collection surfaces"
@@ -3322,7 +3333,7 @@ impl Emitter<'_> {
             }
             let values = argument_values
                 .iter()
-                .map(|value| self.borrowed_expression(value))
+                .map(|value| self.display_expression(value))
                 .map(|value| format!("terrane_scalar_support::scalar_text(&({value}))"))
                 .collect::<Vec<_>>();
             let format = "{}".repeat(values.len());
@@ -4122,7 +4133,12 @@ impl Emitter<'_> {
         node.children
             .iter()
             .find(|child| child.kind == SyntaxKind::UnaryOperator)
-            .map(|operator| self.text(operator).to_owned())
+            .map(|operator| {
+                self.text(operator)
+                    .split_whitespace()
+                    .collect::<Vec<_>>()
+                    .join(" ")
+            })
     }
 
     fn reference_storage_expression(&mut self, operand: &SyntaxNode) -> String {

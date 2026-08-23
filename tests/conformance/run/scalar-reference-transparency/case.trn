@@ -1,0 +1,14 @@
+namespace scalar-reference-transparency
+from /core/output import print
+from /core/types import int8
+
+function main
+    text string = 'abc'
+    seen ref string = ref text
+    print; seen.length
+    print; seen
+    number int8 = 7
+    observed ref int8 = ref number
+    print; observed
+    owner shared ref int8 = shared    ref number
+    print; owner
