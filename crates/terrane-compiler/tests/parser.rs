@@ -72,6 +72,25 @@ fn expression_tree_respects_precedence_and_postfix_binding() {
 }
 
 #[test]
+fn preserves_unary_operator_identity_in_the_syntax_tree() {
+    let text = "strong = ref value\nweak = weak ref value\nmoved = move value\n";
+    let tree = parse_source(text);
+    let operators = tree
+        .root
+        .children
+        .iter()
+        .map(|binding| {
+            let unary = binding.children.last().unwrap();
+            assert_eq!(unary.kind, SyntaxKind::UnaryExpression);
+            let operator = unary.children.first().unwrap();
+            assert_eq!(operator.kind, SyntaxKind::UnaryOperator);
+            text[operator.span.start..operator.span.end].trim()
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(operators, ["ref", "weak ref", "move"]);
+}
+
+#[test]
 fn parses_both_postfix_increment_and_decrement() {
     let tree = parse_source("left++\nright--\n");
     assert_eq!(tree.root.children.len(), 2);

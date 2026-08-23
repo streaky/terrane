@@ -41,6 +41,7 @@ pub enum SyntaxKind {
     BinaryExpression,
     TypeMembershipExpression,
     UnaryExpression,
+    UnaryOperator,
     PostfixExpression,
     MemberExpression,
     IndexExpression,

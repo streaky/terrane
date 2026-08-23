@@ -785,7 +785,12 @@ impl Parser<'_> {
             || (self.at(TokenKind::Operator) && matches!(self.text(), "-" | "~"))
         {
             let start = self.position;
-            let restricted = self.text() == "await";
+            let operator_text = if self.text() == "weak" {
+                "weak ref".to_owned()
+            } else {
+                self.text().to_owned()
+            };
+            let restricted = operator_text == "await";
             if restricted {
                 self.diagnostics.push(Diagnostic::error(
                     "S1090",
@@ -797,8 +802,9 @@ impl Parser<'_> {
                 self.bump();
             }
             self.bump();
+            let operator = self.node(SyntaxKind::UnaryOperator, start, self.position, Vec::new());
             let operand = if matches!(
-                self.source.text()[self.tokens[start].span.start..self.current().span.start].trim(),
+                operator_text.as_str(),
                 "ref" | "move" | "weak ref" | "await"
             ) {
                 self.parse_postfix(false)
@@ -809,7 +815,7 @@ impl Parser<'_> {
                 SyntaxKind::UnaryExpression,
                 start,
                 self.position,
-                vec![operand],
+                vec![operator, operand],
             );
         }
         self.parse_postfix(allow_call)

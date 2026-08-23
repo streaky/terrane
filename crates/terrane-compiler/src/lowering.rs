@@ -616,11 +616,16 @@ impl Emitter<'_> {
                 let storage_type = if descendants.is_empty() {
                     class_type.clone()
                 } else {
-                    format!("{class_type}Own")
+                    format!("{class_type}Storage")
                 };
+                let methods = effective_object_methods(self.unit, object);
+                let has_destructor = methods.iter().any(|method| method.name == "destruct");
                 self.line("#[derive(Clone)]");
                 self.line(&format!("pub struct {storage_type} {{"));
                 self.indent += 1;
+                if has_destructor {
+                    self.line("__terrane_lifetime: std::sync::Arc<()>,");
+                }
                 for field in &fields {
                     self.line(&format!(
                         "pub {}: {},",
@@ -632,7 +637,6 @@ impl Emitter<'_> {
                 self.line("}");
                 self.line(&format!("impl {storage_type} {{"));
                 self.indent += 1;
-                let methods = effective_object_methods(self.unit, object);
                 if let Some(construct) = methods.iter().find(|method| method.name == "construct") {
                     self.line_start();
                     write!(self.output, "pub fn terrane_construct(").unwrap();
@@ -665,6 +669,9 @@ impl Emitter<'_> {
                         );
                         self.line(&format!("{}: {value},", rust_name(&field.name)));
                     }
+                    if has_destructor {
+                        self.line("__terrane_lifetime: std::sync::Arc::new(()),");
+                    }
                     self.indent -= 1;
                     self.line("};");
                     let arguments = construct
@@ -696,6 +703,9 @@ impl Emitter<'_> {
                             |initializer| self.expression_as(initializer, field.value_type.clone()),
                         );
                         self.line(&format!("{}: {value},", rust_name(&field.name)));
+                    }
+                    if has_destructor {
+                        self.line("__terrane_lifetime: std::sync::Arc::new(()),");
                     }
                     self.indent -= 1;
                     self.line("}");
@@ -874,12 +884,16 @@ impl Emitter<'_> {
                         "impl From<{class_type}> for {interface_type} {{ fn from(value: {class_type}) -> Self {{ Self(Box::new(value)) }} }}"
                     ));
                 }
-                if methods.iter().any(|method| method.name == "destruct") {
+                if has_destructor {
                     self.line(&format!("impl Drop for {storage_type} {{"));
                     self.indent += 1;
                     self.line("fn drop(&mut self) {");
                     self.indent += 1;
+                    self.line("if std::sync::Arc::strong_count(&self.__terrane_lifetime) == 1 {");
+                    self.indent += 1;
                     self.line("self.destruct();");
+                    self.indent -= 1;
+                    self.line("}");
                     self.indent -= 1;
                     self.line("}");
                     self.indent -= 1;
@@ -1076,22 +1090,14 @@ impl Emitter<'_> {
         self.function_errors = outer_function_errors;
         self.propagate_errors = outer_propagation;
         self.parameter_types = outer_parameter_types;
-        let captures = self
-            .unit
-            .typed_bindings
-            .iter()
-            .filter(|binding| {
-                binding.is_visible_at(self.source.id(), node.span.start)
-                    && syntax_contains_name(self.source, node, &binding.name)
-            })
-            .map(|binding| {
-                let name = rust_name(&binding.name);
-                format!("let {name} = {name}.clone();")
-            })
-            .collect::<Vec<_>>()
-            .join(" ");
+        let mut captures = String::new();
+        for capture in &contract.captures {
+            let name = rust_name(capture);
+            write!(captures, "let {name} = {name}.clone(); ")
+                .expect("writing to a String cannot fail");
+        }
         format!(
-            "{{ {captures} std::sync::Arc::new(move |{parameters}| -> {result_type} {{\n{body}{}}}) }}",
+            "{{ {captures}std::sync::Arc::new(move |{parameters}| -> {result_type} {{\n{body}{}}}) }}",
             "    ".repeat(outer_indent)
         )
     }
@@ -2753,28 +2759,34 @@ impl Emitter<'_> {
     }
 
     fn receiver_value_type(&self, receiver: &SyntaxNode) -> Option<ValueType> {
-        self.value_type(receiver).map(|value_type| {
-            if let ValueType::Reference(item) = value_type {
-                item.value_type()
-            } else {
-                value_type
-            }
-        })
+        self.value_type(receiver)
+            .map(|value_type| match value_type {
+                ValueType::Reference(item) | ValueType::WeakReference(item) => item.value_type(),
+                value_type => value_type,
+            })
     }
 
     fn receiver_expression(&mut self, receiver: &SyntaxNode) -> String {
-        if matches!(self.value_type(receiver), Some(ValueType::Reference(_))) {
-            format!("({{ {}.lock().clone() }})", self.expression(receiver))
-        } else {
-            self.expression(receiver)
+        match self.value_type(receiver) {
+            Some(ValueType::Reference(_)) => {
+                format!("({{ {}.lock().clone() }})", self.expression(receiver))
+            }
+            Some(ValueType::WeakReference(_)) => format!(
+                "({{ {}.upgrade().expect(\"weak reference expired\").lock().clone() }})",
+                self.expression(receiver)
+            ),
+            _ => self.expression(receiver),
         }
     }
 
     fn receiver_guard_expression(&mut self, receiver: &SyntaxNode) -> String {
-        if matches!(self.value_type(receiver), Some(ValueType::Reference(_))) {
-            format!("{}.lock()", self.expression(receiver))
-        } else {
-            self.expression(receiver)
+        match self.value_type(receiver) {
+            Some(ValueType::Reference(_)) => format!("{}.lock()", self.expression(receiver)),
+            Some(ValueType::WeakReference(_)) => format!(
+                "parking_lot::Mutex::lock_arc(&{}.upgrade().expect(\"weak reference expired\"))",
+                self.expression(receiver)
+            ),
+            _ => self.expression(receiver),
         }
     }
 
@@ -4138,15 +4150,6 @@ fn float64_literal(value: f64) -> String {
     } else {
         format!("{value:?}_f64")
     }
-}
-
-fn syntax_contains_name(source: &SourceFile, node: &SyntaxNode, expected: &str) -> bool {
-    (node.kind == SyntaxKind::Name
-        && source.text()[node.span.start..node.span.end].trim() == expected)
-        || node
-            .children
-            .iter()
-            .any(|child| syntax_contains_name(source, child, expected))
 }
 
 fn integer_literal(text: &str) -> Option<BigInt> {

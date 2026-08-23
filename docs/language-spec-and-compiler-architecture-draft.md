@@ -1284,18 +1284,24 @@ Static state is state on the class object and follows the same visibility and co
 
 `construct` is the conventional constructor method used by a class object’s default invocation.
 
-`drop` is the conventional deterministic destruction hook:
+`destruct` is the conventional deterministic destruction hook:
 
 ```terrane
 class file-wrapper
 
-  function drop
+  function destruct
     this.file.close;
 ```
 
-The compiler must guarantee deterministic destruction at scope exit or when the final owning reference is released, subject to explicit reference-cycle rules.
+The compiler must guarantee deterministic destruction at scope exit or when the final owning
+representative is released, subject to explicit reference-cycle rules. Ordinary value separation
+copies the value state but retains one lifecycle lineage: the lineage invokes `destruct` exactly
+once, on its final surviving representative. Compiler-introduced Rust clones belong to that same
+lineage and therefore cannot multiply an observable hook. A fresh construction starts a fresh
+lineage; `move` transfers the existing lineage without running the hook.
 
-User code should not normally call `drop` directly. An explicit core operation may exist for early release when required.
+User code should not normally call `destruct` directly. An explicit core operation may exist for
+early release when required.
 
 ---
 

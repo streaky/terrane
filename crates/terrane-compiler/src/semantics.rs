@@ -427,6 +427,7 @@ pub struct FunctionContract {
     pub name: String,
     pub span: Span,
     pub owner: Option<String>,
+    pub captures: Vec<String>,
     pub parameters: Vec<ParameterContract>,
     pub return_type: Option<ValueType>,
     pub throws: bool,
@@ -729,6 +730,7 @@ pub fn analyze(package: &Package) -> Result<SemanticPackage, SemanticFailure> {
     analyze_types(&mut semantic)?;
     validate_moves(&semantic)?;
     validate_referenced_replacements(&semantic)?;
+    validate_weak_references(&semantic)?;
     infer_throwing_effects(&mut semantic);
     validate_constant_reassignment(&semantic)?;
     validate_global_definite_assignment(&semantic)?;
@@ -1388,6 +1390,10 @@ fn resolve_imports(
     Ok(())
 }
 
+#[expect(
+    clippy::too_many_lines,
+    reason = "move provenance and its control-flow join remain one auditable analysis"
+)]
 fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFailure> {
     fn binding_at(unit: &SemanticUnit, name: &str, position: usize) -> Option<usize> {
         unit.typed_bindings
@@ -1400,6 +1406,10 @@ fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFailure> {
             .map(|(index, _)| index)
     }
 
+    #[expect(
+        clippy::too_many_lines,
+        reason = "move traversal keeps scope transitions and diagnostics in one ordered dispatch"
+    )]
     fn visit(
         unit: &SemanticUnit,
         node: &SyntaxNode,
@@ -1459,6 +1469,54 @@ fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFailure> {
             }
             return Ok(());
         }
+        if node.kind == SyntaxKind::IfStatement {
+            let mut entry = moved.clone();
+            for child in &node.children {
+                if !matches!(child.kind, SyntaxKind::Block | SyntaxKind::ElseClause) {
+                    visit(unit, child, &mut entry, false)?;
+                }
+            }
+            let mut branches = Vec::new();
+            let mut has_else = false;
+            for child in &node.children {
+                if matches!(child.kind, SyntaxKind::Block | SyntaxKind::ElseClause) {
+                    has_else |= child.kind == SyntaxKind::ElseClause;
+                    let mut branch = entry.clone();
+                    visit(unit, child, &mut branch, false)?;
+                    branches.push(branch);
+                }
+            }
+            if !has_else {
+                branches.push(entry);
+            }
+            moved.clear();
+            moved.extend(branches.into_iter().flatten());
+            return Ok(());
+        }
+        if matches!(
+            node.kind,
+            SyntaxKind::WhileStatement | SyntaxKind::ForStatement
+        ) {
+            let mut entry = moved.clone();
+            let body = node
+                .children
+                .iter()
+                .find(|child| child.kind == SyntaxKind::Block);
+            for child in &node.children {
+                if Some(child) != body {
+                    visit(unit, child, &mut entry, false)?;
+                }
+            }
+            if let Some(body) = body {
+                let mut after_iteration = entry.clone();
+                visit(unit, body, &mut after_iteration, false)?;
+                let mut repeated = after_iteration.clone();
+                visit(unit, body, &mut repeated, false)?;
+                entry.extend(after_iteration);
+            }
+            *moved = entry;
+            return Ok(());
+        }
         for child in &node.children {
             visit(unit, child, moved, false)?;
         }
@@ -1467,6 +1525,38 @@ fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFailure> {
 
     for unit in &package.units {
         visit(unit, &unit.tree.root, &mut BTreeSet::new(), false)?;
+    }
+    Ok(())
+}
+
+fn validate_weak_references(package: &SemanticPackage) -> Result<(), SemanticFailure> {
+    fn visit(unit: &SemanticUnit, node: &SyntaxNode) -> Result<(), SemanticFailure> {
+        if node.kind == SyntaxKind::UnaryExpression
+            && let Some(operand) = node.children.last()
+            && unit.source.text()[node.span.start..operand.span.start].trim() == "weak ref"
+        {
+            let valid_origin = operand.kind == SyntaxKind::Name
+                && unit.typed_bindings.iter().rev().any(|binding| {
+                    binding.name == node_text(&unit.source, operand)
+                        && binding.is_visible_at(unit.source.id(), operand.span.start)
+                });
+            if !valid_origin {
+                return Err(failure(
+                    &unit.source,
+                    "T0064",
+                    "`weak ref` requires a named binding with reference-backed storage",
+                    operand.span,
+                ));
+            }
+        }
+        for child in &node.children {
+            visit(unit, child)?;
+        }
+        Ok(())
+    }
+
+    for unit in &package.units {
+        visit(unit, &unit.tree.root)?;
     }
     Ok(())
 }
@@ -2607,23 +2697,37 @@ fn analyze_object_contracts(
                 else {
                     continue;
                 };
+                let initializer = field.children.last().filter(|child| {
+                    child.span != field_name.span
+                        && !matches!(
+                            child.kind,
+                            SyntaxKind::Visibility
+                                | SyntaxKind::DeclarationQualifier
+                                | SyntaxKind::TypeExpression
+                        )
+                });
+                if kind == ObjectKind::Class && initializer.is_none() {
+                    return Err(failure(
+                        &unit.source,
+                        "T0061",
+                        format!(
+                            "class field `{}` requires an initializer",
+                            node_text(&unit.source, field_name)
+                        ),
+                        field.span,
+                    ));
+                }
                 let value_type = if let Some(type_node) = field
                     .children
                     .iter()
                     .find(|child| child.kind == SyntaxKind::TypeExpression)
                 {
                     declared_value_type(unit, type_node, &visible)?
-                } else if let Some(initializer) = field.children.last().filter(|child| {
-                    child.span != field_name.span
-                        && !matches!(
-                            child.kind,
-                            SyntaxKind::Visibility | SyntaxKind::DeclarationQualifier
-                        )
-                }) {
+                } else if let Some(initializer) = initializer {
                     infer_value_type(unit, initializer, &[])?.ok_or_else(|| {
                         failure(
                             &unit.source,
-                            "T0053",
+                            "T0065",
                             "object field type cannot be inferred",
                             field.span,
                         )
@@ -2631,7 +2735,7 @@ fn analyze_object_contracts(
                 } else {
                     return Err(failure(
                         &unit.source,
-                        "T0053",
+                        "T0066",
                         "object fields require a type or initializer",
                         field.span,
                     ));
@@ -2680,6 +2784,146 @@ fn analyze_object_contracts(
     Ok(objects)
 }
 
+#[expect(
+    clippy::too_many_lines,
+    reason = "object conformance checks inheritance, interfaces, and trait conflicts together"
+)]
+fn validate_object_conformance(package: &SemanticPackage) -> Result<(), SemanticFailure> {
+    fn same_signature(left: &FunctionContract, right: &FunctionContract) -> bool {
+        left.parameters.len() == right.parameters.len()
+            && left
+                .parameters
+                .iter()
+                .zip(&right.parameters)
+                .all(|(left, right)| {
+                    left.value_type == right.value_type
+                        && left.optional == right.optional
+                        && left.mutable == right.mutable
+                })
+            && left.return_type == right.return_type
+            && left.throws == right.throws
+            && left.mutates_receiver == right.mutates_receiver
+    }
+
+    fn effective_method<'a>(
+        unit: &'a SemanticUnit,
+        object: &'a ObjectContract,
+        name: &str,
+    ) -> Option<&'a FunctionContract> {
+        unit.functions
+            .iter()
+            .find(|method| method.owner.as_deref() == Some(&object.name) && method.name == name)
+            .or_else(|| {
+                object
+                    .base
+                    .as_ref()
+                    .and_then(|base| {
+                        unit.objects
+                            .iter()
+                            .find(|candidate| &candidate.name == base)
+                    })
+                    .and_then(|base| effective_method(unit, base, name))
+            })
+    }
+
+    for unit in &package.units {
+        for object in unit
+            .objects
+            .iter()
+            .filter(|object| object.kind == ObjectKind::Class)
+        {
+            for interface_name in &object.interfaces {
+                let interface = unit
+                    .objects
+                    .iter()
+                    .find(|candidate| &candidate.name == interface_name)
+                    .expect("object-kind validation must resolve implemented interfaces");
+                for required in unit
+                    .functions
+                    .iter()
+                    .filter(|method| method.owner.as_deref() == Some(&interface.name))
+                {
+                    let Some(actual) = effective_method(unit, object, &required.name) else {
+                        return Err(failure(
+                            &unit.source,
+                            "T0062",
+                            format!(
+                                "class `{}` does not implement interface member `{}.{}`",
+                                object.name, interface.name, required.name
+                            ),
+                            object.span,
+                        ));
+                    };
+                    if !same_signature(required, actual) {
+                        return Err(failure(
+                            &unit.source,
+                            "T0067",
+                            format!(
+                                "class `{}` implements `{}.{}` with an incompatible signature",
+                                object.name, interface.name, required.name
+                            ),
+                            actual.span,
+                        ));
+                    }
+                }
+            }
+
+            let own_methods = unit
+                .functions
+                .iter()
+                .filter(|method| method.owner.as_deref() == Some(&object.name))
+                .map(|method| method.name.as_str())
+                .collect::<BTreeSet<_>>();
+            let own_fields = object
+                .fields
+                .iter()
+                .map(|field| field.name.as_str())
+                .collect::<BTreeSet<_>>();
+            let mut providers = BTreeMap::<&str, Vec<&str>>::new();
+            for trait_name in &object.traits {
+                let used_trait = unit
+                    .objects
+                    .iter()
+                    .find(|candidate| &candidate.name == trait_name)
+                    .expect("object-kind validation must resolve used traits");
+                for method in unit
+                    .functions
+                    .iter()
+                    .filter(|method| method.owner.as_deref() == Some(&used_trait.name))
+                {
+                    providers
+                        .entry(method.name.as_str())
+                        .or_default()
+                        .push(used_trait.name.as_str());
+                }
+                for field in &used_trait.fields {
+                    providers
+                        .entry(field.name.as_str())
+                        .or_default()
+                        .push(used_trait.name.as_str());
+                }
+            }
+            if let Some((member, traits)) = providers.iter().find(|(member, traits)| {
+                traits.len() > 1
+                    && !own_methods.contains(**member)
+                    && !own_fields.contains(**member)
+            }) {
+                return Err(failure(
+                    &unit.source,
+                    "T0063",
+                    format!(
+                        "class `{}` inherits conflicting member `{member}` from traits {}",
+                        object.name,
+                        traits.join(", ")
+                    ),
+                    object.span,
+                ));
+            }
+        }
+    }
+    Ok(())
+}
+
 fn analyze_types(package: &mut SemanticPackage) -> Result<(), SemanticFailure> {
     for index in 0..package.units.len() {
         let unit = &package.units[index];
@@ -2699,6 +2943,7 @@ fn analyze_types(package: &mut SemanticPackage) -> Result<(), SemanticFailure> {
     }
     populate_namespace_function_contracts(package);
     populate_function_aliases(package);
+    validate_object_conformance(package)?;
     validate_descriptor_value_uses(package)?;
 
     for index in 0..package.units.len() {
@@ -2714,8 +2959,95 @@ fn analyze_types(package: &mut SemanticPackage) -> Result<(), SemanticFailure> {
         )?;
         package.units[index].typed_bindings = bindings;
     }
+    populate_closure_captures(package);
     Ok(())
 }
+fn populate_closure_captures(package: &mut SemanticPackage) {
+    fn collect(
+        unit: &SemanticUnit,
+        closure: Span,
+        node: &SyntaxNode,
+        captures: &mut BTreeSet<String>,
+        declaration_name: bool,
+    ) {
+        if node.kind == SyntaxKind::Name && !declaration_name {
+            let name = node_text(&unit.source, node);
+            if unit
+                .typed_bindings
+                .iter()
+                .rev()
+                .find(|binding| {
+                    binding.name == name && binding.is_visible_at(unit.source.id(), node.span.start)
+                })
+                .is_some_and(|binding| {
+                    !(closure.start <= binding.span.start && binding.span.end <= closure.end)
+                })
+            {
+                captures.insert(name.to_owned());
+            }
+            return;
+        }
+        match node.kind {
+            SyntaxKind::Binding
+            | SyntaxKind::Assignment
+            | SyntaxKind::FunctionDeclaration
+            | SyntaxKind::AnonymousFunction => {
+                let mut skipped_name = false;
+                for child in &node.children {
+                    if !skipped_name && child.kind == SyntaxKind::Name {
+                        skipped_name = true;
+                        continue;
+                    }
+                    collect(unit, closure, child, captures, false);
+                }
+            }
+            SyntaxKind::MemberExpression => {
+                if let Some(receiver) = node.children.first() {
+                    collect(unit, closure, receiver, captures, false);
+                }
+            }
+            SyntaxKind::Argument if node.children.len() > 1 => {
+                for child in node.children.iter().skip(1) {
+                    collect(unit, closure, child, captures, false);
+                }
+            }
+            _ => {
+                for child in &node.children {
+                    collect(unit, closure, child, captures, false);
+                }
+            }
+        }
+    }
+    fn closure_node(node: &SyntaxNode, span: Span) -> Option<&SyntaxNode> {
+        if node.kind == SyntaxKind::AnonymousFunction && node.span == span {
+            return Some(node);
+        }
+        node.children
+            .iter()
+            .find_map(|child| closure_node(child, span))
+    }
+
+    for unit in &mut package.units {
+        let captures = unit
+            .functions
+            .iter()
+            .filter(|contract| contract.name.starts_with("closure@"))
+            .map(|contract| {
+                let mut captures = BTreeSet::new();
+                if let Some(node) = closure_node(&unit.tree.root, contract.span) {
+                    collect(unit, contract.span, node, &mut captures, false);
+                }
+                (contract.span, captures.into_iter().collect::<Vec<_>>())
+            })
+            .collect::<Vec<_>>();
+        for contract in &mut unit.functions {
+            if let Some((_, captures)) = captures.iter().find(|(span, _)| *span == contract.span) {
+                contract.captures.clone_from(captures);
+            }
+        }
+    }
+}
+
 fn validate_descriptor_value_uses(package: &SemanticPackage) -> Result<(), SemanticFailure> {
     for unit in &package.units {
         validate_descriptor_value_node(package, unit, &unit.tree.root, false)?;
@@ -3041,6 +3373,10 @@ fn mutates_object_receiver(unit: &SemanticUnit, node: &SyntaxNode) -> bool {
         .any(|child| mutates_object_receiver(unit, child))
 }
 
+#[expect(
+    clippy::too_many_lines,
+    reason = "callable signature analysis keeps parameter and result contracts in source order"
+)]
 fn analyze_function_contract(
     unit: &SemanticUnit,
     node: &SyntaxNode,
@@ -3138,8 +3474,11 @@ fn analyze_function_contract(
             |name| node_text(&unit.source, name).to_owned(),
         ),
         span: node.span,
-        owner: object_name_containing(unit, node.span),
+        owner: (node.kind == SyntaxKind::FunctionDeclaration)
+            .then(|| object_name_containing(unit, node.span))
+            .flatten(),
         parameters,
+        captures: Vec::new(),
         return_type,
         throws,
         mutates_receiver: mutates_object_receiver(unit, node),

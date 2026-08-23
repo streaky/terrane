@@ -3,12 +3,14 @@
 // Namespace: class-state-methods
 #[derive(Clone)]
 pub struct Counter {
+    __terrane_lifetime: std::sync::Arc<()>,
     pub value: terrane_int_support::Int,
 }
 impl Counter {
     pub fn terrane_construct(start: terrane_int_support::Int) -> Self {
         let mut value = Self {
             value: terrane_int_support::Int::from(0_i128),
+            __terrane_lifetime: std::sync::Arc::new(()),
         };
         value.construct(start);
         value
@@ -33,7 +35,9 @@ impl Counter {
 }
 impl Drop for Counter {
     fn drop(&mut self) {
-        self.destruct();
+        if std::sync::Arc::strong_count(&self.__terrane_lifetime) == 1 {
+            self.destruct();
+        }
     }
 }
 fn main() {

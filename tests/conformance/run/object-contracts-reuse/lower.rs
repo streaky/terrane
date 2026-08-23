@@ -14,10 +14,10 @@ impl Describable {
     }
 }
 #[derive(Clone)]
-pub struct BaseOwn {
+pub struct BaseStorage {
     pub value: terrane_int_support::Int,
 }
-impl BaseOwn {
+impl BaseStorage {
     pub fn terrane_construct() -> Self {
         Self {
             value: terrane_int_support::Int::from(1_i128),
@@ -30,11 +30,11 @@ impl BaseOwn {
 }
 #[derive(Clone)]
 pub enum Base {
-    Own(BaseOwn),
+    Own(BaseStorage),
     Child(Child),
 }
 impl Base {
-    pub fn terrane_construct() -> Self { Self::Own(BaseOwn::terrane_construct()) }
+    pub fn terrane_construct() -> Self { Self::Own(BaseStorage::terrane_construct()) }
     pub fn describe(&self, prefix: String) -> String {
         match self {
             Self::Own(value) => value.describe(prefix),

@@ -391,12 +391,22 @@ fn write_generated_crate(
 ) -> Result<(), CliFailure> {
     fs::create_dir_all(directory.join("src"))
         .map_err(|error| CliFailure::backend(format!("cannot create generated crate: {error}")))?;
-    let manifest = "[package]\nname = \"terrane_program\"\nversion = \"0.0.0\"\nedition = \"2024\"\n\n\
-        [dependencies]\nterrane-int-support = { path = \"support/terrane-int-support\" }\n\
-        parking_lot = \"0.12\"\n\
-        terrane-collection-support = { path = \"support/terrane-collection-support\" }\n\
-        terrane-scalar-support = { path = \"support/terrane-scalar-support\" }\n\
-        terrane-string-support = { path = \"support/terrane-string-support\" }\n\n[workspace]\n";
+    let parking_lot = if rust_files
+        .iter()
+        .any(|file| file.contents.contains("parking_lot::"))
+    {
+        "parking_lot = { version = \"0.12\", features = [\"arc_lock\"] }\n"
+    } else {
+        ""
+    };
+    let manifest = format!(
+        "[package]\nname = \"terrane_program\"\nversion = \"0.0.0\"\nedition = \"2024\"\n\n\
+         [dependencies]\nterrane-int-support = {{ path = \"support/terrane-int-support\" }}\n\
+         {parking_lot}\
+         terrane-collection-support = {{ path = \"support/terrane-collection-support\" }}\n\
+         terrane-scalar-support = {{ path = \"support/terrane-scalar-support\" }}\n\
+         terrane-string-support = {{ path = \"support/terrane-string-support\" }}\n\n[workspace]\n"
+    );
     write_if_changed(&directory.join("Cargo.toml"), manifest.as_bytes()).map_err(|error| {
         CliFailure::backend(format!("cannot write generated manifest: {error}"))
     })?;

@@ -435,7 +435,7 @@ callable value
 ├── typed parameters and return
 ├── positional, named, and defaulted arguments
 └── value capture
-    └── captures the visible value once when the closure or bound method is created
+    └── captures resolver-selected outer bindings once when the closure is created
 ```
 
 Function values use `function from ... to ...` annotations and may cross bindings, parameters,
@@ -462,16 +462,21 @@ A top-level plain assignment creates a namespace variable. Functions cannot read
 
 ## Classes, interfaces, traits, and references
 
-Classes provide typed fields, ordinary methods, single inheritance, default invocation through
-`construct`, and deterministic `destruct` invocation from generated ownership drop. Subclass
-values retain inherited and directly declared state. Named interfaces are structural dispatch
-contracts; traits reuse declared fields and methods. Interface conversion and base-class dispatch
-preserve the concrete value behind generated protocol/base wrappers.
+Classes provide typed, definitely initialized fields, ordinary methods, single inheritance,
+default invocation through `construct`, and one deterministic `destruct` invocation per constructed
+lifecycle lineage. Value separation copies class state while retaining that lineage, so
+compiler-introduced Rust clones cannot multiply the hook. Subclass values retain inherited and
+directly declared state. Declared named interfaces check complete method signatures and lower as
+typed dispatch contracts; traits reuse declared fields and methods, with unresolved multi-trait
+member conflicts rejected. Interface conversion and base-class dispatch preserve the concrete
+value behind generated protocol/base wrappers.
 
 `ref T` values are strong, cloneable aliases backed by synchronized shared storage; `weak ref T`
-does not keep that storage alive. Prefix `ref`, `weak ref`, and `move` construct those respective
-ownership forms. Move provenance rejects later reads until the binding is rebound, and a
-type-changing replacement is rejected while a reference observes the originating binding.
+does not keep that storage alive and member use upgrades it or fails deterministically if expired.
+Both reference forms require a source binding. Prefix `ref`, `weak ref`, and `move` construct those
+respective ownership forms. Move provenance rejects later reads until the binding is rebound,
+including paths on which the move is conditional, and a type-changing replacement is rejected
+while either a strong or weak reference observes the originating binding.
 
 ## Properties and methods index
 

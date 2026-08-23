@@ -1104,10 +1104,11 @@ Deliver:
 
 Exit criterion: a selected method family can be stored, passed, and invoked; the previously rejected form is accepted with a case proving the receiver still evaluates once.
 
-Implemented evidence: typed function values cross binding and parameter boundaries; anonymous
-functions capture visible values once; and stored bound methods capture their receiver once before
-later invocation. Generated Rust uses statically typed `Arc<dyn Fn>` values rather than a universal
-runtime value. Conformance executes a passed closure and a stored receiver-bound method.
+Implemented evidence: typed, synchronous function values cross binding and parameter boundaries;
+anonymous functions capture resolver-selected outer bindings once; and stored bound methods capture
+their receiver once before later invocation. Generated Rust uses statically typed `Arc<dyn Fn>`
+values rather than a universal runtime value. Conformance executes a passed closure, distinguishes
+parameter shadowing from an outer capture, and invokes a stored receiver-bound method.
 
 ### Milestone 16 — Classes, interfaces, and traits
 
@@ -1120,12 +1121,13 @@ Deliver:
 
 Exit criterion: each of construction, inheritance, interface conformance, and trait reuse has an executable slice; dynamic-object state is preserved end to end.
 
-Implemented evidence: source classes lower typed fields, custom `construct`, deterministic
-`destruct`, mutable and immutable methods, and complete value cloning. Single inheritance retains
+Implemented evidence: source classes lower typed fields, custom `construct`, lifecycle-lineage
+`destruct`, mutable and immutable methods, and separated value state. Single inheritance retains
 base and subclass fields and dispatches overridden methods through a generated base wrapper.
-Structural interfaces lower through typed protocol wrappers, while traits reuse fields and methods.
-Executable cases cover construction, independent cloned state, destruction, inheritance,
-interface dispatch, and trait reuse.
+Declared interface conformance lowers through typed protocol wrappers, while traits reuse fields
+and methods. Executable cases cover construction, separated state, final-lineage destruction,
+inheritance, interface dispatch, and trait reuse; rejected cases cover uninitialized fields,
+missing interface methods, incompatible signatures, and unresolved trait conflicts.
 
 Construct/destruct notes, and the docs should be updated to reflect this when we get there:
 
@@ -1169,10 +1171,11 @@ Exit criterion: borrow escape is diagnosed at the originating binding, and a ref
 
 Implemented evidence: `ref T` and `weak ref T` cross the typed pipeline as strong and weak aliases
 over synchronized storage, while `move` transfers a value and provenance analysis rejects later
-use until rebinding. Type-changing lexical replacement is rejected while a reference observes the
-originating binding. Conformance mutates a collection through one alias and observes it through
-another, constructs a weak alias, transfers ownership, and checks use-after-move and referenced
-retyping diagnostics.
+use until rebinding, including conditionally moved paths. Type-changing lexical replacement is
+rejected while either a strong or weak reference observes the originating binding. Conformance
+mutates a collection through one alias and observes it through another, constructs and upgrades a
+weak alias, rejects weak references to temporary values, transfers ownership, and checks
+use-after-move and referenced-retyping diagnostics.
 
 ### Milestone 18 — Capabilities, effects, and reflection
 

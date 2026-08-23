@@ -113,14 +113,21 @@ fn compile_and_maybe_run(case: &Path, phase: &str, rust: &str) {
     }
     fs::create_dir_all(build_dir.join("src")).unwrap();
     write_support_crates(&build_dir);
+    let parking_lot = if rust.contains("parking_lot::") {
+        "parking_lot = { version = \"0.12\", features = [\"arc_lock\"] }\n"
+    } else {
+        ""
+    };
     fs::write(
         build_dir.join("Cargo.toml"),
-        "[package]\nname = \"terrane_conformance_program\"\nversion = \"0.0.0\"\nedition = \"2024\"\n\n\
-         [dependencies]\nterrane-int-support = { path = \"support/terrane-int-support\" }\n\
-         parking_lot = \"0.12\"\n\
-         terrane-collection-support = { path = \"support/terrane-collection-support\" }\n\
-         terrane-scalar-support = { path = \"support/terrane-scalar-support\" }\n\
-         terrane-string-support = { path = \"support/terrane-string-support\" }\n\n[workspace]\n",
+        format!(
+            "[package]\nname = \"terrane_conformance_program\"\nversion = \"0.0.0\"\nedition = \"2024\"\n\n\
+             [dependencies]\nterrane-int-support = {{ path = \"support/terrane-int-support\" }}\n\
+             {parking_lot}\
+             terrane-collection-support = {{ path = \"support/terrane-collection-support\" }}\n\
+             terrane-scalar-support = {{ path = \"support/terrane-scalar-support\" }}\n\
+             terrane-string-support = {{ path = \"support/terrane-string-support\" }}\n\n[workspace]\n"
+        ),
     )
     .unwrap();
     fs::write(build_dir.join("src/main.rs"), rust).unwrap();
