@@ -1296,10 +1296,11 @@ class file-wrapper
 
 The compiler must guarantee deterministic destruction at scope exit or when the final owning
 representative is released, subject to explicit reference-cycle rules. Ordinary value separation
-copies the value state but retains one lifecycle lineage: the lineage invokes `destruct` exactly
-once, on its final surviving representative. Compiler-introduced Rust clones belong to that same
-lineage and therefore cannot multiply an observable hook. A fresh construction starts a fresh
-lineage; `move` transfers the existing lineage without running the hook.
+copies the value state into a fresh lifecycle lineage: each independently owned source value invokes
+`destruct` exactly once when its own lineage ends. Compiler-introduced Rust clones are
+representation-only copies within one lineage and therefore cannot multiply an observable hook.
+A fresh construction also starts a fresh lineage; `move` transfers the existing lineage without
+running the hook.
 
 User code should not normally call `destruct` directly. An explicit core operation may exist for
 early release when required.
@@ -2061,10 +2062,13 @@ Every `ref` carries compiler-assigned provenance and a compiler-assigned lifetim
 source does not name these regions. Member lookup, indexing, iteration, destructuring, calls, and
 other values derived from a reference preserve its provenance and may retain or narrow its
 lifetime, but never widen it. Assignment, return, closure capture, field storage, global storage,
-and async suspension must preserve that constraint. A referenced collection yields referenced
-elements unless its declared protocol explicitly returns independently owned values. Diagnostics
-identify the source binding that originated the reference and the operation that would let it
-escape or use it after the owner is released.
+and async suspension must preserve that constraint. In particular, a non-owning `ref` may cross an
+async suspension only when the compiler proves its originating owner remains alive for the entire
+suspended state; `shared ref` may cross by carrying shared ownership, subject to the value's
+thread-safety contract. A referenced collection yields referenced elements unless its declared
+protocol explicitly returns independently owned values. Diagnostics identify the source binding
+that originated the reference and the operation that would let it escape or use it after the owner
+is released.
 
 ### 12.6 Ownership transfer
 

@@ -720,6 +720,15 @@ impl Emitter<'_> {
                     self.indent -= 1;
                     self.line("}");
                 }
+                if has_destructor {
+                    self.line("pub fn terrane_separate(&self) -> Self {");
+                    self.indent += 1;
+                    self.line("let mut value = self.clone();");
+                    self.line("value.__terrane_lifetime = std::sync::Arc::new(());");
+                    self.line("value");
+                    self.indent -= 1;
+                    self.line("}");
+                }
                 let previous_object = self.current_object.replace(object.name.clone());
                 for method in &methods {
                     let method_node = find_node(
@@ -778,6 +787,43 @@ impl Emitter<'_> {
                         self.line(&format!(
                             "pub fn terrane_construct() -> Self {{ Self::Own({storage_type}::terrane_construct()) }}"
                         ));
+                    }
+                    let hierarchy_has_destructor = has_destructor
+                        || descendants.iter().any(|descendant| {
+                            effective_object_methods(self.unit, descendant)
+                                .iter()
+                                .any(|method| method.name == "destruct")
+                        });
+                    if hierarchy_has_destructor {
+                        self.line("pub fn terrane_separate(&self) -> Self {");
+                        self.indent += 1;
+                        self.line("match self {");
+                        self.indent += 1;
+                        let own_copy = if has_destructor {
+                            "value.terrane_separate()"
+                        } else {
+                            "value.clone()"
+                        };
+                        self.line(&format!("Self::Own(value) => Self::Own({own_copy}),"));
+                        for descendant in &descendants {
+                            let descendant_type = rust_object_name(&descendant.name);
+                            let descendant_has_destructor =
+                                effective_object_methods(self.unit, descendant)
+                                    .iter()
+                                    .any(|method| method.name == "destruct");
+                            let copy = if descendant_has_destructor {
+                                "value.terrane_separate()"
+                            } else {
+                                "value.clone()"
+                            };
+                            self.line(&format!(
+                                "Self::{descendant_type}(value) => Self::{descendant_type}({copy}),"
+                            ));
+                        }
+                        self.indent -= 1;
+                        self.line("}");
+                        self.indent -= 1;
+                        self.line("}");
                     }
                     for method in methods
                         .iter()
@@ -1949,7 +1995,12 @@ impl Emitter<'_> {
                     "not" => "!",
                     other => other,
                 };
-                format!("{operator}{}", self.expression(operand))
+                let operand = if let Some(value_type) = self.receiver_value_type(operand) {
+                    self.expression_as(operand, value_type)
+                } else {
+                    self.receiver_expression(operand)
+                };
+                format!("{operator}{operand}")
             }
             SyntaxKind::BinaryExpression => self.binary(node),
             SyntaxKind::TypeMembershipExpression => self.type_membership(node),
@@ -1982,6 +2033,12 @@ impl Emitter<'_> {
             && let [grouped] = node.children.as_slice()
         {
             return self.expression_as(grouped, value_type);
+        }
+        if let Some(actual) = self.value_type(node)
+            && let ValueType::Reference(item) | ValueType::SharedReference(item) = actual
+            && item.value_type() == value_type
+        {
+            return self.receiver_expression(node);
         }
         if node.kind == SyntaxKind::CallExpression
             && let [callee, arguments] = node.children.as_slice()
@@ -2091,15 +2148,20 @@ impl Emitter<'_> {
                 .iter()
                 .find(|object| object.name == *expected)
         {
+            let copy = if self.object_requires_separation(actual) {
+                "self.terrane_separate()"
+            } else {
+                "self.clone()"
+            };
             if actual == expected && !object_descendants(self.unit, destination).is_empty() {
-                return format!("{}::Own(self.clone())", rust_object_name(expected));
+                return format!("{}::Own({copy})", rust_object_name(expected));
             }
             if object_descendants(self.unit, destination)
                 .iter()
                 .any(|descendant| descendant.name == *actual)
             {
                 return format!(
-                    "{}::{}(self.clone())",
+                    "{}::{}({copy})",
                     rust_object_name(expected),
                     rust_object_name(actual)
                 );
@@ -2115,7 +2177,11 @@ impl Emitter<'_> {
                 .find(|object| object.name == *expected)
         {
             let expression = if self.text(node) == "this" {
-                "self.clone()".to_owned()
+                if self.object_requires_separation(&actual) {
+                    "self.terrane_separate()".to_owned()
+                } else {
+                    "self.clone()".to_owned()
+                }
             } else {
                 self.expression_as(node, ValueType::Object(actual.clone()))
             };
@@ -2240,6 +2306,11 @@ impl Emitter<'_> {
                     rust_element_type(key),
                     rust_element_type(value)
                 )
+            }
+            ValueType::Object(name)
+                if node.kind == SyntaxKind::Name && self.object_requires_separation(&name) =>
+            {
+                format!("({}).terrane_separate()", self.expression(node))
             }
             ValueType::List(_)
             | ValueType::Map(_, _)
@@ -2560,7 +2631,7 @@ impl Emitter<'_> {
             let operation_type = ValueType::Scalar(operation_type);
             let left = Self::unwrapped_expression(self.expression_as(left, operation_type.clone()));
             let right = if matches!(source_operator, "<<" | ">>") {
-                self.expression(right)
+                self.receiver_expression(right)
             } else {
                 Self::unwrapped_expression(self.expression_as(right, operation_type))
             };
@@ -2584,8 +2655,8 @@ impl Emitter<'_> {
         };
         format!(
             "({} {operator} {})",
-            self.expression(left),
-            self.expression(right)
+            self.receiver_expression(left),
+            self.receiver_expression(right)
         )
     }
 
@@ -3349,7 +3420,7 @@ impl Emitter<'_> {
                 .get(1)
                 .is_some_and(|member| self.text(member) == "join")
         {
-            let separator = self.expression(&callee.children[0]);
+            let separator = self.receiver_expression(&callee.children[0]);
             let values = values
                 .into_iter()
                 .map(|value| format!("terrane_scalar_support::scalar_text(&({value}))"))
@@ -3365,7 +3436,7 @@ impl Emitter<'_> {
                 .get(1)
                 .is_some_and(|member| self.text(member) == "concat")
         {
-            let receiver = self.expression(&callee.children[0]);
+            let receiver = self.receiver_expression(&callee.children[0]);
             values.insert(0, receiver);
             let values = values
                 .into_iter()
@@ -3480,7 +3551,7 @@ impl Emitter<'_> {
         source: ScalarType,
         destination: ScalarType,
     ) -> String {
-        let value = self.expression(node);
+        let value = self.receiver_expression(node);
         if destination == ScalarType::Int {
             if matches!(source, ScalarType::Float32 | ScalarType::Float64) {
                 let helper = if source == ScalarType::Float32 {
@@ -3660,13 +3731,13 @@ impl Emitter<'_> {
         arguments: &SyntaxNode,
         call: &SyntaxNode,
     ) -> String {
-        let Some(ValueType::Scalar(receiver_type)) = self.value_type(receiver_node) else {
+        let Some(ValueType::Scalar(receiver_type)) = self.receiver_value_type(receiver_node) else {
             unreachable!("validated arithmetic receiver");
         };
         let receiver = if receiver_type == ScalarType::Int {
-            self.adaptive_expression(receiver_node)
+            self.expression_as(receiver_node, ValueType::Scalar(ScalarType::Int))
         } else {
-            self.expression(receiver_node)
+            Self::unwrapped_expression(self.receiver_expression(receiver_node))
         };
         let argument = arguments
             .children
@@ -3793,15 +3864,15 @@ impl Emitter<'_> {
             && self.lazy_namespace_binding_type(receiver).is_some();
         if policy == CoercionPolicy::Default
             && !receiver_is_borrowed
-            && let Some(ValueType::Scalar(source)) = self.value_type(receiver)
+            && let Some(ValueType::Scalar(source)) = self.receiver_value_type(receiver)
         {
             if source == destination {
                 return if destination == ScalarType::Int
                     && self.small_int_binding(receiver).is_some()
                 {
-                    self.adaptive_expression(receiver)
+                    self.expression_as(receiver, ValueType::Scalar(ScalarType::Int))
                 } else {
-                    self.expression(receiver)
+                    self.receiver_expression(receiver)
                 };
             }
             return self.numeric_destination(receiver, source, destination);
@@ -3812,7 +3883,7 @@ impl Emitter<'_> {
             CoercionPolicy::Wrap => "wrapping_coerce",
             CoercionPolicy::Saturate => "saturating_coerce",
         };
-        let receiver = self.expression(receiver);
+        let receiver = self.receiver_expression(receiver);
         let source = if receiver_is_borrowed {
             receiver
         } else {
@@ -4139,6 +4210,22 @@ impl Emitter<'_> {
                     .collect::<Vec<_>>()
                     .join(" ")
             })
+    }
+
+    fn object_requires_separation(&self, name: &str) -> bool {
+        let Some(object) = self.unit.objects.iter().find(|object| object.name == name) else {
+            return false;
+        };
+        effective_object_methods(self.unit, object)
+            .iter()
+            .any(|method| method.name == "destruct")
+            || object_descendants(self.unit, object)
+                .iter()
+                .any(|descendant| {
+                    effective_object_methods(self.unit, descendant)
+                        .iter()
+                        .any(|method| method.name == "destruct")
+                })
     }
 
     fn reference_storage_expression(&mut self, operand: &SyntaxNode) -> String {

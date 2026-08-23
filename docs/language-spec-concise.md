@@ -469,7 +469,7 @@ constant_scope: rejects reassignment regardless of lexical, namespace-local, or 
 shadowing: a namespace-local binding may shadow a distinct program-global constant; writes resolve to the local identity
 parameter_and_for_target_reassignment: allowed within lexical scope; value semantics preserve caller arguments and iterated collections
 lowering_mutability: emit mutable target storage only when resolver-backed write analysis finds a reassignment
-cleanup: deterministic lexical destruction; each constructed lifecycle lineage invokes `destruct` once on its final surviving representative; value separation copies state but retains the lineage, compiler representation clones cannot multiply the hook, move transfers it, and `ref` never delays it
+cleanup: deterministic lexical destruction; each independently owned source value has one lifecycle lineage and invokes `destruct` once when that lineage ends; value separation copies state into a fresh lineage, compiler representation clones cannot multiply the hook, move transfers it, and `ref` never delays it
 cycles: only `shared ref` can form ownership cycles; never promise deterministic collection; reject provable cycles or diagnose/document leak
 ```
 
@@ -491,6 +491,10 @@ child-to-parent back-pointer, subscriber, or cache entry. Direct access is accep
 originating owner is proven alive; escape or use after its lifetime ends is rejected. Use
 `shared ref` only when the alias must also extend the identity's lifetime. Lowering may optimize
 representation but must never silently promote `ref` to `shared ref` or discard authored ownership.
+
+[reference-async-suspension] A non-owning `ref` may cross `await` only when its originating owner is
+proven alive throughout the suspended state. `shared ref` may cross by carrying ownership, subject
+to the referenced value's thread-safety contract. Neither form changes ownership implicitly.
 
 [reference-observation-transparency] A valid `ref T` or `shared ref T` exposes `T`'s ordinary
 members, methods, and value consumers: `ref bytes` may call `decode`, and printing `ref int`

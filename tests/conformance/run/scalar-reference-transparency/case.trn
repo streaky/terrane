@@ -7,11 +7,18 @@ function main
     seen ref string = ref text
     print; seen.length
     print; seen
+    print; (seen.concat; '!')
+    print; (seen.join; 'x', 'y')
     encoded bytes = text.encode; utf8
     decoded ref bytes = ref encoded
     print; (decoded.decode; utf8)
     number int8 = 7
     observed ref int8 = ref number
     print; observed
+    print; (observed.coerce; int)
+    print; (observed.add; 2)
+    print; observed + 3
+    print; -observed
     owner shared  ref int8 = shared    ref number
     print; owner
+    print; owner * 2

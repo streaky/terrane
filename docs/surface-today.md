@@ -463,9 +463,10 @@ A top-level plain assignment creates a namespace variable. Functions cannot read
 ## Classes, interfaces, traits, and references
 
 Classes provide typed, definitely initialized fields, ordinary methods, single inheritance,
-default invocation through `construct`, and one deterministic `destruct` invocation per constructed
-lifecycle lineage. Value separation copies class state while retaining that lineage, so
-compiler-introduced Rust clones cannot multiply the hook. Subclass values retain inherited and
+default invocation through `construct`, and one deterministic `destruct` invocation per
+independently owned source value. Value separation copies class state into a fresh lifecycle
+lineage, while compiler-introduced Rust clones remain within one lineage and cannot multiply the
+hook. Subclass values retain inherited and
 directly declared state. Declared named interfaces check complete method signatures and lower as
 typed dispatch contracts; traits reuse declared fields and methods, with unresolved multi-trait
 member conflicts rejected. Interface conversion and base-class dispatch preserve the concrete
@@ -485,9 +486,10 @@ ends the old identity's lifetime: a later non-owning-reference use is rejected, 
 continues to own and observe the old identity.
 
 The source interface now matches the settled version-one ownership vocabulary. Milestone 17 remains
-open for compile-time lifetime and escape analysis, release invalidation, shared-ownership cycle
-analysis, and the remaining provenance paths; runtime expiry checking is still the implemented
-fallback where a non-owning reference's validity is not statically proven.
+open for compile-time lifetime and escape analysis, including proof across async suspension,
+release invalidation, shared-ownership cycle analysis, and the remaining provenance paths; runtime
+expiry checking is still the implemented fallback where a non-owning reference's validity is not
+statically proven.
 
 ## Properties and methods index
 

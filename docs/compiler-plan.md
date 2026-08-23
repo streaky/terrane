@@ -1142,16 +1142,18 @@ Deliver:
 Exit criterion: each of construction, inheritance, interface conformance, and trait reuse has an executable slice; dynamic-object state is preserved end to end.
 
 Implemented evidence (partial; the exit criterion remains open): source classes lower typed fields,
-custom `construct`, lifecycle-lineage `destruct`, mutating receivers inferred transitively from
-effective method contracts, immutable methods, and separated value state. Single inheritance
-retains base and subclass fields, dispatches overridden methods through a generated base wrapper,
-and safely widens inherited `this` returns. Declared, nominal interface conformance lowers through
-typed protocol wrappers, while traits reuse fields and methods. Executable cases cover construction,
-separated state, final-lineage destruction, inheritance, inherited self-typed returns, interface
-dispatch, and trait reuse; rejected cases cover uninitialized fields, missing interface methods,
-incompatible signatures, and unresolved trait conflicts. Structural conformance and integration
-with the descriptor model remain outstanding; object analysis currently uses a compiler-owned
-parallel contract table.
+custom `construct`, one-lineage-per-independent-value `destruct`, mutating receivers inferred
+transitively from effective method contracts, immutable methods, and separated value state.
+Ordinary assignment and by-value closure capture now create fresh lifecycle lineages, while
+compiler-only Rust clones remain within their originating lineage. Single inheritance retains base
+and subclass fields, dispatches overridden methods through a generated base wrapper, and safely
+widens inherited `this` returns. Declared, nominal interface conformance lowers through typed
+protocol wrappers, while traits reuse fields and methods. Executable cases cover construction,
+separated state and destruction, inheritance, inherited self-typed returns, interface dispatch, and
+trait reuse; rejected cases cover uninitialized fields, missing interface methods, incompatible
+signatures, and unresolved trait conflicts. Structural conformance and integration with the
+descriptor model remain outstanding; object analysis currently uses a compiler-owned parallel
+contract table.
 
 Construct/destruct notes, and the docs should be updated to reflect this when we get there:
 
@@ -1212,8 +1214,8 @@ source-diagnosed return escape, replacement invalidation of non-owning reference
 access through shared owners after replacement. The current generated
 representation clones the referenced value for each read; this is a correctness-first lowering, not
 the intended reference cost model. Lifetime analysis beyond return escape and direct replacement,
-shared-ownership cycle analysis, complete derived-provenance coverage, and borrow-oriented lowering
-remain outstanding.
+including proof across async suspension, shared-ownership cycle analysis, complete
+derived-provenance coverage, and borrow-oriented lowering remain outstanding.
 
 ### Milestone 18 — Capabilities, effects, and reflection
 

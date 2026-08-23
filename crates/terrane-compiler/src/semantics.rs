@@ -5837,7 +5837,8 @@ fn infer_unary_type(
             _ => unreachable!(),
         });
     }
-    let Some(ValueType::Scalar(operand)) = infer_value_type(unit, operand_node, bindings)? else {
+    let Some(ValueType::Scalar(operand)) = infer_receiver_value_type(unit, operand_node, bindings)?
+    else {
         return Err(operator_failure(
             unit,
             node,
@@ -5998,13 +5999,11 @@ fn infer_arithmetic_family_type(
     };
     let receiver = find_node_by_span(&unit.tree.root, method.receiver)
         .expect("bound arithmetic receiver belongs to this syntax tree");
-    if matches!(
-        infer_value_type(unit, receiver, bindings)?,
-        Some(ValueType::Object(_))
-    ) {
+    let receiver_type = infer_receiver_value_type(unit, receiver, bindings)?;
+    if matches!(receiver_type, Some(ValueType::Object(_))) {
         return Ok(None);
     }
-    let Some(ValueType::Scalar(receiver_type)) = infer_value_type(unit, receiver, bindings)? else {
+    let Some(ValueType::Scalar(receiver_type)) = receiver_type else {
         return Err(failure(
             &unit.source,
             "T0036",
@@ -6168,7 +6167,8 @@ fn infer_integer_coercion_type(
         }
         return Ok(None);
     };
-    let Some(ValueType::Scalar(source_type)) = infer_value_type(unit, source_node, bindings)?
+    let Some(ValueType::Scalar(source_type)) =
+        infer_receiver_value_type(unit, source_node, bindings)?
     else {
         return Err(failure(
             &unit.source,
@@ -6416,8 +6416,8 @@ fn infer_binary_type(
             "binary operator requires two operands",
         ));
     };
-    let left = infer_value_type(unit, left_node, bindings)?;
-    let right = infer_value_type(unit, right_node, bindings)?;
+    let left = infer_receiver_value_type(unit, left_node, bindings)?;
+    let right = infer_receiver_value_type(unit, right_node, bindings)?;
     let operator = unit.source.text()[left_node.span.end..right_node.span.start].trim();
     if operator == "is"
         && (node_text(&unit.source, left_node).trim() == "none"
