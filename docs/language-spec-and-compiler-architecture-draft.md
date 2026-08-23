@@ -2061,8 +2061,16 @@ Deeply immutable/frozen values should be expressed through the object/type contr
 
 ### 12.9 Choosing `ref` and `weak ref`
 
-Most code should use ordinary values. When shared identity is intentional, `ref` is the normal
-reference form:
+Most code should use ordinary values.
+
+Ordinary value semantics do not imply eager copying. The compiler may let unchanged values share
+copy-on-write backing storage, so passing, returning, or assigning a large read-only value can be
+as cheap as copying an internal reference. If one copy is later mutated, it separates before the
+change becomes observable to the others. Therefore, use `ref` for shared *identity and mutation*,
+not merely to avoid copying or to pass a value efficiently; ordinary values already permit that
+optimization without exposing aliases.
+
+When shared identity is intentional, `ref` is the normal reference form:
 
 ```terrane
 shared = ref value

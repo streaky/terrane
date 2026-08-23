@@ -482,6 +482,11 @@ ref_T: normal shared-identity form; keeps the referenced value alive
 weak_ref_T: uncommon non-owning observer; does not keep the value alive and may expire
 ```
 
+Ordinary value assignment may share copy-on-write backing storage while no copy is mutated, making
+read-only passing, returning, and assignment reference-cheap without shared source-level identity.
+Mutation separates the value before it becomes observable elsewhere. Do not introduce `ref` merely
+to avoid a copy; use it only when aliases must observe the same identity and mutations.
+
 Use `ref` when aliases must share an identity and own its lifetime. Use `weak ref` when an edge
 must observe that identity without owning it, such as a child-to-parent back-pointer, subscriber,
 or cache entry used to avoid a strong cycle. Lowering may optimize representation but must never
