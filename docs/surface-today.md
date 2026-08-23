@@ -475,8 +475,10 @@ value behind generated protocol/base wrappers.
 consumers such as `print` transparently observe the referenced value, upgrading the target or
 failing deterministically if it has expired. `shared ref T` values are cloneable shared owners
 backed by synchronized strong storage and have the same transparent observation behavior. Prefix
-`ref`, `shared ref`, and `move` construct those respective ownership forms. A `ref` currently
-requires a local named binding with reference-backed storage; parameters and temporary values are
+`ref`, `shared ref`, and `move` construct those respective ownership forms. Transparent observation
+does not convert the reference at assignment, parameter, or return boundaries; those positions
+continue to distinguish `T`, `ref T`, and `shared ref T`. A `ref` currently requires a local named
+binding with reference-backed storage; parameters and temporary values are
 rejected because the compiler does not yet prove their owner lifetimes. Move provenance
 rejects later reads until the binding is rebound, including conditional paths. Replacing a binding
 ends the old identity's lifetime: a later non-owning-reference use is rejected, while a `shared ref`

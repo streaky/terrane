@@ -1963,6 +1963,15 @@ b.value = 10
 print; a.value  # 10
 ```
 
+Observation through either reference form is transparent to the referenced value's ordinary
+surface. A member, method, or value consumer that accepts `T` may be used through a valid `ref T` or
+`shared ref T`; receiver selection observes `T` rather than treating the reference contract as a
+second object surface. For example, a `ref bytes` may invoke `decode`, and `print` of a `ref int`
+prints the observed integer. This transparency applies only when reading or operating on the
+referenced value. It does not erase the reference contract at a storage or call boundary: assigning
+or passing `ref T` where an owned `T` is required remains distinct, just as passing `T` where
+`ref T` is required remains distinct.
+
 If `a` previously received its value through ordinary assignment, creating or mutating an explicit
 reference must not pull other independently mutable values into the identity group:
 

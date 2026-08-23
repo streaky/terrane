@@ -492,6 +492,12 @@ originating owner is proven alive; escape or use after its lifetime ends is reje
 `shared ref` only when the alias must also extend the identity's lifetime. Lowering may optimize
 representation but must never silently promote `ref` to `shared ref` or discard authored ownership.
 
+[reference-observation-transparency] A valid `ref T` or `shared ref T` exposes `T`'s ordinary
+members, methods, and value consumers: `ref bytes` may call `decode`, and printing `ref int`
+observes the integer. This is receiver/read transparency, not type conversion. Assignment,
+parameter, and return boundaries retain the authored reference contract; neither `T`, `ref T`, nor
+`shared ref T` silently becomes another.
+
 Distinct contracts: `ref T`, `shared ref T`, `user-ref of T`, `raw-address of T`, `array-ref of T`,
 `c-pointer of T`, callable ABI addresses. Never silently convert or weaken.
 
