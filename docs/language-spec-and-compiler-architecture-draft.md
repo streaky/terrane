@@ -3270,9 +3270,14 @@ The task object's identity category, whether it is linear, and whether dropping 
 
 Value assignment across tasks produces independent values semantically.
 
-Shared mutable state requires `ref` plus a thread-safe object contract.
+A non-owning `ref` may cross an `await` or task boundary only when the compiler proves that its
+originating owner remains alive throughout the suspended state. A `shared ref` may cross by carrying
+shared ownership, subject to the referenced value's thread-safety contract. Shared mutation uses
+one of those explicit reference forms plus a thread-safe object contract; task transfer never
+silently changes an authored ownership form.
 
-The compiler checks the source-language equivalents of Rust’s thread-transfer and shared-access requirements and reports them in source terms.
+The compiler checks these source-language ownership, lifetime, thread-transfer, and shared-access
+requirements and reports them in source terms.
 
 ### 21.6 Channels and locks
 
@@ -5866,9 +5871,11 @@ The source feature should remain only if its costs stay inspectable and unsurpri
 
 ### 40.5 Reference implementation
 
-The source semantics of `ref` are fixed as shared object identity.
-
-The compiler’s thresholds for borrow, `Rc`-like, `Arc`-like, or custom dynamic storage need profiling and target-specific tuning.
+The source semantics distinguish a stable non-owning `ref` handle from an owning `shared ref`.
+Validation proves the authored ownership, lifetime, provenance, and thread-safety contracts before
+lowering selects a representation. Borrow-like or stable-handle storage for `ref`, and `Rc`-like,
+`Arc`-like, or custom owner storage for `shared ref`, are representation choices only; their
+profiling thresholds and target-specific tuning must not change the source contract.
 
 ### 40.6 Public-by-default package APIs
 

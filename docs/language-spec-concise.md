@@ -847,7 +847,7 @@ Validation/prototype points, not permission to invent semantics:
 - numeric arrival diagnostics: final spelling of the typed-value exact-arrival predicate (proposed `value.fits; Destination`), wording/severity of the typed false-`is a` and lossy constant-division lints, stable `T00xx` codes for contextual-constant rejections, and whether `integer-conversion-overflow` keeps its name now that it covers every exact-or-throw arrival failure;
 - the version-one async surface: task identity/linearity, un-awaited task disposal, scope failure semantics for surviving siblings, defined cancellation points, and the executor boundary the language fixes versus the profile selects;
 - dynamic finite-union representation;
-- reference representation thresholds (borrow/handle for `ref`; Rc/Arc/custom owner for `shared ref`);
+- reference representation thresholds after source validation (borrow/stable handle for non-owning `ref`; Rc/Arc/custom owner for owning `shared ref`);
 - public-by-default API lint/strict policy;
 - reflection artifact embedding policy;
 - importer composition/evaluation ergonomics.
