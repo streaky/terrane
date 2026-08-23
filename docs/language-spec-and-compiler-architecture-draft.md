@@ -1301,6 +1301,10 @@ copies the value state into a fresh lifecycle lineage: each independently owned 
 representation-only copies within one lineage and therefore cannot multiply an observable hook.
 A fresh construction also starts a fresh lineage; `move` transfers the existing lineage without
 running the hook.
+When a subclass and one or more bases each declare `destruct`, the compiler invokes every hook
+exactly once for the lineage, from the most-derived class toward the root base. Derived cleanup
+therefore runs while all inherited state is still available, and base cleanup remains guaranteed
+even when the subclass overrides the hook.
 
 User code should not normally call `destruct` directly. An explicit core operation may exist for
 early release when required.

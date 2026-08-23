@@ -469,7 +469,7 @@ constant_scope: rejects reassignment regardless of lexical, namespace-local, or 
 shadowing: a namespace-local binding may shadow a distinct program-global constant; writes resolve to the local identity
 parameter_and_for_target_reassignment: allowed within lexical scope; value semantics preserve caller arguments and iterated collections
 lowering_mutability: emit mutable target storage only when resolver-backed write analysis finds a reassignment
-cleanup: deterministic lexical destruction; each independently owned source value has one lifecycle lineage and invokes `destruct` once when that lineage ends; value separation copies state into a fresh lineage, compiler representation clones cannot multiply the hook, move transfers it, and `ref` never delays it
+cleanup: deterministic lexical destruction; each independently owned source value has one lifecycle lineage and invokes each applicable `destruct` once when that lineage ends, ordered most-derived class to root base; value separation copies state into a fresh lineage, compiler representation clones cannot multiply the hook, move transfers it, and `ref` never delays it
 cycles: only `shared ref` can form ownership cycles; never promise deterministic collection; reject provable cycles or diagnose/document leak
 ```
 

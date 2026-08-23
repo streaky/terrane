@@ -743,6 +743,20 @@ impl Emitter<'_> {
                     .expect("object method contract must retain its syntax");
                     self.object_method(method_node);
                 }
+                let destructors = object_destructor_chain(self.unit, object);
+                for (index, destructor) in destructors
+                    .iter()
+                    .take(destructors.len().saturating_sub(1))
+                    .enumerate()
+                {
+                    let method_node = find_node(
+                        &self.unit.tree.root,
+                        SyntaxKind::FunctionDeclaration,
+                        destructor.span,
+                    )
+                    .expect("destructor contract must retain its syntax");
+                    self.object_method_as(method_node, &format!("terrane_destruct_{index}"));
+                }
                 self.current_object = previous_object;
                 self.indent -= 1;
                 self.line("}");
@@ -866,14 +880,22 @@ impl Emitter<'_> {
                             .map(|parameter| rust_name(&parameter.name))
                             .collect::<Vec<_>>()
                             .join(", ");
+                        let mut receiver_binding = "value".to_owned();
+                        while method
+                            .parameters
+                            .iter()
+                            .any(|parameter| rust_name(&parameter.name) == receiver_binding)
+                        {
+                            receiver_binding.push('_');
+                        }
                         self.line(&format!(
-                            "Self::Own(value) => value.{}({arguments}),",
+                            "Self::Own({receiver_binding}) => {receiver_binding}.{}({arguments}),",
                             rust_name(&method.name)
                         ));
                         for descendant in &descendants {
                             let descendant_type = rust_object_name(&descendant.name);
                             self.line(&format!(
-                                "Self::{descendant_type}(value) => value.{}({arguments}),",
+                                "Self::{descendant_type}({receiver_binding}) => {receiver_binding}.{}({arguments}),",
                                 rust_name(&method.name)
                             ));
                         }
@@ -923,12 +945,12 @@ impl Emitter<'_> {
                     self.indent -= 1;
                     self.line("}");
                 }
-                for interface_name in &object.interfaces {
+                for interface_name in effective_object_interfaces(self.unit, object) {
                     let interface = self
                         .unit
                         .objects
                         .iter()
-                        .find(|candidate| candidate.name == *interface_name)
+                        .find(|candidate| candidate.name == interface_name)
                         .expect("validated interface reference");
                     let interface_type = rust_object_name(interface_name);
                     let protocol = format!("{interface_type}Protocol");
@@ -999,6 +1021,13 @@ impl Emitter<'_> {
                     self.line("if std::sync::Arc::strong_count(&self.__terrane_lifetime) == 1 {");
                     self.indent += 1;
                     self.line("self.destruct();");
+                    for index in (0..object_destructor_chain(self.unit, object)
+                        .len()
+                        .saturating_sub(1))
+                        .rev()
+                    {
+                        self.line(&format!("self.terrane_destruct_{index}();"));
+                    }
                     self.indent -= 1;
                     self.line("}");
                     self.indent -= 1;
@@ -1026,14 +1055,37 @@ impl Emitter<'_> {
         } else {
             "&self"
         };
-        self.emit_function(node, Some(receiver));
+        self.emit_function_as(node, Some(receiver), None);
+    }
+    fn object_method_as(&mut self, node: &SyntaxNode, name: &str) {
+        let contract = self
+            .unit
+            .functions
+            .iter()
+            .find(|contract| contract.span == node.span)
+            .expect("object method must have an analyzed contract");
+        let receiver = if contract.mutates_receiver {
+            "&mut self"
+        } else {
+            "&self"
+        };
+        self.emit_function_as(node, Some(receiver), Some(name));
+    }
+
+    fn emit_function(&mut self, node: &SyntaxNode, receiver: Option<&str>) {
+        self.emit_function_as(node, receiver, None);
     }
 
     #[expect(
         clippy::too_many_lines,
         reason = "function lowering preserves one ordered signature and body pipeline"
     )]
-    fn emit_function(&mut self, node: &SyntaxNode, receiver: Option<&str>) {
+    fn emit_function_as(
+        &mut self,
+        node: &SyntaxNode,
+        receiver: Option<&str>,
+        name_override: Option<&str>,
+    ) {
         let contract = self
             .unit
             .functions
@@ -1041,11 +1093,15 @@ impl Emitter<'_> {
             .find(|item| item.span == node.span)
             .expect("analyzed function declaration must have a semantic contract");
         self.line_start();
-        let name = function_name(contract);
+        let name = name_override.map_or_else(|| function_name(contract), str::to_owned);
         write!(
             self.output,
             "{}fn {name}(",
-            if receiver.is_some() { "pub " } else { "" }
+            if receiver.is_some() && name_override.is_none() {
+                "pub "
+            } else {
+                ""
+            }
         )
         .unwrap();
         if let Some(receiver) = receiver {
@@ -4288,7 +4344,8 @@ impl Emitter<'_> {
         else {
             return false;
         };
-        !object_descendants(self.unit, object).is_empty()
+        !(object_descendants(self.unit, object).is_empty()
+            || self.text(receiver) == "this" && self.current_object.is_some())
             && effective_object_fields(self.unit, object)
                 .iter()
                 .any(|field| field.name == name)
@@ -4624,6 +4681,40 @@ fn object_descendants<'a>(
             false
         })
         .collect()
+}
+
+fn effective_object_interfaces<'a>(
+    unit: &'a SemanticUnit,
+    object: &'a ObjectContract,
+) -> Vec<&'a str> {
+    let mut interfaces = object
+        .base
+        .as_deref()
+        .and_then(|name| unit.objects.iter().find(|candidate| candidate.name == name))
+        .map_or_else(Vec::new, |base| effective_object_interfaces(unit, base));
+    for interface in &object.interfaces {
+        if !interfaces.contains(&interface.as_str()) {
+            interfaces.push(interface);
+        }
+    }
+    interfaces
+}
+
+fn object_destructor_chain<'a>(
+    unit: &'a SemanticUnit,
+    object: &'a ObjectContract,
+) -> Vec<&'a FunctionContract> {
+    let mut destructors = object
+        .base
+        .as_deref()
+        .and_then(|name| unit.objects.iter().find(|candidate| candidate.name == name))
+        .map_or_else(Vec::new, |base| object_destructor_chain(unit, base));
+    if let Some(destructor) = unit.functions.iter().find(|method| {
+        method.owner.as_deref() == Some(object.name.as_str()) && method.name == "destruct"
+    }) {
+        destructors.push(destructor);
+    }
+    destructors
 }
 
 fn effective_object_methods<'a>(

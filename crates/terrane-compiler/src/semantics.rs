@@ -4480,13 +4480,15 @@ fn value_types_compatible(
                         }
                         let mut base = object.base.as_deref();
                         while let Some(name) = base {
-                            if name == expected {
+                            let Some(base_object) =
+                                objects.iter().find(|object| object.name == name)
+                            else {
+                                break;
+                            };
+                            if name == expected || base_object.interfaces.contains(expected) {
                                 return true;
                             }
-                            base = objects
-                                .iter()
-                                .find(|object| object.name == name)
-                                .and_then(|object| object.base.as_deref());
+                            base = base_object.base.as_deref();
                         }
                         false
                     })

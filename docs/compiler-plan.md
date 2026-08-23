@@ -1146,15 +1146,18 @@ custom `construct`, one-lineage-per-independent-value `destruct`, mutating recei
 transitively from effective method contracts, immutable methods, and separated value state.
 Ordinary assignment, by-value closure capture, and interface-typed copies create fresh lifecycle
 lineages, while compiler-only Rust clones remain within their originating lineage. Single
-inheritance retains base and subclass fields, forwards inherited field reads and writes through a
-generated base wrapper, dispatches overridden methods, and safely widens inherited `this` returns.
-Declared, nominal interface conformance lowers through typed protocol wrappers and preserves
-mutating receiver requirements inferred from implementations, while traits reuse fields and
-methods. Executable cases cover construction, separated state and destruction, inheritance,
-inherited fields and self-typed returns, immutable and mutating interface dispatch, and trait reuse;
-rejected cases cover uninitialized fields, missing interface methods, incompatible signatures, and
-unresolved trait conflicts. Structural conformance and integration with the
-descriptor model remain outstanding; object analysis currently uses a compiler-owned parallel
+inheritance retains base and subclass fields, lets methods access flattened storage directly,
+forwards base-typed field reads and writes through a generated wrapper, dispatches overridden
+methods, inherits base interface conformance, safely widens inherited `this` returns, and composes
+overridden destruction hooks from the most-derived class toward the root base. Declared, nominal
+interface conformance lowers through typed protocol wrappers and preserves mutating receiver
+requirements inferred from implementations, while traits reuse fields and methods. Executable
+cases cover construction, separated state and destruction, inheritance, inherited fields,
+interface conformance across inheritance, self-typed returns, immutable and mutating interface
+dispatch, trait reuse, and combined inheritance/interface/lifecycle behavior; rejected cases cover
+uninitialized fields, missing interface methods, incompatible signatures, and unresolved trait
+conflicts. Structural conformance and integration with the descriptor model remain outstanding;
+object analysis currently uses a compiler-owned parallel
 contract table.
 
 Construct/destruct notes, and the docs should be updated to reflect this when we get there:
