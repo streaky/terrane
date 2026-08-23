@@ -1510,8 +1510,10 @@ fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFailure> {
             if let Some(body) = body {
                 let mut after_iteration = entry.clone();
                 visit(unit, body, &mut after_iteration, false)?;
-                let mut repeated = after_iteration.clone();
-                visit(unit, body, &mut repeated, false)?;
+                // Validate the back edge: the next iteration starts with the first iteration's
+                // move state, even though only the may-execute-once state leaves the loop.
+                let mut next_iteration = after_iteration.clone();
+                visit(unit, body, &mut next_iteration, false)?;
                 entry.extend(after_iteration);
             }
             *moved = entry;
