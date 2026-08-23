@@ -2059,8 +2059,40 @@ actually occurs; this is an implementation detail and does not add reference sem
 
 Deeply immutable/frozen values should be expressed through the object/type contract rather than conflated with binding constancy.
 
-### 12.9 Reference implementation strategy
+### 12.9 Choosing `ref` and `weak ref`
 
+Most code should use ordinary values. When shared identity is intentional, `ref` is the normal
+reference form:
+
+```terrane
+shared = ref value
+```
+
+Holding `shared` keeps `value` alive. Mutations made through one strong reference are visible
+through the other strong references to the same identity.
+
+`weak ref` is the uncommon, non-owning form:
+
+```terrane
+observer = weak ref shared
+```
+
+Holding `observer` does not keep the shared value alive. Access must therefore account for the
+value having expired. Use a weak reference when one relationship should observe an object without
+owning its lifetime—commonly a child-to-parent back-pointer, subscriber-to-publisher link, cache
+entry, or other edge used to break an ownership cycle.
+
+As a rule of thumb:
+
+- use an ordinary value when independent value semantics are sufficient;
+- use `ref` when aliases must share identity and keep it alive;
+- use `weak ref` only when an alias must not keep that identity alive.
+
+The compiler may optimize how either form is represented, but it must not silently strengthen a
+weak reference or weaken a strong one: doing so would change lifetime, expiry, destruction, and
+cycle behavior.
+
+#### Reference implementation strategy
 The generated Rust may realise references as:
 
 - ordinary borrows when statically provable;

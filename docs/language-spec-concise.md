@@ -474,6 +474,19 @@ cleanup: deterministic lexical destruction; each constructed lifecycle lineage i
 cycles: never promise deterministic collection; reject provable cycles or diagnose/document leak
 ```
 
+Reference choice, in expected order of frequency:
+
+```yaml
+ordinary_value: default; independent value semantics
+ref_T: normal shared-identity form; keeps the referenced value alive
+weak_ref_T: uncommon non-owning observer; does not keep the value alive and may expire
+```
+
+Use `ref` when aliases must share an identity and own its lifetime. Use `weak ref` when an edge
+must observe that identity without owning it, such as a child-to-parent back-pointer, subscriber,
+or cache entry used to avoid a strong cycle. Lowering may optimize representation but must never
+silently strengthen or weaken the authored lifetime contract.
+
 Distinct contracts: `ref T`, `borrowed-ref of T`, `user-ref of T`, `raw-address of T`, `array-ref of T`, `c-pointer of T`, callable ABI addresses. Never silently convert/weaken.
 
 ## CONTROL
