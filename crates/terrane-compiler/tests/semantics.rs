@@ -3,8 +3,8 @@ use std::path::PathBuf;
 use terrane_compiler::semantics::SymbolKind;
 use terrane_compiler::syntax::SyntaxKind;
 use terrane_compiler::{
-    EvaluationKind, ExecutorProfile, Package, ReflectionProfile, ScalarType, SourceFile, SourceUnit,
-    ValueType, analyze,
+    EvaluationKind, ExecutorProfile, Package, ReflectionProfile, ScalarType, SourceFile,
+    SourceUnit, ValueType, analyze,
 };
 
 fn package(prelude: bool, sources: &[(&str, &str)]) -> Package {

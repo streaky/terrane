@@ -148,7 +148,10 @@ fn parse_manifest(
     })?;
     let mut errors = Vec::new();
     for key in table.keys() {
-        if !matches!(key.as_str(), "package" | "prelude" | "reflection" | "executor" | "namespaces") {
+        if !matches!(
+            key.as_str(),
+            "package" | "prelude" | "reflection" | "executor" | "namespaces"
+        ) {
             errors.push(manifest_error(
                 manifest_path,
                 text,
@@ -206,9 +209,7 @@ fn parse_manifest(
         None => ReflectionProfile::Ordinary,
     };
     let executor = match table.get("executor") {
-        Some(toml::Value::String(value)) if value == "cooperative" => {
-            ExecutorProfile::Cooperative
-        }
+        Some(toml::Value::String(value)) if value == "cooperative" => ExecutorProfile::Cooperative,
         Some(toml::Value::String(value)) if value == "threaded" => ExecutorProfile::Threaded,
         Some(_) => {
             errors.push(manifest_error(
