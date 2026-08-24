@@ -529,7 +529,7 @@ fn rejects_non_associative_identity_and_recovers_layout_errors_once() {
     );
     let diagnostics = parse(&source, lex(&source).unwrap()).diagnostics;
     assert_eq!(diagnostics.len(), 1, "{diagnostics:#?}");
-    assert_eq!(diagnostics[0].code, "S1035");
+    assert_eq!(diagnostics[0].code, "S1041");
 
     let source = SourceFile::new(
         0,

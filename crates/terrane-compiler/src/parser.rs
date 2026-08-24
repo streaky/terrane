@@ -186,7 +186,7 @@ impl Parser<'_> {
                 if self.at(TokenKind::Identifier) {
                     names.push(self.leaf(SyntaxKind::Name));
                 } else {
-                    self.error_here("S1035", "object clause requires a declared object name");
+                    self.error_here("S1041", "object clause requires a declared object name");
                     self.recover_line();
                     break;
                 }
@@ -195,7 +195,7 @@ impl Parser<'_> {
                 }
             }
             if clause_kind == SyntaxKind::ExtendsClause && names.len() > 1 {
-                self.error_here("S1036", "classes support only single inheritance");
+                self.error_here("S1036", "an `extends` clause supports only one base name");
             }
             children.push(self.node(clause_kind, clause_start, self.position, names));
         }

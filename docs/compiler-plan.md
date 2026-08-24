@@ -356,11 +356,11 @@ S1014 missing member name                 S1029 invalid declaration prefix
 S1015 unclosed index expression           S1030 expression after `try`
 S1016 unparenthesized nested call         S1032 missing `catch as` binding
 S1033 `try` without `catch`/`finally`     S1034 missing object declaration name
-S1035 malformed object clause             S1036 multiple class bases
+S1035 malformed object clause             S1036 multiple object bases
 S1037 assignment in condition             S1038 missing function parameter marker
 S1039 missing throwable upper bound       S1040 unclosed function parameter list
-S1090 reserved unsupported syntax         S1091 unsupported `===`
-S1092 unsupported angle generic
+S1041 missing object clause name          S1090 reserved unsupported syntax
+S1091 unsupported `===`                   S1092 unsupported angle generic
 ```
 
 `S1010` and `S1031` are intentionally unassigned. Diagnostics whose correction is
@@ -991,12 +991,11 @@ and arguments.
 
 Deliver:
 
-- the compiler-owned `throwable` structural interface with human-readable `message`, optional
-  `cause`, rendering, concrete descriptor identity, and a source-context chain;
+- the structural `error` interface with stable `kind`, human-readable `message`, optional `cause`, and a source-context chain;
 - `throw`, `try`, `catch`, and `finally` over a compiler-owned result propagation representation rather than native unwinding;
 - catch matching in source order, with a compile-time diagnostic for a clause made unreachable by an earlier one;
 - `finally` semantics that always run and may replace a pending outcome only by explicitly returning or throwing;
-- construction and catchability for the reserved `/core/errors` throwable classes, converting the existing deterministic arithmetic and coercion failures onto this path;
+- construction and catchability for the reserved `/core/errors` objects, converting the existing deterministic arithmetic and coercion failures onto this path;
 - deterministic uncaught rendering of the cause and source chain, preserving the current outermost reporting policy and exit code.
 
 Exit criterion: an arithmetic overflow and a failed coercion are catchable, a rethrow preserves the cause chain, uncaught output is unchanged from the current normative text, and generated Rust contains no panic-based control flow for recoverable failures.
@@ -1301,8 +1300,7 @@ statically resolvable extensions are additionally rejected in source.
 
 Accepted and rejected conformance covers async/sync type incompatibility, task consumption,
 successful, throwing, cancelled, and sibling-cancelling children, statically resolvable nested
-deadline extension, non-owning references across suspension, and linear capabilities held across
-suspension. This satisfies the milestone exit criterion.
+deadline extension, and non-owning references across suspension.
 
 ### Milestone 20 — Byte and text streams and process standard streams
 

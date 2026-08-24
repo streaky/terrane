@@ -1,3 +1,0 @@
-[build]
-rustc-wrapper = "sccache"
-incremental = false

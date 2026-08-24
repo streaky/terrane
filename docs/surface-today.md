@@ -506,9 +506,9 @@ alias of `/core/output::print` therefore carries `io`, while an unrelated source
 `print` does not. Callable reflection exposes `.effects`, `.throwable-contract`, and
 `.escaping-throwables`; descriptor values retain canonical identity and `.name`.
 
-`capability of E` is implemented as a linear value type: copying/forging is rejected, transfer is
-explicit with `move`, and holding it across suspension is rejected. Ordinary source has no
-constructor. A package manifest may select permitted capabilities and bind a host provider to a
+`capability of E` is implemented as a linear value type: copying and forgery are rejected, and
+transfer is explicit with `move`. Ordinary source has no constructor. A package manifest may select
+permitted capabilities and bind a host provider to a
 named entrypoint capability parameter; the compiler validates that contract and injects the
 authority value at the generated entrypoint. `pure` declares an empty effect upper bound, so any
 direct or transitive effect is rejected in source.
@@ -517,8 +517,8 @@ direct or transitive effect is rejected in source.
 
 An `async function` has a distinct callable type and invocation produces a linear task. Postfix
 `await` is accepted only in an async function and consumes that task; leaving a task unconsumed is a
-source diagnostic. The compiler rejects sync/async callable substitutions, non-owning references
-whose owner is not proven across suspension, and linear capability values held across suspension.
+source diagnostic. The compiler rejects sync/async callable substitutions and non-owning references
+whose owner is not proven across suspension.
 
 `task-scope; deadline?` constructs a scope using the selected threaded or cooperative executor
 profile. `.spawn; callable` consumes an async callable invocation into a linear scoped task;

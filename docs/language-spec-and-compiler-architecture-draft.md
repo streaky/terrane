@@ -68,7 +68,7 @@ function main;
 Conceptually:
 
 1. `namespace my-app` declares this unit's namespace. Nested namespaces separate segments with `/`, as in `my-app/http/handlers`.
-2. No import appears because none is needed: `print` is one of the seven default prelude bindings, and every type descriptor is a construct available without import.
+2. No import appears because none is needed: `print` is one of the thirteen default prelude bindings, and every type descriptor is a construct available without import.
 3. `': '.join` looks up the `join` member on the `': '` text object.
 4. Invoking that member joins its arguments using the receiver as the separator, accepting any number of arguments. This is the shape of Python's `str.join` and PHP's `implode`: the separator supplies the member rather than being passed to it. `join` is distinct from `concat`, which appends its arguments to the receiver without a separator — `'a'.concat; 'b', 'c'` is `abc`.
 5. `print; message` invokes `print`’s default behaviour with `message` as its argument.
@@ -1187,10 +1187,11 @@ result = (convert; uint64, pages) * page-size
 removes redundant whole-condition parentheses and preserves parentheses that determine expression
 structure.
 
-A `(` immediately following a call's `;` opens a delimited argument list. Its matching `)` may be
-on the same physical line or a later one; physical newlines and indentation inside the pair are
-non-structural, and commas alone divide its arguments. The opening `(` remains on the same physical
-line as the `;`, because a newline with no open parenthesis ends the call. These are all legal:
+A `(` used as the first non-trivia token after a call's `;` on the same physical line opens a
+delimited argument list. Its matching `)` may be on that line or a later one; physical newlines and
+indentation inside the pair are non-structural, and commas alone divide its arguments. The opening
+`(` remains on the same physical line as the `;`, because a newline with no open parenthesis ends
+the call. These are all legal:
 
 ```terrane
 print; (first, second)
@@ -1534,7 +1535,7 @@ These descriptors are exported from `/core/types` and are constructs available w
 count int64 = 42
 ```
 
-The default prelude's ordinary bindings remain exactly `print`, `int`, `float`, `bool`, `string`, `bytes`, and `none`; descriptor constructs are a separate category rather than additions to that list. Explicit import is still available where a different name is wanted:
+The default prelude's ordinary bindings remain exactly `print`, `task-scope`, `int`, `float`, `bool`, `string`, `bytes`, `none`, `utf8`, `utf16-le`, `utf16-be`, `utf32-le`, and `utf32-be`; descriptor constructs are a separate category rather than additions to that list. Explicit import is still available where a different name is wanted:
 
 ```terrane
 from /core/types import int64 as word
@@ -2653,13 +2654,19 @@ Throwable classes are otherwise ordinary classes. Their `construct` method may a
 appropriate to that error:
 
 ```terrane
+from /core/errors import throwable
+
 class config-error implements throwable
-  message string
-  path string
+  message string = ''
+  cause throwable|none = none
+  path string = ''
 
   function construct; path string, message string
     this.path = path
     this.message = message
+
+  function render string;
+    return this.message
 ```
 
 The expression following `throw` is an ordinary expression. Consequently, throwing a newly
@@ -6011,7 +6018,7 @@ Unless a snippet explicitly tests unresolved lookup, the conformance harness sup
 44. lexical ownership and acyclic shared ownership destroy deterministically, while a provable `shared ref` cycle is rejected and an uncollectable runtime cycle is diagnosed or documented as a leak rather than promised deterministic reclamation.
 45. imports obey lexical and namespace scope, nearer imports shadow farther ones, same-scope collisions are rejected, and `as` retains both objects when two exports collide.
 46. plain top-level assignment remains namespace-local even in the root namespace; creating or replacing a program-global binding without `global` is rejected.
-47. the default prelude contains exactly `print`, `int`, `float`, `bool`, `string`, `bytes`, and `none`; disabling it removes those defaults while explicit `/core` imports still work.
+47. the default prelude contains exactly `print`, `task-scope`, `int`, `float`, `bool`, `string`, `bytes`, `none`, `utf8`, `utf16-le`, `utf16-be`, `utf32-le`, and `utf32-be`; disabling it removes those defaults while explicit `/core` imports still work.
 48. a call owns its remaining logical expression, nested calls require grouping, zero-argument calls require `;`, and three-clause `for` semicolons cannot be consumed as call delimiters.
 49. source type parameters are rejected; strict code uses concrete types, unions, interfaces, or generated concrete declarations rather than silently becoming dynamic.
 50. `c is a` parses as identity against the binding `a`, `c is a widget` parses as type membership, ordinary identity-less values compare false even to themselves, explicit refs alias one identity, and linear resources preserve identity across moves.

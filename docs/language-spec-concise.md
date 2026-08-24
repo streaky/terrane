@@ -163,17 +163,17 @@ Rules:
 Version-one default ordinary program-global bindings EXACTLY:
 
 ```text
-print int float bool string bytes none
+print task-scope int float bool string bytes none utf8 utf16-le utf16-be utf32-le utf32-be
 ```
 
-- These need no import. `print; value` is a complete statement in a program with no import lines at all.
+- These need no import. `print; value` is a complete statement and `scope = task-scope;` creates a structured-concurrency scope in a program with no import lines at all.
 - Prelude may be disabled.
 - Explicit `/core` object imports still work and may shadow/replace defaults deliberately.
 - Library facilities such as `map`, `list`, `range`, `file` are NOT implicit prelude bindings; import them.
-- Fixed-width numeric descriptors are NOT prelude bindings and NOT reserved words. They are descriptor constructs available without import, a separate category from the seven ordinary bindings above.
+- Fixed-width numeric descriptors are NOT prelude bindings and NOT reserved words. They are descriptor constructs available without import, a separate category from the thirteen ordinary bindings above.
 
 ```yaml
-prelude_bindings: the seven ordinary program-globals listed above; unchanged
+prelude_bindings: the thirteen ordinary program-globals listed above; unchanged
 descriptor_constructs: int8.int128, uint8.uint128, float32, float64, and the abstract category descriptors
 construct_availability: usable in construct position without import ('value int8 = 42')
 construct_value_use: still rejected in value position; a construct is not a runtime value
@@ -282,7 +282,7 @@ function connect connection; host string, port int, timeout int = 10
 - [redeclaration-identity] after evaluating the initializer, replacement releases the old owned value and installs a new identity; identical type is an assignment with a redundant annotation, not identity preservation. Existing `ref` becomes unusable at release; `shared ref` continues owning the old identity and is never retargeted.
 - [redeclaration-retype] type changes => the binding's type changes. Release remains deterministic and occurs at replacement rather than scope exit, so an unreachable resource is not retained.
 - [block-scope] Function bodies and every indented control-flow body create lexical scopes. A nested declaration is visible through that body and deeper scopes, never in sibling bodies or after exit; its value is released on each exit. A `for` target spans its loop body only. A nearer declaration shadows until exit, while untyped assignment to an enclosing name assigns that existing binding.
-- Function result type follows the function name. The complete header ends with a mandatory semicolon, followed by the parameter list; `function main;` declares no parameters. The same marker is required for methods, interface requirements, lifecycle methods, and anonymous functions. For multiline parameters, `(` must immediately follow the semicolon on the declaration line; newlines and indentation are non-structural until its matching `)`, commas alone divide parameters, and `)` may share the final parameter's line. Preferred form: one parameter per line with `)` on its own line; other layouts inside the delimiters remain legal.
+- Function result type follows the function name. The complete header ends with a mandatory semicolon, followed by the parameter list; `function main;` declares no parameters. The same marker is required for methods, interface requirements, lifecycle methods, and anonymous functions. For multiline parameters, `(` must be the first non-trivia token after the semicolon on the declaration line; newlines and indentation are non-structural until its matching `)`, commas alone divide parameters, and `)` may share the final parameter's line. Preferred form: one parameter per line with `)` on its own line; other layouts inside the delimiters remain legal.
 - Default value makes parameter optional; required parameters precede optional ones; variadic captures remaining values.
 - Named arguments require stable exposed parameter names.
 - `constant`, not `const`.
@@ -533,12 +533,18 @@ for i = 0; i < limit; i++
 ## ERROR / EFFECT
 
 ```terrane
+from /core/errors import throwable
+
 class config-error implements throwable
-  message string
-  path string
+  message string = ''
+  cause throwable|none = none
+  path string = ''
   function construct; path string, message string
     this.path = path
     this.message = message
+  function render string;
+    return this.message
+
 
 function load config throws config-error; path string
   try
