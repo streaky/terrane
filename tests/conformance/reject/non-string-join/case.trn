@@ -1,4 +1,4 @@
 namespace non-string-join
 
-function main
+function main;
   value = 1.join; 'part'

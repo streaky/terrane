@@ -11,7 +11,7 @@ function different-type bool; left int, right string
   print; left
   print; right
   return left.type is right.type
-function main
+function main;
   print; (accepts; 1)
   print; (byte is byte)
   print; (byte is other-byte)

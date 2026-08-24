@@ -1,5 +1,5 @@
 namespace null-byte-literal
-function main
+function main;
   raw bytes = b'a\0c'
   for byte in raw
     print; byte

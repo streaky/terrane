@@ -51,7 +51,7 @@ fn classifies_real_lexical_and_syntax_constructs() {
 
 #[test]
 fn retains_highlights_around_lexical_and_syntax_errors() {
-    let source = "namespace app\ninvalid = @\nfunction main\n  value = 'ok'\n";
+    let source = "namespace app\ninvalid = @\nfunction main;\n  value = 'ok'\n";
     let file = SourceFile::new(0, "broken.trn".into(), source.to_owned());
     let output = highlight(&file);
 

@@ -55,7 +55,7 @@ A representative program is:
 ```terrane
 namespace my-app
 
-function main
+function main;
 
   project-name = >Terrane
   build-target = >native executable
@@ -86,7 +86,7 @@ namespace my-app
 
 from /core/types import int64 as word
 
-function main
+function main;
   size word = 4096
   print; size
 ```
@@ -271,13 +271,13 @@ The absence of a qualifier normally means **minimal restriction**, not an invisi
 Examples:
 
 ```terrane
-function render
+function render;
 ```
 
 is public and dynamically typed by default.
 
 ```terrane
-private function render
+private function render;
 ```
 
 narrows visibility.
@@ -375,7 +375,7 @@ Blocks are indentation-delimited.
 ```terrane
 class widget
 
-  function render
+  function render;
     print; 'rendered'
 ```
 
@@ -396,7 +396,7 @@ The formatter emits two spaces per level by default, although it may preserve or
 Empty declarations are legal.
 
 ```terrane
-function not-yet
+function not-yet;
 
 class placeholder
 ```
@@ -1231,7 +1231,7 @@ class widget
     this.width = width
     this.height = height
 
-  function area int
+  function area int;
     return this.width * this.height
 ```
 
@@ -1290,7 +1290,7 @@ Static state is state on the class object and follows the same visibility and co
 ```terrane
 class file-wrapper
 
-  function destruct
+  function destruct;
     this.file.close;
 ```
 
@@ -1320,7 +1320,7 @@ Declarations and members are public by default.
 ```terrane
 class widget
 
-  function render
+  function render;
 ```
 
 The language gets out of the way where visibility does not matter.
@@ -1328,9 +1328,9 @@ The language gets out of the way where visibility does not matter.
 Explicit visibility remains available and meaningful:
 
 ```terrane
-public function render
+public function render;
 private cache = map;
-protected function update-layout
+protected function update-layout;
 ```
 
 Writing `public` is permitted as documentation even though it matches the default.
@@ -2232,14 +2232,15 @@ These guarantees permit ordinary lexical code to manage resources without requir
 
 ### 13.1 Function declarations
 
-A function with no declared arguments is:
+A function declaration always ends its callable header with a semicolon. For a function with no
+declared parameters, that semicolon denotes the empty parameter list:
 
 ```terrane
-function main
+function main;
   ...
 ```
 
-Parameters follow a semicolon:
+Parameters follow the same mandatory semicolon:
 
 ```terrane
 function add; a, b
@@ -2252,6 +2253,12 @@ Return types follow function names, and parameter types follow parameter names:
 function add int; a int, b int
   return a + b
 ```
+
+The semicolon follows the complete return and effect contract and precedes every parameter list,
+including an empty one. It is therefore required on methods, interface requirements, lifecycle
+methods, and anonymous functions as well as namespace-level functions. It does not permit a
+parameter list to continue across a newline; multiline parameter syntax is a separate design
+decision.
 
 ### 13.2 Optional parameters
 
@@ -2317,7 +2324,7 @@ A call must not bind the same parameter both positionally and by name.
 A return type follows the function name:
 
 ```terrane
-function area int
+function area int;
   return this.width * this.height
 ```
 
@@ -2364,7 +2371,7 @@ owner's:
 ```terrane
 counter-ref = ref counter
 
-handler = function
+handler = function;
   counter-ref.increment;
 ```
 
@@ -2551,7 +2558,7 @@ conformance, the program is rejected.
 interface throwable
   message string
   cause throwable|none
-  function render string
+  function render string;
 ```
 
 The runtime additionally carries the concrete class descriptor and a source-context chain. The
@@ -3128,7 +3135,7 @@ Interfaces describe required object protocols:
 ```terrane
 interface serializable
 
-  function serialize bytes
+  function serialize bytes;
 ```
 
 A class declares implementation:
@@ -3148,7 +3155,7 @@ trait timestamped
 
   created-at = none
 
-  function touch
+  function touch;
     this.created-at = clock.now;
 ```
 
@@ -3273,15 +3280,15 @@ Target profiles without threads reject it.
 
 ```terrane
 when build; config-vmap-stack
-  function allocate-stack
+  function allocate-stack;
     ...
 
 else when build; config-thread-info-in-task
-  function allocate-stack
+  function allocate-stack;
     ...
 
 else
-  function allocate-stack
+  function allocate-stack;
     ...
 ```
 
@@ -3926,7 +3933,7 @@ The compiler checks that the Rust result can cross back into the declared/source
 ```terrane
 class fast-buffer
 
-  function checksum uint64
+  function checksum uint64;
     rust
       self.inner.checksum()
 ```
@@ -5527,7 +5534,7 @@ namespace my-app
 
 from /my-output import print
 
-function main
+function main;
   print; >Hello! From, "Terrane"!
 ```
 

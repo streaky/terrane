@@ -2,11 +2,11 @@ namespace class-method-closures
 
 class maker
   base int = 10
-  function offset function from int to int
+  function offset function from int to int;
     return function int; value int
       return this.base + value
 
-function main
+function main;
   value maker = maker;
   add function from int to int = value.offset;
   result int = add; 5

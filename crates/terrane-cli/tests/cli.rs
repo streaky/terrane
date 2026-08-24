@@ -100,7 +100,7 @@ fn failures_use_distinct_exit_codes_and_compiler_diagnostics() {
     ));
     fs::write(
         &invalid_path,
-        "namespace invalid\nfunction main\n  missing;\n",
+        "namespace invalid\nfunction main;\n  missing;\n",
     )
     .unwrap();
     let invalid = Command::new(binary)
@@ -130,14 +130,14 @@ fn uncaught_source_errors_render_causes_and_terrane_frames() {
         concat!(
             "namespace runtime-error\n",
             "from /core/errors import arithmetic-overflow, coercion-error\n",
-            "function inner int throws arithmetic-overflow\n",
+            "function inner int throws arithmetic-overflow;\n",
             "  throw arithmetic-overflow\n",
-            "function outer int throws coercion-error\n",
+            "function outer int throws coercion-error;\n",
             "  try\n",
             "    return inner;\n",
             "  catch arithmetic-overflow\n",
             "    throw coercion-error\n",
-            "function main\n",
+            "function main;\n",
             "  outer;\n",
         ),
     )

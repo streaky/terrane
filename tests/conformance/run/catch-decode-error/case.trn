@@ -1,6 +1,6 @@
 namespace catch-decode-error
 from /core/errors import decode-error
-function main
+function main;
   raw = b'\xff'
   try
     decoded = raw.decode; utf8

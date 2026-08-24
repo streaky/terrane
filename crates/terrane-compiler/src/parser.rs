@@ -419,7 +419,7 @@ impl Parser<'_> {
             if self.eat_text("throws") {
                 let effect_start = self.position - 1;
                 let parts = if self.at(TokenKind::Semicolon) || self.at_line_end() {
-                    self.error_here("S1037", "`throws` requires a throwable upper bound");
+                    self.error_here("S1039", "`throws` requires a throwable upper bound");
                     Vec::new()
                 } else {
                     vec![self.parse_type_expression()]
@@ -432,9 +432,12 @@ impl Parser<'_> {
                 ));
             }
         }
-        if self.eat(TokenKind::Semicolon) {
-            children.push(self.parse_parameter_list());
-        }
+        self.expect(
+            TokenKind::Semicolon,
+            "S1038",
+            "expected `;` before function parameters",
+        );
+        children.push(self.parse_parameter_list());
         if !self.at(TokenKind::Newline) {
             self.error_here("S1006", "unexpected content in function header");
             self.recover_line();
@@ -455,9 +458,12 @@ impl Parser<'_> {
         if !self.at(TokenKind::Semicolon) && !self.at_line_end() {
             children.push(self.parse_type_expression());
         }
-        if self.eat(TokenKind::Semicolon) {
-            children.push(self.parse_parameter_list());
-        }
+        self.expect(
+            TokenKind::Semicolon,
+            "S1038",
+            "expected `;` before anonymous function parameters",
+        );
+        children.push(self.parse_parameter_list());
         if !self.at(TokenKind::Newline) {
             self.error_here("S1006", "unexpected content in anonymous function header");
             self.recover_line();

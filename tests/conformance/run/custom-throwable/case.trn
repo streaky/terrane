@@ -8,10 +8,10 @@ class config-error implements throwable
     this.code = code
     this.message = message
 
-function fail int throws config-error
+function fail int throws config-error;
   throw config-error; 1234, >configuration failed
 
-function main
+function main;
   try
     fail;
   catch config-error

@@ -1,10 +1,10 @@
 namespace string-join
 
-function separator string
+function separator string;
   print; 'side effect'
   return '--'
 
-function main
+function main;
   empty = (separator;).join;
   single = '--'.join; 'one'
   many = '--'.join; 'one', 2, true

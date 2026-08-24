@@ -1,7 +1,7 @@
 namespace async-callable-type-mismatch
 
-async function answer int
+async function answer int;
   return 42
 
-function main
+function main;
   callback function to int = answer

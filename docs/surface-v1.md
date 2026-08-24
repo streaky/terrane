@@ -728,7 +728,7 @@ The namespace tree corresponds to a directory tree; a declaration disagreeing wi
 ```terrane
 namespace demo
 
-function main
+function main;
   value int8 = 120
   print; value
 ```
@@ -753,7 +753,7 @@ derived int = base + 1          # composition at the tier: visible here only
 constant page-size int = 4096   # crosses into function bodies
 global counter int = 0          # crosses, and may be replaced, because it says so
 
-function report
+function report;
   print; page-size              # fine
   print; derived                # rejected: namespace variable, not visible here
   print; counter                # fine: declared global

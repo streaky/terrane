@@ -1,5 +1,5 @@
 namespace non-callable-value
 from /core/types import int8
-function main
+function main;
     value int8 = 1
     value;

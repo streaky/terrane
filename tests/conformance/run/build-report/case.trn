@@ -7,7 +7,7 @@ function report; name string, passed bool, attempts int = 1
   else
     print; (name.concat; ': failed')
 
-function main
+function main;
   report; 'lexer', true
   report; attempts = 2, name = 'parser', passed = true
   print; (title.concat; ' length: ', title.length)

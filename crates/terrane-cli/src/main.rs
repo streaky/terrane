@@ -552,7 +552,7 @@ mod tests {
         }];
         let units = vec![SourceUnit {
             relative_path: PathBuf::from("case.trn"),
-            source: SourceFile::new(0, PathBuf::from("case.trn"), "function main\n".to_owned()),
+            source: SourceFile::new(0, PathBuf::from("case.trn"), "function main;\n".to_owned()),
             expected_namespace: None,
         }];
 

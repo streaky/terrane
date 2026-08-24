@@ -7,7 +7,7 @@ function echo tuple of int; values tuple of int
 function nested list of tuple of int; values list of tuple of int
   return values
 
-function main
+function main;
   pair tuple of int = tuple; 1, 2
   returned tuple of int = echo; pair
   print; returned.length, returned[0], returned[1]

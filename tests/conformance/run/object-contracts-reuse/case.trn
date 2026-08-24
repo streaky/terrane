@@ -6,7 +6,7 @@ interface describable
 trait tagged
     tag string = '!'
 
-    function tagged-value string
+    function tagged-value string;
         return this.tag
 
 class base
@@ -21,7 +21,7 @@ class child extends base implements describable uses tagged
     function describe string; prefix string
         return prefix.concat; 'child'
 
-function main
+function main;
     value child = child;
     view describable = value
     base-view base = value

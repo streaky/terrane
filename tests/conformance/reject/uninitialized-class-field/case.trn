@@ -3,5 +3,5 @@ namespace uninitialized-class-field
 class counter
     value int
 
-function main
+function main;
     value counter = counter;

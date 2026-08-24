@@ -241,9 +241,9 @@ fn block_string_token_covers_body_and_uses_its_selected_prefix() {
 #[test]
 fn tokens_and_trivia_cover_every_source_byte_once() {
     for source in [
-        "function main\n  value\n\n  # note\nafter\n",
+        "function main;\n  value\n\n  # note\nafter\n",
         "x = >>\n  a\n\n  b\nafter = 1\n",
-        "function main\n  /* c\n  */ value\nnext\n",
+        "function main;\n  /* c\n  */ value\nnext\n",
         "x = 'text' # trailing\n",
     ] {
         let lexed = lex_source(source);
@@ -293,7 +293,7 @@ fn a_block_string_body_terminates_exactly_one_statement() {
 
 #[test]
 fn a_comment_only_terminator_line_stays_out_of_indentation() {
-    let lexed = lex_source("function main\n  /* c\n  */ # still a comment\nnext\n");
+    let lexed = lex_source("function main;\n  /* c\n  */ # still a comment\nnext\n");
     assert!(
         !lexed
             .tokens
@@ -307,7 +307,7 @@ fn block_string_content_follows_the_file_indentation_style() {
     let source = SourceFile::new(
         0,
         "case.trn".into(),
-        "function main\n  x = >>\n\t\t\tcontent\n".to_owned(),
+        "function main;\n  x = >>\n\t\t\tcontent\n".to_owned(),
     );
     assert!(
         lex(&source)
@@ -336,7 +336,7 @@ fn comments_and_shift_operators_do_not_open_block_strings() {
 
 #[test]
 fn indentation_ignores_blank_and_comment_only_lines() {
-    let lexed = lex_source("function main\n  value\n\n    # ignored\n  next\nafter\n");
+    let lexed = lex_source("function main;\n  value\n\n    # ignored\n  next\nafter\n");
     assert_eq!(
         lexed
             .tokens
@@ -358,7 +358,7 @@ fn indentation_ignores_blank_and_comment_only_lines() {
 #[test]
 fn tab_indentation_and_style_changes_are_covered() {
     assert_eq!(
-        lex_source("function main\n\tvalue\nnext\n")
+        lex_source("function main;\n\tvalue\nnext\n")
             .tokens
             .iter()
             .filter(|token| token.kind == TokenKind::Indent)
@@ -368,7 +368,7 @@ fn tab_indentation_and_style_changes_are_covered() {
     let source = SourceFile::new(
         0,
         "case.trn".into(),
-        "function main\n  value\n\tnext\n".to_owned(),
+        "function main;\n  value\n\tnext\n".to_owned(),
     );
     assert!(
         lex(&source)
@@ -423,7 +423,7 @@ fn structural_tokens_and_trivia_have_exact_spans() {
 
 #[test]
 fn code_after_a_multiline_comment_terminator_keeps_indentation() {
-    let lexed = lex_source("function main\n  /* c\n  */ value\nnext\n");
+    let lexed = lex_source("function main;\n  /* c\n  */ value\nnext\n");
     let kinds = lexed
         .tokens
         .iter()
@@ -451,7 +451,7 @@ fn malformed_lexemes_report_originating_bytes() {
     for (text, code, start) in [
         ("count-1", "L0005", 5),
         ("a+ b", "L0006", 1),
-        ("function main\n \tvalue", "L0003", 14),
+        ("function main;\n \tvalue", "L0003", 15),
         ("/* open", "L0002", 0),
         ("naïve", "L0001", 2),
     ] {

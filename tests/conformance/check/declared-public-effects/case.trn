@@ -1,7 +1,7 @@
 namespace declared-public-effects
 
-public io function noisy
+public io function noisy;
   print; >effect
 
-function main
+function main;
   noisy;

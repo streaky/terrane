@@ -1,8 +1,8 @@
 namespace async-await
 
-async function answer int
+async function answer int;
   return 42
 
-async function main
+async function main;
   value int = await answer;
   print; value

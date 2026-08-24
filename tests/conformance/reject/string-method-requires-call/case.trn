@@ -1,4 +1,4 @@
 namespace string-method-requires-call
-function main
+function main;
   text string = ' value '
   trimmed string = text.trim

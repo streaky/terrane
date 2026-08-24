@@ -9,10 +9,10 @@ function convert int8; item int
     result = item.coerce; tiny
   return result
 
-function helper
+function helper;
   print; 'helper'
 
-function main
+function main;
   helper;
   value int = 300
   within int = 100

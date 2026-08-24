@@ -1,7 +1,7 @@
 namespace collection-lookup-errors
 from /core/collections import list, map
 from /core/errors import index-error, missing-key
-function main
+function main;
   values = list; 1
   try
     print; values[2]

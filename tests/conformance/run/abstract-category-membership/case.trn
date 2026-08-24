@@ -1,6 +1,6 @@
 namespace abstract-category-membership
 from /core/types import number, integer, fixed-integer, signed-fixed-integer, unsigned-fixed-integer, floating
-function main
+function main;
   signed int8 = -1
   unsigned uint8 = 1
   adaptive int = 1

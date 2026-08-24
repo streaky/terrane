@@ -13,10 +13,10 @@ class counter
     function shifted int; amount int
         return this.value + amount
 
-    function destruct
+    function destruct;
         print; 'destruct'
 
-function main
+function main;
     first counter = counter; 10
     second counter = first
     shift function from int to int = first.shifted

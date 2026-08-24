@@ -1,4 +1,4 @@
 namespace plain-namespace-assignment
 value int8 = 7
-function main
+function main;
   value = 16

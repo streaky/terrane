@@ -1,6 +1,6 @@
 namespace referenced-binding-retyping
 
-function main
+function main;
   value int8 = 12
   observer ref int8 = ref value
   value int = value.coerce; int

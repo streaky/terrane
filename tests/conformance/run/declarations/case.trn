@@ -1,7 +1,7 @@
 namespace declarations
 from /core/types import int8
 global namespace-value int = 12
-function main
+function main;
   local-value int8
   local-value = 16
   print; namespace-value

@@ -1,8 +1,8 @@
 namespace callable-effect-reflection
 
-public io function noisy
+public io function noisy;
   print; 'work'
 
-io function main
+io function main;
   noisy;
   print; noisy.effects

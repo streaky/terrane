@@ -1,5 +1,5 @@
 namespace reject-incompatible-throws
 from /core/errors import arithmetic-overflow, coercion-error
 
-function fail int throws coercion-error
+function fail int throws coercion-error;
   throw arithmetic-overflow

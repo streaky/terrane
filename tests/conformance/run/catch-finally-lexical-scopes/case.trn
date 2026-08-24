@@ -1,7 +1,7 @@
 namespace catch-finally-lexical-scopes
 from /core/errors import arithmetic-overflow, coercion-error
 
-function typed-catch
+function typed-catch;
   try
     throw arithmetic-overflow
   catch arithmetic-overflow
@@ -11,13 +11,13 @@ function typed-catch
     completed = 2
     print; completed
 
-function catch-all
+function catch-all;
   try
     throw coercion-error
   catch
     caught = 3
     print; caught
 
-function main
+function main;
   typed-catch;
   catch-all;

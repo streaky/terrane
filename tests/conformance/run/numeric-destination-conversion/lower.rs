@@ -3,11 +3,11 @@
 // Namespace: numeric-destination-conversion
 #[allow(dead_code)]
 #[derive(Clone)]
-enum TerraneUnionF0S176 {
+enum TerraneUnionF0S177 {
     Arm0(i8),
     Arm1(i32),
 }
-impl terrane_scalar_support::ScalarDisplay for TerraneUnionF0S176 {
+impl terrane_scalar_support::ScalarDisplay for TerraneUnionF0S177 {
     fn write_scalar(&self, output: &mut String) {
         match self {
             Self::Arm0(value) => terrane_scalar_support::ScalarDisplay::write_scalar(value, output),
@@ -19,7 +19,7 @@ fn main() {
     let small: i8 = 12;
     let adaptive: i64 = (small) as i64;
     let wide: i32 = (small) as i32;
-    let mut selected: TerraneUnionF0S176 = TerraneUnionF0S176::Arm0(small);
+    let mut selected: TerraneUnionF0S177 = TerraneUnionF0S177::Arm0(small);
     let count: i32 = 16777216;
     let total: f64 = (count) as f64;
     let exact: i64 = 18014398509481984;
@@ -30,10 +30,10 @@ fn main() {
     println!("{}", terrane_scalar_support::scalar_text(&(wide)));
     println!("{}", terrane_scalar_support::scalar_text(&(selected)));
     let other: i32 = 13;
-    selected = TerraneUnionF0S176::Arm1(other);
-    println!("{}", terrane_scalar_support::scalar_text(&(matches!(&selected, TerraneUnionF0S176::Arm1(_)))));
-    selected = TerraneUnionF0S176::Arm0(small);
-    println!("{}", terrane_scalar_support::scalar_text(&(matches!(&selected, TerraneUnionF0S176::Arm0(_)))));
+    selected = TerraneUnionF0S177::Arm1(other);
+    println!("{}", terrane_scalar_support::scalar_text(&(matches!(&selected, TerraneUnionF0S177::Arm1(_)))));
+    selected = TerraneUnionF0S177::Arm0(small);
+    println!("{}", terrane_scalar_support::scalar_text(&(matches!(&selected, TerraneUnionF0S177::Arm0(_)))));
     println!("{}", terrane_scalar_support::scalar_text(&(total)));
     println!("{}", terrane_scalar_support::scalar_text(&(exact_float)));
     println!("{}", terrane_scalar_support::scalar_text(&(converted)));

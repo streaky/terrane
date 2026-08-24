@@ -4,7 +4,7 @@ function show; value string
   value = 'parameter'
   print; value
 
-function main
+function main;
   show; 'original'
   text string = 'éx'
   for character in text

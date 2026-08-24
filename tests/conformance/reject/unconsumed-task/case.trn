@@ -1,7 +1,7 @@
 namespace unconsumed-task
 
-async function answer int
+async function answer int;
   return 42
 
-function main
+function main;
   child = (answer;)

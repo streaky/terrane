@@ -27,7 +27,7 @@ impl TempPackage {
             concat!(
                 "namespace cli/app\n",
                 "from /core/output import print\n",
-                "function main\n",
+                "function main;\n",
                 "  print; 'manifest CLI'\n",
             ),
         )

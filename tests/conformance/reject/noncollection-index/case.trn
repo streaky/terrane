@@ -1,4 +1,4 @@
 namespace noncollection-index
-function main
+function main;
   value int = 1
   item = value[0]

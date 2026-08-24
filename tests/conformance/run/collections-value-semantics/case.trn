@@ -1,7 +1,7 @@
 namespace collections-value-semantics
 from /core/collections import list, map, set, tuple, range, entry, unordered-map, unordered-set
 from /core/errors import throwable
-function main
+function main;
   original = list; 1, 2
   independent = original
   independent.append; 3

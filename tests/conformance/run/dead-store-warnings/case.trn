@@ -1,6 +1,6 @@
 namespace dead-store-warnings
 from /core/types import int8
-function main
+function main;
   value int8 = 1
   value = 2
   print; value

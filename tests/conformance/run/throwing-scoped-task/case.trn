@@ -1,10 +1,10 @@
 namespace throwing-scoped-task
 from /core/errors import throwable, coercion-error
 
-async function fail int throws throwable
+async function fail int throws throwable;
   throw coercion-error
 
-function main
+function main;
   scope = task-scope;
   child = scope.spawn; fail
   outcome = scope.join; move child

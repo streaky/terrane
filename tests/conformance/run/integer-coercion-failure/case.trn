@@ -1,7 +1,7 @@
 namespace integer-coercion-failure
 from /core/types import int8
 
-function main
+function main;
   value int = 128
   narrow int8 = value
   print; narrow

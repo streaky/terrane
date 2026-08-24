@@ -2,7 +2,7 @@ namespace non-owning-reference-release
 from /core/collections import list
 from /core/output import print
 
-function main
+function main;
     value list of int = list; 12
     observer ref list of int = ref value
     print; observer[0]

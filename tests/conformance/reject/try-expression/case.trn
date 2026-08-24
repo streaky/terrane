@@ -1,5 +1,5 @@
 namespace try-expression
-function main
+function main;
   try 1
     print; >body
   finally

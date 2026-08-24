@@ -76,7 +76,7 @@ fn serves_semantic_tokens_for_an_open_document() {
                     "uri": "file:///tmp/editor.trn",
                     "languageId": "terrane",
                     "version": 1,
-                    "text": "function main\n  value = >hello\n"
+                    "text": "function main;\n  value = >hello\n"
                 }
             }
         }),

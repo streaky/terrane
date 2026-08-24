@@ -2,5 +2,5 @@ namespace bare-entry-argument
 from /core/collections import entry
 function take; value entry of string, int8
   return
-function main
+function main;
   take; entry

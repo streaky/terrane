@@ -1,9 +1,9 @@
 namespace cancelled-task-progress
 
-async function work int
+async function work int;
   return 7
 
-function main
+function main;
   scope = task-scope;
   child = scope.spawn; work
   scope.cancel;

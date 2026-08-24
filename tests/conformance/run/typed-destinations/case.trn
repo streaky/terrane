@@ -1,7 +1,7 @@
 namespace typed-destinations
-function answer int
+function answer int;
   return 41
-function main
+function main;
   text = 'Terrane'
   total int = text.length
   total = total + 1

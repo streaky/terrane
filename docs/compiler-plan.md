@@ -352,7 +352,8 @@ S1015 unclosed index expression           S1030 expression after `try`
 S1016 unparenthesized nested call         S1032 missing `catch as` binding
 S1033 `try` without `catch`/`finally`     S1034 missing object declaration name
 S1035 malformed object clause             S1036 multiple class bases
-S1037 assignment in condition             S1090 reserved unsupported syntax
+S1037 assignment in condition             S1038 missing function parameter marker
+S1039 missing throwable upper bound       S1090 reserved unsupported syntax
 S1091 unsupported `===`                   S1092 unsupported angle generic
 ```
 

@@ -1,5 +1,5 @@
 namespace descriptor-binding-alias
 byte = int8
 
-function main
+function main;
   value byte = 1

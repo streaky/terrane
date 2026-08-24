@@ -1,6 +1,6 @@
 namespace catch-missing-alias
 from /core/errors import arithmetic-overflow
-function main
+function main;
   try
     throw arithmetic-overflow
   catch arithmetic-overflow as

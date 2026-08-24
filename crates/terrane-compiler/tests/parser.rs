@@ -46,7 +46,7 @@ fn contains(node: &terrane_compiler::syntax::SyntaxNode, kind: SyntaxKind) -> bo
 
 #[test]
 fn parses_lossless_declarations_and_legal_empty_blocks() {
-    let text = "namespace example/app\npublic constant count int = 1\npublic async function empty throws throwable; value int\nfunction main\n  count = count + 1\n";
+    let text = "namespace example/app\npublic constant count int = 1\npublic async function empty throws throwable; value int\nfunction main;\n  count = count + 1\n";
     let tree = parse_source(text);
     assert!(contains(&tree.root, SyntaxKind::NamespaceDeclaration));
     assert!(contains(&tree.root, SyntaxKind::Binding));
@@ -101,7 +101,7 @@ fn parses_both_postfix_increment_and_decrement() {
 
 #[test]
 fn bare_names_are_expression_statements() {
-    let tree = parse_source("thing\nfunction main\n  thing\n");
+    let tree = parse_source("thing\nfunction main;\n  thing\n");
     assert_eq!(tree.root.children[0].kind, SyntaxKind::Name);
     assert_eq!(
         tree.root.children[1].children.last().unwrap().children[0].kind,
@@ -172,7 +172,7 @@ fn tail_strings_remain_literals_while_comparisons_and_shifts_parse_as_operators(
 #[test]
 fn parses_control_flow_and_recovers_at_layout_boundaries() {
     let tree = parse_source(
-        "function main\n  if ready\n    return value\n  else\n  while running\n    continue\n  for key, value in values\n    break\n  for i = 0; i < 3; i++\n    value = i\n",
+        "function main;\n  if ready\n    return value\n  else\n  while running\n    continue\n  for key, value in values\n    break\n  for i = 0; i < 3; i++\n    value = i\n",
     );
     assert!(contains(&tree.root, SyntaxKind::IfStatement));
     assert!(contains(&tree.root, SyntaxKind::ElseClause));
@@ -426,13 +426,13 @@ fn rejects_malformed_declarations_and_reserved_constructs() {
         assert_eq!(diagnostics.len(), 1, "{diagnostics:#?}");
         assert_eq!(diagnostics[0].code, "S1029");
     }
-    for text in ["global function main\n", "constant function main\n"] {
+    for text in ["global function main;\n", "constant function main;\n"] {
         let source = SourceFile::new(0, "case.trn".into(), text.to_owned());
         let diagnostics = parse(&source, lex(&source).unwrap()).diagnostics;
         assert_eq!(diagnostics.len(), 1, "{diagnostics:#?}");
         assert_eq!(diagnostics[0].code, "S1029");
     }
-    rejected("async async function work\n", "S1029");
+    rejected("async async function work;\n", "S1029");
     rejected("function map of T; value T\n", "S1090");
     rejected("function main; values int ...\n", "S1090");
     rejected("catch problem\n", "S1090");
@@ -441,6 +441,19 @@ fn rejects_malformed_declarations_and_reserved_constructs() {
     rejected("from import thing\n", "S1026");
     rejected("from /core/output import print, , ]\n", "S1026");
     rejected("import with anything at all\n", "S1025");
+}
+
+#[test]
+fn requires_parameter_markers_on_every_function_header() {
+    for source in [
+        "function main\n",
+        "async function load response throws throwable\n",
+        "handler = function\n",
+    ] {
+        rejected(source, "S1038");
+    }
+
+    rejected("function load response throws;\n", "S1039");
 }
 
 #[test]
@@ -487,7 +500,7 @@ fn rejects_non_associative_identity_and_recovers_layout_errors_once() {
     let source = SourceFile::new(
         0,
         "case.trn".into(),
-        "class item extends\nfunction main\n".to_owned(),
+        "class item extends\nfunction main;\n".to_owned(),
     );
     let diagnostics = parse(&source, lex(&source).unwrap()).diagnostics;
     assert_eq!(diagnostics.len(), 1, "{diagnostics:#?}");
@@ -505,7 +518,7 @@ fn rejects_non_associative_identity_and_recovers_layout_errors_once() {
     let source = SourceFile::new(
         0,
         "case.trn".into(),
-        "function main\n  value = 1\n    deeper = 2\n  after = 3\n".to_owned(),
+        "function main;\n  value = 1\n    deeper = 2\n  after = 3\n".to_owned(),
     );
     let parsed = parse(&source, lex(&source).unwrap());
     assert_eq!(parsed.diagnostics.len(), 1, "{:#?}", parsed.diagnostics);

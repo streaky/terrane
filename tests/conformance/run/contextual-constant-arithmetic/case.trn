@@ -1,13 +1,13 @@
 namespace contextual-constant-arithmetic
 from /core/types import int8, int32, float32
 
-function third float32
+function third float32;
   return 1 / 3
 
-function bounded int32
+function bounded int32;
   return 1
 
-function main
+function main;
   reduced int8 = (1000 - 900)
   integral int = 4.0
   quotient int = (1 / 3)

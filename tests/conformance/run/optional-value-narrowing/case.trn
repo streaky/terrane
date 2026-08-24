@@ -1,16 +1,16 @@
 namespace optional-value-narrowing
 from /core/types import int8
-function helper
+function helper;
     found string = 'shadow'
     print; found
 function show; value int8|none
     if value != none
         print; value
-function maybe int8|none
+function maybe int8|none;
     return 4
-function missing int8|none
+function missing int8|none;
     return none
-function main
+function main;
     value int8|none = 7
     if (value) != none
         print; value

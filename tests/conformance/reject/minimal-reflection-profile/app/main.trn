@@ -1,6 +1,6 @@
 namespace app
 from /core/types import int
 
-function main
+function main;
   descriptor = int
   print; descriptor.name

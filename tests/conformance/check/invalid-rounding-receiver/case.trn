@@ -1,4 +1,4 @@
 namespace invalid-rounding-receiver
-function main
+function main;
   count int = 5
   print; (count.round)

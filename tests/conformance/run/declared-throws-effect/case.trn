@@ -1,12 +1,12 @@
 namespace declared-throws-effect
 from /core/errors import throwable
 
-function declared int throws throwable
+function declared int throws throwable;
   return 1
 
-function middle int
+function middle int;
   return declared;
 
-function main
+function main;
   value int = middle;
   print; value
