@@ -56,6 +56,7 @@ pub struct Package {
     pub reflection: ReflectionProfile,
     pub executor: ExecutorProfile,
     pub capabilities: BTreeSet<String>,
+    pub capability_policy: bool,
     pub authority: Vec<CapabilityAuthority>,
     pub units: Vec<SourceUnit>,
 }
@@ -98,6 +99,7 @@ impl Package {
             reflection: ReflectionProfile::Ordinary,
             executor: ExecutorProfile::Threaded,
             capabilities: BTreeSet::new(),
+            capability_policy: false,
             authority: Vec::new(),
             units: vec![SourceUnit {
                 relative_path,
@@ -139,6 +141,7 @@ impl Package {
             reflection: manifest.reflection,
             executor: manifest.executor,
             capabilities: manifest.capabilities,
+            capability_policy: manifest.capability_policy,
             authority: manifest.authority,
             units,
         })
@@ -151,6 +154,7 @@ struct ParsedManifest {
     reflection: ReflectionProfile,
     executor: ExecutorProfile,
     capabilities: BTreeSet<String>,
+    capability_policy: bool,
     authority: Vec<CapabilityAuthority>,
     namespace_roots: Vec<NamespaceRoot>,
 }
@@ -263,6 +267,7 @@ fn parse_manifest(
         None => ExecutorProfile::Threaded,
     };
     let capabilities = parse_capability_profile(manifest_path, text, &table, &mut errors);
+    let capability_policy = table.contains_key("capabilities");
     let authority = parse_capability_authority(manifest_path, text, &table, &mut errors);
     let namespace_roots = parse_namespace_roots(manifest_path, text, &table, &mut errors);
     if errors.is_empty() {
@@ -272,6 +277,7 @@ fn parse_manifest(
             reflection,
             executor,
             capabilities,
+            capability_policy,
             authority,
             namespace_roots,
         })

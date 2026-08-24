@@ -15,6 +15,7 @@ fn package(prelude: bool, sources: &[(&str, &str)]) -> Package {
         reflection: ReflectionProfile::Ordinary,
         executor: ExecutorProfile::Threaded,
         capabilities: BTreeSet::default(),
+        capability_policy: false,
         authority: Vec::new(),
         units: sources
             .iter()

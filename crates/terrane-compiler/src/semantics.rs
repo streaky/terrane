@@ -72,6 +72,7 @@ pub struct SemanticPackage {
     pub prelude: bool,
     pub reflection: crate::package::ReflectionProfile,
     pub executor: crate::package::ExecutorProfile,
+    pub capability_policy: bool,
     pub namespaces: BTreeMap<String, Namespace>,
     pub globals: BTreeMap<String, Symbol>,
     pub prelude_bindings: BTreeMap<String, Symbol>,
@@ -796,6 +797,7 @@ pub fn analyze(package: &Package) -> Result<SemanticPackage, SemanticFailure> {
         prelude: package.prelude,
         reflection: package.reflection,
         executor: package.executor,
+        capability_policy: package.capability_policy,
         namespaces,
         globals,
         prelude_bindings,
@@ -908,6 +910,34 @@ fn validate_capability_authority(
     Ok(())
 }
 
+fn object_implements_identity(
+    package: &SemanticPackage,
+    unit: &SemanticUnit,
+    object: &ObjectContract,
+    target: &str,
+) -> bool {
+    object.interfaces.iter().any(|interface| {
+        package
+            .resolve_name_at(unit, object.span.start, interface)
+            .is_some_and(|symbol| symbol.identity == target)
+    })
+}
+
+fn identity_implements(package: &SemanticPackage, identity: &str, target: &str) -> bool {
+    package.units.iter().any(|unit| {
+        unit.objects.iter().any(|object| {
+            package
+                .namespaces
+                .values()
+                .flat_map(|namespace| namespace.symbols.values())
+                .any(|symbol| {
+                    symbol.identity == identity && symbol.declaration_span == Some(object.span)
+                })
+                && object_implements_identity(package, unit, object, target)
+        })
+    })
+}
+
 #[expect(
     clippy::too_many_lines,
     reason = "error validation keeps throw, catch, and finally rules in one ordered traversal"
@@ -953,20 +983,17 @@ fn validate_error_clauses(package: &SemanticPackage) -> Result<(), SemanticFailu
                         .map(|callee| node_text(&unit.source, callee)),
                     _ => None,
                 };
-                let user_throwable = object_name.is_some_and(|name| {
-                    let name = name.rsplit_once("::").map_or(name, |(_, local)| local);
-                    package
-                        .units
-                        .iter()
-                        .flat_map(|candidate| &candidate.objects)
-                        .any(|object| {
-                            object.name == name
-                                && object
-                                    .interfaces
-                                    .iter()
-                                    .any(|interface| interface == "throwable")
-                        })
-                });
+                let user_throwable = object_name
+                    .and_then(|name| {
+                        package.resolve_name_at(
+                            unit,
+                            thrown.span.start,
+                            name.rsplit_once("::").map_or(name, |(_, local)| local),
+                        )
+                    })
+                    .is_some_and(|symbol| {
+                        identity_implements(package, &symbol.identity, "/core/errors::throwable")
+                    });
                 if !standard && !user_throwable {
                     return Err(failure(
                         &unit.source,
@@ -1020,17 +1047,11 @@ fn validate_error_clauses(package: &SemanticPackage) -> Result<(), SemanticFailu
                         || (symbol.kind == SymbolKind::Interface
                             && symbol.identity == "/core/errors::throwable")
                         || (matches!(symbol.kind, SymbolKind::Class | SymbolKind::TypeDescriptor)
-                            && package
-                                .units
-                                .iter()
-                                .flat_map(|unit| &unit.objects)
-                                .any(|object| {
-                                    object.name == symbol.name
-                                        && object
-                                            .interfaces
-                                            .iter()
-                                            .any(|interface| interface == "throwable")
-                                }))
+                            && identity_implements(
+                                package,
+                                &symbol.identity,
+                                "/core/errors::throwable",
+                            ))
                 });
                 if !valid {
                     return Err(failure(
@@ -3204,7 +3225,10 @@ fn validate_object_conformance(package: &SemanticPackage) -> Result<(), Semantic
             .filter(|object| object.kind == ObjectKind::Class)
         {
             for interface_name in &object.interfaces {
-                if interface_name == "throwable" {
+                if package
+                    .resolve_name_at(unit, object.span.start, interface_name)
+                    .is_some_and(|symbol| symbol.identity == "/core/errors::throwable")
+                {
                     let has_message = object.fields.iter().any(|field| {
                         field.name == "message"
                             && field.value_type == ValueType::Scalar(ScalarType::String)
@@ -4327,16 +4351,14 @@ fn infer_throwing_effects(package: &mut SemanticPackage) -> Result<(), SemanticF
                 let actual = identity
                     .rsplit_once("::")
                     .map_or(identity.as_str(), |(_, name)| name);
-                let compatible = bound == "throwable"
-                    || bound == actual
-                    || package
-                        .units
-                        .iter()
-                        .flat_map(|candidate| &candidate.objects)
-                        .any(|object| {
-                            object.name == actual
-                                && object.interfaces.iter().any(|interface| interface == bound)
-                        });
+                let bound_identity = package
+                    .resolve_name_at(unit, contract.span.start, bound)
+                    .map(|symbol| symbol.identity.as_str());
+                let compatible = bound_identity.is_some_and(|bound_identity| {
+                    bound_identity == "/core/errors::throwable"
+                        || bound_identity == identity
+                        || identity_implements(package, identity, bound_identity)
+                });
                 if !compatible {
                     return Err(failure(
                         &unit.source,
@@ -4377,6 +4399,41 @@ fn infer_throwing_effects(package: &mut SemanticPackage) -> Result<(), SemanticF
                     ),
                     contract.span,
                 ));
+            }
+        }
+    }
+
+    if package.capability_policy {
+        for unit in &package.units {
+            for contract in &unit.functions {
+                let held = contract
+                    .parameters
+                    .iter()
+                    .filter_map(|parameter| match &parameter.value_type {
+                        Some(ValueType::Capability(effect)) => Some(*effect),
+                        _ => None,
+                    })
+                    .collect::<BTreeSet<_>>();
+                let required = inferred
+                    .get(&key(contract.span))
+                    .into_iter()
+                    .flatten()
+                    .filter(|effect| !held.contains(effect))
+                    .map(|effect| effect.source_name())
+                    .collect::<Vec<_>>();
+                if !required.is_empty() {
+                    return Err(failure(
+                        &unit.source,
+                        "T0078",
+                        format!(
+                            "function `{}` requires held capability authorit{} for `{}`",
+                            contract.name,
+                            if required.len() == 1 { "y" } else { "ies" },
+                            required.join(", ")
+                        ),
+                        contract.span,
+                    ));
+                }
             }
         }
     }
@@ -5570,7 +5627,8 @@ fn infer_value_type(
                         let child = argument.children.last().unwrap_or(argument);
                         let parent_deadline =
                             task_scope_deadline_ms(unit, receiver, bindings, &mut BTreeSet::new());
-                        let child_deadline = constant_deadline_ms(&unit.source, child);
+                        let child_deadline =
+                            constant_deadline_ms(unit, child, bindings, &mut BTreeSet::new());
                         if matches!(
                             (parent_deadline, child_deadline),
                             (Some(parent), Some(child)) if child > parent
@@ -8814,8 +8872,30 @@ fn resolved_name_identity<'a>(unit: &'a SemanticUnit, node: &SyntaxNode) -> Opti
         .or_else(|| (unit.prelude && name == "task-scope").then_some("/core/async::task-scope"))
 }
 
-fn constant_deadline_ms(source: &SourceFile, node: &SyntaxNode) -> Option<u64> {
-    match contextual_constant(source, node, ScalarType::Int)? {
+fn constant_deadline_ms(
+    unit: &SemanticUnit,
+    node: &SyntaxNode,
+    bindings: &[TypedBinding],
+    visited: &mut BTreeSet<(u32, usize, usize)>,
+) -> Option<u64> {
+    if node.kind == SyntaxKind::GroupExpression {
+        return node
+            .children
+            .first()
+            .and_then(|child| constant_deadline_ms(unit, child, bindings, visited));
+    }
+    if node.kind == SyntaxKind::Name {
+        let binding = bindings.iter().rev().find(|binding| {
+            binding.name == node_text(&unit.source, node)
+                && binding.is_visible_at(unit.source.id(), node.span.start)
+        })?;
+        if !visited.insert((binding.span.file, binding.span.start, binding.span.end)) {
+            return None;
+        }
+        return find_binding_initializer(&unit.tree.root, binding.span)
+            .and_then(|value| constant_deadline_ms(unit, value, bindings, visited));
+    }
+    match contextual_constant(&unit.source, node, ScalarType::Int)? {
         Ok(ContextualConstant::Integer(value)) => value.to_u64(),
         Ok(ContextualConstant::Float32(_) | ContextualConstant::Float64(_)) | Err(_) => None,
     }
@@ -8867,7 +8947,7 @@ fn task_scope_deadline_ms(
             .children
             .first()
             .and_then(|argument| argument.children.last().or(Some(argument)))
-            .and_then(|value| constant_deadline_ms(&unit.source, value));
+            .and_then(|value| constant_deadline_ms(unit, value, bindings, visited));
     }
     let [receiver, member] = callee.children.as_slice() else {
         return None;
@@ -8881,7 +8961,7 @@ fn task_scope_deadline_ms(
         .children
         .first()
         .and_then(|argument| argument.children.last().or(Some(argument)))
-        .and_then(|value| constant_deadline_ms(&unit.source, value))
+        .and_then(|value| constant_deadline_ms(unit, value, bindings, visited))
         .or_else(|| task_scope_deadline_ms(unit, receiver, bindings, visited))
 }
 

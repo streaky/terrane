@@ -1,0 +1,8 @@
+namespace bound-child-deadline-extension
+
+function main;
+  budget int = 10
+  wider int = 20
+  parent = task-scope; budget
+  child = parent.child-scope; wider
+  child.child-scope; 5

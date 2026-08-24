@@ -1,0 +1,4 @@
+namespace unauthorized-effect
+
+function main;
+  print; 'io without authority'

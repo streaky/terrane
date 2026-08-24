@@ -1,0 +1,10 @@
+namespace local-throwable-is-not-core
+
+interface throwable
+    function render string;
+
+class local-error implements throwable
+    message string = 'not a core throwable'
+
+function fail throws throwable;
+    throw local-error
