@@ -42,8 +42,8 @@ impl TerraneErrorKind {
         }
     }
 }
-#[derive(Clone, Debug)]
-struct TerraneError {
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct TerraneError {
     kind: TerraneErrorKind,
     message: String,
     cause: Option<Box<TerraneError>>,

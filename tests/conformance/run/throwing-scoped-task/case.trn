@@ -8,5 +8,5 @@ function main;
   scope = task-scope;
   child = scope.spawn; fail
   outcome = scope.join; move child
-  print; outcome.completed, outcome.cancelled
-  print; outcome.error
+  print; outcome.completed, outcome.cancelled, outcome.value == none
+  print; outcome.error != none

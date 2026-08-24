@@ -2,7 +2,7 @@ use std::path::PathBuf;
 
 use crate::{
     Diagnostic, Package, SourceFile, Span,
-    rust_ir::RenderedFile,
+    rust_ir::{Dependency, RenderedFile},
     semantics::{self, SymbolKind},
 };
 
@@ -16,6 +16,7 @@ pub struct Compilation {
     pub source: SourceFile,
     pub rust: String,
     pub rust_files: Vec<RenderedFile>,
+    pub dependencies: Vec<Dependency>,
     pub warnings: Vec<Diagnostic>,
 }
 
@@ -139,6 +140,7 @@ pub fn compile_package_with_options(
         source: (*source).clone(),
         rust,
         rust_files,
+        dependencies: rust_ir.dependencies,
         warnings,
     })
 }

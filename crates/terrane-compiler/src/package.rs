@@ -42,6 +42,12 @@ pub enum ExecutorProfile {
     Threaded,
 }
 
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct CapabilityAuthority {
+    pub parameter: String,
+    pub capability: String,
+}
+
 #[derive(Clone, Debug)]
 pub struct Package {
     pub identity: String,
@@ -49,6 +55,8 @@ pub struct Package {
     pub prelude: bool,
     pub reflection: ReflectionProfile,
     pub executor: ExecutorProfile,
+    pub capabilities: BTreeSet<String>,
+    pub authority: Vec<CapabilityAuthority>,
     pub units: Vec<SourceUnit>,
 }
 
@@ -89,6 +97,8 @@ impl Package {
             prelude: true,
             reflection: ReflectionProfile::Ordinary,
             executor: ExecutorProfile::Threaded,
+            capabilities: BTreeSet::new(),
+            authority: Vec::new(),
             units: vec![SourceUnit {
                 relative_path,
                 source: SourceFile::new(0, path, text),
@@ -128,6 +138,8 @@ impl Package {
             prelude: manifest.prelude,
             reflection: manifest.reflection,
             executor: manifest.executor,
+            capabilities: manifest.capabilities,
+            authority: manifest.authority,
             units,
         })
     }
@@ -138,6 +150,8 @@ struct ParsedManifest {
     prelude: bool,
     reflection: ReflectionProfile,
     executor: ExecutorProfile,
+    capabilities: BTreeSet<String>,
+    authority: Vec<CapabilityAuthority>,
     namespace_roots: Vec<NamespaceRoot>,
 }
 
@@ -147,6 +161,10 @@ struct NamespaceRoot {
     directory: PathBuf,
 }
 
+#[expect(
+    clippy::too_many_lines,
+    reason = "manifest validation keeps field parsing and aggregate error reporting in one pass"
+)]
 fn parse_manifest(
     manifest_path: &Path,
     text: &str,
@@ -166,7 +184,13 @@ fn parse_manifest(
     for key in table.keys() {
         if !matches!(
             key.as_str(),
-            "package" | "prelude" | "reflection" | "executor" | "namespaces"
+            "package"
+                | "prelude"
+                | "reflection"
+                | "executor"
+                | "capabilities"
+                | "authority"
+                | "namespaces"
         ) {
             errors.push(manifest_error(
                 manifest_path,
@@ -238,6 +262,8 @@ fn parse_manifest(
         }
         None => ExecutorProfile::Threaded,
     };
+    let capabilities = parse_capability_profile(manifest_path, text, &table, &mut errors);
+    let authority = parse_capability_authority(manifest_path, text, &table, &mut errors);
     let namespace_roots = parse_namespace_roots(manifest_path, text, &table, &mut errors);
     if errors.is_empty() {
         Ok(ParsedManifest {
@@ -245,11 +271,132 @@ fn parse_manifest(
             prelude,
             reflection,
             executor,
+            capabilities,
+            authority,
             namespace_roots,
         })
     } else {
         Err(errors)
     }
+}
+
+fn parse_capability_profile(
+    manifest_path: &Path,
+    text: &str,
+    table: &toml::Table,
+    errors: &mut Vec<PackageLoadError>,
+) -> BTreeSet<String> {
+    let Some(value) = table.get("capabilities") else {
+        return BTreeSet::new();
+    };
+    let toml::Value::Array(values) = value else {
+        errors.push(manifest_error(
+            manifest_path,
+            text,
+            "`capabilities` must be an array of effect names",
+            Some("capabilities"),
+        ));
+        return BTreeSet::new();
+    };
+    let mut capabilities = BTreeSet::new();
+    for value in values {
+        let toml::Value::String(capability) = value else {
+            errors.push(manifest_error(
+                manifest_path,
+                text,
+                "`capabilities` entries must be effect names",
+                Some("capabilities"),
+            ));
+            continue;
+        };
+        if !is_capability_name(capability) {
+            errors.push(manifest_error(
+                manifest_path,
+                text,
+                format!("unknown capability `{capability}`"),
+                Some(capability),
+            ));
+            continue;
+        }
+        capabilities.insert(capability.clone());
+    }
+    capabilities
+}
+
+fn parse_capability_authority(
+    manifest_path: &Path,
+    text: &str,
+    table: &toml::Table,
+    errors: &mut Vec<PackageLoadError>,
+) -> Vec<CapabilityAuthority> {
+    let Some(value) = table.get("authority") else {
+        return Vec::new();
+    };
+    let toml::Value::Table(bindings) = value else {
+        errors.push(manifest_error(
+            manifest_path,
+            text,
+            "`authority` must be a table of entrypoint parameter bindings",
+            Some("authority"),
+        ));
+        return Vec::new();
+    };
+    let mut authority = Vec::new();
+    for (parameter, value) in bindings {
+        let toml::Value::Table(binding) = value else {
+            errors.push(manifest_error(
+                manifest_path,
+                text,
+                format!("authority binding `{parameter}` must be an inline table"),
+                Some(parameter),
+            ));
+            continue;
+        };
+        if binding
+            .keys()
+            .any(|key| !matches!(key.as_str(), "provider" | "capability"))
+        {
+            errors.push(manifest_error(
+                manifest_path,
+                text,
+                format!("authority binding `{parameter}` has an unknown field"),
+                Some(parameter),
+            ));
+            continue;
+        }
+        let provider = binding.get("provider").and_then(toml::Value::as_str);
+        let capability = binding.get("capability").and_then(toml::Value::as_str);
+        if provider != Some("host") {
+            errors.push(manifest_error(
+                manifest_path,
+                text,
+                format!("authority binding `{parameter}` must use provider `host`"),
+                Some(parameter),
+            ));
+            continue;
+        }
+        let Some(capability) = capability.filter(|name| is_capability_name(name)) else {
+            errors.push(manifest_error(
+                manifest_path,
+                text,
+                format!("authority binding `{parameter}` must name a known capability"),
+                Some(parameter),
+            ));
+            continue;
+        };
+        authority.push(CapabilityAuthority {
+            parameter: parameter.clone(),
+            capability: capability.to_owned(),
+        });
+    }
+    authority
+}
+
+fn is_capability_name(name: &str) -> bool {
+    matches!(
+        name,
+        "throws" | "io" | "blocks" | "awaits" | "mutates" | "unsafe" | "foreign"
+    )
 }
 
 fn parse_namespace_roots(

@@ -1,0 +1,7 @@
+namespace pure-function
+
+pure function identity int; value int
+  return value
+
+function main;
+  print; (identity; 12)

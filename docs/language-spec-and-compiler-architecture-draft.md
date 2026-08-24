@@ -1208,6 +1208,11 @@ For a multiline list, the preferred documentation and formatter form places one 
 line and the closing `)` on its own line. That is a formatting convention, not a grammar
 restriction: any whitespace and line distribution inside the delimiters is legal.
 
+Parentheses are therefore the general explicit continuation delimiter for expressions, not a
+call-only formatting exception. While a parenthesized expression remains open, physical newlines,
+indentation, comments, trailing commas in delimited argument lists, and block-string bodies do not
+terminate the containing logical statement. Closing the outermost parenthesis restores ordinary
+logical-line termination.
 A call clause without a parenthesised argument list extends to the end of its containing logical
 expression. Commas delimit its top-level arguments, but a semicolon inside an ungrouped argument
 does not start a nested call: `print; format; value` is invalid. Parentheses delimit nested calls,
@@ -1448,7 +1453,11 @@ A trailing comma is therefore an error rather than a tolerated flourish: `with p
 
 The clause is available on any declaration, including a local binding inside a function. Comma delimitation is what makes that possible: without it, a bare run of names before a binding could not be distinguished from that binding's own name and type. A modified binding therefore need not declare a type merely to remain unambiguous.
 
-**`with` marks package-supplied modifiers only.** Core declaration words — `global`, `constant`, the visibility words, and the function qualifiers `static`, `async`, `mutating`, and `throws` — remain bare keywords and never take `with`, even though several are conceptually modifier-like. The distinction is categorical rather than stylistic:
+**`with` marks package-supplied modifiers only.** Core declaration words — `global`, `constant`,
+the visibility words, and the closed function qualifiers `static`, `pure`, `async`, `mutating`,
+`mutates`, `io`, `blocks`, `awaits`, `unsafe`, `foreign`, and `throws` — remain bare keywords and
+never take `with`, even though several are conceptually modifier-like. The distinction is
+categorical rather than stylistic:
 
 | | Structural | Decorative |
 |---|---|---|
@@ -3304,8 +3313,26 @@ Effects are part of callable type compatibility. An implementation may have fewe
 interface contract, never more; an inferred throwable must satisfy a written `throws` upper bound.
 A dynamic callable with unavailable effect metadata is treated as may-throw and otherwise unknown
 for capability checking rather than optimistically inferred safe.
+Effect inference follows resolved callable identity, never source spelling. An imported alias of
+`/core/output::print` therefore carries `io`, while an unrelated source function named `print`
+does not.
 
 This metadata supports optimisation, auditing, AI tooling, and target capability checks.
+
+`pure function` writes an empty effect upper bound. Its body and every transitive callee must infer
+the empty set; any `throws`, `io`, `blocks`, `awaits`, `mutates`, `unsafe`, or `foreign` effect is a
+source diagnostic at that function contract. Omission of `pure` remains inference, not an implicit
+purity claim.
+
+### 19.4 Capability authority
+
+`capability of E` is a linear, unforgeable authority value for an effect set `E`; it is not
+descriptive effect metadata. Ordinary Terrane source has no capability constructor. Authority
+enters a program only through a host or package adapter declared in the resolved build graph, which
+binds a concrete capability value to an entrypoint parameter or imported provider. The selected
+profile may approve or reject that binding, but inspecting profile or reflection data can never
+materialise authority. Calls requiring authority consume or explicitly transfer the corresponding
+value, and copying it is a compile-time error.
 
 ---
 
@@ -3413,19 +3440,36 @@ The compiler lowers async code into Rust futures and target runtime integration.
 
 ### 21.4 Structured concurrency
 
-The structured-concurrency scope is a version-one language-level object, not a library preference. It arrives with the async callable type, the task object, and the cancellation core, because the timeout, stream-cancellation, and network-deadline contracts elsewhere in this document are all defined against it.
+The structured-concurrency scope is a version-one language-level object, not a library preference.
+It arrives with the async callable type, the task object, and the cancellation core, because the
+timeout, stream-cancellation, and network-deadline contracts elsewhere in this document are all
+defined against it.
 
-- child tasks belong to a parent scope;
-- a scope joins its children before completing, and waits for cancellation cleanup rather than abandoning it;
-- a child that throws while siblings run must have a defined effect on those siblings, and that effect is part of the scope contract;
-- cancellation propagates predictably and is cooperative: cancellation points are defined, and a cancelled operation reports what it completed rather than silently discarding partial progress;
-- deadlines are explicit values that additionally propagate down scope boundaries; a child inherits its parent's deadline and may shorten but never extend it. This is not ambient task-local state, because the boundary is written in the source;
-- unobserved task failure is reported;
-- task lifetime is visible to tracing.
+An async invocation produces a linear `task of T`. `await` consumes that task exactly once. A scope's
+`spawn` method instead produces a linear `scoped-task of T` owned by that scope, and the scope's
+`join` method consumes it exactly once and returns `task-outcome of T`. Leaving either kind
+unconsumed is a compile-time error; ordinary drop never silently detaches or cancels it. Detached
+tasks, when supplied, use a separate explicit operation and lifetime contract.
 
-Detached tasks must be explicit.
+`task-outcome of T` has these observations:
 
-The task object's identity category, whether it is linear, and whether dropping an un-awaited task cancels it are contracts this document must fix before the async surface is implemented.
+- `completed bool`: the child produced a value;
+- `cancelled bool`: cancellation had been requested or the effective deadline had elapsed by join;
+- `value T or none`: present exactly when `completed` is true;
+- `error throwable or none`: present exactly when the child failed.
+
+Cancellation is cooperative. `await`, scope join, and library operations explicitly documented as
+cancellable are cancellation points. A request stops new child admission, is observed at the next
+cancellation point, and never erases work or a value completed before observation; an outcome may
+therefore be both `completed` and `cancelled`. When one child fails, its scope requests cancellation
+of surviving siblings, continues to join them through cleanup, and retains each child's outcome.
+No child is abandoned and no failure is silently dropped.
+
+Deadlines are explicit scope inputs, not ambient task-local state. A child inherits its parent's
+effective deadline. A requested child deadline is combined with that inherited value by taking the
+earlier instant, so a child may shorten but cannot extend its parent. A statically provable attempt
+to extend it is a compile-time diagnostic; dynamic inputs still use the earlier instant at runtime.
+Task lifetime and cancellation transitions remain visible to tracing.
 
 ### 21.5 Sharing
 
@@ -3685,6 +3729,10 @@ the following minimal contract:
 ```toml
 package = "example.tools"
 prelude = true
+capabilities = ["io"]
+
+[authority]
+output = { provider = "host", capability = "io" }
 
 [namespaces]
 "example/tools" = "src"
@@ -3695,12 +3743,19 @@ prelude = true
 non-empty table from canonical namespace roots to distinct relative directory
 roots; absolute paths, paths containing `..`, duplicate directory roots, and
 roots containing no `.trn` source are invalid. `prelude` is an optional boolean
-and defaults to `true`. Unknown fields are rejected. The loader recursively
-discovers `.trn` files only beneath those roots and gives source units stable
-file identities in sorted package-relative path order. Every source declaration
-must match the namespace derived from the longest directory mapping and the
-file's relative parent directory. A direct `.trn` CLI input is instead an
-implicit one-unit package with identity `single-file`, the default prelude, and
+and defaults to `true`. `capabilities` is an optional array selecting the closed
+effect authorities permitted by the build profile. Each key in the optional
+`authority` table names an entrypoint parameter; its inline table declares the
+`host` provider and the one selected capability it supplies. The parameter must
+have exactly the matching `capability of E` type. Profile metadata alone never
+constructs authority.
+
+Unknown fields are rejected. The loader recursively discovers `.trn` files only
+beneath namespace roots and gives source units stable file identities in sorted
+package-relative path order. Every source declaration must match the namespace
+derived from the longest directory mapping and the file's relative parent
+directory. A direct `.trn` CLI input is instead an implicit one-unit package
+with identity `single-file`, the default prelude, no authority providers, and
 no directory-correspondence check.
 
 A package may expose one coherent object namespace regardless of which implementation language supplies each object.
@@ -5324,7 +5379,8 @@ function-declaration
     indented-function-body
 
 function-qualifier
-  = "static" | "async" | "mutating" | "throws"
+  = "static" | "pure" | "async" | "mutating" | "mutates"
+  | "io" | "blocks" | "awaits" | "unsafe" | "foreign" | "throws"
 
 parameter-list
   = parameter { "," parameter }

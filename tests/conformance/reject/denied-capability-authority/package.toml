@@ -1,0 +1,8 @@
+package = "denied-capability-authority"
+capabilities = []
+
+[authority]
+authority = { provider = "host", capability = "io" }
+
+[namespaces]
+"denied-capability-authority" = "app"

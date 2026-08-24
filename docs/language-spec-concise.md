@@ -200,7 +200,7 @@ member: receiver.member (no whitespace before dot)
 adjacency: 'receiver object' invalid; NEVER invocation
 call_extent: unwrapped call owns remainder of containing logical expression
 arguments: one comma-separated list; optional '(' immediately after ';' delimits wrapping
-argument_layout: newline/indent inside delimiters non-structural; ')' may follow final argument
+argument_layout: parentheses are general explicit expression continuation; newline/indent/comments and block strings inside remain non-structural; closing outermost ')' restores logical-line termination
 argument_calls: ungrouped calls forbidden; delimited argument list admits nested calls
 three_clause_for: its semicolons belong to for; calls in clauses parenthesized
 evaluation: left-to-right
@@ -299,7 +299,7 @@ args_rule: needs no special rule; a declaration always follows, so the call is n
 trailing_comma: an error - 'with per-cpu, global x = 0' reads 'global' as the next element and fails on a reserved word
 scope: any declaration INCLUDING an untyped local binding; no typed-binding requirement
 with_applies_to: first- and third-party package modifiers (open set)
-with_never_applies_to: global, constant, public/private/protected, static/async/mutating/throws (closed set, compiler-owned)
+with_never_applies_to: global, constant, public/private/protected, static/pure/async/mutating/mutates/io/blocks/awaits/unsafe/foreign/throws (closed set, compiler-owned)
 test: can the compiler's model be described without it? if it changes name resolution, visibility, mutability, or a callable's type contract it is STRUCTURAL (keyword); if it changes only how a known declaration is realised - storage, layout, linkage, ABI, section, alignment - it is DECORATIVE (with)
 ordering: with-modifiers precede structural keywords; package layer is outer
 rationale: the protocol already forbids modifiers from touching visibility/ownership/effects/capability, so the split reports a real boundary; 'with global' would falsely imply global is extensible
@@ -587,9 +587,9 @@ throwable_contract: optional written upper bound
 escaping_throwables: compiler-inferred concrete set
 allocates: NOT a public effect; compiler-internal fact only
 blocks_reason: blocking inside async is diagnosable
-purity: a caller may call only effect-subset callees
-capability: capabilities authorize effects; they are not themselves effects
-inference: applies to public and private functions; annotations constrain rather than narrate
+purity: `pure function` is a written empty effect upper bound; any direct/transitive effect is rejected; omission means inference, not purity
+capability: linear unforgeable authority; ordinary source has no constructor; only declared host/package adapter bindings supply values; profile/reflection metadata never does
+inference: public and private; annotations constrain rather than narrate; follows resolved callable identity, not spelling or aliases
 ```
 - Uncaught throwables render deterministic cause/source chains; foreign failures preserve native
   traceback/details after translation to a declared throwable class.
@@ -675,15 +675,13 @@ encoding: explicit utf8/utf16-le/utf16-be/utf32-le/utf32-be; encode total; decod
 
 ## ASYNC
 
-- `async function` has distinct async callable type.
-- `await` only inside async context.
-- Sync/async callable types incompatible without explicit adapter.
-- No borrow crosses suspension unless contract proves lifetime.
-- Runtime independent; the structured-concurrency scope is a version-one language-level object, not a library convenience.
-- Scope: explicit creation, child spawn, join; a child inherits its parent scope's deadline and may shorten but never extend it.
-- Cancellation and deadlines are explicit values plus scope-boundary propagation; never ambient task-local globals.
-- Channels/mutexes/atomics remain library objects.
-- Target capability may reject async statically.
+- `async function` has a distinct async callable type; `await` is valid only in async context, and sync/async callable types require an explicit adapter.
+- Async invocation returns a linear `task of T`; `await` consumes it exactly once. Scope `spawn` returns a linear `scoped-task of T`; `join` consumes it exactly once. Unconsumed tasks are compile-time errors, never implicit detach/cancel.
+- `task-outcome of T`: `completed bool`, `cancelled bool`, `value T|none` present exactly on completion, `error throwable|none` present exactly on failure.
+- Cancellation is cooperative at `await`, join, and explicitly cancellable library operations. Failure requests sibling cancellation; the scope still joins cleanup and retains outcomes. Completed work is never erased, so completed+cancelled may both be true.
+- Deadlines are explicit, never ambient. Child effective deadline is `min(parent, requested)`; a statically provable extension is diagnosed and dynamic inputs clamp to the earlier instant.
+- No borrow crosses suspension unless its owner lifetime and executor transfer requirements are proven.
+- Runtime remains profile-selected; channels/mutexes/atomics are library objects; unavailable target capability rejects async statically.
 
 ## TARGET
 
@@ -708,12 +706,18 @@ build_scripts: declarative metadata preferred; arbitrary scripts capability-gate
 ```toml
 package = "example.tools" # required non-empty identity
 prelude = true            # optional; defaults true
+capabilities = ["io"]     # optional selected authority profile
+
+[authority]               # optional entrypoint authority providers
+output = { provider = "host", capability = "io" }
 
 [namespaces]               # required non-empty mapping table
 "example/tools" = "src"
 "example/generated" = "generated"
 ```
 - Authored manifest filename: `package.toml`; syntax is TOML; unknown fields rejected.
+- `capabilities`: closed effect-authority names permitted by the selected build profile. Descriptive profile data never materialises authority.
+- `authority`: each key names an entrypoint parameter whose inline table must select provider `host` and one permitted capability; the parameter type must be the matching `capability of E`. Direct `.trn` inputs have no providers.
 - `namespaces`: canonical namespace-root keys mapped to distinct, relative directory roots; no absolute/parent paths. Source discovery recursively includes `.trn` files only, resolves overlapping mappings by longest namespace prefix, and assigns stable file IDs in sorted package-relative path order.
 - Every discovered declaration must equal the namespace derived from its mapping and relative parent directory. Duplicate mapped directories and mapped roots containing no `.trn` files are manifest-load errors.
 - A direct `.trn` CLI input is implicit package `single-file`, one unit, default prelude, and is exempt from directory correspondence.

@@ -1,0 +1,5 @@
+phase = "check"
+status = "reject"
+entrypoint = "package.toml"
+code = "T0078"
+message = "selected capability profile does not permit `io` authority"

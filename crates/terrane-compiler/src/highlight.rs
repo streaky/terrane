@@ -199,6 +199,7 @@ fn is_keyword(text: &str) -> bool {
             | "global"
             | "constant"
             | "static"
+            | "pure"
             | "async"
             | "mutating"
             | "mutates"

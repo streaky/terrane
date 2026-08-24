@@ -5,7 +5,7 @@ use num_bigint::BigInt;
 
 use crate::{
     ScalarType, SourceFile, TypeCategory,
-    rust_ir::{GeneratedModule, Item, Module, Program},
+    rust_ir::{Dependency, GeneratedModule, Item, Module, Program},
     semantics::{
         ArithmeticFamily, CoercionPolicy, ContextualConstant, ElementType, FunctionContract,
         MemberFamily, ObjectContract, ObjectField, ObjectKind, SemanticPackage, SemanticUnit,
@@ -23,7 +23,7 @@ use crate::{
 pub(crate) fn lower(package: &SemanticPackage) -> Program {
     let mut runtime = Vec::new();
     let mut globals = String::new();
-    if package_uses_structured_errors(package) {
+    if package_uses_structured_errors(package) || package_uses_task_scope(package) {
         let has_custom_throwable = package.units.iter().any(|unit| {
             unit.objects.iter().any(|object| {
                 object
@@ -57,16 +57,28 @@ pub(crate) fn lower(package: &SemanticPackage) -> Program {
              std::task::Poll::Pending => std::thread::yield_now(),\n\
              } }\n}\n",
         );
+        if package_uses_task_scope(package) {
+            support.push_str(
+            "fn __terrane_block_on_cancellable<F: Future>(future: F, cancelled: impl Fn() -> bool) -> Option<F::Output> {\n\
+             struct Wake;\n\
+             impl std::task::Wake for Wake { fn wake(self: std::sync::Arc<Self>) {} }\n\
+             let waker = std::task::Waker::from(std::sync::Arc::new(Wake));\n\
+             let mut context = std::task::Context::from_waker(&waker);\n\
+             let mut future = std::pin::pin!(future);\n\
+             loop {\n\
+             if cancelled() { return None; }\n\
+             match future.as_mut().poll(&mut context) {\n\
+             std::task::Poll::Ready(value) => return Some(value),\n\
+             std::task::Poll::Pending => std::thread::yield_now(),\n\
+             } }\n}\n",
+        );
+        }
         runtime.push(GeneratedModule {
             name: "async",
             items: vec![Item::generated(&support)],
         });
     }
-    if package
-        .units
-        .iter()
-        .any(|unit| unit.source.text().contains("task-scope"))
-    {
+    if package_uses_task_scope(package) {
         let support = match package.executor {
             crate::package::ExecutorProfile::Cooperative => {
                 "#[derive(Clone)]\n\
@@ -84,23 +96,30 @@ pub(crate) fn lower(package: &SemanticPackage) -> Program {
                          Self { cancelled: self.cancelled.clone(), deadline }\n\
                      }\n\
                      pub fn cancel(&self) { self.cancelled.store(true, std::sync::atomic::Ordering::Release); }\n\
+                     pub fn should_cancel(&self) -> bool {\n\
+                         self.cancelled.load(std::sync::atomic::Ordering::Acquire)\n\
+                             || self.deadline.is_some_and(|deadline| std::time::Instant::now() >= deadline)\n\
+                     }\n\
                      pub fn join<T>(&self, mut task: TerraneScopedTask<T>) -> TerraneTaskOutcome<T> {\n\
                          let result = task.result.take().expect(\"scoped task joined once\");\n\
-                         let cancelled = self.cancelled.load(std::sync::atomic::Ordering::Acquire)\n\
-                             || self.deadline.is_some_and(|deadline| std::time::Instant::now() >= deadline);\n\
                          match result {\n\
-                             Ok(value) => TerraneTaskOutcome { completed: true, cancelled, value: Some(value), error: String::new() },\n\
-                             Err(error) => TerraneTaskOutcome { completed: false, cancelled, value: None, error },\n\
+                             TerraneTaskResult::Completed(value) => TerraneTaskOutcome { completed: true, cancelled: self.should_cancel(), value: Some(value), error: None },\n\
+                             TerraneTaskResult::Failed(error) => {\n\
+                                 self.cancel();\n\
+                                 TerraneTaskOutcome { completed: false, cancelled: false, value: None, error: Some(error) }\n\
+                             }\n\
+                             TerraneTaskResult::Cancelled => TerraneTaskOutcome { completed: false, cancelled: true, value: None, error: None },\n\
                          }\n\
                      }\n\
                  }\n\
-                 pub struct TerraneScopedTask<T> { result: Option<Result<T, String>> }\n\
+                 enum TerraneTaskResult<T> { Completed(T), #[allow(dead_code, reason = \"task result ABI retains typed failure for infallible task sets\")] Failed(TerraneError), Cancelled }\n\
+                 pub struct TerraneScopedTask<T> { result: Option<TerraneTaskResult<T>> }\n\
                  impl<T> TerraneScopedTask<T> {\n\
-                     pub fn spawn<F: FnOnce() -> Result<T, String>>(work: F) -> Self {\n\
+                     fn spawn<F: FnOnce() -> TerraneTaskResult<T>>(work: F) -> Self {\n\
                          Self { result: Some(work()) }\n\
                      }\n\
                  }\n\
-                 pub struct TerraneTaskOutcome<T> { pub completed: bool, pub cancelled: bool, pub value: Option<T>, pub error: String }\n"
+                 pub struct TerraneTaskOutcome<T> { pub completed: bool, pub cancelled: bool, pub value: Option<T>, pub error: Option<TerraneError> }\n"
             }
             crate::package::ExecutorProfile::Threaded => {
                 "#[derive(Clone)]\n\
@@ -118,24 +137,30 @@ pub(crate) fn lower(package: &SemanticPackage) -> Program {
                          Self { cancelled: self.cancelled.clone(), deadline }\n\
                      }\n\
                      pub fn cancel(&self) { self.cancelled.store(true, std::sync::atomic::Ordering::Release); }\n\
+                     pub fn should_cancel(&self) -> bool {\n\
+                         self.cancelled.load(std::sync::atomic::Ordering::Acquire)\n\
+                             || self.deadline.is_some_and(|deadline| std::time::Instant::now() >= deadline)\n\
+                     }\n\
                      pub fn join<T>(&self, mut task: TerraneScopedTask<T>) -> TerraneTaskOutcome<T> {\n\
-                         let result = task.handle.take().expect(\"scoped task joined once\").join()\n\
-                             .unwrap_or_else(|_| Err(\"task panicked\".to_owned()));\n\
-                         let cancelled = self.cancelled.load(std::sync::atomic::Ordering::Acquire)\n\
-                             || self.deadline.is_some_and(|deadline| std::time::Instant::now() >= deadline);\n\
+                         let result = task.handle.take().expect(\"scoped task joined once\").join().expect(\"task worker panicked\");\n\
                          match result {\n\
-                             Ok(value) => TerraneTaskOutcome { completed: true, cancelled, value: Some(value), error: String::new() },\n\
-                             Err(error) => TerraneTaskOutcome { completed: false, cancelled, value: None, error },\n\
+                             TerraneTaskResult::Completed(value) => TerraneTaskOutcome { completed: true, cancelled: self.should_cancel(), value: Some(value), error: None },\n\
+                             TerraneTaskResult::Failed(error) => {\n\
+                                 self.cancel();\n\
+                                 TerraneTaskOutcome { completed: false, cancelled: false, value: None, error: Some(error) }\n\
+                             }\n\
+                             TerraneTaskResult::Cancelled => TerraneTaskOutcome { completed: false, cancelled: true, value: None, error: None },\n\
                          }\n\
                      }\n\
                  }\n\
-                 pub struct TerraneScopedTask<T> { handle: Option<std::thread::JoinHandle<Result<T, String>>> }\n\
+                 enum TerraneTaskResult<T> { Completed(T), #[allow(dead_code, reason = \"task result ABI retains typed failure for infallible task sets\")] Failed(TerraneError), Cancelled }\n\
+                 pub struct TerraneScopedTask<T> { handle: Option<std::thread::JoinHandle<TerraneTaskResult<T>>> }\n\
                  impl<T: Send + 'static> TerraneScopedTask<T> {\n\
-                     pub fn spawn<F: FnOnce() -> Result<T, String> + Send + 'static>(work: F) -> Self {\n\
+                     fn spawn<F: FnOnce() -> TerraneTaskResult<T> + Send + 'static>(work: F) -> Self {\n\
                          Self { handle: Some(std::thread::spawn(work)) }\n\
                      }\n\
                  }\n\
-                 pub struct TerraneTaskOutcome<T> { pub completed: bool, pub cancelled: bool, pub value: Option<T>, pub error: String }\n"
+                 pub struct TerraneTaskOutcome<T> { pub completed: bool, pub cancelled: bool, pub value: Option<T>, pub error: Option<TerraneError> }\n"
             }
         };
         runtime.push(GeneratedModule {
@@ -170,10 +195,7 @@ pub(crate) fn lower(package: &SemanticPackage) -> Program {
     }) {
         runtime.push(GeneratedModule {
             name: "capabilities",
-            items: vec![Item::generated(
-                "#[expect(dead_code, reason = \"capability ABI token may occur only in unreachable source contracts\")]\n\
-                 struct TerraneCapability;\n",
-            )],
+            items: vec![Item::generated("struct TerraneCapability;\n")],
         });
     }
     emit_global_storage(package, &mut globals);
@@ -234,6 +256,11 @@ pub(crate) fn lower(package: &SemanticPackage) -> Program {
     Program {
         version: crate::VERSION,
         runtime,
+        dependencies: if package_uses_parking_lot(package) {
+            vec![Dependency::ParkingLot]
+        } else {
+            Vec::new()
+        },
         globals: (!globals.is_empty())
             .then(|| Item::generated(&globals))
             .into_iter()
@@ -266,6 +293,104 @@ struct Emitter<'a> {
     try_completion: bool,
     in_loop: bool,
     closure_depth: usize,
+}
+
+fn package_uses_parking_lot(package: &SemanticPackage) -> bool {
+    fn contains_reference(unit: &SemanticUnit, node: &SyntaxNode) -> bool {
+        (node.kind == SyntaxKind::UnaryExpression
+            && node.children.first().is_some_and(|operator| {
+                matches!(
+                    &unit.source.text()[operator.span.start..operator.span.end],
+                    "ref" | "shared ref"
+                )
+            }))
+            || node
+                .children
+                .iter()
+                .any(|child| contains_reference(unit, child))
+    }
+
+    (package.executor == crate::package::ExecutorProfile::Threaded
+        && package_uses_task_scope(package))
+        || package.units.iter().any(|unit| {
+            contains_reference(unit, &unit.tree.root)
+                || unit
+                    .typed_bindings
+                    .iter()
+                    .any(|binding| value_type_uses_parking_lot(&binding.value_type))
+                || unit.functions.iter().any(|function| {
+                    function.parameters.iter().any(|parameter| {
+                        parameter
+                            .value_type
+                            .as_ref()
+                            .is_some_and(value_type_uses_parking_lot)
+                    }) || function
+                        .return_type
+                        .as_ref()
+                        .is_some_and(value_type_uses_parking_lot)
+                })
+                || unit.objects.iter().any(|object| {
+                    object
+                        .fields
+                        .iter()
+                        .any(|field| value_type_uses_parking_lot(&field.value_type))
+                })
+        })
+}
+
+fn value_type_uses_parking_lot(value_type: &ValueType) -> bool {
+    match value_type {
+        ValueType::Reference(_) | ValueType::SharedReference(_) => true,
+        ValueType::Iterator(item)
+        | ValueType::IterationStep(item)
+        | ValueType::ElementOrNone(item)
+        | ValueType::List(item)
+        | ValueType::Set(item)
+        | ValueType::Tuple(item, _)
+        | ValueType::Task(item)
+        | ValueType::ScopedTask(item)
+        | ValueType::TaskOutcome(item)
+        | ValueType::UnorderedSet(item) => value_type_uses_parking_lot(&item.value_type()),
+        ValueType::Map(key, value)
+        | ValueType::Entry(key, value)
+        | ValueType::UnorderedMap(key, value) => {
+            value_type_uses_parking_lot(&key.value_type())
+                || value_type_uses_parking_lot(&value.value_type())
+        }
+        ValueType::Function(parameters, result) | ValueType::AsyncFunction(parameters, result) => {
+            parameters
+                .iter()
+                .any(|parameter| value_type_uses_parking_lot(&parameter.value_type()))
+                || value_type_uses_parking_lot(&result.value_type())
+        }
+        _ => false,
+    }
+}
+
+fn package_uses_task_scope(package: &SemanticPackage) -> bool {
+    fn contains(package: &SemanticPackage, unit: &SemanticUnit, node: &SyntaxNode) -> bool {
+        if node.kind == SyntaxKind::CallExpression
+            && let Some(callee) = node.children.first()
+            && callee.kind == SyntaxKind::Name
+            && package
+                .resolve_name_at(
+                    unit,
+                    callee.span.start,
+                    &unit.source.text()[callee.span.start..callee.span.end],
+                )
+                .is_some_and(|symbol| symbol.identity == "/core/async::task-scope")
+        {
+            return true;
+        }
+        node.children
+            .iter()
+            .any(|child| contains(package, unit, child))
+    }
+
+    package
+        .units
+        .iter()
+        .any(|unit| contains(package, unit, &unit.tree.root))
 }
 
 fn package_uses_structured_errors(package: &SemanticPackage) -> bool {
@@ -369,8 +494,8 @@ fn emit_error_support(output: &mut String, has_custom_throwable: bool) {
                 }
             }
         }
-        #[derive(Clone, Debug)]
-        struct TerraneError {
+        #[derive(Clone, Debug, Eq, PartialEq)]
+        pub struct TerraneError {
             kind: TerraneErrorKind,
             message: String,
             cause: Option<Box<TerraneError>>,
@@ -1345,8 +1470,15 @@ impl Emitter<'_> {
             .find(|item| item.span == node.span)
             .expect("analyzed function declaration must have a semantic contract");
         self.line_start();
-        let name = name_override.map_or_else(|| function_name(contract), str::to_owned);
-        let async_main = contract.is_async && contract.name == "main" && receiver.is_none();
+        let injected_main =
+            contract.name == "main" && receiver.is_none() && !contract.parameters.is_empty();
+        let name = if injected_main {
+            "__terrane_main".to_owned()
+        } else {
+            name_override.map_or_else(|| function_name(contract), str::to_owned)
+        };
+        let async_main =
+            contract.is_async && contract.name == "main" && receiver.is_none() && !injected_main;
         write!(
             self.output,
             "{}{}fn {name}(",
@@ -1469,6 +1601,23 @@ impl Emitter<'_> {
             self.line("});");
         }
         self.line("}");
+        if injected_main {
+            let arguments = contract
+                .parameters
+                .iter()
+                .map(|_| "TerraneCapability")
+                .collect::<Vec<_>>()
+                .join(", ");
+            self.line("fn main() {");
+            self.indent += 1;
+            if contract.is_async {
+                self.line(&format!("__terrane_block_on(__terrane_main({arguments}));"));
+            } else {
+                self.line(&format!("__terrane_main({arguments});"));
+            }
+            self.indent -= 1;
+            self.line("}");
+        }
     }
 
     fn anonymous_function(&mut self, node: &SyntaxNode) -> String {
@@ -3471,9 +3620,7 @@ impl Emitter<'_> {
             return match self.text(member) {
                 "completed" => format!("({receiver}).completed"),
                 "cancelled" => format!("({receiver}).cancelled"),
-                "value" => {
-                    format!("({receiver}).value.expect(\"completed task outcome has a value\")")
-                }
+                "value" => format!("({receiver}).value.clone()"),
                 "error" => format!("({receiver}).error"),
                 _ => String::new(),
             };
@@ -3622,11 +3769,11 @@ impl Emitter<'_> {
                     let callable = self.expression(callable);
                     if throws {
                         format!(
-                            "TerraneScopedTask::spawn(move || __terrane_block_on(({callable})()).map_err(|error| format!(\"{{error:?}}\")))"
+                            "{{ let __terrane_scope = ({receiver}).clone(); let __terrane_cancel = __terrane_scope.clone(); TerraneScopedTask::spawn(move || match __terrane_block_on_cancellable(({callable})(), move || __terrane_cancel.should_cancel()) {{ Some(Ok(value)) => TerraneTaskResult::Completed(value), Some(Err(error)) => TerraneTaskResult::Failed(error), None => TerraneTaskResult::Cancelled }}) }}"
                         )
                     } else {
                         format!(
-                            "TerraneScopedTask::spawn(move || Ok(__terrane_block_on(({callable})())))"
+                            "{{ let __terrane_scope = ({receiver}).clone(); let __terrane_cancel = __terrane_scope.clone(); TerraneScopedTask::spawn(move || match __terrane_block_on_cancellable(({callable})(), move || __terrane_cancel.should_cancel()) {{ Some(value) => TerraneTaskResult::Completed(value), None => TerraneTaskResult::Cancelled }}) }}"
                         )
                     }
                 }),

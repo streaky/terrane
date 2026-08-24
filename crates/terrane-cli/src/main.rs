@@ -100,7 +100,12 @@ fn run(arguments: &[OsString]) -> Result<ExitCode, CliFailure> {
     }
     ensure_rust_toolchain()?;
     let crate_dir = generated_crate_path(&package.root, &compilation.rust_files)?;
-    write_generated_crate(&crate_dir, &compilation.rust_files, &package.units)?;
+    write_generated_crate(
+        &crate_dir,
+        &compilation.rust_files,
+        &compilation.dependencies,
+        &package.units,
+    )?;
     record_and_prune_generated_crates(&crate_dir)?;
     let target_dir = package.root.join(".trn/cache/target");
     let executable = prepare_artifact(
@@ -402,14 +407,12 @@ fn record_and_prune_generated_crates(active: &Path) -> Result<(), CliFailure> {
 fn write_generated_crate(
     directory: &Path,
     rust_files: &[terrane_compiler::rust_ir::RenderedFile],
+    dependencies: &[terrane_compiler::rust_ir::Dependency],
     units: &[terrane_compiler::SourceUnit],
 ) -> Result<(), CliFailure> {
     fs::create_dir_all(directory.join("src"))
         .map_err(|error| CliFailure::backend(format!("cannot create generated crate: {error}")))?;
-    let parking_lot = if rust_files
-        .iter()
-        .any(|file| file.contents.contains("parking_lot::"))
-    {
+    let parking_lot = if dependencies.contains(&terrane_compiler::rust_ir::Dependency::ParkingLot) {
         "parking_lot = { version = \"0.12\", features = [\"arc_lock\"] }\n"
     } else {
         ""

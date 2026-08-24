@@ -472,6 +472,21 @@ pub enum Effect {
     Foreign,
 }
 
+impl Effect {
+    #[must_use]
+    pub const fn source_name(self) -> &'static str {
+        match self {
+            Self::Throws => "throws",
+            Self::Io => "io",
+            Self::Blocks => "blocks",
+            Self::Awaits => "awaits",
+            Self::Mutates => "mutates",
+            Self::Unsafe => "unsafe",
+            Self::Foreign => "foreign",
+        }
+    }
+}
+
 #[expect(
     clippy::struct_excessive_bools,
     reason = "callable contracts retain independent source-visible binary qualifiers"
@@ -486,6 +501,7 @@ pub struct FunctionContract {
     pub return_type: Option<ValueType>,
     pub effects: BTreeSet<Effect>,
     pub declared_effects: BTreeSet<Effect>,
+    pub pure: bool,
     pub exported: bool,
     pub thrown_types: Vec<ValueType>,
     pub escaping_throwables: BTreeSet<String>,
@@ -791,6 +807,7 @@ pub fn analyze(package: &Package) -> Result<SemanticPackage, SemanticFailure> {
     validate_initializer_dependencies(&semantic)?;
     validate_references(&semantic)?;
     analyze_types(&mut semantic)?;
+    validate_capability_authority(package, &semantic)?;
     validate_error_clauses(&semantic)?;
     validate_moves(&semantic)?;
     validate_reference_origins(&semantic)?;
@@ -810,6 +827,85 @@ pub fn analyze(package: &Package) -> Result<SemanticPackage, SemanticFailure> {
         unit.evaluation_steps = collect_evaluation_steps(&unit.source, &unit.tree.root);
     }
     Ok(semantic)
+}
+
+fn validate_capability_authority(
+    package: &Package,
+    semantic: &SemanticPackage,
+) -> Result<(), SemanticFailure> {
+    let entrypoints = semantic.units.iter().flat_map(|unit| {
+        unit.functions.iter().filter(move |contract| {
+            contract.name == "main" && contract.span.file == unit.source.id()
+        })
+    });
+    for contract in entrypoints {
+        let unit = semantic
+            .units
+            .iter()
+            .find(|unit| unit.source.id() == contract.span.file)
+            .expect("entrypoint contract belongs to a semantic unit");
+        for parameter in &contract.parameters {
+            let Some(ValueType::Capability(effect)) = parameter.value_type else {
+                continue;
+            };
+            let Some(binding) = package
+                .authority
+                .iter()
+                .find(|binding| binding.parameter == parameter.name)
+            else {
+                return Err(failure(
+                    &unit.source,
+                    "T0078",
+                    format!(
+                        "entrypoint capability `{}` has no host authority binding",
+                        parameter.name
+                    ),
+                    parameter.span,
+                ));
+            };
+            if binding.capability != effect.source_name() {
+                return Err(failure(
+                    &unit.source,
+                    "T0078",
+                    format!(
+                        "host authority `{}` provides `{}` but the entrypoint requires `{}`",
+                        parameter.name,
+                        binding.capability,
+                        effect.source_name()
+                    ),
+                    parameter.span,
+                ));
+            }
+            if !package.capabilities.contains(&binding.capability) {
+                return Err(failure(
+                    &unit.source,
+                    "T0078",
+                    format!(
+                        "selected capability profile does not permit `{}` authority",
+                        binding.capability
+                    ),
+                    parameter.span,
+                ));
+            }
+        }
+        if let Some(binding) = package.authority.iter().find(|binding| {
+            !contract.parameters.iter().any(|parameter| {
+                parameter.name == binding.parameter
+                    && matches!(parameter.value_type, Some(ValueType::Capability(_)))
+            })
+        }) {
+            return Err(failure(
+                &unit.source,
+                "T0078",
+                format!(
+                    "host authority binding `{}` does not name an entrypoint capability parameter",
+                    binding.parameter
+                ),
+                contract.span,
+            ));
+        }
+    }
+    Ok(())
 }
 
 #[expect(
@@ -3895,6 +3991,9 @@ fn analyze_function_contract(
         effects.insert(Effect::Mutates);
     }
     let throws = effects.contains(&Effect::Throws);
+    let pure = node.children.iter().any(|child| {
+        child.kind == SyntaxKind::DeclarationQualifier && node_text(&unit.source, child) == "pure"
+    });
     let declared_effects = effects.clone();
     let exported = node.children.iter().any(|child| {
         child.kind == SyntaxKind::Visibility && node_text(&unit.source, child) == "public"
@@ -3918,6 +4017,7 @@ fn analyze_function_contract(
         is_async,
         mutates_receiver: mutates_object_receiver(unit, node),
         declared_effects,
+        pure,
         exported,
     })
 }
@@ -4128,9 +4228,11 @@ fn infer_throwing_effects(package: &mut SemanticPackage) -> Result<(), SemanticF
             effects.insert(Effect::Awaits);
         }
         if node.kind == SyntaxKind::CallExpression
-            && node.children.first().is_some_and(|callee| {
-                callee.kind == SyntaxKind::Name && node_text(&unit.source, callee) == "print"
-            })
+            && let Some(callee) = node.children.first()
+            && callee.kind == SyntaxKind::Name
+            && package
+                .resolve_name_at(unit, callee.span.start, node_text(&unit.source, callee))
+                .is_some_and(|symbol| symbol.identity == "/core/output::print")
         {
             effects.insert(Effect::Io);
         }
@@ -4246,6 +4348,35 @@ fn infer_throwing_effects(package: &mut SemanticPackage) -> Result<(), SemanticF
                         contract.span,
                     ));
                 }
+            }
+        }
+    }
+
+    for unit in &package.units {
+        for contract in &unit.functions {
+            if !contract.pure {
+                continue;
+            }
+            let inferred_effects = inferred
+                .get(&key(contract.span))
+                .cloned()
+                .unwrap_or_default();
+            if !contract.declared_effects.is_empty() || !inferred_effects.is_empty() {
+                let effects = inferred_effects
+                    .union(&contract.declared_effects)
+                    .map(|effect| effect.source_name())
+                    .collect::<Vec<_>>()
+                    .join(", ");
+                return Err(failure(
+                    &unit.source,
+                    "T0077",
+                    format!(
+                        "pure function `{}` has effect{} `{effects}`",
+                        contract.name,
+                        if effects.contains(',') { "s" } else { "" }
+                    ),
+                    contract.span,
+                ));
             }
         }
     }
@@ -5367,7 +5498,10 @@ fn infer_value_type(
     }
     if node.kind == SyntaxKind::CallExpression {
         if let [callee, arguments] = node.children.as_slice() {
-            if callee.kind == SyntaxKind::Name && node_text(&unit.source, callee) == "task-scope" {
+            if callee.kind == SyntaxKind::Name
+                && resolved_name_identity(unit, callee)
+                    .is_some_and(|identity| identity == "/core/async::task-scope")
+            {
                 return Ok(Some(ValueType::TaskScope));
             }
             if callee.kind == SyntaxKind::MemberExpression
@@ -5425,34 +5559,27 @@ fn infer_value_type(
                     }
                     "cancel" => Ok(Some(ValueType::Scalar(ScalarType::None))),
                     "child-scope" => {
-                        let child = arguments
-                            .children
-                            .first()
-                            .and_then(|argument| argument.children.last().or(Some(argument)))
-                            .and_then(|value| node_text(&unit.source, value).parse::<u64>().ok());
-                        let parent = (receiver.kind == SyntaxKind::Name)
-                            .then(|| {
-                                bindings.iter().rev().find(|binding| {
-                                    binding.name == node_text(&unit.source, receiver)
-                                        && binding
-                                            .is_visible_at(unit.source.id(), receiver.span.start)
-                                })
-                            })
-                            .flatten()
-                            .and_then(|binding| find_node_by_span(&unit.tree.root, binding.span))
-                            .and_then(|origin| origin.children.last())
-                            .filter(|initializer| initializer.kind == SyntaxKind::CallExpression)
-                            .and_then(|initializer| initializer.children.get(1))
-                            .and_then(|arguments| arguments.children.first())
-                            .and_then(|argument| argument.children.last().or(Some(argument)))
-                            .and_then(|value| node_text(&unit.source, value).parse::<u64>().ok());
-                        if matches!((parent, child), (Some(parent), Some(child)) if child > parent)
-                        {
+                        let Some(argument) = arguments.children.first() else {
+                            return Err(failure(
+                                &unit.source,
+                                "T0074",
+                                "`task-scope.child-scope` requires one deadline",
+                                node.span,
+                            ));
+                        };
+                        let child = argument.children.last().unwrap_or(argument);
+                        let parent_deadline =
+                            task_scope_deadline_ms(unit, receiver, bindings, &mut BTreeSet::new());
+                        let child_deadline = constant_deadline_ms(&unit.source, child);
+                        if matches!(
+                            (parent_deadline, child_deadline),
+                            (Some(parent), Some(child)) if child > parent
+                        ) {
                             return Err(failure(
                                 &unit.source,
                                 "T0075",
                                 "a child scope cannot extend its parent deadline",
-                                node.span,
+                                child.span,
                             ));
                         }
                         Ok(Some(ValueType::TaskScope))
@@ -6219,8 +6346,10 @@ fn infer_member_value_type(
     if let Some(ValueType::TaskOutcome(result)) = &receiver_type {
         return match member_name {
             "completed" | "cancelled" => Ok(Some(ValueType::Scalar(ScalarType::Bool))),
-            "value" => Ok(Some(result.value_type())),
-            "error" => Ok(Some(ValueType::Scalar(ScalarType::String))),
+            "value" => Ok(Some(ValueType::ElementOrNone(result.clone()))),
+            "error" => Ok(Some(ValueType::ElementOrNone(ElementType::new(
+                ValueType::Object("TerraneError".to_owned()),
+            )))),
             _ => Err(failure(
                 &unit.source,
                 "T0074",
@@ -8670,6 +8799,90 @@ fn visible_from(symbol: &Symbol, namespace: &str) -> bool {
                     .is_some_and(|suffix| suffix.starts_with('/'))
         }
     }
+}
+fn resolved_name_identity<'a>(unit: &'a SemanticUnit, node: &SyntaxNode) -> Option<&'a str> {
+    let name = node_text(&unit.source, node);
+    lexical_scope_chain(unit, node.span.start)
+        .find_map(|scope| {
+            scope.symbols.get(name)?.iter().rev().find(|symbol| {
+                symbol
+                    .declaration_span
+                    .is_none_or(|span| span.end <= node.span.start)
+            })
+        })
+        .map(|symbol| symbol.identity.as_str())
+        .or_else(|| (unit.prelude && name == "task-scope").then_some("/core/async::task-scope"))
+}
+
+fn constant_deadline_ms(source: &SourceFile, node: &SyntaxNode) -> Option<u64> {
+    match contextual_constant(source, node, ScalarType::Int)? {
+        Ok(ContextualConstant::Integer(value)) => value.to_u64(),
+        Ok(ContextualConstant::Float32(_) | ContextualConstant::Float64(_)) | Err(_) => None,
+    }
+}
+
+fn find_binding_initializer(node: &SyntaxNode, name_span: Span) -> Option<&SyntaxNode> {
+    if matches!(node.kind, SyntaxKind::Binding | SyntaxKind::Assignment) && node.span == name_span {
+        return node.children.last();
+    }
+    node.children
+        .iter()
+        .find_map(|child| find_binding_initializer(child, name_span))
+}
+
+fn task_scope_deadline_ms(
+    unit: &SemanticUnit,
+    node: &SyntaxNode,
+    bindings: &[TypedBinding],
+    visited: &mut BTreeSet<(u32, usize, usize)>,
+) -> Option<u64> {
+    if node.kind == SyntaxKind::GroupExpression {
+        return node
+            .children
+            .first()
+            .and_then(|child| task_scope_deadline_ms(unit, child, bindings, visited));
+    }
+    if node.kind == SyntaxKind::Name {
+        let binding = bindings.iter().rev().find(|binding| {
+            binding.name == node_text(&unit.source, node)
+                && binding.is_visible_at(unit.source.id(), node.span.start)
+        })?;
+        if !visited.insert((binding.span.file, binding.span.start, binding.span.end)) {
+            return None;
+        }
+        return find_binding_initializer(&unit.tree.root, binding.span)
+            .and_then(|value| task_scope_deadline_ms(unit, value, bindings, visited));
+    }
+    if node.kind != SyntaxKind::CallExpression {
+        return None;
+    }
+    let [callee, arguments] = node.children.as_slice() else {
+        return None;
+    };
+    if callee.kind == SyntaxKind::Name
+        && resolved_name_identity(unit, callee)
+            .is_some_and(|identity| identity == "/core/async::task-scope")
+    {
+        return arguments
+            .children
+            .first()
+            .and_then(|argument| argument.children.last().or(Some(argument)))
+            .and_then(|value| constant_deadline_ms(&unit.source, value));
+    }
+    let [receiver, member] = callee.children.as_slice() else {
+        return None;
+    };
+    if callee.kind != SyntaxKind::MemberExpression
+        || node_text(&unit.source, member) != "child-scope"
+    {
+        return None;
+    }
+    arguments
+        .children
+        .first()
+        .and_then(|argument| argument.children.last().or(Some(argument)))
+        .and_then(|value| constant_deadline_ms(&unit.source, value))
+        .or_else(|| task_scope_deadline_ms(unit, receiver, bindings, visited))
 }
 
 fn bootstrap_prelude() -> BTreeMap<String, Symbol> {

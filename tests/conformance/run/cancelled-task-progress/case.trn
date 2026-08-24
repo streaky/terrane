@@ -9,4 +9,6 @@ function main;
   scope.cancel;
   outcome = scope.join; move child
   print; outcome.completed, outcome.cancelled
-  print; outcome.value
+  value = outcome.value
+  if value != none
+    print; value

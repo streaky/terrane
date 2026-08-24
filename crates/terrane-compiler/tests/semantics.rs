@@ -1,4 +1,4 @@
-use std::path::PathBuf;
+use std::{collections::BTreeSet, path::PathBuf};
 
 use terrane_compiler::semantics::SymbolKind;
 use terrane_compiler::syntax::SyntaxKind;
@@ -14,6 +14,8 @@ fn package(prelude: bool, sources: &[(&str, &str)]) -> Package {
         prelude,
         reflection: ReflectionProfile::Ordinary,
         executor: ExecutorProfile::Threaded,
+        capabilities: BTreeSet::default(),
+        authority: Vec::new(),
         units: sources
             .iter()
             .enumerate()

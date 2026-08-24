@@ -42,8 +42,8 @@ impl TerraneErrorKind {
         }
     }
 }
-#[derive(Clone, Debug)]
-struct TerraneError {
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct TerraneError {
     kind: TerraneErrorKind,
     message: String,
     cause: Option<Box<TerraneError>>,
@@ -141,6 +141,19 @@ std::task::Poll::Ready(value) => return value,
 std::task::Poll::Pending => std::thread::yield_now(),
 } }
 }
+fn __terrane_block_on_cancellable<F: Future>(future: F, cancelled: impl Fn() -> bool) -> Option<F::Output> {
+struct Wake;
+impl std::task::Wake for Wake { fn wake(self: std::sync::Arc<Self>) {} }
+let waker = std::task::Waker::from(std::sync::Arc::new(Wake));
+let mut context = std::task::Context::from_waker(&waker);
+let mut future = std::pin::pin!(future);
+loop {
+if cancelled() { return None; }
+match future.as_mut().poll(&mut context) {
+std::task::Poll::Ready(value) => return Some(value),
+std::task::Poll::Pending => std::thread::yield_now(),
+} }
+}
 #[derive(Clone)]
 pub struct TerraneTaskScope {
 cancelled: std::sync::Arc<std::sync::atomic::AtomicBool>,
@@ -156,24 +169,30 @@ let deadline = Some(self.deadline.map_or(requested, |parent| std::cmp::min(paren
 Self { cancelled: self.cancelled.clone(), deadline }
 }
 pub fn cancel(&self) { self.cancelled.store(true, std::sync::atomic::Ordering::Release); }
+pub fn should_cancel(&self) -> bool {
+self.cancelled.load(std::sync::atomic::Ordering::Acquire)
+|| self.deadline.is_some_and(|deadline| std::time::Instant::now() >= deadline)
+}
 pub fn join<T>(&self, mut task: TerraneScopedTask<T>) -> TerraneTaskOutcome<T> {
-let result = task.handle.take().expect("scoped task joined once").join()
-.unwrap_or_else(|_| Err("task panicked".to_owned()));
-let cancelled = self.cancelled.load(std::sync::atomic::Ordering::Acquire)
-|| self.deadline.is_some_and(|deadline| std::time::Instant::now() >= deadline);
+let result = task.handle.take().expect("scoped task joined once").join().expect("task worker panicked");
 match result {
-Ok(value) => TerraneTaskOutcome { completed: true, cancelled, value: Some(value), error: String::new() },
-Err(error) => TerraneTaskOutcome { completed: false, cancelled, value: None, error },
+TerraneTaskResult::Completed(value) => TerraneTaskOutcome { completed: true, cancelled: self.should_cancel(), value: Some(value), error: None },
+TerraneTaskResult::Failed(error) => {
+self.cancel();
+TerraneTaskOutcome { completed: false, cancelled: false, value: None, error: Some(error) }
+}
+TerraneTaskResult::Cancelled => TerraneTaskOutcome { completed: false, cancelled: true, value: None, error: None },
 }
 }
 }
-pub struct TerraneScopedTask<T> { handle: Option<std::thread::JoinHandle<Result<T, String>>> }
+enum TerraneTaskResult<T> { Completed(T), #[allow(dead_code, reason = "task result ABI retains typed failure for infallible task sets")] Failed(TerraneError), Cancelled }
+pub struct TerraneScopedTask<T> { handle: Option<std::thread::JoinHandle<TerraneTaskResult<T>>> }
 impl<T: Send + 'static> TerraneScopedTask<T> {
-pub fn spawn<F: FnOnce() -> Result<T, String> + Send + 'static>(work: F) -> Self {
+fn spawn<F: FnOnce() -> TerraneTaskResult<T> + Send + 'static>(work: F) -> Self {
 Self { handle: Some(std::thread::spawn(work)) }
 }
 }
-pub struct TerraneTaskOutcome<T> { pub completed: bool, pub cancelled: bool, pub value: Option<T>, pub error: String }
+pub struct TerraneTaskOutcome<T> { pub completed: bool, pub cancelled: bool, pub value: Option<T>, pub error: Option<TerraneError> }
 // Source: case.trn
 // Namespace: throwing-scoped-task
 async fn fail() -> Result<terrane_int_support::Int, TerraneError> {
@@ -181,8 +200,8 @@ async fn fail() -> Result<terrane_int_support::Int, TerraneError> {
 }
 fn main() {
     let scope: TerraneTaskScope = TerraneTaskScope::new(None);
-    let child: TerraneScopedTask<terrane_int_support::Int> = TerraneScopedTask::spawn(move || __terrane_block_on((fail)()).map_err(|error| format!("{error:?}")));
+    let child: TerraneScopedTask<terrane_int_support::Int> = { let __terrane_scope = (scope).clone(); let __terrane_cancel = __terrane_scope.clone(); TerraneScopedTask::spawn(move || match __terrane_block_on_cancellable((fail)(), move || __terrane_cancel.should_cancel()) { Some(Ok(value)) => TerraneTaskResult::Completed(value), Some(Err(error)) => TerraneTaskResult::Failed(error), None => TerraneTaskResult::Cancelled }) };
     let outcome: TerraneTaskOutcome<terrane_int_support::Int> = (scope).join(child);
-    println!("{}{}", terrane_scalar_support::scalar_text(&((outcome).completed)), terrane_scalar_support::scalar_text(&((outcome).cancelled)));
-    println!("{}", terrane_scalar_support::scalar_text(&((outcome).error)));
+    println!("{}{}{}", terrane_scalar_support::scalar_text(&((outcome).completed)), terrane_scalar_support::scalar_text(&((outcome).cancelled)), terrane_scalar_support::scalar_text(&(((outcome).value.clone() == None))));
+    println!("{}", terrane_scalar_support::scalar_text(&(((outcome).error != None))));
 }

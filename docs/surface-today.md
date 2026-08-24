@@ -64,16 +64,18 @@ Terrane package
 │   │   │   ├── utf16-be                       encoding object
 │   │   │   ├── utf32-le                       encoding object
 │   │   │   └── utf32-be                       encoding object
-│   │   └── /core/collections
-│   │       ├── iterator                       typed linear iterator constructor
-│   │       ├── list                           insertion-ordered sequence constructor
-│   │       ├── map                            insertion-ordered key/value constructor
-│   │       ├── set                            insertion-ordered unique-value constructor
-│   │       ├── tuple                          fixed-length sequence constructor
-│   │       ├── range                          half-open range constructor; `.through` is inclusive
-│   │       ├── entry                          key/value pair constructor
-│   │       ├── unordered-map                  deterministic unordered map constructor
-│   │       └── unordered-set                  deterministic unordered set constructor
+│   │   ├── /core/collections
+│   │   │   ├── iterator                       typed linear iterator constructor
+│   │   │   ├── list                           insertion-ordered sequence constructor
+│   │   │   ├── map                            insertion-ordered key/value constructor
+│   │   │   ├── set                            insertion-ordered unique-value constructor
+│   │   │   ├── tuple                          fixed-length sequence constructor
+│   │   │   ├── range                          half-open range constructor; `.through` is inclusive
+│   │   │   ├── entry                          key/value pair constructor
+│   │   │   ├── unordered-map                  deterministic unordered map constructor
+│   │   │   └── unordered-set                  deterministic unordered set constructor
+│   │   └── /core/async
+│   │       └── task-scope                     structured task-scope constructor
 ├── default prelude
 │   ├── print                                  binding to /core/output::print
 │   ├── bool                                   type name for /core/types::bool
@@ -86,7 +88,8 @@ Terrane package
 │   ├── utf16-le                               encoding name for /core/encodings::utf16-le
 │   ├── utf16-be                               encoding name for /core/encodings::utf16-be
 │   ├── utf32-le                               encoding name for /core/encodings::utf32-le
-│   └── utf32-be                               encoding name for /core/encodings::utf32-be
+│   ├── utf32-be                               encoding name for /core/encodings::utf32-be
+│   └── task-scope                             binding to /core/async::task-scope
 └── source-declared package surface
     ├── namespace                              hierarchical object container
     │   ├── variable                           namespace-local value
@@ -494,6 +497,47 @@ release invalidation, shared-ownership cycle analysis, and the remaining provena
 expiry checking is still the implemented fallback where a non-owning reference's validity is not
 statically proven.
 
+## Effects, capabilities, and reflection
+
+The closed callable-effect vocabulary is `throws`, `io`, `blocks`, `awaits`, `mutates`, `unsafe`,
+and `foreign`. Function qualifiers declare upper bounds; the compiler also infers direct and
+transitive effects for public and private functions from resolved callable identities. An imported
+alias of `/core/output::print` therefore carries `io`, while an unrelated source function named
+`print` does not. Callable reflection exposes `.effects`, `.throwable-contract`, and
+`.escaping-throwables`; descriptor values retain canonical identity and `.name`.
+
+`capability of E` is implemented as a linear value type: copying/forging is rejected, transfer is
+explicit with `move`, and holding it across suspension is rejected. Ordinary source has no
+constructor. A package manifest may select permitted capabilities and bind a host provider to a
+named entrypoint capability parameter; the compiler validates that contract and injects the
+authority value at the generated entrypoint. `pure` declares an empty effect upper bound, so any
+direct or transitive effect is rejected in source.
+
+## Async tasks and scopes
+
+An `async function` has a distinct callable type and invocation produces a linear task. Postfix
+`await` is accepted only in an async function and consumes that task; leaving a task unconsumed is a
+source diagnostic. The compiler rejects sync/async callable substitutions, non-owning references
+whose owner is not proven across suspension, and linear capability values held across suspension.
+
+`task-scope; deadline?` constructs a scope using the selected threaded or cooperative executor
+profile. `.spawn; callable` consumes an async callable invocation into a linear scoped task;
+`.join; move task` consumes it and returns a task outcome. `.child-scope; deadline` creates a child
+whose runtime effective deadline is the earlier of parent and requested deadlines; statically
+resolvable extension through local aliases and nested constant expressions is rejected. `.cancel;`
+records cancellation, and join waits for the selected executor's child operation.
+
+The implemented task outcome exposes `completed bool`, `cancelled bool`, `value T or none`, and
+`error throwable or none`. Successful completion retains `value` even when cancellation was
+requested; failure sets `completed` false, leaves `value` absent, retains the typed child error, and
+requests cancellation of surviving siblings. The selected executor checks cancellation and
+deadline expiry while polling each child. Scoped tasks remain linear, so every child must be joined
+before function exit; no implicit detach or abandoned child path exists.
+
+Task runtime support and its Cargo dependencies are selected from semantic lowering metadata, not
+from generated source-text searches. Merely spelling a runtime crate path in source text cannot
+change the generated manifest.
+
 ## Properties and methods index
 
 | Receiver | Member | Kind | Result / effect |
@@ -550,6 +594,9 @@ source-visible standard-error fields, causes, and error hierarchies
 bytes indexing and slicing
 user-authored implementations of general iteration protocols
 user-declared type parameters and generic application
+host/package capability authority providers and profile permission enforcement
+written pure/empty effect caller contracts
+typed task errors, defined cancellation points, automatic sibling cancellation, and explicit detach
 function/class/namespace/type reflection objects
 ```
 

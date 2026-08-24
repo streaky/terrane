@@ -1,0 +1,5 @@
+phase = "check"
+status = "reject"
+entrypoint = "case.trn"
+code = "T0077"
+message = "pure function `quiet` has effect `io`"

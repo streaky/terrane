@@ -1253,15 +1253,22 @@ Deliver:
 
 Exit criterion: a pure caller cannot call an effectful callee, a capability cannot be forged from profile data, and a minimal profile rejects an unavailable reflection request at compile time.
 
-Implemented evidence: callable contracts retain the closed effect set and infer it through the call
-graph; typed escaping throwables are computed after catches and `finally`, checked against optional
-postfix `throws T` bounds, and exposed separately from those declared bounds. Standard and
-user-declared `throwable` implementations share the structured-error pipeline. Descriptor values
-materialize only when observed. Capability parameters are linear and profile reflection remains
-descriptive rather than authority-bearing; minimal reflection profiles reject metadata access.
-Focused accepted and rejected conformance cases cover transitive effects, catch/finally throwable
-sets, custom throwables, incompatible bounds, descriptor materialization, capability forgery,
-linearity, and stripped reflection.
+Implemented evidence: callable contracts retain the closed effect set and infer direct/transitive
+effects from resolved callable identities; `pure` writes an empty upper bound and rejects every
+direct or transitive effect. Typed escaping throwables are computed after catches and `finally`,
+checked against optional postfix `throws T` bounds, and exposed separately from those declared
+bounds. Standard and user-declared `throwable` implementations share the structured-error
+pipeline. Descriptor values materialise only when observed, and minimal reflection profiles reject
+unavailable metadata access.
+
+`capability of E` parameters are linear and cannot be copied or forged from reflection data.
+Package manifests select permitted capabilities and declare host authority providers for named
+entrypoint parameters; the compiler validates the provider, capability, profile permission, and
+entrypoint contract before injecting the otherwise-unconstructible authority value. Accepted and
+rejected conformance covers inferred and declared effects, the pure boundary, catch/finally
+throwable sets, custom throwables, incompatible bounds, descriptor materialisation, capability
+linearity and authority injection, profile denial, and stripped reflection. This satisfies the
+milestone exit criterion.
 
 ### Milestone 19 — Async core: tasks, scope, cancellation, and deadlines
 
@@ -1278,12 +1285,24 @@ Deliver:
 
 Exit criterion: a cancelled scope joins its children and reports partial progress; a nested deadline cannot be extended; and no borrow crosses suspension without a proven lifetime.
 
-Implemented evidence: async callables, postfix `await`, linear task values, structured task scopes,
-cooperative cancellation, partial-progress outcomes, monotonic deadlines, executor profiles, and
-suspension ownership checks run through the shared parser, semantic model, and Rust lowering.
-Accepted and rejected conformance cases cover async/sync type incompatibility, task consumption,
-throwing children with surviving siblings, cancellation joining, nested deadline extension,
-non-owning references across suspension, and linear capabilities held across suspension.
+Implemented evidence: async callables, postfix `await`, linear task values, task-scope
+creation/spawn/join, partial-progress outcome observations, threaded and cooperative executor
+profiles, effective-deadline clamping, and suspension ownership checks run through the shared
+parser, semantic model, and Rust lowering. Runtime and dependency inclusion is selected by lowering
+metadata rather than rendered-source scanning.
+
+Cancellation is checked while the executor polls a child, so cancellation and deadline expiry stop
+work at a defined suspension point without erasing an already completed value. A failed child
+retains its typed throwable and requests cancellation through the scope's shared state, which
+surviving siblings observe at their next cancellation point. Linear scoped tasks must be joined
+before the enclosing function can exit, and join reports completed, cancelled, value, and typed
+error state. Child deadlines take the earlier of inherited and requested deadlines at runtime;
+statically resolvable extensions are additionally rejected in source.
+
+Accepted and rejected conformance covers async/sync type incompatibility, task consumption,
+successful, throwing, cancelled, and sibling-cancelling children, statically resolvable nested
+deadline extension, non-owning references across suspension, and linear capabilities held across
+suspension. This satisfies the milestone exit criterion.
 
 ### Milestone 20 — Byte and text streams and process standard streams
 

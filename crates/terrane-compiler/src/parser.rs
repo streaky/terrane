@@ -381,6 +381,7 @@ impl Parser<'_> {
         while matches!(
             self.text(),
             "static"
+                | "pure"
                 | "async"
                 | "mutating"
                 | "mutates"
@@ -1227,8 +1228,8 @@ impl Parser<'_> {
         loop {
             match self.peek_text(offset) {
                 Some(
-                    "static" | "async" | "mutating" | "mutates" | "io" | "blocks" | "awaits"
-                    | "unsafe" | "foreign",
+                    "static" | "pure" | "async" | "mutating" | "mutates" | "io" | "blocks"
+                    | "awaits" | "unsafe" | "foreign",
                 ) => offset += 1,
                 Some("throws") => {
                     offset += 1;

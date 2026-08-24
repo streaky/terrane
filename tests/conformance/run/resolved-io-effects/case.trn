@@ -1,0 +1,16 @@
+namespace resolved-io-effects
+from /core/output import print as emit
+
+function print;
+
+public function writes;
+  emit; 'body'
+
+public function local-only;
+  print;
+
+function main;
+  writes;
+  emit; writes.effects
+  emit; local-only.effects
+  local-only;

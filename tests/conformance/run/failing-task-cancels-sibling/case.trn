@@ -1,0 +1,17 @@
+namespace failing-task-cancels-sibling
+from /core/errors import throwable, coercion-error
+
+async function fail int throws throwable;
+  throw coercion-error
+
+async function survive int;
+  return 7
+
+function main;
+  scope = task-scope;
+  failing = scope.spawn; fail
+  sibling = scope.spawn; survive
+  failed = scope.join; move failing
+  survived = scope.join; move sibling
+  print; failed.completed, failed.cancelled
+  print; survived.cancelled
