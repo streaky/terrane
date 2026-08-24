@@ -34,6 +34,31 @@ pub(crate) fn lower(package: &SemanticPackage) -> Program {
              } }\n}\n",
         );
     }
+    if package.units.iter().any(|unit| {
+        unit.typed_bindings
+            .iter()
+            .any(|binding| matches!(binding.value_type, ValueType::Descriptor(_)))
+    }) {
+        globals.push_str(
+            "#[derive(Clone, Copy)]\n\
+             struct TerraneDescriptor { identity: &'static str, name: &'static str, kind: &'static str }\n",
+        );
+    }
+    if package.units.iter().any(|unit| {
+        unit.typed_bindings
+            .iter()
+            .any(|binding| matches!(binding.value_type, ValueType::Capability(_)))
+            || unit.functions.iter().any(|function| {
+                function.parameters.iter().any(|parameter| {
+                    matches!(parameter.value_type, Some(ValueType::Capability(_)))
+                })
+            })
+    }) {
+        globals.push_str(
+            "#[expect(dead_code, reason = \"capability ABI token may occur only in unreachable source contracts\")]\n\
+             struct TerraneCapability;\n",
+        );
+    }
     emit_global_storage(package, &mut globals);
     let modules = package
         .units
@@ -2109,7 +2134,18 @@ impl Emitter<'_> {
         match node.kind {
             SyntaxKind::Literal => literal(self.text(node)),
             SyntaxKind::AnonymousFunction => self.anonymous_function(node),
-            SyntaxKind::Name => self.name(node),
+            SyntaxKind::Name => {
+                let bound = self.unit.typed_bindings.iter().rev().any(|binding| {
+                    binding.name == self.text(node)
+                        && binding.is_visible_at(self.unit.source.id(), node.span.start)
+                });
+                match self.value_type(node) {
+                    Some(ValueType::Descriptor(identity)) if !bound => format!(
+                        "TerraneDescriptor {{ identity: {identity:?}, name: {identity:?}, kind: \"type\" }}"
+                    ),
+                    _ => self.name(node),
+                }
+            }
             SyntaxKind::GroupExpression => node
                 .children
                 .first()
@@ -3138,6 +3174,36 @@ impl Emitter<'_> {
             return String::new();
         };
         let receiver_type = self.receiver_value_type(receiver);
+        if let Some(ValueType::Descriptor(_)) = &receiver_type {
+            let receiver = self.expression(receiver);
+            return match self.text(member) {
+                "name" => format!("({receiver}).name.to_owned()"),
+                "kind" => format!("({receiver}).kind.to_owned()"),
+                "identity" => format!("({receiver}).identity.to_owned()"),
+                _ => String::new(),
+            };
+        }
+        if matches!(
+            receiver_type,
+            Some(ValueType::Function(_, _) | ValueType::AsyncFunction(_, _))
+        ) && self.text(member) == "effects"
+        {
+            let effects = self
+                .unit
+                .functions
+                .iter()
+                .find(|contract| contract.name == self.text(receiver))
+                .map(|contract| {
+                    contract
+                        .effects
+                        .iter()
+                        .map(|effect| format!("{effect:?}").to_lowercase())
+                        .collect::<Vec<_>>()
+                        .join(",")
+                })
+                .unwrap_or_default();
+            return format!("{effects:?}.to_owned()");
+        }
         if let Some(length) =
             self.direct_string_view_length(receiver, receiver_type.clone(), member)
         {
@@ -4945,6 +5011,8 @@ fn rust_value_type(ty: ValueType) -> String {
         ValueType::Task(result) => {
             format!("std::pin::Pin<Box<dyn Future<Output = {}>>>", rust_element_type(result))
         }
+        ValueType::Descriptor(_) => "TerraneDescriptor".to_owned(),
+        ValueType::Capability(_) => "TerraneCapability".to_owned(),
         ValueType::Object(name) => rust_object_name(&name),
         ValueType::SharedReference(item) => format!(
             "std::sync::Arc<parking_lot::Mutex<{}>>",

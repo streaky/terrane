@@ -70,6 +70,7 @@ pub struct Namespace {
 pub struct SemanticPackage {
     pub identity: String,
     pub prelude: bool,
+    pub reflection: crate::package::ReflectionProfile,
     pub namespaces: BTreeMap<String, Namespace>,
     pub globals: BTreeMap<String, Symbol>,
     pub prelude_bindings: BTreeMap<String, Symbol>,
@@ -147,6 +148,8 @@ pub enum ValueType {
     Encoding,
     Function(Vec<ElementType>, ElementType),
     AsyncFunction(Vec<ElementType>, ElementType),
+    Descriptor(String),
+    Capability(Effect),
     Task(ElementType),
     Object(String),
     Reference(ElementType),
@@ -283,6 +286,16 @@ impl std::fmt::Display for ValueType {
                 write!(formatter, " to {result}")
             }
             Self::Task(result) => write!(formatter, "task of {result}"),
+            Self::Descriptor(_) => formatter.write_str("descriptor"),
+            Self::Capability(effect) => write!(formatter, "capability of {}", match effect {
+                Effect::Throws => "throws",
+                Effect::Io => "io",
+                Effect::Blocks => "blocks",
+                Effect::Awaits => "awaits",
+                Effect::Mutates => "mutates",
+                Effect::Unsafe => "unsafe",
+                Effect::Foreign => "foreign",
+            }),
             Self::Object(name) => formatter.write_str(name),
             Self::Reference(item) => write!(formatter, "ref {}", item.value_type()),
             Self::SharedReference(item) => write!(formatter, "shared ref {}", item.value_type()),
@@ -748,6 +761,7 @@ pub fn analyze(package: &Package) -> Result<SemanticPackage, SemanticFailure> {
     let mut semantic = SemanticPackage {
         identity: package.identity.clone(),
         prelude: package.prelude,
+        reflection: package.reflection,
         namespaces,
         globals,
         prelude_bindings,
@@ -2694,6 +2708,16 @@ fn validate_call_arguments(
         }
         let value = argument.children.last().unwrap_or(argument);
         if let Some(expected) = parameter.value_type.clone() {
+            if matches!(expected, ValueType::Capability(_))
+                && unary_operator_text(unit, value).as_deref() != Some("move")
+            {
+                return Err(failure(
+                    &unit.source,
+                    "T0072",
+                    "linear capability arguments must be transferred with `move`",
+                    value.span,
+                ));
+            }
             if contextual_collection_constructor_matches(unit, value, &expected, bindings) {
                 validate_collection_constructor_value(
                     unit,
@@ -3330,18 +3354,17 @@ fn validate_descriptor_value_node(
         ));
     }
     if !descriptor_context
-        && node.kind == SyntaxKind::Name
-        && node_text(&unit.source, node) != "none"
-        && (descriptor_expression_type(package, unit, node).is_some()
-            || descriptor_expression_category(package, unit, node).is_some())
+        && node.kind == SyntaxKind::MemberExpression
+        && node.children.first().is_some_and(|receiver| {
+            descriptor_expression_type(package, unit, receiver).is_some()
+                || descriptor_expression_category(package, unit, receiver).is_some()
+        })
+        && package.reflection == crate::package::ReflectionProfile::Minimal
     {
         return Err(failure(
             &unit.source,
-            "T0019",
-            format!(
-                "type descriptor `{}` is a compile-time construct and cannot be used as a runtime value",
-                node_text(&unit.source, node).trim_start_matches('.')
-            ),
+            "T0070",
+            "the selected minimal profile does not retain reflection metadata",
             node.span,
         ));
     }
@@ -4235,6 +4258,20 @@ fn analyze_binding_node(
     let storage_type = (value_type == ValueType::Scalar(ScalarType::Int))
         .then(|| initializer.and_then(|value| small_int_storage(unit, value, inferred.clone())))
         .flatten();
+    if matches!(value_type, ValueType::Capability(_))
+        && initializer.is_some()
+        && initializer
+            .and_then(|value| unary_operator_text(unit, value))
+            .as_deref()
+            != Some("move")
+    {
+        return Err(failure(
+            &unit.source,
+            "T0072",
+            "linear capabilities cannot be copied or forged; transfer one with `move`",
+            initializer.expect("checked capability initializer").span,
+        ));
+    }
 
     bindings.push(TypedBinding {
         name,
@@ -4360,6 +4397,18 @@ fn parse_declared_value_type(
         {
             return Some(construct(scalar));
         }
+    }
+    if let Some(effect) = type_name.strip_prefix("capability of ").and_then(|name| match name.trim() {
+        "throws" => Some(Effect::Throws),
+        "io" => Some(Effect::Io),
+        "blocks" => Some(Effect::Blocks),
+        "awaits" => Some(Effect::Awaits),
+        "mutates" => Some(Effect::Mutates),
+        "unsafe" => Some(Effect::Unsafe),
+        "foreign" => Some(Effect::Foreign),
+        _ => None,
+    }) {
+        return Some(ValueType::Capability(effect));
     }
     for (constructor, construct) in [
         ("list of ", ValueType::List as fn(ElementType) -> ValueType),
@@ -4962,6 +5011,16 @@ fn infer_value_type(
         let name = node_text(&unit.source, node);
         if name == "none" {
             return Ok(Some(ValueType::Scalar(ScalarType::None)));
+        }
+        if let Some(scalar) = ScalarType::from_source_name(name).or_else(|| {
+            visible_descriptor_aliases(&unit.descriptor_aliases, unit.source.id(), node.span.start)
+                .get(name)
+                .copied()
+        }) {
+            return Ok(Some(ValueType::Descriptor(scalar.source_name().to_owned())));
+        }
+        if unit.objects.iter().any(|object| object.name == name) {
+            return Ok(Some(ValueType::Descriptor(name.to_owned())));
         }
         if let Some(binding) = bindings.iter().rev().find(|binding| {
             binding.name == name && binding.is_visible_at(unit.source.id(), node.span.start)
@@ -5797,6 +5856,26 @@ fn infer_member_value_type(
     };
     let member_name = node_text(&unit.source, member);
     let receiver_type = infer_receiver_value_type(unit, receiver, bindings)?;
+    if let Some(ValueType::Descriptor(_)) = &receiver_type {
+        return match member_name {
+            "name" | "kind" | "identity" => {
+                Ok(Some(ValueType::Scalar(ScalarType::String)))
+            }
+            _ => Err(failure(
+                &unit.source,
+                "T0071",
+                format!("descriptor has no retained member `{member_name}`"),
+                member.span,
+            )),
+        };
+    }
+    if matches!(
+        receiver_type,
+        Some(ValueType::Function(_, _) | ValueType::AsyncFunction(_, _))
+    ) && member_name == "effects"
+    {
+        return Ok(Some(ValueType::Scalar(ScalarType::String)));
+    }
     if let Some(ValueType::Object(object_name)) = &receiver_type {
         return object_member_type(unit, object_name, member_name)
             .map(Some)

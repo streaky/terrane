@@ -1,0 +1,5 @@
+namespace descriptor-reflection
+
+function main
+  descriptor = int
+  print; descriptor.name, descriptor.kind, descriptor.identity

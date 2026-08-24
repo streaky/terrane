@@ -1,0 +1,4 @@
+package = "minimal-reflection-profile"
+reflection = "minimal"
+[namespaces]
+app = "app"

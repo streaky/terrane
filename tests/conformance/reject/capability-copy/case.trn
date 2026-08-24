@@ -1,0 +1,6 @@
+namespace capability-copy
+
+function duplicate; authority capability of io
+  copied capability of io = authority
+
+function main

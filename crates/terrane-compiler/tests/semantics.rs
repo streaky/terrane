@@ -3,7 +3,8 @@ use std::path::PathBuf;
 use terrane_compiler::semantics::SymbolKind;
 use terrane_compiler::syntax::SyntaxKind;
 use terrane_compiler::{
-    EvaluationKind, Package, ScalarType, SourceFile, SourceUnit, ValueType, analyze,
+    EvaluationKind, Package, ReflectionProfile, ScalarType, SourceFile, SourceUnit, ValueType,
+    analyze,
 };
 
 fn package(prelude: bool, sources: &[(&str, &str)]) -> Package {
@@ -11,6 +12,7 @@ fn package(prelude: bool, sources: &[(&str, &str)]) -> Package {
         identity: "semantic-test".to_owned(),
         root: PathBuf::from("."),
         prelude,
+        reflection: ReflectionProfile::Ordinary,
         units: sources
             .iter()
             .enumerate()
@@ -182,26 +184,28 @@ fn prelude_has_exact_ordinary_bindings_and_can_be_disabled() {
 }
 
 #[test]
-fn descriptor_constructs_cannot_be_renamed_by_value_bindings() {
+fn descriptor_constructs_materialize_as_reflection_values() {
     for declaration in ["byte = int8", "constant byte = int8"] {
         let source = format!("namespace app\n{declaration}\n");
-        let failure = analyze(&package(false, &[("main.trn", &source)])).unwrap_err();
-        assert_eq!(failure.diagnostics[0].code, "T0019", "{declaration}");
+        let analyzed = analyze(&package(false, &[("main.trn", &source)])).unwrap();
         assert_eq!(
-            failure.diagnostics[0].message,
-            "type descriptor `int8` is a compile-time construct and cannot be used as a runtime value",
+            analyzed.units[0].typed_bindings[0].value_type,
+            ValueType::Descriptor("int8".to_owned()),
             "{declaration}"
         );
     }
 }
 #[test]
-fn descriptor_constructs_are_rejected_as_runtime_values() {
-    for runtime_use in ["print; int8", "result = int8 + 1", "result = consume; int8"] {
+fn descriptor_constructs_are_rejected_in_non_reflection_value_contexts() {
+    for (runtime_use, code) in [
+        ("result = int8 + 1", "T0011"),
+        ("result = consume; int8", "T0012"),
+    ] {
         let source = format!(
             "namespace app\nfrom /core/output import print\nfunction consume int; value int\n  return value\nfunction main\n  {runtime_use}\n"
         );
         let failure = analyze(&package(false, &[("main.trn", &source)])).unwrap_err();
-        assert_eq!(failure.diagnostics[0].code, "T0019", "{runtime_use}");
+        assert_eq!(failure.diagnostics[0].code, code, "{runtime_use}");
         assert_eq!(
             failure.diagnostics[0].primary.unwrap().start,
             source.rfind("int8").unwrap()

@@ -14,11 +14,18 @@ pub struct SourceUnit {
     pub expected_namespace: Option<String>,
 }
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum ReflectionProfile {
+    Ordinary,
+    Minimal,
+}
+
 #[derive(Clone, Debug)]
 pub struct Package {
     pub identity: String,
     pub root: PathBuf,
     pub prelude: bool,
+    pub reflection: ReflectionProfile,
     pub units: Vec<SourceUnit>,
 }
 
@@ -57,6 +64,7 @@ impl Package {
             identity: IMPLICIT_PACKAGE_ID.to_owned(),
             root,
             prelude: true,
+            reflection: ReflectionProfile::Ordinary,
             units: vec![SourceUnit {
                 relative_path,
                 source: SourceFile::new(0, path, text),
@@ -94,6 +102,7 @@ impl Package {
             identity: manifest.identity,
             root,
             prelude: manifest.prelude,
+            reflection: manifest.reflection,
             units,
         })
     }
@@ -102,6 +111,7 @@ impl Package {
 struct ParsedManifest {
     identity: String,
     prelude: bool,
+    reflection: ReflectionProfile,
     namespace_roots: Vec<NamespaceRoot>,
 }
 
@@ -128,7 +138,7 @@ fn parse_manifest(
     })?;
     let mut errors = Vec::new();
     for key in table.keys() {
-        if !matches!(key.as_str(), "package" | "prelude" | "namespaces") {
+        if !matches!(key.as_str(), "package" | "prelude" | "reflection" | "namespaces") {
             errors.push(manifest_error(
                 manifest_path,
                 text,
@@ -171,11 +181,26 @@ fn parse_manifest(
         }
         None => true,
     };
+    let reflection = match table.get("reflection") {
+        Some(toml::Value::String(value)) if value == "ordinary" => ReflectionProfile::Ordinary,
+        Some(toml::Value::String(value)) if value == "minimal" => ReflectionProfile::Minimal,
+        Some(_) => {
+            errors.push(manifest_error(
+                manifest_path,
+                text,
+                "`reflection` must be either `ordinary` or `minimal`",
+                Some("reflection"),
+            ));
+            ReflectionProfile::Ordinary
+        }
+        None => ReflectionProfile::Ordinary,
+    };
     let namespace_roots = parse_namespace_roots(manifest_path, text, &table, &mut errors);
     if errors.is_empty() {
         Ok(ParsedManifest {
             identity: identity.expect("validated package identity"),
             prelude,
+            reflection,
             namespace_roots,
         })
     } else {
