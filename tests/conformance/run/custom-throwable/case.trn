@@ -1,0 +1,18 @@
+namespace custom-throwable
+from /core/errors import throwable
+
+class config-error implements throwable
+  message string = ''
+  code int = 0
+  function construct; code int, message string
+    this.code = code
+    this.message = message
+
+function fail int throws config-error
+  throw config-error; 1234, >configuration failed
+
+function main
+  try
+    fail;
+  catch config-error
+    print; 'caught'

@@ -2539,23 +2539,49 @@ The final grammar should be validated against ordinary object/type matching befo
 
 ## 15. Errors and exceptional control flow
 
-### 15.1 Throwing
+### 15.1 Throwable objects and throwing
+
+Every value transferred by `throw` must conform to the structural `throwable` interface. There is
+no dynamic escape hatch for throwing an arbitrary value: when the compiler cannot prove
+conformance, the program is rejected.
+
+`throwable` provides the common observation and rendering contract:
 
 ```terrane
-throw error
+interface throwable
+  message string
+  cause throwable|none
+  function render string
 ```
 
-A constructed error may be thrown directly:
+The runtime additionally carries the concrete class descriptor and a source-context chain. The
+descriptor is the stable matching identity; `message` is human-readable and is never a matching
+key. The default `cause` is `none`, and the default rendering includes the concrete throwable name,
+message, cause chain, and source context. A class may refine rendering and add structured fields
+without weakening those guarantees.
+
+Throwable classes are otherwise ordinary classes. Their `construct` method may accept the data
+appropriate to that error:
 
 ```terrane
-throw file-error; path
+class config-error implements throwable
+  message string
+  path string
+
+  function construct; path string, message string
+    this.path = path
+    this.message = message
 ```
 
-Any object may technically be thrown in dynamic mode. Standard tooling expects thrown objects to implement the error protocol.
+The expression following `throw` is an ordinary expression. Consequently, throwing a newly
+constructed value uses the class object's normal invocation:
 
-All catchable failures implement a structural `error` interface carrying a stable `kind`, a human-readable `message`, an optional `cause`, and a source-context chain. `kind` is the matchable identity and is stable across releases; `message` is for humans and is not a matching key. Throwing uses a compiler-owned result propagation representation rather than native unwinding, so lowering stays deterministic and readable.
+```terrane
+throw config-error; path, >configuration is invalid
+```
 
-Strict mode may require an error-compatible object.
+This constructs `config-error` and transfers control carrying that instance. An existing throwable
+instance may be thrown directly with `throw error`.
 
 ### 15.2 Catching
 
@@ -2576,7 +2602,9 @@ finally
 
 Catch clauses are evaluated in source order. The written order is the executed order: the compiler never reorders clauses by specificity, and a clause made unreachable by an earlier one is a compile-time diagnostic rather than silently dead code.
 
-A catch object denotes a compatible error type or matcher — a concrete error descriptor or a declared error interface.
+A catch target denotes a compatible throwable type: a concrete class descriptor or a declared
+throwable interface. Catching by an interface accepts every conforming throwable. The compiler
+diagnoses a clause made unreachable by an earlier compatible target.
 
 Uncaught errors render the deterministic cause and source chain, then exit through the profile's failure policy.
 
@@ -2592,21 +2620,58 @@ Uncaught errors render the deterministic cause and source chain, then exit throu
 
 Behaviour during process abort, hardware failure, or unsafe Rust undefined behaviour cannot be guaranteed.
 
-### 15.4 Lowering model
+### 15.4 Inference, optional contracts, and lowering
 
-Recoverable source-language throws should lower primarily through Rust `Result`-like control flow, not Rust panic unwinding.
+The compiler infers the exact set of throwable classes that may escape each callable, including
+throws propagated from callees and excluding values consumed by compatible `catch` clauses.
+`finally` participates in the same control-flow analysis: a completion from `finally` replaces an
+earlier return or throw exactly as §15.3 specifies. This inference applies equally to private and
+exported callables; public source does not transcribe a fact the compiler already knows.
 
-The compiler may synthesise propagation code so source remains uncluttered.
+An optional `throws` clause is an upper-bound contract, written after the return type and before the
+parameter semicolon:
 
-A function's public contract records whether it may throw. The `throws` qualifier may declare that effect before `function`; otherwise it is inferred for non-public functions and must be written or compiler-generated in exported interface metadata. A direct call to a function proven not to throw is non-throwing. A call through a dynamic callable or interface whose contract does not explicitly exclude throwing is conservatively may-throw. Propagation remains implicit in source, but reflection and generated signatures expose it; generated Rust therefore uses `Result`-like propagation at every may-throw boundary.
+```terrane
+function load config throws config-error; path string
+```
 
-Rust panic is reserved for unrecoverable invariant failure, explicit panic, or a native dependency panic that is not translated.
+It means that every throwable which may escape `load` must conform to `config-error`. It does not
+declare that `load` currently throws, and omitting it does not mean non-throwing. If any statically
+reachable path may expose an incompatible throwable, compilation fails. A broad interface permits
+all of its conforming classes; a concrete class permits that class and compatible subclasses.
+Lower-level failures may be caught and translated while the callable boundary remains stable:
 
-### 15.5 Standard error objects
+```terrane
+function load config throws config-error; path string
+  try
+    return read-config; path
+  catch file-error as error
+    throw config-error; path, error.message
+```
 
-The `/core/errors` namespace defines the standard error protocol and the following language-mandated error objects:
+Callable compatibility compares the declared upper bound when one exists and the inferred escaping
+set otherwise. An implementation may expose fewer compatible throwable classes than its interface
+contract, never an incompatible one. A direct call proven to have an empty escaping set is
+non-throwing. A call through an erased callable whose throwable metadata is unavailable is rejected
+at a constrained boundary rather than optimistically assumed safe.
 
-| Object | Meaning | Operations that raise it | Required information |
+Reflection preserves two distinct facts: `throwable-contract`, containing the optional written
+upper bound, and `escaping-throwables`, containing the compiler-inferred concrete set for the current
+implementation. Documentation and tooling can therefore answer both “what does this API promise?”
+and “what can this implementation produce?”. Retaining the inferred summary does not require
+retaining a private body.
+
+Recoverable source throws lower through compiler-owned `Result`-like control flow rather than Rust
+panic unwinding. Propagation remains implicit in Terrane source, while generated signatures expose
+the inferred may-throw boundary. Rust panic is reserved for unrecoverable invariant failure,
+explicit panic, or an untranslated native dependency panic.
+
+### 15.5 Standard throwable classes
+
+The `/core/errors` namespace defines the compiler-owned `throwable` interface and the following
+language-mandated classes, each of which implements it:
+
+| Class | Meaning | Operations that raise it | Required information |
 |---|---|---|---|
 | `arithmetic-overflow` | A checked fixed-width arithmetic result is outside the receiver type's range. | Ordinary checked fixed-width addition, subtraction, multiplication, signed negation, increment/decrement, and signed `MIN / -1`. | operation and fixed-width type |
 | `division-by-zero` | An integer division or remainder operation has a zero divisor. | `/`, `%`, and `div-rem` for every integer type and arithmetic mode. | operation and numeric type |
@@ -2614,7 +2679,11 @@ The `/core/errors` namespace defines the standard error protocol and the followi
 | `negative-shift-count` | An integer shift count is negative. | Unbounded-`int` `<<` and `>>`. | attempted count and shift operation |
 | `coercion-error` | An explicit coercion has no result compatible with the requested destination, outside the integer-overflow case above. | `coerce` where the source value or text cannot be represented in the destination type, including parsing coercion from `string` and an out-of-range floating-point destination whose protocol does not declare infinity. | source value/type and destination type |
 
-Each is a subtype or conforming instance of `error`, is catchable through the ordinary `throw`/`catch` model, and has the standard `message` plus the structured information listed above. Implementations may attach additional diagnostic fields without changing program-visible matching. Names such as `file-error`, `not-found`, `config-error`, and `python-error` used elsewhere are package- or adapter-defined error objects, not additional implicit core errors.
+Each class has `message`, `cause`, deterministic source context, and the structured information
+listed above. Implementations may attach additional diagnostic fields without changing
+program-visible matching. Names such as `file-error`, `not-found`, `config-error`, and
+`python-error` used elsewhere are package- or adapter-defined throwable classes, not additional
+implicit core classes.
 
 
 
@@ -3131,9 +3200,10 @@ Build-time importer execution and runtime initialisation are separate, visible p
 
 ### 19.3 Effect metadata
 
-Functions and methods should expose inferred or declared effects through reflection:
+Functions and methods expose compiler-inferred effects through reflection:
 
-- may throw, carrying its typed error alternatives;
+- may throw, carrying the exact inferred escaping throwable set and any separately declared upper
+  bound;
 - performs I/O;
 - blocks;
 - awaits;
@@ -3144,9 +3214,16 @@ Functions and methods should expose inferred or declared effects through reflect
 
 Allocation is deliberately absent from this public vocabulary. Nearly every exported function allocates, so an `allocates` annotation carries no information at an API boundary while taxing every signature that crosses one. The compiler still tracks allocation internally, and a no-allocation profile may require it to be declared where the guarantee actually matters. `blocks` is retained for the opposite reason: once async exists, a blocking callee inside async code is a defect the checker should catch.
 
-Effect inference is permitted for private functions. Exported functions declare their public effect contract, and strict packages may require further effects to be declared.
+Inference applies to public and private functions alike. A written effect clause is meaningful only
+when it constrains the implementation rather than narrating an inferred fact. In particular,
+`throws T` is the optional throwable upper bound from §15.4. Strict profiles may require selected
+guarantees at public or foreign boundaries, but ordinary Terrane APIs do not transcribe inferred
+effects merely for documentation.
 
-`throws`, `async`, and other effects are part of callable type compatibility. An implementation may have fewer effects than its interface contract, never more. A dynamic callable with unknown effect metadata is treated as may-throw and otherwise unknown for capability checking rather than optimistically inferred safe.
+Effects are part of callable type compatibility. An implementation may have fewer effects than its
+interface contract, never more; an inferred throwable must satisfy a written `throws` upper bound.
+A dynamic callable with unavailable effect metadata is treated as may-throw and otherwise unknown
+for capability checking rather than optimistically inferred safe.
 
 This metadata supports optimisation, auditing, AI tooling, and target capability checks.
 

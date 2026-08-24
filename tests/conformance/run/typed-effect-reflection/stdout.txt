@@ -1,1 +1,7 @@
-1throws(error)
+1
+throwable
+
+throws(coercion-error)
+throwable
+coercion-error
+caught

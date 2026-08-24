@@ -193,7 +193,7 @@ fn main() {
             TerraneCompletion::Normal => {}
             TerraneCompletion::Error(__terrane_error_0) => {
                 let mut __terrane_handled_0 = false;
-                if !__terrane_handled_0 {
+                if !__terrane_handled_0 && __terrane_error_0.kind == TerraneErrorKind::SourceError {
                     __terrane_handled_0 = true;
                     println!("{}", terrane_scalar_support::scalar_text(&(String::from("zero"))));
                 }

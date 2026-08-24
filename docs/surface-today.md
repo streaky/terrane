@@ -48,16 +48,16 @@ Terrane package
 │   │   │   ├── overflow-result                compiler-supplied result type
 │   │   │   └── div-rem-result                 compiler-supplied result type
 │   │   ├── /core/errors
-│   │   │   ├── error                          catch-all structural interface
-│   │   │   ├── arithmetic-overflow            catchable error object
-│   │   │   ├── division-by-zero               catchable error object
-│   │   │   ├── integer-conversion-overflow    catchable error object
-│   │   │   ├── negative-shift-count           catchable error object
-│   │   │   ├── resource-error                 catchable error object
-│   │   │   ├── coercion-error                 catchable error object
-│   │   │   ├── decode-error                   catchable error object
-│   │   │   ├── index-error                    catchable collection lookup error
-│   │   │   └── missing-key                    catchable map lookup error
+│   │   │   ├── throwable                      catch-all throwable interface
+│   │   │   ├── arithmetic-overflow            compiler-owned throwable class
+│   │   │   ├── division-by-zero               compiler-owned throwable class
+│   │   │   ├── integer-conversion-overflow    compiler-owned throwable class
+│   │   │   ├── negative-shift-count           compiler-owned throwable class
+│   │   │   ├── resource-error                 compiler-owned throwable class
+│   │   │   ├── coercion-error                 compiler-owned throwable class
+│   │   │   ├── decode-error                   compiler-owned throwable class
+│   │   │   ├── index-error                    compiler-owned throwable class
+│   │   │   └── missing-key                    compiler-owned throwable class
 │   │   ├── /core/encodings
 │   │   │   ├── utf8                           encoding object
 │   │   │   ├── utf16-le                       encoding object
@@ -396,7 +396,7 @@ value is a D
 
 For an ordinary typed scalar, both forms compare its resolved canonical Terrane type with `D`. For a numeric constant, `value is a D` tests whether the constant is exactly admissible by `D`; for a numeric union binding, it tests the current runtime arm. The right-hand descriptor is resolved statically, and an unresolvable name fails with `T0001`. Scalar values themselves are identity-less: `is` between ordinary scalar values is false even when their values and types are equal. Operand expressions are still evaluated for their effects.
 
-Descriptor constructs are not runtime values and cannot be assigned to source bindings. An explicit import may bind a canonical descriptor under another name without creating a new descriptor.
+Descriptor names remain compile-time identities in ordinary type positions. When reflection or dynamic descriptor observation requires a value, the compiler materializes the canonical descriptor object; source bindings may retain and print that object, and `.name` exposes its canonical source spelling. An explicit import or constant alias retains the same descriptor identity rather than creating a new descriptor.
 
 ## Functions
 
@@ -530,14 +530,14 @@ typed children, signatures, and availability constraints. Semantic analysis reso
 family before lowering; generated Rust erases it to a direct function or support operation.
 Family selections must be invoked in the same expression.
 
-The `/core/errors` interface and error objects are runtime identities used by `throw`,
-`try`, `catch`, and `finally`. Arithmetic and coercion failures enter the same typed
-result-propagation path and are catchable. Function effects are inferred transitively, while an
-explicit `throws` qualifier guarantees the result-propagation calling convention even for a body
-that does not currently throw. Generated errors carry a closed typed kind, message, optional cause,
-and deterministic namespace/function/source-context chain; source-level field access is not
-implemented yet, so `catch ... as name` is rejected with `T0027` rather than creating an error value
-that cannot be used.
+The `/core/errors::throwable` interface, compiler-owned standard throwable classes, and ordinary
+user classes that implement `throwable` are runtime identities used by `throw`, `try`, `catch`, and
+`finally`. A custom throwable supplies `message` and may carry its own source-declared fields.
+Arithmetic, coercion, decoding, and collection failures enter the same typed result-propagation
+path and are catchable. Callable effects and exact escaping throwable alternatives are inferred
+transitively after catches and `finally` replacement. A postfix `throws T` clause is an optional
+upper-bound contract: every escaping throwable must implement `T`. Reflection exposes the declared
+bound separately from the inferred escaping set.
 
 ## Major planned surface absent today
 
@@ -545,8 +545,8 @@ The authoritative language draft proposes a much larger ontology. None of the fo
 
 ```text
 collection checked lookup children and source-visible typed lookup errors
-reflection beyond canonical scalar `.type`
-user-defined error objects, source-visible error fields, and error hierarchies
+reflection inventories beyond retained callable effects, throwable alternatives, and canonical descriptor identity
+source-visible standard-error fields, causes, and error hierarchies
 bytes indexing and slicing
 user-authored implementations of general iteration protocols
 user-declared type parameters and generic application

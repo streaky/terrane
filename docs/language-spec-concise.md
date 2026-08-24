@@ -531,17 +531,28 @@ for i = 0; i < limit; i++
 ## ERROR / EFFECT
 
 ```terrane
-throw error
-try
-  ...
-catch some-error as error
-  ...
-finally
-  ...
+class config-error implements throwable
+  message string
+  path string
+  function construct; path string, message string
+    this.path = path
+    this.message = message
+
+function load config throws config-error; path string
+  try
+    return read-config; path
+  catch file-error as error
+    throw config-error; path, error.message
 ```
 
-- Recoverable source throws lower primarily via Rust `Result`-like flow, not panic.
-- `/core/errors` defines the standard error protocol and EXACTLY these language-mandated error objects:
+- Every thrown value MUST statically conform to structural `throwable`; arbitrary dynamic values are
+  never throwable.
+- `throw expression` throws an existing instance; `throw class; args` ordinarily invokes the class
+  constructor and throws the resulting instance.
+- `throwable` surface: `message string`, `cause throwable|none`, `render string`; runtime also retains
+  the concrete descriptor and deterministic source-context chain. Descriptor identity, never
+  message text, drives matching.
+- `/core/errors` defines `throwable` and EXACTLY these language-mandated implementing classes:
 
 ```text
 arithmetic-overflow          checked fixed-width result outside receiver range, incl. signed MIN / -1
@@ -551,25 +562,35 @@ negative-shift-count         negative shift count on unbounded int << >>
 coercion-error               coercion has no compatible result outside the overflow case above
 ```
 
-- All catchable failures implement a structural `error` interface: stable `kind`, human-readable `message`, optional `cause`, and a source-context chain.
-- `catch` clauses are tried in source order; a clause made unreachable by an earlier one is a compile-time diagnostic, never a silent reorder.
+- `catch` clauses are tried in source order against compatible classes/interfaces; an unreachable
+  later clause is a compile-time diagnostic.
 - `finally` always runs and may replace a pending outcome only by explicitly returning or throwing.
-- Uncaught rendering prints the deterministic cause/source chain and exits through the profile's failure policy.
-- Each core error is catchable, carries `message` plus structured operation/type detail, and `int` representation promotion raises none of them. Any other dotted error name (`file-error`, `not-found`, `python-error`) is package- or adapter-defined, never an implicit core error.
-- Panic is separate fatal mechanism.
-- Exported may-throw functions expose `throws`; non-throwing callable contracts reject may-throw implementations.
-- Effect vocabulary is a closed compiler-known set plus typed thrown-error alternatives:
+- Each core throwable carries `message`, `cause`, context, and structured operation/type detail;
+  other throwable classes are declared by packages/adapters, never implicitly synthesized.
+- Recoverable throws lower through compiler-owned Rust `Result`-like flow; panic is separate and
+  fatal.
+- Compiler infers the exact escaping throwable set transitively for every callable, public or
+  private, after catches and `finally` replacement.
+- Optional postfix `function name Return throws T; parameters` is an upper-bound contract, NOT
+  effect narration: every escaping throwable must conform to T or compilation fails. Omission means
+  inference, not `nothrow`.
+- Reflection separately exposes `throwable-contract` (written upper bound, if any) and
+  `escaping-throwables` (current inferred concrete set), even when private bodies are stripped.
+- Callable compatibility admits fewer compatible throwables, never an incompatible one.
+- Effect vocabulary is closed:
 
 ```yaml
-effects: throws E | io | blocks | awaits | mutates | unsafe | foreign
-allocates: NOT a public effect; compiler-internal fact only, because nearly every exported function allocates
-allocates_profile: a no-allocation profile may require it declared where the guarantee matters
-blocks_reason: retained because a blocking callee inside async code is a defect worth diagnosing
+effects: throws | io | blocks | awaits | mutates | unsafe | foreign
+throwable_contract: optional written upper bound
+escaping_throwables: compiler-inferred concrete set
+allocates: NOT a public effect; compiler-internal fact only
+blocks_reason: blocking inside async is diagnosable
 purity: a caller may call only effect-subset callees
 capability: capabilities authorize effects; they are not themselves effects
-inference: permitted for private functions; exported functions declare their public effect contract
+inference: applies to public and private functions; annotations constrain rather than narrate
 ```
-- Uncaught errors retain source-oriented stack traces; foreign errors preserve native traceback/details.
+- Uncaught throwables render deterministic cause/source chains; foreign failures preserve native
+  traceback/details after translation to a declared throwable class.
 
 ## COLLECTION / TEXT
 

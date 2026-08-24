@@ -1,7 +1,7 @@
 namespace declared-throws-effect
-from /core/errors import error
+from /core/errors import throwable
 
-throws error function declared int
+function declared int throws throwable
   return 1
 
 function middle int

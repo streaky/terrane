@@ -156,8 +156,19 @@ fn prelude_has_exact_ordinary_bindings_and_can_be_disabled() {
     assert_eq!(
         names,
         [
-            "bool", "bytes", "float", "int", "none", "print", "string", "utf16-be", "utf16-le",
-            "utf32-be", "utf32-le", "utf8",
+            "bool",
+            "bytes",
+            "float",
+            "int",
+            "none",
+            "print",
+            "string",
+            "task-scope",
+            "utf16-be",
+            "utf16-le",
+            "utf32-be",
+            "utf32-le",
+            "utf8",
         ]
     );
 
@@ -248,16 +259,16 @@ fn core_error_registry_distinguishes_the_interface_and_mandated_objects() {
             "coercion-error",
             "decode-error",
             "division-by-zero",
-            "error",
             "index-error",
             "integer-conversion-overflow",
             "missing-key",
             "negative-shift-count",
+            "throwable",
         ]
     );
-    assert_eq!(errors["error"].kind, SymbolKind::Interface);
+    assert_eq!(errors["throwable"].kind, SymbolKind::Interface);
     for (name, symbol) in errors {
-        if name != "error" {
+        if name != "throwable" {
             assert_eq!(symbol.kind, SymbolKind::ErrorObject, "{name}");
         }
     }

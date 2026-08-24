@@ -11,6 +11,7 @@ IndexError,
 MissingKey,
 ResourceError,
 SourceError,
+Custom(&'static str),
 }
 impl TerraneErrorKind {
 fn from_source_name(name: &str) -> Self {
@@ -39,6 +40,7 @@ Self::IndexError => ".index-error",
 Self::MissingKey => ".missing-key",
 Self::ResourceError => ".resource-error",
 Self::SourceError => ".error",
+Self::Custom(name) => name,
 }
 }
 }
@@ -118,24 +120,33 @@ Break,
 Continue,
 }
 // Source: case.trn
-// Namespace: typed-effect-reflection
-fn fallible() -> terrane_int_support::Int {
-    return terrane_int_support::Int::from(1_i128);
+// Namespace: custom-throwable
+#[derive(Clone)]
+pub struct ConfigError {
+    pub message: String,
+    pub code: terrane_int_support::Int,
 }
-fn exact() -> Result<terrane_int_support::Int, TerraneError> {
-    return Err(TerraneError::new(TerraneErrorKind::CoercionError, "coercion has no compatible result").at("/typed-effect-reflection::exact (case.trn:8:3)"));
+impl ConfigError {
+    pub fn terrane_construct(code: terrane_int_support::Int, message: String) -> Self {
+        let mut value = Self {
+            message: String::from(""),
+            code: terrane_int_support::Int::from(0_i128),
+        };
+        value.construct(code, message);
+        value
+    }
+    pub fn construct(&mut self, code: terrane_int_support::Int, message: String) {
+        self.code = code.clone();
+        self.message = message;
+    }
+}
+fn fail() -> Result<terrane_int_support::Int, TerraneError> {
+    return Err(TerraneError::new(TerraneErrorKind::Custom("config-error"), "source error").at("/custom-throwable::fail (case.trn:12:3)"));
 }
 fn main() {
-    let value: terrane_int_support::Int = fallible();
-    println!("{}{}", terrane_scalar_support::scalar_text(&(value)), terrane_scalar_support::scalar_text(&("".to_owned())));
-    println!("{}", terrane_scalar_support::scalar_text(&("throwable".to_owned())));
-    println!("{}", terrane_scalar_support::scalar_text(&("".to_owned())));
-    println!("{}", terrane_scalar_support::scalar_text(&("throws(coercion-error)".to_owned())));
-    println!("{}", terrane_scalar_support::scalar_text(&("throwable".to_owned())));
-    println!("{}", terrane_scalar_support::scalar_text(&("coercion-error".to_owned())));
     let __terrane_completion_0: TerraneCompletion<()> = (|| {
         let __terrane_try_0: TerraneCompletion<()> = (|| {
-            match exact() { Ok(value) => value, Err(error) => return TerraneCompletion::Error(error.at("/typed-effect-reflection::main (case.trn:19:5)")) };
+            match fail() { Ok(value) => value, Err(error) => return TerraneCompletion::Error(error.at("/custom-throwable::main (case.trn:16:5)")) };
             TerraneCompletion::Normal
         })();
         match __terrane_try_0 {
@@ -145,7 +156,7 @@ fn main() {
             TerraneCompletion::Normal => {}
             TerraneCompletion::Error(__terrane_error_0) => {
                 let mut __terrane_handled_0 = false;
-                if !__terrane_handled_0 && __terrane_error_0.kind == TerraneErrorKind::CoercionError {
+                if !__terrane_handled_0 && __terrane_error_0.kind == TerraneErrorKind::Custom("config-error") {
                     __terrane_handled_0 = true;
                     println!("{}", terrane_scalar_support::scalar_text(&(String::from("caught"))));
                 }

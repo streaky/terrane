@@ -981,25 +981,26 @@ and arguments.
 
 Deliver:
 
-- the structural `error` interface with stable `kind`, human-readable `message`, optional `cause`, and a source-context chain;
+- the compiler-owned `throwable` structural interface with human-readable `message`, optional
+  `cause`, rendering, concrete descriptor identity, and a source-context chain;
 - `throw`, `try`, `catch`, and `finally` over a compiler-owned result propagation representation rather than native unwinding;
 - catch matching in source order, with a compile-time diagnostic for a clause made unreachable by an earlier one;
 - `finally` semantics that always run and may replace a pending outcome only by explicitly returning or throwing;
-- construction and catchability for the reserved `/core/errors` objects, converting the existing deterministic arithmetic and coercion failures onto this path;
+- construction and catchability for the reserved `/core/errors` throwable classes, converting the existing deterministic arithmetic and coercion failures onto this path;
 - deterministic uncaught rendering of the cause and source chain, preserving the current outermost reporting policy and exit code.
 
 Exit criterion: an arithmetic overflow and a failed coercion are catchable, a rethrow preserves the cause chain, uncaught output is unchanged from the current normative text, and generated Rust contains no panic-based control flow for recoverable failures.
 
-Implemented evidence: `throw`, ordered typed and catch-all `catch`, `try`, bare rethrow, and
-`finally` lower through compiler-owned completion and `Result` flow rather than unwinding. A written
-`throws` qualifier places the declared function on that result path even when its current body does
-not throw, and its effect propagates transitively to callers. Generated errors use a typed closed
-kind, message, optional cause, and deterministic namespace/function/source context chain; arithmetic
-and exact-conversion failures enter the same propagation path when recoverable. Conformance cases
-catch overflow and failed conversion, exercise checked callback failure, declared and inferred
-effects, bare rethrow, catch-all ordering, and unconditional finally execution. A CLI runtime case
-observes a chained uncaught error with Terrane frames and the established exit status; reviewed Rust
-goldens contain no panic-based recoverable control flow.
+Implemented evidence at milestone completion: `throw`, ordered typed and catch-all `catch`, `try`,
+bare rethrow, and `finally` lowered through compiler-owned completion and `Result` flow rather than
+unwinding. The first implementation used a closed compiler-owned error kind and a prefix `throws`
+declaration. Milestone 18 deliberately replaces those provisional restrictions with ordinary
+throwable classes, inferred escaping sets, and optional postfix upper-bound contracts. Arithmetic
+and exact-conversion failures already enter the shared recoverable propagation path. Conformance
+cases catch overflow and failed conversion, exercise checked callback failure, bare rethrow,
+catch-all ordering, and unconditional finally execution. A CLI runtime case observes a chained
+uncaught throwable with Terrane frames and the established exit status; reviewed Rust goldens
+contain no panic-based recoverable control flow.
 
 ### Milestone 10 — Named bounded-arithmetic families
 
@@ -1228,13 +1229,29 @@ derived-provenance coverage, and borrow-oriented lowering remain outstanding.
 
 Deliver:
 
-- the closed effect vocabulary `throws E`, `io`, `blocks`, `awaits`, `mutates`, `unsafe`, and `foreign`, with allocation tracked internally rather than declared publicly;
+- the closed effect vocabulary `throws`, `io`, `blocks`, `awaits`, `mutates`, `unsafe`, and `foreign`, with allocation tracked internally rather than declared publicly;
+- exact transitive throwable-set inference for public and private callables, after catch handling and
+  `finally` replacement; optional postfix `throws T` is an upper-bound compatibility contract rather
+  than required effect narration;
+- ordinary user-declared classes implementing `/core/errors::throwable`, with standard errors
+  migrated to compiler-owned implementing classes and arbitrary non-throwable values rejected;
+- reflection that exposes a callable's optional declared throwable bound separately from its
+  inferred escaping throwable set;
 - descriptor materialisation: reflection is the case that requires a canonical descriptor object at runtime, so this milestone supplies what milestone 4.6 deliberately does not. A statically resolved descriptor still lowers to nothing; a profile that strips reflection metadata removes the materialisation, not the identity;
-- effect inference for private functions and declared public effect contracts for exported ones;
 - capability objects that authorize effects without being effects, as linear authority values never synthesised from descriptive profile metadata;
 - retained descriptor identity and public callable/type metadata in ordinary profiles, stripped private bodies and unrequested inventories, and a compile-time failure when code requests metadata a profile does not retain.
 
 Exit criterion: a pure caller cannot call an effectful callee, a capability cannot be forged from profile data, and a minimal profile rejects an unavailable reflection request at compile time.
+
+Implemented evidence: callable contracts retain the closed effect set and infer it through the call
+graph; typed escaping throwables are computed after catches and `finally`, checked against optional
+postfix `throws T` bounds, and exposed separately from those declared bounds. Standard and
+user-declared `throwable` implementations share the structured-error pipeline. Descriptor values
+materialize only when observed. Capability parameters are linear and profile reflection remains
+descriptive rather than authority-bearing; minimal reflection profiles reject metadata access.
+Focused accepted and rejected conformance cases cover transitive effects, catch/finally throwable
+sets, custom throwables, incompatible bounds, descriptor materialization, capability forgery,
+linearity, and stripped reflection.
 
 ### Milestone 19 — Async core: tasks, scope, cancellation, and deadlines
 
@@ -1250,6 +1267,13 @@ Deliver:
 - borrow and linear-resource rules across suspension.
 
 Exit criterion: a cancelled scope joins its children and reports partial progress; a nested deadline cannot be extended; and no borrow crosses suspension without a proven lifetime.
+
+Implemented evidence: async callables, postfix `await`, linear task values, structured task scopes,
+cooperative cancellation, partial-progress outcomes, monotonic deadlines, executor profiles, and
+suspension ownership checks run through the shared parser, semantic model, and Rust lowering.
+Accepted and rejected conformance cases cover async/sync type incompatibility, task consumption,
+throwing children with surviving siblings, cancellation joining, nested deadline extension,
+non-owning references across suspension, and linear capabilities held across suspension.
 
 ### Milestone 20 — Byte and text streams and process standard streams
 

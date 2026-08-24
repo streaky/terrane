@@ -291,15 +291,19 @@ impl std::fmt::Display for ValueType {
             }
             Self::Task(result) => write!(formatter, "task of {result}"),
             Self::Descriptor(_) => formatter.write_str("descriptor"),
-            Self::Capability(effect) => write!(formatter, "capability of {}", match effect {
-                Effect::Throws => "throws",
-                Effect::Io => "io",
-                Effect::Blocks => "blocks",
-                Effect::Awaits => "awaits",
-                Effect::Mutates => "mutates",
-                Effect::Unsafe => "unsafe",
-                Effect::Foreign => "foreign",
-            }),
+            Self::Capability(effect) => write!(
+                formatter,
+                "capability of {}",
+                match effect {
+                    Effect::Throws => "throws",
+                    Effect::Io => "io",
+                    Effect::Blocks => "blocks",
+                    Effect::Awaits => "awaits",
+                    Effect::Mutates => "mutates",
+                    Effect::Unsafe => "unsafe",
+                    Effect::Foreign => "foreign",
+                }
+            ),
             Self::Object(name) => formatter.write_str(name),
             Self::ScopedTask(result) => write!(formatter, "scoped task of {result}"),
             Self::TaskScope => formatter.write_str("task-scope"),
@@ -468,7 +472,10 @@ pub enum Effect {
     Foreign,
 }
 
-
+#[expect(
+    clippy::struct_excessive_bools,
+    reason = "callable contracts retain independent source-visible binary qualifiers"
+)]
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct FunctionContract {
     pub name: String,
@@ -481,6 +488,7 @@ pub struct FunctionContract {
     pub declared_effects: BTreeSet<Effect>,
     pub exported: bool,
     pub thrown_types: Vec<ValueType>,
+    pub escaping_throwables: BTreeSet<String>,
     pub throws: bool,
     pub is_async: bool,
     pub mutates_receiver: bool,
@@ -780,8 +788,8 @@ pub fn analyze(package: &Package) -> Result<SemanticPackage, SemanticFailure> {
     };
     validate_initializer_dependencies(&semantic)?;
     validate_references(&semantic)?;
-    validate_error_clauses(&semantic)?;
     analyze_types(&mut semantic)?;
+    validate_error_clauses(&semantic)?;
     validate_moves(&semantic)?;
     validate_reference_origins(&semantic)?;
     validate_referenced_replacements(&semantic)?;
@@ -802,20 +810,74 @@ pub fn analyze(package: &Package) -> Result<SemanticPackage, SemanticFailure> {
     Ok(semantic)
 }
 
+#[expect(
+    clippy::too_many_lines,
+    reason = "error validation keeps throw, catch, and finally rules in one ordered traversal"
+)]
 fn validate_error_clauses(package: &SemanticPackage) -> Result<(), SemanticFailure> {
+    #[expect(
+        clippy::too_many_lines,
+        reason = "the recursive visitor validates the complete structured-error boundary"
+    )]
     fn visit(
         package: &SemanticPackage,
         unit: &SemanticUnit,
         node: &SyntaxNode,
         in_catch: bool,
     ) -> Result<(), SemanticFailure> {
-        if node.kind == SyntaxKind::ThrowStatement && node.children.is_empty() && !in_catch {
-            return Err(failure(
-                &unit.source,
-                "T0020",
-                "bare `throw` is only valid inside a catch clause",
-                node.span,
-            ));
+        if node.kind == SyntaxKind::ThrowStatement {
+            if node.children.is_empty() {
+                if !in_catch {
+                    return Err(failure(
+                        &unit.source,
+                        "T0020",
+                        "bare `throw` is only valid inside a catch clause",
+                        node.span,
+                    ));
+                }
+            } else {
+                let thrown = &node.children[0];
+                let symbol = package.resolve_name_at(
+                    unit,
+                    thrown.span.start,
+                    node_text(&unit.source, thrown.children.first().unwrap_or(thrown)),
+                );
+                let standard = symbol.is_some_and(|symbol| symbol.kind == SymbolKind::ErrorObject);
+                let value_type = infer_value_type(unit, thrown, &unit.typed_bindings)?;
+                let object_name = match &value_type {
+                    Some(ValueType::Descriptor(name) | ValueType::Object(name)) => {
+                        Some(name.as_str())
+                    }
+                    _ if thrown.kind == SyntaxKind::CallExpression => thrown
+                        .children
+                        .first()
+                        .filter(|callee| callee.kind == SyntaxKind::Name)
+                        .map(|callee| node_text(&unit.source, callee)),
+                    _ => None,
+                };
+                let user_throwable = object_name.is_some_and(|name| {
+                    let name = name.rsplit_once("::").map_or(name, |(_, local)| local);
+                    package
+                        .units
+                        .iter()
+                        .flat_map(|candidate| &candidate.objects)
+                        .any(|object| {
+                            object.name == name
+                                && object
+                                    .interfaces
+                                    .iter()
+                                    .any(|interface| interface == "throwable")
+                        })
+                });
+                if !standard && !user_throwable {
+                    return Err(failure(
+                        &unit.source,
+                        "T0021",
+                        "thrown values must implement `throwable`",
+                        thrown.span,
+                    ));
+                }
+            }
         }
         if node.kind == SyntaxKind::TryStatement {
             let mut caught = BTreeSet::new();
@@ -858,13 +920,25 @@ fn validate_error_clauses(package: &SemanticPackage) -> Result<(), SemanticFailu
                 let valid = symbol.is_some_and(|symbol| {
                     symbol.kind == SymbolKind::ErrorObject
                         || (symbol.kind == SymbolKind::Interface
-                            && symbol.identity == "/core/errors::error")
+                            && symbol.identity == "/core/errors::throwable")
+                        || (matches!(symbol.kind, SymbolKind::Class | SymbolKind::TypeDescriptor)
+                            && package
+                                .units
+                                .iter()
+                                .flat_map(|unit| &unit.objects)
+                                .any(|object| {
+                                    object.name == symbol.name
+                                        && object
+                                            .interfaces
+                                            .iter()
+                                            .any(|interface| interface == "throwable")
+                                }))
                 });
                 if !valid {
                     return Err(failure(
                         &unit.source,
                         "T0021",
-                        format!("`{name}` is not an error descriptor"),
+                        format!("`{name}` is not a throwable descriptor"),
                         descriptor.span,
                     ));
                 }
@@ -877,7 +951,7 @@ fn validate_error_clauses(package: &SemanticPackage) -> Result<(), SemanticFailu
                         clause.span,
                     ));
                 }
-                catches_all = identity == "/core/errors::error";
+                catches_all = identity == "/core/errors::throwable";
             }
         }
         for child in &node.children {
@@ -2323,7 +2397,6 @@ fn validate_call_nodes<'a>(
         ));
     }
 
-
     validate_resolved_assignment(package, unit, node, contracts)?;
     validate_integer_coercion_call(unit, node, scoped_bindings)?;
     if node.kind == SyntaxKind::CallExpression
@@ -2364,24 +2437,26 @@ fn validate_call_nodes<'a>(
                 transparent_value_type(infer_value_type(unit, value, scoped_bindings)?);
             if !matches!(
                 value_type,
-                Some(ValueType::Scalar(
-                    ScalarType::Bool
-                        | ScalarType::Int
-                        | ScalarType::Int8
-                        | ScalarType::Int16
-                        | ScalarType::Int32
-                        | ScalarType::Int64
-                        | ScalarType::Int128
-                        | ScalarType::Uint8
-                        | ScalarType::Uint16
-                        | ScalarType::Uint32
-                        | ScalarType::Uint64
-                        | ScalarType::Uint128
-                        | ScalarType::Float32
-                        | ScalarType::Float64
-                        | ScalarType::String
-                        | ScalarType::None
-                ))
+                Some(
+                    ValueType::Scalar(
+                        ScalarType::Bool
+                            | ScalarType::Int
+                            | ScalarType::Int8
+                            | ScalarType::Int16
+                            | ScalarType::Int32
+                            | ScalarType::Int64
+                            | ScalarType::Int128
+                            | ScalarType::Uint8
+                            | ScalarType::Uint16
+                            | ScalarType::Uint32
+                            | ScalarType::Uint64
+                            | ScalarType::Uint128
+                            | ScalarType::Float32
+                            | ScalarType::Float64
+                            | ScalarType::String
+                            | ScalarType::None
+                    ) | ValueType::Descriptor(_)
+                )
             ) {
                 return Err(failure(
                     &unit.source,
@@ -2956,9 +3031,10 @@ fn analyze_object_contracts(
     }
     for object in &objects {
         let require_kind = |name: &str, expected: ObjectKind, role: &str| {
-            let valid = objects
-                .iter()
-                .any(|candidate| candidate.name == name && candidate.kind == expected);
+            let valid = (expected == ObjectKind::Interface && name == "throwable")
+                || objects
+                    .iter()
+                    .any(|candidate| candidate.name == name && candidate.kind == expected);
             valid.then_some(()).ok_or_else(|| {
                 failure(
                     &unit.source,
@@ -3030,6 +3106,24 @@ fn validate_object_conformance(package: &SemanticPackage) -> Result<(), Semantic
             .filter(|object| object.kind == ObjectKind::Class)
         {
             for interface_name in &object.interfaces {
+                if interface_name == "throwable" {
+                    let has_message = object.fields.iter().any(|field| {
+                        field.name == "message"
+                            && field.value_type == ValueType::Scalar(ScalarType::String)
+                    });
+                    if !has_message {
+                        return Err(failure(
+                            &unit.source,
+                            "T0062",
+                            format!(
+                                "class `{}` must provide a `message string` field to implement `throwable`",
+                                object.name
+                            ),
+                            object.span,
+                        ));
+                    }
+                    continue;
+                }
                 let interface = unit
                     .objects
                     .iter()
@@ -3201,6 +3295,8 @@ fn propagate_interface_receiver_mutability(package: &mut SemanticPackage) {
                 method.name.clone(),
             )) {
                 method.mutates_receiver = true;
+                method.effects.insert(Effect::Mutates);
+                method.declared_effects.insert(Effect::Mutates);
             }
         }
     }
@@ -3815,6 +3911,7 @@ fn analyze_function_contract(
         return_type,
         effects,
         thrown_types,
+        escaping_throwables: BTreeSet::new(),
         throws,
         is_async,
         mutates_receiver: mutates_object_receiver(unit, node),
@@ -3847,7 +3944,16 @@ fn infer_throwing_effects(package: &mut SemanticPackage) -> Result<(), SemanticF
                 .children
                 .first()
                 .and_then(|error| {
-                    package.resolve_name_at(unit, error.span.start, node_text(&unit.source, error))
+                    let descriptor = if error.kind == SyntaxKind::CallExpression {
+                        error.children.first().unwrap_or(error)
+                    } else {
+                        error
+                    };
+                    package.resolve_name_at(
+                        unit,
+                        descriptor.span.start,
+                        node_text(&unit.source, descriptor),
+                    )
                 })
                 .map(|symbol| symbol.identity.clone())
                 .into_iter()
@@ -3872,7 +3978,7 @@ fn infer_throwing_effects(package: &mut SemanticPackage) -> Result<(), SemanticF
                             node_text(&unit.source, descriptor),
                         )
                     {
-                        if symbol.identity == "/core/errors::error" {
+                        if symbol.identity == "/core/errors::throwable" {
                             errors.clear();
                         } else {
                             errors.remove(&symbol.identity);
@@ -3897,6 +4003,81 @@ fn infer_throwing_effects(package: &mut SemanticPackage) -> Result<(), SemanticF
         node.children
             .iter()
             .flat_map(|child| direct_errors(package, unit, child))
+            .collect()
+    }
+
+    fn escaping_errors(
+        package: &SemanticPackage,
+        unit: &SemanticUnit,
+        node: &SyntaxNode,
+        inferred: &BTreeMap<FunctionKey, BTreeSet<String>>,
+    ) -> BTreeSet<String> {
+        if node.kind == SyntaxKind::FunctionDeclaration {
+            return BTreeSet::new();
+        }
+        if node.kind == SyntaxKind::ThrowStatement {
+            return direct_errors(package, unit, node);
+        }
+        if node.kind == SyntaxKind::CallExpression
+            && let Some(callee) = node.children.first()
+            && callee.kind == SyntaxKind::Name
+            && let Some(symbol) =
+                package.resolve_name_at(unit, callee.span.start, node_text(&unit.source, callee))
+            && symbol.kind == SymbolKind::Function
+            && let Some(span) = symbol.declaration_span
+        {
+            let mut errors = inferred.get(&key(span)).cloned().unwrap_or_default();
+            errors.extend(
+                node.children
+                    .iter()
+                    .skip(1)
+                    .flat_map(|argument| escaping_errors(package, unit, argument, inferred)),
+            );
+            return errors;
+        }
+        if node.kind == SyntaxKind::TryStatement {
+            let mut errors = node.children.first().map_or_else(BTreeSet::new, |block| {
+                escaping_errors(package, unit, block, inferred)
+            });
+            let mut clauses_finished = false;
+            for child in node.children.iter().skip(1) {
+                if child.kind == SyntaxKind::CatchClause {
+                    let descriptor = child
+                        .children
+                        .first()
+                        .filter(|candidate| candidate.kind == SyntaxKind::Name);
+                    if let Some(descriptor) = descriptor
+                        && let Some(symbol) = package.resolve_name_at(
+                            unit,
+                            descriptor.span.start,
+                            node_text(&unit.source, descriptor),
+                        )
+                    {
+                        if symbol.identity == "/core/errors::throwable" {
+                            errors.clear();
+                        } else {
+                            errors.remove(&symbol.identity);
+                        }
+                    } else {
+                        errors.clear();
+                    }
+                    if let Some(block) = child.children.last() {
+                        errors.extend(escaping_errors(package, unit, block, inferred));
+                    }
+                    clauses_finished = true;
+                } else if child.kind == SyntaxKind::FinallyClause {
+                    if let Some(block) = child.children.last() {
+                        errors.extend(escaping_errors(package, unit, block, inferred));
+                    }
+                } else if !clauses_finished {
+                    errors.extend(escaping_errors(package, unit, child, inferred));
+                }
+            }
+            return errors;
+        }
+        node.children
+            .iter()
+            .flat_map(|child| escaping_errors(package, unit, child, inferred))
             .collect()
     }
 
@@ -3958,7 +4139,9 @@ fn infer_throwing_effects(package: &mut SemanticPackage) -> Result<(), SemanticF
     }
 
     let mut inferred = BTreeMap::<FunctionKey, BTreeSet<Effect>>::new();
+    let mut inferred_throwables = BTreeMap::<FunctionKey, BTreeSet<String>>::new();
     let mut edges = BTreeMap::<FunctionKey, BTreeSet<FunctionKey>>::new();
+    let mut bodies = BTreeMap::<FunctionKey, (usize, SyntaxNode)>::new();
     for unit in &package.units {
         for function in unit
             .tree
@@ -3968,15 +4151,23 @@ fn infer_throwing_effects(package: &mut SemanticPackage) -> Result<(), SemanticF
             .filter(|node| node.kind == SyntaxKind::FunctionDeclaration)
         {
             let function_key = key(function.span);
-            let mut function_effects = unit
-                .functions
+            let unit_index = package
+                .units
                 .iter()
-                .find(|contract| contract.span == function.span)
-                .map_or_else(BTreeSet::new, |contract| contract.effects.clone());
+                .position(|candidate| std::ptr::eq(candidate, unit))
+                .expect("function unit belongs to semantic package");
+            bodies.insert(function_key, (unit_index, function.clone()));
+            let mut function_effects = BTreeSet::new();
             for child in &function.children {
                 function_effects.extend(direct_effects(package, unit, child));
             }
             inferred.insert(function_key, function_effects);
+            let function_throwables = function
+                .children
+                .iter()
+                .flat_map(|child| direct_errors(package, unit, child))
+                .collect();
+            inferred_throwables.insert(function_key, function_throwables);
             let mut function_callees = BTreeSet::new();
             for child in &function.children {
                 callees(package, unit, child, &mut function_callees);
@@ -3994,8 +4185,24 @@ fn infer_throwing_effects(package: &mut SemanticPackage) -> Result<(), SemanticF
                     combined.extend(callee_effects);
                 }
             }
+            let (unit_index, body) = &bodies[function];
+            let unit = &package.units[*unit_index];
+            let combined_throwables = body
+                .children
+                .iter()
+                .flat_map(|child| escaping_errors(package, unit, child, &inferred_throwables))
+                .collect::<BTreeSet<_>>();
+            if combined_throwables.is_empty() {
+                combined.remove(&Effect::Throws);
+            } else {
+                combined.insert(Effect::Throws);
+            }
             if combined != inferred[function] {
                 inferred.insert(*function, combined);
+                changed = true;
+            }
+            if combined_throwables != inferred_throwables[function] {
+                inferred_throwables.insert(*function, combined_throwables);
                 changed = true;
             }
         }
@@ -4005,46 +4212,53 @@ fn infer_throwing_effects(package: &mut SemanticPackage) -> Result<(), SemanticF
     }
     for unit in &package.units {
         for contract in &unit.functions {
-            if !contract.exported {
+            let Some(ValueType::Object(bound)) = contract.thrown_types.first() else {
                 continue;
-            }
-            let required = inferred.get(&key(contract.span)).cloned().unwrap_or_default();
-            let undeclared = required
-                .difference(&contract.declared_effects)
-                .copied()
-                .collect::<Vec<_>>();
-            if !undeclared.is_empty() {
-                return Err(failure(
-                    &unit.source,
-                    "T0027",
-                    format!(
-                        "exported function `{}` is missing declared effects: {}",
-                        contract.name,
-                        undeclared
-                            .iter()
-                            .map(|effect| match effect {
-                                Effect::Throws => "throws",
-                                Effect::Io => "io",
-                                Effect::Blocks => "blocks",
-                                Effect::Awaits => "awaits",
-                                Effect::Mutates => "mutates",
-                                Effect::Unsafe => "unsafe",
-                                Effect::Foreign => "foreign",
-                            })
-                            .collect::<Vec<_>>()
-                            .join(", ")
-                    ),
-                    contract.span,
-                ));
+            };
+            for identity in inferred_throwables
+                .get(&key(contract.span))
+                .into_iter()
+                .flatten()
+            {
+                let actual = identity
+                    .rsplit_once("::")
+                    .map_or(identity.as_str(), |(_, name)| name);
+                let compatible = bound == "throwable"
+                    || bound == actual
+                    || package
+                        .units
+                        .iter()
+                        .flat_map(|candidate| &candidate.objects)
+                        .any(|object| {
+                            object.name == actual
+                                && object.interfaces.iter().any(|interface| interface == bound)
+                        });
+                if !compatible {
+                    return Err(failure(
+                        &unit.source,
+                        "T0027",
+                        format!(
+                            "`{actual}` may escape `{}` but does not satisfy its `throws {bound}` contract",
+                            contract.name
+                        ),
+                        contract.span,
+                    ));
+                }
             }
         }
     }
 
-
     for unit in &mut package.units {
         for contract in &mut unit.functions {
-            contract.effects = inferred.get(&key(contract.span)).cloned().unwrap_or_default();
+            contract.effects = inferred
+                .get(&key(contract.span))
+                .cloned()
+                .unwrap_or_default();
             contract.throws = contract.effects.contains(&Effect::Throws);
+            contract.escaping_throwables = inferred_throwables
+                .get(&key(contract.span))
+                .cloned()
+                .unwrap_or_default();
         }
     }
     Ok(())
@@ -4268,18 +4482,15 @@ fn analyze_binding_node(
     let storage_type = (value_type == ValueType::Scalar(ScalarType::Int))
         .then(|| initializer.and_then(|value| small_int_storage(unit, value, inferred.clone())))
         .flatten();
-    if matches!(value_type, ValueType::Capability(_))
-        && initializer.is_some()
-        && initializer
-            .and_then(|value| unary_operator_text(unit, value))
-            .as_deref()
-            != Some("move")
+    if let Some(initializer) = initializer
+        && matches!(value_type, ValueType::Capability(_))
+        && unary_operator_text(unit, initializer).as_deref() != Some("move")
     {
         return Err(failure(
             &unit.source,
             "T0072",
             "linear capabilities cannot be copied or forged; transfer one with `move`",
-            initializer.expect("checked capability initializer").span,
+            initializer.span,
         ));
     }
 
@@ -4377,13 +4588,17 @@ fn declared_value_type(
     })
 }
 
+#[expect(
+    clippy::too_many_lines,
+    reason = "declared type parsing exhaustively maps the closed compiler-owned type vocabulary"
+)]
 fn parse_declared_value_type(
     type_name: &str,
     aliases: &BTreeMap<String, ScalarType>,
 ) -> Option<ValueType> {
     if matches!(
         type_name,
-        "error"
+        "throwable"
             | "arithmetic-overflow"
             | "division-by-zero"
             | "integer-conversion-overflow"
@@ -4422,16 +4637,20 @@ fn parse_declared_value_type(
             return Some(construct(scalar));
         }
     }
-    if let Some(effect) = type_name.strip_prefix("capability of ").and_then(|name| match name.trim() {
-        "throws" => Some(Effect::Throws),
-        "io" => Some(Effect::Io),
-        "blocks" => Some(Effect::Blocks),
-        "awaits" => Some(Effect::Awaits),
-        "mutates" => Some(Effect::Mutates),
-        "unsafe" => Some(Effect::Unsafe),
-        "foreign" => Some(Effect::Foreign),
-        _ => None,
-    }) {
+    if let Some(effect) =
+        type_name
+            .strip_prefix("capability of ")
+            .and_then(|name| match name.trim() {
+                "throws" => Some(Effect::Throws),
+                "io" => Some(Effect::Io),
+                "blocks" => Some(Effect::Blocks),
+                "awaits" => Some(Effect::Awaits),
+                "mutates" => Some(Effect::Mutates),
+                "unsafe" => Some(Effect::Unsafe),
+                "foreign" => Some(Effect::Foreign),
+                _ => None,
+            })
+    {
         return Some(ValueType::Capability(effect));
     }
     for (constructor, construct) in [
@@ -5146,13 +5365,15 @@ fn infer_value_type(
     }
     if node.kind == SyntaxKind::CallExpression {
         if let [callee, arguments] = node.children.as_slice() {
-            if callee.kind == SyntaxKind::Name
-                && node_text(&unit.source, callee) == "task-scope"
-            {
+            if callee.kind == SyntaxKind::Name && node_text(&unit.source, callee) == "task-scope" {
                 return Ok(Some(ValueType::TaskScope));
             }
             if callee.kind == SyntaxKind::MemberExpression
                 && let [receiver, member] = callee.children.as_slice()
+                && matches!(
+                    node_text(&unit.source, member),
+                    "spawn" | "join" | "cancel" | "child-scope"
+                )
                 && infer_value_type(unit, receiver, bindings)? == Some(ValueType::TaskScope)
             {
                 return match node_text(&unit.source, member) {
@@ -5211,10 +5432,8 @@ fn infer_value_type(
                             .then(|| {
                                 bindings.iter().rev().find(|binding| {
                                     binding.name == node_text(&unit.source, receiver)
-                                        && binding.is_visible_at(
-                                            unit.source.id(),
-                                            receiver.span.start,
-                                        )
+                                        && binding
+                                            .is_visible_at(unit.source.id(), receiver.span.start)
                                 })
                             })
                             .flatten()
@@ -5225,7 +5444,8 @@ fn infer_value_type(
                             .and_then(|arguments| arguments.children.first())
                             .and_then(|argument| argument.children.last().or(Some(argument)))
                             .and_then(|value| node_text(&unit.source, value).parse::<u64>().ok());
-                        if matches!((parent, child), (Some(parent), Some(child)) if child > parent) {
+                        if matches!((parent, child), (Some(parent), Some(child)) if child > parent)
+                        {
                             return Err(failure(
                                 &unit.source,
                                 "T0075",
@@ -5976,9 +6196,7 @@ fn infer_member_value_type(
     let receiver_type = infer_receiver_value_type(unit, receiver, bindings)?;
     if let Some(ValueType::Descriptor(_)) = &receiver_type {
         return match member_name {
-            "name" | "kind" | "identity" => {
-                Ok(Some(ValueType::Scalar(ScalarType::String)))
-            }
+            "name" | "kind" | "identity" => Ok(Some(ValueType::Scalar(ScalarType::String))),
             _ => Err(failure(
                 &unit.source,
                 "T0071",
@@ -5990,8 +6208,10 @@ fn infer_member_value_type(
     if matches!(
         receiver_type,
         Some(ValueType::Function(_, _) | ValueType::AsyncFunction(_, _))
-    ) && member_name == "effects"
-    {
+    ) && matches!(
+        member_name,
+        "effects" | "throwable-contract" | "escaping-throwables"
+    ) {
         return Ok(Some(ValueType::Scalar(ScalarType::String)));
     }
     if let Some(ValueType::TaskOutcome(result)) = &receiver_type {
@@ -6306,7 +6526,11 @@ fn infer_unary_type(
     if operator == "await" {
         return match infer_value_type(unit, operand_node, bindings)? {
             Some(ValueType::Task(result)) => Ok(result.value_type()),
-            _ => Err(operator_failure(unit, node, "`await` requires a task value")),
+            _ => Err(operator_failure(
+                unit,
+                node,
+                "`await` requires a task value",
+            )),
         };
     }
     if matches!(operator.as_str(), "ref" | "shared ref" | "move") {
@@ -8565,8 +8789,8 @@ fn bootstrap_namespaces() -> BTreeMap<String, Namespace> {
         SymbolKind::ErrorObject,
     );
     errors.symbols.insert(
-        "error".to_owned(),
-        compiler_owned_object("/core/errors", "error", SymbolKind::Interface),
+        "throwable".to_owned(),
+        compiler_owned_object("/core/errors", "throwable", SymbolKind::Interface),
     );
     namespaces.insert("/core/errors".to_owned(), errors);
     namespaces.insert(
@@ -9229,10 +9453,11 @@ fn validate_suspension_ownership(package: &SemanticPackage) -> Result<(), Semant
                 ) && binding.span.start >= contract.span.start
                     && binding.span.end <= contract.span.end
             }) {
-                let Some(events) = package
-                    .binding_events
-                    .get(&(binding.span.file, binding.span.start, binding.span.end))
-                else {
+                let Some(events) = package.binding_events.get(&(
+                    binding.span.file,
+                    binding.span.start,
+                    binding.span.end,
+                )) else {
                     continue;
                 };
                 if let Some(suspension) = awaits.iter().find(|suspension| {
@@ -9278,9 +9503,10 @@ fn validate_task_consumption(package: &SemanticPackage) -> Result<(), SemanticFa
         let joined = node.kind == SyntaxKind::CallExpression
             && node.children.first().is_some_and(|callee| {
                 callee.kind == SyntaxKind::MemberExpression
-                    && callee.children.get(1).is_some_and(|member| {
-                        node_text(&unit.source, member) == "join"
-                    })
+                    && callee
+                        .children
+                        .get(1)
+                        .is_some_and(|member| node_text(&unit.source, member) == "join")
             });
         if join_argument
             && node.kind == SyntaxKind::Name

@@ -25,7 +25,8 @@ match name {
 ".missing-key" => Self::MissingKey,
 ".resource-error" => Self::ResourceError,
 _ => Self::SourceError,
-} (×2)
+}
+}
 fn source_name(self) -> &'static str {
 match self {
 Self::ArithmeticOverflow => ".arithmetic-overflow",
@@ -38,7 +39,9 @@ Self::IndexError => ".index-error",
 Self::MissingKey => ".missing-key",
 Self::ResourceError => ".resource-error",
 Self::SourceError => ".error",
-} (×3)
+}
+}
+}
 #[derive(Clone, Debug)]
 struct TerraneError {
 kind: TerraneErrorKind,
@@ -66,31 +69,38 @@ rendered.push_str("\nat ");
 rendered.push_str(frame);
 }
 rendered
-} (×2)
+}
+}
 impl std::fmt::Display for TerraneError {
 fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
 formatter.write_str(&self.render())
-} (×2)
+}
+}
 impl From<terrane_int_support::ArithmeticError> for TerraneError {
 fn from(error: terrane_int_support::ArithmeticError) -> Self {
 Self::new(TerraneErrorKind::from_source_name(error.source_name()), error.to_string())
-} (×2)
+}
+}
 impl From<terrane_string_support::DecodeError> for TerraneError {
 fn from(error: terrane_string_support::DecodeError) -> Self {
 Self::new(TerraneErrorKind::DecodeError, error.to_string().trim_start_matches(".decode-error: "))
-} (×2)
+}
+}
 impl From<terrane_collection_support::IndexError> for TerraneError {
 fn from(error: terrane_collection_support::IndexError) -> Self {
 Self::new(TerraneErrorKind::IndexError, error.to_string())
-} (×2)
+}
+}
 impl From<terrane_collection_support::MissingKey> for TerraneError {
 fn from(error: terrane_collection_support::MissingKey) -> Self {
 Self::new(TerraneErrorKind::MissingKey, error.to_string())
-} (×2)
+}
+}
 impl From<terrane_collection_support::RangeStepError> for TerraneError {
 fn from(error: terrane_collection_support::RangeStepError) -> Self {
 Self::new(TerraneErrorKind::SourceError, error.to_string())
-} (×2)
+}
+}
 fn __terrane_uncaught(error: TerraneError) -> ! {
 eprintln!("{}", error.render());
 std::process::exit(1);
@@ -141,12 +151,15 @@ let cancelled = self.cancelled.load(std::sync::atomic::Ordering::Acquire)
 match result {
 Ok(value) => TerraneTaskOutcome { completed: true, cancelled, value: Some(value), error: String::new() },
 Err(error) => TerraneTaskOutcome { completed: false, cancelled, value: None, error },
-} (×3)
+}
+}
+}
 pub struct TerraneScopedTask<T> { handle: Option<std::thread::JoinHandle<Result<T, String>>> }
 impl<T: Send + 'static> TerraneScopedTask<T> {
 pub fn spawn<F: FnOnce() -> Result<T, String> + Send + 'static>(work: F) -> Self {
 Self { handle: Some(std::thread::spawn(work)) }
-} (×2)
+}
+}
 pub struct TerraneTaskOutcome<T> { pub completed: bool, pub cancelled: bool, pub value: Option<T>, pub error: String }
 // Source: case.trn
 // Namespace: throwing-scoped-task

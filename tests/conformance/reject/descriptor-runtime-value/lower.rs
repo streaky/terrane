@@ -3,8 +3,7 @@
 #[derive(Clone, Copy)]
 struct TerraneDescriptor { identity: &'static str, name: &'static str, kind: &'static str }
 // Source: case.trn
-// Namespace: descriptor-binding-alias
+// Namespace: descriptor-runtime-value
 fn main() {
-    let value: i8 = 1;
-    let _ = &value;
+    println!("{}", terrane_scalar_support::scalar_text(&((TerraneDescriptor { identity: "int8", name: "int8", kind: "type" }).name)));
 }

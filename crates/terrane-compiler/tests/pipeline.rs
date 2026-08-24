@@ -295,7 +295,7 @@ fn lowers_scalar_membership_and_descriptor_identity_statically() {
         "  different-alias = byte is other-byte\n",
         "  same-scalar = value is value\n",
         "  same-value-type = value.type is value.type\n",
-        "  different-value-type = value.type is byte.type\n",
+        "  different-value-type = value.type is byte\n",
     );
     let compilation = terrane_compiler::compile("descriptors.trn", source.to_owned()).unwrap();
 

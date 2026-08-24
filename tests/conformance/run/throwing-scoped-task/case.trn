@@ -1,7 +1,7 @@
 namespace throwing-scoped-task
-from /core/errors import error, coercion-error
+from /core/errors import throwable, coercion-error
 
-async throws error function fail int
+async function fail int throws throwable
   throw coercion-error
 
 function main

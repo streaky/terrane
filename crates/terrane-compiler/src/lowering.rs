@@ -15,12 +15,28 @@ use crate::{
     syntax::{SyntaxKind, SyntaxNode},
 };
 
+#[expect(
+    clippy::too_many_lines,
+    reason = "package lowering assembles one deterministic generated-crate prelude and unit set"
+)]
 pub(crate) fn lower(package: &SemanticPackage) -> Program {
     let mut globals = String::new();
     if package_uses_structured_errors(package) {
-        emit_error_support(&mut globals);
+        let has_custom_throwable = package.units.iter().any(|unit| {
+            unit.objects.iter().any(|object| {
+                object
+                    .interfaces
+                    .iter()
+                    .any(|interface| interface == "throwable")
+            })
+        });
+        emit_error_support(&mut globals, has_custom_throwable);
     }
-    if package.units.iter().any(|unit| unit.functions.iter().any(|function| function.is_async)) {
+    if package
+        .units
+        .iter()
+        .any(|unit| unit.functions.iter().any(|function| function.is_async))
+    {
         globals.push_str(
             "fn __terrane_block_on<F: Future>(future: F) -> F::Output {\n\
              struct Wake;\n\
@@ -34,7 +50,11 @@ pub(crate) fn lower(package: &SemanticPackage) -> Program {
              } }\n}\n",
         );
     }
-    if package.units.iter().any(|unit| unit.source.text().contains("task-scope")) {
+    if package
+        .units
+        .iter()
+        .any(|unit| unit.source.text().contains("task-scope"))
+    {
         let support = match package.executor {
             crate::package::ExecutorProfile::Cooperative => {
                 "#[derive(Clone)]\n\
@@ -114,7 +134,8 @@ pub(crate) fn lower(package: &SemanticPackage) -> Program {
             .any(|binding| matches!(binding.value_type, ValueType::Descriptor(_)))
     }) {
         globals.push_str(
-            "#[derive(Clone, Copy)]\n\
+            "#[allow(dead_code)]\n\
+             #[derive(Clone, Copy)]\n\
              struct TerraneDescriptor { identity: &'static str, name: &'static str, kind: &'static str }\n",
         );
     }
@@ -123,9 +144,10 @@ pub(crate) fn lower(package: &SemanticPackage) -> Program {
             .iter()
             .any(|binding| matches!(binding.value_type, ValueType::Capability(_)))
             || unit.functions.iter().any(|function| {
-                function.parameters.iter().any(|parameter| {
-                    matches!(parameter.value_type, Some(ValueType::Capability(_)))
-                })
+                function
+                    .parameters
+                    .iter()
+                    .any(|parameter| matches!(parameter.value_type, Some(ValueType::Capability(_))))
             })
     }) {
         globals.push_str(
@@ -266,12 +288,18 @@ fn package_uses_structured_errors(package: &SemanticPackage) -> bool {
     })
 }
 
-fn emit_error_support(output: &mut String) {
+fn emit_error_support(output: &mut String, has_custom_throwable: bool) {
     output.push_str(
         "#[derive(Clone, Copy, Debug, Eq, PartialEq)]\n\
          enum TerraneErrorKind {\n\
          ArithmeticOverflow,\nDivisionByZero,\nIntegerConversionOverflow,\nNegativeShiftCount,\n\
-         CoercionError,\nDecodeError,\nIndexError,\nMissingKey,\nResourceError,\nSourceError,\n}\n\
+         CoercionError,\nDecodeError,\nIndexError,\nMissingKey,\nResourceError,\nSourceError,\n",
+    );
+    if has_custom_throwable {
+        output.push_str("Custom(&'static str),\n");
+    }
+    output.push_str(
+        "}\n\
          impl TerraneErrorKind {\n\
          fn from_source_name(name: &str) -> Self {\nmatch name {\n\
          \".arithmetic-overflow\" => Self::ArithmeticOverflow,\n\
@@ -294,7 +322,13 @@ fn emit_error_support(output: &mut String) {
          Self::IndexError => \".index-error\",\n\
          Self::MissingKey => \".missing-key\",\n\
          Self::ResourceError => \".resource-error\",\n\
-         Self::SourceError => \".error\",\n}\n}\n}\n\
+         Self::SourceError => \".error\",\n",
+    );
+    if has_custom_throwable {
+        output.push_str("Self::Custom(name) => name,\n");
+    }
+    output.push_str(
+        "}\n}\n}\n\
          #[derive(Clone, Debug)]\nstruct TerraneError {\n\
          kind: TerraneErrorKind,\nmessage: String,\ncause: Option<Box<TerraneError>>,\n\
          context: Vec<&'static str>,\n}\n\
@@ -1075,6 +1109,9 @@ impl Emitter<'_> {
                     self.line("}");
                 }
                 for interface_name in effective_object_interfaces(self.unit, object) {
+                    if interface_name == "throwable" {
+                        continue;
+                    }
                     let interface = self
                         .unit
                         .objects
@@ -1721,11 +1758,26 @@ impl Emitter<'_> {
     }
 
     fn error_kind(&self, node: &SyntaxNode) -> String {
+        let descriptor = if node.kind == SyntaxKind::CallExpression {
+            node.children.first().unwrap_or(node)
+        } else {
+            node
+        };
         self.package
-            .resolve_name_at(self.unit, node.span.start, self.text(node))
-            .and_then(|symbol| symbol.identity.strip_prefix("/core/errors::"))
-            .unwrap_or_else(|| self.text(node).trim().trim_start_matches('.'))
-            .to_owned()
+            .resolve_name_at(self.unit, descriptor.span.start, self.text(descriptor))
+            .and_then(|symbol| {
+                symbol
+                    .identity
+                    .strip_prefix("/core/errors::")
+                    .map(str::to_owned)
+                    .or_else(|| Some(symbol.name.clone()))
+            })
+            .unwrap_or_else(|| {
+                self.text(descriptor)
+                    .trim()
+                    .trim_start_matches('.')
+                    .to_owned()
+            })
     }
 
     fn throw_statement(&mut self, node: &SyntaxNode) {
@@ -2209,14 +2261,18 @@ impl Emitter<'_> {
             SyntaxKind::Literal => literal(self.text(node)),
             SyntaxKind::AnonymousFunction => self.anonymous_function(node),
             SyntaxKind::Name => {
-                let bound = self.unit.typed_bindings.iter().rev().any(|binding| {
+                let binding = self.unit.typed_bindings.iter().rev().find(|binding| {
                     binding.name == self.text(node)
                         && binding.is_visible_at(self.unit.source.id(), node.span.start)
                 });
                 match self.value_type(node) {
-                    Some(ValueType::Descriptor(identity)) if !bound => format!(
-                        "TerraneDescriptor {{ identity: {identity:?}, name: {identity:?}, kind: \"type\" }}"
-                    ),
+                    Some(ValueType::Descriptor(identity))
+                        if binding.is_none_or(|binding| binding.scope.is_none()) =>
+                    {
+                        format!(
+                            "TerraneDescriptor {{ identity: {identity:?}, name: {identity:?}, kind: \"type\" }}"
+                        )
+                    }
                     _ => self.name(node),
                 }
             }
@@ -3229,7 +3285,9 @@ impl Emitter<'_> {
     }
 
     fn display_expression(&mut self, node: &SyntaxNode) -> String {
-        if matches!(
+        if matches!(self.value_type(node), Some(ValueType::Descriptor(_))) {
+            format!("({}).name", self.borrowed_expression(node))
+        } else if matches!(
             self.value_type(node),
             Some(ValueType::Reference(_) | ValueType::SharedReference(_))
         ) {
@@ -3260,27 +3318,47 @@ impl Emitter<'_> {
         if matches!(
             receiver_type,
             Some(ValueType::Function(_, _) | ValueType::AsyncFunction(_, _))
-        ) && self.text(member) == "effects"
-        {
-            let effects = self
+        ) && matches!(
+            self.text(member),
+            "effects" | "throwable-contract" | "escaping-throwables"
+        ) {
+            let reflected = self
                 .unit
                 .functions
                 .iter()
                 .find(|contract| contract.name == self.text(receiver))
-                .map(|contract| {
-                    contract
+                .map(|contract| match self.text(member) {
+                    "escaping-throwables" => contract
+                        .escaping_throwables
+                        .iter()
+                        .map(|identity| {
+                            identity
+                                .rsplit_once("::")
+                                .map_or(identity.as_str(), |(_, name)| name)
+                        })
+                        .collect::<Vec<_>>()
+                        .join("|"),
+                    "throwable-contract" => contract
+                        .thrown_types
+                        .iter()
+                        .map(ToString::to_string)
+                        .collect::<Vec<_>>()
+                        .join("|"),
+                    _ => contract
                         .effects
                         .iter()
                         .map(|effect| {
                             if *effect == crate::semantics::Effect::Throws
-                                && !contract.thrown_types.is_empty()
+                                && !contract.escaping_throwables.is_empty()
                             {
                                 format!(
                                     "throws({})",
                                     contract
-                                        .thrown_types
+                                        .escaping_throwables
                                         .iter()
-                                        .map(ToString::to_string)
+                                        .map(|identity| identity
+                                            .rsplit_once("::")
+                                            .map_or(identity.as_str(), |(_, name)| name,))
                                         .collect::<Vec<_>>()
                                         .join("|")
                                 )
@@ -3289,17 +3367,19 @@ impl Emitter<'_> {
                             }
                         })
                         .collect::<Vec<_>>()
-                        .join(",")
+                        .join(","),
                 })
                 .unwrap_or_default();
-            return format!("{effects:?}.to_owned()");
+            return format!("{reflected:?}.to_owned()");
         }
         if let Some(ValueType::TaskOutcome(_)) = &receiver_type {
             let receiver = self.expression(receiver);
             return match self.text(member) {
                 "completed" => format!("({receiver}).completed"),
                 "cancelled" => format!("({receiver}).cancelled"),
-                "value" => format!("({receiver}).value.expect(\"completed task outcome has a value\")"),
+                "value" => {
+                    format!("({receiver}).value.expect(\"completed task outcome has a value\")")
+                }
                 "error" => format!("({receiver}).error"),
                 _ => String::new(),
             };
@@ -3425,14 +3505,13 @@ impl Emitter<'_> {
             return String::new();
         };
         if callee.kind == SyntaxKind::Name && self.text(callee) == "task-scope" {
-            let deadline = arguments
-                .children
-                .first()
-                .map(|argument| {
+            let deadline = arguments.children.first().map_or_else(
+                || "None".to_owned(),
+                |argument| {
                     let value = argument.children.last().unwrap_or(argument);
                     format!("Some(({}) as u64)", self.expression(value))
-                })
-                .unwrap_or_else(|| "None".to_owned());
+                },
+            );
             return format!("TerraneTaskScope::new({deadline})");
         }
         if callee.kind == SyntaxKind::MemberExpression
@@ -5070,6 +5149,10 @@ fn rust_element_type(ty: ElementType) -> String {
     rust_value_type(ty.value_type())
 }
 
+#[expect(
+    clippy::too_many_lines,
+    reason = "the closed semantic value-type enum has one exhaustive Rust representation mapping"
+)]
 fn rust_value_type(ty: ValueType) -> String {
     match ty {
         ValueType::Scalar(scalar) => rust_type(scalar).to_owned(),
@@ -5161,7 +5244,10 @@ fn rust_value_type(ty: ValueType) -> String {
             rust_element_type(result)
         ),
         ValueType::Task(result) => {
-            format!("std::pin::Pin<Box<dyn Future<Output = {}>>>", rust_element_type(result))
+            format!(
+                "std::pin::Pin<Box<dyn Future<Output = {}>>>",
+                rust_element_type(result)
+            )
         }
         ValueType::ScopedTask(result) => {
             format!("TerraneScopedTask<{}>", rust_element_type(result))
@@ -5289,18 +5375,19 @@ fn statement_may_fall_through(statement: &SyntaxNode) -> bool {
     }
 }
 
-fn rust_error_kind(kind: &str) -> &'static str {
+fn rust_error_kind(kind: &str) -> String {
     match kind {
-        "arithmetic-overflow" => "ArithmeticOverflow",
-        "division-by-zero" => "DivisionByZero",
-        "integer-conversion-overflow" => "IntegerConversionOverflow",
-        "negative-shift-count" => "NegativeShiftCount",
-        "coercion-error" => "CoercionError",
-        "decode-error" => "DecodeError",
-        "index-error" => "IndexError",
-        "missing-key" => "MissingKey",
-        "resource-error" => "ResourceError",
-        _ => "SourceError",
+        "arithmetic-overflow" => "ArithmeticOverflow".to_owned(),
+        "division-by-zero" => "DivisionByZero".to_owned(),
+        "integer-conversion-overflow" => "IntegerConversionOverflow".to_owned(),
+        "negative-shift-count" => "NegativeShiftCount".to_owned(),
+        "coercion-error" => "CoercionError".to_owned(),
+        "decode-error" => "DecodeError".to_owned(),
+        "index-error" => "IndexError".to_owned(),
+        "missing-key" => "MissingKey".to_owned(),
+        "resource-error" => "ResourceError".to_owned(),
+        "error" | "throwable" => "SourceError".to_owned(),
+        custom => format!("Custom({custom:?})"),
     }
 }
 

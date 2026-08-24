@@ -33,12 +33,15 @@ let cancelled = self.cancelled.load(std::sync::atomic::Ordering::Acquire)
 match result {
 Ok(value) => TerraneTaskOutcome { completed: true, cancelled, value: Some(value), error: String::new() },
 Err(error) => TerraneTaskOutcome { completed: false, cancelled, value: None, error },
-} (×3)
+}
+}
+}
 pub struct TerraneScopedTask<T> { handle: Option<std::thread::JoinHandle<Result<T, String>>> }
 impl<T: Send + 'static> TerraneScopedTask<T> {
 pub fn spawn<F: FnOnce() -> Result<T, String> + Send + 'static>(work: F) -> Self {
 Self { handle: Some(std::thread::spawn(work)) }
-} (×2)
+}
+}
 pub struct TerraneTaskOutcome<T> { pub completed: bool, pub cancelled: bool, pub value: Option<T>, pub error: String }
 // Source: case.trn
 // Namespace: structured-task-scope

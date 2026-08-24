@@ -384,7 +384,6 @@ impl Parser<'_> {
                 | "async"
                 | "mutating"
                 | "mutates"
-                | "throws"
                 | "io"
                 | "blocks"
                 | "awaits"
@@ -393,44 +392,16 @@ impl Parser<'_> {
         ) {
             let qualifier_start = self.position;
             let qualifier = self.text().to_owned();
-            if !qualifiers.insert(qualifier.clone()) {
+            if !qualifiers.insert(qualifier) {
                 self.error_here("S1029", "duplicate function qualifier");
             }
             self.bump();
-            if qualifier == "throws" {
-                let mut parts = Vec::new();
-                if !self.at_text("function")
-                    && !matches!(
-                        self.text(),
-                        "static"
-                            | "async"
-                            | "mutating"
-                            | "mutates"
-                            | "io"
-                            | "blocks"
-                            | "awaits"
-                            | "unsafe"
-                            | "foreign"
-                    )
-                {
-                    parts.push(self.parse_type_expression());
-                } else {
-                    self.error_here("S1037", "`throws` requires an error descriptor");
-                }
-                children.push(self.node(
-                    SyntaxKind::EffectClause,
-                    qualifier_start,
-                    self.position,
-                    parts,
-                ));
-            } else {
-                children.push(self.node(
-                    SyntaxKind::DeclarationQualifier,
-                    qualifier_start,
-                    self.position,
-                    Vec::new(),
-                ));
-            }
+            children.push(self.node(
+                SyntaxKind::DeclarationQualifier,
+                qualifier_start,
+                self.position,
+                Vec::new(),
+            ));
         }
         self.expect_text("function", "S1005", "expected `function`");
         if self.at(TokenKind::Identifier) && !self.at_text("from") && !self.at_text("to") {
@@ -442,8 +413,23 @@ impl Parser<'_> {
                 );
                 self.recover_line();
             }
-            if !self.at(TokenKind::Semicolon) && !self.at_line_end() {
+            if !self.at(TokenKind::Semicolon) && !self.at_line_end() && !self.at_text("throws") {
                 children.push(self.parse_type_expression());
+            }
+            if self.eat_text("throws") {
+                let effect_start = self.position - 1;
+                let parts = if self.at(TokenKind::Semicolon) || self.at_line_end() {
+                    self.error_here("S1037", "`throws` requires a throwable upper bound");
+                    Vec::new()
+                } else {
+                    vec![self.parse_type_expression()]
+                };
+                children.push(self.node(
+                    SyntaxKind::EffectClause,
+                    effect_start,
+                    self.position,
+                    parts,
+                ));
             }
         }
         if self.eat(TokenKind::Semicolon) {
@@ -1211,15 +1197,8 @@ impl Parser<'_> {
         loop {
             match self.peek_text(offset) {
                 Some(
-                    "static"
-                    | "async"
-                    | "mutating"
-                    | "mutates"
-                    | "io"
-                    | "blocks"
-                    | "awaits"
-                    | "unsafe"
-                    | "foreign",
+                    "static" | "async" | "mutating" | "mutates" | "io" | "blocks" | "awaits"
+                    | "unsafe" | "foreign",
                 ) => offset += 1,
                 Some("throws") => {
                     offset += 1;

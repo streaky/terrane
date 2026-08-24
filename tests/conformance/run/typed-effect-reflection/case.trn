@@ -1,9 +1,21 @@
 namespace typed-effect-reflection
-from /core/errors import error
+from /core/errors import throwable, coercion-error
 
-public throws error function fallible int
+public function fallible int throws throwable
   return 1
+
+public function exact int throws throwable
+  throw coercion-error
 
 function main
   value int = fallible;
   print; value, fallible.effects
+  print; fallible.throwable-contract
+  print; fallible.escaping-throwables
+  print; exact.effects
+  print; exact.throwable-contract
+  print; exact.escaping-throwables
+  try
+    exact;
+  catch coercion-error
+    print; 'caught'

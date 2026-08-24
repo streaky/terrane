@@ -46,7 +46,7 @@ fn contains(node: &terrane_compiler::syntax::SyntaxNode, kind: SyntaxKind) -> bo
 
 #[test]
 fn parses_lossless_declarations_and_legal_empty_blocks() {
-    let text = "namespace example/app\npublic constant count int = 1\npublic async throws error function empty; value int\nfunction main\n  count = count + 1\n";
+    let text = "namespace example/app\npublic constant count int = 1\npublic async function empty throws throwable; value int\nfunction main\n  count = count + 1\n";
     let tree = parse_source(text);
     assert!(contains(&tree.root, SyntaxKind::NamespaceDeclaration));
     assert!(contains(&tree.root, SyntaxKind::Binding));
