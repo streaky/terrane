@@ -6,9 +6,42 @@ fn corpus() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).join("../../tests/conformance")
 }
 
+struct ConformanceBuild {
+    root: PathBuf,
+}
+
+impl ConformanceBuild {
+    fn new() -> Self {
+        let root = std::env::temp_dir().join(format!("terrane-conformance-{}", std::process::id()));
+        if root.exists() {
+            fs::remove_dir_all(&root).unwrap();
+        }
+        fs::create_dir_all(root.join("src")).unwrap();
+        write_support_crates(&root);
+        fs::write(
+            root.join("Cargo.toml"),
+            "[package]\nname = \"terrane_conformance_program\"\nversion = \"0.0.0\"\nedition = \"2024\"\n\n\
+             [dependencies]\nparking_lot = { version = \"0.12\", features = [\"arc_lock\"] }\n\
+             terrane-int-support = { path = \"support/terrane-int-support\" }\n\
+             terrane-collection-support = { path = \"support/terrane-collection-support\" }\n\
+             terrane-scalar-support = { path = \"support/terrane-scalar-support\" }\n\
+             terrane-string-support = { path = \"support/terrane-string-support\" }\n\n[workspace]\n",
+        )
+        .unwrap();
+        Self { root }
+    }
+}
+
+impl Drop for ConformanceBuild {
+    fn drop(&mut self) {
+        let _ = fs::remove_dir_all(&self.root);
+    }
+}
+
 #[test]
 fn every_manifest_drives_a_conformance_case() {
     let manifests = manifests_below(&corpus());
+    let build = ConformanceBuild::new();
     assert!(!manifests.is_empty());
     for manifest_path in manifests {
         let case = manifest_path.parent().unwrap();
@@ -69,7 +102,7 @@ fn every_manifest_drives_a_conformance_case() {
                     .rust
                     .replace(terrane_compiler::VERSION, "<version>");
                 assert_eq!(normalized, expected, "{}", case.display());
-                compile_and_maybe_run(case, phase, &compilation.rust);
+                compile_and_maybe_run(case, phase, &compilation.rust, &build.root);
             }
             ("check", "reject") => {
                 let code = field(&manifest, "code").unwrap();
@@ -98,38 +131,7 @@ fn every_manifest_drives_a_conformance_case() {
     }
 }
 
-fn compile_and_maybe_run(case: &Path, phase: &str, rust: &str) {
-    let case_name = case
-        .strip_prefix(corpus())
-        .unwrap()
-        .to_string_lossy()
-        .replace(['/', '\\'], "-");
-    let build_dir = std::env::temp_dir().join(format!(
-        "terrane-conformance-{}-{case_name}",
-        std::process::id()
-    ));
-    if build_dir.exists() {
-        fs::remove_dir_all(&build_dir).unwrap();
-    }
-    fs::create_dir_all(build_dir.join("src")).unwrap();
-    write_support_crates(&build_dir);
-    let parking_lot = if rust.contains("parking_lot::") {
-        "parking_lot = { version = \"0.12\", features = [\"arc_lock\"] }\n"
-    } else {
-        ""
-    };
-    fs::write(
-        build_dir.join("Cargo.toml"),
-        format!(
-            "[package]\nname = \"terrane_conformance_program\"\nversion = \"0.0.0\"\nedition = \"2024\"\n\n\
-             [dependencies]\nterrane-int-support = {{ path = \"support/terrane-int-support\" }}\n\
-             {parking_lot}\
-             terrane-collection-support = {{ path = \"support/terrane-collection-support\" }}\n\
-             terrane-scalar-support = {{ path = \"support/terrane-scalar-support\" }}\n\
-             terrane-string-support = {{ path = \"support/terrane-string-support\" }}\n\n[workspace]\n"
-        ),
-    )
-    .unwrap();
+fn compile_and_maybe_run(case: &Path, phase: &str, rust: &str, build_dir: &Path) {
     fs::write(build_dir.join("src/main.rs"), rust).unwrap();
     let output = Command::new("cargo")
         .args(["build", "--quiet", "--manifest-path"])
@@ -161,7 +163,6 @@ fn compile_and_maybe_run(case: &Path, phase: &str, rust: &str) {
             case.display()
         );
     }
-    fs::remove_dir_all(build_dir).unwrap();
 }
 
 fn write_support_crates(directory: &Path) {
