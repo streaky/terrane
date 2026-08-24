@@ -1,0 +1,162 @@
+// Generated deterministically by Terrane <version>.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum TerraneErrorKind {
+ArithmeticOverflow,
+DivisionByZero,
+IntegerConversionOverflow,
+NegativeShiftCount,
+CoercionError,
+DecodeError,
+IndexError,
+MissingKey,
+ResourceError,
+SourceError,
+}
+impl TerraneErrorKind {
+fn from_source_name(name: &str) -> Self {
+match name {
+".arithmetic-overflow" => Self::ArithmeticOverflow,
+".division-by-zero" => Self::DivisionByZero,
+".integer-conversion-overflow" => Self::IntegerConversionOverflow,
+".negative-shift-count" => Self::NegativeShiftCount,
+".coercion-error" => Self::CoercionError,
+".decode-error" => Self::DecodeError,
+".index-error" => Self::IndexError,
+".missing-key" => Self::MissingKey,
+".resource-error" => Self::ResourceError,
+_ => Self::SourceError,
+} (×2)
+fn source_name(self) -> &'static str {
+match self {
+Self::ArithmeticOverflow => ".arithmetic-overflow",
+Self::DivisionByZero => ".division-by-zero",
+Self::IntegerConversionOverflow => ".integer-conversion-overflow",
+Self::NegativeShiftCount => ".negative-shift-count",
+Self::CoercionError => ".coercion-error",
+Self::DecodeError => ".decode-error",
+Self::IndexError => ".index-error",
+Self::MissingKey => ".missing-key",
+Self::ResourceError => ".resource-error",
+Self::SourceError => ".error",
+} (×3)
+#[derive(Clone, Debug)]
+struct TerraneError {
+kind: TerraneErrorKind,
+message: String,
+cause: Option<Box<TerraneError>>,
+context: Vec<&'static str>,
+}
+impl TerraneError {
+fn new(kind: TerraneErrorKind, message: impl Into<String>) -> Self {
+Self { kind, message: message.into(), cause: None, context: Vec::new() }
+}
+#[allow(dead_code)]
+fn at(mut self, frame: &'static str) -> Self {
+self.context.push(frame);
+self
+}
+fn render(&self) -> String {
+let mut rendered = format!("{}: {}", self.kind.source_name(), self.message);
+if let Some(cause) = &self.cause {
+rendered.push_str("\ncaused by: ");
+rendered.push_str(&cause.render());
+}
+for frame in &self.context {
+rendered.push_str("\nat ");
+rendered.push_str(frame);
+}
+rendered
+} (×2)
+impl std::fmt::Display for TerraneError {
+fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+formatter.write_str(&self.render())
+} (×2)
+impl From<terrane_int_support::ArithmeticError> for TerraneError {
+fn from(error: terrane_int_support::ArithmeticError) -> Self {
+Self::new(TerraneErrorKind::from_source_name(error.source_name()), error.to_string())
+} (×2)
+impl From<terrane_string_support::DecodeError> for TerraneError {
+fn from(error: terrane_string_support::DecodeError) -> Self {
+Self::new(TerraneErrorKind::DecodeError, error.to_string().trim_start_matches(".decode-error: "))
+} (×2)
+impl From<terrane_collection_support::IndexError> for TerraneError {
+fn from(error: terrane_collection_support::IndexError) -> Self {
+Self::new(TerraneErrorKind::IndexError, error.to_string())
+} (×2)
+impl From<terrane_collection_support::MissingKey> for TerraneError {
+fn from(error: terrane_collection_support::MissingKey) -> Self {
+Self::new(TerraneErrorKind::MissingKey, error.to_string())
+} (×2)
+impl From<terrane_collection_support::RangeStepError> for TerraneError {
+fn from(error: terrane_collection_support::RangeStepError) -> Self {
+Self::new(TerraneErrorKind::SourceError, error.to_string())
+} (×2)
+fn __terrane_uncaught(error: TerraneError) -> ! {
+eprintln!("{}", error.render());
+std::process::exit(1);
+}
+fn __terrane_generated_defect(message: &str) -> ! {
+eprintln!("internal compiler defect: generated program reached an impossible completion: {message}");
+std::process::exit(5);
+}
+#[allow(dead_code)]
+enum TerraneCompletion<T> {
+Normal,
+Return(T),
+Error(TerraneError),
+Break,
+Continue,
+}
+fn __terrane_block_on<F: Future>(future: F) -> F::Output {
+struct Wake;
+impl std::task::Wake for Wake { fn wake(self: std::sync::Arc<Self>) {} }
+let waker = std::task::Waker::from(std::sync::Arc::new(Wake));
+let mut context = std::task::Context::from_waker(&waker);
+let mut future = std::pin::pin!(future);
+loop { match future.as_mut().poll(&mut context) {
+std::task::Poll::Ready(value) => return value,
+std::task::Poll::Pending => std::thread::yield_now(),
+} }
+}
+#[derive(Clone)]
+pub struct TerraneTaskScope {
+cancelled: std::sync::Arc<std::sync::atomic::AtomicBool>,
+deadline: Option<std::time::Instant>,
+}
+impl TerraneTaskScope {
+pub fn new(deadline_ms: Option<u64>) -> Self {
+Self { cancelled: std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false)), deadline: deadline_ms.map(|value| std::time::Instant::now() + std::time::Duration::from_millis(value)) }
+}
+pub fn child_scope(&self, deadline_ms: u64) -> Self {
+let requested = std::time::Instant::now() + std::time::Duration::from_millis(deadline_ms);
+let deadline = Some(self.deadline.map_or(requested, |parent| std::cmp::min(parent, requested)));
+Self { cancelled: self.cancelled.clone(), deadline }
+}
+pub fn cancel(&self) { self.cancelled.store(true, std::sync::atomic::Ordering::Release); }
+pub fn join<T>(&self, mut task: TerraneScopedTask<T>) -> TerraneTaskOutcome<T> {
+let result = task.handle.take().expect("scoped task joined once").join()
+.unwrap_or_else(|_| Err("task panicked".to_owned()));
+let cancelled = self.cancelled.load(std::sync::atomic::Ordering::Acquire)
+|| self.deadline.is_some_and(|deadline| std::time::Instant::now() >= deadline);
+match result {
+Ok(value) => TerraneTaskOutcome { completed: true, cancelled, value: Some(value), error: String::new() },
+Err(error) => TerraneTaskOutcome { completed: false, cancelled, value: None, error },
+} (×3)
+pub struct TerraneScopedTask<T> { handle: Option<std::thread::JoinHandle<Result<T, String>>> }
+impl<T: Send + 'static> TerraneScopedTask<T> {
+pub fn spawn<F: FnOnce() -> Result<T, String> + Send + 'static>(work: F) -> Self {
+Self { handle: Some(std::thread::spawn(work)) }
+} (×2)
+pub struct TerraneTaskOutcome<T> { pub completed: bool, pub cancelled: bool, pub value: Option<T>, pub error: String }
+// Source: case.trn
+// Namespace: throwing-scoped-task
+async fn fail() -> Result<terrane_int_support::Int, TerraneError> {
+    return Err(TerraneError::new(TerraneErrorKind::CoercionError, "coercion has no compatible result").at("/throwing-scoped-task::fail (case.trn:5:3)"));
+}
+fn main() {
+    let scope: TerraneTaskScope = TerraneTaskScope::new(None);
+    let child: TerraneScopedTask<terrane_int_support::Int> = TerraneScopedTask::spawn(move || __terrane_block_on((fail)()).map_err(|error| format!("{error:?}")));
+    let outcome: TerraneTaskOutcome<terrane_int_support::Int> = (scope).join(child);
+    println!("{}{}", terrane_scalar_support::scalar_text(&((outcome).completed)), terrane_scalar_support::scalar_text(&((outcome).cancelled)));
+    println!("{}", terrane_scalar_support::scalar_text(&((outcome).error)));
+}

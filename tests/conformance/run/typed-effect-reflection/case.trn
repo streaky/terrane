@@ -1,0 +1,9 @@
+namespace typed-effect-reflection
+from /core/errors import error
+
+public throws error function fallible int
+  return 1
+
+function main
+  value int = fallible;
+  print; value, fallible.effects

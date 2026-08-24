@@ -20,12 +20,19 @@ pub enum ReflectionProfile {
     Minimal,
 }
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum ExecutorProfile {
+    Cooperative,
+    Threaded,
+}
+
 #[derive(Clone, Debug)]
 pub struct Package {
     pub identity: String,
     pub root: PathBuf,
     pub prelude: bool,
     pub reflection: ReflectionProfile,
+    pub executor: ExecutorProfile,
     pub units: Vec<SourceUnit>,
 }
 
@@ -65,6 +72,7 @@ impl Package {
             root,
             prelude: true,
             reflection: ReflectionProfile::Ordinary,
+            executor: ExecutorProfile::Threaded,
             units: vec![SourceUnit {
                 relative_path,
                 source: SourceFile::new(0, path, text),
@@ -103,6 +111,7 @@ impl Package {
             root,
             prelude: manifest.prelude,
             reflection: manifest.reflection,
+            executor: manifest.executor,
             units,
         })
     }
@@ -112,6 +121,7 @@ struct ParsedManifest {
     identity: String,
     prelude: bool,
     reflection: ReflectionProfile,
+    executor: ExecutorProfile,
     namespace_roots: Vec<NamespaceRoot>,
 }
 
@@ -138,7 +148,7 @@ fn parse_manifest(
     })?;
     let mut errors = Vec::new();
     for key in table.keys() {
-        if !matches!(key.as_str(), "package" | "prelude" | "reflection" | "namespaces") {
+        if !matches!(key.as_str(), "package" | "prelude" | "reflection" | "executor" | "namespaces") {
             errors.push(manifest_error(
                 manifest_path,
                 text,
@@ -195,12 +205,29 @@ fn parse_manifest(
         }
         None => ReflectionProfile::Ordinary,
     };
+    let executor = match table.get("executor") {
+        Some(toml::Value::String(value)) if value == "cooperative" => {
+            ExecutorProfile::Cooperative
+        }
+        Some(toml::Value::String(value)) if value == "threaded" => ExecutorProfile::Threaded,
+        Some(_) => {
+            errors.push(manifest_error(
+                manifest_path,
+                text,
+                "`executor` must be either `cooperative` or `threaded`",
+                Some("executor"),
+            ));
+            ExecutorProfile::Threaded
+        }
+        None => ExecutorProfile::Threaded,
+    };
     let namespace_roots = parse_namespace_roots(manifest_path, text, &table, &mut errors);
     if errors.is_empty() {
         Ok(ParsedManifest {
             identity: identity.expect("validated package identity"),
             prelude,
             reflection,
+            executor,
             namespace_roots,
         })
     } else {

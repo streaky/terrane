@@ -35,41 +35,78 @@ pub(crate) fn lower(package: &SemanticPackage) -> Program {
         );
     }
     if package.units.iter().any(|unit| unit.source.text().contains("task-scope")) {
-        globals.push_str(
-            "#[derive(Clone)]\n\
-             pub struct TerraneTaskScope {\n\
-                 cancelled: std::sync::Arc<std::sync::atomic::AtomicBool>,\n\
-                 deadline: Option<std::time::Instant>,\n\
-             }\n\
-             impl TerraneTaskScope {\n\
-                 pub fn new(deadline_ms: Option<u64>) -> Self {\n\
-                     Self { cancelled: std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false)), deadline: deadline_ms.map(|value| std::time::Instant::now() + std::time::Duration::from_millis(value)) }\n\
+        let support = match package.executor {
+            crate::package::ExecutorProfile::Cooperative => {
+                "#[derive(Clone)]\n\
+                 pub struct TerraneTaskScope {\n\
+                     cancelled: std::sync::Arc<std::sync::atomic::AtomicBool>,\n\
+                     deadline: Option<std::time::Instant>,\n\
                  }\n\
-                 pub fn child_scope(&self, deadline_ms: u64) -> Self {\n\
-                     let requested = std::time::Instant::now() + std::time::Duration::from_millis(deadline_ms);\n\
-                     let deadline = Some(self.deadline.map_or(requested, |parent| std::cmp::min(parent, requested)));\n\
-                     Self { cancelled: self.cancelled.clone(), deadline }\n\
-                 }\n\
-                 pub fn cancel(&self) { self.cancelled.store(true, std::sync::atomic::Ordering::Release); }\n\
-                 pub fn join<T>(&self, mut task: TerraneScopedTask<T>) -> TerraneTaskOutcome<T> {\n\
-                     let result = task.handle.take().expect(\"scoped task joined once\").join()\n\
-                         .unwrap_or_else(|_| Err(\"task panicked\".to_owned()));\n\
-                     let cancelled = self.cancelled.load(std::sync::atomic::Ordering::Acquire)\n\
-                         || self.deadline.is_some_and(|deadline| std::time::Instant::now() >= deadline);\n\
-                     match result {\n\
-                         Ok(value) => TerraneTaskOutcome { completed: true, cancelled, value: Some(value), error: String::new() },\n\
-                         Err(error) => TerraneTaskOutcome { completed: false, cancelled, value: None, error },\n\
+                 impl TerraneTaskScope {\n\
+                     pub fn new(deadline_ms: Option<u64>) -> Self {\n\
+                         Self { cancelled: std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false)), deadline: deadline_ms.map(|value| std::time::Instant::now() + std::time::Duration::from_millis(value)) }\n\
+                     }\n\
+                     pub fn child_scope(&self, deadline_ms: u64) -> Self {\n\
+                         let requested = std::time::Instant::now() + std::time::Duration::from_millis(deadline_ms);\n\
+                         let deadline = Some(self.deadline.map_or(requested, |parent| std::cmp::min(parent, requested)));\n\
+                         Self { cancelled: self.cancelled.clone(), deadline }\n\
+                     }\n\
+                     pub fn cancel(&self) { self.cancelled.store(true, std::sync::atomic::Ordering::Release); }\n\
+                     pub fn join<T>(&self, mut task: TerraneScopedTask<T>) -> TerraneTaskOutcome<T> {\n\
+                         let result = task.result.take().expect(\"scoped task joined once\");\n\
+                         let cancelled = self.cancelled.load(std::sync::atomic::Ordering::Acquire)\n\
+                             || self.deadline.is_some_and(|deadline| std::time::Instant::now() >= deadline);\n\
+                         match result {\n\
+                             Ok(value) => TerraneTaskOutcome { completed: true, cancelled, value: Some(value), error: String::new() },\n\
+                             Err(error) => TerraneTaskOutcome { completed: false, cancelled, value: None, error },\n\
+                         }\n\
                      }\n\
                  }\n\
-             }\n\
-             pub struct TerraneScopedTask<T> { handle: Option<std::thread::JoinHandle<Result<T, String>>> }\n\
-             impl<T: Send + 'static> TerraneScopedTask<T> {\n\
-                 pub fn spawn<F: FnOnce() -> Result<T, String> + Send + 'static>(work: F) -> Self {\n\
-                     Self { handle: Some(std::thread::spawn(work)) }\n\
+                 pub struct TerraneScopedTask<T> { result: Option<Result<T, String>> }\n\
+                 impl<T> TerraneScopedTask<T> {\n\
+                     pub fn spawn<F: FnOnce() -> Result<T, String>>(work: F) -> Self {\n\
+                         Self { result: Some(work()) }\n\
+                     }\n\
                  }\n\
-             }\n\
-             pub struct TerraneTaskOutcome<T> { pub completed: bool, pub cancelled: bool, pub value: Option<T>, pub error: String }\n",
-        );
+                 pub struct TerraneTaskOutcome<T> { pub completed: bool, pub cancelled: bool, pub value: Option<T>, pub error: String }\n"
+            }
+            crate::package::ExecutorProfile::Threaded => {
+                "#[derive(Clone)]\n\
+                 pub struct TerraneTaskScope {\n\
+                     cancelled: std::sync::Arc<std::sync::atomic::AtomicBool>,\n\
+                     deadline: Option<std::time::Instant>,\n\
+                 }\n\
+                 impl TerraneTaskScope {\n\
+                     pub fn new(deadline_ms: Option<u64>) -> Self {\n\
+                         Self { cancelled: std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false)), deadline: deadline_ms.map(|value| std::time::Instant::now() + std::time::Duration::from_millis(value)) }\n\
+                     }\n\
+                     pub fn child_scope(&self, deadline_ms: u64) -> Self {\n\
+                         let requested = std::time::Instant::now() + std::time::Duration::from_millis(deadline_ms);\n\
+                         let deadline = Some(self.deadline.map_or(requested, |parent| std::cmp::min(parent, requested)));\n\
+                         Self { cancelled: self.cancelled.clone(), deadline }\n\
+                     }\n\
+                     pub fn cancel(&self) { self.cancelled.store(true, std::sync::atomic::Ordering::Release); }\n\
+                     pub fn join<T>(&self, mut task: TerraneScopedTask<T>) -> TerraneTaskOutcome<T> {\n\
+                         let result = task.handle.take().expect(\"scoped task joined once\").join()\n\
+                             .unwrap_or_else(|_| Err(\"task panicked\".to_owned()));\n\
+                         let cancelled = self.cancelled.load(std::sync::atomic::Ordering::Acquire)\n\
+                             || self.deadline.is_some_and(|deadline| std::time::Instant::now() >= deadline);\n\
+                         match result {\n\
+                             Ok(value) => TerraneTaskOutcome { completed: true, cancelled, value: Some(value), error: String::new() },\n\
+                             Err(error) => TerraneTaskOutcome { completed: false, cancelled, value: None, error },\n\
+                         }\n\
+                     }\n\
+                 }\n\
+                 pub struct TerraneScopedTask<T> { handle: Option<std::thread::JoinHandle<Result<T, String>>> }\n\
+                 impl<T: Send + 'static> TerraneScopedTask<T> {\n\
+                     pub fn spawn<F: FnOnce() -> Result<T, String> + Send + 'static>(work: F) -> Self {\n\
+                         Self { handle: Some(std::thread::spawn(work)) }\n\
+                     }\n\
+                 }\n\
+                 pub struct TerraneTaskOutcome<T> { pub completed: bool, pub cancelled: bool, pub value: Option<T>, pub error: String }\n"
+            }
+        };
+        globals.push_str(support);
     }
     if package.units.iter().any(|unit| {
         unit.typed_bindings

@@ -71,6 +71,7 @@ pub struct SemanticPackage {
     pub identity: String,
     pub prelude: bool,
     pub reflection: crate::package::ReflectionProfile,
+    pub executor: crate::package::ExecutorProfile,
     pub namespaces: BTreeMap<String, Namespace>,
     pub globals: BTreeMap<String, Symbol>,
     pub prelude_bindings: BTreeMap<String, Symbol>,
@@ -768,6 +769,7 @@ pub fn analyze(package: &Package) -> Result<SemanticPackage, SemanticFailure> {
         identity: package.identity.clone(),
         prelude: package.prelude,
         reflection: package.reflection,
+        executor: package.executor,
         namespaces,
         globals,
         prelude_bindings,
@@ -6861,7 +6863,7 @@ fn member_family_receiver(unit: &SemanticUnit, node: &SyntaxNode) -> bool {
         return false;
     }
     node.kind == SyntaxKind::MemberExpression
-        && (matches!(
+        && matches!(
             node_text(&unit.source, member),
             "coerce"
                 | "parse"
@@ -6875,7 +6877,7 @@ fn member_family_receiver(unit: &SemanticUnit, node: &SyntaxNode) -> bool {
                 | "negate"
                 | "shift-left"
                 | "shift-right"
-        ) || member_family_receiver(unit, receiver))
+        )
 }
 
 fn obsolete_integer_coercion_member<'a>(
