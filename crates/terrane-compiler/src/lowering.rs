@@ -1303,6 +1303,18 @@ impl Emitter<'_> {
         {
             write!(self.output, " -> {}", rust_value_type(return_type)).unwrap();
         }
+        let block = node
+            .children
+            .iter()
+            .find(|child| child.kind == SyntaxKind::Block);
+        if block.is_none_or(|block| block.children.is_empty())
+            && contract.parameters.is_empty()
+            && !async_main
+            && !function_errors
+        {
+            self.output.push_str(" {}\n");
+            return;
+        }
         self.output.push_str(" {\n");
         if async_main {
             self.indent += 1;
@@ -1331,10 +1343,6 @@ impl Emitter<'_> {
                 .collect(),
         );
         self.indent += 1;
-        let block = node
-            .children
-            .iter()
-            .find(|child| child.kind == SyntaxKind::Block);
         let unused_parameters = contract
             .parameters
             .iter()
