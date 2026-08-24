@@ -916,9 +916,17 @@ impl Emitter<'_> {
                         self.line(&format!("Self::Own(value) => &value.{field_name},"));
                         for descendant in &descendants {
                             let descendant_type = rust_object_name(&descendant.name);
-                            self.line(&format!(
-                                "Self::{descendant_type}(value) => &value.{field_name},"
-                            ));
+                            if self.unit.objects.iter().any(|candidate| {
+                                candidate.base.as_deref() == Some(descendant.name.as_str())
+                            }) {
+                                self.line(&format!(
+                                    "Self::{descendant_type}(value) => value.terrane_field_{field_name}(),"
+                                ));
+                            } else {
+                                self.line(&format!(
+                                    "Self::{descendant_type}(value) => &value.{field_name},"
+                                ));
+                            }
                         }
                         self.indent -= 1;
                         self.line("}");
@@ -933,9 +941,17 @@ impl Emitter<'_> {
                         self.line(&format!("Self::Own(value) => &mut value.{field_name},"));
                         for descendant in &descendants {
                             let descendant_type = rust_object_name(&descendant.name);
-                            self.line(&format!(
-                                "Self::{descendant_type}(value) => &mut value.{field_name},"
-                            ));
+                            if self.unit.objects.iter().any(|candidate| {
+                                candidate.base.as_deref() == Some(descendant.name.as_str())
+                            }) {
+                                self.line(&format!(
+                                    "Self::{descendant_type}(value) => value.terrane_field_{field_name}_mut(),"
+                                ));
+                            } else {
+                                self.line(&format!(
+                                    "Self::{descendant_type}(value) => &mut value.{field_name},"
+                                ));
+                            }
                         }
                         self.indent -= 1;
                         self.line("}");

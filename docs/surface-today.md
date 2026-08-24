@@ -467,10 +467,11 @@ default invocation through `construct`, and one deterministic invocation of each
 `destruct` hook per independently owned source value, ordered from the most-derived class toward
 the root base. Value separation copies class and interface-typed state into a fresh lifecycle
 lineage, while compiler-introduced Rust clones remain within one lineage and cannot multiply the
-hook. Subclass values retain inherited and directly declared state; methods access their flattened
-storage directly, while base wrappers forward inherited field reads and writes as well as
-overridden methods to the preserved concrete value. Subclasses inherit their bases' declared
-interface conformance. Declared named interfaces check complete method signatures, infer required
+hook. Subclass values retain inherited and directly declared state at arbitrary inheritance depth;
+methods access their flattened storage directly, while nested base wrappers recursively forward
+inherited field reads and writes and overridden methods to the preserved concrete value. Subclasses
+inherit their bases' declared interface conformance. Declared named interfaces check complete
+method signatures, infer required
 receiver mutability from conforming implementations, and lower as typed dispatch contracts. Traits
 reuse declared fields and methods, with unresolved multi-trait member conflicts rejected.
 
