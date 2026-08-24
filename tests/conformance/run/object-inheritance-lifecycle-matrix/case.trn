@@ -1,0 +1,27 @@
+namespace object-inheritance-lifecycle-matrix
+
+interface named
+    function report int
+
+class base implements named
+    value int = 1
+    function report int
+        return this.value
+    function set; value int
+        this.value = value
+    function destruct
+        print; 'base-destruct'
+
+class child extends base
+    extra int = 2
+    function destruct
+        print; 'child-destruct'
+
+function main
+    value child = child;
+    print; (value.report;)
+    value.set; 4
+    print; (value.report;)
+    view named = value
+    copied named = view
+    print; (copied.report;)

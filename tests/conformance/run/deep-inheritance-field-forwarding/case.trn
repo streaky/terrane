@@ -1,0 +1,31 @@
+namespace deep-inheritance-field-forwarding
+from /core/output import print
+
+class level0
+    f0 int = 0
+class level1 extends level0
+    f1 int = 1
+class level2 extends level1
+    f2 int = 2
+class level3 extends level2
+    f3 int = 3
+class level4 extends level3
+    f4 int = 4
+class level5 extends level4
+    f5 int = 5
+class level6 extends level5
+    f6 int = 6
+class level7 extends level6
+    f7 int = 7
+class level8 extends level7
+    f8 int = 8
+class level9 extends level8
+    f9 int = 9
+
+function main
+    leaf level9 = level9;
+    print; leaf.f0, leaf.f5, leaf.f9
+    root level0 = leaf
+    print; root.f0
+    root.f0 = 10
+    print; root.f0, leaf.f0

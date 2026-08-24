@@ -1,0 +1,15 @@
+namespace trait-member-conflict
+
+trait left
+    function label string
+        return 'left'
+
+trait right
+    function label string
+        return 'right'
+
+class combined uses left, right
+    value int = 1
+
+function main
+    value combined = combined;

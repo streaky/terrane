@@ -1,0 +1,7 @@
+namespace uninitialized-class-field
+
+class counter
+    value int
+
+function main
+    value counter = counter;

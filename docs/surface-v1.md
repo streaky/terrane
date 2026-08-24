@@ -79,8 +79,8 @@ object
 +-- error                                       catchable object contract
 +-- iterator                                    explicit end-of-stream state
 +-- reference
-    +-- ref
-    +-- weak-ref
+    +-- ref                                  non-owning, provenance checked
+    +-- shared ref                           shared owner
 ```
 
 ### Why fixed-width integers do not subclass `int`
@@ -645,11 +645,13 @@ ordinary value assignment
 
 ref object
 +-- explicit shared identity
-+-- strong reference contract
-
-weak-ref object
 +-- non-owning observation
-+-- upgrade/check operation
++-- provenance and lifetime checks
+
+shared ref object
++-- explicit shared identity
++-- shared ownership and lifetime extension
++-- cycle analysis
 
 move
 +-- ownership transfer for linear/resource values
@@ -661,6 +663,11 @@ linear/resource object
 ```
 
 Scalar, string, collection, ordinary class, closure, and bound-method values have no identity merely due to boxing. Type, namespace, package, declared-function descriptors and explicit/resource identity groups do.
+
+`ref T` / `ref value` is the ordinary non-owning form; it never keeps the target alive.
+`shared ref T` / `shared ref value` is the conspicuous owning form used only when aliases must
+share identity beyond one lexical owner's lifetime. Ordinary values continue to use value semantics
+and may share invisible copy-on-write storage without either source-level reference form.
 
 ## 11. Control-flow and structural language objects
 

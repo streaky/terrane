@@ -20,6 +20,8 @@ pub enum SymbolKind {
     Function,
     TypeDescriptor,
     Interface,
+    Class,
+    Trait,
     ErrorObject,
 }
 
@@ -143,6 +145,10 @@ pub enum ValueType {
     UnorderedMap(ElementType, ElementType),
     UnorderedSet(ElementType),
     Encoding,
+    Function(Vec<ElementType>, ElementType),
+    Object(String),
+    Reference(ElementType),
+    SharedReference(ElementType),
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -248,6 +254,22 @@ impl std::fmt::Display for ValueType {
             }
             Self::UnorderedSet(item) => write!(formatter, "unordered-set of {item}"),
             Self::Encoding => formatter.write_str("encoding"),
+            Self::Function(parameters, result) => {
+                formatter.write_str("function")?;
+                if !parameters.is_empty() {
+                    formatter.write_str(" from ")?;
+                    for (index, parameter) in parameters.iter().enumerate() {
+                        if index != 0 {
+                            formatter.write_str(", ")?;
+                        }
+                        parameter.fmt(formatter)?;
+                    }
+                }
+                write!(formatter, " to {result}")
+            }
+            Self::Object(name) => formatter.write_str(name),
+            Self::Reference(item) => write!(formatter, "ref {}", item.value_type()),
+            Self::SharedReference(item) => write!(formatter, "shared ref {}", item.value_type()),
         }
     }
 }
@@ -375,13 +397,41 @@ struct DescriptorAlias {
     value_type: ScalarType,
 }
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum ObjectKind {
+    Class,
+    Interface,
+    Trait,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ObjectField {
+    pub name: String,
+    pub span: Span,
+    pub value_type: ValueType,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ObjectContract {
+    pub name: String,
+    pub span: Span,
+    pub kind: ObjectKind,
+    pub base: Option<String>,
+    pub interfaces: Vec<String>,
+    pub traits: Vec<String>,
+    pub fields: Vec<ObjectField>,
+}
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct FunctionContract {
     pub name: String,
     pub span: Span,
+    pub owner: Option<String>,
+    pub captures: Vec<String>,
     pub parameters: Vec<ParameterContract>,
     pub return_type: Option<ValueType>,
     pub throws: bool,
+    pub mutates_receiver: bool,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -430,6 +480,7 @@ pub struct SemanticUnit {
     pub typed_bindings: Vec<TypedBinding>,
     /// Function contracts declared by every source unit in this unit's namespace.
     pub functions: Vec<FunctionContract>,
+    pub objects: Vec<ObjectContract>,
     function_aliases: BTreeMap<String, FunctionContract>,
     enclosing_function_spans: BTreeMap<usize, Option<Span>>,
     descriptor_aliases: BTreeMap<String, Vec<DescriptorAlias>>,
@@ -499,13 +550,34 @@ struct Import {
     span: Span,
 }
 
+fn is_function_node(node: &SyntaxNode) -> bool {
+    matches!(
+        node.kind,
+        SyntaxKind::FunctionDeclaration | SyntaxKind::AnonymousFunction
+    )
+}
+
+fn object_name_containing(unit: &SemanticUnit, span: Span) -> Option<String> {
+    unit.tree.root.children.iter().find_map(|object| {
+        matches!(
+            object.kind,
+            SyntaxKind::ClassDeclaration
+                | SyntaxKind::InterfaceDeclaration
+                | SyntaxKind::TraitDeclaration
+        )
+        .then_some(object)
+        .filter(|object| object.span.start <= span.start && span.end <= object.span.end)
+        .and_then(|object| declaration_name(object, &unit.source))
+    })
+}
+
 fn index_enclosing_function_spans(root: &SyntaxNode) -> BTreeMap<usize, Option<Span>> {
     fn visit(
         node: &SyntaxNode,
         enclosing_function: Option<Span>,
         spans: &mut BTreeMap<usize, Option<Span>>,
     ) {
-        let enclosing_function = (node.kind == SyntaxKind::FunctionDeclaration)
+        let enclosing_function = is_function_node(node)
             .then_some(node.span)
             .or(enclosing_function);
         spans.insert(node.span.start, enclosing_function);
@@ -577,6 +649,7 @@ fn parse_units(package: &Package) -> Result<Vec<SemanticUnit>, SemanticFailure> 
             scopes: Vec::new(),
             typed_bindings: Vec::new(),
             functions: Vec::new(),
+            objects: Vec::new(),
             function_aliases: BTreeMap::new(),
             descriptor_aliases: BTreeMap::new(),
             enclosing_function_spans,
@@ -655,6 +728,9 @@ pub fn analyze(package: &Package) -> Result<SemanticPackage, SemanticFailure> {
     validate_references(&semantic)?;
     validate_error_clauses(&semantic)?;
     analyze_types(&mut semantic)?;
+    validate_moves(&semantic)?;
+    validate_reference_origins(&semantic)?;
+    validate_referenced_replacements(&semantic)?;
     infer_throwing_effects(&mut semantic);
     validate_constant_reassignment(&semantic)?;
     validate_global_definite_assignment(&semantic)?;
@@ -779,6 +855,55 @@ fn populate_namespace_function_contracts(package: &mut SemanticPackage) {
             .filter(|(candidate, _)| *candidate == namespace)
             .flat_map(|(_, functions)| functions.iter().cloned())
             .collect();
+    }
+}
+
+fn populate_object_aliases(package: &mut SemanticPackage) {
+    let contracts = package
+        .units
+        .iter()
+        .flat_map(|unit| unit.objects.iter())
+        .map(|contract| {
+            (
+                (contract.span.file, contract.span.start, contract.span.end),
+                contract.clone(),
+            )
+        })
+        .collect::<BTreeMap<_, _>>();
+    for unit in &mut package.units {
+        let mut aliases = package
+            .namespaces
+            .get(&unit.namespace)
+            .into_iter()
+            .flat_map(|namespace| &namespace.symbols)
+            .chain(
+                unit.scopes
+                    .iter()
+                    .flat_map(|scope| &scope.symbols)
+                    .flat_map(|(name, symbols)| symbols.iter().map(move |symbol| (name, symbol))),
+            )
+            .filter_map(|(visible_name, symbol)| {
+                let span = symbol.declaration_span?;
+                matches!(
+                    symbol.kind,
+                    SymbolKind::Class | SymbolKind::Interface | SymbolKind::Trait
+                )
+                .then(|| contracts.get(&(span.file, span.start, span.end)))
+                .flatten()
+                .cloned()
+                .map(|mut contract| {
+                    contract.name.clone_from(visible_name);
+                    contract
+                })
+            })
+            .collect::<Vec<_>>();
+        aliases.retain(|alias| {
+            !unit
+                .objects
+                .iter()
+                .any(|contract| contract.name == alias.name)
+        });
+        unit.objects.extend(aliases);
     }
 }
 
@@ -993,6 +1118,9 @@ fn validate_declared_names(source: &SourceFile, tree: &SyntaxTree) -> Result<(),
             node.kind,
             SyntaxKind::Binding
                 | SyntaxKind::FunctionDeclaration
+                | SyntaxKind::ClassDeclaration
+                | SyntaxKind::InterfaceDeclaration
+                | SyntaxKind::TraitDeclaration
                 | SyntaxKind::Parameter
                 | SyntaxKind::ForTarget
                 | SyntaxKind::ImportAlias
@@ -1029,7 +1157,12 @@ fn collect_unit(
 ) -> Result<(), SemanticFailure> {
     for node in &unit.tree.root.children {
         match node.kind {
-            SyntaxKind::Binding | SyntaxKind::Assignment | SyntaxKind::FunctionDeclaration => {
+            SyntaxKind::Binding
+            | SyntaxKind::Assignment
+            | SyntaxKind::FunctionDeclaration
+            | SyntaxKind::ClassDeclaration
+            | SyntaxKind::InterfaceDeclaration
+            | SyntaxKind::TraitDeclaration => {
                 collect_declaration(unit, node, namespaces, globals)?;
             }
             SyntaxKind::ImportDeclaration => imports.extend(imports_from_syntax(unit, node)?),
@@ -1091,10 +1224,12 @@ fn declaration_from_syntax(unit: &SemanticUnit, node: &SyntaxNode) -> Option<Dec
                 && node_text(&unit.source, child) == expected
         })
     };
-    let kind = if node.kind == SyntaxKind::FunctionDeclaration {
-        SymbolKind::Function
-    } else {
-        SymbolKind::Binding
+    let kind = match node.kind {
+        SyntaxKind::FunctionDeclaration => SymbolKind::Function,
+        SyntaxKind::ClassDeclaration => SymbolKind::Class,
+        SyntaxKind::InterfaceDeclaration => SymbolKind::Interface,
+        SyntaxKind::TraitDeclaration => SymbolKind::Trait,
+        _ => SymbolKind::Binding,
     };
     Some(Declaration {
         name,
@@ -1304,6 +1439,297 @@ fn resolve_imports(
     Ok(())
 }
 
+#[expect(
+    clippy::too_many_lines,
+    reason = "move provenance and its control-flow join remain one auditable analysis"
+)]
+fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFailure> {
+    fn binding_at(unit: &SemanticUnit, name: &str, position: usize) -> Option<usize> {
+        unit.typed_bindings
+            .iter()
+            .enumerate()
+            .rev()
+            .find(|(_, binding)| {
+                binding.name == name && binding.is_visible_at(unit.source.id(), position)
+            })
+            .map(|(index, _)| index)
+    }
+
+    #[expect(
+        clippy::too_many_lines,
+        reason = "move traversal keeps scope transitions and diagnostics in one ordered dispatch"
+    )]
+    fn visit(
+        unit: &SemanticUnit,
+        node: &SyntaxNode,
+        moved: &mut BTreeSet<usize>,
+        declaration_name: bool,
+    ) -> Result<(), SemanticFailure> {
+        if node.kind == SyntaxKind::UnaryExpression
+            && let Some(operand) = node.children.last()
+            && unary_operator_text(unit, node).as_deref() == Some("move")
+            && operand.kind == SyntaxKind::Name
+        {
+            let name = node_text(&unit.source, operand);
+            if let Some(binding) = binding_at(unit, name, operand.span.start) {
+                if !moved.insert(binding) {
+                    return Err(failure(
+                        &unit.source,
+                        "T0058",
+                        format!("`{name}` was already moved and is unavailable until rebound"),
+                        operand.span,
+                    ));
+                }
+            }
+            return Ok(());
+        }
+        if node.kind == SyntaxKind::Name && !declaration_name {
+            let name = node_text(&unit.source, node);
+            if let Some(binding) = binding_at(unit, name, node.span.start)
+                && moved.contains(&binding)
+            {
+                return Err(failure(
+                    &unit.source,
+                    "T0058",
+                    format!("`{name}` was moved and is unavailable until rebound"),
+                    node.span,
+                ));
+            }
+            return Ok(());
+        }
+        if matches!(node.kind, SyntaxKind::Binding | SyntaxKind::Assignment) {
+            let mut skipped_name = false;
+            for child in &node.children {
+                if !skipped_name && child.kind == SyntaxKind::Name {
+                    skipped_name = true;
+                    continue;
+                }
+                visit(unit, child, moved, false)?;
+            }
+            if node.kind == SyntaxKind::Assignment
+                && let Some(name) = node
+                    .children
+                    .iter()
+                    .find(|child| child.kind == SyntaxKind::Name)
+                    .map(|name| node_text(&unit.source, name))
+                && let Some(binding) = binding_at(unit, name, node.span.start)
+            {
+                moved.remove(&binding);
+            }
+            return Ok(());
+        }
+        if node.kind == SyntaxKind::IfStatement {
+            let mut entry = moved.clone();
+            for child in &node.children {
+                if !matches!(child.kind, SyntaxKind::Block | SyntaxKind::ElseClause) {
+                    visit(unit, child, &mut entry, false)?;
+                }
+            }
+            let mut branches = Vec::new();
+            let mut has_else = false;
+            for child in &node.children {
+                if matches!(child.kind, SyntaxKind::Block | SyntaxKind::ElseClause) {
+                    has_else |= child.kind == SyntaxKind::ElseClause;
+                    let mut branch = entry.clone();
+                    visit(unit, child, &mut branch, false)?;
+                    branches.push(branch);
+                }
+            }
+            if !has_else {
+                branches.push(entry);
+            }
+            moved.clear();
+            moved.extend(branches.into_iter().flatten());
+            return Ok(());
+        }
+        if matches!(
+            node.kind,
+            SyntaxKind::WhileStatement | SyntaxKind::ForStatement
+        ) {
+            let mut entry = moved.clone();
+            let body = node
+                .children
+                .iter()
+                .find(|child| child.kind == SyntaxKind::Block);
+            for child in &node.children {
+                if Some(child) != body {
+                    visit(unit, child, &mut entry, false)?;
+                }
+            }
+            if let Some(body) = body {
+                let mut after_iteration = entry.clone();
+                visit(unit, body, &mut after_iteration, false)?;
+                // Validate the back edge: the next iteration starts with the first iteration's
+                // move state, even though only the may-execute-once state leaves the loop.
+                let mut next_iteration = after_iteration.clone();
+                visit(unit, body, &mut next_iteration, false)?;
+                entry.extend(after_iteration);
+            }
+            *moved = entry;
+            return Ok(());
+        }
+        for child in &node.children {
+            visit(unit, child, moved, false)?;
+        }
+        Ok(())
+    }
+
+    for unit in &package.units {
+        visit(unit, &unit.tree.root, &mut BTreeSet::new(), false)?;
+    }
+    Ok(())
+}
+
+fn validate_reference_origins(package: &SemanticPackage) -> Result<(), SemanticFailure> {
+    fn visit(unit: &SemanticUnit, node: &SyntaxNode) -> Result<(), SemanticFailure> {
+        if node.kind == SyntaxKind::UnaryExpression
+            && let Some(operand) = node.children.last()
+            && unary_operator_text(unit, node).as_deref() == Some("ref")
+        {
+            let valid_origin = operand.kind == SyntaxKind::Name
+                && unit.typed_bindings.iter().rev().any(|binding| {
+                    binding.name == node_text(&unit.source, operand)
+                        && binding.is_visible_at(unit.source.id(), operand.span.start)
+                        && binding.scope.is_some()
+                        && find_node_by_span(&unit.tree.root, binding.span)
+                            .is_some_and(|origin| origin.kind == SyntaxKind::Binding)
+                });
+            if !valid_origin {
+                return Err(failure(
+                    &unit.source,
+                    "T0064",
+                    "`ref` requires a named binding with reference-backed storage",
+                    operand.span,
+                ));
+            }
+        }
+        if node.kind == SyntaxKind::ReturnStatement
+            && let Some(value) = node.children.first()
+            && matches!(
+                infer_value_type(unit, value, &unit.typed_bindings)?,
+                Some(ValueType::Reference(_))
+            )
+        {
+            return Err(failure(
+                &unit.source,
+                "T0068",
+                "a non-owning reference cannot escape its proven source lifetime",
+                value.span,
+            ));
+        }
+        for child in &node.children {
+            visit(unit, child)?;
+        }
+        Ok(())
+    }
+
+    for unit in &package.units {
+        visit(unit, &unit.tree.root)?;
+    }
+    Ok(())
+}
+
+fn validate_referenced_replacements(package: &SemanticPackage) -> Result<(), SemanticFailure> {
+    fn collect_origins(
+        unit: &SemanticUnit,
+        node: &SyntaxNode,
+        observer: Option<Span>,
+        origins: &mut Vec<(Span, Span)>,
+    ) {
+        let observer = if node.kind == SyntaxKind::Binding {
+            unit.typed_bindings
+                .iter()
+                .find(|binding| binding.span == node.span)
+                .map(|binding| binding.span)
+                .or(observer)
+        } else {
+            observer
+        };
+        if node.kind == SyntaxKind::UnaryExpression
+            && unary_operator_text(unit, node).as_deref() == Some("ref")
+            && let Some(observer) = observer
+            && let Some(operand) = node.children.last()
+            && operand.kind == SyntaxKind::Name
+            && let Some(binding) = unit.typed_bindings.iter().rev().find(|binding| {
+                binding.name == node_text(&unit.source, operand)
+                    && binding.is_visible_at(unit.source.id(), operand.span.start)
+            })
+        {
+            origins.push((binding.span, observer));
+        }
+        for child in &node.children {
+            collect_origins(unit, child, observer, origins);
+        }
+    }
+
+    fn first_use_after(
+        package: &SemanticPackage,
+        unit: &SemanticUnit,
+        node: &SyntaxNode,
+        declaration: Span,
+        position: usize,
+    ) -> Option<Span> {
+        if node.kind == SyntaxKind::Name
+            && node.span.start > position
+            && package
+                .resolve_name_at(unit, node.span.start, node_text(&unit.source, node))
+                .and_then(|symbol| symbol.declaration_span)
+                == Some(declaration)
+        {
+            return Some(node.span);
+        }
+        node.children
+            .iter()
+            .find_map(|child| first_use_after(package, unit, child, declaration, position))
+    }
+
+    for unit in &package.units {
+        let mut origins = Vec::new();
+        collect_origins(unit, &unit.tree.root, None, &mut origins);
+        for replacement in &unit.typed_bindings {
+            let previous = unit
+                .typed_bindings
+                .iter()
+                .filter(|binding| {
+                    binding.name == replacement.name
+                        && binding.scope == replacement.scope
+                        && binding.visible_from < replacement.visible_from
+                })
+                .max_by_key(|binding| binding.visible_from);
+            if let Some(previous) = previous
+                && previous.value_type != replacement.value_type
+                && let Some(use_span) = origins
+                    .iter()
+                    .filter(|(origin, _)| *origin == previous.span)
+                    .find_map(|(_, observer)| {
+                        first_use_after(
+                            package,
+                            unit,
+                            &unit.tree.root,
+                            *observer,
+                            replacement.span.end,
+                        )
+                    })
+            {
+                return Err(failure(
+                    &unit.source,
+                    "T0059",
+                    format!(
+                        "a reference to the previous `{}` value is unavailable after replacement",
+                        replacement.name
+                    ),
+                    use_span,
+                ));
+            }
+        }
+    }
+    Ok(())
+}
+
+#[expect(
+    clippy::too_many_lines,
+    reason = "reference validation keeps ownership forms in one ordered syntax traversal"
+)]
 fn validate_references(package: &SemanticPackage) -> Result<(), SemanticFailure> {
     fn visit(
         package: &SemanticPackage,
@@ -1315,7 +1741,10 @@ fn validate_references(package: &SemanticPackage) -> Result<(), SemanticFailure>
             SyntaxKind::Name => {
                 let name = node_text(&unit.source, node);
                 let resolved = package.resolve_name_at(unit, node.span.start, name);
-                if resolved.is_none() && !package.descriptor_constructs.contains_key(name) {
+                if resolved.is_none()
+                    && !package.descriptor_constructs.contains_key(name)
+                    && !(name == "this" && object_name_containing(unit, node.span).is_some())
+                {
                     if namespace_chain(&unit.namespace)
                         .filter_map(|path| package.namespaces.get(&path))
                         .filter_map(|namespace| namespace.symbols.get(name))
@@ -1349,7 +1778,13 @@ fn validate_references(package: &SemanticPackage) -> Result<(), SemanticFailure>
             | SyntaxKind::PrefixType
             | SyntaxKind::AppliedType
             | SyntaxKind::FunctionType => {}
-            SyntaxKind::Binding | SyntaxKind::Assignment | SyntaxKind::FunctionDeclaration => {
+            SyntaxKind::Binding
+            | SyntaxKind::Assignment
+            | SyntaxKind::FunctionDeclaration
+            | SyntaxKind::AnonymousFunction
+            | SyntaxKind::ClassDeclaration
+            | SyntaxKind::InterfaceDeclaration
+            | SyntaxKind::TraitDeclaration => {
                 let mut declaration_name_skipped = false;
                 for child in &node.children {
                     if !declaration_name_skipped && child.kind == SyntaxKind::Name {
@@ -1809,7 +2244,7 @@ fn validate_call_nodes<'a>(
     active_function: Option<&'a FunctionContract>,
     scoped_bindings: &[TypedBinding],
 ) -> Result<(), SemanticFailure> {
-    let entered_function = (node.kind == SyntaxKind::FunctionDeclaration)
+    let entered_function = is_function_node(node)
         .then(|| {
             unit.functions
                 .iter()
@@ -1857,7 +2292,8 @@ fn validate_call_nodes<'a>(
                 active_function,
                 scoped_bindings,
             )?;
-            let value_type = infer_value_type(unit, value, scoped_bindings)?;
+            let value_type =
+                transparent_value_type(infer_value_type(unit, value, scoped_bindings)?);
             if !matches!(
                 value_type,
                 Some(ValueType::Scalar(
@@ -1888,6 +2324,50 @@ fn validate_call_nodes<'a>(
                     ),
                     value.span,
                 ));
+            }
+        }
+    }
+    if node.kind == SyntaxKind::CallExpression
+        && let [callee, arguments] = node.children.as_slice()
+        && callee.kind == SyntaxKind::Name
+        && let Some(binding) = scoped_bindings.iter().rev().find(|binding| {
+            binding.name == node_text(&unit.source, callee)
+                && binding.is_visible_at(unit.source.id(), callee.span.start)
+        })
+        && let ValueType::Function(parameters, _) = &binding.value_type
+    {
+        if arguments.children.len() != parameters.len() {
+            return Err(failure(
+                &unit.source,
+                "T0012",
+                format!(
+                    "callable expects {} arguments, found {}",
+                    parameters.len(),
+                    arguments.children.len()
+                ),
+                arguments.span,
+            ));
+        }
+        for (argument, expected) in arguments.children.iter().zip(parameters) {
+            if argument.children.len() > 1 {
+                return Err(failure(
+                    &unit.source,
+                    "T0012",
+                    "calls through function values use positional arguments",
+                    argument.span,
+                ));
+            }
+            let value = argument.children.last().unwrap_or(argument);
+            if let Some(actual) = infer_value_type(unit, value, scoped_bindings)? {
+                validate_value_destination(
+                    &unit.source,
+                    &unit.objects,
+                    "callable argument",
+                    expected.value_type(),
+                    actual,
+                    value,
+                    "T0012",
+                )?;
             }
         }
     }
@@ -2062,7 +2542,15 @@ fn validate_resolved_assignment(
     else {
         return Ok(());
     };
-    validate_value_destination(&unit.source, name, expected, actual, initializer, "T0002")
+    validate_value_destination(
+        &unit.source,
+        &unit.objects,
+        name,
+        expected,
+        actual,
+        initializer,
+        "T0002",
+    )
 }
 
 fn resolved_call_type(
@@ -2165,6 +2653,7 @@ fn validate_call_arguments(
             } else if let Some(actual) = infer_value_type(unit, value, bindings)? {
                 validate_value_destination(
                     &unit.source,
+                    &unit.objects,
                     &parameter.name,
                     expected,
                     actual,
@@ -2260,7 +2749,383 @@ fn descriptor_construct_alias_history(
         .collect()
 }
 
+#[expect(
+    clippy::too_many_lines,
+    reason = "object analysis assembles one complete declaration contract"
+)]
+fn analyze_object_contracts(
+    unit: &SemanticUnit,
+    aliases: &BTreeMap<String, Vec<DescriptorAlias>>,
+) -> Result<Vec<ObjectContract>, SemanticFailure> {
+    let visible = visible_descriptor_aliases(aliases, unit.source.id(), 0);
+    let mut objects = Vec::new();
+    for node in &unit.tree.root.children {
+        let kind = match node.kind {
+            SyntaxKind::ClassDeclaration => ObjectKind::Class,
+            SyntaxKind::InterfaceDeclaration => ObjectKind::Interface,
+            SyntaxKind::TraitDeclaration => ObjectKind::Trait,
+            _ => continue,
+        };
+        let name = declaration_name(node, &unit.source).ok_or_else(|| {
+            failure(
+                &unit.source,
+                "T0053",
+                "object declaration requires a name",
+                node.span,
+            )
+        })?;
+        let clause_names = |clause_kind| {
+            node.children
+                .iter()
+                .find(|child| child.kind == clause_kind)
+                .map(|clause| {
+                    clause
+                        .children
+                        .iter()
+                        .map(|name| node_text(&unit.source, name).to_owned())
+                        .collect::<Vec<_>>()
+                })
+                .unwrap_or_default()
+        };
+        let base = clause_names(SyntaxKind::ExtendsClause).into_iter().next();
+        let interfaces = clause_names(SyntaxKind::ImplementsClause);
+        let traits = clause_names(SyntaxKind::UsesClause);
+        let mut fields = Vec::new();
+        if let Some(block) = node
+            .children
+            .iter()
+            .find(|child| child.kind == SyntaxKind::Block)
+        {
+            for field in block
+                .children
+                .iter()
+                .filter(|child| child.kind == SyntaxKind::Binding)
+            {
+                let Some(field_name) = field
+                    .children
+                    .iter()
+                    .find(|child| child.kind == SyntaxKind::Name)
+                else {
+                    continue;
+                };
+                let initializer = field.children.last().filter(|child| {
+                    child.span != field_name.span
+                        && !matches!(
+                            child.kind,
+                            SyntaxKind::Visibility
+                                | SyntaxKind::DeclarationQualifier
+                                | SyntaxKind::TypeExpression
+                        )
+                });
+                if kind == ObjectKind::Class && initializer.is_none() {
+                    return Err(failure(
+                        &unit.source,
+                        "T0061",
+                        format!(
+                            "class field `{}` requires an initializer",
+                            node_text(&unit.source, field_name)
+                        ),
+                        field.span,
+                    ));
+                }
+                let value_type = if let Some(type_node) = field
+                    .children
+                    .iter()
+                    .find(|child| child.kind == SyntaxKind::TypeExpression)
+                {
+                    declared_value_type(unit, type_node, &visible)?
+                } else if let Some(initializer) = initializer {
+                    infer_value_type(unit, initializer, &[])?.ok_or_else(|| {
+                        failure(
+                            &unit.source,
+                            "T0065",
+                            "object field type cannot be inferred",
+                            field.span,
+                        )
+                    })?
+                } else {
+                    return Err(failure(
+                        &unit.source,
+                        "T0066",
+                        "object fields require a type or initializer",
+                        field.span,
+                    ));
+                };
+                fields.push(ObjectField {
+                    name: node_text(&unit.source, field_name).to_owned(),
+                    span: field.span,
+                    value_type,
+                });
+            }
+        }
+        objects.push(ObjectContract {
+            name,
+            span: node.span,
+            kind,
+            base,
+            interfaces,
+            traits,
+            fields,
+        });
+    }
+    for object in &objects {
+        let require_kind = |name: &str, expected: ObjectKind, role: &str| {
+            let valid = objects
+                .iter()
+                .any(|candidate| candidate.name == name && candidate.kind == expected);
+            valid.then_some(()).ok_or_else(|| {
+                failure(
+                    &unit.source,
+                    "T0054",
+                    format!("`{name}` does not resolve to a {role}"),
+                    object.span,
+                )
+            })
+        };
+        if let Some(base) = &object.base {
+            require_kind(base, ObjectKind::Class, "class")?;
+        }
+        for interface in &object.interfaces {
+            require_kind(interface, ObjectKind::Interface, "interface")?;
+        }
+        for used_trait in &object.traits {
+            require_kind(used_trait, ObjectKind::Trait, "trait")?;
+        }
+    }
+    Ok(objects)
+}
+
+#[expect(
+    clippy::too_many_lines,
+    reason = "object conformance checks inheritance, interfaces, and trait conflicts together"
+)]
+fn validate_object_conformance(package: &SemanticPackage) -> Result<(), SemanticFailure> {
+    fn same_signature(left: &FunctionContract, right: &FunctionContract) -> bool {
+        left.parameters.len() == right.parameters.len()
+            && left
+                .parameters
+                .iter()
+                .zip(&right.parameters)
+                .all(|(left, right)| {
+                    left.value_type == right.value_type
+                        && left.optional == right.optional
+                        && left.mutable == right.mutable
+                })
+            && left.return_type == right.return_type
+            && left.throws == right.throws
+    }
+
+    fn effective_method<'a>(
+        unit: &'a SemanticUnit,
+        object: &'a ObjectContract,
+        name: &str,
+    ) -> Option<&'a FunctionContract> {
+        unit.functions
+            .iter()
+            .find(|method| method.owner.as_deref() == Some(&object.name) && method.name == name)
+            .or_else(|| {
+                object
+                    .base
+                    .as_ref()
+                    .and_then(|base| {
+                        unit.objects
+                            .iter()
+                            .find(|candidate| &candidate.name == base)
+                    })
+                    .and_then(|base| effective_method(unit, base, name))
+            })
+    }
+
+    for unit in &package.units {
+        for object in unit
+            .objects
+            .iter()
+            .filter(|object| object.kind == ObjectKind::Class)
+        {
+            for interface_name in &object.interfaces {
+                let interface = unit
+                    .objects
+                    .iter()
+                    .find(|candidate| &candidate.name == interface_name)
+                    .expect("object-kind validation must resolve implemented interfaces");
+                for required in unit
+                    .functions
+                    .iter()
+                    .filter(|method| method.owner.as_deref() == Some(&interface.name))
+                {
+                    let Some(actual) = effective_method(unit, object, &required.name) else {
+                        return Err(failure(
+                            &unit.source,
+                            "T0062",
+                            format!(
+                                "class `{}` does not implement interface member `{}.{}`",
+                                object.name, interface.name, required.name
+                            ),
+                            object.span,
+                        ));
+                    };
+                    if !same_signature(required, actual) {
+                        return Err(failure(
+                            &unit.source,
+                            "T0067",
+                            format!(
+                                "class `{}` implements `{}.{}` with an incompatible signature",
+                                object.name, interface.name, required.name
+                            ),
+                            actual.span,
+                        ));
+                    }
+                }
+            }
+
+            let own_methods = unit
+                .functions
+                .iter()
+                .filter(|method| method.owner.as_deref() == Some(&object.name))
+                .map(|method| method.name.as_str())
+                .collect::<BTreeSet<_>>();
+            let own_fields = object
+                .fields
+                .iter()
+                .map(|field| field.name.as_str())
+                .collect::<BTreeSet<_>>();
+            let mut providers = BTreeMap::<&str, Vec<&str>>::new();
+            for trait_name in &object.traits {
+                let used_trait = unit
+                    .objects
+                    .iter()
+                    .find(|candidate| &candidate.name == trait_name)
+                    .expect("object-kind validation must resolve used traits");
+                for method in unit
+                    .functions
+                    .iter()
+                    .filter(|method| method.owner.as_deref() == Some(&used_trait.name))
+                {
+                    providers
+                        .entry(method.name.as_str())
+                        .or_default()
+                        .push(used_trait.name.as_str());
+                }
+                for field in &used_trait.fields {
+                    providers
+                        .entry(field.name.as_str())
+                        .or_default()
+                        .push(used_trait.name.as_str());
+                }
+            }
+            if let Some((member, traits)) = providers.iter().find(|(member, traits)| {
+                traits.len() > 1
+                    && !own_methods.contains(**member)
+                    && !own_fields.contains(**member)
+            }) {
+                return Err(failure(
+                    &unit.source,
+                    "T0063",
+                    format!(
+                        "class `{}` inherits conflicting member `{member}` from traits {}",
+                        object.name,
+                        traits.join(", ")
+                    ),
+                    object.span,
+                ));
+            }
+        }
+    }
+    Ok(())
+}
+
+fn propagate_interface_receiver_mutability(package: &mut SemanticPackage) {
+    fn effective_method<'a>(
+        unit: &'a SemanticUnit,
+        object: &'a ObjectContract,
+        name: &str,
+    ) -> Option<&'a FunctionContract> {
+        unit.functions
+            .iter()
+            .find(|method| method.owner.as_deref() == Some(&object.name) && method.name == name)
+            .or_else(|| {
+                object
+                    .base
+                    .as_deref()
+                    .and_then(|base| unit.objects.iter().find(|candidate| candidate.name == base))
+                    .and_then(|base| effective_method(unit, base, name))
+            })
+            .or_else(|| {
+                object.traits.iter().find_map(|used_trait| {
+                    unit.objects
+                        .iter()
+                        .find(|candidate| candidate.name == *used_trait)
+                        .and_then(|used_trait| effective_method(unit, used_trait, name))
+                })
+            })
+    }
+
+    let mut mutating = BTreeSet::<(u32, usize, usize, String)>::new();
+    for unit in &package.units {
+        for class in unit
+            .objects
+            .iter()
+            .filter(|object| object.kind == ObjectKind::Class)
+        {
+            for interface_name in &class.interfaces {
+                let Some(interface) = unit
+                    .objects
+                    .iter()
+                    .find(|candidate| candidate.name == *interface_name)
+                else {
+                    continue;
+                };
+                for required in unit
+                    .functions
+                    .iter()
+                    .filter(|method| method.owner.as_deref() == Some(&interface.name))
+                {
+                    if effective_method(unit, class, &required.name)
+                        .is_some_and(|actual| actual.mutates_receiver)
+                    {
+                        mutating.insert((
+                            interface.span.file,
+                            interface.span.start,
+                            interface.span.end,
+                            required.name.clone(),
+                        ));
+                    }
+                }
+            }
+        }
+    }
+
+    for unit in &mut package.units {
+        for method in &mut unit.functions {
+            let Some(owner) = method.owner.as_deref() else {
+                continue;
+            };
+            let Some(interface) = unit
+                .objects
+                .iter()
+                .find(|object| object.kind == ObjectKind::Interface && object.name == owner)
+            else {
+                continue;
+            };
+            if mutating.contains(&(
+                interface.span.file,
+                interface.span.start,
+                interface.span.end,
+                method.name.clone(),
+            )) {
+                method.mutates_receiver = true;
+            }
+        }
+    }
+}
+
 fn analyze_types(package: &mut SemanticPackage) -> Result<(), SemanticFailure> {
+    for index in 0..package.units.len() {
+        let unit = &package.units[index];
+        let alias_history = descriptor_construct_alias_history(package, unit);
+        package.units[index].objects = analyze_object_contracts(unit, &alias_history)?;
+    }
+    populate_object_aliases(package);
     for index in 0..package.units.len() {
         let unit = &package.units[index];
         let mut alias_history = descriptor_construct_alias_history(package, unit);
@@ -2277,6 +3142,8 @@ fn analyze_types(package: &mut SemanticPackage) -> Result<(), SemanticFailure> {
     }
     populate_namespace_function_contracts(package);
     populate_function_aliases(package);
+    propagate_interface_receiver_mutability(package);
+    validate_object_conformance(package)?;
     validate_descriptor_value_uses(package)?;
 
     for index in 0..package.units.len() {
@@ -2292,8 +3159,95 @@ fn analyze_types(package: &mut SemanticPackage) -> Result<(), SemanticFailure> {
         )?;
         package.units[index].typed_bindings = bindings;
     }
+    populate_closure_captures(package);
     Ok(())
 }
+fn populate_closure_captures(package: &mut SemanticPackage) {
+    fn collect(
+        unit: &SemanticUnit,
+        closure: Span,
+        node: &SyntaxNode,
+        captures: &mut BTreeSet<String>,
+        declaration_name: bool,
+    ) {
+        if node.kind == SyntaxKind::Name && !declaration_name {
+            let name = node_text(&unit.source, node);
+            if unit
+                .typed_bindings
+                .iter()
+                .rev()
+                .find(|binding| {
+                    binding.name == name && binding.is_visible_at(unit.source.id(), node.span.start)
+                })
+                .is_some_and(|binding| {
+                    !(closure.start <= binding.span.start && binding.span.end <= closure.end)
+                })
+            {
+                captures.insert(name.to_owned());
+            }
+            return;
+        }
+        match node.kind {
+            SyntaxKind::Binding
+            | SyntaxKind::Assignment
+            | SyntaxKind::FunctionDeclaration
+            | SyntaxKind::AnonymousFunction => {
+                let mut skipped_name = false;
+                for child in &node.children {
+                    if !skipped_name && child.kind == SyntaxKind::Name {
+                        skipped_name = true;
+                        continue;
+                    }
+                    collect(unit, closure, child, captures, false);
+                }
+            }
+            SyntaxKind::MemberExpression => {
+                if let Some(receiver) = node.children.first() {
+                    collect(unit, closure, receiver, captures, false);
+                }
+            }
+            SyntaxKind::Argument if node.children.len() > 1 => {
+                for child in node.children.iter().skip(1) {
+                    collect(unit, closure, child, captures, false);
+                }
+            }
+            _ => {
+                for child in &node.children {
+                    collect(unit, closure, child, captures, false);
+                }
+            }
+        }
+    }
+    fn closure_node(node: &SyntaxNode, span: Span) -> Option<&SyntaxNode> {
+        if node.kind == SyntaxKind::AnonymousFunction && node.span == span {
+            return Some(node);
+        }
+        node.children
+            .iter()
+            .find_map(|child| closure_node(child, span))
+    }
+
+    for unit in &mut package.units {
+        let captures = unit
+            .functions
+            .iter()
+            .filter(|contract| contract.name.starts_with("closure@"))
+            .map(|contract| {
+                let mut captures = BTreeSet::new();
+                if let Some(node) = closure_node(&unit.tree.root, contract.span) {
+                    collect(unit, contract.span, node, &mut captures, false);
+                }
+                (contract.span, captures.into_iter().collect::<Vec<_>>())
+            })
+            .collect::<Vec<_>>();
+        for contract in &mut unit.functions {
+            if let Some((_, captures)) = captures.iter().find(|(span, _)| *span == contract.span) {
+                contract.captures.clone_from(captures);
+            }
+        }
+    }
+}
+
 fn validate_descriptor_value_uses(package: &SemanticPackage) -> Result<(), SemanticFailure> {
     for unit in &package.units {
         validate_descriptor_value_node(package, unit, &unit.tree.root, false)?;
@@ -2420,13 +3374,11 @@ fn collect_type_declarations(
     if let Some((name, alias)) = descriptor_alias(unit, node, aliases, scope) {
         aliases.entry(name).or_default().push(alias);
     }
-    if node.kind == SyntaxKind::FunctionDeclaration {
+    if is_function_node(node) {
         let visible = visible_descriptor_aliases(aliases, unit.source.id(), node.span.start);
         functions.push(analyze_function_contract(unit, node, &visible)?);
     }
-    let child_scope = (node.kind == SyntaxKind::FunctionDeclaration)
-        .then_some(node.span)
-        .or(scope);
+    let child_scope = is_function_node(node).then_some(node.span).or(scope);
     for child in &node.children {
         collect_type_declarations(unit, child, aliases, functions, child_scope)?;
     }
@@ -2474,6 +3426,10 @@ fn descriptor_alias(
     ))
 }
 
+#[expect(
+    clippy::too_many_lines,
+    reason = "binding collection preserves declaration and scope ordering in one traversal"
+)]
 fn collect_typed_bindings(
     unit: &SemanticUnit,
     node: &SyntaxNode,
@@ -2481,13 +3437,40 @@ fn collect_typed_bindings(
     bindings: &mut Vec<TypedBinding>,
     scope: Option<Span>,
 ) -> Result<(), SemanticFailure> {
-    if node.kind == SyntaxKind::FunctionDeclaration {
+    if matches!(
+        node.kind,
+        SyntaxKind::ClassDeclaration
+            | SyntaxKind::InterfaceDeclaration
+            | SyntaxKind::TraitDeclaration
+    ) {
+        if let Some(block) = node
+            .children
+            .iter()
+            .find(|child| child.kind == SyntaxKind::Block)
+        {
+            for method in block
+                .children
+                .iter()
+                .filter(|child| child.kind == SyntaxKind::FunctionDeclaration)
+            {
+                collect_typed_bindings(
+                    unit,
+                    method,
+                    visible_bindings,
+                    bindings,
+                    Some(method.span),
+                )?;
+            }
+        }
+        return Ok(());
+    }
+    if is_function_node(node) {
         let contract = unit
             .functions
             .iter()
             .find(|contract| contract.span == node.span)
             .expect("analyzed function declaration must have a semantic contract");
-        let parameter_bindings = contract
+        let mut parameter_bindings = contract
             .parameters
             .iter()
             .filter_map(|parameter| {
@@ -2503,6 +3486,18 @@ fn collect_typed_bindings(
                 })
             })
             .collect::<Vec<_>>();
+        if let Some(owner) = &contract.owner {
+            parameter_bindings.push(TypedBinding {
+                name: "this".to_owned(),
+                span: node.span,
+                visible_from: node.span.start,
+                scope: Some(node.span),
+                value_type: ValueType::Object(owner.clone()),
+                destination_arms: Vec::new(),
+                storage_type: None,
+                mutable: true,
+            });
+        }
         let mut function_bindings = visible_bindings.clone();
         function_bindings.extend(parameter_bindings.iter().cloned());
         bindings.extend(parameter_bindings);
@@ -2563,6 +3558,25 @@ fn collect_typed_bindings(
     Ok(())
 }
 
+fn mutates_object_receiver(unit: &SemanticUnit, node: &SyntaxNode) -> bool {
+    if node.kind == SyntaxKind::Assignment
+        && let Some(target) = node.children.first()
+        && target.kind == SyntaxKind::MemberExpression
+        && target.children.first().is_some_and(|receiver| {
+            receiver.kind == SyntaxKind::Name && node_text(&unit.source, receiver) == "this"
+        })
+    {
+        return true;
+    }
+    node.children
+        .iter()
+        .any(|child| mutates_object_receiver(unit, child))
+}
+
+#[expect(
+    clippy::too_many_lines,
+    reason = "callable signature analysis keeps parameter and result contracts in source order"
+)]
 fn analyze_function_contract(
     unit: &SemanticUnit,
     node: &SyntaxNode,
@@ -2571,8 +3585,15 @@ fn analyze_function_contract(
     let name_node = node
         .children
         .iter()
-        .find(|child| child.kind == SyntaxKind::Name)
-        .ok_or_else(|| failure(&unit.source, "T0004", "function requires a name", node.span))?;
+        .find(|child| child.kind == SyntaxKind::Name);
+    if node.kind == SyntaxKind::FunctionDeclaration && name_node.is_none() {
+        return Err(failure(
+            &unit.source,
+            "T0004",
+            "function requires a name",
+            node.span,
+        ));
+    }
     let return_type = node
         .children
         .iter()
@@ -2627,6 +3648,7 @@ fn analyze_function_contract(
                     })?;
                 validate_value_destination(
                     &unit.source,
+                    &unit.objects,
                     node_text(&unit.source, parameter_name),
                     expected,
                     actual,
@@ -2647,11 +3669,19 @@ fn analyze_function_contract(
         child.kind == SyntaxKind::DeclarationQualifier && node_text(&unit.source, child) == "throws"
     });
     Ok(FunctionContract {
-        name: node_text(&unit.source, name_node).to_owned(),
+        name: name_node.map_or_else(
+            || format!("closure@{}", node.span.start),
+            |name| node_text(&unit.source, name).to_owned(),
+        ),
         span: node.span,
+        owner: (node.kind == SyntaxKind::FunctionDeclaration)
+            .then(|| object_name_containing(unit, node.span))
+            .flatten(),
         parameters,
+        captures: Vec::new(),
         return_type,
         throws,
+        mutates_receiver: mutates_object_receiver(unit, node),
     })
 }
 
@@ -2826,7 +3856,7 @@ fn analyze_binding_node(
         && let [target, value] = node.children.as_slice()
         && target.kind == SyntaxKind::IndexExpression
         && let [receiver, _] = target.children.as_slice()
-        && let Some(receiver_type) = infer_value_type(unit, receiver, bindings)?
+        && let Some(receiver_type) = infer_receiver_value_type(unit, receiver, bindings)?
     {
         let expected = match receiver_type {
             ValueType::List(item) => Some(item.value_type()),
@@ -2952,48 +3982,19 @@ fn analyze_binding_node(
     }
     if let Some(initializer) = initializer
         && initializer.kind == SyntaxKind::Name
-    {
-        let initializer_name = node_text(&unit.source, initializer);
-        if collection_constructor_identity(unit, initializer, bindings).is_some_and(|identity| {
+        && collection_constructor_identity(unit, initializer, bindings).is_some_and(|identity| {
             identity
                 .strip_prefix("/core/collections::")
                 .unwrap_or(identity)
                 == "entry"
-        }) {
-            return Err(failure(
-                &unit.source,
-                "T0045",
-                "`entry` requires exactly a key and value",
-                initializer.span,
-            ));
-        }
-        let shadowed_by_binding = bindings.iter().rev().any(|binding| {
-            binding.name == initializer_name
-                && binding.is_visible_at(unit.source.id(), initializer.span.start)
-        });
-        let resolved_function = !shadowed_by_binding
-            && (unit
-                .functions
-                .iter()
-                .any(|contract| contract.name == initializer_name)
-                || lexical_scope_chain(unit, initializer.span.start).any(|scope| {
-                    scope.symbols.get(initializer_name).is_some_and(|symbols| {
-                        symbols.iter().rev().any(|symbol| {
-                            symbol.kind == SymbolKind::Function
-                                && symbol
-                                    .declaration_span
-                                    .is_none_or(|span| span.end <= initializer.span.start)
-                        })
-                    })
-                }));
-        if resolved_function {
-            return Err(failure(
-                &unit.source,
-                "T0049",
-                format!("function `{initializer_name}` must be invoked with `;`"),
-                initializer.span,
-            ));
-        }
+        })
+    {
+        return Err(failure(
+            &unit.source,
+            "T0045",
+            "`entry` requires exactly a key and value",
+            initializer.span,
+        ));
     }
     let inferred = initializer
         .map(|value| {
@@ -3035,6 +4036,7 @@ fn analyze_binding_node(
             if let (Some(inferred), Some(initializer)) = (inferred.clone(), initializer) {
                 validate_value_destination(
                     &unit.source,
+                    &unit.objects,
                     &name,
                     value_type.clone(),
                     inferred,
@@ -3077,6 +4079,44 @@ fn declared_value_type(
     type_node: &SyntaxNode,
     aliases: &BTreeMap<String, ScalarType>,
 ) -> Result<ValueType, SemanticFailure> {
+    let shape = if type_node.kind == SyntaxKind::TypeExpression {
+        type_node.children.first().unwrap_or(type_node)
+    } else {
+        type_node
+    };
+    if shape.kind == SyntaxKind::PrefixType
+        && let Some(inner) = shape.children.first()
+    {
+        let inner = ElementType::new(declared_value_type(unit, inner, aliases)?);
+        return Ok(
+            if node_text(&unit.source, shape)
+                .split_whitespace()
+                .take(2)
+                .eq(["shared", "ref"])
+            {
+                ValueType::SharedReference(inner)
+            } else {
+                ValueType::Reference(inner)
+            },
+        );
+    }
+    if shape.kind == SyntaxKind::FunctionType {
+        let function = shape;
+        let Some((result, parameters)) = function.children.split_last() else {
+            return Err(failure(
+                &unit.source,
+                "T0001",
+                "function type requires a result type",
+                type_node.span,
+            ));
+        };
+        let parameters = parameters
+            .iter()
+            .map(|parameter| declared_value_type(unit, parameter, aliases).map(ElementType::new))
+            .collect::<Result<Vec<_>, _>>()?;
+        let result = ElementType::new(declared_value_type(unit, result, aliases)?);
+        return Ok(ValueType::Function(parameters, result));
+    }
     if let Some(union) = type_node
         .children
         .first()
@@ -3098,6 +4138,9 @@ fn declared_value_type(
         }
     }
     let type_name = node_text(&unit.source, type_node).trim();
+    if unit.objects.iter().any(|object| object.name == type_name) {
+        return Ok(ValueType::Object(type_name.to_owned()));
+    }
     parse_declared_value_type(type_name, aliases).ok_or_else(|| {
         failure(
             &unit.source,
@@ -3338,6 +4381,7 @@ fn validate_numeric_destination(
 )]
 fn validate_value_destination(
     source: &SourceFile,
+    objects: &[ObjectContract],
     name: &str,
     expected: ValueType,
     actual: ValueType,
@@ -3360,7 +4404,7 @@ fn validate_value_destination(
         }
         return validate_numeric_destination(source, name, expected, actual, value, mismatch_code);
     }
-    if value_types_compatible(&expected, &actual) {
+    if value_types_compatible(objects, &expected, &actual) {
         return Ok(());
     }
     Err(failure(
@@ -3371,17 +4415,29 @@ fn validate_value_destination(
     ))
 }
 
-fn value_types_compatible(expected: &ValueType, actual: &ValueType) -> bool {
+fn value_types_compatible(
+    objects: &[ObjectContract],
+    expected: &ValueType,
+    actual: &ValueType,
+) -> bool {
     match (expected, actual) {
         (ValueType::Tuple(expected_item, None), ValueType::Tuple(actual_item, _)) => {
-            value_types_compatible(&expected_item.value_type(), &actual_item.value_type())
+            value_types_compatible(
+                objects,
+                &expected_item.value_type(),
+                &actual_item.value_type(),
+            )
         }
         (
             ValueType::Tuple(expected_item, Some(expected_length)),
             ValueType::Tuple(actual_item, Some(actual_length)),
         ) => {
             expected_length == actual_length
-                && value_types_compatible(&expected_item.value_type(), &actual_item.value_type())
+                && value_types_compatible(
+                    objects,
+                    &expected_item.value_type(),
+                    &actual_item.value_type(),
+                )
         }
         (ValueType::List(expected), ValueType::List(actual))
         | (ValueType::Set(expected), ValueType::Set(actual))
@@ -3389,7 +4445,7 @@ fn value_types_compatible(expected: &ValueType, actual: &ValueType) -> bool {
         | (ValueType::Iterator(expected), ValueType::Iterator(actual))
         | (ValueType::IterationStep(expected), ValueType::IterationStep(actual))
         | (ValueType::ElementOrNone(expected), ValueType::ElementOrNone(actual)) => {
-            value_types_compatible(&expected.value_type(), &actual.value_type())
+            value_types_compatible(objects, &expected.value_type(), &actual.value_type())
         }
         (
             ValueType::Map(expected_key, expected_value),
@@ -3403,8 +4459,39 @@ fn value_types_compatible(expected: &ValueType, actual: &ValueType) -> bool {
             ValueType::Entry(expected_key, expected_value),
             ValueType::Entry(actual_key, actual_value),
         ) => {
-            value_types_compatible(&expected_key.value_type(), &actual_key.value_type())
-                && value_types_compatible(&expected_value.value_type(), &actual_value.value_type())
+            value_types_compatible(
+                objects,
+                &expected_key.value_type(),
+                &actual_key.value_type(),
+            ) && value_types_compatible(
+                objects,
+                &expected_value.value_type(),
+                &actual_value.value_type(),
+            )
+        }
+        (ValueType::Object(expected), ValueType::Object(actual)) => {
+            expected == actual
+                || objects
+                    .iter()
+                    .find(|object| object.name == *actual)
+                    .is_some_and(|object| {
+                        if object.interfaces.contains(expected) {
+                            return true;
+                        }
+                        let mut base = object.base.as_deref();
+                        while let Some(name) = base {
+                            let Some(base_object) =
+                                objects.iter().find(|object| object.name == name)
+                            else {
+                                break;
+                            };
+                            if name == expected || base_object.interfaces.contains(expected) {
+                                return true;
+                            }
+                            base = base_object.base.as_deref();
+                        }
+                        false
+                    })
         }
         _ => expected == actual,
     }
@@ -3514,10 +4601,15 @@ fn condition_proves_present(source: &SourceFile, node: &SyntaxNode, name: &str) 
             && matches!(names, (left, "none") | ("none", left) if left == name);
     }
     if node.kind == SyntaxKind::UnaryExpression
-        && let Some(child) = node.children.first()
-        && source.text()[node.span.start..child.span.start].trim() == "not"
+        && node.children.iter().any(|child| {
+            child.kind == SyntaxKind::UnaryOperator && node_text(source, child) == "not"
+        })
+        && let Some(child) = node
+            .children
+            .iter()
+            .find(|child| child.kind != SyntaxKind::UnaryOperator)
     {
-        let child = child.children.first().unwrap_or(child);
+        let child = ungrouped_expression(child);
         return child.kind == SyntaxKind::TypeMembershipExpression
             && membership_names(source, child).is_some_and(|names| names == (name, "none"));
     }
@@ -3640,6 +4732,38 @@ fn infer_value_type(
     if node.kind == SyntaxKind::Literal {
         return Ok(infer_literal_type(unit, node).map(ValueType::Scalar));
     }
+    if node.kind == SyntaxKind::AnonymousFunction {
+        let contract = unit
+            .functions
+            .iter()
+            .find(|contract| contract.span == node.span)
+            .expect("analyzed closure must have a semantic contract");
+        let parameters = contract
+            .parameters
+            .iter()
+            .map(|parameter| {
+                parameter
+                    .value_type
+                    .clone()
+                    .map(ElementType::new)
+                    .ok_or_else(|| {
+                        failure(
+                            &unit.source,
+                            "T0052",
+                            "stored function parameters require explicit types",
+                            parameter.span,
+                        )
+                    })
+            })
+            .collect::<Result<Vec<_>, _>>()?;
+        let result = ElementType::new(
+            contract
+                .return_type
+                .clone()
+                .unwrap_or(ValueType::Scalar(ScalarType::None)),
+        );
+        return Ok(Some(ValueType::Function(parameters, result)));
+    }
     if node.kind == SyntaxKind::GroupExpression {
         return match node.children.first() {
             Some(child) => infer_value_type(unit, child, bindings),
@@ -3666,6 +4790,28 @@ fn infer_value_type(
             return Ok(Some(
                 narrowed_value_type(unit, node, bindings).unwrap_or(binding.value_type.clone()),
             ));
+        }
+        if let Some(contract) = unit
+            .functions
+            .iter()
+            .find(|contract| contract.owner.is_none() && contract.name == name)
+        {
+            let parameters = contract
+                .parameters
+                .iter()
+                .map(|parameter| parameter.value_type.clone().map(ElementType::new))
+                .collect::<Option<Vec<_>>>();
+            if let Some(parameters) = parameters {
+                return Ok(Some(ValueType::Function(
+                    parameters,
+                    ElementType::new(
+                        contract
+                            .return_type
+                            .clone()
+                            .unwrap_or(ValueType::Scalar(ScalarType::None)),
+                    ),
+                )));
+            }
         }
         let resolved_symbol = lexical_scope_chain(unit, node.span.start).find_map(|scope| {
             scope.symbols.get(name)?.iter().rev().find(|symbol| {
@@ -3706,7 +4852,7 @@ fn infer_value_type(
         let Some(receiver) = node.children.first() else {
             return Ok(None);
         };
-        return match infer_value_type(unit, receiver, bindings)? {
+        return match infer_receiver_value_type(unit, receiver, bindings)? {
             Some(ValueType::List(item) | ValueType::Tuple(item, _)) => Ok(Some(item.value_type())),
             Some(ValueType::Map(_, value) | ValueType::UnorderedMap(_, value)) => {
                 Ok(Some(value.value_type()))
@@ -3758,7 +4904,7 @@ fn infer_value_type(
             && let [receiver, member] = callee.children.as_slice()
             && matches!(node_text(&unit.source, member), "concat" | "join")
         {
-            let receiver_type = infer_value_type(unit, receiver, bindings)?;
+            let receiver_type = infer_receiver_value_type(unit, receiver, bindings)?;
             if receiver_type == Some(ValueType::Scalar(ScalarType::String)) {
                 return Ok(Some(ValueType::Scalar(ScalarType::String)));
             }
@@ -3775,21 +4921,42 @@ fn infer_value_type(
             ));
         }
         if let Some(callee) = node.children.first()
+            && callee.kind == SyntaxKind::MemberExpression
+            && let Some(ValueType::Function(_, result)) =
+                infer_member_value_type(unit, callee, bindings)?
+        {
+            return Ok(Some(result.value_type()));
+        }
+        if let Some(callee) = node.children.first()
             && callee.kind == SyntaxKind::Name
         {
             let name = node_text(&unit.source, callee);
-            if let Some(contract) = unit.functions.iter().find(|contract| contract.name == name) {
+            if unit
+                .objects
+                .iter()
+                .any(|object| object.name == name && object.kind == ObjectKind::Class)
+            {
+                return Ok(Some(ValueType::Object(name.to_owned())));
+            }
+            if let Some(contract) = unit
+                .functions
+                .iter()
+                .find(|contract| contract.owner.is_none() && contract.name == name)
+            {
                 return Ok(contract.return_type.clone());
             }
-            if bindings.iter().rev().any(|binding| {
+            if let Some(binding) = bindings.iter().rev().find(|binding| {
                 binding.name == name && binding.is_visible_at(unit.source.id(), callee.span.start)
             }) {
-                return Err(failure(
-                    &unit.source,
-                    "T0039",
-                    format!("`{name}` is a value and cannot be called"),
-                    callee.span,
-                ));
+                return match &binding.value_type {
+                    ValueType::Function(_, result) => Ok(Some(result.value_type())),
+                    _ => Err(failure(
+                        &unit.source,
+                        "T0039",
+                        format!("`{name}` is a value and cannot be called"),
+                        callee.span,
+                    )),
+                };
             }
             return Ok(None);
         }
@@ -3918,6 +5085,7 @@ fn validate_collection_constructor_items(
                 if argument.children.len() >= 2 {
                     validate_value_destination(
                         &unit.source,
+                        &unit.objects,
                         &format!("{label} key"),
                         key.value_type(),
                         ValueType::Scalar(ScalarType::String),
@@ -4015,6 +5183,7 @@ fn validate_collection_constructor_value(
     if let Some(actual) = infer_value_type(unit, value, bindings)? {
         validate_value_destination(
             &unit.source,
+            &unit.objects,
             destination,
             expected.clone(),
             actual,
@@ -4088,7 +5257,7 @@ fn infer_collection_call_type(
         && family.kind == SyntaxKind::MemberExpression
         && let [receiver, member] = family.children.as_slice()
         && node_text(&unit.source, member) == "get"
-        && let Some(receiver_type) = infer_value_type(unit, receiver, bindings)?
+        && let Some(receiver_type) = infer_receiver_value_type(unit, receiver, bindings)?
     {
         return Ok(match receiver_type {
             ValueType::List(item) | ValueType::Tuple(item, _) => {
@@ -4118,7 +5287,7 @@ fn infer_collection_call_type(
             node_text(&unit.source, member),
             "append" | "set" | "add" | "contains" | "remove" | "keys" | "values" | "entries"
         )
-        && let Some(receiver_type) = infer_value_type(unit, receiver, bindings)?
+        && let Some(receiver_type) = infer_receiver_value_type(unit, receiver, bindings)?
     {
         let member = node_text(&unit.source, member);
         return Ok(match (receiver_type, member) {
@@ -4367,6 +5536,59 @@ fn text_range_member_type(member_name: &str) -> Option<ValueType> {
     }
 }
 
+fn object_contract<'a>(unit: &'a SemanticUnit, name: &str) -> Option<&'a ObjectContract> {
+    unit.objects.iter().find(|object| object.name == name)
+}
+
+fn object_member_type(unit: &SemanticUnit, object_name: &str, member: &str) -> Option<ValueType> {
+    let object = object_contract(unit, object_name)?;
+    if let Some(field) = object.fields.iter().find(|field| field.name == member) {
+        return Some(field.value_type.clone());
+    }
+    if let Some(method) = unit
+        .functions
+        .iter()
+        .find(|function| function.owner.as_deref() == Some(object_name) && function.name == member)
+    {
+        let parameters = method
+            .parameters
+            .iter()
+            .map(|parameter| parameter.value_type.clone().map(ElementType::new))
+            .collect::<Option<Vec<_>>>()?;
+        return Some(ValueType::Function(
+            parameters,
+            ElementType::new(
+                method
+                    .return_type
+                    .clone()
+                    .unwrap_or(ValueType::Scalar(ScalarType::None)),
+            ),
+        ));
+    }
+    for used_trait in &object.traits {
+        if let Some(found) = object_member_type(unit, used_trait, member) {
+            return Some(found);
+        }
+    }
+    object
+        .base
+        .as_deref()
+        .and_then(|base| object_member_type(unit, base, member))
+}
+
+fn infer_receiver_value_type(
+    unit: &SemanticUnit,
+    receiver: &SyntaxNode,
+    bindings: &[TypedBinding],
+) -> Result<Option<ValueType>, SemanticFailure> {
+    Ok(
+        infer_value_type(unit, receiver, bindings)?.map(|value_type| match value_type {
+            ValueType::Reference(item) | ValueType::SharedReference(item) => item.value_type(),
+            value_type => value_type,
+        }),
+    )
+}
+
 #[expect(
     clippy::too_many_lines,
     reason = "member inference keeps receiver precedence and diagnostics in one ordered dispatch"
@@ -4380,7 +5602,19 @@ fn infer_member_value_type(
         return Ok(None);
     };
     let member_name = node_text(&unit.source, member);
-    let receiver_type = infer_value_type(unit, receiver, bindings)?;
+    let receiver_type = infer_receiver_value_type(unit, receiver, bindings)?;
+    if let Some(ValueType::Object(object_name)) = &receiver_type {
+        return object_member_type(unit, object_name, member_name)
+            .map(Some)
+            .ok_or_else(|| {
+                failure(
+                    &unit.source,
+                    "T0055",
+                    format!("`{object_name}` has no member `{member_name}`"),
+                    member.span,
+                )
+            });
+    }
     let collection_method = matches!(
         (&receiver_type, member_name),
         (
@@ -4515,7 +5749,6 @@ fn infer_member_value_type(
             None => Ok(None),
         };
     }
-    let receiver_type = infer_value_type(unit, receiver, bindings)?;
     if matches!(
         receiver_type,
         Some(ValueType::Scalar(ScalarType::String | ScalarType::Bytes))
@@ -4583,7 +5816,7 @@ fn infer_string_call_type(
         .expect("selected string receiver belongs to this syntax tree");
     let family = selection.family.source_name();
     let child = selection.child.as_str();
-    let subject_type = infer_value_type(unit, subject, bindings)?;
+    let subject_type = transparent_value_type(infer_value_type(unit, subject, bindings)?);
     let receiver_valid = match family {
         "decode" => subject_type == Some(ValueType::Scalar(ScalarType::Bytes)),
         _ => subject_type == Some(ValueType::Scalar(ScalarType::String)),
@@ -4665,7 +5898,34 @@ fn infer_unary_type(
             "unary operator requires an operand",
         ));
     };
-    let Some(ValueType::Scalar(operand)) = infer_value_type(unit, operand_node, bindings)? else {
+    let operator = unary_operator_text(unit, node).unwrap_or_default();
+    if matches!(operator.as_str(), "ref" | "shared ref" | "move") {
+        let Some(operand) = infer_value_type(unit, operand_node, bindings)? else {
+            return Err(operator_failure(
+                unit,
+                node,
+                format!("operator `{operator}` requires a value operand"),
+            ));
+        };
+        return Ok(match operator.as_str() {
+            "ref" => match operand {
+                ValueType::Reference(item) | ValueType::SharedReference(item) => {
+                    ValueType::Reference(item)
+                }
+                value_type => ValueType::Reference(ElementType::new(value_type)),
+            },
+            "shared ref" => match operand {
+                ValueType::Reference(item) | ValueType::SharedReference(item) => {
+                    ValueType::SharedReference(item)
+                }
+                value_type => ValueType::SharedReference(ElementType::new(value_type)),
+            },
+            "move" => operand,
+            _ => unreachable!(),
+        });
+    }
+    let Some(ValueType::Scalar(operand)) = infer_receiver_value_type(unit, operand_node, bindings)?
+    else {
         return Err(operator_failure(
             unit,
             node,
@@ -4673,8 +5933,7 @@ fn infer_unary_type(
         ));
     };
 
-    let operator = unit.source.text()[node.span.start..operand_node.span.start].trim();
-    let valid = match operator {
+    let valid = match operator.as_str() {
         "-" => operand.is_integer() || matches!(operand, ScalarType::Float32 | ScalarType::Float64),
         "~" => operand.is_integer(),
         "not" => operand == ScalarType::Bool,
@@ -4744,7 +6003,7 @@ fn infer_parse_or_radix_type(
                 argument.span,
             ));
         }
-        let receiver_type = infer_value_type(unit, receiver, bindings)?;
+        let receiver_type = infer_receiver_value_type(unit, receiver, bindings)?;
         return match receiver_type {
             Some(ValueType::Scalar(ScalarType::String)) => {
                 Ok(Some(ValueType::Scalar(ScalarType::Int)))
@@ -4827,7 +6086,11 @@ fn infer_arithmetic_family_type(
     };
     let receiver = find_node_by_span(&unit.tree.root, method.receiver)
         .expect("bound arithmetic receiver belongs to this syntax tree");
-    let Some(ValueType::Scalar(receiver_type)) = infer_value_type(unit, receiver, bindings)? else {
+    let receiver_type = infer_receiver_value_type(unit, receiver, bindings)?;
+    if matches!(receiver_type, Some(ValueType::Object(_))) {
+        return Ok(None);
+    }
+    let Some(ValueType::Scalar(receiver_type)) = receiver_type else {
         return Err(failure(
             &unit.source,
             "T0036",
@@ -4991,7 +6254,8 @@ fn infer_integer_coercion_type(
         }
         return Ok(None);
     };
-    let Some(ValueType::Scalar(source_type)) = infer_value_type(unit, source_node, bindings)?
+    let Some(ValueType::Scalar(source_type)) =
+        infer_receiver_value_type(unit, source_node, bindings)?
     else {
         return Err(failure(
             &unit.source,
@@ -5239,8 +6503,8 @@ fn infer_binary_type(
             "binary operator requires two operands",
         ));
     };
-    let left = infer_value_type(unit, left_node, bindings)?;
-    let right = infer_value_type(unit, right_node, bindings)?;
+    let left = infer_receiver_value_type(unit, left_node, bindings)?;
+    let right = infer_receiver_value_type(unit, right_node, bindings)?;
     let operator = unit.source.text()[left_node.span.end..right_node.span.start].trim();
     if operator == "is"
         && (node_text(&unit.source, left_node).trim() == "none"
@@ -5793,6 +7057,31 @@ fn collect_lexical_scopes(
             SyntaxKind::FunctionDeclaration => {
                 add_lexical_scope(unit, namespaces, globals, &mut scopes, node, None, true)?;
             }
+            SyntaxKind::ClassDeclaration
+            | SyntaxKind::InterfaceDeclaration
+            | SyntaxKind::TraitDeclaration => {
+                if let Some(block) = node
+                    .children
+                    .iter()
+                    .find(|child| child.kind == SyntaxKind::Block)
+                {
+                    for method in block
+                        .children
+                        .iter()
+                        .filter(|child| child.kind == SyntaxKind::FunctionDeclaration)
+                    {
+                        add_lexical_scope(
+                            unit,
+                            namespaces,
+                            globals,
+                            &mut scopes,
+                            method,
+                            None,
+                            true,
+                        )?;
+                    }
+                }
+            }
             SyntaxKind::Block => {
                 add_lexical_scope(unit, namespaces, globals, &mut scopes, node, None, false)?;
             }
@@ -5821,7 +7110,10 @@ fn add_lexical_scope(
         populate_scope(unit, namespaces, globals, scopes, index, node)?;
         return Ok(index);
     }
-    if node.kind == SyntaxKind::FunctionDeclaration
+    if is_function_node(node) && object_name_containing(unit, node.span).is_some() {
+        insert_local(unit, scopes, index, "this".to_owned(), node.span)?;
+    }
+    if is_function_node(node)
         && let Some(parameters) = node
             .children
             .iter()
@@ -5836,7 +7128,7 @@ fn add_lexical_scope(
     for child in &node.children {
         match child.kind {
             SyntaxKind::ParameterList => {}
-            SyntaxKind::Block if node.kind == SyntaxKind::FunctionDeclaration => {
+            SyntaxKind::Block if is_function_node(node) => {
                 populate_scope(unit, namespaces, globals, scopes, index, child)?;
             }
             SyntaxKind::Block => {
@@ -5878,9 +7170,21 @@ fn populate_node(
     node: &SyntaxNode,
 ) -> Result<(), SemanticFailure> {
     match node.kind {
-        SyntaxKind::Binding => populate_binding(unit, scopes, index, node)?,
+        SyntaxKind::Binding => {
+            populate_binding(unit, scopes, index, node)?;
+            for child in &node.children {
+                if child.kind == SyntaxKind::AnonymousFunction {
+                    populate_node(unit, namespaces, globals, scopes, index, child)?;
+                }
+            }
+        }
         SyntaxKind::Assignment => {
             populate_assignment(unit, namespaces, globals, scopes, index, node)?;
+            for child in &node.children {
+                if child.kind == SyntaxKind::AnonymousFunction {
+                    populate_node(unit, namespaces, globals, scopes, index, child)?;
+                }
+            }
         }
 
         SyntaxKind::ImportDeclaration => {
@@ -5890,6 +7194,9 @@ fn populate_node(
             if let Some(name) = declaration_name(node, &unit.source) {
                 insert_local(unit, scopes, index, name, node.span)?;
             }
+            add_lexical_scope(unit, namespaces, globals, scopes, node, Some(index), true)?;
+        }
+        SyntaxKind::AnonymousFunction => {
             add_lexical_scope(unit, namespaces, globals, scopes, node, Some(index), true)?;
         }
         SyntaxKind::Block => {
@@ -5981,7 +7288,10 @@ fn populate_node(
                     )?;
                 } else if matches!(
                     child.kind,
-                    SyntaxKind::ElseClause | SyntaxKind::CatchClause | SyntaxKind::FinallyClause
+                    SyntaxKind::AnonymousFunction
+                        | SyntaxKind::ElseClause
+                        | SyntaxKind::CatchClause
+                        | SyntaxKind::FinallyClause
                 ) {
                     populate_node(unit, namespaces, globals, scopes, index, child)?;
                 }
@@ -6582,6 +7892,7 @@ fn validate_return(
             };
             validate_value_destination(
                 &unit.source,
+                &unit.objects,
                 &contract.name,
                 expected,
                 actual,
@@ -7624,6 +8935,23 @@ pub(crate) fn binding_span_is_mutated(
         iterator_binding: bool,
         node: &SyntaxNode,
     ) -> usize {
+        fn object_method_mutates(
+            unit: &SemanticUnit,
+            object_name: &str,
+            method_name: &str,
+        ) -> bool {
+            if let Some(method) = unit.functions.iter().find(|method| {
+                method.owner.as_deref() == Some(object_name) && method.name == method_name
+            }) {
+                return method.mutates_receiver;
+            }
+            unit.objects
+                .iter()
+                .find(|object| object.name == object_name)
+                .and_then(|object| object.base.as_deref())
+                .is_some_and(|base| object_method_mutates(unit, base, method_name))
+        }
+
         let resolves_to_binding = |target: &SyntaxNode| {
             target.kind == SyntaxKind::Name
                 && !package.is_lexical_replacement(unit, node.span, node_text(&unit.source, target))
@@ -7637,8 +8965,10 @@ pub(crate) fn binding_span_is_mutated(
         ) && node.span != declaration_span
             && node.children.first().is_some_and(|target| {
                 resolves_to_binding(target)
-                    || (target.kind == SyntaxKind::IndexExpression
-                        && target.children.first().is_some_and(resolves_to_binding))
+                    || (matches!(
+                        target.kind,
+                        SyntaxKind::IndexExpression | SyntaxKind::MemberExpression
+                    ) && target.children.first().is_some_and(resolves_to_binding))
             });
         let mutator_call = node.kind == SyntaxKind::CallExpression
             && node.children.first().is_some_and(|callee| {
@@ -7646,10 +8976,18 @@ pub(crate) fn binding_span_is_mutated(
                     return false;
                 };
                 callee.kind == SyntaxKind::MemberExpression
-                    && matches!(
+                    && (matches!(
                         node_text(&unit.source, member),
                         "append" | "set" | "add" | "remove"
-                    )
+                    ) || matches!(
+                        infer_value_type(unit, receiver, &unit.typed_bindings),
+                        Ok(Some(ValueType::Object(object)))
+                            if object_method_mutates(
+                                unit,
+                                &object,
+                                node_text(&unit.source, member)
+                            )
+                    ))
                     && resolves_to_binding(receiver)
             });
         let iterator_advance = iterator_binding
@@ -7740,6 +9078,25 @@ fn declaration_name(node: &SyntaxNode, source: &SourceFile) -> Option<String> {
         .iter()
         .find(|child| child.kind == SyntaxKind::Name)
         .map(|child| node_text(source, child).to_owned())
+}
+
+fn unary_operator_text(unit: &SemanticUnit, node: &SyntaxNode) -> Option<String> {
+    node.children
+        .iter()
+        .find(|child| child.kind == SyntaxKind::UnaryOperator)
+        .map(|operator| {
+            node_text(&unit.source, operator)
+                .split_whitespace()
+                .collect::<Vec<_>>()
+                .join(" ")
+        })
+}
+
+fn transparent_value_type(value_type: Option<ValueType>) -> Option<ValueType> {
+    value_type.map(|value_type| match value_type {
+        ValueType::Reference(item) | ValueType::SharedReference(item) => item.value_type(),
+        value_type => value_type,
+    })
 }
 
 fn node_text<'a>(source: &'a SourceFile, node: &SyntaxNode) -> &'a str {

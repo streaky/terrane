@@ -1,0 +1,31 @@
+namespace object-contracts-reuse
+
+interface describable
+    function describe string; prefix string
+
+trait tagged
+    tag string = '!'
+
+    function tagged-value string
+        return this.tag
+
+class base
+    value int = 1
+
+    function describe string; prefix string
+        return prefix.concat; 'base'
+
+class child extends base implements describable uses tagged
+    extra int = 2
+
+    function describe string; prefix string
+        return prefix.concat; 'child'
+
+function main
+    value child = child;
+    view describable = value
+    base-view base = value
+    print; (view.describe; 'a-')
+    print; (base-view.describe; 'b-')
+    print; (value.tagged-value;)
+    print; value.value + value.extra

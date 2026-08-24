@@ -97,9 +97,17 @@ Terrane package
     ├── function
     │   ├── parameter                          positional or named
     │   ├── optional parameter                 has a default expression
-    │   └── return type                        declared scalar type
+    │   ├── return type                        declared value type
+    │   ├── anonymous function                 value-capturing closure
+    │   └── bound method                       receiver captured once
+    ├── class
+    │   ├── field                              inherited or directly declared state
+    │   ├── construct / destruct               compiler-recognized lifecycle methods
+    │   └── method                             receiver-bound function
+    ├── interface                              named structural dispatch contract
+    ├── trait                                  reusable fields and methods
     └── lexical block
-        └── binding                            local typed value
+        └── binding                            local typed value, ref, or shared ref
 ```
 
 ## Implemented value types
@@ -421,22 +429,20 @@ function name ReturnType; required Type, optional Type = default
 Implemented callable contract:
 
 ```text
-source function
-├── parameters
-│   ├── required positional or named parameters
-│   └── trailing optional parameters with default expressions
-├── arguments
-│   ├── positional
-│   ├── named
-│   └── omitted optional arguments filled from defaults
-├── return
-│   ├── declared scalar return type
-│   └── bare return / fallthrough for no-value functions
-└── call result
-    └── participates in type checking and later member/operator resolution
+callable value
+├── source function or anonymous closure
+├── stored bound method
+├── typed parameters and return
+├── positional, named, and defaulted arguments
+└── value capture
+    └── captures resolver-selected outer bindings once when the closure is created
 ```
 
-The compiler checks duplicate, unknown, missing, and excess arguments, and rejects positional arguments after named arguments. Variadic source-declared functions, overloads, function values, closures, and generic functions are not implemented.
+Function values use `function from ... to ...` annotations and may cross bindings, parameters,
+and return boundaries. Anonymous functions use ordinary `function` syntax without a declaration
+name. The compiler checks duplicate, unknown, missing, and excess arguments, and rejects positional
+arguments after named arguments. Variadic functions, overloads, and generic functions are not
+implemented.
 
 ## Source object and name model
 
@@ -453,6 +459,40 @@ Namespaces form a package-wide tree assembled before reference resolution. Paths
 A top-level plain assignment creates a namespace variable. Functions cannot read or write namespace variables across that boundary; mutable state must cross as an explicit `global`, parameter, or return value. Namespace variables cannot be `public`.
 
 `constant` declarations are non-rebindable at every supported identity tier. In one lexical scope, an ordinary assignment to an already initialized local creates a replacement binding; its initializer sees the earlier binding, and its inferred type may change. Assignment to an uninitialized local, an enclosing-scope binding, a parameter, or a `for` target remains mutation. Generated Rust marks only genuinely mutated storage mutable.
+
+## Classes, interfaces, traits, and references
+
+Classes provide typed, definitely initialized fields, ordinary methods, single inheritance,
+default invocation through `construct`, and one deterministic invocation of each applicable
+`destruct` hook per independently owned source value, ordered from the most-derived class toward
+the root base. Value separation copies class and interface-typed state into a fresh lifecycle
+lineage, while compiler-introduced Rust clones remain within one lineage and cannot multiply the
+hook. Subclass values retain inherited and directly declared state at arbitrary inheritance depth;
+methods access their flattened storage directly, while nested base wrappers recursively forward
+inherited field reads and writes and overridden methods to the preserved concrete value. Subclasses
+inherit their bases' declared interface conformance. Declared named interfaces check complete
+method signatures, infer required
+receiver mutability from conforming implementations, and lower as typed dispatch contracts. Traits
+reuse declared fields and methods, with unresolved multi-trait member conflicts rejected.
+
+`ref T` values are non-owning aliases backed by synchronized weak storage; member use and scalar
+consumers such as `print` transparently observe the referenced value, upgrading the target or
+failing deterministically if it has expired. `shared ref T` values are cloneable shared owners
+backed by synchronized strong storage and have the same transparent observation behavior. Prefix
+`ref`, `shared ref`, and `move` construct those respective ownership forms. Transparent observation
+does not convert the reference at assignment, parameter, or return boundaries; those positions
+continue to distinguish `T`, `ref T`, and `shared ref T`. A `ref` currently requires a local named
+binding with reference-backed storage; parameters and temporary values are
+rejected because the compiler does not yet prove their owner lifetimes. Move provenance
+rejects later reads until the binding is rebound, including conditional paths. Replacing a binding
+ends the old identity's lifetime: a later non-owning-reference use is rejected, while a `shared ref`
+continues to own and observe the old identity.
+
+The source interface now matches the settled version-one ownership vocabulary. Milestone 17 remains
+open for compile-time lifetime and escape analysis, including proof across async suspension,
+release invalidation, shared-ownership cycle analysis, and the remaining provenance paths; runtime
+expiry checking is still the implemented fallback where a non-owning reference's validity is not
+statically proven.
 
 ## Properties and methods index
 
@@ -505,8 +545,6 @@ The authoritative language draft proposes a much larger ontology. None of the fo
 
 ```text
 collection checked lookup children and source-visible typed lookup errors
-protocols and interfaces
-classes, structs, enums, traits, and constructors
 reflection beyond canonical scalar `.type`
 user-defined error objects, source-visible error fields, and error hierarchies
 bytes indexing and slicing

@@ -271,6 +271,7 @@ Implementation status (completed on the `indentation-lexer` capability branch):
 
 Lexical diagnostics own the `L` code range and are the sole reporter of every condition listed here; the bootstrap parser keeps the `S` range for the value-level rules it still owns:
 
+```text
 L0001 invalid source character
 L0002 unterminated block comment
 L0003 indentation style
@@ -347,17 +348,35 @@ S1011 value on a value-free statement     S1026 malformed `from` import
 S1012 chained non-associative test        S1027 malformed importer selection
 S1013 invalid member adjacency            S1028 malformed collection target
 S1014 missing member name                 S1029 invalid declaration prefix
-S1015 unclosed index expression           S1030 assignment in condition
-S1016 unparenthesized nested call         S1090 reserved unsupported syntax
+S1015 unclosed index expression           S1030 expression after `try`
+S1016 unparenthesized nested call         S1032 missing `catch as` binding
+S1033 `try` without `catch`/`finally`     S1034 missing object declaration name
+S1035 malformed object clause             S1036 multiple class bases
+S1037 assignment in condition             S1090 reserved unsupported syntax
 S1091 unsupported `===`                   S1092 unsupported angle generic
 ```
 
-`S1010` is intentionally unassigned. Diagnostics whose correction is not
-fully expressed by the primary message carry structured help; CLI rendering
+`S1010` and `S1031` are intentionally unassigned. Diagnostics whose correction is
+not fully expressed by the primary message carry structured help; CLI rendering
 prints that help separately from the stable code and message.
 
 Language work must introduce its accepted and rejected cases in the same
 vertical work unit as the behavior.
+
+The type-analysis additions through milestones 15–17 reserve and register these
+stable diagnostics:
+
+```text
+T0052 untyped stored-function parameter   T0061 class field missing initializer
+T0053 missing object declaration name     T0062 missing interface member
+T0054 invalid object-clause target         T0063 conflicting reused trait member
+T0055 unknown object member               T0064 invalid non-owning ref source
+T0058 use after move                      T0065 uninferable object field type
+T0059 reference used after replacement     T0066 field missing type and initializer
+T0067 incompatible interface signature    T0068 escaping non-owning reference
+```
+
+`T0056`, `T0057`, and `T0060` are intentionally unassigned.
 
 ### Milestone 3 — Namespaces, scopes, and bootstrap environment
 
@@ -728,12 +747,11 @@ Deliver:
 - allow a declaration to replace an earlier binding of the same name in the same lexical scope, with
   the initializer reading the earlier binding: `a int8 = 12` followed by `a int = a.coerce; int`.
   `S2012` rejects this today, and `S2023` rejects the initializer's read, so both change. An
-  identical type is an assignment with a redundant annotation; a changed type changes the binding's
-  type and releases the replaced value at that point, after its initializer is evaluated. The rule is
-  lexical: `S2005` continues to reject a replacement at namespace top level, where initialization is
-  ordered by dependency rather than source position. The version-one exclusion for a binding observed
-  by a reference needs no check yet — `ref` is milestone 17 — but the diagnostic belongs with `ref`
-  when it lands, not here;
+  identical type is an assignment with a redundant annotation; every replacement evaluates the
+  initializer, releases the previous owned identity, and installs the replacement. A changed type
+  also changes the binding's type. The rule is lexical: `S2005` continues to reject a replacement at
+  namespace top level, where initialization is ordered by dependency rather than source position.
+  Reference invalidation and continued shared ownership belong with milestone 17;
 - rewrite the assignment and visibility diagnostics so none of them advertises `global`. A fixit is
   read when the author is most willing to be told what to do, so it should teach the value path —
   a parameter, a return, or `constant` where the value never varies. `S2021` currently says
@@ -1104,6 +1122,14 @@ Deliver:
 
 Exit criterion: a selected method family can be stored, passed, and invoked; the previously rejected form is accepted with a case proving the receiver still evaluates once.
 
+Implemented evidence (partial; the exit criterion remains open): typed, synchronous function values
+cross binding and parameter boundaries; anonymous functions capture resolver-selected outer bindings
+once; and stored bound methods capture their receiver once before later invocation. Generated Rust
+uses statically typed `Arc<dyn Fn>` values rather than a universal runtime value and compiles
+receiver-free methods without lint suppression. Conformance executes a passed closure,
+distinguishes parameter shadowing from an outer capture, and invokes a stored receiver-bound method.
+Caller-supplied pair conversion callbacks are not implemented.
+
 ### Milestone 16 — Classes, interfaces, and traits
 
 Deliver:
@@ -1114,6 +1140,27 @@ Deliver:
 - dispatch and compatibility over the descriptor model rather than a parallel class table.
 
 Exit criterion: each of construction, inheritance, interface conformance, and trait reuse has an executable slice; dynamic-object state is preserved end to end.
+
+Implemented evidence (partial; the exit criterion remains open): source classes lower typed fields,
+custom `construct`, one-lineage-per-independent-value `destruct`, mutating receivers inferred
+transitively from effective method contracts, immutable methods, and separated value state.
+Ordinary assignment, by-value closure capture, and interface-typed copies create fresh lifecycle
+lineages, while compiler-only Rust clones remain within their originating lineage. Single
+inheritance of arbitrary depth retains base and subclass fields, lets methods access flattened
+storage directly, recursively forwards base-typed field reads and writes through generated
+wrappers, dispatches overridden methods, inherits base interface conformance, safely widens
+inherited `this` returns, and composes overridden destruction hooks from the most-derived class
+toward the root base. Declared, nominal interface conformance lowers through typed protocol
+wrappers and preserves mutating receiver
+requirements inferred from implementations, while traits reuse fields and methods. Executable
+cases cover construction, separated state and destruction, inheritance, inherited fields including
+ten-level read/write forwarding, interface conformance across inheritance, self-typed returns,
+immutable and mutating interface dispatch, trait reuse, and combined
+inheritance/interface/lifecycle behavior; rejected cases cover
+uninitialized fields, missing interface methods, incompatible signatures, and unresolved trait
+conflicts. Structural conformance and integration with the descriptor model remain outstanding;
+object analysis currently uses a compiler-owned parallel
+contract table.
 
 Construct/destruct notes, and the docs should be updated to reflect this when we get there:
 
@@ -1141,19 +1188,41 @@ Destruct over drop for Terrane. drop is excellent Rust terminology, but construc
 
 ### Milestone 17 — References and provenance
 
-Value semantics, separation, and drop land with collections in milestone 14; this milestone adds the
-explicit-reference half over them.
+Value semantics, separation, and drop land with collections in milestone 14; this milestone adds
+non-owning observation and explicit shared ownership over them.
 
 Deliver:
 
-- explicit references as a declared form of semantic value assignment, distinguished from the independent-value assignment milestone 14 delivers;
-- `ref`, `move`, and weak references with lifetime and provenance analysis reported in source terms;
-- the diagnostic that milestone 4.8 defers to this one: a type-changing replacement of a binding is
-  rejected while an outstanding reference observes it, since retyping a value another scope holds
-  must not happen without something explicit appearing there. Same-type replacement stays legal and
-  the reference observes the new value.
+- `ref` as the ordinary non-owning reference to an existing owned identity, with compiler-tracked
+  provenance and lifetime;
+- `shared ref` as the conspicuous operation and type form that shares ownership and extends that
+  identity's lifetime;
+- `move` as explicit ownership transfer;
+- preservation or narrowing of reference provenance through member access, indexing, iteration,
+  calls, capture, fields, and other derived values;
+- rejection of reference escape and use after the originating owner's lifetime ends, reported at
+  the originating binding and lifetime-ending operation;
+- rejection of provable `shared ref` ownership cycles, without treating ordinary `ref` back-edges
+  as cycles;
+- replacement and ordinary rebinding end the lifetime of the previously owned identity: a `ref`
+  becomes unusable, while a `shared ref` continues to own the old identity and neither form is
+  silently retargeted to the replacement;
 
-Exit criterion: borrow escape is diagnosed at the originating binding, and a reference observing a binding is proven against the value semantics already exercised by collections.
+Exit criterion: a bounded non-owning reference works without extending its owner's lifetime; escape
+and use after release are diagnosed in source terms; a shared owner keeps an identity alive; and
+the distinction is proven against the value semantics already exercised by collections.
+
+Implemented evidence (partial; exit criterion remains open): the source interface and typed pipeline
+now use non-owning `ref T` and owning `shared ref T`; lowering represents them with synchronized weak
+and strong storage respectively. Conformance proves ordinary references to named owned local
+bindings, transparent scalar member and consumer access, shared mutation through an owner, bounded
+non-owning observation, explicit ownership transfer, temporary and parameter-source rejection,
+source-diagnosed return escape, replacement invalidation of non-owning references, and continued
+access through shared owners after replacement. The current generated
+representation clones the referenced value for each read; this is a correctness-first lowering, not
+the intended reference cost model. Lifetime analysis beyond return escape and direct replacement,
+including proof across async suspension, shared-ownership cycle analysis, complete
+derived-provenance coverage, and borrow-oriented lowering remain outstanding.
 
 ### Milestone 18 — Capabilities, effects, and reflection
 
@@ -1365,7 +1434,7 @@ The release pipeline must prove, from a clean checkout:
 - the iterator protocol with `iteration-step of Item`, and list, map, set, tuple, range, and entry under `/core/collections`;
 - function values, closures, and storable bound method families;
 - classes, single inheritance, structural interfaces, traits, `construct`, and deterministic drop;
-- ownership: semantic value assignment, linear resources, explicit `ref`/`move`/weak references, and the drop pipeline;
+- ownership: semantic value assignment, linear resources, non-owning `ref`, owning `shared ref`, explicit `move`, and the drop pipeline;
 - the closed effect vocabulary, capability authority objects, and profile-governed reflection retention;
 - async with `await`, task objects, the structured-concurrency scope, cooperative cancellation, and scope-propagated deadlines;
 - byte and text stream protocols, process standard streams, files, paths, and race-resistant filesystem traversal;

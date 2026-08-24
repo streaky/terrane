@@ -1,0 +1,13 @@
+namespace closure-semantic-captures
+
+function apply int; callback function from int to int, value int
+  return callback; value
+
+function main
+  outer int = 10
+  callback function from int to int = function int; outer int
+    local int = outer + 1
+    return local
+  result int = apply; callback, 2
+  print; result
+  print; outer

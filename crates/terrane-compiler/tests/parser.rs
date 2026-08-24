@@ -72,6 +72,25 @@ fn expression_tree_respects_precedence_and_postfix_binding() {
 }
 
 #[test]
+fn preserves_unary_operator_identity_in_the_syntax_tree() {
+    let text = "observer = ref value\nowner = shared ref value\nmoved = move value\n";
+    let tree = parse_source(text);
+    let operators = tree
+        .root
+        .children
+        .iter()
+        .map(|binding| {
+            let unary = binding.children.last().unwrap();
+            assert_eq!(unary.kind, SyntaxKind::UnaryExpression);
+            let operator = unary.children.first().unwrap();
+            assert_eq!(operator.kind, SyntaxKind::UnaryOperator);
+            text[operator.span.start..operator.span.end].trim()
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(operators, ["ref", "shared ref", "move"]);
+}
+
+#[test]
 fn parses_both_postfix_increment_and_decrement() {
     let tree = parse_source("left++\nright--\n");
     assert_eq!(tree.root.children.len(), 2);
@@ -417,21 +436,18 @@ fn rejects_malformed_declarations_and_reserved_constructs() {
     rejected("function map of T; value T\n", "S1090");
     rejected("function main; values int ...\n", "S1090");
     rejected("value = await thing\n", "S1090");
-    rejected("value = move thing\n", "S1090");
-    rejected("value = ref thing\n", "S1090");
     rejected("catch problem\n", "S1090");
     rejected("finally\n", "S1090");
     rejected("case value\n", "S1090");
     rejected("from import thing\n", "S1026");
     rejected("from /core/output import print, , ]\n", "S1026");
     rejected("import with anything at all\n", "S1025");
-    rejected("class thing\n", "S1090");
 }
 
 #[test]
 fn rejects_every_reserved_statement_keyword() {
     for keyword in [
-        "class", "yield", "match", "unsafe", "rust", "label", "goto", "when", "use", "case",
+        "yield", "match", "unsafe", "rust", "label", "goto", "when", "use", "case",
     ] {
         rejected(&format!("{keyword}\n"), "S1090");
     }
@@ -453,8 +469,8 @@ fn rejects_non_associative_identity_and_recovers_layout_errors_once() {
 
     for (text, code) in [
         ("value = 1\n    deeper = 2\n", "S1001"),
-        ("if a = b\n    value = 1\n", "S1030"),
-        ("while a = b\n    value = 1\n", "S1030"),
+        ("if a = b\n    value = 1\n", "S1037"),
+        ("while a = b\n    value = 1\n", "S1037"),
     ] {
         let source = SourceFile::new(0, "case.trn".into(), text.to_owned());
         let diagnostics = parse(&source, lex(&source).unwrap()).diagnostics;
@@ -468,6 +484,15 @@ fn rejects_non_associative_identity_and_recovers_layout_errors_once() {
         diagnostics[0].help.as_deref(),
         Some("use `==` for equality")
     );
+
+    let source = SourceFile::new(
+        0,
+        "case.trn".into(),
+        "class item extends\nfunction main\n".to_owned(),
+    );
+    let diagnostics = parse(&source, lex(&source).unwrap()).diagnostics;
+    assert_eq!(diagnostics.len(), 1, "{diagnostics:#?}");
+    assert_eq!(diagnostics[0].code, "S1035");
 
     let source = SourceFile::new(
         0,

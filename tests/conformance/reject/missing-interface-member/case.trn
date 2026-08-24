@@ -1,0 +1,10 @@
+namespace missing-interface-member
+
+interface printable
+    function render string; prefix string
+
+class report implements printable
+    value int = 1
+
+function main
+    value report = report;

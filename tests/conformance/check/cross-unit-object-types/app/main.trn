@@ -1,0 +1,9 @@
+namespace app
+from /models import item
+
+function identity item; value item
+    return value
+
+function main
+    original item = item;
+    copied item = identity; original

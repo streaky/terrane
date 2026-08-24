@@ -1,4 +1,4 @@
-namespace function-value-requires-call
+namespace function-value-type-mismatch
 function make int
   return 1
 function main

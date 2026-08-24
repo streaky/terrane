@@ -216,7 +216,7 @@ Compact precedence, high -> low:
 
 ```text
 postfix member/index/call   (NOTE: '++'/'--' are NOT here - they are update STATEMENTS)
-prefix: not - ~ ; ref move await consume postfix operand
+prefix: not - ~ ; shared ref / ref / move / await consume postfix operand
 * / %
 + -
 << >>
@@ -233,7 +233,7 @@ or
 - Prefix operators associate right.
 - Comparisons do not chain: use `a < b and b < c`.
 - Unary `+` absent.
-- `ref ref value` and `move move value` rejected.
+- `shared ref` is one compound type/value prefix; bare prefix `shared`, `ref ref value`, `shared ref ref value`, and `move move value` rejected.
 - Parentheses override precedence and re-enable nested calls.
 - Assignment target: bare mutable binding or assignable member/index path only. Receiver/indices evaluate exactly once left-to-right before value.
 - Bare `name = expr`: declare where permitted if unresolved; otherwise rebind mutable resolved name.
@@ -277,9 +277,8 @@ function connect; host string, port int, timeout int = 10; connection
 - A typed binding may omit its initializer (`name string`); flow-sensitive definite assignment must prove a value before any read, reference, member access, argument pass, or capture.
 - [binding-initialization-dependencies] An initializer resolves against the scope as it stands immediately BEFORE its declaration, so the declared name is not in scope from its own initializer. Where nothing else binds that name, reading it — directly or through a called function — is a compile-time error naming the absent binding. Namespace initializer dependencies, including later namespace-level assignments folded into initialization, must be statically acyclic and rejected before lowering when they form a cycle.
 - [redeclaration] Where the name is already bound in the SAME LEXICAL scope, the initializer reads the earlier binding and the declaration REPLACES it: `a int8 = 12` then `a int = a`. One name means one thing at each point in a scope, read top to bottom. Lexical only — a namespace top-level declaration may not replace another, because namespace initialization is ordered by dependency, not source position.
-- [redeclaration-same-type] identical type => an assignment with a redundant annotation; an outstanding ref observes the new value, since the storage is the same.
-- [redeclaration-retype] type changes => the binding's type changes, and the replaced value is RELEASED at that point, after its initializer is evaluated. Deterministic and earlier than scope exit: nothing can name the old value again, so retaining it would hold a resource the program cannot reach.
-- [redeclaration-v1-limit] a type-changing replacement is REJECTED while an outstanding ref observes the binding (and, once closures exist, a capture); retyping what another scope holds must not happen without something explicit there. See DEFERRED.
+- [redeclaration-identity] after evaluating the initializer, replacement releases the old owned value and installs a new identity; identical type is an assignment with a redundant annotation, not identity preservation. Existing `ref` becomes unusable at release; `shared ref` continues owning the old identity and is never retargeted.
+- [redeclaration-retype] type changes => the binding's type changes. Release remains deterministic and occurs at replacement rather than scope exit, so an unreachable resource is not retained.
 - [block-scope] Function bodies and every indented control-flow body create lexical scopes. A nested declaration is visible through that body and deeper scopes, never in sibling bodies or after exit; its value is released on each exit. A `for` target spans its loop body only. A nearer declaration shadows until exit, while untyped assignment to an enclosing name assigns that existing binding.
 - Function return type follows parameter section.
 - Default value makes parameter optional; required parameters precede optional ones; variadic captures remaining values.
@@ -460,9 +459,9 @@ lowering: contextual constants materialise directly; widening changes representa
 ordinary_assignment: value semantics
 implementation: COW/share storage allowed if mutation cannot leak
 mutation: separates backing storage before observable change
-ref: explicit shared source-visible identity
-move: explicit ownership transfer; source unusable afterward
-borrow: bounded reference with compiler provenance; may narrow, never widen lifetime
+ref: explicit non-owning source-visible identity; does not extend lifetime
+shared_ref: explicit shared identity plus shared ownership; extends lifetime
+reference_provenance: compiler-tracked; derived references may narrow, never widen lifetime
 interior_ref: separates COW, pins path, cannot escape/replace/remove while live
 linear: noncopyable exclusive resource; move transfers identity
 constants: cannot rebind
@@ -470,11 +469,41 @@ constant_scope: rejects reassignment regardless of lexical, namespace-local, or 
 shadowing: a namespace-local binding may shadow a distinct program-global constant; writes resolve to the local identity
 parameter_and_for_target_reassignment: allowed within lexical scope; value semantics preserve caller arguments and iterated collections
 lowering_mutability: emit mutable target storage only when resolver-backed write analysis finds a reassignment
-cleanup: deterministic lexical destruction; acyclic final strong reference release
-cycles: never promise deterministic collection; reject provable cycles or diagnose/document leak
+cleanup: deterministic lexical destruction; each independently owned source value has one lifecycle lineage and invokes each applicable `destruct` once when that lineage ends, ordered most-derived class to root base; value separation copies state into a fresh lineage, compiler representation clones cannot multiply the hook, move transfers it, and `ref` never delays it
+cycles: only `shared ref` can form ownership cycles; never promise deterministic collection; reject provable cycles or diagnose/document leak
 ```
 
-Distinct contracts: `ref T`, `borrowed-ref of T`, `user-ref of T`, `raw-address of T`, `array-ref of T`, `c-pointer of T`, callable ABI addresses. Never silently convert/weaken.
+Reference choice, in expected order of frequency:
+
+```yaml
+ordinary_value: default; independent value semantics
+ref_T: normal non-owning observer; preserves identity and requires proven lifetime
+shared_ref_T: uncommon shared owner; preserves identity and keeps the value alive
+```
+
+Ordinary value assignment may share copy-on-write backing storage while no copy is mutated, making
+read-only passing, returning, and assignment reference-cheap without shared source-level identity.
+Mutation separates the value before it becomes observable elsewhere. Do not introduce a reference
+merely to avoid a copy; use it only when aliases must observe the same identity and mutations.
+
+Use `ref` when an alias observes an identity owned elsewhere, such as a bounded local alias,
+child-to-parent back-pointer, subscriber, or cache entry. Direct access is accepted only while the
+originating owner is proven alive; escape or use after its lifetime ends is rejected. Use
+`shared ref` only when the alias must also extend the identity's lifetime. Lowering may optimize
+representation but must never silently promote `ref` to `shared ref` or discard authored ownership.
+
+[reference-async-suspension] A non-owning `ref` may cross `await` only when its originating owner is
+proven alive throughout the suspended state. `shared ref` may cross by carrying ownership, subject
+to the referenced value's thread-safety contract. Neither form changes ownership implicitly.
+
+[reference-observation-transparency] A valid `ref T` or `shared ref T` exposes `T`'s ordinary
+members, methods, and value consumers: `ref bytes` may call `decode`, and printing `ref int`
+observes the integer. This is receiver/read transparency, not type conversion. Assignment,
+parameter, and return boundaries retain the authored reference contract; neither `T`, `ref T`, nor
+`shared ref T` silently becomes another.
+
+Distinct contracts: `ref T`, `shared ref T`, `user-ref of T`, `raw-address of T`, `array-ref of T`,
+`c-pointer of T`, callable ABI addresses. Never silently convert or weaken.
 
 ## CONTROL
 
@@ -799,12 +828,12 @@ Priority: these override examples/lowering sketches/plans. Condensed from full s
 14. Missing target capabilities diagnose; never silently weaken semantics.
 15. Equality, identity, membership distinct.
 16. Build selection deterministic over declared inputs.
-17. Pointer/reference/borrow/address/ABI contracts distinct; never silently weaken.
+17. Non-owning reference/shared owner/address/ABI contracts are distinct; never silently convert or weaken.
 18. Package modifiers are `with`-introduced and resolved in ordinary scope; core structural words are bare keywords.
 19. `void` no value; `opaque` hidden representation.
-20. Derived borrow provenance never widens.
+20. Derived reference provenance never widens.
 21. Source/generated/native names independent.
-22. Destruction deterministic only for lexical ownership and acyclic final strong release.
+22. Destruction is deterministic only for lexical ownership and acyclic final shared-owner release.
 23. `int` exact arbitrary precision with adaptive promotion/normalization; fixed widths expose arithmetic bounds/overflow policy; numeric destination conversion is exact-or-throw.
 
 ## OPEN
@@ -818,7 +847,7 @@ Validation/prototype points, not permission to invent semantics:
 - numeric arrival diagnostics: final spelling of the typed-value exact-arrival predicate (proposed `value.fits; Destination`), wording/severity of the typed false-`is a` and lossy constant-division lints, stable `T00xx` codes for contextual-constant rejections, and whether `integer-conversion-overflow` keeps its name now that it covers every exact-or-throw arrival failure;
 - the version-one async surface: task identity/linearity, un-awaited task disposal, scope failure semantics for surviving siblings, defined cancellation points, and the executor boundary the language fixes versus the profile selects;
 - dynamic finite-union representation;
-- reference implementation thresholds (`borrow`/Rc/Arc/custom);
+- reference representation thresholds after source validation (borrow/stable handle for non-owning `ref`; Rc/Arc/custom owner for owning `shared ref`);
 - public-by-default API lint/strict policy;
 - reflection artifact embedding policy;
 - importer composition/evaluation ergonomics.
@@ -834,7 +863,6 @@ Not version-one; no private incompatible syntax:
 - arbitrary C++ ABI integration;
 - multimethod/generic-function dispatch;
 - additional foreign runtime adapters;
-- type-changing replacement of a binding observed by a ref or capture; a later version may let the holder accept the new type explicitly, but never silently.
 
 ## AUTHORING CHECKLIST
 

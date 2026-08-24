@@ -1,0 +1,4 @@
+namespace models
+
+class item
+    value int = 7
