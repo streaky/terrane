@@ -1,0 +1,6 @@
+namespace task-scope-without-spawn
+
+function main;
+  parent = task-scope; 10
+  child = parent.child-scope; 5
+  child.child-scope; 2

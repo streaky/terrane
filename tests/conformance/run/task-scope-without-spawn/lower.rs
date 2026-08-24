@@ -130,30 +130,6 @@ enum TerraneCompletion<T> {
     Break,
     Continue,
 }
-fn __terrane_block_on<F: Future>(future: F) -> F::Output {
-struct Wake;
-impl std::task::Wake for Wake { fn wake(self: std::sync::Arc<Self>) {} }
-let waker = std::task::Waker::from(std::sync::Arc::new(Wake));
-let mut context = std::task::Context::from_waker(&waker);
-let mut future = std::pin::pin!(future);
-loop { match future.as_mut().poll(&mut context) {
-std::task::Poll::Ready(value) => return value,
-std::task::Poll::Pending => std::thread::yield_now(),
-} }
-}
-fn __terrane_block_on_cancellable<F: Future>(future: F, cancelled: impl Fn() -> bool) -> Option<F::Output> {
-struct Wake;
-impl std::task::Wake for Wake { fn wake(self: std::sync::Arc<Self>) {} }
-let waker = std::task::Waker::from(std::sync::Arc::new(Wake));
-let mut context = std::task::Context::from_waker(&waker);
-let mut future = std::pin::pin!(future);
-loop {
-if cancelled() { return None; }
-match future.as_mut().poll(&mut context) {
-std::task::Poll::Ready(value) => return Some(value),
-std::task::Poll::Pending => std::thread::yield_now(),
-} }
-}
 #[derive(Clone)]
 pub struct TerraneTaskScope {
     cancelled: std::sync::Arc<std::sync::atomic::AtomicBool>,
@@ -252,19 +228,9 @@ pub struct TerraneTaskOutcome<T> {
     pub error: Option<TerraneError>,
 }
 // Source: case.trn
-// Namespace: failing-task-cancels-sibling
-async fn fail() -> Result<terrane_int_support::Int, TerraneError> {
-    return Err(TerraneError::new(TerraneErrorKind::CoercionError, "coercion has no compatible result").at("/failing-task-cancels-sibling::fail (case.trn:5:3)"));
-}
-async fn survive() -> terrane_int_support::Int {
-    return terrane_int_support::Int::from(7_i128);
-}
+// Namespace: task-scope-without-spawn
 fn main() {
-    let scope: TerraneTaskScope = TerraneTaskScope::new(None);
-    let failing: TerraneScopedTask<terrane_int_support::Int> = { let __terrane_scope = (scope).clone(); let __terrane_cancel = __terrane_scope.clone(); TerraneScopedTask::spawn(move || match __terrane_block_on_cancellable((fail)(), move || __terrane_cancel.should_cancel()) { Some(Ok(value)) => TerraneTaskResult::Completed(value), Some(Err(error)) => TerraneTaskResult::Failed(error), None => TerraneTaskResult::Cancelled }) };
-    let sibling: TerraneScopedTask<terrane_int_support::Int> = { let __terrane_scope = (scope).clone(); let __terrane_cancel = __terrane_scope.clone(); TerraneScopedTask::spawn(move || match __terrane_block_on_cancellable((survive)(), move || __terrane_cancel.should_cancel()) { Some(value) => TerraneTaskResult::Completed(value), None => TerraneTaskResult::Cancelled }) };
-    let failed: TerraneTaskOutcome<terrane_int_support::Int> = (scope).join(failing);
-    let survived: TerraneTaskOutcome<terrane_int_support::Int> = (scope).join(sibling);
-    println!("{}{}", terrane_scalar_support::scalar_text(&((failed).completed)), terrane_scalar_support::scalar_text(&((failed).cancelled)));
-    println!("{}", terrane_scalar_support::scalar_text(&((survived).cancelled)));
+    let parent: TerraneTaskScope = TerraneTaskScope::new(Some((10) as u64));
+    let child: TerraneTaskScope = (parent).child_scope((5) as u64);
+    (child).child_scope((2) as u64);
 }

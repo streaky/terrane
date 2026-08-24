@@ -143,7 +143,7 @@ fn main() {
     println!("{}{}", terrane_scalar_support::scalar_text(&(value)), terrane_scalar_support::scalar_text(&("".to_owned())));
     println!("{}", terrane_scalar_support::scalar_text(&("throwable".to_owned())));
     println!("{}", terrane_scalar_support::scalar_text(&("".to_owned())));
-    println!("{}", terrane_scalar_support::scalar_text(&("throws(coercion-error)".to_owned())));
+    println!("{}", terrane_scalar_support::scalar_text(&("throws".to_owned())));
     println!("{}", terrane_scalar_support::scalar_text(&("throwable".to_owned())));
     println!("{}", terrane_scalar_support::scalar_text(&("coercion-error".to_owned())));
     let __terrane_completion_0: TerraneCompletion<()> = (|| {

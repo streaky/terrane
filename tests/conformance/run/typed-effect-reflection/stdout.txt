@@ -1,7 +1,7 @@
 1
 throwable
 
-throws(coercion-error)
+throws
 throwable
 coercion-error
 caught
