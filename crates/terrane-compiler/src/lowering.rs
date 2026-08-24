@@ -1,5 +1,6 @@
 use std::fmt::Write as _;
 
+use indoc::indoc;
 use num_bigint::BigInt;
 
 use crate::{
@@ -288,90 +289,154 @@ fn package_uses_structured_errors(package: &SemanticPackage) -> bool {
     })
 }
 
+#[expect(
+    clippy::too_many_lines,
+    reason = "the generated error runtime remains directly reviewable as one canonical Rust template"
+)]
 fn emit_error_support(output: &mut String, has_custom_throwable: bool) {
-    output.push_str(
-        "#[derive(Clone, Copy, Debug, Eq, PartialEq)]\n\
-         enum TerraneErrorKind {\n\
-         ArithmeticOverflow,\nDivisionByZero,\nIntegerConversionOverflow,\nNegativeShiftCount,\n\
-         CoercionError,\nDecodeError,\nIndexError,\nMissingKey,\nResourceError,\nSourceError,\n",
-    );
+    output.push_str(indoc! {r"
+        #[derive(Clone, Copy, Debug, Eq, PartialEq)]
+        enum TerraneErrorKind {
+            ArithmeticOverflow,
+            DivisionByZero,
+            IntegerConversionOverflow,
+            NegativeShiftCount,
+            CoercionError,
+            DecodeError,
+            IndexError,
+            MissingKey,
+            ResourceError,
+            SourceError,
+    "});
     if has_custom_throwable {
-        output.push_str("Custom(&'static str),\n");
+        output.push_str("    Custom(&'static str),\n");
     }
-    output.push_str(
-        "}\n\
-         impl TerraneErrorKind {\n\
-         fn from_source_name(name: &str) -> Self {\nmatch name {\n\
-         \".arithmetic-overflow\" => Self::ArithmeticOverflow,\n\
-         \".division-by-zero\" => Self::DivisionByZero,\n\
-         \".integer-conversion-overflow\" => Self::IntegerConversionOverflow,\n\
-         \".negative-shift-count\" => Self::NegativeShiftCount,\n\
-         \".coercion-error\" => Self::CoercionError,\n\
-         \".decode-error\" => Self::DecodeError,\n\
-         \".index-error\" => Self::IndexError,\n\
-         \".missing-key\" => Self::MissingKey,\n\
-         \".resource-error\" => Self::ResourceError,\n\
-         _ => Self::SourceError,\n}\n}\n\
-         fn source_name(self) -> &'static str {\nmatch self {\n\
-         Self::ArithmeticOverflow => \".arithmetic-overflow\",\n\
-         Self::DivisionByZero => \".division-by-zero\",\n\
-         Self::IntegerConversionOverflow => \".integer-conversion-overflow\",\n\
-         Self::NegativeShiftCount => \".negative-shift-count\",\n\
-         Self::CoercionError => \".coercion-error\",\n\
-         Self::DecodeError => \".decode-error\",\n\
-         Self::IndexError => \".index-error\",\n\
-         Self::MissingKey => \".missing-key\",\n\
-         Self::ResourceError => \".resource-error\",\n\
-         Self::SourceError => \".error\",\n",
-    );
+    output.push_str(indoc! {r#"
+        }
+        impl TerraneErrorKind {
+            fn from_source_name(name: &str) -> Self {
+                match name {
+                    ".arithmetic-overflow" => Self::ArithmeticOverflow,
+                    ".division-by-zero" => Self::DivisionByZero,
+                    ".integer-conversion-overflow" => Self::IntegerConversionOverflow,
+                    ".negative-shift-count" => Self::NegativeShiftCount,
+                    ".coercion-error" => Self::CoercionError,
+                    ".decode-error" => Self::DecodeError,
+                    ".index-error" => Self::IndexError,
+                    ".missing-key" => Self::MissingKey,
+                    ".resource-error" => Self::ResourceError,
+                    _ => Self::SourceError,
+                }
+            }
+            fn source_name(self) -> &'static str {
+                match self {
+                    Self::ArithmeticOverflow => ".arithmetic-overflow",
+                    Self::DivisionByZero => ".division-by-zero",
+                    Self::IntegerConversionOverflow => ".integer-conversion-overflow",
+                    Self::NegativeShiftCount => ".negative-shift-count",
+                    Self::CoercionError => ".coercion-error",
+                    Self::DecodeError => ".decode-error",
+                    Self::IndexError => ".index-error",
+                    Self::MissingKey => ".missing-key",
+                    Self::ResourceError => ".resource-error",
+                    Self::SourceError => ".error",
+    "#});
     if has_custom_throwable {
-        output.push_str("Self::Custom(name) => name,\n");
+        output.push_str("            Self::Custom(name) => name,\n");
     }
-    output.push_str(
-        "}\n}\n}\n\
-         #[derive(Clone, Debug)]\nstruct TerraneError {\n\
-         kind: TerraneErrorKind,\nmessage: String,\ncause: Option<Box<TerraneError>>,\n\
-         context: Vec<&'static str>,\n}\n\
-         impl TerraneError {\n\
-         fn new(kind: TerraneErrorKind, message: impl Into<String>) -> Self {\n\
-         Self { kind, message: message.into(), cause: None, context: Vec::new() }\n}\n",
-    );
-    output.push_str(
-        "#[allow(dead_code)]\n\
-         fn at(mut self, frame: &'static str) -> Self {\n\
-         self.context.push(frame);\nself\n}\n",
-    );
-    output.push_str(
-        "\
-         fn render(&self) -> String {\n\
-         let mut rendered = format!(\"{}: {}\", self.kind.source_name(), self.message);\n\
-         if let Some(cause) = &self.cause {\nrendered.push_str(\"\\ncaused by: \");\nrendered.push_str(&cause.render());\n}\n\
-         for frame in &self.context {\nrendered.push_str(\"\\nat \");\nrendered.push_str(frame);\n}\nrendered\n}\n}\n\
-         impl std::fmt::Display for TerraneError {\n\
-         fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {\n\
-         formatter.write_str(&self.render())\n}\n}\n\
-         impl From<terrane_int_support::ArithmeticError> for TerraneError {\n\
-         fn from(error: terrane_int_support::ArithmeticError) -> Self {\n\
-         Self::new(TerraneErrorKind::from_source_name(error.source_name()), error.to_string())\n}\n}\n\
-         impl From<terrane_string_support::DecodeError> for TerraneError {\n\
-         fn from(error: terrane_string_support::DecodeError) -> Self {\n\
-         Self::new(TerraneErrorKind::DecodeError, error.to_string().trim_start_matches(\".decode-error: \"))\n}\n}\n\
-         impl From<terrane_collection_support::IndexError> for TerraneError {\n\
-         fn from(error: terrane_collection_support::IndexError) -> Self {\n\
-         Self::new(TerraneErrorKind::IndexError, error.to_string())\n}\n}\n\
-         impl From<terrane_collection_support::MissingKey> for TerraneError {\n\
-         fn from(error: terrane_collection_support::MissingKey) -> Self {\n\
-         Self::new(TerraneErrorKind::MissingKey, error.to_string())\n}\n}\n\
-         impl From<terrane_collection_support::RangeStepError> for TerraneError {\n\
-         fn from(error: terrane_collection_support::RangeStepError) -> Self {\n\
-         Self::new(TerraneErrorKind::SourceError, error.to_string())\n}\n}\n\
-         fn __terrane_uncaught(error: TerraneError) -> ! {\n\
-         eprintln!(\"{}\", error.render());\nstd::process::exit(1);\n}\n\
-         fn __terrane_generated_defect(message: &str) -> ! {\n\
-         eprintln!(\"internal compiler defect: generated program reached an impossible completion: {message}\");\n\
-         std::process::exit(5);\n}\n\
-         #[allow(dead_code)]\nenum TerraneCompletion<T> {\nNormal,\nReturn(T),\nError(TerraneError),\nBreak,\nContinue,\n}\n",
-    );
+    output.push_str(indoc! {r#"
+                }
+            }
+        }
+        #[derive(Clone, Debug)]
+        struct TerraneError {
+            kind: TerraneErrorKind,
+            message: String,
+            cause: Option<Box<TerraneError>>,
+            context: Vec<&'static str>,
+        }
+        impl TerraneError {
+            fn new(kind: TerraneErrorKind, message: impl Into<String>) -> Self {
+                Self {
+                    kind,
+                    message: message.into(),
+                    cause: None,
+                    context: Vec::new(),
+                }
+            }
+            #[allow(dead_code)]
+            fn at(mut self, frame: &'static str) -> Self {
+                self.context.push(frame);
+                self
+            }
+            fn render(&self) -> String {
+                let mut rendered = format!("{}: {}", self.kind.source_name(), self.message);
+                if let Some(cause) = &self.cause {
+                    rendered.push_str("\ncaused by: ");
+                    rendered.push_str(&cause.render());
+                }
+                for frame in &self.context {
+                    rendered.push_str("\nat ");
+                    rendered.push_str(frame);
+                }
+                rendered
+            }
+        }
+        impl std::fmt::Display for TerraneError {
+            fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                formatter.write_str(&self.render())
+            }
+        }
+        impl From<terrane_int_support::ArithmeticError> for TerraneError {
+            fn from(error: terrane_int_support::ArithmeticError) -> Self {
+                Self::new(
+                    TerraneErrorKind::from_source_name(error.source_name()),
+                    error.to_string(),
+                )
+            }
+        }
+        impl From<terrane_string_support::DecodeError> for TerraneError {
+            fn from(error: terrane_string_support::DecodeError) -> Self {
+                Self::new(
+                    TerraneErrorKind::DecodeError,
+                    error.to_string().trim_start_matches(".decode-error: "),
+                )
+            }
+        }
+        impl From<terrane_collection_support::IndexError> for TerraneError {
+            fn from(error: terrane_collection_support::IndexError) -> Self {
+                Self::new(TerraneErrorKind::IndexError, error.to_string())
+            }
+        }
+        impl From<terrane_collection_support::MissingKey> for TerraneError {
+            fn from(error: terrane_collection_support::MissingKey) -> Self {
+                Self::new(TerraneErrorKind::MissingKey, error.to_string())
+            }
+        }
+        impl From<terrane_collection_support::RangeStepError> for TerraneError {
+            fn from(error: terrane_collection_support::RangeStepError) -> Self {
+                Self::new(TerraneErrorKind::SourceError, error.to_string())
+            }
+        }
+        fn __terrane_uncaught(error: TerraneError) -> ! {
+            eprintln!("{}", error.render());
+            std::process::exit(1);
+        }
+        fn __terrane_generated_defect(message: &str) -> ! {
+            eprintln!(
+                "internal compiler defect: generated program reached an impossible completion: {message}"
+            );
+            std::process::exit(5);
+        }
+        #[allow(dead_code)]
+        enum TerraneCompletion<T> {
+            Normal,
+            Return(T),
+            Error(TerraneError),
+            Break,
+            Continue,
+        }
+    "#});
 }
 
 #[expect(
@@ -5507,4 +5572,20 @@ fn display_path(path: &std::path::Path) -> String {
         .and_then(std::ffi::OsStr::to_str)
         .unwrap_or("<memory>")
         .to_owned()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::emit_error_support;
+
+    #[test]
+    fn error_support_is_canonical_rust() {
+        for has_custom_throwable in [false, true] {
+            let mut emitted = String::new();
+            emit_error_support(&mut emitted, has_custom_throwable);
+            let parsed = syn::parse_file(&emitted).unwrap();
+
+            assert_eq!(prettyplease::unparse(&parsed), emitted);
+        }
+    }
 }
