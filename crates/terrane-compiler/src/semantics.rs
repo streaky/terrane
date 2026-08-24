@@ -146,6 +146,8 @@ pub enum ValueType {
     UnorderedSet(ElementType),
     Encoding,
     Function(Vec<ElementType>, ElementType),
+    AsyncFunction(Vec<ElementType>, ElementType),
+    Task(ElementType),
     Object(String),
     Reference(ElementType),
     SharedReference(ElementType),
@@ -267,6 +269,20 @@ impl std::fmt::Display for ValueType {
                 }
                 write!(formatter, " to {result}")
             }
+            Self::AsyncFunction(parameters, result) => {
+                formatter.write_str("async function")?;
+                if !parameters.is_empty() {
+                    formatter.write_str(" from ")?;
+                    for (index, parameter) in parameters.iter().enumerate() {
+                        if index != 0 {
+                            formatter.write_str(", ")?;
+                        }
+                        parameter.fmt(formatter)?;
+                    }
+                }
+                write!(formatter, " to {result}")
+            }
+            Self::Task(result) => write!(formatter, "task of {result}"),
             Self::Object(name) => formatter.write_str(name),
             Self::Reference(item) => write!(formatter, "ref {}", item.value_type()),
             Self::SharedReference(item) => write!(formatter, "shared ref {}", item.value_type()),
@@ -421,6 +437,17 @@ pub struct ObjectContract {
     pub traits: Vec<String>,
     pub fields: Vec<ObjectField>,
 }
+#[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
+pub enum Effect {
+    Throws,
+    Io,
+    Blocks,
+    Awaits,
+    Mutates,
+    Unsafe,
+    Foreign,
+}
+
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct FunctionContract {
@@ -430,7 +457,12 @@ pub struct FunctionContract {
     pub captures: Vec<String>,
     pub parameters: Vec<ParameterContract>,
     pub return_type: Option<ValueType>,
+    pub effects: BTreeSet<Effect>,
+    pub declared_effects: BTreeSet<Effect>,
+    pub exported: bool,
+    pub thrown_types: Vec<ValueType>,
     pub throws: bool,
+    pub is_async: bool,
     pub mutates_receiver: bool,
 }
 
@@ -731,7 +763,7 @@ pub fn analyze(package: &Package) -> Result<SemanticPackage, SemanticFailure> {
     validate_moves(&semantic)?;
     validate_reference_origins(&semantic)?;
     validate_referenced_replacements(&semantic)?;
-    infer_throwing_effects(&mut semantic);
+    infer_throwing_effects(&mut semantic)?;
     validate_constant_reassignment(&semantic)?;
     validate_global_definite_assignment(&semantic)?;
     record_binding_mutability(&mut semantic);
@@ -2255,6 +2287,18 @@ fn validate_call_nodes<'a>(
     let function_bindings =
         entered_function.map(|contract| call_site_bindings(unit, Some(contract)));
     let scoped_bindings = function_bindings.as_deref().unwrap_or(scoped_bindings);
+    if node.kind == SyntaxKind::UnaryExpression
+        && unary_operator_text(unit, node).as_deref() == Some("await")
+        && !active_function.is_some_and(|function| function.is_async)
+    {
+        return Err(failure(
+            &unit.source,
+            "T0028",
+            "`await` is valid only inside an async callable",
+            node.span,
+        ));
+    }
+
 
     validate_resolved_assignment(package, unit, node, contracts)?;
     validate_integer_coercion_call(unit, node, scoped_bindings)?;
@@ -2574,10 +2618,18 @@ fn resolved_call_type(
     let symbol =
         package.resolve_name_at(unit, callee.span.start, node_text(&unit.source, callee))?;
     let declaration = symbol.declaration_span?;
-    contracts
-        .get(&(declaration.file, declaration.start, declaration.end))?
-        .return_type
-        .clone()
+    let contract = contracts.get(&(declaration.file, declaration.start, declaration.end))?;
+    let result = ElementType::new(
+        contract
+            .return_type
+            .clone()
+            .unwrap_or(ValueType::Scalar(ScalarType::None)),
+    );
+    Some(if contract.is_async {
+        ValueType::Task(result)
+    } else {
+        result.value_type()
+    })
 }
 
 fn validate_call_arguments(
@@ -3665,8 +3717,55 @@ fn analyze_function_contract(
             });
         }
     }
-    let throws = node.children.iter().any(|child| {
-        child.kind == SyntaxKind::DeclarationQualifier && node_text(&unit.source, child) == "throws"
+    let mut effects = BTreeSet::new();
+    let mut thrown_types = Vec::new();
+    for child in &node.children {
+        if child.kind == SyntaxKind::EffectClause {
+            effects.insert(Effect::Throws);
+            if let Some(type_node) = child
+                .children
+                .iter()
+                .find(|part| part.kind == SyntaxKind::TypeExpression)
+            {
+                thrown_types.push(declared_value_type(unit, type_node, aliases)?);
+            }
+        } else if child.kind == SyntaxKind::DeclarationQualifier {
+            match node_text(&unit.source, child) {
+                "io" => {
+                    effects.insert(Effect::Io);
+                }
+                "blocks" => {
+                    effects.insert(Effect::Blocks);
+                }
+                "awaits" => {
+                    effects.insert(Effect::Awaits);
+                }
+                "mutating" => {
+                    effects.insert(Effect::Mutates);
+                }
+                "unsafe" => {
+                    effects.insert(Effect::Unsafe);
+                }
+                "foreign" => {
+                    effects.insert(Effect::Foreign);
+                }
+                _ => {}
+            }
+        }
+    }
+    let is_async = node.children.iter().any(|child| {
+        child.kind == SyntaxKind::DeclarationQualifier && node_text(&unit.source, child) == "async"
+    });
+    if is_async {
+        effects.insert(Effect::Awaits);
+    }
+    if mutates_object_receiver(unit, node) {
+        effects.insert(Effect::Mutates);
+    }
+    let throws = effects.contains(&Effect::Throws);
+    let declared_effects = effects.clone();
+    let exported = node.children.iter().any(|child| {
+        child.kind == SyntaxKind::Visibility && node_text(&unit.source, child) == "public"
     });
     Ok(FunctionContract {
         name: name_node.map_or_else(
@@ -3680,8 +3779,13 @@ fn analyze_function_contract(
         parameters,
         captures: Vec::new(),
         return_type,
+        effects,
+        thrown_types,
         throws,
+        is_async,
         mutates_receiver: mutates_object_receiver(unit, node),
+        declared_effects,
+        exported,
     })
 }
 
@@ -3689,7 +3793,7 @@ fn analyze_function_contract(
     clippy::too_many_lines,
     reason = "the fixed-point call graph and its local traversals form one auditable effect analysis"
 )]
-fn infer_throwing_effects(package: &mut SemanticPackage) {
+fn infer_throwing_effects(package: &mut SemanticPackage) -> Result<(), SemanticFailure> {
     type FunctionKey = (u32, usize, usize);
 
     fn key(span: Span) -> FunctionKey {
@@ -3786,7 +3890,40 @@ fn infer_throwing_effects(package: &mut SemanticPackage) {
         }
     }
 
-    let mut effects = BTreeMap::<FunctionKey, bool>::new();
+    fn direct_effects(
+        package: &SemanticPackage,
+        unit: &SemanticUnit,
+        node: &SyntaxNode,
+    ) -> BTreeSet<Effect> {
+        if node.kind == SyntaxKind::FunctionDeclaration {
+            return BTreeSet::new();
+        }
+        let mut effects = BTreeSet::new();
+        if !direct_errors(package, unit, node).is_empty() {
+            effects.insert(Effect::Throws);
+        }
+        if node.kind == SyntaxKind::UnaryExpression
+            && node
+                .children
+                .first()
+                .is_some_and(|operator| node_text(&unit.source, operator) == "await")
+        {
+            effects.insert(Effect::Awaits);
+        }
+        if node.kind == SyntaxKind::CallExpression
+            && node.children.first().is_some_and(|callee| {
+                callee.kind == SyntaxKind::Name && node_text(&unit.source, callee) == "print"
+            })
+        {
+            effects.insert(Effect::Io);
+        }
+        for child in &node.children {
+            effects.extend(direct_effects(package, unit, child));
+        }
+        effects
+    }
+
+    let mut inferred = BTreeMap::<FunctionKey, BTreeSet<Effect>>::new();
     let mut edges = BTreeMap::<FunctionKey, BTreeSet<FunctionKey>>::new();
     for unit in &package.units {
         for function in unit
@@ -3797,19 +3934,15 @@ fn infer_throwing_effects(package: &mut SemanticPackage) {
             .filter(|node| node.kind == SyntaxKind::FunctionDeclaration)
         {
             let function_key = key(function.span);
-            let declared = unit
+            let mut function_effects = unit
                 .functions
                 .iter()
                 .find(|contract| contract.span == function.span)
-                .is_some_and(|contract| contract.throws);
-            effects.insert(
-                function_key,
-                declared
-                    || function
-                        .children
-                        .iter()
-                        .any(|child| !direct_errors(package, unit, child).is_empty()),
-            );
+                .map_or_else(BTreeSet::new, |contract| contract.effects.clone());
+            for child in &function.children {
+                function_effects.extend(direct_effects(package, unit, child));
+            }
+            inferred.insert(function_key, function_effects);
             let mut function_callees = BTreeSet::new();
             for child in &function.children {
                 callees(package, unit, child, &mut function_callees);
@@ -3821,12 +3954,14 @@ fn infer_throwing_effects(package: &mut SemanticPackage) {
     loop {
         let mut changed = false;
         for (function, callees) in &edges {
-            let inferred = effects[function]
-                || callees
-                    .iter()
-                    .any(|callee| effects.get(callee).copied().unwrap_or(false));
-            if inferred && !effects[function] {
-                effects.insert(*function, true);
+            let mut combined = inferred[function].clone();
+            for callee in callees {
+                if let Some(callee_effects) = inferred.get(callee) {
+                    combined.extend(callee_effects);
+                }
+            }
+            if combined != inferred[function] {
+                inferred.insert(*function, combined);
                 changed = true;
             }
         }
@@ -3834,12 +3969,51 @@ fn infer_throwing_effects(package: &mut SemanticPackage) {
             break;
         }
     }
+    for unit in &package.units {
+        for contract in &unit.functions {
+            if !contract.exported {
+                continue;
+            }
+            let required = inferred.get(&key(contract.span)).cloned().unwrap_or_default();
+            let undeclared = required
+                .difference(&contract.declared_effects)
+                .copied()
+                .collect::<Vec<_>>();
+            if !undeclared.is_empty() {
+                return Err(failure(
+                    &unit.source,
+                    "T0027",
+                    format!(
+                        "exported function `{}` is missing declared effects: {}",
+                        contract.name,
+                        undeclared
+                            .iter()
+                            .map(|effect| match effect {
+                                Effect::Throws => "throws",
+                                Effect::Io => "io",
+                                Effect::Blocks => "blocks",
+                                Effect::Awaits => "awaits",
+                                Effect::Mutates => "mutates",
+                                Effect::Unsafe => "unsafe",
+                                Effect::Foreign => "foreign",
+                            })
+                            .collect::<Vec<_>>()
+                            .join(", ")
+                    ),
+                    contract.span,
+                ));
+            }
+        }
+    }
+
 
     for unit in &mut package.units {
         for contract in &mut unit.functions {
-            contract.throws = effects.get(&key(contract.span)).copied().unwrap_or(false);
+            contract.effects = inferred.get(&key(contract.span)).cloned().unwrap_or_default();
+            contract.throws = contract.effects.contains(&Effect::Throws);
         }
     }
+    Ok(())
 }
 
 #[expect(
@@ -4115,7 +4289,11 @@ fn declared_value_type(
             .map(|parameter| declared_value_type(unit, parameter, aliases).map(ElementType::new))
             .collect::<Result<Vec<_>, _>>()?;
         let result = ElementType::new(declared_value_type(unit, result, aliases)?);
-        return Ok(ValueType::Function(parameters, result));
+        return Ok(if node_text(&unit.source, function).starts_with("async") {
+            ValueType::AsyncFunction(parameters, result)
+        } else {
+            ValueType::Function(parameters, result)
+        });
     }
     if let Some(union) = type_node
         .children
@@ -4802,15 +4980,17 @@ fn infer_value_type(
                 .map(|parameter| parameter.value_type.clone().map(ElementType::new))
                 .collect::<Option<Vec<_>>>();
             if let Some(parameters) = parameters {
-                return Ok(Some(ValueType::Function(
-                    parameters,
-                    ElementType::new(
-                        contract
-                            .return_type
-                            .clone()
-                            .unwrap_or(ValueType::Scalar(ScalarType::None)),
-                    ),
-                )));
+                let result = ElementType::new(
+                    contract
+                        .return_type
+                        .clone()
+                        .unwrap_or(ValueType::Scalar(ScalarType::None)),
+                );
+                return Ok(Some(if contract.is_async {
+                    ValueType::AsyncFunction(parameters, result)
+                } else {
+                    ValueType::Function(parameters, result)
+                }));
             }
         }
         let resolved_symbol = lexical_scope_chain(unit, node.span.start).find_map(|scope| {
@@ -4943,13 +5123,26 @@ fn infer_value_type(
                 .iter()
                 .find(|contract| contract.owner.is_none() && contract.name == name)
             {
-                return Ok(contract.return_type.clone());
+                let result = ElementType::new(
+                    contract
+                        .return_type
+                        .clone()
+                        .unwrap_or(ValueType::Scalar(ScalarType::None)),
+                );
+                return Ok(Some(if contract.is_async {
+                    ValueType::Task(result)
+                } else {
+                    result.value_type()
+                }));
             }
             if let Some(binding) = bindings.iter().rev().find(|binding| {
                 binding.name == name && binding.is_visible_at(unit.source.id(), callee.span.start)
             }) {
                 return match &binding.value_type {
                     ValueType::Function(_, result) => Ok(Some(result.value_type())),
+                    ValueType::AsyncFunction(_, result) => {
+                        Ok(Some(ValueType::Task(result.clone())))
+                    }
                     _ => Err(failure(
                         &unit.source,
                         "T0039",
@@ -5899,6 +6092,12 @@ fn infer_unary_type(
         ));
     };
     let operator = unary_operator_text(unit, node).unwrap_or_default();
+    if operator == "await" {
+        return match infer_value_type(unit, operand_node, bindings)? {
+            Some(ValueType::Task(result)) => Ok(result.value_type()),
+            _ => Err(operator_failure(unit, node, "`await` requires a task value")),
+        };
+    }
     if matches!(operator.as_str(), "ref" | "shared ref" | "move") {
         let Some(operand) = infer_value_type(unit, operand_node, bindings)? else {
             return Err(operator_failure(

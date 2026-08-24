@@ -130,9 +130,9 @@ fn uncaught_source_errors_render_causes_and_terrane_frames() {
         concat!(
             "namespace runtime-error\n",
             "from /core/errors import arithmetic-overflow, coercion-error\n",
-            "throws function inner int\n",
+            "throws arithmetic-overflow function inner int\n",
             "  throw arithmetic-overflow\n",
-            "throws function outer int\n",
+            "throws coercion-error function outer int\n",
             "  try\n",
             "    return inner;\n",
             "  catch arithmetic-overflow\n",

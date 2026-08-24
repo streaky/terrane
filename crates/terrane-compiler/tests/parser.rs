@@ -46,7 +46,7 @@ fn contains(node: &terrane_compiler::syntax::SyntaxNode, kind: SyntaxKind) -> bo
 
 #[test]
 fn parses_lossless_declarations_and_legal_empty_blocks() {
-    let text = "namespace example/app\npublic constant count int = 1\npublic async throws function empty; value int\nfunction main\n  count = count + 1\n";
+    let text = "namespace example/app\npublic constant count int = 1\npublic async throws error function empty; value int\nfunction main\n  count = count + 1\n";
     let tree = parse_source(text);
     assert!(contains(&tree.root, SyntaxKind::NamespaceDeclaration));
     assert!(contains(&tree.root, SyntaxKind::Binding));
@@ -435,7 +435,6 @@ fn rejects_malformed_declarations_and_reserved_constructs() {
     rejected("async async function work\n", "S1029");
     rejected("function map of T; value T\n", "S1090");
     rejected("function main; values int ...\n", "S1090");
-    rejected("value = await thing\n", "S1090");
     rejected("catch problem\n", "S1090");
     rejected("finally\n", "S1090");
     rejected("case value\n", "S1090");

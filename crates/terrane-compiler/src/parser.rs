@@ -377,20 +377,58 @@ impl Parser<'_> {
         let start = self.position;
         let mut children = Vec::new();
         self.parse_visibility(&mut children);
-        let mut qualifiers = 0u8;
-        while matches!(self.text(), "static" | "async" | "mutating" | "throws") {
-            let bit = match self.text() {
-                "static" => 1,
-                "async" => 2,
-                "mutating" => 4,
-                "throws" => 8,
-                _ => unreachable!(),
-            };
-            if qualifiers & bit != 0 {
+        let mut qualifiers = std::collections::BTreeSet::new();
+        while matches!(
+            self.text(),
+            "static"
+                | "async"
+                | "mutating"
+                | "throws"
+                | "io"
+                | "blocks"
+                | "awaits"
+                | "unsafe"
+                | "foreign"
+        ) {
+            let qualifier_start = self.position;
+            let qualifier = self.text().to_owned();
+            if !qualifiers.insert(qualifier.clone()) {
                 self.error_here("S1029", "duplicate function qualifier");
             }
-            qualifiers |= bit;
-            children.push(self.leaf(SyntaxKind::DeclarationQualifier));
+            self.bump();
+            if qualifier == "throws" {
+                let mut parts = Vec::new();
+                if !self.at_text("function")
+                    && !matches!(
+                        self.text(),
+                        "static"
+                            | "async"
+                            | "mutating"
+                            | "io"
+                            | "blocks"
+                            | "awaits"
+                            | "unsafe"
+                            | "foreign"
+                    )
+                {
+                    parts.push(self.parse_type_expression());
+                } else {
+                    self.error_here("S1037", "`throws` requires an error descriptor");
+                }
+                children.push(self.node(
+                    SyntaxKind::EffectClause,
+                    qualifier_start,
+                    self.position,
+                    parts,
+                ));
+            } else {
+                children.push(self.node(
+                    SyntaxKind::DeclarationQualifier,
+                    qualifier_start,
+                    self.position,
+                    Vec::new(),
+                ));
+            }
         }
         self.expect_text("function", "S1005", "expected `function`");
         if self.at(TokenKind::Identifier) && !self.at_text("from") && !self.at_text("to") {
@@ -791,23 +829,14 @@ impl Parser<'_> {
             } else {
                 self.text().to_owned()
             };
-            let restricted = operator_text == "await";
-            if restricted {
-                self.diagnostics.push(Diagnostic::error(
-                    "S1090",
-                    "`await` expressions are not supported by this compiler milestone",
-                    self.current().span,
-                ));
-            }
             if self.text() == "shared" {
                 self.bump();
             }
             self.bump();
             let operator = self.node(SyntaxKind::UnaryOperator, start, self.position, Vec::new());
-            let operand = if matches!(
-                operator_text.as_str(),
-                "ref" | "move" | "shared ref" | "await"
-            ) {
+            let operand = if operator_text == "await" {
+                self.parse_postfix(true)
+            } else if matches!(operator_text.as_str(), "ref" | "move" | "shared ref") {
                 self.parse_postfix(false)
             } else {
                 self.parse_prefix(allow_call)
@@ -985,6 +1014,10 @@ impl Parser<'_> {
         if self.eat_text("ref") {
             let inner = self.parse_prefix_type();
             return self.node(SyntaxKind::PrefixType, start, self.position, vec![inner]);
+        }
+        let async_function = self.at_text("async") && self.peek_text(1) == Some("function");
+        if async_function {
+            self.bump();
         }
         if self.eat_text("function") {
             let mut children = Vec::new();
@@ -1173,11 +1206,26 @@ impl Parser<'_> {
         ) {
             offset += 1;
         }
-        while matches!(
-            self.peek_text(offset),
-            Some("static" | "async" | "mutating" | "throws")
-        ) {
-            offset += 1;
+        loop {
+            match self.peek_text(offset) {
+                Some(
+                    "static"
+                    | "async"
+                    | "mutating"
+                    | "io"
+                    | "blocks"
+                    | "awaits"
+                    | "unsafe"
+                    | "foreign",
+                ) => offset += 1,
+                Some("throws") => {
+                    offset += 1;
+                    if self.peek_text(offset) != Some("function") {
+                        offset += 1;
+                    }
+                }
+                _ => break,
+            }
         }
         self.peek_text(offset) == Some("function")
     }

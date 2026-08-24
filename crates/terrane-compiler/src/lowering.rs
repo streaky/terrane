@@ -20,6 +20,20 @@ pub(crate) fn lower(package: &SemanticPackage) -> Program {
     if package_uses_structured_errors(package) {
         emit_error_support(&mut globals);
     }
+    if package.units.iter().any(|unit| unit.functions.iter().any(|function| function.is_async)) {
+        globals.push_str(
+            "fn __terrane_block_on<F: Future>(future: F) -> F::Output {\n\
+             struct Wake;\n\
+             impl std::task::Wake for Wake { fn wake(self: std::sync::Arc<Self>) {} }\n\
+             let waker = std::task::Waker::from(std::sync::Arc::new(Wake));\n\
+             let mut context = std::task::Context::from_waker(&waker);\n\
+             let mut future = std::pin::pin!(future);\n\
+             loop { match future.as_mut().poll(&mut context) {\n\
+             std::task::Poll::Ready(value) => return value,\n\
+             std::task::Poll::Pending => std::thread::yield_now(),\n\
+             } }\n}\n",
+        );
+    }
     emit_global_storage(package, &mut globals);
     let modules = package
         .units
@@ -1110,11 +1124,17 @@ impl Emitter<'_> {
             .expect("analyzed function declaration must have a semantic contract");
         self.line_start();
         let name = name_override.map_or_else(|| function_name(contract), str::to_owned);
+        let async_main = contract.is_async && contract.name == "main" && receiver.is_none();
         write!(
             self.output,
-            "{}fn {name}(",
+            "{}{}fn {name}(",
             if receiver.is_some() && name_override.is_none() {
                 "pub "
+            } else {
+                ""
+            },
+            if contract.is_async && !async_main {
+                "async "
             } else {
                 ""
             }
@@ -1148,6 +1168,10 @@ impl Emitter<'_> {
             write!(self.output, " -> {}", rust_value_type(return_type)).unwrap();
         }
         self.output.push_str(" {\n");
+        if async_main {
+            self.indent += 1;
+            self.line("__terrane_block_on(async move {");
+        }
         let outer_return_type =
             std::mem::replace(&mut self.return_type, contract.return_type.clone());
         let outer_function_errors = std::mem::replace(&mut self.function_errors, function_errors);
@@ -1210,6 +1234,10 @@ impl Emitter<'_> {
         self.parameter_types = outer_parameter_types;
         self.current_function = outer_function;
         self.indent -= 1;
+        if async_main {
+            self.indent -= 1;
+            self.line("});");
+        }
         self.line("}");
     }
 
@@ -2114,6 +2142,9 @@ impl Emitter<'_> {
                         _ => self.reference_storage_expression(operand),
                     };
                 }
+                if source_operator == "await" {
+                    return format!("({}).await", self.expression(operand));
+                }
                 if source_operator == "move" {
                     return match operand.kind {
                         SyntaxKind::Name => self.name(operand),
@@ -2560,7 +2591,11 @@ impl Emitter<'_> {
                     return String::new();
                 };
                 let operator = self.unary_operator(node).unwrap_or_default();
-                format!("{operator}{}", self.adaptive_expression(operand))
+                if operator == "await" {
+                    format!("({}).await", self.expression(operand))
+                } else {
+                    format!("{operator}{}", self.adaptive_expression(operand))
+                }
             }
             SyntaxKind::BinaryExpression => self.adaptive_binary(node),
             SyntaxKind::MemberExpression
@@ -4898,6 +4933,18 @@ fn rust_value_type(ty: ValueType) -> String {
                 .join(", "),
             rust_element_type(result)
         ),
+        ValueType::AsyncFunction(parameters, result) => format!(
+            "std::sync::Arc<dyn Fn({}) -> std::pin::Pin<Box<dyn Future<Output = {}>>>>",
+            parameters
+                .into_iter()
+                .map(rust_element_type)
+                .collect::<Vec<_>>()
+                .join(", "),
+            rust_element_type(result)
+        ),
+        ValueType::Task(result) => {
+            format!("std::pin::Pin<Box<dyn Future<Output = {}>>>", rust_element_type(result))
+        }
         ValueType::Object(name) => rust_object_name(&name),
         ValueType::SharedReference(item) => format!(
             "std::sync::Arc<parking_lot::Mutex<{}>>",

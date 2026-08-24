@@ -1,0 +1,7 @@
+namespace async-callable-type-mismatch
+
+async function answer int
+  return 42
+
+function main
+  callback function to int = answer

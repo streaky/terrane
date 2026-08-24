@@ -1,6 +1,7 @@
 namespace declared-throws-effect
+from /core/errors import error
 
-throws function declared int
+throws error function declared int
   return 1
 
 function middle int

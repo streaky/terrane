@@ -1,10 +1,11 @@
 namespace named-result-types
 from /core/types import int8, overflow-result, div-rem-result
+from /core/errors import error
 function pass overflow-result of int8
   small int8 = 120
   result overflow-result of int8 = small.add.overflowing; 10
   return result
-throws function divide div-rem-result of int8
+throws error function divide div-rem-result of int8
   small int8 = 7
   return small.div-rem; 3
 function main
