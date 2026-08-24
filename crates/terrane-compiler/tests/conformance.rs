@@ -51,6 +51,9 @@ fn every_manifest_drives_a_conformance_case() {
         let entrypoint = field(&manifest, "entrypoint").unwrap_or("case.trn");
         let source_path = case.join(entrypoint);
         let package_case = entrypoint == terrane_compiler::MANIFEST_FILE_NAME;
+        let options = terrane_compiler::CompilerOptions {
+            require_canonical_rust: boolean_field(&manifest, "canonical-rust").unwrap_or(false),
+        };
 
         match (phase, status) {
             ("run" | "check", "accept") => {
@@ -63,12 +66,14 @@ fn every_manifest_drives_a_conformance_case() {
                         .map(|unit| unit.source.clone())
                         .collect::<Vec<_>>();
                     (
-                        terrane_compiler::compile_package(&package).unwrap(),
+                        terrane_compiler::compile_package_with_options(&package, options).unwrap(),
                         sources,
                     )
                 } else {
                     let source = fs::read_to_string(&source_path).unwrap();
-                    let compilation = terrane_compiler::compile(&source_path, source).unwrap();
+                    let compilation =
+                        terrane_compiler::compile_with_options(&source_path, source, options)
+                            .unwrap();
                     let sources = vec![compilation.source.clone()];
                     (compilation, sources)
                 };
@@ -244,4 +249,24 @@ fn field<'manifest>(manifest: &'manifest str, name: &str) -> Option<&'manifest s
             .strip_prefix(" = \"")?
             .strip_suffix('"')
     })
+}
+
+fn boolean_field(manifest: &str, name: &str) -> Option<bool> {
+    manifest.lines().find_map(|line| {
+        let value = line.strip_prefix(name)?.strip_prefix(" = ")?;
+        match value {
+            "true" => Some(true),
+            "false" => Some(false),
+            _ => None,
+        }
+    })
+}
+
+#[test]
+fn canonical_rust_manifest_expectation_is_opt_in() {
+    assert_eq!(
+        boolean_field("phase = \"run\"\ncanonical-rust = true\n", "canonical-rust"),
+        Some(true)
+    );
+    assert_eq!(boolean_field("phase = \"run\"\n", "canonical-rust"), None);
 }

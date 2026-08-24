@@ -110,7 +110,7 @@ Each conformance case is a directory or manifest entry containing only the artif
 ```terrane
 case.trn     # single-source input
 package.toml    # optional package manifest for multi-source cases
-case.toml       # phase, expected status, entrypoint, arguments
+case.toml       # phase, expected status, entrypoint, arguments, canonical-Rust expectation
 stdin.txt       # optional exact input
 stdout.txt      # optional exact output
 stderr.txt      # optional exact diagnostic or uncaught source-runtime error
@@ -120,7 +120,12 @@ resolve.json    # optional symbol-resolution facts
 lower.rs        # optional canonical generated Rust
 ```
 
-`package.toml` is the authored package contract exercised by milestone 3; `case.toml` remains test-harness metadata and points to it when present. Runtime-failure fixtures must provide both `stderr.txt` and `exit-code.txt`.
+`package.toml` is the authored package contract exercised by milestone 3; `case.toml` remains
+test-harness metadata and points to it when present. An accepted case may set
+`canonical-rust = true` once its untouched lowering is known to match the bundled formatter; the
+conformance runner then compiles that case with canonical validation enabled so later formatting
+regressions fail at their source. Absence means no canonical-format claim, not that noncanonical
+output is expected. Runtime-failure fixtures must provide both `stderr.txt` and `exit-code.txt`.
 
 Golden files must be reviewed output, not snapshots accepted blindly. Unstable data such as temporary paths is normalized by the test harness before comparison.
 
