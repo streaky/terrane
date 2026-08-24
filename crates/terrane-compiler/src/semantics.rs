@@ -533,7 +533,7 @@ pub(crate) enum ContextualConstant {
 #[derive(Clone, Debug)]
 pub struct SemanticUnit {
     pub source: SourceFile,
-    pub relative_path: std::path::PathBuf,
+    pub source_path: String,
     pub tree: SyntaxTree,
     pub namespace: String,
     prelude: bool,
@@ -704,7 +704,7 @@ fn parse_units(package: &Package) -> Result<Vec<SemanticUnit>, SemanticFailure> 
         let enclosing_function_spans = index_enclosing_function_spans(&parsed.tree.root);
         units.push(SemanticUnit {
             source: source.clone(),
-            relative_path: unit.relative_path.clone(),
+            source_path: unit.relative_path_text(),
             tree: parsed.tree,
             namespace,
             prelude: package.prelude,

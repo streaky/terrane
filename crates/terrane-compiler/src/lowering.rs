@@ -225,10 +225,7 @@ pub(crate) fn lower(package: &SemanticPackage) -> Program {
                 }
             }
             Module {
-                source_path: unit
-                    .relative_path
-                    .to_string_lossy()
-                    .replace(std::path::MAIN_SEPARATOR, "/"),
+                source_path: unit.source_path.clone(),
                 namespace: unit.namespace.clone(),
                 items,
             }

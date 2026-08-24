@@ -9,9 +9,25 @@ pub const IMPLICIT_PACKAGE_ID: &str = "single-file";
 
 #[derive(Clone, Debug)]
 pub struct SourceUnit {
+    /// Normalized path relative to [`Package::root`].
+    ///
+    /// Package construction guarantees that this contains only ordinary path components.
     pub relative_path: PathBuf,
     pub source: SourceFile,
     pub expected_namespace: Option<String>,
+}
+
+impl SourceUnit {
+    pub(crate) fn relative_path_text(&self) -> String {
+        self.relative_path
+            .components()
+            .map(|component| match component {
+                std::path::Component::Normal(component) => component.to_string_lossy(),
+                _ => unreachable!("source-unit paths are normalized relative to the package root"),
+            })
+            .collect::<Vec<_>>()
+            .join("/")
+    }
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -547,4 +563,27 @@ fn normalized_relative_directory(value: &str) -> Option<PathBuf> {
         }
     }
     Some(normalized)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn implicit_source_paths_are_normalized_relative_to_the_package_root() {
+        let package = Package::implicit("/workspace/example/app/main.trn", String::new());
+        assert_eq!(package.root, PathBuf::from("/workspace/example/app"));
+        assert_eq!(package.units[0].relative_path, PathBuf::from("main.trn"));
+        assert_eq!(package.units[0].relative_path_text(), "main.trn");
+    }
+
+    #[test]
+    fn package_relative_paths_have_platform_independent_text() {
+        let unit = SourceUnit {
+            relative_path: ["app", "support", "values.trn"].iter().collect(),
+            source: SourceFile::new(0, PathBuf::from("values.trn"), String::new()),
+            expected_namespace: None,
+        };
+        assert_eq!(unit.relative_path_text(), "app/support/values.trn");
+    }
 }
