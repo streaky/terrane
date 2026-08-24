@@ -1,0 +1,7 @@
+namespace undeclared-public-effect
+
+public function noisy
+  print; >effect
+
+function main
+  noisy;

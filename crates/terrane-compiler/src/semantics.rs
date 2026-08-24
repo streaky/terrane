@@ -2964,7 +2964,8 @@ fn validate_object_conformance(package: &SemanticPackage) -> Result<(), Semantic
                         && left.mutable == right.mutable
                 })
             && left.return_type == right.return_type
-            && left.throws == right.throws
+            && right.effects.is_subset(&left.effects)
+            && left.is_async == right.is_async
     }
 
     fn effective_method<'a>(
@@ -3740,7 +3741,7 @@ fn analyze_function_contract(
                 "awaits" => {
                     effects.insert(Effect::Awaits);
                 }
-                "mutating" => {
+                "mutating" | "mutates" => {
                     effects.insert(Effect::Mutates);
                 }
                 "unsafe" => {
