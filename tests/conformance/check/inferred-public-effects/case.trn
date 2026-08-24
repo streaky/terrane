@@ -1,4 +1,4 @@
-namespace undeclared-public-effect
+namespace inferred-public-effects
 
 public function noisy
   print; >effect

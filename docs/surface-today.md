@@ -49,15 +49,15 @@ Terrane package
 │   │   │   └── div-rem-result                 compiler-supplied result type
 │   │   ├── /core/errors
 │   │   │   ├── throwable                      catch-all throwable interface
-│   │   │   ├── arithmetic-overflow            compiler-owned throwable class
-│   │   │   ├── division-by-zero               compiler-owned throwable class
-│   │   │   ├── integer-conversion-overflow    compiler-owned throwable class
-│   │   │   ├── negative-shift-count           compiler-owned throwable class
-│   │   │   ├── resource-error                 compiler-owned throwable class
-│   │   │   ├── coercion-error                 compiler-owned throwable class
-│   │   │   ├── decode-error                   compiler-owned throwable class
-│   │   │   ├── index-error                    compiler-owned throwable class
-│   │   │   └── missing-key                    compiler-owned throwable class
+│   │   │   ├── arithmetic-overflow            compiler-owned throwable object
+│   │   │   ├── division-by-zero               compiler-owned throwable object
+│   │   │   ├── integer-conversion-overflow    compiler-owned throwable object
+│   │   │   ├── negative-shift-count           compiler-owned throwable object
+│   │   │   ├── resource-error                 compiler-owned throwable object
+│   │   │   ├── coercion-error                 compiler-owned throwable object
+│   │   │   ├── decode-error                   compiler-owned throwable object
+│   │   │   ├── index-error                    compiler-owned throwable object
+│   │   │   └── missing-key                    compiler-owned throwable object
 │   │   ├── /core/encodings
 │   │   │   ├── utf8                           encoding object
 │   │   │   ├── utf16-le                       encoding object
@@ -530,9 +530,9 @@ typed children, signatures, and availability constraints. Semantic analysis reso
 family before lowering; generated Rust erases it to a direct function or support operation.
 Family selections must be invoked in the same expression.
 
-The `/core/errors::throwable` interface, compiler-owned standard throwable classes, and ordinary
-user classes that implement `throwable` are runtime identities used by `throw`, `try`, `catch`, and
-`finally`. A custom throwable supplies `message` and may carry its own source-declared fields.
+The `/core/errors::throwable` interface and compiler-owned standard throwable objects are runtime
+identities used by `throw`, `try`, `catch`, and `finally`. Ordinary source-declared classes may
+implement `throwable`; a conforming class supplies `message` and may retain its own declared fields.
 Arithmetic, coercion, decoding, and collection failures enter the same typed result-propagation
 path and are catchable. Callable effects and exact escaping throwable alternatives are inferred
 transitively after catches and `finally` replacement. A postfix `throws T` clause is an optional
