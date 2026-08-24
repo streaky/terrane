@@ -264,7 +264,7 @@ Implementation status (completed on the `indentation-lexer` capability branch):
 - the shared compiler pipeline uses compiler-owned tokens, trivia, byte spans, and lexical diagnostics before the bootstrap parser;
 - the lexer emits structural newline and indentation transitions, retains whitespace and all three comment forms, and decides text markers, comparisons, and shifts from the preceding token rather than from line text;
 - tokens, trivia, and indentation transitions cover every source byte exactly once: a block string token spans its marker and body, and one terminator ends the statement it completes;
-- only lines carrying source outside comments participate in indentation, so blank lines, comment-only lines, and multiline comment terminators never open or close a block;
+- only lines carrying source outside comments participate in indentation, so blank lines, comment-only lines, and multiline comment terminators never open or close a block; physical newlines and indentation inside a parenthesized continuation are non-structural until its matching `)`;
 - §6.8 numeric literals, `&`/`^`/`~`, and the identifier joiner set are lexed as declared, and a malformed literal is reported across its whole run instead of splitting into a name;
 - lexer contracts cover every token class, each required boundary spelling, all four indentation cases, and byte-accurate diagnostics including multibyte input;
 - the milestone-zero logical-line parser remains only as a temporary semantic projection for the runnable hello slice; milestone 2 replaces it as the authoritative syntax parser.
@@ -353,8 +353,9 @@ S1016 unparenthesized nested call         S1032 missing `catch as` binding
 S1033 `try` without `catch`/`finally`     S1034 missing object declaration name
 S1035 malformed object clause             S1036 multiple class bases
 S1037 assignment in condition             S1038 missing function parameter marker
-S1039 missing throwable upper bound       S1090 reserved unsupported syntax
-S1091 unsupported `===`                   S1092 unsupported angle generic
+S1039 missing throwable upper bound       S1040 unclosed function parameter list
+S1090 reserved unsupported syntax         S1091 unsupported `===`
+S1092 unsupported angle generic
 ```
 
 `S1010` and `S1031` are intentionally unassigned. Diagnostics whose correction is

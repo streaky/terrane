@@ -1162,7 +1162,8 @@ Because `-` has no call-specific role, subtraction remains an ordinary expressio
 print; a - b
 ```
 
-Parentheses group an expression; they never create an alternative call syntax. Because invocation is introduced by `;`, these are equivalent:
+Parentheses group an expression; they never replace the `;` invocation marker. Because invocation
+is introduced by `;`, these are equivalent:
 
 ```terrane
 if is-enabled; config-vmap-stack
@@ -1172,7 +1173,8 @@ if (is-enabled; config-vmap-stack)
   ...
 ```
 
-The first is canonical when the call is the whole condition. Parentheses are useful only when they delimit a call inside a larger expression:
+The first is canonical when the call is the whole condition. Parentheses are useful when they
+delimit a call inside a larger expression:
 
 ```terrane
 if (flags & mask) != 0
@@ -1181,11 +1183,61 @@ if (flags & mask) != 0
 result = (convert; uint64, pages) * page-size
 ```
 
-`if (is-enabled; ...)` is therefore supported grouping, not C-style invocation. The formatter removes redundant whole-condition parentheses and preserves parentheses that determine expression structure.
+`if (is-enabled; ...)` is therefore supported grouping, not C-style invocation. The formatter
+removes redundant whole-condition parentheses and preserves parentheses that determine expression
+structure.
 
-A call clause extends to the end of its containing logical expression. Commas delimit its top-level arguments, but a semicolon inside an ungrouped argument does not start a nested call: `print; format; value` is invalid. A call used as an operand or argument inside a larger expression must be parenthesised, as in `print; (format; value)` or `result = (convert; uint64, pages) * page-size`.
+A `(` immediately following a call's `;` opens a delimited argument list. Its matching `)` may be
+on the same physical line or a later one; physical newlines and indentation inside the pair are
+non-structural, and commas alone divide its arguments. The opening `(` remains on the same physical
+line as the `;`, because a newline with no open parenthesis ends the call. These are all legal:
 
-Grouping keeps nesting unambiguous, but it is not an invitation to nest freely. A single parenthesised call in an argument list is ordinary and reads well. Two or more in the same argument list should be bound to intermediates and passed by name instead: the nesting obscures evaluation order for a reader, accumulates parentheses that carry no meaning of their own, and gives diagnostics, traces, and debuggers an anonymous subexpression to point at where a named binding would have identified the step. The rule is a style contract rather than a grammatical restriction — deeply nested calls remain legal — and the formatter is the practical enforcement point.
+```terrane
+print; (first, second)
+
+print; (
+  first,
+  second
+)
+
+print; (
+  first, second)
+```
+
+For a multiline list, the preferred documentation and formatter form places one argument on each
+line and the closing `)` on its own line. That is a formatting convention, not a grammar
+restriction: any whitespace and line distribution inside the delimiters is legal.
+
+A call clause without a parenthesised argument list extends to the end of its containing logical
+expression. Commas delimit its top-level arguments, but a semicolon inside an ungrouped argument
+does not start a nested call: `print; format; value` is invalid. Parentheses delimit nested calls,
+either by grouping a call used as an operand (`result = (convert; uint64, pages) * page-size`) or by
+delimiting the containing argument list:
+
+```terrane
+print; (
+  format;
+    value
+)
+
+print; (
+  foo; (
+    first,
+    second,
+    third
+  )
+)
+```
+
+Indentation inside the parentheses is non-structural, including indentation used to make the
+nested call visually subordinate. Grouping keeps nesting unambiguous, but it is not an invitation
+to nest freely. A single parenthesised call in an argument list is ordinary and reads well. Two or
+more in the same argument list should be bound to intermediates and passed by name instead: the
+nesting obscures evaluation order for a reader, accumulates parentheses that carry no meaning of
+their own, and gives diagnostics, traces, and debuggers an anonymous subexpression to point at
+where a named binding would have identified the step. The rule is a style contract rather than a
+grammatical restriction — deeply nested calls remain legal — and the formatter is the practical
+enforcement point.
 
 The semicolons in a three-clause `for` belong to the `for` grammar and delimit its clauses. Any call inside one of those clauses must therefore be parenthesised: `for i = (start-at; limit); i < limit; i++`. These rules make every semicolon's owner syntactically determinate without a closing-call token.
 
@@ -2256,9 +2308,30 @@ function add int; a int, b int
 
 The semicolon follows the complete return and effect contract and precedes every parameter list,
 including an empty one. It is therefore required on methods, interface requirements, lifecycle
-methods, and anonymous functions as well as namespace-level functions. It does not permit a
-parameter list to continue across a newline; multiline parameter syntax is a separate design
-decision.
+methods, and anonymous functions as well as namespace-level functions.
+
+When parameters need to span physical lines, a `(` immediately after the semicolon opens the
+parameter list and its matching `)` closes it:
+
+```terrane
+function connect response; (
+  host string,
+  port int
+)
+```
+
+The opening `(` must remain on the declaration line. Within the pair, physical newlines and
+indentation are non-structural and commas alone divide parameters. Multiple parameters may occupy
+one line, and the closing `)` may share the final parameter's line:
+
+```terrane
+function connect response; (
+  host string, port int)
+```
+
+The preferred documentation and formatter form uses one parameter per line and places the closing
+`)` on its own line, as in the first example. This preference does not reject other whitespace or
+line arrangements inside the delimiters.
 
 ### 13.2 Optional parameters
 

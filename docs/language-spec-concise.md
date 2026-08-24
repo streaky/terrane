@@ -198,10 +198,10 @@ call_marker: semicolon
 zero_arg: semicolon required
 member: receiver.member (no whitespace before dot)
 adjacency: 'receiver object' invalid; NEVER invocation
-call_extent: call owns remainder of containing logical expression
-arguments: one list, comma-separated
-named_arg: identifier '=' call-free-expression
-argument_calls: ungrouped calls forbidden; parenthesize nested calls
+call_extent: unwrapped call owns remainder of containing logical expression
+arguments: one comma-separated list; optional '(' immediately after ';' delimits wrapping
+argument_layout: newline/indent inside delimiters non-structural; ')' may follow final argument
+argument_calls: ungrouped calls forbidden; delimited argument list admits nested calls
 three_clause_for: its semicolons belong to for; calls in clauses parenthesized
 evaluation: left-to-right
 receiver: evaluated before selection
@@ -282,7 +282,7 @@ function connect connection; host string, port int, timeout int = 10
 - [redeclaration-identity] after evaluating the initializer, replacement releases the old owned value and installs a new identity; identical type is an assignment with a redundant annotation, not identity preservation. Existing `ref` becomes unusable at release; `shared ref` continues owning the old identity and is never retargeted.
 - [redeclaration-retype] type changes => the binding's type changes. Release remains deterministic and occurs at replacement rather than scope exit, so an unreachable resource is not retained.
 - [block-scope] Function bodies and every indented control-flow body create lexical scopes. A nested declaration is visible through that body and deeper scopes, never in sibling bodies or after exit; its value is released on each exit. A `for` target spans its loop body only. A nearer declaration shadows until exit, while untyped assignment to an enclosing name assigns that existing binding.
-- Function result type follows the function name. The complete header ends with a mandatory semicolon, followed by the parameter list; `function main;` declares no parameters. The same marker is required for methods, interface requirements, lifecycle methods, and anonymous functions. It does not make parameter lists multiline.
+- Function result type follows the function name. The complete header ends with a mandatory semicolon, followed by the parameter list; `function main;` declares no parameters. The same marker is required for methods, interface requirements, lifecycle methods, and anonymous functions. For multiline parameters, `(` must immediately follow the semicolon on the declaration line; newlines and indentation are non-structural until its matching `)`, commas alone divide parameters, and `)` may share the final parameter's line. Preferred form: one parameter per line with `)` on its own line; other layouts inside the delimiters remain legal.
 - Default value makes parameter optional; required parameters precede optional ones; variadic captures remaining values.
 - Named arguments require stable exposed parameter names.
 - `constant`, not `const`.

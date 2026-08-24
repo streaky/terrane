@@ -457,6 +457,31 @@ fn requires_parameter_markers_on_every_function_header() {
 }
 
 #[test]
+fn parses_freely_wrapped_parameter_and_call_groups() {
+    let tree = parse_source(
+        "function connect response; (\n  host string,\n  port int)\n\
+         function main;\n\
+           print; (foo; (\n\
+             first,\n\
+             second, third\n\
+           ))\n\
+           print; (\n\
+             format;\n\
+               value\n\
+           )\n",
+    );
+    assert!(contains(&tree.root, SyntaxKind::ParameterList));
+    assert!(contains(&tree.root, SyntaxKind::CallExpression));
+
+    parse_source("function compact response; (\n  host string, port int)\n");
+}
+
+#[test]
+fn rejects_an_unclosed_multiline_parameter_group() {
+    rejected("function connect response; (\n  host string,\n", "S1040");
+}
+
+#[test]
 fn rejects_every_reserved_statement_keyword() {
     for keyword in [
         "yield", "match", "unsafe", "rust", "label", "goto", "when", "use", "case",

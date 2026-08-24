@@ -479,12 +479,16 @@ impl Parser<'_> {
 
     fn parse_parameter_list(&mut self) -> SyntaxNode {
         let start = self.position;
+        let grouped = self.eat(TokenKind::OpenParen);
         let mut children = Vec::new();
-        while !self.at_line_end() {
+        while !(self.at_line_end() || grouped && self.at(TokenKind::CloseParen)) {
             let parameter_start = self.position;
             if self.at(TokenKind::Identifier) {
                 let mut parts = vec![self.leaf(SyntaxKind::Name)];
-                if !self.at(TokenKind::Assign) && !self.at(TokenKind::Comma) && !self.at_line_end()
+                if !(self.at(TokenKind::Assign)
+                    || self.at(TokenKind::Comma)
+                    || self.at_line_end()
+                    || grouped && self.at(TokenKind::CloseParen))
                 {
                     parts.push(self.parse_type_expression());
                 }
@@ -511,11 +515,23 @@ impl Parser<'_> {
                 ));
             } else {
                 self.error_here("S1007", "expected a parameter name");
-                self.recover_to_comma_or_line();
+                while !(self.at(TokenKind::Comma)
+                    || self.at_line_end()
+                    || grouped && self.at(TokenKind::CloseParen))
+                {
+                    self.bump();
+                }
             }
             if !self.eat(TokenKind::Comma) {
                 break;
             }
+        }
+        if grouped {
+            self.expect(
+                TokenKind::CloseParen,
+                "S1040",
+                "expected `)` after function parameters",
+            );
         }
         self.node(SyntaxKind::ParameterList, start, self.position, children)
     }
@@ -913,19 +929,27 @@ impl Parser<'_> {
 
     fn parse_argument_list(&mut self) -> SyntaxNode {
         let start = self.position;
+        let grouped = self.parenthesis_delimits_argument_list() && self.eat(TokenKind::OpenParen);
         let mut children = Vec::new();
-        while !self.at_expression_end() {
+        while !(self.at_expression_end() || grouped && self.at(TokenKind::CloseParen)) {
             let argument_start = self.position;
             let mut parts = Vec::new();
             if self.at(TokenKind::Identifier) && self.peek_kind(1) == Some(TokenKind::Assign) {
                 parts.push(self.leaf(SyntaxKind::Name));
                 self.bump();
             }
-            parts.push(self.parse_expression(0, false));
+            parts.push(self.parse_expression(0, grouped));
             children.push(self.node(SyntaxKind::Argument, argument_start, self.position, parts));
             if !self.eat(TokenKind::Comma) {
                 break;
             }
+        }
+        if grouped {
+            self.expect(
+                TokenKind::CloseParen,
+                "S1018",
+                "expected `)` after call arguments",
+            );
         }
         self.node(SyntaxKind::ArgumentList, start, self.position, children)
     }
@@ -1217,6 +1241,36 @@ impl Parser<'_> {
         }
         self.peek_text(offset) == Some("function")
     }
+    fn parenthesis_delimits_argument_list(&self) -> bool {
+        if !self.at(TokenKind::OpenParen) {
+            return false;
+        }
+        let mut depth = 0usize;
+        for (offset, token) in self.tokens[self.position..].iter().enumerate() {
+            match token.kind {
+                TokenKind::OpenParen => depth += 1,
+                TokenKind::CloseParen => {
+                    depth = depth.saturating_sub(1);
+                    if depth == 0 {
+                        return self.peek_kind(offset + 1).is_none_or(|kind| {
+                            matches!(
+                                kind,
+                                TokenKind::Newline
+                                    | TokenKind::Dedent
+                                    | TokenKind::Eof
+                                    | TokenKind::CloseParen
+                                    | TokenKind::CloseBracket
+                                    | TokenKind::CloseBrace
+                            )
+                        });
+                    }
+                }
+                _ => {}
+            }
+        }
+        true
+    }
+
     fn line_has_semicolons(&self, count: usize) -> bool {
         let mut depth = 0usize;
         let mut semicolons = 0usize;
@@ -1242,11 +1296,6 @@ impl Parser<'_> {
     }
     fn recover_expression(&mut self) {
         while !self.at_expression_end() {
-            self.bump();
-        }
-    }
-    fn recover_to_comma_or_line(&mut self) {
-        while !self.at(TokenKind::Comma) && !self.at_line_end() {
             self.bump();
         }
     }

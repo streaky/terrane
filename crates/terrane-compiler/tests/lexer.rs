@@ -447,6 +447,27 @@ fn code_after_a_multiline_comment_terminator_keeps_indentation() {
 }
 
 #[test]
+fn parenthesized_lines_suppress_layout_until_the_group_closes() {
+    let lexed = lex_source(
+        "function connect response; (\n  host string,\n\n  // comment\n    port int)\nnext\n",
+    );
+    let kinds = lexed
+        .tokens
+        .iter()
+        .map(|token| token.kind)
+        .collect::<Vec<_>>();
+    assert!(!kinds.contains(&TokenKind::Indent));
+    assert!(!kinds.contains(&TokenKind::Dedent));
+    assert_eq!(
+        kinds
+            .iter()
+            .filter(|kind| **kind == TokenKind::Newline)
+            .count(),
+        2
+    );
+}
+
+#[test]
 fn malformed_lexemes_report_originating_bytes() {
     for (text, code, start) in [
         ("count-1", "L0005", 5),

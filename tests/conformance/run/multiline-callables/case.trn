@@ -1,0 +1,19 @@
+namespace multiline-callables
+
+function combine int; (
+  first int,
+  second int, third int)
+  return first + second + third
+
+function main;
+  print; (combine; (
+    1,
+    2,
+    3
+  ))
+  print; (
+    combine;
+      4,
+      5,
+      6
+  )
