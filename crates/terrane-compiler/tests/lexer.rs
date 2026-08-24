@@ -227,6 +227,25 @@ fn block_strings_are_contextual_and_require_a_clean_marker_line() {
 }
 
 #[test]
+fn parenthesized_continuation_survives_nested_block_strings_comments_and_trailing_commas() {
+    let lexed =
+        lex_source("value = (\n  (\n    >>\n      text\n    , # after block\n  ),\n)\nnext = 1\n");
+    let newlines = lexed
+        .tokens
+        .iter()
+        .filter(|token| token.kind == TokenKind::Newline)
+        .count();
+    let commas = lexed
+        .tokens
+        .iter()
+        .filter(|token| token.kind == TokenKind::Comma)
+        .count();
+    assert_eq!(newlines, 2, "only complete logical statements terminate");
+    assert_eq!(commas, 2, "nested and trailing commas remain tokens");
+    assert!(lexed.trivia.iter().any(|item| item.text == "# after block"));
+}
+
+#[test]
 fn block_string_token_covers_body_and_uses_its_selected_prefix() {
     let lexed = lex_source("x = >>\n    first\n  second\n");
     let block = lexed

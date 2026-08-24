@@ -80,7 +80,9 @@ pub fn lex_recovering(source: &SourceFile) -> LexOutput {
             None => false,
         };
         if !in_block_string {
-            if let Some((start, end)) = block_terminator.take().filter(|_| parenthesis_depth == 0) {
+            if parenthesis_depth == 0
+                && let Some((start, end)) = block_terminator.take()
+            {
                 push_token(
                     source,
                     &mut tokens,
