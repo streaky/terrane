@@ -62,7 +62,7 @@ fn manifest_file_and_package_directory_use_the_shared_cli_pipeline() {
         String::from_utf8_lossy(&rust.stderr)
     );
     let generated = String::from_utf8(rust.stdout).unwrap();
-    assert!(generated.contains("// Source: main.trn"));
+    assert!(generated.contains("// Source: app/main.trn"));
     assert!(generated.contains("// Namespace: cli/app"));
 
     let run = Command::new(executable)
@@ -102,12 +102,12 @@ fn manifest_file_and_package_directory_use_the_shared_cli_pipeline() {
     assert!(metadata.contains("path = \"support/support.trn\""));
     assert!(
         generated_project
-            .join("src/authored/unit-0000.rs")
+            .join("src/authored/app/main.trn.rs")
             .is_file()
     );
     assert!(
         generated_project
-            .join("src/authored/unit-0001.rs")
+            .join("src/authored/support/support.trn.rs")
             .is_file()
     );
     assert_eq!(

@@ -5,6 +5,7 @@ use crate::Span;
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Program {
     pub version: &'static str,
+    pub runtime: Vec<GeneratedModule>,
     pub globals: Vec<Item>,
     pub modules: Vec<Module>,
 }
@@ -14,6 +15,12 @@ pub struct RenderedFile {
     pub path: String,
     pub contents: String,
     pub associations: Vec<SourceAssociation>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct GeneratedModule {
+    pub name: &'static str,
+    pub items: Vec<Item>,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -95,10 +102,7 @@ impl Program {
             "// Generated deterministically by Terrane {}.\n",
             self.version
         );
-        for file in files
-            .iter()
-            .filter(|file| file.path.starts_with("src/authored/"))
-        {
+        for file in files.iter().filter(|file| file.path != "src/main.rs") {
             output.push_str(&file.contents);
         }
         output
@@ -110,6 +114,24 @@ impl Program {
             "// Generated deterministically by Terrane {}.\n",
             self.version
         );
+        for module in &self.runtime {
+            if module.items.is_empty() {
+                continue;
+            }
+            let mut contents = String::new();
+            let mut associations = Vec::new();
+            for item in &module.items {
+                item.render_associated(&mut contents, &mut associations);
+            }
+            let path = format!("src/runtime/{}.rs", module.name);
+            writeln!(entrypoint, "include!(\"runtime/{}.rs\");", module.name)
+                .expect("writing to a String cannot fail");
+            files.push(RenderedFile {
+                path,
+                contents,
+                associations,
+            });
+        }
         if !self.globals.is_empty() {
             let mut contents = String::new();
             let mut associations = Vec::new();
@@ -123,7 +145,7 @@ impl Program {
             });
             entrypoint.push_str("include!(\"authored/globals.rs\");\n");
         }
-        for (index, module) in self.modules.iter().enumerate() {
+        for module in &self.modules {
             if module.items.is_empty() {
                 continue;
             }
@@ -136,9 +158,13 @@ impl Program {
             for item in &module.items {
                 item.render_associated(&mut contents, &mut associations);
             }
-            let path = format!("src/authored/unit-{index:04}.rs");
-            writeln!(entrypoint, "include!(\"authored/unit-{index:04}.rs\");")
-                .expect("writing to a String cannot fail");
+            let path = format!("src/authored/{}.rs", module.source_path);
+            writeln!(
+                entrypoint,
+                "include!(\"authored/{}.rs\");",
+                module.source_path
+            )
+            .expect("writing to a String cannot fail");
             files.push(RenderedFile {
                 path,
                 contents,

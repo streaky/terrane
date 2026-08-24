@@ -26,8 +26,7 @@ fn all_commands_share_the_hello_pipeline() {
     let authored_rust = fs::read_to_string(hello().parent().unwrap().join("lower.rs")).unwrap();
     assert!(displayed_rust.starts_with(&authored_rust));
     assert!(
-        displayed_rust
-            .contains("// Authored generated modules: src/authored/unit-0000.rs, src/main.rs")
+        displayed_rust.contains("// Generated Rust files: src/authored/case.trn.rs, src/main.rs")
     );
     assert!(displayed_rust.contains("// Vendored support crates: terrane-int-support"));
 

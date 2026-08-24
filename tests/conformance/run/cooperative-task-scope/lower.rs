@@ -42,7 +42,7 @@ Self { result: Some(work()) }
 }
 }
 pub struct TerraneTaskOutcome<T> { pub completed: bool, pub cancelled: bool, pub value: Option<T>, pub error: String }
-// Source: main.trn
+// Source: app/main.trn
 // Namespace: cooperative-task-scope
 async fn work() -> terrane_int_support::Int {
     return terrane_int_support::Int::from(9_i128);

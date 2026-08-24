@@ -1,6 +1,7 @@
 use std::path::PathBuf;
 
 const HELLO: &str = include_str!("../../../tests/conformance/run/hello/case.trn");
+const ASYNC_AWAIT: &str = include_str!("../../../tests/conformance/run/async-await/case.trn");
 
 #[test]
 fn hello_lowers_deterministically() {
@@ -14,7 +15,7 @@ fn hello_lowers_deterministically() {
             .iter()
             .map(|file| file.path.as_str())
             .collect::<Vec<_>>(),
-        ["src/authored/unit-0000.rs", "src/main.rs"]
+        ["src/authored/case.trn.rs", "src/main.rs"]
     );
     assert!(
         first
@@ -39,7 +40,32 @@ fn canonical_rust_requirement_reports_unformatted_lowering() {
     assert!(
         failure.diagnostics[0]
             .message
-            .contains("src/authored/unit-0000.rs")
+            .contains("src/authored/case.trn.rs")
+    );
+}
+
+#[test]
+fn compiler_runtime_support_uses_named_generated_files() {
+    let compilation =
+        terrane_compiler::compile(PathBuf::from("async-await.trn"), ASYNC_AWAIT.to_owned())
+            .unwrap();
+    assert_eq!(
+        compilation
+            .rust_files
+            .iter()
+            .map(|file| file.path.as_str())
+            .collect::<Vec<_>>(),
+        [
+            "src/runtime/async.rs",
+            "src/authored/async-await.trn.rs",
+            "src/main.rs",
+        ]
+    );
+    assert_eq!(
+        compilation.rust_files.last().unwrap().contents,
+        "// Generated deterministically by Terrane 0.1.0.\n\
+         include!(\"runtime/async.rs\");\n\
+         include!(\"authored/async-await.trn.rs\");\n"
     );
 }
 

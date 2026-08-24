@@ -5,7 +5,7 @@ use num_bigint::BigInt;
 
 use crate::{
     ScalarType, SourceFile, TypeCategory,
-    rust_ir::{Item, Module, Program},
+    rust_ir::{GeneratedModule, Item, Module, Program},
     semantics::{
         ArithmeticFamily, CoercionPolicy, ContextualConstant, ElementType, FunctionContract,
         MemberFamily, ObjectContract, ObjectField, ObjectKind, SemanticPackage, SemanticUnit,
@@ -21,6 +21,7 @@ use crate::{
     reason = "package lowering assembles one deterministic generated-crate prelude and unit set"
 )]
 pub(crate) fn lower(package: &SemanticPackage) -> Program {
+    let mut runtime = Vec::new();
     let mut globals = String::new();
     if package_uses_structured_errors(package) {
         let has_custom_throwable = package.units.iter().any(|unit| {
@@ -31,14 +32,20 @@ pub(crate) fn lower(package: &SemanticPackage) -> Program {
                     .any(|interface| interface == "throwable")
             })
         });
-        emit_error_support(&mut globals, has_custom_throwable);
+        let mut support = String::new();
+        emit_error_support(&mut support, has_custom_throwable);
+        runtime.push(GeneratedModule {
+            name: "errors",
+            items: vec![Item::generated(&support)],
+        });
     }
     if package
         .units
         .iter()
         .any(|unit| unit.functions.iter().any(|function| function.is_async))
     {
-        globals.push_str(
+        let mut support = String::new();
+        support.push_str(
             "fn __terrane_block_on<F: Future>(future: F) -> F::Output {\n\
              struct Wake;\n\
              impl std::task::Wake for Wake { fn wake(self: std::sync::Arc<Self>) {} }\n\
@@ -50,6 +57,10 @@ pub(crate) fn lower(package: &SemanticPackage) -> Program {
              std::task::Poll::Pending => std::thread::yield_now(),\n\
              } }\n}\n",
         );
+        runtime.push(GeneratedModule {
+            name: "async",
+            items: vec![Item::generated(&support)],
+        });
     }
     if package
         .units
@@ -127,18 +138,24 @@ pub(crate) fn lower(package: &SemanticPackage) -> Program {
                  pub struct TerraneTaskOutcome<T> { pub completed: bool, pub cancelled: bool, pub value: Option<T>, pub error: String }\n"
             }
         };
-        globals.push_str(support);
+        runtime.push(GeneratedModule {
+            name: "tasks",
+            items: vec![Item::generated(support)],
+        });
     }
     if package.units.iter().any(|unit| {
         unit.typed_bindings
             .iter()
             .any(|binding| matches!(binding.value_type, ValueType::Descriptor(_)))
     }) {
-        globals.push_str(
-            "#[allow(dead_code)]\n\
-             #[derive(Clone, Copy)]\n\
-             struct TerraneDescriptor { identity: &'static str, name: &'static str, kind: &'static str }\n",
-        );
+        runtime.push(GeneratedModule {
+            name: "reflection",
+            items: vec![Item::generated(
+                "#[allow(dead_code)]\n\
+                 #[derive(Clone, Copy)]\n\
+                 struct TerraneDescriptor { identity: &'static str, name: &'static str, kind: &'static str }\n",
+            )],
+        });
     }
     if package.units.iter().any(|unit| {
         unit.typed_bindings
@@ -151,10 +168,13 @@ pub(crate) fn lower(package: &SemanticPackage) -> Program {
                     .any(|parameter| matches!(parameter.value_type, Some(ValueType::Capability(_))))
             })
     }) {
-        globals.push_str(
-            "#[expect(dead_code, reason = \"capability ABI token may occur only in unreachable source contracts\")]\n\
-             struct TerraneCapability;\n",
-        );
+        runtime.push(GeneratedModule {
+            name: "capabilities",
+            items: vec![Item::generated(
+                "#[expect(dead_code, reason = \"capability ABI token may occur only in unreachable source contracts\")]\n\
+                 struct TerraneCapability;\n",
+            )],
+        });
     }
     emit_global_storage(package, &mut globals);
     let modules = package
@@ -205,7 +225,10 @@ pub(crate) fn lower(package: &SemanticPackage) -> Program {
                 }
             }
             Module {
-                source_path: display_path(unit.source.path()),
+                source_path: unit
+                    .relative_path
+                    .to_string_lossy()
+                    .replace(std::path::MAIN_SEPARATOR, "/"),
                 namespace: unit.namespace.clone(),
                 items,
             }
@@ -213,6 +236,7 @@ pub(crate) fn lower(package: &SemanticPackage) -> Program {
         .collect();
     Program {
         version: crate::VERSION,
+        runtime,
         globals: (!globals.is_empty())
             .then(|| Item::generated(&globals))
             .into_iter()

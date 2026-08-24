@@ -213,7 +213,7 @@ fn executable_path(directory: &Path) -> PathBuf {
 fn print_rust(compilation: &terrane_compiler::Compilation) {
     print!("{}", compilation.rust);
     println!(
-        "// Authored generated modules: {}",
+        "// Generated Rust files: {}",
         compilation
             .rust_files
             .iter()
