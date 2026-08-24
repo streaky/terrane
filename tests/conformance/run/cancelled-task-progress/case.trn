@@ -1,0 +1,12 @@
+namespace cancelled-task-progress
+
+async function work int
+  return 7
+
+function main
+  scope = task-scope;
+  child = scope.spawn; work
+  scope.cancel;
+  outcome = scope.join; move child
+  print; outcome.completed, outcome.cancelled
+  print; outcome.value

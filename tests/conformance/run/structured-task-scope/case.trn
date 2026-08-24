@@ -1,0 +1,11 @@
+namespace structured-task-scope
+
+async function work int
+  return 42
+
+function main
+  scope = task-scope;
+  child = scope.spawn; work
+  outcome = scope.join; move child
+  print; outcome.completed, outcome.cancelled
+  print; outcome.value

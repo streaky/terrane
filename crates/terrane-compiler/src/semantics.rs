@@ -151,6 +151,9 @@ pub enum ValueType {
     Descriptor(String),
     Capability(Effect),
     Task(ElementType),
+    ScopedTask(ElementType),
+    TaskScope,
+    TaskOutcome(ElementType),
     Object(String),
     Reference(ElementType),
     SharedReference(ElementType),
@@ -297,6 +300,9 @@ impl std::fmt::Display for ValueType {
                 Effect::Foreign => "foreign",
             }),
             Self::Object(name) => formatter.write_str(name),
+            Self::ScopedTask(result) => write!(formatter, "scoped task of {result}"),
+            Self::TaskScope => formatter.write_str("task-scope"),
+            Self::TaskOutcome(result) => write!(formatter, "task-outcome of {result}"),
             Self::Reference(item) => write!(formatter, "ref {}", item.value_type()),
             Self::SharedReference(item) => write!(formatter, "shared ref {}", item.value_type()),
         }
@@ -784,6 +790,8 @@ pub fn analyze(package: &Package) -> Result<SemanticPackage, SemanticFailure> {
     validate_calls(&semantic)?;
     validate_definite_assignment(&semantic)?;
     record_binding_events(&mut semantic);
+    validate_suspension_ownership(&semantic)?;
+    validate_task_consumption(&semantic)?;
     let unreachable_units = validate_control_flow(&semantic)?;
     for (unit, unreachable_spans) in semantic.units.iter_mut().zip(unreachable_units) {
         unit.unreachable_spans = unreachable_spans;
@@ -4371,6 +4379,20 @@ fn parse_declared_value_type(
     type_name: &str,
     aliases: &BTreeMap<String, ScalarType>,
 ) -> Option<ValueType> {
+    if matches!(
+        type_name,
+        "error"
+            | "arithmetic-overflow"
+            | "division-by-zero"
+            | "integer-conversion-overflow"
+            | "negative-shift-count"
+            | "coercion-error"
+            | "decode-error"
+            | "index-error"
+            | "missing-key"
+    ) {
+        return Some(ValueType::Object(type_name.to_owned()));
+    }
     let type_name = type_name.trim();
     if let Some(scalar) = aliases
         .get(type_name)
@@ -5121,6 +5143,100 @@ fn infer_value_type(
         return infer_member_value_type(unit, node, bindings);
     }
     if node.kind == SyntaxKind::CallExpression {
+        if let [callee, arguments] = node.children.as_slice() {
+            if callee.kind == SyntaxKind::Name
+                && node_text(&unit.source, callee) == "task-scope"
+            {
+                return Ok(Some(ValueType::TaskScope));
+            }
+            if callee.kind == SyntaxKind::MemberExpression
+                && let [receiver, member] = callee.children.as_slice()
+                && infer_value_type(unit, receiver, bindings)? == Some(ValueType::TaskScope)
+            {
+                return match node_text(&unit.source, member) {
+                    "spawn" => {
+                        let Some(callable) = arguments.children.first() else {
+                            return Err(failure(
+                                &unit.source,
+                                "T0074",
+                                "`task-scope.spawn` requires one async callable",
+                                node.span,
+                            ));
+                        };
+                        let callable = callable.children.last().unwrap_or(callable);
+                        match infer_value_type(unit, callable, bindings)? {
+                            Some(ValueType::AsyncFunction(_, result)) => {
+                                Ok(Some(ValueType::ScopedTask(result)))
+                            }
+                            _ => Err(failure(
+                                &unit.source,
+                                "T0074",
+                                "`task-scope.spawn` requires an async callable value",
+                                callable.span,
+                            )),
+                        }
+                    }
+                    "join" => {
+                        let Some(task) = arguments.children.first() else {
+                            return Err(failure(
+                                &unit.source,
+                                "T0074",
+                                "`task-scope.join` requires one scoped task",
+                                node.span,
+                            ));
+                        };
+                        let task = task.children.last().unwrap_or(task);
+                        match infer_value_type(unit, task, bindings)? {
+                            Some(ValueType::ScopedTask(result)) => {
+                                Ok(Some(ValueType::TaskOutcome(result)))
+                            }
+                            _ => Err(failure(
+                                &unit.source,
+                                "T0074",
+                                "`task-scope.join` requires a scoped task",
+                                task.span,
+                            )),
+                        }
+                    }
+                    "cancel" => Ok(Some(ValueType::Scalar(ScalarType::None))),
+                    "child-scope" => {
+                        let child = arguments
+                            .children
+                            .first()
+                            .and_then(|argument| argument.children.last().or(Some(argument)))
+                            .and_then(|value| node_text(&unit.source, value).parse::<u64>().ok());
+                        let parent = (receiver.kind == SyntaxKind::Name)
+                            .then(|| {
+                                bindings.iter().rev().find(|binding| {
+                                    binding.name == node_text(&unit.source, receiver)
+                                        && binding.is_visible_at(
+                                            unit.source.id(),
+                                            receiver.span.start,
+                                        )
+                                })
+                            })
+                            .flatten()
+                            .and_then(|binding| find_node_by_span(&unit.tree.root, binding.span))
+                            .and_then(|origin| origin.children.last())
+                            .filter(|initializer| initializer.kind == SyntaxKind::CallExpression)
+                            .and_then(|initializer| initializer.children.get(1))
+                            .and_then(|arguments| arguments.children.first())
+                            .and_then(|argument| argument.children.last().or(Some(argument)))
+                            .and_then(|value| node_text(&unit.source, value).parse::<u64>().ok());
+                        if matches!((parent, child), (Some(parent), Some(child)) if child > parent) {
+                            return Err(failure(
+                                &unit.source,
+                                "T0075",
+                                "a child scope cannot extend its parent deadline",
+                                node.span,
+                            ));
+                        }
+                        Ok(Some(ValueType::TaskScope))
+                    }
+                    _ => Ok(None),
+                };
+            }
+        }
         if let Some(value_type) = infer_collection_call_type(unit, node, bindings)? {
             return Ok(Some(value_type));
         }
@@ -5875,6 +5991,19 @@ fn infer_member_value_type(
     ) && member_name == "effects"
     {
         return Ok(Some(ValueType::Scalar(ScalarType::String)));
+    }
+    if let Some(ValueType::TaskOutcome(result)) = &receiver_type {
+        return match member_name {
+            "completed" | "cancelled" => Ok(Some(ValueType::Scalar(ScalarType::Bool))),
+            "value" => Ok(Some(result.value_type())),
+            "error" => Ok(Some(ValueType::Scalar(ScalarType::String))),
+            _ => Err(failure(
+                &unit.source,
+                "T0074",
+                format!("task outcome has no member `{member_name}`"),
+                member.span,
+            )),
+        };
     }
     if let Some(ValueType::Object(object_name)) = &receiver_type {
         return object_member_type(unit, object_name, member_name)
@@ -8316,8 +8445,9 @@ fn visible_from(symbol: &Symbol, namespace: &str) -> bool {
 }
 
 fn bootstrap_prelude() -> BTreeMap<String, Symbol> {
-    const PRELUDE: [(&str, &str, &str); 12] = [
+    const PRELUDE: [(&str, &str, &str); 13] = [
         ("print", "/core/output::print", "/core/output"),
+        ("task-scope", "/core/async::task-scope", "/core/async"),
         ("int", "/core/types::int", "/core/types"),
         ("float", "/core/types::float", "/core/types"),
         ("bool", "/core/types::bool", "/core/types"),
@@ -8341,8 +8471,8 @@ fn bootstrap_prelude() -> BTreeMap<String, Symbol> {
                     namespace: namespace.to_owned(),
                     visibility: Visibility::Public,
                     global: false,
-                    constant: name != "print",
-                    kind: if name == "print" {
+                    constant: !matches!(name, "print" | "task-scope"),
+                    kind: if matches!(name, "print" | "task-scope") {
                         SymbolKind::Function
                     } else if identity.starts_with("/core/encodings::") {
                         SymbolKind::Binding
@@ -8383,6 +8513,10 @@ fn bootstrap_namespaces() -> BTreeMap<String, Namespace> {
     namespaces.insert(
         "/core/output".to_owned(),
         namespace_with_objects("/core/output", ["print"], SymbolKind::Function),
+    );
+    namespaces.insert(
+        "/core/async".to_owned(),
+        namespace_with_objects("/core/async", ["task-scope"], SymbolKind::Function),
     );
     let mut types = vec![
         "int".to_owned(),
@@ -8829,6 +8963,7 @@ struct ControlRegion {
 #[derive(Clone, Debug)]
 enum BindingEvent {
     Read {
+        span: Span,
         loops: Vec<Span>,
         regions: Vec<ControlRegion>,
     },
@@ -8961,6 +9096,7 @@ fn collect_binding_events(
                 .entry(span_key(declaration_span))
                 .or_default()
                 .push(BindingEvent::Read {
+                    span: node.span,
                     loops: loops.clone(),
                     regions: regions.clone(),
                 });
@@ -9066,6 +9202,130 @@ fn regions_conflict(left: &[ControlRegion], right: &[ControlRegion]) -> bool {
 
 fn later_store_replaces(earlier: &[ControlRegion], later: &[ControlRegion]) -> bool {
     later.iter().all(|region| earlier.contains(region))
+}
+
+fn validate_suspension_ownership(package: &SemanticPackage) -> Result<(), SemanticFailure> {
+    fn collect_awaits(unit: &SemanticUnit, node: &SyntaxNode, spans: &mut Vec<Span>) {
+        if node.kind == SyntaxKind::UnaryExpression
+            && unary_operator_text(unit, node).as_deref() == Some("await")
+        {
+            spans.push(node.span);
+        }
+        for child in &node.children {
+            collect_awaits(unit, child, spans);
+        }
+    }
+
+    for unit in &package.units {
+        let mut awaits = Vec::new();
+        collect_awaits(unit, &unit.tree.root, &mut awaits);
+        for contract in unit.functions.iter().filter(|contract| contract.is_async) {
+            for binding in unit.typed_bindings.iter().filter(|binding| {
+                matches!(
+                    binding.value_type,
+                    ValueType::Reference(_) | ValueType::Capability(_)
+                ) && binding.span.start >= contract.span.start
+                    && binding.span.end <= contract.span.end
+            }) {
+                let Some(events) = package
+                    .binding_events
+                    .get(&(binding.span.file, binding.span.start, binding.span.end))
+                else {
+                    continue;
+                };
+                if let Some(suspension) = awaits.iter().find(|suspension| {
+                    suspension.start >= binding.visible_from
+                        && suspension.end <= contract.span.end
+                        && events.iter().any(|event| {
+                            matches!(
+                                event,
+                                BindingEvent::Read { span, .. } if span.start > suspension.end
+                            )
+                        })
+                }) {
+                    let role = if matches!(binding.value_type, ValueType::Reference(_)) {
+                        "non-owning reference"
+                    } else {
+                        "linear capability"
+                    };
+                    return Err(failure(
+                        &unit.source,
+                        "T0073",
+                        format!(
+                            "{role} `{}` remains live across `await`; end its use before suspension or transfer owned state",
+                            binding.name
+                        ),
+                        *suspension,
+                    ));
+                }
+            }
+        }
+    }
+    Ok(())
+}
+
+fn validate_task_consumption(package: &SemanticPackage) -> Result<(), SemanticFailure> {
+    fn consumed(
+        unit: &SemanticUnit,
+        node: &SyntaxNode,
+        binding: &TypedBinding,
+        join_argument: bool,
+    ) -> bool {
+        let await_operand = node.kind == SyntaxKind::UnaryExpression
+            && unary_operator_text(unit, node).as_deref() == Some("await");
+        let joined = node.kind == SyntaxKind::CallExpression
+            && node.children.first().is_some_and(|callee| {
+                callee.kind == SyntaxKind::MemberExpression
+                    && callee.children.get(1).is_some_and(|member| {
+                        node_text(&unit.source, member) == "join"
+                    })
+            });
+        if join_argument
+            && node.kind == SyntaxKind::Name
+            && node_text(&unit.source, node) == binding.name
+            && unit
+                .typed_bindings
+                .iter()
+                .rev()
+                .find(|candidate| {
+                    candidate.name == binding.name
+                        && candidate.is_visible_at(unit.source.id(), node.span.start)
+                })
+                .is_some_and(|candidate| candidate.span == binding.span)
+        {
+            return true;
+        }
+        node.children.iter().enumerate().any(|(index, child)| {
+            consumed(
+                unit,
+                child,
+                binding,
+                join_argument || await_operand || (joined && index == 1),
+            )
+        })
+    }
+
+    for unit in &package.units {
+        for binding in unit.typed_bindings.iter().filter(|binding| {
+            matches!(
+                binding.value_type,
+                ValueType::Task(_) | ValueType::ScopedTask(_)
+            )
+        }) {
+            if !consumed(unit, &unit.tree.root, binding, false) {
+                return Err(failure(
+                    &unit.source,
+                    "T0076",
+                    format!(
+                        "task `{}` must be awaited or joined before its scope ends",
+                        binding.name
+                    ),
+                    binding.span,
+                ));
+            }
+        }
+    }
+    Ok(())
 }
 
 pub(crate) fn binding_store_value_is_read(

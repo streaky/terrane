@@ -1,0 +1,7 @@
+namespace unconsumed-task
+
+async function answer int
+  return 42
+
+function main
+  child = (answer;)

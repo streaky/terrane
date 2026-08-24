@@ -34,6 +34,43 @@ pub(crate) fn lower(package: &SemanticPackage) -> Program {
              } }\n}\n",
         );
     }
+    if package.units.iter().any(|unit| unit.source.text().contains("task-scope")) {
+        globals.push_str(
+            "#[derive(Clone)]\n\
+             pub struct TerraneTaskScope {\n\
+                 cancelled: std::sync::Arc<std::sync::atomic::AtomicBool>,\n\
+                 deadline: Option<std::time::Instant>,\n\
+             }\n\
+             impl TerraneTaskScope {\n\
+                 pub fn new(deadline_ms: Option<u64>) -> Self {\n\
+                     Self { cancelled: std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false)), deadline: deadline_ms.map(|value| std::time::Instant::now() + std::time::Duration::from_millis(value)) }\n\
+                 }\n\
+                 pub fn child_scope(&self, deadline_ms: u64) -> Self {\n\
+                     let requested = std::time::Instant::now() + std::time::Duration::from_millis(deadline_ms);\n\
+                     let deadline = Some(self.deadline.map_or(requested, |parent| std::cmp::min(parent, requested)));\n\
+                     Self { cancelled: self.cancelled.clone(), deadline }\n\
+                 }\n\
+                 pub fn cancel(&self) { self.cancelled.store(true, std::sync::atomic::Ordering::Release); }\n\
+                 pub fn join<T>(&self, mut task: TerraneScopedTask<T>) -> TerraneTaskOutcome<T> {\n\
+                     let result = task.handle.take().expect(\"scoped task joined once\").join()\n\
+                         .unwrap_or_else(|_| Err(\"task panicked\".to_owned()));\n\
+                     let cancelled = self.cancelled.load(std::sync::atomic::Ordering::Acquire)\n\
+                         || self.deadline.is_some_and(|deadline| std::time::Instant::now() >= deadline);\n\
+                     match result {\n\
+                         Ok(value) => TerraneTaskOutcome { completed: true, cancelled, value: Some(value), error: String::new() },\n\
+                         Err(error) => TerraneTaskOutcome { completed: false, cancelled, value: None, error },\n\
+                     }\n\
+                 }\n\
+             }\n\
+             pub struct TerraneScopedTask<T> { handle: Option<std::thread::JoinHandle<Result<T, String>>> }\n\
+             impl<T: Send + 'static> TerraneScopedTask<T> {\n\
+                 pub fn spawn<F: FnOnce() -> Result<T, String> + Send + 'static>(work: F) -> Self {\n\
+                     Self { handle: Some(std::thread::spawn(work)) }\n\
+                 }\n\
+             }\n\
+             pub struct TerraneTaskOutcome<T> { pub completed: bool, pub cancelled: bool, pub value: Option<T>, pub error: String }\n",
+        );
+    }
     if package.units.iter().any(|unit| {
         unit.typed_bindings
             .iter()
@@ -3197,12 +3234,38 @@ impl Emitter<'_> {
                     contract
                         .effects
                         .iter()
-                        .map(|effect| format!("{effect:?}").to_lowercase())
+                        .map(|effect| {
+                            if *effect == crate::semantics::Effect::Throws
+                                && !contract.thrown_types.is_empty()
+                            {
+                                format!(
+                                    "throws({})",
+                                    contract
+                                        .thrown_types
+                                        .iter()
+                                        .map(ToString::to_string)
+                                        .collect::<Vec<_>>()
+                                        .join("|")
+                                )
+                            } else {
+                                format!("{effect:?}").to_lowercase()
+                            }
+                        })
                         .collect::<Vec<_>>()
                         .join(",")
                 })
                 .unwrap_or_default();
             return format!("{effects:?}.to_owned()");
+        }
+        if let Some(ValueType::TaskOutcome(_)) = &receiver_type {
+            let receiver = self.expression(receiver);
+            return match self.text(member) {
+                "completed" => format!("({receiver}).completed"),
+                "cancelled" => format!("({receiver}).cancelled"),
+                "value" => format!("({receiver}).value.expect(\"completed task outcome has a value\")"),
+                "error" => format!("({receiver}).error"),
+                _ => String::new(),
+            };
         }
         if let Some(length) =
             self.direct_string_view_length(receiver, receiver_type.clone(), member)
@@ -3324,6 +3387,51 @@ impl Emitter<'_> {
         let [callee, arguments] = node.children.as_slice() else {
             return String::new();
         };
+        if callee.kind == SyntaxKind::Name && self.text(callee) == "task-scope" {
+            let deadline = arguments
+                .children
+                .first()
+                .map(|argument| {
+                    let value = argument.children.last().unwrap_or(argument);
+                    format!("Some(({}) as u64)", self.expression(value))
+                })
+                .unwrap_or_else(|| "None".to_owned());
+            return format!("TerraneTaskScope::new({deadline})");
+        }
+        if callee.kind == SyntaxKind::MemberExpression
+            && let [receiver, member] = callee.children.as_slice()
+            && self.receiver_value_type(receiver) == Some(ValueType::TaskScope)
+        {
+            let receiver = self.expression(receiver);
+            return match self.text(member) {
+                "spawn" => arguments.children.first().map_or_else(String::new, |argument| {
+                    let callable = argument.children.last().unwrap_or(argument);
+                    let throws = self
+                        .contract_for_call(callable)
+                        .is_some_and(|contract| contract.throws);
+                    let callable = self.expression(callable);
+                    if throws {
+                        format!(
+                            "TerraneScopedTask::spawn(move || __terrane_block_on(({callable})()).map_err(|error| format!(\"{{error:?}}\")))"
+                        )
+                    } else {
+                        format!(
+                            "TerraneScopedTask::spawn(move || Ok(__terrane_block_on(({callable})())))"
+                        )
+                    }
+                }),
+                "join" => arguments.children.first().map_or_else(String::new, |argument| {
+                    let task = argument.children.last().unwrap_or(argument);
+                    format!("({receiver}).join({})", self.expression(task))
+                }),
+                "cancel" => format!("({receiver}).cancel()"),
+                "child-scope" => arguments.children.first().map_or_else(String::new, |argument| {
+                    let deadline = argument.children.last().unwrap_or(argument);
+                    format!("({receiver}).child_scope(({}) as u64)", self.expression(deadline))
+                }),
+                _ => String::new(),
+            };
+        }
         if callee.kind == SyntaxKind::Name
             && let Some(object) =
                 self.unit.objects.iter().find(|object| {
@@ -3736,6 +3844,13 @@ impl Emitter<'_> {
             self.expression(callee)
         };
         let call = format!("{name}({})", values.join(", "));
+        let call = if contract.as_ref().is_some_and(|contract| contract.is_async)
+            && matches!(self.value_type(node), Some(ValueType::Task(_)))
+        {
+            format!("Box::pin({call})")
+        } else {
+            call
+        };
         if contract.is_some_and(|contract| contract.throws) {
             let context = self.error_context(node);
             if self.try_completion {
@@ -5010,6 +5125,13 @@ fn rust_value_type(ty: ValueType) -> String {
         ),
         ValueType::Task(result) => {
             format!("std::pin::Pin<Box<dyn Future<Output = {}>>>", rust_element_type(result))
+        }
+        ValueType::ScopedTask(result) => {
+            format!("TerraneScopedTask<{}>", rust_element_type(result))
+        }
+        ValueType::TaskScope => "TerraneTaskScope".to_owned(),
+        ValueType::TaskOutcome(result) => {
+            format!("TerraneTaskOutcome<{}>", rust_element_type(result))
         }
         ValueType::Descriptor(_) => "TerraneDescriptor".to_owned(),
         ValueType::Capability(_) => "TerraneCapability".to_owned(),

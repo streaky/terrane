@@ -1,0 +1,5 @@
+namespace extended-child-deadline
+
+function main
+  parent = task-scope; 10
+  child = parent.child-scope; 20
