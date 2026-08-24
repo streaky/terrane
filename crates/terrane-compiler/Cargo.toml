@@ -9,6 +9,8 @@ rust-version.workspace = true
 [dependencies]
 num-bigint = "0.4"
 num-traits = "0.2"
+prettyplease = "0.2"
+syn = { version = "2", features = ["full"] }
 toml = "0.8"
 [lints]
 workspace = true

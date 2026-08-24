@@ -4672,9 +4672,12 @@ Comments are supplementary to machine-readable source maps.
 
 ### 28.5 Formatting
 
-Generated Rust is passed through a pinned/canonical formatter configuration.
-
-Formatting is part of deterministic output.
+Generated Rust is emitted canonically by lowering itself; the compiler does not silently repair
+generator output with a formatting pass. The toolchain bundles a pinned canonical Rust formatter
+and may be asked to compare a formatted copy with the untouched generated artefact. A difference is
+a compiler defect and fails before Cargo or program execution; the formatted copy is discarded and
+is never substituted for what Terrane generated. Formatting is therefore part of deterministic
+output while the generated Rust remains an honest debugging surface.
 
 ### 28.6 Editing policy
 

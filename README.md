@@ -60,6 +60,11 @@ This repository uses [`sccache`](https://github.com/mozilla/sccache) as its Carg
 
 Cargo already retains downloaded registry indexes and crate archives in `CARGO_HOME`, so repeated toolchain and conformance builds do not download unchanged dependencies again. The conformance runner additionally reuses one generated Cargo workspace for all accepted cases in a corpus run, while `sccache` carries reusable Rust compilation artifacts across separate runs and branches.
 
+Generated Rust is returned exactly as Terrane lowering emits it. Compiler work can pass
+`--require-canonical-rust` after any CLI command name to compare that untouched output with the
+compiler-bundled formatter. A mismatch fails as compiler defect `S9004`; the formatter never
+silently rewrites the generated artefact.
+
 ## Learn more
 
 The [language specification and compiler architecture draft](docs/language-spec-and-compiler-architecture-draft.md) is the main source for syntax, semantics, examples, interoperability, tooling, and other technical details.

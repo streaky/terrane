@@ -57,18 +57,7 @@ fn run(arguments: &[OsString]) -> Result<ExitCode, CliFailure> {
     if !matches!(command, "check" | "rust" | "build" | "run") {
         return Err(CliFailure::usage());
     }
-    let has_valid_arity = if command == "run" {
-        arguments.len() == 2 || (arguments.len() >= 3 && arguments[2] == "--")
-    } else {
-        arguments.len() == 2
-    };
-    if !has_valid_arity {
-        return Err(CliFailure::usage());
-    }
-    let input_path = arguments
-        .get(1)
-        .map(PathBuf::from)
-        .ok_or_else(CliFailure::usage)?;
+    let (input_path, require_canonical_rust) = parse_input(arguments, command)?;
     let package = if input_path
         .extension()
         .is_some_and(|extension| extension == "trn")
@@ -86,7 +75,12 @@ fn run(arguments: &[OsString]) -> Result<ExitCode, CliFailure> {
                 .collect(),
         })?
     };
-    let compilation = match terrane_compiler::compile_package(&package) {
+    let compilation = match terrane_compiler::compile_package_with_options(
+        &package,
+        terrane_compiler::CompilerOptions {
+            require_canonical_rust,
+        },
+    ) {
         Ok(compilation) => compilation,
         Err(failure) => {
             return Err(CliFailure {
@@ -135,6 +129,27 @@ fn run(arguments: &[OsString]) -> Result<ExitCode, CliFailure> {
     Ok(ExitCode::from(
         u8::try_from(status.code().unwrap_or(1)).unwrap_or(1),
     ))
+}
+
+fn parse_input(arguments: &[OsString], command: &str) -> Result<(PathBuf, bool), CliFailure> {
+    let require_canonical_rust = arguments
+        .get(1)
+        .is_some_and(|argument| argument == "--require-canonical-rust");
+    let input_index = usize::from(require_canonical_rust) + 1;
+    let has_valid_arity = if command == "run" {
+        arguments.len() == input_index + 1
+            || (arguments.len() >= input_index + 2 && arguments[input_index + 1] == "--")
+    } else {
+        arguments.len() == input_index + 1
+    };
+    if !has_valid_arity {
+        return Err(CliFailure::usage());
+    }
+    let input_path = arguments
+        .get(input_index)
+        .map(PathBuf::from)
+        .ok_or_else(CliFailure::usage)?;
+    Ok((input_path, require_canonical_rust))
 }
 
 fn emit_warnings(compilation: &terrane_compiler::Compilation, package: &terrane_compiler::Package) {
@@ -512,7 +527,9 @@ fn ensure_rust_toolchain() -> Result<(), CliFailure> {
 }
 
 fn usage() -> String {
-    "usage: terrane <check|rust|build|run> <source.trn> [-- program arguments]\n\
+    "usage: terrane <check|rust|build|run> [--require-canonical-rust] \
+     <source.trn> [-- program arguments]\n\
+     options:\n  --require-canonical-rust  fail unless lowering emits bundled-formatter output\n\
      commands:\n  check  validate and compile generated Rust\n  rust   print generated Rust\n  \
      build  compile a native executable\n  run    compile and execute the program"
         .to_owned()

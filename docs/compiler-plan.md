@@ -899,15 +899,18 @@ Exit criterion: identical inputs produce byte-identical generated files; all acc
 Implemented evidence: lowering now produces a deterministic compiler-owned program/file model whose
 renderer splits authored units from the entrypoint, uses injective source-name encoding, and exposes
 the complete rendered file set to the CLI. Item bodies remain rendered Rust inside that model rather
-than a fully structural expression/statement IR. Generated projects contain stable authored paths,
-copied content-addressed support crates, manifests, compiler/source metadata, and a build identity
-covering compiler version, source and support content, target, profile, and command-relevant
-environment. Successful checks and native executables are retained under that identity; stale
-generated identities are bounded by last use. `check`, `build`, and `run` share captured Cargo
-execution when an artifact is absent; `rust` renders authored output plus authored-module and
-vendored-support path lists. Pipeline and CLI tests pin byte identity, generated authored and support
-files, artifact reuse, eviction, and generated file layout; compile/run conformance cases validate
-the generated crates with warnings denied.
+than a fully structural expression/statement IR. A compiler-bundled, dependency-pinned formatter
+supports the default-off `--require-canonical-rust` development check: it compares a formatted copy
+with the untouched generated file, reports mismatch as compiler defect `S9004`, and never repairs or
+replaces generator output. Generated projects contain stable authored paths, copied
+content-addressed support crates, manifests, compiler/source metadata, and a build identity covering
+compiler version, source and support content, target, profile, and command-relevant environment.
+Successful checks and native executables are retained under that identity; stale generated
+identities are bounded by last use. `check`, `build`, and `run` share captured Cargo execution when
+an artifact is absent; `rust` renders authored output plus authored-module and vendored-support path
+lists. Pipeline and CLI tests pin byte identity, generated authored and support files, artifact
+reuse, eviction, generated file layout, and strict canonical-format rejection; compile/run
+conformance cases validate the generated crates with warnings denied.
 
 Deferred milestone-5 work: the fully structural expression/statement IR and its pinned formatter
 policy, including the named-intermediate nesting threshold, remain assigned to this milestone.

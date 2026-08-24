@@ -24,6 +24,26 @@ fn hello_lowers_deterministically() {
 }
 
 #[test]
+fn canonical_rust_requirement_reports_unformatted_lowering() {
+    let failure = terrane_compiler::compile_with_options(
+        PathBuf::from("case.trn"),
+        HELLO.to_owned(),
+        terrane_compiler::CompilerOptions {
+            require_canonical_rust: true,
+        },
+    )
+    .unwrap_err();
+
+    assert_eq!(failure.diagnostics.len(), 1);
+    assert_eq!(failure.diagnostics[0].code, "S9004");
+    assert!(
+        failure.diagnostics[0]
+            .message
+            .contains("src/authored/unit-0000.rs")
+    );
+}
+
+#[test]
 fn inferred_local_reassignment_lowers_as_assignment() {
     let source = "namespace inferred\nfunction main;\n  total = 5\n  total = total + 1\n";
     let compilation = terrane_compiler::compile("inferred.trn", source.to_owned()).unwrap();

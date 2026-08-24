@@ -768,6 +768,9 @@ foreign_specialisation: 'from python/x import y' names a crossing point, not an 
 - Generated/handwritten Rust may call each other within one Rust crate graph.
 - Rust errors/diagnostics map back to Terrane spans without hiding originals.
 - Ejection tooling can produce maintainable generated Rust/Cargo artifacts.
+- Lowering itself emits canonical Rust. A bundled pinned formatter may validate an untouched
+  generated artefact, but its formatted copy is discarded; mismatch is a compiler defect, never a
+  silent rewrite.
 
 ## FOREIGN
 
