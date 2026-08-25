@@ -2231,19 +2231,10 @@ impl Emitter<'_> {
     fn for_statement(&mut self, node: &SyntaxNode) {
         match node.children.as_slice() {
             [target, collection, block] if target.kind == SyntaxKind::ForTarget => {
-                let Some(name) = target.children.first() else {
-                    return;
-                };
-                let name_span = name.span;
-                let mutable = if binding_span_is_mutated(self.package, self.unit, name.span, true) {
-                    "mut "
-                } else {
-                    ""
-                };
-                let name = rust_name(self.text(name));
                 let collection_type = self.value_type(collection);
                 let collection = self.expression(collection);
-                let iterator = format!("__terrane_iterator_{}", self.loop_counter);
+                let loop_index = self.loop_counter;
+                let iterator = format!("__terrane_iterator_{loop_index}");
                 self.loop_counter += 1;
                 let constructor = match collection_type {
                     Some(ValueType::Scalar(ScalarType::Bytes)) => {
@@ -2266,15 +2257,7 @@ impl Emitter<'_> {
                 self.line(&format!("let mut {iterator} = {constructor};"));
                 self.line("loop {");
                 self.indent += 1;
-                self.line(&format!("let {mutable}{name} = match {iterator}.next() {{"));
-                self.indent += 1;
-                self.line("terrane_collection_support::IterationStep::Item(item) => item,");
-                self.line("terrane_collection_support::IterationStep::End => break,");
-                self.indent -= 1;
-                self.line("};");
-                if !binding_store_value_is_read(self.package, name_span, name_span) {
-                    self.line(&format!("let _ = &{name};"));
-                }
+                self.iteration_target_bindings(target, &iterator, loop_index);
                 let outer_continue = self.continue_label.take();
                 let outer_loop = std::mem::replace(&mut self.in_loop, true);
                 self.block(block);
@@ -2304,6 +2287,58 @@ impl Emitter<'_> {
                 self.line("}");
             }
             _ => {}
+        }
+    }
+
+    fn iteration_target_bindings(
+        &mut self,
+        target: &SyntaxNode,
+        iterator: &str,
+        loop_index: usize,
+    ) {
+        match target.children.as_slice() {
+            [name] => {
+                let name_span = name.span;
+                let mutable = if binding_span_is_mutated(self.package, self.unit, name.span, true) {
+                    "mut "
+                } else {
+                    ""
+                };
+                let name = rust_name(self.text(name));
+                self.line(&format!("let {mutable}{name} = match {iterator}.next() {{"));
+                self.indent += 1;
+                self.line("terrane_collection_support::IterationStep::Item(item) => item,");
+                self.line("terrane_collection_support::IterationStep::End => break,");
+                self.indent -= 1;
+                self.line("};");
+                if !binding_store_value_is_read(self.package, name_span, name_span) {
+                    self.line(&format!("let _ = &{name};"));
+                }
+            }
+            [key, value] => {
+                let item = format!("__terrane_item_{loop_index}");
+                self.line(&format!("let {item} = match {iterator}.next() {{"));
+                self.indent += 1;
+                self.line("terrane_collection_support::IterationStep::Item(item) => item,");
+                self.line("terrane_collection_support::IterationStep::End => break,");
+                self.indent -= 1;
+                self.line("};");
+                for (target, field) in [(key, "key"), (value, "value")] {
+                    let target_span = target.span;
+                    let mutable =
+                        if binding_span_is_mutated(self.package, self.unit, target_span, true) {
+                            "mut "
+                        } else {
+                            ""
+                        };
+                    let name = rust_name(self.text(target));
+                    self.line(&format!("let {mutable}{name} = {item}.{field};"));
+                    if !binding_store_value_is_read(self.package, target_span, target_span) {
+                        self.line(&format!("let _ = &{name};"));
+                    }
+                }
+            }
+            _ => unreachable!("semantic analysis admitted invalid iteration target arity"),
         }
     }
 

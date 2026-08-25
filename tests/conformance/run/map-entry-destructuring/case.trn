@@ -1,0 +1,15 @@
+namespace map-entry-destructuring
+from /core/collections import map, unordered-map
+
+function main;
+  ordered = map; first=1, second=2
+  for key, value in ordered
+    print; key, value
+    key = 'seen'
+    value++
+    print; key, value
+  print; ordered['first'], ordered['second']
+
+  deterministic = unordered-map; only=7
+  for key, value in deterministic
+    print; key, value

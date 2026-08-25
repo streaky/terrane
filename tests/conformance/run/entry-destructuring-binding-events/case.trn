@@ -1,0 +1,9 @@
+namespace entry-destructuring-binding-events
+from /core/collections import list, entry
+
+function main;
+  second = 3
+  entries = list; (entry; key='a', value=1)
+  for key, second in entries
+    second = 9
+    print; key, second
