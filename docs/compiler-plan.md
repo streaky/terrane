@@ -33,7 +33,7 @@ and the toolchain can compile and run a small but nontrivial command-line progra
 - deterministic generated Rust and a Cargo project;
 - source-oriented lexer, parser, resolver, type, and backend diagnostics.
 
-That list is the **first runnable outcome**, reached at milestone 6, not the boundary of version one. Version one as now specified also requires structured errors, the callable-family and descriptor models, collections and iteration, classes and interfaces, ownership and resources, capabilities and effects, async with structured concurrency, and the standard facilities in milestones 20 through 26. Milestones 7 onward deliver those.
+That list is the **first runnable outcome**, reached at milestone 6, not the boundary of version one. Version one as now specified also requires structured errors, the callable-family and descriptor models, collections and iteration, classes and interfaces, ownership and resources, callable contracts and reflection, async with structured concurrency, and the standard facilities in milestones 20 through 26. Milestones 7 onward deliver those.
 
 Version one still does not need universal dynamic values, source-declared generics, general pattern matching, multiple class inheritance, generators, labels and `goto`, hot-code replacement, `no_std`, embedded targets, or kernel targets. Syntax for deferred features may be recognized only when doing so enables a precise “not supported in this compiler version” diagnostic; it must never be accepted and lowered incorrectly.
 
@@ -110,7 +110,7 @@ Each conformance case is a directory or manifest entry containing only the artif
 ```terrane
 case.trn     # single-source input
 package.toml    # optional package manifest for multi-source cases
-case.toml       # phase, expected status, entrypoint, arguments
+case.toml       # phase, expected status, entrypoint, arguments, canonical-Rust expectation
 stdin.txt       # optional exact input
 stdout.txt      # optional exact output
 stderr.txt      # optional exact diagnostic or uncaught source-runtime error
@@ -120,7 +120,12 @@ resolve.json    # optional symbol-resolution facts
 lower.rs        # optional canonical generated Rust
 ```
 
-`package.toml` is the authored package contract exercised by milestone 3; `case.toml` remains test-harness metadata and points to it when present. Runtime-failure fixtures must provide both `stderr.txt` and `exit-code.txt`.
+`package.toml` is the authored package contract exercised by milestone 3; `case.toml` remains
+test-harness metadata and points to it when present. An accepted case may set
+`canonical-rust = true` once its untouched lowering is known to match the bundled formatter; the
+conformance runner then compiles that case with canonical validation enabled so later formatting
+regressions fail at their source. Absence means no canonical-format claim, not that noncanonical
+output is expected. Runtime-failure fixtures must provide both `stderr.txt` and `exit-code.txt`.
 
 Golden files must be reviewed output, not snapshots accepted blindly. Unstable data such as temporary paths is normalized by the test harness before comparison.
 
@@ -264,7 +269,7 @@ Implementation status (completed on the `indentation-lexer` capability branch):
 - the shared compiler pipeline uses compiler-owned tokens, trivia, byte spans, and lexical diagnostics before the bootstrap parser;
 - the lexer emits structural newline and indentation transitions, retains whitespace and all three comment forms, and decides text markers, comparisons, and shifts from the preceding token rather than from line text;
 - tokens, trivia, and indentation transitions cover every source byte exactly once: a block string token spans its marker and body, and one terminator ends the statement it completes;
-- only lines carrying source outside comments participate in indentation, so blank lines, comment-only lines, and multiline comment terminators never open or close a block;
+- only lines carrying source outside comments participate in indentation, so blank lines, comment-only lines, and multiline comment terminators never open or close a block; physical newlines and indentation inside a parenthesized continuation are non-structural until its matching `)`;
 - §6.8 numeric literals, `&`/`^`/`~`, and the identifier joiner set are lexed as declared, and a malformed literal is reported across its whole run instead of splitting into a name;
 - lexer contracts cover every token class, each required boundary spelling, all four indentation cases, and byte-accurate diagnostics including multibyte input;
 - the milestone-zero logical-line parser remains only as a temporary semantic projection for the runnable hello slice; milestone 2 replaces it as the authoritative syntax parser.
@@ -351,8 +356,10 @@ S1014 missing member name                 S1029 invalid declaration prefix
 S1015 unclosed index expression           S1030 expression after `try`
 S1016 unparenthesized nested call         S1032 missing `catch as` binding
 S1033 `try` without `catch`/`finally`     S1034 missing object declaration name
-S1035 malformed object clause             S1036 multiple class bases
-S1037 assignment in condition             S1090 reserved unsupported syntax
+S1035 malformed object clause             S1036 multiple object bases
+S1037 assignment in condition             S1038 missing function parameter marker
+S1039 missing throwable upper bound       S1040 unclosed function parameter list
+S1041 missing object clause name          S1090 reserved unsupported syntax
 S1091 unsupported `===`                   S1092 unsupported angle generic
 ```
 
@@ -363,7 +370,7 @@ prints that help separately from the stable code and message.
 Language work must introduce its accepted and rejected cases in the same
 vertical work unit as the behavior.
 
-The type-analysis additions through milestones 15–17 reserve and register these
+The type-analysis additions through milestones 15–19 reserve and register these
 stable diagnostics:
 
 ```text
@@ -374,9 +381,13 @@ T0055 unknown object member               T0064 invalid non-owning ref source
 T0058 use after move                      T0065 uninferable object field type
 T0059 reference used after replacement     T0066 field missing type and initializer
 T0067 incompatible interface signature    T0068 escaping non-owning reference
+T0070 reflection unavailable in profile     T0074 invalid task-core operation
+T0071 unavailable reflected member          T0075 child deadline extension
+T0073 value live across suspension           T0076 unconsumed task
+T0078 parameterized program entrypoint
 ```
 
-`T0056`, `T0057`, and `T0060` are intentionally unassigned.
+`T0056`, `T0057`, `T0060`, `T0069`, `T0072`, and `T0077` are intentionally unassigned.
 
 ### Milestone 3 — Namespaces, scopes, and bootstrap environment
 
@@ -896,21 +907,28 @@ Exit criterion: identical inputs produce byte-identical generated files; all acc
 
 Implemented evidence: lowering now produces a deterministic compiler-owned program/file model whose
 renderer splits authored units from the entrypoint, uses injective source-name encoding, and exposes
-the complete rendered file set to the CLI. Item bodies remain rendered Rust inside that model rather
-than a fully structural expression/statement IR. Generated projects contain stable authored paths,
-copied content-addressed support crates, manifests, compiler/source metadata, and a build identity
-covering compiler version, source and support content, target, profile, and command-relevant
-environment. Successful checks and native executables are retained under that identity; stale
-generated identities are bounded by last use. `check`, `build`, and `run` share captured Cargo
-execution when an artifact is absent; `rust` renders authored output plus authored-module and
-vendored-support path lists. Pipeline and CLI tests pin byte identity, generated authored and support
-files, artifact reuse, eviction, and generated file layout; compile/run conformance cases validate
-the generated crates with warnings denied.
+the complete rendered file set to the CLI. Every item is parsed into a compiler-owned `syn` syntax
+tree before entering that model. A structural normalization pass removes redundant expression
+parentheses both from ordinary Rust syntax and from macro bodies that parse as comma-separated
+expression lists; `prettyplease` reconstructs only parentheses required by Rust precedence, while
+normalized borrow tokens retain conventional compact spelling inside otherwise opaque macro input.
+The renderer and the default-off `--require-canonical-rust` development check share that exact
+normalization and pinned formatting path. The check reports mismatch as compiler defect `S9004` and
+never repairs or replaces generator output. Generated projects contain stable authored paths, copied
+content-addressed support crates, manifests, compiler/source metadata, and a build identity covering
+compiler version, source and support content, target, profile, and command-relevant environment.
+Successful checks and native executables are retained under that identity; stale generated
+identities are bounded by last use. `check`, `build`, and `run` share captured Cargo execution when
+an artifact is absent; `rust` renders authored output plus authored-module and vendored-support path
+lists. Pipeline and CLI tests pin byte identity, generated authored and support files, artifact
+reuse, eviction, generated file layout, and strict canonical-format rejection; compile/run
+conformance cases validate the generated crates with warnings denied.
 
-Deferred milestone-5 work: the fully structural expression/statement IR and its pinned formatter
-policy, including the named-intermediate nesting threshold, remain assigned to this milestone.
-The current file model does not satisfy that deliverable. Complete it before milestone 10 adds
-enough lowering families to make another string-emission expansion costly.
+Remaining milestone-5 work: lowering still initially constructs item bodies as Rust text before the
+mandatory parse and structural normalization boundary. A fully structural expression/statement
+builder and a named-intermediate nesting policy therefore remain assigned to this milestone. The
+parsed item model prevents further raw rendered-text expansion, but does not by itself satisfy that
+complete deliverable.
 
 ### Milestone 6 — Source diagnostics across Rust
 
@@ -990,16 +1008,16 @@ Deliver:
 
 Exit criterion: an arithmetic overflow and a failed coercion are catchable, a rethrow preserves the cause chain, uncaught output is unchanged from the current normative text, and generated Rust contains no panic-based control flow for recoverable failures.
 
-Implemented evidence: `throw`, ordered typed and catch-all `catch`, `try`, bare rethrow, and
-`finally` lower through compiler-owned completion and `Result` flow rather than unwinding. A written
-`throws` qualifier places the declared function on that result path even when its current body does
-not throw, and its effect propagates transitively to callers. Generated errors use a typed closed
-kind, message, optional cause, and deterministic namespace/function/source context chain; arithmetic
-and exact-conversion failures enter the same propagation path when recoverable. Conformance cases
-catch overflow and failed conversion, exercise checked callback failure, declared and inferred
-effects, bare rethrow, catch-all ordering, and unconditional finally execution. A CLI runtime case
-observes a chained uncaught error with Terrane frames and the established exit status; reviewed Rust
-goldens contain no panic-based recoverable control flow.
+Implemented evidence at milestone completion: `throw`, ordered typed and catch-all `catch`, `try`,
+bare rethrow, and `finally` lowered through compiler-owned completion and `Result` flow rather than
+unwinding. The first implementation used a closed compiler-owned error kind and a prefix `throws`
+declaration. Milestone 18 deliberately replaces those provisional restrictions with ordinary
+throwable classes, inferred escaping sets, and optional postfix upper-bound contracts. Arithmetic
+and exact-conversion failures already enter the shared recoverable propagation path. Conformance
+cases catch overflow and failed conversion, exercise checked callback failure, bare rethrow,
+catch-all ordering, and unconditional finally execution. A CLI runtime case observes a chained
+uncaught throwable with Terrane frames and the established exit status; reviewed Rust goldens
+contain no panic-based recoverable control flow.
 
 ### Milestone 10 — Named bounded-arithmetic families
 
@@ -1220,21 +1238,45 @@ non-owning observation, explicit ownership transfer, temporary and parameter-sou
 source-diagnosed return escape, replacement invalidation of non-owning references, and continued
 access through shared owners after replacement. The current generated
 representation clones the referenced value for each read; this is a correctness-first lowering, not
-the intended reference cost model. Lifetime analysis beyond return escape and direct replacement,
-including proof across async suspension, shared-ownership cycle analysis, complete
-derived-provenance coverage, and borrow-oriented lowering remain outstanding.
+the intended reference cost model. Async suspension now proves a directly declared local owner that
+remains in the task frame without replacement or ownership transfer; broader lifetime analysis,
+shared-ownership cycle analysis, complete derived-provenance coverage, and borrow-oriented lowering
+remain outstanding.
 
-### Milestone 18 — Capabilities, effects, and reflection
+### Milestone 18 — Callable contracts, errors, and reflection
 
 Deliver:
 
-- the closed effect vocabulary `throws E`, `io`, `blocks`, `awaits`, `mutates`, `unsafe`, and `foreign`, with allocation tracked internally rather than declared publicly;
-- descriptor materialisation: reflection is the case that requires a canonical descriptor object at runtime, so this milestone supplies what milestone 4.6 deliberately does not. A statically resolved descriptor still lowers to nothing; a profile that strips reflection metadata removes the materialisation, not the identity;
-- effect inference for private functions and declared public effect contracts for exported ones;
-- capability objects that authorize effects without being effects, as linear authority values never synthesised from descriptive profile metadata;
-- retained descriptor identity and public callable/type metadata in ordinary profiles, stripped private bodies and unrequested inventories, and a compile-time failure when code requests metadata a profile does not retain.
+- exact transitive throwable-set inference for public and private callables, after catch handling and
+  `finally` replacement; optional postfix `throws T` is an upper-bound compatibility contract rather
+  than required effect narration;
+- ordinary user-declared classes implementing `/core/errors::throwable`, with standard errors
+  migrated to compiler-owned implementing classes and arbitrary non-throwable values rejected;
+- reflection that exposes a callable's optional declared throwable bound separately from its
+  inferred escaping throwable set, and reports the retained source-declared callable contracts
+  currently represented by `.contracts`;
+- descriptor materialisation: reflection is the case that requires a canonical descriptor object
+  at runtime, so this milestone supplies what milestone 4.6 deliberately does not. A statically
+  resolved descriptor still lowers to nothing; a profile that strips reflection metadata removes
+  the materialisation, not the identity;
+- retained descriptor identity and public callable/type metadata in ordinary profiles, stripped
+  private bodies and unrequested inventories, and a compile-time failure when code requests
+  metadata a profile does not retain.
 
-Exit criterion: a pure caller cannot call an effectful callee, a capability cannot be forged from profile data, and a minimal profile rejects an unavailable reflection request at compile time.
+Exit criterion: exact escaping throwable contracts survive catch and `finally`, callable reflection
+reports independently meaningful contracts without claiming authority over ordinary operations, and
+a minimal profile rejects an unavailable reflection request at compile time.
+
+Implemented evidence: typed escaping throwables are computed after catches and `finally`, checked
+against optional postfix `throws T` bounds, and exposed separately from those declared bounds.
+Standard and user-declared `throwable` implementations share the structured-error pipeline.
+Descriptor values materialise only when observed, and minimal reflection profiles reject unavailable
+metadata access. `awaits`, `mutating`, `mutates`, and bare `foreign` have been removed as callable
+qualifiers; suspension and receiver mutation are inferred, while foreign transitions belong to
+concrete adapter or ABI constructs. Accepted and rejected conformance covers catch/finally throwable
+sets, custom throwables, incompatible bounds, callable-contract reflection, descriptor
+materialisation, profile denial, stripped reflection, and rejection of removed qualifiers. This
+satisfies the milestone exit criterion.
 
 ### Milestone 19 — Async core: tasks, scope, cancellation, and deadlines
 
@@ -1250,6 +1292,31 @@ Deliver:
 - borrow and linear-resource rules across suspension.
 
 Exit criterion: a cancelled scope joins its children and reports partial progress; a nested deadline cannot be extended; and no borrow crosses suspension without a proven lifetime.
+
+Implemented evidence: async callables, postfix `await`, linear task values, task-scope
+creation/spawn/join, partial-progress outcome observations, threaded and cooperative executor
+profiles, effective-deadline clamping, and suspension ownership checks run through the shared
+parser, semantic model, and Rust lowering. Presence comparisons on optional task results lower to
+`is_some`/`is_none`, so observing a task result never imposes an equality contract on its value
+type. Runtime and dependency inclusion is selected by lowering metadata rather than rendered-source
+scanning.
+
+Every lowered Terrane `await` yields to the executor before polling its operand and again after the
+operand completes. The cancellable executor checks the scope between those child polls, so even an
+immediately-ready awaited future cannot carry execution past the suspension point after cancellation
+or deadline expiry. A focused threaded-runtime harness coordinates cancellation while an awaited
+future is being polled and proves that the child is dropped before its post-`await` statement, then
+joins as cancelled. A failed child retains its typed throwable and requests cancellation through the
+scope's shared state, which surviving siblings observe at their next cancellation point. Linear
+scoped tasks must be joined before the enclosing function can exit, and join reports completed,
+cancelled, value, and typed error state. Child deadlines take the earlier of inherited and requested
+deadlines at runtime; statically resolvable extensions are additionally rejected in source.
+
+Accepted and rejected conformance covers async/sync type incompatibility, task consumption,
+successful, throwing, cancelled, and sibling-cancelling children, statically resolvable nested
+deadline extension, a non-owning reference whose unchanged local owner is proven to remain in the
+task frame across suspension, and rejection when a parameter-sourced owner lifetime cannot be
+proven.
 
 ### Milestone 20 — Byte and text streams and process standard streams
 
@@ -1374,7 +1441,7 @@ Deliver:
 - Rust and system adapters with explicit lifetime and error-translation contracts;
 - the first Python runtime contract if it remains in version-one scope.
 
-Exit criterion: each surface enters with a selected capability contract, typed objects and effects, deterministic lowering, and compiled and run evidence. No surface is represented as an empty compiler-owned name to make the map look complete.
+Exit criterion: each surface enters with a selected target-capability contract, typed objects and explicit operational contracts, deterministic lowering, and compiled and run evidence. No surface is represented as an empty compiler-owned name to make the map look complete.
 
 ### Milestone 28 — First-version hardening and release gate
 
@@ -1435,7 +1502,7 @@ The release pipeline must prove, from a clean checkout:
 - function values, closures, and storable bound method families;
 - classes, single inheritance, structural interfaces, traits, `construct`, and deterministic drop;
 - ownership: semantic value assignment, linear resources, non-owning `ref`, owning `shared ref`, explicit `move`, and the drop pipeline;
-- the closed effect vocabulary, capability authority objects, and profile-governed reflection retention;
+- orthogonal throwable and async callable contracts, with inferred suspension, receiver-mutation, concrete `unsafe rust`, and foreign-transition facts plus profile-governed reflection retention;
 - async with `await`, task objects, the structured-concurrency scope, cooperative cancellation, and scope-propagated deadlines;
 - byte and text stream protocols, process standard streams, files, paths, and race-resistant filesystem traversal;
 - environment, arguments, the schema-driven CLI parser, and `exit-status`;

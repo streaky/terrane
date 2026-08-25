@@ -1,4 +1,4 @@
 namespace reference-requires-binding
 
-function main
+function main;
     observer ref int = ref 1

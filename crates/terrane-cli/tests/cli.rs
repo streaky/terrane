@@ -26,8 +26,7 @@ fn all_commands_share_the_hello_pipeline() {
     let authored_rust = fs::read_to_string(hello().parent().unwrap().join("lower.rs")).unwrap();
     assert!(displayed_rust.starts_with(&authored_rust));
     assert!(
-        displayed_rust
-            .contains("// Authored generated modules: src/authored/unit-0000.rs, src/main.rs")
+        displayed_rust.contains("// Generated Rust files: src/authored/case.trn.rs, src/main.rs")
     );
     assert!(displayed_rust.contains("// Vendored support crates: terrane-int-support"));
 
@@ -82,6 +81,28 @@ fn help_succeeds_and_extra_arguments_are_rejected() {
 }
 
 #[test]
+fn canonical_rust_requirement_preserves_successful_rust_output() {
+    let binary = env!("CARGO_BIN_EXE_terrane");
+    let ordinary = Command::new(binary)
+        .args(["rust", hello().to_str().unwrap()])
+        .output()
+        .unwrap();
+    let canonical = Command::new(binary)
+        .args([
+            "rust",
+            "--require-canonical-rust",
+            hello().to_str().unwrap(),
+        ])
+        .output()
+        .unwrap();
+
+    assert!(ordinary.status.success());
+    assert!(canonical.status.success());
+    assert_eq!(canonical.stdout, ordinary.stdout);
+    assert!(canonical.stderr.is_empty());
+}
+
+#[test]
 fn failures_use_distinct_exit_codes_and_compiler_diagnostics() {
     let binary = env!("CARGO_BIN_EXE_terrane");
     let missing = Command::new(binary)
@@ -100,7 +121,7 @@ fn failures_use_distinct_exit_codes_and_compiler_diagnostics() {
     ));
     fs::write(
         &invalid_path,
-        "namespace invalid\nfunction main\n  missing;\n",
+        "namespace invalid\nfunction main;\n  missing;\n",
     )
     .unwrap();
     let invalid = Command::new(binary)
@@ -130,14 +151,14 @@ fn uncaught_source_errors_render_causes_and_terrane_frames() {
         concat!(
             "namespace runtime-error\n",
             "from /core/errors import arithmetic-overflow, coercion-error\n",
-            "throws function inner int\n",
+            "function inner int throws arithmetic-overflow;\n",
             "  throw arithmetic-overflow\n",
-            "throws function outer int\n",
+            "function outer int throws coercion-error;\n",
             "  try\n",
             "    return inner;\n",
             "  catch arithmetic-overflow\n",
             "    throw coercion-error\n",
-            "function main\n",
+            "function main;\n",
             "  outer;\n",
         ),
     )

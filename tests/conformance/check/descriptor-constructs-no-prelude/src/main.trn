@@ -2,6 +2,6 @@ namespace descriptor-constructs-no-prelude
 from /core/types import int8 as same
 function accepts int8; value int8
   return value
-function main
+function main;
   value int8 = accepts; 1
   result bool = value is a same

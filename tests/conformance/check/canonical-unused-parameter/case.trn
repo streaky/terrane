@@ -1,0 +1,4 @@
+namespace canonical-unused-parameter
+function ignore; value int
+function main;
+  ignore; 1

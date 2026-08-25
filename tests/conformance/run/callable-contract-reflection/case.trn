@@ -1,0 +1,6 @@
+namespace callable-contract-reflection
+
+function marked;
+
+function main;
+  print; marked.contracts

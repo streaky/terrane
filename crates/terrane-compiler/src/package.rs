@@ -9,9 +9,30 @@ pub const IMPLICIT_PACKAGE_ID: &str = "single-file";
 
 #[derive(Clone, Debug)]
 pub struct SourceUnit {
+    /// Normalized path relative to [`Package::root`].
+    ///
+    /// Package construction guarantees that this contains only ordinary path components.
     pub relative_path: PathBuf,
     pub source: SourceFile,
     pub expected_namespace: Option<String>,
+}
+
+impl SourceUnit {
+    pub(crate) fn relative_path_text(&self) -> String {
+        self.relative_path.to_string_lossy().replace('\\', "/")
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum ReflectionProfile {
+    Ordinary,
+    Minimal,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum ExecutorProfile {
+    Cooperative,
+    Threaded,
 }
 
 #[derive(Clone, Debug)]
@@ -19,6 +40,8 @@ pub struct Package {
     pub identity: String,
     pub root: PathBuf,
     pub prelude: bool,
+    pub reflection: ReflectionProfile,
+    pub executor: ExecutorProfile,
     pub units: Vec<SourceUnit>,
 }
 
@@ -57,6 +80,8 @@ impl Package {
             identity: IMPLICIT_PACKAGE_ID.to_owned(),
             root,
             prelude: true,
+            reflection: ReflectionProfile::Ordinary,
+            executor: ExecutorProfile::Threaded,
             units: vec![SourceUnit {
                 relative_path,
                 source: SourceFile::new(0, path, text),
@@ -94,6 +119,8 @@ impl Package {
             identity: manifest.identity,
             root,
             prelude: manifest.prelude,
+            reflection: manifest.reflection,
+            executor: manifest.executor,
             units,
         })
     }
@@ -102,6 +129,8 @@ impl Package {
 struct ParsedManifest {
     identity: String,
     prelude: bool,
+    reflection: ReflectionProfile,
+    executor: ExecutorProfile,
     namespace_roots: Vec<NamespaceRoot>,
 }
 
@@ -128,7 +157,10 @@ fn parse_manifest(
     })?;
     let mut errors = Vec::new();
     for key in table.keys() {
-        if !matches!(key.as_str(), "package" | "prelude" | "namespaces") {
+        if !matches!(
+            key.as_str(),
+            "package" | "prelude" | "reflection" | "executor" | "namespaces"
+        ) {
             errors.push(manifest_error(
                 manifest_path,
                 text,
@@ -171,11 +203,41 @@ fn parse_manifest(
         }
         None => true,
     };
+    let reflection = match table.get("reflection") {
+        Some(toml::Value::String(value)) if value == "ordinary" => ReflectionProfile::Ordinary,
+        Some(toml::Value::String(value)) if value == "minimal" => ReflectionProfile::Minimal,
+        Some(_) => {
+            errors.push(manifest_error(
+                manifest_path,
+                text,
+                "`reflection` must be either `ordinary` or `minimal`",
+                Some("reflection"),
+            ));
+            ReflectionProfile::Ordinary
+        }
+        None => ReflectionProfile::Ordinary,
+    };
+    let executor = match table.get("executor") {
+        Some(toml::Value::String(value)) if value == "cooperative" => ExecutorProfile::Cooperative,
+        Some(toml::Value::String(value)) if value == "threaded" => ExecutorProfile::Threaded,
+        Some(_) => {
+            errors.push(manifest_error(
+                manifest_path,
+                text,
+                "`executor` must be either `cooperative` or `threaded`",
+                Some("executor"),
+            ));
+            ExecutorProfile::Threaded
+        }
+        None => ExecutorProfile::Threaded,
+    };
     let namespace_roots = parse_namespace_roots(manifest_path, text, &table, &mut errors);
     if errors.is_empty() {
         Ok(ParsedManifest {
             identity: identity.expect("validated package identity"),
             prelude,
+            reflection,
+            executor,
             namespace_roots,
         })
     } else {
@@ -494,4 +556,43 @@ fn normalized_relative_directory(value: &str) -> Option<PathBuf> {
         }
     }
     Some(normalized)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn implicit_source_paths_are_normalized_relative_to_the_package_root() {
+        let package = Package::implicit("/workspace/example/app/main.trn", String::new());
+        assert_eq!(package.root, PathBuf::from("/workspace/example/app"));
+        assert_eq!(package.units[0].relative_path, PathBuf::from("main.trn"));
+        assert_eq!(package.units[0].relative_path_text(), "main.trn");
+    }
+
+    #[test]
+    fn package_relative_paths_have_platform_independent_text() {
+        let unit = SourceUnit {
+            relative_path: ["app", "support", "values.trn"].iter().collect(),
+            source: SourceFile::new(0, PathBuf::from("values.trn"), String::new()),
+            expected_namespace: None,
+        };
+        assert_eq!(unit.relative_path_text(), "app/support/values.trn");
+    }
+
+    #[test]
+    fn arbitrary_source_paths_render_without_panicking() {
+        for (path, expected) in [
+            ("../shared/main.trn", "../shared/main.trn"),
+            ("/workspace/main.trn", "/workspace/main.trn"),
+            (r"C:\workspace\main.trn", "C:/workspace/main.trn"),
+        ] {
+            let unit = SourceUnit {
+                relative_path: PathBuf::from(path),
+                source: SourceFile::new(0, PathBuf::from(path), String::new()),
+                expected_namespace: None,
+            };
+            assert_eq!(unit.relative_path_text(), expected);
+        }
+    }
 }

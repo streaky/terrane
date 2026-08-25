@@ -1,10 +1,11 @@
 use std::fmt::Write as _;
 
+use indoc::indoc;
 use num_bigint::BigInt;
 
 use crate::{
     ScalarType, SourceFile, TypeCategory,
-    rust_ir::{Item, Module, Program},
+    rust_ir::{GeneratedModule, Item, Module, Program},
     semantics::{
         ArithmeticFamily, CoercionPolicy, ContextualConstant, ElementType, FunctionContract,
         MemberFamily, ObjectContract, ObjectField, ObjectKind, SemanticPackage, SemanticUnit,
@@ -15,10 +16,70 @@ use crate::{
     syntax::{SyntaxKind, SyntaxNode},
 };
 
+#[expect(
+    clippy::too_many_lines,
+    reason = "package lowering assembles one deterministic generated-crate prelude and unit set"
+)]
 pub(crate) fn lower(package: &SemanticPackage) -> Program {
+    let mut runtime = Vec::new();
     let mut globals = String::new();
-    if package_uses_structured_errors(package) {
-        emit_error_support(&mut globals);
+    if package_uses_structured_errors(package) || package_uses_task_scope(package) {
+        let has_custom_throwable = package.units.iter().any(|unit| {
+            unit.objects.iter().any(|object| {
+                object
+                    .interfaces
+                    .iter()
+                    .any(|interface| interface == "throwable")
+            })
+        });
+        let mut support = String::new();
+        emit_error_support(&mut support, has_custom_throwable);
+        runtime.push(GeneratedModule {
+            name: "errors",
+            items: vec![Item::generated(&support)],
+        });
+    }
+    if package
+        .units
+        .iter()
+        .any(|unit| unit.functions.iter().any(|function| function.is_async))
+    {
+        let mut support = include_str!("runtime/async.rs.txt").to_owned();
+        if package_uses_task_scope(package) {
+            support.push_str(include_str!("runtime/async_cancellable.rs.txt"));
+        }
+        runtime.push(GeneratedModule {
+            name: "async",
+            items: vec![Item::generated(&support)],
+        });
+    }
+    if package_uses_task_scope(package) {
+        let support = match package.executor {
+            crate::package::ExecutorProfile::Cooperative => {
+                include_str!("runtime/tasks_cooperative.rs.txt")
+            }
+            crate::package::ExecutorProfile::Threaded => {
+                include_str!("runtime/tasks_threaded.rs.txt")
+            }
+        };
+        runtime.push(GeneratedModule {
+            name: "tasks",
+            items: vec![Item::generated(support)],
+        });
+    }
+    if package.units.iter().any(|unit| {
+        unit.typed_bindings
+            .iter()
+            .any(|binding| matches!(binding.value_type, ValueType::Descriptor(_)))
+    }) {
+        runtime.push(GeneratedModule {
+            name: "reflection",
+            items: vec![Item::generated(
+                "#[allow(dead_code)]\n\
+                 #[derive(Clone, Copy)]\n\
+                 struct TerraneDescriptor { identity: &'static str, name: &'static str, kind: &'static str }\n",
+            )],
+        });
     }
     emit_global_storage(package, &mut globals);
     let modules = package
@@ -69,7 +130,7 @@ pub(crate) fn lower(package: &SemanticPackage) -> Program {
                 }
             }
             Module {
-                source_path: display_path(unit.source.path()),
+                source_path: unit.source_path.clone(),
                 namespace: unit.namespace.clone(),
                 items,
             }
@@ -77,6 +138,7 @@ pub(crate) fn lower(package: &SemanticPackage) -> Program {
         .collect();
     Program {
         version: crate::VERSION,
+        runtime,
         globals: (!globals.is_empty())
             .then(|| Item::generated(&globals))
             .into_iter()
@@ -109,6 +171,32 @@ struct Emitter<'a> {
     try_completion: bool,
     in_loop: bool,
     closure_depth: usize,
+}
+
+fn package_uses_task_scope(package: &SemanticPackage) -> bool {
+    fn contains(package: &SemanticPackage, unit: &SemanticUnit, node: &SyntaxNode) -> bool {
+        if node.kind == SyntaxKind::CallExpression
+            && let Some(callee) = node.children.first()
+            && callee.kind == SyntaxKind::Name
+            && package
+                .resolve_name_at(
+                    unit,
+                    callee.span.start,
+                    &unit.source.text()[callee.span.start..callee.span.end],
+                )
+                .is_some_and(|symbol| symbol.identity == "/core/async::task-scope")
+        {
+            return true;
+        }
+        node.children
+            .iter()
+            .any(|child| contains(package, unit, child))
+    }
+
+    package
+        .units
+        .iter()
+        .any(|unit| contains(package, unit, &unit.tree.root))
 }
 
 fn package_uses_structured_errors(package: &SemanticPackage) -> bool {
@@ -153,78 +241,154 @@ fn package_uses_structured_errors(package: &SemanticPackage) -> bool {
     })
 }
 
-fn emit_error_support(output: &mut String) {
-    output.push_str(
-        "#[derive(Clone, Copy, Debug, Eq, PartialEq)]\n\
-         enum TerraneErrorKind {\n\
-         ArithmeticOverflow,\nDivisionByZero,\nIntegerConversionOverflow,\nNegativeShiftCount,\n\
-         CoercionError,\nDecodeError,\nIndexError,\nMissingKey,\nResourceError,\nSourceError,\n}\n\
-         impl TerraneErrorKind {\n\
-         fn from_source_name(name: &str) -> Self {\nmatch name {\n\
-         \".arithmetic-overflow\" => Self::ArithmeticOverflow,\n\
-         \".division-by-zero\" => Self::DivisionByZero,\n\
-         \".integer-conversion-overflow\" => Self::IntegerConversionOverflow,\n\
-         \".negative-shift-count\" => Self::NegativeShiftCount,\n\
-         \".coercion-error\" => Self::CoercionError,\n\
-         \".decode-error\" => Self::DecodeError,\n\
-         \".index-error\" => Self::IndexError,\n\
-         \".missing-key\" => Self::MissingKey,\n\
-         \".resource-error\" => Self::ResourceError,\n\
-         _ => Self::SourceError,\n}\n}\n\
-         fn source_name(self) -> &'static str {\nmatch self {\n\
-         Self::ArithmeticOverflow => \".arithmetic-overflow\",\n\
-         Self::DivisionByZero => \".division-by-zero\",\n\
-         Self::IntegerConversionOverflow => \".integer-conversion-overflow\",\n\
-         Self::NegativeShiftCount => \".negative-shift-count\",\n\
-         Self::CoercionError => \".coercion-error\",\n\
-         Self::DecodeError => \".decode-error\",\n\
-         Self::IndexError => \".index-error\",\n\
-         Self::MissingKey => \".missing-key\",\n\
-         Self::ResourceError => \".resource-error\",\n\
-         Self::SourceError => \".error\",\n}\n}\n}\n\
-         #[derive(Clone, Debug)]\nstruct TerraneError {\n\
-         kind: TerraneErrorKind,\nmessage: String,\ncause: Option<Box<TerraneError>>,\n\
-         context: Vec<&'static str>,\n}\n\
-         impl TerraneError {\n\
-         fn new(kind: TerraneErrorKind, message: impl Into<String>) -> Self {\n\
-         Self { kind, message: message.into(), cause: None, context: Vec::new() }\n}\n",
-    );
-    output.push_str(
-        "#[allow(dead_code)]\n\
-         fn at(mut self, frame: &'static str) -> Self {\n\
-         self.context.push(frame);\nself\n}\n",
-    );
-    output.push_str(
-        "\
-         fn render(&self) -> String {\n\
-         let mut rendered = format!(\"{}: {}\", self.kind.source_name(), self.message);\n\
-         if let Some(cause) = &self.cause {\nrendered.push_str(\"\\ncaused by: \");\nrendered.push_str(&cause.render());\n}\n\
-         for frame in &self.context {\nrendered.push_str(\"\\nat \");\nrendered.push_str(frame);\n}\nrendered\n}\n}\n\
-         impl std::fmt::Display for TerraneError {\n\
-         fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {\n\
-         formatter.write_str(&self.render())\n}\n}\n\
-         impl From<terrane_int_support::ArithmeticError> for TerraneError {\n\
-         fn from(error: terrane_int_support::ArithmeticError) -> Self {\n\
-         Self::new(TerraneErrorKind::from_source_name(error.source_name()), error.to_string())\n}\n}\n\
-         impl From<terrane_string_support::DecodeError> for TerraneError {\n\
-         fn from(error: terrane_string_support::DecodeError) -> Self {\n\
-         Self::new(TerraneErrorKind::DecodeError, error.to_string().trim_start_matches(\".decode-error: \"))\n}\n}\n\
-         impl From<terrane_collection_support::IndexError> for TerraneError {\n\
-         fn from(error: terrane_collection_support::IndexError) -> Self {\n\
-         Self::new(TerraneErrorKind::IndexError, error.to_string())\n}\n}\n\
-         impl From<terrane_collection_support::MissingKey> for TerraneError {\n\
-         fn from(error: terrane_collection_support::MissingKey) -> Self {\n\
-         Self::new(TerraneErrorKind::MissingKey, error.to_string())\n}\n}\n\
-         impl From<terrane_collection_support::RangeStepError> for TerraneError {\n\
-         fn from(error: terrane_collection_support::RangeStepError) -> Self {\n\
-         Self::new(TerraneErrorKind::SourceError, error.to_string())\n}\n}\n\
-         fn __terrane_uncaught(error: TerraneError) -> ! {\n\
-         eprintln!(\"{}\", error.render());\nstd::process::exit(1);\n}\n\
-         fn __terrane_generated_defect(message: &str) -> ! {\n\
-         eprintln!(\"internal compiler defect: generated program reached an impossible completion: {message}\");\n\
-         std::process::exit(5);\n}\n\
-         #[allow(dead_code)]\nenum TerraneCompletion<T> {\nNormal,\nReturn(T),\nError(TerraneError),\nBreak,\nContinue,\n}\n",
-    );
+#[expect(
+    clippy::too_many_lines,
+    reason = "the generated error runtime remains directly reviewable as one canonical Rust template"
+)]
+fn emit_error_support(output: &mut String, has_custom_throwable: bool) {
+    output.push_str(indoc! {r"
+        #[derive(Clone, Copy, Debug, Eq, PartialEq)]
+        enum TerraneErrorKind {
+            ArithmeticOverflow,
+            DivisionByZero,
+            IntegerConversionOverflow,
+            NegativeShiftCount,
+            CoercionError,
+            DecodeError,
+            IndexError,
+            MissingKey,
+            ResourceError,
+            SourceError,
+    "});
+    if has_custom_throwable {
+        output.push_str("    Custom(&'static str),\n");
+    }
+    output.push_str(indoc! {r#"
+        }
+        impl TerraneErrorKind {
+            fn from_source_name(name: &str) -> Self {
+                match name {
+                    ".arithmetic-overflow" => Self::ArithmeticOverflow,
+                    ".division-by-zero" => Self::DivisionByZero,
+                    ".integer-conversion-overflow" => Self::IntegerConversionOverflow,
+                    ".negative-shift-count" => Self::NegativeShiftCount,
+                    ".coercion-error" => Self::CoercionError,
+                    ".decode-error" => Self::DecodeError,
+                    ".index-error" => Self::IndexError,
+                    ".missing-key" => Self::MissingKey,
+                    ".resource-error" => Self::ResourceError,
+                    _ => Self::SourceError,
+                }
+            }
+            fn source_name(self) -> &'static str {
+                match self {
+                    Self::ArithmeticOverflow => ".arithmetic-overflow",
+                    Self::DivisionByZero => ".division-by-zero",
+                    Self::IntegerConversionOverflow => ".integer-conversion-overflow",
+                    Self::NegativeShiftCount => ".negative-shift-count",
+                    Self::CoercionError => ".coercion-error",
+                    Self::DecodeError => ".decode-error",
+                    Self::IndexError => ".index-error",
+                    Self::MissingKey => ".missing-key",
+                    Self::ResourceError => ".resource-error",
+                    Self::SourceError => ".error",
+    "#});
+    if has_custom_throwable {
+        output.push_str("            Self::Custom(name) => name,\n");
+    }
+    output.push_str(indoc! {r#"
+                }
+            }
+        }
+        #[derive(Clone, Debug, Eq, PartialEq)]
+        pub struct TerraneError {
+            kind: TerraneErrorKind,
+            message: String,
+            cause: Option<Box<TerraneError>>,
+            context: Vec<&'static str>,
+        }
+        impl TerraneError {
+            fn new(kind: TerraneErrorKind, message: impl Into<String>) -> Self {
+                Self {
+                    kind,
+                    message: message.into(),
+                    cause: None,
+                    context: Vec::new(),
+                }
+            }
+            #[allow(dead_code)]
+            fn at(mut self, frame: &'static str) -> Self {
+                self.context.push(frame);
+                self
+            }
+            fn render(&self) -> String {
+                let mut rendered = format!("{}: {}", self.kind.source_name(), self.message);
+                if let Some(cause) = &self.cause {
+                    rendered.push_str("\ncaused by: ");
+                    rendered.push_str(&cause.render());
+                }
+                for frame in &self.context {
+                    rendered.push_str("\nat ");
+                    rendered.push_str(frame);
+                }
+                rendered
+            }
+        }
+        impl std::fmt::Display for TerraneError {
+            fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                formatter.write_str(&self.render())
+            }
+        }
+        impl From<terrane_int_support::ArithmeticError> for TerraneError {
+            fn from(error: terrane_int_support::ArithmeticError) -> Self {
+                Self::new(
+                    TerraneErrorKind::from_source_name(error.source_name()),
+                    error.to_string(),
+                )
+            }
+        }
+        impl From<terrane_string_support::DecodeError> for TerraneError {
+            fn from(error: terrane_string_support::DecodeError) -> Self {
+                Self::new(
+                    TerraneErrorKind::DecodeError,
+                    error.to_string().trim_start_matches(".decode-error: "),
+                )
+            }
+        }
+        impl From<terrane_collection_support::IndexError> for TerraneError {
+            fn from(error: terrane_collection_support::IndexError) -> Self {
+                Self::new(TerraneErrorKind::IndexError, error.to_string())
+            }
+        }
+        impl From<terrane_collection_support::MissingKey> for TerraneError {
+            fn from(error: terrane_collection_support::MissingKey) -> Self {
+                Self::new(TerraneErrorKind::MissingKey, error.to_string())
+            }
+        }
+        impl From<terrane_collection_support::RangeStepError> for TerraneError {
+            fn from(error: terrane_collection_support::RangeStepError) -> Self {
+                Self::new(TerraneErrorKind::SourceError, error.to_string())
+            }
+        }
+        fn __terrane_uncaught(error: TerraneError) -> ! {
+            eprintln!("{}", error.render());
+            std::process::exit(1);
+        }
+        fn __terrane_generated_defect(message: &str) -> ! {
+            eprintln!(
+                "internal compiler defect: generated program reached an impossible completion: {message}"
+            );
+            std::process::exit(5);
+        }
+        #[allow(dead_code)]
+        enum TerraneCompletion<T> {
+            Normal,
+            Return(T),
+            Error(TerraneError),
+            Break,
+            Continue,
+        }
+    "#});
 }
 
 #[expect(
@@ -962,6 +1126,9 @@ impl Emitter<'_> {
                     self.line("}");
                 }
                 for interface_name in effective_object_interfaces(self.unit, object) {
+                    if interface_name == "throwable" {
+                        continue;
+                    }
                     let interface = self
                         .unit
                         .objects
@@ -1110,11 +1277,17 @@ impl Emitter<'_> {
             .expect("analyzed function declaration must have a semantic contract");
         self.line_start();
         let name = name_override.map_or_else(|| function_name(contract), str::to_owned);
+        let async_main = contract.is_async && contract.name == "main" && receiver.is_none();
         write!(
             self.output,
-            "{}fn {name}(",
+            "{}{}fn {name}(",
             if receiver.is_some() && name_override.is_none() {
                 "pub "
+            } else {
+                ""
+            },
+            if contract.is_async && !async_main {
+                "async "
             } else {
                 ""
             }
@@ -1147,7 +1320,34 @@ impl Emitter<'_> {
         {
             write!(self.output, " -> {}", rust_value_type(return_type)).unwrap();
         }
+        let block = node
+            .children
+            .iter()
+            .find(|child| child.kind == SyntaxKind::Block);
+        if block.is_none_or(|block| block.children.is_empty())
+            && contract.parameters.is_empty()
+            && !async_main
+            && !function_errors
+        {
+            self.output.push_str(" {}\n");
+            return;
+        }
+        if async_main
+            && block.is_none_or(|block| block.children.is_empty())
+            && contract.parameters.is_empty()
+        {
+            self.output.push_str(" {\n");
+            self.indent += 1;
+            self.line("__terrane_block_on(async move {});");
+            self.indent -= 1;
+            self.line("}");
+            return;
+        }
         self.output.push_str(" {\n");
+        if async_main {
+            self.indent += 1;
+            self.line("__terrane_block_on(async move {");
+        }
         let outer_return_type =
             std::mem::replace(&mut self.return_type, contract.return_type.clone());
         let outer_function_errors = std::mem::replace(&mut self.function_errors, function_errors);
@@ -1171,10 +1371,6 @@ impl Emitter<'_> {
                 .collect(),
         );
         self.indent += 1;
-        let block = node
-            .children
-            .iter()
-            .find(|child| child.kind == SyntaxKind::Block);
         let unused_parameters = contract
             .parameters
             .iter()
@@ -1210,6 +1406,10 @@ impl Emitter<'_> {
         self.parameter_types = outer_parameter_types;
         self.current_function = outer_function;
         self.indent -= 1;
+        if async_main {
+            self.line("});");
+            self.indent -= 1;
+        }
         self.line("}");
     }
 
@@ -1463,15 +1663,15 @@ impl Emitter<'_> {
             return None;
         }
         let receiver_type = self.receiver_value_type(receiver)?;
-        let receiver = self.receiver_guard_expression(receiver);
+        let receiver_value = self.receiver_guard_expression(receiver);
         let values = arguments
             .children
             .iter()
             .map(|argument| argument.children.last().unwrap_or(argument))
             .collect::<Vec<_>>();
-        match (receiver_type, self.text(member)) {
+        let mutation = match (receiver_type, self.text(member)) {
             (ValueType::List(item), "append") => Some(format!(
-                "({receiver}).append({})",
+                "({receiver_value}).append({})",
                 self.expression_as(values[0], item.value_type())
             )),
             (ValueType::List(item), "set") => {
@@ -1481,21 +1681,22 @@ impl Emitter<'_> {
                     node,
                 );
                 let value = self.expression_as(values[1], item.value_type());
-                Some(self.fallible(format!("({receiver}).set({index}, {value})"), node))
+                Some(self.fallible(format!("({receiver_value}).set({index}, {value})"), node))
             }
             (ValueType::Map(key, value) | ValueType::UnorderedMap(key, value), "set") => {
                 Some(format!(
-                    "({receiver}).set({}, {})",
+                    "({receiver_value}).set({}, {})",
                     self.expression_as(values[0], key.value_type()),
                     self.expression_as(values[1], value.value_type())
                 ))
             }
             (ValueType::Set(item) | ValueType::UnorderedSet(item), "add") => Some(format!(
-                "({receiver}).add({})",
+                "({receiver_value}).add({})",
                 self.expression_as(values[0], item.value_type())
             )),
             _ => None,
-        }
+        };
+        mutation.map(|mutation| self.wrap_receiver_guard(receiver, mutation))
     }
 
     fn assignment(&mut self, node: &SyntaxNode) {
@@ -1518,12 +1719,15 @@ impl Emitter<'_> {
                     let value = self.expression_as(value, item.value_type());
                     let mutation =
                         self.fallible(format!("({receiver_value}).set({index}, {value})"), node);
+                    let mutation = self.wrap_receiver_guard(receiver, mutation);
                     self.line(&format!("let _ = {mutation};"));
                 }
                 ValueType::Map(key, value_type) | ValueType::UnorderedMap(key, value_type) => {
                     let key = self.expression_as(index, key.value_type());
                     let value = self.expression_as(value, value_type.value_type());
-                    self.line(&format!("let _ = ({receiver_value}).set({key}, {value});"));
+                    let mutation = format!("({receiver_value}).set({key}, {value})");
+                    let mutation = self.wrap_receiver_guard(receiver, mutation);
+                    self.line(&format!("let _ = {mutation};"));
                 }
                 _ => {}
             }
@@ -1569,7 +1773,10 @@ impl Emitter<'_> {
         let reference_backed =
             assigned_binding.is_some_and(|binding| self.reference_backed(binding));
         let target = if reference_backed {
-            format!("*{}.lock()", rust_name(self.text(left)))
+            format!(
+                "*{}.lock().expect(\"reference lock poisoned\")",
+                rust_name(self.text(left))
+            )
         } else if left.kind == SyntaxKind::Name {
             rust_name(self.text(left))
         } else if let [receiver, member] = left.children.as_slice()
@@ -1594,11 +1801,26 @@ impl Emitter<'_> {
     }
 
     fn error_kind(&self, node: &SyntaxNode) -> String {
+        let descriptor = if node.kind == SyntaxKind::CallExpression {
+            node.children.first().unwrap_or(node)
+        } else {
+            node
+        };
         self.package
-            .resolve_name_at(self.unit, node.span.start, self.text(node))
-            .and_then(|symbol| symbol.identity.strip_prefix("/core/errors::"))
-            .unwrap_or_else(|| self.text(node).trim().trim_start_matches('.'))
-            .to_owned()
+            .resolve_name_at(self.unit, descriptor.span.start, self.text(descriptor))
+            .and_then(|symbol| {
+                symbol
+                    .identity
+                    .strip_prefix("/core/errors::")
+                    .map(str::to_owned)
+                    .or_else(|| Some(symbol.name.clone()))
+            })
+            .unwrap_or_else(|| {
+                self.text(descriptor)
+                    .trim()
+                    .trim_start_matches('.')
+                    .to_owned()
+            })
     }
 
     fn throw_statement(&mut self, node: &SyntaxNode) {
@@ -1621,11 +1843,18 @@ impl Emitter<'_> {
         };
         let name = self.error_kind(error_node);
         let context = self.error_context(node);
-        let mut error = format!(
-            "TerraneError::new(TerraneErrorKind::{}, \"{}\").at(\"{context}\")",
-            rust_error_kind(&name),
-            error_message(&name),
-        );
+        let kind = rust_error_kind(&name);
+        let mut error = if kind.starts_with("Custom(") {
+            let value = self.expression(error_node);
+            format!(
+                "{{ let value = {value}; TerraneError::new(TerraneErrorKind::{kind}, value.render()).at(\"{context}\") }}"
+            )
+        } else {
+            format!(
+                "TerraneError::new(TerraneErrorKind::{kind}, \"{}\").at(\"{context}\")",
+                error_message(&name),
+            )
+        };
         if let Some(current_error) = &self.current_error {
             error = format!(
                 "{{ let mut error = {error}; error.cause = Some(Box::new({current_error}.clone())); error }}"
@@ -1826,10 +2055,11 @@ impl Emitter<'_> {
             .typed_bindings
             .iter()
             .find(|binding| binding.span == node.span);
+        let reference_backed = binding.is_some_and(|binding| self.reference_backed(binding));
         let storage_type = binding
             .and_then(|binding| binding.storage_type)
+            .filter(|_| !reference_backed)
             .filter(|_| !binding_span_is_mutated(self.package, self.unit, node.span, true));
-        let reference_backed = binding.is_some_and(|binding| self.reference_backed(binding));
         let ty = binding.map(|binding| {
             let value_type = if !binding.destination_arms.is_empty() {
                 union_type_name(binding)
@@ -1839,7 +2069,7 @@ impl Emitter<'_> {
                 rust_value_type(binding.value_type.clone())
             };
             if reference_backed {
-                format!("std::sync::Arc<parking_lot::Mutex<{value_type}>>")
+                format!("std::sync::Arc<std::sync::Mutex<{value_type}>>")
             } else {
                 value_type
             }
@@ -1886,7 +2116,7 @@ impl Emitter<'_> {
             };
             let value = Self::unwrapped_expression(value);
             let value = if reference_backed {
-                format!("std::sync::Arc::new(parking_lot::Mutex::new({value}))")
+                format!("std::sync::Arc::new(std::sync::Mutex::new({value}))")
             } else {
                 value
             };
@@ -2081,7 +2311,22 @@ impl Emitter<'_> {
         match node.kind {
             SyntaxKind::Literal => literal(self.text(node)),
             SyntaxKind::AnonymousFunction => self.anonymous_function(node),
-            SyntaxKind::Name => self.name(node),
+            SyntaxKind::Name => {
+                let binding = self.unit.typed_bindings.iter().rev().find(|binding| {
+                    binding.name == self.text(node)
+                        && binding.is_visible_at(self.unit.source.id(), node.span.start)
+                });
+                match self.value_type(node) {
+                    Some(ValueType::Descriptor(identity))
+                        if binding.is_none_or(|binding| binding.scope.is_none()) =>
+                    {
+                        format!(
+                            "TerraneDescriptor {{ identity: {identity:?}, name: {identity:?}, kind: \"type\" }}"
+                        )
+                    }
+                    _ => self.name(node),
+                }
+            }
             SyntaxKind::GroupExpression => node
                 .children
                 .first()
@@ -2113,6 +2358,9 @@ impl Emitter<'_> {
                         ),
                         _ => self.reference_storage_expression(operand),
                     };
+                }
+                if source_operator == "await" {
+                    return format!("__terrane_await({}).await", self.expression(operand));
                 }
                 if source_operator == "move" {
                     return match operand.kind {
@@ -2560,7 +2808,11 @@ impl Emitter<'_> {
                     return String::new();
                 };
                 let operator = self.unary_operator(node).unwrap_or_default();
-                format!("{operator}{}", self.adaptive_expression(operand))
+                if operator == "await" {
+                    format!("__terrane_await({}).await", self.expression(operand))
+                } else {
+                    format!("{operator}{}", self.adaptive_expression(operand))
+                }
             }
             SyntaxKind::BinaryExpression => self.adaptive_binary(node),
             SyntaxKind::MemberExpression
@@ -2680,11 +2932,18 @@ impl Emitter<'_> {
             || left_type == Some(ValueType::Scalar(ScalarType::None));
         let right_is_none = self.text(right).trim() == "none"
             || right_type == Some(ValueType::Scalar(ScalarType::None));
+        let presence_check = |value: String| {
+            if operator == "==" {
+                format!("({value}).is_none()")
+            } else {
+                format!("({value}).is_some()")
+            }
+        };
         if is_optional(left_type) && right_is_none {
-            return Some(format!("({} {operator} None)", self.expression(left)));
+            return Some(presence_check(self.expression(left)));
         }
         if left_is_none && is_optional(right_type) {
-            return Some(format!("(None {operator} {})", self.expression(right)));
+            return Some(presence_check(self.expression(right)));
         }
         None
     }
@@ -3047,11 +3306,11 @@ impl Emitter<'_> {
     fn receiver_expression(&mut self, receiver: &SyntaxNode) -> String {
         match self.value_type(receiver) {
             Some(ValueType::SharedReference(_)) => format!(
-                "({{ let __terrane_value = {}.lock().clone(); __terrane_value }})",
+                "({{ let __terrane_value = {}.lock().expect(\"shared reference lock poisoned\").clone(); __terrane_value }})",
                 self.expression(receiver)
             ),
             Some(ValueType::Reference(_)) => format!(
-                "({{ let __terrane_owner = {}.upgrade().expect(\"reference expired\"); let __terrane_value = __terrane_owner.lock().clone(); __terrane_value }})",
+                "({{ let __terrane_owner = {}.upgrade().expect(\"reference expired\"); let __terrane_value = __terrane_owner.lock().expect(\"reference lock poisoned\").clone(); __terrane_value }})",
                 self.expression(receiver)
             ),
             _ => self.expression(receiver),
@@ -3060,15 +3319,31 @@ impl Emitter<'_> {
 
     fn receiver_guard_expression(&mut self, receiver: &SyntaxNode) -> String {
         match self.value_type(receiver) {
-            Some(ValueType::SharedReference(_)) => format!("{}.lock()", self.expression(receiver)),
-            Some(ValueType::Reference(_)) => format!(
-                "parking_lot::Mutex::lock_arc(&{}.upgrade().expect(\"reference expired\"))",
+            Some(ValueType::SharedReference(_)) => format!(
+                "{}.lock().expect(\"shared reference lock poisoned\")",
                 self.expression(receiver)
             ),
+            Some(ValueType::Reference(_)) => {
+                "__terrane_owner.lock().expect(\"reference lock poisoned\")".to_owned()
+            }
             _ if self.reference_backed_name(receiver).is_some() => {
-                format!("{}.lock()", rust_name(self.text(receiver)))
+                format!(
+                    "{}.lock().expect(\"reference lock poisoned\")",
+                    self.name(receiver)
+                )
             }
             _ => self.expression(receiver),
+        }
+    }
+
+    fn wrap_receiver_guard(&mut self, receiver: &SyntaxNode, expression: String) -> String {
+        if matches!(self.value_type(receiver), Some(ValueType::Reference(_))) {
+            format!(
+                "({{ let __terrane_owner = {}.upgrade().expect(\"reference expired\"); {expression} }})",
+                self.expression(receiver)
+            )
+        } else {
+            expression
         }
     }
 
@@ -3084,7 +3359,9 @@ impl Emitter<'_> {
     }
 
     fn display_expression(&mut self, node: &SyntaxNode) -> String {
-        if matches!(
+        if matches!(self.value_type(node), Some(ValueType::Descriptor(_))) {
+            format!("({}).name", self.borrowed_expression(node))
+        } else if matches!(
             self.value_type(node),
             Some(ValueType::Reference(_) | ValueType::SharedReference(_))
         ) {
@@ -3103,6 +3380,64 @@ impl Emitter<'_> {
             return String::new();
         };
         let receiver_type = self.receiver_value_type(receiver);
+        if let Some(ValueType::Descriptor(_)) = &receiver_type {
+            let receiver = self.expression(receiver);
+            return match self.text(member) {
+                "name" => format!("({receiver}).name.to_owned()"),
+                "kind" => format!("({receiver}).kind.to_owned()"),
+                "identity" => format!("({receiver}).identity.to_owned()"),
+                _ => String::new(),
+            };
+        }
+        if matches!(
+            receiver_type,
+            Some(ValueType::Function(_, _) | ValueType::AsyncFunction(_, _))
+        ) && matches!(
+            self.text(member),
+            "contracts" | "throwable-contract" | "escaping-throwables"
+        ) {
+            let reflected = self
+                .unit
+                .functions
+                .iter()
+                .find(|contract| contract.name == self.text(receiver))
+                .map(|contract| match self.text(member) {
+                    "escaping-throwables" => contract
+                        .escaping_throwables
+                        .iter()
+                        .map(|identity| {
+                            identity
+                                .rsplit_once("::")
+                                .map_or(identity.as_str(), |(_, name)| name)
+                        })
+                        .collect::<Vec<_>>()
+                        .join("|"),
+                    "throwable-contract" => contract
+                        .thrown_types
+                        .iter()
+                        .map(ToString::to_string)
+                        .collect::<Vec<_>>()
+                        .join("|"),
+                    _ if contract.throws => "throws".to_owned(),
+                    _ => String::new(),
+                })
+                .unwrap_or_default();
+            return format!(
+                "{{ let _ = {}; {:?}.to_owned() }}",
+                self.expression(receiver),
+                reflected
+            );
+        }
+        if let Some(ValueType::TaskOutcome(_)) = &receiver_type {
+            let receiver = self.expression(receiver);
+            return match self.text(member) {
+                "completed" => format!("({receiver}).completed"),
+                "cancelled" => format!("({receiver}).cancelled"),
+                "value" => format!("({receiver}).value.clone()"),
+                "error" => format!("({receiver}).error"),
+                _ => String::new(),
+            };
+        }
         if let Some(length) =
             self.direct_string_view_length(receiver, receiver_type.clone(), member)
         {
@@ -3223,6 +3558,50 @@ impl Emitter<'_> {
         let [callee, arguments] = node.children.as_slice() else {
             return String::new();
         };
+        if callee.kind == SyntaxKind::Name && self.text(callee) == "task-scope" {
+            let deadline = arguments.children.first().map_or_else(
+                || "None".to_owned(),
+                |argument| {
+                    let value = argument.children.last().unwrap_or(argument);
+                    format!("Some(({}) as u64)", self.expression(value))
+                },
+            );
+            return format!("TerraneTaskScope::new({deadline})");
+        }
+        if callee.kind == SyntaxKind::MemberExpression
+            && let [receiver, member] = callee.children.as_slice()
+            && self.receiver_value_type(receiver) == Some(ValueType::TaskScope)
+        {
+            let receiver = self.expression(receiver);
+            return match self.text(member) {
+                "spawn" => arguments.children.first().map_or_else(String::new, |argument| {
+                    let callable = argument.children.last().unwrap_or(argument);
+                    let throws = self
+                        .contract_for_call(callable)
+                        .is_some_and(|contract| contract.throws);
+                    let callable = self.expression(callable);
+                    if throws {
+                        format!(
+                            "{{ let __terrane_scope = ({receiver}).clone(); let __terrane_cancel = __terrane_scope.clone(); TerraneScopedTask::spawn(move || match __terrane_block_on_cancellable(({callable})(), move || __terrane_cancel.should_cancel()) {{ Some(Ok(value)) => TerraneTaskResult::Completed(value), Some(Err(error)) => TerraneTaskResult::Failed(error), None => TerraneTaskResult::Cancelled }}) }}"
+                        )
+                    } else {
+                        format!(
+                            "{{ let __terrane_scope = ({receiver}).clone(); let __terrane_cancel = __terrane_scope.clone(); TerraneScopedTask::spawn(move || match __terrane_block_on_cancellable(({callable})(), move || __terrane_cancel.should_cancel()) {{ Some(value) => TerraneTaskResult::Completed(value), None => TerraneTaskResult::Cancelled }}) }}"
+                        )
+                    }
+                }),
+                "join" => arguments.children.first().map_or_else(String::new, |argument| {
+                    let task = argument.children.last().unwrap_or(argument);
+                    format!("({receiver}).join({})", self.expression(task))
+                }),
+                "cancel" => format!("({receiver}).cancel()"),
+                "child-scope" => arguments.children.first().map_or_else(String::new, |argument| {
+                    let deadline = argument.children.last().unwrap_or(argument);
+                    format!("({receiver}).child_scope(({}) as u64)", self.expression(deadline))
+                }),
+                _ => String::new(),
+            };
+        }
         if callee.kind == SyntaxKind::Name
             && let Some(object) =
                 self.unit.objects.iter().find(|object| {
@@ -3338,7 +3717,7 @@ impl Emitter<'_> {
                 _ => None,
             };
             if let Some(call) = call {
-                return call;
+                return self.wrap_receiver_guard(receiver, call);
             }
         }
         if let Some(method) = bound_method(self.source, callee)
@@ -3635,6 +4014,13 @@ impl Emitter<'_> {
             self.expression(callee)
         };
         let call = format!("{name}({})", values.join(", "));
+        let call = if contract.as_ref().is_some_and(|contract| contract.is_async)
+            && matches!(self.value_type(node), Some(ValueType::Task(_)))
+        {
+            format!("Box::pin({call})")
+        } else {
+            call
+        };
         if contract.is_some_and(|contract| contract.throws) {
             let context = self.error_context(node);
             if self.try_completion {
@@ -4183,7 +4569,7 @@ impl Emitter<'_> {
             && self.reference_backed(binding)
         {
             return format!(
-                "({{ let __terrane_value = {}.lock().clone(); __terrane_value }})",
+                "({{ let __terrane_value = {}.lock().expect(\"reference lock poisoned\").clone(); __terrane_value }})",
                 rust_name(source_name)
             );
         }
@@ -4817,6 +5203,10 @@ fn rust_element_type(ty: ElementType) -> String {
     rust_value_type(ty.value_type())
 }
 
+#[expect(
+    clippy::too_many_lines,
+    reason = "the closed semantic value-type enum has one exhaustive Rust representation mapping"
+)]
 fn rust_value_type(ty: ValueType) -> String {
     match ty {
         ValueType::Scalar(scalar) => rust_type(scalar).to_owned(),
@@ -4898,13 +5288,36 @@ fn rust_value_type(ty: ValueType) -> String {
                 .join(", "),
             rust_element_type(result)
         ),
+        ValueType::AsyncFunction(parameters, result) => format!(
+            "std::sync::Arc<dyn Fn({}) -> std::pin::Pin<Box<dyn Future<Output = {}>>>>",
+            parameters
+                .into_iter()
+                .map(rust_element_type)
+                .collect::<Vec<_>>()
+                .join(", "),
+            rust_element_type(result)
+        ),
+        ValueType::Task(result) => {
+            format!(
+                "std::pin::Pin<Box<dyn Future<Output = {}>>>",
+                rust_element_type(result)
+            )
+        }
+        ValueType::ScopedTask(result) => {
+            format!("TerraneScopedTask<{}>", rust_element_type(result))
+        }
+        ValueType::TaskScope => "TerraneTaskScope".to_owned(),
+        ValueType::TaskOutcome(result) => {
+            format!("TerraneTaskOutcome<{}>", rust_element_type(result))
+        }
+        ValueType::Descriptor(_) => "TerraneDescriptor".to_owned(),
         ValueType::Object(name) => rust_object_name(&name),
         ValueType::SharedReference(item) => format!(
-            "std::sync::Arc<parking_lot::Mutex<{}>>",
+            "std::sync::Arc<std::sync::Mutex<{}>>",
             rust_element_type(item)
         ),
         ValueType::Reference(item) => format!(
-            "std::sync::Weak<parking_lot::Mutex<{}>>",
+            "std::sync::Weak<std::sync::Mutex<{}>>",
             rust_element_type(item)
         ),
     }
@@ -5015,18 +5428,19 @@ fn statement_may_fall_through(statement: &SyntaxNode) -> bool {
     }
 }
 
-fn rust_error_kind(kind: &str) -> &'static str {
+fn rust_error_kind(kind: &str) -> String {
     match kind {
-        "arithmetic-overflow" => "ArithmeticOverflow",
-        "division-by-zero" => "DivisionByZero",
-        "integer-conversion-overflow" => "IntegerConversionOverflow",
-        "negative-shift-count" => "NegativeShiftCount",
-        "coercion-error" => "CoercionError",
-        "decode-error" => "DecodeError",
-        "index-error" => "IndexError",
-        "missing-key" => "MissingKey",
-        "resource-error" => "ResourceError",
-        _ => "SourceError",
+        "arithmetic-overflow" => "ArithmeticOverflow".to_owned(),
+        "division-by-zero" => "DivisionByZero".to_owned(),
+        "integer-conversion-overflow" => "IntegerConversionOverflow".to_owned(),
+        "negative-shift-count" => "NegativeShiftCount".to_owned(),
+        "coercion-error" => "CoercionError".to_owned(),
+        "decode-error" => "DecodeError".to_owned(),
+        "index-error" => "IndexError".to_owned(),
+        "missing-key" => "MissingKey".to_owned(),
+        "resource-error" => "ResourceError".to_owned(),
+        "error" | "throwable" => "SourceError".to_owned(),
+        custom => format!("Custom({custom:?})"),
     }
 }
 
@@ -5138,4 +5552,20 @@ fn display_path(path: &std::path::Path) -> String {
         .and_then(std::ffi::OsStr::to_str)
         .unwrap_or("<memory>")
         .to_owned()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::emit_error_support;
+
+    #[test]
+    fn error_support_is_canonical_rust() {
+        for has_custom_throwable in [false, true] {
+            let mut emitted = String::new();
+            emit_error_support(&mut emitted, has_custom_throwable);
+            let parsed = syn::parse_file(&emitted).unwrap();
+
+            assert_eq!(prettyplease::unparse(&parsed), emitted);
+        }
+    }
 }

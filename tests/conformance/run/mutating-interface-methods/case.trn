@@ -2,7 +2,7 @@ namespace mutating-interface-methods
 
 interface adjustable
     function increase int; amount int
-    function read int
+    function read int;
 
 class counter implements adjustable
     value int = 1
@@ -11,10 +11,10 @@ class counter implements adjustable
         this.value = this.value + amount
         return this.value
 
-    function read int
+    function read int;
         return this.value
 
-function main
+function main;
     value adjustable = counter;
     print; (value.increase; 4)
     print; (value.read;)

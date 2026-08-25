@@ -1,7 +1,7 @@
 namespace integer-coercions
 from /core/types import int8, uint8
 
-function main
+function main;
   value int = 300
   same int = value.coerce; int
   exact = 120.coerce; int8

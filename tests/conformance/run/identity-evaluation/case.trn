@@ -2,6 +2,6 @@ namespace identity-evaluation
 function observed int; item int
   print; item
   return item
-function main
+function main;
   print; (((observed; 1) + 1) is a int)
   print; ((observed; 2).type is (observed; 3).type)

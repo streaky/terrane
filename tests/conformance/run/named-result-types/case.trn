@@ -1,13 +1,14 @@
 namespace named-result-types
 from /core/types import int8, overflow-result, div-rem-result
-function pass overflow-result of int8
+from /core/errors import throwable
+function pass overflow-result of int8;
   small int8 = 120
   result overflow-result of int8 = small.add.overflowing; 10
   return result
-throws function divide div-rem-result of int8
+function divide div-rem-result of int8 throws throwable;
   small int8 = 7
   return small.div-rem; 3
-function main
+function main;
   result = pass;
   print; result.value, result.overflowed
   pair = divide;

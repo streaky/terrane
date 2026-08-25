@@ -1,6 +1,11 @@
 use std::path::PathBuf;
 
 const HELLO: &str = include_str!("../../../tests/conformance/run/hello/case.trn");
+const ASYNC_AWAIT: &str = include_str!("../../../tests/conformance/run/async-await/case.trn");
+
+fn normalized_rust(rust: &str) -> String {
+    rust.split_whitespace().collect::<Vec<_>>().join(" ")
+}
 
 #[test]
 fn hello_lowers_deterministically() {
@@ -14,7 +19,7 @@ fn hello_lowers_deterministically() {
             .iter()
             .map(|file| file.path.as_str())
             .collect::<Vec<_>>(),
-        ["src/authored/unit-0000.rs", "src/main.rs"]
+        ["src/authored/case.trn.rs", "src/main.rs"]
     );
     assert!(
         first
@@ -24,8 +29,47 @@ fn hello_lowers_deterministically() {
 }
 
 #[test]
+fn canonical_rust_requirement_accepts_formatted_lowering() {
+    let compilation = terrane_compiler::compile_with_options(
+        PathBuf::from("case.trn"),
+        HELLO.to_owned(),
+        terrane_compiler::CompilerOptions {
+            require_canonical_rust: true,
+        },
+    )
+    .unwrap();
+
+    assert_eq!(compilation.rust_files.len(), 2);
+}
+
+#[test]
+fn compiler_runtime_support_uses_named_generated_files() {
+    let compilation =
+        terrane_compiler::compile(PathBuf::from("async-await.trn"), ASYNC_AWAIT.to_owned())
+            .unwrap();
+    assert_eq!(
+        compilation
+            .rust_files
+            .iter()
+            .map(|file| file.path.as_str())
+            .collect::<Vec<_>>(),
+        [
+            "src/runtime/async.rs",
+            "src/authored/async-await.trn.rs",
+            "src/main.rs",
+        ]
+    );
+    assert_eq!(
+        compilation.rust_files.last().unwrap().contents,
+        "// Generated deterministically by Terrane 0.1.0.\n\
+         include!(\"runtime/async.rs\");\n\
+         include!(\"authored/async-await.trn.rs\");\n"
+    );
+}
+
+#[test]
 fn inferred_local_reassignment_lowers_as_assignment() {
-    let source = "namespace inferred\nfunction main\n  total = 5\n  total = total + 1\n";
+    let source = "namespace inferred\nfunction main;\n  total = 5\n  total = total + 1\n";
     let compilation = terrane_compiler::compile("inferred.trn", source.to_owned()).unwrap();
 
     assert!(compilation.rust.contains(
@@ -44,14 +88,14 @@ fn annotated_replacement_lowers_as_source_ordered_shadowing() {
     let source = concat!(
         "namespace replacement\n",
         "from /core/types import int8\n",
-        "function main\n",
+        "function main;\n",
         "  value int8 = 12\n",
         "  value int = value.coerce; int\n",
         "  print; value\n",
-        "function second\n",
+        "function second;\n",
         "  value int8 = 7\n",
         "  print; value\n",
-        "function blocks\n",
+        "function blocks;\n",
         "  if true\n",
         "    value int8 = 1\n",
         "    value int = value.coerce; int\n",
@@ -80,7 +124,7 @@ fn rejects_duplicate_declarations() {
             "S0005",
             "duplicate namespace declaration",
         ),
-        ("function main", "S2005", "duplicate declaration `main`"),
+        ("function main;", "S2005", "duplicate declaration `main`"),
     ];
 
     for (construct, code, message) in cases {
@@ -109,8 +153,8 @@ fn rejects_mixed_indentation() {
 fn blank_lines_do_not_select_indentation_style() {
     let source = HELLO
         .replace(
-            "function main\n  print; >>",
-            "function main\n \n\tprint; >>",
+            "function main;\n  print; >>",
+            "function main;\n \n\tprint; >>",
         )
         .replace("\n    Hello from Terrane!", "\n\t\tHello from Terrane!")
         .replace("\n    Tail strings", "\n\t\tTail strings");
@@ -124,14 +168,12 @@ fn permits_a_comment_after_a_closed_quote() {
         "print; 'hello' # trailing comment",
     );
     let compilation = terrane_compiler::compile("trailing-comment.trn", source).unwrap();
-    assert!(compilation.rust.contains(
-        "println!(\"{}\", terrane_scalar_support::scalar_text(&(String::from(\"hello\"))));"
-    ));
+    assert!(compilation.rust.contains("String::from(\"hello\")"));
 }
 
 #[test]
 fn compilation_failure_owns_the_original_source() {
-    let source = "namespace app\nfunction main\n  print; missing\n".to_owned();
+    let source = "namespace app\nfunction main;\n  print; missing\n".to_owned();
     let failure = terrane_compiler::compile("owned.trn", source.clone()).unwrap_err();
     assert_eq!(failure.source.text(), source);
     assert_eq!(failure.source.path(), PathBuf::from("owned.trn").as_path());
@@ -159,11 +201,7 @@ fn tail_string_can_be_empty() {
         "print; >",
     );
     let compilation = terrane_compiler::compile("empty-tail.trn", source).unwrap();
-    assert!(
-        compilation.rust.contains(
-            "println!(\"{}\", terrane_scalar_support::scalar_text(&(String::from(\"\"))));"
-        )
-    );
+    assert!(compilation.rust.contains("String::from(\"\")"));
 }
 
 #[test]
@@ -173,9 +211,7 @@ fn tail_string_preserves_leading_whitespace() {
         "print; > hello",
     );
     let compilation = terrane_compiler::compile("leading-space.trn", source).unwrap();
-    assert!(compilation.rust.contains(
-        "println!(\"{}\", terrane_scalar_support::scalar_text(&(String::from(\" hello\"))));"
-    ));
+    assert!(compilation.rust.contains("String::from(\" hello\")"));
 }
 #[test]
 fn block_string_can_be_empty() {
@@ -184,11 +220,7 @@ fn block_string_can_be_empty() {
         "print; >>",
     );
     let compilation = terrane_compiler::compile("string.trn", source).unwrap();
-    assert!(
-        compilation.rust.contains(
-            "println!(\"{}\", terrane_scalar_support::scalar_text(&(String::from(\"\"))));"
-        )
-    );
+    assert!(compilation.rust.contains("String::from(\"\")"));
 }
 
 #[test]
@@ -248,12 +280,12 @@ fn compilation_uses_the_shared_parser_before_semantics() {
 fn lowers_collection_and_three_clause_for_loops_without_losing_continue_updates() {
     let collection = terrane_compiler::compile(
         "collection.trn",
-        "namespace app\nfunction main\n  text string = 'ab'\n  for character in text\n    value = character\n"
+        "namespace app\nfunction main;\n  text string = 'ab'\n  for character in text\n    value = character\n"
             .to_owned(),
     )
     .unwrap();
     assert!(collection.rust.contains(
-        "let mut __terrane_iterator_0 = terrane_collection_support::string_iterator(&(text));"
+        "let mut __terrane_iterator_0 = terrane_collection_support::string_iterator(&text);"
     ));
     assert!(
         collection
@@ -268,7 +300,7 @@ fn lowers_collection_and_three_clause_for_loops_without_losing_continue_updates(
 
     let clauses = terrane_compiler::compile(
         "clauses.trn",
-        "namespace app\nfunction main\n  for index = 0; index < 3; index++\n    if index == 1\n      continue\n"
+        "namespace app\nfunction main;\n  for index = 0; index < 3; index++\n    if index == 1\n      continue\n"
             .to_owned(),
     )
     .unwrap();
@@ -288,52 +320,25 @@ fn lowers_scalar_membership_and_descriptor_identity_statically() {
         "from /core/types import int8 as byte, int8 as other-byte\n",
         "function accepts; item int\n",
         "  parameter-member = item is a int\n",
-        "function main\n",
+        "function main;\n",
         "  value = 1\n",
         "  member = value is a int\n",
         "  same-descriptor = byte is byte\n",
         "  different-alias = byte is other-byte\n",
         "  same-scalar = value is value\n",
         "  same-value-type = value.type is value.type\n",
-        "  different-value-type = value.type is byte.type\n",
+        "  different-value-type = value.type is byte\n",
     );
     let compilation = terrane_compiler::compile("descriptors.trn", source.to_owned()).unwrap();
+    let rust = normalized_rust(&compilation.rust);
 
-    assert!(
-        compilation
-            .rust
-            .contains("let member: bool = { let _ = &value; true };")
-    );
-    assert!(
-        compilation
-            .rust
-            .contains("let parameter_member: bool = { let _ = &item; true };")
-    );
-    assert!(
-        compilation
-            .rust
-            .contains("let same_descriptor: bool = {  true };")
-    );
-    assert!(
-        compilation
-            .rust
-            .contains("let different_alias: bool = {  true };")
-    );
-    assert!(
-        compilation
-            .rust
-            .contains("let same_scalar: bool = { let _ = value; let _ = value; false };")
-    );
-    assert!(
-        compilation
-            .rust
-            .contains("let same_value_type: bool = { let _ = value; let _ = value; true };")
-    );
-    assert!(
-        compilation
-            .rust
-            .contains("let different_value_type: bool = { let _ = value; false };")
-    );
+    assert!(rust.contains("let member: bool = { let _ = &value; true };"));
+    assert!(rust.contains("let parameter_member: bool = { let _ = &item; true };"));
+    assert!(rust.contains("let same_descriptor: bool = { true };"));
+    assert!(rust.contains("let different_alias: bool = { true };"));
+    assert!(rust.contains("let same_scalar: bool = { let _ = value; let _ = value; false };"));
+    assert!(rust.contains("let same_value_type: bool = { let _ = value; let _ = value; true };"));
+    assert!(rust.contains("let different_value_type: bool = { let _ = value; false };"));
 }
 
 #[test]
@@ -342,16 +347,15 @@ fn lowers_named_arguments_into_parameter_order_with_defaults() {
         "namespace calls\n",
         "function combine int; first int, second int = 2, third int = 3\n",
         "  return first + second + third\n",
-        "function main\n",
+        "function main;\n",
         "  result = combine; 1, third = 9\n",
     );
     let compilation = terrane_compiler::compile("calls.trn", source.to_owned()).unwrap();
-
-    assert!(compilation.rust.contains(
-        "combine(terrane_int_support::Int::from(1_i128), \
-terrane_int_support::Int::from(2_i128), \
-terrane_int_support::Int::from(9_i128))"
-    ));
+    let rust = normalized_rust(&compilation.rust);
+    assert!(rust.contains("let result: terrane_int_support::Int = combine("));
+    assert!(rust.contains("terrane_int_support::Int::from(1_i128)"));
+    assert!(rust.contains("terrane_int_support::Int::from(2_i128)"));
+    assert!(rust.contains("terrane_int_support::Int::from(9_i128)"));
 }
 
 #[test]
@@ -360,7 +364,7 @@ fn does_not_lower_shadowing_functions_as_builtins() {
         "namespace shadowing\n",
         "function print int; value int\n",
         "  return value\n",
-        "function main\n",
+        "function main;\n",
         "  result = print; 1\n",
     );
     let compilation = terrane_compiler::compile("shadowing.trn", source.to_owned()).unwrap();
@@ -377,7 +381,7 @@ fn does_not_lower_shadowing_functions_as_builtins() {
 fn unwraps_only_syntactic_condition_groups() {
     let source = concat!(
         "namespace conditions\n",
-        "function main\n",
+        "function main;\n",
         "  if ((true))\n",
         "    print; 'yes'\n",
     );
@@ -390,7 +394,7 @@ fn unwraps_only_syntactic_condition_groups() {
 fn lowers_logical_combinations_of_integer_comparisons() {
     let source = concat!(
         "namespace conditions\n",
-        "function main\n",
+        "function main;\n",
         "  x int = 5\n",
         "  y int = 9\n",
         "  if x > 1 and y > 2\n",
@@ -398,37 +402,28 @@ fn lowers_logical_combinations_of_integer_comparisons() {
     );
     let compilation = terrane_compiler::compile("conditions.trn", source.to_owned()).unwrap();
 
-    assert!(compilation.rust.contains("if (x > 1) && (y > 2) {"));
+    assert!(compilation.rust.contains("if x > 1 && y > 2 {"));
 }
 
 #[test]
 fn lowers_values_in_their_integer_destination_type() {
     let source = concat!(
         "namespace destinations\n",
-        "function answer int\n",
+        "function answer int;\n",
         "  return 41\n",
-        "function main\n",
+        "function main;\n",
         "  text = 'Terrane'\n",
         "  total int = text.length\n",
         "  total = total + 1\n",
     );
     let compilation = terrane_compiler::compile("destinations.trn", source.to_owned()).unwrap();
+    let rust = normalized_rust(&compilation.rust);
 
-    assert!(
-        compilation
-            .rust
-            .contains("return terrane_int_support::Int::from(41_i128);")
-    );
-    assert!(compilation.rust.contains(
-        "let mut total: terrane_int_support::Int = terrane_int_support::Int::from(\
-terrane_string_support::length(&text) as i128);"
-    ));
+    assert!(rust.contains("return terrane_int_support::Int::from(41_i128);"));
+    assert!(rust.contains("let mut total: terrane_int_support::Int"));
+    assert!(rust.contains("terrane_string_support::length(&text) as i128"));
     assert!(!compilation.rust.contains("let _ = &total;"));
-    assert!(
-        compilation
-            .rust
-            .contains("total = total.clone() + terrane_int_support::Int::from(1_i128);")
-    );
+    assert!(rust.contains("total = total.clone() + terrane_int_support::Int::from(1_i128);"));
 }
 
 #[test]
@@ -436,7 +431,7 @@ fn lowers_fixed_width_arithmetic_through_checked_runtime_operations() {
     let source = concat!(
         "namespace fixed\n",
         "from /core/types import int8\n",
-        "function main\n",
+        "function main;\n",
         "  left int8 = 120\n",
         "  right int8 = 10\n",
         "  sum int8 = left + right\n",
@@ -444,14 +439,9 @@ fn lowers_fixed_width_arithmetic_through_checked_runtime_operations() {
         "  shifted int8 = left << right\n",
     );
     let compilation = terrane_compiler::compile("fixed.trn", source.to_owned()).unwrap();
+    let rust = normalized_rust(&compilation.rust);
 
-    assert!(compilation.rust.contains(
-        "terrane_int_support::unwrap_or_fail(terrane_int_support::fixed_addition(left, right))"
-    ));
-    assert!(compilation.rust.contains(
-        "terrane_int_support::unwrap_or_fail(terrane_int_support::fixed_division(left, right))"
-    ));
-    assert!(compilation.rust.contains(
-        "terrane_int_support::unwrap_or_fail(terrane_int_support::fixed_shift_left(left, &right))"
-    ));
+    assert!(rust.contains("terrane_int_support::fixed_addition(left, right)"));
+    assert!(rust.contains("terrane_int_support::fixed_division(left, right)"));
+    assert!(rust.contains("terrane_int_support::fixed_shift_left(left, &right)"));
 }

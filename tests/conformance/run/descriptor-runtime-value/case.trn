@@ -1,4 +1,4 @@
 namespace descriptor-runtime-value
 constant target = int8
-function main
+function main;
   print; target

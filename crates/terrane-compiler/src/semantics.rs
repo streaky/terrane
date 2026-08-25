@@ -70,6 +70,8 @@ pub struct Namespace {
 pub struct SemanticPackage {
     pub identity: String,
     pub prelude: bool,
+    pub reflection: crate::package::ReflectionProfile,
+    pub executor: crate::package::ExecutorProfile,
     pub namespaces: BTreeMap<String, Namespace>,
     pub globals: BTreeMap<String, Symbol>,
     pub prelude_bindings: BTreeMap<String, Symbol>,
@@ -146,6 +148,12 @@ pub enum ValueType {
     UnorderedSet(ElementType),
     Encoding,
     Function(Vec<ElementType>, ElementType),
+    AsyncFunction(Vec<ElementType>, ElementType),
+    Descriptor(String),
+    Task(ElementType),
+    ScopedTask(ElementType),
+    TaskScope,
+    TaskOutcome(ElementType),
     Object(String),
     Reference(ElementType),
     SharedReference(ElementType),
@@ -267,7 +275,25 @@ impl std::fmt::Display for ValueType {
                 }
                 write!(formatter, " to {result}")
             }
+            Self::AsyncFunction(parameters, result) => {
+                formatter.write_str("async function")?;
+                if !parameters.is_empty() {
+                    formatter.write_str(" from ")?;
+                    for (index, parameter) in parameters.iter().enumerate() {
+                        if index != 0 {
+                            formatter.write_str(", ")?;
+                        }
+                        parameter.fmt(formatter)?;
+                    }
+                }
+                write!(formatter, " to {result}")
+            }
+            Self::Task(result) => write!(formatter, "task of {result}"),
+            Self::Descriptor(_) => formatter.write_str("descriptor"),
             Self::Object(name) => formatter.write_str(name),
+            Self::ScopedTask(result) => write!(formatter, "scoped task of {result}"),
+            Self::TaskScope => formatter.write_str("task-scope"),
+            Self::TaskOutcome(result) => write!(formatter, "task-outcome of {result}"),
             Self::Reference(item) => write!(formatter, "ref {}", item.value_type()),
             Self::SharedReference(item) => write!(formatter, "shared ref {}", item.value_type()),
         }
@@ -422,6 +448,10 @@ pub struct ObjectContract {
     pub fields: Vec<ObjectField>,
 }
 
+#[expect(
+    clippy::struct_excessive_bools,
+    reason = "callable contracts retain independent semantic properties"
+)]
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct FunctionContract {
     pub name: String,
@@ -430,7 +460,11 @@ pub struct FunctionContract {
     pub captures: Vec<String>,
     pub parameters: Vec<ParameterContract>,
     pub return_type: Option<ValueType>,
+    pub exported: bool,
+    pub thrown_types: Vec<ValueType>,
+    pub escaping_throwables: BTreeSet<String>,
     pub throws: bool,
+    pub is_async: bool,
     pub mutates_receiver: bool,
 }
 
@@ -473,6 +507,7 @@ pub(crate) enum ContextualConstant {
 #[derive(Clone, Debug)]
 pub struct SemanticUnit {
     pub source: SourceFile,
+    pub source_path: String,
     pub tree: SyntaxTree,
     pub namespace: String,
     prelude: bool,
@@ -643,6 +678,7 @@ fn parse_units(package: &Package) -> Result<Vec<SemanticUnit>, SemanticFailure> 
         let enclosing_function_spans = index_enclosing_function_spans(&parsed.tree.root);
         units.push(SemanticUnit {
             source: source.clone(),
+            source_path: unit.relative_path_text(),
             tree: parsed.tree,
             namespace,
             prelude: package.prelude,
@@ -716,6 +752,8 @@ pub fn analyze(package: &Package) -> Result<SemanticPackage, SemanticFailure> {
     let mut semantic = SemanticPackage {
         identity: package.identity.clone(),
         prelude: package.prelude,
+        reflection: package.reflection,
+        executor: package.executor,
         namespaces,
         globals,
         prelude_bindings,
@@ -726,18 +764,20 @@ pub fn analyze(package: &Package) -> Result<SemanticPackage, SemanticFailure> {
     };
     validate_initializer_dependencies(&semantic)?;
     validate_references(&semantic)?;
-    validate_error_clauses(&semantic)?;
     analyze_types(&mut semantic)?;
+    validate_error_clauses(&semantic)?;
     validate_moves(&semantic)?;
     validate_reference_origins(&semantic)?;
     validate_referenced_replacements(&semantic)?;
-    infer_throwing_effects(&mut semantic);
+    infer_throwing_effects(&mut semantic)?;
     validate_constant_reassignment(&semantic)?;
     validate_global_definite_assignment(&semantic)?;
     record_binding_mutability(&mut semantic);
     validate_calls(&semantic)?;
     validate_definite_assignment(&semantic)?;
     record_binding_events(&mut semantic);
+    validate_suspension_ownership(&semantic)?;
+    validate_task_consumption(&semantic)?;
     let unreachable_units = validate_control_flow(&semantic)?;
     for (unit, unreachable_spans) in semantic.units.iter_mut().zip(unreachable_units) {
         unit.unreachable_spans = unreachable_spans;
@@ -746,20 +786,99 @@ pub fn analyze(package: &Package) -> Result<SemanticPackage, SemanticFailure> {
     Ok(semantic)
 }
 
+fn object_implements_identity(
+    package: &SemanticPackage,
+    unit: &SemanticUnit,
+    object: &ObjectContract,
+    target: &str,
+) -> bool {
+    object.interfaces.iter().any(|interface| {
+        package
+            .resolve_name_at(unit, object.span.start, interface)
+            .is_some_and(|symbol| symbol.identity == target)
+    })
+}
+
+fn identity_implements(package: &SemanticPackage, identity: &str, target: &str) -> bool {
+    package.units.iter().any(|unit| {
+        unit.objects.iter().any(|object| {
+            package
+                .namespaces
+                .values()
+                .flat_map(|namespace| namespace.symbols.values())
+                .any(|symbol| {
+                    symbol.identity == identity && symbol.declaration_span == Some(object.span)
+                })
+                && object_implements_identity(package, unit, object, target)
+        })
+    })
+}
+
+#[expect(
+    clippy::too_many_lines,
+    reason = "error validation keeps throw, catch, and finally rules in one ordered traversal"
+)]
 fn validate_error_clauses(package: &SemanticPackage) -> Result<(), SemanticFailure> {
+    #[expect(
+        clippy::too_many_lines,
+        reason = "the recursive visitor validates the complete structured-error boundary"
+    )]
     fn visit(
         package: &SemanticPackage,
         unit: &SemanticUnit,
         node: &SyntaxNode,
         in_catch: bool,
     ) -> Result<(), SemanticFailure> {
-        if node.kind == SyntaxKind::ThrowStatement && node.children.is_empty() && !in_catch {
-            return Err(failure(
-                &unit.source,
-                "T0020",
-                "bare `throw` is only valid inside a catch clause",
-                node.span,
-            ));
+        if node.kind == SyntaxKind::ThrowStatement {
+            if node.children.is_empty() {
+                if !in_catch {
+                    return Err(failure(
+                        &unit.source,
+                        "T0020",
+                        "bare `throw` is only valid inside a catch clause",
+                        node.span,
+                    ));
+                }
+            } else {
+                let thrown = &node.children[0];
+                let symbol = package.resolve_name_at(
+                    unit,
+                    thrown.span.start,
+                    node_text(&unit.source, thrown.children.first().unwrap_or(thrown)),
+                );
+                let standard = symbol.is_some_and(|symbol| symbol.kind == SymbolKind::ErrorObject);
+                let value_type = infer_value_type(unit, thrown, &unit.typed_bindings)?;
+                let object_name = match &value_type {
+                    Some(ValueType::Descriptor(name) | ValueType::Object(name)) => {
+                        Some(name.as_str())
+                    }
+                    _ if thrown.kind == SyntaxKind::CallExpression => thrown
+                        .children
+                        .first()
+                        .filter(|callee| callee.kind == SyntaxKind::Name)
+                        .map(|callee| node_text(&unit.source, callee)),
+                    _ => None,
+                };
+                let user_throwable = object_name
+                    .and_then(|name| {
+                        package.resolve_name_at(
+                            unit,
+                            thrown.span.start,
+                            name.rsplit_once("::").map_or(name, |(_, local)| local),
+                        )
+                    })
+                    .is_some_and(|symbol| {
+                        identity_implements(package, &symbol.identity, "/core/errors::throwable")
+                    });
+                if !standard && !user_throwable {
+                    return Err(failure(
+                        &unit.source,
+                        "T0021",
+                        "thrown values must implement `throwable`",
+                        thrown.span,
+                    ));
+                }
+            }
         }
         if node.kind == SyntaxKind::TryStatement {
             let mut caught = BTreeSet::new();
@@ -802,13 +921,19 @@ fn validate_error_clauses(package: &SemanticPackage) -> Result<(), SemanticFailu
                 let valid = symbol.is_some_and(|symbol| {
                     symbol.kind == SymbolKind::ErrorObject
                         || (symbol.kind == SymbolKind::Interface
-                            && symbol.identity == "/core/errors::error")
+                            && symbol.identity == "/core/errors::throwable")
+                        || (matches!(symbol.kind, SymbolKind::Class | SymbolKind::TypeDescriptor)
+                            && identity_implements(
+                                package,
+                                &symbol.identity,
+                                "/core/errors::throwable",
+                            ))
                 });
                 if !valid {
                     return Err(failure(
                         &unit.source,
                         "T0021",
-                        format!("`{name}` is not an error descriptor"),
+                        format!("`{name}` is not a throwable descriptor"),
                         descriptor.span,
                     ));
                 }
@@ -821,7 +946,7 @@ fn validate_error_clauses(package: &SemanticPackage) -> Result<(), SemanticFailu
                         clause.span,
                     ));
                 }
-                catches_all = identity == "/core/errors::error";
+                catches_all = identity == "/core/errors::throwable";
             }
         }
         for child in &node.children {
@@ -2255,6 +2380,17 @@ fn validate_call_nodes<'a>(
     let function_bindings =
         entered_function.map(|contract| call_site_bindings(unit, Some(contract)));
     let scoped_bindings = function_bindings.as_deref().unwrap_or(scoped_bindings);
+    if node.kind == SyntaxKind::UnaryExpression
+        && unary_operator_text(unit, node).as_deref() == Some("await")
+        && !active_function.is_some_and(|function| function.is_async)
+    {
+        return Err(failure(
+            &unit.source,
+            "T0028",
+            "`await` is valid only inside an async callable",
+            node.span,
+        ));
+    }
 
     validate_resolved_assignment(package, unit, node, contracts)?;
     validate_integer_coercion_call(unit, node, scoped_bindings)?;
@@ -2296,24 +2432,26 @@ fn validate_call_nodes<'a>(
                 transparent_value_type(infer_value_type(unit, value, scoped_bindings)?);
             if !matches!(
                 value_type,
-                Some(ValueType::Scalar(
-                    ScalarType::Bool
-                        | ScalarType::Int
-                        | ScalarType::Int8
-                        | ScalarType::Int16
-                        | ScalarType::Int32
-                        | ScalarType::Int64
-                        | ScalarType::Int128
-                        | ScalarType::Uint8
-                        | ScalarType::Uint16
-                        | ScalarType::Uint32
-                        | ScalarType::Uint64
-                        | ScalarType::Uint128
-                        | ScalarType::Float32
-                        | ScalarType::Float64
-                        | ScalarType::String
-                        | ScalarType::None
-                ))
+                Some(
+                    ValueType::Scalar(
+                        ScalarType::Bool
+                            | ScalarType::Int
+                            | ScalarType::Int8
+                            | ScalarType::Int16
+                            | ScalarType::Int32
+                            | ScalarType::Int64
+                            | ScalarType::Int128
+                            | ScalarType::Uint8
+                            | ScalarType::Uint16
+                            | ScalarType::Uint32
+                            | ScalarType::Uint64
+                            | ScalarType::Uint128
+                            | ScalarType::Float32
+                            | ScalarType::Float64
+                            | ScalarType::String
+                            | ScalarType::None
+                    ) | ValueType::Descriptor(_)
+                )
             ) {
                 return Err(failure(
                     &unit.source,
@@ -2574,10 +2712,18 @@ fn resolved_call_type(
     let symbol =
         package.resolve_name_at(unit, callee.span.start, node_text(&unit.source, callee))?;
     let declaration = symbol.declaration_span?;
-    contracts
-        .get(&(declaration.file, declaration.start, declaration.end))?
-        .return_type
-        .clone()
+    let contract = contracts.get(&(declaration.file, declaration.start, declaration.end))?;
+    let result = ElementType::new(
+        contract
+            .return_type
+            .clone()
+            .unwrap_or(ValueType::Scalar(ScalarType::None)),
+    );
+    Some(if contract.is_async {
+        ValueType::Task(result)
+    } else {
+        result.value_type()
+    })
 }
 
 fn validate_call_arguments(
@@ -2870,9 +3016,10 @@ fn analyze_object_contracts(
     }
     for object in &objects {
         let require_kind = |name: &str, expected: ObjectKind, role: &str| {
-            let valid = objects
-                .iter()
-                .any(|candidate| candidate.name == name && candidate.kind == expected);
+            let valid = (expected == ObjectKind::Interface && name == "throwable")
+                || objects
+                    .iter()
+                    .any(|candidate| candidate.name == name && candidate.kind == expected);
             valid.then_some(()).ok_or_else(|| {
                 failure(
                     &unit.source,
@@ -2912,7 +3059,8 @@ fn validate_object_conformance(package: &SemanticPackage) -> Result<(), Semantic
                         && left.mutable == right.mutable
                 })
             && left.return_type == right.return_type
-            && left.throws == right.throws
+            && (!right.throws || left.throws)
+            && left.is_async == right.is_async
     }
 
     fn effective_method<'a>(
@@ -2943,6 +3091,63 @@ fn validate_object_conformance(package: &SemanticPackage) -> Result<(), Semantic
             .filter(|object| object.kind == ObjectKind::Class)
         {
             for interface_name in &object.interfaces {
+                if package
+                    .resolve_name_at(unit, object.span.start, interface_name)
+                    .is_some_and(|symbol| symbol.identity == "/core/errors::throwable")
+                {
+                    let has_message = object.fields.iter().any(|field| {
+                        field.name == "message"
+                            && field.value_type == ValueType::Scalar(ScalarType::String)
+                    });
+                    if !has_message {
+                        return Err(failure(
+                            &unit.source,
+                            "T0062",
+                            format!(
+                                "class `{}` must provide a `message string` field to implement `throwable`",
+                                object.name
+                            ),
+                            object.span,
+                        ));
+                    }
+                    let Some(render) = effective_method(unit, object, "render") else {
+                        return Err(failure(
+                            &unit.source,
+                            "T0062",
+                            format!(
+                                "class `{}` does not implement interface member `throwable.render`",
+                                object.name
+                            ),
+                            object.span,
+                        ));
+                    };
+                    let required_render = FunctionContract {
+                        name: "render".to_owned(),
+                        span: object.span,
+                        owner: Some("/core/errors::throwable".to_owned()),
+                        captures: Vec::new(),
+                        parameters: Vec::new(),
+                        return_type: Some(ValueType::Scalar(ScalarType::String)),
+                        exported: true,
+                        thrown_types: Vec::new(),
+                        escaping_throwables: BTreeSet::new(),
+                        throws: false,
+                        is_async: false,
+                        mutates_receiver: false,
+                    };
+                    if !same_signature(&required_render, render) {
+                        return Err(failure(
+                            &unit.source,
+                            "T0067",
+                            format!(
+                                "class `{}` implements `throwable.render` with an incompatible signature",
+                                object.name
+                            ),
+                            render.span,
+                        ));
+                    }
+                    continue;
+                }
                 let interface = unit
                     .objects
                     .iter()
@@ -3277,18 +3482,17 @@ fn validate_descriptor_value_node(
         ));
     }
     if !descriptor_context
-        && node.kind == SyntaxKind::Name
-        && node_text(&unit.source, node) != "none"
-        && (descriptor_expression_type(package, unit, node).is_some()
-            || descriptor_expression_category(package, unit, node).is_some())
+        && node.kind == SyntaxKind::MemberExpression
+        && node.children.first().is_some_and(|receiver| {
+            descriptor_expression_type(package, unit, receiver).is_some()
+                || descriptor_expression_category(package, unit, receiver).is_some()
+        })
+        && package.reflection == crate::package::ReflectionProfile::Minimal
     {
         return Err(failure(
             &unit.source,
-            "T0019",
-            format!(
-                "type descriptor `{}` is a compile-time construct and cannot be used as a runtime value",
-                node_text(&unit.source, node).trim_start_matches('.')
-            ),
+            "T0070",
+            "the selected minimal profile does not retain reflection metadata",
             node.span,
         ));
     }
@@ -3665,8 +3869,35 @@ fn analyze_function_contract(
             });
         }
     }
-    let throws = node.children.iter().any(|child| {
-        child.kind == SyntaxKind::DeclarationQualifier && node_text(&unit.source, child) == "throws"
+    if name_node.is_some_and(|name| node_text(&unit.source, name) == "main")
+        && object_name_containing(unit, node.span).is_none()
+        && !parameters.is_empty()
+    {
+        return Err(failure(
+            &unit.source,
+            "T0078",
+            "program entrypoint `main` cannot declare parameters",
+            node.span,
+        ));
+    }
+    let mut thrown_types = Vec::new();
+    for child in &node.children {
+        if child.kind == SyntaxKind::EffectClause {
+            if let Some(type_node) = child
+                .children
+                .iter()
+                .find(|part| part.kind == SyntaxKind::TypeExpression)
+            {
+                thrown_types.push(declared_value_type(unit, type_node, aliases)?);
+            }
+        }
+    }
+    let is_async = node.children.iter().any(|child| {
+        child.kind == SyntaxKind::DeclarationQualifier && node_text(&unit.source, child) == "async"
+    });
+    let throws = !thrown_types.is_empty();
+    let exported = node.children.iter().any(|child| {
+        child.kind == SyntaxKind::Visibility && node_text(&unit.source, child) == "public"
     });
     Ok(FunctionContract {
         name: name_node.map_or_else(
@@ -3680,8 +3911,12 @@ fn analyze_function_contract(
         parameters,
         captures: Vec::new(),
         return_type,
+        thrown_types,
+        escaping_throwables: BTreeSet::new(),
         throws,
+        is_async,
         mutates_receiver: mutates_object_receiver(unit, node),
+        exported,
     })
 }
 
@@ -3689,7 +3924,7 @@ fn analyze_function_contract(
     clippy::too_many_lines,
     reason = "the fixed-point call graph and its local traversals form one auditable effect analysis"
 )]
-fn infer_throwing_effects(package: &mut SemanticPackage) {
+fn infer_throwing_effects(package: &mut SemanticPackage) -> Result<(), SemanticFailure> {
     type FunctionKey = (u32, usize, usize);
 
     fn key(span: Span) -> FunctionKey {
@@ -3709,7 +3944,16 @@ fn infer_throwing_effects(package: &mut SemanticPackage) {
                 .children
                 .first()
                 .and_then(|error| {
-                    package.resolve_name_at(unit, error.span.start, node_text(&unit.source, error))
+                    let descriptor = if error.kind == SyntaxKind::CallExpression {
+                        error.children.first().unwrap_or(error)
+                    } else {
+                        error
+                    };
+                    package.resolve_name_at(
+                        unit,
+                        descriptor.span.start,
+                        node_text(&unit.source, descriptor),
+                    )
                 })
                 .map(|symbol| symbol.identity.clone())
                 .into_iter()
@@ -3734,7 +3978,7 @@ fn infer_throwing_effects(package: &mut SemanticPackage) {
                             node_text(&unit.source, descriptor),
                         )
                     {
-                        if symbol.identity == "/core/errors::error" {
+                        if symbol.identity == "/core/errors::throwable" {
                             errors.clear();
                         } else {
                             errors.remove(&symbol.identity);
@@ -3762,14 +4006,17 @@ fn infer_throwing_effects(package: &mut SemanticPackage) {
             .collect()
     }
 
-    fn callees(
+    fn escaping_errors(
         package: &SemanticPackage,
         unit: &SemanticUnit,
         node: &SyntaxNode,
-        output: &mut BTreeSet<FunctionKey>,
-    ) {
+        inferred: &BTreeMap<FunctionKey, BTreeSet<String>>,
+    ) -> BTreeSet<String> {
         if node.kind == SyntaxKind::FunctionDeclaration {
-            return;
+            return BTreeSet::new();
+        }
+        if node.kind == SyntaxKind::ThrowStatement {
+            return direct_errors(package, unit, node);
         }
         if node.kind == SyntaxKind::CallExpression
             && let Some(callee) = node.children.first()
@@ -3779,15 +4026,63 @@ fn infer_throwing_effects(package: &mut SemanticPackage) {
             && symbol.kind == SymbolKind::Function
             && let Some(span) = symbol.declaration_span
         {
-            output.insert(key(span));
+            let mut errors = inferred.get(&key(span)).cloned().unwrap_or_default();
+            errors.extend(
+                node.children
+                    .iter()
+                    .skip(1)
+                    .flat_map(|argument| escaping_errors(package, unit, argument, inferred)),
+            );
+            return errors;
         }
-        for child in &node.children {
-            callees(package, unit, child, output);
+        if node.kind == SyntaxKind::TryStatement {
+            let mut errors = node.children.first().map_or_else(BTreeSet::new, |block| {
+                escaping_errors(package, unit, block, inferred)
+            });
+            let mut clauses_finished = false;
+            for child in node.children.iter().skip(1) {
+                if child.kind == SyntaxKind::CatchClause {
+                    let descriptor = child
+                        .children
+                        .first()
+                        .filter(|candidate| candidate.kind == SyntaxKind::Name);
+                    if let Some(descriptor) = descriptor
+                        && let Some(symbol) = package.resolve_name_at(
+                            unit,
+                            descriptor.span.start,
+                            node_text(&unit.source, descriptor),
+                        )
+                    {
+                        if symbol.identity == "/core/errors::throwable" {
+                            errors.clear();
+                        } else {
+                            errors.remove(&symbol.identity);
+                        }
+                    } else {
+                        errors.clear();
+                    }
+                    if let Some(block) = child.children.last() {
+                        errors.extend(escaping_errors(package, unit, block, inferred));
+                    }
+                    clauses_finished = true;
+                } else if child.kind == SyntaxKind::FinallyClause {
+                    if let Some(block) = child.children.last() {
+                        errors.extend(escaping_errors(package, unit, block, inferred));
+                    }
+                } else if !clauses_finished {
+                    errors.extend(escaping_errors(package, unit, child, inferred));
+                }
+            }
+            return errors;
         }
+        node.children
+            .iter()
+            .flat_map(|child| escaping_errors(package, unit, child, inferred))
+            .collect()
     }
 
-    let mut effects = BTreeMap::<FunctionKey, bool>::new();
-    let mut edges = BTreeMap::<FunctionKey, BTreeSet<FunctionKey>>::new();
+    let mut inferred_throwables = BTreeMap::<FunctionKey, BTreeSet<String>>::new();
+    let mut bodies = BTreeMap::<FunctionKey, (usize, SyntaxNode)>::new();
     for unit in &package.units {
         for function in unit
             .tree
@@ -3797,36 +4092,33 @@ fn infer_throwing_effects(package: &mut SemanticPackage) {
             .filter(|node| node.kind == SyntaxKind::FunctionDeclaration)
         {
             let function_key = key(function.span);
-            let declared = unit
-                .functions
+            let unit_index = package
+                .units
                 .iter()
-                .find(|contract| contract.span == function.span)
-                .is_some_and(|contract| contract.throws);
-            effects.insert(
-                function_key,
-                declared
-                    || function
-                        .children
-                        .iter()
-                        .any(|child| !direct_errors(package, unit, child).is_empty()),
-            );
-            let mut function_callees = BTreeSet::new();
-            for child in &function.children {
-                callees(package, unit, child, &mut function_callees);
-            }
-            edges.insert(function_key, function_callees);
+                .position(|candidate| std::ptr::eq(candidate, unit))
+                .expect("function unit belongs to semantic package");
+            bodies.insert(function_key, (unit_index, function.clone()));
+            let function_throwables = function
+                .children
+                .iter()
+                .flat_map(|child| direct_errors(package, unit, child))
+                .collect();
+            inferred_throwables.insert(function_key, function_throwables);
         }
     }
 
     loop {
         let mut changed = false;
-        for (function, callees) in &edges {
-            let inferred = effects[function]
-                || callees
-                    .iter()
-                    .any(|callee| effects.get(callee).copied().unwrap_or(false));
-            if inferred && !effects[function] {
-                effects.insert(*function, true);
+        for function in bodies.keys() {
+            let (unit_index, body) = &bodies[function];
+            let unit = &package.units[*unit_index];
+            let combined_throwables = body
+                .children
+                .iter()
+                .flat_map(|child| escaping_errors(package, unit, child, &inferred_throwables))
+                .collect::<BTreeSet<_>>();
+            if combined_throwables != inferred_throwables[function] {
+                inferred_throwables.insert(*function, combined_throwables);
                 changed = true;
             }
         }
@@ -3834,12 +4126,52 @@ fn infer_throwing_effects(package: &mut SemanticPackage) {
             break;
         }
     }
+    for unit in &package.units {
+        for contract in &unit.functions {
+            let Some(ValueType::Object(bound)) = contract.thrown_types.first() else {
+                continue;
+            };
+            for identity in inferred_throwables
+                .get(&key(contract.span))
+                .into_iter()
+                .flatten()
+            {
+                let actual = identity
+                    .rsplit_once("::")
+                    .map_or(identity.as_str(), |(_, name)| name);
+                let bound_identity = package
+                    .resolve_name_at(unit, contract.span.start, bound)
+                    .map(|symbol| symbol.identity.as_str());
+                let compatible = bound_identity.is_some_and(|bound_identity| {
+                    bound_identity == "/core/errors::throwable"
+                        || bound_identity == identity
+                        || identity_implements(package, identity, bound_identity)
+                });
+                if !compatible {
+                    return Err(failure(
+                        &unit.source,
+                        "T0027",
+                        format!(
+                            "`{actual}` may escape `{}` but does not satisfy its `throws {bound}` contract",
+                            contract.name
+                        ),
+                        contract.span,
+                    ));
+                }
+            }
+        }
+    }
 
     for unit in &mut package.units {
         for contract in &mut unit.functions {
-            contract.throws = effects.get(&key(contract.span)).copied().unwrap_or(false);
+            contract.escaping_throwables = inferred_throwables
+                .get(&key(contract.span))
+                .cloned()
+                .unwrap_or_default();
+            contract.throws = !contract.escaping_throwables.is_empty();
         }
     }
+    Ok(())
 }
 
 #[expect(
@@ -4115,7 +4447,11 @@ fn declared_value_type(
             .map(|parameter| declared_value_type(unit, parameter, aliases).map(ElementType::new))
             .collect::<Result<Vec<_>, _>>()?;
         let result = ElementType::new(declared_value_type(unit, result, aliases)?);
-        return Ok(ValueType::Function(parameters, result));
+        return Ok(if node_text(&unit.source, function).starts_with("async") {
+            ValueType::AsyncFunction(parameters, result)
+        } else {
+            ValueType::Function(parameters, result)
+        });
     }
     if let Some(union) = type_node
         .children
@@ -4155,6 +4491,20 @@ fn parse_declared_value_type(
     type_name: &str,
     aliases: &BTreeMap<String, ScalarType>,
 ) -> Option<ValueType> {
+    if matches!(
+        type_name,
+        "throwable"
+            | "arithmetic-overflow"
+            | "division-by-zero"
+            | "integer-conversion-overflow"
+            | "negative-shift-count"
+            | "coercion-error"
+            | "decode-error"
+            | "index-error"
+            | "missing-key"
+    ) {
+        return Some(ValueType::Object(type_name.to_owned()));
+    }
     let type_name = type_name.trim();
     if let Some(scalar) = aliases
         .get(type_name)
@@ -4784,6 +5134,16 @@ fn infer_value_type(
         if name == "none" {
             return Ok(Some(ValueType::Scalar(ScalarType::None)));
         }
+        if let Some(scalar) = ScalarType::from_source_name(name).or_else(|| {
+            visible_descriptor_aliases(&unit.descriptor_aliases, unit.source.id(), node.span.start)
+                .get(name)
+                .copied()
+        }) {
+            return Ok(Some(ValueType::Descriptor(scalar.source_name().to_owned())));
+        }
+        if unit.objects.iter().any(|object| object.name == name) {
+            return Ok(Some(ValueType::Descriptor(name.to_owned())));
+        }
         if let Some(binding) = bindings.iter().rev().find(|binding| {
             binding.name == name && binding.is_visible_at(unit.source.id(), node.span.start)
         }) {
@@ -4802,15 +5162,17 @@ fn infer_value_type(
                 .map(|parameter| parameter.value_type.clone().map(ElementType::new))
                 .collect::<Option<Vec<_>>>();
             if let Some(parameters) = parameters {
-                return Ok(Some(ValueType::Function(
-                    parameters,
-                    ElementType::new(
-                        contract
-                            .return_type
-                            .clone()
-                            .unwrap_or(ValueType::Scalar(ScalarType::None)),
-                    ),
-                )));
+                let result = ElementType::new(
+                    contract
+                        .return_type
+                        .clone()
+                        .unwrap_or(ValueType::Scalar(ScalarType::None)),
+                );
+                return Ok(Some(if contract.is_async {
+                    ValueType::AsyncFunction(parameters, result)
+                } else {
+                    ValueType::Function(parameters, result)
+                }));
             }
         }
         let resolved_symbol = lexical_scope_chain(unit, node.span.start).find_map(|scope| {
@@ -4881,6 +5243,98 @@ fn infer_value_type(
         return infer_member_value_type(unit, node, bindings);
     }
     if node.kind == SyntaxKind::CallExpression {
+        if let [callee, arguments] = node.children.as_slice() {
+            if callee.kind == SyntaxKind::Name
+                && resolved_name_identity(unit, callee)
+                    .is_some_and(|identity| identity == "/core/async::task-scope")
+            {
+                return Ok(Some(ValueType::TaskScope));
+            }
+            if callee.kind == SyntaxKind::MemberExpression
+                && let [receiver, member] = callee.children.as_slice()
+                && matches!(
+                    node_text(&unit.source, member),
+                    "spawn" | "join" | "cancel" | "child-scope"
+                )
+                && infer_value_type(unit, receiver, bindings)? == Some(ValueType::TaskScope)
+            {
+                return match node_text(&unit.source, member) {
+                    "spawn" => {
+                        let Some(callable) = arguments.children.first() else {
+                            return Err(failure(
+                                &unit.source,
+                                "T0074",
+                                "`task-scope.spawn` requires one async callable",
+                                node.span,
+                            ));
+                        };
+                        let callable = callable.children.last().unwrap_or(callable);
+                        match infer_value_type(unit, callable, bindings)? {
+                            Some(ValueType::AsyncFunction(_, result)) => {
+                                Ok(Some(ValueType::ScopedTask(result)))
+                            }
+                            _ => Err(failure(
+                                &unit.source,
+                                "T0074",
+                                "`task-scope.spawn` requires an async callable value",
+                                callable.span,
+                            )),
+                        }
+                    }
+                    "join" => {
+                        let Some(task) = arguments.children.first() else {
+                            return Err(failure(
+                                &unit.source,
+                                "T0074",
+                                "`task-scope.join` requires one scoped task",
+                                node.span,
+                            ));
+                        };
+                        let task = task.children.last().unwrap_or(task);
+                        match infer_value_type(unit, task, bindings)? {
+                            Some(ValueType::ScopedTask(result)) => {
+                                Ok(Some(ValueType::TaskOutcome(result)))
+                            }
+                            _ => Err(failure(
+                                &unit.source,
+                                "T0074",
+                                "`task-scope.join` requires a scoped task",
+                                task.span,
+                            )),
+                        }
+                    }
+                    "cancel" => Ok(Some(ValueType::Scalar(ScalarType::None))),
+                    "child-scope" => {
+                        let Some(argument) = arguments.children.first() else {
+                            return Err(failure(
+                                &unit.source,
+                                "T0074",
+                                "`task-scope.child-scope` requires one deadline",
+                                node.span,
+                            ));
+                        };
+                        let child = argument.children.last().unwrap_or(argument);
+                        let parent_deadline =
+                            task_scope_deadline_ms(unit, receiver, bindings, &mut BTreeSet::new());
+                        let child_deadline =
+                            constant_deadline_ms(unit, child, bindings, &mut BTreeSet::new());
+                        if matches!(
+                            (parent_deadline, child_deadline),
+                            (Some(parent), Some(child)) if child > parent
+                        ) {
+                            return Err(failure(
+                                &unit.source,
+                                "T0075",
+                                "a child scope cannot extend its parent deadline",
+                                child.span,
+                            ));
+                        }
+                        Ok(Some(ValueType::TaskScope))
+                    }
+                    _ => Ok(None),
+                };
+            }
+        }
         if let Some(value_type) = infer_collection_call_type(unit, node, bindings)? {
             return Ok(Some(value_type));
         }
@@ -4943,13 +5397,26 @@ fn infer_value_type(
                 .iter()
                 .find(|contract| contract.owner.is_none() && contract.name == name)
             {
-                return Ok(contract.return_type.clone());
+                let result = ElementType::new(
+                    contract
+                        .return_type
+                        .clone()
+                        .unwrap_or(ValueType::Scalar(ScalarType::None)),
+                );
+                return Ok(Some(if contract.is_async {
+                    ValueType::Task(result)
+                } else {
+                    result.value_type()
+                }));
             }
             if let Some(binding) = bindings.iter().rev().find(|binding| {
                 binding.name == name && binding.is_visible_at(unit.source.id(), callee.span.start)
             }) {
                 return match &binding.value_type {
                     ValueType::Function(_, result) => Ok(Some(result.value_type())),
+                    ValueType::AsyncFunction(_, result) => {
+                        Ok(Some(ValueType::Task(result.clone())))
+                    }
                     _ => Err(failure(
                         &unit.source,
                         "T0039",
@@ -5603,6 +6070,41 @@ fn infer_member_value_type(
     };
     let member_name = node_text(&unit.source, member);
     let receiver_type = infer_receiver_value_type(unit, receiver, bindings)?;
+    if let Some(ValueType::Descriptor(_)) = &receiver_type {
+        return match member_name {
+            "name" | "kind" | "identity" => Ok(Some(ValueType::Scalar(ScalarType::String))),
+            _ => Err(failure(
+                &unit.source,
+                "T0071",
+                format!("descriptor has no retained member `{member_name}`"),
+                member.span,
+            )),
+        };
+    }
+    if matches!(
+        receiver_type,
+        Some(ValueType::Function(_, _) | ValueType::AsyncFunction(_, _))
+    ) && matches!(
+        member_name,
+        "contracts" | "throwable-contract" | "escaping-throwables"
+    ) {
+        return Ok(Some(ValueType::Scalar(ScalarType::String)));
+    }
+    if let Some(ValueType::TaskOutcome(result)) = &receiver_type {
+        return match member_name {
+            "completed" | "cancelled" => Ok(Some(ValueType::Scalar(ScalarType::Bool))),
+            "value" => Ok(Some(ValueType::ElementOrNone(result.clone()))),
+            "error" => Ok(Some(ValueType::ElementOrNone(ElementType::new(
+                ValueType::Object("TerraneError".to_owned()),
+            )))),
+            _ => Err(failure(
+                &unit.source,
+                "T0074",
+                format!("task outcome has no member `{member_name}`"),
+                member.span,
+            )),
+        };
+    }
     if let Some(ValueType::Object(object_name)) = &receiver_type {
         return object_member_type(unit, object_name, member_name)
             .map(Some)
@@ -5899,6 +6401,16 @@ fn infer_unary_type(
         ));
     };
     let operator = unary_operator_text(unit, node).unwrap_or_default();
+    if operator == "await" {
+        return match infer_value_type(unit, operand_node, bindings)? {
+            Some(ValueType::Task(result)) => Ok(result.value_type()),
+            _ => Err(operator_failure(
+                unit,
+                node,
+                "`await` requires a task value",
+            )),
+        };
+    }
     if matches!(operator.as_str(), "ref" | "shared ref" | "move") {
         let Some(operand) = infer_value_type(unit, operand_node, bindings)? else {
             return Err(operator_failure(
@@ -6453,7 +6965,7 @@ fn member_family_receiver(unit: &SemanticUnit, node: &SyntaxNode) -> bool {
         return false;
     }
     node.kind == SyntaxKind::MemberExpression
-        && (matches!(
+        && matches!(
             node_text(&unit.source, member),
             "coerce"
                 | "parse"
@@ -6467,7 +6979,7 @@ fn member_family_receiver(unit: &SemanticUnit, node: &SyntaxNode) -> bool {
                 | "negate"
                 | "shift-left"
                 | "shift-right"
-        ) || member_family_receiver(unit, receiver))
+        )
 }
 
 fn obsolete_integer_coercion_member<'a>(
@@ -8035,10 +8547,117 @@ fn visible_from(symbol: &Symbol, namespace: &str) -> bool {
         }
     }
 }
+fn resolved_name_identity<'a>(unit: &'a SemanticUnit, node: &SyntaxNode) -> Option<&'a str> {
+    let name = node_text(&unit.source, node);
+    lexical_scope_chain(unit, node.span.start)
+        .find_map(|scope| {
+            scope.symbols.get(name)?.iter().rev().find(|symbol| {
+                symbol
+                    .declaration_span
+                    .is_none_or(|span| span.end <= node.span.start)
+            })
+        })
+        .map(|symbol| symbol.identity.as_str())
+        .or_else(|| (unit.prelude && name == "task-scope").then_some("/core/async::task-scope"))
+}
+
+fn constant_deadline_ms(
+    unit: &SemanticUnit,
+    node: &SyntaxNode,
+    bindings: &[TypedBinding],
+    visited: &mut BTreeSet<(u32, usize, usize)>,
+) -> Option<u64> {
+    if node.kind == SyntaxKind::GroupExpression {
+        return node
+            .children
+            .first()
+            .and_then(|child| constant_deadline_ms(unit, child, bindings, visited));
+    }
+    if node.kind == SyntaxKind::Name {
+        let binding = bindings.iter().rev().find(|binding| {
+            binding.name == node_text(&unit.source, node)
+                && binding.is_visible_at(unit.source.id(), node.span.start)
+        })?;
+        if !visited.insert((binding.span.file, binding.span.start, binding.span.end)) {
+            return None;
+        }
+        return find_binding_initializer(&unit.tree.root, binding.span)
+            .and_then(|value| constant_deadline_ms(unit, value, bindings, visited));
+    }
+    match contextual_constant(&unit.source, node, ScalarType::Int)? {
+        Ok(ContextualConstant::Integer(value)) => value.to_u64(),
+        Ok(ContextualConstant::Float32(_) | ContextualConstant::Float64(_)) | Err(_) => None,
+    }
+}
+
+fn find_binding_initializer(node: &SyntaxNode, name_span: Span) -> Option<&SyntaxNode> {
+    if matches!(node.kind, SyntaxKind::Binding | SyntaxKind::Assignment) && node.span == name_span {
+        return node.children.last();
+    }
+    node.children
+        .iter()
+        .find_map(|child| find_binding_initializer(child, name_span))
+}
+
+fn task_scope_deadline_ms(
+    unit: &SemanticUnit,
+    node: &SyntaxNode,
+    bindings: &[TypedBinding],
+    visited: &mut BTreeSet<(u32, usize, usize)>,
+) -> Option<u64> {
+    if node.kind == SyntaxKind::GroupExpression {
+        return node
+            .children
+            .first()
+            .and_then(|child| task_scope_deadline_ms(unit, child, bindings, visited));
+    }
+    if node.kind == SyntaxKind::Name {
+        let binding = bindings.iter().rev().find(|binding| {
+            binding.name == node_text(&unit.source, node)
+                && binding.is_visible_at(unit.source.id(), node.span.start)
+        })?;
+        if !visited.insert((binding.span.file, binding.span.start, binding.span.end)) {
+            return None;
+        }
+        return find_binding_initializer(&unit.tree.root, binding.span)
+            .and_then(|value| task_scope_deadline_ms(unit, value, bindings, visited));
+    }
+    if node.kind != SyntaxKind::CallExpression {
+        return None;
+    }
+    let [callee, arguments] = node.children.as_slice() else {
+        return None;
+    };
+    if callee.kind == SyntaxKind::Name
+        && resolved_name_identity(unit, callee)
+            .is_some_and(|identity| identity == "/core/async::task-scope")
+    {
+        return arguments
+            .children
+            .first()
+            .and_then(|argument| argument.children.last().or(Some(argument)))
+            .and_then(|value| constant_deadline_ms(unit, value, bindings, visited));
+    }
+    let [receiver, member] = callee.children.as_slice() else {
+        return None;
+    };
+    if callee.kind != SyntaxKind::MemberExpression
+        || node_text(&unit.source, member) != "child-scope"
+    {
+        return None;
+    }
+    arguments
+        .children
+        .first()
+        .and_then(|argument| argument.children.last().or(Some(argument)))
+        .and_then(|value| constant_deadline_ms(unit, value, bindings, visited))
+        .or_else(|| task_scope_deadline_ms(unit, receiver, bindings, visited))
+}
 
 fn bootstrap_prelude() -> BTreeMap<String, Symbol> {
-    const PRELUDE: [(&str, &str, &str); 12] = [
+    const PRELUDE: [(&str, &str, &str); 13] = [
         ("print", "/core/output::print", "/core/output"),
+        ("task-scope", "/core/async::task-scope", "/core/async"),
         ("int", "/core/types::int", "/core/types"),
         ("float", "/core/types::float", "/core/types"),
         ("bool", "/core/types::bool", "/core/types"),
@@ -8062,8 +8681,8 @@ fn bootstrap_prelude() -> BTreeMap<String, Symbol> {
                     namespace: namespace.to_owned(),
                     visibility: Visibility::Public,
                     global: false,
-                    constant: name != "print",
-                    kind: if name == "print" {
+                    constant: !matches!(name, "print" | "task-scope"),
+                    kind: if matches!(name, "print" | "task-scope") {
                         SymbolKind::Function
                     } else if identity.starts_with("/core/encodings::") {
                         SymbolKind::Binding
@@ -8104,6 +8723,10 @@ fn bootstrap_namespaces() -> BTreeMap<String, Namespace> {
     namespaces.insert(
         "/core/output".to_owned(),
         namespace_with_objects("/core/output", ["print"], SymbolKind::Function),
+    );
+    namespaces.insert(
+        "/core/async".to_owned(),
+        namespace_with_objects("/core/async", ["task-scope"], SymbolKind::Function),
     );
     let mut types = vec![
         "int".to_owned(),
@@ -8150,8 +8773,8 @@ fn bootstrap_namespaces() -> BTreeMap<String, Namespace> {
         SymbolKind::ErrorObject,
     );
     errors.symbols.insert(
-        "error".to_owned(),
-        compiler_owned_object("/core/errors", "error", SymbolKind::Interface),
+        "throwable".to_owned(),
+        compiler_owned_object("/core/errors", "throwable", SymbolKind::Interface),
     );
     namespaces.insert("/core/errors".to_owned(), errors);
     namespaces.insert(
@@ -8550,6 +9173,7 @@ struct ControlRegion {
 #[derive(Clone, Debug)]
 enum BindingEvent {
     Read {
+        span: Span,
         loops: Vec<Span>,
         regions: Vec<ControlRegion>,
     },
@@ -8682,6 +9306,7 @@ fn collect_binding_events(
                 .entry(span_key(declaration_span))
                 .or_default()
                 .push(BindingEvent::Read {
+                    span: node.span,
                     loops: loops.clone(),
                     regions: regions.clone(),
                 });
@@ -8787,6 +9412,206 @@ fn regions_conflict(left: &[ControlRegion], right: &[ControlRegion]) -> bool {
 
 fn later_store_replaces(earlier: &[ControlRegion], later: &[ControlRegion]) -> bool {
     later.iter().all(|region| earlier.contains(region))
+}
+
+fn collect_suspension_points(unit: &SemanticUnit, node: &SyntaxNode, spans: &mut Vec<Span>) {
+    if node.kind == SyntaxKind::UnaryExpression
+        && unary_operator_text(unit, node).as_deref() == Some("await")
+    {
+        spans.push(node.span);
+    }
+    for child in &node.children {
+        collect_suspension_points(unit, child, spans);
+    }
+}
+
+fn moves_binding_between(
+    package: &SemanticPackage,
+    unit: &SemanticUnit,
+    node: &SyntaxNode,
+    owner_span: Span,
+    after: usize,
+    before: usize,
+) -> bool {
+    if node.span.start >= after
+        && node.span.end <= before
+        && node.kind == SyntaxKind::UnaryExpression
+        && unary_operator_text(unit, node).as_deref() == Some("move")
+        && node.children.last().is_some_and(|operand| {
+            operand.kind == SyntaxKind::Name
+                && package
+                    .resolve_name_at(unit, operand.span.start, node_text(&unit.source, operand))
+                    .and_then(|symbol| symbol.declaration_span)
+                    == Some(owner_span)
+        })
+    {
+        return true;
+    }
+    node.children
+        .iter()
+        .any(|child| moves_binding_between(package, unit, child, owner_span, after, before))
+}
+
+fn reference_has_stable_local_owner(
+    package: &SemanticPackage,
+    unit: &SemanticUnit,
+    contract: &FunctionContract,
+    reference: &TypedBinding,
+) -> bool {
+    let Some(declaration) = find_node_by_span(&unit.tree.root, reference.span) else {
+        return false;
+    };
+    let Some(initializer) = declaration.children.last() else {
+        return false;
+    };
+    if initializer.kind != SyntaxKind::UnaryExpression
+        || unary_operator_text(unit, initializer).as_deref() != Some("ref")
+    {
+        return false;
+    }
+    let Some(source) = initializer
+        .children
+        .last()
+        .filter(|source| source.kind == SyntaxKind::Name)
+    else {
+        return false;
+    };
+    let Some(owner_span) = package
+        .resolve_name_at(unit, source.span.start, node_text(&unit.source, source))
+        .and_then(|symbol| symbol.declaration_span)
+    else {
+        return false;
+    };
+    if !unit.typed_bindings.iter().any(|owner| {
+        owner.span == owner_span
+            && owner.span.start >= contract.span.start
+            && owner.span.end <= contract.span.end
+    }) {
+        return false;
+    }
+    !moves_binding_between(
+        package,
+        unit,
+        &unit.tree.root,
+        owner_span,
+        reference.visible_from,
+        contract.span.end,
+    ) && package
+        .binding_events
+        .get(&span_key(owner_span))
+        .is_none_or(|events| {
+            !events.iter().any(|event| {
+                matches!(
+                    event,
+                    BindingEvent::Write { span, .. } if span.start >= reference.visible_from
+                )
+            })
+        })
+}
+
+fn validate_suspension_ownership(package: &SemanticPackage) -> Result<(), SemanticFailure> {
+    for unit in &package.units {
+        let mut awaits = Vec::new();
+        collect_suspension_points(unit, &unit.tree.root, &mut awaits);
+        for contract in unit.functions.iter().filter(|contract| contract.is_async) {
+            for binding in unit.typed_bindings.iter().filter(|binding| {
+                matches!(binding.value_type, ValueType::Reference(_))
+                    && binding.span.start >= contract.span.start
+                    && binding.span.end <= contract.span.end
+            }) {
+                let Some(events) = package.binding_events.get(&span_key(binding.span)) else {
+                    continue;
+                };
+                if let Some(suspension) = awaits.iter().find(|suspension| {
+                    suspension.start >= binding.visible_from
+                        && suspension.end <= contract.span.end
+                        && events.iter().any(|event| {
+                            matches!(
+                                event,
+                                BindingEvent::Read { span, .. } if span.start > suspension.end
+                            )
+                        })
+                        && !reference_has_stable_local_owner(package, unit, contract, binding)
+                }) {
+                    return Err(failure(
+                        &unit.source,
+                        "T0073",
+                        format!(
+                            "non-owning reference `{}` remains live across `await`; end its use before suspension or transfer owned state",
+                            binding.name
+                        ),
+                        *suspension,
+                    ));
+                }
+            }
+        }
+    }
+    Ok(())
+}
+
+fn validate_task_consumption(package: &SemanticPackage) -> Result<(), SemanticFailure> {
+    fn consumed(
+        unit: &SemanticUnit,
+        node: &SyntaxNode,
+        binding: &TypedBinding,
+        join_argument: bool,
+    ) -> bool {
+        let await_operand = node.kind == SyntaxKind::UnaryExpression
+            && unary_operator_text(unit, node).as_deref() == Some("await");
+        let joined = node.kind == SyntaxKind::CallExpression
+            && node.children.first().is_some_and(|callee| {
+                callee.kind == SyntaxKind::MemberExpression
+                    && callee
+                        .children
+                        .get(1)
+                        .is_some_and(|member| node_text(&unit.source, member) == "join")
+            });
+        if join_argument
+            && node.kind == SyntaxKind::Name
+            && node_text(&unit.source, node) == binding.name
+            && unit
+                .typed_bindings
+                .iter()
+                .rev()
+                .find(|candidate| {
+                    candidate.name == binding.name
+                        && candidate.is_visible_at(unit.source.id(), node.span.start)
+                })
+                .is_some_and(|candidate| candidate.span == binding.span)
+        {
+            return true;
+        }
+        node.children.iter().enumerate().any(|(index, child)| {
+            consumed(
+                unit,
+                child,
+                binding,
+                join_argument || await_operand || (joined && index == 1),
+            )
+        })
+    }
+
+    for unit in &package.units {
+        for binding in unit.typed_bindings.iter().filter(|binding| {
+            matches!(
+                binding.value_type,
+                ValueType::Task(_) | ValueType::ScopedTask(_)
+            )
+        }) {
+            if !consumed(unit, &unit.tree.root, binding, false) {
+                return Err(failure(
+                    &unit.source,
+                    "T0076",
+                    format!(
+                        "task `{}` must be awaited or joined before its scope ends",
+                        binding.name
+                    ),
+                    binding.span,
+                ));
+            }
+        }
+    }
+    Ok(())
 }
 
 pub(crate) fn binding_store_value_is_read(

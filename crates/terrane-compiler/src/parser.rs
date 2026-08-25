@@ -66,7 +66,10 @@ impl Parser<'_> {
             "class" => self.parse_object_declaration(SyntaxKind::ClassDeclaration),
             "interface" => self.parse_object_declaration(SyntaxKind::InterfaceDeclaration),
             "trait" => self.parse_object_declaration(SyntaxKind::TraitDeclaration),
-            "global" | "constant" if self.peek_text(1) == Some("function") => {
+            "global" | "constant" | "pure" | "io" | "blocks" | "mutating" | "mutates"
+            | "awaits" | "foreign"
+                if self.peek_text(1) == Some("function") =>
+            {
                 self.parse_invalid_function_qualifier()
             }
             "global"
@@ -186,7 +189,7 @@ impl Parser<'_> {
                 if self.at(TokenKind::Identifier) {
                     names.push(self.leaf(SyntaxKind::Name));
                 } else {
-                    self.error_here("S1035", "object clause requires a declared object name");
+                    self.error_here("S1041", "object clause requires a declared object name");
                     self.recover_line();
                     break;
                 }
@@ -195,7 +198,7 @@ impl Parser<'_> {
                 }
             }
             if clause_kind == SyntaxKind::ExtendsClause && names.len() > 1 {
-                self.error_here("S1036", "classes support only single inheritance");
+                self.error_here("S1036", "an `extends` clause supports only one base name");
             }
             children.push(self.node(clause_kind, clause_start, self.position, names));
         }
@@ -377,20 +380,20 @@ impl Parser<'_> {
         let start = self.position;
         let mut children = Vec::new();
         self.parse_visibility(&mut children);
-        let mut qualifiers = 0u8;
-        while matches!(self.text(), "static" | "async" | "mutating" | "throws") {
-            let bit = match self.text() {
-                "static" => 1,
-                "async" => 2,
-                "mutating" => 4,
-                "throws" => 8,
-                _ => unreachable!(),
-            };
-            if qualifiers & bit != 0 {
+        let mut qualifiers = std::collections::BTreeSet::new();
+        while matches!(self.text(), "static" | "async") {
+            let qualifier_start = self.position;
+            let qualifier = self.text().to_owned();
+            if !qualifiers.insert(qualifier) {
                 self.error_here("S1029", "duplicate function qualifier");
             }
-            qualifiers |= bit;
-            children.push(self.leaf(SyntaxKind::DeclarationQualifier));
+            self.bump();
+            children.push(self.node(
+                SyntaxKind::DeclarationQualifier,
+                qualifier_start,
+                self.position,
+                Vec::new(),
+            ));
         }
         self.expect_text("function", "S1005", "expected `function`");
         if self.at(TokenKind::Identifier) && !self.at_text("from") && !self.at_text("to") {
@@ -402,13 +405,31 @@ impl Parser<'_> {
                 );
                 self.recover_line();
             }
-            if !self.at(TokenKind::Semicolon) && !self.at_line_end() {
+            if !self.at(TokenKind::Semicolon) && !self.at_line_end() && !self.at_text("throws") {
                 children.push(self.parse_type_expression());
             }
+            if self.eat_text("throws") {
+                let effect_start = self.position - 1;
+                let parts = if self.at(TokenKind::Semicolon) || self.at_line_end() {
+                    self.error_here("S1039", "`throws` requires a throwable upper bound");
+                    Vec::new()
+                } else {
+                    vec![self.parse_type_expression()]
+                };
+                children.push(self.node(
+                    SyntaxKind::EffectClause,
+                    effect_start,
+                    self.position,
+                    parts,
+                ));
+            }
         }
-        if self.eat(TokenKind::Semicolon) {
-            children.push(self.parse_parameter_list());
-        }
+        self.expect(
+            TokenKind::Semicolon,
+            "S1038",
+            "expected `;` before function parameters",
+        );
+        children.push(self.parse_parameter_list());
         if !self.at(TokenKind::Newline) {
             self.error_here("S1006", "unexpected content in function header");
             self.recover_line();
@@ -429,9 +450,12 @@ impl Parser<'_> {
         if !self.at(TokenKind::Semicolon) && !self.at_line_end() {
             children.push(self.parse_type_expression());
         }
-        if self.eat(TokenKind::Semicolon) {
-            children.push(self.parse_parameter_list());
-        }
+        self.expect(
+            TokenKind::Semicolon,
+            "S1038",
+            "expected `;` before anonymous function parameters",
+        );
+        children.push(self.parse_parameter_list());
         if !self.at(TokenKind::Newline) {
             self.error_here("S1006", "unexpected content in anonymous function header");
             self.recover_line();
@@ -447,12 +471,16 @@ impl Parser<'_> {
 
     fn parse_parameter_list(&mut self) -> SyntaxNode {
         let start = self.position;
+        let grouped = self.eat(TokenKind::OpenParen);
         let mut children = Vec::new();
-        while !self.at_line_end() {
+        while !(self.at_line_end() || grouped && self.at(TokenKind::CloseParen)) {
             let parameter_start = self.position;
             if self.at(TokenKind::Identifier) {
                 let mut parts = vec![self.leaf(SyntaxKind::Name)];
-                if !self.at(TokenKind::Assign) && !self.at(TokenKind::Comma) && !self.at_line_end()
+                if !(self.at(TokenKind::Assign)
+                    || self.at(TokenKind::Comma)
+                    || self.at_line_end()
+                    || grouped && self.at(TokenKind::CloseParen))
                 {
                     parts.push(self.parse_type_expression());
                 }
@@ -479,11 +507,23 @@ impl Parser<'_> {
                 ));
             } else {
                 self.error_here("S1007", "expected a parameter name");
-                self.recover_to_comma_or_line();
+                while !(self.at(TokenKind::Comma)
+                    || self.at_line_end()
+                    || grouped && self.at(TokenKind::CloseParen))
+                {
+                    self.bump();
+                }
             }
             if !self.eat(TokenKind::Comma) {
                 break;
             }
+        }
+        if grouped {
+            self.expect(
+                TokenKind::CloseParen,
+                "S1040",
+                "expected `)` after function parameters",
+            );
         }
         self.node(SyntaxKind::ParameterList, start, self.position, children)
     }
@@ -791,23 +831,14 @@ impl Parser<'_> {
             } else {
                 self.text().to_owned()
             };
-            let restricted = operator_text == "await";
-            if restricted {
-                self.diagnostics.push(Diagnostic::error(
-                    "S1090",
-                    "`await` expressions are not supported by this compiler milestone",
-                    self.current().span,
-                ));
-            }
             if self.text() == "shared" {
                 self.bump();
             }
             self.bump();
             let operator = self.node(SyntaxKind::UnaryOperator, start, self.position, Vec::new());
-            let operand = if matches!(
-                operator_text.as_str(),
-                "ref" | "move" | "shared ref" | "await"
-            ) {
+            let operand = if operator_text == "await" {
+                self.parse_postfix(true)
+            } else if matches!(operator_text.as_str(), "ref" | "move" | "shared ref") {
                 self.parse_postfix(false)
             } else {
                 self.parse_prefix(allow_call)
@@ -890,19 +921,27 @@ impl Parser<'_> {
 
     fn parse_argument_list(&mut self) -> SyntaxNode {
         let start = self.position;
+        let grouped = self.parenthesis_delimits_argument_list() && self.eat(TokenKind::OpenParen);
         let mut children = Vec::new();
-        while !self.at_expression_end() {
+        while !(self.at_expression_end() || grouped && self.at(TokenKind::CloseParen)) {
             let argument_start = self.position;
             let mut parts = Vec::new();
             if self.at(TokenKind::Identifier) && self.peek_kind(1) == Some(TokenKind::Assign) {
                 parts.push(self.leaf(SyntaxKind::Name));
                 self.bump();
             }
-            parts.push(self.parse_expression(0, false));
+            parts.push(self.parse_expression(0, grouped));
             children.push(self.node(SyntaxKind::Argument, argument_start, self.position, parts));
             if !self.eat(TokenKind::Comma) {
                 break;
             }
+        }
+        if grouped {
+            self.expect(
+                TokenKind::CloseParen,
+                "S1018",
+                "expected `)` after call arguments",
+            );
         }
         self.node(SyntaxKind::ArgumentList, start, self.position, children)
     }
@@ -985,6 +1024,10 @@ impl Parser<'_> {
         if self.eat_text("ref") {
             let inner = self.parse_prefix_type();
             return self.node(SyntaxKind::PrefixType, start, self.position, vec![inner]);
+        }
+        let async_function = self.at_text("async") && self.peek_text(1) == Some("function");
+        if async_function {
+            self.bump();
         }
         if self.eat_text("function") {
             let mut children = Vec::new();
@@ -1173,14 +1216,50 @@ impl Parser<'_> {
         ) {
             offset += 1;
         }
-        while matches!(
-            self.peek_text(offset),
-            Some("static" | "async" | "mutating" | "throws")
-        ) {
-            offset += 1;
+        loop {
+            match self.peek_text(offset) {
+                Some("static" | "async") => offset += 1,
+                Some("throws") => {
+                    offset += 1;
+                    if self.peek_text(offset) != Some("function") {
+                        offset += 1;
+                    }
+                }
+                _ => break,
+            }
         }
         self.peek_text(offset) == Some("function")
     }
+    fn parenthesis_delimits_argument_list(&self) -> bool {
+        if !self.at(TokenKind::OpenParen) {
+            return false;
+        }
+        let mut depth = 0usize;
+        for (offset, token) in self.tokens[self.position..].iter().enumerate() {
+            match token.kind {
+                TokenKind::OpenParen => depth += 1,
+                TokenKind::CloseParen => {
+                    depth = depth.saturating_sub(1);
+                    if depth == 0 {
+                        return self.peek_kind(offset + 1).is_none_or(|kind| {
+                            matches!(
+                                kind,
+                                TokenKind::Newline
+                                    | TokenKind::Dedent
+                                    | TokenKind::Eof
+                                    | TokenKind::CloseParen
+                                    | TokenKind::CloseBracket
+                                    | TokenKind::CloseBrace
+                            )
+                        });
+                    }
+                }
+                _ => {}
+            }
+        }
+        true
+    }
+
     fn line_has_semicolons(&self, count: usize) -> bool {
         let mut depth = 0usize;
         let mut semicolons = 0usize;
@@ -1206,11 +1285,6 @@ impl Parser<'_> {
     }
     fn recover_expression(&mut self) {
         while !self.at_expression_end() {
-            self.bump();
-        }
-    }
-    fn recover_to_comma_or_line(&mut self) {
-        while !self.at(TokenKind::Comma) && !self.at_line_end() {
             self.bump();
         }
     }

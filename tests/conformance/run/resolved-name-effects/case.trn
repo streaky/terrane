@@ -1,0 +1,12 @@
+namespace resolved-name-effects
+from /core/output import print as emit
+
+public function print string; value string
+  return value
+
+public function quiet string;
+  return print; 'quiet'
+
+function main;
+  emit; 'contracts=', quiet.contracts
+  emit; (quiet;)

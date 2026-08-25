@@ -1,5 +1,5 @@
 namespace empty-collection-needs-type
 from /core/collections import list
-function main
+function main;
   bare = list
   value = bare.length

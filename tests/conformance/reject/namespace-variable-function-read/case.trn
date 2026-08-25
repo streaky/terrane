@@ -1,4 +1,4 @@
 namespace namespace-variable-function-read
 value int = 1
-function main
+function main;
   print; value

@@ -1,5 +1,5 @@
 namespace text-families
-function main
+function main;
   text string = '  Straße  '
   print; (text.trim;)
   print; (text.trim.start;), (text.trim.end;)

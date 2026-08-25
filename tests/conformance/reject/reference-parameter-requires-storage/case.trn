@@ -4,5 +4,5 @@ from /core/types import int8
 function observe; value int8
     observer ref int8 = ref value
 
-function main
+function main;
     observe; 7

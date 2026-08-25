@@ -1,0 +1,7 @@
+namespace inferred-public-effects
+
+public function noisy;
+  print; >effect
+
+function main;
+  noisy;

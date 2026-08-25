@@ -1,0 +1,5 @@
+package = "cooperative-task-scope"
+executor = "cooperative"
+
+[namespaces]
+cooperative-task-scope = "app"

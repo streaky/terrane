@@ -3,7 +3,8 @@ use std::path::PathBuf;
 use terrane_compiler::semantics::SymbolKind;
 use terrane_compiler::syntax::SyntaxKind;
 use terrane_compiler::{
-    EvaluationKind, Package, ScalarType, SourceFile, SourceUnit, ValueType, analyze,
+    EvaluationKind, ExecutorProfile, Package, ReflectionProfile, ScalarType, SourceFile,
+    SourceUnit, ValueType, analyze,
 };
 
 fn package(prelude: bool, sources: &[(&str, &str)]) -> Package {
@@ -11,6 +12,8 @@ fn package(prelude: bool, sources: &[(&str, &str)]) -> Package {
         identity: "semantic-test".to_owned(),
         root: PathBuf::from("."),
         prelude,
+        reflection: ReflectionProfile::Ordinary,
+        executor: ExecutorProfile::Threaded,
         units: sources
             .iter()
             .enumerate()
@@ -153,8 +156,19 @@ fn prelude_has_exact_ordinary_bindings_and_can_be_disabled() {
     assert_eq!(
         names,
         [
-            "bool", "bytes", "float", "int", "none", "print", "string", "utf16-be", "utf16-le",
-            "utf32-be", "utf32-le", "utf8",
+            "bool",
+            "bytes",
+            "float",
+            "int",
+            "none",
+            "print",
+            "string",
+            "task-scope",
+            "utf16-be",
+            "utf16-le",
+            "utf32-be",
+            "utf32-le",
+            "utf8",
         ]
     );
 
@@ -182,26 +196,28 @@ fn prelude_has_exact_ordinary_bindings_and_can_be_disabled() {
 }
 
 #[test]
-fn descriptor_constructs_cannot_be_renamed_by_value_bindings() {
+fn descriptor_constructs_materialize_as_reflection_values() {
     for declaration in ["byte = int8", "constant byte = int8"] {
         let source = format!("namespace app\n{declaration}\n");
-        let failure = analyze(&package(false, &[("main.trn", &source)])).unwrap_err();
-        assert_eq!(failure.diagnostics[0].code, "T0019", "{declaration}");
+        let analyzed = analyze(&package(false, &[("main.trn", &source)])).unwrap();
         assert_eq!(
-            failure.diagnostics[0].message,
-            "type descriptor `int8` is a compile-time construct and cannot be used as a runtime value",
+            analyzed.units[0].typed_bindings[0].value_type,
+            ValueType::Descriptor("int8".to_owned()),
             "{declaration}"
         );
     }
 }
 #[test]
-fn descriptor_constructs_are_rejected_as_runtime_values() {
-    for runtime_use in ["print; int8", "result = int8 + 1", "result = consume; int8"] {
+fn descriptor_constructs_are_rejected_in_non_reflection_value_contexts() {
+    for (runtime_use, code) in [
+        ("result = int8 + 1", "T0011"),
+        ("result = consume; int8", "T0012"),
+    ] {
         let source = format!(
-            "namespace app\nfrom /core/output import print\nfunction consume int; value int\n  return value\nfunction main\n  {runtime_use}\n"
+            "namespace app\nfrom /core/output import print\nfunction consume int; value int\n  return value\nfunction main;\n  {runtime_use}\n"
         );
         let failure = analyze(&package(false, &[("main.trn", &source)])).unwrap_err();
-        assert_eq!(failure.diagnostics[0].code, "T0019", "{runtime_use}");
+        assert_eq!(failure.diagnostics[0].code, code, "{runtime_use}");
         assert_eq!(
             failure.diagnostics[0].primary.unwrap().start,
             source.rfind("int8").unwrap()
@@ -243,16 +259,16 @@ fn core_error_registry_distinguishes_the_interface_and_mandated_objects() {
             "coercion-error",
             "decode-error",
             "division-by-zero",
-            "error",
             "index-error",
             "integer-conversion-overflow",
             "missing-key",
             "negative-shift-count",
+            "throwable",
         ]
     );
-    assert_eq!(errors["error"].kind, SymbolKind::Interface);
+    assert_eq!(errors["throwable"].kind, SymbolKind::Interface);
     for (name, symbol) in errors {
-        if name != "error" {
+        if name != "throwable" {
             assert_eq!(symbol.kind, SymbolKind::ErrorObject, "{name}");
         }
     }
@@ -352,10 +368,10 @@ fn namespace_local_bindings_may_shadow_program_globals() {
 #[test]
 fn plain_function_assignment_cannot_replace_namespace_bindings() {
     for source in [
-        "namespace app\nconstant counter int = 0\nfunction main\n  counter = 1\n",
-        "namespace app\nconstant value int8 = 7\nfunction main\n  value = 16\n",
-        "namespace app\nglobal counter int = 0\nfunction main\n  counter = 1\n",
-        "namespace app\nvalue int8\nfunction main\n  value = 16\n",
+        "namespace app\nconstant counter int = 0\nfunction main;\n  counter = 1\n",
+        "namespace app\nconstant value int8 = 7\nfunction main;\n  value = 16\n",
+        "namespace app\nglobal counter int = 0\nfunction main;\n  counter = 1\n",
+        "namespace app\nvalue int8\nfunction main;\n  value = 16\n",
     ] {
         let failure = analyze(&package(true, &[("main.trn", source)])).unwrap_err();
         let diagnostic = &failure.diagnostics[0];
@@ -388,7 +404,7 @@ fn local_binding_may_shadow_a_namespace_binding() {
         true,
         &[(
             "main.trn",
-            "namespace app\nconstant value int8 = 7\nfunction main\n  value int8 = 12\n  value = 16\n",
+            "namespace app\nconstant value int8 = 7\nfunction main;\n  value int8 = 12\n  value = 16\n",
         )],
     ))
     .unwrap();
@@ -399,13 +415,13 @@ fn namespace_variables_stay_at_their_own_namespace_tier() {
     for sources in [
         vec![(
             "main.trn",
-            "namespace app\nvalue int = 1\nfunction main\n  print; value\n",
+            "namespace app\nvalue int = 1\nfunction main;\n  print; value\n",
         )],
         vec![
             ("parent.trn", "namespace app\nvalue int = 1\n"),
             (
                 "child.trn",
-                "namespace app/child\nfunction main\n  print; value\n",
+                "namespace app/child\nfunction main;\n  print; value\n",
             ),
         ],
     ] {
@@ -427,7 +443,7 @@ fn namespace_variables_stay_at_their_own_namespace_tier() {
         true,
         &[(
             "main.trn",
-            "namespace app\nvalue int = 1\nconstant copied int = value\nfunction main\n  print; copied\n",
+            "namespace app\nvalue int = 1\nconstant copied int = value\nfunction main;\n  print; copied\n",
         )],
     ))
     .unwrap();
@@ -467,7 +483,7 @@ fn namespace_variables_cannot_be_imported_across_the_boundary() {
             ("state.trn", "namespace state\nvalue int = 1\n"),
             (
                 "main.trn",
-                "namespace app\nfrom /state import value\nfunction main\n  print; value\n",
+                "namespace app\nfrom /state import value\nfunction main;\n  print; value\n",
             ),
         ],
     ))
@@ -487,12 +503,12 @@ fn namespace_variables_cannot_be_imported_across_the_boundary() {
 #[test]
 fn constants_cannot_be_reassigned() {
     for source in [
-        "namespace app\nfunction main\n  constant limit int = 10\n  limit = 11\n",
-        "namespace app\nfunction main\n  constant limit int = 10\n  limit++\n",
-        "namespace app\nconstant limit int = 10\nfunction main\n  limit = 11\n",
-        "namespace app\nconstant limit int = 10\nfunction main\n  limit = 11\n",
-        "namespace app\nconstant limit int = 10\nfunction main\n  global limit int = 11\n",
-        "namespace app\nfunction main\n  constant limit int = 10\n  global limit int = 11\n",
+        "namespace app\nfunction main;\n  constant limit int = 10\n  limit = 11\n",
+        "namespace app\nfunction main;\n  constant limit int = 10\n  limit++\n",
+        "namespace app\nconstant limit int = 10\nfunction main;\n  limit = 11\n",
+        "namespace app\nconstant limit int = 10\nfunction main;\n  limit = 11\n",
+        "namespace app\nconstant limit int = 10\nfunction main;\n  global limit int = 11\n",
+        "namespace app\nfunction main;\n  constant limit int = 10\n  global limit int = 11\n",
     ] {
         let failure = analyze(&package(true, &[("main.trn", source)])).unwrap_err();
         let diagnostic = &failure.diagnostics[0];
@@ -507,8 +523,8 @@ fn constants_cannot_be_reassigned() {
 #[test]
 fn binding_initializers_cannot_reference_the_binding_being_declared() {
     for source in [
-        "namespace app\nconstant value int8 = value\nfunction main\n  print; value\n",
-        "namespace app\nfunction main\n  value int8 = value\n  print; value\n",
+        "namespace app\nconstant value int8 = value\nfunction main;\n  print; value\n",
+        "namespace app\nfunction main;\n  value int8 = value\n  print; value\n",
     ] {
         let failure = analyze(&package(true, &[("main.trn", source)])).unwrap_err();
         let diagnostic = &failure.diagnostics[0];
@@ -525,8 +541,8 @@ fn binding_initializers_cannot_reference_the_binding_being_declared() {
 #[test]
 fn namespace_binding_initialization_cycles_are_rejected() {
     for source in [
-        "namespace app\nconstant a int = b\nconstant b int = a\nfunction main\n  print; b\n",
-        "namespace app\nconstant a int = read-b;\nconstant b int = a\nfunction read-b int\n  return b\nfunction main\n  print; a\n",
+        "namespace app\nconstant a int = b\nconstant b int = a\nfunction main;\n  print; b\n",
+        "namespace app\nconstant a int = read-b;\nconstant b int = a\nfunction read-b int;\n  return b\nfunction main;\n  print; a\n",
     ] {
         let failure = analyze(&package(true, &[("main.trn", source)])).unwrap_err();
         let diagnostic = &failure.diagnostics[0];
@@ -541,7 +557,7 @@ fn namespace_binding_initialization_cycles_are_rejected() {
 #[test]
 fn plain_namespace_assignment_cannot_target_a_program_global() {
     let source =
-        "namespace app\nglobal counter int = 0\ncounter = 11\nfunction main\n  print; counter\n";
+        "namespace app\nglobal counter int = 0\ncounter = 11\nfunction main;\n  print; counter\n";
     let failure = analyze(&package(true, &[("main.trn", source)])).unwrap_err();
     let diagnostic = &failure.diagnostics[0];
     assert_eq!(diagnostic.code, "S2021");
@@ -558,9 +574,9 @@ fn plain_namespace_assignment_cannot_target_a_program_global() {
 #[test]
 fn uninitialized_globals_require_assignment_before_same_function_reads() {
     for source in [
-        "namespace app\nglobal counter int\nfunction main\n  print; counter\n",
-        "namespace app\nglobal counter int\nfunction main\n  if true\n    global counter = 1\n  print; counter\n",
-        "namespace app\nglobal counter int\nfunction main\n  global counter ++\n",
+        "namespace app\nglobal counter int\nfunction main;\n  print; counter\n",
+        "namespace app\nglobal counter int\nfunction main;\n  if true\n    global counter = 1\n  print; counter\n",
+        "namespace app\nglobal counter int\nfunction main;\n  global counter ++\n",
     ] {
         let failure = analyze(&package(true, &[("main.trn", source)])).unwrap_err();
         assert_eq!(failure.diagnostics[0].code, "T0007", "{source}");
@@ -573,7 +589,7 @@ fn unconditional_global_assignment_precedes_same_function_reads() {
         true,
         &[(
             "main.trn",
-            "namespace app\nglobal counter int\nfunction main\n  global counter = 1\n  print; counter\n",
+            "namespace app\nglobal counter int\nfunction main;\n  global counter = 1\n  print; counter\n",
         )],
     ))
     .unwrap();
@@ -585,7 +601,7 @@ fn global_assignment_joins_complete_if_else_branches() {
         true,
         &[(
             "main.trn",
-            "namespace app\nglobal counter int\nfunction decide bool\n  return true\nfunction main\n  if (decide;)\n    global counter = 1\n  else\n    global counter = 2\n  print; counter\n",
+            "namespace app\nglobal counter int\nfunction decide bool;\n  return true\nfunction main;\n  if (decide;)\n    global counter = 1\n  else\n    global counter = 2\n  print; counter\n",
         )],
     ))
     .unwrap();
@@ -597,7 +613,7 @@ fn inner_binding_may_shadow_a_constant() {
         true,
         &[(
             "main.trn",
-            "namespace app\nconstant limit int = 10\nfunction main\n  limit int = 11\n  limit = 12\n",
+            "namespace app\nconstant limit int = 10\nfunction main;\n  limit int = 11\n  limit = 12\n",
         )],
     ))
     .unwrap();
@@ -681,17 +697,17 @@ fn lexical_scopes_resolve_parameters_bindings_and_object_imports() {
 #[test]
 fn nested_blocks_record_and_confine_their_own_bindings() {
     for source in [
-        "namespace app\nfunction main\n  if true\n    nested int = 1\n    print; nested\n",
-        "namespace app\nfunction main\n  if false\n    print; >no\n  else\n    nested int = 2\n    print; nested\n",
-        "namespace app\nfunction main\n  while false\n    nested int = 1\n    print; nested\n",
-        "namespace app\nfunction main\n  text string = 'a'\n  for character in text\n    nested int = 1\n    print; nested\n",
+        "namespace app\nfunction main;\n  if true\n    nested int = 1\n    print; nested\n",
+        "namespace app\nfunction main;\n  if false\n    print; >no\n  else\n    nested int = 2\n    print; nested\n",
+        "namespace app\nfunction main;\n  while false\n    nested int = 1\n    print; nested\n",
+        "namespace app\nfunction main;\n  text string = 'a'\n  for character in text\n    nested int = 1\n    print; nested\n",
     ] {
         analyze(&package(true, &[("main.trn", source)])).unwrap();
     }
 
     for source in [
-        "namespace app\nfunction main\n  if true\n    nested int = 1\n  print; nested\n",
-        "namespace app\nfunction main\n  text string = 'a'\n  for character in text\n    block-scoped int = 1\n  print; block-scoped\n",
+        "namespace app\nfunction main;\n  if true\n    nested int = 1\n  print; nested\n",
+        "namespace app\nfunction main;\n  text string = 'a'\n  for character in text\n    block-scoped int = 1\n  print; block-scoped\n",
     ] {
         let failure = analyze(&package(true, &[("main.trn", source)])).unwrap_err();
         assert_eq!(failure.diagnostics[0].code, "S2013");
@@ -702,7 +718,7 @@ fn nested_blocks_record_and_confine_their_own_bindings() {
 fn duplicate_parameters_and_same_scope_bindings_are_rejected() {
     for source in [
         "namespace app\nfunction run; value int, value int\n",
-        "namespace app\nfunction run\n  private value = 1\n  private value = 2\n",
+        "namespace app\nfunction run;\n  private value = 1\n  private value = 2\n",
     ] {
         let failure = analyze(&package(false, &[("main.trn", source)])).unwrap_err();
         assert_eq!(failure.diagnostics[0].code, "S2012");
@@ -715,7 +731,7 @@ fn nested_global_declarations_populate_the_package_global_tier() {
         false,
         &[(
             "main.trn",
-            "namespace app\nfunction run\n  public global counter = 1\n",
+            "namespace app\nfunction run;\n  public global counter = 1\n",
         )],
     ))
     .unwrap();
@@ -732,7 +748,7 @@ fn nested_global_declarations_populate_the_package_global_tier() {
 fn nested_dot_prefixed_declarations_are_rejected_syntactically() {
     let failure = analyze(&package(
         false,
-        &[("main.trn", "namespace app\nfunction run\n  .thing = 1\n")],
+        &[("main.trn", "namespace app\nfunction run;\n  .thing = 1\n")],
     ))
     .unwrap_err();
 
@@ -743,7 +759,7 @@ fn nested_dot_prefixed_declarations_are_rejected_syntactically() {
 fn imports_report_inaccessible_exports_consistently_at_every_scope() {
     for consumer in [
         "namespace unrelated\nfrom /hidden import item\n",
-        "namespace unrelated\nfunction run\n  from /hidden import item\n",
+        "namespace unrelated\nfunction run;\n  from /hidden import item\n",
     ] {
         let failure = analyze(&package(
             false,
@@ -968,7 +984,7 @@ fn accepts_reads_after_unconditional_assignment() {
         true,
         &[(
             "main.trn",
-            "namespace app\nfunction main\n  value int\n  value = 1\n  result = value\n",
+            "namespace app\nfunction main;\n  value int\n  value = 1\n  result = value\n",
         )],
     ))
     .unwrap();
@@ -980,7 +996,7 @@ fn rejects_reads_before_assignment() {
         true,
         &[(
             "main.trn",
-            "namespace app\nfunction main\n  value int\n  result = value\n",
+            "namespace app\nfunction main;\n  value int\n  result = value\n",
         )],
     ))
     .unwrap_err();
@@ -996,7 +1012,7 @@ fn branch_assignment_is_definite_only_when_every_path_assigns() {
             "main.trn",
             concat!(
                 "namespace app\n",
-                "function main; ready bool\n",
+                "function probe; ready bool\n",
                 "  value int\n",
                 "  if ready\n",
                 "    value = 1\n",
@@ -1014,7 +1030,7 @@ fn branch_assignment_is_definite_only_when_every_path_assigns() {
             "main.trn",
             concat!(
                 "namespace app\n",
-                "function main; ready bool\n",
+                "function probe; ready bool\n",
                 "  value int\n",
                 "  if ready\n",
                 "    value = 1\n",
@@ -1032,7 +1048,7 @@ fn collection_for_targets_are_typed_only_inside_the_loop_body() {
         true,
         &[(
             "main.trn",
-            "namespace app\nfunction consume; item int\nfunction main\n  text string = 'ab'\n  for value in text\n    consume; value\n",
+            "namespace app\nfunction consume; item int\nfunction main;\n  text string = 'ab'\n  for value in text\n    consume; value\n",
         )],
     ))
     .unwrap_err();
@@ -1042,7 +1058,7 @@ fn collection_for_targets_are_typed_only_inside_the_loop_body() {
         true,
         &[(
             "main.trn",
-            "namespace app\nfunction main\n  value int = 1\n  for value in value\n    item = value\n",
+            "namespace app\nfunction main;\n  value int = 1\n  for value in value\n    item = value\n",
         )],
     ))
     .unwrap_err();
@@ -1055,7 +1071,7 @@ fn untyped_assignment_preserves_the_existing_lexical_binding_type() {
         true,
         &[(
             "main.trn",
-            "namespace app\nfunction main\n  value int8 = 1\n  value = 2\n  after = value\n",
+            "namespace app\nfunction main;\n  value int8 = 1\n  value = 2\n  after = value\n",
         )],
     ))
     .unwrap();
@@ -1084,7 +1100,7 @@ fn integer_literals_may_assign_only_when_representable() {
         true,
         &[(
             "main.trn",
-            "namespace app\nfunction main\n  value int8\n  value = 127\n",
+            "namespace app\nfunction main;\n  value int8\n  value = 127\n",
         )],
     ))
     .unwrap();
@@ -1093,7 +1109,7 @@ fn integer_literals_may_assign_only_when_representable() {
         true,
         &[(
             "main.trn",
-            "namespace app\nfunction main\n  value int8\n  value = 128\n",
+            "namespace app\nfunction main;\n  value int8\n  value = 128\n",
         )],
     ))
     .unwrap_err();
@@ -1109,7 +1125,7 @@ fn types_canonical_integer_coercion_family() {
             concat!(
                 "namespace app\n",
                 "from /core/types import int8, int16, uint8\n",
-                "function main\n",
+                "function main;\n",
                 "  value int = 300\n",
                 "  exact = value.coerce; int16\n",
                 "  checked = value.coerce.checked; int8\n",
@@ -1144,7 +1160,7 @@ fn rejects_unsupported_integer_coercion_destinations() {
         true,
         &[(
             "main.trn",
-            "namespace app\nfunction main\n  value int = 1\n  converted = value.coerce; float\n",
+            "namespace app\nfunction main;\n  value int = 1\n  converted = value.coerce; float\n",
         )],
     ))
     .unwrap_err();
@@ -1156,7 +1172,7 @@ fn rejects_unsupported_integer_coercion_destinations() {
             &[(
                 "main.trn",
                 &format!(
-                    "namespace app\nfunction main\n  value int = 1\n  converted = {expression}\n"
+                    "namespace app\nfunction main;\n  value int = 1\n  converted = {expression}\n"
                 ),
             )],
         ))
@@ -1173,7 +1189,7 @@ fn rejects_obsolete_flat_integer_coercion_members() {
             &[(
                 "main.trn",
                 &format!(
-                    "namespace app\nfunction main\n  value int = 1\n  converted = value.{member}; int\n"
+                    "namespace app\nfunction main;\n  value int = 1\n  converted = value.{member}; int\n"
                 ),
             )],
         ))
@@ -1188,7 +1204,7 @@ fn rejects_unbound_integer_coercion_family() {
         true,
         &[(
             "main.trn",
-            "namespace app\nfunction main\n  value int = 1\n  family = value.coerce\n",
+            "namespace app\nfunction main;\n  value int = 1\n  family = value.coerce\n",
         )],
     ))
     .unwrap_err();
@@ -1208,7 +1224,7 @@ fn rejects_nested_and_escaped_coercion_family_shapes() {
             &[(
                 "main.trn",
                 &format!(
-                    "namespace app\nfrom /core/types import int8\nfunction main\n  value int = 1\n  converted = {expression}\n"
+                    "namespace app\nfrom /core/types import int8\nfunction main;\n  value int = 1\n  converted = {expression}\n"
                 ),
             )],
         ))
@@ -1232,7 +1248,7 @@ fn rejects_nested_and_escaped_coercion_family_shapes() {
             &[(
                 "main.trn",
                 &format!(
-                    "namespace app\nfunction main\n  value int = 1\n  converted = {expression}\n"
+                    "namespace app\nfunction main;\n  value int = 1\n  converted = {expression}\n"
                 ),
             )],
         ))
@@ -1249,7 +1265,7 @@ fn validates_calls_inside_coercion_receivers() {
             &[(
                 "main.trn",
                 &format!(
-                    "namespace app\nfrom /core/types import int8\nfunction observed int; item int\n  return item\nfunction main\n  converted = (observed; {arguments}).coerce; int8\n"
+                    "namespace app\nfrom /core/types import int8\nfunction observed int; item int\n  return item\nfunction main;\n  converted = (observed; {arguments}).coerce; int8\n"
                 ),
             )],
         ))
@@ -1265,11 +1281,11 @@ fn infers_cross_unit_call_results_before_binding_types() {
         &[
             (
                 "helper.trn",
-                "namespace app\nfunction helper int\n  return 300\n",
+                "namespace app\nfunction helper int;\n  return 300\n",
             ),
             (
                 "main.trn",
-                "namespace app\nfrom /core/types import uint8\nfunction main\n  value = (helper;).coerce.wrap; uint8\n",
+                "namespace app\nfrom /core/types import uint8\nfunction main;\n  value = (helper;).coerce.wrap; uint8\n",
             ),
         ],
     ))
@@ -1312,7 +1328,7 @@ fn types_valid_unary_binary_and_comparison_operators() {
             "main.trn",
             concat!(
                 "namespace app\n",
-                "function main\n",
+                "function main;\n",
                 "  count = 5\n",
                 "  negative = -count\n",
                 "  mask = ~count\n",
@@ -1353,7 +1369,7 @@ fn string_length_has_integer_type_and_rejects_other_receivers() {
         true,
         &[(
             "main.trn",
-            "namespace app\nfunction main\n  text = 'Terrane'\n  size = text.length\n",
+            "namespace app\nfunction main;\n  text = 'Terrane'\n  size = text.length\n",
         )],
     ))
     .unwrap();
@@ -1371,7 +1387,7 @@ fn string_length_has_integer_type_and_rejects_other_receivers() {
         true,
         &[(
             "main.trn",
-            "namespace app\nfunction main\n  count = 1\n  size = count.length\n",
+            "namespace app\nfunction main;\n  count = 1\n  size = count.length\n",
         )],
     ))
     .unwrap_err();
@@ -1390,7 +1406,7 @@ fn type_membership_is_boolean_in_bindings_and_conditions() {
             "main.trn",
             concat!(
                 "namespace app\n",
-                "function main\n",
+                "function main;\n",
                 "  value = 1\n",
                 "  selected = value is a int\n",
                 "  if value is a int\n",
@@ -1419,7 +1435,7 @@ fn identity_accepts_typed_scalars_and_canonical_descriptors() {
             concat!(
                 "namespace app\n",
                 "from /core/types import int8 as byte\n",
-                "function produce\n",
+                "function produce;\n",
                 "same-type = byte is byte\n",
                 "value = 1\n",
                 "same-value = value is value\n",
@@ -1444,10 +1460,10 @@ fn identity_accepts_typed_scalars_and_canonical_descriptors() {
 #[test]
 fn rejects_operators_with_incompatible_scalar_operands() {
     for source in [
-        "namespace app\nfunction main\n  value = true + false\n",
-        "namespace app\nfunction main\n  value = ~'text'\n",
-        "namespace app\nfunction main\n  value = 1 and 2\n",
-        "namespace app\nfunction main\n  value = 1 == true\n",
+        "namespace app\nfunction main;\n  value = true + false\n",
+        "namespace app\nfunction main;\n  value = ~'text'\n",
+        "namespace app\nfunction main;\n  value = 1 and 2\n",
+        "namespace app\nfunction main;\n  value = 1 == true\n",
     ] {
         let failure = analyze(&package(true, &[("main.trn", source)])).unwrap_err();
         assert_eq!(failure.diagnostics[0].code, "T0011");
@@ -1463,7 +1479,7 @@ fn binds_positional_named_and_default_arguments() {
             concat!(
                 "namespace app\n",
                 "function render; title string, count int, enabled bool = true\n",
-                "function main\n",
+                "function main;\n",
                 "  render; 'items', enabled=false, count=3\n",
                 "  render; 'empty', 0\n",
             ),
@@ -1483,7 +1499,7 @@ fn rejects_invalid_function_argument_binding() {
     ];
     for call in cases {
         let source = format!(
-            "namespace app\nfunction render; title string, count int, enabled bool = true\nfunction main\n  {call}\n"
+            "namespace app\nfunction render; title string, count int, enabled bool = true\nfunction main;\n  {call}\n"
         );
         let failure = analyze(&package(true, &[("main.trn", &source)])).unwrap_err();
         assert_eq!(failure.diagnostics[0].code, "T0012", "{call}");
@@ -1494,7 +1510,7 @@ fn rejects_invalid_function_argument_binding() {
 fn rejects_statically_incompatible_typed_arguments() {
     for call in ["consume; true", "consume; value"] {
         let source = format!(
-            "namespace app\nfunction consume; item int\nfunction main\n  value = 'text'\n  {call}\n"
+            "namespace app\nfunction consume; item int\nfunction main;\n  value = 'text'\n  {call}\n"
         );
         let failure = analyze(&package(true, &[("main.trn", &source)])).unwrap_err();
         assert_eq!(failure.diagnostics[0].code, "T0012", "{call}");
@@ -1511,7 +1527,7 @@ fn rejects_function_results_assigned_to_incompatible_scalar_types() {
         true,
         &[(
             "main.trn",
-            "namespace app\nfunction enabled bool\n  return true\nfunction main\n  count int = enabled;\n",
+            "namespace app\nfunction enabled bool;\n  return true\nfunction main;\n  count int = enabled;\n",
         )],
     ))
     .unwrap_err();
@@ -1529,7 +1545,7 @@ fn typed_call_checks_follow_callee_and_argument_scope() {
         true,
         &[(
             "main.trn",
-            "namespace app\nfunction consume; item int\nfunction main; value bool\n  consume; value\n",
+            "namespace app\nfunction consume; item int\nfunction probe; value bool\n  consume; value\n",
         )],
     ))
     .unwrap_err();
@@ -1543,7 +1559,7 @@ fn typed_call_checks_follow_callee_and_argument_scope() {
                 "namespace app\n",
                 "constant value = 1\n",
                 "function consume; item int\n",
-                "function main\n",
+                "function main;\n",
                 "  consume = false\n",
                 "  consume; value\n",
             ),
@@ -1560,7 +1576,7 @@ fn typed_call_checks_cross_source_unit_contracts() {
             ("api.trn", "namespace app\nfunction consume; item int\n"),
             (
                 "main.trn",
-                "namespace app\nfunction main\n  consume; 'text'\n",
+                "namespace app\nfunction main;\n  consume; 'text'\n",
             ),
         ],
     ))
@@ -1578,7 +1594,7 @@ fn preserves_calls_member_access_and_dot_objects_as_distinct_forms() {
                 "namespace app\n",
                 "from /core/output import print as renderer\n",
                 "function consume; item\n",
-                "function main\n",
+                "function main;\n",
                 "  text = 'hello'\n",
                 "  text.trim;\n",
                 "  consume; renderer\n",
@@ -1610,7 +1626,7 @@ fn checks_control_flow_and_records_unreachable_statements() {
                 "  else\n",
                 "    return false\n",
                 "  unreachable = 1\n",
-                "function count\n",
+                "function count;\n",
                 "  value int = 1\n",
                 "  while true\n",
                 "    value++\n",
@@ -1630,15 +1646,18 @@ fn rejects_invalid_control_flow_contracts() {
             "T0015",
         ),
         (
-            "namespace app\nfunction main\n  if 1\n    return\n",
+            "namespace app\nfunction main;\n  if 1\n    return\n",
             "T0014",
         ),
-        ("namespace app\nfunction main\n  break\n", "T0014"),
+        ("namespace app\nfunction main;\n  break\n", "T0014"),
         (
-            "namespace app\nfunction main\n  value string = 'x'\n  value++\n",
+            "namespace app\nfunction main;\n  value string = 'x'\n  value++\n",
             "T0014",
         ),
-        ("namespace app\nfunction choose bool\n  return 1\n", "T0015"),
+        (
+            "namespace app\nfunction choose bool;\n  return 1\n",
+            "T0015",
+        ),
     ] {
         let failure = analyze(&package(true, &[("main.trn", source)])).unwrap_err();
         assert_eq!(failure.diagnostics[0].code, code, "{source}");
@@ -1651,13 +1670,13 @@ fn limits_collection_iteration_to_single_target_strings() {
         true,
         &[(
             "main.trn",
-            "namespace app\nfunction main\n  text string = 'abc'\n  for character in text\n    continue\n",
+            "namespace app\nfunction main;\n  text string = 'abc'\n  for character in text\n    continue\n",
         )],
     ))
     .unwrap();
     for source in [
-        "namespace app\nfunction main\n  count int = 3\n  for value in count\n    continue\n",
-        "namespace app\nfunction main\n  text string = 'abc'\n  for index, character in text\n    continue\n",
+        "namespace app\nfunction main;\n  count int = 3\n  for value in count\n    continue\n",
+        "namespace app\nfunction main;\n  text string = 'abc'\n  for index, character in text\n    continue\n",
     ] {
         let failure = analyze(&package(true, &[("main.trn", source)])).unwrap_err();
         assert_eq!(failure.diagnostics[0].code, "T0016");
@@ -1672,11 +1691,11 @@ fn records_left_to_right_calls_and_short_circuit_boundaries() {
             "main.trn",
             concat!(
                 "namespace app\n",
-                "function first bool\n",
+                "function first bool;\n",
                 "  return true\n",
-                "function second bool\n",
+                "function second bool;\n",
                 "  return false\n",
-                "function main\n",
+                "function main;\n",
                 "  first;\n",
                 "  second;\n",
                 "  ready bool = true and false\n",
@@ -1716,7 +1735,7 @@ fn records_mutability_against_resolved_binding_identity() {
             concat!(
                 "namespace app\n",
                 "value = 1\n",
-                "function main\n",
+                "function main;\n",
                 "  value int = 2\n",
                 "  if true\n",
                 "    value = 3\n",
@@ -1750,7 +1769,7 @@ fn validates_namespace_segments_and_declared_name_casing() {
             "choose a different name, such as `con-app`",
         ),
         (
-            "namespace app\nfunction Main\n",
+            "namespace app\nfunction Main;\n",
             "S2018",
             "declared name `Main` must be lowercase",
             "use `main`",
@@ -1793,7 +1812,7 @@ fn resolves_slash_separated_root_and_nested_parent_paths() {
 #[test]
 fn rejects_extracted_string_methods_as_values() {
     for member in ["concat", "join"] {
-        let source = format!("namespace app\nfunction main\n  formatter = ','.{member}\n");
+        let source = format!("namespace app\nfunction main;\n  formatter = ','.{member}\n");
         let failure = analyze(&package(false, &[("main.trn", &source)])).unwrap_err();
         assert_eq!(failure.diagnostics[0].code, "T0018");
         assert!(
@@ -1808,11 +1827,11 @@ fn rejects_extracted_string_methods_as_values() {
 fn collection_constructor_mismatches_name_the_destination_position() {
     for (source, position) in [
         (
-            "namespace app\nfrom /core/collections import list\nfunction main\n  values list of int8 = list; 1, 'wrong'\n",
+            "namespace app\nfrom /core/collections import list\nfunction main;\n  values list of int8 = list; 1, 'wrong'\n",
             "values item 2",
         ),
         (
-            "namespace app\nfrom /core/collections import map\nfunction main\n  values map of string, int = map; first='wrong'\n",
+            "namespace app\nfrom /core/collections import map\nfunction main;\n  values map of string, int = map; first='wrong'\n",
             "values entry 1 value",
         ),
     ] {
@@ -1830,7 +1849,7 @@ fn records_parameter_mutability() {
         true,
         &[(
             "main.trn",
-            "namespace app\nfunction show; value string\n  value = 'changed'\nfunction main\n  for item in 'ab'\n    item = 'z'\n",
+            "namespace app\nfunction show; value string\n  value = 'changed'\nfunction main;\n  for item in 'ab'\n    item = 'z'\n",
         )],
     ))
     .unwrap();

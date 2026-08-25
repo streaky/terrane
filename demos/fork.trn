@@ -70,12 +70,12 @@ with per-cpu global process-counts unsigned-long = 0
 with cacheline-aligned global tasklist-lock rwlock = define-rwlock;
 
 when build; config-prove-rcu
-    function lockdep-tasklist-lock-is-held int
+    function lockdep-tasklist-lock-is-held int;
         return lockdep-is-held; ref tasklist-lock
 
     export-symbol-gpl; lockdep-tasklist-lock-is-held
 
-function nr-processes int
+function nr-processes int;
     cpu int
     total int = 0
 
@@ -374,7 +374,7 @@ function free-thread-stack void; tsk ref task-struct
     tsk.stack = none
 internal-linkage; free-thread-stack
 
-function thread-stack-cache-init void
+function thread-stack-cache-init void;
     thread-stack-cache = kmem-cache-create-usercopy; "thread_stack", thread-size, thread-size, 0, 0, thread-size, none
     bug-on; thread-stack-cache == none
 
@@ -550,7 +550,7 @@ function check-mm void; mm ref mm-struct
             vm-bug-on-mm; mm.pmd-huge-pte, mm
 internal-linkage; check-mm
 
-function allocate-mm ref mm-struct
+function allocate-mm ref mm-struct;
     return kmem-cache-alloc; mm-cachep, gfp-kernel
 internal-linkage; allocate-mm
 inline; allocate-mm
@@ -699,7 +699,7 @@ function put-task-struct-rcu-cb void; rhp ref rcu-head
     put-task-struct; task
 export-symbol-gpl; put-task-struct-rcu-cb
 
-function arch-task-cache-init void
+function arch-task-cache-init void;
     none
 init; arch-task-cache-init
 weak; arch-task-cache-init
@@ -742,7 +742,7 @@ function task-struct-whitelist void; offset ref unsigned-long, size ref unsigned
 internal-linkage; task-struct-whitelist
 init; task-struct-whitelist
 
-function fork-init void
+function fork-init void;
 
     when build; arch-min-taskalign
         none
@@ -1031,7 +1031,7 @@ private function mm-init ref mm-struct; mm ref mm-struct, p ref task-struct
 /*
  * Allocate and initialize an mm_struct.
  */
-function mm-alloc ref mm-struct
+function mm-alloc ref mm-struct;
     mm ref mm-struct
 
     mm = allocate-mm;

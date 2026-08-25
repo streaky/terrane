@@ -1,6 +1,6 @@
 namespace rethrow-catch-all
 from /core/errors import arithmetic-overflow
-function main
+function main;
   try
     try
       throw arithmetic-overflow

@@ -2,14 +2,14 @@ namespace inherited-self-return
 from /core/output import print
 
 class base
-  function copy base
+  function copy base;
     return this
-  function marker int
+  function marker int;
     return 1
 
 class child extends base
 
-function main
+function main;
   value child = child;
   result base = value.copy;
   print; (result.marker;)

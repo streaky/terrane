@@ -1,0 +1,9 @@
+namespace awaited-task-binding
+
+async function answer int;
+  return 42
+
+async function main;
+  child = (answer;)
+  value int = await child
+  print; value

@@ -1,7 +1,7 @@
 namespace catch-all-alias
 from /core/errors import arithmetic-overflow
 
-function main
+function main;
   try
     throw arithmetic-overflow
   catch as failure

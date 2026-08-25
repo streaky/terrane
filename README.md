@@ -54,6 +54,17 @@ Terrane is still in design, but the compiler has progressed well beyond the prot
 
 The working `terrane` CLI can check, lower, build, and run manifest-backed programs through deterministic generated Rust and Cargo. One shared pipeline now covers the lexer and lossless parser, packages and namespaces, typed semantics, explicit Rust IR, Cargo build caching, structured Terrane errors, and compiler-owned member families. The implemented language surface includes native scalars, exact adaptive integers, fixed-width arithmetic policies and named results, typed bindings and calls, control flow, descriptors, strings and grapheme iteration, immutable bytes, explicit Unicode text views and encodings, and the version-one string transformation and search families. A manifest-driven conformance corpus exercises accepted, rejected, generated-Rust, and runtime contracts; later collections, general iterator protocols, ownership, concurrency, and platform capabilities remain planned rather than implemented.
 
+## Developing Terrane
+
+This repository uses [`sccache`](https://github.com/mozilla/sccache) as its Cargo compiler wrapper and therefore expects `sccache` on `PATH`. This requirement applies to working on the Terrane toolchain itself; it is not imposed on projects compiled with Terrane. Install a prebuilt package from your system package manager or with `cargo binstall sccache`. `cargo install sccache --locked` also works, but compiling the cache from source is slower than installing a release binary.
+
+Cargo already retains downloaded registry indexes and crate archives in `CARGO_HOME`, so repeated toolchain and conformance builds do not download unchanged dependencies again. The conformance runner additionally reuses one generated Cargo workspace for all accepted cases in a corpus run, while `sccache` carries reusable Rust compilation artifacts across separate runs and branches.
+
+Generated Rust is returned exactly as Terrane lowering emits it. Compiler work can pass
+`--require-canonical-rust` after any CLI command name to compare that untouched output with the
+compiler-bundled formatter. A mismatch fails as compiler defect `S9004`; the formatter never
+silently rewrites the generated artefact.
+
 ## Learn more
 
 The [language specification and compiler architecture draft](docs/language-spec-and-compiler-architecture-draft.md) is the main source for syntax, semantics, examples, interoperability, tooling, and other technical details.

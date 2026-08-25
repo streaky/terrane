@@ -1,0 +1,19 @@
+namespace task-outcome-class-presence
+
+class point
+  x int = 0
+  function construct; x int
+    this.x = x
+
+async function make point;
+  return point; 5
+
+function main;
+  scope = task-scope;
+  child = scope.spawn; make
+  outcome = scope.join; move child
+  value = outcome.value
+  if value != none
+    print; 'present'
+  if none == value
+    print; 'missing'

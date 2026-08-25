@@ -3,7 +3,7 @@ namespace function-values-closures
 function apply int; callback function from int to int, value int
   return callback; value
 
-function main
+function main;
   base int = 10
   add = function int; value int
     return base + value

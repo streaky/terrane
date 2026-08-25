@@ -55,7 +55,7 @@ A representative program is:
 ```terrane
 namespace my-app
 
-function main
+function main;
 
   project-name = >Terrane
   build-target = >native executable
@@ -68,7 +68,7 @@ function main
 Conceptually:
 
 1. `namespace my-app` declares this unit's namespace. Nested namespaces separate segments with `/`, as in `my-app/http/handlers`.
-2. No import appears because none is needed: `print` is one of the seven default prelude bindings, and every type descriptor is a construct available without import.
+2. No import appears because none is needed: `print` is one of the thirteen default prelude bindings, and every type descriptor is a construct available without import.
 3. `': '.join` looks up the `join` member on the `': '` text object.
 4. Invoking that member joins its arguments using the receiver as the separator, accepting any number of arguments. This is the shape of Python's `str.join` and PHP's `implode`: the separator supplies the member rather than being passed to it. `join` is distinct from `concat`, which appends its arguments to the receiver without a separator — `'a'.concat; 'b', 'c'` is `abc`.
 5. `print; message` invokes `print`’s default behaviour with `message` as its argument.
@@ -86,7 +86,7 @@ namespace my-app
 
 from /core/types import int64 as word
 
-function main
+function main;
   size word = 4096
   print; size
 ```
@@ -271,13 +271,13 @@ The absence of a qualifier normally means **minimal restriction**, not an invisi
 Examples:
 
 ```terrane
-function render
+function render;
 ```
 
 is public and dynamically typed by default.
 
 ```terrane
-private function render
+private function render;
 ```
 
 narrows visibility.
@@ -375,7 +375,7 @@ Blocks are indentation-delimited.
 ```terrane
 class widget
 
-  function render
+  function render;
     print; 'rendered'
 ```
 
@@ -396,7 +396,7 @@ The formatter emits two spaces per level by default, although it may preserve or
 Empty declarations are legal.
 
 ```terrane
-function not-yet
+function not-yet;
 
 class placeholder
 ```
@@ -1162,7 +1162,8 @@ Because `-` has no call-specific role, subtraction remains an ordinary expressio
 print; a - b
 ```
 
-Parentheses group an expression; they never create an alternative call syntax. Because invocation is introduced by `;`, these are equivalent:
+Parentheses group an expression; they never replace the `;` invocation marker. Because invocation
+is introduced by `;`, these are equivalent:
 
 ```terrane
 if is-enabled; config-vmap-stack
@@ -1172,7 +1173,8 @@ if (is-enabled; config-vmap-stack)
   ...
 ```
 
-The first is canonical when the call is the whole condition. Parentheses are useful only when they delimit a call inside a larger expression:
+The first is canonical when the call is the whole condition. Parentheses are useful when they
+delimit a call inside a larger expression:
 
 ```terrane
 if (flags & mask) != 0
@@ -1181,11 +1183,67 @@ if (flags & mask) != 0
 result = (convert; uint64, pages) * page-size
 ```
 
-`if (is-enabled; ...)` is therefore supported grouping, not C-style invocation. The formatter removes redundant whole-condition parentheses and preserves parentheses that determine expression structure.
+`if (is-enabled; ...)` is therefore supported grouping, not C-style invocation. The formatter
+removes redundant whole-condition parentheses and preserves parentheses that determine expression
+structure.
 
-A call clause extends to the end of its containing logical expression. Commas delimit its top-level arguments, but a semicolon inside an ungrouped argument does not start a nested call: `print; format; value` is invalid. A call used as an operand or argument inside a larger expression must be parenthesised, as in `print; (format; value)` or `result = (convert; uint64, pages) * page-size`.
+A `(` used as the first non-trivia token after a call's `;` on the same physical line opens a
+delimited argument list. Its matching `)` may be on that line or a later one; physical newlines and
+indentation inside the pair are non-structural, and commas alone divide its arguments. The opening
+`(` remains on the same physical line as the `;`, because a newline with no open parenthesis ends
+the call. These are all legal:
 
-Grouping keeps nesting unambiguous, but it is not an invitation to nest freely. A single parenthesised call in an argument list is ordinary and reads well. Two or more in the same argument list should be bound to intermediates and passed by name instead: the nesting obscures evaluation order for a reader, accumulates parentheses that carry no meaning of their own, and gives diagnostics, traces, and debuggers an anonymous subexpression to point at where a named binding would have identified the step. The rule is a style contract rather than a grammatical restriction — deeply nested calls remain legal — and the formatter is the practical enforcement point.
+```terrane
+print; (first, second)
+
+print; (
+  first,
+  second
+)
+
+print; (
+  first, second)
+```
+
+For a multiline list, the preferred documentation and formatter form places one argument on each
+line and the closing `)` on its own line. That is a formatting convention, not a grammar
+restriction: any whitespace and line distribution inside the delimiters is legal.
+
+Parentheses are therefore the general explicit continuation delimiter for expressions, not a
+call-only formatting exception. While a parenthesized expression remains open, physical newlines,
+indentation, comments, trailing commas in delimited argument lists, and block-string bodies do not
+terminate the containing logical statement. Closing the outermost parenthesis restores ordinary
+logical-line termination.
+A call clause without a parenthesised argument list extends to the end of its containing logical
+expression. Commas delimit its top-level arguments, but a semicolon inside an ungrouped argument
+does not start a nested call: `print; format; value` is invalid. Parentheses delimit nested calls,
+either by grouping a call used as an operand (`result = (convert; uint64, pages) * page-size`) or by
+delimiting the containing argument list:
+
+```terrane
+print; (
+  format;
+    value
+)
+
+print; (
+  foo; (
+    first,
+    second,
+    third
+  )
+)
+```
+
+Indentation inside the parentheses is non-structural, including indentation used to make the
+nested call visually subordinate. Grouping keeps nesting unambiguous, but it is not an invitation
+to nest freely. A single parenthesised call in an argument list is ordinary and reads well. Two or
+more in the same argument list should be bound to intermediates and passed by name instead: the
+nesting obscures evaluation order for a reader, accumulates parentheses that carry no meaning of
+their own, and gives diagnostics, traces, and debuggers an anonymous subexpression to point at
+where a named binding would have identified the step. The rule is a style contract rather than a
+grammatical restriction — deeply nested calls remain legal — and the formatter is the practical
+enforcement point.
 
 The semicolons in a three-clause `for` belong to the `for` grammar and delimit its clauses. Any call inside one of those clauses must therefore be parenthesised: `for i = (start-at; limit); i < limit; i++`. These rules make every semicolon's owner syntactically determinate without a closing-call token.
 
@@ -1231,7 +1289,7 @@ class widget
     this.width = width
     this.height = height
 
-  function area int
+  function area int;
     return this.width * this.height
 ```
 
@@ -1290,7 +1348,7 @@ Static state is state on the class object and follows the same visibility and co
 ```terrane
 class file-wrapper
 
-  function destruct
+  function destruct;
     this.file.close;
 ```
 
@@ -1320,7 +1378,7 @@ Declarations and members are public by default.
 ```terrane
 class widget
 
-  function render
+  function render;
 ```
 
 The language gets out of the way where visibility does not matter.
@@ -1328,9 +1386,9 @@ The language gets out of the way where visibility does not matter.
 Explicit visibility remains available and meaningful:
 
 ```terrane
-public function render
+public function render;
 private cache = map;
-protected function update-layout
+protected function update-layout;
 ```
 
 Writing `public` is permitted as documentation even though it matches the default.
@@ -1396,7 +1454,10 @@ A trailing comma is therefore an error rather than a tolerated flourish: `with p
 
 The clause is available on any declaration, including a local binding inside a function. Comma delimitation is what makes that possible: without it, a bare run of names before a binding could not be distinguished from that binding's own name and type. A modified binding therefore need not declare a type merely to remain unambiguous.
 
-**`with` marks package-supplied modifiers only.** Core declaration words — `global`, `constant`, the visibility words, and the function qualifiers `static`, `async`, `mutating`, and `throws` — remain bare keywords and never take `with`, even though several are conceptually modifier-like. The distinction is categorical rather than stylistic:
+**`with` marks package-supplied modifiers only.** Core declaration words — `global`, `constant`,
+the visibility words, and the closed function qualifiers `static`, `async`, and `throws` — remain
+bare keywords and never take `with`, even though several are conceptually modifier-like. The
+distinction is categorical rather than stylistic:
 
 | | Structural | Decorative |
 |---|---|---|
@@ -1407,7 +1468,7 @@ The clause is available on any declaration, including a local binding inside a f
 
 The test is whether the compiler's own model can be described without it. A structural word changes name resolution, visibility, mutability, or a callable's type contract, so the model cannot be stated without it and no package may redefine it. A decorative modifier changes only how a declaration the model already understands is realised — storage placement, layout, linkage, ABI, section, alignment.
 
-That boundary is the one this protocol already enforces below: a modifier may not affect visibility, ownership, effects, or capability. Marking the two groups differently therefore reports a real difference rather than an inconsistency, and writing `with global` would falsely suggest `global` is one of the extensible ones.
+That boundary is the one this protocol already enforces below: a modifier may not affect visibility, ownership, callable contracts, or target capabilities. Marking the two groups differently therefore reports a real difference rather than an inconsistency, and writing `with global` would falsely suggest `global` is one of the extensible ones.
 
 Ordering follows the layering: `with` modifiers precede the structural keywords, because the package-supplied layer is the outer one.
 
@@ -1424,7 +1485,7 @@ A kernel package may therefore define `per-cpu`; another environment might defin
 
 That open-endedness is intentional. Terrane should not require a grammar change whenever a domain discovers a new meaningful property of declarations, nor should it force such properties into textual macros merely because the core compiler did not anticipate them.
 
-A modifier is therefore better understood as a **compile-time participant in declaration realisation** than as an attribute attached to syntax. It receives a declaration the compiler already understands and may participate through the modifier protocol while remaining subject to the language's normal type, ownership, visibility, effect, capability, safety, diagnostic, reflection, and reproducibility rules.
+A modifier is therefore better understood as a **compile-time participant in declaration realisation** than as an attribute attached to syntax. It receives a declaration the compiler already understands and may participate through the modifier protocol while remaining subject to the language's normal type, ownership, visibility, callable-contract, target-capability, safety, diagnostic, reflection, and reproducibility rules.
 
 The important constraint is not that modifiers belong to a predetermined list of purposes. It is that an unfamiliar modifier remains understandable and inspectable: tooling should be able to answer what supplied it, what declaration contract it accepts, what guarantees or requirements it adds, how it composed with other modifiers, and what lowering consequences resulted.
 
@@ -1436,9 +1497,9 @@ This is deliberately an extensibility mechanism with room for uses this specific
 
 A declaration modifier receives the declaration's typed semantic descriptor during compilation and may return a constrained transformation or attach metadata consumed by lowering. Modifiers are deferred beyond version one, and the question still open is how a modifier is *declared*, not how it is applied.
 
-The protocol may affect only declared compiler extension points, including storage placement, linkage, exported symbol names, ABI/calling convention, alignment, target sections, generated wrappers, and checked declaration constraints. It must not replace a declaration body with hidden runtime behaviour, weaken source-visible ownership or effects, capture undeclared inputs, perform unrestricted syntax rewriting, or evade safety, capability, visibility, or type checks.
+The protocol may affect only declared compiler extension points, including storage placement, linkage, exported symbol names, ABI/calling convention, alignment, target sections, generated wrappers, and checked declaration constraints. It must not replace a declaration body with hidden runtime behaviour, weaken source-visible ownership or callable contracts, capture undeclared inputs, perform unrestricted syntax rewriting, or evade safety, target-capability, visibility, or type checks.
 
-Modifier resolution, order, provenance, effects, and emitted native attributes are recorded in reflection and build metadata. Versions and consulted build inputs participate in cache keys. Unsupported or conflicting modifiers are compile-time errors.
+Modifier resolution, order, provenance, realised consequences, and emitted native attributes are recorded in reflection and build metadata. Versions and consulted build inputs participate in cache keys. Unsupported or conflicting modifiers are compile-time errors.
 
 Core declaration words determine declaration shape, and the `with` clause precedes them. Modifiers accept arguments through the parenthesised element form above; an explicit compile-time descriptor operation after the declaration remains available for metadata that does not suit a prefix position. Failed calls and modifiers are never reinterpreted as one another.
 
@@ -1473,7 +1534,7 @@ These descriptors are exported from `/core/types` and are constructs available w
 count int64 = 42
 ```
 
-The default prelude's ordinary bindings remain exactly `print`, `int`, `float`, `bool`, `string`, `bytes`, and `none`; descriptor constructs are a separate category rather than additions to that list. Explicit import is still available where a different name is wanted:
+The default prelude's ordinary bindings remain exactly `print`, `task-scope`, `int`, `float`, `bool`, `string`, `bytes`, `none`, `utf8`, `utf16-le`, `utf16-be`, `utf32-le`, and `utf32-be`; descriptor constructs are a separate category rather than additions to that list. Explicit import is still available where a different name is wanted:
 
 ```terrane
 from /core/types import int64 as word
@@ -2044,7 +2105,7 @@ Lower-level packages may expose stricter type constructors when the distinction 
 operations are legal:
 
 - `user-ref of T` is an untrusted userspace address that cannot be dereferenced until an adapter validates or copies it;
-- `raw-address of T` is an integer-like machine address with provenance and alignment obligations, usable only in `unsafe`;
+- `raw-address of T` is an integer-like machine address with provenance and alignment obligations, usable only through a concrete unsafe adapter or `unsafe rust`;
 - `array-ref of T` is a non-owning contiguous view whose extent is carried by its value or an accompanying contract;
 - `function from A, B to R` is the core callable type; `ref function from A, B to R` adds safe non-owning callable identity, `shared ref function from A, B to R` adds shared ownership, and a package-owned ABI-address constructor may impose a calling convention or foreign provenance.
 
@@ -2232,14 +2293,15 @@ These guarantees permit ordinary lexical code to manage resources without requir
 
 ### 13.1 Function declarations
 
-A function with no declared arguments is:
+A function declaration always ends its callable header with a semicolon. For a function with no
+declared parameters, that semicolon denotes the empty parameter list:
 
 ```terrane
-function main
+function main;
   ...
 ```
 
-Parameters follow a semicolon:
+Parameters follow the same mandatory semicolon:
 
 ```terrane
 function add; a, b
@@ -2252,6 +2314,33 @@ Return types follow function names, and parameter types follow parameter names:
 function add int; a int, b int
   return a + b
 ```
+
+The semicolon follows the complete return and effect contract and precedes every parameter list,
+including an empty one. It is therefore required on methods, interface requirements, lifecycle
+methods, and anonymous functions as well as namespace-level functions.
+
+When parameters need to span physical lines, a `(` immediately after the semicolon opens the
+parameter list and its matching `)` closes it:
+
+```terrane
+function connect response; (
+  host string,
+  port int
+)
+```
+
+The opening `(` must remain on the declaration line. Within the pair, physical newlines and
+indentation are non-structural and commas alone divide parameters. Multiple parameters may occupy
+one line, and the closing `)` may share the final parameter's line:
+
+```terrane
+function connect response; (
+  host string, port int)
+```
+
+The preferred documentation and formatter form uses one parameter per line and places the closing
+`)` on its own line, as in the first example. This preference does not reject other whitespace or
+line arrangements inside the delimiters.
 
 ### 13.2 Optional parameters
 
@@ -2317,7 +2406,7 @@ A call must not bind the same parameter both positionally and by name.
 A return type follows the function name:
 
 ```terrane
-function area int
+function area int;
   return this.width * this.height
 ```
 
@@ -2364,7 +2453,7 @@ owner's:
 ```terrane
 counter-ref = ref counter
 
-handler = function
+handler = function;
   counter-ref.increment;
 ```
 
@@ -2508,7 +2597,7 @@ Labels are function-local. A `goto` may target only a label in the same function
 
 A jump may remain in its current lexical scope or leave scopes, but it may not enter a deeper lexical scope. Leaving scopes performs their deterministic destruction and other language-required cleanup in the same order as ordinary scope exit.
 
-A jump must not cross an initialisation, move, borrow, deferred cleanup, `unsafe` boundary, or other lifetime transition in a way that would leave a value uninitialised, use a moved value, bypass required cleanup, or otherwise violate the language's ownership and lifetime rules. These are compile-time errors; `unsafe` does not relax them.
+A jump must not cross an initialisation, move, borrow, deferred cleanup, `unsafe rust` boundary, or other lifetime transition in a way that would leave a value uninitialised, use a moved value, bypass required cleanup, or otherwise violate the language's ownership and lifetime rules. These are compile-time errors; `unsafe rust` does not relax them.
 
 The compiler must prove that the generated Rust representation is sound. It may lower labels and jumps to structured control flow, a state machine, or another explicit representation, but it must preserve source control flow, cleanup order, diagnostics, debugging, and source mapping. It must not emit unsound Rust or rely on Rust having a native `goto`.
 
@@ -2539,23 +2628,61 @@ The final grammar should be validated against ordinary object/type matching befo
 
 ## 15. Errors and exceptional control flow
 
-### 15.1 Throwing
+### 15.1 Throwable objects and throwing
+
+Every value transferred by `throw` must conform to the structural `throwable` interface. There is
+no dynamic escape hatch for throwing an arbitrary value: when the compiler cannot prove
+conformance, the program is rejected.
+
+`throwable` provides the common observation and rendering contract:
 
 ```terrane
-throw error
+interface throwable
+  message string
+  cause throwable|none
+  function render string;
 ```
 
-A constructed error may be thrown directly:
+The compiler supplies `cause` as part of the throwable value's runtime envelope: an implementing
+class does not redeclare or initialise that member. Its default is `none`, and replacement during
+exceptional cleanup records the displaced error there. The runtime additionally carries the
+concrete class descriptor and a source-context chain. The descriptor is the stable matching
+identity; `message` is human-readable and is never a matching key. Default rendering includes the
+concrete throwable name, message, cause chain, and source context. An implementing class must
+provide `message string` and a synchronous, non-throwing, zero-argument `render string` method; it
+may refine rendering and add structured fields without weakening those guarantees.
+
+Throwable classes are otherwise ordinary classes. Their `construct` method may accept the data
+appropriate to that error:
 
 ```terrane
-throw file-error; path
+from /core/errors import throwable
+
+class config-error implements throwable
+  message string = ''
+  path string = ''
+
+  function construct; path string, message string
+    this.path = path
+    this.message = message
+
+  function render string;
+    return this.message
 ```
 
-Any object may technically be thrown in dynamic mode. Standard tooling expects thrown objects to implement the error protocol.
+The class and constructed-throw expression above are exercised together by
+`tests/conformance/run/custom-throwable/case.trn`; documentation changes to either must keep that
+conformance case synchronized.
 
-All catchable failures implement a structural `error` interface carrying a stable `kind`, a human-readable `message`, an optional `cause`, and a source-context chain. `kind` is the matchable identity and is stable across releases; `message` is for humans and is not a matching key. Throwing uses a compiler-owned result propagation representation rather than native unwinding, so lowering stays deterministic and readable.
+The expression following `throw` is an ordinary expression. Consequently, throwing a newly
+constructed value uses the class object's normal invocation:
 
-Strict mode may require an error-compatible object.
+```terrane
+throw config-error; path, >configuration is invalid
+```
+
+This constructs `config-error` and transfers control carrying that instance. An existing throwable
+instance may be thrown directly with `throw error`.
 
 ### 15.2 Catching
 
@@ -2576,7 +2703,9 @@ finally
 
 Catch clauses are evaluated in source order. The written order is the executed order: the compiler never reorders clauses by specificity, and a clause made unreachable by an earlier one is a compile-time diagnostic rather than silently dead code.
 
-A catch object denotes a compatible error type or matcher — a concrete error descriptor or a declared error interface.
+A catch target denotes a compatible throwable type: a concrete class descriptor or a declared
+throwable interface. Catching by an interface accepts every conforming throwable. The compiler
+diagnoses a clause made unreachable by an earlier compatible target.
 
 Uncaught errors render the deterministic cause and source chain, then exit through the profile's failure policy.
 
@@ -2592,21 +2721,58 @@ Uncaught errors render the deterministic cause and source chain, then exit throu
 
 Behaviour during process abort, hardware failure, or unsafe Rust undefined behaviour cannot be guaranteed.
 
-### 15.4 Lowering model
+### 15.4 Inference, optional contracts, and lowering
 
-Recoverable source-language throws should lower primarily through Rust `Result`-like control flow, not Rust panic unwinding.
+The compiler infers the exact set of throwable classes that may escape each callable, including
+throws propagated from callees and excluding values consumed by compatible `catch` clauses.
+`finally` participates in the same control-flow analysis: a completion from `finally` replaces an
+earlier return or throw exactly as §15.3 specifies. This inference applies equally to private and
+exported callables; public source does not transcribe a fact the compiler already knows.
 
-The compiler may synthesise propagation code so source remains uncluttered.
+An optional `throws` clause is an upper-bound contract, written after the return type and before the
+parameter semicolon:
 
-A function's public contract records whether it may throw. The `throws` qualifier may declare that effect before `function`; otherwise it is inferred for non-public functions and must be written or compiler-generated in exported interface metadata. A direct call to a function proven not to throw is non-throwing. A call through a dynamic callable or interface whose contract does not explicitly exclude throwing is conservatively may-throw. Propagation remains implicit in source, but reflection and generated signatures expose it; generated Rust therefore uses `Result`-like propagation at every may-throw boundary.
+```terrane
+function load config throws config-error; path string
+```
 
-Rust panic is reserved for unrecoverable invariant failure, explicit panic, or a native dependency panic that is not translated.
+It means that every throwable which may escape `load` must conform to `config-error`. It does not
+declare that `load` currently throws, and omitting it does not mean non-throwing. If any statically
+reachable path may expose an incompatible throwable, compilation fails. A broad interface permits
+all of its conforming classes; a concrete class permits that class and compatible subclasses.
+Lower-level failures may be caught and translated while the callable boundary remains stable:
 
-### 15.5 Standard error objects
+```terrane
+function load config throws config-error; path string
+  try
+    return read-config; path
+  catch file-error as error
+    throw config-error; path, error.message
+```
 
-The `/core/errors` namespace defines the standard error protocol and the following language-mandated error objects:
+Callable compatibility compares the declared upper bound when one exists and the inferred escaping
+set otherwise. An implementation may expose fewer compatible throwable classes than its interface
+contract, never an incompatible one. A direct call proven to have an empty escaping set is
+non-throwing. A call through an erased callable whose throwable metadata is unavailable is rejected
+at a constrained boundary rather than optimistically assumed safe.
 
-| Object | Meaning | Operations that raise it | Required information |
+Reflection preserves two distinct facts: `throwable-contract`, containing the optional written
+upper bound, and `escaping-throwables`, containing the compiler-inferred concrete set for the current
+implementation. Documentation and tooling can therefore answer both “what does this API promise?”
+and “what can this implementation produce?”. Retaining the inferred summary does not require
+retaining a private body.
+
+Recoverable source throws lower through compiler-owned `Result`-like control flow rather than Rust
+panic unwinding. Propagation remains implicit in Terrane source, while generated signatures expose
+the inferred may-throw boundary. Rust panic is reserved for unrecoverable invariant failure,
+explicit panic, or an untranslated native dependency panic.
+
+### 15.5 Standard throwable classes
+
+The `/core/errors` namespace defines the compiler-owned `throwable` interface and the following
+language-mandated classes, each of which implements it:
+
+| Class | Meaning | Operations that raise it | Required information |
 |---|---|---|---|
 | `arithmetic-overflow` | A checked fixed-width arithmetic result is outside the receiver type's range. | Ordinary checked fixed-width addition, subtraction, multiplication, signed negation, increment/decrement, and signed `MIN / -1`. | operation and fixed-width type |
 | `division-by-zero` | An integer division or remainder operation has a zero divisor. | `/`, `%`, and `div-rem` for every integer type and arithmetic mode. | operation and numeric type |
@@ -2614,7 +2780,11 @@ The `/core/errors` namespace defines the standard error protocol and the followi
 | `negative-shift-count` | An integer shift count is negative. | Unbounded-`int` `<<` and `>>`. | attempted count and shift operation |
 | `coercion-error` | An explicit coercion has no result compatible with the requested destination, outside the integer-overflow case above. | `coerce` where the source value or text cannot be represented in the destination type, including parsing coercion from `string` and an out-of-range floating-point destination whose protocol does not declare infinity. | source value/type and destination type |
 
-Each is a subtype or conforming instance of `error`, is catchable through the ordinary `throw`/`catch` model, and has the standard `message` plus the structured information listed above. Implementations may attach additional diagnostic fields without changing program-visible matching. Names such as `file-error`, `not-found`, `config-error`, and `python-error` used elsewhere are package- or adapter-defined error objects, not additional implicit core errors.
+Each class has `message`, `cause`, deterministic source context, and the structured information
+listed above. Implementations may attach additional diagnostic fields without changing
+program-visible matching. Names such as `file-error`, `not-found`, `config-error`, and
+`python-error` used elsewhere are package- or adapter-defined throwable classes, not additional
+implicit core classes.
 
 
 
@@ -3059,7 +3229,7 @@ Interfaces describe required object protocols:
 ```terrane
 interface serializable
 
-  function serialize bytes
+  function serialize bytes;
 ```
 
 A class declares implementation:
@@ -3079,7 +3249,7 @@ trait timestamped
 
   created-at = none
 
-  function touch
+  function touch;
     this.created-at = clock.now;
 ```
 
@@ -3107,21 +3277,18 @@ A multimethod/generic-dispatch facility may be supplied as a library or later la
 
 ---
 
-## 19. Mutation and effects
+## 19. Mutation and callable contracts
 
 ### 19.1 Mutable by default, visible by consequence
 
 Ordinary object fields may be mutated unless the object/type contract forbids it.
 
-The compiler infers whether a method requires mutable access to `this`.
-
-A stricter mode may require explicit `mutating` declarations on public methods:
-
-```terrane
-mutating function append; value
-```
-
-This qualifier is optional in the default language.
+The compiler infers whether a concrete method requires mutable access to `this`; source code does
+not repeat that fact with a qualifier. Receiver access remains semantic metadata for interface and
+callable compatibility and is derived while implementations are checked. Reflection and tooling
+may report that a callable mutates its receiver. A stricter API lint may later require authors to
+acknowledge inferred receiver mutation, but such a lint does not alter the callable contract and is
+not part of the default language.
 
 ### 19.2 No hidden global mutation
 
@@ -3129,26 +3296,39 @@ A package import must not execute arbitrary runtime mutation merely by being ref
 
 Build-time importer execution and runtime initialisation are separate, visible phases.
 
-### 19.3 Effect metadata
+### 19.3 Orthogonal callable contracts
 
-Functions and methods should expose inferred or declared effects through reflection:
+Terrane models callable properties according to the concrete contract each property enforces,
+rather than treating every observable operation as a member of one permission-like effect set:
 
-- may throw, carrying its typed error alternatives;
-- performs I/O;
-- blocks;
-- awaits;
-- mutates receiver;
-- mutates global/shared state;
-- uses unsafe Rust;
-- crosses FFI.
+- `throws T` constrains escaping failures and callable compatibility as specified in §15.4;
+- `async` changes invocation to produce a task, while `await` performs task consumption and marks
+  a possible suspension point as specified in §21;
 
-Allocation is deliberately absent from this public vocabulary. Nearly every exported function allocates, so an `allocates` annotation carries no information at an API boundary while taxing every signature that crosses one. The compiler still tracks allocation internally, and a no-allocation profile may require it to be declared where the guarantee actually matters. `blocks` is retained for the opposite reason: once async exists, a blocking callee inside async code is a defect the checker should catch.
+Whether an async implementation reaches a suspension point, whether a method mutates its receiver,
+whether a body uses `unsafe rust`, and whether it crosses a foreign adapter are compiler-derived
+implementation facts, not function qualifiers. Foreign interoperability is expressed by the
+concrete runtime, import, adapter, or ABI construct that specifies the boundary; foreignness does
+not propagate to ordinary Terrane callers.
 
-Effect inference is permitted for private functions. Exported functions declare their public effect contract, and strict packages may require further effects to be declared.
+Reflection exposes exact escaping throwable alternatives and any separately declared throwable
+upper bound. It may also report async identity, inferred suspension points, receiver mutation,
+concrete `unsafe rust` boundaries, and foreign transitions where the selected profile retains
+them. Callable compatibility checks each semantic contract by its own rule.
 
-`throws`, `async`, and other effects are part of callable type compatibility. An implementation may have fewer effects than its interface contract, never more. A dynamic callable with unknown effect metadata is treated as may-throw and otherwise unknown for capability checking rather than optimistically inferred safe.
+I/O, allocation, blocking, global/shared mutation, and similar operations may be useful
+compiler-inferred facts for diagnostics, optimisation, audits, or target-specific validation. They
+are not source-level permission qualifiers merely because the compiler can observe them. A fact
+earns a source contract only when omitting or violating it changes executable behaviour, callable
+substitutability, or an enforceable compiler boundary. In particular, ordinary I/O does not require
+a compiler-issued authority token, and the native process receives no additional operating-system
+authority from a Terrane declaration.
 
-This metadata supports optimisation, auditing, AI tooling, and target capability checks.
+Terrane does not currently define a `pure` qualifier. A useful purity contract would need precise,
+enforceable guarantees for observable state, suspension, failure, allocation, identity,
+destruction, foreign code, and concurrency; an empty bag of unrelated metadata would not provide
+those guarantees. Purity may be designed as an independent callable contract if those semantics
+are settled later.
 
 ---
 
@@ -3196,15 +3376,15 @@ Target profiles without threads reject it.
 
 ```terrane
 when build; config-vmap-stack
-  function allocate-stack
+  function allocate-stack;
     ...
 
 else when build; config-thread-info-in-task
-  function allocate-stack
+  function allocate-stack;
     ...
 
 else
-  function allocate-stack
+  function allocate-stack;
     ...
 ```
 
@@ -3256,19 +3436,36 @@ The compiler lowers async code into Rust futures and target runtime integration.
 
 ### 21.4 Structured concurrency
 
-The structured-concurrency scope is a version-one language-level object, not a library preference. It arrives with the async callable type, the task object, and the cancellation core, because the timeout, stream-cancellation, and network-deadline contracts elsewhere in this document are all defined against it.
+The structured-concurrency scope is a version-one language-level object, not a library preference.
+It arrives with the async callable type, the task object, and the cancellation core, because the
+timeout, stream-cancellation, and network-deadline contracts elsewhere in this document are all
+defined against it.
 
-- child tasks belong to a parent scope;
-- a scope joins its children before completing, and waits for cancellation cleanup rather than abandoning it;
-- a child that throws while siblings run must have a defined effect on those siblings, and that effect is part of the scope contract;
-- cancellation propagates predictably and is cooperative: cancellation points are defined, and a cancelled operation reports what it completed rather than silently discarding partial progress;
-- deadlines are explicit values that additionally propagate down scope boundaries; a child inherits its parent's deadline and may shorten but never extend it. This is not ambient task-local state, because the boundary is written in the source;
-- unobserved task failure is reported;
-- task lifetime is visible to tracing.
+An async invocation produces a linear `task of T`. `await` consumes that task exactly once. A scope's
+`spawn` method instead produces a linear `scoped-task of T` owned by that scope, and the scope's
+`join` method consumes it exactly once and returns `task-outcome of T`. Leaving either kind
+unconsumed is a compile-time error; ordinary drop never silently detaches or cancels it. Detached
+tasks, when supplied, use a separate explicit operation and lifetime contract.
 
-Detached tasks must be explicit.
+`task-outcome of T` has these observations:
 
-The task object's identity category, whether it is linear, and whether dropping an un-awaited task cancels it are contracts this document must fix before the async surface is implemented.
+- `completed bool`: the child produced a value;
+- `cancelled bool`: cancellation had been requested or the effective deadline had elapsed by join;
+- `value T or none`: present exactly when `completed` is true;
+- `error throwable or none`: present exactly when the child failed.
+
+Cancellation is cooperative. `await`, scope join, and library operations explicitly documented as
+cancellable are cancellation points. A request stops new child admission, is observed at the next
+cancellation point, and never erases work or a value completed before observation; an outcome may
+therefore be both `completed` and `cancelled`. When one child fails, its scope requests cancellation
+of surviving siblings, continues to join them through cleanup, and retains each child's outcome.
+No child is abandoned and no failure is silently dropped.
+
+Deadlines are explicit scope inputs, not ambient task-local state. A child inherits its parent's
+effective deadline. A requested child deadline is combined with that inherited value by taking the
+earlier instant, so a child may shorten but cannot extend its parent. A statically provable attempt
+to extend it is a compile-time diagnostic; dynamic inputs still use the earlier instant at runtime.
+Task lifetime and cancellation transitions remain visible to tracing.
 
 ### 21.5 Sharing
 
@@ -3423,7 +3620,8 @@ pointer = pointer; address, type=int32
 value = pointer.read;
 ```
 
-Operations involving arbitrary addresses, aliasing violations, volatile memory, or unchecked lifetime must occur inside an `unsafe` boundary or inline unsafe Rust.
+Operations involving arbitrary addresses, aliasing violations, volatile memory, or unchecked
+lifetimes require a concrete unsafe adapter or an `unsafe rust` block.
 
 ### 22.7 Volatile and atomic access
 
@@ -3431,18 +3629,12 @@ Volatile and atomic operations are explicit types/protocols.
 
 Normal assignment must not silently become volatile or atomic merely because a value happens to point at device memory.
 
-### 22.8 Unsafe blocks
+### 22.8 Unsafe operations
 
-```text
-unsafe
-  ...
-```
-
-marks source operations whose safety contract cannot be verified by the normal compiler model.
-
-Inline Rust has its own `unsafe rust` form.
-
-Unsafe usage is recorded in reflection, build reports, diagnostics, and tracing metadata.
+Terrane has no generic `unsafe` block. An operation whose safety contract cannot be verified by the
+normal compiler model must use a concrete adapter that states that contract, or cross the explicit
+`unsafe rust` boundary described in §24.5. Unsafe Rust usage is recorded in reflection, build
+reports, diagnostics, and tracing metadata.
 
 ### 22.9 Deterministic resource management
 
@@ -3538,19 +3730,7 @@ prelude = true
 non-empty table from canonical namespace roots to distinct relative directory
 roots; absolute paths, paths containing `..`, duplicate directory roots, and
 roots containing no `.trn` source are invalid. `prelude` is an optional boolean
-and defaults to `true`. Unknown fields are rejected. The loader recursively
-discovers `.trn` files only beneath those roots and gives source units stable
-file identities in sorted package-relative path order. Every source declaration
-must match the namespace derived from the longest directory mapping and the
-file's relative parent directory. A direct `.trn` CLI input is instead an
-implicit one-unit package with identity `single-file`, the default prelude, and
-no directory-correspondence check.
-
-A package may expose one coherent object namespace regardless of which implementation language supplies each object.
-
-Consumers should not need to know whether `resize` is implemented in source, generated Rust, handwritten Rust, or a C library wrapper.
-
-### 23.5 Locking and reproducibility
+and defaults to `true`.
 
 The package manager must produce a lockfile covering:
 
@@ -3849,7 +4029,7 @@ The compiler checks that the Rust result can cross back into the declared/source
 ```terrane
 class fast-buffer
 
-  function checksum uint64
+  function checksum uint64;
     rust
       self.inner.checksum()
 ```
@@ -3964,7 +4144,7 @@ info.constructible
 info.arguments
 info.options
 info.return-type
-info.effects
+info.contracts
 info.source
 info.documentation
 info.foreign
@@ -4515,9 +4695,12 @@ Comments are supplementary to machine-readable source maps.
 
 ### 28.5 Formatting
 
-Generated Rust is passed through a pinned/canonical formatter configuration.
-
-Formatting is part of deterministic output.
+Generated Rust is emitted canonically by lowering itself; the compiler does not silently repair
+generator output with a formatting pass. The toolchain bundles a pinned canonical Rust formatter
+and may be asked to compare a formatted copy with the untouched generated artefact. A difference is
+a compiler defect and fails before Cargo or program execution; the formatted copy is discarded and
+is never substituted for what Terrane generated. Formatting is therefore part of deterministic
+output while the generated Rust remains an honest debugging surface.
 
 ### 28.6 Editing policy
 
@@ -5164,7 +5347,7 @@ function-declaration
     indented-function-body
 
 function-qualifier
-  = "static" | "async" | "mutating" | "throws"
+  = "static" | "async" | "throws"
 
 parameter-list
   = parameter { "," parameter }
@@ -5300,9 +5483,6 @@ match-statement
 
 match-arm
   = "case" call-free-expression [ "as" identifier ] indented-body
-
-unsafe-statement
-  = "unsafe" indented-body
 
 rust-statement
   = [ "unsafe" ] "rust" indented-rust-body
@@ -5450,7 +5630,7 @@ namespace my-app
 
 from /my-output import print
 
-function main
+function main;
   print; >Hello! From, "Terrane"!
 ```
 
@@ -5795,7 +5975,7 @@ Unless a snippet explicitly tests unresolved lookup, the conformance harness sup
 44. lexical ownership and acyclic shared ownership destroy deterministically, while a provable `shared ref` cycle is rejected and an uncollectable runtime cycle is diagnosed or documented as a leak rather than promised deterministic reclamation.
 45. imports obey lexical and namespace scope, nearer imports shadow farther ones, same-scope collisions are rejected, and `as` retains both objects when two exports collide.
 46. plain top-level assignment remains namespace-local even in the root namespace; creating or replacing a program-global binding without `global` is rejected.
-47. the default prelude contains exactly `print`, `int`, `float`, `bool`, `string`, `bytes`, and `none`; disabling it removes those defaults while explicit `/core` imports still work.
+47. the default prelude contains exactly `print`, `task-scope`, `int`, `float`, `bool`, `string`, `bytes`, `none`, `utf8`, `utf16-le`, `utf16-be`, `utf32-le`, and `utf32-be`; disabling it removes those defaults while explicit `/core` imports still work.
 48. a call owns its remaining logical expression, nested calls require grouping, zero-argument calls require `;`, and three-clause `for` semicolons cannot be consumed as call delimiters.
 49. source type parameters are rejected; strict code uses concrete types, unions, interfaces, or generated concrete declarations rather than silently becoming dynamic.
 50. `c is a` parses as identity against the binding `a`, `c is a widget` parses as type membership, ordinary identity-less values compare false even to themselves, explicit refs alias one identity, and linear resources preserve identity across moves.

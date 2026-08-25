@@ -1,0 +1,2 @@
+namespace removed-function-qualifier
+awaits function main;

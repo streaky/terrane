@@ -1,7 +1,7 @@
 namespace numeric-destination-conversion
 from /core/types import int8, int32, int64, float, none
 
-function main
+function main;
   small int8 = 12
   adaptive int = small
   wide int32 = small

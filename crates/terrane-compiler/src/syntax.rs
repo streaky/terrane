@@ -12,6 +12,7 @@ pub enum SyntaxKind {
     ImportAlias,
     Visibility,
     DeclarationQualifier,
+    EffectClause,
     Binding,
     FunctionDeclaration,
     AnonymousFunction,

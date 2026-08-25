@@ -1,7 +1,7 @@
 namespace collections-value-semantics
 from /core/collections import list, map, set, tuple, range, entry, unordered-map, unordered-set
-from /core/errors import error
-function main
+from /core/errors import throwable
+function main;
   original = list; 1, 2
   independent = original
   independent.append; 3
@@ -34,7 +34,7 @@ function main
   print; empty-count
   try
     range; 0, 3, 0
-  catch error
+  catch throwable
     print; 'zero'
   deterministic-map = unordered-map; first=1, second=2
   deterministic-map['second'] = 3

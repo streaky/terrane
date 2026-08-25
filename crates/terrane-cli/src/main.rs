@@ -57,18 +57,7 @@ fn run(arguments: &[OsString]) -> Result<ExitCode, CliFailure> {
     if !matches!(command, "check" | "rust" | "build" | "run") {
         return Err(CliFailure::usage());
     }
-    let has_valid_arity = if command == "run" {
-        arguments.len() == 2 || (arguments.len() >= 3 && arguments[2] == "--")
-    } else {
-        arguments.len() == 2
-    };
-    if !has_valid_arity {
-        return Err(CliFailure::usage());
-    }
-    let input_path = arguments
-        .get(1)
-        .map(PathBuf::from)
-        .ok_or_else(CliFailure::usage)?;
+    let (input_path, require_canonical_rust) = parse_input(arguments, command)?;
     let package = if input_path
         .extension()
         .is_some_and(|extension| extension == "trn")
@@ -86,7 +75,12 @@ fn run(arguments: &[OsString]) -> Result<ExitCode, CliFailure> {
                 .collect(),
         })?
     };
-    let compilation = match terrane_compiler::compile_package(&package) {
+    let compilation = match terrane_compiler::compile_package_with_options(
+        &package,
+        terrane_compiler::CompilerOptions {
+            require_canonical_rust,
+        },
+    ) {
         Ok(compilation) => compilation,
         Err(failure) => {
             return Err(CliFailure {
@@ -135,6 +129,27 @@ fn run(arguments: &[OsString]) -> Result<ExitCode, CliFailure> {
     Ok(ExitCode::from(
         u8::try_from(status.code().unwrap_or(1)).unwrap_or(1),
     ))
+}
+
+fn parse_input(arguments: &[OsString], command: &str) -> Result<(PathBuf, bool), CliFailure> {
+    let require_canonical_rust = arguments
+        .get(1)
+        .is_some_and(|argument| argument == "--require-canonical-rust");
+    let input_index = usize::from(require_canonical_rust) + 1;
+    let has_valid_arity = if command == "run" {
+        arguments.len() == input_index + 1
+            || (arguments.len() >= input_index + 2 && arguments[input_index + 1] == "--")
+    } else {
+        arguments.len() == input_index + 1
+    };
+    if !has_valid_arity {
+        return Err(CliFailure::usage());
+    }
+    let input_path = arguments
+        .get(input_index)
+        .map(PathBuf::from)
+        .ok_or_else(CliFailure::usage)?;
+    Ok((input_path, require_canonical_rust))
 }
 
 fn emit_warnings(compilation: &terrane_compiler::Compilation, package: &terrane_compiler::Package) {
@@ -198,7 +213,7 @@ fn executable_path(directory: &Path) -> PathBuf {
 fn print_rust(compilation: &terrane_compiler::Compilation) {
     print!("{}", compilation.rust);
     println!(
-        "// Authored generated modules: {}",
+        "// Generated Rust files: {}",
         compilation
             .rust_files
             .iter()
@@ -391,22 +406,11 @@ fn write_generated_crate(
 ) -> Result<(), CliFailure> {
     fs::create_dir_all(directory.join("src"))
         .map_err(|error| CliFailure::backend(format!("cannot create generated crate: {error}")))?;
-    let parking_lot = if rust_files
-        .iter()
-        .any(|file| file.contents.contains("parking_lot::"))
-    {
-        "parking_lot = { version = \"0.12\", features = [\"arc_lock\"] }\n"
-    } else {
-        ""
-    };
-    let manifest = format!(
-        "[package]\nname = \"terrane_program\"\nversion = \"0.0.0\"\nedition = \"2024\"\n\n\
-         [dependencies]\nterrane-int-support = {{ path = \"support/terrane-int-support\" }}\n\
-         {parking_lot}\
-         terrane-collection-support = {{ path = \"support/terrane-collection-support\" }}\n\
-         terrane-scalar-support = {{ path = \"support/terrane-scalar-support\" }}\n\
-         terrane-string-support = {{ path = \"support/terrane-string-support\" }}\n\n[workspace]\n"
-    );
+    let manifest = "[package]\nname = \"terrane_program\"\nversion = \"0.0.0\"\nedition = \"2024\"\n\n\
+                    [dependencies]\nterrane-int-support = { path = \"support/terrane-int-support\" }\n\
+                    terrane-collection-support = { path = \"support/terrane-collection-support\" }\n\
+                    terrane-scalar-support = { path = \"support/terrane-scalar-support\" }\n\
+                    terrane-string-support = { path = \"support/terrane-string-support\" }\n\n[workspace]\n";
     write_if_changed(&directory.join("Cargo.toml"), manifest.as_bytes()).map_err(|error| {
         CliFailure::backend(format!("cannot write generated manifest: {error}"))
     })?;
@@ -512,7 +516,9 @@ fn ensure_rust_toolchain() -> Result<(), CliFailure> {
 }
 
 fn usage() -> String {
-    "usage: terrane <check|rust|build|run> <source.trn> [-- program arguments]\n\
+    "usage: terrane <check|rust|build|run> [--require-canonical-rust] \
+     <source.trn> [-- program arguments]\n\
+     options:\n  --require-canonical-rust  fail unless lowering emits bundled-formatter output\n\
      commands:\n  check  validate and compile generated Rust\n  rust   print generated Rust\n  \
      build  compile a native executable\n  run    compile and execute the program"
         .to_owned()
@@ -552,7 +558,7 @@ mod tests {
         }];
         let units = vec![SourceUnit {
             relative_path: PathBuf::from("case.trn"),
-            source: SourceFile::new(0, PathBuf::from("case.trn"), "function main\n".to_owned()),
+            source: SourceFile::new(0, PathBuf::from("case.trn"), "function main;\n".to_owned()),
             expected_namespace: None,
         }];
 

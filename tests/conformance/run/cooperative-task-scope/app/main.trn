@@ -1,0 +1,12 @@
+namespace cooperative-task-scope
+
+async function work int;
+  return 9
+
+function main;
+  scope = task-scope;
+  child = scope.spawn; work
+  outcome = scope.join; move child
+  value = outcome.value
+  if value != none
+    print; outcome.completed, outcome.cancelled, value

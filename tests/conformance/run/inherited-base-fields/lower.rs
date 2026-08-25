@@ -18,7 +18,9 @@ pub enum Base {
     Child(Child),
 }
 impl Base {
-    pub fn terrane_construct() -> Self { Self::Own(BaseStorage::terrane_construct()) }
+    pub fn terrane_construct() -> Self {
+        Self::Own(BaseStorage::terrane_construct())
+    }
     pub fn terrane_field_value(&self) -> &terrane_int_support::Int {
         match self {
             Self::Own(value) => &value.value,
@@ -47,8 +49,12 @@ impl Child {
 }
 fn main() {
     let concrete: Child = Child::terrane_construct();
-    let mut view: Base = Base::Child((concrete).clone());
-    println!("{}", terrane_scalar_support::scalar_text(&((view).terrane_field_value().clone())));
-    *(view).terrane_field_value_mut() = terrane_int_support::Int::from(9_i128);
-    println!("{}", terrane_scalar_support::scalar_text(&((view).terrane_field_value().clone())));
+    let mut view: Base = Base::Child(concrete.clone());
+    println!(
+        "{}", terrane_scalar_support::scalar_text(&view.terrane_field_value().clone())
+    );
+    *view.terrane_field_value_mut() = terrane_int_support::Int::from(9_i128);
+    println!(
+        "{}", terrane_scalar_support::scalar_text(&view.terrane_field_value().clone())
+    );
 }

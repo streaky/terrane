@@ -1,7 +1,7 @@
 namespace name-aliasing
 constant original = 'namespace'
 constant alias = original
-function main
+function main;
   local = 'function'
   copy = local
   print; alias

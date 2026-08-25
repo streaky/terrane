@@ -1,6 +1,6 @@
 namespace loop-carried-store-reads
 from /core/types import int8
-function main
+function main;
   while-value int8 = 0
   limit int8 = 0
   while limit < 2

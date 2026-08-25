@@ -1,6 +1,6 @@
 namespace hello
 
-function main
+function main;
   print; >>
     Hello from Terrane!
 

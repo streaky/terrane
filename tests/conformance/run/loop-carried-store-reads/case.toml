@@ -1,3 +1,4 @@
 phase = "run"
 status = "accept"
 warnings = "warnings.txt"
+canonical-rust = true

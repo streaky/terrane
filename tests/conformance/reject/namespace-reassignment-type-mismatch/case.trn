@@ -1,5 +1,5 @@
 namespace namespace-reassignment-type-mismatch
 value int8 = 1
 value = 'wrong'
-function main
+function main;
   print; 'unreachable'

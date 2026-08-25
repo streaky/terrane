@@ -10,12 +10,12 @@ fn main() {
     let unsigned_value: u8 = 255;
     let minimum: i8 = -128;
     let negative_hex: i8 = -16;
-    println!("{}", terrane_scalar_support::scalar_text(&(adaptive)));
-    println!("{}", terrane_scalar_support::scalar_text(&(single)));
-    println!("{}", terrane_scalar_support::scalar_text(&(double)));
-    println!("{}", terrane_scalar_support::scalar_text(&(inferred)));
-    println!("{}", terrane_scalar_support::scalar_text(&(signed_value)));
-    println!("{}", terrane_scalar_support::scalar_text(&(unsigned_value)));
-    println!("{}", terrane_scalar_support::scalar_text(&(minimum)));
-    println!("{}", terrane_scalar_support::scalar_text(&(negative_hex)));
+    println!("{}", terrane_scalar_support::scalar_text(&adaptive));
+    println!("{}", terrane_scalar_support::scalar_text(&single));
+    println!("{}", terrane_scalar_support::scalar_text(&double));
+    println!("{}", terrane_scalar_support::scalar_text(&inferred));
+    println!("{}", terrane_scalar_support::scalar_text(&signed_value));
+    println!("{}", terrane_scalar_support::scalar_text(&unsigned_value));
+    println!("{}", terrane_scalar_support::scalar_text(&minimum));
+    println!("{}", terrane_scalar_support::scalar_text(&negative_hex));
 }

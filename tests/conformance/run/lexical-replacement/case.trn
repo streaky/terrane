@@ -1,5 +1,5 @@
 namespace lexical-replacement
-function main
+function main;
   value int8 = 1
   print; value
   value int = 2

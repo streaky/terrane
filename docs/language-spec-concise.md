@@ -16,7 +16,7 @@ SELF_HEAL_RULE: when this reference is missing or unclear and SOURCE_OF_TRUTH re
 | display/printing | `TEXT DISPLAY` | §9.6 |
 | globals/build selection | `GLOBAL / BUILD` | §§20, 26 |
 | ownership | `VALUE`, `REF`, `MOVE`, `LIFETIME` | §12 |
-| errors/effects | `ERROR`, `EFFECT` | §§15, 19 |
+| errors/callable contracts | `ERROR`, `CALLABLE` | §§15, 19 |
 | collections/text | `COLLECTION`, `TEXT` | §16 |
 | classes/protocols | `OBJECT_MODEL` | §§9, 18 |
 | packages/interop | `PACKAGE`, `RUST`, `FOREIGN` | §§23–24 |
@@ -163,17 +163,17 @@ Rules:
 Version-one default ordinary program-global bindings EXACTLY:
 
 ```text
-print int float bool string bytes none
+print task-scope int float bool string bytes none utf8 utf16-le utf16-be utf32-le utf32-be
 ```
 
-- These need no import. `print; value` is a complete statement in a program with no import lines at all.
+- These need no import. `print; value` is a complete statement and `scope = task-scope;` creates a structured-concurrency scope in a program with no import lines at all.
 - Prelude may be disabled.
 - Explicit `/core` object imports still work and may shadow/replace defaults deliberately.
 - Library facilities such as `map`, `list`, `range`, `file` are NOT implicit prelude bindings; import them.
-- Fixed-width numeric descriptors are NOT prelude bindings and NOT reserved words. They are descriptor constructs available without import, a separate category from the seven ordinary bindings above.
+- Fixed-width numeric descriptors are NOT prelude bindings and NOT reserved words. They are descriptor constructs available without import, a separate category from the thirteen ordinary bindings above.
 
 ```yaml
-prelude_bindings: the seven ordinary program-globals listed above; unchanged
+prelude_bindings: the thirteen ordinary program-globals listed above; unchanged
 descriptor_constructs: int8.int128, uint8.uint128, float32, float64, and the abstract category descriptors
 construct_availability: usable in construct position without import ('value int8 = 42')
 construct_value_use: still rejected in value position; a construct is not a runtime value
@@ -198,10 +198,10 @@ call_marker: semicolon
 zero_arg: semicolon required
 member: receiver.member (no whitespace before dot)
 adjacency: 'receiver object' invalid; NEVER invocation
-call_extent: call owns remainder of containing logical expression
-arguments: one list, comma-separated
-named_arg: identifier '=' call-free-expression
-argument_calls: ungrouped calls forbidden; parenthesize nested calls
+call_extent: unwrapped call owns remainder of containing logical expression
+arguments: one comma-separated list; optional '(' immediately after ';' delimits wrapping
+argument_layout: parentheses are general explicit expression continuation; newline/indent/comments and block strings inside remain non-structural; closing outermost ')' restores logical-line termination
+argument_calls: ungrouped calls forbidden; delimited argument list admits nested calls
 three_clause_for: its semicolons belong to for; calls in clauses parenthesized
 evaluation: left-to-right
 receiver: evaluated before selection
@@ -266,10 +266,12 @@ constant max-size int = 1024
 private cache = map;
 global service = service;
 
-function add; left int, right int; int
+function main;
+
+function add int; left int, right int
   return left + right
 
-function connect; host string, port int, timeout int = 10; connection
+function connect connection; host string, port int, timeout int = 10
   ...
 ```
 
@@ -280,7 +282,7 @@ function connect; host string, port int, timeout int = 10; connection
 - [redeclaration-identity] after evaluating the initializer, replacement releases the old owned value and installs a new identity; identical type is an assignment with a redundant annotation, not identity preservation. Existing `ref` becomes unusable at release; `shared ref` continues owning the old identity and is never retargeted.
 - [redeclaration-retype] type changes => the binding's type changes. Release remains deterministic and occurs at replacement rather than scope exit, so an unreachable resource is not retained.
 - [block-scope] Function bodies and every indented control-flow body create lexical scopes. A nested declaration is visible through that body and deeper scopes, never in sibling bodies or after exit; its value is released on each exit. A `for` target spans its loop body only. A nearer declaration shadows until exit, while untyped assignment to an enclosing name assigns that existing binding.
-- Function return type follows parameter section.
+- Function result type follows the function name. The complete header ends with a mandatory semicolon, followed by the parameter list; `function main;` declares no parameters. The same marker is required for methods, interface requirements, lifecycle methods, and anonymous functions. For multiline parameters, `(` must be the first non-trivia token after the semicolon on the declaration line; newlines and indentation are non-structural until its matching `)`, commas alone divide parameters, and `)` may share the final parameter's line. Preferred form: one parameter per line with `)` on its own line; other layouts inside the delimiters remain legal.
 - Default value makes parameter optional; required parameters precede optional ones; variadic captures remaining values.
 - Named arguments require stable exposed parameter names.
 - `constant`, not `const`.
@@ -297,10 +299,10 @@ args_rule: needs no special rule; a declaration always follows, so the call is n
 trailing_comma: an error - 'with per-cpu, global x = 0' reads 'global' as the next element and fails on a reserved word
 scope: any declaration INCLUDING an untyped local binding; no typed-binding requirement
 with_applies_to: first- and third-party package modifiers (open set)
-with_never_applies_to: global, constant, public/private/protected, static/async/mutating/throws (closed set, compiler-owned)
+with_never_applies_to: global, constant, public/private/protected, static/async/throws (closed set, compiler-owned)
 test: can the compiler's model be described without it? if it changes name resolution, visibility, mutability, or a callable's type contract it is STRUCTURAL (keyword); if it changes only how a known declaration is realised - storage, layout, linkage, ABI, section, alignment - it is DECORATIVE (with)
 ordering: with-modifiers precede structural keywords; package layer is outer
-rationale: the protocol already forbids modifiers from touching visibility/ownership/effects/capability, so the split reports a real boundary; 'with global' would falsely imply global is extensible
+rationale: the protocol already forbids modifiers from touching visibility, ownership, or callable contracts, so the split reports a real boundary; 'with global' would falsely imply global is extensible
 why_exist: a declaration answers two separable questions - WHAT is declared (Terrane owns this) and HOW it is realised on a target or in a domain (modifiers own this)
 why_not_macros: objects abstract what things do; modifiers abstract how declarations exist - which is why an extensibility system survives in a language that deliberately avoids macros
 governing_rule: the modifier protocol is CLOSED IN ITS GUARANTEES, NOT closed in its intended vocabulary
@@ -528,20 +530,33 @@ for i = 0; i < limit; i++
 - Labels/goto function-local; cannot enter deeper scope or cross initialization/lifetime/cleanup unsafely.
 - `match` reserved shape but outside minimum compiler milestone.
 
-## ERROR / EFFECT
+## ERROR / CALLABLE
 
 ```terrane
-throw error
-try
-  ...
-catch some-error as error
-  ...
-finally
-  ...
-```
+from /core/errors import throwable
 
-- Recoverable source throws lower primarily via Rust `Result`-like flow, not panic.
-- `/core/errors` defines the standard error protocol and EXACTLY these language-mandated error objects:
+class config-error implements throwable
+  message string = ''
+  path string = ''
+  function construct; path string, message string
+    this.path = path
+    this.message = message
+  function render string;
+    return this.message
+
+// Executable coverage: tests/conformance/run/custom-throwable/case.trn.
+function load string throws config-error; path string
+  throw config-error; path, >configuration is invalid
+
+- Every thrown value MUST statically conform to structural `throwable`; arbitrary dynamic values are
+  never throwable.
+- `throw expression` throws an existing instance; `throw class; args` ordinarily invokes the class
+  constructor and throws the resulting instance.
+- `throwable` surface: class-provided `message string` and synchronous, non-throwing, zero-argument
+  `render string`; compiler-supplied `cause throwable|none`, defaulting to `none`, in the runtime
+  envelope. Runtime also retains the concrete descriptor and deterministic source-context chain.
+  Descriptor identity, never message text, drives matching.
+- `/core/errors` defines `throwable` and EXACTLY these language-mandated implementing classes:
 
 ```text
 arithmetic-overflow          checked fixed-width result outside receiver range, incl. signed MIN / -1
@@ -551,25 +566,37 @@ negative-shift-count         negative shift count on unbounded int << >>
 coercion-error               coercion has no compatible result outside the overflow case above
 ```
 
-- All catchable failures implement a structural `error` interface: stable `kind`, human-readable `message`, optional `cause`, and a source-context chain.
-- `catch` clauses are tried in source order; a clause made unreachable by an earlier one is a compile-time diagnostic, never a silent reorder.
+- `catch` clauses are tried in source order against compatible classes/interfaces; an unreachable
+  later clause is a compile-time diagnostic.
 - `finally` always runs and may replace a pending outcome only by explicitly returning or throwing.
-- Uncaught rendering prints the deterministic cause/source chain and exits through the profile's failure policy.
-- Each core error is catchable, carries `message` plus structured operation/type detail, and `int` representation promotion raises none of them. Any other dotted error name (`file-error`, `not-found`, `python-error`) is package- or adapter-defined, never an implicit core error.
-- Panic is separate fatal mechanism.
-- Exported may-throw functions expose `throws`; non-throwing callable contracts reject may-throw implementations.
-- Effect vocabulary is a closed compiler-known set plus typed thrown-error alternatives:
+- Each core throwable carries `message`, `cause`, context, and structured operation/type detail;
+  other throwable classes are declared by packages/adapters, never implicitly synthesized.
+- Recoverable throws lower through compiler-owned Rust `Result`-like flow; panic is separate and
+  fatal.
+- Compiler infers the exact escaping throwable set transitively for every callable, public or
+  private, after catches and `finally` replacement.
+- Optional postfix `function name Return throws T; parameters` is an upper-bound contract, NOT
+  effect narration: every escaping throwable must conform to T or compilation fails. Omission means
+  inference, not `nothrow`.
+- Reflection separately exposes `throwable-contract` (written upper bound, if any) and
+  `escaping-throwables` (current inferred concrete set), even when private bodies are stripped.
+- Callable compatibility admits fewer compatible throwables, never an incompatible one.
+- Callable contracts are orthogonal, not one permission-like effect algebra:
 
 ```yaml
-effects: throws E | io | blocks | awaits | mutates | unsafe | foreign
-allocates: NOT a public effect; compiler-internal fact only, because nearly every exported function allocates
-allocates_profile: a no-allocation profile may require it declared where the guarantee matters
-blocks_reason: retained because a blocking callee inside async code is a defect worth diagnosing
-purity: a caller may call only effect-subset callees
-capability: capabilities authorize effects; they are not themselves effects
-inference: permitted for private functions; exported functions declare their public effect contract
+throws: exact inferred escaping set plus optional written upper bound
+async: invocation produces a task; `await` consumes a task and marks a possible suspension point
+receiver_mutation: inferred from concrete bodies; retained as method/interface compatibility metadata
+unsafe_boundary: only concrete adapters or `unsafe rust`; never a bare callable qualifier or generic unsafe block
+derived_facts: suspension points, receiver mutation, `unsafe rust` use, I/O, allocation, blocking, shared mutation, and foreign transitions MAY be inferred for validation/tooling but are not source qualifiers
+foreign_boundary: expressed by a concrete runtime/import/adapter/ABI construct; never a bare callable qualifier and never transitive to ordinary callers
+purity: no `pure` qualifier; a future contract requires independently defined observable guarantees
 ```
-- Uncaught errors retain source-oriented stack traces; foreign errors preserve native traceback/details.
+- Reflection may group retained contracts and derived facts for inspection, but compatibility and
+  validation apply each contract's own rules. Ordinary I/O requires no compiler-issued authority
+  token.
+- Uncaught throwables render deterministic cause/source chains; foreign failures preserve native
+  traceback/details after translation to a declared throwable class.
 
 ## COLLECTION / TEXT
 
@@ -652,15 +679,13 @@ encoding: explicit utf8/utf16-le/utf16-be/utf32-le/utf32-be; encode total; decod
 
 ## ASYNC
 
-- `async function` has distinct async callable type.
-- `await` only inside async context.
-- Sync/async callable types incompatible without explicit adapter.
-- No borrow crosses suspension unless contract proves lifetime.
-- Runtime independent; the structured-concurrency scope is a version-one language-level object, not a library convenience.
-- Scope: explicit creation, child spawn, join; a child inherits its parent scope's deadline and may shorten but never extend it.
-- Cancellation and deadlines are explicit values plus scope-boundary propagation; never ambient task-local globals.
-- Channels/mutexes/atomics remain library objects.
-- Target capability may reject async statically.
+- `async function` has a distinct async callable type; `await` is valid only in async context, and sync/async callable types require an explicit adapter.
+- Async invocation returns a linear `task of T`; `await` consumes it exactly once. Scope `spawn` returns a linear `scoped-task of T`; `join` consumes it exactly once. Unconsumed tasks are compile-time errors, never implicit detach/cancel.
+- `task-outcome of T`: `completed bool`, `cancelled bool`, `value T|none` present exactly on completion, `error throwable|none` present exactly on failure.
+- Cancellation is cooperative at `await`, join, and explicitly cancellable library operations. Failure requests sibling cancellation; the scope still joins cleanup and retains outcomes. Completed work is never erased, so completed+cancelled may both be true.
+- Deadlines are explicit, never ambient. Child effective deadline is `min(parent, requested)`; a statically provable extension is diagnosed and dynamic inputs clamp to the earlier instant.
+- No borrow crosses suspension unless its owner lifetime and executor transfer requirements are proven.
+- Runtime remains profile-selected; channels/mutexes/atomics are library objects; unavailable target capability rejects async statically.
 
 ## TARGET
 
@@ -670,7 +695,7 @@ encoding: explicit utf8/utf16-le/utf16-be/utf32-le/utf32-be; encode total; decod
 - `no_std` uses minimal support + target capabilities.
 - Minimal support includes adaptive exact `int` and its normative failures when that feature lands; constrained targets prove supported bounds or reject by capability rather than changing semantics.
 - Hosted convenience must not preclude allocator-free/embedded/kernel realization where capabilities permit.
-- Low-level representation/ABI/pointer/volatile/atomic operations require explicit contracts and unsafe boundaries.
+- Low-level representation/ABI/pointer/volatile/atomic operations require explicit contracts and concrete unsafe adapters or `unsafe rust`.
 
 ## PACKAGE
 
@@ -745,12 +770,15 @@ foreign_specialisation: 'from python/x import y' names a crossing point, not an 
 - Generated/handwritten Rust may call each other within one Rust crate graph.
 - Rust errors/diagnostics map back to Terrane spans without hiding originals.
 - Ejection tooling can produce maintainable generated Rust/Cargo artifacts.
+- Lowering itself emits canonical Rust. A bundled pinned formatter may validate an untouched
+  generated artefact, but its formatted copy is discarded; mismatch is a compiler defect, never a
+  silent rewrite.
 
 ## FOREIGN
 
 - System/C crosses explicit ABI boundary.
 - Foreign runtime adapters (e.g. Python) are explicit semantic/performance/ownership/deployment boundaries.
-- Each adapter declares conversions, effects, lifetime, thread, exception, deployment contracts.
+- Each adapter declares conversions, operations, lifetime, thread, exception, and deployment contracts.
 - Foreign proxies require explicit `ref` or `move`; ordinary value assignment must not pretend value isolation.
 - Embedded foreign source is opaque indentation-delimited body owned by adapter with nested source map.
 - C++ initially through C-compatible shims/Rust bridges; arbitrary C++ ABI deferred.
@@ -766,7 +794,7 @@ manifest/source set
 -> lossless CST
 -> compact semantic AST
 -> namespace assembly/import resolution
--> names/types/effects/ownership/control-flow
+-> names/types/callable contracts/ownership/control-flow
 -> typed semantic IR
 -> Rust-oriented lowering IR
 -> deterministic Rust + Cargo

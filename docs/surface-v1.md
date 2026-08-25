@@ -158,7 +158,7 @@ method-family
 +-- reflection metadata
     +-- receiver type
     +-- parameter and return types
-    +-- effects
+    +-- callable contracts and inferred facts
     +-- available child names
 ```
 
@@ -576,8 +576,12 @@ callable
 +-- default invocation; positional/named arguments
 +-- parameter descriptor list
 +-- return descriptor
-+-- effects: throws E / io / blocks / awaits / mutates / unsafe / foreign
-|   allocation is compiler-internal, NOT public vocabulary
++-- callable contracts and inferred facts
+|   +-- throwable-contract -> descriptor|none      optional written upper bound
+|   +-- escaping-throwables -> descriptor set      exact inferred current set
+|   +-- async metadata
+|   +-- suspension / receiver-mutation / unsafe-rust / foreign-transition facts are inferred
+|   contracts remain orthogonal; I/O/allocation/blocking facts are NOT source permissions
 
 class descriptor
 +-- default invocation -> construct
@@ -603,38 +607,51 @@ class instance
 - Default/named/variadic parameters, typed returns, closures, recursion, and early return are v1.
 - Source-declared type parameters are later; v1 uses concrete types, unions, interfaces, and compiler/package-supplied type constructors.
 
-## 9. Errors
+## 9. Throwable objects
 
 ```text
-error                                              structural interface; all catchable failures implement it
-+-- kind -> stable matchable identity
+throwable                                          structural interface; every thrown value conforms
++-- concrete descriptor -> stable match identity
 +-- message -> string                              for humans; never a matching key
-+-- cause -> error|none                            where wrapped
-+-- source-context chain
++-- cause -> throwable|none                        default none
++-- render -> string                               default includes name, cause, source context
++-- compiler-owned source-context chain
 
-/core/errors::arithmetic-overflow
+/core/errors::arithmetic-overflow                  class implements throwable
 +-- operation
 +-- fixed-width type
 
-/core/errors::division-by-zero
+/core/errors::division-by-zero                     class implements throwable
 +-- operation
 +-- numeric type
 
-/core/errors::integer-conversion-overflow
+/core/errors::integer-conversion-overflow          class implements throwable
 +-- source value/type
 +-- destination type
 +-- failed exactness condition                    range, fractional part, non-finite value, or float precision
 
-/core/errors::negative-shift-count
+/core/errors::negative-shift-count                 class implements throwable
 +-- attempted count
 +-- shift operation
 
-/core/errors::coercion-error
+/core/errors::coercion-error                       class implements throwable
 +-- source value/type
 +-- destination type
 ```
 
-`throw`, `try`, `catch`, and `finally` are v1 control flow. Ordinary language errors lower through a compiler-owned result propagation representation, not Rust panic or native unwinding. `catch` clauses are tried in source order, and a clause made unreachable by an earlier one is a compile-time diagnostic rather than a silent reorder; `finally` always runs and may replace a pending outcome only by explicitly returning or throwing. Uncaught rendering prints the deterministic cause and source chain, then exits through the profile's failure policy. `panic` is separate and profile-selectable. Package/adapter errors such as `file-error` and `python-error` are not implicit `/core` children.
+User classes may implement `throwable`, use ordinary constructors and add structured fields.
+`throw class; args` invokes that constructor and throws the resulting instance; arbitrary dynamic
+values are rejected. `throw`, `try`, `catch`, and `finally` are v1 control flow. Catch targets are
+compatible throwable classes or interfaces, tried in source order.
+
+The compiler infers each callable's exact escaping throwable set. Optional postfix
+`function name Return throws T; parameters` constrains that set to T-compatible values; it does not
+narrate an inferred effect. Reflection exposes the written upper bound separately from the inferred
+set. Ordinary throws lower through compiler-owned result propagation, not Rust panic or native
+unwinding. `finally` always runs and may replace a pending outcome only by explicitly returning or
+throwing. Uncaught rendering prints deterministic cause/source chains, then exits through the
+profile's failure policy. `panic` is separate and profile-selectable. Package/adapter throwable
+classes such as `file-error` and `python-error` are not implicit `/core` children.
 
 ## 10. Ownership, identity, and lifetime objects
 
@@ -713,7 +730,7 @@ The namespace tree corresponds to a directory tree; a declaration disagreeing wi
 ```terrane
 namespace demo
 
-function main
+function main;
   value int8 = 120
   print; value
 ```
@@ -738,7 +755,7 @@ derived int = base + 1          # composition at the tier: visible here only
 constant page-size int = 4096   # crosses into function bodies
 global counter int = 0          # crosses, and may be replaced, because it says so
 
-function report
+function report;
   print; page-size              # fine
   print; derived                # rejected: namespace variable, not visible here
   print; counter                # fine: declared global
@@ -1250,7 +1267,7 @@ When the profile retains reflection metadata, descriptors expose:
 
 ```text
 type: identity, compatibility, protocols, members, ownership, capabilities
-callable: parameters, return, effects, receiver, source identity
+callable: parameters, return, contracts, receiver, source identity
 namespace/package: children, visibility, origin/version
 value: source type, identity category, storage/copy facts where permitted
 foreign proxy: runtime, foreign type, ownership, transition contracts

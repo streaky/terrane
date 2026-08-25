@@ -1,6 +1,6 @@
 namespace descriptor-constructs
 from /core/types import int as target, int as same
-function main
+function main;
   value int = 1
   print; value is a target
   print; target is int

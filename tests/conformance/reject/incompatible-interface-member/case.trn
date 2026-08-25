@@ -1,11 +1,11 @@
 namespace incompatible-interface-member
 
 interface printable
-  function render string
+  function render string;
 
 class report implements printable
-  function render int
+  function render int;
     return 1
 
-function main
+function main;
   value report = report;

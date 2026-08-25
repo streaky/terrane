@@ -2,12 +2,10 @@
 // Source: case.trn
 // Namespace: method-without-receiver-use
 #[derive(Clone)]
-pub struct Answerer {
-}
+pub struct Answerer {}
 impl Answerer {
     pub fn terrane_construct() -> Self {
-        Self {
-        }
+        Self {}
     }
     pub fn answer(&self) -> terrane_int_support::Int {
         return terrane_int_support::Int::from(42_i128);
@@ -15,5 +13,5 @@ impl Answerer {
 }
 fn main() {
     let value: Answerer = Answerer::terrane_construct();
-    println!("{}", terrane_scalar_support::scalar_text(&(value.answer())));
+    println!("{}", terrane_scalar_support::scalar_text(&value.answer()));
 }

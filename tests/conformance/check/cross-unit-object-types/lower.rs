@@ -1,15 +1,15 @@
 // Generated deterministically by Terrane <version>.
-// Source: main.trn
+// Source: app/main.trn
 // Namespace: app
 fn identity(value: Item) -> Item {
-    return (value).clone();
+    return value.clone();
 }
 fn main() {
     let original: Item = Item::terrane_construct();
-    let copied: Item = identity((original).clone());
+    let copied: Item = identity(original.clone());
     let _ = &copied;
 }
-// Source: item.trn
+// Source: models/item.trn
 // Namespace: models
 #[derive(Clone)]
 pub struct Item {

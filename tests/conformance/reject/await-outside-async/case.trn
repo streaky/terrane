@@ -1,0 +1,8 @@
+namespace await-outside-async
+
+async function answer int;
+  return 42
+
+function main;
+  value int = await answer;
+  print; value

@@ -1,0 +1,12 @@
+namespace cancelled-task-progress
+
+async function work int;
+  return 7
+
+function main;
+  scope = task-scope;
+  child = scope.spawn; work
+  scope.cancel;
+  outcome = scope.join; move child
+  consistent = (outcome.cancelled and outcome.value == none) or (outcome.completed and outcome.value != none)
+  print; consistent

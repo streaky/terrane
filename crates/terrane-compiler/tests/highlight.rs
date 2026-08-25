@@ -50,8 +50,32 @@ fn classifies_real_lexical_and_syntax_constructs() {
 }
 
 #[test]
+fn classifies_object_and_ownership_contextual_keywords() {
+    let keywords = [
+        "interface",
+        "trait",
+        "extends",
+        "implements",
+        "uses",
+        "shared",
+        "this",
+        "construct",
+        "destruct",
+    ];
+    let source = keywords.join(" ");
+    let actual = classified(&source);
+
+    for keyword in keywords {
+        assert!(
+            actual.contains(&(keyword.to_owned(), HighlightKind::Keyword, false)),
+            "missing keyword {keyword:?} in {actual:#?}"
+        );
+    }
+}
+
+#[test]
 fn retains_highlights_around_lexical_and_syntax_errors() {
-    let source = "namespace app\ninvalid = @\nfunction main\n  value = 'ok'\n";
+    let source = "namespace app\ninvalid = @\nfunction main;\n  value = 'ok'\n";
     let file = SourceFile::new(0, "broken.trn".into(), source.to_owned());
     let output = highlight(&file);
 

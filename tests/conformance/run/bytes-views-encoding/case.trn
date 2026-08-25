@@ -1,5 +1,5 @@
 namespace bytes-views-encoding
-function main
+function main;
   text string = 'é'
   print; text.length, text.bytes.length, text.scalars.length, text.graphemes.length
   encoded bytes = text.encode; utf8

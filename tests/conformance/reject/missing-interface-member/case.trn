@@ -6,5 +6,5 @@ interface printable
 class report implements printable
     value int = 1
 
-function main
+function main;
     value report = report;

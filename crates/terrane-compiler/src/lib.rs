@@ -12,9 +12,15 @@ pub mod syntax;
 pub mod tokens;
 pub mod types;
 
-pub use compiler::{Compilation, CompilationFailure, compile, compile_package};
+pub use compiler::{
+    Compilation, CompilationFailure, CompilerOptions, compile, compile_package,
+    compile_package_with_options, compile_with_options,
+};
 pub use diagnostic::{Diagnostic, Severity};
-pub use package::{IMPLICIT_PACKAGE_ID, MANIFEST_FILE_NAME, Package, PackageLoadError, SourceUnit};
+pub use package::{
+    ExecutorProfile, IMPLICIT_PACKAGE_ID, MANIFEST_FILE_NAME, Package, PackageLoadError,
+    ReflectionProfile, SourceUnit,
+};
 pub use semantics::{
     BOOTSTRAP_VERSION, BoundMethod, EvaluationKind, EvaluationStep, FunctionContract, MemberFamily,
     Namespace, ParameterContract, SemanticFailure, SemanticPackage, SemanticUnit, Symbol,

@@ -1,4 +1,4 @@
 namespace duplicate
 namespace duplicate
-function main
+function main;
   print; >duplicate

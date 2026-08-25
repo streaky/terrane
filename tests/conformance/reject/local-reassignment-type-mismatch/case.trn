@@ -1,4 +1,4 @@
 namespace local-reassignment-type-mismatch
-function main
+function main;
   value int8 = 1
   value = 'wrong'

@@ -6,9 +6,44 @@ fn corpus() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).join("../../tests/conformance")
 }
 
+struct ConformanceBuild {
+    root: PathBuf,
+}
+
+impl ConformanceBuild {
+    fn new() -> Self {
+        let root = std::env::temp_dir().join(format!("terrane-conformance-{}", std::process::id()));
+        if root.exists() {
+            fs::remove_dir_all(&root).unwrap();
+        }
+        fs::create_dir_all(root.join("src")).unwrap();
+        write_support_crates(&root);
+        Self { root }
+    }
+
+    fn write_manifest(&self) {
+        fs::write(
+            self.root.join("Cargo.toml"),
+            "[package]\nname = \"terrane_conformance_program\"\nversion = \"0.0.0\"\nedition = \"2024\"\n\n\
+             [dependencies]\nterrane-int-support = { path = \"support/terrane-int-support\" }\n\
+             terrane-collection-support = { path = \"support/terrane-collection-support\" }\n\
+             terrane-scalar-support = { path = \"support/terrane-scalar-support\" }\n\
+             terrane-string-support = { path = \"support/terrane-string-support\" }\n\n[workspace]\n",
+        )
+        .unwrap();
+    }
+}
+
+impl Drop for ConformanceBuild {
+    fn drop(&mut self) {
+        let _ = fs::remove_dir_all(&self.root);
+    }
+}
+
 #[test]
 fn every_manifest_drives_a_conformance_case() {
     let manifests = manifests_below(&corpus());
+    let build = ConformanceBuild::new();
     assert!(!manifests.is_empty());
     for manifest_path in manifests {
         let case = manifest_path.parent().unwrap();
@@ -18,6 +53,9 @@ fn every_manifest_drives_a_conformance_case() {
         let entrypoint = field(&manifest, "entrypoint").unwrap_or("case.trn");
         let source_path = case.join(entrypoint);
         let package_case = entrypoint == terrane_compiler::MANIFEST_FILE_NAME;
+        let options = terrane_compiler::CompilerOptions {
+            require_canonical_rust: boolean_field(&manifest, "canonical-rust").unwrap_or(false),
+        };
 
         match (phase, status) {
             ("run" | "check", "accept") => {
@@ -30,12 +68,14 @@ fn every_manifest_drives_a_conformance_case() {
                         .map(|unit| unit.source.clone())
                         .collect::<Vec<_>>();
                     (
-                        terrane_compiler::compile_package(&package).unwrap(),
+                        terrane_compiler::compile_package_with_options(&package, options).unwrap(),
                         sources,
                     )
                 } else {
                     let source = fs::read_to_string(&source_path).unwrap();
-                    let compilation = terrane_compiler::compile(&source_path, source).unwrap();
+                    let compilation =
+                        terrane_compiler::compile_with_options(&source_path, source, options)
+                            .unwrap();
                     let sources = vec![compilation.source.clone()];
                     (compilation, sources)
                 };
@@ -69,7 +109,7 @@ fn every_manifest_drives_a_conformance_case() {
                     .rust
                     .replace(terrane_compiler::VERSION, "<version>");
                 assert_eq!(normalized, expected, "{}", case.display());
-                compile_and_maybe_run(case, phase, &compilation.rust);
+                compile_and_maybe_run(case, phase, &compilation.rust, &build);
             }
             ("check", "reject") => {
                 let code = field(&manifest, "code").unwrap();
@@ -98,38 +138,9 @@ fn every_manifest_drives_a_conformance_case() {
     }
 }
 
-fn compile_and_maybe_run(case: &Path, phase: &str, rust: &str) {
-    let case_name = case
-        .strip_prefix(corpus())
-        .unwrap()
-        .to_string_lossy()
-        .replace(['/', '\\'], "-");
-    let build_dir = std::env::temp_dir().join(format!(
-        "terrane-conformance-{}-{case_name}",
-        std::process::id()
-    ));
-    if build_dir.exists() {
-        fs::remove_dir_all(&build_dir).unwrap();
-    }
-    fs::create_dir_all(build_dir.join("src")).unwrap();
-    write_support_crates(&build_dir);
-    let parking_lot = if rust.contains("parking_lot::") {
-        "parking_lot = { version = \"0.12\", features = [\"arc_lock\"] }\n"
-    } else {
-        ""
-    };
-    fs::write(
-        build_dir.join("Cargo.toml"),
-        format!(
-            "[package]\nname = \"terrane_conformance_program\"\nversion = \"0.0.0\"\nedition = \"2024\"\n\n\
-             [dependencies]\nterrane-int-support = {{ path = \"support/terrane-int-support\" }}\n\
-             {parking_lot}\
-             terrane-collection-support = {{ path = \"support/terrane-collection-support\" }}\n\
-             terrane-scalar-support = {{ path = \"support/terrane-scalar-support\" }}\n\
-             terrane-string-support = {{ path = \"support/terrane-string-support\" }}\n\n[workspace]\n"
-        ),
-    )
-    .unwrap();
+fn compile_and_maybe_run(case: &Path, phase: &str, rust: &str, build: &ConformanceBuild) {
+    build.write_manifest();
+    let build_dir = &build.root;
     fs::write(build_dir.join("src/main.rs"), rust).unwrap();
     let output = Command::new("cargo")
         .args(["build", "--quiet", "--manifest-path"])
@@ -161,7 +172,6 @@ fn compile_and_maybe_run(case: &Path, phase: &str, rust: &str) {
             case.display()
         );
     }
-    fs::remove_dir_all(build_dir).unwrap();
 }
 
 fn write_support_crates(directory: &Path) {
@@ -243,4 +253,24 @@ fn field<'manifest>(manifest: &'manifest str, name: &str) -> Option<&'manifest s
             .strip_prefix(" = \"")?
             .strip_suffix('"')
     })
+}
+
+fn boolean_field(manifest: &str, name: &str) -> Option<bool> {
+    manifest.lines().find_map(|line| {
+        let value = line.strip_prefix(name)?.strip_prefix(" = ")?;
+        match value {
+            "true" => Some(true),
+            "false" => Some(false),
+            _ => None,
+        }
+    })
+}
+
+#[test]
+fn canonical_rust_manifest_expectation_is_opt_in() {
+    assert_eq!(
+        boolean_field("phase = \"run\"\ncanonical-rust = true\n", "canonical-rust"),
+        Some(true)
+    );
+    assert_eq!(boolean_field("phase = \"run\"\n", "canonical-rust"), None);
 }

@@ -1,0 +1,11 @@
+namespace borrow-parameter-across-await
+
+async function answer int;
+  return 42
+
+async function inspect int; observed ref int
+  result = await answer;
+  print; observed
+  return result
+
+function main;

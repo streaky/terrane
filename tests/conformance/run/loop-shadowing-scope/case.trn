@@ -2,10 +2,10 @@ namespace loop-shadowing-scope
 from /core/collections import list, map
 from /core/output import print
 
-function value int
+function value int;
   return 1
 
-function main
+function main;
   items list of string = list; 'ab', 'c'
   for items in items
     print; items

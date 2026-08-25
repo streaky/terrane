@@ -1,0 +1,7 @@
+namespace extended-child-deadline
+
+function main;
+  parent = task-scope; 20
+  child = parent.child-scope; 10
+  alias = child
+  too-late = alias.child-scope; 5 + 6

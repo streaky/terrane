@@ -1,4 +1,4 @@
 namespace app
 from /core/output import print
-function main
+function main;
   print; > namespace package

@@ -48,32 +48,34 @@ Terrane package
 │   │   │   ├── overflow-result                compiler-supplied result type
 │   │   │   └── div-rem-result                 compiler-supplied result type
 │   │   ├── /core/errors
-│   │   │   ├── error                          catch-all structural interface
-│   │   │   ├── arithmetic-overflow            catchable error object
-│   │   │   ├── division-by-zero               catchable error object
-│   │   │   ├── integer-conversion-overflow    catchable error object
-│   │   │   ├── negative-shift-count           catchable error object
-│   │   │   ├── resource-error                 catchable error object
-│   │   │   ├── coercion-error                 catchable error object
-│   │   │   ├── decode-error                   catchable error object
-│   │   │   ├── index-error                    catchable collection lookup error
-│   │   │   └── missing-key                    catchable map lookup error
+│   │   │   ├── throwable                      catch-all throwable interface
+│   │   │   ├── arithmetic-overflow            compiler-owned throwable object
+│   │   │   ├── division-by-zero               compiler-owned throwable object
+│   │   │   ├── integer-conversion-overflow    compiler-owned throwable object
+│   │   │   ├── negative-shift-count           compiler-owned throwable object
+│   │   │   ├── resource-error                 compiler-owned throwable object
+│   │   │   ├── coercion-error                 compiler-owned throwable object
+│   │   │   ├── decode-error                   compiler-owned throwable object
+│   │   │   ├── index-error                    compiler-owned throwable object
+│   │   │   └── missing-key                    compiler-owned throwable object
 │   │   ├── /core/encodings
 │   │   │   ├── utf8                           encoding object
 │   │   │   ├── utf16-le                       encoding object
 │   │   │   ├── utf16-be                       encoding object
 │   │   │   ├── utf32-le                       encoding object
 │   │   │   └── utf32-be                       encoding object
-│   │   └── /core/collections
-│   │       ├── iterator                       typed linear iterator constructor
-│   │       ├── list                           insertion-ordered sequence constructor
-│   │       ├── map                            insertion-ordered key/value constructor
-│   │       ├── set                            insertion-ordered unique-value constructor
-│   │       ├── tuple                          fixed-length sequence constructor
-│   │       ├── range                          half-open range constructor; `.through` is inclusive
-│   │       ├── entry                          key/value pair constructor
-│   │       ├── unordered-map                  deterministic unordered map constructor
-│   │       └── unordered-set                  deterministic unordered set constructor
+│   │   ├── /core/collections
+│   │   │   ├── iterator                       typed linear iterator constructor
+│   │   │   ├── list                           insertion-ordered sequence constructor
+│   │   │   ├── map                            insertion-ordered key/value constructor
+│   │   │   ├── set                            insertion-ordered unique-value constructor
+│   │   │   ├── tuple                          fixed-length sequence constructor
+│   │   │   ├── range                          half-open range constructor; `.through` is inclusive
+│   │   │   ├── entry                          key/value pair constructor
+│   │   │   ├── unordered-map                  deterministic unordered map constructor
+│   │   │   └── unordered-set                  deterministic unordered set constructor
+│   │   └── /core/async
+│   │       └── task-scope                     structured task-scope constructor
 ├── default prelude
 │   ├── print                                  binding to /core/output::print
 │   ├── bool                                   type name for /core/types::bool
@@ -86,7 +88,8 @@ Terrane package
 │   ├── utf16-le                               encoding name for /core/encodings::utf16-le
 │   ├── utf16-be                               encoding name for /core/encodings::utf16-be
 │   ├── utf32-le                               encoding name for /core/encodings::utf32-le
-│   └── utf32-be                               encoding name for /core/encodings::utf32-be
+│   ├── utf32-be                               encoding name for /core/encodings::utf32-be
+│   └── task-scope                             binding to /core/async::task-scope
 └── source-declared package surface
     ├── namespace                              hierarchical object container
     │   ├── variable                           namespace-local value
@@ -396,7 +399,7 @@ value is a D
 
 For an ordinary typed scalar, both forms compare its resolved canonical Terrane type with `D`. For a numeric constant, `value is a D` tests whether the constant is exactly admissible by `D`; for a numeric union binding, it tests the current runtime arm. The right-hand descriptor is resolved statically, and an unresolvable name fails with `T0001`. Scalar values themselves are identity-less: `is` between ordinary scalar values is false even when their values and types are equal. Operand expressions are still evaluated for their effects.
 
-Descriptor constructs are not runtime values and cannot be assigned to source bindings. An explicit import may bind a canonical descriptor under another name without creating a new descriptor.
+Descriptor names remain compile-time identities in ordinary type positions. When reflection or dynamic descriptor observation requires a value, the compiler materializes the canonical descriptor object; source bindings may retain and print that object, and `.name` exposes its canonical source spelling. An explicit import or constant alias retains the same descriptor identity rather than creating a new descriptor.
 
 ## Functions
 
@@ -494,6 +497,46 @@ release invalidation, shared-ownership cycle analysis, and the remaining provena
 expiry checking is still the implemented fallback where a non-owning reference's validity is not
 statically proven.
 
+## Callable contracts and reflection
+
+Callable contracts are modelled by the rule each one enforces rather than as permissions from one
+generic effect system. The compiler infers exact escaping throwable alternatives and receiver
+mutation, distinguishes sync and async callable types, and validates suspension through explicit
+`await`. `awaits`, `mutating`, `mutates`, `unsafe`, and bare `foreign` are not function qualifiers.
+Concrete unsafe Rust and foreign interoperability belong to explicit Rust, runtime, adapter,
+import, or ABI constructs. Callable reflection exposes retained `.contracts`,
+`.throwable-contract`, and `.escaping-throwables` metadata; descriptor values retain canonical
+identity and `.name`.
+
+I/O and blocking are not source qualifiers, ordinary operations require no compiler-issued
+capability value, and manifests do not inject authority into entrypoints. `pure` is not a function
+qualifier; no empty generic effect set is presented as a stronger semantic purity guarantee.
+
+## Async tasks and scopes
+
+An `async function` has a distinct callable type and invocation produces a linear task. Postfix
+`await` is accepted only in an async function and consumes that task; leaving a task unconsumed is a
+source diagnostic. The compiler rejects sync/async callable substitutions and non-owning references
+whose owner is not proven across suspension.
+
+`task-scope; deadline?` constructs a scope using the selected threaded or cooperative executor
+profile. `.spawn; callable` consumes an async callable invocation into a linear scoped task;
+`.join; move task` consumes it and returns a task outcome. `.child-scope; deadline` creates a child
+whose runtime effective deadline is the earlier of parent and requested deadlines; statically
+resolvable extension through local aliases and nested constant expressions is rejected. `.cancel;`
+records cancellation, and join waits for the selected executor's child operation.
+
+The implemented task outcome exposes `completed bool`, `cancelled bool`, `value T or none`, and
+`error throwable or none`. Successful completion retains `value` even when cancellation was
+requested; failure sets `completed` false, leaves `value` absent, retains the typed child error, and
+requests cancellation of surviving siblings. The selected executor checks cancellation and
+deadline expiry while polling each child. Scoped tasks remain linear, so every child must be joined
+before function exit; no implicit detach or abandoned child path exists.
+
+Task runtime support and its Cargo dependencies are selected from semantic lowering metadata, not
+from generated source-text searches. Merely spelling a runtime crate path in source text cannot
+change the generated manifest.
+
 ## Properties and methods index
 
 | Receiver | Member | Kind | Result / effect |
@@ -530,14 +573,16 @@ typed children, signatures, and availability constraints. Semantic analysis reso
 family before lowering; generated Rust erases it to a direct function or support operation.
 Family selections must be invoked in the same expression.
 
-The `/core/errors` interface and error objects are runtime identities used by `throw`,
-`try`, `catch`, and `finally`. Arithmetic and coercion failures enter the same typed
-result-propagation path and are catchable. Function effects are inferred transitively, while an
-explicit `throws` qualifier guarantees the result-propagation calling convention even for a body
-that does not currently throw. Generated errors carry a closed typed kind, message, optional cause,
-and deterministic namespace/function/source-context chain; source-level field access is not
-implemented yet, so `catch ... as name` is rejected with `T0027` rather than creating an error value
-that cannot be used.
+The `/core/errors::throwable` interface and compiler-owned standard throwable objects are runtime
+identities used by `throw`, `try`, `catch`, and `finally`. Ordinary source-declared classes may
+implement `throwable`; a conforming class supplies `message string` and a synchronous, non-throwing,
+zero-argument `render string` method, while `cause` is compiler-managed in the runtime envelope.
+The class may retain its own additional declared fields. Arithmetic, coercion, decoding, and
+collection failures enter the same typed result-propagation
+path and are catchable. Exact escaping throwable alternatives are inferred transitively after
+catches and `finally` replacement. A postfix `throws T` clause is an optional upper-bound contract:
+every escaping throwable must implement `T`. Reflection exposes the declared bound separately from
+the inferred escaping set.
 
 ## Major planned surface absent today
 
@@ -545,11 +590,12 @@ The authoritative language draft proposes a much larger ontology. None of the fo
 
 ```text
 collection checked lookup children and source-visible typed lookup errors
-reflection beyond canonical scalar `.type`
-user-defined error objects, source-visible error fields, and error hierarchies
+reflection inventories beyond retained callable contracts, throwable alternatives, and canonical descriptor identity
+source-visible standard-error fields, causes, and error hierarchies
 bytes indexing and slicing
 user-authored implementations of general iteration protocols
 user-declared type parameters and generic application
+typed task errors, defined cancellation points, automatic sibling cancellation, and explicit detach
 function/class/namespace/type reflection objects
 ```
 

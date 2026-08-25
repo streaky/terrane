@@ -1,18 +1,18 @@
 namespace interface-value-separation
 
 interface readable
-    function read int
+    function read int;
 
 class counter implements readable
     value int = 7
 
-    function read int
+    function read int;
         return this.value
 
-    function destruct
+    function destruct;
         print; 'destruct'
 
-function main
+function main;
     original readable = counter;
     copied readable = original
     print; (original.read;)

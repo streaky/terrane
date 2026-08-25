@@ -1,5 +1,5 @@
 namespace value-reassignment
-function main
+function main;
   value = 1
   print; value
   next = 2

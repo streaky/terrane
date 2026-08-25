@@ -6,7 +6,7 @@ function from-hex int; source string
 function fail int; source string
   print; source
   throw coercion-error
-function main
+function main;
   text string = >ff
   parsed int = text.parse; from-hex
   print; parsed

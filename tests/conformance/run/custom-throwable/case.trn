@@ -1,0 +1,20 @@
+namespace custom-throwable
+from /core/errors import throwable
+
+class config-error implements throwable
+  message string = ''
+  path string = ''
+  function construct; path string, message string
+    this.path = path
+    this.message = message
+  function render string;
+    return this.message
+
+function load string throws config-error; path string
+  throw config-error; path, >configuration is invalid
+
+function main;
+  try
+    load; >settings.toml
+  catch config-error
+    print; 'caught'

@@ -6,7 +6,7 @@ class base
 class child extends base
     extra int = 3
 
-function main
+function main;
     concrete child = child;
     view base = concrete
     print; view.value

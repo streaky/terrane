@@ -1,5 +1,5 @@
 namespace app
 function other string; value string
   return value
-function shadow
+function shadow;
   other int = 1

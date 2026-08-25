@@ -1,6 +1,6 @@
 namespace fizz-buzz
 
-function main
+function main;
   number int = 1
   while number <= 15
     if number % 15 == 0

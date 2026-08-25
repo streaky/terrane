@@ -40,6 +40,7 @@ pub fn lex_recovering(source: &SourceFile) -> LexOutput {
     let mut block_comment_start = None;
     let mut indent_style = None;
     let mut indent_stack = vec![0];
+    let mut parenthesis_depth = 0usize;
     for raw in text.split_inclusive('\n') {
         let line = raw.trim_end_matches(['\n', '\r']);
         logical_lines.push((offset, line.to_owned()));
@@ -79,7 +80,9 @@ pub fn lex_recovering(source: &SourceFile) -> LexOutput {
             None => false,
         };
         if !in_block_string {
-            if let Some((start, end)) = block_terminator.take() {
+            if parenthesis_depth == 0
+                && let Some((start, end)) = block_terminator.take()
+            {
                 push_token(
                     source,
                     &mut tokens,
@@ -89,7 +92,7 @@ pub fn lex_recovering(source: &SourceFile) -> LexOutput {
                     Attachment::Detached,
                 );
             }
-            if carries_code(line, indent, block_comment_start.is_some()) {
+            if parenthesis_depth == 0 && carries_code(line, indent, block_comment_start.is_some()) {
                 check_indent(
                     source,
                     offset,
@@ -116,6 +119,15 @@ pub fn lex_recovering(source: &SourceFile) -> LexOutput {
                 &mut diagnostics,
                 &mut block_comment_start,
             );
+            for token in &tokens[token_count..] {
+                match token.kind {
+                    TokenKind::OpenParen => parenthesis_depth += 1,
+                    TokenKind::CloseParen => {
+                        parenthesis_depth = parenthesis_depth.saturating_sub(1);
+                    }
+                    _ => {}
+                }
+            }
             if let Some(relative_index) = tokens[token_count..]
                 .iter()
                 .position(|token| token.kind == TokenKind::BlockString)
@@ -123,7 +135,7 @@ pub fn lex_recovering(source: &SourceFile) -> LexOutput {
                 block_string = Some((indent, token_count + relative_index, None));
             }
         }
-        if raw.ends_with('\n') {
+        if raw.ends_with('\n') && parenthesis_depth == 0 {
             if block_string.is_some() {
                 block_terminator = Some((offset + line.len(), offset + raw.len()));
             } else {
@@ -139,7 +151,7 @@ pub fn lex_recovering(source: &SourceFile) -> LexOutput {
         }
         offset += raw.len();
     }
-    if let Some((start, end)) = block_terminator {
+    if let Some((start, end)) = block_terminator.filter(|_| parenthesis_depth == 0) {
         push_token(
             source,
             &mut tokens,
@@ -151,7 +163,7 @@ pub fn lex_recovering(source: &SourceFile) -> LexOutput {
     }
     if text.is_empty() {
         logical_lines.push((0, String::new()));
-    } else if !text.ends_with('\n') {
+    } else if !text.ends_with('\n') && parenthesis_depth == 0 {
         push_token(
             source,
             &mut tokens,
