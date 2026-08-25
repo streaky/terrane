@@ -21,8 +21,10 @@ async fn answer() -> terrane_int_support::Int {
 }
 fn main() {
     __terrane_block_on(async move {
-        let child: std::pin::Pin<Box<dyn Future<Output = terrane_int_support::Int>>> = Box::pin(answer());
+        let child: std::pin::Pin<Box<dyn Future<Output = terrane_int_support::Int>>> = Box::pin(
+            answer(),
+        );
         let value: terrane_int_support::Int = (child).await;
-        println!("{}", terrane_scalar_support::scalar_text(&(value)));
+        println!("{}", terrane_scalar_support::scalar_text(& (value)));
     });
 }

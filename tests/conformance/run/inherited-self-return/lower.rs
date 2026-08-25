@@ -2,12 +2,10 @@
 // Source: case.trn
 // Namespace: inherited-self-return
 #[derive(Clone)]
-pub struct BaseStorage {
-}
+pub struct BaseStorage {}
 impl BaseStorage {
     pub fn terrane_construct() -> Self {
-        Self {
-        }
+        Self {}
     }
     pub fn copy(&self) -> Base {
         return Base::Own(self.clone());
@@ -22,7 +20,9 @@ pub enum Base {
     Child(Child),
 }
 impl Base {
-    pub fn terrane_construct() -> Self { Self::Own(BaseStorage::terrane_construct()) }
+    pub fn terrane_construct() -> Self {
+        Self::Own(BaseStorage::terrane_construct())
+    }
     pub fn copy(&self) -> Base {
         match self {
             Self::Own(value) => value.copy(),
@@ -37,12 +37,10 @@ impl Base {
     }
 }
 #[derive(Clone)]
-pub struct Child {
-}
+pub struct Child {}
 impl Child {
     pub fn terrane_construct() -> Self {
-        Self {
-        }
+        Self {}
     }
     pub fn copy(&self) -> Base {
         return Base::Child(self.clone());
@@ -54,5 +52,5 @@ impl Child {
 fn main() {
     let value: Child = Child::terrane_construct();
     let result: Base = value.copy();
-    println!("{}", terrane_scalar_support::scalar_text(&(result.marker())));
+    println!("{}", terrane_scalar_support::scalar_text(& (result.marker())));
 }

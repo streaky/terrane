@@ -157,12 +157,26 @@ impl ConfigError {
     }
 }
 fn load(path: String) -> Result<String, TerraneError> {
-    return Err({ let value = ConfigError::terrane_construct(path, String::from("configuration is invalid")); TerraneError::new(TerraneErrorKind::Custom("config-error"), value.render()).at("/custom-throwable::load (case.trn:14:3)") });
+    return Err({
+        let value = ConfigError::terrane_construct(
+            path,
+            String::from("configuration is invalid"),
+        );
+        TerraneError::new(TerraneErrorKind::Custom("config-error"), value.render())
+            .at("/custom-throwable::load (case.trn:14:3)")
+    });
 }
 fn main() {
     let __terrane_completion_0: TerraneCompletion<()> = (|| {
         let __terrane_try_0: TerraneCompletion<()> = (|| {
-            match load(String::from("settings.toml")) { Ok(value) => value, Err(error) => return TerraneCompletion::Error(error.at("/custom-throwable::main (case.trn:18:5)")) };
+            match load(String::from("settings.toml")) {
+                Ok(value) => value,
+                Err(error) => {
+                    return TerraneCompletion::Error(
+                        error.at("/custom-throwable::main (case.trn:18:5)"),
+                    );
+                }
+            };
             TerraneCompletion::Normal
         })();
         match __terrane_try_0 {
@@ -172,9 +186,14 @@ fn main() {
             TerraneCompletion::Normal => {}
             TerraneCompletion::Error(__terrane_error_0) => {
                 let mut __terrane_handled_0 = false;
-                if !__terrane_handled_0 && __terrane_error_0.kind == TerraneErrorKind::Custom("config-error") {
+                if !__terrane_handled_0
+                    && __terrane_error_0.kind == TerraneErrorKind::Custom("config-error")
+                {
                     __terrane_handled_0 = true;
-                    println!("{}", terrane_scalar_support::scalar_text(&(String::from("caught"))));
+                    println!(
+                        "{}", terrane_scalar_support::scalar_text(&
+                        (String::from("caught")))
+                    );
                 }
                 if !__terrane_handled_0 {
                     return TerraneCompletion::Error(__terrane_error_0);
@@ -187,6 +206,8 @@ fn main() {
         TerraneCompletion::Normal => {}
         TerraneCompletion::Return(value) => return value,
         TerraneCompletion::Error(error) => __terrane_uncaught(error),
-        TerraneCompletion::Break | TerraneCompletion::Continue => __terrane_generated_defect("loop control escaped a non-loop try"),
+        TerraneCompletion::Break | TerraneCompletion::Continue => {
+            __terrane_generated_defect("loop control escaped a non-loop try")
+        }
     }
 }

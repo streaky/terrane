@@ -133,22 +133,69 @@ enum TerraneCompletion<T> {
 // Source: case.trn
 // Namespace: nested-collection-for-binding
 fn main() {
-    let nested: terrane_collection_support::List<terrane_collection_support::List<terrane_int_support::Int>> = terrane_collection_support::List::<terrane_collection_support::List<terrane_int_support::Int>>::new(vec![terrane_collection_support::List::<terrane_int_support::Int>::new(vec![terrane_int_support::Int::from(1_i128), terrane_int_support::Int::from(2_i128)]), terrane_collection_support::List::<terrane_int_support::Int>::new(vec![terrane_int_support::Int::from(3_i128)])]);
-    let mut __terrane_iterator_0 = terrane_collection_support::Iterable::terrane_iterator(&(nested));
+    let nested: terrane_collection_support::List<
+        terrane_collection_support::List<terrane_int_support::Int>,
+    > = terrane_collection_support::List::<
+        terrane_collection_support::List<terrane_int_support::Int>,
+    >::new(
+        vec![
+            terrane_collection_support::List::< terrane_int_support::Int
+            >::new(vec![terrane_int_support::Int::from(1_i128),
+            terrane_int_support::Int::from(2_i128)]), terrane_collection_support::List::<
+            terrane_int_support::Int >::new(vec![terrane_int_support::Int::from(3_i128)])
+        ],
+    );
+    let mut __terrane_iterator_0 = terrane_collection_support::Iterable::terrane_iterator(
+        &(nested),
+    );
     loop {
         let row = match __terrane_iterator_0.next() {
             terrane_collection_support::IterationStep::Item(item) => item,
             terrane_collection_support::IterationStep::End => break,
         };
-        println!("{}{}", terrane_scalar_support::scalar_text(&(terrane_int_support::Int::from((row).length()))), terrane_scalar_support::scalar_text(&(((row).get_or_error((terrane_collection_support::index_from_int(&(terrane_int_support::Int::from(0_i128)))).unwrap_or_else(|error| __terrane_uncaught(TerraneError::from(error).at("/nested-collection-for-binding::main (case.trn:8:24)"))))).unwrap_or_else(|error| __terrane_uncaught(TerraneError::from(error).at("/nested-collection-for-binding::main (case.trn:8:24)"))))));
+        println!(
+            "{}{}", terrane_scalar_support::scalar_text(&
+            (terrane_int_support::Int::from((row).length()))),
+            terrane_scalar_support::scalar_text(& (((row)
+            .get_or_error((terrane_collection_support::index_from_int(&
+            (terrane_int_support::Int::from(0_i128)))).unwrap_or_else(| error |
+            __terrane_uncaught(TerraneError::from(error)
+            .at("/nested-collection-for-binding::main (case.trn:8:24)")))))
+            .unwrap_or_else(| error | __terrane_uncaught(TerraneError::from(error)
+            .at("/nested-collection-for-binding::main (case.trn:8:24)")))))
+        );
     }
-    let groups: terrane_collection_support::Map<String, terrane_collection_support::List<terrane_int_support::Int>> = terrane_collection_support::Map::<String, terrane_collection_support::List<terrane_int_support::Int>>::new(vec![terrane_collection_support::Entry::<String, terrane_collection_support::List<terrane_int_support::Int>>::new(String::from("a"), terrane_collection_support::List::<terrane_int_support::Int>::new(vec![terrane_int_support::Int::from(4_i128), terrane_int_support::Int::from(5_i128)]))]);
-    let mut __terrane_iterator_1 = terrane_collection_support::Iterable::terrane_iterator(&(groups));
+    let groups: terrane_collection_support::Map<
+        String,
+        terrane_collection_support::List<terrane_int_support::Int>,
+    > = terrane_collection_support::Map::<
+        String,
+        terrane_collection_support::List<terrane_int_support::Int>,
+    >::new(
+        vec![
+            terrane_collection_support::Entry::< String, terrane_collection_support::List
+            < terrane_int_support::Int >>::new(String::from("a"),
+            terrane_collection_support::List::< terrane_int_support::Int
+            >::new(vec![terrane_int_support::Int::from(4_i128),
+            terrane_int_support::Int::from(5_i128)]))
+        ],
+    );
+    let mut __terrane_iterator_1 = terrane_collection_support::Iterable::terrane_iterator(
+        &(groups),
+    );
     loop {
         let group = match __terrane_iterator_1.next() {
             terrane_collection_support::IterationStep::Item(item) => item,
             terrane_collection_support::IterationStep::End => break,
         };
-        println!("{}", terrane_scalar_support::scalar_text(&((((group).value.clone()).get_or_error((terrane_collection_support::index_from_int(&(terrane_int_support::Int::from(1_i128)))).unwrap_or_else(|error| __terrane_uncaught(TerraneError::from(error).at("/nested-collection-for-binding::main (case.trn:11:12)"))))).unwrap_or_else(|error| __terrane_uncaught(TerraneError::from(error).at("/nested-collection-for-binding::main (case.trn:11:12)"))))));
+        println!(
+            "{}", terrane_scalar_support::scalar_text(& ((((group).value.clone())
+            .get_or_error((terrane_collection_support::index_from_int(&
+            (terrane_int_support::Int::from(1_i128)))).unwrap_or_else(| error |
+            __terrane_uncaught(TerraneError::from(error)
+            .at("/nested-collection-for-binding::main (case.trn:11:12)")))))
+            .unwrap_or_else(| error | __terrane_uncaught(TerraneError::from(error)
+            .at("/nested-collection-for-binding::main (case.trn:11:12)")))))
+        );
     }
 }

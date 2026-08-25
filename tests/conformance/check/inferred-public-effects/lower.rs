@@ -2,7 +2,7 @@
 // Source: case.trn
 // Namespace: inferred-public-effects
 fn noisy() {
-    println!("{}", terrane_scalar_support::scalar_text(&(String::from("effect"))));
+    println!("{}", terrane_scalar_support::scalar_text(& (String::from("effect"))));
 }
 fn main() {
     noisy();

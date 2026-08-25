@@ -266,12 +266,33 @@ pub struct TerraneTaskOutcome<T> {
 // Source: case.trn
 // Namespace: throwing-scoped-task
 async fn fail() -> Result<terrane_int_support::Int, TerraneError> {
-    return Err(TerraneError::new(TerraneErrorKind::CoercionError, "coercion has no compatible result").at("/throwing-scoped-task::fail (case.trn:5:3)"));
+    return Err(
+        TerraneError::new(
+                TerraneErrorKind::CoercionError,
+                "coercion has no compatible result",
+            )
+            .at("/throwing-scoped-task::fail (case.trn:5:3)"),
+    );
 }
 fn main() {
     let scope: TerraneTaskScope = TerraneTaskScope::new(None);
-    let child: TerraneScopedTask<terrane_int_support::Int> = { let __terrane_scope = (scope).clone(); let __terrane_cancel = __terrane_scope.clone(); TerraneScopedTask::spawn(move || match __terrane_block_on_cancellable((fail)(), move || __terrane_cancel.should_cancel()) { Some(Ok(value)) => TerraneTaskResult::Completed(value), Some(Err(error)) => TerraneTaskResult::Failed(error), None => TerraneTaskResult::Cancelled }) };
+    let child: TerraneScopedTask<terrane_int_support::Int> = {
+        let __terrane_scope = (scope).clone();
+        let __terrane_cancel = __terrane_scope.clone();
+        TerraneScopedTask::spawn(move || match __terrane_block_on_cancellable(
+            (fail)(),
+            move || __terrane_cancel.should_cancel(),
+        ) {
+            Some(Ok(value)) => TerraneTaskResult::Completed(value),
+            Some(Err(error)) => TerraneTaskResult::Failed(error),
+            None => TerraneTaskResult::Cancelled,
+        })
+    };
     let outcome: TerraneTaskOutcome<terrane_int_support::Int> = (scope).join(child);
-    println!("{}{}{}", terrane_scalar_support::scalar_text(&((outcome).completed)), terrane_scalar_support::scalar_text(&((outcome).cancelled)), terrane_scalar_support::scalar_text(&(((outcome).value.clone() == None))));
-    println!("{}", terrane_scalar_support::scalar_text(&(((outcome).error != None))));
+    println!(
+        "{}{}{}", terrane_scalar_support::scalar_text(& ((outcome).completed)),
+        terrane_scalar_support::scalar_text(& ((outcome).cancelled)),
+        terrane_scalar_support::scalar_text(& (((outcome).value.clone() == None)))
+    );
+    println!("{}", terrane_scalar_support::scalar_text(& (((outcome).error != None))));
 }

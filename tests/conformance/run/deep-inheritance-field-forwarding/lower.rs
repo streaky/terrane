@@ -26,7 +26,9 @@ pub enum Level0 {
     Level9(Level9),
 }
 impl Level0 {
-    pub fn terrane_construct() -> Self { Self::Own(Level0Storage::terrane_construct()) }
+    pub fn terrane_construct() -> Self {
+        Self::Own(Level0Storage::terrane_construct())
+    }
     pub fn terrane_field_f0(&self) -> &terrane_int_support::Int {
         match self {
             Self::Own(value) => &value.f0,
@@ -82,7 +84,9 @@ pub enum Level1 {
     Level9(Level9),
 }
 impl Level1 {
-    pub fn terrane_construct() -> Self { Self::Own(Level1Storage::terrane_construct()) }
+    pub fn terrane_construct() -> Self {
+        Self::Own(Level1Storage::terrane_construct())
+    }
     pub fn terrane_field_f0(&self) -> &terrane_int_support::Int {
         match self {
             Self::Own(value) => &value.f0,
@@ -163,7 +167,9 @@ pub enum Level2 {
     Level9(Level9),
 }
 impl Level2 {
-    pub fn terrane_construct() -> Self { Self::Own(Level2Storage::terrane_construct()) }
+    pub fn terrane_construct() -> Self {
+        Self::Own(Level2Storage::terrane_construct())
+    }
     pub fn terrane_field_f0(&self) -> &terrane_int_support::Int {
         match self {
             Self::Own(value) => &value.f0,
@@ -265,7 +271,9 @@ pub enum Level3 {
     Level9(Level9),
 }
 impl Level3 {
-    pub fn terrane_construct() -> Self { Self::Own(Level3Storage::terrane_construct()) }
+    pub fn terrane_construct() -> Self {
+        Self::Own(Level3Storage::terrane_construct())
+    }
     pub fn terrane_field_f0(&self) -> &terrane_int_support::Int {
         match self {
             Self::Own(value) => &value.f0,
@@ -384,7 +392,9 @@ pub enum Level4 {
     Level9(Level9),
 }
 impl Level4 {
-    pub fn terrane_construct() -> Self { Self::Own(Level4Storage::terrane_construct()) }
+    pub fn terrane_construct() -> Self {
+        Self::Own(Level4Storage::terrane_construct())
+    }
     pub fn terrane_field_f0(&self) -> &terrane_int_support::Int {
         match self {
             Self::Own(value) => &value.f0,
@@ -516,7 +526,9 @@ pub enum Level5 {
     Level9(Level9),
 }
 impl Level5 {
-    pub fn terrane_construct() -> Self { Self::Own(Level5Storage::terrane_construct()) }
+    pub fn terrane_construct() -> Self {
+        Self::Own(Level5Storage::terrane_construct())
+    }
     pub fn terrane_field_f0(&self) -> &terrane_int_support::Int {
         match self {
             Self::Own(value) => &value.f0,
@@ -657,7 +669,9 @@ pub enum Level6 {
     Level9(Level9),
 }
 impl Level6 {
-    pub fn terrane_construct() -> Self { Self::Own(Level6Storage::terrane_construct()) }
+    pub fn terrane_construct() -> Self {
+        Self::Own(Level6Storage::terrane_construct())
+    }
     pub fn terrane_field_f0(&self) -> &terrane_int_support::Int {
         match self {
             Self::Own(value) => &value.f0,
@@ -803,7 +817,9 @@ pub enum Level7 {
     Level9(Level9),
 }
 impl Level7 {
-    pub fn terrane_construct() -> Self { Self::Own(Level7Storage::terrane_construct()) }
+    pub fn terrane_construct() -> Self {
+        Self::Own(Level7Storage::terrane_construct())
+    }
     pub fn terrane_field_f0(&self) -> &terrane_int_support::Int {
         match self {
             Self::Own(value) => &value.f0,
@@ -950,7 +966,9 @@ pub enum Level8 {
     Level9(Level9),
 }
 impl Level8 {
-    pub fn terrane_construct() -> Self { Self::Own(Level8Storage::terrane_construct()) }
+    pub fn terrane_construct() -> Self {
+        Self::Own(Level8Storage::terrane_construct())
+    }
     pub fn terrane_field_f0(&self) -> &terrane_int_support::Int {
         match self {
             Self::Own(value) => &value.f0,
@@ -1091,9 +1109,18 @@ impl Level9 {
 }
 fn main() {
     let leaf: Level9 = Level9::terrane_construct();
-    println!("{}{}{}", terrane_scalar_support::scalar_text(&(leaf.f0)), terrane_scalar_support::scalar_text(&(leaf.f5)), terrane_scalar_support::scalar_text(&(leaf.f9)));
+    println!(
+        "{}{}{}", terrane_scalar_support::scalar_text(& (leaf.f0)),
+        terrane_scalar_support::scalar_text(& (leaf.f5)),
+        terrane_scalar_support::scalar_text(& (leaf.f9))
+    );
     let mut root: Level0 = Level0::Level9((leaf).clone());
-    println!("{}", terrane_scalar_support::scalar_text(&((root).terrane_field_f0().clone())));
+    println!(
+        "{}", terrane_scalar_support::scalar_text(& ((root).terrane_field_f0().clone()))
+    );
     *(root).terrane_field_f0_mut() = terrane_int_support::Int::from(10_i128);
-    println!("{}{}", terrane_scalar_support::scalar_text(&((root).terrane_field_f0().clone())), terrane_scalar_support::scalar_text(&(leaf.f0)));
+    println!(
+        "{}{}", terrane_scalar_support::scalar_text(& ((root).terrane_field_f0()
+        .clone())), terrane_scalar_support::scalar_text(& (leaf.f0))
+    );
 }

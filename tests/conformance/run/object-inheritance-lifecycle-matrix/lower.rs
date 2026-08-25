@@ -137,14 +137,20 @@ pub trait NamedProtocol {
     fn separate_box(&self) -> Box<dyn NamedProtocol>;
     fn report(&self) -> terrane_int_support::Int;
 }
-impl Clone for Box<dyn NamedProtocol> { fn clone(&self) -> Self { self.clone_box() } }
+impl Clone for Box<dyn NamedProtocol> {
+    fn clone(&self) -> Self {
+        self.clone_box()
+    }
+}
 #[derive(Clone)]
 pub struct Named(Box<dyn NamedProtocol>);
 impl Named {
     pub fn report(&self) -> terrane_int_support::Int {
         self.0.report()
     }
-    fn terrane_separate(&self) -> Self { Self(self.0.separate_box()) }
+    fn terrane_separate(&self) -> Self {
+        Self(self.0.separate_box())
+    }
 }
 #[derive(Clone)]
 pub struct BaseStorage {
@@ -170,7 +176,9 @@ impl BaseStorage {
         self.value = value.clone();
     }
     pub fn destruct(&self) {
-        println!("{}", terrane_scalar_support::scalar_text(&(String::from("base-destruct"))));
+        println!(
+            "{}", terrane_scalar_support::scalar_text(& (String::from("base-destruct")))
+        );
     }
 }
 #[derive(Clone)]
@@ -179,7 +187,9 @@ pub enum Base {
     Child(Child),
 }
 impl Base {
-    pub fn terrane_construct() -> Self { Self::Own(BaseStorage::terrane_construct()) }
+    pub fn terrane_construct() -> Self {
+        Self::Own(BaseStorage::terrane_construct())
+    }
     pub fn terrane_separate(&self) -> Self {
         match self {
             Self::Own(value) => Self::Own(value.terrane_separate()),
@@ -212,13 +222,21 @@ impl Base {
     }
 }
 impl NamedProtocol for Base {
-    fn clone_box(&self) -> Box<dyn NamedProtocol> { Box::new(self.clone()) }
-    fn separate_box(&self) -> Box<dyn NamedProtocol> { Box::new(self.terrane_separate()) }
+    fn clone_box(&self) -> Box<dyn NamedProtocol> {
+        Box::new(self.clone())
+    }
+    fn separate_box(&self) -> Box<dyn NamedProtocol> {
+        Box::new(self.terrane_separate())
+    }
     fn report(&self) -> terrane_int_support::Int {
-        Base::report(self, )
+        Base::report(self)
     }
 }
-impl From<Base> for Named { fn from(value: Base) -> Self { Self(Box::new(value)) } }
+impl From<Base> for Named {
+    fn from(value: Base) -> Self {
+        Self(Box::new(value))
+    }
+}
 impl Drop for BaseStorage {
     fn drop(&mut self) {
         if std::sync::Arc::strong_count(&self.__terrane_lifetime) == 1 {
@@ -252,20 +270,32 @@ impl Child {
         self.value = value.clone();
     }
     pub fn destruct(&self) {
-        println!("{}", terrane_scalar_support::scalar_text(&(String::from("child-destruct"))));
+        println!(
+            "{}", terrane_scalar_support::scalar_text(& (String::from("child-destruct")))
+        );
     }
     fn terrane_destruct_0(&self) {
-        println!("{}", terrane_scalar_support::scalar_text(&(String::from("base-destruct"))));
+        println!(
+            "{}", terrane_scalar_support::scalar_text(& (String::from("base-destruct")))
+        );
     }
 }
 impl NamedProtocol for Child {
-    fn clone_box(&self) -> Box<dyn NamedProtocol> { Box::new(self.clone()) }
-    fn separate_box(&self) -> Box<dyn NamedProtocol> { Box::new(self.terrane_separate()) }
+    fn clone_box(&self) -> Box<dyn NamedProtocol> {
+        Box::new(self.clone())
+    }
+    fn separate_box(&self) -> Box<dyn NamedProtocol> {
+        Box::new(self.terrane_separate())
+    }
     fn report(&self) -> terrane_int_support::Int {
-        Child::report(self, )
+        Child::report(self)
     }
 }
-impl From<Child> for Named { fn from(value: Child) -> Self { Self(Box::new(value)) } }
+impl From<Child> for Named {
+    fn from(value: Child) -> Self {
+        Self(Box::new(value))
+    }
+}
 impl Drop for Child {
     fn drop(&mut self) {
         if std::sync::Arc::strong_count(&self.__terrane_lifetime) == 1 {
@@ -276,10 +306,10 @@ impl Drop for Child {
 }
 fn main() {
     let mut value: Child = Child::terrane_construct();
-    println!("{}", terrane_scalar_support::scalar_text(&(value.report())));
+    println!("{}", terrane_scalar_support::scalar_text(& (value.report())));
     value.set(terrane_int_support::Int::from(4_i128));
-    println!("{}", terrane_scalar_support::scalar_text(&(value.report())));
+    println!("{}", terrane_scalar_support::scalar_text(& (value.report())));
     let view: Named = Named::from((value).terrane_separate());
     let copied: Named = (view).terrane_separate();
-    println!("{}", terrane_scalar_support::scalar_text(&(copied.report())));
+    println!("{}", terrane_scalar_support::scalar_text(& (copied.report())));
 }

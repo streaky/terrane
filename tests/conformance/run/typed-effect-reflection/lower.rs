@@ -136,19 +136,50 @@ fn fallible() -> terrane_int_support::Int {
     return terrane_int_support::Int::from(1_i128);
 }
 fn exact() -> Result<terrane_int_support::Int, TerraneError> {
-    return Err(TerraneError::new(TerraneErrorKind::CoercionError, "coercion has no compatible result").at("/typed-effect-reflection::exact (case.trn:8:3)"));
+    return Err(
+        TerraneError::new(
+                TerraneErrorKind::CoercionError,
+                "coercion has no compatible result",
+            )
+            .at("/typed-effect-reflection::exact (case.trn:8:3)"),
+    );
 }
 fn main() {
     let value: terrane_int_support::Int = fallible();
-    println!("{}{}", terrane_scalar_support::scalar_text(&(value)), terrane_scalar_support::scalar_text(&({ let _ = fallible; "".to_owned() })));
-    println!("{}", terrane_scalar_support::scalar_text(&({ let _ = fallible; "throwable".to_owned() })));
-    println!("{}", terrane_scalar_support::scalar_text(&({ let _ = fallible; "".to_owned() })));
-    println!("{}", terrane_scalar_support::scalar_text(&({ let _ = exact; "throws".to_owned() })));
-    println!("{}", terrane_scalar_support::scalar_text(&({ let _ = exact; "throwable".to_owned() })));
-    println!("{}", terrane_scalar_support::scalar_text(&({ let _ = exact; "coercion-error".to_owned() })));
+    println!(
+        "{}{}", terrane_scalar_support::scalar_text(& (value)),
+        terrane_scalar_support::scalar_text(& ({ let _ = fallible; "".to_owned() }))
+    );
+    println!(
+        "{}", terrane_scalar_support::scalar_text(& ({ let _ = fallible; "throwable"
+        .to_owned() }))
+    );
+    println!(
+        "{}", terrane_scalar_support::scalar_text(& ({ let _ = fallible; "".to_owned()
+        }))
+    );
+    println!(
+        "{}", terrane_scalar_support::scalar_text(& ({ let _ = exact; "throws".to_owned()
+        }))
+    );
+    println!(
+        "{}", terrane_scalar_support::scalar_text(& ({ let _ = exact; "throwable"
+        .to_owned() }))
+    );
+    println!(
+        "{}", terrane_scalar_support::scalar_text(& ({ let _ = exact; "coercion-error"
+        .to_owned() }))
+    );
     let __terrane_completion_0: TerraneCompletion<()> = (|| {
         let __terrane_try_0: TerraneCompletion<()> = (|| {
-            match exact() { Ok(value) => value, Err(error) => return TerraneCompletion::Error(error.at("/typed-effect-reflection::main (case.trn:19:5)")) };
+            match exact() {
+                Ok(value) => value,
+                Err(error) => {
+                    return TerraneCompletion::Error(
+                        error.at("/typed-effect-reflection::main (case.trn:19:5)"),
+                    );
+                }
+            };
             TerraneCompletion::Normal
         })();
         match __terrane_try_0 {
@@ -158,9 +189,14 @@ fn main() {
             TerraneCompletion::Normal => {}
             TerraneCompletion::Error(__terrane_error_0) => {
                 let mut __terrane_handled_0 = false;
-                if !__terrane_handled_0 && __terrane_error_0.kind == TerraneErrorKind::CoercionError {
+                if !__terrane_handled_0
+                    && __terrane_error_0.kind == TerraneErrorKind::CoercionError
+                {
                     __terrane_handled_0 = true;
-                    println!("{}", terrane_scalar_support::scalar_text(&(String::from("caught"))));
+                    println!(
+                        "{}", terrane_scalar_support::scalar_text(&
+                        (String::from("caught")))
+                    );
                 }
                 if !__terrane_handled_0 {
                     return TerraneCompletion::Error(__terrane_error_0);
@@ -173,6 +209,8 @@ fn main() {
         TerraneCompletion::Normal => {}
         TerraneCompletion::Return(value) => return value,
         TerraneCompletion::Error(error) => __terrane_uncaught(error),
-        TerraneCompletion::Break | TerraneCompletion::Continue => __terrane_generated_defect("loop control escaped a non-loop try"),
+        TerraneCompletion::Break | TerraneCompletion::Continue => {
+            __terrane_generated_defect("loop control escaped a non-loop try")
+        }
     }
 }

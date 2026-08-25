@@ -133,18 +133,33 @@ enum TerraneCompletion<T> {
 // Source: case.trn
 // Namespace: parse-radix-families
 fn from_hex(source: String) -> terrane_int_support::Int {
-    return (terrane_int_support::parse_radix(&(source), &(16))).unwrap_or_else(|error| __terrane_uncaught(TerraneError::from(error).at("/parse-radix-families::from-hex (case.trn:5:10)")));
+    return (terrane_int_support::parse_radix(&(source), &(16)))
+        .unwrap_or_else(|error| __terrane_uncaught(
+            TerraneError::from(error)
+                .at("/parse-radix-families::from-hex (case.trn:5:10)"),
+        ));
 }
 fn fail(source: String) -> Result<terrane_int_support::Int, TerraneError> {
-    println!("{}", terrane_scalar_support::scalar_text(&(source)));
-    return Err(TerraneError::new(TerraneErrorKind::CoercionError, "coercion has no compatible result").at("/parse-radix-families::fail (case.trn:8:3)"));
+    println!("{}", terrane_scalar_support::scalar_text(& (source)));
+    return Err(
+        TerraneError::new(
+                TerraneErrorKind::CoercionError,
+                "coercion has no compatible result",
+            )
+            .at("/parse-radix-families::fail (case.trn:8:3)"),
+    );
 }
 fn main() {
     let text: String = String::from("ff");
     let parsed: terrane_int_support::Int = from_hex(text);
-    println!("{}", terrane_scalar_support::scalar_text(&(parsed)));
+    println!("{}", terrane_scalar_support::scalar_text(& (parsed)));
     let value: i64 = 255;
-    println!("{}", terrane_scalar_support::scalar_text(&((terrane_int_support::format_radix(&(value), &(16))).unwrap_or_else(|error| __terrane_uncaught(TerraneError::from(error).at("/parse-radix-families::main (case.trn:14:11)"))))));
+    println!(
+        "{}", terrane_scalar_support::scalar_text(& ((terrane_int_support::format_radix(&
+        (value), & (16))).unwrap_or_else(| error |
+        __terrane_uncaught(TerraneError::from(error)
+        .at("/parse-radix-families::main (case.trn:14:11)")))))
+    );
     let bad: String = String::from("x");
     (fail(bad)).ok();
 }

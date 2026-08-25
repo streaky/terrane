@@ -8,6 +8,9 @@ fn quiet() -> String {
     return print(String::from("quiet"));
 }
 fn main() {
-    println!("{}{}", terrane_scalar_support::scalar_text(&(String::from("contracts="))), terrane_scalar_support::scalar_text(&({ let _ = quiet; "".to_owned() })));
-    println!("{}", terrane_scalar_support::scalar_text(&(quiet())));
+    println!(
+        "{}{}", terrane_scalar_support::scalar_text(& (String::from("contracts="))),
+        terrane_scalar_support::scalar_text(& ({ let _ = quiet; "".to_owned() }))
+    );
+    println!("{}", terrane_scalar_support::scalar_text(& (quiet())));
 }

@@ -137,16 +137,27 @@ fn main() {
         let __terrane_try_0: TerraneCompletion<()> = (|| {
             let __terrane_completion_1: TerraneCompletion<()> = (|| {
                 let __terrane_try_1: TerraneCompletion<()> = (|| {
-                    return TerraneCompletion::Error(TerraneError::new(TerraneErrorKind::ArithmeticOverflow, "fixed-width integer arithmetic overflow").at("/rethrow-catch-all::main (case.trn:6:7)"));
+                    return TerraneCompletion::Error(
+                        TerraneError::new(
+                                TerraneErrorKind::ArithmeticOverflow,
+                                "fixed-width integer arithmetic overflow",
+                            )
+                            .at("/rethrow-catch-all::main (case.trn:6:7)"),
+                    );
                 })();
                 match __terrane_try_1 {
-                    TerraneCompletion::Return(value) => return TerraneCompletion::Return(value),
+                    TerraneCompletion::Return(value) => {
+                        return TerraneCompletion::Return(value);
+                    }
                     TerraneCompletion::Break => return TerraneCompletion::Break,
                     TerraneCompletion::Continue => return TerraneCompletion::Continue,
                     TerraneCompletion::Normal => {}
                     TerraneCompletion::Error(__terrane_error_1) => {
                         let mut __terrane_handled_1 = false;
-                        if !__terrane_handled_1 && __terrane_error_1.kind == TerraneErrorKind::ArithmeticOverflow {
+                        if !__terrane_handled_1
+                            && __terrane_error_1.kind
+                                == TerraneErrorKind::ArithmeticOverflow
+                        {
                             __terrane_handled_1 = true;
                             return TerraneCompletion::Error(__terrane_error_1.clone());
                         }
@@ -158,10 +169,16 @@ fn main() {
                 TerraneCompletion::Normal
             })();
             match __terrane_completion_1 {
-                TerraneCompletion::Normal => __terrane_generated_defect("non-fallthrough try completed normally"),
-                TerraneCompletion::Return(value) => return TerraneCompletion::Return(value),
+                TerraneCompletion::Normal => {
+                    __terrane_generated_defect("non-fallthrough try completed normally")
+                }
+                TerraneCompletion::Return(value) => {
+                    return TerraneCompletion::Return(value);
+                }
                 TerraneCompletion::Error(error) => return TerraneCompletion::Error(error),
-                TerraneCompletion::Break | TerraneCompletion::Continue => __terrane_generated_defect("loop control escaped a non-loop try"),
+                TerraneCompletion::Break | TerraneCompletion::Continue => {
+                    __terrane_generated_defect("loop control escaped a non-loop try")
+                }
             }
         })();
         match __terrane_try_0 {
@@ -173,7 +190,10 @@ fn main() {
                 let mut __terrane_handled_0 = false;
                 if !__terrane_handled_0 {
                     __terrane_handled_0 = true;
-                    println!("{}", terrane_scalar_support::scalar_text(&(String::from("caught"))));
+                    println!(
+                        "{}", terrane_scalar_support::scalar_text(&
+                        (String::from("caught")))
+                    );
                 }
                 if !__terrane_handled_0 {
                     return TerraneCompletion::Error(__terrane_error_0);
@@ -183,7 +203,7 @@ fn main() {
         TerraneCompletion::Normal
     })();
     let __terrane_finally_0: TerraneCompletion<()> = (|| {
-        println!("{}", terrane_scalar_support::scalar_text(&(String::from("finally"))));
+        println!("{}", terrane_scalar_support::scalar_text(& (String::from("finally"))));
         TerraneCompletion::Normal
     })();
     match __terrane_finally_0 {
@@ -194,6 +214,8 @@ fn main() {
         TerraneCompletion::Normal => {}
         TerraneCompletion::Return(value) => return value,
         TerraneCompletion::Error(error) => __terrane_uncaught(error),
-        TerraneCompletion::Break | TerraneCompletion::Continue => __terrane_generated_defect("loop control escaped a non-loop try"),
+        TerraneCompletion::Break | TerraneCompletion::Continue => {
+            __terrane_generated_defect("loop control escaped a non-loop try")
+        }
     }
 }

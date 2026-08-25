@@ -266,17 +266,47 @@ pub struct TerraneTaskOutcome<T> {
 // Source: case.trn
 // Namespace: failing-task-cancels-sibling
 async fn fail() -> Result<terrane_int_support::Int, TerraneError> {
-    return Err(TerraneError::new(TerraneErrorKind::CoercionError, "coercion has no compatible result").at("/failing-task-cancels-sibling::fail (case.trn:5:3)"));
+    return Err(
+        TerraneError::new(
+                TerraneErrorKind::CoercionError,
+                "coercion has no compatible result",
+            )
+            .at("/failing-task-cancels-sibling::fail (case.trn:5:3)"),
+    );
 }
 async fn survive() -> terrane_int_support::Int {
     return terrane_int_support::Int::from(7_i128);
 }
 fn main() {
     let scope: TerraneTaskScope = TerraneTaskScope::new(None);
-    let failing: TerraneScopedTask<terrane_int_support::Int> = { let __terrane_scope = (scope).clone(); let __terrane_cancel = __terrane_scope.clone(); TerraneScopedTask::spawn(move || match __terrane_block_on_cancellable((fail)(), move || __terrane_cancel.should_cancel()) { Some(Ok(value)) => TerraneTaskResult::Completed(value), Some(Err(error)) => TerraneTaskResult::Failed(error), None => TerraneTaskResult::Cancelled }) };
-    let sibling: TerraneScopedTask<terrane_int_support::Int> = { let __terrane_scope = (scope).clone(); let __terrane_cancel = __terrane_scope.clone(); TerraneScopedTask::spawn(move || match __terrane_block_on_cancellable((survive)(), move || __terrane_cancel.should_cancel()) { Some(value) => TerraneTaskResult::Completed(value), None => TerraneTaskResult::Cancelled }) };
+    let failing: TerraneScopedTask<terrane_int_support::Int> = {
+        let __terrane_scope = (scope).clone();
+        let __terrane_cancel = __terrane_scope.clone();
+        TerraneScopedTask::spawn(move || match __terrane_block_on_cancellable(
+            (fail)(),
+            move || __terrane_cancel.should_cancel(),
+        ) {
+            Some(Ok(value)) => TerraneTaskResult::Completed(value),
+            Some(Err(error)) => TerraneTaskResult::Failed(error),
+            None => TerraneTaskResult::Cancelled,
+        })
+    };
+    let sibling: TerraneScopedTask<terrane_int_support::Int> = {
+        let __terrane_scope = (scope).clone();
+        let __terrane_cancel = __terrane_scope.clone();
+        TerraneScopedTask::spawn(move || match __terrane_block_on_cancellable(
+            (survive)(),
+            move || __terrane_cancel.should_cancel(),
+        ) {
+            Some(value) => TerraneTaskResult::Completed(value),
+            None => TerraneTaskResult::Cancelled,
+        })
+    };
     let failed: TerraneTaskOutcome<terrane_int_support::Int> = (scope).join(failing);
     let survived: TerraneTaskOutcome<terrane_int_support::Int> = (scope).join(sibling);
-    println!("{}{}", terrane_scalar_support::scalar_text(&((failed).completed)), terrane_scalar_support::scalar_text(&((failed).cancelled)));
-    println!("{}", terrane_scalar_support::scalar_text(&((survived).cancelled)));
+    println!(
+        "{}{}", terrane_scalar_support::scalar_text(& ((failed).completed)),
+        terrane_scalar_support::scalar_text(& ((failed).cancelled))
+    );
+    println!("{}", terrane_scalar_support::scalar_text(& ((survived).cancelled)));
 }

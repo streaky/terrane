@@ -6,10 +6,10 @@ fn main() {
         let mut nested: i8 = 1;
         let _ = &mut nested;
         nested = 2;
-        println!("{}", terrane_scalar_support::scalar_text(&(nested)));
+        println!("{}", terrane_scalar_support::scalar_text(& (nested)));
     }
     let mut top: i8 = 3;
     let _ = &mut top;
     top = 4;
-    println!("{}", terrane_scalar_support::scalar_text(&(top)));
+    println!("{}", terrane_scalar_support::scalar_text(& (top)));
 }

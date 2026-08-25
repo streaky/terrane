@@ -2,5 +2,9 @@
 // Source: case.trn
 // Namespace: grouped-precedence
 fn main() {
-    println!("{}", terrane_scalar_support::scalar_text(&((terrane_int_support::Int::from(3_i128) * terrane_int_support::Int::from(3_i128)))));
+    println!(
+        "{}", terrane_scalar_support::scalar_text(&
+        ((terrane_int_support::Int::from(3_i128) *
+        terrane_int_support::Int::from(3_i128))))
+    );
 }

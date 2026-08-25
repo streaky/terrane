@@ -7,12 +7,12 @@ fn main() {
     if 1 == 1 {
         nested_value = 1;
         if 1 == 1 {
-            println!("{}", terrane_scalar_support::scalar_text(&(nested_value)));
+            println!("{}", terrane_scalar_support::scalar_text(& (nested_value)));
         }
     }
     let mut escaping: i8 = 0;
     if 1 == 1 {
         escaping = 2;
     }
-    println!("{}", terrane_scalar_support::scalar_text(&(escaping)));
+    println!("{}", terrane_scalar_support::scalar_text(& (escaping)));
 }

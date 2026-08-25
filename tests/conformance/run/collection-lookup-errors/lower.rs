@@ -133,10 +133,21 @@ enum TerraneCompletion<T> {
 // Source: case.trn
 // Namespace: collection-lookup-errors
 fn main() {
-    let values: terrane_collection_support::List<terrane_int_support::Int> = terrane_collection_support::List::<terrane_int_support::Int>::new(vec![terrane_int_support::Int::from(1_i128)]);
+    let values: terrane_collection_support::List<terrane_int_support::Int> = terrane_collection_support::List::<
+        terrane_int_support::Int,
+    >::new(vec![terrane_int_support::Int::from(1_i128)]);
     let __terrane_completion_0: TerraneCompletion<()> = (|| {
         let __terrane_try_0: TerraneCompletion<()> = (|| {
-            println!("{}", terrane_scalar_support::scalar_text(&(match (values).get_or_error(match terrane_collection_support::index_from_int(&(terrane_int_support::Int::from(2_i128))) { Ok(value) => value, Err(error) => return TerraneCompletion::Error(TerraneError::from(error).at("/collection-lookup-errors::main (case.trn:7:12)")) }) { Ok(value) => value, Err(error) => return TerraneCompletion::Error(TerraneError::from(error).at("/collection-lookup-errors::main (case.trn:7:12)")) })));
+            println!(
+                "{}", terrane_scalar_support::scalar_text(& (match (values)
+                .get_or_error(match terrane_collection_support::index_from_int(&
+                (terrane_int_support::Int::from(2_i128))) { Ok(value) => value,
+                Err(error) => return TerraneCompletion::Error(TerraneError::from(error)
+                .at("/collection-lookup-errors::main (case.trn:7:12)")) }) { Ok(value) =>
+                value, Err(error) => return
+                TerraneCompletion::Error(TerraneError::from(error)
+                .at("/collection-lookup-errors::main (case.trn:7:12)")) }))
+            );
             TerraneCompletion::Normal
         })();
         match __terrane_try_0 {
@@ -146,9 +157,14 @@ fn main() {
             TerraneCompletion::Normal => {}
             TerraneCompletion::Error(__terrane_error_0) => {
                 let mut __terrane_handled_0 = false;
-                if !__terrane_handled_0 && __terrane_error_0.kind == TerraneErrorKind::IndexError {
+                if !__terrane_handled_0
+                    && __terrane_error_0.kind == TerraneErrorKind::IndexError
+                {
                     __terrane_handled_0 = true;
-                    println!("{}", terrane_scalar_support::scalar_text(&(String::from("index"))));
+                    println!(
+                        "{}", terrane_scalar_support::scalar_text(&
+                        (String::from("index")))
+                    );
                 }
                 if !__terrane_handled_0 {
                     return TerraneCompletion::Error(__terrane_error_0);
@@ -161,14 +177,36 @@ fn main() {
         TerraneCompletion::Normal => {}
         TerraneCompletion::Return(value) => return value,
         TerraneCompletion::Error(error) => __terrane_uncaught(error),
-        TerraneCompletion::Break | TerraneCompletion::Continue => __terrane_generated_defect("loop control escaped a non-loop try"),
+        TerraneCompletion::Break | TerraneCompletion::Continue => {
+            __terrane_generated_defect("loop control escaped a non-loop try")
+        }
     }
-    let checked_index: Option<terrane_int_support::Int> = terrane_collection_support::index_from_int(&(terrane_int_support::Int::from(2_i128))).ok().and_then(|index| (values).get(index).cloned());
-    println!("{}", terrane_scalar_support::scalar_text(&((checked_index == None))));
-    let values_by_key: terrane_collection_support::Map<String, terrane_int_support::Int> = terrane_collection_support::Map::<String, terrane_int_support::Int>::new(vec![terrane_collection_support::Entry::new(String::from("present"), terrane_int_support::Int::from(1_i128))]);
+    let checked_index: Option<terrane_int_support::Int> = terrane_collection_support::index_from_int(
+            &(terrane_int_support::Int::from(2_i128)),
+        )
+        .ok()
+        .and_then(|index| (values).get(index).cloned());
+    println!("{}", terrane_scalar_support::scalar_text(& ((checked_index == None))));
+    let values_by_key: terrane_collection_support::Map<
+        String,
+        terrane_int_support::Int,
+    > = terrane_collection_support::Map::<
+        String,
+        terrane_int_support::Int,
+    >::new(
+        vec![
+            terrane_collection_support::Entry::new(String::from("present"),
+            terrane_int_support::Int::from(1_i128))
+        ],
+    );
     let __terrane_completion_1: TerraneCompletion<()> = (|| {
         let __terrane_try_1: TerraneCompletion<()> = (|| {
-            println!("{}", terrane_scalar_support::scalar_text(&(match (values_by_key).get_or_error(&(String::from("absent"))) { Ok(value) => value, Err(error) => return TerraneCompletion::Error(TerraneError::from(error).at("/collection-lookup-errors::main (case.trn:14:12)")) })));
+            println!(
+                "{}", terrane_scalar_support::scalar_text(& (match (values_by_key)
+                .get_or_error(& (String::from("absent"))) { Ok(value) => value,
+                Err(error) => return TerraneCompletion::Error(TerraneError::from(error)
+                .at("/collection-lookup-errors::main (case.trn:14:12)")) }))
+            );
             TerraneCompletion::Normal
         })();
         match __terrane_try_1 {
@@ -178,9 +216,14 @@ fn main() {
             TerraneCompletion::Normal => {}
             TerraneCompletion::Error(__terrane_error_1) => {
                 let mut __terrane_handled_1 = false;
-                if !__terrane_handled_1 && __terrane_error_1.kind == TerraneErrorKind::MissingKey {
+                if !__terrane_handled_1
+                    && __terrane_error_1.kind == TerraneErrorKind::MissingKey
+                {
                     __terrane_handled_1 = true;
-                    println!("{}", terrane_scalar_support::scalar_text(&(String::from("missing"))));
+                    println!(
+                        "{}", terrane_scalar_support::scalar_text(&
+                        (String::from("missing")))
+                    );
                 }
                 if !__terrane_handled_1 {
                     return TerraneCompletion::Error(__terrane_error_1);
@@ -193,9 +236,18 @@ fn main() {
         TerraneCompletion::Normal => {}
         TerraneCompletion::Return(value) => return value,
         TerraneCompletion::Error(error) => __terrane_uncaught(error),
-        TerraneCompletion::Break | TerraneCompletion::Continue => __terrane_generated_defect("loop control escaped a non-loop try"),
+        TerraneCompletion::Break | TerraneCompletion::Continue => {
+            __terrane_generated_defect("loop control escaped a non-loop try")
+        }
     }
-    let checked_key: Option<terrane_int_support::Int> = (values_by_key).get(&(String::from("absent"))).cloned();
-    let present_key: Option<terrane_int_support::Int> = (values_by_key).get(&(String::from("present"))).cloned();
-    println!("{}{}", terrane_scalar_support::scalar_text(&((checked_key == None))), terrane_scalar_support::scalar_text(&((present_key != None))));
+    let checked_key: Option<terrane_int_support::Int> = (values_by_key)
+        .get(&(String::from("absent")))
+        .cloned();
+    let present_key: Option<terrane_int_support::Int> = (values_by_key)
+        .get(&(String::from("present")))
+        .cloned();
+    println!(
+        "{}{}", terrane_scalar_support::scalar_text(& ((checked_key == None))),
+        terrane_scalar_support::scalar_text(& ((present_key != None)))
+    );
 }

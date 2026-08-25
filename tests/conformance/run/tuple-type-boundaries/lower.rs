@@ -132,19 +132,101 @@ enum TerraneCompletion<T> {
 }
 // Source: case.trn
 // Namespace: tuple-type-boundaries
-fn echo(values: terrane_collection_support::Tuple<terrane_int_support::Int>) -> terrane_collection_support::Tuple<terrane_int_support::Int> {
+fn echo(
+    values: terrane_collection_support::Tuple<terrane_int_support::Int>,
+) -> terrane_collection_support::Tuple<terrane_int_support::Int> {
     return (values).clone();
 }
-fn nested(values: terrane_collection_support::List<terrane_collection_support::Tuple<terrane_int_support::Int>>) -> terrane_collection_support::List<terrane_collection_support::Tuple<terrane_int_support::Int>> {
+fn nested(
+    values: terrane_collection_support::List<
+        terrane_collection_support::Tuple<terrane_int_support::Int>,
+    >,
+) -> terrane_collection_support::List<
+    terrane_collection_support::Tuple<terrane_int_support::Int>,
+> {
     return (values).clone();
 }
 fn main() {
-    let pair: terrane_collection_support::Tuple<terrane_int_support::Int> = terrane_collection_support::Tuple::<terrane_int_support::Int>::new(vec![terrane_int_support::Int::from(1_i128), terrane_int_support::Int::from(2_i128)]);
-    let returned: terrane_collection_support::Tuple<terrane_int_support::Int> = echo((pair).clone());
-    println!("{}{}{}", terrane_scalar_support::scalar_text(&(terrane_int_support::Int::from((returned).length()))), terrane_scalar_support::scalar_text(&(((returned).get_or_error((terrane_collection_support::index_from_int(&(terrane_int_support::Int::from(0_i128)))).unwrap_or_else(|error| __terrane_uncaught(TerraneError::from(error).at("/tuple-type-boundaries::main (case.trn:13:27)"))))).unwrap_or_else(|error| __terrane_uncaught(TerraneError::from(error).at("/tuple-type-boundaries::main (case.trn:13:27)"))))), terrane_scalar_support::scalar_text(&(((returned).get_or_error((terrane_collection_support::index_from_int(&(terrane_int_support::Int::from(1_i128)))).unwrap_or_else(|error| __terrane_uncaught(TerraneError::from(error).at("/tuple-type-boundaries::main (case.trn:13:40)"))))).unwrap_or_else(|error| __terrane_uncaught(TerraneError::from(error).at("/tuple-type-boundaries::main (case.trn:13:40)"))))));
-    let empty: terrane_collection_support::Tuple<terrane_int_support::Int> = terrane_collection_support::Tuple::<terrane_int_support::Int>::new(Vec::new());
-    println!("{}", terrane_scalar_support::scalar_text(&(terrane_int_support::Int::from((empty).length()))));
-    let groups: terrane_collection_support::List<terrane_collection_support::Tuple<terrane_int_support::Int>> = terrane_collection_support::List::<terrane_collection_support::Tuple<terrane_int_support::Int>>::new(vec![terrane_collection_support::Tuple::<terrane_int_support::Int>::new(vec![terrane_int_support::Int::from(3_i128), terrane_int_support::Int::from(4_i128)]), terrane_collection_support::Tuple::<terrane_int_support::Int>::new(vec![terrane_int_support::Int::from(5_i128)])]);
-    let echoed: terrane_collection_support::List<terrane_collection_support::Tuple<terrane_int_support::Int>> = nested((groups).clone());
-    println!("{}{}{}", terrane_scalar_support::scalar_text(&(terrane_int_support::Int::from((echoed).length()))), terrane_scalar_support::scalar_text(&(((((echoed).get_or_error((terrane_collection_support::index_from_int(&(terrane_int_support::Int::from(0_i128)))).unwrap_or_else(|error| __terrane_uncaught(TerraneError::from(error).at("/tuple-type-boundaries::main (case.trn:18:25)"))))).unwrap_or_else(|error| __terrane_uncaught(TerraneError::from(error).at("/tuple-type-boundaries::main (case.trn:18:25)")))).get_or_error((terrane_collection_support::index_from_int(&(terrane_int_support::Int::from(1_i128)))).unwrap_or_else(|error| __terrane_uncaught(TerraneError::from(error).at("/tuple-type-boundaries::main (case.trn:18:25)"))))).unwrap_or_else(|error| __terrane_uncaught(TerraneError::from(error).at("/tuple-type-boundaries::main (case.trn:18:25)"))))), terrane_scalar_support::scalar_text(&(((((echoed).get_or_error((terrane_collection_support::index_from_int(&(terrane_int_support::Int::from(1_i128)))).unwrap_or_else(|error| __terrane_uncaught(TerraneError::from(error).at("/tuple-type-boundaries::main (case.trn:18:39)"))))).unwrap_or_else(|error| __terrane_uncaught(TerraneError::from(error).at("/tuple-type-boundaries::main (case.trn:18:39)")))).get_or_error((terrane_collection_support::index_from_int(&(terrane_int_support::Int::from(0_i128)))).unwrap_or_else(|error| __terrane_uncaught(TerraneError::from(error).at("/tuple-type-boundaries::main (case.trn:18:39)"))))).unwrap_or_else(|error| __terrane_uncaught(TerraneError::from(error).at("/tuple-type-boundaries::main (case.trn:18:39)"))))));
+    let pair: terrane_collection_support::Tuple<terrane_int_support::Int> = terrane_collection_support::Tuple::<
+        terrane_int_support::Int,
+    >::new(
+        vec![
+            terrane_int_support::Int::from(1_i128),
+            terrane_int_support::Int::from(2_i128)
+        ],
+    );
+    let returned: terrane_collection_support::Tuple<terrane_int_support::Int> = echo(
+        (pair).clone(),
+    );
+    println!(
+        "{}{}{}", terrane_scalar_support::scalar_text(&
+        (terrane_int_support::Int::from((returned).length()))),
+        terrane_scalar_support::scalar_text(& (((returned)
+        .get_or_error((terrane_collection_support::index_from_int(&
+        (terrane_int_support::Int::from(0_i128)))).unwrap_or_else(| error |
+        __terrane_uncaught(TerraneError::from(error)
+        .at("/tuple-type-boundaries::main (case.trn:13:27)"))))).unwrap_or_else(| error |
+        __terrane_uncaught(TerraneError::from(error)
+        .at("/tuple-type-boundaries::main (case.trn:13:27)"))))),
+        terrane_scalar_support::scalar_text(& (((returned)
+        .get_or_error((terrane_collection_support::index_from_int(&
+        (terrane_int_support::Int::from(1_i128)))).unwrap_or_else(| error |
+        __terrane_uncaught(TerraneError::from(error)
+        .at("/tuple-type-boundaries::main (case.trn:13:40)"))))).unwrap_or_else(| error |
+        __terrane_uncaught(TerraneError::from(error)
+        .at("/tuple-type-boundaries::main (case.trn:13:40)")))))
+    );
+    let empty: terrane_collection_support::Tuple<terrane_int_support::Int> = terrane_collection_support::Tuple::<
+        terrane_int_support::Int,
+    >::new(Vec::new());
+    println!(
+        "{}", terrane_scalar_support::scalar_text(&
+        (terrane_int_support::Int::from((empty).length())))
+    );
+    let groups: terrane_collection_support::List<
+        terrane_collection_support::Tuple<terrane_int_support::Int>,
+    > = terrane_collection_support::List::<
+        terrane_collection_support::Tuple<terrane_int_support::Int>,
+    >::new(
+        vec![
+            terrane_collection_support::Tuple::< terrane_int_support::Int
+            >::new(vec![terrane_int_support::Int::from(3_i128),
+            terrane_int_support::Int::from(4_i128)]),
+            terrane_collection_support::Tuple::< terrane_int_support::Int
+            >::new(vec![terrane_int_support::Int::from(5_i128)])
+        ],
+    );
+    let echoed: terrane_collection_support::List<
+        terrane_collection_support::Tuple<terrane_int_support::Int>,
+    > = nested((groups).clone());
+    println!(
+        "{}{}{}", terrane_scalar_support::scalar_text(&
+        (terrane_int_support::Int::from((echoed).length()))),
+        terrane_scalar_support::scalar_text(& (((((echoed)
+        .get_or_error((terrane_collection_support::index_from_int(&
+        (terrane_int_support::Int::from(0_i128)))).unwrap_or_else(| error |
+        __terrane_uncaught(TerraneError::from(error)
+        .at("/tuple-type-boundaries::main (case.trn:18:25)"))))).unwrap_or_else(| error |
+        __terrane_uncaught(TerraneError::from(error)
+        .at("/tuple-type-boundaries::main (case.trn:18:25)"))))
+        .get_or_error((terrane_collection_support::index_from_int(&
+        (terrane_int_support::Int::from(1_i128)))).unwrap_or_else(| error |
+        __terrane_uncaught(TerraneError::from(error)
+        .at("/tuple-type-boundaries::main (case.trn:18:25)"))))).unwrap_or_else(| error |
+        __terrane_uncaught(TerraneError::from(error)
+        .at("/tuple-type-boundaries::main (case.trn:18:25)"))))),
+        terrane_scalar_support::scalar_text(& (((((echoed)
+        .get_or_error((terrane_collection_support::index_from_int(&
+        (terrane_int_support::Int::from(1_i128)))).unwrap_or_else(| error |
+        __terrane_uncaught(TerraneError::from(error)
+        .at("/tuple-type-boundaries::main (case.trn:18:39)"))))).unwrap_or_else(| error |
+        __terrane_uncaught(TerraneError::from(error)
+        .at("/tuple-type-boundaries::main (case.trn:18:39)"))))
+        .get_or_error((terrane_collection_support::index_from_int(&
+        (terrane_int_support::Int::from(0_i128)))).unwrap_or_else(| error |
+        __terrane_uncaught(TerraneError::from(error)
+        .at("/tuple-type-boundaries::main (case.trn:18:39)"))))).unwrap_or_else(| error |
+        __terrane_uncaught(TerraneError::from(error)
+        .at("/tuple-type-boundaries::main (case.trn:18:39)")))))
+    );
 }

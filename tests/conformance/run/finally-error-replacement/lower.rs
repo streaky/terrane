@@ -135,7 +135,13 @@ enum TerraneCompletion<T> {
 fn error_then_return() -> Result<terrane_int_support::Int, TerraneError> {
     let mut __terrane_completion_0: TerraneCompletion<terrane_int_support::Int> = (|| {
         let __terrane_try_0: TerraneCompletion<terrane_int_support::Int> = (|| {
-            return TerraneCompletion::Error(TerraneError::new(TerraneErrorKind::ArithmeticOverflow, "fixed-width integer arithmetic overflow").at("/finally-error-replacement::error-then-return (case.trn:5:5)"));
+            return TerraneCompletion::Error(
+                TerraneError::new(
+                        TerraneErrorKind::ArithmeticOverflow,
+                        "fixed-width integer arithmetic overflow",
+                    )
+                    .at("/finally-error-replacement::error-then-return (case.trn:5:5)"),
+            );
         })();
         match __terrane_try_0 {
             TerraneCompletion::Return(value) => return TerraneCompletion::Return(value),
@@ -159,10 +165,14 @@ fn error_then_return() -> Result<terrane_int_support::Int, TerraneError> {
         replacement => __terrane_completion_0 = replacement,
     }
     match __terrane_completion_0 {
-        TerraneCompletion::Normal => __terrane_generated_defect("non-fallthrough try completed normally"),
+        TerraneCompletion::Normal => {
+            __terrane_generated_defect("non-fallthrough try completed normally")
+        }
         TerraneCompletion::Return(value) => return Ok(value),
         TerraneCompletion::Error(error) => return Err(error),
-        TerraneCompletion::Break | TerraneCompletion::Continue => __terrane_generated_defect("loop control escaped a non-loop try"),
+        TerraneCompletion::Break | TerraneCompletion::Continue => {
+            __terrane_generated_defect("loop control escaped a non-loop try")
+        }
     }
 }
 fn return_then_error() -> Result<terrane_int_support::Int, TerraneError> {
@@ -185,26 +195,46 @@ fn return_then_error() -> Result<terrane_int_support::Int, TerraneError> {
         TerraneCompletion::Normal
     })();
     let __terrane_finally_1: TerraneCompletion<terrane_int_support::Int> = (|| {
-        return TerraneCompletion::Error(TerraneError::new(TerraneErrorKind::CoercionError, "coercion has no compatible result").at("/finally-error-replacement::return-then-error (case.trn:12:5)"));
+        return TerraneCompletion::Error(
+            TerraneError::new(
+                    TerraneErrorKind::CoercionError,
+                    "coercion has no compatible result",
+                )
+                .at("/finally-error-replacement::return-then-error (case.trn:12:5)"),
+        );
     })();
     match __terrane_finally_1 {
         TerraneCompletion::Normal => {}
         replacement => __terrane_completion_1 = replacement,
     }
     match __terrane_completion_1 {
-        TerraneCompletion::Normal => __terrane_generated_defect("non-fallthrough try completed normally"),
+        TerraneCompletion::Normal => {
+            __terrane_generated_defect("non-fallthrough try completed normally")
+        }
         TerraneCompletion::Return(value) => return Ok(value),
         TerraneCompletion::Error(error) => return Err(error),
-        TerraneCompletion::Break | TerraneCompletion::Continue => __terrane_generated_defect("loop control escaped a non-loop try"),
+        TerraneCompletion::Break | TerraneCompletion::Continue => {
+            __terrane_generated_defect("loop control escaped a non-loop try")
+        }
     }
 }
 fn main() {
-    let first: terrane_int_support::Int = (error_then_return()).unwrap_or_else(|error| __terrane_uncaught(error.at("/finally-error-replacement::main (case.trn:14:15)")));
-    println!("{}", terrane_scalar_support::scalar_text(&(first)));
+    let first: terrane_int_support::Int = (error_then_return())
+        .unwrap_or_else(|error| __terrane_uncaught(
+            error.at("/finally-error-replacement::main (case.trn:14:15)"),
+        ));
+    println!("{}", terrane_scalar_support::scalar_text(& (first)));
     let __terrane_completion_2: TerraneCompletion<()> = (|| {
         let __terrane_try_2: TerraneCompletion<()> = (|| {
-            let second: terrane_int_support::Int = match return_then_error() { Ok(value) => value, Err(error) => return TerraneCompletion::Error(error.at("/finally-error-replacement::main (case.trn:17:18)")) };
-            println!("{}", terrane_scalar_support::scalar_text(&(second)));
+            let second: terrane_int_support::Int = match return_then_error() {
+                Ok(value) => value,
+                Err(error) => {
+                    return TerraneCompletion::Error(
+                        error.at("/finally-error-replacement::main (case.trn:17:18)"),
+                    );
+                }
+            };
+            println!("{}", terrane_scalar_support::scalar_text(& (second)));
             TerraneCompletion::Normal
         })();
         match __terrane_try_2 {
@@ -214,9 +244,14 @@ fn main() {
             TerraneCompletion::Normal => {}
             TerraneCompletion::Error(__terrane_error_2) => {
                 let mut __terrane_handled_2 = false;
-                if !__terrane_handled_2 && __terrane_error_2.kind == TerraneErrorKind::CoercionError {
+                if !__terrane_handled_2
+                    && __terrane_error_2.kind == TerraneErrorKind::CoercionError
+                {
                     __terrane_handled_2 = true;
-                    println!("{}", terrane_scalar_support::scalar_text(&(String::from("replaced"))));
+                    println!(
+                        "{}", terrane_scalar_support::scalar_text(&
+                        (String::from("replaced")))
+                    );
                 }
                 if !__terrane_handled_2 {
                     return TerraneCompletion::Error(__terrane_error_2);
@@ -229,6 +264,8 @@ fn main() {
         TerraneCompletion::Normal => {}
         TerraneCompletion::Return(value) => return value,
         TerraneCompletion::Error(error) => __terrane_uncaught(error),
-        TerraneCompletion::Break | TerraneCompletion::Continue => __terrane_generated_defect("loop control escaped a non-loop try"),
+        TerraneCompletion::Break | TerraneCompletion::Continue => {
+            __terrane_generated_defect("loop control escaped a non-loop try")
+        }
     }
 }

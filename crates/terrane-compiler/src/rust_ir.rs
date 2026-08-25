@@ -55,8 +55,9 @@ pub struct Block {
 
 impl Block {
     fn from_rendered(rust: &str) -> Self {
+        let parsed = syn::parse_file(rust).expect("lowered Rust item must parse");
         Self {
-            rendered: rust.to_owned(),
+            rendered: prettyplease::unparse(&parsed),
         }
     }
 

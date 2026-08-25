@@ -135,7 +135,13 @@ enum TerraneCompletion<T> {
 fn main() {
     let mut __terrane_completion_0: TerraneCompletion<()> = (|| {
         let __terrane_try_0: TerraneCompletion<()> = (|| {
-            return TerraneCompletion::Error(TerraneError::new(TerraneErrorKind::ArithmeticOverflow, "fixed-width integer arithmetic overflow").at("/uncaught-finally::main (case.trn:5:5)"));
+            return TerraneCompletion::Error(
+                TerraneError::new(
+                        TerraneErrorKind::ArithmeticOverflow,
+                        "fixed-width integer arithmetic overflow",
+                    )
+                    .at("/uncaught-finally::main (case.trn:5:5)"),
+            );
         })();
         match __terrane_try_0 {
             TerraneCompletion::Return(value) => return TerraneCompletion::Return(value),
@@ -152,7 +158,9 @@ fn main() {
         TerraneCompletion::Normal
     })();
     let __terrane_finally_0: TerraneCompletion<()> = (|| {
-        println!("{}", terrane_scalar_support::scalar_text(&(String::from("finally ran"))));
+        println!(
+            "{}", terrane_scalar_support::scalar_text(& (String::from("finally ran")))
+        );
         TerraneCompletion::Normal
     })();
     match __terrane_finally_0 {
@@ -160,9 +168,13 @@ fn main() {
         replacement => __terrane_completion_0 = replacement,
     }
     match __terrane_completion_0 {
-        TerraneCompletion::Normal => __terrane_generated_defect("non-fallthrough try completed normally"),
+        TerraneCompletion::Normal => {
+            __terrane_generated_defect("non-fallthrough try completed normally")
+        }
         TerraneCompletion::Return(value) => return value,
         TerraneCompletion::Error(error) => __terrane_uncaught(error),
-        TerraneCompletion::Break | TerraneCompletion::Continue => __terrane_generated_defect("loop control escaped a non-loop try"),
+        TerraneCompletion::Break | TerraneCompletion::Continue => {
+            __terrane_generated_defect("loop control escaped a non-loop try")
+        }
     }
 }
