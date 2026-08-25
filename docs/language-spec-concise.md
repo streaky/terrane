@@ -16,7 +16,7 @@ SELF_HEAL_RULE: when this reference is missing or unclear and SOURCE_OF_TRUTH re
 | display/printing | `TEXT DISPLAY` | §9.6 |
 | globals/build selection | `GLOBAL / BUILD` | §§20, 26 |
 | ownership | `VALUE`, `REF`, `MOVE`, `LIFETIME` | §12 |
-| errors/callable contracts | `ERROR`, `EFFECT` | §§15, 19 |
+| errors/callable contracts | `ERROR`, `CALLABLE` | §§15, 19 |
 | collections/text | `COLLECTION`, `TEXT` | §16 |
 | classes/protocols | `OBJECT_MODEL` | §§9, 18 |
 | packages/interop | `PACKAGE`, `RUST`, `FOREIGN` | §§23–24 |
@@ -299,10 +299,10 @@ args_rule: needs no special rule; a declaration always follows, so the call is n
 trailing_comma: an error - 'with per-cpu, global x = 0' reads 'global' as the next element and fails on a reserved word
 scope: any declaration INCLUDING an untyped local binding; no typed-binding requirement
 with_applies_to: first- and third-party package modifiers (open set)
-with_never_applies_to: global, constant, public/private/protected, static/async/mutating/mutates/awaits/unsafe/foreign/throws (closed set, compiler-owned)
+with_never_applies_to: global, constant, public/private/protected, static/async/unsafe/throws (closed set, compiler-owned)
 test: can the compiler's model be described without it? if it changes name resolution, visibility, mutability, or a callable's type contract it is STRUCTURAL (keyword); if it changes only how a known declaration is realised - storage, layout, linkage, ABI, section, alignment - it is DECORATIVE (with)
 ordering: with-modifiers precede structural keywords; package layer is outer
-rationale: the protocol already forbids modifiers from touching visibility/ownership/effects/capability, so the split reports a real boundary; 'with global' would falsely imply global is extensible
+rationale: the protocol already forbids modifiers from touching visibility, ownership, or callable contracts, so the split reports a real boundary; 'with global' would falsely imply global is extensible
 why_exist: a declaration answers two separable questions - WHAT is declared (Terrane owns this) and HOW it is realised on a target or in a domain (modifiers own this)
 why_not_macros: objects abstract what things do; modifiers abstract how declarations exist - which is why an extensibility system survives in a language that deliberately avoids macros
 governing_rule: the modifier protocol is CLOSED IN ITS GUARANTEES, NOT closed in its intended vocabulary
@@ -530,7 +530,7 @@ for i = 0; i < limit; i++
 - Labels/goto function-local; cannot enter deeper scope or cross initialization/lifetime/cleanup unsafely.
 - `match` reserved shape but outside minimum compiler milestone.
 
-## ERROR / EFFECT
+## ERROR / CALLABLE
 
 ```terrane
 from /core/errors import throwable
@@ -589,15 +589,16 @@ coercion-error               coercion has no compatible result outside the overf
 
 ```yaml
 throws: exact inferred escaping set plus optional written upper bound
-async_awaits: invocation produces a task; await constrains and marks suspension
-mutates: inferred receiver requirement checked against method/interface contracts
+async: invocation produces a task; `await` consumes a task and marks a possible suspension point
+receiver_mutation: inferred from concrete bodies; retained as method/interface compatibility metadata
 unsafe: explicit unsafe Rust/lowering boundary
-foreign: explicit foreign-runtime or ABI boundary
-descriptive_facts: I/O, allocation, blocking, and shared mutation MAY be inferred for diagnostics/tooling but are not source permissions
+derived_facts: suspension points, receiver mutation, I/O, allocation, blocking, shared mutation, and foreign transitions MAY be inferred for validation/tooling but are not source qualifiers
+foreign_boundary: expressed by a concrete runtime/import/adapter/ABI construct; never a bare callable qualifier and never transitive to ordinary callers
 purity: no `pure` qualifier; a future contract requires independently defined observable guarantees
 ```
-- Reflection may group these contracts for inspection, but compatibility and validation apply each
-  contract's own rules. Ordinary I/O requires no compiler-issued authority token.
+- Reflection may group retained contracts and derived facts for inspection, but compatibility and
+  validation apply each contract's own rules. Ordinary I/O requires no compiler-issued authority
+  token.
 - Uncaught throwables render deterministic cause/source chains; foreign failures preserve native
   traceback/details after translation to a declared throwable class.
 
@@ -781,7 +782,7 @@ foreign_specialisation: 'from python/x import y' names a crossing point, not an 
 
 - System/C crosses explicit ABI boundary.
 - Foreign runtime adapters (e.g. Python) are explicit semantic/performance/ownership/deployment boundaries.
-- Each adapter declares conversions, effects, lifetime, thread, exception, deployment contracts.
+- Each adapter declares conversions, operations, lifetime, thread, exception, and deployment contracts.
 - Foreign proxies require explicit `ref` or `move`; ordinary value assignment must not pretend value isolation.
 - Embedded foreign source is opaque indentation-delimited body owned by adapter with nested source map.
 - C++ initially through C-compatible shims/Rust bridges; arbitrary C++ ABI deferred.
@@ -797,7 +798,7 @@ manifest/source set
 -> lossless CST
 -> compact semantic AST
 -> namespace assembly/import resolution
--> names/types/effects/ownership/control-flow
+-> names/types/callable contracts/ownership/control-flow
 -> typed semantic IR
 -> Rust-oriented lowering IR
 -> deterministic Rust + Cargo

@@ -448,23 +448,17 @@ pub struct ObjectContract {
     pub fields: Vec<ObjectField>,
 }
 #[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
-pub enum Effect {
+pub enum CallableRequirement {
     Throws,
-    Awaits,
-    Mutates,
     Unsafe,
-    Foreign,
 }
 
-impl Effect {
+impl CallableRequirement {
     #[must_use]
     pub const fn source_name(self) -> &'static str {
         match self {
             Self::Throws => "throws",
-            Self::Awaits => "awaits",
-            Self::Mutates => "mutates",
             Self::Unsafe => "unsafe",
-            Self::Foreign => "foreign",
         }
     }
 }
@@ -481,7 +475,7 @@ pub struct FunctionContract {
     pub captures: Vec<String>,
     pub parameters: Vec<ParameterContract>,
     pub return_type: Option<ValueType>,
-    pub effects: BTreeSet<Effect>,
+    pub requirements: BTreeSet<CallableRequirement>,
     pub exported: bool,
     pub thrown_types: Vec<ValueType>,
     pub escaping_throwables: BTreeSet<String>,
@@ -3081,7 +3075,7 @@ fn validate_object_conformance(package: &SemanticPackage) -> Result<(), Semantic
                         && left.mutable == right.mutable
                 })
             && left.return_type == right.return_type
-            && right.effects.is_subset(&left.effects)
+            && right.requirements.is_subset(&left.requirements)
             && left.is_async == right.is_async
     }
 
@@ -3305,7 +3299,6 @@ fn propagate_interface_receiver_mutability(package: &mut SemanticPackage) {
                 method.name.clone(),
             )) {
                 method.mutates_receiver = true;
-                method.effects.insert(Effect::Mutates);
             }
         }
     }
@@ -3867,11 +3860,11 @@ fn analyze_function_contract(
             node.span,
         ));
     }
-    let mut effects = BTreeSet::new();
+    let mut requirements = BTreeSet::new();
     let mut thrown_types = Vec::new();
     for child in &node.children {
         if child.kind == SyntaxKind::EffectClause {
-            effects.insert(Effect::Throws);
+            requirements.insert(CallableRequirement::Throws);
             if let Some(type_node) = child
                 .children
                 .iter()
@@ -3879,34 +3872,16 @@ fn analyze_function_contract(
             {
                 thrown_types.push(declared_value_type(unit, type_node, aliases)?);
             }
-        } else if child.kind == SyntaxKind::DeclarationQualifier {
-            match node_text(&unit.source, child) {
-                "awaits" => {
-                    effects.insert(Effect::Awaits);
-                }
-                "mutating" | "mutates" => {
-                    effects.insert(Effect::Mutates);
-                }
-                "unsafe" => {
-                    effects.insert(Effect::Unsafe);
-                }
-                "foreign" => {
-                    effects.insert(Effect::Foreign);
-                }
-                _ => {}
-            }
+        } else if child.kind == SyntaxKind::DeclarationQualifier
+            && node_text(&unit.source, child) == "unsafe"
+        {
+            requirements.insert(CallableRequirement::Unsafe);
         }
     }
     let is_async = node.children.iter().any(|child| {
         child.kind == SyntaxKind::DeclarationQualifier && node_text(&unit.source, child) == "async"
     });
-    if is_async {
-        effects.insert(Effect::Awaits);
-    }
-    if mutates_object_receiver(unit, node) {
-        effects.insert(Effect::Mutates);
-    }
-    let throws = effects.contains(&Effect::Throws);
+    let throws = requirements.contains(&CallableRequirement::Throws);
     let exported = node.children.iter().any(|child| {
         child.kind == SyntaxKind::Visibility && node_text(&unit.source, child) == "public"
     });
@@ -3922,7 +3897,7 @@ fn analyze_function_contract(
         parameters,
         captures: Vec::new(),
         return_type,
-        effects,
+        requirements,
         thrown_types,
         escaping_throwables: BTreeSet::new(),
         throws,
@@ -4117,33 +4092,25 @@ fn infer_throwing_effects(package: &mut SemanticPackage) -> Result<(), SemanticF
         }
     }
 
-    fn direct_effects(
+    fn direct_requirements(
         package: &SemanticPackage,
         unit: &SemanticUnit,
         node: &SyntaxNode,
-    ) -> BTreeSet<Effect> {
+    ) -> BTreeSet<CallableRequirement> {
         if node.kind == SyntaxKind::FunctionDeclaration {
             return BTreeSet::new();
         }
-        let mut effects = BTreeSet::new();
+        let mut requirements = BTreeSet::new();
         if !direct_errors(package, unit, node).is_empty() {
-            effects.insert(Effect::Throws);
-        }
-        if node.kind == SyntaxKind::UnaryExpression
-            && node
-                .children
-                .first()
-                .is_some_and(|operator| node_text(&unit.source, operator) == "await")
-        {
-            effects.insert(Effect::Awaits);
+            requirements.insert(CallableRequirement::Throws);
         }
         for child in &node.children {
-            effects.extend(direct_effects(package, unit, child));
+            requirements.extend(direct_requirements(package, unit, child));
         }
-        effects
+        requirements
     }
 
-    let mut inferred = BTreeMap::<FunctionKey, BTreeSet<Effect>>::new();
+    let mut inferred = BTreeMap::<FunctionKey, BTreeSet<CallableRequirement>>::new();
     let mut inferred_throwables = BTreeMap::<FunctionKey, BTreeSet<String>>::new();
     let mut edges = BTreeMap::<FunctionKey, BTreeSet<FunctionKey>>::new();
     let mut bodies = BTreeMap::<FunctionKey, (usize, SyntaxNode)>::new();
@@ -4162,16 +4129,16 @@ fn infer_throwing_effects(package: &mut SemanticPackage) -> Result<(), SemanticF
                 .position(|candidate| std::ptr::eq(candidate, unit))
                 .expect("function unit belongs to semantic package");
             bodies.insert(function_key, (unit_index, function.clone()));
-            let mut function_effects = unit
+            let mut function_requirements = unit
                 .functions
                 .iter()
                 .find(|contract| contract.span == function.span)
-                .map(|contract| contract.effects.clone())
+                .map(|contract| contract.requirements.clone())
                 .unwrap_or_default();
             for child in &function.children {
-                function_effects.extend(direct_effects(package, unit, child));
+                function_requirements.extend(direct_requirements(package, unit, child));
             }
-            inferred.insert(function_key, function_effects);
+            inferred.insert(function_key, function_requirements);
             let function_throwables = function
                 .children
                 .iter()
@@ -4191,8 +4158,8 @@ fn infer_throwing_effects(package: &mut SemanticPackage) -> Result<(), SemanticF
         for (function, callees) in &edges {
             let mut combined = inferred[function].clone();
             for callee in callees {
-                if let Some(callee_effects) = inferred.get(callee) {
-                    combined.extend(callee_effects);
+                if let Some(callee_requirements) = inferred.get(callee) {
+                    combined.extend(callee_requirements);
                 }
             }
             let (unit_index, body) = &bodies[function];
@@ -4203,9 +4170,9 @@ fn infer_throwing_effects(package: &mut SemanticPackage) -> Result<(), SemanticF
                 .flat_map(|child| escaping_errors(package, unit, child, &inferred_throwables))
                 .collect::<BTreeSet<_>>();
             if combined_throwables.is_empty() {
-                combined.remove(&Effect::Throws);
+                combined.remove(&CallableRequirement::Throws);
             } else {
-                combined.insert(Effect::Throws);
+                combined.insert(CallableRequirement::Throws);
             }
             if combined != inferred[function] {
                 inferred.insert(*function, combined);
@@ -4258,11 +4225,11 @@ fn infer_throwing_effects(package: &mut SemanticPackage) -> Result<(), SemanticF
 
     for unit in &mut package.units {
         for contract in &mut unit.functions {
-            contract.effects = inferred
+            contract.requirements = inferred
                 .get(&key(contract.span))
                 .cloned()
                 .unwrap_or_default();
-            contract.throws = contract.effects.contains(&Effect::Throws);
+            contract.throws = contract.requirements.contains(&CallableRequirement::Throws);
             contract.escaping_throwables = inferred_throwables
                 .get(&key(contract.span))
                 .cloned()
@@ -6184,7 +6151,7 @@ fn infer_member_value_type(
         Some(ValueType::Function(_, _) | ValueType::AsyncFunction(_, _))
     ) && matches!(
         member_name,
-        "effects" | "throwable-contract" | "escaping-throwables"
+        "contracts" | "throwable-contract" | "escaping-throwables"
     ) {
         return Ok(Some(ValueType::Scalar(ScalarType::String)));
     }

@@ -1455,10 +1455,9 @@ A trailing comma is therefore an error rather than a tolerated flourish: `with p
 The clause is available on any declaration, including a local binding inside a function. Comma delimitation is what makes that possible: without it, a bare run of names before a binding could not be distinguished from that binding's own name and type. A modified binding therefore need not declare a type merely to remain unambiguous.
 
 **`with` marks package-supplied modifiers only.** Core declaration words — `global`, `constant`,
-the visibility words, and the closed function qualifiers `static`, `async`, `mutating`, `mutates`,
-`awaits`, `unsafe`, `foreign`, and `throws` — remain bare keywords and never take `with`, even
-though several are conceptually modifier-like. The distinction is categorical rather than
-stylistic:
+the visibility words, and the closed function qualifiers `static`, `async`, `unsafe`, and
+`throws` — remain bare keywords and never take `with`, even though several are conceptually
+modifier-like. The distinction is categorical rather than stylistic:
 
 | | Structural | Decorative |
 |---|---|---|
@@ -1469,7 +1468,7 @@ stylistic:
 
 The test is whether the compiler's own model can be described without it. A structural word changes name resolution, visibility, mutability, or a callable's type contract, so the model cannot be stated without it and no package may redefine it. A decorative modifier changes only how a declaration the model already understands is realised — storage placement, layout, linkage, ABI, section, alignment.
 
-That boundary is the one this protocol already enforces below: a modifier may not affect visibility, ownership, effects, or capability. Marking the two groups differently therefore reports a real difference rather than an inconsistency, and writing `with global` would falsely suggest `global` is one of the extensible ones.
+That boundary is the one this protocol already enforces below: a modifier may not affect visibility, ownership, callable contracts, or target capabilities. Marking the two groups differently therefore reports a real difference rather than an inconsistency, and writing `with global` would falsely suggest `global` is one of the extensible ones.
 
 Ordering follows the layering: `with` modifiers precede the structural keywords, because the package-supplied layer is the outer one.
 
@@ -1486,7 +1485,7 @@ A kernel package may therefore define `per-cpu`; another environment might defin
 
 That open-endedness is intentional. Terrane should not require a grammar change whenever a domain discovers a new meaningful property of declarations, nor should it force such properties into textual macros merely because the core compiler did not anticipate them.
 
-A modifier is therefore better understood as a **compile-time participant in declaration realisation** than as an attribute attached to syntax. It receives a declaration the compiler already understands and may participate through the modifier protocol while remaining subject to the language's normal type, ownership, visibility, effect, capability, safety, diagnostic, reflection, and reproducibility rules.
+A modifier is therefore better understood as a **compile-time participant in declaration realisation** than as an attribute attached to syntax. It receives a declaration the compiler already understands and may participate through the modifier protocol while remaining subject to the language's normal type, ownership, visibility, callable-contract, target-capability, safety, diagnostic, reflection, and reproducibility rules.
 
 The important constraint is not that modifiers belong to a predetermined list of purposes. It is that an unfamiliar modifier remains understandable and inspectable: tooling should be able to answer what supplied it, what declaration contract it accepts, what guarantees or requirements it adds, how it composed with other modifiers, and what lowering consequences resulted.
 
@@ -1498,9 +1497,9 @@ This is deliberately an extensibility mechanism with room for uses this specific
 
 A declaration modifier receives the declaration's typed semantic descriptor during compilation and may return a constrained transformation or attach metadata consumed by lowering. Modifiers are deferred beyond version one, and the question still open is how a modifier is *declared*, not how it is applied.
 
-The protocol may affect only declared compiler extension points, including storage placement, linkage, exported symbol names, ABI/calling convention, alignment, target sections, generated wrappers, and checked declaration constraints. It must not replace a declaration body with hidden runtime behaviour, weaken source-visible ownership or effects, capture undeclared inputs, perform unrestricted syntax rewriting, or evade safety, capability, visibility, or type checks.
+The protocol may affect only declared compiler extension points, including storage placement, linkage, exported symbol names, ABI/calling convention, alignment, target sections, generated wrappers, and checked declaration constraints. It must not replace a declaration body with hidden runtime behaviour, weaken source-visible ownership or callable contracts, capture undeclared inputs, perform unrestricted syntax rewriting, or evade safety, target-capability, visibility, or type checks.
 
-Modifier resolution, order, provenance, effects, and emitted native attributes are recorded in reflection and build metadata. Versions and consulted build inputs participate in cache keys. Unsupported or conflicting modifiers are compile-time errors.
+Modifier resolution, order, provenance, realised consequences, and emitted native attributes are recorded in reflection and build metadata. Versions and consulted build inputs participate in cache keys. Unsupported or conflicting modifiers are compile-time errors.
 
 Core declaration words determine declaration shape, and the `with` clause precedes them. Modifiers accept arguments through the parenthesised element form above; an explicit compile-time descriptor operation after the declaration remains available for metadata that does not suit a prefix position. Failed calls and modifiers are never reinterpreted as one another.
 
@@ -3278,15 +3277,12 @@ A multimethod/generic-dispatch facility may be supplied as a library or later la
 
 Ordinary object fields may be mutated unless the object/type contract forbids it.
 
-The compiler infers whether a method requires mutable access to `this`.
-
-A stricter mode may require explicit `mutating` declarations on public methods:
-
-```terrane
-mutating function append; value
-```
-
-This qualifier is optional in the default language.
+The compiler infers whether a concrete method requires mutable access to `this`; source code does
+not repeat that fact with a qualifier. Receiver access remains semantic metadata for interface and
+callable compatibility and is derived while implementations are checked. Reflection and tooling
+may report that a callable mutates its receiver. A stricter API lint may later require authors to
+acknowledge inferred receiver mutation, but such a lint does not alter the callable contract and is
+not part of the default language.
 
 ### 19.2 No hidden global mutation
 
@@ -3300,17 +3296,21 @@ Terrane models callable properties according to the concrete contract each prope
 rather than treating every observable operation as a member of one permission-like effect set:
 
 - `throws T` constrains escaping failures and callable compatibility as specified in §15.4;
-- `async` changes invocation to produce a task, while `await` marks and constrains suspension as
-  specified in §21;
-- receiver mutation is inferred, reflected, and checked against method/interface requirements;
-- `unsafe` selects the explicit unsafe Rust/lowering boundary;
-- `foreign` selects an explicit foreign-runtime or ABI boundary.
+- `async` changes invocation to produce a task, while `await` performs task consumption and marks
+  a possible suspension point as specified in §21;
+- receiver mutation is inferred from concrete method bodies and retained as compatibility metadata;
+- `unsafe` selects the explicit unsafe Rust/lowering boundary.
 
-These contracts remain distinct even when reflection presents them together for inspection.
+Whether an async implementation reaches a suspension point, whether a method mutates its receiver,
+and whether a body crosses a foreign adapter are compiler-derived implementation facts, not
+function qualifiers. Foreign interoperability is expressed by the concrete runtime, import,
+adapter, or ABI construct that specifies the boundary; foreignness does not propagate to ordinary
+Terrane callers.
+
 Reflection exposes exact escaping throwable alternatives and any separately declared throwable
-upper bound; it may also report async/suspension, receiver-mutation, unsafe, and foreign-boundary
-metadata where the selected profile retains it. Callable compatibility checks each contract by its
-own rules instead of applying a generic subset operation to unrelated properties.
+upper bound. It may also report async identity, inferred suspension points, receiver mutation,
+unsafe boundaries, and concrete foreign transitions where the selected profile retains them.
+Callable compatibility checks each semantic contract by its own rule.
 
 I/O, allocation, blocking, global/shared mutation, and similar operations may be useful
 compiler-inferred facts for diagnostics, optimisation, audits, or target-specific validation. They
@@ -4145,7 +4145,7 @@ info.constructible
 info.arguments
 info.options
 info.return-type
-info.effects
+info.contracts
 info.source
 info.documentation
 info.foreign
@@ -5348,8 +5348,7 @@ function-declaration
     indented-function-body
 
 function-qualifier
-  = "static" | "async" | "mutating" | "mutates"
-  | "awaits" | "unsafe" | "foreign" | "throws"
+  = "static" | "async" | "unsafe" | "throws"
 
 parameter-list
   = parameter { "," parameter }

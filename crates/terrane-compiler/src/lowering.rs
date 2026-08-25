@@ -3447,7 +3447,7 @@ impl Emitter<'_> {
             Some(ValueType::Function(_, _) | ValueType::AsyncFunction(_, _))
         ) && matches!(
             self.text(member),
-            "effects" | "throwable-contract" | "escaping-throwables"
+            "contracts" | "throwable-contract" | "escaping-throwables"
         ) {
             let reflected = self
                 .unit
@@ -3472,9 +3472,9 @@ impl Emitter<'_> {
                         .collect::<Vec<_>>()
                         .join("|"),
                     _ => contract
-                        .effects
+                        .requirements
                         .iter()
-                        .map(|effect| format!("{effect:?}").to_lowercase())
+                        .map(|requirement| format!("{requirement:?}").to_lowercase())
                         .collect::<Vec<_>>()
                         .join(","),
                 })

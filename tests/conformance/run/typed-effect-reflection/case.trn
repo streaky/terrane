@@ -9,10 +9,10 @@ public function exact int throws throwable;
 
 function main;
   value int = fallible;
-  print; value, fallible.effects
+  print; value, fallible.contracts
   print; fallible.throwable-contract
   print; fallible.escaping-throwables
-  print; exact.effects
+  print; exact.contracts
   print; exact.throwable-contract
   print; exact.escaping-throwables
   try

@@ -158,7 +158,7 @@ method-family
 +-- reflection metadata
     +-- receiver type
     +-- parameter and return types
-    +-- effects
+    +-- callable contracts and inferred facts
     +-- available child names
 ```
 
@@ -576,10 +576,11 @@ callable
 +-- default invocation; positional/named arguments
 +-- parameter descriptor list
 +-- return descriptor
-+-- callable contracts
++-- callable contracts and inferred facts
 |   +-- throwable-contract -> descriptor|none      optional written upper bound
 |   +-- escaping-throwables -> descriptor set      exact inferred current set
-|   +-- async / awaits / mutates / unsafe / foreign metadata
+|   +-- async / unsafe metadata
+|   +-- suspension / receiver-mutation / foreign-transition facts are inferred
 |   contracts remain orthogonal; I/O/allocation/blocking facts are NOT source permissions
 
 class descriptor
@@ -1266,7 +1267,7 @@ When the profile retains reflection metadata, descriptors expose:
 
 ```text
 type: identity, compatibility, protocols, members, ownership, capabilities
-callable: parameters, return, effects, receiver, source identity
+callable: parameters, return, contracts, receiver, source identity
 namespace/package: children, visibility, origin/version
 value: source type, identity category, storage/copy facts where permitted
 foreign proxy: runtime, foreign type, ownership, transition contracts

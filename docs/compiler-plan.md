@@ -1244,8 +1244,8 @@ Deliver:
 - ordinary user-declared classes implementing `/core/errors::throwable`, with standard errors
   migrated to compiler-owned implementing classes and arbitrary non-throwable values rejected;
 - reflection that exposes a callable's optional declared throwable bound separately from its
-  inferred escaping throwable set, plus retained metadata for the independently meaningful async,
-  receiver-mutation, unsafe, and foreign callable contracts;
+  inferred escaping throwable set, plus async and unsafe callable metadata and compiler-derived
+  suspension, receiver-mutation, and concrete foreign-transition facts;
 - descriptor materialisation: reflection is the case that requires a canonical descriptor object
   at runtime, so this milestone supplies what milestone 4.6 deliberately does not. A statically
   resolved descriptor still lowers to nothing; a profile that strips reflection metadata removes
@@ -1262,9 +1262,12 @@ Implemented evidence: typed escaping throwables are computed after catches and `
 against optional postfix `throws T` bounds, and exposed separately from those declared bounds.
 Standard and user-declared `throwable` implementations share the structured-error pipeline.
 Descriptor values materialise only when observed, and minimal reflection profiles reject unavailable
-metadata access. Accepted and rejected conformance covers catch/finally throwable sets, custom
-throwables, incompatible bounds, callable-contract reflection, descriptor materialisation, profile
-denial, and stripped reflection. This satisfies the milestone exit criterion.
+metadata access. `awaits`, `mutating`, `mutates`, and bare `foreign` have been removed as callable
+qualifiers; suspension and receiver mutation are inferred, while foreign transitions belong to
+concrete adapter or ABI constructs. Accepted and rejected conformance covers catch/finally throwable
+sets, custom throwables, incompatible bounds, callable-contract reflection, descriptor
+materialisation, profile denial, stripped reflection, and rejection of removed qualifiers. This
+satisfies the milestone exit criterion.
 
 ### Milestone 19 — Async core: tasks, scope, cancellation, and deadlines
 
@@ -1422,7 +1425,7 @@ Deliver:
 - Rust and system adapters with explicit lifetime and error-translation contracts;
 - the first Python runtime contract if it remains in version-one scope.
 
-Exit criterion: each surface enters with a selected capability contract, typed objects and effects, deterministic lowering, and compiled and run evidence. No surface is represented as an empty compiler-owned name to make the map look complete.
+Exit criterion: each surface enters with a selected target-capability contract, typed objects and explicit operational contracts, deterministic lowering, and compiled and run evidence. No surface is represented as an empty compiler-owned name to make the map look complete.
 
 ### Milestone 28 — First-version hardening and release gate
 
@@ -1483,7 +1486,7 @@ The release pipeline must prove, from a clean checkout:
 - function values, closures, and storable bound method families;
 - classes, single inheritance, structural interfaces, traits, `construct`, and deterministic drop;
 - ownership: semantic value assignment, linear resources, non-owning `ref`, owning `shared ref`, explicit `move`, and the drop pipeline;
-- orthogonal throwable, async/suspension, receiver-mutation, unsafe, and foreign callable contracts, with profile-governed reflection retention;
+- orthogonal throwable, async, and unsafe callable contracts, with inferred suspension, receiver-mutation, and foreign-transition facts plus profile-governed reflection retention;
 - async with `await`, task objects, the structured-concurrency scope, cooperative cancellation, and scope-propagated deadlines;
 - byte and text stream protocols, process standard streams, files, paths, and race-resistant filesystem traversal;
 - environment, arguments, the schema-driven CLI parser, and `exit-status`;

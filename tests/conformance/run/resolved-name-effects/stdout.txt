@@ -1,2 +1,2 @@
-effects=
+contracts=
 quiet

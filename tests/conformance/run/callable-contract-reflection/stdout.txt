@@ -1,1 +1,1 @@
-awaits,unsafe,foreign
+unsafe

@@ -378,10 +378,7 @@ impl Parser<'_> {
         let mut children = Vec::new();
         self.parse_visibility(&mut children);
         let mut qualifiers = std::collections::BTreeSet::new();
-        while matches!(
-            self.text(),
-            "static" | "async" | "mutating" | "mutates" | "awaits" | "unsafe" | "foreign"
-        ) {
+        while matches!(self.text(), "static" | "async" | "unsafe") {
             let qualifier_start = self.position;
             let qualifier = self.text().to_owned();
             if !qualifiers.insert(qualifier) {
@@ -1218,9 +1215,7 @@ impl Parser<'_> {
         }
         loop {
             match self.peek_text(offset) {
-                Some(
-                    "static" | "async" | "mutating" | "mutates" | "awaits" | "unsafe" | "foreign",
-                ) => offset += 1,
+                Some("static" | "async" | "unsafe") => offset += 1,
                 Some("throws") => {
                     offset += 1;
                     if self.peek_text(offset) != Some("function") {

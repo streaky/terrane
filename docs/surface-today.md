@@ -501,10 +501,12 @@ statically proven.
 
 Callable contracts are modelled by the rule each one enforces rather than as permissions from one
 generic effect system. The compiler infers exact escaping throwable alternatives and receiver
-mutation, distinguishes sync and async callable types, validates suspension through `await`, and
-retains explicit unsafe and foreign boundaries. Callable reflection groups retained metadata under
-`.effects` for inspection and separately exposes `.throwable-contract` and
-`.escaping-throwables`; descriptor values retain canonical identity and `.name`.
+mutation, distinguishes sync and async callable types, validates suspension through explicit
+`await`, and retains explicit unsafe boundaries. `awaits`, `mutating`, `mutates`, and bare
+`foreign` are not function qualifiers. Concrete foreign interoperability belongs to runtime,
+adapter, import, or ABI constructs. Callable reflection exposes retained `.contracts`,
+`.throwable-contract`, and `.escaping-throwables` metadata; descriptor values retain canonical
+identity and `.name`.
 
 I/O and blocking are not source qualifiers, ordinary operations require no compiler-issued
 capability value, and manifests do not inject authority into entrypoints. `pure` is not a function
@@ -586,7 +588,7 @@ The authoritative language draft proposes a much larger ontology. None of the fo
 
 ```text
 collection checked lookup children and source-visible typed lookup errors
-reflection inventories beyond retained callable effects, throwable alternatives, and canonical descriptor identity
+reflection inventories beyond retained callable contracts, throwable alternatives, and canonical descriptor identity
 source-visible standard-error fields, causes, and error hierarchies
 bytes indexing and slicing
 user-authored implementations of general iteration protocols

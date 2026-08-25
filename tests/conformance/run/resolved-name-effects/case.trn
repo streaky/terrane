@@ -8,5 +8,5 @@ public function quiet string;
   return print; 'quiet'
 
 function main;
-  emit; 'effects=', quiet.effects
+  emit; 'contracts=', quiet.contracts
   emit; (quiet;)

@@ -61,7 +61,9 @@ fn parses_lossless_declarations_and_legal_empty_blocks() {
 
 #[test]
 fn removed_effect_words_are_not_function_qualifiers() {
-    for word in ["pure", "io", "blocks"] {
+    for word in [
+        "pure", "io", "blocks", "mutating", "mutates", "awaits", "foreign",
+    ] {
         let source = SourceFile::new(
             0,
             "case.trn".into(),
