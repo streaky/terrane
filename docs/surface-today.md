@@ -575,8 +575,10 @@ Family selections must be invoked in the same expression.
 
 The `/core/errors::throwable` interface and compiler-owned standard throwable objects are runtime
 identities used by `throw`, `try`, `catch`, and `finally`. Ordinary source-declared classes may
-implement `throwable`; a conforming class supplies `message` and may retain its own declared fields.
-Arithmetic, coercion, decoding, and collection failures enter the same typed result-propagation
+implement `throwable`; a conforming class supplies `message string` and a synchronous, non-throwing,
+zero-argument `render string` method, while `cause` is compiler-managed in the runtime envelope.
+The class may retain its own additional declared fields. Arithmetic, coercion, decoding, and
+collection failures enter the same typed result-propagation
 path and are catchable. Exact escaping throwable alternatives are inferred transitively after
 catches and `finally` replacement. A postfix `throws T` clause is an optional upper-bound contract:
 every escaping throwable must implement `T`. Reflection exposes the declared bound separately from

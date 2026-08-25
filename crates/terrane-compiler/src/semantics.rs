@@ -3110,6 +3110,24 @@ fn validate_object_conformance(package: &SemanticPackage) -> Result<(), Semantic
                             object.span,
                         ));
                     }
+                    let valid_render =
+                        effective_method(unit, object, "render").is_some_and(|method| {
+                            method.parameters.is_empty()
+                                && method.return_type == Some(ValueType::Scalar(ScalarType::String))
+                                && !method.throws
+                                && !method.is_async
+                        });
+                    if !valid_render {
+                        return Err(failure(
+                            &unit.source,
+                            "T0062",
+                            format!(
+                                "class `{}` does not implement interface member `throwable.render`",
+                                object.name
+                            ),
+                            object.span,
+                        ));
+                    }
                     continue;
                 }
                 let interface = unit

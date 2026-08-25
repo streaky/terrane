@@ -552,9 +552,10 @@ function load string throws config-error; path string
   never throwable.
 - `throw expression` throws an existing instance; `throw class; args` ordinarily invokes the class
   constructor and throws the resulting instance.
-- `throwable` surface: `message string`, `cause throwable|none`, `render string`; runtime also retains
-  the concrete descriptor and deterministic source-context chain. Descriptor identity, never
-  message text, drives matching.
+- `throwable` surface: class-provided `message string` and synchronous, non-throwing, zero-argument
+  `render string`; compiler-supplied `cause throwable|none`, defaulting to `none`, in the runtime
+  envelope. Runtime also retains the concrete descriptor and deterministic source-context chain.
+  Descriptor identity, never message text, drives matching.
 - `/core/errors` defines `throwable` and EXACTLY these language-mandated implementing classes:
 
 ```text

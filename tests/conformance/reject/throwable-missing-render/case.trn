@@ -1,0 +1,8 @@
+namespace throwable-missing-render
+from /core/errors import throwable
+
+class bare implements throwable
+  message string = 'set at construction'
+
+function main;
+  throw bare

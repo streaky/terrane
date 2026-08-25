@@ -2643,11 +2643,14 @@ interface throwable
   function render string;
 ```
 
-The runtime additionally carries the concrete class descriptor and a source-context chain. The
-descriptor is the stable matching identity; `message` is human-readable and is never a matching
-key. The default `cause` is `none`, and the default rendering includes the concrete throwable name,
-message, cause chain, and source context. A class may refine rendering and add structured fields
-without weakening those guarantees.
+The compiler supplies `cause` as part of the throwable value's runtime envelope: an implementing
+class does not redeclare or initialise that member. Its default is `none`, and replacement during
+exceptional cleanup records the displaced error there. The runtime additionally carries the
+concrete class descriptor and a source-context chain. The descriptor is the stable matching
+identity; `message` is human-readable and is never a matching key. Default rendering includes the
+concrete throwable name, message, cause chain, and source context. An implementing class must
+provide `message string` and a synchronous, non-throwing, zero-argument `render string` method; it
+may refine rendering and add structured fields without weakening those guarantees.
 
 Throwable classes are otherwise ordinary classes. Their `construct` method may accept the data
 appropriate to that error:
