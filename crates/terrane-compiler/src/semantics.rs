@@ -9275,6 +9275,16 @@ fn binding_event_child_region(
     })
 }
 
+fn node_may_declare_typed_binding(node: &SyntaxNode) -> bool {
+    matches!(
+        node.kind,
+        SyntaxKind::Binding
+            | SyntaxKind::Assignment
+            | SyntaxKind::Parameter
+            | SyntaxKind::ForTarget
+    )
+}
+
 fn declared_bindings_at_node<'a>(
     unit: &'a SemanticUnit,
     node: &SyntaxNode,
@@ -9283,10 +9293,7 @@ fn declared_bindings_at_node<'a>(
         if node.kind == SyntaxKind::ForTarget {
             node.children.iter().any(|name| binding.span == name.span)
         } else {
-            matches!(
-                node.kind,
-                SyntaxKind::Binding | SyntaxKind::Assignment | SyntaxKind::Parameter
-            ) && binding.span == node.span
+            binding.span == node.span
         }
     })
 }
@@ -9302,10 +9309,14 @@ fn initial_store_span(node: &SyntaxNode, binding: &TypedBinding) -> Span {
 fn record_declared_binding_writes(
     unit: &SemanticUnit,
     node: &SyntaxNode,
+    declares_binding: bool,
     events: &mut BTreeMap<(u32, usize, usize), Vec<BindingEvent>>,
     loops: &[Span],
     regions: &[ControlRegion],
 ) -> bool {
+    if !declares_binding {
+        return false;
+    }
     let initial_store = node.kind == SyntaxKind::ForTarget
         || node.kind == SyntaxKind::Parameter
         || unit.source.text()[node.span.start..node.span.end].contains('=');
@@ -9370,7 +9381,8 @@ fn collect_binding_events(
         return;
     }
 
-    let declares_binding = declared_bindings_at_node(unit, node).next().is_some();
+    let declares_binding = node_may_declare_typed_binding(node)
+        && declared_bindings_at_node(unit, node).next().is_some();
     let assignment_target = if matches!(
         node.kind,
         SyntaxKind::Assignment | SyntaxKind::PostfixExpression
@@ -9413,7 +9425,7 @@ fn collect_binding_events(
             }
         }
     }
-    if !record_declared_binding_writes(unit, node, events, loops, regions)
+    if !record_declared_binding_writes(unit, node, declares_binding, events, loops, regions)
         && let Some(target) = assignment_target
         && let Some(declaration_span) = package
             .resolve_name_at(unit, target.span.start, node_text(&unit.source, target))
