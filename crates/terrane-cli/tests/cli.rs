@@ -81,8 +81,13 @@ fn help_succeeds_and_extra_arguments_are_rejected() {
 }
 
 #[test]
-fn canonical_rust_requirement_fails_without_rewriting_stdout() {
-    let output = Command::new(env!("CARGO_BIN_EXE_terrane"))
+fn canonical_rust_requirement_preserves_successful_rust_output() {
+    let binary = env!("CARGO_BIN_EXE_terrane");
+    let ordinary = Command::new(binary)
+        .args(["rust", hello().to_str().unwrap()])
+        .output()
+        .unwrap();
+    let canonical = Command::new(binary)
         .args([
             "rust",
             "--require-canonical-rust",
@@ -91,11 +96,10 @@ fn canonical_rust_requirement_fails_without_rewriting_stdout() {
         .output()
         .unwrap();
 
-    assert_eq!(output.status.code(), Some(3));
-    assert!(output.stdout.is_empty());
-    let stderr = String::from_utf8(output.stderr).unwrap();
-    assert!(stderr.contains("error[S9004]: generated Rust"));
-    assert!(stderr.contains("is not canonical"));
+    assert!(ordinary.status.success());
+    assert!(canonical.status.success());
+    assert_eq!(canonical.stdout, ordinary.stdout);
+    assert!(canonical.stderr.is_empty());
 }
 
 #[test]

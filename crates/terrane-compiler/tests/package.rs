@@ -101,7 +101,7 @@ fn package_compilation_parses_every_discovered_unit() {
     assert!(
         compilation
             .rust
-            .contains("println!(\"{}\", terrane_scalar_support::scalar_text(&(String::from(\"package pipeline\"))));")
+            .contains("String::from(\"package pipeline\")")
     );
 }
 
@@ -157,9 +157,7 @@ fn package_entry_point_comes_from_resolved_function_declarations() {
     let compilation = compile_package(&Package::load(&package.0).unwrap()).unwrap();
 
     assert!(compilation.rust.contains("// Namespace: actual\n"));
-    assert!(compilation.rust.contains(
-        "println!(\"{}\", terrane_scalar_support::scalar_text(&(String::from(\"real entry\"))));"
-    ));
+    assert!(compilation.rust.contains("String::from(\"real entry\")"));
 }
 
 #[test]
