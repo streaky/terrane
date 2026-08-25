@@ -447,25 +447,10 @@ pub struct ObjectContract {
     pub traits: Vec<String>,
     pub fields: Vec<ObjectField>,
 }
-#[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
-pub enum CallableRequirement {
-    Throws,
-    Unsafe,
-}
-
-impl CallableRequirement {
-    #[must_use]
-    pub const fn source_name(self) -> &'static str {
-        match self {
-            Self::Throws => "throws",
-            Self::Unsafe => "unsafe",
-        }
-    }
-}
 
 #[expect(
     clippy::struct_excessive_bools,
-    reason = "callable contracts retain independent source-visible binary qualifiers"
+    reason = "callable contracts retain independent semantic properties"
 )]
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct FunctionContract {
@@ -475,7 +460,6 @@ pub struct FunctionContract {
     pub captures: Vec<String>,
     pub parameters: Vec<ParameterContract>,
     pub return_type: Option<ValueType>,
-    pub requirements: BTreeSet<CallableRequirement>,
     pub exported: bool,
     pub thrown_types: Vec<ValueType>,
     pub escaping_throwables: BTreeSet<String>,
@@ -3075,7 +3059,7 @@ fn validate_object_conformance(package: &SemanticPackage) -> Result<(), Semantic
                         && left.mutable == right.mutable
                 })
             && left.return_type == right.return_type
-            && right.requirements.is_subset(&left.requirements)
+            && (!right.throws || left.throws)
             && left.is_async == right.is_async
     }
 
@@ -3860,11 +3844,9 @@ fn analyze_function_contract(
             node.span,
         ));
     }
-    let mut requirements = BTreeSet::new();
     let mut thrown_types = Vec::new();
     for child in &node.children {
         if child.kind == SyntaxKind::EffectClause {
-            requirements.insert(CallableRequirement::Throws);
             if let Some(type_node) = child
                 .children
                 .iter()
@@ -3872,16 +3854,12 @@ fn analyze_function_contract(
             {
                 thrown_types.push(declared_value_type(unit, type_node, aliases)?);
             }
-        } else if child.kind == SyntaxKind::DeclarationQualifier
-            && node_text(&unit.source, child) == "unsafe"
-        {
-            requirements.insert(CallableRequirement::Unsafe);
         }
     }
     let is_async = node.children.iter().any(|child| {
         child.kind == SyntaxKind::DeclarationQualifier && node_text(&unit.source, child) == "async"
     });
-    let throws = requirements.contains(&CallableRequirement::Throws);
+    let throws = !thrown_types.is_empty();
     let exported = node.children.iter().any(|child| {
         child.kind == SyntaxKind::Visibility && node_text(&unit.source, child) == "public"
     });
@@ -3897,7 +3875,6 @@ fn analyze_function_contract(
         parameters,
         captures: Vec::new(),
         return_type,
-        requirements,
         thrown_types,
         escaping_throwables: BTreeSet::new(),
         throws,
@@ -4068,51 +4045,7 @@ fn infer_throwing_effects(package: &mut SemanticPackage) -> Result<(), SemanticF
             .collect()
     }
 
-    fn callees(
-        package: &SemanticPackage,
-        unit: &SemanticUnit,
-        node: &SyntaxNode,
-        output: &mut BTreeSet<FunctionKey>,
-    ) {
-        if node.kind == SyntaxKind::FunctionDeclaration {
-            return;
-        }
-        if node.kind == SyntaxKind::CallExpression
-            && let Some(callee) = node.children.first()
-            && callee.kind == SyntaxKind::Name
-            && let Some(symbol) =
-                package.resolve_name_at(unit, callee.span.start, node_text(&unit.source, callee))
-            && symbol.kind == SymbolKind::Function
-            && let Some(span) = symbol.declaration_span
-        {
-            output.insert(key(span));
-        }
-        for child in &node.children {
-            callees(package, unit, child, output);
-        }
-    }
-
-    fn direct_requirements(
-        package: &SemanticPackage,
-        unit: &SemanticUnit,
-        node: &SyntaxNode,
-    ) -> BTreeSet<CallableRequirement> {
-        if node.kind == SyntaxKind::FunctionDeclaration {
-            return BTreeSet::new();
-        }
-        let mut requirements = BTreeSet::new();
-        if !direct_errors(package, unit, node).is_empty() {
-            requirements.insert(CallableRequirement::Throws);
-        }
-        for child in &node.children {
-            requirements.extend(direct_requirements(package, unit, child));
-        }
-        requirements
-    }
-
-    let mut inferred = BTreeMap::<FunctionKey, BTreeSet<CallableRequirement>>::new();
     let mut inferred_throwables = BTreeMap::<FunctionKey, BTreeSet<String>>::new();
-    let mut edges = BTreeMap::<FunctionKey, BTreeSet<FunctionKey>>::new();
     let mut bodies = BTreeMap::<FunctionKey, (usize, SyntaxNode)>::new();
     for unit in &package.units {
         for function in unit
@@ -4129,39 +4062,18 @@ fn infer_throwing_effects(package: &mut SemanticPackage) -> Result<(), SemanticF
                 .position(|candidate| std::ptr::eq(candidate, unit))
                 .expect("function unit belongs to semantic package");
             bodies.insert(function_key, (unit_index, function.clone()));
-            let mut function_requirements = unit
-                .functions
-                .iter()
-                .find(|contract| contract.span == function.span)
-                .map(|contract| contract.requirements.clone())
-                .unwrap_or_default();
-            for child in &function.children {
-                function_requirements.extend(direct_requirements(package, unit, child));
-            }
-            inferred.insert(function_key, function_requirements);
             let function_throwables = function
                 .children
                 .iter()
                 .flat_map(|child| direct_errors(package, unit, child))
                 .collect();
             inferred_throwables.insert(function_key, function_throwables);
-            let mut function_callees = BTreeSet::new();
-            for child in &function.children {
-                callees(package, unit, child, &mut function_callees);
-            }
-            edges.insert(function_key, function_callees);
         }
     }
 
     loop {
         let mut changed = false;
-        for (function, callees) in &edges {
-            let mut combined = inferred[function].clone();
-            for callee in callees {
-                if let Some(callee_requirements) = inferred.get(callee) {
-                    combined.extend(callee_requirements);
-                }
-            }
+        for function in bodies.keys() {
             let (unit_index, body) = &bodies[function];
             let unit = &package.units[*unit_index];
             let combined_throwables = body
@@ -4169,15 +4081,6 @@ fn infer_throwing_effects(package: &mut SemanticPackage) -> Result<(), SemanticF
                 .iter()
                 .flat_map(|child| escaping_errors(package, unit, child, &inferred_throwables))
                 .collect::<BTreeSet<_>>();
-            if combined_throwables.is_empty() {
-                combined.remove(&CallableRequirement::Throws);
-            } else {
-                combined.insert(CallableRequirement::Throws);
-            }
-            if combined != inferred[function] {
-                inferred.insert(*function, combined);
-                changed = true;
-            }
             if combined_throwables != inferred_throwables[function] {
                 inferred_throwables.insert(*function, combined_throwables);
                 changed = true;
@@ -4225,15 +4128,11 @@ fn infer_throwing_effects(package: &mut SemanticPackage) -> Result<(), SemanticF
 
     for unit in &mut package.units {
         for contract in &mut unit.functions {
-            contract.requirements = inferred
-                .get(&key(contract.span))
-                .cloned()
-                .unwrap_or_default();
-            contract.throws = contract.requirements.contains(&CallableRequirement::Throws);
             contract.escaping_throwables = inferred_throwables
                 .get(&key(contract.span))
                 .cloned()
                 .unwrap_or_default();
+            contract.throws = !contract.escaping_throwables.is_empty();
         }
     }
     Ok(())

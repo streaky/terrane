@@ -1244,8 +1244,8 @@ Deliver:
 - ordinary user-declared classes implementing `/core/errors::throwable`, with standard errors
   migrated to compiler-owned implementing classes and arbitrary non-throwable values rejected;
 - reflection that exposes a callable's optional declared throwable bound separately from its
-  inferred escaping throwable set, plus async and unsafe callable metadata and compiler-derived
-  suspension, receiver-mutation, and concrete foreign-transition facts;
+  inferred escaping throwable set, plus async callable metadata and compiler-derived suspension,
+  receiver-mutation, concrete `unsafe rust`, and foreign-transition facts;
 - descriptor materialisation: reflection is the case that requires a canonical descriptor object
   at runtime, so this milestone supplies what milestone 4.6 deliberately does not. A statically
   resolved descriptor still lowers to nothing; a profile that strips reflection metadata removes
@@ -1486,7 +1486,7 @@ The release pipeline must prove, from a clean checkout:
 - function values, closures, and storable bound method families;
 - classes, single inheritance, structural interfaces, traits, `construct`, and deterministic drop;
 - ownership: semantic value assignment, linear resources, non-owning `ref`, owning `shared ref`, explicit `move`, and the drop pipeline;
-- orthogonal throwable, async, and unsafe callable contracts, with inferred suspension, receiver-mutation, and foreign-transition facts plus profile-governed reflection retention;
+- orthogonal throwable and async callable contracts, with inferred suspension, receiver-mutation, concrete `unsafe rust`, and foreign-transition facts plus profile-governed reflection retention;
 - async with `await`, task objects, the structured-concurrency scope, cooperative cancellation, and scope-propagated deadlines;
 - byte and text stream protocols, process standard streams, files, paths, and race-resistant filesystem traversal;
 - environment, arguments, the schema-driven CLI parser, and `exit-status`;

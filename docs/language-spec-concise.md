@@ -299,7 +299,7 @@ args_rule: needs no special rule; a declaration always follows, so the call is n
 trailing_comma: an error - 'with per-cpu, global x = 0' reads 'global' as the next element and fails on a reserved word
 scope: any declaration INCLUDING an untyped local binding; no typed-binding requirement
 with_applies_to: first- and third-party package modifiers (open set)
-with_never_applies_to: global, constant, public/private/protected, static/async/unsafe/throws (closed set, compiler-owned)
+with_never_applies_to: global, constant, public/private/protected, static/async/throws (closed set, compiler-owned)
 test: can the compiler's model be described without it? if it changes name resolution, visibility, mutability, or a callable's type contract it is STRUCTURAL (keyword); if it changes only how a known declaration is realised - storage, layout, linkage, ABI, section, alignment - it is DECORATIVE (with)
 ordering: with-modifiers precede structural keywords; package layer is outer
 rationale: the protocol already forbids modifiers from touching visibility, ownership, or callable contracts, so the split reports a real boundary; 'with global' would falsely imply global is extensible
@@ -591,8 +591,8 @@ coercion-error               coercion has no compatible result outside the overf
 throws: exact inferred escaping set plus optional written upper bound
 async: invocation produces a task; `await` consumes a task and marks a possible suspension point
 receiver_mutation: inferred from concrete bodies; retained as method/interface compatibility metadata
-unsafe: explicit unsafe Rust/lowering boundary
-derived_facts: suspension points, receiver mutation, I/O, allocation, blocking, shared mutation, and foreign transitions MAY be inferred for validation/tooling but are not source qualifiers
+unsafe_boundary: only concrete adapters or `unsafe rust`; never a bare callable qualifier or generic unsafe block
+derived_facts: suspension points, receiver mutation, `unsafe rust` use, I/O, allocation, blocking, shared mutation, and foreign transitions MAY be inferred for validation/tooling but are not source qualifiers
 foreign_boundary: expressed by a concrete runtime/import/adapter/ABI construct; never a bare callable qualifier and never transitive to ordinary callers
 purity: no `pure` qualifier; a future contract requires independently defined observable guarantees
 ```
@@ -699,7 +699,7 @@ encoding: explicit utf8/utf16-le/utf16-be/utf32-le/utf32-be; encode total; decod
 - `no_std` uses minimal support + target capabilities.
 - Minimal support includes adaptive exact `int` and its normative failures when that feature lands; constrained targets prove supported bounds or reject by capability rather than changing semantics.
 - Hosted convenience must not preclude allocator-free/embedded/kernel realization where capabilities permit.
-- Low-level representation/ABI/pointer/volatile/atomic operations require explicit contracts and unsafe boundaries.
+- Low-level representation/ABI/pointer/volatile/atomic operations require explicit contracts and concrete unsafe adapters or `unsafe rust`.
 
 ## PACKAGE
 

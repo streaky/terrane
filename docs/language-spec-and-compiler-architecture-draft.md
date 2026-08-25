@@ -1455,9 +1455,9 @@ A trailing comma is therefore an error rather than a tolerated flourish: `with p
 The clause is available on any declaration, including a local binding inside a function. Comma delimitation is what makes that possible: without it, a bare run of names before a binding could not be distinguished from that binding's own name and type. A modified binding therefore need not declare a type merely to remain unambiguous.
 
 **`with` marks package-supplied modifiers only.** Core declaration words — `global`, `constant`,
-the visibility words, and the closed function qualifiers `static`, `async`, `unsafe`, and
-`throws` — remain bare keywords and never take `with`, even though several are conceptually
-modifier-like. The distinction is categorical rather than stylistic:
+the visibility words, and the closed function qualifiers `static`, `async`, and `throws` — remain
+bare keywords and never take `with`, even though several are conceptually modifier-like. The
+distinction is categorical rather than stylistic:
 
 | | Structural | Decorative |
 |---|---|---|
@@ -2105,7 +2105,7 @@ Lower-level packages may expose stricter type constructors when the distinction 
 operations are legal:
 
 - `user-ref of T` is an untrusted userspace address that cannot be dereferenced until an adapter validates or copies it;
-- `raw-address of T` is an integer-like machine address with provenance and alignment obligations, usable only in `unsafe`;
+- `raw-address of T` is an integer-like machine address with provenance and alignment obligations, usable only through a concrete unsafe adapter or `unsafe rust`;
 - `array-ref of T` is a non-owning contiguous view whose extent is carried by its value or an accompanying contract;
 - `function from A, B to R` is the core callable type; `ref function from A, B to R` adds safe non-owning callable identity, `shared ref function from A, B to R` adds shared ownership, and a package-owned ABI-address constructor may impose a calling convention or foreign provenance.
 
@@ -2597,7 +2597,7 @@ Labels are function-local. A `goto` may target only a label in the same function
 
 A jump may remain in its current lexical scope or leave scopes, but it may not enter a deeper lexical scope. Leaving scopes performs their deterministic destruction and other language-required cleanup in the same order as ordinary scope exit.
 
-A jump must not cross an initialisation, move, borrow, deferred cleanup, `unsafe` boundary, or other lifetime transition in a way that would leave a value uninitialised, use a moved value, bypass required cleanup, or otherwise violate the language's ownership and lifetime rules. These are compile-time errors; `unsafe` does not relax them.
+A jump must not cross an initialisation, move, borrow, deferred cleanup, `unsafe rust` boundary, or other lifetime transition in a way that would leave a value uninitialised, use a moved value, bypass required cleanup, or otherwise violate the language's ownership and lifetime rules. These are compile-time errors; `unsafe rust` does not relax them.
 
 The compiler must prove that the generated Rust representation is sound. It may lower labels and jumps to structured control flow, a state machine, or another explicit representation, but it must preserve source control flow, cleanup order, diagnostics, debugging, and source mapping. It must not emit unsound Rust or rely on Rust having a native `goto`.
 
@@ -3298,19 +3298,17 @@ rather than treating every observable operation as a member of one permission-li
 - `throws T` constrains escaping failures and callable compatibility as specified in §15.4;
 - `async` changes invocation to produce a task, while `await` performs task consumption and marks
   a possible suspension point as specified in §21;
-- receiver mutation is inferred from concrete method bodies and retained as compatibility metadata;
-- `unsafe` selects the explicit unsafe Rust/lowering boundary.
 
 Whether an async implementation reaches a suspension point, whether a method mutates its receiver,
-and whether a body crosses a foreign adapter are compiler-derived implementation facts, not
-function qualifiers. Foreign interoperability is expressed by the concrete runtime, import,
-adapter, or ABI construct that specifies the boundary; foreignness does not propagate to ordinary
-Terrane callers.
+whether a body uses `unsafe rust`, and whether it crosses a foreign adapter are compiler-derived
+implementation facts, not function qualifiers. Foreign interoperability is expressed by the
+concrete runtime, import, adapter, or ABI construct that specifies the boundary; foreignness does
+not propagate to ordinary Terrane callers.
 
 Reflection exposes exact escaping throwable alternatives and any separately declared throwable
 upper bound. It may also report async identity, inferred suspension points, receiver mutation,
-unsafe boundaries, and concrete foreign transitions where the selected profile retains them.
-Callable compatibility checks each semantic contract by its own rule.
+concrete `unsafe rust` boundaries, and foreign transitions where the selected profile retains
+them. Callable compatibility checks each semantic contract by its own rule.
 
 I/O, allocation, blocking, global/shared mutation, and similar operations may be useful
 compiler-inferred facts for diagnostics, optimisation, audits, or target-specific validation. They
@@ -3616,7 +3614,8 @@ pointer = pointer; address, type=int32
 value = pointer.read;
 ```
 
-Operations involving arbitrary addresses, aliasing violations, volatile memory, or unchecked lifetime must occur inside an `unsafe` boundary or inline unsafe Rust.
+Operations involving arbitrary addresses, aliasing violations, volatile memory, or unchecked
+lifetimes require a concrete unsafe adapter or an `unsafe rust` block.
 
 ### 22.7 Volatile and atomic access
 
@@ -3624,18 +3623,12 @@ Volatile and atomic operations are explicit types/protocols.
 
 Normal assignment must not silently become volatile or atomic merely because a value happens to point at device memory.
 
-### 22.8 Unsafe blocks
+### 22.8 Unsafe operations
 
-```text
-unsafe
-  ...
-```
-
-marks source operations whose safety contract cannot be verified by the normal compiler model.
-
-Inline Rust has its own `unsafe rust` form.
-
-Unsafe usage is recorded in reflection, build reports, diagnostics, and tracing metadata.
+Terrane has no generic `unsafe` block. An operation whose safety contract cannot be verified by the
+normal compiler model must use a concrete adapter that states that contract, or cross the explicit
+`unsafe rust` boundary described in §24.5. Unsafe Rust usage is recorded in reflection, build
+reports, diagnostics, and tracing metadata.
 
 ### 22.9 Deterministic resource management
 
@@ -5348,7 +5341,7 @@ function-declaration
     indented-function-body
 
 function-qualifier
-  = "static" | "async" | "unsafe" | "throws"
+  = "static" | "async" | "throws"
 
 parameter-list
   = parameter { "," parameter }
@@ -5484,9 +5477,6 @@ match-statement
 
 match-arm
   = "case" call-free-expression [ "as" identifier ] indented-body
-
-unsafe-statement
-  = "unsafe" indented-body
 
 rust-statement
   = [ "unsafe" ] "rust" indented-rust-body

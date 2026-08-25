@@ -3471,12 +3471,8 @@ impl Emitter<'_> {
                         .map(ToString::to_string)
                         .collect::<Vec<_>>()
                         .join("|"),
-                    _ => contract
-                        .requirements
-                        .iter()
-                        .map(|requirement| format!("{requirement:?}").to_lowercase())
-                        .collect::<Vec<_>>()
-                        .join(","),
+                    _ if contract.throws => "throws".to_owned(),
+                    _ => String::new(),
                 })
                 .unwrap_or_default();
             return format!("{reflected:?}.to_owned()");

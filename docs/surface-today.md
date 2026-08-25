@@ -501,10 +501,10 @@ statically proven.
 
 Callable contracts are modelled by the rule each one enforces rather than as permissions from one
 generic effect system. The compiler infers exact escaping throwable alternatives and receiver
-mutation, distinguishes sync and async callable types, validates suspension through explicit
-`await`, and retains explicit unsafe boundaries. `awaits`, `mutating`, `mutates`, and bare
-`foreign` are not function qualifiers. Concrete foreign interoperability belongs to runtime,
-adapter, import, or ABI constructs. Callable reflection exposes retained `.contracts`,
+mutation, distinguishes sync and async callable types, and validates suspension through explicit
+`await`. `awaits`, `mutating`, `mutates`, `unsafe`, and bare `foreign` are not function qualifiers.
+Concrete unsafe Rust and foreign interoperability belong to explicit Rust, runtime, adapter,
+import, or ABI constructs. Callable reflection exposes retained `.contracts`,
 `.throwable-contract`, and `.escaping-throwables` metadata; descriptor values retain canonical
 identity and `.name`.
 

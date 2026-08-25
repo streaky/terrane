@@ -579,8 +579,8 @@ callable
 +-- callable contracts and inferred facts
 |   +-- throwable-contract -> descriptor|none      optional written upper bound
 |   +-- escaping-throwables -> descriptor set      exact inferred current set
-|   +-- async / unsafe metadata
-|   +-- suspension / receiver-mutation / foreign-transition facts are inferred
+|   +-- async metadata
+|   +-- suspension / receiver-mutation / unsafe-rust / foreign-transition facts are inferred
 |   contracts remain orthogonal; I/O/allocation/blocking facts are NOT source permissions
 
 class descriptor

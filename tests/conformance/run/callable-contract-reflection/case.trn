@@ -1,6 +1,6 @@
 namespace callable-contract-reflection
 
-unsafe function marked;
+function marked;
 
 function main;
   marked;
