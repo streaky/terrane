@@ -173,7 +173,6 @@ struct Emitter<'a> {
     closure_depth: usize,
 }
 
-
 fn package_uses_task_scope(package: &SemanticPackage) -> bool {
     fn contains(package: &SemanticPackage, unit: &SemanticUnit, node: &SyntaxNode) -> bool {
         if node.kind == SyntaxKind::CallExpression
@@ -1682,10 +1681,7 @@ impl Emitter<'_> {
                     node,
                 );
                 let value = self.expression_as(values[1], item.value_type());
-                Some(self.fallible(
-                    format!("({receiver_value}).set({index}, {value})"),
-                    node,
-                ))
+                Some(self.fallible(format!("({receiver_value}).set({index}, {value})"), node))
             }
             (ValueType::Map(key, value) | ValueType::UnorderedMap(key, value), "set") => {
                 Some(format!(
@@ -2059,10 +2055,11 @@ impl Emitter<'_> {
             .typed_bindings
             .iter()
             .find(|binding| binding.span == node.span);
+        let reference_backed = binding.is_some_and(|binding| self.reference_backed(binding));
         let storage_type = binding
             .and_then(|binding| binding.storage_type)
+            .filter(|_| !reference_backed)
             .filter(|_| !binding_span_is_mutated(self.package, self.unit, node.span, true));
-        let reference_backed = binding.is_some_and(|binding| self.reference_backed(binding));
         let ty = binding.map(|binding| {
             let value_type = if !binding.destination_arms.is_empty() {
                 union_type_name(binding)
@@ -3323,7 +3320,10 @@ impl Emitter<'_> {
                 "__terrane_owner.lock().expect(\"reference lock poisoned\")".to_owned()
             }
             _ if self.reference_backed_name(receiver).is_some() => {
-                format!("{}.lock().expect(\"reference lock poisoned\")", self.name(receiver))
+                format!(
+                    "{}.lock().expect(\"reference lock poisoned\")",
+                    self.name(receiver)
+                )
             }
             _ => self.expression(receiver),
         }

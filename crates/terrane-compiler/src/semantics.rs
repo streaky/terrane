@@ -9404,32 +9404,112 @@ fn later_store_replaces(earlier: &[ControlRegion], later: &[ControlRegion]) -> b
     later.iter().all(|region| earlier.contains(region))
 }
 
-fn validate_suspension_ownership(package: &SemanticPackage) -> Result<(), SemanticFailure> {
-    fn collect_awaits(unit: &SemanticUnit, node: &SyntaxNode, spans: &mut Vec<Span>) {
-        if node.kind == SyntaxKind::UnaryExpression
-            && unary_operator_text(unit, node).as_deref() == Some("await")
-        {
-            spans.push(node.span);
-        }
-        for child in &node.children {
-            collect_awaits(unit, child, spans);
-        }
+fn collect_suspension_points(unit: &SemanticUnit, node: &SyntaxNode, spans: &mut Vec<Span>) {
+    if node.kind == SyntaxKind::UnaryExpression
+        && unary_operator_text(unit, node).as_deref() == Some("await")
+    {
+        spans.push(node.span);
     }
+    for child in &node.children {
+        collect_suspension_points(unit, child, spans);
+    }
+}
 
+fn moves_binding_between(
+    package: &SemanticPackage,
+    unit: &SemanticUnit,
+    node: &SyntaxNode,
+    owner_span: Span,
+    after: usize,
+    before: usize,
+) -> bool {
+    if node.span.start >= after
+        && node.span.end <= before
+        && node.kind == SyntaxKind::UnaryExpression
+        && unary_operator_text(unit, node).as_deref() == Some("move")
+        && node.children.last().is_some_and(|operand| {
+            operand.kind == SyntaxKind::Name
+                && package
+                    .resolve_name_at(unit, operand.span.start, node_text(&unit.source, operand))
+                    .and_then(|symbol| symbol.declaration_span)
+                    == Some(owner_span)
+        })
+    {
+        return true;
+    }
+    node.children
+        .iter()
+        .any(|child| moves_binding_between(package, unit, child, owner_span, after, before))
+}
+
+fn reference_has_stable_local_owner(
+    package: &SemanticPackage,
+    unit: &SemanticUnit,
+    contract: &FunctionContract,
+    reference: &TypedBinding,
+) -> bool {
+    let Some(declaration) = find_node_by_span(&unit.tree.root, reference.span) else {
+        return false;
+    };
+    let Some(initializer) = declaration.children.last() else {
+        return false;
+    };
+    if initializer.kind != SyntaxKind::UnaryExpression
+        || unary_operator_text(unit, initializer).as_deref() != Some("ref")
+    {
+        return false;
+    }
+    let Some(source) = initializer
+        .children
+        .last()
+        .filter(|source| source.kind == SyntaxKind::Name)
+    else {
+        return false;
+    };
+    let Some(owner_span) = package
+        .resolve_name_at(unit, source.span.start, node_text(&unit.source, source))
+        .and_then(|symbol| symbol.declaration_span)
+    else {
+        return false;
+    };
+    if !unit.typed_bindings.iter().any(|owner| {
+        owner.span == owner_span
+            && owner.span.start >= contract.span.start
+            && owner.span.end <= contract.span.end
+    }) {
+        return false;
+    }
+    !moves_binding_between(
+        package,
+        unit,
+        &unit.tree.root,
+        owner_span,
+        reference.visible_from,
+        contract.span.end,
+    ) && package
+        .binding_events
+        .get(&span_key(owner_span))
+        .is_none_or(|events| {
+            !events.iter().any(|event| {
+                matches!(
+                    event,
+                    BindingEvent::Write { span, .. } if span.start >= reference.visible_from
+                )
+            })
+        })
+}
+
+fn validate_suspension_ownership(package: &SemanticPackage) -> Result<(), SemanticFailure> {
     for unit in &package.units {
         let mut awaits = Vec::new();
-        collect_awaits(unit, &unit.tree.root, &mut awaits);
+        collect_suspension_points(unit, &unit.tree.root, &mut awaits);
         for contract in unit.functions.iter().filter(|contract| contract.is_async) {
             for binding in unit.typed_bindings.iter().filter(|binding| {
                 matches!(binding.value_type, ValueType::Reference(_))
                     && binding.span.start >= contract.span.start
                     && binding.span.end <= contract.span.end
             }) {
-                let Some(events) = package.binding_events.get(&(
-                    binding.span.file,
-                    binding.span.start,
-                    binding.span.end,
-                )) else {
+                let Some(events) = package.binding_events.get(&span_key(binding.span)) else {
                     continue;
                 };
                 if let Some(suspension) = awaits.iter().find(|suspension| {
@@ -9441,6 +9521,7 @@ fn validate_suspension_ownership(package: &SemanticPackage) -> Result<(), Semant
                                 BindingEvent::Read { span, .. } if span.start > suspension.end
                             )
                         })
+                        && !reference_has_stable_local_owner(package, unit, contract, binding)
                 }) {
                     return Err(failure(
                         &unit.source,

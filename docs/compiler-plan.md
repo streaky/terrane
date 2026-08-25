@@ -1234,9 +1234,10 @@ non-owning observation, explicit ownership transfer, temporary and parameter-sou
 source-diagnosed return escape, replacement invalidation of non-owning references, and continued
 access through shared owners after replacement. The current generated
 representation clones the referenced value for each read; this is a correctness-first lowering, not
-the intended reference cost model. Lifetime analysis beyond return escape and direct replacement,
-including proof across async suspension, shared-ownership cycle analysis, complete
-derived-provenance coverage, and borrow-oriented lowering remain outstanding.
+the intended reference cost model. Async suspension now proves a directly declared local owner that
+remains in the task frame without replacement or ownership transfer; broader lifetime analysis,
+shared-ownership cycle analysis, complete derived-provenance coverage, and borrow-oriented lowering
+remain outstanding.
 
 ### Milestone 18 — Callable contracts, errors, and reflection
 
@@ -1304,7 +1305,9 @@ statically resolvable extensions are additionally rejected in source.
 
 Accepted and rejected conformance covers async/sync type incompatibility, task consumption,
 successful, throwing, cancelled, and sibling-cancelling children, statically resolvable nested
-deadline extension, and non-owning references across suspension.
+deadline extension, a non-owning reference whose unchanged local owner is proven to remain in the
+task frame across suspension, and rejection when a parameter-sourced owner lifetime cannot be
+proven.
 
 ### Milestone 20 — Byte and text streams and process standard streams
 
