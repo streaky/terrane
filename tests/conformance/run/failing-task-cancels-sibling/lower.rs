@@ -327,8 +327,8 @@ fn main() {
     let failed: TerraneTaskOutcome<terrane_int_support::Int> = scope.join(failing);
     let survived: TerraneTaskOutcome<terrane_int_support::Int> = scope.join(sibling);
     println!(
-        "{}{}", terrane_scalar_support::scalar_text(& ((failed).completed)),
-        terrane_scalar_support::scalar_text(& ((failed).cancelled))
+        "{}{}", terrane_scalar_support::scalar_text(&failed.completed),
+        terrane_scalar_support::scalar_text(&failed.cancelled)
     );
-    println!("{}", terrane_scalar_support::scalar_text(& ((survived).cancelled)));
+    println!("{}", terrane_scalar_support::scalar_text(&survived.cancelled));
 }

@@ -146,17 +146,16 @@ fn main() {
         std::sync::Mutex<terrane_collection_support::List<terrane_int_support::Int>>,
     > = std::sync::Arc::downgrade(&value);
     println!(
-        "{}", terrane_scalar_support::scalar_text(& (((({ let __terrane_owner = observer
+        "{}", terrane_scalar_support::scalar_text(&{ let __terrane_owner = observer
         .upgrade().expect("reference expired"); let __terrane_value = __terrane_owner
-        .lock().expect("reference lock poisoned").clone(); __terrane_value }))
-        .get_or_error((terrane_collection_support::index_from_int(&
-        (terrane_int_support::Int::from(0_i128)))).unwrap_or_else(| error |
-        __terrane_uncaught(TerraneError::from(error)
-        .at("/non-owning-reference-release::main (case.trn:8:12)"))))).unwrap_or_else(|
+        .lock().expect("reference lock poisoned").clone(); __terrane_value }
+        .get_or_error(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128))
+        .unwrap_or_else(| error | __terrane_uncaught(TerraneError::from(error)
+        .at("/non-owning-reference-release::main (case.trn:8:12)")))).unwrap_or_else(|
         error | __terrane_uncaught(TerraneError::from(error)
-        .at("/non-owning-reference-release::main (case.trn:8:12)")))))
+        .at("/non-owning-reference-release::main (case.trn:8:12)"))))
     );
     let _ = &value;
     let value: String = String::from("replacement");
-    println!("{}", terrane_scalar_support::scalar_text(& (value)));
+    println!("{}", terrane_scalar_support::scalar_text(&value));
 }

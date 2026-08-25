@@ -30,8 +30,8 @@ impl BaseStorage {
     }
     pub fn describe(&self, prefix: String) -> String {
         return format!(
-            "{}{}", terrane_scalar_support::scalar_text(& (prefix)),
-            terrane_scalar_support::scalar_text(& (String::from("base")))
+            "{}{}", terrane_scalar_support::scalar_text(&prefix),
+            terrane_scalar_support::scalar_text(&String::from("base"))
         );
     }
 }
@@ -79,8 +79,8 @@ impl Child {
     }
     pub fn describe(&self, prefix: String) -> String {
         return format!(
-            "{}{}", terrane_scalar_support::scalar_text(& (prefix)),
-            terrane_scalar_support::scalar_text(& (String::from("child")))
+            "{}{}", terrane_scalar_support::scalar_text(&prefix),
+            terrane_scalar_support::scalar_text(&String::from("child"))
         );
     }
     pub fn tagged_value(&self) -> String {
@@ -108,15 +108,15 @@ fn main() {
     let view: Describable = Describable::from(value.clone());
     let base_view: Base = Base::Child(value.clone());
     println!(
-        "{}", terrane_scalar_support::scalar_text(& (view.describe(String::from("a-"))))
+        "{}", terrane_scalar_support::scalar_text(&view.describe(String::from("a-")))
     );
     println!(
-        "{}", terrane_scalar_support::scalar_text(& (base_view
-        .describe(String::from("b-"))))
+        "{}", terrane_scalar_support::scalar_text(&base_view
+        .describe(String::from("b-")))
     );
-    println!("{}", terrane_scalar_support::scalar_text(& (value.tagged_value())));
+    println!("{}", terrane_scalar_support::scalar_text(&value.tagged_value()));
     println!(
-        "{}", terrane_scalar_support::scalar_text(& (((value.value).clone() + (value
-        .extra).clone())))
+        "{}", terrane_scalar_support::scalar_text(&(value.value.clone() + value.extra
+        .clone()))
     );
 }

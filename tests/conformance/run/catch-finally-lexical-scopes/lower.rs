@@ -155,7 +155,7 @@ fn typed_catch() {
                 {
                     __terrane_handled_0 = true;
                     let caught: i64 = 1;
-                    println!("{}", terrane_scalar_support::scalar_text(& (caught)));
+                    println!("{}", terrane_scalar_support::scalar_text(&caught));
                 }
                 if !__terrane_handled_0 {
                     return TerraneCompletion::Error(__terrane_error_0);
@@ -166,7 +166,7 @@ fn typed_catch() {
     })();
     let __terrane_finally_0: TerraneCompletion<()> = (|| {
         let completed: i64 = 2;
-        println!("{}", terrane_scalar_support::scalar_text(& (completed)));
+        println!("{}", terrane_scalar_support::scalar_text(&completed));
         TerraneCompletion::Normal
     })();
     match __terrane_finally_0 {
@@ -203,7 +203,7 @@ fn catch_all() {
                 if !__terrane_handled_1 {
                     __terrane_handled_1 = true;
                     let caught: i64 = 3;
-                    println!("{}", terrane_scalar_support::scalar_text(& (caught)));
+                    println!("{}", terrane_scalar_support::scalar_text(&caught));
                 }
                 if !__terrane_handled_1 {
                     return TerraneCompletion::Error(__terrane_error_1);

@@ -140,30 +140,30 @@ fn main() {
         &text,
     );
     println!(
-        "{}", terrane_scalar_support::scalar_text(& (terrane_string_support::length(& ({
-        let __terrane_owner = seen.upgrade().expect("reference expired"); let
-        __terrane_value = __terrane_owner.lock().expect("reference lock poisoned")
-        .clone(); __terrane_value })) as i128))
-    );
-    println!(
-        "{}", terrane_scalar_support::scalar_text(& (({ let __terrane_owner = seen
-        .upgrade().expect("reference expired"); let __terrane_value = __terrane_owner
-        .lock().expect("reference lock poisoned").clone(); __terrane_value })))
-    );
-    println!(
-        "{}", terrane_scalar_support::scalar_text(& (format!("{}{}",
-        terrane_scalar_support::scalar_text(& (({ let __terrane_owner = seen.upgrade()
-        .expect("reference expired"); let __terrane_value = __terrane_owner.lock()
-        .expect("reference lock poisoned").clone(); __terrane_value }))),
-        terrane_scalar_support::scalar_text(& (String::from("!"))))))
-    );
-    println!(
-        "{}", terrane_scalar_support::scalar_text(&
-        (vec![terrane_scalar_support::scalar_text(& (String::from("x"))),
-        terrane_scalar_support::scalar_text(& (String::from("y")))] .join(& (({ let
+        "{}", terrane_scalar_support::scalar_text(&(terrane_string_support::length(&{ let
         __terrane_owner = seen.upgrade().expect("reference expired"); let __terrane_value
         = __terrane_owner.lock().expect("reference lock poisoned").clone();
-        __terrane_value })))))
+        __terrane_value }) as i128))
+    );
+    println!(
+        "{}", terrane_scalar_support::scalar_text(&{ let __terrane_owner = seen.upgrade()
+        .expect("reference expired"); let __terrane_value = __terrane_owner.lock()
+        .expect("reference lock poisoned").clone(); __terrane_value })
+    );
+    println!(
+        "{}", terrane_scalar_support::scalar_text(&format!("{}{}",
+        terrane_scalar_support::scalar_text(&{ let __terrane_owner = seen.upgrade()
+        .expect("reference expired"); let __terrane_value = __terrane_owner.lock()
+        .expect("reference lock poisoned").clone(); __terrane_value }),
+        terrane_scalar_support::scalar_text(&String::from("!"))))
+    );
+    println!(
+        "{}",
+        terrane_scalar_support::scalar_text(&vec![terrane_scalar_support::scalar_text(&String::from("x")),
+        terrane_scalar_support::scalar_text(&String::from("y"))] .join(&{ let
+        __terrane_owner = seen.upgrade().expect("reference expired"); let __terrane_value
+        = __terrane_owner.lock().expect("reference lock poisoned").clone();
+        __terrane_value }))
     );
     let encoded: std::sync::Arc<std::sync::Mutex<Vec<u8>>> = std::sync::Arc::new(
         std::sync::Mutex::new(
@@ -183,12 +183,12 @@ fn main() {
         &encoded,
     );
     println!(
-        "{}", terrane_scalar_support::scalar_text(& ((terrane_string_support::decode(&
-        (({ let __terrane_owner = decoded.upgrade().expect("reference expired"); let
+        "{}", terrane_scalar_support::scalar_text(&terrane_string_support::decode(&{ let
+        __terrane_owner = decoded.upgrade().expect("reference expired"); let
         __terrane_value = __terrane_owner.lock().expect("reference lock poisoned")
-        .clone(); __terrane_value })), terrane_string_support::Encoding::Utf8))
+        .clone(); __terrane_value }, terrane_string_support::Encoding::Utf8)
         .unwrap_or_else(| error | __terrane_uncaught(TerraneError::from(error)
-        .at("/scalar-reference-transparency::main (case.trn:14:13)")))))
+        .at("/scalar-reference-transparency::main (case.trn:14:13)"))))
     );
     let number: std::sync::Arc<std::sync::Mutex<i8>> = std::sync::Arc::new(
         std::sync::Mutex::new(7),
@@ -197,47 +197,48 @@ fn main() {
         &number,
     );
     println!(
-        "{}", terrane_scalar_support::scalar_text(& (({ let __terrane_owner = observed
+        "{}", terrane_scalar_support::scalar_text(&{ let __terrane_owner = observed
         .upgrade().expect("reference expired"); let __terrane_value = __terrane_owner
-        .lock().expect("reference lock poisoned").clone(); __terrane_value })))
+        .lock().expect("reference lock poisoned").clone(); __terrane_value })
     );
     println!(
-        "{}", terrane_scalar_support::scalar_text(& (terrane_int_support::Int::from((({
+        "{}", terrane_scalar_support::scalar_text(&terrane_int_support::Int::from({ let
+        __terrane_owner = observed.upgrade().expect("reference expired"); let
+        __terrane_value = __terrane_owner.lock().expect("reference lock poisoned")
+        .clone(); __terrane_value } as i128))
+    );
+    println!(
+        "{}", terrane_scalar_support::scalar_text(&terrane_int_support::fixed_addition({
         let __terrane_owner = observed.upgrade().expect("reference expired"); let
         __terrane_value = __terrane_owner.lock().expect("reference lock poisoned")
-        .clone(); __terrane_value })) as i128)))
+        .clone(); __terrane_value }, 2).unwrap_or_else(| error |
+        __terrane_uncaught(TerraneError::from(error)
+        .at("/scalar-reference-transparency::main (case.trn:19:13)"))))
     );
     println!(
-        "{}", terrane_scalar_support::scalar_text(&
-        ((terrane_int_support::fixed_addition({ let __terrane_owner = observed.upgrade()
-        .expect("reference expired"); let __terrane_value = __terrane_owner.lock()
-        .expect("reference lock poisoned").clone(); __terrane_value }, 2))
-        .unwrap_or_else(| error | __terrane_uncaught(TerraneError::from(error)
-        .at("/scalar-reference-transparency::main (case.trn:19:13)")))))
+        "{}", terrane_scalar_support::scalar_text(&terrane_int_support::fixed_addition({
+        let __terrane_owner = observed.upgrade().expect("reference expired"); let
+        __terrane_value = __terrane_owner.lock().expect("reference lock poisoned")
+        .clone(); __terrane_value }, 3).unwrap_or_else(| error |
+        __terrane_uncaught(TerraneError::from(error)
+        .at("/scalar-reference-transparency::main (case.trn:20:12)"))))
     );
     println!(
-        "{}", terrane_scalar_support::scalar_text(&
-        ((terrane_int_support::fixed_addition({ let __terrane_owner = observed.upgrade()
-        .expect("reference expired"); let __terrane_value = __terrane_owner.lock()
-        .expect("reference lock poisoned").clone(); __terrane_value }, 3))
-        .unwrap_or_else(| error | __terrane_uncaught(TerraneError::from(error)
-        .at("/scalar-reference-transparency::main (case.trn:20:12)")))))
-    );
-    println!(
-        "{}", terrane_scalar_support::scalar_text(& (- ({ let __terrane_owner = observed
+        "{}", terrane_scalar_support::scalar_text(&- { let __terrane_owner = observed
         .upgrade().expect("reference expired"); let __terrane_value = __terrane_owner
-        .lock().expect("reference lock poisoned").clone(); __terrane_value })))
+        .lock().expect("reference lock poisoned").clone(); __terrane_value })
     );
     let owner: std::sync::Arc<std::sync::Mutex<i8>> = number.clone();
     println!(
-        "{}", terrane_scalar_support::scalar_text(& (({ let __terrane_value = owner
-        .lock().expect("shared reference lock poisoned").clone(); __terrane_value })))
+        "{}", terrane_scalar_support::scalar_text(&{ let __terrane_value = owner.lock()
+        .expect("shared reference lock poisoned").clone(); __terrane_value })
     );
     println!(
-        "{}", terrane_scalar_support::scalar_text(&
-        ((terrane_int_support::fixed_multiplication({ let __terrane_value = owner.lock()
-        .expect("shared reference lock poisoned").clone(); __terrane_value }, 2))
-        .unwrap_or_else(| error | __terrane_uncaught(TerraneError::from(error)
-        .at("/scalar-reference-transparency::main (case.trn:24:12)")))))
+        "{}",
+        terrane_scalar_support::scalar_text(&terrane_int_support::fixed_multiplication({
+        let __terrane_value = owner.lock().expect("shared reference lock poisoned")
+        .clone(); __terrane_value }, 2).unwrap_or_else(| error |
+        __terrane_uncaught(TerraneError::from(error)
+        .at("/scalar-reference-transparency::main (case.trn:24:12)"))))
     );
 }

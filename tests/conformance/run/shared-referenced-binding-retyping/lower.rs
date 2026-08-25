@@ -150,20 +150,18 @@ fn main() {
         terrane_int_support::Int,
     >::new(vec![terrane_int_support::Int::from(14_i128)]);
     println!(
-        "{}{}", terrane_scalar_support::scalar_text(& (((({ let __terrane_value = owner
-        .lock().expect("shared reference lock poisoned").clone(); __terrane_value }))
-        .get_or_error((terrane_collection_support::index_from_int(&
-        (terrane_int_support::Int::from(0_i128)))).unwrap_or_else(| error |
-        __terrane_uncaught(TerraneError::from(error)
-        .at("/shared-referenced-binding-retyping::main (case.trn:9:12)")))))
+        "{}{}", terrane_scalar_support::scalar_text(&{ let __terrane_value = owner.lock()
+        .expect("shared reference lock poisoned").clone(); __terrane_value }
+        .get_or_error(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128))
         .unwrap_or_else(| error | __terrane_uncaught(TerraneError::from(error)
-        .at("/shared-referenced-binding-retyping::main (case.trn:9:12)"))))),
-        terrane_scalar_support::scalar_text(& (((value)
-        .get_or_error((terrane_collection_support::index_from_int(&
-        (terrane_int_support::Int::from(0_i128)))).unwrap_or_else(| error |
-        __terrane_uncaught(TerraneError::from(error)
-        .at("/shared-referenced-binding-retyping::main (case.trn:9:22)")))))
+        .at("/shared-referenced-binding-retyping::main (case.trn:9:12)"))))
         .unwrap_or_else(| error | __terrane_uncaught(TerraneError::from(error)
-        .at("/shared-referenced-binding-retyping::main (case.trn:9:22)")))))
+        .at("/shared-referenced-binding-retyping::main (case.trn:9:12)")))),
+        terrane_scalar_support::scalar_text(&value
+        .get_or_error(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128))
+        .unwrap_or_else(| error | __terrane_uncaught(TerraneError::from(error)
+        .at("/shared-referenced-binding-retyping::main (case.trn:9:22)"))))
+        .unwrap_or_else(| error | __terrane_uncaught(TerraneError::from(error)
+        .at("/shared-referenced-binding-retyping::main (case.trn:9:22)"))))
     );
 }

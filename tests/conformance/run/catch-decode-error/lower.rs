@@ -148,7 +148,7 @@ fn main() {
                     );
                 }
             };
-            println!("{}", terrane_scalar_support::scalar_text(& (decoded)));
+            println!("{}", terrane_scalar_support::scalar_text(&decoded));
             TerraneCompletion::Normal
         })();
         match __terrane_try_0 {
@@ -163,8 +163,8 @@ fn main() {
                 {
                     __terrane_handled_0 = true;
                     println!(
-                        "{}", terrane_scalar_support::scalar_text(&
-                        (String::from("caught decode")))
+                        "{}",
+                        terrane_scalar_support::scalar_text(&String::from("caught decode"))
                     );
                 }
                 if !__terrane_handled_0 {

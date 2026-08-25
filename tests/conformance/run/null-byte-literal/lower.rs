@@ -140,13 +140,13 @@ fn main() {
             terrane_collection_support::IterationStep::Item(item) => item,
             terrane_collection_support::IterationStep::End => break,
         };
-        println!("{}", terrane_scalar_support::scalar_text(& (byte)));
+        println!("{}", terrane_scalar_support::scalar_text(&byte));
     }
     println!(
-        "{}{}", terrane_scalar_support::scalar_text(& ((raw).len() as i128)),
-        terrane_scalar_support::scalar_text(& ((terrane_string_support::decode(& (raw),
-        terrane_string_support::Encoding::Utf8)).unwrap_or_else(| error |
+        "{}{}", terrane_scalar_support::scalar_text(&(raw.len() as i128)),
+        terrane_scalar_support::scalar_text(&terrane_string_support::decode(&raw,
+        terrane_string_support::Encoding::Utf8).unwrap_or_else(| error |
         __terrane_uncaught(TerraneError::from(error)
-        .at("/null-byte-literal::main (case.trn:6:23)")))))
+        .at("/null-byte-literal::main (case.trn:6:23)"))))
     );
 }

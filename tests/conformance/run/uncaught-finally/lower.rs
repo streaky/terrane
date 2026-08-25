@@ -159,7 +159,7 @@ fn main() {
     })();
     let __terrane_finally_0: TerraneCompletion<()> = (|| {
         println!(
-            "{}", terrane_scalar_support::scalar_text(& (String::from("finally ran")))
+            "{}", terrane_scalar_support::scalar_text(&String::from("finally ran"))
         );
         TerraneCompletion::Normal
     })();

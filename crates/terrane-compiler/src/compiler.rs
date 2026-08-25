@@ -203,8 +203,10 @@ fn canonical_rust(rust: &str) -> Result<String, syn::Error> {
         .map(str::len)
         .sum();
     let (metadata, body) = rust.split_at(metadata_end);
-    let parsed = syn::parse_file(body)?;
-    Ok(format!("{metadata}{}", prettyplease::unparse(&parsed)))
+    Ok(format!(
+        "{metadata}{}",
+        crate::rust_ir::canonicalize_rust(body)?
+    ))
 }
 
 fn first_difference(left: &str, right: &str) -> usize {

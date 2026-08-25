@@ -62,8 +62,8 @@ fn main() {
         .clone() == terrane_int_support::Int::from(12_i128)
     {
         println!(
-            "{}", terrane_scalar_support::scalar_text(& (((current()) +
-            terrane_int_support::Int::from(1_i128))))
+            "{}", terrane_scalar_support::scalar_text(&(current() +
+            terrane_int_support::Int::from(1_i128)))
         );
     }
 }

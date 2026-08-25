@@ -143,26 +143,25 @@ fn take(mut v: terrane_collection_support::List<terrane_int_support::Int>) {
         ],
     );
     println!(
-        "{}", terrane_scalar_support::scalar_text(& (((v)
-        .get_or_error((terrane_collection_support::index_from_int(&
-        (terrane_int_support::Int::from(1_i128)))).unwrap_or_else(| error |
-        __terrane_uncaught(TerraneError::from(error)
-        .at("/parameter-dead-store-warnings::take (case.trn:6:10)"))))).unwrap_or_else(|
+        "{}", terrane_scalar_support::scalar_text(&v
+        .get_or_error(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(1_i128))
+        .unwrap_or_else(| error | __terrane_uncaught(TerraneError::from(error)
+        .at("/parameter-dead-store-warnings::take (case.trn:6:10)")))).unwrap_or_else(|
         error | __terrane_uncaught(TerraneError::from(error)
-        .at("/parameter-dead-store-warnings::take (case.trn:6:10)")))))
+        .at("/parameter-dead-store-warnings::take (case.trn:6:10)"))))
     );
 }
 fn scalar(mut v: terrane_int_support::Int) {
     let _ = &v;
     v = terrane_int_support::Int::from(4_i128);
-    println!("{}", terrane_scalar_support::scalar_text(& (v)));
+    println!("{}", terrane_scalar_support::scalar_text(&v));
 }
 fn unused(v: terrane_collection_support::List<terrane_int_support::Int>) {
     let _ = &v;
-    println!("{}", terrane_scalar_support::scalar_text(& (String::from("ignored"))));
+    println!("{}", terrane_scalar_support::scalar_text(&String::from("ignored")));
 }
 fn optional(v: terrane_int_support::Int) {
-    println!("{}", terrane_scalar_support::scalar_text(& (v)));
+    println!("{}", terrane_scalar_support::scalar_text(&v));
 }
 fn main() {
     take(

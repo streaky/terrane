@@ -1110,17 +1110,17 @@ impl Level9 {
 fn main() {
     let leaf: Level9 = Level9::terrane_construct();
     println!(
-        "{}{}{}", terrane_scalar_support::scalar_text(& (leaf.f0)),
-        terrane_scalar_support::scalar_text(& (leaf.f5)),
-        terrane_scalar_support::scalar_text(& (leaf.f9))
+        "{}{}{}", terrane_scalar_support::scalar_text(&leaf.f0),
+        terrane_scalar_support::scalar_text(&leaf.f5),
+        terrane_scalar_support::scalar_text(&leaf.f9)
     );
     let mut root: Level0 = Level0::Level9(leaf.clone());
     println!(
-        "{}", terrane_scalar_support::scalar_text(& ((root).terrane_field_f0().clone()))
+        "{}", terrane_scalar_support::scalar_text(&root.terrane_field_f0().clone())
     );
     *root.terrane_field_f0_mut() = terrane_int_support::Int::from(10_i128);
     println!(
-        "{}{}", terrane_scalar_support::scalar_text(& ((root).terrane_field_f0()
-        .clone())), terrane_scalar_support::scalar_text(& (leaf.f0))
+        "{}{}", terrane_scalar_support::scalar_text(&root.terrane_field_f0().clone()),
+        terrane_scalar_support::scalar_text(&leaf.f0)
     );
 }

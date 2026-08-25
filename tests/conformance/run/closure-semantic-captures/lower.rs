@@ -26,6 +26,6 @@ fn main() {
         callback.clone(),
         terrane_int_support::Int::from(2_i128),
     );
-    println!("{}", terrane_scalar_support::scalar_text(& (result)));
-    println!("{}", terrane_scalar_support::scalar_text(& (outer)));
+    println!("{}", terrane_scalar_support::scalar_text(&result));
+    println!("{}", terrane_scalar_support::scalar_text(&outer));
 }

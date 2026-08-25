@@ -34,9 +34,7 @@ impl Counter {
         return self.value.clone() + amount.clone();
     }
     pub fn destruct(&self) {
-        println!(
-            "{}", terrane_scalar_support::scalar_text(& (String::from("destruct")))
-        );
+        println!("{}", terrane_scalar_support::scalar_text(&String::from("destruct")));
     }
 }
 impl Drop for Counter {
@@ -60,15 +58,15 @@ fn main() {
         })
     };
     println!(
-        "{}", terrane_scalar_support::scalar_text(& (first
-        .increase(terrane_int_support::Int::from(5_i128))))
+        "{}", terrane_scalar_support::scalar_text(&first
+        .increase(terrane_int_support::Int::from(5_i128)))
     );
     println!(
-        "{}", terrane_scalar_support::scalar_text(& (second
-        .increase(terrane_int_support::Int::from(2_i128))))
+        "{}", terrane_scalar_support::scalar_text(&second
+        .increase(terrane_int_support::Int::from(2_i128)))
     );
     println!(
-        "{}", terrane_scalar_support::scalar_text(&
-        (shift(terrane_int_support::Int::from(3_i128))))
+        "{}",
+        terrane_scalar_support::scalar_text(&shift(terrane_int_support::Int::from(3_i128)))
     );
 }

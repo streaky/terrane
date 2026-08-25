@@ -30,5 +30,5 @@ fn main() {
         dyn Fn(terrane_int_support::Int) -> terrane_int_support::Int,
     > = value.offset();
     let result: terrane_int_support::Int = add(terrane_int_support::Int::from(5_i128));
-    println!("{}", terrane_scalar_support::scalar_text(& (result)));
+    println!("{}", terrane_scalar_support::scalar_text(&result));
 }

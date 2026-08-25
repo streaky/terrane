@@ -14,8 +14,8 @@ fn main() {
             + terrane_int_support::Int::from(0_i128)),
     );
     let saturated: u8 = terrane_int_support::saturating_coerce::<u8>(&value);
-    println!("{}", terrane_scalar_support::scalar_text(& (exact)));
-    println!("{}", terrane_scalar_support::scalar_text(& (wrapped)));
-    println!("{}", terrane_scalar_support::scalar_text(& (saturated)));
-    println!("{}", terrane_scalar_support::scalar_text(& (same)));
+    println!("{}", terrane_scalar_support::scalar_text(&exact));
+    println!("{}", terrane_scalar_support::scalar_text(&wrapped));
+    println!("{}", terrane_scalar_support::scalar_text(&saturated));
+    println!("{}", terrane_scalar_support::scalar_text(&same));
 }

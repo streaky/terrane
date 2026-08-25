@@ -21,5 +21,5 @@ fn main() {
             )
         }
     };
-    println!("{}", terrane_scalar_support::scalar_text(& (target)));
+    println!("{}", terrane_scalar_support::scalar_text(&target));
 }

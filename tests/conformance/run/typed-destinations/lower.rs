@@ -10,6 +10,6 @@ fn main() {
         terrane_string_support::length(&text) as i128,
     );
     total = total.clone() + terrane_int_support::Int::from(1_i128);
-    println!("{}", terrane_scalar_support::scalar_text(& (answer())));
-    println!("{}", terrane_scalar_support::scalar_text(& (total)));
+    println!("{}", terrane_scalar_support::scalar_text(&answer()));
+    println!("{}", terrane_scalar_support::scalar_text(&total));
 }

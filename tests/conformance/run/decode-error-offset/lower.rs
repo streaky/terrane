@@ -135,9 +135,10 @@ enum TerraneCompletion<T> {
 fn main() {
     let invalid: Vec<u8> = Vec::from([97, 255]);
     println!(
-        "{}", terrane_scalar_support::scalar_text(& ((terrane_string_support::decode(&
-        (invalid), terrane_string_support::Encoding::Utf8)).unwrap_or_else(| error |
+        "{}",
+        terrane_scalar_support::scalar_text(&terrane_string_support::decode(&invalid,
+        terrane_string_support::Encoding::Utf8).unwrap_or_else(| error |
         __terrane_uncaught(TerraneError::from(error)
-        .at("/decode-error-offset::main (case.trn:4:11)")))))
+        .at("/decode-error-offset::main (case.trn:4:11)"))))
     );
 }

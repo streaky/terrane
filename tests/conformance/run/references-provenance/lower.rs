@@ -153,30 +153,28 @@ fn main() {
         .expect("shared reference lock poisoned")
         .append(terrane_int_support::Int::from(2_i128));
     println!(
-        "{}{}", terrane_scalar_support::scalar_text(& (terrane_int_support::Int::from((({
-        let __terrane_value = values.lock().expect("reference lock poisoned").clone();
-        __terrane_value })).length()))), terrane_scalar_support::scalar_text(& (((({ let
+        "{}{}", terrane_scalar_support::scalar_text(&terrane_int_support::Int::from({ let
+        __terrane_value = values.lock().expect("reference lock poisoned").clone();
+        __terrane_value } .length())), terrane_scalar_support::scalar_text(&{ let
         __terrane_owner = observer.upgrade().expect("reference expired"); let
         __terrane_value = __terrane_owner.lock().expect("reference lock poisoned")
-        .clone(); __terrane_value }))
-        .get_or_error((terrane_collection_support::index_from_int(&
-        (terrane_int_support::Int::from(1_i128)))).unwrap_or_else(| error |
+        .clone(); __terrane_value }
+        .get_or_error(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(1_i128))
+        .unwrap_or_else(| error | __terrane_uncaught(TerraneError::from(error)
+        .at("/references-provenance::main (case.trn:10:25)")))).unwrap_or_else(| error |
         __terrane_uncaught(TerraneError::from(error)
-        .at("/references-provenance::main (case.trn:10:25)"))))).unwrap_or_else(| error |
-        __terrane_uncaught(TerraneError::from(error)
-        .at("/references-provenance::main (case.trn:10:25)")))))
+        .at("/references-provenance::main (case.trn:10:25)"))))
     );
     let owned: terrane_collection_support::List<terrane_int_support::Int> = terrane_collection_support::List::<
         terrane_int_support::Int,
     >::new(vec![terrane_int_support::Int::from(9_i128)]);
     let transferred: terrane_collection_support::List<terrane_int_support::Int> = owned;
     println!(
-        "{}", terrane_scalar_support::scalar_text(& (((transferred)
-        .get_or_error((terrane_collection_support::index_from_int(&
-        (terrane_int_support::Int::from(0_i128)))).unwrap_or_else(| error |
+        "{}", terrane_scalar_support::scalar_text(&transferred
+        .get_or_error(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128))
+        .unwrap_or_else(| error | __terrane_uncaught(TerraneError::from(error)
+        .at("/references-provenance::main (case.trn:13:10)")))).unwrap_or_else(| error |
         __terrane_uncaught(TerraneError::from(error)
-        .at("/references-provenance::main (case.trn:13:10)"))))).unwrap_or_else(| error |
-        __terrane_uncaught(TerraneError::from(error)
-        .at("/references-provenance::main (case.trn:13:10)")))))
+        .at("/references-provenance::main (case.trn:13:10)"))))
     );
 }

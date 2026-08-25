@@ -137,18 +137,16 @@ fn main() {
         terrane_collection_support::List<i8>,
     >::new(vec![terrane_collection_support::List::< i8 >::new(vec![5, 6])]);
     println!(
-        "{}", terrane_scalar_support::scalar_text(& (((((outer)
-        .get_or_error((terrane_collection_support::index_from_int(&
-        (terrane_int_support::Int::from(0_i128)))).unwrap_or_else(| error |
-        __terrane_uncaught(TerraneError::from(error)
-        .at("/nested-collection-contextual-typing::main (case.trn:6:10)")))))
+        "{}", terrane_scalar_support::scalar_text(&outer
+        .get_or_error(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128))
         .unwrap_or_else(| error | __terrane_uncaught(TerraneError::from(error)
         .at("/nested-collection-contextual-typing::main (case.trn:6:10)"))))
-        .get_or_error((terrane_collection_support::index_from_int(&
-        (terrane_int_support::Int::from(1_i128)))).unwrap_or_else(| error |
-        __terrane_uncaught(TerraneError::from(error)
-        .at("/nested-collection-contextual-typing::main (case.trn:6:10)")))))
         .unwrap_or_else(| error | __terrane_uncaught(TerraneError::from(error)
-        .at("/nested-collection-contextual-typing::main (case.trn:6:10)")))))
+        .at("/nested-collection-contextual-typing::main (case.trn:6:10)")))
+        .get_or_error(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(1_i128))
+        .unwrap_or_else(| error | __terrane_uncaught(TerraneError::from(error)
+        .at("/nested-collection-contextual-typing::main (case.trn:6:10)"))))
+        .unwrap_or_else(| error | __terrane_uncaught(TerraneError::from(error)
+        .at("/nested-collection-contextual-typing::main (case.trn:6:10)"))))
     );
 }

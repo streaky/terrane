@@ -135,12 +135,12 @@ enum TerraneCompletion<T> {
 fn main() {
     let text: String = String::from("e\u{301}");
     println!(
-        "{}{}{}{}", terrane_scalar_support::scalar_text(&
-        (terrane_string_support::length(& text) as i128)),
-        terrane_scalar_support::scalar_text(& ((text).len() as i128)),
-        terrane_scalar_support::scalar_text(& ((text).chars().count() as i128)),
-        terrane_scalar_support::scalar_text(& (terrane_string_support::length(& (text))
-        as i128))
+        "{}{}{}{}",
+        terrane_scalar_support::scalar_text(&(terrane_string_support::length(&text) as
+        i128)), terrane_scalar_support::scalar_text(&(text.len() as i128)),
+        terrane_scalar_support::scalar_text(&(text.chars().count() as i128)),
+        terrane_scalar_support::scalar_text(&(terrane_string_support::length(&text) as
+        i128))
     );
     let encoded: Vec<u8> = terrane_string_support::encode(
         &text,
@@ -153,7 +153,7 @@ fn main() {
         .unwrap_or_else(|error| __terrane_uncaught(
             TerraneError::from(error).at("/bytes-views-encoding::main (case.trn:6:20)"),
         ));
-    println!("{}", terrane_scalar_support::scalar_text(& (decoded)));
+    println!("{}", terrane_scalar_support::scalar_text(&decoded));
     let utf16le_text: String = terrane_string_support::decode(
             &terrane_string_support::encode(
                 &text,
@@ -194,8 +194,8 @@ fn main() {
         .unwrap_or_else(|error| __terrane_uncaught(
             TerraneError::from(error).at("/bytes-views-encoding::main (case.trn:11:25)"),
         ));
-    println!("{}", terrane_scalar_support::scalar_text(& (utf16le_text)));
-    println!("{}", terrane_scalar_support::scalar_text(& (utf16be_text)));
-    println!("{}", terrane_scalar_support::scalar_text(& (utf32le_text)));
-    println!("{}", terrane_scalar_support::scalar_text(& (utf32be_text)));
+    println!("{}", terrane_scalar_support::scalar_text(&utf16le_text));
+    println!("{}", terrane_scalar_support::scalar_text(&utf16be_text));
+    println!("{}", terrane_scalar_support::scalar_text(&utf32le_text));
+    println!("{}", terrane_scalar_support::scalar_text(&utf32be_text));
 }

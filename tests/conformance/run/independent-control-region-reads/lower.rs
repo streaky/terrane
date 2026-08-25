@@ -138,7 +138,7 @@ fn main() {
         across_if = 1;
     }
     if 1 == 1 {
-        println!("{}", terrane_scalar_support::scalar_text(& (across_if)));
+        println!("{}", terrane_scalar_support::scalar_text(&across_if));
     }
     let mut across_loop: i8 = 0;
     let mut __terrane_iterator_0 = terrane_collection_support::string_iterator(
@@ -161,7 +161,7 @@ fn main() {
             terrane_collection_support::IterationStep::End => break,
         };
         let _ = &second;
-        println!("{}", terrane_scalar_support::scalar_text(& (across_loop)));
+        println!("{}", terrane_scalar_support::scalar_text(&across_loop));
     }
     let mut across_catch: i8 = 0;
     let __terrane_completion_0: TerraneCompletion<()> = (|| {
@@ -186,9 +186,7 @@ fn main() {
                     && __terrane_error_0.kind == TerraneErrorKind::ArithmeticOverflow
                 {
                     __terrane_handled_0 = true;
-                    println!(
-                        "{}", terrane_scalar_support::scalar_text(& (across_catch))
-                    );
+                    println!("{}", terrane_scalar_support::scalar_text(&across_catch));
                 }
                 if !__terrane_handled_0 {
                     return TerraneCompletion::Error(__terrane_error_0);
@@ -210,6 +208,6 @@ fn main() {
         exclusive = 9;
         let _ = &mut exclusive;
     } else {
-        println!("{}", terrane_scalar_support::scalar_text(& (exclusive)));
+        println!("{}", terrane_scalar_support::scalar_text(&exclusive));
     }
 }

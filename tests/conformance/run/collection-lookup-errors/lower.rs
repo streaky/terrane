@@ -139,14 +139,15 @@ fn main() {
     let __terrane_completion_0: TerraneCompletion<()> = (|| {
         let __terrane_try_0: TerraneCompletion<()> = (|| {
             println!(
-                "{}", terrane_scalar_support::scalar_text(& (match (values)
-                .get_or_error(match terrane_collection_support::index_from_int(&
-                (terrane_int_support::Int::from(2_i128))) { Ok(value) => value,
-                Err(error) => return TerraneCompletion::Error(TerraneError::from(error)
+                "{}", terrane_scalar_support::scalar_text(&match values
+                .get_or_error(match
+                terrane_collection_support::index_from_int(&terrane_int_support::Int::from(2_i128))
+                { Ok(value) => value, Err(error) => return
+                TerraneCompletion::Error(TerraneError::from(error)
                 .at("/collection-lookup-errors::main (case.trn:7:12)")) }) { Ok(value) =>
                 value, Err(error) => return
                 TerraneCompletion::Error(TerraneError::from(error)
-                .at("/collection-lookup-errors::main (case.trn:7:12)")) }))
+                .at("/collection-lookup-errors::main (case.trn:7:12)")) })
             );
             TerraneCompletion::Normal
         })();
@@ -162,8 +163,7 @@ fn main() {
                 {
                     __terrane_handled_0 = true;
                     println!(
-                        "{}", terrane_scalar_support::scalar_text(&
-                        (String::from("index")))
+                        "{}", terrane_scalar_support::scalar_text(&String::from("index"))
                     );
                 }
                 if !__terrane_handled_0 {
@@ -186,7 +186,7 @@ fn main() {
         )
         .ok()
         .and_then(|index| values.get(index).cloned());
-    println!("{}", terrane_scalar_support::scalar_text(& ((checked_index == None))));
+    println!("{}", terrane_scalar_support::scalar_text(&(checked_index == None)));
     let values_by_key: terrane_collection_support::Map<
         String,
         terrane_int_support::Int,
@@ -202,10 +202,10 @@ fn main() {
     let __terrane_completion_1: TerraneCompletion<()> = (|| {
         let __terrane_try_1: TerraneCompletion<()> = (|| {
             println!(
-                "{}", terrane_scalar_support::scalar_text(& (match (values_by_key)
-                .get_or_error(& (String::from("absent"))) { Ok(value) => value,
-                Err(error) => return TerraneCompletion::Error(TerraneError::from(error)
-                .at("/collection-lookup-errors::main (case.trn:14:12)")) }))
+                "{}", terrane_scalar_support::scalar_text(&match values_by_key
+                .get_or_error(&String::from("absent")) { Ok(value) => value, Err(error)
+                => return TerraneCompletion::Error(TerraneError::from(error)
+                .at("/collection-lookup-errors::main (case.trn:14:12)")) })
             );
             TerraneCompletion::Normal
         })();
@@ -221,8 +221,8 @@ fn main() {
                 {
                     __terrane_handled_1 = true;
                     println!(
-                        "{}", terrane_scalar_support::scalar_text(&
-                        (String::from("missing")))
+                        "{}",
+                        terrane_scalar_support::scalar_text(&String::from("missing"))
                     );
                 }
                 if !__terrane_handled_1 {
@@ -247,7 +247,7 @@ fn main() {
         .get(&String::from("present"))
         .cloned();
     println!(
-        "{}{}", terrane_scalar_support::scalar_text(& ((checked_key == None))),
-        terrane_scalar_support::scalar_text(& ((present_key != None)))
+        "{}{}", terrane_scalar_support::scalar_text(&(checked_key == None)),
+        terrane_scalar_support::scalar_text(&(present_key != None))
     );
 }

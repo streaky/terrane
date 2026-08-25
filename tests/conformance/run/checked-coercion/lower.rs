@@ -13,7 +13,7 @@ fn convert(item: terrane_int_support::Int) -> i8 {
     return result;
 }
 fn helper() {
-    println!("{}", terrane_scalar_support::scalar_text(& (String::from("helper"))));
+    println!("{}", terrane_scalar_support::scalar_text(&String::from("helper")));
 }
 fn main() {
     helper();
@@ -31,11 +31,11 @@ fn main() {
     let absent: bool = checked.is_none();
     let present: bool = checked.is_some();
     let shadow_safe: i8 = terrane_int_support::saturating_coerce::<i8>(&value);
-    println!("{}", terrane_scalar_support::scalar_text(& (coerced)));
-    println!("{}", terrane_scalar_support::scalar_text(& ((renamed_checked).is_some())));
-    println!("{}", terrane_scalar_support::scalar_text(& (shared_coerced)));
-    println!("{}", terrane_scalar_support::scalar_text(& (parameter_coerced)));
-    println!("{}", terrane_scalar_support::scalar_text(& (absent)));
-    println!("{}", terrane_scalar_support::scalar_text(& (present)));
-    println!("{}", terrane_scalar_support::scalar_text(& (shadow_safe)));
+    println!("{}", terrane_scalar_support::scalar_text(&coerced));
+    println!("{}", terrane_scalar_support::scalar_text(&renamed_checked.is_some()));
+    println!("{}", terrane_scalar_support::scalar_text(&shared_coerced));
+    println!("{}", terrane_scalar_support::scalar_text(&parameter_coerced));
+    println!("{}", terrane_scalar_support::scalar_text(&absent));
+    println!("{}", terrane_scalar_support::scalar_text(&present));
+    println!("{}", terrane_scalar_support::scalar_text(&shadow_safe));
 }

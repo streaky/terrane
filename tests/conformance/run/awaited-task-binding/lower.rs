@@ -47,6 +47,6 @@ fn main() {
             answer(),
         );
         let value: terrane_int_support::Int = __terrane_await(child).await;
-        println!("{}", terrane_scalar_support::scalar_text(& (value)));
+        println!("{}", terrane_scalar_support::scalar_text(&value));
     });
 }

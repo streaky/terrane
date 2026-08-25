@@ -144,7 +144,7 @@ fn main() {
         String,
         terrane_collection_support::Entry<String, i8>,
     >::new(
-        vec![terrane_collection_support::Entry::new(String::from("a"), (inner).clone())],
+        vec![terrane_collection_support::Entry::new(String::from("a"), inner.clone())],
     );
     let ordered_inline: terrane_collection_support::Map<
         String,
@@ -165,7 +165,7 @@ fn main() {
         String,
         terrane_collection_support::Entry<String, i8>,
     >::new(
-        vec![terrane_collection_support::Entry::new(String::from("a"), (inner).clone())],
+        vec![terrane_collection_support::Entry::new(String::from("a"), inner.clone())],
     );
     let unordered_inline: terrane_collection_support::UnorderedMap<
         String,
@@ -206,63 +206,63 @@ fn main() {
         ],
     );
     println!(
-        "{}{}", terrane_scalar_support::scalar_text(& ((((ordered_bound).get_or_error(&
-        (String::from("a")))).unwrap_or_else(| error |
+        "{}{}", terrane_scalar_support::scalar_text(&ordered_bound
+        .get_or_error(&String::from("a")).unwrap_or_else(| error |
         __terrane_uncaught(TerraneError::from(error)
-        .at("/entry-valued-maps::main (case.trn:13:10)")))).key)),
-        terrane_scalar_support::scalar_text(& ((((ordered_bound).get_or_error(&
-        (String::from("a")))).unwrap_or_else(| error |
+        .at("/entry-valued-maps::main (case.trn:13:10)"))).key),
+        terrane_scalar_support::scalar_text(&ordered_bound
+        .get_or_error(&String::from("a")).unwrap_or_else(| error |
         __terrane_uncaught(TerraneError::from(error)
-        .at("/entry-valued-maps::main (case.trn:13:34)")))).value))
+        .at("/entry-valued-maps::main (case.trn:13:34)"))).value)
     );
     println!(
-        "{}{}", terrane_scalar_support::scalar_text(& ((((ordered_inline).get_or_error(&
-        (String::from("a")))).unwrap_or_else(| error |
+        "{}{}", terrane_scalar_support::scalar_text(&ordered_inline
+        .get_or_error(&String::from("a")).unwrap_or_else(| error |
         __terrane_uncaught(TerraneError::from(error)
-        .at("/entry-valued-maps::main (case.trn:14:10)")))).key)),
-        terrane_scalar_support::scalar_text(& ((((ordered_inline).get_or_error(&
-        (String::from("a")))).unwrap_or_else(| error |
+        .at("/entry-valued-maps::main (case.trn:14:10)"))).key),
+        terrane_scalar_support::scalar_text(&ordered_inline
+        .get_or_error(&String::from("a")).unwrap_or_else(| error |
         __terrane_uncaught(TerraneError::from(error)
-        .at("/entry-valued-maps::main (case.trn:14:35)")))).value))
+        .at("/entry-valued-maps::main (case.trn:14:35)"))).value)
     );
     println!(
-        "{}{}", terrane_scalar_support::scalar_text(& ((((unordered_bound).get_or_error(&
-        (String::from("a")))).unwrap_or_else(| error |
+        "{}{}", terrane_scalar_support::scalar_text(&unordered_bound
+        .get_or_error(&String::from("a")).unwrap_or_else(| error |
         __terrane_uncaught(TerraneError::from(error)
-        .at("/entry-valued-maps::main (case.trn:15:10)")))).key)),
-        terrane_scalar_support::scalar_text(& ((((unordered_bound).get_or_error(&
-        (String::from("a")))).unwrap_or_else(| error |
+        .at("/entry-valued-maps::main (case.trn:15:10)"))).key),
+        terrane_scalar_support::scalar_text(&unordered_bound
+        .get_or_error(&String::from("a")).unwrap_or_else(| error |
         __terrane_uncaught(TerraneError::from(error)
-        .at("/entry-valued-maps::main (case.trn:15:36)")))).value))
+        .at("/entry-valued-maps::main (case.trn:15:36)"))).value)
     );
     println!(
-        "{}{}", terrane_scalar_support::scalar_text(& ((((unordered_inline)
-        .get_or_error(& (String::from("a")))).unwrap_or_else(| error |
+        "{}{}", terrane_scalar_support::scalar_text(&unordered_inline
+        .get_or_error(&String::from("a")).unwrap_or_else(| error |
         __terrane_uncaught(TerraneError::from(error)
-        .at("/entry-valued-maps::main (case.trn:16:10)")))).key)),
-        terrane_scalar_support::scalar_text(& ((((unordered_inline).get_or_error(&
-        (String::from("a")))).unwrap_or_else(| error |
+        .at("/entry-valued-maps::main (case.trn:16:10)"))).key),
+        terrane_scalar_support::scalar_text(&unordered_inline
+        .get_or_error(&String::from("a")).unwrap_or_else(| error |
         __terrane_uncaught(TerraneError::from(error)
-        .at("/entry-valued-maps::main (case.trn:16:37)")))).value))
+        .at("/entry-valued-maps::main (case.trn:16:37)"))).value)
     );
     println!(
-        "{}{}", terrane_scalar_support::scalar_text(& ((((inferred_ordered)
-        .get_or_error(& (String::from("a")))).unwrap_or_else(| error |
+        "{}{}", terrane_scalar_support::scalar_text(&inferred_ordered
+        .get_or_error(&String::from("a")).unwrap_or_else(| error |
         __terrane_uncaught(TerraneError::from(error)
-        .at("/entry-valued-maps::main (case.trn:17:10)")))).key)),
-        terrane_scalar_support::scalar_text(& ((((inferred_ordered).get_or_error(&
-        (String::from("a")))).unwrap_or_else(| error |
+        .at("/entry-valued-maps::main (case.trn:17:10)"))).key),
+        terrane_scalar_support::scalar_text(&inferred_ordered
+        .get_or_error(&String::from("a")).unwrap_or_else(| error |
         __terrane_uncaught(TerraneError::from(error)
-        .at("/entry-valued-maps::main (case.trn:17:37)")))).value))
+        .at("/entry-valued-maps::main (case.trn:17:37)"))).value)
     );
     println!(
-        "{}{}", terrane_scalar_support::scalar_text(& ((((inferred_unordered)
-        .get_or_error(& (String::from("a")))).unwrap_or_else(| error |
+        "{}{}", terrane_scalar_support::scalar_text(&inferred_unordered
+        .get_or_error(&String::from("a")).unwrap_or_else(| error |
         __terrane_uncaught(TerraneError::from(error)
-        .at("/entry-valued-maps::main (case.trn:18:10)")))).key)),
-        terrane_scalar_support::scalar_text(& ((((inferred_unordered).get_or_error(&
-        (String::from("a")))).unwrap_or_else(| error |
+        .at("/entry-valued-maps::main (case.trn:18:10)"))).key),
+        terrane_scalar_support::scalar_text(&inferred_unordered
+        .get_or_error(&String::from("a")).unwrap_or_else(| error |
         __terrane_uncaught(TerraneError::from(error)
-        .at("/entry-valued-maps::main (case.trn:18:39)")))).value))
+        .at("/entry-valued-maps::main (case.trn:18:39)"))).value)
     );
 }

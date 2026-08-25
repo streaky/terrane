@@ -145,7 +145,7 @@ fn main() {
                     );
                 }
             };
-            println!("{}", terrane_scalar_support::scalar_text(& (value)));
+            println!("{}", terrane_scalar_support::scalar_text(&value));
             TerraneCompletion::Normal
         })();
         match __terrane_try_0 {
@@ -160,8 +160,8 @@ fn main() {
                 {
                     __terrane_handled_0 = true;
                     println!(
-                        "{}", terrane_scalar_support::scalar_text(&
-                        (String::from("caught")))
+                        "{}",
+                        terrane_scalar_support::scalar_text(&String::from("caught"))
                     );
                 }
                 if !__terrane_handled_0 {
@@ -172,7 +172,7 @@ fn main() {
         TerraneCompletion::Normal
     })();
     let __terrane_finally_0: TerraneCompletion<()> = (|| {
-        println!("{}", terrane_scalar_support::scalar_text(& (String::from("finally"))));
+        println!("{}", terrane_scalar_support::scalar_text(&String::from("finally")));
         TerraneCompletion::Normal
     })();
     match __terrane_finally_0 {

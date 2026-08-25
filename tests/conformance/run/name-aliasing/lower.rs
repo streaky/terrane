@@ -10,6 +10,6 @@ static __TERRANE_F0_ALIAS: std::sync::LazyLock<String> = std::sync::LazyLock::ne
 fn main() {
     let local: String = String::from("function");
     let copy: String = local;
-    println!("{}", terrane_scalar_support::scalar_text(& (&* __TERRANE_F0_ALIAS)));
-    println!("{}", terrane_scalar_support::scalar_text(& (copy)));
+    println!("{}", terrane_scalar_support::scalar_text(&&* __TERRANE_F0_ALIAS));
+    println!("{}", terrane_scalar_support::scalar_text(&copy));
 }

@@ -34,23 +34,23 @@ fn main() {
     let converted: terrane_int_support::Int = terrane_int_support::unwrap_or_fail(
         terrane_int_support::exact_int_f64(whole),
     );
-    println!("{}", terrane_scalar_support::scalar_text(& (adaptive)));
-    println!("{}", terrane_scalar_support::scalar_text(& (wide)));
-    println!("{}", terrane_scalar_support::scalar_text(& (selected)));
+    println!("{}", terrane_scalar_support::scalar_text(&adaptive));
+    println!("{}", terrane_scalar_support::scalar_text(&wide));
+    println!("{}", terrane_scalar_support::scalar_text(&selected));
     let other: i32 = 13;
     selected = TerraneUnionF0S177::Arm1(other);
     println!(
-        "{}", terrane_scalar_support::scalar_text(& (matches!(& selected,
-        TerraneUnionF0S177::Arm1(_))))
+        "{}", terrane_scalar_support::scalar_text(&matches!(&selected,
+        TerraneUnionF0S177::Arm1(_)))
     );
     selected = TerraneUnionF0S177::Arm0(small);
     println!(
-        "{}", terrane_scalar_support::scalar_text(& (matches!(& selected,
-        TerraneUnionF0S177::Arm0(_))))
+        "{}", terrane_scalar_support::scalar_text(&matches!(&selected,
+        TerraneUnionF0S177::Arm0(_)))
     );
-    println!("{}", terrane_scalar_support::scalar_text(& (total)));
-    println!("{}", terrane_scalar_support::scalar_text(& (exact_float)));
-    println!("{}", terrane_scalar_support::scalar_text(& (converted)));
+    println!("{}", terrane_scalar_support::scalar_text(&total));
+    println!("{}", terrane_scalar_support::scalar_text(&exact_float));
+    println!("{}", terrane_scalar_support::scalar_text(&converted));
     let myvar: i64 = 12;
     let slop: i8;
     slop = {
@@ -67,5 +67,5 @@ fn main() {
                 )),
         )
     };
-    println!("{}", terrane_scalar_support::scalar_text(& (slop)));
+    println!("{}", terrane_scalar_support::scalar_text(&slop));
 }

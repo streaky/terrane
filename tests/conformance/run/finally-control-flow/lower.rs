@@ -153,7 +153,7 @@ fn early() -> terrane_int_support::Int {
     })();
     let __terrane_finally_0: TerraneCompletion<terrane_int_support::Int> = (|| {
         println!(
-            "{}", terrane_scalar_support::scalar_text(& (String::from("return finally")))
+            "{}", terrane_scalar_support::scalar_text(&String::from("return finally"))
         );
         TerraneCompletion::Normal
     })();
@@ -207,7 +207,7 @@ fn caught() -> terrane_int_support::Int {
     })();
     let __terrane_finally_1: TerraneCompletion<terrane_int_support::Int> = (|| {
         println!(
-            "{}", terrane_scalar_support::scalar_text(& (String::from("catch finally")))
+            "{}", terrane_scalar_support::scalar_text(&String::from("catch finally"))
         );
         TerraneCompletion::Normal
     })();
@@ -228,9 +228,9 @@ fn caught() -> terrane_int_support::Int {
 }
 fn main() {
     let value: terrane_int_support::Int = early();
-    println!("{}", terrane_scalar_support::scalar_text(& (value)));
+    println!("{}", terrane_scalar_support::scalar_text(&value));
     let caught_value: terrane_int_support::Int = caught();
-    println!("{}", terrane_scalar_support::scalar_text(& (caught_value)));
+    println!("{}", terrane_scalar_support::scalar_text(&caught_value));
     let mut counter: terrane_int_support::Int = terrane_int_support::Int::from(0_i128);
     while counter.clone() < terrane_int_support::Int::from(3_i128) {
         counter = counter.clone() + terrane_int_support::Int::from(1_i128);
@@ -262,8 +262,7 @@ fn main() {
         })();
         let __terrane_finally_2: TerraneCompletion<()> = (|| {
             println!(
-                "{}", terrane_scalar_support::scalar_text(&
-                (String::from("loop finally")))
+                "{}", terrane_scalar_support::scalar_text(&String::from("loop finally"))
             );
             TerraneCompletion::Normal
         })();
@@ -279,5 +278,5 @@ fn main() {
             TerraneCompletion::Continue => continue,
         }
     }
-    println!("{}", terrane_scalar_support::scalar_text(& (String::from("done"))));
+    println!("{}", terrane_scalar_support::scalar_text(&String::from("done")));
 }

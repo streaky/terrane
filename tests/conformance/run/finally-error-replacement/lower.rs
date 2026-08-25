@@ -223,7 +223,7 @@ fn main() {
         .unwrap_or_else(|error| __terrane_uncaught(
             error.at("/finally-error-replacement::main (case.trn:14:15)"),
         ));
-    println!("{}", terrane_scalar_support::scalar_text(& (first)));
+    println!("{}", terrane_scalar_support::scalar_text(&first));
     let __terrane_completion_2: TerraneCompletion<()> = (|| {
         let __terrane_try_2: TerraneCompletion<()> = (|| {
             let second: terrane_int_support::Int = match return_then_error() {
@@ -234,7 +234,7 @@ fn main() {
                     );
                 }
             };
-            println!("{}", terrane_scalar_support::scalar_text(& (second)));
+            println!("{}", terrane_scalar_support::scalar_text(&second));
             TerraneCompletion::Normal
         })();
         match __terrane_try_2 {
@@ -249,8 +249,8 @@ fn main() {
                 {
                     __terrane_handled_2 = true;
                     println!(
-                        "{}", terrane_scalar_support::scalar_text(&
-                        (String::from("replaced")))
+                        "{}",
+                        terrane_scalar_support::scalar_text(&String::from("replaced"))
                     );
                 }
                 if !__terrane_handled_2 {

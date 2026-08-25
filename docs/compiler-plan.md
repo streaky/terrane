@@ -908,10 +908,12 @@ Exit criterion: identical inputs produce byte-identical generated files; all acc
 Implemented evidence: lowering now produces a deterministic compiler-owned program/file model whose
 renderer splits authored units from the entrypoint, uses injective source-name encoding, and exposes
 the complete rendered file set to the CLI. Every item is parsed into a compiler-owned `syn` syntax
-tree before entering that model; a structural normalization pass removes redundant expression
-parentheses, and `prettyplease` reconstructs only those required by Rust precedence while applying
-the pinned canonical format. A default-off `--require-canonical-rust` development check compares a
-formatted copy with the untouched generated file, reports mismatch as compiler defect `S9004`, and
+tree before entering that model. A structural normalization pass removes redundant expression
+parentheses both from ordinary Rust syntax and from macro bodies that parse as comma-separated
+expression lists; `prettyplease` reconstructs only parentheses required by Rust precedence, while
+normalized borrow tokens retain conventional compact spelling inside otherwise opaque macro input.
+The renderer and the default-off `--require-canonical-rust` development check share that exact
+normalization and pinned formatting path. The check reports mismatch as compiler defect `S9004` and
 never repairs or replaces generator output. Generated projects contain stable authored paths, copied
 content-addressed support crates, manifests, compiler/source metadata, and a build identity covering
 compiler version, source and support content, target, profile, and command-relevant environment.

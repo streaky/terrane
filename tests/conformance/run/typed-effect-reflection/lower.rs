@@ -147,28 +147,27 @@ fn exact() -> Result<terrane_int_support::Int, TerraneError> {
 fn main() {
     let value: terrane_int_support::Int = fallible();
     println!(
-        "{}{}", terrane_scalar_support::scalar_text(& (value)),
-        terrane_scalar_support::scalar_text(& ({ let _ = fallible; "".to_owned() }))
+        "{}{}", terrane_scalar_support::scalar_text(&value),
+        terrane_scalar_support::scalar_text(&{ let _ = fallible; "".to_owned() })
     );
     println!(
-        "{}", terrane_scalar_support::scalar_text(& ({ let _ = fallible; "throwable"
-        .to_owned() }))
+        "{}", terrane_scalar_support::scalar_text(&{ let _ = fallible; "throwable"
+        .to_owned() })
     );
     println!(
-        "{}", terrane_scalar_support::scalar_text(& ({ let _ = fallible; "".to_owned()
-        }))
+        "{}", terrane_scalar_support::scalar_text(&{ let _ = fallible; "".to_owned() })
     );
     println!(
-        "{}", terrane_scalar_support::scalar_text(& ({ let _ = exact; "throws".to_owned()
-        }))
+        "{}", terrane_scalar_support::scalar_text(&{ let _ = exact; "throws".to_owned()
+        })
     );
     println!(
-        "{}", terrane_scalar_support::scalar_text(& ({ let _ = exact; "throwable"
-        .to_owned() }))
+        "{}", terrane_scalar_support::scalar_text(&{ let _ = exact; "throwable"
+        .to_owned() })
     );
     println!(
-        "{}", terrane_scalar_support::scalar_text(& ({ let _ = exact; "coercion-error"
-        .to_owned() }))
+        "{}", terrane_scalar_support::scalar_text(&{ let _ = exact; "coercion-error"
+        .to_owned() })
     );
     let __terrane_completion_0: TerraneCompletion<()> = (|| {
         let __terrane_try_0: TerraneCompletion<()> = (|| {
@@ -194,8 +193,8 @@ fn main() {
                 {
                     __terrane_handled_0 = true;
                     println!(
-                        "{}", terrane_scalar_support::scalar_text(&
-                        (String::from("caught")))
+                        "{}",
+                        terrane_scalar_support::scalar_text(&String::from("caught"))
                     );
                 }
                 if !__terrane_handled_0 {

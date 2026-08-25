@@ -25,6 +25,6 @@ fn main() {
         add.clone(),
         terrane_int_support::Int::from(5_i128),
     );
-    println!("{}", terrane_scalar_support::scalar_text(& (base)));
-    println!("{}", terrane_scalar_support::scalar_text(& (result)));
+    println!("{}", terrane_scalar_support::scalar_text(&base));
+    println!("{}", terrane_scalar_support::scalar_text(&result));
 }

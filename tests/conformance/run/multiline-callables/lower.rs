@@ -10,13 +10,13 @@ fn combine(
 }
 fn main() {
     println!(
-        "{}", terrane_scalar_support::scalar_text(&
-        (combine(terrane_int_support::Int::from(1_i128),
-        terrane_int_support::Int::from(2_i128), terrane_int_support::Int::from(3_i128))))
+        "{}",
+        terrane_scalar_support::scalar_text(&combine(terrane_int_support::Int::from(1_i128),
+        terrane_int_support::Int::from(2_i128), terrane_int_support::Int::from(3_i128)))
     );
     println!(
-        "{}", terrane_scalar_support::scalar_text(&
-        (combine(terrane_int_support::Int::from(4_i128),
-        terrane_int_support::Int::from(5_i128), terrane_int_support::Int::from(6_i128))))
+        "{}",
+        terrane_scalar_support::scalar_text(&combine(terrane_int_support::Int::from(4_i128),
+        terrane_int_support::Int::from(5_i128), terrane_int_support::Int::from(6_i128)))
     );
 }

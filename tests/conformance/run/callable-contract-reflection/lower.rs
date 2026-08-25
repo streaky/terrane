@@ -4,6 +4,6 @@
 fn marked() {}
 fn main() {
     println!(
-        "{}", terrane_scalar_support::scalar_text(& ({ let _ = marked; "".to_owned() }))
+        "{}", terrane_scalar_support::scalar_text(&{ let _ = marked; "".to_owned() })
     );
 }

@@ -145,18 +145,17 @@ fn main() {
         i8,
     >::new(vec![5, 6]);
     println!(
-        "{}", terrane_scalar_support::scalar_text(& (((narrow)
-        .get_or_error((terrane_collection_support::index_from_int(&
-        (terrane_int_support::Int::from(0_i128)))).unwrap_or_else(| error |
-        __terrane_uncaught(TerraneError::from(error)
-        .at("/collection-contextual-typing::main (case.trn:8:10)"))))).unwrap_or_else(|
+        "{}", terrane_scalar_support::scalar_text(&narrow
+        .get_or_error(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128))
+        .unwrap_or_else(| error | __terrane_uncaught(TerraneError::from(error)
+        .at("/collection-contextual-typing::main (case.trn:8:10)")))).unwrap_or_else(|
         error | __terrane_uncaught(TerraneError::from(error)
-        .at("/collection-contextual-typing::main (case.trn:8:10)")))))
+        .at("/collection-contextual-typing::main (case.trn:8:10)"))))
     );
     if found != None {
         println!(
-            "{}", terrane_scalar_support::scalar_text(& (* found.as_ref()
-            .expect("semantic optional narrowing")))
+            "{}", terrane_scalar_support::scalar_text(&* found.as_ref()
+            .expect("semantic optional narrowing"))
         );
     }
 }

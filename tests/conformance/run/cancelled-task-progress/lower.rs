@@ -307,5 +307,5 @@ fn main() {
     let outcome: TerraneTaskOutcome<terrane_int_support::Int> = scope.join(child);
     let consistent: bool = outcome.cancelled && outcome.value.clone() == None
         || outcome.completed && outcome.value.clone() != None;
-    println!("{}", terrane_scalar_support::scalar_text(& (consistent)));
+    println!("{}", terrane_scalar_support::scalar_text(&consistent));
 }

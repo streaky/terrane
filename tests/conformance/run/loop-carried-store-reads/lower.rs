@@ -5,7 +5,7 @@ fn main() {
     let mut while_value: i8 = 0;
     let mut limit: i8 = 0;
     while limit < 2 {
-        println!("{}", terrane_scalar_support::scalar_text(& (while_value)));
+        println!("{}", terrane_scalar_support::scalar_text(&while_value));
         while_value = 5;
         limit = terrane_int_support::unwrap_or_fail(
             terrane_int_support::fixed_addition(limit, 1),
@@ -21,7 +21,7 @@ fn main() {
             terrane_collection_support::IterationStep::End => break,
         };
         let _ = &character;
-        println!("{}", terrane_scalar_support::scalar_text(& (for_value)));
+        println!("{}", terrane_scalar_support::scalar_text(&for_value));
         for_value = 7;
     }
 }

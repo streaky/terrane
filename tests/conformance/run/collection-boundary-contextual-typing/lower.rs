@@ -134,13 +134,12 @@ enum TerraneCompletion<T> {
 // Namespace: collection-boundary-contextual-typing
 fn take(values: terrane_collection_support::List<i8>) {
     println!(
-        "{}", terrane_scalar_support::scalar_text(& (((values)
-        .get_or_error((terrane_collection_support::index_from_int(&
-        (terrane_int_support::Int::from(1_i128)))).unwrap_or_else(| error |
-        __terrane_uncaught(TerraneError::from(error)
-        .at("/collection-boundary-contextual-typing::take (case.trn:5:10)")))))
+        "{}", terrane_scalar_support::scalar_text(&values
+        .get_or_error(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(1_i128))
         .unwrap_or_else(| error | __terrane_uncaught(TerraneError::from(error)
-        .at("/collection-boundary-contextual-typing::take (case.trn:5:10)")))))
+        .at("/collection-boundary-contextual-typing::take (case.trn:5:10)"))))
+        .unwrap_or_else(| error | __terrane_uncaught(TerraneError::from(error)
+        .at("/collection-boundary-contextual-typing::take (case.trn:5:10)"))))
     );
 }
 fn make() -> terrane_collection_support::List<i8> {
@@ -153,15 +152,15 @@ fn take_entry_map(
     >,
 ) {
     println!(
-        "{}{}", terrane_scalar_support::scalar_text(& ((((values).get_or_error(&
-        (String::from("a")))).unwrap_or_else(| error |
+        "{}{}", terrane_scalar_support::scalar_text(&values
+        .get_or_error(&String::from("a")).unwrap_or_else(| error |
         __terrane_uncaught(TerraneError::from(error)
-        .at("/collection-boundary-contextual-typing::take-entry-map (case.trn:9:10)"))))
-        .key)), terrane_scalar_support::scalar_text(& ((((values).get_or_error(&
-        (String::from("a")))).unwrap_or_else(| error |
+        .at("/collection-boundary-contextual-typing::take-entry-map (case.trn:9:10)")))
+        .key), terrane_scalar_support::scalar_text(&values
+        .get_or_error(&String::from("a")).unwrap_or_else(| error |
         __terrane_uncaught(TerraneError::from(error)
-        .at("/collection-boundary-contextual-typing::take-entry-map (case.trn:9:27)"))))
-        .value))
+        .at("/collection-boundary-contextual-typing::take-entry-map (case.trn:9:27)")))
+        .value)
     );
 }
 fn make_entry_map() -> terrane_collection_support::Map<
@@ -185,48 +184,45 @@ fn take_nested_map(
     >,
 ) {
     println!(
-        "{}", terrane_scalar_support::scalar_text(& (((((values).get_or_error(&
-        (String::from("a")))).unwrap_or_else(| error |
+        "{}", terrane_scalar_support::scalar_text(&values
+        .get_or_error(&String::from("a")).unwrap_or_else(| error |
+        __terrane_uncaught(TerraneError::from(error)
+        .at("/collection-boundary-contextual-typing::take-nested-map (case.trn:13:10)")))
+        .get_or_error(&String::from("b")).unwrap_or_else(| error |
         __terrane_uncaught(TerraneError::from(error)
         .at("/collection-boundary-contextual-typing::take-nested-map (case.trn:13:10)"))))
-        .get_or_error(& (String::from("b")))).unwrap_or_else(| error |
-        __terrane_uncaught(TerraneError::from(error)
-        .at("/collection-boundary-contextual-typing::take-nested-map (case.trn:13:10)")))))
     );
 }
 fn take_nested_list(
     values: terrane_collection_support::List<terrane_collection_support::List<i8>>,
 ) {
     println!(
-        "{}", terrane_scalar_support::scalar_text(& (((((values)
-        .get_or_error((terrane_collection_support::index_from_int(&
-        (terrane_int_support::Int::from(0_i128)))).unwrap_or_else(| error |
-        __terrane_uncaught(TerraneError::from(error)
-        .at("/collection-boundary-contextual-typing::take-nested-list (case.trn:15:10)")))))
+        "{}", terrane_scalar_support::scalar_text(&values
+        .get_or_error(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128))
         .unwrap_or_else(| error | __terrane_uncaught(TerraneError::from(error)
         .at("/collection-boundary-contextual-typing::take-nested-list (case.trn:15:10)"))))
-        .get_or_error((terrane_collection_support::index_from_int(&
-        (terrane_int_support::Int::from(1_i128)))).unwrap_or_else(| error |
-        __terrane_uncaught(TerraneError::from(error)
-        .at("/collection-boundary-contextual-typing::take-nested-list (case.trn:15:10)")))))
         .unwrap_or_else(| error | __terrane_uncaught(TerraneError::from(error)
-        .at("/collection-boundary-contextual-typing::take-nested-list (case.trn:15:10)")))))
+        .at("/collection-boundary-contextual-typing::take-nested-list (case.trn:15:10)")))
+        .get_or_error(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(1_i128))
+        .unwrap_or_else(| error | __terrane_uncaught(TerraneError::from(error)
+        .at("/collection-boundary-contextual-typing::take-nested-list (case.trn:15:10)"))))
+        .unwrap_or_else(| error | __terrane_uncaught(TerraneError::from(error)
+        .at("/collection-boundary-contextual-typing::take-nested-list (case.trn:15:10)"))))
     );
 }
 fn take_map_list(
     values: terrane_collection_support::Map<String, terrane_collection_support::List<i8>>,
 ) {
     println!(
-        "{}", terrane_scalar_support::scalar_text(& (((((values).get_or_error(&
-        (String::from("a")))).unwrap_or_else(| error |
+        "{}", terrane_scalar_support::scalar_text(&values
+        .get_or_error(&String::from("a")).unwrap_or_else(| error |
         __terrane_uncaught(TerraneError::from(error)
-        .at("/collection-boundary-contextual-typing::take-map-list (case.trn:17:10)"))))
-        .get_or_error((terrane_collection_support::index_from_int(&
-        (terrane_int_support::Int::from(0_i128)))).unwrap_or_else(| error |
-        __terrane_uncaught(TerraneError::from(error)
-        .at("/collection-boundary-contextual-typing::take-map-list (case.trn:17:10)")))))
+        .at("/collection-boundary-contextual-typing::take-map-list (case.trn:17:10)")))
+        .get_or_error(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128))
         .unwrap_or_else(| error | __terrane_uncaught(TerraneError::from(error)
-        .at("/collection-boundary-contextual-typing::take-map-list (case.trn:17:10)")))))
+        .at("/collection-boundary-contextual-typing::take-map-list (case.trn:17:10)"))))
+        .unwrap_or_else(| error | __terrane_uncaught(TerraneError::from(error)
+        .at("/collection-boundary-contextual-typing::take-map-list (case.trn:17:10)"))))
     );
 }
 fn main() {
@@ -290,24 +286,23 @@ fn main() {
         terrane_collection_support::Entry<String, i8>,
     > = make_entry_map();
     println!(
-        "{}{}{}{}{}", terrane_scalar_support::scalar_text(& ((pair).value)),
-        terrane_scalar_support::scalar_text(& (((keyed).get_or_error(& (5)))
+        "{}{}{}{}{}", terrane_scalar_support::scalar_text(&pair.value),
+        terrane_scalar_support::scalar_text(&keyed.get_or_error(&5).unwrap_or_else(|
+        error | __terrane_uncaught(TerraneError::from(error)
+        .at("/collection-boundary-contextual-typing::main (case.trn:28:22)")))),
+        terrane_scalar_support::scalar_text(&made
+        .get_or_error(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128))
         .unwrap_or_else(| error | __terrane_uncaught(TerraneError::from(error)
-        .at("/collection-boundary-contextual-typing::main (case.trn:28:22)"))))),
-        terrane_scalar_support::scalar_text(& (((made)
-        .get_or_error((terrane_collection_support::index_from_int(&
-        (terrane_int_support::Int::from(0_i128)))).unwrap_or_else(| error |
-        __terrane_uncaught(TerraneError::from(error)
-        .at("/collection-boundary-contextual-typing::main (case.trn:28:32)")))))
+        .at("/collection-boundary-contextual-typing::main (case.trn:28:32)"))))
         .unwrap_or_else(| error | __terrane_uncaught(TerraneError::from(error)
-        .at("/collection-boundary-contextual-typing::main (case.trn:28:32)"))))),
-        terrane_scalar_support::scalar_text(& ((((made_entries).get_or_error(&
-        (String::from("a")))).unwrap_or_else(| error |
+        .at("/collection-boundary-contextual-typing::main (case.trn:28:32)")))),
+        terrane_scalar_support::scalar_text(&made_entries
+        .get_or_error(&String::from("a")).unwrap_or_else(| error |
         __terrane_uncaught(TerraneError::from(error)
-        .at("/collection-boundary-contextual-typing::main (case.trn:28:41)")))).key)),
-        terrane_scalar_support::scalar_text(& ((((made_entries).get_or_error(&
-        (String::from("a")))).unwrap_or_else(| error |
+        .at("/collection-boundary-contextual-typing::main (case.trn:28:41)"))).key),
+        terrane_scalar_support::scalar_text(&made_entries
+        .get_or_error(&String::from("a")).unwrap_or_else(| error |
         __terrane_uncaught(TerraneError::from(error)
-        .at("/collection-boundary-contextual-typing::main (case.trn:28:64)")))).value))
+        .at("/collection-boundary-contextual-typing::main (case.trn:28:64)"))).value)
     );
 }

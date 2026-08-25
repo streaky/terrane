@@ -140,7 +140,7 @@ fn from_hex(source: String) -> terrane_int_support::Int {
         ));
 }
 fn fail(source: String) -> Result<terrane_int_support::Int, TerraneError> {
-    println!("{}", terrane_scalar_support::scalar_text(& (source)));
+    println!("{}", terrane_scalar_support::scalar_text(&source));
     return Err(
         TerraneError::new(
                 TerraneErrorKind::CoercionError,
@@ -152,13 +152,13 @@ fn fail(source: String) -> Result<terrane_int_support::Int, TerraneError> {
 fn main() {
     let text: String = String::from("ff");
     let parsed: terrane_int_support::Int = from_hex(text);
-    println!("{}", terrane_scalar_support::scalar_text(& (parsed)));
+    println!("{}", terrane_scalar_support::scalar_text(&parsed));
     let value: i64 = 255;
     println!(
-        "{}", terrane_scalar_support::scalar_text(& ((terrane_int_support::format_radix(&
-        (value), & (16))).unwrap_or_else(| error |
-        __terrane_uncaught(TerraneError::from(error)
-        .at("/parse-radix-families::main (case.trn:14:11)")))))
+        "{}",
+        terrane_scalar_support::scalar_text(&terrane_int_support::format_radix(&value,
+        &16).unwrap_or_else(| error | __terrane_uncaught(TerraneError::from(error)
+        .at("/parse-radix-families::main (case.trn:14:11)"))))
     );
     let bad: String = String::from("x");
     fail(bad).ok();

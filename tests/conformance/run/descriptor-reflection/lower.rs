@@ -15,8 +15,8 @@ fn main() {
         kind: "type",
     };
     println!(
-        "{}{}{}", terrane_scalar_support::scalar_text(& ((descriptor).name.to_owned())),
-        terrane_scalar_support::scalar_text(& ((descriptor).kind.to_owned())),
-        terrane_scalar_support::scalar_text(& ((descriptor).identity.to_owned()))
+        "{}{}{}", terrane_scalar_support::scalar_text(&descriptor.name.to_owned()),
+        terrane_scalar_support::scalar_text(&descriptor.kind.to_owned()),
+        terrane_scalar_support::scalar_text(&descriptor.identity.to_owned())
     );
 }

@@ -154,15 +154,14 @@ fn main() {
             terrane_collection_support::IterationStep::End => break,
         };
         println!(
-            "{}{}", terrane_scalar_support::scalar_text(&
-            (terrane_int_support::Int::from((row).length()))),
-            terrane_scalar_support::scalar_text(& (((row)
-            .get_or_error((terrane_collection_support::index_from_int(&
-            (terrane_int_support::Int::from(0_i128)))).unwrap_or_else(| error |
-            __terrane_uncaught(TerraneError::from(error)
-            .at("/nested-collection-for-binding::main (case.trn:8:24)")))))
+            "{}{}",
+            terrane_scalar_support::scalar_text(&terrane_int_support::Int::from(row
+            .length())), terrane_scalar_support::scalar_text(&row
+            .get_or_error(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128))
             .unwrap_or_else(| error | __terrane_uncaught(TerraneError::from(error)
-            .at("/nested-collection-for-binding::main (case.trn:8:24)")))))
+            .at("/nested-collection-for-binding::main (case.trn:8:24)"))))
+            .unwrap_or_else(| error | __terrane_uncaught(TerraneError::from(error)
+            .at("/nested-collection-for-binding::main (case.trn:8:24)"))))
         );
     }
     let groups: terrane_collection_support::Map<
@@ -189,13 +188,12 @@ fn main() {
             terrane_collection_support::IterationStep::End => break,
         };
         println!(
-            "{}", terrane_scalar_support::scalar_text(& ((((group).value.clone())
-            .get_or_error((terrane_collection_support::index_from_int(&
-            (terrane_int_support::Int::from(1_i128)))).unwrap_or_else(| error |
-            __terrane_uncaught(TerraneError::from(error)
-            .at("/nested-collection-for-binding::main (case.trn:11:12)")))))
+            "{}", terrane_scalar_support::scalar_text(&group.value.clone()
+            .get_or_error(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(1_i128))
             .unwrap_or_else(| error | __terrane_uncaught(TerraneError::from(error)
-            .at("/nested-collection-for-binding::main (case.trn:11:12)")))))
+            .at("/nested-collection-for-binding::main (case.trn:11:12)"))))
+            .unwrap_or_else(| error | __terrane_uncaught(TerraneError::from(error)
+            .at("/nested-collection-for-binding::main (case.trn:11:12)"))))
         );
     }
 }

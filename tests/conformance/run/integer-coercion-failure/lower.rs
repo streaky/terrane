@@ -6,5 +6,5 @@ fn main() {
     let narrow: i8 = terrane_int_support::unwrap_or_fail(
         terrane_int_support::coerce::<i8>(&value),
     );
-    println!("{}", terrane_scalar_support::scalar_text(& (narrow)));
+    println!("{}", terrane_scalar_support::scalar_text(&narrow));
 }

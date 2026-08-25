@@ -18,13 +18,13 @@ fn divide() -> terrane_int_support::DivRemResult<i8> {
 fn main() {
     let result: terrane_int_support::OverflowResult<i8> = pass();
     println!(
-        "{}{}", terrane_scalar_support::scalar_text(& (result.value)),
-        terrane_scalar_support::scalar_text(& (result.overflowed))
+        "{}{}", terrane_scalar_support::scalar_text(&result.value),
+        terrane_scalar_support::scalar_text(&result.overflowed)
     );
     let pair: terrane_int_support::DivRemResult<i8> = divide();
     println!(
-        "{}{}", terrane_scalar_support::scalar_text(& (pair.quotient)),
-        terrane_scalar_support::scalar_text(& (pair.remainder))
+        "{}{}", terrane_scalar_support::scalar_text(&pair.quotient),
+        terrane_scalar_support::scalar_text(&pair.remainder)
     );
     let text: String = String::from("banana");
     let found: Option<terrane_string_support::TextRange> = terrane_string_support::find(
@@ -33,8 +33,8 @@ fn main() {
     );
     if found != None {
         println!(
-            "{}", terrane_scalar_support::scalar_text(& ((found.as_ref()
-            .expect("semantic optional narrowing")).text().to_owned()))
+            "{}", terrane_scalar_support::scalar_text(&found.as_ref()
+            .expect("semantic optional narrowing").text().to_owned())
         );
     }
 }

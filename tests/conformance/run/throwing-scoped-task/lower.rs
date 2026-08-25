@@ -312,9 +312,9 @@ fn main() {
     };
     let outcome: TerraneTaskOutcome<terrane_int_support::Int> = scope.join(child);
     println!(
-        "{}{}{}", terrane_scalar_support::scalar_text(& ((outcome).completed)),
-        terrane_scalar_support::scalar_text(& ((outcome).cancelled)),
-        terrane_scalar_support::scalar_text(& (((outcome).value.clone() == None)))
+        "{}{}{}", terrane_scalar_support::scalar_text(&outcome.completed),
+        terrane_scalar_support::scalar_text(&outcome.cancelled),
+        terrane_scalar_support::scalar_text(&(outcome.value.clone() == None))
     );
-    println!("{}", terrane_scalar_support::scalar_text(& (((outcome).error != None))));
+    println!("{}", terrane_scalar_support::scalar_text(&(outcome.error != None)));
 }

@@ -52,5 +52,5 @@ impl Child {
 fn main() {
     let value: Child = Child::terrane_construct();
     let result: Base = value.copy();
-    println!("{}", terrane_scalar_support::scalar_text(& (result.marker())));
+    println!("{}", terrane_scalar_support::scalar_text(&result.marker()));
 }

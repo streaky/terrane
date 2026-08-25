@@ -50,9 +50,9 @@ async fn inspect() -> terrane_int_support::Int {
     );
     let result: terrane_int_support::Int = __terrane_await(Box::pin(answer())).await;
     println!(
-        "{}", terrane_scalar_support::scalar_text(& (({ let __terrane_owner = observed
+        "{}", terrane_scalar_support::scalar_text(&{ let __terrane_owner = observed
         .upgrade().expect("reference expired"); let __terrane_value = __terrane_owner
-        .lock().expect("reference lock poisoned").clone(); __terrane_value })))
+        .lock().expect("reference lock poisoned").clone(); __terrane_value })
     );
     return result.clone();
 }
@@ -60,6 +60,6 @@ fn main() {
     __terrane_block_on(async move {
         let result: terrane_int_support::Int = __terrane_await(Box::pin(inspect()))
             .await;
-        println!("{}", terrane_scalar_support::scalar_text(& (result)));
+        println!("{}", terrane_scalar_support::scalar_text(&result));
     });
 }

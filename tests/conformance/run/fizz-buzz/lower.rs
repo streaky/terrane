@@ -9,24 +9,20 @@ fn main() {
         ) == terrane_int_support::Int::from(0_i128)
         {
             println!(
-                "{}", terrane_scalar_support::scalar_text(& (String::from("FizzBuzz")))
+                "{}", terrane_scalar_support::scalar_text(&String::from("FizzBuzz"))
             );
         } else if terrane_int_support::unwrap_or_fail(
             number.clone().modulo(&terrane_int_support::Int::from(3_i128)),
         ) == terrane_int_support::Int::from(0_i128)
         {
-            println!(
-                "{}", terrane_scalar_support::scalar_text(& (String::from("Fizz")))
-            );
+            println!("{}", terrane_scalar_support::scalar_text(&String::from("Fizz")));
         } else if terrane_int_support::unwrap_or_fail(
             number.clone().modulo(&terrane_int_support::Int::from(5_i128)),
         ) == terrane_int_support::Int::from(0_i128)
         {
-            println!(
-                "{}", terrane_scalar_support::scalar_text(& (String::from("Buzz")))
-            );
+            println!("{}", terrane_scalar_support::scalar_text(&String::from("Buzz")));
         } else {
-            println!("{}", terrane_scalar_support::scalar_text(& (number)));
+            println!("{}", terrane_scalar_support::scalar_text(&number));
         }
         number = number.clone() + terrane_int_support::Int::from(1_i128);
     }

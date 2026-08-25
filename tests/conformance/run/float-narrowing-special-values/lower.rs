@@ -81,8 +81,8 @@ fn main() {
             )
         }
     };
-    println!("{}", terrane_scalar_support::scalar_text(& (narrowed_zero)));
-    println!("{}", terrane_scalar_support::scalar_text(& (narrowed_positive)));
-    println!("{}", terrane_scalar_support::scalar_text(& (narrowed_negative)));
-    println!("{}", terrane_scalar_support::scalar_text(& (narrowed_maximum)));
+    println!("{}", terrane_scalar_support::scalar_text(&narrowed_zero));
+    println!("{}", terrane_scalar_support::scalar_text(&narrowed_positive));
+    println!("{}", terrane_scalar_support::scalar_text(&narrowed_negative));
+    println!("{}", terrane_scalar_support::scalar_text(&narrowed_maximum));
 }

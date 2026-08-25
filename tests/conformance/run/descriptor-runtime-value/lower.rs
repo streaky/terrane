@@ -10,7 +10,7 @@ struct TerraneDescriptor {
 // Namespace: descriptor-runtime-value
 fn main() {
     println!(
-        "{}", terrane_scalar_support::scalar_text(& ((TerraneDescriptor { identity :
-        "int8", name : "int8", kind : "type" }).name))
+        "{}", terrane_scalar_support::scalar_text(&TerraneDescriptor { identity : "int8",
+        name : "int8", kind : "type" } .name)
     );
 }

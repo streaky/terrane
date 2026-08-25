@@ -147,11 +147,11 @@ fn main() {
             terrane_collection_support::IterationStep::Item(item) => item,
             terrane_collection_support::IterationStep::End => break,
         };
-        println!("{}", terrane_scalar_support::scalar_text(& (items)));
+        println!("{}", terrane_scalar_support::scalar_text(&items));
     }
     println!(
-        "{}", terrane_scalar_support::scalar_text(&
-        (terrane_int_support::Int::from((items).length())))
+        "{}", terrane_scalar_support::scalar_text(&terrane_int_support::Int::from(items
+        .length()))
     );
     let groups: terrane_collection_support::Map<
         String,
@@ -183,12 +183,12 @@ fn main() {
                 terrane_collection_support::IterationStep::Item(item) => item,
                 terrane_collection_support::IterationStep::End => break,
             };
-            println!("{}", terrane_scalar_support::scalar_text(& (entry)));
+            println!("{}", terrane_scalar_support::scalar_text(&entry));
         }
     }
     println!(
-        "{}", terrane_scalar_support::scalar_text(&
-        (terrane_int_support::Int::from((groups).length())))
+        "{}", terrane_scalar_support::scalar_text(&terrane_int_support::Int::from(groups
+        .length()))
     );
     let numbers: terrane_collection_support::List<terrane_int_support::Int> = terrane_collection_support::List::<
         terrane_int_support::Int,
@@ -200,23 +200,22 @@ fn main() {
     );
     if true {
         let numbers: String = String::from("ab");
-        println!("{}", terrane_scalar_support::scalar_text(& (numbers)));
+        println!("{}", terrane_scalar_support::scalar_text(&numbers));
     }
     println!(
-        "{}", terrane_scalar_support::scalar_text(& (((numbers)
-        .get_or_error((terrane_collection_support::index_from_int(&
-        (terrane_int_support::Int::from(0_i128)))).unwrap_or_else(| error |
+        "{}", terrane_scalar_support::scalar_text(&numbers
+        .get_or_error(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128))
+        .unwrap_or_else(| error | __terrane_uncaught(TerraneError::from(error)
+        .at("/loop-shadowing-scope::main (case.trn:24:10)")))).unwrap_or_else(| error |
         __terrane_uncaught(TerraneError::from(error)
-        .at("/loop-shadowing-scope::main (case.trn:24:10)"))))).unwrap_or_else(| error |
-        __terrane_uncaught(TerraneError::from(error)
-        .at("/loop-shadowing-scope::main (case.trn:24:10)")))))
+        .at("/loop-shadowing-scope::main (case.trn:24:10)"))))
     );
-    println!("{}", terrane_scalar_support::scalar_text(& (value())));
+    println!("{}", terrane_scalar_support::scalar_text(&value()));
     let value: i64 = 5;
     let copy: terrane_int_support::Int = terrane_int_support::Int::from(value as i128);
-    println!("{}", terrane_scalar_support::scalar_text(& (copy)));
+    println!("{}", terrane_scalar_support::scalar_text(&copy));
     let _ = &value;
     let value: terrane_int_support::Int = terrane_int_support::Int::from(value as i128)
         + terrane_int_support::Int::from(1_i128);
-    println!("{}", terrane_scalar_support::scalar_text(& (value)));
+    println!("{}", terrane_scalar_support::scalar_text(&value));
 }

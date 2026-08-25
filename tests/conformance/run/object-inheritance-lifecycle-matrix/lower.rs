@@ -177,7 +177,7 @@ impl BaseStorage {
     }
     pub fn destruct(&self) {
         println!(
-            "{}", terrane_scalar_support::scalar_text(& (String::from("base-destruct")))
+            "{}", terrane_scalar_support::scalar_text(&String::from("base-destruct"))
         );
     }
 }
@@ -271,12 +271,12 @@ impl Child {
     }
     pub fn destruct(&self) {
         println!(
-            "{}", terrane_scalar_support::scalar_text(& (String::from("child-destruct")))
+            "{}", terrane_scalar_support::scalar_text(&String::from("child-destruct"))
         );
     }
     fn terrane_destruct_0(&self) {
         println!(
-            "{}", terrane_scalar_support::scalar_text(& (String::from("base-destruct")))
+            "{}", terrane_scalar_support::scalar_text(&String::from("base-destruct"))
         );
     }
 }
@@ -306,10 +306,10 @@ impl Drop for Child {
 }
 fn main() {
     let mut value: Child = Child::terrane_construct();
-    println!("{}", terrane_scalar_support::scalar_text(& (value.report())));
+    println!("{}", terrane_scalar_support::scalar_text(&value.report()));
     value.set(terrane_int_support::Int::from(4_i128));
-    println!("{}", terrane_scalar_support::scalar_text(& (value.report())));
+    println!("{}", terrane_scalar_support::scalar_text(&value.report()));
     let view: Named = Named::from(value.terrane_separate());
     let copied: Named = view.terrane_separate();
-    println!("{}", terrane_scalar_support::scalar_text(& (copied.report())));
+    println!("{}", terrane_scalar_support::scalar_text(&copied.report()));
 }

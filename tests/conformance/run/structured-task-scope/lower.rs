@@ -305,14 +305,14 @@ fn main() {
     };
     let outcome: TerraneTaskOutcome<terrane_int_support::Int> = scope.join(child);
     println!(
-        "{}{}", terrane_scalar_support::scalar_text(& ((outcome).completed)),
-        terrane_scalar_support::scalar_text(& ((outcome).cancelled))
+        "{}{}", terrane_scalar_support::scalar_text(&outcome.completed),
+        terrane_scalar_support::scalar_text(&outcome.cancelled)
     );
     let value: Option<terrane_int_support::Int> = outcome.value.clone();
     if value != None {
         println!(
-            "{}", terrane_scalar_support::scalar_text(& (* value.as_ref()
-            .expect("semantic optional narrowing")))
+            "{}", terrane_scalar_support::scalar_text(&* value.as_ref()
+            .expect("semantic optional narrowing"))
         );
     }
 }

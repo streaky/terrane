@@ -137,11 +137,11 @@ fn main() {
     let __terrane_completion_0: TerraneCompletion<()> = (|| {
         let __terrane_try_0: TerraneCompletion<()> = (|| {
             println!(
-                "{}", terrane_scalar_support::scalar_text(& (match
-                terrane_int_support::fixed_shift_left_wrap(value, & (-
-                terrane_int_support::Int::from(1_i128))) { Ok(value) => value, Err(error)
+                "{}", terrane_scalar_support::scalar_text(&match
+                terrane_int_support::fixed_shift_left_wrap(value, &-
+                terrane_int_support::Int::from(1_i128)) { Ok(value) => value, Err(error)
                 => return TerraneCompletion::Error(TerraneError::from(error)
-                .at("/negative-wrapped-shift::main (case.trn:7:13)")) }))
+                .at("/negative-wrapped-shift::main (case.trn:7:13)")) })
             );
             TerraneCompletion::Normal
         })();
@@ -157,8 +157,8 @@ fn main() {
                 {
                     __terrane_handled_0 = true;
                     println!(
-                        "{}", terrane_scalar_support::scalar_text(&
-                        (String::from("caught negative shift")))
+                        "{}",
+                        terrane_scalar_support::scalar_text(&String::from("caught negative shift"))
                     );
                 }
                 if !__terrane_handled_0 {
