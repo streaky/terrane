@@ -60,6 +60,22 @@ fn parses_lossless_declarations_and_legal_empty_blocks() {
 }
 
 #[test]
+fn removed_effect_words_are_not_function_qualifiers() {
+    for word in ["pure", "io", "blocks"] {
+        let source = SourceFile::new(
+            0,
+            "case.trn".into(),
+            format!("namespace app\n{word} function probe;\n"),
+        );
+        let parsed = parse(&source, lex(&source).unwrap());
+        assert!(
+            !parsed.diagnostics.is_empty(),
+            "{word} unexpectedly remained a function qualifier"
+        );
+    }
+}
+
+#[test]
 fn expression_tree_respects_precedence_and_postfix_binding() {
     let tree = parse_source("result = -left + thing.member * values[1]\n");
     let assignment = &tree.root.children[0];

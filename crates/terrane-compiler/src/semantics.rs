@@ -72,7 +72,6 @@ pub struct SemanticPackage {
     pub prelude: bool,
     pub reflection: crate::package::ReflectionProfile,
     pub executor: crate::package::ExecutorProfile,
-    pub capability_policy: bool,
     pub namespaces: BTreeMap<String, Namespace>,
     pub globals: BTreeMap<String, Symbol>,
     pub prelude_bindings: BTreeMap<String, Symbol>,
@@ -151,7 +150,6 @@ pub enum ValueType {
     Function(Vec<ElementType>, ElementType),
     AsyncFunction(Vec<ElementType>, ElementType),
     Descriptor(String),
-    Capability(Effect),
     Task(ElementType),
     ScopedTask(ElementType),
     TaskScope,
@@ -292,19 +290,6 @@ impl std::fmt::Display for ValueType {
             }
             Self::Task(result) => write!(formatter, "task of {result}"),
             Self::Descriptor(_) => formatter.write_str("descriptor"),
-            Self::Capability(effect) => write!(
-                formatter,
-                "capability of {}",
-                match effect {
-                    Effect::Throws => "throws",
-                    Effect::Io => "io",
-                    Effect::Blocks => "blocks",
-                    Effect::Awaits => "awaits",
-                    Effect::Mutates => "mutates",
-                    Effect::Unsafe => "unsafe",
-                    Effect::Foreign => "foreign",
-                }
-            ),
             Self::Object(name) => formatter.write_str(name),
             Self::ScopedTask(result) => write!(formatter, "scoped task of {result}"),
             Self::TaskScope => formatter.write_str("task-scope"),
@@ -465,8 +450,6 @@ pub struct ObjectContract {
 #[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub enum Effect {
     Throws,
-    Io,
-    Blocks,
     Awaits,
     Mutates,
     Unsafe,
@@ -478,8 +461,6 @@ impl Effect {
     pub const fn source_name(self) -> &'static str {
         match self {
             Self::Throws => "throws",
-            Self::Io => "io",
-            Self::Blocks => "blocks",
             Self::Awaits => "awaits",
             Self::Mutates => "mutates",
             Self::Unsafe => "unsafe",
@@ -501,8 +482,6 @@ pub struct FunctionContract {
     pub parameters: Vec<ParameterContract>,
     pub return_type: Option<ValueType>,
     pub effects: BTreeSet<Effect>,
-    pub declared_effects: BTreeSet<Effect>,
-    pub pure: bool,
     pub exported: bool,
     pub thrown_types: Vec<ValueType>,
     pub escaping_throwables: BTreeSet<String>,
@@ -797,7 +776,6 @@ pub fn analyze(package: &Package) -> Result<SemanticPackage, SemanticFailure> {
         prelude: package.prelude,
         reflection: package.reflection,
         executor: package.executor,
-        capability_policy: package.capability_policy,
         namespaces,
         globals,
         prelude_bindings,
@@ -809,7 +787,6 @@ pub fn analyze(package: &Package) -> Result<SemanticPackage, SemanticFailure> {
     validate_initializer_dependencies(&semantic)?;
     validate_references(&semantic)?;
     analyze_types(&mut semantic)?;
-    validate_capability_authority(package, &semantic)?;
     validate_error_clauses(&semantic)?;
     validate_moves(&semantic)?;
     validate_reference_origins(&semantic)?;
@@ -829,85 +806,6 @@ pub fn analyze(package: &Package) -> Result<SemanticPackage, SemanticFailure> {
         unit.evaluation_steps = collect_evaluation_steps(&unit.source, &unit.tree.root);
     }
     Ok(semantic)
-}
-
-fn validate_capability_authority(
-    package: &Package,
-    semantic: &SemanticPackage,
-) -> Result<(), SemanticFailure> {
-    let entrypoints = semantic.units.iter().flat_map(|unit| {
-        unit.functions.iter().filter(move |contract| {
-            contract.name == "main" && contract.span.file == unit.source.id()
-        })
-    });
-    for contract in entrypoints {
-        let unit = semantic
-            .units
-            .iter()
-            .find(|unit| unit.source.id() == contract.span.file)
-            .expect("entrypoint contract belongs to a semantic unit");
-        for parameter in &contract.parameters {
-            let Some(ValueType::Capability(effect)) = parameter.value_type else {
-                continue;
-            };
-            let Some(binding) = package
-                .authority
-                .iter()
-                .find(|binding| binding.parameter == parameter.name)
-            else {
-                return Err(failure(
-                    &unit.source,
-                    "T0078",
-                    format!(
-                        "entrypoint capability `{}` has no host authority binding",
-                        parameter.name
-                    ),
-                    parameter.span,
-                ));
-            };
-            if binding.capability != effect.source_name() {
-                return Err(failure(
-                    &unit.source,
-                    "T0078",
-                    format!(
-                        "host authority `{}` provides `{}` but the entrypoint requires `{}`",
-                        parameter.name,
-                        binding.capability,
-                        effect.source_name()
-                    ),
-                    parameter.span,
-                ));
-            }
-            if !package.capabilities.contains(&binding.capability) {
-                return Err(failure(
-                    &unit.source,
-                    "T0078",
-                    format!(
-                        "selected capability profile does not permit `{}` authority",
-                        binding.capability
-                    ),
-                    parameter.span,
-                ));
-            }
-        }
-        if let Some(binding) = package.authority.iter().find(|binding| {
-            !contract.parameters.iter().any(|parameter| {
-                parameter.name == binding.parameter
-                    && matches!(parameter.value_type, Some(ValueType::Capability(_)))
-            })
-        }) {
-            return Err(failure(
-                &unit.source,
-                "T0078",
-                format!(
-                    "host authority binding `{}` does not name an entrypoint capability parameter",
-                    binding.parameter
-                ),
-                contract.span,
-            ));
-        }
-    }
-    Ok(())
 }
 
 fn object_implements_identity(
@@ -2912,16 +2810,6 @@ fn validate_call_arguments(
         }
         let value = argument.children.last().unwrap_or(argument);
         if let Some(expected) = parameter.value_type.clone() {
-            if matches!(expected, ValueType::Capability(_))
-                && unary_operator_text(unit, value).as_deref() != Some("move")
-            {
-                return Err(failure(
-                    &unit.source,
-                    "T0072",
-                    "linear capability arguments must be transferred with `move`",
-                    value.span,
-                ));
-            }
             if contextual_collection_constructor_matches(unit, value, &expected, bindings) {
                 validate_collection_constructor_value(
                     unit,
@@ -3418,7 +3306,6 @@ fn propagate_interface_receiver_mutability(package: &mut SemanticPackage) {
             )) {
                 method.mutates_receiver = true;
                 method.effects.insert(Effect::Mutates);
-                method.declared_effects.insert(Effect::Mutates);
             }
         }
     }
@@ -3969,6 +3856,17 @@ fn analyze_function_contract(
             });
         }
     }
+    if name_node.is_some_and(|name| node_text(&unit.source, name) == "main")
+        && object_name_containing(unit, node.span).is_none()
+        && !parameters.is_empty()
+    {
+        return Err(failure(
+            &unit.source,
+            "T0078",
+            "program entrypoint `main` cannot declare parameters",
+            node.span,
+        ));
+    }
     let mut effects = BTreeSet::new();
     let mut thrown_types = Vec::new();
     for child in &node.children {
@@ -3983,12 +3881,6 @@ fn analyze_function_contract(
             }
         } else if child.kind == SyntaxKind::DeclarationQualifier {
             match node_text(&unit.source, child) {
-                "io" => {
-                    effects.insert(Effect::Io);
-                }
-                "blocks" => {
-                    effects.insert(Effect::Blocks);
-                }
                 "awaits" => {
                     effects.insert(Effect::Awaits);
                 }
@@ -4015,10 +3907,6 @@ fn analyze_function_contract(
         effects.insert(Effect::Mutates);
     }
     let throws = effects.contains(&Effect::Throws);
-    let pure = node.children.iter().any(|child| {
-        child.kind == SyntaxKind::DeclarationQualifier && node_text(&unit.source, child) == "pure"
-    });
-    let declared_effects = effects.clone();
     let exported = node.children.iter().any(|child| {
         child.kind == SyntaxKind::Visibility && node_text(&unit.source, child) == "public"
     });
@@ -4040,8 +3928,6 @@ fn analyze_function_contract(
         throws,
         is_async,
         mutates_receiver: mutates_object_receiver(unit, node),
-        declared_effects,
-        pure,
         exported,
     })
 }
@@ -4251,15 +4137,6 @@ fn infer_throwing_effects(package: &mut SemanticPackage) -> Result<(), SemanticF
         {
             effects.insert(Effect::Awaits);
         }
-        if node.kind == SyntaxKind::CallExpression
-            && let Some(callee) = node.children.first()
-            && callee.kind == SyntaxKind::Name
-            && package
-                .resolve_name_at(unit, callee.span.start, node_text(&unit.source, callee))
-                .is_some_and(|symbol| symbol.identity == "/core/output::print")
-        {
-            effects.insert(Effect::Io);
-        }
         for child in &node.children {
             effects.extend(direct_effects(package, unit, child));
         }
@@ -4285,7 +4162,12 @@ fn infer_throwing_effects(package: &mut SemanticPackage) -> Result<(), SemanticF
                 .position(|candidate| std::ptr::eq(candidate, unit))
                 .expect("function unit belongs to semantic package");
             bodies.insert(function_key, (unit_index, function.clone()));
-            let mut function_effects = BTreeSet::new();
+            let mut function_effects = unit
+                .functions
+                .iter()
+                .find(|contract| contract.span == function.span)
+                .map(|contract| contract.effects.clone())
+                .unwrap_or_default();
             for child in &function.children {
                 function_effects.extend(direct_effects(package, unit, child));
             }
@@ -4366,70 +4248,6 @@ fn infer_throwing_effects(package: &mut SemanticPackage) -> Result<(), SemanticF
                         format!(
                             "`{actual}` may escape `{}` but does not satisfy its `throws {bound}` contract",
                             contract.name
-                        ),
-                        contract.span,
-                    ));
-                }
-            }
-        }
-    }
-
-    for unit in &package.units {
-        for contract in &unit.functions {
-            if !contract.pure {
-                continue;
-            }
-            let inferred_effects = inferred
-                .get(&key(contract.span))
-                .cloned()
-                .unwrap_or_default();
-            if !contract.declared_effects.is_empty() || !inferred_effects.is_empty() {
-                let effects = inferred_effects
-                    .union(&contract.declared_effects)
-                    .map(|effect| effect.source_name())
-                    .collect::<Vec<_>>()
-                    .join(", ");
-                return Err(failure(
-                    &unit.source,
-                    "T0077",
-                    format!(
-                        "pure function `{}` has effect{} `{effects}`",
-                        contract.name,
-                        if effects.contains(',') { "s" } else { "" }
-                    ),
-                    contract.span,
-                ));
-            }
-        }
-    }
-
-    if package.capability_policy {
-        for unit in &package.units {
-            for contract in &unit.functions {
-                let held = contract
-                    .parameters
-                    .iter()
-                    .filter_map(|parameter| match &parameter.value_type {
-                        Some(ValueType::Capability(effect)) => Some(*effect),
-                        _ => None,
-                    })
-                    .collect::<BTreeSet<_>>();
-                let required = inferred
-                    .get(&key(contract.span))
-                    .into_iter()
-                    .flatten()
-                    .filter(|effect| !held.contains(effect))
-                    .map(|effect| effect.source_name())
-                    .collect::<Vec<_>>();
-                if !required.is_empty() {
-                    return Err(failure(
-                        &unit.source,
-                        "T0078",
-                        format!(
-                            "function `{}` requires held capability authorit{} for `{}`",
-                            contract.name,
-                            if required.len() == 1 { "y" } else { "ies" },
-                            required.join(", ")
                         ),
                         contract.span,
                     ));
@@ -4672,17 +4490,6 @@ fn analyze_binding_node(
     let storage_type = (value_type == ValueType::Scalar(ScalarType::Int))
         .then(|| initializer.and_then(|value| small_int_storage(unit, value, inferred.clone())))
         .flatten();
-    if let Some(initializer) = initializer
-        && matches!(value_type, ValueType::Capability(_))
-        && unary_operator_text(unit, initializer).as_deref() != Some("move")
-    {
-        return Err(failure(
-            &unit.source,
-            "T0072",
-            "linear capabilities cannot be copied or forged; transfer one with `move`",
-            initializer.span,
-        ));
-    }
 
     bindings.push(TypedBinding {
         name,
@@ -4778,10 +4585,6 @@ fn declared_value_type(
     })
 }
 
-#[expect(
-    clippy::too_many_lines,
-    reason = "declared type parsing exhaustively maps the closed compiler-owned type vocabulary"
-)]
 fn parse_declared_value_type(
     type_name: &str,
     aliases: &BTreeMap<String, ScalarType>,
@@ -4826,22 +4629,6 @@ fn parse_declared_value_type(
         {
             return Some(construct(scalar));
         }
-    }
-    if let Some(effect) =
-        type_name
-            .strip_prefix("capability of ")
-            .and_then(|name| match name.trim() {
-                "throws" => Some(Effect::Throws),
-                "io" => Some(Effect::Io),
-                "blocks" => Some(Effect::Blocks),
-                "awaits" => Some(Effect::Awaits),
-                "mutates" => Some(Effect::Mutates),
-                "unsafe" => Some(Effect::Unsafe),
-                "foreign" => Some(Effect::Foreign),
-                _ => None,
-            })
-    {
-        return Some(ValueType::Capability(effect));
     }
     for (constructor, construct) in [
         ("list of ", ValueType::List as fn(ElementType) -> ValueType),
@@ -9742,10 +9529,8 @@ fn validate_suspension_ownership(package: &SemanticPackage) -> Result<(), Semant
         collect_awaits(unit, &unit.tree.root, &mut awaits);
         for contract in unit.functions.iter().filter(|contract| contract.is_async) {
             for binding in unit.typed_bindings.iter().filter(|binding| {
-                matches!(
-                    binding.value_type,
-                    ValueType::Reference(_) | ValueType::Capability(_)
-                ) && binding.span.start >= contract.span.start
+                matches!(binding.value_type, ValueType::Reference(_))
+                    && binding.span.start >= contract.span.start
                     && binding.span.end <= contract.span.end
             }) {
                 let Some(events) = package.binding_events.get(&(

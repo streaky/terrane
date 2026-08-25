@@ -1,4 +1,0 @@
-namespace denied-capability-authority
-
-function main; authority capability of io
-  print; 'unreachable'

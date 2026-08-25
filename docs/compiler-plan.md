@@ -33,7 +33,7 @@ and the toolchain can compile and run a small but nontrivial command-line progra
 - deterministic generated Rust and a Cargo project;
 - source-oriented lexer, parser, resolver, type, and backend diagnostics.
 
-That list is the **first runnable outcome**, reached at milestone 6, not the boundary of version one. Version one as now specified also requires structured errors, the callable-family and descriptor models, collections and iteration, classes and interfaces, ownership and resources, capabilities and effects, async with structured concurrency, and the standard facilities in milestones 20 through 26. Milestones 7 onward deliver those.
+That list is the **first runnable outcome**, reached at milestone 6, not the boundary of version one. Version one as now specified also requires structured errors, the callable-family and descriptor models, collections and iteration, classes and interfaces, ownership and resources, callable contracts and reflection, async with structured concurrency, and the standard facilities in milestones 20 through 26. Milestones 7 onward deliver those.
 
 Version one still does not need universal dynamic values, source-declared generics, general pattern matching, multiple class inheritance, generators, labels and `goto`, hot-code replacement, `no_std`, embedded targets, or kernel targets. Syntax for deferred features may be recognized only when doing so enables a precise “not supported in this compiler version” diagnostic; it must never be accepted and lowered incorrectly.
 
@@ -1234,40 +1234,37 @@ the intended reference cost model. Lifetime analysis beyond return escape and di
 including proof across async suspension, shared-ownership cycle analysis, complete
 derived-provenance coverage, and borrow-oriented lowering remain outstanding.
 
-### Milestone 18 — Capabilities, effects, and reflection
+### Milestone 18 — Callable contracts, errors, and reflection
 
 Deliver:
 
-- the closed effect vocabulary `throws`, `io`, `blocks`, `awaits`, `mutates`, `unsafe`, and `foreign`, with allocation tracked internally rather than declared publicly;
 - exact transitive throwable-set inference for public and private callables, after catch handling and
   `finally` replacement; optional postfix `throws T` is an upper-bound compatibility contract rather
   than required effect narration;
 - ordinary user-declared classes implementing `/core/errors::throwable`, with standard errors
   migrated to compiler-owned implementing classes and arbitrary non-throwable values rejected;
 - reflection that exposes a callable's optional declared throwable bound separately from its
-  inferred escaping throwable set;
-- descriptor materialisation: reflection is the case that requires a canonical descriptor object at runtime, so this milestone supplies what milestone 4.6 deliberately does not. A statically resolved descriptor still lowers to nothing; a profile that strips reflection metadata removes the materialisation, not the identity;
-- capability objects that authorize effects without being effects, as linear authority values never synthesised from descriptive profile metadata;
-- retained descriptor identity and public callable/type metadata in ordinary profiles, stripped private bodies and unrequested inventories, and a compile-time failure when code requests metadata a profile does not retain.
+  inferred escaping throwable set, plus retained metadata for the independently meaningful async,
+  receiver-mutation, unsafe, and foreign callable contracts;
+- descriptor materialisation: reflection is the case that requires a canonical descriptor object
+  at runtime, so this milestone supplies what milestone 4.6 deliberately does not. A statically
+  resolved descriptor still lowers to nothing; a profile that strips reflection metadata removes
+  the materialisation, not the identity;
+- retained descriptor identity and public callable/type metadata in ordinary profiles, stripped
+  private bodies and unrequested inventories, and a compile-time failure when code requests
+  metadata a profile does not retain.
 
-Exit criterion: a pure caller cannot call an effectful callee, a capability cannot be forged from profile data, and a minimal profile rejects an unavailable reflection request at compile time.
+Exit criterion: exact escaping throwable contracts survive catch and `finally`, callable reflection
+reports independently meaningful contracts without claiming authority over ordinary operations, and
+a minimal profile rejects an unavailable reflection request at compile time.
 
-Implemented evidence: callable contracts retain the closed effect set and infer direct/transitive
-effects from resolved callable identities; `pure` writes an empty upper bound and rejects every
-direct or transitive effect. Typed escaping throwables are computed after catches and `finally`,
-checked against optional postfix `throws T` bounds, and exposed separately from those declared
-bounds. Standard and user-declared `throwable` implementations share the structured-error
-pipeline. Descriptor values materialise only when observed, and minimal reflection profiles reject
-unavailable metadata access.
-
-`capability of E` parameters are linear and cannot be copied or forged from reflection data.
-Package manifests select permitted capabilities and declare host authority providers for named
-entrypoint parameters; the compiler validates the provider, capability, profile permission, and
-entrypoint contract before injecting the otherwise-unconstructible authority value. Accepted and
-rejected conformance covers inferred and declared effects, the pure boundary, catch/finally
-throwable sets, custom throwables, incompatible bounds, descriptor materialisation, capability
-linearity and authority injection, profile denial, and stripped reflection. This satisfies the
-milestone exit criterion.
+Implemented evidence: typed escaping throwables are computed after catches and `finally`, checked
+against optional postfix `throws T` bounds, and exposed separately from those declared bounds.
+Standard and user-declared `throwable` implementations share the structured-error pipeline.
+Descriptor values materialise only when observed, and minimal reflection profiles reject unavailable
+metadata access. Accepted and rejected conformance covers catch/finally throwable sets, custom
+throwables, incompatible bounds, callable-contract reflection, descriptor materialisation, profile
+denial, and stripped reflection. This satisfies the milestone exit criterion.
 
 ### Milestone 19 — Async core: tasks, scope, cancellation, and deadlines
 
@@ -1486,7 +1483,7 @@ The release pipeline must prove, from a clean checkout:
 - function values, closures, and storable bound method families;
 - classes, single inheritance, structural interfaces, traits, `construct`, and deterministic drop;
 - ownership: semantic value assignment, linear resources, non-owning `ref`, owning `shared ref`, explicit `move`, and the drop pipeline;
-- the closed effect vocabulary, capability authority objects, and profile-governed reflection retention;
+- orthogonal throwable, async/suspension, receiver-mutation, unsafe, and foreign callable contracts, with profile-governed reflection retention;
 - async with `await`, task objects, the structured-concurrency scope, cooperative cancellation, and scope-propagated deadlines;
 - byte and text stream protocols, process standard streams, files, paths, and race-resistant filesystem traversal;
 - environment, arguments, the schema-driven CLI parser, and `exit-status`;

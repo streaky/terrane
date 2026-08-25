@@ -16,7 +16,7 @@ SELF_HEAL_RULE: when this reference is missing or unclear and SOURCE_OF_TRUTH re
 | display/printing | `TEXT DISPLAY` | §9.6 |
 | globals/build selection | `GLOBAL / BUILD` | §§20, 26 |
 | ownership | `VALUE`, `REF`, `MOVE`, `LIFETIME` | §12 |
-| errors/effects | `ERROR`, `EFFECT` | §§15, 19 |
+| errors/callable contracts | `ERROR`, `EFFECT` | §§15, 19 |
 | collections/text | `COLLECTION`, `TEXT` | §16 |
 | classes/protocols | `OBJECT_MODEL` | §§9, 18 |
 | packages/interop | `PACKAGE`, `RUST`, `FOREIGN` | §§23–24 |
@@ -299,7 +299,7 @@ args_rule: needs no special rule; a declaration always follows, so the call is n
 trailing_comma: an error - 'with per-cpu, global x = 0' reads 'global' as the next element and fails on a reserved word
 scope: any declaration INCLUDING an untyped local binding; no typed-binding requirement
 with_applies_to: first- and third-party package modifiers (open set)
-with_never_applies_to: global, constant, public/private/protected, static/pure/async/mutating/mutates/io/blocks/awaits/unsafe/foreign/throws (closed set, compiler-owned)
+with_never_applies_to: global, constant, public/private/protected, static/async/mutating/mutates/awaits/unsafe/foreign/throws (closed set, compiler-owned)
 test: can the compiler's model be described without it? if it changes name resolution, visibility, mutability, or a callable's type contract it is STRUCTURAL (keyword); if it changes only how a known declaration is realised - storage, layout, linkage, ABI, section, alignment - it is DECORATIVE (with)
 ordering: with-modifiers precede structural keywords; package layer is outer
 rationale: the protocol already forbids modifiers from touching visibility/ownership/effects/capability, so the split reports a real boundary; 'with global' would falsely imply global is extensible
@@ -585,18 +585,19 @@ coercion-error               coercion has no compatible result outside the overf
 - Reflection separately exposes `throwable-contract` (written upper bound, if any) and
   `escaping-throwables` (current inferred concrete set), even when private bodies are stripped.
 - Callable compatibility admits fewer compatible throwables, never an incompatible one.
-- Effect vocabulary is closed:
+- Callable contracts are orthogonal, not one permission-like effect algebra:
 
 ```yaml
-effects: throws | io | blocks | awaits | mutates | unsafe | foreign
-throwable_contract: optional written upper bound
-escaping_throwables: compiler-inferred concrete set
-allocates: NOT a public effect; compiler-internal fact only
-blocks_reason: blocking inside async is diagnosable
-purity: `pure function` is a written empty effect upper bound; any direct/transitive effect is rejected; omission means inference, not purity
-capability: linear unforgeable authority; ordinary source has no constructor; only declared host/package adapter bindings supply values; profile/reflection metadata never does
-inference: public and private; annotations constrain rather than narrate; follows resolved callable identity, not spelling or aliases
+throws: exact inferred escaping set plus optional written upper bound
+async_awaits: invocation produces a task; await constrains and marks suspension
+mutates: inferred receiver requirement checked against method/interface contracts
+unsafe: explicit unsafe Rust/lowering boundary
+foreign: explicit foreign-runtime or ABI boundary
+descriptive_facts: I/O, allocation, blocking, and shared mutation MAY be inferred for diagnostics/tooling but are not source permissions
+purity: no `pure` qualifier; a future contract requires independently defined observable guarantees
 ```
+- Reflection may group these contracts for inspection, but compatibility and validation apply each
+  contract's own rules. Ordinary I/O requires no compiler-issued authority token.
 - Uncaught throwables render deterministic cause/source chains; foreign failures preserve native
   traceback/details after translation to a declared throwable class.
 
@@ -712,18 +713,12 @@ build_scripts: declarative metadata preferred; arbitrary scripts capability-gate
 ```toml
 package = "example.tools" # required non-empty identity
 prelude = true            # optional; defaults true
-capabilities = ["io"]     # optional selected authority profile
-
-[authority]               # optional entrypoint authority providers
-output = { provider = "host", capability = "io" }
 
 [namespaces]               # required non-empty mapping table
 "example/tools" = "src"
 "example/generated" = "generated"
 ```
 - Authored manifest filename: `package.toml`; syntax is TOML; unknown fields rejected.
-- `capabilities`: closed effect-authority names permitted by the selected build profile. Descriptive profile data never materialises authority.
-- `authority`: each key names an entrypoint parameter whose inline table must select provider `host` and one permitted capability; the parameter type must be the matching `capability of E`. Direct `.trn` inputs have no providers.
 - `namespaces`: canonical namespace-root keys mapped to distinct, relative directory roots; no absolute/parent paths. Source discovery recursively includes `.trn` files only, resolves overlapping mappings by longest namespace prefix, and assigns stable file IDs in sorted package-relative path order.
 - Every discovered declaration must equal the namespace derived from its mapping and relative parent directory. Duplicate mapped directories and mapped roots containing no `.trn` files are manifest-load errors.
 - A direct `.trn` CLI input is implicit package `single-file`, one unit, default prelude, and is exempt from directory correspondence.

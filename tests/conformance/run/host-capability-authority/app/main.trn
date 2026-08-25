@@ -1,7 +1,0 @@
-namespace host-capability-authority
-
-function emit; authority capability of io
-  print; 'host authority'
-
-function main; authority capability of io
-  emit; move authority

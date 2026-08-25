@@ -497,21 +497,18 @@ release invalidation, shared-ownership cycle analysis, and the remaining provena
 expiry checking is still the implemented fallback where a non-owning reference's validity is not
 statically proven.
 
-## Effects, capabilities, and reflection
+## Callable contracts and reflection
 
-The closed callable-effect vocabulary is `throws`, `io`, `blocks`, `awaits`, `mutates`, `unsafe`,
-and `foreign`. Function qualifiers declare upper bounds; the compiler also infers direct and
-transitive effects for public and private functions from resolved callable identities. An imported
-alias of `/core/output::print` therefore carries `io`, while an unrelated source function named
-`print` does not. Callable reflection exposes `.effects`, `.throwable-contract`, and
+Callable contracts are modelled by the rule each one enforces rather than as permissions from one
+generic effect system. The compiler infers exact escaping throwable alternatives and receiver
+mutation, distinguishes sync and async callable types, validates suspension through `await`, and
+retains explicit unsafe and foreign boundaries. Callable reflection groups retained metadata under
+`.effects` for inspection and separately exposes `.throwable-contract` and
 `.escaping-throwables`; descriptor values retain canonical identity and `.name`.
 
-`capability of E` is implemented as a linear value type: copying and forgery are rejected, and
-transfer is explicit with `move`. Ordinary source has no constructor. A package manifest may select
-permitted capabilities and bind a host provider to a
-named entrypoint capability parameter; the compiler validates that contract and injects the
-authority value at the generated entrypoint. `pure` declares an empty effect upper bound, so any
-direct or transitive effect is rejected in source.
+I/O and blocking are not source qualifiers, ordinary operations require no compiler-issued
+capability value, and manifests do not inject authority into entrypoints. `pure` is not a function
+qualifier; no empty generic effect set is presented as a stronger semantic purity guarantee.
 
 ## Async tasks and scopes
 
@@ -578,10 +575,10 @@ The `/core/errors::throwable` interface and compiler-owned standard throwable ob
 identities used by `throw`, `try`, `catch`, and `finally`. Ordinary source-declared classes may
 implement `throwable`; a conforming class supplies `message` and may retain its own declared fields.
 Arithmetic, coercion, decoding, and collection failures enter the same typed result-propagation
-path and are catchable. Callable effects and exact escaping throwable alternatives are inferred
-transitively after catches and `finally` replacement. A postfix `throws T` clause is an optional
-upper-bound contract: every escaping throwable must implement `T`. Reflection exposes the declared
-bound separately from the inferred escaping set.
+path and are catchable. Exact escaping throwable alternatives are inferred transitively after
+catches and `finally` replacement. A postfix `throws T` clause is an optional upper-bound contract:
+every escaping throwable must implement `T`. Reflection exposes the declared bound separately from
+the inferred escaping set.
 
 ## Major planned surface absent today
 
@@ -594,8 +591,6 @@ source-visible standard-error fields, causes, and error hierarchies
 bytes indexing and slicing
 user-authored implementations of general iteration protocols
 user-declared type parameters and generic application
-host/package capability authority providers and profile permission enforcement
-written pure/empty effect caller contracts
 typed task errors, defined cancellation points, automatic sibling cancellation, and explicit detach
 function/class/namespace/type reflection objects
 ```

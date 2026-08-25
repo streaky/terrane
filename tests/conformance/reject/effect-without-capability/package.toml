@@ -1,5 +1,0 @@
-package = "unauthorized-effect"
-capabilities = []
-
-[namespaces]
-"unauthorized-effect" = "app"

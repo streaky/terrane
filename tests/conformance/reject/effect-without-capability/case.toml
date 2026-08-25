@@ -1,4 +1,0 @@
-phase = "check"
-status = "reject"
-code = "T0078"
-entrypoint = "package.toml"

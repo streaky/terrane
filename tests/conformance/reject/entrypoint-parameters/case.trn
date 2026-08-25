@@ -1,0 +1,2 @@
+namespace entrypoint-parameters
+function main; value int

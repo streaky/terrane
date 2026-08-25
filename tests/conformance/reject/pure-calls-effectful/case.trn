@@ -1,6 +1,0 @@
-namespace pure-calls-effectful
-
-pure function quiet;
-  print; 'not pure'
-
-function main;

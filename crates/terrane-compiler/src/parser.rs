@@ -380,16 +380,7 @@ impl Parser<'_> {
         let mut qualifiers = std::collections::BTreeSet::new();
         while matches!(
             self.text(),
-            "static"
-                | "pure"
-                | "async"
-                | "mutating"
-                | "mutates"
-                | "io"
-                | "blocks"
-                | "awaits"
-                | "unsafe"
-                | "foreign"
+            "static" | "async" | "mutating" | "mutates" | "awaits" | "unsafe" | "foreign"
         ) {
             let qualifier_start = self.position;
             let qualifier = self.text().to_owned();
@@ -1228,8 +1219,7 @@ impl Parser<'_> {
         loop {
             match self.peek_text(offset) {
                 Some(
-                    "static" | "pure" | "async" | "mutating" | "mutates" | "io" | "blocks"
-                    | "awaits" | "unsafe" | "foreign",
+                    "static" | "async" | "mutating" | "mutates" | "awaits" | "unsafe" | "foreign",
                 ) => offset += 1,
                 Some("throws") => {
                     offset += 1;

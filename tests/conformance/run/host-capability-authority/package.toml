@@ -1,8 +1,0 @@
-package = "host-capability-authority"
-capabilities = ["io"]
-
-[authority]
-authority = { provider = "host", capability = "io" }
-
-[namespaces]
-"host-capability-authority" = "app"

@@ -1,4 +1,4 @@
-use std::{collections::BTreeSet, path::PathBuf};
+use std::path::PathBuf;
 
 use terrane_compiler::semantics::SymbolKind;
 use terrane_compiler::syntax::SyntaxKind;
@@ -14,9 +14,6 @@ fn package(prelude: bool, sources: &[(&str, &str)]) -> Package {
         prelude,
         reflection: ReflectionProfile::Ordinary,
         executor: ExecutorProfile::Threaded,
-        capabilities: BTreeSet::default(),
-        capability_policy: false,
-        authority: Vec::new(),
         units: sources
             .iter()
             .enumerate()
@@ -1015,7 +1012,7 @@ fn branch_assignment_is_definite_only_when_every_path_assigns() {
             "main.trn",
             concat!(
                 "namespace app\n",
-                "function main; ready bool\n",
+                "function probe; ready bool\n",
                 "  value int\n",
                 "  if ready\n",
                 "    value = 1\n",
@@ -1033,7 +1030,7 @@ fn branch_assignment_is_definite_only_when_every_path_assigns() {
             "main.trn",
             concat!(
                 "namespace app\n",
-                "function main; ready bool\n",
+                "function probe; ready bool\n",
                 "  value int\n",
                 "  if ready\n",
                 "    value = 1\n",
@@ -1548,7 +1545,7 @@ fn typed_call_checks_follow_callee_and_argument_scope() {
         true,
         &[(
             "main.trn",
-            "namespace app\nfunction consume; item int\nfunction main; value bool\n  consume; value\n",
+            "namespace app\nfunction consume; item int\nfunction probe; value bool\n  consume; value\n",
         )],
     ))
     .unwrap_err();

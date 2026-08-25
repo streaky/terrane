@@ -576,10 +576,11 @@ callable
 +-- default invocation; positional/named arguments
 +-- parameter descriptor list
 +-- return descriptor
-+-- effects: throws / io / blocks / awaits / mutates / unsafe / foreign
++-- callable contracts
 |   +-- throwable-contract -> descriptor|none      optional written upper bound
 |   +-- escaping-throwables -> descriptor set      exact inferred current set
-|   allocation is compiler-internal, NOT public vocabulary
+|   +-- async / awaits / mutates / unsafe / foreign metadata
+|   contracts remain orthogonal; I/O/allocation/blocking facts are NOT source permissions
 
 class descriptor
 +-- default invocation -> construct

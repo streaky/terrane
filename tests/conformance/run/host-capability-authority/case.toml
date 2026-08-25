@@ -1,3 +1,0 @@
-phase = "run"
-status = "accept"
-entrypoint = "package.toml"

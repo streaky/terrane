@@ -1455,10 +1455,10 @@ A trailing comma is therefore an error rather than a tolerated flourish: `with p
 The clause is available on any declaration, including a local binding inside a function. Comma delimitation is what makes that possible: without it, a bare run of names before a binding could not be distinguished from that binding's own name and type. A modified binding therefore need not declare a type merely to remain unambiguous.
 
 **`with` marks package-supplied modifiers only.** Core declaration words — `global`, `constant`,
-the visibility words, and the closed function qualifiers `static`, `pure`, `async`, `mutating`,
-`mutates`, `io`, `blocks`, `awaits`, `unsafe`, `foreign`, and `throws` — remain bare keywords and
-never take `with`, even though several are conceptually modifier-like. The distinction is
-categorical rather than stylistic:
+the visibility words, and the closed function qualifiers `static`, `async`, `mutating`, `mutates`,
+`awaits`, `unsafe`, `foreign`, and `throws` — remain bare keywords and never take `with`, even
+though several are conceptually modifier-like. The distinction is categorical rather than
+stylistic:
 
 | | Structural | Decorative |
 |---|---|---|
@@ -3272,7 +3272,7 @@ A multimethod/generic-dispatch facility may be supplied as a library or later la
 
 ---
 
-## 19. Mutation and effects
+## 19. Mutation and callable contracts
 
 ### 19.1 Mutable by default, visible by consequence
 
@@ -3294,52 +3294,37 @@ A package import must not execute arbitrary runtime mutation merely by being ref
 
 Build-time importer execution and runtime initialisation are separate, visible phases.
 
-### 19.3 Effect metadata
+### 19.3 Orthogonal callable contracts
 
-Functions and methods expose compiler-inferred effects through reflection:
+Terrane models callable properties according to the concrete contract each property enforces,
+rather than treating every observable operation as a member of one permission-like effect set:
 
-- may throw, carrying the exact inferred escaping throwable set and any separately declared upper
-  bound;
-- performs I/O;
-- blocks;
-- awaits;
-- mutates receiver;
-- mutates global/shared state;
-- uses unsafe Rust;
-- crosses FFI.
+- `throws T` constrains escaping failures and callable compatibility as specified in §15.4;
+- `async` changes invocation to produce a task, while `await` marks and constrains suspension as
+  specified in §21;
+- receiver mutation is inferred, reflected, and checked against method/interface requirements;
+- `unsafe` selects the explicit unsafe Rust/lowering boundary;
+- `foreign` selects an explicit foreign-runtime or ABI boundary.
 
-Allocation is deliberately absent from this public vocabulary. Nearly every exported function allocates, so an `allocates` annotation carries no information at an API boundary while taxing every signature that crosses one. The compiler still tracks allocation internally, and a no-allocation profile may require it to be declared where the guarantee actually matters. `blocks` is retained for the opposite reason: once async exists, a blocking callee inside async code is a defect the checker should catch.
+These contracts remain distinct even when reflection presents them together for inspection.
+Reflection exposes exact escaping throwable alternatives and any separately declared throwable
+upper bound; it may also report async/suspension, receiver-mutation, unsafe, and foreign-boundary
+metadata where the selected profile retains it. Callable compatibility checks each contract by its
+own rules instead of applying a generic subset operation to unrelated properties.
 
-Inference applies to public and private functions alike. A written effect clause is meaningful only
-when it constrains the implementation rather than narrating an inferred fact. In particular,
-`throws T` is the optional throwable upper bound from §15.4. Strict profiles may require selected
-guarantees at public or foreign boundaries, but ordinary Terrane APIs do not transcribe inferred
-effects merely for documentation.
+I/O, allocation, blocking, global/shared mutation, and similar operations may be useful
+compiler-inferred facts for diagnostics, optimisation, audits, or target-specific validation. They
+are not source-level permission qualifiers merely because the compiler can observe them. A fact
+earns a source contract only when omitting or violating it changes executable behaviour, callable
+substitutability, or an enforceable compiler boundary. In particular, ordinary I/O does not require
+a compiler-issued authority token, and the native process receives no additional operating-system
+authority from a Terrane declaration.
 
-Effects are part of callable type compatibility. An implementation may have fewer effects than its
-interface contract, never more; an inferred throwable must satisfy a written `throws` upper bound.
-A dynamic callable with unavailable effect metadata is treated as may-throw and otherwise unknown
-for capability checking rather than optimistically inferred safe.
-Effect inference follows resolved callable identity, never source spelling. An imported alias of
-`/core/output::print` therefore carries `io`, while an unrelated source function named `print`
-does not.
-
-This metadata supports optimisation, auditing, AI tooling, and target capability checks.
-
-`pure function` writes an empty effect upper bound. Its body and every transitive callee must infer
-the empty set; any `throws`, `io`, `blocks`, `awaits`, `mutates`, `unsafe`, or `foreign` effect is a
-source diagnostic at that function contract. Omission of `pure` remains inference, not an implicit
-purity claim.
-
-### 19.4 Capability authority
-
-`capability of E` is a linear, unforgeable authority value for an effect set `E`; it is not
-descriptive effect metadata. Ordinary Terrane source has no capability constructor. Authority
-enters a program only through a host or package adapter declared in the resolved build graph, which
-binds a concrete capability value to an entrypoint parameter or imported provider. The selected
-profile may approve or reject that binding, but inspecting profile or reflection data can never
-materialise authority. Calls requiring authority consume or explicitly transfer the corresponding
-value, and copying it is a compile-time error.
+Terrane does not currently define a `pure` qualifier. A useful purity contract would need precise,
+enforceable guarantees for observable state, suspension, failure, allocation, identity,
+destruction, foreign code, and concurrency; an empty bag of unrelated metadata would not provide
+those guarantees. Purity may be designed as an independent callable contract if those semantics
+are settled later.
 
 ---
 
@@ -3736,10 +3721,6 @@ the following minimal contract:
 ```toml
 package = "example.tools"
 prelude = true
-capabilities = ["io"]
-
-[authority]
-output = { provider = "host", capability = "io" }
 
 [namespaces]
 "example/tools" = "src"
@@ -3750,26 +3731,7 @@ output = { provider = "host", capability = "io" }
 non-empty table from canonical namespace roots to distinct relative directory
 roots; absolute paths, paths containing `..`, duplicate directory roots, and
 roots containing no `.trn` source are invalid. `prelude` is an optional boolean
-and defaults to `true`. `capabilities` is an optional array selecting the closed
-effect authorities permitted by the build profile. Each key in the optional
-`authority` table names an entrypoint parameter; its inline table declares the
-`host` provider and the one selected capability it supplies. The parameter must
-have exactly the matching `capability of E` type. Profile metadata alone never
-constructs authority.
-
-Unknown fields are rejected. The loader recursively discovers `.trn` files only
-beneath namespace roots and gives source units stable file identities in sorted
-package-relative path order. Every source declaration must match the namespace
-derived from the longest directory mapping and the file's relative parent
-directory. A direct `.trn` CLI input is instead an implicit one-unit package
-with identity `single-file`, the default prelude, no authority providers, and
-no directory-correspondence check.
-
-A package may expose one coherent object namespace regardless of which implementation language supplies each object.
-
-Consumers should not need to know whether `resize` is implemented in source, generated Rust, handwritten Rust, or a C library wrapper.
-
-### 23.5 Locking and reproducibility
+and defaults to `true`.
 
 The package manager must produce a lockfile covering:
 
@@ -5386,8 +5348,8 @@ function-declaration
     indented-function-body
 
 function-qualifier
-  = "static" | "pure" | "async" | "mutating" | "mutates"
-  | "io" | "blocks" | "awaits" | "unsafe" | "foreign" | "throws"
+  = "static" | "async" | "mutating" | "mutates"
+  | "awaits" | "unsafe" | "foreign" | "throws"
 
 parameter-list
   = parameter { "," parameter }

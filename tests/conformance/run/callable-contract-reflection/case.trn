@@ -1,0 +1,7 @@
+namespace callable-contract-reflection
+
+awaits unsafe foreign function marked;
+
+function main;
+  marked;
+  print; marked.effects

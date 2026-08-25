@@ -106,22 +106,6 @@ pub(crate) fn lower(package: &SemanticPackage) -> Program {
             )],
         });
     }
-    if package.units.iter().any(|unit| {
-        unit.typed_bindings
-            .iter()
-            .any(|binding| matches!(binding.value_type, ValueType::Capability(_)))
-            || unit.functions.iter().any(|function| {
-                function
-                    .parameters
-                    .iter()
-                    .any(|parameter| matches!(parameter.value_type, Some(ValueType::Capability(_))))
-            })
-    }) {
-        runtime.push(GeneratedModule {
-            name: "capabilities",
-            items: vec![Item::generated("struct TerraneCapability;\n")],
-        });
-    }
     emit_global_storage(package, &mut globals);
     let modules = package
         .units
@@ -1394,15 +1378,8 @@ impl Emitter<'_> {
             .find(|item| item.span == node.span)
             .expect("analyzed function declaration must have a semantic contract");
         self.line_start();
-        let injected_main =
-            contract.name == "main" && receiver.is_none() && !contract.parameters.is_empty();
-        let name = if injected_main {
-            "__terrane_main".to_owned()
-        } else {
-            name_override.map_or_else(|| function_name(contract), str::to_owned)
-        };
-        let async_main =
-            contract.is_async && contract.name == "main" && receiver.is_none() && !injected_main;
+        let name = name_override.map_or_else(|| function_name(contract), str::to_owned);
+        let async_main = contract.is_async && contract.name == "main" && receiver.is_none();
         write!(
             self.output,
             "{}{}fn {name}(",
@@ -1525,23 +1502,6 @@ impl Emitter<'_> {
             self.line("});");
         }
         self.line("}");
-        if injected_main {
-            let arguments = contract
-                .parameters
-                .iter()
-                .map(|_| "TerraneCapability")
-                .collect::<Vec<_>>()
-                .join(", ");
-            self.line("fn main() {");
-            self.indent += 1;
-            if contract.is_async {
-                self.line(&format!("__terrane_block_on(__terrane_main({arguments}));"));
-            } else {
-                self.line(&format!("__terrane_main({arguments});"));
-            }
-            self.indent -= 1;
-            self.line("}");
-        }
     }
 
     fn anonymous_function(&mut self, node: &SyntaxNode) -> String {
@@ -5404,7 +5364,6 @@ fn rust_value_type(ty: ValueType) -> String {
             format!("TerraneTaskOutcome<{}>", rust_element_type(result))
         }
         ValueType::Descriptor(_) => "TerraneDescriptor".to_owned(),
-        ValueType::Capability(_) => "TerraneCapability".to_owned(),
         ValueType::Object(name) => rust_object_name(&name),
         ValueType::SharedReference(item) => format!(
             "std::sync::Arc<parking_lot::Mutex<{}>>",

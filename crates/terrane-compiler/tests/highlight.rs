@@ -58,7 +58,6 @@ fn classifies_object_and_ownership_contextual_keywords() {
         "implements",
         "uses",
         "shared",
-        "capability",
         "this",
         "construct",
         "destruct",
