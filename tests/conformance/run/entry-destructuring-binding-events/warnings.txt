@@ -1,0 +1,2 @@
+case.trn:5:3: warning[W4001]: binding `second` is never read
+case.trn:7:12: warning[W4002]: initial value assigned to `second` is never read

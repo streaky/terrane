@@ -2231,9 +2231,6 @@ impl Emitter<'_> {
     fn for_statement(&mut self, node: &SyntaxNode) {
         match node.children.as_slice() {
             [target, collection, block] if target.kind == SyntaxKind::ForTarget => {
-                if target.children.is_empty() {
-                    return;
-                }
                 let collection_type = self.value_type(collection);
                 let collection = self.expression(collection);
                 let loop_index = self.loop_counter;
@@ -2341,7 +2338,7 @@ impl Emitter<'_> {
                     }
                 }
             }
-            _ => {}
+            _ => unreachable!("semantic analysis admitted invalid iteration target arity"),
         }
     }
 

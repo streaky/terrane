@@ -123,33 +123,55 @@ fn iterable_item_type(value_type: ValueType) -> Option<ValueType> {
     }
 }
 
-fn iteration_target_types(
-    source: &SourceFile,
+fn iteration_target_bindings(
+    unit: &SemanticUnit,
     target: &SyntaxNode,
+    visible_from: usize,
+    scope: Span,
     item_type: ValueType,
-) -> Result<Vec<ValueType>, SemanticFailure> {
-    match target.children.len() {
-        1 => Ok(vec![item_type]),
-        2 => match item_type {
-            ValueType::Entry(key, value) => Ok(vec![key.value_type(), value.value_type()]),
-            other => Err(failure(
-                source,
-                "T0016",
-                format!("iteration item of type `{other}` cannot be destructured"),
-                target.span,
-            )),
-        },
-        count => {
-            let message = match item_type {
-                ValueType::Entry(_, _) => format!(
-                    "entry iteration requires one target or exactly two destructuring targets, found {count}"
-                ),
-                other => format!(
-                    "iteration item of type `{other}` does not support {count}-target destructuring"
-                ),
-            };
-            Err(failure(source, "T0016", message, target.span))
-        }
+) -> Result<Vec<TypedBinding>, SemanticFailure> {
+    let binding = |name: &SyntaxNode, value_type| TypedBinding {
+        name: node_text(&unit.source, name).to_owned(),
+        span: name.span,
+        visible_from,
+        scope: Some(scope),
+        value_type,
+        destination_arms: Vec::new(),
+        storage_type: None,
+        mutable: false,
+    };
+    match (target.children.as_slice(), item_type) {
+        ([name], item_type) => Ok(vec![binding(name, item_type)]),
+        ([key_name, value_name], ValueType::Entry(key, value)) => Ok(vec![
+            binding(key_name, key.value_type()),
+            binding(value_name, value.value_type()),
+        ]),
+        ([_, _], other) => Err(failure(
+            &unit.source,
+            "T0016",
+            format!(
+                "`key, value` iteration destructuring requires an `entry` item, found `{other}`"
+            ),
+            target.span,
+        )),
+        (names, ValueType::Entry(_, _)) => Err(failure(
+            &unit.source,
+            "T0016",
+            format!(
+                "entry iteration requires one target or exactly two destructuring targets, found {}",
+                names.len()
+            ),
+            target.span,
+        )),
+        (names, other) => Err(failure(
+            &unit.source,
+            "T0016",
+            format!(
+                "iteration item of type `{other}` does not support {}-target destructuring",
+                names.len()
+            ),
+            target.span,
+        )),
     }
 }
 
@@ -2576,24 +2598,14 @@ fn validate_call_nodes<'a>(
                     collection.span,
                 )
             })?;
-        let target_types = iteration_target_types(&unit.source, target, item_type)?;
         let mut loop_bindings = scoped_bindings.to_vec();
-        loop_bindings.extend(
-            target
-                .children
-                .iter()
-                .zip(target_types)
-                .map(|(name, value_type)| TypedBinding {
-                    name: node_text(&unit.source, name).to_owned(),
-                    span: name.span,
-                    visible_from: collection.span.end,
-                    scope: Some(block.span),
-                    value_type,
-                    destination_arms: Vec::new(),
-                    storage_type: None,
-                    mutable: false,
-                }),
-        );
+        loop_bindings.extend(iteration_target_bindings(
+            unit,
+            target,
+            collection.span.end,
+            block.span,
+            item_type,
+        )?);
         validate_call_nodes(
             package,
             unit,
@@ -3768,22 +3780,8 @@ fn collect_typed_bindings(
                     collection.span,
                 )
             })?;
-        let target_types = iteration_target_types(&unit.source, target, item_type)?;
-        let loop_bindings = target
-            .children
-            .iter()
-            .zip(target_types)
-            .map(|(name, value_type)| TypedBinding {
-                name: node_text(&unit.source, name).to_owned(),
-                span: name.span,
-                visible_from: collection.span.end,
-                scope: Some(block.span),
-                value_type,
-                destination_arms: Vec::new(),
-                storage_type: None,
-                mutable: false,
-            })
-            .collect::<Vec<_>>();
+        let loop_bindings =
+            iteration_target_bindings(unit, target, collection.span.end, block.span, item_type)?;
         bindings.extend(loop_bindings.iter().cloned());
         let mut visible_loop_bindings = visible_bindings.clone();
         visible_loop_bindings.extend(loop_bindings);
@@ -8283,19 +8281,13 @@ fn validate_flow_statement(
                         collection.span,
                     ));
                 };
-                let target_types = iteration_target_types(&unit.source, target, item_type)?;
-                loop_bindings.extend(target.children.iter().zip(target_types).map(
-                    |(name, value_type)| TypedBinding {
-                        name: node_text(&unit.source, name).to_owned(),
-                        span: name.span,
-                        visible_from: collection.span.end,
-                        scope: Some(block.span),
-                        value_type,
-                        destination_arms: Vec::new(),
-                        storage_type: None,
-                        mutable: false,
-                    },
-                ));
+                loop_bindings.extend(iteration_target_bindings(
+                    unit,
+                    target,
+                    collection.span.end,
+                    block.span,
+                    item_type,
+                )?);
             }
             if let Some(block) = statement
                 .children
@@ -9283,27 +9275,20 @@ fn binding_event_child_region(
     })
 }
 
-fn declared_binding_at_node<'a>(
+fn declared_bindings_at_node<'a>(
     unit: &'a SemanticUnit,
     node: &SyntaxNode,
-) -> Option<&'a TypedBinding> {
-    if node.kind == SyntaxKind::ForTarget {
-        let name = node.children.first()?;
-        return unit
-            .typed_bindings
-            .iter()
-            .find(|binding| binding.span == name.span);
-    }
-    matches!(
-        node.kind,
-        SyntaxKind::Binding | SyntaxKind::Assignment | SyntaxKind::Parameter
-    )
-    .then(|| {
-        unit.typed_bindings
-            .iter()
-            .find(|binding| binding.span == node.span)
+) -> impl Iterator<Item = &'a TypedBinding> {
+    unit.typed_bindings.iter().filter(move |binding| {
+        if node.kind == SyntaxKind::ForTarget {
+            node.children.iter().any(|name| binding.span == name.span)
+        } else {
+            matches!(
+                node.kind,
+                SyntaxKind::Binding | SyntaxKind::Assignment | SyntaxKind::Parameter
+            ) && binding.span == node.span
+        }
     })
-    .flatten()
 }
 
 fn initial_store_span(node: &SyntaxNode, binding: &TypedBinding) -> Span {
@@ -9312,6 +9297,34 @@ fn initial_store_span(node: &SyntaxNode, binding: &TypedBinding) -> Span {
     } else {
         node.span
     }
+}
+
+fn record_declared_binding_writes(
+    unit: &SemanticUnit,
+    node: &SyntaxNode,
+    events: &mut BTreeMap<(u32, usize, usize), Vec<BindingEvent>>,
+    loops: &[Span],
+    regions: &[ControlRegion],
+) -> bool {
+    let initial_store = node.kind == SyntaxKind::ForTarget
+        || node.kind == SyntaxKind::Parameter
+        || unit.source.text()[node.span.start..node.span.end].contains('=');
+    if !initial_store {
+        return false;
+    }
+    let mut recorded = false;
+    for binding in declared_bindings_at_node(unit, node) {
+        recorded = true;
+        events
+            .entry(span_key(binding.span))
+            .or_default()
+            .push(BindingEvent::Write {
+                span: initial_store_span(node, binding),
+                loops: loops.to_vec(),
+                regions: regions.to_vec(),
+            });
+    }
+    recorded
 }
 
 fn collect_binding_events(
@@ -9357,11 +9370,11 @@ fn collect_binding_events(
         return;
     }
 
-    let declared_binding = declared_binding_at_node(unit, node);
+    let declares_binding = declared_bindings_at_node(unit, node).next().is_some();
     let assignment_target = if matches!(
         node.kind,
         SyntaxKind::Assignment | SyntaxKind::PostfixExpression
-    ) && declared_binding.is_none()
+    ) && !declares_binding
     {
         node.children
             .first()
@@ -9371,12 +9384,15 @@ fn collect_binding_events(
     };
 
     for (index, child) in node.children.iter().enumerate() {
-        let declares_child = (declared_binding.is_some()
-            || matches!(node.kind, SyntaxKind::Parameter | SyntaxKind::ForTarget))
-            && child.kind == SyntaxKind::Name
-            && !node.children[..index]
-                .iter()
-                .any(|prior| prior.kind == SyntaxKind::Name);
+        let declares_child = child.kind == SyntaxKind::Name
+            && if node.kind == SyntaxKind::ForTarget {
+                true
+            } else {
+                (declares_binding || node.kind == SyntaxKind::Parameter)
+                    && !node.children[..index]
+                        .iter()
+                        .any(|prior| prior.kind == SyntaxKind::Name)
+            };
         let plain_assignment_target =
             assignment_target.is_some() && node.kind == SyntaxKind::Assignment && index == 0;
         if !plain_assignment_target {
@@ -9397,20 +9413,8 @@ fn collect_binding_events(
             }
         }
     }
-    if let Some(binding) = declared_binding
-        && (node.kind == SyntaxKind::ForTarget
-            || node.kind == SyntaxKind::Parameter
-            || unit.source.text()[node.span.start..node.span.end].contains('='))
-    {
-        events
-            .entry(span_key(binding.span))
-            .or_default()
-            .push(BindingEvent::Write {
-                span: initial_store_span(node, binding),
-                loops: loops.clone(),
-                regions: regions.clone(),
-            });
-    } else if let Some(target) = assignment_target
+    if !record_declared_binding_writes(unit, node, events, loops, regions)
+        && let Some(target) = assignment_target
         && let Some(declaration_span) = package
             .resolve_name_at(unit, target.span.start, node_text(&unit.source, target))
             .and_then(|symbol| symbol.declaration_span)

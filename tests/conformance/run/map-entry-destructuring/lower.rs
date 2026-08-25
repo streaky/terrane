@@ -154,7 +154,6 @@ fn main() {
         };
         let mut key = __terrane_item_0.key;
         let mut value = __terrane_item_0.value;
-        let _ = &value;
         println!(
             "{}{}", terrane_scalar_support::scalar_text(&key),
             terrane_scalar_support::scalar_text(&value)
@@ -198,7 +197,6 @@ fn main() {
         };
         let key = __terrane_item_1.key;
         let value = __terrane_item_1.value;
-        let _ = &value;
         println!(
             "{}{}", terrane_scalar_support::scalar_text(&key),
             terrane_scalar_support::scalar_text(&value)

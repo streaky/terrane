@@ -1,0 +1,8 @@
+namespace entry-destructuring-component-type
+from /core/collections import map
+
+function main;
+  values = map; first=1
+  for key, value in values
+    total int = key
+    print; total, value
