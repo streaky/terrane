@@ -170,7 +170,7 @@ impl BaseStorage {
         value
     }
     pub fn report(&self) -> terrane_int_support::Int {
-        return (self.value).clone();
+        return self.value.clone();
     }
     pub fn set(&mut self, value: terrane_int_support::Int) {
         self.value = value.clone();
@@ -264,7 +264,7 @@ impl Child {
         value
     }
     pub fn report(&self) -> terrane_int_support::Int {
-        return (self.value).clone();
+        return self.value.clone();
     }
     pub fn set(&mut self, value: terrane_int_support::Int) {
         self.value = value.clone();
@@ -309,7 +309,7 @@ fn main() {
     println!("{}", terrane_scalar_support::scalar_text(& (value.report())));
     value.set(terrane_int_support::Int::from(4_i128));
     println!("{}", terrane_scalar_support::scalar_text(& (value.report())));
-    let view: Named = Named::from((value).terrane_separate());
-    let copied: Named = (view).terrane_separate();
+    let view: Named = Named::from(value.terrane_separate());
+    let copied: Named = view.terrane_separate();
     println!("{}", terrane_scalar_support::scalar_text(& (copied.report())));
 }

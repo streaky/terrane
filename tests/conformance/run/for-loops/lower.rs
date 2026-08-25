@@ -9,7 +9,7 @@ fn show(mut value: String) {
 fn main() {
     show(String::from("original"));
     let text: String = String::from("e\u{301}x");
-    let mut __terrane_iterator_0 = terrane_collection_support::string_iterator(&(text));
+    let mut __terrane_iterator_0 = terrane_collection_support::string_iterator(&text);
     loop {
         let mut character = match __terrane_iterator_0.next() {
             terrane_collection_support::IterationStep::Item(item) => item,

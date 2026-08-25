@@ -219,7 +219,7 @@ fn return_then_error() -> Result<terrane_int_support::Int, TerraneError> {
     }
 }
 fn main() {
-    let first: terrane_int_support::Int = (error_then_return())
+    let first: terrane_int_support::Int = error_then_return()
         .unwrap_or_else(|error| __terrane_uncaught(
             error.at("/finally-error-replacement::main (case.trn:14:15)"),
         ));

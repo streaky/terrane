@@ -23,7 +23,7 @@ fn main() {
         })
     };
     let result: terrane_int_support::Int = apply(
-        (callback).clone(),
+        callback.clone(),
         terrane_int_support::Int::from(2_i128),
     );
     println!("{}", terrane_scalar_support::scalar_text(& (result)));

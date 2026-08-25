@@ -168,13 +168,13 @@ fn main() {
     let encoded: std::sync::Arc<std::sync::Mutex<Vec<u8>>> = std::sync::Arc::new(
         std::sync::Mutex::new(
             terrane_string_support::encode(
-                &(({
+                &{
                     let __terrane_value = text
                         .lock()
                         .expect("reference lock poisoned")
                         .clone();
                     __terrane_value
-                })),
+                },
                 terrane_string_support::Encoding::Utf8,
             ),
         ),
@@ -228,7 +228,7 @@ fn main() {
         .upgrade().expect("reference expired"); let __terrane_value = __terrane_owner
         .lock().expect("reference lock poisoned").clone(); __terrane_value })))
     );
-    let owner: std::sync::Arc<std::sync::Mutex<i8>> = (number).clone();
+    let owner: std::sync::Arc<std::sync::Mutex<i8>> = number.clone();
     println!(
         "{}", terrane_scalar_support::scalar_text(& (({ let __terrane_value = owner
         .lock().expect("shared reference lock poisoned").clone(); __terrane_value })))

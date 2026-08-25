@@ -6,7 +6,7 @@ fn main() {
     let target: f32 = {
         let source_value = source;
         let converted = source_value as f32;
-        if (converted as f64) == source_value {
+        if converted as f64 == source_value {
             converted
         } else {
             terrane_int_support::unwrap_or_fail(

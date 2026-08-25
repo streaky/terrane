@@ -11,7 +11,7 @@ indoc = "2"
 num-bigint = "0.4"
 num-traits = "0.2"
 prettyplease = "0.2"
-syn = { version = "2", features = ["full"] }
+syn = { version = "2", features = ["extra-traits", "fold", "full"] }
 toml = "0.8"
 [lints]
 workspace = true

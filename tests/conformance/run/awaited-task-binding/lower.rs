@@ -24,7 +24,7 @@ fn main() {
         let child: std::pin::Pin<Box<dyn Future<Output = terrane_int_support::Int>>> = Box::pin(
             answer(),
         );
-        let value: terrane_int_support::Int = (child).await;
+        let value: terrane_int_support::Int = child.await;
         println!("{}", terrane_scalar_support::scalar_text(& (value)));
     });
 }

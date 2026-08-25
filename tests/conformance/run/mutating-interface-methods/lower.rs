@@ -39,11 +39,11 @@ impl Counter {
         &mut self,
         amount: terrane_int_support::Int,
     ) -> terrane_int_support::Int {
-        self.value = (self.value).clone() + amount.clone();
-        return (self.value).clone();
+        self.value = self.value.clone() + amount.clone();
+        return self.value.clone();
     }
     pub fn read(&self) -> terrane_int_support::Int {
-        return (self.value).clone();
+        return self.value.clone();
     }
 }
 impl AdjustableProtocol for Counter {

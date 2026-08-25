@@ -142,7 +142,7 @@ fn main() {
     }
     let mut across_loop: i8 = 0;
     let mut __terrane_iterator_0 = terrane_collection_support::string_iterator(
-        &(String::from("ab")),
+        &String::from("ab"),
     );
     loop {
         let first = match __terrane_iterator_0.next() {
@@ -153,7 +153,7 @@ fn main() {
         across_loop = 1;
     }
     let mut __terrane_iterator_1 = terrane_collection_support::string_iterator(
-        &(String::from("cd")),
+        &String::from("cd"),
     );
     loop {
         let second = match __terrane_iterator_1.next() {

@@ -153,7 +153,7 @@ impl ConfigError {
         self.message = message;
     }
     pub fn render(&self) -> String {
-        return (self.message).clone();
+        return self.message.clone();
     }
 }
 fn load(path: String) -> Result<String, TerraneError> {

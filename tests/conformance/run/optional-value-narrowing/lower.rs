@@ -69,8 +69,8 @@ fn main() {
     println!("{}", terrane_scalar_support::scalar_text(& (true)));
     helper();
     let found: Option<terrane_string_support::TextRange> = terrane_string_support::find(
-        &(String::from("banana")),
-        &(String::from("ana")),
+        &String::from("banana"),
+        &String::from("ana"),
     );
     if found != None {
         if found != None {

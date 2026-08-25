@@ -27,11 +27,11 @@ impl Counter {
         &mut self,
         amount: terrane_int_support::Int,
     ) -> terrane_int_support::Int {
-        self.value = (self.value).clone() + amount.clone();
-        return (self.value).clone();
+        self.value = self.value.clone() + amount.clone();
+        return self.value.clone();
     }
     pub fn shifted(&self, amount: terrane_int_support::Int) -> terrane_int_support::Int {
-        return (self.value).clone() + amount.clone();
+        return self.value.clone() + amount.clone();
     }
     pub fn destruct(&self) {
         println!(
@@ -50,11 +50,11 @@ fn main() {
     let mut first: Counter = Counter::terrane_construct(
         terrane_int_support::Int::from(10_i128),
     );
-    let mut second: Counter = (first).terrane_separate();
+    let mut second: Counter = first.terrane_separate();
     let shift: std::sync::Arc<
         dyn Fn(terrane_int_support::Int) -> terrane_int_support::Int,
     > = {
-        let receiver = (first).terrane_separate();
+        let receiver = first.terrane_separate();
         std::sync::Arc::new(move |argument_0: terrane_int_support::Int| {
             receiver.shifted(argument_0)
         })

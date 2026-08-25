@@ -49,12 +49,12 @@ impl Child {
 }
 fn main() {
     let concrete: Child = Child::terrane_construct();
-    let mut view: Base = Base::Child((concrete).clone());
+    let mut view: Base = Base::Child(concrete.clone());
     println!(
         "{}", terrane_scalar_support::scalar_text(& ((view).terrane_field_value()
         .clone()))
     );
-    *(view).terrane_field_value_mut() = terrane_int_support::Int::from(9_i128);
+    *view.terrane_field_value_mut() = terrane_int_support::Int::from(9_i128);
     println!(
         "{}", terrane_scalar_support::scalar_text(& ((view).terrane_field_value()
         .clone()))

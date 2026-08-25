@@ -136,7 +136,7 @@ fn main() {
     let value: i64 = 300;
     let __terrane_completion_0: TerraneCompletion<()> = (|| {
         let __terrane_try_0: TerraneCompletion<()> = (|| {
-            let narrow: i8 = match terrane_int_support::coerce::<i8>(&(value)) {
+            let narrow: i8 = match terrane_int_support::coerce::<i8>(&value) {
                 Ok(value) => value,
                 Err(error) => {
                     return TerraneCompletion::Error(

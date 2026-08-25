@@ -280,10 +280,10 @@ async fn survive() -> terrane_int_support::Int {
 fn main() {
     let scope: TerraneTaskScope = TerraneTaskScope::new(None);
     let failing: TerraneScopedTask<terrane_int_support::Int> = {
-        let __terrane_scope = (scope).clone();
+        let __terrane_scope = scope.clone();
         let __terrane_cancel = __terrane_scope.clone();
         TerraneScopedTask::spawn(move || match __terrane_block_on_cancellable(
-            (fail)(),
+            fail(),
             move || __terrane_cancel.should_cancel(),
         ) {
             Some(Ok(value)) => TerraneTaskResult::Completed(value),
@@ -292,18 +292,18 @@ fn main() {
         })
     };
     let sibling: TerraneScopedTask<terrane_int_support::Int> = {
-        let __terrane_scope = (scope).clone();
+        let __terrane_scope = scope.clone();
         let __terrane_cancel = __terrane_scope.clone();
         TerraneScopedTask::spawn(move || match __terrane_block_on_cancellable(
-            (survive)(),
+            survive(),
             move || __terrane_cancel.should_cancel(),
         ) {
             Some(value) => TerraneTaskResult::Completed(value),
             None => TerraneTaskResult::Cancelled,
         })
     };
-    let failed: TerraneTaskOutcome<terrane_int_support::Int> = (scope).join(failing);
-    let survived: TerraneTaskOutcome<terrane_int_support::Int> = (scope).join(sibling);
+    let failed: TerraneTaskOutcome<terrane_int_support::Int> = scope.join(failing);
+    let survived: TerraneTaskOutcome<terrane_int_support::Int> = scope.join(sibling);
     println!(
         "{}{}", terrane_scalar_support::scalar_text(& ((failed).completed)),
         terrane_scalar_support::scalar_text(& ((failed).cancelled))

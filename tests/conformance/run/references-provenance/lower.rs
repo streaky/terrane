@@ -144,11 +144,13 @@ fn main() {
     );
     let owner: std::sync::Arc<
         std::sync::Mutex<terrane_collection_support::List<terrane_int_support::Int>>,
-    > = (values).clone();
+    > = values.clone();
     let observer: std::sync::Weak<
         std::sync::Mutex<terrane_collection_support::List<terrane_int_support::Int>>,
     > = std::sync::Arc::downgrade(&values);
-    (owner.lock().expect("shared reference lock poisoned"))
+    owner
+        .lock()
+        .expect("shared reference lock poisoned")
         .append(terrane_int_support::Int::from(2_i128));
     println!(
         "{}{}", terrane_scalar_support::scalar_text(& (terrane_int_support::Int::from((({

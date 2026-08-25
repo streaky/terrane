@@ -13,11 +13,11 @@ fn main() {
         terrane_scalar_support::scalar_text(& (String::from("namespaces"))),
         terrane_scalar_support::scalar_text(& (String::from("strings")))
     ]
-        .join(&(String::from(" / ")));
+        .join(&String::from(" / "));
     let count: terrane_int_support::Int = terrane_int_support::Int::from(
         terrane_string_support::length(&String::from("a🇺🇳")) as i128,
     );
-    let converted: u8 = terrane_int_support::saturating_coerce::<u8>(&(300));
+    let converted: u8 = terrane_int_support::saturating_coerce::<u8>(&300);
     if count.clone() == terrane_int_support::Int::from(2_i128) {
         println!("{}", terrane_scalar_support::scalar_text(& (joined)));
     }

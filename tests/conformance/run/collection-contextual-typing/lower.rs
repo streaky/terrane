@@ -137,10 +137,10 @@ fn main() {
         terrane_int_support::Int,
     >::new(vec![terrane_int_support::Int::from(1_i128)]);
     let found: Option<terrane_int_support::Int> = terrane_collection_support::index_from_int(
-            &(terrane_int_support::Int::from(0_i128)),
+            &terrane_int_support::Int::from(0_i128),
         )
         .ok()
-        .and_then(|index| (values).get(index).cloned());
+        .and_then(|index| values.get(index).cloned());
     let narrow: terrane_collection_support::List<i8> = terrane_collection_support::List::<
         i8,
     >::new(vec![5, 6]);

@@ -19,7 +19,7 @@ impl Maker {
             std::sync::Arc::new(move |
                 value: terrane_int_support::Int,
             | -> terrane_int_support::Int {
-                return (this.base).clone() + value.clone();
+                return this.base.clone() + value.clone();
             })
         };
     }

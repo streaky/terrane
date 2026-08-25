@@ -1,4 +1,5 @@
 use std::fmt::Write as _;
+use syn::fold::Fold as _;
 
 use crate::Span;
 
@@ -45,19 +46,33 @@ pub struct Item {
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Block {
-    rendered: String,
+    parsed: syn::File,
+}
+
+#[derive(Default)]
+struct CanonicalizeExpressions;
+
+impl syn::fold::Fold for CanonicalizeExpressions {
+    fn fold_expr(&mut self, expression: syn::Expr) -> syn::Expr {
+        match syn::fold::fold_expr(self, expression) {
+            syn::Expr::Paren(parenthesized) if parenthesized.attrs.is_empty() => {
+                *parenthesized.expr
+            }
+            expression => expression,
+        }
+    }
 }
 
 impl Block {
     fn from_rendered(rust: &str) -> Self {
         let parsed = syn::parse_file(rust).expect("lowered Rust item must parse");
         Self {
-            rendered: prettyplease::unparse(&parsed),
+            parsed: CanonicalizeExpressions.fold_file(parsed),
         }
     }
 
     fn render(&self, output: &mut String) {
-        output.push_str(&self.rendered);
+        output.push_str(&prettyplease::unparse(&self.parsed));
     }
 }
 

@@ -12,7 +12,7 @@ fn main() {
     let narrowed_zero: f32 = {
         let source_value = negative_zero;
         let converted = source_value as f32;
-        if (converted as f64) == source_value {
+        if converted as f64 == source_value {
             converted
         } else {
             terrane_int_support::unwrap_or_fail(
@@ -30,7 +30,7 @@ fn main() {
     let narrowed_positive: f32 = {
         let source_value = positive_infinity;
         let converted = source_value as f32;
-        if (converted as f64) == source_value {
+        if converted as f64 == source_value {
             converted
         } else {
             terrane_int_support::unwrap_or_fail(
@@ -48,7 +48,7 @@ fn main() {
     let narrowed_negative: f32 = {
         let source_value = negative_infinity;
         let converted = source_value as f32;
-        if (converted as f64) == source_value {
+        if converted as f64 == source_value {
             converted
         } else {
             terrane_int_support::unwrap_or_fail(
@@ -66,7 +66,7 @@ fn main() {
     let narrowed_maximum: f32 = {
         let source_value = maximum;
         let converted = source_value as f32;
-        if (converted as f64) == source_value {
+        if converted as f64 == source_value {
             converted
         } else {
             terrane_int_support::unwrap_or_fail(

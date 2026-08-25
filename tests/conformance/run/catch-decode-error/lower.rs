@@ -137,7 +137,7 @@ fn main() {
     let __terrane_completion_0: TerraneCompletion<()> = (|| {
         let __terrane_try_0: TerraneCompletion<()> = (|| {
             let decoded: String = match terrane_string_support::decode(
-                &(raw),
+                &raw,
                 terrane_string_support::Encoding::Utf8,
             ) {
                 Ok(value) => value,

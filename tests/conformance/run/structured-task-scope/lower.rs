@@ -271,22 +271,22 @@ async fn work() -> terrane_int_support::Int {
 fn main() {
     let scope: TerraneTaskScope = TerraneTaskScope::new(None);
     let child: TerraneScopedTask<terrane_int_support::Int> = {
-        let __terrane_scope = (scope).clone();
+        let __terrane_scope = scope.clone();
         let __terrane_cancel = __terrane_scope.clone();
         TerraneScopedTask::spawn(move || match __terrane_block_on_cancellable(
-            (work)(),
+            work(),
             move || __terrane_cancel.should_cancel(),
         ) {
             Some(value) => TerraneTaskResult::Completed(value),
             None => TerraneTaskResult::Cancelled,
         })
     };
-    let outcome: TerraneTaskOutcome<terrane_int_support::Int> = (scope).join(child);
+    let outcome: TerraneTaskOutcome<terrane_int_support::Int> = scope.join(child);
     println!(
         "{}{}", terrane_scalar_support::scalar_text(& ((outcome).completed)),
         terrane_scalar_support::scalar_text(& ((outcome).cancelled))
     );
-    let value: Option<terrane_int_support::Int> = (outcome).value.clone();
+    let value: Option<terrane_int_support::Int> = outcome.value.clone();
     if value != None {
         println!(
             "{}", terrane_scalar_support::scalar_text(& (* value.as_ref()

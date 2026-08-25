@@ -18,11 +18,11 @@ fn main() {
         std::sync::Arc::new(move |
             value: terrane_int_support::Int,
         | -> terrane_int_support::Int {
-            return terrane_int_support::Int::from((base) as i128) + value.clone();
+            return terrane_int_support::Int::from(base as i128) + value.clone();
         })
     };
     let result: terrane_int_support::Int = apply(
-        (add).clone(),
+        add.clone(),
         terrane_int_support::Int::from(5_i128),
     );
     println!("{}", terrane_scalar_support::scalar_text(& (base)));

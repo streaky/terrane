@@ -144,7 +144,7 @@ fn main() {
     );
     let owner: std::sync::Arc<
         std::sync::Mutex<terrane_collection_support::List<terrane_int_support::Int>>,
-    > = (value).clone();
+    > = value.clone();
     let _ = &value;
     let value: terrane_collection_support::List<terrane_int_support::Int> = terrane_collection_support::List::<
         terrane_int_support::Int,

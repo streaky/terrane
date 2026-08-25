@@ -146,7 +146,7 @@ fn main() {
         ],
     );
     let mut __terrane_iterator_0 = terrane_collection_support::Iterable::terrane_iterator(
-        &(nested),
+        &nested,
     );
     loop {
         let row = match __terrane_iterator_0.next() {
@@ -181,7 +181,7 @@ fn main() {
         ],
     );
     let mut __terrane_iterator_1 = terrane_collection_support::Iterable::terrane_iterator(
-        &(groups),
+        &groups,
     );
     loop {
         let group = match __terrane_iterator_1.next() {

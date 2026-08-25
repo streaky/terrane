@@ -14,8 +14,8 @@ fn main() {
         terrane_scalar_support::scalar_text(& (overflowed.overflowed))
     );
     let pair: terrane_int_support::DivRemResult<terrane_int_support::Int> = terrane_int_support::unwrap_or_fail(
-        (terrane_int_support::Int::from(-7_i128))
-            .div_rem(&(terrane_int_support::Int::from(3_i128))),
+        terrane_int_support::Int::from(-7_i128)
+            .div_rem(&terrane_int_support::Int::from(3_i128)),
     );
     println!(
         "{}{}", terrane_scalar_support::scalar_text(& (pair.quotient)),
@@ -52,7 +52,7 @@ fn main() {
         & (1)))))
     );
     terrane_int_support::unwrap_or_fail(
-        terrane_int_support::fixed_shift_right_checked(small, &(2)),
+        terrane_int_support::fixed_shift_right_checked(small, &2),
     );
     let mut count: i8 = 1;
     count = terrane_int_support::unwrap_or_fail(

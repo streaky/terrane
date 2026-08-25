@@ -13,7 +13,7 @@ fn main() {
     }
     let mut for_value: i8 = 0;
     let mut __terrane_iterator_0 = terrane_collection_support::string_iterator(
-        &(String::from("ab")),
+        &String::from("ab"),
     );
     loop {
         let character = match __terrane_iterator_0.next() {

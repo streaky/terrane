@@ -6,7 +6,7 @@ fn combine(
     second: terrane_int_support::Int,
     third: terrane_int_support::Int,
 ) -> terrane_int_support::Int {
-    return (first.clone() + second.clone()) + third.clone();
+    return first.clone() + second.clone() + third.clone();
 }
 fn main() {
     println!(

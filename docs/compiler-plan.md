@@ -907,11 +907,12 @@ Exit criterion: identical inputs produce byte-identical generated files; all acc
 
 Implemented evidence: lowering now produces a deterministic compiler-owned program/file model whose
 renderer splits authored units from the entrypoint, uses injective source-name encoding, and exposes
-the complete rendered file set to the CLI. Item bodies remain rendered Rust inside that model rather
-than a fully structural expression/statement IR. A compiler-bundled, dependency-pinned formatter
-supports the default-off `--require-canonical-rust` development check: it compares a formatted copy
-with the untouched generated file, reports mismatch as compiler defect `S9004`, and never repairs or
-replaces generator output. Generated projects contain stable authored paths, copied
+the complete rendered file set to the CLI. Every item is parsed into a compiler-owned `syn` syntax
+tree before entering that model; a structural normalization pass removes redundant expression
+parentheses, and `prettyplease` reconstructs only those required by Rust precedence while applying
+the pinned canonical format. A default-off `--require-canonical-rust` development check compares a
+formatted copy with the untouched generated file, reports mismatch as compiler defect `S9004`, and
+never repairs or replaces generator output. Generated projects contain stable authored paths, copied
 content-addressed support crates, manifests, compiler/source metadata, and a build identity covering
 compiler version, source and support content, target, profile, and command-relevant environment.
 Successful checks and native executables are retained under that identity; stale generated
@@ -921,10 +922,11 @@ lists. Pipeline and CLI tests pin byte identity, generated authored and support 
 reuse, eviction, generated file layout, and strict canonical-format rejection; compile/run
 conformance cases validate the generated crates with warnings denied.
 
-Deferred milestone-5 work: the fully structural expression/statement IR and its pinned formatter
-policy, including the named-intermediate nesting threshold, remain assigned to this milestone.
-The current file model does not satisfy that deliverable. Complete it before milestone 10 adds
-enough lowering families to make another string-emission expansion costly.
+Remaining milestone-5 work: lowering still initially constructs item bodies as Rust text before the
+mandatory parse and structural normalization boundary. A fully structural expression/statement
+builder and a named-intermediate nesting policy therefore remain assigned to this milestone. The
+parsed item model prevents further raw rendered-text expansion, but does not by itself satisfy that
+complete deliverable.
 
 ### Milestone 6 — Source diagnostics across Rust
 

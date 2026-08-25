@@ -133,7 +133,7 @@ enum TerraneCompletion<T> {
 // Source: case.trn
 // Namespace: parse-radix-families
 fn from_hex(source: String) -> terrane_int_support::Int {
-    return (terrane_int_support::parse_radix(&(source), &(16)))
+    return terrane_int_support::parse_radix(&source, &16)
         .unwrap_or_else(|error| __terrane_uncaught(
             TerraneError::from(error)
                 .at("/parse-radix-families::from-hex (case.trn:5:10)"),
@@ -161,5 +161,5 @@ fn main() {
         .at("/parse-radix-families::main (case.trn:14:11)")))))
     );
     let bad: String = String::from("x");
-    (fail(bad)).ok();
+    fail(bad).ok();
 }

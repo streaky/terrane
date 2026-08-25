@@ -7,7 +7,7 @@ fn convert(item: terrane_int_support::Int) -> i8 {
     let mut result: i8 = 0;
     if item.clone() > terrane_int_support::Int::from(0_i128) {
         result = terrane_int_support::unwrap_or_fail(
-            terrane_int_support::coerce::<i8>(&(item)),
+            terrane_int_support::coerce::<i8>(&item),
         );
     }
     return result;
@@ -20,21 +20,17 @@ fn main() {
     let value: i64 = 300;
     let within: i64 = 100;
     let coerced: i8 = terrane_int_support::unwrap_or_fail(
-        terrane_int_support::coerce::<i8>(&(within)),
+        terrane_int_support::coerce::<i8>(&within),
     );
-    let renamed_checked: Option<i8> = terrane_int_support::checked_coerce::<
-        i8,
-    >(&(within));
+    let renamed_checked: Option<i8> = terrane_int_support::checked_coerce::<i8>(&within);
     let shared_coerced: i8 = terrane_int_support::unwrap_or_fail(
         terrane_int_support::coerce::<i8>(&*__TERRANE_F0_SHARED),
     );
-    let parameter_coerced: i8 = convert(
-        terrane_int_support::Int::from((within) as i128),
-    );
-    let checked: Option<i8> = terrane_int_support::checked_coerce::<i8>(&(value));
-    let absent: bool = (checked).is_none();
-    let present: bool = (checked).is_some();
-    let shadow_safe: i8 = terrane_int_support::saturating_coerce::<i8>(&(value));
+    let parameter_coerced: i8 = convert(terrane_int_support::Int::from(within as i128));
+    let checked: Option<i8> = terrane_int_support::checked_coerce::<i8>(&value);
+    let absent: bool = checked.is_none();
+    let present: bool = checked.is_some();
+    let shadow_safe: i8 = terrane_int_support::saturating_coerce::<i8>(&value);
     println!("{}", terrane_scalar_support::scalar_text(& (coerced)));
     println!("{}", terrane_scalar_support::scalar_text(& ((renamed_checked).is_some())));
     println!("{}", terrane_scalar_support::scalar_text(& (shared_coerced)));

@@ -182,10 +182,10 @@ fn main() {
         }
     }
     let checked_index: Option<terrane_int_support::Int> = terrane_collection_support::index_from_int(
-            &(terrane_int_support::Int::from(2_i128)),
+            &terrane_int_support::Int::from(2_i128),
         )
         .ok()
-        .and_then(|index| (values).get(index).cloned());
+        .and_then(|index| values.get(index).cloned());
     println!("{}", terrane_scalar_support::scalar_text(& ((checked_index == None))));
     let values_by_key: terrane_collection_support::Map<
         String,
@@ -240,11 +240,11 @@ fn main() {
             __terrane_generated_defect("loop control escaped a non-loop try")
         }
     }
-    let checked_key: Option<terrane_int_support::Int> = (values_by_key)
-        .get(&(String::from("absent")))
+    let checked_key: Option<terrane_int_support::Int> = values_by_key
+        .get(&String::from("absent"))
         .cloned();
-    let present_key: Option<terrane_int_support::Int> = (values_by_key)
-        .get(&(String::from("present")))
+    let present_key: Option<terrane_int_support::Int> = values_by_key
+        .get(&String::from("present"))
         .cloned();
     println!(
         "{}{}", terrane_scalar_support::scalar_text(& ((checked_key == None))),

@@ -21,14 +21,14 @@ impl terrane_scalar_support::ScalarDisplay for TerraneUnionF0S177 {
 }
 fn main() {
     let small: i8 = 12;
-    let adaptive: i64 = (small) as i64;
-    let wide: i32 = (small) as i32;
+    let adaptive: i64 = small as i64;
+    let wide: i32 = small as i32;
     let mut selected: TerraneUnionF0S177 = TerraneUnionF0S177::Arm0(small);
     let count: i32 = 16777216;
-    let total: f64 = (count) as f64;
+    let total: f64 = count as f64;
     let exact: i64 = 18014398509481984;
     let exact_float: f64 = terrane_int_support::unwrap_or_fail(
-        terrane_int_support::exact_f64(&(exact)),
+        terrane_int_support::exact_f64(&exact),
     );
     let whole: f64 = 4.0;
     let converted: terrane_int_support::Int = terrane_int_support::unwrap_or_fail(

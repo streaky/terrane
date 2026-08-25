@@ -84,7 +84,7 @@ impl Child {
         );
     }
     pub fn tagged_value(&self) -> String {
-        return (self.tag).clone();
+        return self.tag.clone();
     }
 }
 impl DescribableProtocol for Child {
@@ -105,8 +105,8 @@ impl From<Child> for Describable {
 }
 fn main() {
     let value: Child = Child::terrane_construct();
-    let view: Describable = Describable::from((value).clone());
-    let base_view: Base = Base::Child((value).clone());
+    let view: Describable = Describable::from(value.clone());
+    let base_view: Base = Base::Child(value.clone());
     println!(
         "{}", terrane_scalar_support::scalar_text(& (view.describe(String::from("a-"))))
     );

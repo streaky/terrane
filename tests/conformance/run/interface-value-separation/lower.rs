@@ -39,7 +39,7 @@ impl Counter {
         value
     }
     pub fn read(&self) -> terrane_int_support::Int {
-        return (self.value).clone();
+        return self.value.clone();
     }
     pub fn destruct(&self) {
         println!(
@@ -72,7 +72,7 @@ impl Drop for Counter {
 }
 fn main() {
     let original: Readable = Readable::from(Counter::terrane_construct());
-    let copied: Readable = (original).terrane_separate();
+    let copied: Readable = original.terrane_separate();
     println!("{}", terrane_scalar_support::scalar_text(& (original.read())));
     println!("{}", terrane_scalar_support::scalar_text(& (copied.read())));
 }

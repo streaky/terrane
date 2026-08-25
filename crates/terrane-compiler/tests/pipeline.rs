@@ -285,7 +285,7 @@ fn lowers_collection_and_three_clause_for_loops_without_losing_continue_updates(
     )
     .unwrap();
     assert!(collection.rust.contains(
-        "let mut __terrane_iterator_0 = terrane_collection_support::string_iterator(&(text));"
+        "let mut __terrane_iterator_0 = terrane_collection_support::string_iterator(&text);"
     ));
     assert!(
         collection
@@ -402,7 +402,7 @@ fn lowers_logical_combinations_of_integer_comparisons() {
     );
     let compilation = terrane_compiler::compile("conditions.trn", source.to_owned()).unwrap();
 
-    assert!(compilation.rust.contains("if (x > 1) && (y > 2) {"));
+    assert!(compilation.rust.contains("if x > 1 && y > 2 {"));
 }
 
 #[test]

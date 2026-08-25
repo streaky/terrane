@@ -135,7 +135,7 @@ enum TerraneCompletion<T> {
 fn echo(
     values: terrane_collection_support::Tuple<terrane_int_support::Int>,
 ) -> terrane_collection_support::Tuple<terrane_int_support::Int> {
-    return (values).clone();
+    return values.clone();
 }
 fn nested(
     values: terrane_collection_support::List<
@@ -144,7 +144,7 @@ fn nested(
 ) -> terrane_collection_support::List<
     terrane_collection_support::Tuple<terrane_int_support::Int>,
 > {
-    return (values).clone();
+    return values.clone();
 }
 fn main() {
     let pair: terrane_collection_support::Tuple<terrane_int_support::Int> = terrane_collection_support::Tuple::<
@@ -156,7 +156,7 @@ fn main() {
         ],
     );
     let returned: terrane_collection_support::Tuple<terrane_int_support::Int> = echo(
-        (pair).clone(),
+        pair.clone(),
     );
     println!(
         "{}{}{}", terrane_scalar_support::scalar_text(&
@@ -198,7 +198,7 @@ fn main() {
     );
     let echoed: terrane_collection_support::List<
         terrane_collection_support::Tuple<terrane_int_support::Int>,
-    > = nested((groups).clone());
+    > = nested(groups.clone());
     println!(
         "{}{}{}", terrane_scalar_support::scalar_text(&
         (terrane_int_support::Int::from((echoed).length()))),
