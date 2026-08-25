@@ -1297,13 +1297,16 @@ profiles, effective-deadline clamping, and suspension ownership checks run throu
 parser, semantic model, and Rust lowering. Runtime and dependency inclusion is selected by lowering
 metadata rather than rendered-source scanning.
 
-Cancellation is checked while the executor polls a child, so cancellation and deadline expiry stop
-work at a defined suspension point without erasing an already completed value. A failed child
-retains its typed throwable and requests cancellation through the scope's shared state, which
-surviving siblings observe at their next cancellation point. Linear scoped tasks must be joined
-before the enclosing function can exit, and join reports completed, cancelled, value, and typed
-error state. Child deadlines take the earlier of inherited and requested deadlines at runtime;
-statically resolvable extensions are additionally rejected in source.
+Every lowered Terrane `await` yields to the executor before polling its operand and again after the
+operand completes. The cancellable executor checks the scope between those child polls, so even an
+immediately-ready awaited future cannot carry execution past the suspension point after cancellation
+or deadline expiry. A focused threaded-runtime harness coordinates cancellation while an awaited
+future is being polled and proves that the child is dropped before its post-`await` statement, then
+joins as cancelled. A failed child retains its typed throwable and requests cancellation through the
+scope's shared state, which surviving siblings observe at their next cancellation point. Linear
+scoped tasks must be joined before the enclosing function can exit, and join reports completed,
+cancelled, value, and typed error state. Child deadlines take the earlier of inherited and requested
+deadlines at runtime; statically resolvable extensions are additionally rejected in source.
 
 Accepted and rejected conformance covers async/sync type incompatibility, task consumption,
 successful, throwing, cancelled, and sibling-cancelling children, statically resolvable nested

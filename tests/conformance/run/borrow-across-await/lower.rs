@@ -1,4 +1,26 @@
 // Generated deterministically by Terrane <version>.
+async fn __terrane_await<F: Future>(future: F) -> F::Output {
+    struct YieldOnce(bool);
+    impl Future for YieldOnce {
+        type Output = ();
+        fn poll(
+            mut self: std::pin::Pin<&mut Self>,
+            context: &mut std::task::Context<'_>,
+        ) -> std::task::Poll<Self::Output> {
+            if self.0 {
+                std::task::Poll::Ready(())
+            } else {
+                self.0 = true;
+                context.waker().wake_by_ref();
+                std::task::Poll::Pending
+            }
+        }
+    }
+    YieldOnce(false).await;
+    let output = future.await;
+    YieldOnce(false).await;
+    output
+}
 fn __terrane_block_on<F: Future>(future: F) -> F::Output {
     struct Wake;
     impl std::task::Wake for Wake {
@@ -26,7 +48,7 @@ async fn inspect() -> terrane_int_support::Int {
     let observed: std::sync::Weak<std::sync::Mutex<terrane_int_support::Int>> = std::sync::Arc::downgrade(
         &value,
     );
-    let result: terrane_int_support::Int = Box::pin(answer()).await;
+    let result: terrane_int_support::Int = __terrane_await(Box::pin(answer())).await;
     println!(
         "{}", terrane_scalar_support::scalar_text(& (({ let __terrane_owner = observed
         .upgrade().expect("reference expired"); let __terrane_value = __terrane_owner
@@ -36,7 +58,8 @@ async fn inspect() -> terrane_int_support::Int {
 }
 fn main() {
     __terrane_block_on(async move {
-        let result: terrane_int_support::Int = Box::pin(inspect()).await;
+        let result: terrane_int_support::Int = __terrane_await(Box::pin(inspect()))
+            .await;
         println!("{}", terrane_scalar_support::scalar_text(& (result)));
     });
 }

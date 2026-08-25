@@ -1,4 +1,26 @@
 // Generated deterministically by Terrane <version>.
+async fn __terrane_await<F: Future>(future: F) -> F::Output {
+    struct YieldOnce(bool);
+    impl Future for YieldOnce {
+        type Output = ();
+        fn poll(
+            mut self: std::pin::Pin<&mut Self>,
+            context: &mut std::task::Context<'_>,
+        ) -> std::task::Poll<Self::Output> {
+            if self.0 {
+                std::task::Poll::Ready(())
+            } else {
+                self.0 = true;
+                context.waker().wake_by_ref();
+                std::task::Poll::Pending
+            }
+        }
+    }
+    YieldOnce(false).await;
+    let output = future.await;
+    YieldOnce(false).await;
+    output
+}
 fn __terrane_block_on<F: Future>(future: F) -> F::Output {
     struct Wake;
     impl std::task::Wake for Wake {
@@ -24,7 +46,7 @@ fn main() {
         let child: std::pin::Pin<Box<dyn Future<Output = terrane_int_support::Int>>> = Box::pin(
             answer(),
         );
-        let value: terrane_int_support::Int = child.await;
+        let value: terrane_int_support::Int = __terrane_await(child).await;
         println!("{}", terrane_scalar_support::scalar_text(& (value)));
     });
 }

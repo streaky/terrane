@@ -2360,7 +2360,7 @@ impl Emitter<'_> {
                     };
                 }
                 if source_operator == "await" {
-                    return format!("({}).await", self.expression(operand));
+                    return format!("__terrane_await({}).await", self.expression(operand));
                 }
                 if source_operator == "move" {
                     return match operand.kind {
@@ -2809,7 +2809,7 @@ impl Emitter<'_> {
                 };
                 let operator = self.unary_operator(node).unwrap_or_default();
                 if operator == "await" {
-                    format!("({}).await", self.expression(operand))
+                    format!("__terrane_await({}).await", self.expression(operand))
                 } else {
                     format!("{operator}{}", self.adaptive_expression(operand))
                 }
