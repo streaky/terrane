@@ -3110,14 +3110,7 @@ fn validate_object_conformance(package: &SemanticPackage) -> Result<(), Semantic
                             object.span,
                         ));
                     }
-                    let valid_render =
-                        effective_method(unit, object, "render").is_some_and(|method| {
-                            method.parameters.is_empty()
-                                && method.return_type == Some(ValueType::Scalar(ScalarType::String))
-                                && !method.throws
-                                && !method.is_async
-                        });
-                    if !valid_render {
+                    let Some(render) = effective_method(unit, object, "render") else {
                         return Err(failure(
                             &unit.source,
                             "T0062",
@@ -3126,6 +3119,21 @@ fn validate_object_conformance(package: &SemanticPackage) -> Result<(), Semantic
                                 object.name
                             ),
                             object.span,
+                        ));
+                    };
+                    let valid_render = render.parameters.is_empty()
+                        && render.return_type == Some(ValueType::Scalar(ScalarType::String))
+                        && !render.throws
+                        && !render.is_async;
+                    if !valid_render {
+                        return Err(failure(
+                            &unit.source,
+                            "T0067",
+                            format!(
+                                "class `{}` implements `throwable.render` with an incompatible signature",
+                                object.name
+                            ),
+                            render.span,
                         ));
                     }
                     continue;

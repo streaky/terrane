@@ -1,0 +1,7 @@
+namespace throwable-render-signature
+from /core/errors import throwable
+
+class wrong implements throwable
+  message string = ''
+  function render int;
+    return 1
