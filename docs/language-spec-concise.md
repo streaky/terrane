@@ -605,7 +605,7 @@ Core environment should provide object protocols/facilities for list, map, set, 
 - List construction uses ordinary invocation; maps use named construction arguments; sets/tuples likewise object facilities.
 - Tuple type application is `tuple of Item`; tuples are homogeneous and fixed-length after construction, but runtime length is not part of the type.
 - Indexing: `value[index]`; slices/ranges are objects.
-- `for x in y` invokes iteration protocol.
+- `for x in y` invokes the iteration protocol; comma-separated targets destructure a matching tuple/object item, including `for key, value in mapping`.
 - `string` is Unicode text/UTF-8; default length is grapheme count and requires capability.
 - Explicit scalar and byte views avoid ambiguity.
 - `bytes` distinct from `string`; encode/decode explicit.

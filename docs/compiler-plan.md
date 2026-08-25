@@ -1124,8 +1124,8 @@ homogeneous fixed-length tuples, ranges, entries, and separately named unordered
 using a deterministic fixed-seed hash implementation. Applied `tuple of Item` types cross binding,
 parameter, and return boundaries; tuple runtime length is not part of the type. Conformance covers
 member and indexed mutation, checked and throwing lookup with typed `index-error` / `missing-key`,
-ordered and unordered iteration, range direction and inclusivity, homogeneous-item rejection, and
-assignment separation. Collection
+ordered and unordered iteration, typed `key, value` destructuring of map entries, range direction
+and inclusivity, homogeneous-item rejection, and assignment separation. Collection
 drop order is not yet source-observable, and collection identity metadata plus source `is`
 behavior are not implemented; those parts of the exit criterion remain outstanding.
 

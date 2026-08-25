@@ -1,0 +1,7 @@
+namespace non-entry-loop-destructuring
+from /core/collections import list
+
+function main;
+  values = list; 1, 2
+  for left, right in values
+    print; left, right

@@ -123,6 +123,36 @@ fn iterable_item_type(value_type: ValueType) -> Option<ValueType> {
     }
 }
 
+fn iteration_target_types(
+    source: &SourceFile,
+    target: &SyntaxNode,
+    item_type: ValueType,
+) -> Result<Vec<ValueType>, SemanticFailure> {
+    match target.children.len() {
+        1 => Ok(vec![item_type]),
+        2 => match item_type {
+            ValueType::Entry(key, value) => Ok(vec![key.value_type(), value.value_type()]),
+            other => Err(failure(
+                source,
+                "T0016",
+                format!("iteration item of type `{other}` cannot be destructured"),
+                target.span,
+            )),
+        },
+        count => {
+            let message = match item_type {
+                ValueType::Entry(_, _) => format!(
+                    "entry iteration requires one target or exactly two destructuring targets, found {count}"
+                ),
+                other => format!(
+                    "iteration item of type `{other}` does not support {count}-target destructuring"
+                ),
+            };
+            Err(failure(source, "T0016", message, target.span))
+        }
+    }
+}
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum ValueType {
     Scalar(ScalarType),
@@ -2546,17 +2576,24 @@ fn validate_call_nodes<'a>(
                     collection.span,
                 )
             })?;
+        let target_types = iteration_target_types(&unit.source, target, item_type)?;
         let mut loop_bindings = scoped_bindings.to_vec();
-        loop_bindings.extend(target.children.iter().map(|name| TypedBinding {
-            name: node_text(&unit.source, name).to_owned(),
-            span: name.span,
-            visible_from: collection.span.end,
-            scope: Some(block.span),
-            value_type: item_type.clone(),
-            destination_arms: Vec::new(),
-            storage_type: None,
-            mutable: false,
-        }));
+        loop_bindings.extend(
+            target
+                .children
+                .iter()
+                .zip(target_types)
+                .map(|(name, value_type)| TypedBinding {
+                    name: node_text(&unit.source, name).to_owned(),
+                    span: name.span,
+                    visible_from: collection.span.end,
+                    scope: Some(block.span),
+                    value_type,
+                    destination_arms: Vec::new(),
+                    storage_type: None,
+                    mutable: false,
+                }),
+        );
         validate_call_nodes(
             package,
             unit,
@@ -3719,7 +3756,6 @@ fn collect_typed_bindings(
     if let [target, collection, block] = node.children.as_slice()
         && node.kind == SyntaxKind::ForStatement
         && target.kind == SyntaxKind::ForTarget
-        && let Some(name) = target.children.first()
     {
         collect_typed_bindings(unit, collection, visible_bindings, bindings, scope)?;
         let item_type = infer_value_type(unit, collection, visible_bindings)?
@@ -3732,20 +3768,32 @@ fn collect_typed_bindings(
                     collection.span,
                 )
             })?;
-        let loop_binding = TypedBinding {
-            name: node_text(&unit.source, name).to_owned(),
-            span: name.span,
-            visible_from: collection.span.end,
-            scope: Some(block.span),
-            value_type: item_type,
-            destination_arms: Vec::new(),
-            storage_type: None,
-            mutable: false,
-        };
-        bindings.push(loop_binding.clone());
-        let mut loop_bindings = visible_bindings.clone();
-        loop_bindings.push(loop_binding);
-        collect_typed_bindings(unit, block, &mut loop_bindings, bindings, Some(block.span))?;
+        let target_types = iteration_target_types(&unit.source, target, item_type)?;
+        let loop_bindings = target
+            .children
+            .iter()
+            .zip(target_types)
+            .map(|(name, value_type)| TypedBinding {
+                name: node_text(&unit.source, name).to_owned(),
+                span: name.span,
+                visible_from: collection.span.end,
+                scope: Some(block.span),
+                value_type,
+                destination_arms: Vec::new(),
+                storage_type: None,
+                mutable: false,
+            })
+            .collect::<Vec<_>>();
+        bindings.extend(loop_bindings.iter().cloned());
+        let mut visible_loop_bindings = visible_bindings.clone();
+        visible_loop_bindings.extend(loop_bindings);
+        collect_typed_bindings(
+            unit,
+            block,
+            &mut visible_loop_bindings,
+            bindings,
+            Some(block.span),
+        )?;
         return Ok(());
     }
     if matches!(node.kind, SyntaxKind::Binding | SyntaxKind::Assignment) {
@@ -8235,24 +8283,19 @@ fn validate_flow_statement(
                         collection.span,
                     ));
                 };
-                if target.children.len() != 1 {
-                    return Err(failure(
-                        &unit.source,
-                        "T0016",
-                        "iteration requires exactly one target",
-                        target.span,
-                    ));
-                }
-                loop_bindings.extend(target.children.iter().map(|name| TypedBinding {
-                    name: node_text(&unit.source, name).to_owned(),
-                    span: name.span,
-                    visible_from: collection.span.end,
-                    scope: Some(block.span),
-                    value_type: item_type.clone(),
-                    destination_arms: Vec::new(),
-                    storage_type: None,
-                    mutable: false,
-                }));
+                let target_types = iteration_target_types(&unit.source, target, item_type)?;
+                loop_bindings.extend(target.children.iter().zip(target_types).map(
+                    |(name, value_type)| TypedBinding {
+                        name: node_text(&unit.source, name).to_owned(),
+                        span: name.span,
+                        visible_from: collection.span.end,
+                        scope: Some(block.span),
+                        value_type,
+                        destination_arms: Vec::new(),
+                        storage_type: None,
+                        mutable: false,
+                    },
+                ));
             }
             if let Some(block) = statement
                 .children
@@ -9672,10 +9715,8 @@ pub(crate) fn binding_store_value_is_read(
 }
 
 fn collect_loop_target_spans(node: &SyntaxNode, loop_targets: &mut BTreeSet<(u32, usize, usize)>) {
-    if node.kind == SyntaxKind::ForTarget
-        && let Some(name) = node.children.first()
-    {
-        loop_targets.insert(span_key(name.span));
+    if node.kind == SyntaxKind::ForTarget {
+        loop_targets.extend(node.children.iter().map(|name| span_key(name.span)));
     }
     for child in &node.children {
         collect_loop_target_spans(child, loop_targets);

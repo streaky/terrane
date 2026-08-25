@@ -1,0 +1,7 @@
+namespace map-entry-destructuring-arity
+from /core/collections import map
+
+function main;
+  values = map; first=1
+  for key, value, extra in values
+    print; key, value, extra
