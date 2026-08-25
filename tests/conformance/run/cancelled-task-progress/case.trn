@@ -8,7 +8,5 @@ function main;
   child = scope.spawn; work
   scope.cancel;
   outcome = scope.join; move child
-  print; outcome.completed, outcome.cancelled
-  value = outcome.value
-  if value != none
-    print; value
+  consistent = (outcome.cancelled and outcome.value == none) or (outcome.completed and outcome.value != none)
+  print; consistent
