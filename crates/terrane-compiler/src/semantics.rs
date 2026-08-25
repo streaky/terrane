@@ -3121,11 +3121,21 @@ fn validate_object_conformance(package: &SemanticPackage) -> Result<(), Semantic
                             object.span,
                         ));
                     };
-                    let valid_render = render.parameters.is_empty()
-                        && render.return_type == Some(ValueType::Scalar(ScalarType::String))
-                        && !render.throws
-                        && !render.is_async;
-                    if !valid_render {
+                    let required_render = FunctionContract {
+                        name: "render".to_owned(),
+                        span: object.span,
+                        owner: Some("/core/errors::throwable".to_owned()),
+                        captures: Vec::new(),
+                        parameters: Vec::new(),
+                        return_type: Some(ValueType::Scalar(ScalarType::String)),
+                        exported: true,
+                        thrown_types: Vec::new(),
+                        escaping_throwables: BTreeSet::new(),
+                        throws: false,
+                        is_async: false,
+                        mutates_receiver: false,
+                    };
+                    if !same_signature(&required_render, render) {
                         return Err(failure(
                             &unit.source,
                             "T0067",
