@@ -64,8 +64,8 @@ fn main() {
     println!("{}", terrane_scalar_support::scalar_text(&count));
     println!(
         "{}{}",
-        terrane_scalar_support::scalar_text(&(terrane_int_support::fixed_addition_checked(small,
-        10) == None)),
+        terrane_scalar_support::scalar_text(&terrane_int_support::fixed_addition_checked(small,
+        10).is_none()),
         terrane_scalar_support::scalar_text(&terrane_int_support::fixed_addition_saturate(small,
         10))
     );
@@ -83,15 +83,15 @@ fn main() {
     println!(
         "{}{}{}", terrane_scalar_support::scalar_text(&sub_overflow.value),
         terrane_scalar_support::scalar_text(&sub_overflow.overflowed),
-        terrane_scalar_support::scalar_text(&(terrane_int_support::fixed_subtraction_checked(small,
-        - 20) == None))
+        terrane_scalar_support::scalar_text(&terrane_int_support::fixed_subtraction_checked(small,
+        - 20).is_none())
     );
     println!(
         "{}{}",
         terrane_scalar_support::scalar_text(&terrane_int_support::fixed_multiplication_wrap(small,
         2)),
-        terrane_scalar_support::scalar_text(&(terrane_int_support::fixed_multiplication_checked(small,
-        2) == None))
+        terrane_scalar_support::scalar_text(&terrane_int_support::fixed_multiplication_checked(small,
+        2).is_none())
     );
     let mul_overflow: terrane_int_support::OverflowResult<i8> = terrane_int_support::fixed_multiplication_overflowing(
         small,
@@ -115,8 +115,8 @@ fn main() {
     println!(
         "{}{}{}", terrane_scalar_support::scalar_text(&div_overflow.value),
         terrane_scalar_support::scalar_text(&div_overflow.overflowed),
-        terrane_scalar_support::scalar_text(&(terrane_int_support::unwrap_or_fail(terrane_int_support::fixed_division_checked(minimum,
-        - 1)) == None))
+        terrane_scalar_support::scalar_text(&terrane_int_support::unwrap_or_fail(terrane_int_support::fixed_division_checked(minimum,
+        - 1)).is_none())
     );
     let rem_overflow: terrane_int_support::OverflowResult<i8> = terrane_int_support::unwrap_or_fail(
         terrane_int_support::fixed_remainder_overflowing(minimum, -1),
@@ -131,8 +131,8 @@ fn main() {
     println!(
         "{}{}{}", terrane_scalar_support::scalar_text(&rem_overflow.value),
         terrane_scalar_support::scalar_text(&rem_overflow.overflowed),
-        terrane_scalar_support::scalar_text(&(terrane_int_support::unwrap_or_fail(terrane_int_support::fixed_remainder_checked(minimum,
-        - 1)) == None))
+        terrane_scalar_support::scalar_text(&terrane_int_support::unwrap_or_fail(terrane_int_support::fixed_remainder_checked(minimum,
+        - 1)).is_none())
     );
     println!(
         "{}{}",

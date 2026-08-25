@@ -1296,8 +1296,10 @@ Exit criterion: a cancelled scope joins its children and reports partial progres
 Implemented evidence: async callables, postfix `await`, linear task values, task-scope
 creation/spawn/join, partial-progress outcome observations, threaded and cooperative executor
 profiles, effective-deadline clamping, and suspension ownership checks run through the shared
-parser, semantic model, and Rust lowering. Runtime and dependency inclusion is selected by lowering
-metadata rather than rendered-source scanning.
+parser, semantic model, and Rust lowering. Presence comparisons on optional task results lower to
+`is_some`/`is_none`, so observing a task result never imposes an equality contract on its value
+type. Runtime and dependency inclusion is selected by lowering metadata rather than rendered-source
+scanning.
 
 Every lowered Terrane `await` yields to the executor before polling its operand and again after the
 operand completes. The cancellable executor checks the scope between those child polls, so even an

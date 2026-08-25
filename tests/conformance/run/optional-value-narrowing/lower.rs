@@ -6,7 +6,7 @@ fn helper() {
     println!("{}", terrane_scalar_support::scalar_text(&found));
 }
 fn show(value: Option<i8>) {
-    if value != None {
+    if value.is_some() {
         println!(
             "{}", terrane_scalar_support::scalar_text(&* value.as_ref()
             .expect("semantic optional narrowing"))
@@ -21,7 +21,7 @@ fn missing() -> Option<i8> {
 }
 fn main() {
     let mut value: Option<i8> = Some(7);
-    if value != None {
+    if value.is_some() {
         println!(
             "{}", terrane_scalar_support::scalar_text(&* value.as_ref()
             .expect("semantic optional narrowing"))
@@ -29,14 +29,14 @@ fn main() {
         value = None;
         println!("{}", terrane_scalar_support::scalar_text(&true));
     }
-    if value != None {
+    if value.is_some() {
         println!(
             "{}", terrane_scalar_support::scalar_text(&* value.as_ref()
             .expect("semantic optional narrowing"))
         );
     }
     let other: Option<i8> = Some(8);
-    if None != other {
+    if other.is_some() {
         println!(
             "{}", terrane_scalar_support::scalar_text(&* other.as_ref()
             .expect("semantic optional narrowing"))
@@ -45,21 +45,21 @@ fn main() {
     show(Some(9));
     show(None);
     let returned: Option<i8> = maybe();
-    if returned != None {
+    if returned.is_some() {
         println!(
             "{}", terrane_scalar_support::scalar_text(&* returned.as_ref()
             .expect("semantic optional narrowing"))
         );
     }
     let called: Option<i8> = maybe();
-    if called != None {
+    if called.is_some() {
         println!(
             "{}", terrane_scalar_support::scalar_text(&* called.as_ref()
             .expect("semantic optional narrowing"))
         );
     }
     let missingvalue: Option<i8> = None;
-    if missingvalue != None {
+    if missingvalue.is_some() {
         println!(
             "{}", terrane_scalar_support::scalar_text(&* missingvalue.as_ref()
             .expect("semantic optional narrowing"))
@@ -72,8 +72,8 @@ fn main() {
         &String::from("banana"),
         &String::from("ana"),
     );
-    if found != None {
-        if found != None {
+    if found.is_some() {
+        if found.is_some() {
             println!(
                 "{}", terrane_scalar_support::scalar_text(&found.as_ref()
                 .expect("semantic optional narrowing").text().to_owned())

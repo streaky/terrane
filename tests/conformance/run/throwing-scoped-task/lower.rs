@@ -314,7 +314,7 @@ fn main() {
     println!(
         "{}{}{}", terrane_scalar_support::scalar_text(&outcome.completed),
         terrane_scalar_support::scalar_text(&outcome.cancelled),
-        terrane_scalar_support::scalar_text(&(outcome.value.clone() == None))
+        terrane_scalar_support::scalar_text(&outcome.value.clone().is_none())
     );
-    println!("{}", terrane_scalar_support::scalar_text(&(outcome.error != None)));
+    println!("{}", terrane_scalar_support::scalar_text(&outcome.error.is_some()));
 }

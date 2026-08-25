@@ -2932,11 +2932,18 @@ impl Emitter<'_> {
             || left_type == Some(ValueType::Scalar(ScalarType::None));
         let right_is_none = self.text(right).trim() == "none"
             || right_type == Some(ValueType::Scalar(ScalarType::None));
+        let presence_check = |value: String| {
+            if operator == "==" {
+                format!("({value}).is_none()")
+            } else {
+                format!("({value}).is_some()")
+            }
+        };
         if is_optional(left_type) && right_is_none {
-            return Some(format!("({} {operator} None)", self.expression(left)));
+            return Some(presence_check(self.expression(left)));
         }
         if left_is_none && is_optional(right_type) {
-            return Some(format!("(None {operator} {})", self.expression(right)));
+            return Some(presence_check(self.expression(right)));
         }
         None
     }

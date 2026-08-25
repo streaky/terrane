@@ -152,7 +152,7 @@ fn main() {
         error | __terrane_uncaught(TerraneError::from(error)
         .at("/collection-contextual-typing::main (case.trn:8:10)"))))
     );
-    if found != None {
+    if found.is_some() {
         println!(
             "{}", terrane_scalar_support::scalar_text(&* found.as_ref()
             .expect("semantic optional narrowing"))

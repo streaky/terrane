@@ -298,7 +298,7 @@ fn main() {
     };
     let outcome: TerraneTaskOutcome<terrane_int_support::Int> = scope.join(child);
     let value: Option<terrane_int_support::Int> = outcome.value.clone();
-    if value != None {
+    if value.is_some() {
         println!(
             "{}{}{}", terrane_scalar_support::scalar_text(&outcome.completed),
             terrane_scalar_support::scalar_text(&outcome.cancelled),

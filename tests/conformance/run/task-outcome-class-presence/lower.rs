@@ -286,33 +286,45 @@ pub struct TerraneTaskOutcome<T> {
     pub error: Option<TerraneError>,
 }
 // Source: case.trn
-// Namespace: structured-task-scope
-async fn work() -> terrane_int_support::Int {
-    return terrane_int_support::Int::from(42_i128);
+// Namespace: task-outcome-class-presence
+#[derive(Clone)]
+pub struct Point {
+    pub x: terrane_int_support::Int,
+}
+impl Point {
+    pub fn terrane_construct(x: terrane_int_support::Int) -> Self {
+        let mut value = Self {
+            x: terrane_int_support::Int::from(0_i128),
+        };
+        value.construct(x);
+        value
+    }
+    pub fn construct(&mut self, x: terrane_int_support::Int) {
+        self.x = x.clone();
+    }
+}
+async fn make() -> Point {
+    return Point::terrane_construct(terrane_int_support::Int::from(5_i128));
 }
 fn main() {
     let scope: TerraneTaskScope = TerraneTaskScope::new(None);
-    let child: TerraneScopedTask<terrane_int_support::Int> = {
+    let child: TerraneScopedTask<Point> = {
         let __terrane_scope = scope.clone();
         let __terrane_cancel = __terrane_scope.clone();
         TerraneScopedTask::spawn(move || match __terrane_block_on_cancellable(
-            work(),
+            make(),
             move || __terrane_cancel.should_cancel(),
         ) {
             Some(value) => TerraneTaskResult::Completed(value),
             None => TerraneTaskResult::Cancelled,
         })
     };
-    let outcome: TerraneTaskOutcome<terrane_int_support::Int> = scope.join(child);
-    println!(
-        "{}{}", terrane_scalar_support::scalar_text(&outcome.completed),
-        terrane_scalar_support::scalar_text(&outcome.cancelled)
-    );
-    let value: Option<terrane_int_support::Int> = outcome.value.clone();
+    let outcome: TerraneTaskOutcome<Point> = scope.join(child);
+    let value: Option<Point> = outcome.value.clone();
     if value.is_some() {
-        println!(
-            "{}", terrane_scalar_support::scalar_text(&* value.as_ref()
-            .expect("semantic optional narrowing"))
-        );
+        println!("{}", terrane_scalar_support::scalar_text(&String::from("present")));
+    }
+    if value.is_none() {
+        println!("{}", terrane_scalar_support::scalar_text(&String::from("missing")));
     }
 }

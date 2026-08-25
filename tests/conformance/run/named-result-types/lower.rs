@@ -31,7 +31,7 @@ fn main() {
         &text,
         &String::from("ana"),
     );
-    if found != None {
+    if found.is_some() {
         println!(
             "{}", terrane_scalar_support::scalar_text(&found.as_ref()
             .expect("semantic optional narrowing").text().to_owned())
