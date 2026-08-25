@@ -1913,11 +1913,18 @@ impl Emitter<'_> {
         };
         let name = self.error_kind(error_node);
         let context = self.error_context(node);
-        let mut error = format!(
-            "TerraneError::new(TerraneErrorKind::{}, \"{}\").at(\"{context}\")",
-            rust_error_kind(&name),
-            error_message(&name),
-        );
+        let kind = rust_error_kind(&name);
+        let mut error = if kind.starts_with("Custom(") {
+            let value = self.expression(error_node);
+            format!(
+                "{{ let value = {value}; TerraneError::new(TerraneErrorKind::{kind}, value.render()).at(\"{context}\") }}"
+            )
+        } else {
+            format!(
+                "TerraneError::new(TerraneErrorKind::{kind}, \"{}\").at(\"{context}\")",
+                error_message(&name),
+            )
+        };
         if let Some(current_error) = &self.current_error {
             error = format!(
                 "{{ let mut error = {error}; error.cause = Some(Box::new({current_error}.clone())); error }}"

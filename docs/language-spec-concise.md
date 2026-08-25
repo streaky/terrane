@@ -544,7 +544,7 @@ class config-error implements throwable
   function render string;
     return this.message
 
-// Executable class coverage: tests/conformance/run/custom-throwable/case.trn.
+// Executable coverage: tests/conformance/run/custom-throwable/case.trn.
 function load string throws config-error; path string
   throw config-error; path, >configuration is invalid
 

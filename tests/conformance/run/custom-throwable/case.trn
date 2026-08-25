@@ -10,11 +10,11 @@ class config-error implements throwable
   function render string;
     return this.message
 
-function fail string throws config-error;
-  throw config-error; >settings.toml, >configuration failed
+function load string throws config-error; path string
+  throw config-error; path, >configuration is invalid
 
 function main;
   try
-    fail;
+    load; >settings.toml
   catch config-error
     print; 'caught'

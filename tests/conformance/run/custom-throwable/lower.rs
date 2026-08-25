@@ -156,13 +156,13 @@ impl ConfigError {
         return (self.message).clone();
     }
 }
-fn fail() -> Result<String, TerraneError> {
-    return Err(TerraneError::new(TerraneErrorKind::Custom("config-error"), "source error").at("/custom-throwable::fail (case.trn:14:3)"));
+fn load(path: String) -> Result<String, TerraneError> {
+    return Err({ let value = ConfigError::terrane_construct(path, String::from("configuration is invalid")); TerraneError::new(TerraneErrorKind::Custom("config-error"), value.render()).at("/custom-throwable::load (case.trn:14:3)") });
 }
 fn main() {
     let __terrane_completion_0: TerraneCompletion<()> = (|| {
         let __terrane_try_0: TerraneCompletion<()> = (|| {
-            match fail() { Ok(value) => value, Err(error) => return TerraneCompletion::Error(error.at("/custom-throwable::main (case.trn:18:5)")) };
+            match load(String::from("settings.toml")) { Ok(value) => value, Err(error) => return TerraneCompletion::Error(error.at("/custom-throwable::main (case.trn:18:5)")) };
             TerraneCompletion::Normal
         })();
         match __terrane_try_0 {

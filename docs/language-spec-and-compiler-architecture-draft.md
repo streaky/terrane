@@ -2667,8 +2667,8 @@ class config-error implements throwable
     return this.message
 ```
 
-The class declaration above is exercised by
-`tests/conformance/run/custom-throwable/case.trn`; documentation changes to it must keep that
+The class and constructed-throw expression above are exercised together by
+`tests/conformance/run/custom-throwable/case.trn`; documentation changes to either must keep that
 conformance case synchronized.
 
 The expression following `throw` is an ordinary expression. Consequently, throwing a newly
