@@ -3,5 +3,4 @@ namespace callable-contract-reflection
 function marked;
 
 function main;
-  marked;
   print; marked.contracts

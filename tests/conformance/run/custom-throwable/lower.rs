@@ -137,29 +137,32 @@ enum TerraneCompletion<T> {
 #[derive(Clone)]
 pub struct ConfigError {
     pub message: String,
-    pub code: terrane_int_support::Int,
+    pub path: String,
 }
 impl ConfigError {
-    pub fn terrane_construct(code: terrane_int_support::Int, message: String) -> Self {
+    pub fn terrane_construct(path: String, message: String) -> Self {
         let mut value = Self {
             message: String::from(""),
-            code: terrane_int_support::Int::from(0_i128),
+            path: String::from(""),
         };
-        value.construct(code, message);
+        value.construct(path, message);
         value
     }
-    pub fn construct(&mut self, code: terrane_int_support::Int, message: String) {
-        self.code = code.clone();
+    pub fn construct(&mut self, path: String, message: String) {
+        self.path = path;
         self.message = message;
     }
+    pub fn render(&self) -> String {
+        return (self.message).clone();
+    }
 }
-fn fail() -> Result<terrane_int_support::Int, TerraneError> {
-    return Err(TerraneError::new(TerraneErrorKind::Custom("config-error"), "source error").at("/custom-throwable::fail (case.trn:12:3)"));
+fn fail() -> Result<String, TerraneError> {
+    return Err(TerraneError::new(TerraneErrorKind::Custom("config-error"), "source error").at("/custom-throwable::fail (case.trn:14:3)"));
 }
 fn main() {
     let __terrane_completion_0: TerraneCompletion<()> = (|| {
         let __terrane_try_0: TerraneCompletion<()> = (|| {
-            match fail() { Ok(value) => value, Err(error) => return TerraneCompletion::Error(error.at("/custom-throwable::main (case.trn:16:5)")) };
+            match fail() { Ok(value) => value, Err(error) => return TerraneCompletion::Error(error.at("/custom-throwable::main (case.trn:18:5)")) };
             TerraneCompletion::Normal
         })();
         match __terrane_try_0 {

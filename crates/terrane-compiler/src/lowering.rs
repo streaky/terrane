@@ -44,34 +44,9 @@ pub(crate) fn lower(package: &SemanticPackage) -> Program {
         .iter()
         .any(|unit| unit.functions.iter().any(|function| function.is_async))
     {
-        let mut support = String::new();
-        support.push_str(
-            "fn __terrane_block_on<F: Future>(future: F) -> F::Output {\n\
-             struct Wake;\n\
-             impl std::task::Wake for Wake { fn wake(self: std::sync::Arc<Self>) {} }\n\
-             let waker = std::task::Waker::from(std::sync::Arc::new(Wake));\n\
-             let mut context = std::task::Context::from_waker(&waker);\n\
-             let mut future = std::pin::pin!(future);\n\
-             loop { match future.as_mut().poll(&mut context) {\n\
-             std::task::Poll::Ready(value) => return value,\n\
-             std::task::Poll::Pending => std::thread::yield_now(),\n\
-             } }\n}\n",
-        );
+        let mut support = include_str!("runtime/async.rs.txt").to_owned();
         if package_uses_task_scope(package) {
-            support.push_str(
-            "fn __terrane_block_on_cancellable<F: Future>(future: F, cancelled: impl Fn() -> bool) -> Option<F::Output> {\n\
-             struct Wake;\n\
-             impl std::task::Wake for Wake { fn wake(self: std::sync::Arc<Self>) {} }\n\
-             let waker = std::task::Waker::from(std::sync::Arc::new(Wake));\n\
-             let mut context = std::task::Context::from_waker(&waker);\n\
-             let mut future = std::pin::pin!(future);\n\
-             loop {\n\
-             if cancelled() { return None; }\n\
-             match future.as_mut().poll(&mut context) {\n\
-             std::task::Poll::Ready(value) => return Some(value),\n\
-             std::task::Poll::Pending => std::thread::yield_now(),\n\
-             } }\n}\n",
-        );
+            support.push_str(include_str!("runtime/async_cancellable.rs.txt"));
         }
         runtime.push(GeneratedModule {
             name: "async",
@@ -1434,6 +1409,17 @@ impl Emitter<'_> {
             self.output.push_str(" {}\n");
             return;
         }
+        if async_main
+            && block.is_none_or(|block| block.children.is_empty())
+            && contract.parameters.is_empty()
+        {
+            self.output.push_str(" {\n");
+            self.indent += 1;
+            self.line("__terrane_block_on(async move {});");
+            self.indent -= 1;
+            self.line("}");
+            return;
+        }
         self.output.push_str(" {\n");
         if async_main {
             self.indent += 1;
@@ -1498,8 +1484,8 @@ impl Emitter<'_> {
         self.current_function = outer_function;
         self.indent -= 1;
         if async_main {
-            self.indent -= 1;
             self.line("});");
+            self.indent -= 1;
         }
         self.line("}");
     }
@@ -3475,7 +3461,11 @@ impl Emitter<'_> {
                     _ => String::new(),
                 })
                 .unwrap_or_default();
-            return format!("{reflected:?}.to_owned()");
+            return format!(
+                "{{ let _ = {}; {:?}.to_owned() }}",
+                self.expression(receiver),
+                reflected
+            );
         }
         if let Some(ValueType::TaskOutcome(_)) = &receiver_type {
             let receiver = self.expression(receiver);

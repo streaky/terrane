@@ -140,12 +140,12 @@ fn exact() -> Result<terrane_int_support::Int, TerraneError> {
 }
 fn main() {
     let value: terrane_int_support::Int = fallible();
-    println!("{}{}", terrane_scalar_support::scalar_text(&(value)), terrane_scalar_support::scalar_text(&("".to_owned())));
-    println!("{}", terrane_scalar_support::scalar_text(&("throwable".to_owned())));
-    println!("{}", terrane_scalar_support::scalar_text(&("".to_owned())));
-    println!("{}", terrane_scalar_support::scalar_text(&("throws".to_owned())));
-    println!("{}", terrane_scalar_support::scalar_text(&("throwable".to_owned())));
-    println!("{}", terrane_scalar_support::scalar_text(&("coercion-error".to_owned())));
+    println!("{}{}", terrane_scalar_support::scalar_text(&(value)), terrane_scalar_support::scalar_text(&({ let _ = fallible; "".to_owned() })));
+    println!("{}", terrane_scalar_support::scalar_text(&({ let _ = fallible; "throwable".to_owned() })));
+    println!("{}", terrane_scalar_support::scalar_text(&({ let _ = fallible; "".to_owned() })));
+    println!("{}", terrane_scalar_support::scalar_text(&({ let _ = exact; "throws".to_owned() })));
+    println!("{}", terrane_scalar_support::scalar_text(&({ let _ = exact; "throwable".to_owned() })));
+    println!("{}", terrane_scalar_support::scalar_text(&({ let _ = exact; "coercion-error".to_owned() })));
     let __terrane_completion_0: TerraneCompletion<()> = (|| {
         let __terrane_try_0: TerraneCompletion<()> = (|| {
             match exact() { Ok(value) => value, Err(error) => return TerraneCompletion::Error(error.at("/typed-effect-reflection::main (case.trn:19:5)")) };

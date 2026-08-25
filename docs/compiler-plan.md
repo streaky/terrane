@@ -370,7 +370,7 @@ prints that help separately from the stable code and message.
 Language work must introduce its accepted and rejected cases in the same
 vertical work unit as the behavior.
 
-The type-analysis additions through milestones 15–17 reserve and register these
+The type-analysis additions through milestones 15–19 reserve and register these
 stable diagnostics:
 
 ```text
@@ -381,9 +381,13 @@ T0055 unknown object member               T0064 invalid non-owning ref source
 T0058 use after move                      T0065 uninferable object field type
 T0059 reference used after replacement     T0066 field missing type and initializer
 T0067 incompatible interface signature    T0068 escaping non-owning reference
+T0070 reflection unavailable in profile     T0074 invalid task-core operation
+T0071 unavailable reflected member          T0075 child deadline extension
+T0073 value live across suspension           T0076 unconsumed task
+T0078 parameterized program entrypoint
 ```
 
-`T0056`, `T0057`, and `T0060` are intentionally unassigned.
+`T0056`, `T0057`, `T0060`, `T0069`, `T0072`, and `T0077` are intentionally unassigned.
 
 ### Milestone 3 — Namespaces, scopes, and bootstrap environment
 
@@ -1244,8 +1248,8 @@ Deliver:
 - ordinary user-declared classes implementing `/core/errors::throwable`, with standard errors
   migrated to compiler-owned implementing classes and arbitrary non-throwable values rejected;
 - reflection that exposes a callable's optional declared throwable bound separately from its
-  inferred escaping throwable set, plus async callable metadata and compiler-derived suspension,
-  receiver-mutation, concrete `unsafe rust`, and foreign-transition facts;
+  inferred escaping throwable set, and reports the retained source-declared callable contracts
+  currently represented by `.contracts`;
 - descriptor materialisation: reflection is the case that requires a canonical descriptor object
   at runtime, so this milestone supplies what milestone 4.6 deliberately does not. A statically
   resolved descriptor still lowers to nothing; a profile that strips reflection metadata removes

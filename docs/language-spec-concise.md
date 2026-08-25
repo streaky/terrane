@@ -537,7 +537,6 @@ from /core/errors import throwable
 
 class config-error implements throwable
   message string = ''
-  cause throwable|none = none
   path string = ''
   function construct; path string, message string
     this.path = path
@@ -545,13 +544,9 @@ class config-error implements throwable
   function render string;
     return this.message
 
-
-function load config throws config-error; path string
-  try
-    return read-config; path
-  catch file-error as error
-    throw config-error; path, error.message
-```
+// Executable class coverage: tests/conformance/run/custom-throwable/case.trn.
+function load string throws config-error; path string
+  throw config-error; path, >configuration is invalid
 
 - Every thrown value MUST statically conform to structural `throwable`; arbitrary dynamic values are
   never throwable.

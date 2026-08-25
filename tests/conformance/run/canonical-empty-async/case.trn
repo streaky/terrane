@@ -1,0 +1,2 @@
+namespace canonical-empty-async
+async function main;

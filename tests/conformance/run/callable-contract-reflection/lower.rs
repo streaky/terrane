@@ -3,6 +3,5 @@
 // Namespace: callable-contract-reflection
 fn marked() {}
 fn main() {
-    marked();
-    println!("{}", terrane_scalar_support::scalar_text(&("".to_owned())));
+    println!("{}", terrane_scalar_support::scalar_text(&({ let _ = marked; "".to_owned() })));
 }

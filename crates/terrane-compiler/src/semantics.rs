@@ -9416,16 +9416,11 @@ fn validate_suspension_ownership(package: &SemanticPackage) -> Result<(), Semant
                             )
                         })
                 }) {
-                    let role = if matches!(binding.value_type, ValueType::Reference(_)) {
-                        "non-owning reference"
-                    } else {
-                        "linear capability"
-                    };
                     return Err(failure(
                         &unit.source,
                         "T0073",
                         format!(
-                            "{role} `{}` remains live across `await`; end its use before suspension or transfer owned state",
+                            "non-owning reference `{}` remains live across `await`; end its use before suspension or transfer owned state",
                             binding.name
                         ),
                         *suspension,

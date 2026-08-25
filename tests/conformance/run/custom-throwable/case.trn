@@ -3,13 +3,15 @@ from /core/errors import throwable
 
 class config-error implements throwable
   message string = ''
-  code int = 0
-  function construct; code int, message string
-    this.code = code
+  path string = ''
+  function construct; path string, message string
+    this.path = path
     this.message = message
+  function render string;
+    return this.message
 
-function fail int throws config-error;
-  throw config-error; 1234, >configuration failed
+function fail string throws config-error;
+  throw config-error; >settings.toml, >configuration failed
 
 function main;
   try

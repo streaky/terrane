@@ -2657,7 +2657,6 @@ from /core/errors import throwable
 
 class config-error implements throwable
   message string = ''
-  cause throwable|none = none
   path string = ''
 
   function construct; path string, message string
@@ -2667,6 +2666,10 @@ class config-error implements throwable
   function render string;
     return this.message
 ```
+
+The class declaration above is exercised by
+`tests/conformance/run/custom-throwable/case.trn`; documentation changes to it must keep that
+conformance case synchronized.
 
 The expression following `throw` is an ordinary expression. Consequently, throwing a newly
 constructed value uses the class object's normal invocation:

@@ -66,7 +66,10 @@ impl Parser<'_> {
             "class" => self.parse_object_declaration(SyntaxKind::ClassDeclaration),
             "interface" => self.parse_object_declaration(SyntaxKind::InterfaceDeclaration),
             "trait" => self.parse_object_declaration(SyntaxKind::TraitDeclaration),
-            "global" | "constant" if self.peek_text(1) == Some("function") => {
+            "global" | "constant" | "pure" | "io" | "blocks" | "mutating" | "mutates"
+            | "awaits" | "foreign"
+                if self.peek_text(1) == Some("function") =>
+            {
                 self.parse_invalid_function_qualifier()
             }
             "global"
