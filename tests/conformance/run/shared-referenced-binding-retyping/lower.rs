@@ -134,16 +134,16 @@ enum TerraneCompletion<T> {
 // Namespace: shared-referenced-binding-retyping
 fn main() {
     let value: std::sync::Arc<
-        parking_lot::Mutex<terrane_collection_support::List<terrane_int_support::Int>>,
+        std::sync::Mutex<terrane_collection_support::List<terrane_int_support::Int>>,
     > = std::sync::Arc::new(
-        parking_lot::Mutex::new(
+        std::sync::Mutex::new(
             terrane_collection_support::List::<
                 terrane_int_support::Int,
             >::new(vec![terrane_int_support::Int::from(12_i128)]),
         ),
     );
     let owner: std::sync::Arc<
-        parking_lot::Mutex<terrane_collection_support::List<terrane_int_support::Int>>,
+        std::sync::Mutex<terrane_collection_support::List<terrane_int_support::Int>>,
     > = (value).clone();
     let _ = &value;
     let value: terrane_collection_support::List<terrane_int_support::Int> = terrane_collection_support::List::<
@@ -151,7 +151,7 @@ fn main() {
     >::new(vec![terrane_int_support::Int::from(14_i128)]);
     println!(
         "{}{}", terrane_scalar_support::scalar_text(& (((({ let __terrane_value = owner
-        .lock().clone(); __terrane_value }))
+        .lock().expect("shared reference lock poisoned").clone(); __terrane_value }))
         .get_or_error((terrane_collection_support::index_from_int(&
         (terrane_int_support::Int::from(0_i128)))).unwrap_or_else(| error |
         __terrane_uncaught(TerraneError::from(error)

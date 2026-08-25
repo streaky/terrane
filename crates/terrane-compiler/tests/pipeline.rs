@@ -24,26 +24,6 @@ fn hello_lowers_deterministically() {
     );
 }
 
-#[test]
-fn generated_dependencies_come_from_lowering_metadata() {
-    let literal = terrane_compiler::compile(
-        PathBuf::from("literal.trn"),
-        "namespace literal\nfunction main;\n  print; 'parking_lot::'\n".to_owned(),
-    )
-    .unwrap();
-    assert!(literal.dependencies.is_empty());
-
-    let referenced = terrane_compiler::compile(
-        PathBuf::from("reference.trn"),
-        "namespace reference\nfunction main;\n  value = 1\n  owner = shared ref value\n  print; owner\n"
-            .to_owned(),
-    )
-    .unwrap();
-    assert_eq!(
-        referenced.dependencies,
-        [terrane_compiler::rust_ir::Dependency::ParkingLot]
-    );
-}
 
 #[test]
 fn canonical_rust_requirement_reports_unformatted_lowering() {

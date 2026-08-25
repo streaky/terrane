@@ -1,16 +1,11 @@
 use std::fmt::Write as _;
 
 use crate::Span;
-#[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
-pub enum Dependency {
-    ParkingLot,
-}
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Program {
     pub version: &'static str,
     pub runtime: Vec<GeneratedModule>,
-    pub dependencies: Vec<Dependency>,
     pub globals: Vec<Item>,
     pub modules: Vec<Module>,
 }

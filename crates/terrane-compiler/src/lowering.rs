@@ -5,7 +5,7 @@ use num_bigint::BigInt;
 
 use crate::{
     ScalarType, SourceFile, TypeCategory,
-    rust_ir::{Dependency, GeneratedModule, Item, Module, Program},
+    rust_ir::{GeneratedModule, Item, Module, Program},
     semantics::{
         ArithmeticFamily, CoercionPolicy, ContextualConstant, ElementType, FunctionContract,
         MemberFamily, ObjectContract, ObjectField, ObjectKind, SemanticPackage, SemanticUnit,
@@ -139,11 +139,6 @@ pub(crate) fn lower(package: &SemanticPackage) -> Program {
     Program {
         version: crate::VERSION,
         runtime,
-        dependencies: if package_uses_parking_lot(package) {
-            vec![Dependency::ParkingLot]
-        } else {
-            Vec::new()
-        },
         globals: (!globals.is_empty())
             .then(|| Item::generated(&globals))
             .into_iter()
@@ -178,77 +173,6 @@ struct Emitter<'a> {
     closure_depth: usize,
 }
 
-fn package_uses_parking_lot(package: &SemanticPackage) -> bool {
-    fn contains_reference(unit: &SemanticUnit, node: &SyntaxNode) -> bool {
-        (node.kind == SyntaxKind::UnaryExpression
-            && node.children.first().is_some_and(|operator| {
-                matches!(
-                    &unit.source.text()[operator.span.start..operator.span.end],
-                    "ref" | "shared ref"
-                )
-            }))
-            || node
-                .children
-                .iter()
-                .any(|child| contains_reference(unit, child))
-    }
-
-    (package.executor == crate::package::ExecutorProfile::Threaded
-        && package_uses_task_scope(package))
-        || package.units.iter().any(|unit| {
-            contains_reference(unit, &unit.tree.root)
-                || unit
-                    .typed_bindings
-                    .iter()
-                    .any(|binding| value_type_uses_parking_lot(&binding.value_type))
-                || unit.functions.iter().any(|function| {
-                    function.parameters.iter().any(|parameter| {
-                        parameter
-                            .value_type
-                            .as_ref()
-                            .is_some_and(value_type_uses_parking_lot)
-                    }) || function
-                        .return_type
-                        .as_ref()
-                        .is_some_and(value_type_uses_parking_lot)
-                })
-                || unit.objects.iter().any(|object| {
-                    object
-                        .fields
-                        .iter()
-                        .any(|field| value_type_uses_parking_lot(&field.value_type))
-                })
-        })
-}
-
-fn value_type_uses_parking_lot(value_type: &ValueType) -> bool {
-    match value_type {
-        ValueType::Reference(_) | ValueType::SharedReference(_) => true,
-        ValueType::Iterator(item)
-        | ValueType::IterationStep(item)
-        | ValueType::ElementOrNone(item)
-        | ValueType::List(item)
-        | ValueType::Set(item)
-        | ValueType::Tuple(item, _)
-        | ValueType::Task(item)
-        | ValueType::ScopedTask(item)
-        | ValueType::TaskOutcome(item)
-        | ValueType::UnorderedSet(item) => value_type_uses_parking_lot(&item.value_type()),
-        ValueType::Map(key, value)
-        | ValueType::Entry(key, value)
-        | ValueType::UnorderedMap(key, value) => {
-            value_type_uses_parking_lot(&key.value_type())
-                || value_type_uses_parking_lot(&value.value_type())
-        }
-        ValueType::Function(parameters, result) | ValueType::AsyncFunction(parameters, result) => {
-            parameters
-                .iter()
-                .any(|parameter| value_type_uses_parking_lot(&parameter.value_type()))
-                || value_type_uses_parking_lot(&result.value_type())
-        }
-        _ => false,
-    }
-}
 
 fn package_uses_task_scope(package: &SemanticPackage) -> bool {
     fn contains(package: &SemanticPackage, unit: &SemanticUnit, node: &SyntaxNode) -> bool {
@@ -1740,15 +1664,15 @@ impl Emitter<'_> {
             return None;
         }
         let receiver_type = self.receiver_value_type(receiver)?;
-        let receiver = self.receiver_guard_expression(receiver);
+        let receiver_value = self.receiver_guard_expression(receiver);
         let values = arguments
             .children
             .iter()
             .map(|argument| argument.children.last().unwrap_or(argument))
             .collect::<Vec<_>>();
-        match (receiver_type, self.text(member)) {
+        let mutation = match (receiver_type, self.text(member)) {
             (ValueType::List(item), "append") => Some(format!(
-                "({receiver}).append({})",
+                "({receiver_value}).append({})",
                 self.expression_as(values[0], item.value_type())
             )),
             (ValueType::List(item), "set") => {
@@ -1758,21 +1682,25 @@ impl Emitter<'_> {
                     node,
                 );
                 let value = self.expression_as(values[1], item.value_type());
-                Some(self.fallible(format!("({receiver}).set({index}, {value})"), node))
+                Some(self.fallible(
+                    format!("({receiver_value}).set({index}, {value})"),
+                    node,
+                ))
             }
             (ValueType::Map(key, value) | ValueType::UnorderedMap(key, value), "set") => {
                 Some(format!(
-                    "({receiver}).set({}, {})",
+                    "({receiver_value}).set({}, {})",
                     self.expression_as(values[0], key.value_type()),
                     self.expression_as(values[1], value.value_type())
                 ))
             }
             (ValueType::Set(item) | ValueType::UnorderedSet(item), "add") => Some(format!(
-                "({receiver}).add({})",
+                "({receiver_value}).add({})",
                 self.expression_as(values[0], item.value_type())
             )),
             _ => None,
-        }
+        };
+        mutation.map(|mutation| self.wrap_receiver_guard(receiver, mutation))
     }
 
     fn assignment(&mut self, node: &SyntaxNode) {
@@ -1795,12 +1723,15 @@ impl Emitter<'_> {
                     let value = self.expression_as(value, item.value_type());
                     let mutation =
                         self.fallible(format!("({receiver_value}).set({index}, {value})"), node);
+                    let mutation = self.wrap_receiver_guard(receiver, mutation);
                     self.line(&format!("let _ = {mutation};"));
                 }
                 ValueType::Map(key, value_type) | ValueType::UnorderedMap(key, value_type) => {
                     let key = self.expression_as(index, key.value_type());
                     let value = self.expression_as(value, value_type.value_type());
-                    self.line(&format!("let _ = ({receiver_value}).set({key}, {value});"));
+                    let mutation = format!("({receiver_value}).set({key}, {value})");
+                    let mutation = self.wrap_receiver_guard(receiver, mutation);
+                    self.line(&format!("let _ = {mutation};"));
                 }
                 _ => {}
             }
@@ -1846,7 +1777,10 @@ impl Emitter<'_> {
         let reference_backed =
             assigned_binding.is_some_and(|binding| self.reference_backed(binding));
         let target = if reference_backed {
-            format!("*{}.lock()", rust_name(self.text(left)))
+            format!(
+                "*{}.lock().expect(\"reference lock poisoned\")",
+                rust_name(self.text(left))
+            )
         } else if left.kind == SyntaxKind::Name {
             rust_name(self.text(left))
         } else if let [receiver, member] = left.children.as_slice()
@@ -2138,7 +2072,7 @@ impl Emitter<'_> {
                 rust_value_type(binding.value_type.clone())
             };
             if reference_backed {
-                format!("std::sync::Arc<parking_lot::Mutex<{value_type}>>")
+                format!("std::sync::Arc<std::sync::Mutex<{value_type}>>")
             } else {
                 value_type
             }
@@ -2185,7 +2119,7 @@ impl Emitter<'_> {
             };
             let value = Self::unwrapped_expression(value);
             let value = if reference_backed {
-                format!("std::sync::Arc::new(parking_lot::Mutex::new({value}))")
+                format!("std::sync::Arc::new(std::sync::Mutex::new({value}))")
             } else {
                 value
             };
@@ -3368,11 +3302,11 @@ impl Emitter<'_> {
     fn receiver_expression(&mut self, receiver: &SyntaxNode) -> String {
         match self.value_type(receiver) {
             Some(ValueType::SharedReference(_)) => format!(
-                "({{ let __terrane_value = {}.lock().clone(); __terrane_value }})",
+                "({{ let __terrane_value = {}.lock().expect(\"shared reference lock poisoned\").clone(); __terrane_value }})",
                 self.expression(receiver)
             ),
             Some(ValueType::Reference(_)) => format!(
-                "({{ let __terrane_owner = {}.upgrade().expect(\"reference expired\"); let __terrane_value = __terrane_owner.lock().clone(); __terrane_value }})",
+                "({{ let __terrane_owner = {}.upgrade().expect(\"reference expired\"); let __terrane_value = __terrane_owner.lock().expect(\"reference lock poisoned\").clone(); __terrane_value }})",
                 self.expression(receiver)
             ),
             _ => self.expression(receiver),
@@ -3381,15 +3315,28 @@ impl Emitter<'_> {
 
     fn receiver_guard_expression(&mut self, receiver: &SyntaxNode) -> String {
         match self.value_type(receiver) {
-            Some(ValueType::SharedReference(_)) => format!("{}.lock()", self.expression(receiver)),
-            Some(ValueType::Reference(_)) => format!(
-                "parking_lot::Mutex::lock_arc(&{}.upgrade().expect(\"reference expired\"))",
+            Some(ValueType::SharedReference(_)) => format!(
+                "{}.lock().expect(\"shared reference lock poisoned\")",
                 self.expression(receiver)
             ),
+            Some(ValueType::Reference(_)) => {
+                "__terrane_owner.lock().expect(\"reference lock poisoned\")".to_owned()
+            }
             _ if self.reference_backed_name(receiver).is_some() => {
-                format!("{}.lock()", rust_name(self.text(receiver)))
+                format!("{}.lock().expect(\"reference lock poisoned\")", self.name(receiver))
             }
             _ => self.expression(receiver),
+        }
+    }
+
+    fn wrap_receiver_guard(&mut self, receiver: &SyntaxNode, expression: String) -> String {
+        if matches!(self.value_type(receiver), Some(ValueType::Reference(_))) {
+            format!(
+                "({{ let __terrane_owner = {}.upgrade().expect(\"reference expired\"); {expression} }})",
+                self.expression(receiver)
+            )
+        } else {
+            expression
         }
     }
 
@@ -3763,7 +3710,7 @@ impl Emitter<'_> {
                 _ => None,
             };
             if let Some(call) = call {
-                return call;
+                return self.wrap_receiver_guard(receiver, call);
             }
         }
         if let Some(method) = bound_method(self.source, callee)
@@ -4615,7 +4562,7 @@ impl Emitter<'_> {
             && self.reference_backed(binding)
         {
             return format!(
-                "({{ let __terrane_value = {}.lock().clone(); __terrane_value }})",
+                "({{ let __terrane_value = {}.lock().expect(\"reference lock poisoned\").clone(); __terrane_value }})",
                 rust_name(source_name)
             );
         }
@@ -5359,11 +5306,11 @@ fn rust_value_type(ty: ValueType) -> String {
         ValueType::Descriptor(_) => "TerraneDescriptor".to_owned(),
         ValueType::Object(name) => rust_object_name(&name),
         ValueType::SharedReference(item) => format!(
-            "std::sync::Arc<parking_lot::Mutex<{}>>",
+            "std::sync::Arc<std::sync::Mutex<{}>>",
             rust_element_type(item)
         ),
         ValueType::Reference(item) => format!(
-            "std::sync::Weak<parking_lot::Mutex<{}>>",
+            "std::sync::Weak<std::sync::Mutex<{}>>",
             rust_element_type(item)
         ),
     }

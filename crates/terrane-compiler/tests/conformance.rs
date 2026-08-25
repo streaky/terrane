@@ -21,23 +21,14 @@ impl ConformanceBuild {
         Self { root }
     }
 
-    fn write_manifest(&self, dependencies: &[terrane_compiler::rust_ir::Dependency]) {
-        let parking_lot =
-            if dependencies.contains(&terrane_compiler::rust_ir::Dependency::ParkingLot) {
-                "parking_lot = { version = \"0.12\", features = [\"arc_lock\"] }\n"
-            } else {
-                ""
-            };
+    fn write_manifest(&self) {
         fs::write(
             self.root.join("Cargo.toml"),
-            format!(
-                "[package]\nname = \"terrane_conformance_program\"\nversion = \"0.0.0\"\nedition = \"2024\"\n\n\
-                 [dependencies]\n{parking_lot}\
-                 terrane-int-support = {{ path = \"support/terrane-int-support\" }}\n\
-                 terrane-collection-support = {{ path = \"support/terrane-collection-support\" }}\n\
-                 terrane-scalar-support = {{ path = \"support/terrane-scalar-support\" }}\n\
-                 terrane-string-support = {{ path = \"support/terrane-string-support\" }}\n\n[workspace]\n"
-            ),
+            "[package]\nname = \"terrane_conformance_program\"\nversion = \"0.0.0\"\nedition = \"2024\"\n\n\
+             [dependencies]\nterrane-int-support = { path = \"support/terrane-int-support\" }\n\
+             terrane-collection-support = { path = \"support/terrane-collection-support\" }\n\
+             terrane-scalar-support = { path = \"support/terrane-scalar-support\" }\n\
+             terrane-string-support = { path = \"support/terrane-string-support\" }\n\n[workspace]\n",
         )
         .unwrap();
     }
@@ -118,13 +109,7 @@ fn every_manifest_drives_a_conformance_case() {
                     .rust
                     .replace(terrane_compiler::VERSION, "<version>");
                 assert_eq!(normalized, expected, "{}", case.display());
-                compile_and_maybe_run(
-                    case,
-                    phase,
-                    &compilation.rust,
-                    &compilation.dependencies,
-                    &build,
-                );
+                compile_and_maybe_run(case, phase, &compilation.rust, &build);
             }
             ("check", "reject") => {
                 let code = field(&manifest, "code").unwrap();
@@ -153,14 +138,8 @@ fn every_manifest_drives_a_conformance_case() {
     }
 }
 
-fn compile_and_maybe_run(
-    case: &Path,
-    phase: &str,
-    rust: &str,
-    dependencies: &[terrane_compiler::rust_ir::Dependency],
-    build: &ConformanceBuild,
-) {
-    build.write_manifest(dependencies);
+fn compile_and_maybe_run(case: &Path, phase: &str, rust: &str, build: &ConformanceBuild) {
+    build.write_manifest();
     let build_dir = &build.root;
     fs::write(build_dir.join("src/main.rs"), rust).unwrap();
     let output = Command::new("cargo")
