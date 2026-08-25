@@ -49,7 +49,6 @@ pub struct Block {
     parsed: syn::File,
 }
 
-#[derive(Default)]
 struct CanonicalizeExpressions;
 
 impl syn::fold::Fold for CanonicalizeExpressions {
