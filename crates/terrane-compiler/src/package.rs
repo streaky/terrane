@@ -19,14 +19,7 @@ pub struct SourceUnit {
 
 impl SourceUnit {
     pub(crate) fn relative_path_text(&self) -> String {
-        self.relative_path
-            .components()
-            .map(|component| match component {
-                std::path::Component::Normal(component) => component.to_string_lossy(),
-                _ => unreachable!("source-unit paths are normalized relative to the package root"),
-            })
-            .collect::<Vec<_>>()
-            .join("/")
+        self.relative_path.to_string_lossy().replace('\\', "/")
     }
 }
 
@@ -585,5 +578,21 @@ mod tests {
             expected_namespace: None,
         };
         assert_eq!(unit.relative_path_text(), "app/support/values.trn");
+    }
+
+    #[test]
+    fn arbitrary_source_paths_render_without_panicking() {
+        for (path, expected) in [
+            ("../shared/main.trn", "../shared/main.trn"),
+            ("/workspace/main.trn", "/workspace/main.trn"),
+            (r"C:\workspace\main.trn", "C:/workspace/main.trn"),
+        ] {
+            let unit = SourceUnit {
+                relative_path: PathBuf::from(path),
+                source: SourceFile::new(0, PathBuf::from(path), String::new()),
+                expected_namespace: None,
+            };
+            assert_eq!(unit.relative_path_text(), expected);
+        }
     }
 }
