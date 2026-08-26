@@ -1,3 +1,5 @@
+// Rust justification: ABI boundary to the WHATWG URL support layer.
+
 fn terrane_url_limit(value: &terrane_int_support::Int) -> usize { value.as_usize().unwrap_or(usize::MAX) }
 fn terrane_url_parse(input: String, base: String) -> terrane_document_support::UrlResult { terrane_document_support::parse_url(&input, &base) }
 fn terrane_url_failed(result: &terrane_document_support::UrlResult) -> bool { result.failed }

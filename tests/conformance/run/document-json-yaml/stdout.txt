@@ -1,0 +1,9 @@
+falsemap
+integer123456789012345678901234567890
+decimal1.23
+{"a":123456789012345678901234567890,"z":1.23}
+truetrue
+true$.nameperson
+true$.extraperson
+falsetrue
+truetrue

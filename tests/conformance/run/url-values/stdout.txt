@@ -1,0 +1,7 @@
+false
+httpsxn--bcher-kva.example/a
+https://xn--bcher-kva.example/a?x=1&x=2#f
+userpass
+2
+12
+xn--bcher-kva.example/bhello world

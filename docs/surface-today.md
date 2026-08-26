@@ -122,7 +122,7 @@ Terrane package
     │   ├── filesystem-open-beneath(filesystem, directory, relative, cross-filesystem) -> directory-handle
     │   ├── open-file-beneath(filesystem, ref directory-handle, relative, …) -> file-handle
     │   ├── filesystem-exists / filesystem-metadata / filesystem-symlink-metadata
-    │   ├── filesystem-canonical / filesystem-realpath (deliberate POSIX spelling alias) / filesystem-read-link
+    │   ├── filesystem-realpath / filesystem-read-link
     │   ├── filesystem-read-bounded / filesystem-write-atomic
     │   └── filesystem-rename / filesystem-remove
     ├── /standard/process                      bundled Terrane package over minimal host intrinsics
@@ -130,6 +130,26 @@ Terrane package
     │   ├── arguments / environment            explicit process snapshots
     │   ├── cli-schema / parse-command-line    schema-driven options and structured diagnostics
     │   └── exit-status / make-exit-status / exit explicit validated termination
+    ├── /standard/documents                    bundled Terrane document model over narrow scanner intrinsics
+    │   ├── document-integer                   exact integer text value
+    │   ├── document-decimal                   coefficient / exponent / exact text value
+    │   ├── document-value                     none / bool / integer / decimal / string / list / map
+    │   ├── document-result                    value or failed / message / path / expected diagnostic
+    │   ├── document-mapping                   descriptor name, expected kind, fields, defaults, unknown-field policy
+    │   └── decode-document                    descriptor-driven validation with document-path diagnostics
+    ├── /standard/json                         bundled Terrane policy and document integration
+    │   ├── json-options / default-json-options
+    │   ├── parse-json / stringify-json / canonical-json
+    │   └── decode-json / encode-json
+    ├── /standard/yaml                         bundled Terrane policy and document integration
+    │   ├── yaml-options / default-yaml-options / make-yaml-options
+    │   ├── parse-yaml / stringify-yaml
+    │   └── decode-yaml / encode-yaml
+    ├── /standard/urls                         bundled Terrane URL and ordered-query model
+    │   ├── url                                serialized / display / components / query / origin
+    │   ├── url-query                          ordered duplicate-preserving query entries and mutations
+    │   ├── url-result                         value or failed / message result
+    │   └── parse-url / parse-url-relative
     ├── namespace                              hierarchical object container
     │   ├── variable                           namespace-local value
     │   ├── constant                           namespace-local or program-global value

@@ -1,3 +1,5 @@
+// Rust justification: ABI boundary to the opaque parser result representation.
+
 fn terrane_limit(value: &terrane_int_support::Int) -> usize {
     value.as_usize().unwrap_or(usize::MAX)
 }

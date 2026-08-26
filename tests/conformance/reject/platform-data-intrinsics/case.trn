@@ -1,0 +1,6 @@
+namespace conformance/platform-data-intrinsics
+
+from /core/platform-data import json-parse
+
+function main;
+    json-parse; '{}', true, 32, 1024

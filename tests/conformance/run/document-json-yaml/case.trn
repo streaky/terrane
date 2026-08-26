@@ -1,0 +1,47 @@
+namespace conformance/document-json-yaml
+# Exact numeric and safety contracts share the same Terrane document model.
+
+from /core/output import print
+from /standard/documents import document-value, document-mapping, decode-document
+from /core/collections import list
+from /standard/json import default-json-options, parse-json, canonical-json
+from /standard/yaml import make-yaml-options, parse-yaml
+
+function main;
+    options = default-json-options;
+    parsed = parse-json; '{"a":123456789012345678901234567890,"z":1.2300}', options
+    print; parsed.failed, parsed.value.kind
+    integer = parsed.value.field; 'a'
+    decimal = parsed.value.field; 'z'
+    print; integer.value.kind, integer.value.scalar
+    print; decimal.value.kind, decimal.value.scalar
+    canonical = canonical-json; parsed.value
+    print; canonical.value.encoded
+
+    duplicate = parse-json; '{"key":1,"key":2}', options
+    print; duplicate.failed, (duplicate.message.contains; 'duplicate key')
+
+    fields list of string = list; 'name', 'nickname', 'active'
+    optional-fields list of string = list; 'nickname'
+    default-fields list of string = list; 'active'
+    active-default = document-value; 'true'
+    default-values list of document-value = list; active-default
+    mapping = document-mapping; 'person', 'map', false
+    mapping.field-names = fields
+    mapping.optional-fields = optional-fields
+    mapping.default-fields = default-fields
+    mapping.default-values = default-values
+    missing-value = document-value; '{}'
+    missing = decode-document; missing-value, mapping
+    print; missing.failed, missing.path, missing.expected
+    unknown-value = document-value; '{"name":"Ada","extra":1}'
+    unknown = decode-document; unknown-value, mapping
+    print; unknown.failed, unknown.path, unknown.expected
+    mapped-value = document-value; '{"name":"Ada","nickname":"A"}'
+    mapped = decode-document; mapped-value, mapping
+    active = mapped.value.field; 'active'
+    print; mapped.failed, active.value.scalar
+
+    yaml-limits = make-yaml-options; 32, 1024, 1
+    bomb = parse-yaml; 'root: &root [1]\na: *root\nb: *root', yaml-limits
+    print; bomb.failed, (bomb.message.contains; 'alias expansion limit')

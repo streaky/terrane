@@ -1,3 +1,7 @@
+// Rust justification: large, externally reviewed, security-critical implementations.
+// Serde's bounded JSON/YAML parsers and url's WHATWG state machine are kept below
+// the boundary; document policy, descriptor mapping, and the public API stay in Terrane.
+
 use serde::de::{DeserializeSeed, Error as _, MapAccess, SeqAccess, Visitor};
 use serde::Deserializer;
 use std::collections::BTreeMap;
