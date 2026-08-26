@@ -3784,9 +3784,7 @@ fn propagate_resource_ownership(package: &mut SemanticPackage) -> Result<(), Sem
     }
     Ok(())
 }
-fn validate_resource_collection_types(
-    package: &SemanticPackage,
-) -> Result<(), SemanticFailure> {
+fn validate_resource_collection_types(package: &SemanticPackage) -> Result<(), SemanticFailure> {
     let resource_identities = package
         .units
         .iter()
@@ -6535,20 +6533,16 @@ fn infer_value_type(
                     }
                     "/core/platform-system::result-failed"
                     | "/core/platform-system::result-bool"
-                    | "/core/platform-system::platform-value-is-text" => {
-                        Some(ValueType::Scalar(ScalarType::Bool))
-                    }
-                    "/core/platform-data::data-failed"
+                    | "/core/platform-system::platform-value-is-text"
+                    | "/core/platform-data::data-failed"
                     | "/core/platform-data::url-failed" => {
                         Some(ValueType::Scalar(ScalarType::Bool))
                     }
                     "/core/platform-system::result-message"
                     | "/core/platform-system::result-text"
                     | "/core/platform-system::result-detail"
-                    | "/core/platform-system::platform-value-text" => {
-                        Some(ValueType::Scalar(ScalarType::String))
-                    }
-                    "/core/platform-data::data-message"
+                    | "/core/platform-system::platform-value-text"
+                    | "/core/platform-data::data-message"
                     | "/core/platform-data::data-path"
                     | "/core/platform-data::data-expected"
                     | "/core/platform-data::data-encoded"
@@ -10197,15 +10191,39 @@ fn bootstrap_namespaces() -> BTreeMap<String, Namespace> {
         namespace_with_objects(
             "/core/platform-data",
             [
-                "platform-data-result", "platform-url-result",
-                "json-parse", "json-canonical", "yaml-parse",
-                "data-failed", "data-message", "data-path", "data-expected", "data-encoded",
-                "document-kind", "document-text", "document-length", "document-item",
-                "document-key", "document-field", "validate-mapping",
-                "url-parse", "url-failed", "url-message", "url-serialized", "url-display",
-                "url-scheme", "url-username", "url-password", "url-host", "url-port",
-                "url-path", "url-query-length", "url-query-key",
-                "url-query-value", "url-fragment", "url-origin",
+                "platform-data-result",
+                "platform-url-result",
+                "json-parse",
+                "json-canonical",
+                "yaml-parse",
+                "data-failed",
+                "data-message",
+                "data-path",
+                "data-expected",
+                "data-encoded",
+                "document-kind",
+                "document-text",
+                "document-length",
+                "document-item",
+                "document-key",
+                "document-field",
+                "validate-mapping",
+                "url-parse",
+                "url-failed",
+                "url-message",
+                "url-serialized",
+                "url-display",
+                "url-scheme",
+                "url-username",
+                "url-password",
+                "url-host",
+                "url-port",
+                "url-path",
+                "url-query-length",
+                "url-query-key",
+                "url-query-value",
+                "url-fragment",
+                "url-origin",
             ],
             SymbolKind::Function,
         ),

@@ -79,10 +79,22 @@ pub(crate) fn lower(package: &SemanticPackage) -> Program {
         .units
         .iter()
         .any(|unit| unit.namespace == "/standard/process");
-    let uses_documents = package.units.iter().any(|unit| unit.namespace == "/standard/documents");
-    let uses_json = package.units.iter().any(|unit| unit.namespace == "/standard/json");
-    let uses_yaml = package.units.iter().any(|unit| unit.namespace == "/standard/yaml");
-    let uses_urls = package.units.iter().any(|unit| unit.namespace == "/standard/urls");
+    let uses_documents = package
+        .units
+        .iter()
+        .any(|unit| unit.namespace == "/standard/documents");
+    let uses_json = package
+        .units
+        .iter()
+        .any(|unit| unit.namespace == "/standard/json");
+    let uses_yaml = package
+        .units
+        .iter()
+        .any(|unit| unit.namespace == "/standard/yaml");
+    let uses_urls = package
+        .units
+        .iter()
+        .any(|unit| unit.namespace == "/standard/urls");
     if uses_standard_streams || uses_filesystem {
         let mut items = vec![Item::generated(include_str!("runtime/platform_streams.rs"))];
         if uses_standard_streams {
@@ -114,7 +126,9 @@ pub(crate) fn lower(package: &SemanticPackage) -> Program {
     if uses_documents || uses_urls {
         let mut items = Vec::new();
         if uses_documents {
-            items.push(Item::generated(include_str!("runtime/platform_documents.rs")));
+            items.push(Item::generated(include_str!(
+                "runtime/platform_documents.rs"
+            )));
         }
         if uses_json {
             items.push(Item::generated(include_str!("runtime/platform_json.rs")));
@@ -4163,9 +4177,14 @@ impl Emitter<'_> {
                     let integer_argument = matches!(
                         (function, index),
                         ("json_parse", 2 | 3)
-                            | ("yaml_parse", 1 | 2 | 3)
-                            | ("document_item" | "document_key", 1)
-                            | ("url_query_key" | "url_query_value", 1)
+                            | ("yaml_parse", 1..=3)
+                            | (
+                                "document_item"
+                                    | "document_key"
+                                    | "url_query_key"
+                                    | "url_query_value",
+                                1,
+                            )
                     );
                     let value = if integer_argument {
                         self.expression_as(value, ValueType::Scalar(ScalarType::Int))
