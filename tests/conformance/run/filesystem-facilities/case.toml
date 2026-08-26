@@ -1,0 +1,6 @@
+phase = "run"
+status = "accept"
+canonical-rust = true
+isolated-working-directory = true
+symlink-fixture = "terrane-filesystem-case-link.txt"
+symlink-target = "terrane-filesystem-case.txt"

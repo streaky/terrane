@@ -114,7 +114,7 @@ fn every_manifest_drives_a_conformance_case() {
                     .rust
                     .replace(terrane_compiler::VERSION, "<version>");
                 assert_eq!(normalized, expected, "{}", case.display());
-                compile_and_maybe_run(case, phase, &compilation.rust, &build);
+                compile_and_maybe_run(case, phase, &manifest, &compilation.rust, &build);
             }
             ("check", "reject") => {
                 let code = field(&manifest, "code").unwrap();
@@ -143,7 +143,13 @@ fn every_manifest_drives_a_conformance_case() {
     }
 }
 
-fn compile_and_maybe_run(case: &Path, phase: &str, rust: &str, build: &ConformanceBuild) {
+fn compile_and_maybe_run(
+    case: &Path,
+    phase: &str,
+    manifest: &str,
+    rust: &str,
+    build: &ConformanceBuild,
+) {
     build.write_manifest();
     let build_dir = &build.root;
     fs::write(build_dir.join("src/main.rs"), rust).unwrap();
@@ -163,7 +169,26 @@ fn compile_and_maybe_run(case: &Path, phase: &str, rust: &str, build: &Conforman
     );
 
     if phase == "run" {
-        let mut child = Command::new(&binary_path)
+        let mut command = Command::new(&binary_path);
+        if let Some(arguments) = optional_text(case.join("arguments.txt")) {
+            command.args(arguments.lines());
+        }
+        command.args(platform_arguments(case.join("arguments-raw.hex")));
+        if boolean_field(manifest, "isolated-working-directory") == Some(true) {
+            let working_directory = build_dir.join("run");
+            if working_directory.exists() {
+                fs::remove_dir_all(&working_directory).unwrap();
+            }
+            fs::create_dir(&working_directory).unwrap();
+            if let (Some(link), Some(target)) = (
+                field(manifest, "symlink-fixture"),
+                field(manifest, "symlink-target"),
+            ) {
+                create_file_symlink(target, working_directory.join(link));
+            }
+            command.current_dir(working_directory);
+        }
+        let mut child = command
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
             .stderr(Stdio::piped())
@@ -196,6 +221,16 @@ fn compile_and_maybe_run(case: &Path, phase: &str, rust: &str, build: &Conforman
             case.display()
         );
     }
+}
+
+#[cfg(unix)]
+fn create_file_symlink(target: &str, link: PathBuf) {
+    std::os::unix::fs::symlink(target, link).unwrap();
+}
+
+#[cfg(windows)]
+fn create_file_symlink(target: &str, link: PathBuf) {
+    std::os::windows::fs::symlink_file(target, link).unwrap();
 }
 
 fn write_support_crates(directory: &Path) {
@@ -251,7 +286,7 @@ fn write_support_crates(directory: &Path) {
     .unwrap();
     fs::write(
         stream.join("Cargo.toml"),
-        "[package]\nname = \"terrane-stream-abi\"\nversion = \"0.1.0\"\nedition = \"2024\"\n",
+        "[package]\nname = \"terrane-stream-abi\"\nversion = \"0.1.0\"\nedition = \"2024\"\n\n[dependencies]\nlibc = \"0.2\"\nrustix = { version = \"1\", features = [\"fs\"] }\n",
     )
     .unwrap();
     fs::write(
@@ -267,6 +302,41 @@ fn optional_bytes(path: PathBuf) -> Vec<u8> {
 
 fn optional_text(path: PathBuf) -> Option<String> {
     fs::read_to_string(path).ok()
+}
+
+fn platform_arguments(path: PathBuf) -> Vec<std::ffi::OsString> {
+    let Some(encoded) = optional_text(path) else {
+        return Vec::new();
+    };
+    encoded
+        .lines()
+        .filter(|line| !line.is_empty())
+        .map(|line| {
+            let bytes = line
+                .as_bytes()
+                .chunks_exact(2)
+                .map(|pair| {
+                    let text = std::str::from_utf8(pair).expect("argument hex is ASCII");
+                    u8::from_str_radix(text, 16).expect("argument bytes use hexadecimal")
+                })
+                .collect::<Vec<_>>();
+            assert_eq!(line.len(), bytes.len() * 2, "argument hex has an odd digit");
+            #[cfg(unix)]
+            {
+                use std::os::unix::ffi::OsStringExt as _;
+                std::ffi::OsString::from_vec(bytes)
+            }
+            #[cfg(windows)]
+            {
+                use std::os::windows::ffi::OsStringExt as _;
+                assert_eq!(bytes.len() % 2, 0, "Windows arguments use UTF-16LE units");
+                let units = bytes
+                    .chunks_exact(2)
+                    .map(|pair| u16::from_le_bytes([pair[0], pair[1]]));
+                std::ffi::OsString::from_wide(&units.collect::<Vec<_>>())
+            }
+        })
+        .collect()
 }
 
 fn manifests_below(root: &Path) -> Vec<PathBuf> {
@@ -300,6 +370,17 @@ fn boolean_field(manifest: &str, name: &str) -> Option<bool> {
             _ => None,
         }
     })
+}
+
+#[cfg(unix)]
+#[test]
+fn raw_argument_fixture_preserves_non_utf8_bytes() {
+    use std::os::unix::ffi::OsStrExt as _;
+    let root = std::env::temp_dir().join(format!("terrane-raw-arguments-{}", std::process::id()));
+    fs::write(&root, "ff0061\n").unwrap();
+    let values = platform_arguments(root.clone());
+    assert_eq!(values[0].as_os_str().as_bytes(), &[0xff, 0x00, b'a']);
+    fs::remove_file(root).unwrap();
 }
 
 #[test]

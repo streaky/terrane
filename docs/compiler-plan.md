@@ -1373,6 +1373,34 @@ Deliver:
 
 Exit criterion: lexical resolution and filesystem canonicalization are separately observable, a traversal escape attempt is refused, and the CLI parser returns structured diagnostics without calling process exit itself.
 
+Implemented on `filesystem-process-facilities`. Import-driven bundled Terrane packages keep
+`/standard/paths`, `/standard/filesystem`, and `/standard/process` visible through semantic
+analysis and lowering. Rust is limited to host filesystem, descriptor, environment, argument, and
+process-exit boundaries. Paths normalize and resolve lexically in Terrane;
+`filesystem-canonical` is the distinct native host-resolution operation, with
+`filesystem-realpath` retained as its deliberate POSIX spelling alias. The unforgeable
+filesystem capability gates metadata, symlink metadata, native resolution, read-link, bounded
+reads, atomic replacement, rename, removal, file handles, and directory-relative no-follow
+traversal with beneath and cross-filesystem policy. Portable metadata has a structured host result
+carrying kind, size, read-only state, platform permission detail, and failure detail; existence
+checks likewise preserve lookup failures rather than collapsing them to `false`.
+
+Process facilities expose lossless text-or-raw platform strings, explicit argument and environment
+snapshots, a schema-driven parser that returns option names, values, positionals, and structured
+diagnostics without terminating, and validated `exit-status` values in `0..=255`. Accepted
+conformance distinguishes lexical resolution from canonicalization, rejects a traversal escape,
+and executes flush, sync-data, and sync-all against a real file descriptor alongside atomic
+replacement and rename; passes text and non-Unicode process arguments; checks parser diagnostics
+and invalid exit-status construction; and observes process exit status 7. Direct imports of
+compiler-owned platform intrinsics are rejected.
+Runtime templates are split by selected standard facility so stream-only, filesystem-only, and
+process-only programs emit no unrelated host intrinsics or corresponding dead-code allowances.
+Resource-owning collection types are rejected before lowering, and stream operations release the
+global registry lock before per-handle blocking I/O. Untouched generated Rust passes
+warnings-denied compilation and canonical-Rust validation. Milestone evidence:
+`RUSTFLAGS='-D warnings' cargo test --workspace --all-targets` and
+`cargo clippy --workspace --all-targets -- -D warnings`.
+
 ### Milestone 22 — Document values, JSON, YAML, and URLs
 
 Written in Terrane over the minimal Rust core, per delivery principle 9. Each layer implemented in Rust states which of the four justifications applies; everything above it is Terrane.

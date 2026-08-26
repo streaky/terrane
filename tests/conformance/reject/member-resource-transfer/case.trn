@@ -1,0 +1,11 @@
+namespace member-resource-transfer
+from /standard/streams import byte-writer, stdout
+
+class holder
+    output byte-writer = stdout;
+
+function consume; writer byte-writer
+
+function main;
+    value holder = holder;
+    consume; value.output

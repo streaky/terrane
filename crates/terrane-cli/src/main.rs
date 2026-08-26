@@ -488,7 +488,7 @@ fn write_generated_support(directory: &Path) -> std::io::Result<()> {
     )?;
     write_if_changed(
         &stream.join("Cargo.toml"),
-        b"[package]\nname = \"terrane-stream-abi\"\nversion = \"0.1.0\"\nedition = \"2024\"\n",
+        b"[package]\nname = \"terrane-stream-abi\"\nversion = \"0.1.0\"\nedition = \"2024\"\n\n[dependencies]\nlibc = \"0.2\"\nrustix = { version = \"1\", features = [\"fs\"] }\n",
     )?;
     write_if_changed(
         &stream.join("src/lib.rs"),

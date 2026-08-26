@@ -108,7 +108,9 @@ impl std::fmt::Display for ElementType {
 }
 fn iterable_item_type(value_type: ValueType) -> Option<ValueType> {
     match value_type {
-        ValueType::Scalar(ScalarType::String) => Some(ValueType::Scalar(ScalarType::String)),
+        ValueType::Scalar(ScalarType::String) | ValueType::StringList => {
+            Some(ValueType::Scalar(ScalarType::String))
+        }
         ValueType::Scalar(ScalarType::Bytes) => Some(ValueType::Scalar(ScalarType::Uint8)),
         ValueType::Iterator(item)
         | ValueType::List(item)
@@ -206,7 +208,10 @@ pub enum ValueType {
     ScopedTask(ElementType),
     TaskScope,
     TaskOutcome(ElementType),
+    FilesystemAuthority,
+    PlatformFilesystemResult,
     PlatformStreamHandle,
+    PlatformOpenResult,
     PlatformReadResult,
     PlatformWriteResult,
     PlatformUnitResult,
@@ -350,7 +355,10 @@ impl std::fmt::Display for ValueType {
             Self::ScopedTask(result) => write!(formatter, "scoped task of {result}"),
             Self::TaskScope => formatter.write_str("task-scope"),
             Self::TaskOutcome(result) => write!(formatter, "task-outcome of {result}"),
+            Self::FilesystemAuthority => formatter.write_str("filesystem-authority"),
+            Self::PlatformFilesystemResult => formatter.write_str("platform-filesystem-result"),
             Self::PlatformStreamHandle => formatter.write_str("platform-stream-handle"),
+            Self::PlatformOpenResult => formatter.write_str("platform-open-result"),
             Self::PlatformReadResult => formatter.write_str("platform-read-result"),
             Self::PlatformWriteResult => formatter.write_str("platform-write-result"),
             Self::PlatformUnitResult => formatter.write_str("platform-unit-result"),
@@ -847,6 +855,7 @@ pub fn analyze(package: &Package) -> Result<SemanticPackage, SemanticFailure> {
                 | "/core/errors"
                 | "/core/collections"
                 | "/core/platform-streams"
+                | "/core/platform-system"
         ) || (crate::bundled::source(&unit.namespace).is_some() && !bundled)
         {
             let span = unit
@@ -1724,11 +1733,20 @@ fn imported_object(
     import: &Import,
     namespaces: &BTreeMap<String, Namespace>,
 ) -> Result<Symbol, SemanticFailure> {
-    if import.target == "/core/platform-streams" && !import.bundled {
+    if matches!(
+        import.target.as_str(),
+        "/core/platform-streams" | "/core/platform-system"
+    ) && !import.bundled
+    {
+        let facility = if import.target == "/core/platform-streams" {
+            "`/standard/streams`"
+        } else {
+            "`/standard/filesystem` or `/standard/process`"
+        };
         return Err(failure(
             &import.source,
             "T0100",
-            "process stream host intrinsics are private to the bundled `/standard/streams` package",
+            format!("host intrinsics are private to the bundled {facility} package"),
             import.span,
         ));
     }
@@ -1967,6 +1985,30 @@ fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFailure> {
             && let Some(callee) = node.children.first()
             && callee.kind == SyntaxKind::MemberExpression
             && let [receiver, member, ..] = callee.children.as_slice()
+            && receiver.kind != SyntaxKind::Name
+            && let Ok(Some(ValueType::Object(object_name))) =
+                infer_value_type(unit, receiver, &unit.typed_bindings)
+            && method_consumes_receiver(
+                package,
+                unit,
+                receiver.span.start,
+                &object_name,
+                node_text(&unit.source, member),
+            )
+            && resolved_object_span(package, unit, receiver.span.start, &object_name)
+                .is_some_and(|span| resource_objects.contains(&span_key(span)))
+        {
+            return Err(failure(
+                &unit.source,
+                "T0101",
+                "a resource-consuming call requires a named binding; move the member into a binding first",
+                receiver.span,
+            ));
+        }
+        if node.kind == SyntaxKind::CallExpression
+            && let Some(callee) = node.children.first()
+            && callee.kind == SyntaxKind::MemberExpression
+            && let [receiver, member, ..] = callee.children.as_slice()
             && receiver.kind == SyntaxKind::Name
             && matches!(
                 infer_value_type(unit, receiver, &unit.typed_bindings),
@@ -1993,6 +2035,37 @@ fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFailure> {
             && let [callee, arguments] = node.children.as_slice()
             && let Some(parameters) = function_parameters(package, unit, callee)
         {
+            for (argument, parameter) in arguments.children.iter().zip(parameters) {
+                let Some(expected) = parameter.value_type.as_ref() else {
+                    continue;
+                };
+                let expects_resource = match expected {
+                    ValueType::PlatformStreamHandle => true,
+                    ValueType::Object(name) => {
+                        resolved_object_span(package, unit, callee.span.start, name)
+                            .is_some_and(|span| resource_objects.contains(&span_key(span)))
+                    }
+                    _ => false,
+                };
+                let value = argument.children.last().unwrap_or(argument);
+                if expects_resource
+                    && matches!(
+                        value.kind,
+                        SyntaxKind::MemberExpression | SyntaxKind::IndexExpression
+                    )
+                    && !value.children.first().is_some_and(|receiver| {
+                        receiver.kind == SyntaxKind::Name
+                            && node_text(&unit.source, receiver) == "this"
+                    })
+                {
+                    return Err(failure(
+                        &unit.source,
+                        "T0101",
+                        "resource transfer requires a named binding",
+                        value.span,
+                    ));
+                }
+            }
             let transferred = arguments
                 .children
                 .iter()
@@ -2972,15 +3045,38 @@ fn validate_call_nodes<'a>(
         && callee.kind == SyntaxKind::Name
         && let Some(symbol) =
             package.resolve_name_at(unit, callee.span.start, node_text(&unit.source, callee))
-        && symbol.kind == SymbolKind::Function
         && let Some(declaration_span) = symbol.declaration_span
-        && let Some(contract) = contracts.get(&(
-            declaration_span.file,
-            declaration_span.start,
-            declaration_span.end,
-        ))
     {
-        validate_call_arguments(unit, arguments, contract, scoped_bindings)?;
+        let contract = if symbol.kind == SymbolKind::Function {
+            contracts
+                .get(&(
+                    declaration_span.file,
+                    declaration_span.start,
+                    declaration_span.end,
+                ))
+                .copied()
+        } else if symbol.kind == SymbolKind::Class {
+            package
+                .units
+                .iter()
+                .flat_map(|candidate| &candidate.objects)
+                .find(|object| object.span == declaration_span)
+                .and_then(|object| {
+                    package
+                        .units
+                        .iter()
+                        .flat_map(|candidate| &candidate.functions)
+                        .find(|function| {
+                            function.owner.as_deref() == Some(&object.name)
+                                && function.name == "construct"
+                        })
+                })
+        } else {
+            None
+        };
+        if let Some(contract) = contract {
+            validate_call_arguments(unit, arguments, contract, scoped_bindings)?;
+        }
     }
     if let [target, collection, block] = node.children.as_slice()
         && node.kind == SyntaxKind::ForStatement
@@ -3449,7 +3545,10 @@ fn analyze_object_contracts(
                 };
                 if kind == ObjectKind::Class
                     && initializer.is_none()
-                    && value_type != ValueType::PlatformStreamHandle
+                    && !matches!(
+                        value_type,
+                        ValueType::PlatformStreamHandle | ValueType::FilesystemAuthority
+                    )
                 {
                     return Err(failure(
                         &unit.source,
@@ -3511,6 +3610,75 @@ fn analyze_object_contracts(
     Ok(objects)
 }
 
+fn value_type_owns_resource(
+    package: &SemanticPackage,
+    unit: &SemanticUnit,
+    value_type: &ValueType,
+    span_start: usize,
+    resource_identities: &BTreeSet<String>,
+) -> bool {
+    match value_type {
+        ValueType::PlatformStreamHandle => true,
+        ValueType::Object(name) => package
+            .resolve_name_at(unit, span_start, name)
+            .is_some_and(|symbol| resource_identities.contains(&symbol.identity)),
+        ValueType::Iterator(item)
+        | ValueType::IterationStep(item)
+        | ValueType::ElementOrNone(item)
+        | ValueType::List(item)
+        | ValueType::Set(item)
+        | ValueType::Tuple(item, _)
+        | ValueType::UnorderedSet(item)
+        | ValueType::Task(item)
+        | ValueType::ScopedTask(item)
+        | ValueType::TaskOutcome(item)
+        | ValueType::Reference(item)
+        | ValueType::SharedReference(item) => value_type_owns_resource(
+            package,
+            unit,
+            &item.value_type(),
+            span_start,
+            resource_identities,
+        ),
+        ValueType::Map(key, value)
+        | ValueType::Entry(key, value)
+        | ValueType::UnorderedMap(key, value) => {
+            value_type_owns_resource(
+                package,
+                unit,
+                &key.value_type(),
+                span_start,
+                resource_identities,
+            ) || value_type_owns_resource(
+                package,
+                unit,
+                &value.value_type(),
+                span_start,
+                resource_identities,
+            )
+        }
+        _ => false,
+    }
+}
+
+fn value_type_is_resource_container(
+    package: &SemanticPackage,
+    unit: &SemanticUnit,
+    value_type: &ValueType,
+    span_start: usize,
+    resource_identities: &BTreeSet<String>,
+) -> bool {
+    matches!(
+        value_type,
+        ValueType::List(_)
+            | ValueType::Map(_, _)
+            | ValueType::Set(_)
+            | ValueType::Tuple(_, _)
+            | ValueType::UnorderedMap(_, _)
+            | ValueType::UnorderedSet(_)
+    ) && value_type_owns_resource(package, unit, value_type, span_start, resource_identities)
+}
+
 fn propagate_resource_ownership(package: &mut SemanticPackage) -> Result<(), SemanticFailure> {
     loop {
         let resource_identities = package
@@ -3534,15 +3702,13 @@ fn propagate_resource_ownership(package: &mut SemanticPackage) -> Result<(), Sem
                     continue;
                 }
                 let owns_field_resource = object.fields.iter().any(|field| {
-                    matches!(field.value_type, ValueType::PlatformStreamHandle)
-                        || match &field.value_type {
-                            ValueType::Object(name) => package
-                                .resolve_name_at(unit, field.span.start, name)
-                                .is_some_and(|symbol| {
-                                    resource_identities.contains(&symbol.identity)
-                                }),
-                            _ => false,
-                        }
+                    value_type_owns_resource(
+                        package,
+                        unit,
+                        &field.value_type,
+                        field.span.start,
+                        &resource_identities,
+                    )
                 });
                 let owns_base_resource = object.base.as_deref().is_some_and(|base| {
                     package
@@ -3562,6 +3728,21 @@ fn propagate_resource_ownership(package: &mut SemanticPackage) -> Result<(), Sem
         }
     }
 
+    let resource_identities = package
+        .units
+        .iter()
+        .flat_map(|unit| {
+            unit.objects
+                .iter()
+                .filter(|object| object.resource_owning)
+                .filter_map(|object| {
+                    package
+                        .resolve_name_at(unit, object.span.start, &object.name)
+                        .map(|symbol| symbol.identity.clone())
+                })
+        })
+        .collect::<BTreeSet<_>>();
+
     for unit in &package.units {
         for object in &unit.objects {
             if object.resource_owning
@@ -3574,6 +3755,95 @@ fn propagate_resource_ownership(package: &mut SemanticPackage) -> Result<(), Sem
                     "T0098",
                     "a resource-owning class cannot extend, implement, or use copyable object contracts",
                     object.span,
+                ));
+            }
+            if let Some(field) = object.fields.iter().find(|field| {
+                value_type_is_resource_container(
+                    package,
+                    unit,
+                    &field.value_type,
+                    field.span.start,
+                    &resource_identities,
+                )
+            }) {
+                return Err(failure(
+                    &unit.source,
+                    "T0101",
+                    "resource-owning values in collections are not supported yet",
+                    field.span,
+                ));
+            }
+        }
+    }
+    Ok(())
+}
+fn validate_resource_collection_types(
+    package: &SemanticPackage,
+) -> Result<(), SemanticFailure> {
+    let resource_identities = package
+        .units
+        .iter()
+        .flat_map(|unit| {
+            unit.objects
+                .iter()
+                .filter(|object| object.resource_owning)
+                .filter_map(|object| {
+                    package
+                        .resolve_name_at(unit, object.span.start, &object.name)
+                        .map(|symbol| symbol.identity.clone())
+                })
+        })
+        .collect::<BTreeSet<_>>();
+    for unit in &package.units {
+        if let Some(binding) = unit.typed_bindings.iter().find(|binding| {
+            value_type_is_resource_container(
+                package,
+                unit,
+                &binding.value_type,
+                binding.span.start,
+                &resource_identities,
+            )
+        }) {
+            return Err(failure(
+                &unit.source,
+                "T0101",
+                "resource-owning values in collections are not supported yet",
+                binding.span,
+            ));
+        }
+        for function in &unit.functions {
+            if let Some(parameter) = function.parameters.iter().find(|parameter| {
+                parameter.value_type.as_ref().is_some_and(|value_type| {
+                    value_type_is_resource_container(
+                        package,
+                        unit,
+                        value_type,
+                        parameter.span.start,
+                        &resource_identities,
+                    )
+                })
+            }) {
+                return Err(failure(
+                    &unit.source,
+                    "T0101",
+                    "resource-owning values in collections are not supported yet",
+                    parameter.span,
+                ));
+            }
+            if function.return_type.as_ref().is_some_and(|value_type| {
+                value_type_is_resource_container(
+                    package,
+                    unit,
+                    value_type,
+                    function.span.start,
+                    &resource_identities,
+                )
+            }) {
+                return Err(failure(
+                    &unit.source,
+                    "T0101",
+                    "resource-owning values in collections are not supported yet",
+                    function.span,
                 ));
             }
         }
@@ -4202,6 +4472,7 @@ fn analyze_types(package: &mut SemanticPackage) -> Result<(), SemanticFailure> {
         )?;
         package.units[index].typed_bindings = bindings;
     }
+    validate_resource_collection_types(package)?;
     infer_receiver_consumption(package);
     validate_object_conformance(package)?;
     populate_closure_captures(package);
@@ -5390,8 +5661,44 @@ fn declared_value_type_with_visible_objects(
     {
         return Ok(ValueType::Object(type_name.to_owned()));
     }
+    for (constructor, construct) in [
+        ("list of ", ValueType::List as fn(ElementType) -> ValueType),
+        (
+            "tuple of ",
+            (|item| ValueType::Tuple(item, None)) as fn(ElementType) -> ValueType,
+        ),
+        (
+            "iterator of ",
+            ValueType::Iterator as fn(ElementType) -> ValueType,
+        ),
+    ] {
+        if let Some(argument) = type_name.strip_prefix(constructor) {
+            let argument = argument.trim();
+            let imported_argument = lexical_scope_chain(unit, type_node.span.start).any(|scope| {
+                scope.symbols.get(argument).is_some_and(|symbols| {
+                    symbols.iter().rev().any(|symbol| {
+                        matches!(
+                            symbol.kind,
+                            SymbolKind::Class | SymbolKind::Interface | SymbolKind::Trait
+                        )
+                    })
+                })
+            });
+            if imported_argument
+                || visible_object_names.contains(argument)
+                || unit.objects.iter().any(|object| object.name == argument)
+            {
+                return Ok(construct(ElementType::new(ValueType::Object(
+                    argument.to_owned(),
+                ))));
+            }
+        }
+    }
     if type_name == "resource-handle" {
         return Ok(ValueType::PlatformStreamHandle);
+    }
+    if type_name == "filesystem-authority" {
+        return Ok(ValueType::FilesystemAuthority);
     }
     if type_name == "encoding" {
         return Ok(ValueType::Encoding);
@@ -6135,6 +6442,7 @@ fn infer_value_type(
         };
         return match infer_receiver_value_type(unit, receiver, bindings)? {
             Some(ValueType::List(item) | ValueType::Tuple(item, _)) => Ok(Some(item.value_type())),
+            Some(ValueType::StringList) => Ok(Some(ValueType::Scalar(ScalarType::String))),
             Some(ValueType::Map(_, value) | ValueType::UnorderedMap(_, value)) => {
                 Ok(Some(value.value_type()))
             }
@@ -6178,6 +6486,14 @@ fn infer_value_type(
                     | "/core/platform-streams::acquire-stderr" => {
                         Some(ValueType::PlatformStreamHandle)
                     }
+                    "/core/platform-system::acquire-filesystem-authority" => {
+                        Some(ValueType::FilesystemAuthority)
+                    }
+                    "/core/platform-streams::open-file"
+                    | "/core/platform-streams::open-directory-beneath"
+                    | "/core/platform-streams::open-file-beneath" => {
+                        Some(ValueType::PlatformOpenResult)
+                    }
                     "/core/platform-streams::read" => Some(ValueType::PlatformReadResult),
                     "/core/platform-streams::write" => Some(ValueType::PlatformWriteResult),
                     "/core/platform-streams::flush"
@@ -6185,6 +6501,37 @@ fn infer_value_type(
                     | "/core/platform-streams::sync-all"
                     | "/core/platform-streams::close"
                     | "/core/platform-streams::release" => Some(ValueType::PlatformUnitResult),
+                    "/core/platform-system::filesystem-exists"
+                    | "/core/platform-system::filesystem-metadata"
+                    | "/core/platform-system::filesystem-realpath"
+                    | "/core/platform-system::filesystem-read-link"
+                    | "/core/platform-system::filesystem-read-bounded"
+                    | "/core/platform-system::filesystem-write-atomic"
+                    | "/core/platform-system::filesystem-rename"
+                    | "/core/platform-system::filesystem-remove" => {
+                        Some(ValueType::PlatformFilesystemResult)
+                    }
+                    "/core/platform-system::result-failed"
+                    | "/core/platform-system::result-bool"
+                    | "/core/platform-system::platform-value-is-text" => {
+                        Some(ValueType::Scalar(ScalarType::Bool))
+                    }
+                    "/core/platform-system::result-message"
+                    | "/core/platform-system::result-text"
+                    | "/core/platform-system::result-detail"
+                    | "/core/platform-system::platform-value-text" => {
+                        Some(ValueType::Scalar(ScalarType::String))
+                    }
+                    "/core/platform-system::result-bytes"
+                    | "/core/platform-system::platform-value-bytes" => {
+                        Some(ValueType::Scalar(ScalarType::Bytes))
+                    }
+                    "/core/platform-system::result-int" => Some(ValueType::Scalar(ScalarType::Int)),
+                    "/core/platform-system::process-arguments"
+                    | "/core/platform-system::environment-entries" => Some(ValueType::StringList),
+                    "/core/platform-system::process-exit" => {
+                        Some(ValueType::Scalar(ScalarType::None))
+                    }
                     _ => None,
                 };
                 if platform_result.is_some() {
@@ -7051,25 +7398,29 @@ fn infer_member_value_type(
     if let Some(result) = &receiver_type
         && matches!(
             result,
-            ValueType::PlatformReadResult
+            ValueType::PlatformOpenResult
+                | ValueType::PlatformReadResult
                 | ValueType::PlatformWriteResult
                 | ValueType::PlatformUnitResult
         )
     {
         let member_type = match (result, member_name) {
+            (ValueType::PlatformOpenResult, "handle") => Some(ValueType::PlatformStreamHandle),
             (ValueType::PlatformReadResult, "data") => Some(ValueType::Scalar(ScalarType::Bytes)),
             (ValueType::PlatformReadResult | ValueType::PlatformWriteResult, "completed") => {
                 Some(ValueType::Scalar(ScalarType::Int))
             }
             (ValueType::PlatformReadResult, "end")
             | (
-                ValueType::PlatformReadResult
+                ValueType::PlatformOpenResult
+                | ValueType::PlatformReadResult
                 | ValueType::PlatformWriteResult
                 | ValueType::PlatformUnitResult,
                 "failed",
             ) => Some(ValueType::Scalar(ScalarType::Bool)),
             (
-                ValueType::PlatformReadResult
+                ValueType::PlatformOpenResult
+                | ValueType::PlatformReadResult
                 | ValueType::PlatformWriteResult
                 | ValueType::PlatformUnitResult,
                 "message",
@@ -9742,6 +10093,9 @@ fn bootstrap_namespaces() -> BTreeMap<String, Namespace> {
                 "acquire-stdin",
                 "acquire-stdout",
                 "acquire-stderr",
+                "open-file",
+                "open-directory-beneath",
+                "open-file-beneath",
                 "resource-handle",
                 "read",
                 "write",
@@ -9750,6 +10104,38 @@ fn bootstrap_namespaces() -> BTreeMap<String, Namespace> {
                 "sync-all",
                 "close",
                 "release",
+            ],
+            SymbolKind::Function,
+        ),
+    );
+    namespaces.insert(
+        "/core/platform-system".to_owned(),
+        namespace_with_objects(
+            "/core/platform-system",
+            [
+                "filesystem-authority",
+                "acquire-filesystem-authority",
+                "filesystem-exists",
+                "filesystem-metadata",
+                "filesystem-realpath",
+                "filesystem-read-link",
+                "filesystem-read-bounded",
+                "filesystem-write-atomic",
+                "filesystem-rename",
+                "filesystem-remove",
+                "result-failed",
+                "result-message",
+                "result-text",
+                "result-detail",
+                "result-bytes",
+                "result-int",
+                "result-bool",
+                "platform-value-is-text",
+                "platform-value-text",
+                "platform-value-bytes",
+                "process-arguments",
+                "environment-entries",
+                "process-exit",
             ],
             SymbolKind::Function,
         ),

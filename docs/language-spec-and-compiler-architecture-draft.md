@@ -5972,6 +5972,61 @@ once despite both generated Rust wrappers remaining live until their ordinary dr
 representation mechanism is not a dynamic substitute for the source ownership rules and may
 change without changing their semantics.
 
+### 37.2 Paths, filesystem, and process facilities
+
+`/standard/paths`, `/standard/filesystem`, and `/standard/process` are ordinary Terrane packages
+included through the same import-driven source pipeline described in §37.1. Their object models,
+policy, validation, structured results, and command-line parsing remain Terrane. Rust is limited
+to host filesystem calls, descriptor ownership, lossless operating-system argument and
+environment acquisition, and process termination: the syscall/ABI justification from §5.7.
+
+A `path` is a platform-neutral lexical value whose canonical separator is `/`; it is not a
+filesystem lookup and does not imply that the named object exists. Its operations split components,
+identify rooted values, select name/parent/stem/extension, join, and normalise. Normalisation
+removes empty and `.` components and resolves `..` lexically. A rooted path never ascends above
+its root; an unrooted path retains leading parents which cannot be discharged. Joining an
+absolute child replaces the base. Canonicalisation is deliberately separate:
+`filesystem-canonical` invokes capability-mediated native host resolution, follows the filesystem,
+and may fail. `filesystem-realpath` is a deliberate POSIX spelling alias with the same contract and
+implementation. Lexical path operations remain in Terrane and never substitute for native
+filesystem resolution.
+
+The `filesystem` object carries an unforgeable host authority acquired only by its package
+factory. Every host filesystem operation requires that capability, including operations reached
+through file and directory handles. Metadata and symlink metadata respectively follow and inspect
+the final link; portable metadata reports kind, size, read-only state, and platform permission
+detail where available. Whole-file reads require an explicit bound and fail rather than truncate
+when it would be exceeded. Atomic replacement writes a sibling temporary and renames it over the
+destination without following the destination link.
+
+Directory-handle-relative open is no-follow by default and returns a resource-owning handle.
+The final component of the caller-supplied anchor path is opened without following a link, while
+its intermediate components undergo ordinary host path resolution. Every operation beneath the
+resulting descriptor is handle-relative and no-follow. `beneath` rejects traversal outside the
+opened directory; cross-filesystem traversal is rejected unless the caller explicitly permits it.
+File and directory handles are linear resources: transfer consumes the source binding, close is
+explicit through the shared stream release contract, and ordinary destruction uses the same
+idempotent host release path. A partial file write exposes its completed offset so callers can
+resume without duplicating the written prefix.
+
+A `platform-string` represents exactly one host argument or environment component. `is-text`
+selects either lossless Unicode `text` or lossless `raw` bytes; invalid host Unicode is never
+silently replaced. Argument and environment access return explicit snapshots. Environment entries
+pair platform-string names and values.
+
+Command-line parsing is schema-driven and pure with respect to process termination. In version one,
+schema entries declare exact `flag:` and `value:` long-option spellings. Declared flags, option
+names and values, and positionals are returned separately; malformed or unknown long options and
+non-text option candidates produce structured diagnostics carrying the source argument index.
+`--option=value`, the `--` separator, and short-option clustering are not recognised specially;
+an undeclared short spelling is therefore positional rather than an unknown-long-option
+diagnostic. The parser never calls `exit`.
+
+An `exit-status` is constructed from an exact integer. Codes in `0..=255` are valid. Construction
+outside that range produces an invalid status with sentinel code `255`; it does not terminate.
+`exit` is the sole terminating operation and passes the validated status code to the host process
+boundary.
+
 ---
 
 ## 38. Implementation sequencing

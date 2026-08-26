@@ -1,0 +1,8 @@
+namespace resource-owning-local-collection
+from /core/collections import list
+from /standard/streams import byte-writer, stdout
+
+function main;
+    outputs list of byte-writer = list
+    first = stdout;
+    outputs.append; first

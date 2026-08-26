@@ -103,6 +103,33 @@ Terrane package
     │   ├── stdin                              byte-reader factory
     │   ├── stdout                             byte-writer factory
     │   └── stderr                             byte-writer factory
+    ├── /standard/paths                        bundled Terrane package, included when imported
+    │   ├── path                               platform-neutral lexical component value
+    │   ├── normalise-path                     lexical `.` / `..` resolution, root-bounded
+    │   ├── join-path                          lexical base/child resolution
+    │   ├── path-components / path-is-absolute
+    │   └── path-name / path-parent / path-stem / path-extension
+    ├── /standard/filesystem                   bundled Terrane package over minimal host intrinsics
+    │   ├── filesystem                         unforgeable capability, acquired via filesystem-capability
+    │   ├── filesystem-capability() -> filesystem
+    │   ├── existence-result                   exists / failed / message result object
+    │   ├── file-handle                        inferred resource-owning file stream
+    │   ├── directory-handle                   inferred resource-owning directory anchor
+    │   ├── open-file(filesystem, path, …) -> file-handle
+    │   ├── file-read(filesystem, ref file-handle, limit) / file-write(filesystem, ref file-handle, data, offset)
+    │   ├── file-flush(filesystem, ref file-handle) / file-sync-data(filesystem, ref file-handle)
+    │   ├── file-sync-all(filesystem, ref file-handle) / file-close(filesystem, file-handle)
+    │   ├── filesystem-open-beneath(filesystem, directory, relative, cross-filesystem) -> directory-handle
+    │   ├── open-file-beneath(filesystem, ref directory-handle, relative, …) -> file-handle
+    │   ├── filesystem-exists / filesystem-metadata / filesystem-symlink-metadata
+    │   ├── filesystem-canonical / filesystem-realpath (deliberate POSIX spelling alias) / filesystem-read-link
+    │   ├── filesystem-read-bounded / filesystem-write-atomic
+    │   └── filesystem-rename / filesystem-remove
+    ├── /standard/process                      bundled Terrane package over minimal host intrinsics
+    │   ├── platform-string                    lossless text-or-raw platform value
+    │   ├── arguments / environment            explicit process snapshots
+    │   ├── cli-schema / parse-command-line    schema-driven options and structured diagnostics
+    │   └── exit-status / make-exit-status / exit explicit validated termination
     ├── namespace                              hierarchical object container
     │   ├── variable                           namespace-local value
     │   ├── constant                           namespace-local or program-global value

@@ -1,0 +1,34 @@
+namespace conformance/lexical-paths
+
+from /core/output import print
+from /standard/paths import path, normalise-path, path-components, path-is-absolute, path-name, path-stem, path-extension, path-parent, join-path
+
+function main;
+    relative = path; 'alpha/./beta/../gamma/../../delta'
+    rooted = path; '/alpha/../../beta/file.tar.gz'
+    base = path; 'work/root'
+    child = path; '../next'
+    relative-normal = normalise-path; relative
+    rooted-normal = normalise-path; rooted
+    relative-text = relative-normal.text
+    rooted-text = rooted-normal.text
+    rooted-name = path-name; rooted-normal
+    rooted-stem = path-stem; rooted-normal
+    rooted-extension = path-extension; rooted-normal
+    rooted-parent = path-parent; rooted-normal
+    rooted-parent-text = rooted-parent.text
+    print; relative-text
+    print; rooted-text
+    print; rooted-name
+    print; rooted-stem
+    print; rooted-extension
+    print; rooted-parent-text
+    resolved = join-path; base, child
+    resolved-text = resolved.text
+    print; resolved-text
+    components = path-components; rooted-normal
+    print; components.length, (path-is-absolute; rooted-normal), (path-is-absolute; relative-normal)
+    hidden = path; '.profile'
+    print; (path-stem; hidden)
+    print; (path-extension; hidden)
+    print; (path-parent; (path; 'child')).text

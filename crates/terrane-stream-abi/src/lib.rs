@@ -9,7 +9,7 @@ use std::{
     collections::BTreeMap,
     io::{self, Read, Write},
     sync::{
-        LazyLock, Mutex,
+        Arc, LazyLock, Mutex,
         atomic::{AtomicI64, Ordering},
     },
 };
@@ -131,6 +131,59 @@ macro_rules! impl_standard_writer {
 impl_standard_writer!(StdoutWriter, stdout, io::stdout());
 impl_standard_writer!(StderrWriter, stderr, io::stderr());
 
+#[derive(Debug)]
+pub struct FileStream {
+    file: std::fs::File,
+    readable: bool,
+    writable: bool,
+    cross_filesystem: bool,
+}
+
+impl FileStream {
+    fn read(&mut self, limit: usize) -> io::Result<ReadOutcome> {
+        if !self.readable {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "file is not readable",
+            ));
+        }
+        let mut data = vec![0; limit];
+        let completed = self.file.read(&mut data)?;
+        data.truncate(completed);
+        Ok(ReadOutcome {
+            data,
+            end: completed == 0,
+        })
+    }
+
+    fn write(&mut self, data: &[u8]) -> io::Result<usize> {
+        if !self.writable {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "file is not writable",
+            ));
+        }
+        self.file.write(data)
+    }
+
+    fn flush(&mut self) -> io::Result<()> {
+        self.file.flush()
+    }
+    fn sync_data(&mut self) -> io::Result<()> {
+        self.file.sync_data()
+    }
+    fn sync_all(&mut self) -> io::Result<()> {
+        self.file.sync_all()
+    }
+    fn close(&mut self) -> io::Result<()> {
+        if self.writable {
+            self.file.flush()
+        } else {
+            Ok(())
+        }
+    }
+}
+
 #[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub struct StreamHandle(i64);
 
@@ -150,13 +203,14 @@ enum StandardStream {
     Stdin(StdinReader),
     Stdout(StdoutWriter),
     Stderr(StderrWriter),
+    File(FileStream),
 }
 
 static NEXT_HANDLE: AtomicI64 = AtomicI64::new(1);
-static STREAMS: LazyLock<Mutex<BTreeMap<i64, StandardStream>>> =
+static STREAMS: LazyLock<Mutex<BTreeMap<i64, Arc<Mutex<StandardStream>>>>> =
     LazyLock::new(|| Mutex::new(BTreeMap::new()));
 
-fn registry() -> std::sync::MutexGuard<'static, BTreeMap<i64, StandardStream>> {
+fn registry() -> std::sync::MutexGuard<'static, BTreeMap<i64, Arc<Mutex<StandardStream>>>> {
     STREAMS
         .lock()
         .unwrap_or_else(std::sync::PoisonError::into_inner)
@@ -164,7 +218,7 @@ fn registry() -> std::sync::MutexGuard<'static, BTreeMap<i64, StandardStream>> {
 
 fn acquire(stream: StandardStream) -> StreamHandle {
     let handle = NEXT_HANDLE.fetch_add(1, Ordering::Relaxed);
-    registry().insert(handle, stream);
+    registry().insert(handle, Arc::new(Mutex::new(stream)));
     StreamHandle(handle)
 }
 
@@ -183,6 +237,189 @@ pub fn acquire_stderr() -> StreamHandle {
     acquire(StandardStream::Stderr(StderrWriter::acquire()))
 }
 
+#[derive(Clone, Copy, Debug)]
+pub enum FileAccess {
+    Read,
+    Write,
+    ReadWrite,
+}
+
+#[derive(Clone, Copy, Debug)]
+pub enum FileCreation {
+    Existing,
+    Create,
+    Truncate,
+    CreateOrTruncate,
+}
+
+#[derive(Clone, Copy, Debug)]
+pub struct FileOpenOptions {
+    pub access: FileAccess,
+    pub creation: FileCreation,
+}
+
+/// Opens a filesystem file without following a final symlink on Unix targets.
+///
+/// # Errors
+///
+/// Returns the host open error, including a refusal to follow the final symlink.
+pub fn open_file(path: &str, request: FileOpenOptions) -> io::Result<StreamHandle> {
+    let mut options = std::fs::OpenOptions::new();
+    let (readable, writable) = match request.access {
+        FileAccess::Read => (true, false),
+        FileAccess::Write => (false, true),
+        FileAccess::ReadWrite => (true, true),
+    };
+    let (create, truncate) = match request.creation {
+        FileCreation::Existing => (false, false),
+        FileCreation::Create => (true, false),
+        FileCreation::Truncate => (false, true),
+        FileCreation::CreateOrTruncate => (true, true),
+    };
+    options
+        .read(readable)
+        .write(writable)
+        .create(create)
+        .truncate(truncate);
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::OpenOptionsExt as _;
+        options.custom_flags(libc::O_NOFOLLOW);
+    }
+    let file = options.open(path)?;
+    Ok(acquire(StandardStream::File(FileStream {
+        file,
+        readable,
+        writable,
+        cross_filesystem: false,
+    })))
+}
+#[cfg(target_os = "linux")]
+fn linux_open_beneath(
+    directory: impl std::os::fd::AsFd,
+    child: &str,
+    flags: rustix::fs::OFlags,
+    cross_filesystem: bool,
+) -> io::Result<std::fs::File> {
+    let mut resolve = rustix::fs::ResolveFlags::BENEATH
+        | rustix::fs::ResolveFlags::NO_MAGICLINKS
+        | rustix::fs::ResolveFlags::NO_SYMLINKS;
+    if !cross_filesystem {
+        resolve |= rustix::fs::ResolveFlags::NO_XDEV;
+    }
+    Ok(std::fs::File::from(rustix::fs::openat2(
+        directory,
+        child,
+        flags,
+        rustix::fs::Mode::empty(),
+        resolve,
+    )?))
+}
+
+/// Opens a directory through race-resistant, no-follow traversal beneath `base`.
+///
+/// # Errors
+///
+/// Returns an I/O error when traversal escapes `base`, crosses a filesystem without permission,
+/// encounters a symlink, or the target does not support this operation.
+#[cfg(target_os = "linux")]
+pub fn open_directory_beneath(
+    base: &str,
+    child: &str,
+    cross_filesystem: bool,
+) -> io::Result<StreamHandle> {
+    let base = std::fs::File::from(rustix::fs::open(
+        base,
+        rustix::fs::OFlags::RDONLY
+            | rustix::fs::OFlags::DIRECTORY
+            | rustix::fs::OFlags::NOFOLLOW
+            | rustix::fs::OFlags::CLOEXEC,
+        rustix::fs::Mode::empty(),
+    )?);
+    let directory = linux_open_beneath(
+        &base,
+        child,
+        rustix::fs::OFlags::RDONLY | rustix::fs::OFlags::DIRECTORY | rustix::fs::OFlags::CLOEXEC,
+        cross_filesystem,
+    )?;
+    Ok(acquire(StandardStream::File(FileStream {
+        file: directory,
+        readable: false,
+        writable: false,
+        cross_filesystem,
+    })))
+}
+
+/// Opens a file relative to a directory handle returned by [`open_directory_beneath`].
+///
+/// # Errors
+///
+/// Returns an I/O error for an invalid directory handle, traversal escape, symlink, or host open
+/// failure.
+#[cfg(target_os = "linux")]
+pub fn open_file_beneath(
+    directory: StreamHandle,
+    child: &str,
+    request: FileOpenOptions,
+) -> io::Result<StreamHandle> {
+    let (readable, writable) = match request.access {
+        FileAccess::Read => (true, false),
+        FileAccess::Write => (false, true),
+        FileAccess::ReadWrite => (true, true),
+    };
+    let creation_flags = match request.creation {
+        FileCreation::Existing => rustix::fs::OFlags::empty(),
+        FileCreation::Create => rustix::fs::OFlags::CREATE,
+        FileCreation::Truncate => rustix::fs::OFlags::TRUNC,
+        FileCreation::CreateOrTruncate => rustix::fs::OFlags::CREATE | rustix::fs::OFlags::TRUNC,
+    };
+    let access_flags = match request.access {
+        FileAccess::Read => rustix::fs::OFlags::RDONLY,
+        FileAccess::Write => rustix::fs::OFlags::WRONLY,
+        FileAccess::ReadWrite => rustix::fs::OFlags::RDWR,
+    };
+    let stream = registered_stream(directory)?;
+    let file = {
+        let stream = stream
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        let StandardStream::File(directory) = &*stream else {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "invalid directory handle",
+            ));
+        };
+        linux_open_beneath(
+            &directory.file,
+            child,
+            access_flags | creation_flags | rustix::fs::OFlags::CLOEXEC,
+            directory.cross_filesystem,
+        )?
+    };
+    Ok(acquire(StandardStream::File(FileStream {
+        file,
+        readable,
+        writable,
+        cross_filesystem: false,
+    })))
+}
+
+#[cfg(not(target_os = "linux"))]
+pub fn open_directory_beneath(_: &str, _: &str, _: bool) -> io::Result<StreamHandle> {
+    Err(io::Error::new(
+        io::ErrorKind::Unsupported,
+        "race-resistant beneath traversal is unavailable in this target profile",
+    ))
+}
+
+#[cfg(not(target_os = "linux"))]
+pub fn open_file_beneath(_: StreamHandle, _: &str, _: FileOpenOptions) -> io::Result<StreamHandle> {
+    Err(io::Error::new(
+        io::ErrorKind::Unsupported,
+        "handle-relative traversal is unavailable in this target profile",
+    ))
+}
+
 /// Performs at most one host read through a registered process-stream handle.
 ///
 /// # Errors
@@ -195,13 +432,17 @@ pub fn read(handle: StreamHandle, limit: usize) -> io::Result<ReadOutcome> {
             end: false,
         });
     }
-    match registry().get_mut(&handle.0) {
-        Some(StandardStream::Stdin(reader)) => reader.read(limit),
-        Some(StandardStream::Stdout(_) | StandardStream::Stderr(_)) => Err(io::Error::new(
+    let stream = registered_stream(handle)?;
+    let mut stream = stream
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+    match &mut *stream {
+        StandardStream::Stdin(reader) => reader.read(limit),
+        StandardStream::File(file) => file.read(limit),
+        StandardStream::Stdout(_) | StandardStream::Stderr(_) => Err(io::Error::new(
             io::ErrorKind::InvalidInput,
             "stream is not readable",
         )),
-        None => Err(invalid_handle()),
     }
 }
 
@@ -211,14 +452,18 @@ pub fn read(handle: StreamHandle, limit: usize) -> io::Result<ReadOutcome> {
 ///
 /// Returns an I/O error for an invalid or non-writable handle, or when the host write fails.
 pub fn write(handle: StreamHandle, data: &[u8]) -> io::Result<usize> {
-    match registry().get_mut(&handle.0) {
-        Some(StandardStream::Stdout(writer)) => writer.write(data),
-        Some(StandardStream::Stderr(writer)) => writer.write(data),
-        Some(StandardStream::Stdin(_)) => Err(io::Error::new(
+    let stream = registered_stream(handle)?;
+    let mut stream = stream
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+    match &mut *stream {
+        StandardStream::Stdout(writer) => writer.write(data),
+        StandardStream::Stderr(writer) => writer.write(data),
+        StandardStream::File(file) => file.write(data),
+        StandardStream::Stdin(_) => Err(io::Error::new(
             io::ErrorKind::InvalidInput,
             "stream is not writable",
         )),
-        None => Err(invalid_handle()),
     }
 }
 
@@ -261,13 +506,19 @@ pub fn sync_all(handle: StreamHandle) -> io::Result<()> {
 ///
 /// Returns an I/O error when a final writer flush fails.
 pub fn close(handle: StreamHandle) -> io::Result<()> {
-    let Some(mut stream) = registry().remove(&handle.0) else {
+    let Some(stream) = registry().remove(&handle.0) else {
         return Ok(());
     };
-    let result = match &mut stream {
-        StandardStream::Stdin(reader) => reader.close(),
-        StandardStream::Stdout(writer) => writer.close(),
-        StandardStream::Stderr(writer) => writer.close(),
+    let result = {
+        let mut locked = stream
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        match &mut *locked {
+            StandardStream::Stdin(reader) => reader.close(),
+            StandardStream::Stdout(writer) => writer.close(),
+            StandardStream::Stderr(writer) => writer.close(),
+            StandardStream::File(file) => file.close(),
+        }
     };
     if result.is_err() {
         registry().insert(handle.0, stream);
@@ -283,13 +534,17 @@ pub fn close(handle: StreamHandle) -> io::Result<()> {
 ///
 /// Returns an I/O error when a final writer flush fails.
 pub fn release(handle: StreamHandle) -> io::Result<()> {
-    let Some(mut stream) = registry().remove(&handle.0) else {
+    let Some(stream) = registry().remove(&handle.0) else {
         return Ok(());
     };
-    match &mut stream {
+    let mut stream = stream
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+    match &mut *stream {
         StandardStream::Stdin(reader) => reader.close(),
         StandardStream::Stdout(writer) => writer.close(),
         StandardStream::Stderr(writer) => writer.close(),
+        StandardStream::File(file) => file.close(),
     }
 }
 
@@ -297,15 +552,23 @@ fn with_writer(
     handle: StreamHandle,
     operation: impl FnOnce(&mut dyn StandardWriter) -> io::Result<()>,
 ) -> io::Result<()> {
-    match registry().get_mut(&handle.0) {
-        Some(StandardStream::Stdout(writer)) => operation(writer),
-        Some(StandardStream::Stderr(writer)) => operation(writer),
-        Some(StandardStream::Stdin(_)) => Err(io::Error::new(
+    let stream = registered_stream(handle)?;
+    let mut stream = stream
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+    match &mut *stream {
+        StandardStream::Stdout(writer) => operation(writer),
+        StandardStream::Stderr(writer) => operation(writer),
+        StandardStream::File(writer) => operation(writer),
+        StandardStream::Stdin(_) => Err(io::Error::new(
             io::ErrorKind::InvalidInput,
             "stream is not writable",
         )),
-        None => Err(invalid_handle()),
     }
+}
+
+fn registered_stream(handle: StreamHandle) -> io::Result<Arc<Mutex<StandardStream>>> {
+    registry().get(&handle.0).cloned().ok_or_else(invalid_handle)
 }
 
 trait StandardWriter {
@@ -334,6 +597,7 @@ macro_rules! impl_writer_trait {
 
 impl_writer_trait!(StdoutWriter);
 impl_writer_trait!(StderrWriter);
+impl_writer_trait!(FileStream);
 
 fn invalid_handle() -> io::Error {
     io::Error::new(io::ErrorKind::NotFound, "unknown standard stream handle")
@@ -366,5 +630,115 @@ mod tests {
         release(handle).unwrap();
         assert_eq!(read(handle, 1).unwrap_err().kind(), io::ErrorKind::NotFound);
         release(handle).unwrap();
+    }
+
+    #[test]
+    fn file_handles_preserve_partial_io_and_explicit_close() {
+        let path =
+            std::env::temp_dir().join(format!("terrane-stream-abi-file-{}", std::process::id()));
+        let writer = open_file(
+            path.to_str().unwrap(),
+            FileOpenOptions {
+                access: FileAccess::Write,
+                creation: FileCreation::CreateOrTruncate,
+            },
+        )
+        .unwrap();
+        assert_eq!(write(writer, b"content").unwrap(), 7);
+        sync_all(writer).unwrap();
+        close(writer).unwrap();
+
+        let reader = open_file(
+            path.to_str().unwrap(),
+            FileOpenOptions {
+                access: FileAccess::Read,
+                creation: FileCreation::Existing,
+            },
+        )
+        .unwrap();
+        let first = read(reader, 3).unwrap();
+        assert_eq!(first.data, b"con");
+        assert!(!first.end);
+        let second = read(reader, 8).unwrap();
+        assert_eq!(second.data, b"tent");
+        assert!(!second.end);
+        assert!(read(reader, 8).unwrap().end);
+        close(reader).unwrap();
+        std::fs::remove_file(path).unwrap();
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn file_open_refuses_a_final_symlink() {
+        use std::os::unix::fs::symlink;
+
+        let directory =
+            std::env::temp_dir().join(format!("terrane-stream-abi-symlink-{}", std::process::id()));
+        std::fs::create_dir_all(&directory).unwrap();
+        let target = directory.join("target");
+        let link = directory.join("link");
+        std::fs::write(&target, b"content").unwrap();
+        symlink(&target, &link).unwrap();
+        assert!(
+            open_file(
+                link.to_str().unwrap(),
+                FileOpenOptions {
+                    access: FileAccess::Read,
+                    creation: FileCreation::Existing,
+                },
+            )
+            .is_err()
+        );
+        std::fs::remove_dir_all(directory).unwrap();
+    }
+
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn directory_handle_confines_relative_file_traversal() {
+        use std::os::unix::fs::symlink;
+
+        let directory =
+            std::env::temp_dir().join(format!("terrane-stream-abi-beneath-{}", std::process::id()));
+        let nested = directory.join("nested");
+        std::fs::create_dir_all(&nested).unwrap();
+        std::fs::write(nested.join("target"), b"content").unwrap();
+        symlink("../target", nested.join("link")).unwrap();
+
+        let handle = open_directory_beneath(directory.to_str().unwrap(), "nested", false).unwrap();
+        let opened = open_file_beneath(
+            handle,
+            "target",
+            FileOpenOptions {
+                access: FileAccess::Read,
+                creation: FileCreation::Existing,
+            },
+        )
+        .unwrap();
+        assert_eq!(read(opened, 7).unwrap().data, b"content");
+        close(opened).unwrap();
+        assert!(
+            open_file_beneath(
+                handle,
+                "../outside",
+                FileOpenOptions {
+                    access: FileAccess::Read,
+                    creation: FileCreation::Existing,
+                },
+            )
+            .is_err()
+        );
+        assert!(
+            open_file_beneath(
+                handle,
+                "link",
+                FileOpenOptions {
+                    access: FileAccess::Read,
+                    creation: FileCreation::Existing,
+                },
+            )
+            .is_err()
+        );
+        close(handle).unwrap();
+        std::fs::remove_dir_all(directory).unwrap();
     }
 }

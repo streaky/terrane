@@ -1,0 +1,72 @@
+namespace conformance/filesystem-facilities
+
+from /core/output import print
+from /core/types import bool, bytes
+from /standard/paths import path, normalise-path
+from /standard/filesystem import filesystem, filesystem-capability, filesystem-write-atomic, filesystem-exists
+from /standard/filesystem import filesystem-metadata, filesystem-symlink-metadata, filesystem-read-link
+from /standard/filesystem import filesystem-read-bounded, filesystem-canonical, filesystem-realpath
+from /standard/filesystem import filesystem-open-beneath, filesystem-remove, filesystem-rename
+from /standard/filesystem import directory-handle, file-handle, open-file, open-file-beneath, file-read, file-write
+from /standard/filesystem import file-flush, file-sync-data, file-sync-all, file-close
+
+function sync-file bool; capability filesystem, output ref file-handle
+    flushed = file-flush; capability, output
+    data = file-sync-data; capability, output
+    all = file-sync-all; capability, output
+    return flushed.failed or data.failed or all.failed
+
+function main;
+    fs = filesystem-capability;
+    target = path; 'terrane-filesystem-case.txt'
+    written = filesystem-write-atomic; fs, target, b'content'
+    print; written.failed
+    exists = filesystem-exists; fs, target
+    print; exists.exists, exists.failed
+    metadata = filesystem-metadata; fs, target
+    print; metadata.failed, metadata.kind, metadata.size, metadata.readonly, metadata.permission-detail == ''
+    data = filesystem-read-bounded; fs, target, 7
+    print; data.failed, data.completed
+    opened file-handle = open-file; fs, target, true, false
+    streamed = file-read; fs, ref opened, 16
+    print; streamed.failed, streamed.completed, streamed.end
+    closing = open-file; fs, target, true, false
+    closed = file-close; fs, closing
+    print; closed.failed
+    lexical-input = path; 'missing/../terrane-filesystem-case.txt'
+    lexical = normalise-path; lexical-input
+    canonical = filesystem-canonical; fs, target
+    real = filesystem-realpath; fs, target
+    print; lexical.text
+    print; canonical.failed, canonical.resolved.text == lexical.text, real.resolved.text == canonical.resolved.text
+    link = path; 'terrane-filesystem-case-link.txt'
+    link-metadata = filesystem-symlink-metadata; fs, link
+    linked = filesystem-read-link; fs, link
+    print; link-metadata.failed, link-metadata.kind
+    print; linked.failed, linked.resolved.text
+    renamed-target = path; 'terrane-filesystem-case-renamed.txt'
+    renamed = filesystem-rename; fs, target, renamed-target
+    restored = filesystem-rename; fs, renamed-target, target
+    print; renamed.failed, restored.failed
+    base = path; '.'
+    escape = path; '../Cargo.toml'
+    escaped = filesystem-open-beneath; fs, base, escape
+    print; escaped.failed
+    current = path; '.'
+    root directory-handle = filesystem-open-beneath; fs, base, current
+    manifest = path; 'terrane-filesystem-case.txt'
+    relative-file file-handle = open-file-beneath; fs, ref root, manifest, true, false
+    relative-data = file-read; fs, ref relative-file, 8
+    print; relative-data.failed, relative-data.completed
+    partial-target file-handle = open-file; fs, target, false, true, false, true
+    partial = file-write; fs, ref partial-target, b'abc', 1
+    print; partial.failed, partial.completed
+    partial-read = filesystem-read-bounded; fs, target, 3
+    print; partial-read.failed, partial-read.completed
+    durable-target file-handle = open-file; fs, target, false, true
+    sync-failed = sync-file; fs, ref durable-target
+    print; sync-failed
+    link-removed = filesystem-remove; fs, link
+    print; link-removed.failed
+    removed = filesystem-remove; fs, target
+    print; removed.failed

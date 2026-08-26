@@ -67,14 +67,44 @@ pub(crate) fn lower(package: &SemanticPackage) -> Program {
             items: vec![Item::generated(support)],
         });
     }
-    if package
+    let uses_standard_streams = package
         .units
         .iter()
-        .any(|unit| unit.namespace == "/standard/streams")
-    {
+        .any(|unit| unit.namespace == "/standard/streams");
+    let uses_filesystem = package
+        .units
+        .iter()
+        .any(|unit| unit.namespace == "/standard/filesystem");
+    let uses_process = package
+        .units
+        .iter()
+        .any(|unit| unit.namespace == "/standard/process");
+    if uses_standard_streams || uses_filesystem {
+        let mut items = vec![Item::generated(include_str!("runtime/platform_streams.rs"))];
+        if uses_standard_streams {
+            items.push(Item::generated(include_str!(
+                "runtime/platform_standard_streams.rs"
+            )));
+        }
+        if uses_filesystem {
+            items.push(Item::generated(include_str!("runtime/platform_files.rs")));
+        }
         runtime.push(GeneratedModule {
             name: "platform_streams",
-            items: vec![Item::generated(include_str!("runtime/platform_streams.rs"))],
+            items,
+        });
+    }
+    if uses_filesystem || uses_process {
+        let mut items = Vec::new();
+        if uses_filesystem {
+            items.push(Item::generated(include_str!("runtime/platform_system.rs")));
+        }
+        if uses_process {
+            items.push(Item::generated(include_str!("runtime/platform_process.rs")));
+        }
+        runtime.push(GeneratedModule {
+            name: "platform_system",
+            items,
         });
     }
     if package.units.iter().any(|unit| {
@@ -857,7 +887,8 @@ impl Emitter<'_> {
                             });
                         let value = initializer.map_or_else(
                             || match field.value_type {
-                                ValueType::PlatformStreamHandle => "Default::default()".to_owned(),
+                                ValueType::PlatformStreamHandle
+                                | ValueType::FilesystemAuthority => "Default::default()".to_owned(),
                                 _ => "panic!(\"object field was not initialized\")".to_owned(),
                             },
                             |initializer| self.expression_as(initializer, field.value_type.clone()),
@@ -895,7 +926,8 @@ impl Emitter<'_> {
                             });
                         let value = initializer.map_or_else(
                             || match field.value_type {
-                                ValueType::PlatformStreamHandle => "Default::default()".to_owned(),
+                                ValueType::PlatformStreamHandle
+                                | ValueType::FilesystemAuthority => "Default::default()".to_owned(),
                                 _ => "panic!(\"object field was not initialized\")".to_owned(),
                             },
                             |initializer| self.expression_as(initializer, field.value_type.clone()),
@@ -3370,7 +3402,7 @@ impl Emitter<'_> {
         let receiver_type = self.receiver_value_type(receiver);
         let receiver = self.receiver_expression(receiver);
         match receiver_type {
-            Some(ValueType::List(_) | ValueType::Tuple(_, _)) => {
+            Some(ValueType::List(_) | ValueType::Tuple(_, _) | ValueType::StringList) => {
                 let index = if self.value_type(index) == Some(ValueType::Scalar(ScalarType::Int)) {
                     let index_value = self.expression_as(index, ValueType::Scalar(ScalarType::Int));
                     self.fallible(
@@ -3380,7 +3412,16 @@ impl Emitter<'_> {
                 } else {
                     format!("({}) as usize", self.expression(index))
                 };
-                self.fallible(format!("({receiver}).get_or_error({index})"), node)
+                if receiver_type == Some(ValueType::StringList) {
+                    self.fallible(
+                        format!(
+                            "({receiver}).get({index}).cloned().ok_or(terrane_collection_support::IndexError {{ index: {index} }})"
+                        ),
+                        node,
+                    )
+                } else {
+                    self.fallible(format!("({receiver}).get_or_error({index})"), node)
+                }
             }
             Some(ValueType::Map(key, _) | ValueType::UnorderedMap(key, _)) => {
                 let index_value = self.expression_as(index, key.value_type());
@@ -3536,14 +3577,15 @@ impl Emitter<'_> {
         if matches!(
             receiver_type,
             Some(
-                ValueType::PlatformReadResult
+                ValueType::PlatformOpenResult
+                    | ValueType::PlatformReadResult
                     | ValueType::PlatformWriteResult
                     | ValueType::PlatformUnitResult
             )
         ) {
             let receiver = self.expression(receiver);
             return match self.text(member) {
-                "data" | "completed" | "message" => {
+                "handle" | "data" | "completed" | "message" => {
                     format!("({receiver}).{}.clone()", self.text(member))
                 }
                 name => format!("({receiver}).{name}"),
@@ -3555,6 +3597,20 @@ impl Emitter<'_> {
             return length;
         }
         let wrapped_field = self.wrapped_object_field(receiver, self.text(member));
+        if matches!(
+            self.value_type(receiver),
+            Some(ValueType::Reference(_) | ValueType::SharedReference(_))
+        ) && matches!(receiver_type, Some(ValueType::Object(_)))
+        {
+            let guard = self.receiver_guard_expression(receiver);
+            let field = rust_name(self.text(member));
+            let access = if wrapped_field {
+                format!("({guard}).terrane_field_{field}().clone()")
+            } else {
+                format!("({guard}).{field}.clone()")
+            };
+            return self.wrap_receiver_guard(receiver, access);
+        }
         let receiver = self.receiver_expression(receiver);
         match self.text(member) {
             "bytes" if receiver_type == Some(ValueType::Scalar(ScalarType::String)) => {
@@ -4038,10 +4094,64 @@ impl Emitter<'_> {
             let format = "{}".repeat(values.len());
             return format!("println!(\"{format}\", {})", values.join(", "));
         }
+        let system_call = [
+            (
+                "acquire-filesystem-authority",
+                "acquire_filesystem_authority",
+            ),
+            ("filesystem-exists", "filesystem_exists"),
+            ("filesystem-metadata", "filesystem_metadata"),
+            ("filesystem-realpath", "filesystem_realpath"),
+            ("filesystem-read-link", "filesystem_read_link"),
+            ("filesystem-read-bounded", "filesystem_read_bounded"),
+            ("filesystem-write-atomic", "filesystem_write_atomic"),
+            ("filesystem-rename", "filesystem_rename"),
+            ("filesystem-remove", "filesystem_remove"),
+            ("result-failed", "filesystem_result_failed"),
+            ("result-message", "filesystem_result_message"),
+            ("result-text", "filesystem_result_text"),
+            ("result-detail", "filesystem_result_detail"),
+            ("result-bytes", "filesystem_result_bytes"),
+            ("result-int", "filesystem_result_int"),
+            ("result-bool", "filesystem_result_bool"),
+            ("platform-value-is-text", "platform_value_is_text"),
+            ("platform-value-text", "platform_value_text"),
+            ("platform-value-bytes", "platform_value_bytes"),
+            ("process-arguments", "process_arguments"),
+            ("environment-entries", "environment_entries"),
+            ("process-exit", "process_exit"),
+        ]
+        .into_iter()
+        .find_map(|(terrane, rust)| {
+            self.is_builtin(callee, &format!("/core/platform-system::{terrane}"))
+                .then_some(rust)
+        });
+        if let Some(function) = system_call {
+            let values = argument_values
+                .iter()
+                .enumerate()
+                .map(|(index, value)| {
+                    if (function == "filesystem_call" && index == 4) || function == "process_exit" {
+                        self.expression_as(value, ValueType::Scalar(ScalarType::Int))
+                    } else {
+                        self.expression(value)
+                    }
+                })
+                .collect::<Vec<_>>()
+                .join(", ");
+            if function.starts_with("filesystem_result_") || function.starts_with("platform_value_")
+            {
+                return format!("terrane_{function}(&({values}))");
+            }
+            return format!("terrane_{function}({values})");
+        }
         let platform_call = [
             ("acquire-stdin", "acquire_stdin"),
             ("acquire-stdout", "acquire_stdout"),
             ("acquire-stderr", "acquire_stderr"),
+            ("open-file", "open_file"),
+            ("open-directory-beneath", "open_directory_beneath"),
+            ("open-file-beneath", "open_file_beneath"),
             ("read", "read"),
             ("write", "write"),
             ("flush", "flush"),
@@ -4062,6 +4172,9 @@ impl Emitter<'_> {
                 .collect::<Vec<_>>();
             if function.starts_with("acquire_") {
                 return format!("terrane_platform_{function}()");
+            }
+            if matches!(function, "open_file" | "open_directory_beneath") {
+                return format!("terrane_platform_{function}({})", values.join(", "));
             }
             if function == "write" && values.len() == 3 {
                 return format!(
@@ -5497,6 +5610,9 @@ fn rust_value_type(ty: ValueType) -> String {
             format!("TerraneTaskOutcome<{}>", rust_element_type(result))
         }
         ValueType::PlatformStreamHandle => "TerranePlatformStreamHandle".to_owned(),
+        ValueType::FilesystemAuthority => "TerraneFilesystemAuthority".to_owned(),
+        ValueType::PlatformFilesystemResult => "TerraneFilesystemResult".to_owned(),
+        ValueType::PlatformOpenResult => "TerranePlatformOpenResult".to_owned(),
         ValueType::PlatformReadResult => "TerranePlatformReadResult".to_owned(),
         ValueType::PlatformWriteResult => "TerranePlatformWriteResult".to_owned(),
         ValueType::PlatformUnitResult => "TerranePlatformUnitResult".to_owned(),
