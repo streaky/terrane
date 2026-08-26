@@ -5751,7 +5751,8 @@ The imported NumPy array is a foreign proxy with explicit runtime reflection. Th
 ```terrane
 namespace kernel/memory
 
-linear class mapped-page
+class mapped-page
+  handle stream-handle
 
 function map-page mapped-page; virtual uint64, physical uint64
   unsafe rust
