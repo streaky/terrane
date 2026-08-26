@@ -5986,9 +5986,10 @@ identify rooted values, select name/parent/stem/extension, join, and normalise. 
 removes empty and `.` components and resolves `..` lexically. A rooted path never ascends above
 its root; an unrooted path retains leading parents which cannot be discharged. Joining an
 absolute child replaces the base. Canonicalisation is deliberately separate:
-`filesystem-realpath` invokes capability-mediated native host resolution, follows the filesystem,
-and may fail. Lexical path operations remain in Terrane and never substitute for native real-path
-resolution.
+`filesystem-canonical` invokes capability-mediated native host resolution, follows the filesystem,
+and may fail. `filesystem-realpath` is a deliberate POSIX spelling alias with the same contract and
+implementation. Lexical path operations remain in Terrane and never substitute for native
+filesystem resolution.
 
 The `filesystem` object carries an unforgeable host authority acquired only by its package
 factory. Every host filesystem operation requires that capability, including operations reached

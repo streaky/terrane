@@ -1377,8 +1377,9 @@ Implemented on `filesystem-process-facilities`. Import-driven bundled Terrane pa
 `/standard/paths`, `/standard/filesystem`, and `/standard/process` visible through semantic
 analysis and lowering. Rust is limited to host filesystem, descriptor, environment, argument, and
 process-exit boundaries. Paths normalize and resolve lexically in Terrane;
-`filesystem-realpath` is the distinct native host-resolution operation. The unforgeable
-filesystem capability gates metadata, symlink metadata, real-path resolution, read-link, bounded
+`filesystem-canonical` is the distinct native host-resolution operation, with
+`filesystem-realpath` retained as its deliberate POSIX spelling alias. The unforgeable
+filesystem capability gates metadata, symlink metadata, native resolution, read-link, bounded
 reads, atomic replacement, rename, removal, file handles, and directory-relative no-follow
 traversal with beneath and cross-filesystem policy. Portable metadata has a structured host result
 carrying kind, size, read-only state, platform permission detail, and failure detail; existence

@@ -1040,7 +1040,7 @@ pub fn filesystem_symlink_metadata(
         terrane_filesystem_result_message(&record),
     );
 }
-pub fn filesystem_realpath(capability: Filesystem, target: Path) -> PathResult {
+pub fn filesystem_canonical(capability: Filesystem, target: Path) -> PathResult {
     let _ = &capability;
     let record: TerraneFilesystemResult = terrane_filesystem_realpath(target.text);
     let resolved: Path = Path::terrane_construct(
@@ -1051,6 +1051,9 @@ pub fn filesystem_realpath(capability: Filesystem, target: Path) -> PathResult {
         terrane_filesystem_result_failed(&record),
         terrane_filesystem_result_message(&record),
     );
+}
+pub fn filesystem_realpath(capability: Filesystem, target: Path) -> PathResult {
+    return filesystem_canonical(capability.clone(), target.clone());
 }
 pub fn filesystem_read_link(capability: Filesystem, target: Path) -> PathResult {
     let _ = &capability;

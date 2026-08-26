@@ -5,7 +5,7 @@ from /core/types import bool, bytes
 from /standard/paths import path, normalise-path
 from /standard/filesystem import filesystem, filesystem-capability, filesystem-write-atomic, filesystem-exists
 from /standard/filesystem import filesystem-metadata, filesystem-symlink-metadata, filesystem-read-link
-from /standard/filesystem import filesystem-read-bounded, filesystem-realpath
+from /standard/filesystem import filesystem-read-bounded, filesystem-canonical, filesystem-realpath
 from /standard/filesystem import filesystem-open-beneath, filesystem-remove, filesystem-rename
 from /standard/filesystem import directory-handle, file-handle, open-file, open-file-beneath, file-read, file-write
 from /standard/filesystem import file-sync-data, file-sync-all, file-close
@@ -34,9 +34,10 @@ function main;
     print; closed.failed
     lexical-input = path; 'missing/../terrane-filesystem-case.txt'
     lexical = normalise-path; lexical-input
+    canonical = filesystem-canonical; fs, target
     real = filesystem-realpath; fs, target
     print; lexical.text
-    print; real.failed, real.resolved.text == lexical.text
+    print; canonical.failed, canonical.resolved.text == lexical.text, real.resolved.text == canonical.resolved.text
     link = path; 'terrane-filesystem-case-link.txt'
     link-metadata = filesystem-symlink-metadata; fs, link
     linked = filesystem-read-link; fs, link

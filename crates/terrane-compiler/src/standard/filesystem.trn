@@ -158,10 +158,13 @@ function filesystem-symlink-metadata file-metadata; capability filesystem, targe
     record = platform-filesystem-metadata; target.text, false
     return file-metadata; (result-text; record), (result-int; record), (result-bool; record), (result-detail; record), (result-failed; record), (result-message; record)
 
-function filesystem-realpath path-result; capability filesystem, target path
+function filesystem-canonical path-result; capability filesystem, target path
     record = platform-filesystem-realpath; target.text
     resolved = path; (result-text; record)
     return path-result; resolved, (result-failed; record), (result-message; record)
+
+function filesystem-realpath path-result; capability filesystem, target path
+    return filesystem-canonical; capability, target
 
 function filesystem-read-link path-result; capability filesystem, target path
     record = platform-filesystem-read-link; target.text

@@ -691,11 +691,14 @@ fn main() {
         String::from("missing/../terrane-filesystem-case.txt"),
     );
     let lexical: Path = normalise_path(lexical_input.clone());
+    let canonical: PathResult = filesystem_canonical(fs.clone(), target.clone());
     let real: PathResult = filesystem_realpath(fs.clone(), target.clone());
     println!("{}", terrane_scalar_support::scalar_text(&lexical.text));
     println!(
-        "{}{}", terrane_scalar_support::scalar_text(&real.failed),
-        terrane_scalar_support::scalar_text(&(real.resolved.text == lexical.text))
+        "{}{}{}", terrane_scalar_support::scalar_text(&canonical.failed),
+        terrane_scalar_support::scalar_text(&(canonical.resolved.text == lexical.text)),
+        terrane_scalar_support::scalar_text(&(real.resolved.text == canonical.resolved
+        .text))
     );
     let link: Path = Path::terrane_construct(
         String::from("terrane-filesystem-case-link.txt"),
@@ -1205,7 +1208,7 @@ pub fn filesystem_symlink_metadata(
         terrane_filesystem_result_message(&record),
     );
 }
-pub fn filesystem_realpath(capability: Filesystem, target: Path) -> PathResult {
+pub fn filesystem_canonical(capability: Filesystem, target: Path) -> PathResult {
     let _ = &capability;
     let record: TerraneFilesystemResult = terrane_filesystem_realpath(target.text);
     let resolved: Path = Path::terrane_construct(
@@ -1216,6 +1219,9 @@ pub fn filesystem_realpath(capability: Filesystem, target: Path) -> PathResult {
         terrane_filesystem_result_failed(&record),
         terrane_filesystem_result_message(&record),
     );
+}
+pub fn filesystem_realpath(capability: Filesystem, target: Path) -> PathResult {
+    return filesystem_canonical(capability.clone(), target.clone());
 }
 pub fn filesystem_read_link(capability: Filesystem, target: Path) -> PathResult {
     let _ = &capability;
