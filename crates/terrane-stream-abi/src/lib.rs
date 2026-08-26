@@ -5,7 +5,14 @@
 //! operations, cancellation reporting, and the public object model belong in
 //! Terrane source above this boundary.
 
-use std::io::{self, Read, Write};
+use std::{
+    collections::BTreeMap,
+    io::{self, Read, Write},
+    sync::{
+        LazyLock, Mutex,
+        atomic::{AtomicI64, Ordering},
+    },
+};
 
 #[derive(Debug)]
 pub struct ReadOutcome {
@@ -29,6 +36,10 @@ impl StdinReader {
     }
 
     /// Performs at most one host read, preserving partial completion and EOF.
+    ///
+    /// # Errors
+    ///
+    /// Returns an I/O error when standard input is closed or the host read fails.
     pub fn read(&mut self, limit: usize) -> io::Result<ReadOutcome> {
         self.ensure_open()?;
         let mut data = vec![0; limit];
@@ -41,6 +52,10 @@ impl StdinReader {
     }
 
     /// Releases this wrapper. The process-owned standard handle itself remains owned by the host.
+    ///
+    /// # Errors
+    ///
+    /// This process-stream implementation currently closes infallibly.
     pub fn close(&mut self) -> io::Result<()> {
         self.closed = true;
         Ok(())
@@ -82,17 +97,31 @@ macro_rules! impl_standard_writer {
             }
 
             /// Performs at most one host write and returns its partial completion count.
+            ///
+            /// # Errors
+            ///
+            /// Returns an I/O error when the stream is closed or the host write fails.
             pub fn write(&mut self, data: &[u8]) -> io::Result<usize> {
                 self.ensure_open()?;
                 self.$field.write(data)
             }
 
+            /// Flushes buffered host output.
+            ///
+            /// # Errors
+            ///
+            /// Returns an I/O error when the stream is closed or the host flush fails.
             pub fn flush(&mut self) -> io::Result<()> {
                 self.ensure_open()?;
                 self.$field.flush()
             }
 
             /// Standard process streams do not expose filesystem data durability.
+            ///
+            /// # Errors
+            ///
+            /// Always reports unsupported durability for an open standard stream, and reports a
+            /// closed-stream error after release.
             pub fn sync_data(&mut self) -> io::Result<()> {
                 self.ensure_open()?;
                 Err(io::Error::new(
@@ -102,6 +131,11 @@ macro_rules! impl_standard_writer {
             }
 
             /// Standard process streams do not expose filesystem metadata durability.
+            ///
+            /// # Errors
+            ///
+            /// Always reports unsupported durability for an open standard stream, and reports a
+            /// closed-stream error after release.
             pub fn sync_all(&mut self) -> io::Result<()> {
                 self.ensure_open()?;
                 Err(io::Error::new(
@@ -111,6 +145,10 @@ macro_rules! impl_standard_writer {
             }
 
             /// Flushes once and releases this wrapper. Repeated close is successful.
+            ///
+            /// # Errors
+            ///
+            /// Returns an I/O error when the final host flush fails.
             pub fn close(&mut self) -> io::Result<()> {
                 if self.closed {
                     return Ok(());
@@ -131,5 +169,189 @@ macro_rules! impl_standard_writer {
     };
 }
 
-impl_standard_writer!(StdoutWriter, stdout, io::stdout(), "standard output is closed");
-impl_standard_writer!(StderrWriter, stderr, io::stderr(), "standard error is closed");
+impl_standard_writer!(
+    StdoutWriter,
+    stdout,
+    io::stdout(),
+    "standard output is closed"
+);
+impl_standard_writer!(
+    StderrWriter,
+    stderr,
+    io::stderr(),
+    "standard error is closed"
+);
+
+#[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
+pub struct StreamHandle(i64);
+
+impl StreamHandle {
+    #[must_use]
+    pub const fn id(self) -> i64 {
+        self.0
+    }
+
+    #[must_use]
+    pub const fn from_id(id: i64) -> Self {
+        Self(id)
+    }
+}
+
+enum StandardStream {
+    Stdin(StdinReader),
+    Stdout(StdoutWriter),
+    Stderr(StderrWriter),
+}
+
+static NEXT_HANDLE: AtomicI64 = AtomicI64::new(1);
+static STREAMS: LazyLock<Mutex<BTreeMap<i64, StandardStream>>> =
+    LazyLock::new(|| Mutex::new(BTreeMap::new()));
+
+fn registry() -> std::sync::MutexGuard<'static, BTreeMap<i64, StandardStream>> {
+    STREAMS
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
+}
+
+fn acquire(stream: StandardStream) -> StreamHandle {
+    let handle = NEXT_HANDLE.fetch_add(1, Ordering::Relaxed);
+    registry().insert(handle, stream);
+    StreamHandle(handle)
+}
+
+#[must_use]
+pub fn acquire_stdin() -> StreamHandle {
+    acquire(StandardStream::Stdin(StdinReader::acquire()))
+}
+
+#[must_use]
+pub fn acquire_stdout() -> StreamHandle {
+    acquire(StandardStream::Stdout(StdoutWriter::acquire()))
+}
+
+#[must_use]
+pub fn acquire_stderr() -> StreamHandle {
+    acquire(StandardStream::Stderr(StderrWriter::acquire()))
+}
+
+/// Performs at most one host read through a registered process-stream handle.
+///
+/// # Errors
+///
+/// Returns an I/O error for an invalid, non-readable, closed, or host-failed stream.
+pub fn read(handle: StreamHandle, limit: usize) -> io::Result<ReadOutcome> {
+    match registry().get_mut(&handle.0) {
+        Some(StandardStream::Stdin(reader)) => reader.read(limit),
+        Some(StandardStream::Stdout(_) | StandardStream::Stderr(_)) => Err(io::Error::new(
+            io::ErrorKind::InvalidInput,
+            "stream is not readable",
+        )),
+        None => Err(invalid_handle()),
+    }
+}
+
+/// Performs at most one host write through a registered process-stream handle.
+///
+/// # Errors
+///
+/// Returns an I/O error for an invalid, non-writable, closed, or host-failed stream.
+pub fn write(handle: StreamHandle, data: &[u8]) -> io::Result<usize> {
+    match registry().get_mut(&handle.0) {
+        Some(StandardStream::Stdout(writer)) => writer.write(data),
+        Some(StandardStream::Stderr(writer)) => writer.write(data),
+        Some(StandardStream::Stdin(_)) => Err(io::Error::new(
+            io::ErrorKind::InvalidInput,
+            "stream is not writable",
+        )),
+        None => Err(invalid_handle()),
+    }
+}
+
+/// Flushes a registered process-stream writer.
+///
+/// # Errors
+///
+/// Returns an I/O error for an invalid, non-writable, closed, or host-failed stream.
+pub fn flush(handle: StreamHandle) -> io::Result<()> {
+    with_writer(handle, |writer| writer.flush())
+}
+
+/// Requests data durability from a registered process-stream writer.
+///
+/// # Errors
+///
+/// Standard streams report that data durability is unsupported; invalid, non-writable, and closed
+/// handles also report I/O errors.
+pub fn sync_data(handle: StreamHandle) -> io::Result<()> {
+    with_writer(handle, |writer| writer.sync_data())
+}
+
+/// Requests data and metadata durability from a registered process-stream writer.
+///
+/// # Errors
+///
+/// Standard streams report that full durability is unsupported; invalid, non-writable, and closed
+/// handles also report I/O errors.
+pub fn sync_all(handle: StreamHandle) -> io::Result<()> {
+    with_writer(handle, |writer| writer.sync_all())
+}
+
+/// Releases a registered process-stream wrapper.
+///
+/// # Errors
+///
+/// Returns an I/O error for an invalid handle or a failed final writer flush.
+pub fn close(handle: StreamHandle) -> io::Result<()> {
+    match registry().get_mut(&handle.0) {
+        Some(StandardStream::Stdin(reader)) => reader.close(),
+        Some(StandardStream::Stdout(writer)) => writer.close(),
+        Some(StandardStream::Stderr(writer)) => writer.close(),
+        None => Err(invalid_handle()),
+    }
+}
+
+fn with_writer(
+    handle: StreamHandle,
+    operation: impl FnOnce(&mut dyn StandardWriter) -> io::Result<()>,
+) -> io::Result<()> {
+    match registry().get_mut(&handle.0) {
+        Some(StandardStream::Stdout(writer)) => operation(writer),
+        Some(StandardStream::Stderr(writer)) => operation(writer),
+        Some(StandardStream::Stdin(_)) => Err(io::Error::new(
+            io::ErrorKind::InvalidInput,
+            "stream is not writable",
+        )),
+        None => Err(invalid_handle()),
+    }
+}
+
+trait StandardWriter {
+    fn flush(&mut self) -> io::Result<()>;
+    fn sync_data(&mut self) -> io::Result<()>;
+    fn sync_all(&mut self) -> io::Result<()>;
+}
+
+macro_rules! impl_writer_trait {
+    ($type:ty) => {
+        impl StandardWriter for $type {
+            fn flush(&mut self) -> io::Result<()> {
+                Self::flush(self)
+            }
+
+            fn sync_data(&mut self) -> io::Result<()> {
+                Self::sync_data(self)
+            }
+
+            fn sync_all(&mut self) -> io::Result<()> {
+                Self::sync_all(self)
+            }
+        }
+    };
+}
+
+impl_writer_trait!(StdoutWriter);
+impl_writer_trait!(StderrWriter);
+
+fn invalid_handle() -> io::Error {
+    io::Error::new(io::ErrorKind::NotFound, "unknown standard stream handle")
+}
