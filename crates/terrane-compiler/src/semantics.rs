@@ -110,6 +110,7 @@ fn iterable_item_type(value_type: ValueType) -> Option<ValueType> {
     match value_type {
         ValueType::Scalar(ScalarType::String) => Some(ValueType::Scalar(ScalarType::String)),
         ValueType::Scalar(ScalarType::Bytes) => Some(ValueType::Scalar(ScalarType::Uint8)),
+        ValueType::StringList => Some(ValueType::Scalar(ScalarType::String)),
         ValueType::Iterator(item)
         | ValueType::List(item)
         | ValueType::Set(item)
@@ -6135,6 +6136,7 @@ fn infer_value_type(
         };
         return match infer_receiver_value_type(unit, receiver, bindings)? {
             Some(ValueType::List(item) | ValueType::Tuple(item, _)) => Ok(Some(item.value_type())),
+            Some(ValueType::StringList) => Ok(Some(ValueType::Scalar(ScalarType::String))),
             Some(ValueType::Map(_, value) | ValueType::UnorderedMap(_, value)) => {
                 Ok(Some(value.value_type()))
             }

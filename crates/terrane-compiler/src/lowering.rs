@@ -3370,7 +3370,7 @@ impl Emitter<'_> {
         let receiver_type = self.receiver_value_type(receiver);
         let receiver = self.receiver_expression(receiver);
         match receiver_type {
-            Some(ValueType::List(_) | ValueType::Tuple(_, _)) => {
+            Some(ValueType::List(_) | ValueType::Tuple(_, _) | ValueType::StringList) => {
                 let index = if self.value_type(index) == Some(ValueType::Scalar(ScalarType::Int)) {
                     let index_value = self.expression_as(index, ValueType::Scalar(ScalarType::Int));
                     self.fallible(
@@ -3380,7 +3380,16 @@ impl Emitter<'_> {
                 } else {
                     format!("({}) as usize", self.expression(index))
                 };
-                self.fallible(format!("({receiver}).get_or_error({index})"), node)
+                if receiver_type == Some(ValueType::StringList) {
+                    self.fallible(
+                        format!(
+                            "({receiver}).get({index}).cloned().ok_or(terrane_collection_support::IndexError {{ index: {index} }})"
+                        ),
+                        node,
+                    )
+                } else {
+                    self.fallible(format!("({receiver}).get_or_error({index})"), node)
+                }
             }
             Some(ValueType::Map(key, _) | ValueType::UnorderedMap(key, _)) => {
                 let index_value = self.expression_as(index, key.value_type());

@@ -103,6 +103,12 @@ Terrane package
     │   ├── stdin                              byte-reader factory
     │   ├── stdout                             byte-writer factory
     │   └── stderr                             byte-writer factory
+    ├── /standard/paths                        bundled Terrane package, included when imported
+    │   ├── path                               platform-neutral lexical component value
+    │   ├── normalise-path                     lexical `.` / `..` resolution, root-bounded
+    │   ├── join-path                          lexical base/child resolution
+    │   ├── path-components / path-is-absolute
+    │   └── path-name / path-parent / path-stem / path-extension
     ├── namespace                              hierarchical object container
     │   ├── variable                           namespace-local value
     │   ├── constant                           namespace-local or program-global value

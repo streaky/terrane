@@ -1,0 +1,7 @@
+delta
+/beta/file.tar.gz
+file.tar.gz
+file.tar
+gz
+/beta
+work/next
