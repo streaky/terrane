@@ -1,0 +1,6 @@
+namespace stream-double-close
+from /standard/streams import stdout
+function main;
+    output = stdout;
+    output.close;
+    output.close;

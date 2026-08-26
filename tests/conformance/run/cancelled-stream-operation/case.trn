@@ -1,0 +1,23 @@
+namespace cancelled-stream-operation
+from /standard/streams import stdin, read-result
+
+async function read-one read-result;
+    input = stdin;
+    pending = input.read-async; 2
+    result = await pending
+    input.close;
+    return result
+
+function main;
+    scope = task-scope;
+    child = scope.spawn; read-one
+    scope.cancel;
+    outcome = scope.join; move child
+    value = outcome.value
+    consistent bool = false
+    if outcome.cancelled and value == none
+        consistent = true
+    if outcome.completed
+        if value != none
+            consistent = value.completed >= 0 and not value.cancelled
+    print; consistent

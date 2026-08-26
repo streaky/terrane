@@ -1,0 +1,6 @@
+namespace stream-linear-copy
+from /standard/streams import stdin
+function main;
+    input = stdin;
+    copied = input
+    input.read; 1

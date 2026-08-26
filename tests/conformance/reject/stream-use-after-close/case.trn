@@ -1,0 +1,6 @@
+namespace stream-use-after-close
+from /standard/streams import stdin
+function main;
+    input = stdin;
+    input.close;
+    input.read; 1
