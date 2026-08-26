@@ -206,6 +206,9 @@ pub enum ValueType {
     ScopedTask(ElementType),
     TaskScope,
     TaskOutcome(ElementType),
+    PlatformReadResult,
+    PlatformWriteResult,
+    PlatformUnitResult,
     Object(String),
     Reference(ElementType),
     SharedReference(ElementType),
@@ -346,6 +349,9 @@ impl std::fmt::Display for ValueType {
             Self::ScopedTask(result) => write!(formatter, "scoped task of {result}"),
             Self::TaskScope => formatter.write_str("task-scope"),
             Self::TaskOutcome(result) => write!(formatter, "task-outcome of {result}"),
+            Self::PlatformReadResult => formatter.write_str("platform-read-result"),
+            Self::PlatformWriteResult => formatter.write_str("platform-write-result"),
+            Self::PlatformUnitResult => formatter.write_str("platform-unit-result"),
             Self::Reference(item) => write!(formatter, "ref {}", item.value_type()),
             Self::SharedReference(item) => write!(formatter, "shared ref {}", item.value_type()),
         }
@@ -494,6 +500,7 @@ pub struct ObjectContract {
     pub name: String,
     pub span: Span,
     pub kind: ObjectKind,
+    pub linear: bool,
     pub base: Option<String>,
     pub interfaces: Vec<String>,
     pub traits: Vec<String>,
@@ -678,72 +685,134 @@ fn index_enclosing_function_spans(root: &SyntaxNode) -> BTreeMap<usize, Option<S
     spans
 }
 
-fn parse_units(package: &Package) -> Result<Vec<SemanticUnit>, SemanticFailure> {
-    let mut units = Vec::with_capacity(package.units.len());
-    for unit in &package.units {
-        let source = &unit.source;
-        let lexed = lexer::lex(source).map_err(|diagnostics| SemanticFailure {
+fn parse_unit(
+    source: &SourceFile,
+    source_path: String,
+    expected_namespace: Option<&str>,
+    prelude: bool,
+) -> Result<SemanticUnit, SemanticFailure> {
+    let lexed = lexer::lex(source).map_err(|diagnostics| SemanticFailure {
+        source: source.clone(),
+        diagnostics,
+    })?;
+    let parsed = parser::parse(source, lexed);
+    if !parsed.diagnostics.is_empty() {
+        return Err(SemanticFailure {
             source: source.clone(),
-            diagnostics,
-        })?;
-        let parsed = parser::parse(source, lexed);
-        if !parsed.diagnostics.is_empty() {
-            return Err(SemanticFailure {
-                source: source.clone(),
-                diagnostics: parsed.diagnostics,
-            });
-        }
-        validate_declared_names(source, &parsed.tree).map_err(|diagnostic| SemanticFailure {
+            diagnostics: parsed.diagnostics,
+        });
+    }
+    validate_declared_names(source, &parsed.tree).map_err(|diagnostic| SemanticFailure {
+        source: source.clone(),
+        diagnostics: vec![diagnostic],
+    })?;
+    let namespace =
+        declared_namespace(source, &parsed.tree).map_err(|diagnostic| SemanticFailure {
             source: source.clone(),
             diagnostics: vec![diagnostic],
         })?;
-        let namespace =
-            declared_namespace(source, &parsed.tree).map_err(|diagnostic| SemanticFailure {
-                source: source.clone(),
-                diagnostics: vec![diagnostic],
-            })?;
-        if let Some(expected) = &unit.expected_namespace
-            && &namespace != expected
-        {
-            let span = parsed
-                .tree
-                .root
-                .children
-                .iter()
-                .find(|node| node.kind == SyntaxKind::NamespaceDeclaration)
-                .map_or(Span::new(source.id(), 0, source.text().len()), |node| {
-                    node.span
-                });
-            let diagnostic = Diagnostic::error(
-                "S2020",
-                format!(
-                    "declared namespace `{namespace}` does not match `{expected}` required by its source directory"
-                ),
-                span,
-            )
-            .with_help(format!("declare `namespace {}`", expected.trim_start_matches('/')));
-            return Err(SemanticFailure {
-                source: source.clone(),
-                diagnostics: vec![diagnostic],
+    if let Some(expected) = expected_namespace
+        && namespace != expected
+    {
+        let span = parsed
+            .tree
+            .root
+            .children
+            .iter()
+            .find(|node| node.kind == SyntaxKind::NamespaceDeclaration)
+            .map_or(Span::new(source.id(), 0, source.text().len()), |node| {
+                node.span
             });
-        }
-        let enclosing_function_spans = index_enclosing_function_spans(&parsed.tree.root);
-        units.push(SemanticUnit {
+        let diagnostic = Diagnostic::error(
+            "S2020",
+            format!(
+                "declared namespace `{namespace}` does not match `{expected}` required by its source directory"
+            ),
+            span,
+        )
+        .with_help(format!("declare `namespace {}`", expected.trim_start_matches('/')));
+        return Err(SemanticFailure {
             source: source.clone(),
-            source_path: unit.relative_path_text(),
-            tree: parsed.tree,
-            namespace,
-            prelude: package.prelude,
-            scopes: Vec::new(),
-            typed_bindings: Vec::new(),
-            functions: Vec::new(),
-            objects: Vec::new(),
-            function_aliases: BTreeMap::new(),
-            descriptor_aliases: BTreeMap::new(),
-            enclosing_function_spans,
-            unreachable_spans: Vec::new(),
-            evaluation_steps: Vec::new(),
+            diagnostics: vec![diagnostic],
         });
+    }
+    let enclosing_function_spans = index_enclosing_function_spans(&parsed.tree.root);
+    Ok(SemanticUnit {
+        source: source.clone(),
+        source_path,
+        tree: parsed.tree,
+        namespace,
+        prelude,
+        scopes: Vec::new(),
+        typed_bindings: Vec::new(),
+        functions: Vec::new(),
+        objects: Vec::new(),
+        function_aliases: BTreeMap::new(),
+        descriptor_aliases: BTreeMap::new(),
+        enclosing_function_spans,
+        unreachable_spans: Vec::new(),
+        evaluation_steps: Vec::new(),
+    })
+}
+
+fn parse_units(package: &Package) -> Result<Vec<SemanticUnit>, SemanticFailure> {
+    let mut units = package
+        .units
+        .iter()
+        .map(|unit| {
+            parse_unit(
+                &unit.source,
+                unit.relative_path_text(),
+                unit.expected_namespace.as_deref(),
+                package.prelude,
+            )
+        })
+        .collect::<Result<Vec<_>, _>>()?;
+    let mut loaded = units
+        .iter()
+        .map(|unit| unit.namespace.clone())
+        .collect::<BTreeSet<_>>();
+    let mut next_source_id = units
+        .iter()
+        .map(|unit| unit.source.id())
+        .max()
+        .unwrap_or(0)
+        .saturating_add(1);
+    let mut index = 0;
+    while index < units.len() {
+        let targets = units[index]
+            .tree
+            .root
+            .children
+            .iter()
+            .filter(|node| node.kind == SyntaxKind::ImportDeclaration)
+            .map(|node| imports_from_syntax(&units[index], node))
+            .collect::<Result<Vec<_>, _>>()?
+            .into_iter()
+            .flatten()
+            .map(|import| import.target)
+            .collect::<BTreeSet<_>>();
+        for target in targets {
+            let Some(bundled) = crate::bundled::source(&target) else {
+                continue;
+            };
+            if !loaded.insert(target) {
+                continue;
+            }
+            let source = SourceFile::new(
+                next_source_id,
+                std::path::PathBuf::from(format!("<terrane>/{}", bundled.path)),
+                bundled.text.to_owned(),
+            );
+            next_source_id = next_source_id.saturating_add(1);
+            units.push(parse_unit(
+                &source,
+                bundled.path.to_owned(),
+                Some(bundled.namespace),
+                true,
+            )?);
+        }
+        index += 1;
     }
     Ok(units)
 }
@@ -761,10 +830,20 @@ pub fn analyze(package: &Package) -> Result<SemanticPackage, SemanticFailure> {
 
     let mut namespaces = bootstrap_namespaces();
     for unit in &units {
+        let bundled = unit
+            .source
+            .path()
+            .to_string_lossy()
+            .starts_with("<terrane>/");
         if matches!(
             unit.namespace.as_str(),
-            "/core/output" | "/core/types" | "/core/errors" | "/core/collections"
-        ) {
+            "/core/output"
+                | "/core/types"
+                | "/core/errors"
+                | "/core/collections"
+                | "/core/platform-streams"
+        ) || (crate::bundled::source(&unit.namespace).is_some() && !bundled)
+        {
             let span = unit
                 .tree
                 .root
@@ -1111,6 +1190,83 @@ fn populate_function_aliases(package: &mut SemanticPackage) {
                     .map(|contract| (visible_name.clone(), contract))
             })
             .collect();
+    }
+}
+
+fn populate_function_type_dependencies(package: &mut SemanticPackage) {
+    let objects = package
+        .units
+        .iter()
+        .flat_map(|unit| unit.objects.iter())
+        .map(|object| ((object.span.file, object.name.clone()), object.clone()))
+        .collect::<BTreeMap<_, _>>();
+    let methods = package
+        .units
+        .iter()
+        .flat_map(|unit| unit.functions.iter())
+        .filter_map(|method| {
+            method
+                .owner
+                .as_ref()
+                .map(|owner| ((method.span.file, owner.clone()), method.clone()))
+        })
+        .fold(
+            BTreeMap::<(u32, String), Vec<FunctionContract>>::new(),
+            |mut methods, (key, method)| {
+                methods.entry(key).or_default().push(method);
+                methods
+            },
+        );
+    for unit in &mut package.units {
+        let mut queue = unit
+            .function_aliases
+            .values()
+            .filter_map(|contract| match &contract.return_type {
+                Some(ValueType::Object(name)) => Some((contract.span.file, name.clone())),
+                _ => None,
+            })
+            .collect::<Vec<_>>();
+        let mut visited = BTreeSet::new();
+        while let Some(key) = queue.pop() {
+            if !visited.insert(key.clone()) {
+                continue;
+            }
+            let Some(object) = objects.get(&key) else {
+                continue;
+            };
+            for field in &object.fields {
+                if let ValueType::Object(name) = &field.value_type {
+                    queue.push((key.0, name.clone()));
+                }
+            }
+            let object_methods = methods.get(&key).cloned().unwrap_or_default();
+            for method in &object_methods {
+                if let Some(ValueType::Object(name)) = &method.return_type {
+                    queue.push((key.0, name.clone()));
+                }
+                for parameter in &method.parameters {
+                    if let Some(ValueType::Object(name)) = &parameter.value_type {
+                        queue.push((key.0, name.clone()));
+                    }
+                }
+            }
+            if !unit
+                .objects
+                .iter()
+                .any(|candidate| candidate.name == object.name)
+            {
+                unit.objects.push(object.clone());
+            }
+            for method in object_methods {
+                if !unit
+                    .functions
+                    .iter()
+                    .any(|candidate| candidate.span == method.span && candidate.name == method.name)
+                {
+                    unit.functions.push(method);
+                }
+            }
+        }
     }
 }
 
@@ -1632,6 +1788,17 @@ fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFailure> {
             .map(|(index, _)| index)
     }
 
+    fn linear_binding(
+        unit: &SemanticUnit,
+        binding: usize,
+        linear_objects: &BTreeSet<String>,
+    ) -> bool {
+        matches!(
+            &unit.typed_bindings[binding].value_type,
+            ValueType::Object(name) if linear_objects.contains(name)
+        )
+    }
+
     #[expect(
         clippy::too_many_lines,
         reason = "move traversal keeps scope transitions and diagnostics in one ordered dispatch"
@@ -1641,6 +1808,7 @@ fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFailure> {
         node: &SyntaxNode,
         moved: &mut BTreeSet<usize>,
         declaration_name: bool,
+        linear_objects: &BTreeSet<String>,
     ) -> Result<(), SemanticFailure> {
         if node.kind == SyntaxKind::UnaryExpression
             && let Some(operand) = node.children.last()
@@ -1660,6 +1828,22 @@ fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFailure> {
             }
             return Ok(());
         }
+        if node.kind == SyntaxKind::CallExpression
+            && let Some(callee) = node.children.first()
+            && callee.kind == SyntaxKind::MemberExpression
+            && let [receiver, member, ..] = callee.children.as_slice()
+            && receiver.kind == SyntaxKind::Name
+            && matches!(node_text(&unit.source, member), "close" | "text")
+            && let Some(binding) =
+                binding_at(unit, node_text(&unit.source, receiver), receiver.span.start)
+            && linear_binding(unit, binding, linear_objects)
+        {
+            for child in &node.children {
+                visit(unit, child, moved, false, linear_objects)?;
+            }
+            moved.insert(binding);
+            return Ok(());
+        }
         if node.kind == SyntaxKind::Name && !declaration_name {
             let name = node_text(&unit.source, node);
             if let Some(binding) = binding_at(unit, name, node.span.start)
@@ -1675,13 +1859,32 @@ fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFailure> {
             return Ok(());
         }
         if matches!(node.kind, SyntaxKind::Binding | SyntaxKind::Assignment) {
+            if let Some(initializer) = node.children.last()
+                && initializer.kind == SyntaxKind::Name
+                && let Some(binding) = binding_at(
+                    unit,
+                    node_text(&unit.source, initializer),
+                    initializer.span.start,
+                )
+                && linear_binding(unit, binding, linear_objects)
+            {
+                return Err(failure(
+                    &unit.source,
+                    "T0099",
+                    format!(
+                        "linear resource `{}` must be transferred with `move`",
+                        node_text(&unit.source, initializer)
+                    ),
+                    initializer.span,
+                ));
+            }
             let mut skipped_name = false;
             for child in &node.children {
                 if !skipped_name && child.kind == SyntaxKind::Name {
                     skipped_name = true;
                     continue;
                 }
-                visit(unit, child, moved, false)?;
+                visit(unit, child, moved, false, linear_objects)?;
             }
             if node.kind == SyntaxKind::Assignment
                 && let Some(name) = node
@@ -1699,7 +1902,7 @@ fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFailure> {
             let mut entry = moved.clone();
             for child in &node.children {
                 if !matches!(child.kind, SyntaxKind::Block | SyntaxKind::ElseClause) {
-                    visit(unit, child, &mut entry, false)?;
+                    visit(unit, child, &mut entry, false, linear_objects)?;
                 }
             }
             let mut branches = Vec::new();
@@ -1708,7 +1911,7 @@ fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFailure> {
                 if matches!(child.kind, SyntaxKind::Block | SyntaxKind::ElseClause) {
                     has_else |= child.kind == SyntaxKind::ElseClause;
                     let mut branch = entry.clone();
-                    visit(unit, child, &mut branch, false)?;
+                    visit(unit, child, &mut branch, false, linear_objects)?;
                     branches.push(branch);
                 }
             }
@@ -1730,29 +1933,41 @@ fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFailure> {
                 .find(|child| child.kind == SyntaxKind::Block);
             for child in &node.children {
                 if Some(child) != body {
-                    visit(unit, child, &mut entry, false)?;
+                    visit(unit, child, &mut entry, false, linear_objects)?;
                 }
             }
             if let Some(body) = body {
                 let mut after_iteration = entry.clone();
-                visit(unit, body, &mut after_iteration, false)?;
+                visit(unit, body, &mut after_iteration, false, linear_objects)?;
                 // Validate the back edge: the next iteration starts with the first iteration's
                 // move state, even though only the may-execute-once state leaves the loop.
                 let mut next_iteration = after_iteration.clone();
-                visit(unit, body, &mut next_iteration, false)?;
+                visit(unit, body, &mut next_iteration, false, linear_objects)?;
                 entry.extend(after_iteration);
             }
             *moved = entry;
             return Ok(());
         }
         for child in &node.children {
-            visit(unit, child, moved, false)?;
+            visit(unit, child, moved, false, linear_objects)?;
         }
         Ok(())
     }
 
     for unit in &package.units {
-        visit(unit, &unit.tree.root, &mut BTreeSet::new(), false)?;
+        let linear_objects = unit
+            .objects
+            .iter()
+            .filter(|object| object.linear)
+            .map(|object| object.name.clone())
+            .collect();
+        visit(
+            unit,
+            &unit.tree.root,
+            &mut BTreeSet::new(),
+            false,
+            &linear_objects,
+        )?;
     }
     Ok(())
 }
@@ -2961,6 +3176,10 @@ fn analyze_object_contracts(
             SyntaxKind::TraitDeclaration => ObjectKind::Trait,
             _ => continue,
         };
+        let linear = node.children.iter().any(|child| {
+            child.kind == SyntaxKind::DeclarationQualifier
+                && node_text(&unit.source, child) == "linear"
+        });
         let name = declaration_name(node, &unit.source).ok_or_else(|| {
             failure(
                 &unit.source,
@@ -3057,6 +3276,7 @@ fn analyze_object_contracts(
             name,
             span: node.span,
             kind,
+            linear,
             base,
             interfaces,
             traits,
@@ -3064,6 +3284,16 @@ fn analyze_object_contracts(
         });
     }
     for object in &objects {
+        if object.linear
+            && (object.base.is_some() || !object.interfaces.is_empty() || !object.traits.is_empty())
+        {
+            return Err(failure(
+                &unit.source,
+                "T0098",
+                "a linear class cannot extend, implement, or use copyable object contracts",
+                object.span,
+            ));
+        }
         let require_kind = |name: &str, expected: ObjectKind, role: &str| {
             let valid = (expected == ObjectKind::Interface && name == "throwable")
                 || objects
@@ -3396,6 +3626,7 @@ fn analyze_types(package: &mut SemanticPackage) -> Result<(), SemanticFailure> {
     }
     populate_namespace_function_contracts(package);
     populate_function_aliases(package);
+    populate_function_type_dependencies(package);
     propagate_interface_receiver_mutability(package);
     validate_object_conformance(package)?;
     validate_descriptor_value_uses(package)?;
@@ -4066,6 +4297,37 @@ fn infer_throwing_effects(package: &mut SemanticPackage) -> Result<(), SemanticF
         }
         if node.kind == SyntaxKind::CallExpression
             && let Some(callee) = node.children.first()
+            && callee.kind == SyntaxKind::MemberExpression
+            && let [receiver, member] = callee.children.as_slice()
+        {
+            let member_name = node_text(&unit.source, member);
+            let receiver_type = infer_receiver_value_type(unit, receiver, &unit.typed_bindings)
+                .ok()
+                .flatten();
+            let mut errors = if member_name == "decode" {
+                BTreeSet::from(["/core/errors::decode-error".to_owned()])
+            } else if let Some(ValueType::Object(object)) = receiver_type {
+                unit.functions
+                    .iter()
+                    .find(|contract| {
+                        contract.owner.as_deref() == Some(object.as_str())
+                            && contract.name == member_name
+                    })
+                    .and_then(|contract| inferred.get(&key(contract.span)))
+                    .cloned()
+                    .unwrap_or_default()
+            } else {
+                BTreeSet::new()
+            };
+            errors.extend(
+                node.children
+                    .iter()
+                    .flat_map(|child| escaping_errors(package, unit, child, inferred)),
+            );
+            return errors;
+        }
+        if node.kind == SyntaxKind::CallExpression
+            && let Some(callee) = node.children.first()
             && callee.kind == SyntaxKind::Name
             && let Some(symbol) =
                 package.resolve_name_at(unit, callee.span.start, node_text(&unit.source, callee))
@@ -4129,20 +4391,16 @@ fn infer_throwing_effects(package: &mut SemanticPackage) -> Result<(), SemanticF
 
     let mut inferred_throwables = BTreeMap::<FunctionKey, BTreeSet<String>>::new();
     let mut bodies = BTreeMap::<FunctionKey, (usize, SyntaxNode)>::new();
-    for unit in &package.units {
-        for function in unit
-            .tree
-            .root
-            .children
+    for (unit_index, unit) in package.units.iter().enumerate() {
+        for contract in unit
+            .functions
             .iter()
-            .filter(|node| node.kind == SyntaxKind::FunctionDeclaration)
+            .filter(|contract| contract.span.file == unit.source.id())
         {
+            let Some(function) = find_node_by_span(&unit.tree.root, contract.span) else {
+                continue;
+            };
             let function_key = key(function.span);
-            let unit_index = package
-                .units
-                .iter()
-                .position(|candidate| std::ptr::eq(candidate, unit))
-                .expect("function unit belongs to semantic package");
             bodies.insert(function_key, (unit_index, function.clone()));
             let function_throwables = function
                 .children
@@ -4173,7 +4431,11 @@ fn infer_throwing_effects(package: &mut SemanticPackage) -> Result<(), SemanticF
         }
     }
     for unit in &package.units {
-        for contract in &unit.functions {
+        for contract in unit
+            .functions
+            .iter()
+            .filter(|contract| contract.span.file == unit.source.id())
+        {
             let Some(ValueType::Object(bound)) = contract.thrown_types.first() else {
                 continue;
             };
@@ -4522,6 +4784,9 @@ fn declared_value_type(
     let type_name = node_text(&unit.source, type_node).trim();
     if unit.objects.iter().any(|object| object.name == type_name) {
         return Ok(ValueType::Object(type_name.to_owned()));
+    }
+    if type_name == "encoding" {
+        return Ok(ValueType::Encoding);
     }
     parse_declared_value_type(type_name, aliases).ok_or_else(|| {
         failure(
@@ -5296,6 +5561,27 @@ fn infer_value_type(
             {
                 return Ok(Some(ValueType::TaskScope));
             }
+            if callee.kind == SyntaxKind::Name
+                && let Some(identity) = resolved_name_identity(unit, callee)
+            {
+                let platform_result = match identity {
+                    "/core/platform-streams::acquire-stdin"
+                    | "/core/platform-streams::acquire-stdout"
+                    | "/core/platform-streams::acquire-stderr" => {
+                        Some(ValueType::Scalar(ScalarType::Int64))
+                    }
+                    "/core/platform-streams::read" => Some(ValueType::PlatformReadResult),
+                    "/core/platform-streams::write" => Some(ValueType::PlatformWriteResult),
+                    "/core/platform-streams::flush"
+                    | "/core/platform-streams::sync-data"
+                    | "/core/platform-streams::sync-all"
+                    | "/core/platform-streams::close" => Some(ValueType::PlatformUnitResult),
+                    _ => None,
+                };
+                if platform_result.is_some() {
+                    return Ok(platform_result);
+                }
+            }
             if callee.kind == SyntaxKind::MemberExpression
                 && let [receiver, member] = callee.children.as_slice()
                 && matches!(
@@ -5408,12 +5694,22 @@ fn infer_value_type(
             if receiver_type == Some(ValueType::Scalar(ScalarType::String)) {
                 return Ok(Some(ValueType::Scalar(ScalarType::String)));
             }
+            if receiver_type == Some(ValueType::Scalar(ScalarType::Bytes))
+                && node_text(&unit.source, member) == "concat"
+            {
+                return Ok(Some(ValueType::Scalar(ScalarType::Bytes)));
+            }
             return Err(failure(
                 &unit.source,
                 "T0013",
                 format!(
-                    "`.{}` requires a `string` receiver, found `{}`",
+                    "`.{}` requires a `string` receiver{}; found `{}`",
                     node_text(&unit.source, member),
+                    if node_text(&unit.source, member) == "concat" {
+                        " or `bytes` receiver"
+                    } else {
+                        ""
+                    },
                     receiver_type
                         .map_or_else(|| "unknown".to_owned(), |value_type| value_type.to_string())
                 ),
@@ -5422,10 +5718,15 @@ fn infer_value_type(
         }
         if let Some(callee) = node.children.first()
             && callee.kind == SyntaxKind::MemberExpression
-            && let Some(ValueType::Function(_, result)) =
-                infer_member_value_type(unit, callee, bindings)?
+            && let Some(member_type) = infer_member_value_type(unit, callee, bindings)?
         {
-            return Ok(Some(result.value_type()));
+            match member_type {
+                ValueType::Function(_, result) => return Ok(Some(result.value_type())),
+                ValueType::AsyncFunction(_, result) => {
+                    return Ok(Some(ValueType::Task(result)));
+                }
+                _ => {}
+            }
         }
         if let Some(callee) = node.children.first()
             && callee.kind == SyntaxKind::Name
@@ -5438,11 +5739,11 @@ fn infer_value_type(
             {
                 return Ok(Some(ValueType::Object(name.to_owned())));
             }
-            if let Some(contract) = unit
-                .functions
-                .iter()
-                .find(|contract| contract.owner.is_none() && contract.name == name)
-            {
+            if let Some(contract) = unit.function_aliases.get(name).or_else(|| {
+                unit.functions
+                    .iter()
+                    .find(|contract| contract.owner.is_none() && contract.name == name)
+            }) {
                 let result = ElementType::new(
                     contract
                         .return_type
@@ -6068,15 +6369,17 @@ fn object_member_type(unit: &SemanticUnit, object_name: &str, member: &str) -> O
             .iter()
             .map(|parameter| parameter.value_type.clone().map(ElementType::new))
             .collect::<Option<Vec<_>>>()?;
-        return Some(ValueType::Function(
-            parameters,
-            ElementType::new(
-                method
-                    .return_type
-                    .clone()
-                    .unwrap_or(ValueType::Scalar(ScalarType::None)),
-            ),
-        ));
+        let result = ElementType::new(
+            method
+                .return_type
+                .clone()
+                .unwrap_or(ValueType::Scalar(ScalarType::None)),
+        );
+        return Some(if method.is_async {
+            ValueType::AsyncFunction(parameters, result)
+        } else {
+            ValueType::Function(parameters, result)
+        });
     }
     for used_trait in &object.traits {
         if let Some(found) = object_member_type(unit, used_trait, member) {
@@ -6136,6 +6439,43 @@ fn infer_member_value_type(
     ) {
         return Ok(Some(ValueType::Scalar(ScalarType::String)));
     }
+    if let Some(result) = &receiver_type
+        && matches!(
+            result,
+            ValueType::PlatformReadResult
+                | ValueType::PlatformWriteResult
+                | ValueType::PlatformUnitResult
+        )
+    {
+        let member_type = match (result, member_name) {
+            (ValueType::PlatformReadResult, "data") => Some(ValueType::Scalar(ScalarType::Bytes)),
+            (ValueType::PlatformReadResult | ValueType::PlatformWriteResult, "completed") => {
+                Some(ValueType::Scalar(ScalarType::Int))
+            }
+            (ValueType::PlatformReadResult, "end")
+            | (
+                ValueType::PlatformReadResult
+                | ValueType::PlatformWriteResult
+                | ValueType::PlatformUnitResult,
+                "failed",
+            ) => Some(ValueType::Scalar(ScalarType::Bool)),
+            (
+                ValueType::PlatformReadResult
+                | ValueType::PlatformWriteResult
+                | ValueType::PlatformUnitResult,
+                "message",
+            ) => Some(ValueType::Scalar(ScalarType::String)),
+            _ => None,
+        };
+        return member_type.map(Some).ok_or_else(|| {
+            failure(
+                &unit.source,
+                "T0097",
+                format!("`{result}` has no member `{member_name}`"),
+                member.span,
+            )
+        });
+    }
     if let Some(ValueType::TaskOutcome(result)) = &receiver_type {
         return match member_name {
             "completed" | "cancelled" => Ok(Some(ValueType::Scalar(ScalarType::Bool))),
@@ -6180,7 +6520,7 @@ fn infer_member_value_type(
         && (StringFamily::from_source_name(member_name).is_some()
             || matches!(member_name, "concat" | "join"));
     let bytes_method = matches!(&receiver_type, Some(ValueType::Scalar(ScalarType::Bytes)))
-        && member_name == "decode";
+        && matches!(member_name, "decode" | "concat");
     if collection_method || string_method || bytes_method {
         let family = if string_method {
             "string methods"
@@ -7612,9 +7952,6 @@ fn collect_lexical_scopes(
     let mut scopes = Vec::new();
     for node in &unit.tree.root.children {
         match node.kind {
-            SyntaxKind::FunctionDeclaration => {
-                add_lexical_scope(unit, namespaces, globals, &mut scopes, node, None, true)?;
-            }
             SyntaxKind::ClassDeclaration
             | SyntaxKind::InterfaceDeclaration
             | SyntaxKind::TraitDeclaration => {
@@ -7640,6 +7977,9 @@ fn collect_lexical_scopes(
                     }
                 }
             }
+            _ if is_function_node(node) => {
+                add_lexical_scope(unit, namespaces, globals, &mut scopes, node, None, true)?;
+            }
             SyntaxKind::Block => {
                 add_lexical_scope(unit, namespaces, globals, &mut scopes, node, None, false)?;
             }
@@ -7664,6 +8004,24 @@ fn add_lexical_scope(
         parent,
         symbols: BTreeMap::new(),
     });
+    if parent.is_none() && function_body {
+        let mut namespace_paths = namespace_chain(&unit.namespace).collect::<Vec<_>>();
+        namespace_paths.reverse();
+        for path in namespace_paths {
+            let Some(namespace) = namespaces.get(&path) else {
+                continue;
+            };
+            for (name, symbol) in &namespace.symbols {
+                if visible_from(symbol, &unit.namespace) && symbol.available_in_function_body() {
+                    scopes[index]
+                        .symbols
+                        .entry(name.clone())
+                        .or_default()
+                        .push(symbol.clone());
+                }
+            }
+        }
+    }
     if node.kind == SyntaxKind::Block {
         populate_scope(unit, namespaces, globals, scopes, index, node)?;
         return Ok(index);
@@ -8762,6 +9120,24 @@ fn bootstrap_namespaces() -> BTreeMap<String, Namespace> {
     namespaces.insert(
         "/core/async".to_owned(),
         namespace_with_objects("/core/async", ["task-scope"], SymbolKind::Function),
+    );
+    namespaces.insert(
+        "/core/platform-streams".to_owned(),
+        namespace_with_objects(
+            "/core/platform-streams",
+            [
+                "acquire-stdin",
+                "acquire-stdout",
+                "acquire-stderr",
+                "read",
+                "write",
+                "flush",
+                "sync-data",
+                "sync-all",
+                "close",
+            ],
+            SymbolKind::Function,
+        ),
     );
     let mut types = vec![
         "int".to_owned(),

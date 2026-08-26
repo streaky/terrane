@@ -66,6 +66,9 @@ impl Parser<'_> {
             "class" => self.parse_object_declaration(SyntaxKind::ClassDeclaration),
             "interface" => self.parse_object_declaration(SyntaxKind::InterfaceDeclaration),
             "trait" => self.parse_object_declaration(SyntaxKind::TraitDeclaration),
+            "linear" if self.peek_text(1) == Some("class") => {
+                self.parse_object_declaration(SyntaxKind::ClassDeclaration)
+            }
             "global" | "constant" | "pure" | "io" | "blocks" | "mutating" | "mutates"
             | "awaits" | "foreign"
                 if self.peek_text(1) == Some("function") =>
@@ -161,8 +164,11 @@ impl Parser<'_> {
 
     fn parse_object_declaration(&mut self, kind: SyntaxKind) -> SyntaxNode {
         let start = self.position;
-        self.bump();
         let mut children = Vec::new();
+        if self.at_text("linear") {
+            children.push(self.leaf(SyntaxKind::DeclarationQualifier));
+        }
+        self.bump();
         if self.at(TokenKind::Identifier) {
             children.push(self.leaf(SyntaxKind::Name));
         } else {

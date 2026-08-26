@@ -1,0 +1,130 @@
+#[derive(Clone)]
+struct TerranePlatformReadResult {
+    data: Vec<u8>,
+    completed: terrane_int_support::Int,
+    end: bool,
+    failed: bool,
+    message: String,
+}
+
+#[derive(Clone)]
+struct TerranePlatformWriteResult {
+    completed: terrane_int_support::Int,
+    failed: bool,
+    message: String,
+}
+
+#[derive(Clone)]
+struct TerranePlatformUnitResult {
+    failed: bool,
+    message: String,
+}
+
+fn terrane_platform_acquire_stdin() -> i64 {
+    terrane_stream_abi::acquire_stdin().id()
+}
+
+fn terrane_platform_acquire_stdout() -> i64 {
+    terrane_stream_abi::acquire_stdout().id()
+}
+
+fn terrane_platform_acquire_stderr() -> i64 {
+    terrane_stream_abi::acquire_stderr().id()
+}
+
+fn terrane_platform_read(
+    handle: i64,
+    limit: terrane_int_support::Int,
+) -> TerranePlatformReadResult {
+    let Some(limit) = limit.as_usize() else {
+        return TerranePlatformReadResult {
+            data: Vec::new(),
+            completed: terrane_int_support::Int::from(0_i64),
+            end: false,
+            failed: true,
+            message: "stream read count is outside the supported size range".to_owned(),
+        };
+    };
+    match terrane_stream_abi::read(terrane_stream_abi::StreamHandle::from_id(handle), limit) {
+        Ok(outcome) => TerranePlatformReadResult {
+            completed: terrane_int_support::Int::from(outcome.data.len() as i128),
+            data: outcome.data,
+            end: outcome.end,
+            failed: false,
+            message: String::new(),
+        },
+        Err(error) => TerranePlatformReadResult {
+            data: Vec::new(),
+            completed: terrane_int_support::Int::from(0_i64),
+            end: false,
+            failed: true,
+            message: error.to_string(),
+        },
+    }
+}
+
+fn terrane_platform_write(
+    handle: i64,
+    data: &[u8],
+    offset: terrane_int_support::Int,
+) -> TerranePlatformWriteResult {
+    let Some(offset) = offset.as_usize().filter(|offset| *offset <= data.len()) else {
+        return TerranePlatformWriteResult {
+            completed: terrane_int_support::Int::from(0_i64),
+            failed: true,
+            message: "stream write offset is outside the buffer".to_owned(),
+        };
+    };
+    match terrane_stream_abi::write(
+        terrane_stream_abi::StreamHandle::from_id(handle),
+        &data[offset..],
+    ) {
+        Ok(completed) => TerranePlatformWriteResult {
+            completed: terrane_int_support::Int::from(completed as i128),
+            failed: false,
+            message: String::new(),
+        },
+        Err(error) => TerranePlatformWriteResult {
+            completed: terrane_int_support::Int::from(0_i64),
+            failed: true,
+            message: error.to_string(),
+        },
+    }
+}
+
+fn terrane_platform_flush(handle: i64) -> TerranePlatformUnitResult {
+    terrane_platform_unit(terrane_stream_abi::flush(
+        terrane_stream_abi::StreamHandle::from_id(handle),
+    ))
+}
+
+fn terrane_platform_sync_data(handle: i64) -> TerranePlatformUnitResult {
+    terrane_platform_unit(terrane_stream_abi::sync_data(
+        terrane_stream_abi::StreamHandle::from_id(handle),
+    ))
+}
+
+fn terrane_platform_sync_all(handle: i64) -> TerranePlatformUnitResult {
+    terrane_platform_unit(terrane_stream_abi::sync_all(
+        terrane_stream_abi::StreamHandle::from_id(handle),
+    ))
+}
+
+fn terrane_platform_close(handle: i64) -> TerranePlatformUnitResult {
+    terrane_platform_unit(terrane_stream_abi::close(
+        terrane_stream_abi::StreamHandle::from_id(handle),
+    ))
+}
+
+fn terrane_platform_unit(result: std::io::Result<()>) -> TerranePlatformUnitResult {
+    match result {
+        Ok(()) => TerranePlatformUnitResult {
+            failed: false,
+            message: String::new(),
+        },
+        Err(error) => TerranePlatformUnitResult {
+            failed: true,
+            message: error.to_string(),
+        },
+    }
+}

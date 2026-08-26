@@ -1,0 +1,264 @@
+namespace standard/streams
+
+from /core/types import int64
+from /core/errors import decode-error
+from /core/platform-streams import acquire-stdin, acquire-stdout, acquire-stderr
+from /core/platform-streams import read as platform-read, write as platform-write
+from /core/platform-streams import flush as platform-flush
+from /core/platform-streams import sync-data as platform-sync-data
+from /core/platform-streams import sync-all as platform-sync-all
+from /core/platform-streams import close as platform-close
+
+class operation-result
+    completed bool = false
+    failed bool = false
+    message string = ''
+
+    function construct; completed bool, failed bool, message string
+        this.completed = completed
+        this.failed = failed
+        this.message = message
+
+class read-result
+    data bytes = b''
+    completed int = 0
+    end bool = false
+    cancelled bool = false
+    failed bool = false
+    message string = ''
+
+    function construct; data bytes, completed int, end bool, cancelled bool, failed bool, message string
+        this.data = data
+        this.completed = completed
+        this.end = end
+        this.cancelled = cancelled
+        this.failed = failed
+        this.message = message
+
+class text-read-result
+    text string = ''
+    completed int = 0
+    end bool = false
+    cancelled bool = false
+    failed bool = false
+    message string = ''
+
+    function construct; text string, completed int, end bool, cancelled bool, failed bool, message string
+        this.text = text
+        this.completed = completed
+        this.end = end
+        this.cancelled = cancelled
+        this.failed = failed
+        this.message = message
+
+class write-result
+    completed int = 0
+    cancelled bool = false
+    failed bool = false
+    message string = ''
+
+    function construct; completed int, cancelled bool, failed bool, message string
+        this.completed = completed
+        this.cancelled = cancelled
+        this.failed = failed
+        this.message = message
+
+linear class byte-reader
+    handle int64 = 0
+
+    function construct; handle int64
+        this.handle = handle
+
+    function read read-result; count int
+        raw = platform-read; this.handle, count
+        return read-result; raw.data, raw.completed, raw.end, false, raw.failed, raw.message
+
+    function read-exact read-result; count int
+        data bytes = b''
+        completed int = 0
+        end bool = false
+        failed bool = false
+        message string = ''
+        while completed < count and not end and not failed
+            part = platform-read; this.handle, count - completed
+            data = data.concat; part.data
+            completed = completed + part.completed
+            end = part.end
+            failed = part.failed
+            message = part.message
+            if part.completed == 0 and not part.end and not part.failed
+                failed = true
+                message = 'stream read made no progress'
+        return read-result; data, completed, end, false, failed, message
+
+    function read-all read-result; limit int
+        return this.read-exact; limit
+
+    async function read-async read-result; count int
+        return this.read; count
+
+    function text text-reader; encoding encoding
+        return text-reader; this.handle, encoding
+
+    function close operation-result;
+        raw = platform-close; this.handle
+        return operation-result; not raw.failed, raw.failed, raw.message
+
+    function destruct;
+        closed = platform-close; this.handle
+        if closed.failed
+            return
+
+linear class byte-writer
+    handle int64 = 0
+
+    function construct; handle int64
+        this.handle = handle
+
+    function write write-result; data bytes
+        offset int = 0
+        raw = platform-write; this.handle, data, offset
+        return write-result; raw.completed, false, raw.failed, raw.message
+
+    function write-all write-result; data bytes
+        completed int = 0
+        failed bool = false
+        message string = ''
+        while completed < data.length and not failed
+            part = platform-write; this.handle, data, completed
+            completed = completed + part.completed
+            failed = part.failed
+            message = part.message
+            if part.completed == 0 and not part.failed
+                failed = true
+                message = 'stream write made no progress'
+        return write-result; completed, false, failed, message
+
+    async function write-async write-result; data bytes
+        return this.write; data
+
+    function text text-writer; encoding encoding
+        return text-writer; this.handle, encoding
+
+    function flush operation-result;
+        raw = platform-flush; this.handle
+        return operation-result; not raw.failed, raw.failed, raw.message
+
+    function sync-data operation-result;
+        raw = platform-sync-data; this.handle
+        return operation-result; not raw.failed, raw.failed, raw.message
+
+    function sync-all operation-result;
+        raw = platform-sync-all; this.handle
+        return operation-result; not raw.failed, raw.failed, raw.message
+
+    function close operation-result;
+        raw = platform-close; this.handle
+        return operation-result; not raw.failed, raw.failed, raw.message
+
+    function destruct;
+        closed = platform-close; this.handle
+        if closed.failed
+            return
+
+linear class text-reader
+    handle int64 = 0
+    encoding encoding = utf8
+
+    function construct; handle int64, encoding encoding
+        this.handle = handle
+        this.encoding = encoding
+
+    function read text-read-result throws decode-error; count int
+        raw = platform-read; this.handle, count
+        text string = raw.data.decode; this.encoding
+        return text-read-result; text, raw.completed, raw.end, false, raw.failed, raw.message
+
+    function read-exact text-read-result throws decode-error; count int
+        data bytes = b''
+        completed int = 0
+        end bool = false
+        failed bool = false
+        message string = ''
+        while completed < count and not end and not failed
+            part = platform-read; this.handle, count - completed
+            data = data.concat; part.data
+            completed = completed + part.completed
+            end = part.end
+            failed = part.failed
+            message = part.message
+            if part.completed == 0 and not part.end and not part.failed
+                failed = true
+                message = 'stream read made no progress'
+        text string = data.decode; this.encoding
+        return text-read-result; text, completed, end, false, failed, message
+
+    function read-all text-read-result throws decode-error; limit int
+        return this.read-exact; limit
+
+    async function read-async text-read-result throws decode-error; count int
+        return this.read; count
+
+    function close operation-result;
+        raw = platform-close; this.handle
+        return operation-result; not raw.failed, raw.failed, raw.message
+
+    function destruct;
+        closed = platform-close; this.handle
+        if closed.failed
+            return
+
+linear class text-writer
+    handle int64 = 0
+    encoding encoding = utf8
+
+    function construct; handle int64, encoding encoding
+        this.handle = handle
+        this.encoding = encoding
+
+    function write write-result; text string
+        offset int = 0
+        raw = platform-write; this.handle, (text.encode; this.encoding), offset
+        return write-result; raw.completed, false, raw.failed, raw.message
+    function write-all write-result; text string
+        data bytes = text.encode; this.encoding
+        completed int = 0
+        failed bool = false
+        message string = ''
+        while completed < data.length and not failed
+            part = platform-write; this.handle, data, completed
+            completed = completed + part.completed
+            failed = part.failed
+            message = part.message
+            if part.completed == 0 and not part.failed
+                failed = true
+                message = 'stream write made no progress'
+        return write-result; completed, false, failed, message
+
+    function line write-result; text string
+        return this.write-all; (text.concat; '\n')
+
+    async function write-async write-result; text string
+        return this.write; text
+
+    function flush operation-result;
+        raw = platform-flush; this.handle
+        return operation-result; not raw.failed, raw.failed, raw.message
+
+    function close operation-result;
+        raw = platform-close; this.handle
+        return operation-result; not raw.failed, raw.failed, raw.message
+
+    function destruct;
+        closed = platform-close; this.handle
+        if closed.failed
+            return
+
+function stdin byte-reader;
+    return byte-reader; (acquire-stdin;)
+
+function stdout byte-writer;
+    return byte-writer; (acquire-stdout;)
+
+function stderr byte-writer;
+    return byte-writer; (acquire-stderr;)
