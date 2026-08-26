@@ -5,11 +5,14 @@ false7
 false7false
 false
 terrane-filesystem-case.txt
-false
-falsetrue
+falsefalse
+falsesymlink
+falseterrane-filesystem-case.txt
 falsefalse
 true
-false8
+false7
 false2
 false2
+false
+false
 false

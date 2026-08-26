@@ -110,7 +110,9 @@ Terrane package
     │   ├── path-components / path-is-absolute
     │   └── path-name / path-parent / path-stem / path-extension
     ├── /standard/filesystem                   bundled Terrane package over minimal host intrinsics
-    │   ├── filesystem                         explicit capability object
+    │   ├── filesystem                         unforgeable capability, acquired via filesystem-capability
+    │   ├── filesystem-capability() -> filesystem
+    │   ├── existence-result                   exists / failed / message result object
     │   ├── file-handle                        inferred resource-owning file stream
     │   ├── directory-handle                   inferred resource-owning directory anchor
     │   ├── open-file(filesystem, path, …) -> file-handle
@@ -120,7 +122,7 @@ Terrane package
     │   ├── filesystem-open-beneath(filesystem, directory, relative, cross-filesystem) -> directory-handle
     │   ├── open-file-beneath(filesystem, ref directory-handle, relative, …) -> file-handle
     │   ├── filesystem-exists / filesystem-metadata / filesystem-symlink-metadata
-    │   ├── filesystem-canonical / filesystem-realpath / filesystem-read-link
+    │   ├── filesystem-realpath / filesystem-read-link
     │   ├── filesystem-read-bounded / filesystem-write-atomic
     │   └── filesystem-rename / filesystem-remove
     ├── /standard/process                      bundled Terrane package over minimal host intrinsics

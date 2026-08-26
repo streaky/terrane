@@ -114,7 +114,7 @@ fn every_manifest_drives_a_conformance_case() {
                     .rust
                     .replace(terrane_compiler::VERSION, "<version>");
                 assert_eq!(normalized, expected, "{}", case.display());
-                compile_and_maybe_run(case, phase, &compilation.rust, &build);
+                compile_and_maybe_run(case, phase, &manifest, &compilation.rust, &build);
             }
             ("check", "reject") => {
                 let code = field(&manifest, "code").unwrap();
@@ -143,7 +143,13 @@ fn every_manifest_drives_a_conformance_case() {
     }
 }
 
-fn compile_and_maybe_run(case: &Path, phase: &str, rust: &str, build: &ConformanceBuild) {
+fn compile_and_maybe_run(
+    case: &Path,
+    phase: &str,
+    manifest: &str,
+    rust: &str,
+    build: &ConformanceBuild,
+) {
     build.write_manifest();
     let build_dir = &build.root;
     fs::write(build_dir.join("src/main.rs"), rust).unwrap();
@@ -168,6 +174,20 @@ fn compile_and_maybe_run(case: &Path, phase: &str, rust: &str, build: &Conforman
             command.args(arguments.lines());
         }
         command.args(platform_arguments(case.join("arguments-raw.hex")));
+        if boolean_field(manifest, "isolated-working-directory") == Some(true) {
+            let working_directory = build_dir.join("run");
+            if working_directory.exists() {
+                fs::remove_dir_all(&working_directory).unwrap();
+            }
+            fs::create_dir(&working_directory).unwrap();
+            if let (Some(link), Some(target)) = (
+                field(manifest, "symlink-fixture"),
+                field(manifest, "symlink-target"),
+            ) {
+                create_file_symlink(target, working_directory.join(link));
+            }
+            command.current_dir(working_directory);
+        }
         let mut child = command
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
@@ -201,6 +221,16 @@ fn compile_and_maybe_run(case: &Path, phase: &str, rust: &str, build: &Conforman
             case.display()
         );
     }
+}
+
+#[cfg(unix)]
+fn create_file_symlink(target: &str, link: PathBuf) {
+    std::os::unix::fs::symlink(target, link).unwrap();
+}
+
+#[cfg(windows)]
+fn create_file_symlink(target: &str, link: PathBuf) {
+    std::os::windows::fs::symlink_file(target, link).unwrap();
 }
 
 fn write_support_crates(directory: &Path) {

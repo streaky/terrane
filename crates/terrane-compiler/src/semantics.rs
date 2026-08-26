@@ -6501,7 +6501,14 @@ fn infer_value_type(
                     | "/core/platform-streams::sync-all"
                     | "/core/platform-streams::close"
                     | "/core/platform-streams::release" => Some(ValueType::PlatformUnitResult),
-                    "/core/platform-system::filesystem-call" => {
+                    "/core/platform-system::filesystem-exists"
+                    | "/core/platform-system::filesystem-metadata"
+                    | "/core/platform-system::filesystem-realpath"
+                    | "/core/platform-system::filesystem-read-link"
+                    | "/core/platform-system::filesystem-read-bounded"
+                    | "/core/platform-system::filesystem-write-atomic"
+                    | "/core/platform-system::filesystem-rename"
+                    | "/core/platform-system::filesystem-remove" => {
                         Some(ValueType::PlatformFilesystemResult)
                     }
                     "/core/platform-system::result-failed"
@@ -10108,7 +10115,14 @@ fn bootstrap_namespaces() -> BTreeMap<String, Namespace> {
             [
                 "filesystem-authority",
                 "acquire-filesystem-authority",
-                "filesystem-call",
+                "filesystem-exists",
+                "filesystem-metadata",
+                "filesystem-realpath",
+                "filesystem-read-link",
+                "filesystem-read-bounded",
+                "filesystem-write-atomic",
+                "filesystem-rename",
+                "filesystem-remove",
                 "result-failed",
                 "result-message",
                 "result-text",

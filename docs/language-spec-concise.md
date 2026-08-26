@@ -717,12 +717,12 @@ packages: /standard/paths | /standard/filesystem | /standard/process; ordinary i
 path: platform-neutral lexical value with canonical '/' separator; no host lookup or existence implication
 path_normalise: discard empty/'.'; resolve '..' lexically; rooted paths never cross root; unrooted unresolved leading parents remain
 path_join: absolute child replaces base; otherwise concatenate then normalise
-canonicalisation: `filesystem-canonical` and explicit `filesystem-realpath` use the same capability-mediated native host resolution; follows filesystem and may fail; lexical path operations remain Terrane
-filesystem_authority: unforgeable value acquired only by package factory; REQUIRED by every host filesystem operation and handle method
+canonicalisation: `filesystem-realpath` is the capability-mediated native host resolution operation; follows filesystem and may fail; lexical path operations remain Terrane
+filesystem_authority: unforgeable value acquired only through `filesystem-capability`; REQUIRED by every host filesystem operation and handle method
 metadata: metadata follows final link; symlink-metadata inspects it; portable kind/size/read-only plus platform permission detail
 bounded_read: explicit limit; excess fails, never truncates
 atomic_replace: sibling temporary then rename over destination without following destination link
-directory_relative: resource-owning directory handle; no-follow default; beneath rejects escape; cross-filesystem requires explicit permission
+directory_relative: resource-owning directory handle; final anchor component and all beneath operations are no-follow; intermediate components of the caller-supplied anchor path use ordinary host resolution; beneath rejects escape; cross-filesystem requires explicit permission
 handles: linear resource transfer and idempotent host release shared with streams; partial file write exposes completed offset for resume
 platform_string: exactly one host component; is-text selects lossless Unicode text or lossless raw bytes; NEVER replacement decoding
 snapshots: arguments and environment are explicit; environment returns paired platform-string names/values

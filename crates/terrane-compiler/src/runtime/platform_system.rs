@@ -141,71 +141,86 @@ fn terrane_atomic_replace(path: &std::path::Path, data: &[u8]) -> std::io::Resul
 }
 
 
-fn terrane_filesystem_call(
-    operation: String,
+fn terrane_filesystem_exists(path: String) -> TerraneFilesystemResult {
+    match std::path::Path::new(&path).try_exists() {
+        Ok(exists) => TerraneFilesystemResult {
+            flag: exists,
+            ..TerraneFilesystemResult::default()
+        },
+        Err(error) => terrane_io_error(error),
+    }
+}
+
+fn terrane_filesystem_metadata(path: String, follow: bool) -> TerraneFilesystemResult {
+    terrane_metadata(std::path::Path::new(&path), follow)
+}
+
+fn terrane_filesystem_realpath(path: String) -> TerraneFilesystemResult {
+    match std::fs::canonicalize(path).and_then(terrane_path_text) {
+        Ok(value) => TerraneFilesystemResult {
+            text: value,
+            ..TerraneFilesystemResult::default()
+        },
+        Err(error) => terrane_io_error(error),
+    }
+}
+
+fn terrane_filesystem_read_link(path: String) -> TerraneFilesystemResult {
+    match std::fs::read_link(path).and_then(terrane_path_text) {
+        Ok(value) => TerraneFilesystemResult {
+            text: value,
+            ..TerraneFilesystemResult::default()
+        },
+        Err(error) => terrane_io_error(error),
+    }
+}
+
+fn terrane_filesystem_read_bounded(
     path: String,
-    other: String,
-    data: Vec<u8>,
     limit: impl Into<terrane_int_support::Int>,
-    follow: bool,
 ) -> TerraneFilesystemResult {
-    let limit = limit.into();
-    let path = std::path::Path::new(&path);
-    match operation.as_str() {
-        "exists" => match path.try_exists() {
-            Ok(exists) => TerraneFilesystemResult {
-                flag: exists,
-                ..TerraneFilesystemResult::default()
-            },
-            Err(error) => terrane_io_error(error),
+    use std::io::Read as _;
+    let Some(limit) = limit.into().as_usize() else {
+        return terrane_io_error(std::io::Error::new(
+            std::io::ErrorKind::InvalidInput,
+            "invalid read limit",
+        ));
+    };
+    let mut value = Vec::with_capacity(limit.min(8192));
+    let outcome = std::fs::File::open(path)
+        .and_then(|file| file.take(limit.saturating_add(1) as u64).read_to_end(&mut value));
+    match outcome {
+        Ok(_) if value.len() <= limit => TerraneFilesystemResult {
+            number: value.len() as i128,
+            data: value,
+            ..TerraneFilesystemResult::default()
         },
-        "metadata" => terrane_metadata(path, follow),
-        "canonical" | "realpath" => match std::fs::canonicalize(path).and_then(terrane_path_text) {
-            Ok(value) => TerraneFilesystemResult {
-                text: value,
-                ..TerraneFilesystemResult::default()
-            },
-            Err(error) => terrane_io_error(error),
-        },
-        "read-link" => match std::fs::read_link(path).and_then(terrane_path_text) {
-            Ok(value) => TerraneFilesystemResult {
-                text: value,
-                ..TerraneFilesystemResult::default()
-            },
-            Err(error) => terrane_io_error(error),
-        },
-        "read" => {
-            use std::io::Read as _;
-            let Some(limit) = limit.as_usize() else {
-                return terrane_io_error(std::io::Error::new(std::io::ErrorKind::InvalidInput, "invalid read limit"));
-            };
-            let mut value = Vec::with_capacity(limit.min(8192));
-            let outcome = std::fs::File::open(path).and_then(|file| {
-                file.take(limit.saturating_add(1) as u64).read_to_end(&mut value)
-            });
-            match outcome {
-                Ok(_) if value.len() <= limit => TerraneFilesystemResult {
-                    number: value.len() as i128,
-                    data: value,
-                    ..TerraneFilesystemResult::default()
-                },
-                Ok(_) => terrane_io_error(std::io::Error::new(std::io::ErrorKind::FileTooLarge, "file exceeds declared read limit")),
-                Err(error) => terrane_io_error(error),
-            }
-        }
-        "atomic-write" => match terrane_atomic_replace(path, &data) {
-            Ok(()) => TerraneFilesystemResult::default(),
-            Err(error) => terrane_io_error(error),
-        },
-        "remove" => match std::fs::remove_file(path) {
-            Ok(()) => TerraneFilesystemResult::default(),
-            Err(error) => terrane_io_error(error),
-        },
-        "rename" => match std::fs::rename(path, &other) {
-            Ok(()) => TerraneFilesystemResult::default(),
-            Err(error) => terrane_io_error(error),
-        },
-        _ => terrane_io_error(std::io::Error::new(std::io::ErrorKind::InvalidInput, "unknown filesystem operation")),
+        Ok(_) => terrane_io_error(std::io::Error::new(
+            std::io::ErrorKind::FileTooLarge,
+            "file exceeds declared read limit",
+        )),
+        Err(error) => terrane_io_error(error),
+    }
+}
+
+fn terrane_filesystem_write_atomic(path: String, data: Vec<u8>) -> TerraneFilesystemResult {
+    match terrane_atomic_replace(std::path::Path::new(&path), &data) {
+        Ok(()) => TerraneFilesystemResult::default(),
+        Err(error) => terrane_io_error(error),
+    }
+}
+
+fn terrane_filesystem_remove(path: String) -> TerraneFilesystemResult {
+    match std::fs::remove_file(path) {
+        Ok(()) => TerraneFilesystemResult::default(),
+        Err(error) => terrane_io_error(error),
+    }
+}
+
+fn terrane_filesystem_rename(source: String, destination: String) -> TerraneFilesystemResult {
+    match std::fs::rename(source, destination) {
+        Ok(()) => TerraneFilesystemResult::default(),
+        Err(error) => terrane_io_error(error),
     }
 }
 

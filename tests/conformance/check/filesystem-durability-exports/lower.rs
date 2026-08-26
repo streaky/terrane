@@ -514,111 +514,98 @@ fn terrane_atomic_replace(path: &std::path::Path, data: &[u8]) -> std::io::Resul
         }
     }
 }
-fn terrane_filesystem_call(
-    operation: String,
+fn terrane_filesystem_exists(path: String) -> TerraneFilesystemResult {
+    match std::path::Path::new(&path).try_exists() {
+        Ok(exists) => {
+            TerraneFilesystemResult {
+                flag: exists,
+                ..TerraneFilesystemResult::default()
+            }
+        }
+        Err(error) => terrane_io_error(error),
+    }
+}
+fn terrane_filesystem_metadata(path: String, follow: bool) -> TerraneFilesystemResult {
+    terrane_metadata(std::path::Path::new(&path), follow)
+}
+fn terrane_filesystem_realpath(path: String) -> TerraneFilesystemResult {
+    match std::fs::canonicalize(path).and_then(terrane_path_text) {
+        Ok(value) => {
+            TerraneFilesystemResult {
+                text: value,
+                ..TerraneFilesystemResult::default()
+            }
+        }
+        Err(error) => terrane_io_error(error),
+    }
+}
+fn terrane_filesystem_read_link(path: String) -> TerraneFilesystemResult {
+    match std::fs::read_link(path).and_then(terrane_path_text) {
+        Ok(value) => {
+            TerraneFilesystemResult {
+                text: value,
+                ..TerraneFilesystemResult::default()
+            }
+        }
+        Err(error) => terrane_io_error(error),
+    }
+}
+fn terrane_filesystem_read_bounded(
     path: String,
-    other: String,
-    data: Vec<u8>,
     limit: impl Into<terrane_int_support::Int>,
-    follow: bool,
 ) -> TerraneFilesystemResult {
-    let limit = limit.into();
-    let path = std::path::Path::new(&path);
-    match operation.as_str() {
-        "exists" => {
-            match path.try_exists() {
-                Ok(exists) => {
-                    TerraneFilesystemResult {
-                        flag: exists,
-                        ..TerraneFilesystemResult::default()
-                    }
-                }
-                Err(error) => terrane_io_error(error),
+    use std::io::Read as _;
+    let Some(limit) = limit.into().as_usize() else {
+        return terrane_io_error(
+            std::io::Error::new(std::io::ErrorKind::InvalidInput, "invalid read limit"),
+        );
+    };
+    let mut value = Vec::with_capacity(limit.min(8192));
+    let outcome = std::fs::File::open(path)
+        .and_then(|file| {
+            file.take(limit.saturating_add(1) as u64).read_to_end(&mut value)
+        });
+    match outcome {
+        Ok(_) if value.len() <= limit => {
+            TerraneFilesystemResult {
+                number: value.len() as i128,
+                data: value,
+                ..TerraneFilesystemResult::default()
             }
         }
-        "metadata" => terrane_metadata(path, follow),
-        "canonical" | "realpath" => {
-            match std::fs::canonicalize(path).and_then(terrane_path_text) {
-                Ok(value) => {
-                    TerraneFilesystemResult {
-                        text: value,
-                        ..TerraneFilesystemResult::default()
-                    }
-                }
-                Err(error) => terrane_io_error(error),
-            }
-        }
-        "read-link" => {
-            match std::fs::read_link(path).and_then(terrane_path_text) {
-                Ok(value) => {
-                    TerraneFilesystemResult {
-                        text: value,
-                        ..TerraneFilesystemResult::default()
-                    }
-                }
-                Err(error) => terrane_io_error(error),
-            }
-        }
-        "read" => {
-            use std::io::Read as _;
-            let Some(limit) = limit.as_usize() else {
-                return terrane_io_error(
-                    std::io::Error::new(
-                        std::io::ErrorKind::InvalidInput,
-                        "invalid read limit",
-                    ),
-                );
-            };
-            let mut value = Vec::with_capacity(limit.min(8192));
-            let outcome = std::fs::File::open(path)
-                .and_then(|file| {
-                    file.take(limit.saturating_add(1) as u64).read_to_end(&mut value)
-                });
-            match outcome {
-                Ok(_) if value.len() <= limit => {
-                    TerraneFilesystemResult {
-                        number: value.len() as i128,
-                        data: value,
-                        ..TerraneFilesystemResult::default()
-                    }
-                }
-                Ok(_) => {
-                    terrane_io_error(
-                        std::io::Error::new(
-                            std::io::ErrorKind::FileTooLarge,
-                            "file exceeds declared read limit",
-                        ),
-                    )
-                }
-                Err(error) => terrane_io_error(error),
-            }
-        }
-        "atomic-write" => {
-            match terrane_atomic_replace(path, &data) {
-                Ok(()) => TerraneFilesystemResult::default(),
-                Err(error) => terrane_io_error(error),
-            }
-        }
-        "remove" => {
-            match std::fs::remove_file(path) {
-                Ok(()) => TerraneFilesystemResult::default(),
-                Err(error) => terrane_io_error(error),
-            }
-        }
-        "rename" => {
-            match std::fs::rename(path, &other) {
-                Ok(()) => TerraneFilesystemResult::default(),
-                Err(error) => terrane_io_error(error),
-            }
-        }
-        _ => {
+        Ok(_) => {
             terrane_io_error(
                 std::io::Error::new(
-                    std::io::ErrorKind::InvalidInput,
-                    "unknown filesystem operation",
+                    std::io::ErrorKind::FileTooLarge,
+                    "file exceeds declared read limit",
                 ),
             )
         }
+        Err(error) => terrane_io_error(error),
+    }
+}
+fn terrane_filesystem_write_atomic(
+    path: String,
+    data: Vec<u8>,
+) -> TerraneFilesystemResult {
+    match terrane_atomic_replace(std::path::Path::new(&path), &data) {
+        Ok(()) => TerraneFilesystemResult::default(),
+        Err(error) => terrane_io_error(error),
+    }
+}
+fn terrane_filesystem_remove(path: String) -> TerraneFilesystemResult {
+    match std::fs::remove_file(path) {
+        Ok(()) => TerraneFilesystemResult::default(),
+        Err(error) => terrane_io_error(error),
+    }
+}
+fn terrane_filesystem_rename(
+    source: String,
+    destination: String,
+) -> TerraneFilesystemResult {
+    match std::fs::rename(source, destination) {
+        Ok(()) => TerraneFilesystemResult::default(),
+        Err(error) => terrane_io_error(error),
     }
 }
 fn terrane_path_text(path: std::path::PathBuf) -> std::io::Result<String> {
@@ -1016,14 +1003,7 @@ pub fn filesystem_capability() -> Filesystem {
 }
 pub fn filesystem_exists(capability: Filesystem, target: Path) -> ExistenceResult {
     let _ = &capability;
-    let record: TerraneFilesystemResult = terrane_filesystem_call(
-        String::from("exists"),
-        target.text,
-        String::from(""),
-        Vec::from([]),
-        terrane_int_support::Int::from(0_i128),
-        false,
-    );
+    let record: TerraneFilesystemResult = terrane_filesystem_exists(target.text);
     return ExistenceResult::terrane_construct(
         terrane_filesystem_result_bool(&record),
         terrane_filesystem_result_failed(&record),
@@ -1032,14 +1012,7 @@ pub fn filesystem_exists(capability: Filesystem, target: Path) -> ExistenceResul
 }
 pub fn filesystem_metadata(capability: Filesystem, target: Path) -> FileMetadata {
     let _ = &capability;
-    let record: TerraneFilesystemResult = terrane_filesystem_call(
-        String::from("metadata"),
-        target.text,
-        String::from(""),
-        Vec::from([]),
-        terrane_int_support::Int::from(0_i128),
-        true,
-    );
+    let record: TerraneFilesystemResult = terrane_filesystem_metadata(target.text, true);
     return FileMetadata::terrane_construct(
         terrane_filesystem_result_text(&record),
         terrane_filesystem_result_int(&record),
@@ -1054,12 +1027,8 @@ pub fn filesystem_symlink_metadata(
     target: Path,
 ) -> FileMetadata {
     let _ = &capability;
-    let record: TerraneFilesystemResult = terrane_filesystem_call(
-        String::from("metadata"),
+    let record: TerraneFilesystemResult = terrane_filesystem_metadata(
         target.text,
-        String::from(""),
-        Vec::from([]),
-        terrane_int_support::Int::from(0_i128),
         false,
     );
     return FileMetadata::terrane_construct(
@@ -1071,35 +1040,9 @@ pub fn filesystem_symlink_metadata(
         terrane_filesystem_result_message(&record),
     );
 }
-pub fn filesystem_canonical(capability: Filesystem, target: Path) -> PathResult {
-    let _ = &capability;
-    let record: TerraneFilesystemResult = terrane_filesystem_call(
-        String::from("canonical"),
-        target.text,
-        String::from(""),
-        Vec::from([]),
-        terrane_int_support::Int::from(0_i128),
-        false,
-    );
-    let canonical: Path = Path::terrane_construct(
-        terrane_filesystem_result_text(&record),
-    );
-    return PathResult::terrane_construct(
-        canonical.clone(),
-        terrane_filesystem_result_failed(&record),
-        terrane_filesystem_result_message(&record),
-    );
-}
 pub fn filesystem_realpath(capability: Filesystem, target: Path) -> PathResult {
     let _ = &capability;
-    let record: TerraneFilesystemResult = terrane_filesystem_call(
-        String::from("realpath"),
-        target.text,
-        String::from(""),
-        Vec::from([]),
-        terrane_int_support::Int::from(0_i128),
-        false,
-    );
+    let record: TerraneFilesystemResult = terrane_filesystem_realpath(target.text);
     let resolved: Path = Path::terrane_construct(
         terrane_filesystem_result_text(&record),
     );
@@ -1111,14 +1054,7 @@ pub fn filesystem_realpath(capability: Filesystem, target: Path) -> PathResult {
 }
 pub fn filesystem_read_link(capability: Filesystem, target: Path) -> PathResult {
     let _ = &capability;
-    let record: TerraneFilesystemResult = terrane_filesystem_call(
-        String::from("read-link"),
-        target.text,
-        String::from(""),
-        Vec::from([]),
-        terrane_int_support::Int::from(0_i128),
-        false,
-    );
+    let record: TerraneFilesystemResult = terrane_filesystem_read_link(target.text);
     let linked: Path = Path::terrane_construct(terrane_filesystem_result_text(&record));
     return PathResult::terrane_construct(
         linked.clone(),
@@ -1175,13 +1111,9 @@ pub fn filesystem_read_bounded(
     limit: terrane_int_support::Int,
 ) -> FileData {
     let _ = &capability;
-    let record: TerraneFilesystemResult = terrane_filesystem_call(
-        String::from("read"),
+    let record: TerraneFilesystemResult = terrane_filesystem_read_bounded(
         target.text,
-        String::from(""),
-        Vec::from([]),
-        limit.clone(),
-        false,
+        limit,
     );
     return FileData::terrane_construct(
         terrane_filesystem_result_bytes(&record),
@@ -1197,13 +1129,9 @@ pub fn filesystem_write_atomic(
     data: Vec<u8>,
 ) -> OperationResult {
     let _ = &capability;
-    let record: TerraneFilesystemResult = terrane_filesystem_call(
-        String::from("atomic-write"),
+    let record: TerraneFilesystemResult = terrane_filesystem_write_atomic(
         target.text,
-        String::from(""),
         data,
-        terrane_int_support::Int::from(0_i128),
-        false,
     );
     return OperationResult::terrane_construct(
         terrane_filesystem_result_failed(&record),
@@ -1216,13 +1144,9 @@ pub fn filesystem_rename(
     destination: Path,
 ) -> OperationResult {
     let _ = &capability;
-    let record: TerraneFilesystemResult = terrane_filesystem_call(
-        String::from("rename"),
+    let record: TerraneFilesystemResult = terrane_filesystem_rename(
         source.text,
         destination.text,
-        Vec::from([]),
-        terrane_int_support::Int::from(0_i128),
-        false,
     );
     return OperationResult::terrane_construct(
         terrane_filesystem_result_failed(&record),
@@ -1231,14 +1155,7 @@ pub fn filesystem_rename(
 }
 pub fn filesystem_remove(capability: Filesystem, target: Path) -> OperationResult {
     let _ = &capability;
-    let record: TerraneFilesystemResult = terrane_filesystem_call(
-        String::from("remove"),
-        target.text,
-        String::from(""),
-        Vec::from([]),
-        terrane_int_support::Int::from(0_i128),
-        false,
-    );
+    let record: TerraneFilesystemResult = terrane_filesystem_remove(target.text);
     return OperationResult::terrane_construct(
         terrane_filesystem_result_failed(&record),
         terrane_filesystem_result_message(&record),

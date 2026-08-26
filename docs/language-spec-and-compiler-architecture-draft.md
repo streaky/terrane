@@ -5986,9 +5986,9 @@ identify rooted values, select name/parent/stem/extension, join, and normalise. 
 removes empty and `.` components and resolves `..` lexically. A rooted path never ascends above
 its root; an unrooted path retains leading parents which cannot be discharged. Joining an
 absolute child replaces the base. Canonicalisation is deliberately separate:
-`filesystem-canonical` and the explicitly named `filesystem-realpath` operation both invoke
-capability-mediated native host resolution, follow the filesystem, and may fail. Lexical path
-operations remain in Terrane and never substitute for native real-path resolution.
+`filesystem-realpath` invokes capability-mediated native host resolution, follows the filesystem,
+and may fail. Lexical path operations remain in Terrane and never substitute for native real-path
+resolution.
 
 The `filesystem` object carries an unforgeable host authority acquired only by its package
 factory. Every host filesystem operation requires that capability, including operations reached
@@ -5999,11 +5999,14 @@ when it would be exceeded. Atomic replacement writes a sibling temporary and ren
 destination without following the destination link.
 
 Directory-handle-relative open is no-follow by default and returns a resource-owning handle.
-`beneath` rejects traversal outside the opened directory; cross-filesystem traversal is rejected
-unless the caller explicitly permits it. File and directory handles are linear resources:
-transfer consumes the source binding, close is explicit through the shared stream release
-contract, and ordinary destruction uses the same idempotent host release path. A partial file
-write exposes its completed offset so callers can resume without duplicating the written prefix.
+The final component of the caller-supplied anchor path is opened without following a link, while
+its intermediate components undergo ordinary host path resolution. Every operation beneath the
+resulting descriptor is handle-relative and no-follow. `beneath` rejects traversal outside the
+opened directory; cross-filesystem traversal is rejected unless the caller explicitly permits it.
+File and directory handles are linear resources: transfer consumes the source binding, close is
+explicit through the shared stream release contract, and ordinary destruction uses the same
+idempotent host release path. A partial file write exposes its completed offset so callers can
+resume without duplicating the written prefix.
 
 A `platform-string` represents exactly one host argument or environment component. `is-text`
 selects either lossless Unicode `text` or lossless `raw` bytes; invalid host Unicode is never
