@@ -1,0 +1,15 @@
+[package]
+name = "terrane-document-support"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+serde = "1"
+serde_json = { version = "1", features = ["arbitrary_precision"] }
+serde_yaml = "0.9"
+url = "2"
+
+[lints]
+workspace = true

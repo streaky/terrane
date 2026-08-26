@@ -1,0 +1,120 @@
+namespace standard/documents
+
+from /core/types import int, bool, string
+from /core/collections import list
+from /core/platform-data import platform-data-result
+from /core/platform-data import data-failed, data-message, data-path, data-expected, data-encoded
+from /core/platform-data import document-kind as platform-kind, document-text as platform-text
+from /core/platform-data import document-length as platform-length, document-item as platform-item
+from /core/platform-data import document-key as platform-key, document-field as platform-field
+from /core/platform-data import validate-mapping
+
+class document-integer
+    text string = '0'
+
+    function construct; text string
+        this.text = text
+
+class document-decimal
+    coefficient string = '0'
+    exponent int = 0
+    text string = '0'
+
+    function construct; coefficient string, exponent int, text string
+        this.coefficient = coefficient
+        this.exponent = exponent
+        this.text = text
+
+class document-value
+    encoded string = 'null'
+    kind string = 'none'
+    scalar string = ''
+
+    function construct; encoded string
+        this.kind = platform-kind; encoded
+        this.scalar = platform-text; encoded
+        this.encoded = encoded
+
+    function length int;
+        return platform-length; this.encoded
+
+    function item document-result; index int
+        raw = platform-item; this.encoded, index
+        return make-document-result; raw
+
+    function key string; index int
+        return platform-key; this.encoded, index
+
+    function field document-result; name string
+        raw = platform-field; this.encoded, name
+        return make-document-result; raw
+
+class document-result
+    failed bool = false
+    message string = ''
+    path string = '$'
+    expected string = ''
+    value document-value = document-value; 'null'
+
+    function construct; failed bool, message string, path string, expected string, encoded string
+        this.failed = failed
+        this.message = message
+        this.path = path
+        this.expected = expected
+        if not failed
+            this.value = document-value; encoded
+
+class document-mapping
+    descriptor-name string = 'document-value'
+    expected-kind string = 'map'
+    field-names list of string = list; ''
+    optional-fields list of string = list; ''
+    default-fields list of string = list; ''
+    default-values list of document-value = list; (document-value; 'null')
+    allow-unknown bool = false
+
+    function construct; descriptor-name string, expected-kind string, allow-unknown bool
+        this.descriptor-name = descriptor-name
+        this.expected-kind = expected-kind
+        this.allow-unknown = allow-unknown
+
+function make-document-result document-result; raw platform-data-result
+    return document-result; (data-failed; raw), (data-message; raw), (data-path; raw), (data-expected; raw), (data-encoded; raw)
+
+function mapping-required-fields list of string; mapping document-mapping
+    fields = mapping.field-names
+    optional-fields = mapping.optional-fields
+    default-fields = mapping.default-fields
+    required list of string = list;
+    index int = 0
+    while index < fields.length
+        field = fields[index]
+        optional bool = false
+        optional-index int = 0
+        while optional-index < optional-fields.length
+            if optional-fields[optional-index] == field
+                optional = true
+            optional-index = optional-index + 1
+        defaulted bool = false
+        default-index int = 0
+        while default-index < default-fields.length
+            if default-fields[default-index] == field
+                defaulted = true
+            default-index = default-index + 1
+        if field != '' and not optional and not defaulted
+            required.append; field
+        index = index + 1
+    return required
+
+function decode-document document-result; value document-value, mapping document-mapping
+    required = mapping-required-fields; mapping
+    default-encodings list of string = list;
+    default-index int = 0
+    while default-index < mapping.default-values.length
+        default-encodings.append; mapping.default-values[default-index].encoded
+        default-index = default-index + 1
+    raw = validate-mapping; value.encoded, mapping.expected-kind, required, mapping.field-names, mapping.default-fields, default-encodings, mapping.allow-unknown
+    result = make-document-result; raw
+    if result.failed
+        result.expected = mapping.descriptor-name
+    return result

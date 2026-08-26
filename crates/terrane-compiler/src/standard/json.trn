@@ -1,0 +1,44 @@
+namespace standard/json
+
+from /core/types import int, bool, string
+from /core/platform-data import json-parse as platform-parse, json-canonical as platform-canonical
+from /standard/documents import document-value, document-result, make-document-result
+from /standard/documents import document-mapping, decode-document
+
+class json-options
+    reject-duplicate-keys bool = true
+    canonical bool = false
+    max-depth int = 256
+    max-bytes int = 16777216
+
+    function construct; reject-duplicate-keys bool, canonical bool, max-depth int, max-bytes int
+        this.reject-duplicate-keys = reject-duplicate-keys
+        this.canonical = canonical
+        this.max-depth = max-depth
+        this.max-bytes = max-bytes
+
+function default-json-options json-options;
+    return json-options; true, false, 256, 16777216
+
+function parse-json document-result; input string, options json-options
+    raw = platform-parse; input, options.reject-duplicate-keys, options.max-depth, options.max-bytes
+    return make-document-result; raw
+
+function stringify-json document-result; value document-value, options json-options
+    if options.canonical
+        raw = platform-canonical; value.encoded
+        return make-document-result; raw
+    return document-result; false, '', '$', '', value.encoded
+
+function canonical-json document-result; value document-value
+    raw = platform-canonical; value.encoded
+    return make-document-result; raw
+
+function decode-json document-result; input string, mapping document-mapping, options json-options
+    parsed = parse-json; input, options
+    if parsed.failed
+        return parsed
+    return decode-document; parsed.value, mapping
+
+function encode-json document-result; value document-value, options json-options
+    return stringify-json; value, options

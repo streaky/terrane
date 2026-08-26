@@ -1,0 +1,142 @@
+namespace standard/urls
+
+from /core/types import int, bool, string
+from /core/collections import list
+from /core/platform-data import platform-url-result
+from /core/platform-data import url-parse as platform-parse, url-failed, url-message
+from /core/platform-data import url-serialized, url-display, url-scheme, url-username, url-password
+from /core/platform-data import url-host, url-port, url-path, url-fragment, url-origin
+from /core/platform-data import url-query-length, url-query-key, url-query-value
+
+class url-query
+    keys list of string = list; ''
+    values list of string = list; ''
+    count int = 0
+
+    function construct;
+        keys list of string = list;
+        values list of string = list;
+        this.keys = keys
+        this.values = values
+        this.count = 0
+
+    function length int;
+        return this.count
+
+    function get string; name string
+        index int = 0
+        while index < this.keys.length
+            if this.keys[index] == name
+                return this.values[index]
+            index = index + 1
+        return ''
+
+    function get-all list of string; name string
+        result list of string = list;
+        index int = 0
+        while index < this.keys.length
+            if this.keys[index] == name
+                result.append; this.values[index]
+            index = index + 1
+        return result
+
+    function append; name string, value string
+        this.count = this.count + 1
+        this.keys.append; name
+        this.values.append; value
+
+    function set; name string, value string
+        kept-keys list of string = list;
+        kept-values list of string = list;
+        index int = 0
+        while index < this.keys.length
+            if this.keys[index] != name
+                kept-keys.append; this.keys[index]
+                kept-values.append; this.values[index]
+            index = index + 1
+        kept-keys.append; name
+        kept-values.append; value
+        this.count = kept-keys.length
+        this.keys = kept-keys
+        this.values = kept-values
+
+    function remove; name string
+        kept-keys list of string = list;
+        kept-values list of string = list;
+        index int = 0
+        while index < this.keys.length
+            if this.keys[index] != name
+                kept-keys.append; this.keys[index]
+                kept-values.append; this.values[index]
+            index = index + 1
+        this.count = kept-keys.length
+        this.keys = kept-keys
+        this.values = kept-values
+
+class url
+    serialized string = ''
+    display string = ''
+    scheme string = ''
+    username string = ''
+    password string = ''
+    host string = ''
+    port string = ''
+    path string = ''
+    query url-query = url-query;
+    fragment string = ''
+    origin string = ''
+
+    function construct; serialized string, display string, scheme string, username string, password string, host string, port string, path string, query url-query, fragment string, origin string
+        this.serialized = serialized
+        this.display = display
+        this.scheme = scheme
+        this.username = username
+        this.password = password
+        this.host = host
+        this.port = port
+        this.path = path
+        this.query = query
+        this.fragment = fragment
+        this.origin = origin
+
+    function string string;
+        return this.display
+
+    function resolve url-result; relative string
+        return parse-url-relative; relative, this
+
+class url-result
+    failed bool = false
+    message string = ''
+    value url = url; '', '', '', '', '', '', '', '', (url-query;), '', ''
+
+    function construct; failed bool, message string, parsed-url url
+        this.failed = failed
+        this.message = message
+        this.value = parsed-url
+
+function url-from-platform url-result; raw platform-url-result
+    failed = url-failed; raw
+    if failed
+        empty-query = url-query;
+        empty-url = url; '', '', '', '', '', '', '', '', empty-query, '', ''
+        return url-result; true, (url-message; raw), empty-url
+    query = url-query;
+    count = url-query-length; raw
+    index int = 0
+    while index < count
+        query.append; (url-query-key; raw, index), (url-query-value; raw, index)
+        index = index + 1
+    value = url; (url-serialized; raw), (url-display; raw), (url-scheme; raw), (url-username; raw), (url-password; raw), (url-host; raw), (url-port; raw), (url-path; raw), query, (url-fragment; raw), (url-origin; raw)
+    return url-result; false, '', value
+
+function parse-url url-result; input string
+    raw = platform-parse; input, ''
+    return url-from-platform; raw
+
+function parse-url-relative url-result; input string, base url
+    raw = platform-parse; input, base.serialized
+    return url-from-platform; raw
+
+function parse-url-checked url-result; input string
+    return parse-url; input

@@ -79,6 +79,10 @@ pub(crate) fn lower(package: &SemanticPackage) -> Program {
         .units
         .iter()
         .any(|unit| unit.namespace == "/standard/process");
+    let uses_documents = package.units.iter().any(|unit| unit.namespace == "/standard/documents");
+    let uses_json = package.units.iter().any(|unit| unit.namespace == "/standard/json");
+    let uses_yaml = package.units.iter().any(|unit| unit.namespace == "/standard/yaml");
+    let uses_urls = package.units.iter().any(|unit| unit.namespace == "/standard/urls");
     if uses_standard_streams || uses_filesystem {
         let mut items = vec![Item::generated(include_str!("runtime/platform_streams.rs"))];
         if uses_standard_streams {
@@ -104,6 +108,25 @@ pub(crate) fn lower(package: &SemanticPackage) -> Program {
         }
         runtime.push(GeneratedModule {
             name: "platform_system",
+            items,
+        });
+    }
+    if uses_documents || uses_urls {
+        let mut items = Vec::new();
+        if uses_documents {
+            items.push(Item::generated(include_str!("runtime/platform_documents.rs")));
+        }
+        if uses_json {
+            items.push(Item::generated(include_str!("runtime/platform_json.rs")));
+        }
+        if uses_yaml {
+            items.push(Item::generated(include_str!("runtime/platform_yaml.rs")));
+        }
+        if uses_urls {
+            items.push(Item::generated(include_str!("runtime/platform_urls.rs")));
+        }
+        runtime.push(GeneratedModule {
+            name: "platform_data",
             items,
         });
     }
@@ -4094,6 +4117,76 @@ impl Emitter<'_> {
             let format = "{}".repeat(values.len());
             return format!("println!(\"{format}\", {})", values.join(", "));
         }
+        let data_call = [
+            ("json-parse", "json_parse"),
+            ("json-canonical", "json_canonical"),
+            ("yaml-parse", "yaml_parse"),
+            ("data-failed", "data_failed"),
+            ("data-message", "data_message"),
+            ("data-path", "data_path"),
+            ("data-expected", "data_expected"),
+            ("data-encoded", "data_encoded"),
+            ("document-kind", "document_kind"),
+            ("document-text", "document_text"),
+            ("document-length", "document_length"),
+            ("document-item", "document_item"),
+            ("document-key", "document_key"),
+            ("document-field", "document_field"),
+            ("validate-mapping", "validate_mapping"),
+            ("url-parse", "url_parse"),
+            ("url-failed", "url_failed"),
+            ("url-message", "url_message"),
+            ("url-serialized", "url_serialized"),
+            ("url-display", "url_display"),
+            ("url-scheme", "url_scheme"),
+            ("url-username", "url_username"),
+            ("url-password", "url_password"),
+            ("url-host", "url_host"),
+            ("url-port", "url_port"),
+            ("url-path", "url_path"),
+            ("url-query-length", "url_query_length"),
+            ("url-query-key", "url_query_key"),
+            ("url-query-value", "url_query_value"),
+            ("url-fragment", "url_fragment"),
+            ("url-origin", "url_origin"),
+        ]
+        .into_iter()
+        .find_map(|(terrane, rust)| {
+            self.is_builtin(callee, &format!("/core/platform-data::{terrane}"))
+                .then_some(rust)
+        });
+        if let Some(function) = data_call {
+            let values = argument_values
+                .iter()
+                .enumerate()
+                .map(|(index, value)| {
+                    let integer_argument = matches!(
+                        (function, index),
+                        ("json_parse", 2 | 3)
+                            | ("yaml_parse", 1 | 2 | 3)
+                            | ("document_item" | "document_key", 1)
+                            | ("url_query_key" | "url_query_value", 1)
+                    );
+                    let value = if integer_argument {
+                        self.expression_as(value, ValueType::Scalar(ScalarType::Int))
+                    } else {
+                        self.expression(value)
+                    };
+                    let borrowed_result = index == 0
+                        && (function.starts_with("data_")
+                            || function.starts_with("document_")
+                            || function == "validate_mapping"
+                            || function.starts_with("url_") && function != "url_parse");
+                    if borrowed_result {
+                        format!("&({value})")
+                    } else {
+                        value
+                    }
+                })
+                .collect::<Vec<_>>()
+                .join(", ");
+            return format!("terrane_{function}({values})");
+        }
         let system_call = [
             (
                 "acquire-filesystem-authority",
@@ -5616,6 +5709,8 @@ fn rust_value_type(ty: ValueType) -> String {
         ValueType::PlatformReadResult => "TerranePlatformReadResult".to_owned(),
         ValueType::PlatformWriteResult => "TerranePlatformWriteResult".to_owned(),
         ValueType::PlatformUnitResult => "TerranePlatformUnitResult".to_owned(),
+        ValueType::PlatformDataResult => "terrane_document_support::DataResult".to_owned(),
+        ValueType::PlatformUrlResult => "terrane_document_support::UrlResult".to_owned(),
         ValueType::Descriptor(_) => "TerraneDescriptor".to_owned(),
         ValueType::Object(name) => rust_object_name(&name),
         ValueType::SharedReference(item) => format!(

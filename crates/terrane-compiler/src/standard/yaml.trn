@@ -1,0 +1,40 @@
+namespace standard/yaml
+
+from /core/types import int, string
+from /core/platform-data import yaml-parse as platform-parse, json-canonical as platform-canonical
+from /standard/documents import document-value, document-result, make-document-result
+from /standard/documents import document-mapping, decode-document
+
+class yaml-options
+    max-depth int = 128
+    max-bytes int = 16777216
+    max-aliases int = 64
+
+    function construct; max-depth int, max-bytes int, max-aliases int
+        this.max-depth = max-depth
+        this.max-bytes = max-bytes
+        this.max-aliases = max-aliases
+
+function default-yaml-options yaml-options;
+    return yaml-options; 128, 16777216, 64
+
+function make-yaml-options yaml-options; max-depth int, max-bytes int, max-aliases int
+    return yaml-options; max-depth, max-bytes, max-aliases
+
+function parse-yaml document-result; input string, options yaml-options
+    raw = platform-parse; input, options.max-depth, options.max-bytes, options.max-aliases
+    return make-document-result; raw
+
+function stringify-yaml document-result; value document-value
+    # The safe core writer deliberately emits JSON, which is a valid YAML 1.2 document.
+    raw = platform-canonical; value.encoded
+    return make-document-result; raw
+
+function decode-yaml document-result; input string, mapping document-mapping, options yaml-options
+    parsed = parse-yaml; input, options
+    if parsed.failed
+        return parsed
+    return decode-document; parsed.value, mapping
+
+function encode-yaml document-result; value document-value
+    return stringify-yaml; value

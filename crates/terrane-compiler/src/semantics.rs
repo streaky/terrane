@@ -215,6 +215,8 @@ pub enum ValueType {
     PlatformReadResult,
     PlatformWriteResult,
     PlatformUnitResult,
+    PlatformDataResult,
+    PlatformUrlResult,
     Object(String),
     Reference(ElementType),
     SharedReference(ElementType),
@@ -362,6 +364,8 @@ impl std::fmt::Display for ValueType {
             Self::PlatformReadResult => formatter.write_str("platform-read-result"),
             Self::PlatformWriteResult => formatter.write_str("platform-write-result"),
             Self::PlatformUnitResult => formatter.write_str("platform-unit-result"),
+            Self::PlatformDataResult => formatter.write_str("platform-data-result"),
+            Self::PlatformUrlResult => formatter.write_str("platform-url-result"),
             Self::Reference(item) => write!(formatter, "ref {}", item.value_type()),
             Self::SharedReference(item) => write!(formatter, "shared ref {}", item.value_type()),
         }
@@ -856,6 +860,7 @@ pub fn analyze(package: &Package) -> Result<SemanticPackage, SemanticFailure> {
                 | "/core/collections"
                 | "/core/platform-streams"
                 | "/core/platform-system"
+                | "/core/platform-data"
         ) || (crate::bundled::source(&unit.namespace).is_some() && !bundled)
         {
             let span = unit
@@ -1735,13 +1740,15 @@ fn imported_object(
 ) -> Result<Symbol, SemanticFailure> {
     if matches!(
         import.target.as_str(),
-        "/core/platform-streams" | "/core/platform-system"
+        "/core/platform-streams" | "/core/platform-system" | "/core/platform-data"
     ) && !import.bundled
     {
-        let facility = if import.target == "/core/platform-streams" {
-            "`/standard/streams`"
-        } else {
-            "`/standard/filesystem` or `/standard/process`"
+        let facility = match import.target.as_str() {
+            "/core/platform-streams" => "`/standard/streams`",
+            "/core/platform-data" => {
+                "`/standard/documents`, `/standard/json`, `/standard/yaml`, or `/standard/urls`"
+            }
+            _ => "`/standard/filesystem` or `/standard/process`",
         };
         return Err(failure(
             &import.source,
@@ -5700,6 +5707,12 @@ fn declared_value_type_with_visible_objects(
     if type_name == "filesystem-authority" {
         return Ok(ValueType::FilesystemAuthority);
     }
+    if type_name == "platform-data-result" {
+        return Ok(ValueType::PlatformDataResult);
+    }
+    if type_name == "platform-url-result" {
+        return Ok(ValueType::PlatformUrlResult);
+    }
     if type_name == "encoding" {
         return Ok(ValueType::Encoding);
     }
@@ -6501,6 +6514,15 @@ fn infer_value_type(
                     | "/core/platform-streams::sync-all"
                     | "/core/platform-streams::close"
                     | "/core/platform-streams::release" => Some(ValueType::PlatformUnitResult),
+                    "/core/platform-data::json-parse"
+                    | "/core/platform-data::json-canonical"
+                    | "/core/platform-data::yaml-parse"
+                    | "/core/platform-data::document-item"
+                    | "/core/platform-data::document-field"
+                    | "/core/platform-data::validate-mapping" => {
+                        Some(ValueType::PlatformDataResult)
+                    }
+                    "/core/platform-data::url-parse" => Some(ValueType::PlatformUrlResult),
                     "/core/platform-system::filesystem-exists"
                     | "/core/platform-system::filesystem-metadata"
                     | "/core/platform-system::filesystem-realpath"
@@ -6516,10 +6538,36 @@ fn infer_value_type(
                     | "/core/platform-system::platform-value-is-text" => {
                         Some(ValueType::Scalar(ScalarType::Bool))
                     }
+                    "/core/platform-data::data-failed"
+                    | "/core/platform-data::url-failed" => {
+                        Some(ValueType::Scalar(ScalarType::Bool))
+                    }
                     "/core/platform-system::result-message"
                     | "/core/platform-system::result-text"
                     | "/core/platform-system::result-detail"
                     | "/core/platform-system::platform-value-text" => {
+                        Some(ValueType::Scalar(ScalarType::String))
+                    }
+                    "/core/platform-data::data-message"
+                    | "/core/platform-data::data-path"
+                    | "/core/platform-data::data-expected"
+                    | "/core/platform-data::data-encoded"
+                    | "/core/platform-data::document-kind"
+                    | "/core/platform-data::document-text"
+                    | "/core/platform-data::document-key"
+                    | "/core/platform-data::url-message"
+                    | "/core/platform-data::url-serialized"
+                    | "/core/platform-data::url-display"
+                    | "/core/platform-data::url-scheme"
+                    | "/core/platform-data::url-username"
+                    | "/core/platform-data::url-password"
+                    | "/core/platform-data::url-host"
+                    | "/core/platform-data::url-port"
+                    | "/core/platform-data::url-path"
+                    | "/core/platform-data::url-query-key"
+                    | "/core/platform-data::url-query-value"
+                    | "/core/platform-data::url-fragment"
+                    | "/core/platform-data::url-origin" => {
                         Some(ValueType::Scalar(ScalarType::String))
                     }
                     "/core/platform-system::result-bytes"
@@ -6527,6 +6575,10 @@ fn infer_value_type(
                         Some(ValueType::Scalar(ScalarType::Bytes))
                     }
                     "/core/platform-system::result-int" => Some(ValueType::Scalar(ScalarType::Int)),
+                    "/core/platform-data::document-length"
+                    | "/core/platform-data::url-query-length" => {
+                        Some(ValueType::Scalar(ScalarType::Int))
+                    }
                     "/core/platform-system::process-arguments"
                     | "/core/platform-system::environment-entries" => Some(ValueType::StringList),
                     "/core/platform-system::process-exit" => {
@@ -10136,6 +10188,24 @@ fn bootstrap_namespaces() -> BTreeMap<String, Namespace> {
                 "process-arguments",
                 "environment-entries",
                 "process-exit",
+            ],
+            SymbolKind::Function,
+        ),
+    );
+    namespaces.insert(
+        "/core/platform-data".to_owned(),
+        namespace_with_objects(
+            "/core/platform-data",
+            [
+                "platform-data-result", "platform-url-result",
+                "json-parse", "json-canonical", "yaml-parse",
+                "data-failed", "data-message", "data-path", "data-expected", "data-encoded",
+                "document-kind", "document-text", "document-length", "document-item",
+                "document-key", "document-field", "validate-mapping",
+                "url-parse", "url-failed", "url-message", "url-serialized", "url-display",
+                "url-scheme", "url-username", "url-password", "url-host", "url-port",
+                "url-path", "url-query-length", "url-query-key",
+                "url-query-value", "url-fragment", "url-origin",
             ],
             SymbolKind::Function,
         ),

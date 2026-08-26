@@ -35,6 +35,7 @@ terrane-int-support = { path = "support/terrane-int-support" }
 terrane-collection-support = { path = "support/terrane-collection-support" }
 terrane-scalar-support = { path = "support/terrane-scalar-support" }
 terrane-string-support = { path = "support/terrane-string-support" }
+terrane-document-support = { path = "support/terrane-document-support" }
 terrane-stream-abi = { path = "support/terrane-stream-abi" }
 
 [workspace]
@@ -238,11 +239,13 @@ fn write_support_crates(directory: &Path) {
     let collection = directory.join("support/terrane-collection-support");
     let scalar = directory.join("support/terrane-scalar-support");
     let string = directory.join("support/terrane-string-support");
+    let document = directory.join("support/terrane-document-support");
     let stream = directory.join("support/terrane-stream-abi");
     fs::create_dir_all(int.join("src")).unwrap();
     fs::create_dir_all(collection.join("src")).unwrap();
     fs::create_dir_all(scalar.join("src")).unwrap();
     fs::create_dir_all(string.join("src")).unwrap();
+    fs::create_dir_all(document.join("src")).unwrap();
     fs::create_dir_all(stream.join("src")).unwrap();
     fs::write(
         int.join("Cargo.toml"),
@@ -282,6 +285,16 @@ fn write_support_crates(directory: &Path) {
     fs::write(
         string.join("src/lib.rs"),
         include_bytes!("../../terrane-string-support/src/lib.rs"),
+    )
+    .unwrap();
+    fs::write(
+        document.join("Cargo.toml"),
+        "[package]\nname = \"terrane-document-support\"\nversion = \"0.1.0\"\nedition = \"2024\"\n\n[dependencies]\nserde = \"1\"\nserde_json = { version = \"1\", features = [\"arbitrary_precision\"] }\nserde_yaml = \"0.9\"\nurl = \"2\"\n",
+    )
+    .unwrap();
+    fs::write(
+        document.join("src/lib.rs"),
+        include_bytes!("../../terrane-document-support/src/lib.rs"),
     )
     .unwrap();
     fs::write(
