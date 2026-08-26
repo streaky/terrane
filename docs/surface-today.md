@@ -111,15 +111,18 @@ Terrane package
     │   └── path-name / path-parent / path-stem / path-extension
     ├── /standard/filesystem                   bundled Terrane package over minimal host intrinsics
     │   ├── filesystem                         explicit capability object
-    │   ├── file-handle / directory-handle     inferred resource-owning host handles
-    │   ├── open-file / file-read / file-write handle-based partial I/O with explicit EOF
-    │   ├── open-file-beneath                   handle-relative no-follow file open
-    │   ├── file-flush / file-sync-data / file-sync-all / file-close
+    │   ├── file-handle                        inferred resource-owning file stream
+    │   ├── directory-handle                   inferred resource-owning directory anchor
+    │   ├── open-file(filesystem, path, …) -> file-handle
+    │   ├── file-read(filesystem, ref file-handle, limit) / file-write(filesystem, ref file-handle, data, offset)
+    │   ├── file-flush(filesystem, ref file-handle) / file-sync-data(filesystem, ref file-handle)
+    │   ├── file-sync-all(filesystem, ref file-handle) / file-close(filesystem, file-handle)
+    │   ├── filesystem-open-beneath(filesystem, directory, relative, cross-filesystem) -> directory-handle
+    │   ├── open-file-beneath(filesystem, ref directory-handle, relative, …) -> file-handle
     │   ├── filesystem-exists / filesystem-metadata / filesystem-symlink-metadata
     │   ├── filesystem-canonical / filesystem-realpath / filesystem-read-link
     │   ├── filesystem-read-bounded / filesystem-write-atomic
-    │   ├── filesystem-rename / filesystem-remove
-    │   └── filesystem-open-beneath            race-resistant relative traversal
+    │   └── filesystem-rename / filesystem-remove
     ├── /standard/process                      bundled Terrane package over minimal host intrinsics
     │   ├── platform-string                    lossless text-or-raw platform value
     │   ├── arguments / environment            explicit process snapshots
