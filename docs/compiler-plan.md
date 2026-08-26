@@ -1345,12 +1345,13 @@ opaque handle registry and one host read, write, flush, durability-sync, or idem
 operation.
 
 Accepted conformance exercises partial reads and writes, explicit EOF including a zero-length read,
-distinct exact and bounded-all reads, resumable partial text writes, byte-exact UTF-8 data,
-text adaptation without implicit newline translation, typed standard error, malformed decode
-failure, distinct flush and sync operations on both writer adapters, observable idempotent close,
-and cancellation racing an async stream operation. Rejected conformance covers resource transfer
-through assignment and ordinary calls followed by use, use after close, double close,
-resource-owning inheritance, direct imports of private host intrinsics, and the removed
+distinct exact and bounded-all reads, byte and text resumption from incomplete writes, repeated
+resume semantics, byte-exact UTF-8 data, text adaptation without implicit newline translation,
+typed standard error, malformed decode failure, distinct flush and sync operations on both writer
+adapters, observable idempotent close, and both outcomes of cancellation racing an async stream
+operation. Rejected conformance covers resource transfer through assignment, ordinary calls, and
+method arguments followed by use, use after close, double close, resource-owning inheritance,
+direct imports of private host intrinsics, and the removed
 `linear class` declaration qualifier. Accepted cases compile their generated
 crates with warnings denied; canonical-Rust validation is enabled for
 the accepted cases that pass untouched structural validation. Milestone evidence:

@@ -467,7 +467,13 @@ impl WriteResult {
         failed: bool,
         message: String,
     ) {
-        self.data = data;
+        if completed.clone() == terrane_int_support::Int::from(data.len() as i128)
+            && !failed
+        {
+            self.data = Vec::from([]);
+        } else {
+            self.data = data;
+        }
         self.completed = completed.clone();
         self.failed = failed;
         self.message = message;
@@ -648,6 +654,11 @@ impl ByteWriter {
         return WriteResult::terrane_construct(data, completed.clone(), failed, message);
     }
     pub fn resume(&self, prior: WriteResult) -> WriteResult {
+        if terrane_int_support::Int::from(prior.data.len() as i128)
+            == terrane_int_support::Int::from(0_i128)
+        {
+            return prior.clone();
+        }
         let raw: TerranePlatformWriteResult = terrane_platform_write(
             &self.handle,
             &prior.data,
@@ -735,7 +746,7 @@ impl TextReader {
         let text: String = terrane_string_support::decode(&raw.data.clone(), self.codec)
             .map_err(|error| {
                 TerraneError::from(error)
-                    .at("/standard/streams::read (streams.trn:190:23)")
+                    .at("/standard/streams::read (streams.trn:195:23)")
             })?;
         return Ok(
             TextReadResult::terrane_construct(
@@ -786,7 +797,7 @@ impl TextReader {
         let text: String = terrane_string_support::decode(&data, self.codec)
             .map_err(|error| {
                 TerraneError::from(error)
-                    .at("/standard/streams::read-exact (streams.trn:212:23)")
+                    .at("/standard/streams::read-exact (streams.trn:217:23)")
             })?;
         return Ok(
             TextReadResult::terrane_construct(
@@ -833,7 +844,7 @@ impl TextReader {
         let text: String = terrane_string_support::decode(&data, self.codec)
             .map_err(|error| {
                 TerraneError::from(error)
-                    .at("/standard/streams::read-all (streams.trn:231:23)")
+                    .at("/standard/streams::read-all (streams.trn:236:23)")
             })?;
         return Ok(
             TextReadResult::terrane_construct(
@@ -853,7 +864,7 @@ impl TextReader {
             self
                 .read(count.clone())
                 .map_err(|error| {
-                    error.at("/standard/streams::read-async (streams.trn:235:16)")
+                    error.at("/standard/streams::read-async (streams.trn:240:16)")
                 })?,
         );
     }
@@ -940,6 +951,11 @@ impl TextWriter {
         return WriteResult::terrane_construct(data, completed.clone(), failed, message);
     }
     pub fn resume(&self, prior: WriteResult) -> WriteResult {
+        if terrane_int_support::Int::from(prior.data.len() as i128)
+            == terrane_int_support::Int::from(0_i128)
+        {
+            return prior.clone();
+        }
         let raw: TerranePlatformWriteResult = terrane_platform_write(
             &self.handle,
             &prior.data,

@@ -451,9 +451,9 @@ async fn read_one() -> ReadResult {
     return result.clone();
 }
 fn main() {
-    let scope: TerraneTaskScope = TerraneTaskScope::new(None);
-    let child: TerraneScopedTask<ReadResult> = {
-        let __terrane_scope = scope.clone();
+    let completed_scope: TerraneTaskScope = TerraneTaskScope::new(None);
+    let completed_child: TerraneScopedTask<ReadResult> = {
+        let __terrane_scope = completed_scope.clone();
         let __terrane_cancel = __terrane_scope.clone();
         TerraneScopedTask::spawn(move || match __terrane_block_on_cancellable(
             read_one(),
@@ -463,22 +463,52 @@ fn main() {
             None => TerraneTaskResult::Cancelled,
         })
     };
-    scope.cancel();
-    let outcome: TerraneTaskOutcome<ReadResult> = scope.join(child);
-    let value: Option<ReadResult> = outcome.value.clone();
-    let mut consistent: bool = false;
-    if outcome.cancelled && value.is_none() {
-        consistent = true;
-    }
-    if outcome.completed {
-        if value.is_some() {
-            consistent = value
+    let completed_outcome: TerraneTaskOutcome<ReadResult> = completed_scope
+        .join(completed_child);
+    let completed_value: Option<ReadResult> = completed_outcome.value.clone();
+    let mut consistent: bool = completed_outcome.completed && completed_value.is_some();
+    if completed_value.is_some() {
+        consistent = consistent
+            && completed_value
                 .as_ref()
                 .expect("semantic optional narrowing")
                 .completed
-                .clone() == terrane_int_support::Int::from(0_i128)
-                && value.as_ref().expect("semantic optional narrowing").end
-                && !value.as_ref().expect("semantic optional narrowing").failed;
+                .clone() == terrane_int_support::Int::from(1_i128)
+            && !completed_value.as_ref().expect("semantic optional narrowing").end
+            && !completed_value.as_ref().expect("semantic optional narrowing").failed;
+    }
+    let cancelled_scope: TerraneTaskScope = TerraneTaskScope::new(None);
+    let cancelled_child: TerraneScopedTask<ReadResult> = {
+        let __terrane_scope = cancelled_scope.clone();
+        let __terrane_cancel = __terrane_scope.clone();
+        TerraneScopedTask::spawn(move || match __terrane_block_on_cancellable(
+            read_one(),
+            move || __terrane_cancel.should_cancel(),
+        ) {
+            Some(value) => TerraneTaskResult::Completed(value),
+            None => TerraneTaskResult::Cancelled,
+        })
+    };
+    cancelled_scope.cancel();
+    let cancelled_outcome: TerraneTaskOutcome<ReadResult> = cancelled_scope
+        .join(cancelled_child);
+    let cancelled_value: Option<ReadResult> = cancelled_outcome.value.clone();
+    if cancelled_outcome.cancelled {
+        consistent = consistent && cancelled_value.is_none();
+    }
+    if cancelled_outcome.completed {
+        if cancelled_value.is_some() {
+            consistent = consistent
+                && cancelled_value
+                    .as_ref()
+                    .expect("semantic optional narrowing")
+                    .completed
+                    .clone() == terrane_int_support::Int::from(0_i128)
+                && cancelled_value.as_ref().expect("semantic optional narrowing").end
+                && !cancelled_value
+                    .as_ref()
+                    .expect("semantic optional narrowing")
+                    .failed;
         }
     }
     println!("{}", terrane_scalar_support::scalar_text(&consistent));
@@ -616,7 +646,13 @@ impl WriteResult {
         failed: bool,
         message: String,
     ) {
-        self.data = data;
+        if completed.clone() == terrane_int_support::Int::from(data.len() as i128)
+            && !failed
+        {
+            self.data = Vec::from([]);
+        } else {
+            self.data = data;
+        }
         self.completed = completed.clone();
         self.failed = failed;
         self.message = message;
@@ -797,6 +833,11 @@ impl ByteWriter {
         return WriteResult::terrane_construct(data, completed.clone(), failed, message);
     }
     pub fn resume(&self, prior: WriteResult) -> WriteResult {
+        if terrane_int_support::Int::from(prior.data.len() as i128)
+            == terrane_int_support::Int::from(0_i128)
+        {
+            return prior.clone();
+        }
         let raw: TerranePlatformWriteResult = terrane_platform_write(
             &self.handle,
             &prior.data,
@@ -884,7 +925,7 @@ impl TextReader {
         let text: String = terrane_string_support::decode(&raw.data.clone(), self.codec)
             .map_err(|error| {
                 TerraneError::from(error)
-                    .at("/standard/streams::read (streams.trn:190:23)")
+                    .at("/standard/streams::read (streams.trn:195:23)")
             })?;
         return Ok(
             TextReadResult::terrane_construct(
@@ -935,7 +976,7 @@ impl TextReader {
         let text: String = terrane_string_support::decode(&data, self.codec)
             .map_err(|error| {
                 TerraneError::from(error)
-                    .at("/standard/streams::read-exact (streams.trn:212:23)")
+                    .at("/standard/streams::read-exact (streams.trn:217:23)")
             })?;
         return Ok(
             TextReadResult::terrane_construct(
@@ -982,7 +1023,7 @@ impl TextReader {
         let text: String = terrane_string_support::decode(&data, self.codec)
             .map_err(|error| {
                 TerraneError::from(error)
-                    .at("/standard/streams::read-all (streams.trn:231:23)")
+                    .at("/standard/streams::read-all (streams.trn:236:23)")
             })?;
         return Ok(
             TextReadResult::terrane_construct(
@@ -1002,7 +1043,7 @@ impl TextReader {
             self
                 .read(count.clone())
                 .map_err(|error| {
-                    error.at("/standard/streams::read-async (streams.trn:235:16)")
+                    error.at("/standard/streams::read-async (streams.trn:240:16)")
                 })?,
         );
     }
@@ -1089,6 +1130,11 @@ impl TextWriter {
         return WriteResult::terrane_construct(data, completed.clone(), failed, message);
     }
     pub fn resume(&self, prior: WriteResult) -> WriteResult {
+        if terrane_int_support::Int::from(prior.data.len() as i128)
+            == terrane_int_support::Int::from(0_i128)
+        {
+            return prior.clone();
+        }
         let raw: TerranePlatformWriteResult = terrane_platform_write(
             &self.handle,
             &prior.data,

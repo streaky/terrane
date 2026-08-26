@@ -1,5 +1,5 @@
 namespace standard-byte-streams
-from /standard/streams import stdin, stdout
+from /standard/streams import stdin, stdout, write-result
 
 function main;
     input = stdin;
@@ -22,6 +22,11 @@ function main;
     second-write = writer.write-all; remainder.data
     if second-write.failed
         print; second-write.message
+    prefix = writer.write; b'd'
+    partial = write-result; b'def', 1, false, ''
+    resumed = writer.resume; partial
+    if prefix.completed != 1 or resumed.completed != 3
+        print; 'unexpected resumed write'
     flushed = writer.flush;
     if flushed.failed
         print; flushed.message

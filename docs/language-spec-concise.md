@@ -698,8 +698,8 @@ process_factories: stdin -> byte-reader; stdout/stderr -> byte-writer
 text_adapter: 'byte-endpoint.text; encoding' transfers endpoint; adapter carries explicit encoding
 read_result: data bytes, completed byte count, end bool, failed bool, message string
 text_read_result: text string plus the same byte-count/status fields; malformed input throws decode-error
-write_result: encoded data bytes retained for resume, completed byte count, failed bool, message string
-partial_policy: read/write may complete partially; read-exact fails on short EOF, bounded read-all accepts EOF, write-all loops until complete/failure/no progress
+write_result: incomplete result retains encoded data bytes for resume; completed result releases data; completed byte count, failed bool, message string
+partial_policy: read/write/resume may complete partially; resume performs one host write and may be repeated; read-exact fails on short EOF, bounded read-all accepts EOF, write-all loops until complete/failure/no progress
 bounded_read_all: explicit limit REQUIRED
 newline: no implicit translation; text-writer.line explicitly appends '\n' and its completed count includes the encoded newline
 close: explicit, consuming, idempotent host release with observable failure; destruction explicitly discards release failure

@@ -54,7 +54,10 @@ class write-result
     message string = ''
 
     function construct; data bytes, completed int, failed bool, message string
-        this.data = data
+        if completed == data.length and not failed
+            this.data = b''
+        else
+            this.data = data
         this.completed = completed
         this.failed = failed
         this.message = message
@@ -148,6 +151,8 @@ class byte-writer
         return write-result; data, completed, failed, message
 
     function resume write-result; prior write-result
+        if prior.data.length == 0
+            return prior
         raw = platform-write; this.handle, prior.data, prior.completed
         return write-result; prior.data, prior.completed + raw.completed, raw.failed, raw.message
 
@@ -271,6 +276,8 @@ class text-writer
         return write-result; data, completed, failed, message
 
     function resume write-result; prior write-result
+        if prior.data.length == 0
+            return prior
         raw = platform-write; this.handle, prior.data, prior.completed
         return write-result; prior.data, prior.completed + raw.completed, raw.failed, raw.message
 

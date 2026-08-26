@@ -580,12 +580,12 @@ change the generated manifest.
 | set / unordered set | `.contains`, `.add`, `.remove` | methods | deterministic membership/mutation |
 | entry | `.key`, `.value` | properties | cloned key/value |
 | byte reader | `.read`, `.read-exact`, `.read-all`, `.read-async` | methods | partial/exact/bounded/async byte read results |
-| byte writer | `.write`, `.write-all`, `.write-async` | methods | partial/complete/async byte write results |
+| byte writer | `.write`, `.write-all`, `.resume`, `.write-async` | methods | partial/complete/resumed/async byte write results |
 | byte reader / writer | `.text; encoding` | method | consuming explicitly encoded text adapter |
 | text reader | `.read`, `.read-exact`, `.read-all`, `.read-async` | methods | decoded text result or `decode-error` |
-| text writer | `.write`, `.write-all`, `.line`, `.write-async` | methods | encoded write result; `.line` alone appends newline |
+| text writer | `.write`, `.write-all`, `.resume`, `.line`, `.write-async` | methods | encoded write result; `.line` alone appends newline |
 | writer | `.flush` | method | observable buffering result |
-| byte writer | `.sync-data`, `.sync-all` | methods | distinct observable durability results |
+| byte / text writer | `.sync-data`, `.sync-all` | methods | distinct observable durability results |
 | any stream | `.close` | method | consuming idempotent release with observable result |
 
 Stream classes become resource-owning transitively from their compiler-owned process handle field.

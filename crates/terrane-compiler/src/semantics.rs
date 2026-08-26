@@ -573,7 +573,7 @@ pub struct SemanticUnit {
     pub tree: SyntaxTree,
     pub namespace: String,
     prelude: bool,
-    bundled: bool,
+    pub(crate) bundled: bool,
     pub scopes: Vec<LexicalScope>,
     pub typed_bindings: Vec<TypedBinding>,
     /// Function contracts declared by every source unit in this unit's namespace.
@@ -1786,6 +1786,27 @@ fn resolve_imports(
     Ok(())
 }
 
+fn resolved_object_span(
+    package: &SemanticPackage,
+    unit: &SemanticUnit,
+    position: usize,
+    name: &str,
+) -> Option<Span> {
+    if let Some(span) = package
+        .resolve_name_at(unit, position, name)
+        .and_then(|symbol| symbol.declaration_span)
+    {
+        return Some(span);
+    }
+    let mut matches = unit
+        .objects
+        .iter()
+        .filter(|object| object.name == name)
+        .map(|object| object.span);
+    let span = matches.next()?;
+    matches.all(|candidate| candidate == span).then_some(span)
+}
+
 #[expect(
     clippy::too_many_lines,
     reason = "move provenance and its control-flow join remain one auditable analysis"
@@ -1802,26 +1823,6 @@ fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFailure> {
             .map(|(index, _)| index)
     }
 
-    fn object_span(
-        package: &SemanticPackage,
-        unit: &SemanticUnit,
-        position: usize,
-        name: &str,
-    ) -> Option<Span> {
-        if let Some(span) = package
-            .resolve_name_at(unit, position, name)
-            .and_then(|symbol| symbol.declaration_span)
-        {
-            return Some(span);
-        }
-        package
-            .units
-            .iter()
-            .flat_map(|candidate| &candidate.objects)
-            .find(|object| object.name == name)
-            .map(|object| object.span)
-    }
-
     fn resource_binding(
         package: &SemanticPackage,
         unit: &SemanticUnit,
@@ -1831,19 +1832,19 @@ fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFailure> {
         match &unit.typed_bindings[binding].value_type {
             ValueType::PlatformStreamHandle => true,
             ValueType::Object(name) => {
-                object_span(package, unit, unit.typed_bindings[binding].span.start, name)
+                resolved_object_span(package, unit, unit.typed_bindings[binding].span.start, name)
                     .is_some_and(|span| resource_objects.contains(&span_key(span)))
             }
             _ => false,
         }
     }
-    fn method_consumes_receiver(
-        package: &SemanticPackage,
+    fn method_contract<'a>(
+        package: &'a SemanticPackage,
         unit: &SemanticUnit,
         position: usize,
         object_name: &str,
         method_name: &str,
-    ) -> bool {
+    ) -> Option<&'a FunctionContract> {
         fn contract<'a>(
             unit: &'a SemanticUnit,
             object_name: &str,
@@ -1862,23 +1863,47 @@ fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFailure> {
                         .and_then(|base| contract(unit, base, method_name))
                 })
         }
-        let Some(declaration) = object_span(package, unit, position, object_name) else {
-            return false;
-        };
-        package.units.iter().any(|candidate| {
+        let declaration = resolved_object_span(package, unit, position, object_name)?;
+        package.units.iter().find_map(|candidate| {
             candidate
                 .objects
                 .iter()
                 .find(|object| object.span == declaration)
                 .and_then(|object| contract(candidate, &object.name, method_name))
-                .is_some_and(|method| method.consumes_receiver)
         })
+    }
+
+    fn method_consumes_receiver(
+        package: &SemanticPackage,
+        unit: &SemanticUnit,
+        position: usize,
+        object_name: &str,
+        method_name: &str,
+    ) -> bool {
+        method_contract(package, unit, position, object_name, method_name)
+            .is_some_and(|method| method.consumes_receiver)
     }
     fn function_parameters<'a>(
         package: &'a SemanticPackage,
         unit: &SemanticUnit,
         callee: &SyntaxNode,
     ) -> Option<&'a [ParameterContract]> {
+        if callee.kind == SyntaxKind::MemberExpression {
+            let [receiver, member] = callee.children.as_slice() else {
+                return None;
+            };
+            let ValueType::Object(object_name) = unit.inferred_value_type(receiver)? else {
+                return None;
+            };
+            return method_contract(
+                package,
+                unit,
+                receiver.span.start,
+                &object_name,
+                node_text(&unit.source, member),
+            )
+            .map(|method| method.parameters.as_slice());
+        }
         if callee.kind != SyntaxKind::Name {
             return None;
         }
@@ -3852,9 +3877,7 @@ fn infer_receiver_consumption(package: &mut SemanticPackage) {
     ) -> bool {
         match value_type {
             ValueType::PlatformStreamHandle => true,
-            ValueType::Object(name) => package
-                .resolve_name_at(unit, position, name)
-                .and_then(|symbol| symbol.declaration_span)
+            ValueType::Object(name) => resolved_object_span(package, unit, position, name)
                 .and_then(|span| {
                     package
                         .units

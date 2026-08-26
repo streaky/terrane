@@ -5929,9 +5929,12 @@ transfers a byte endpoint into the corresponding explicitly encoded text adapter
 cannot be copied, used after transfer or consumption, or released twice.
 
 A read result carries `data`, the completed byte count, an explicit `end` flag, `failed`, and a
-diagnostic message. A write result retains the encoded `data` together with its completed byte
-count, `failed`, and a message, so a caller can resume a partial byte or text write without
-re-encoding or slicing a string by a byte offset. Partial completion is ordinary and observable.
+diagnostic message. An incomplete write result retains the encoded `data` together with its
+completed byte count, `failed`, and a message, so a caller can resume a partial byte or text write
+without re-encoding or slicing a string by a byte offset. A completed write result releases that
+buffer. Each `resume` performs one host write; if that write is also partial, the returned result
+retains the same data and may be passed to `resume` again. Partial completion is ordinary and
+observable.
 `read-exact` repeats partial host reads and reports failure if EOF arrives before the requested
 count; bounded `read-all` instead returns successfully after EOF, at its explicit limit, on
 failure, or when the host reports no progress. `write-all` repeats until all encoded bytes are

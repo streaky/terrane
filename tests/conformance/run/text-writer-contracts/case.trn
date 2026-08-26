@@ -1,14 +1,16 @@
 namespace text-writer-contracts
-from /standard/streams import stdout
+from /standard/streams import stdout, write-result
 from /core/encodings import utf8
 function main;
-    writer = (stdout;).text; utf8
-    first = writer.write; '∆'
-    resumed = writer.resume; first
+    output = stdout;
+    prefix = output.write; b'a'
+    writer = output.text; utf8
+    partial = write-result; b'abc', 1, false, ''
+    resumed = writer.resume; partial
     line = writer.line; 'x'
     data-sync = writer.sync-data;
     all-sync = writer.sync-all;
-    print; first.completed
+    print; prefix.completed
     print; resumed.completed
     print; line.completed
     print; data-sync.failed

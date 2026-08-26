@@ -1332,7 +1332,7 @@ impl Emitter<'_> {
             self.output,
             "{}{}fn {name}(",
             if (receiver.is_some() && name_override.is_none())
-                || (receiver.is_none() && self.unit.source_path.starts_with("standard/"))
+                || (receiver.is_none() && self.unit.bundled)
             {
                 "pub "
             } else {
@@ -4917,7 +4917,17 @@ impl Emitter<'_> {
         let declaration = self
             .package
             .resolve_name_at(self.unit, node.span.start, name)
-            .and_then(|symbol| symbol.declaration_span);
+            .and_then(|symbol| symbol.declaration_span)
+            .or_else(|| {
+                let mut matches = self
+                    .unit
+                    .objects
+                    .iter()
+                    .filter(|object| object.name == name)
+                    .map(|object| object.span);
+                let span = matches.next()?;
+                matches.all(|candidate| candidate == span).then_some(span)
+            });
         declaration
             .and_then(|declaration| {
                 self.package
@@ -4925,13 +4935,6 @@ impl Emitter<'_> {
                     .iter()
                     .flat_map(|unit| &unit.objects)
                     .find(|object| object.span == declaration)
-            })
-            .or_else(|| {
-                self.package
-                    .units
-                    .iter()
-                    .flat_map(|unit| &unit.objects)
-                    .find(|object| object.name == name)
             })
             .is_some_and(|object| object.resource_owning)
     }
