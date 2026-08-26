@@ -159,6 +159,16 @@ fn main() {
     let resolved: Path = join_path(base.clone(), child.clone());
     let resolved_text: String = resolved.text.clone();
     println!("{}", terrane_scalar_support::scalar_text(&resolved_text));
+    let components: terrane_collection_support::List<String> = path_components(
+        rooted_normal.clone(),
+    );
+    println!(
+        "{}{}{}",
+        terrane_scalar_support::scalar_text(&terrane_int_support::Int::from(components
+        .length())), terrane_scalar_support::scalar_text(&path_is_absolute(rooted_normal
+        .clone())), terrane_scalar_support::scalar_text(&path_is_absolute(relative_normal
+        .clone()))
+    );
     let hidden: Path = Path::terrane_construct(String::from(".profile"));
     println!("{}", terrane_scalar_support::scalar_text(&path_stem(hidden.clone())));
     println!("{}", terrane_scalar_support::scalar_text(&path_extension(hidden.clone())));

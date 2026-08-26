@@ -624,9 +624,10 @@ fn sync_file(
     capability: Filesystem,
     output: std::sync::Weak<std::sync::Mutex<FileHandle>>,
 ) -> bool {
+    let flushed: OperationResult = file_flush(capability.clone(), output.clone());
     let data: OperationResult = file_sync_data(capability.clone(), output.clone());
     let all: OperationResult = file_sync_all(capability.clone(), output.clone());
-    return data.failed || all.failed;
+    return flushed.failed || data.failed || all.failed;
 }
 fn main() {
     let fs: Filesystem = filesystem_capability();

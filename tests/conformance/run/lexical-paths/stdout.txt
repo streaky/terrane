@@ -5,6 +5,7 @@ file.tar
 gz
 /beta
 work/next
+2truefalse
 .profile
 
 .
