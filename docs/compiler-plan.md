@@ -1419,6 +1419,16 @@ Deliver:
 
 Exit criterion: a decode failure reports its document path and expected descriptor; canonical output is byte-identical across runs; a YAML alias bomb is refused by limit.
 
+Status: implemented on the `document-json-yaml-urls` branch. The shared exact document model,
+descriptor mappings, JSON/YAML policy, and URL/query objects are bundled Terrane sources selected
+by imports and remain Terrane until application lowering. Rust is confined to the ABI boundary for
+opaque parser/URL results and to the large, externally reviewed parser and WHATWG URL state
+machines; each boundary module records that justification. Accepted conformance covers exact JSON
+numbers, duplicate-key rejection, deterministic canonical ordering, descriptor paths and unknown
+fields, YAML alias limits, URL credential-safe display, duplicate ordered query entries, relative
+resolution, and generated-Rust compilation and execution with warnings denied. A rejection case
+keeps the host scanner intrinsics private.
+
 ### Milestone 23 — Randomness, codecs, digests, and compression
 
 Written in Terrane over the minimal Rust core, per delivery principle 9. Each layer implemented in Rust states which of the four justifications applies; everything above it is Terrane.
