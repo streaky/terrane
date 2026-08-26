@@ -67,16 +67,12 @@ pub(crate) fn lower(package: &SemanticPackage) -> Program {
             items: vec![Item::generated(support)],
         });
     }
-    if package
-        .units
-        .iter()
-        .any(|unit| {
-            matches!(
-                unit.namespace.as_str(),
-                "/standard/streams" | "/standard/filesystem"
-            )
-        })
-    {
+    if package.units.iter().any(|unit| {
+        matches!(
+            unit.namespace.as_str(),
+            "/standard/streams" | "/standard/filesystem"
+        )
+    }) {
         runtime.push(GeneratedModule {
             name: "platform_streams",
             items: vec![Item::generated(include_str!("runtime/platform_streams.rs"))],
@@ -4086,6 +4082,9 @@ impl Emitter<'_> {
             ("result-bytes", "system_result_bytes"),
             ("result-int", "system_result_int"),
             ("result-bool", "system_result_bool"),
+            ("platform-value-is-text", "platform_value_is_text"),
+            ("platform-value-text", "platform_value_text"),
+            ("platform-value-bytes", "platform_value_bytes"),
             ("process-arguments", "process_arguments"),
             ("environment-entries", "environment_entries"),
             ("process-exit", "process_exit"),
@@ -4100,9 +4099,7 @@ impl Emitter<'_> {
                 .iter()
                 .enumerate()
                 .map(|(index, value)| {
-                    if (function == "filesystem_call" && index == 4)
-                        || function == "process_exit"
-                    {
+                    if (function == "filesystem_call" && index == 4) || function == "process_exit" {
                         self.expression_as(value, ValueType::Scalar(ScalarType::Int))
                     } else {
                         self.expression(value)
@@ -4110,7 +4107,7 @@ impl Emitter<'_> {
                 })
                 .collect::<Vec<_>>()
                 .join(", ");
-            if function.starts_with("system_result_") {
+            if function.starts_with("system_result_") || function.starts_with("platform_value_") {
                 return format!("terrane_{function}(&({values}))");
             }
             return format!("terrane_{function}({values})");

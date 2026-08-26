@@ -1,0 +1,7 @@
+2alphabeta
+true
+11result.txt
+1input.trn
+24unknown option
+5option requires a value
+true0false255

@@ -32,13 +32,15 @@ class file-metadata
     kind string = 'other'
     size int = 0
     readonly bool = false
+    permission-detail string = ''
     failed bool = false
     message string = ''
 
-    function construct; kind string, size int, readonly bool, failure bool, detail string
+    function construct; kind string, size int, readonly bool, permission-detail string, failure bool, detail string
         this.kind = kind
         this.size = size
         this.readonly = readonly
+        this.permission-detail = permission-detail
         this.failed = failure
         this.message = detail
 
@@ -106,11 +108,13 @@ function filesystem-exists bool; capability filesystem, target path
 
 function filesystem-metadata file-metadata; capability filesystem, target path
     record = filesystem-call; 'metadata', target.text, '', b'', 0, true, false
-    return file-metadata; (result-text; record), (result-int; record), (result-bool; record), (result-failed; record), (result-message; record)
+    details = (result-text; record).split; '|'
+    return file-metadata; details[0], (result-int; record), (result-bool; record), details[1], (result-failed; record), (result-message; record)
 
 function filesystem-symlink-metadata file-metadata; capability filesystem, target path
     record = filesystem-call; 'metadata', target.text, '', b'', 0, false, false
-    return file-metadata; (result-text; record), (result-int; record), (result-bool; record), (result-failed; record), (result-message; record)
+    details = (result-text; record).split; '|'
+    return file-metadata; details[0], (result-int; record), (result-bool; record), details[1], (result-failed; record), (result-message; record)
 
 function filesystem-canonical path-result; capability filesystem, target path
     record = filesystem-call; 'canonical', target.text, '', b'', 0, false, false

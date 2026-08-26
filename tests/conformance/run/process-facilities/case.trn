@@ -1,0 +1,25 @@
+namespace conformance/process-facilities
+
+from /core/output import print
+from /core/collections import list
+from /standard/process import platform-string, arguments, environment
+from /standard/process import cli-schema, parse-command-line, make-exit-status
+
+function main;
+    actual = (arguments;)
+    print; actual.length, actual[0].text, actual[1].text
+    ambient = (environment;)
+    print; ambient.length > 0
+    schema-entries list of string = list; 'flag:--verbose', 'value:--output'
+    schema = cli-schema; schema-entries
+    supplied list of platform-string = list; (platform-string; 'text:--verbose'), (platform-string; 'text:--output'), (platform-string; 'text:result.txt'), (platform-string; 'text:input.trn'), (platform-string; 'text:--unknown'), (platform-string; 'text:--output')
+    parsed = parse-command-line; schema, supplied
+    print; parsed.flags.length, parsed.option-names.length, parsed.option-values[0].text
+    print; parsed.positionals.length, parsed.positionals[0].text
+    print; parsed.diagnostic-arguments.length, parsed.diagnostic-arguments[0], parsed.diagnostic-messages[0]
+    print; parsed.diagnostic-arguments[1], parsed.diagnostic-messages[1]
+    success-code int = 0
+    invalid-code int = 256
+    success = make-exit-status; success-code
+    invalid = make-exit-status; invalid-code
+    print; success.valid, success.code, invalid.valid, invalid.code

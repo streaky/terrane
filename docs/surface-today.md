@@ -119,6 +119,11 @@ Terrane package
     │   ├── filesystem-read-bounded / filesystem-write-atomic
     │   ├── filesystem-rename / filesystem-remove
     │   └── filesystem-open-beneath            race-resistant relative traversal
+    ├── /standard/process                      bundled Terrane package over minimal host intrinsics
+    │   ├── platform-string                    lossless text-or-raw platform value
+    │   ├── arguments / environment            explicit process snapshots
+    │   ├── cli-schema / parse-command-line    schema-driven options and structured diagnostics
+    │   └── exit-status / make-exit-status / exit explicit validated termination
     ├── namespace                              hierarchical object container
     │   ├── variable                           namespace-local value
     │   ├── constant                           namespace-local or program-global value

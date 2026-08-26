@@ -51,24 +51,30 @@ fn terrane_field(record: &str, index: usize) -> &str {
     record.split(TERRANE_RECORD_SEPARATOR).nth(index).unwrap_or("")
 }
 
+#[allow(dead_code, reason = "filesystem intrinsics are selected independently")]
 fn terrane_system_result_failed(record: &str) -> bool {
     terrane_field(record, 0) == "1"
 }
+#[allow(dead_code, reason = "filesystem intrinsics are selected independently")]
 fn terrane_system_result_message(record: &str) -> String {
     terrane_field(record, 1).to_owned()
 }
+#[allow(dead_code, reason = "filesystem intrinsics are selected independently")]
 fn terrane_system_result_text(record: &str) -> String {
     terrane_field(record, 2).to_owned()
 }
+#[allow(dead_code, reason = "filesystem intrinsics are selected independently")]
 fn terrane_system_result_bytes(record: &str) -> Vec<u8> {
     terrane_unhex(terrane_field(record, 3))
 }
+#[allow(dead_code, reason = "filesystem intrinsics are selected independently")]
 fn terrane_system_result_int(record: &str) -> terrane_int_support::Int {
     terrane_field(record, 4)
         .parse::<i128>()
         .map(terrane_int_support::Int::from)
         .unwrap_or_else(|_| terrane_int_support::Int::from(0_i64))
 }
+#[allow(dead_code, reason = "filesystem intrinsics are selected independently")]
 fn terrane_system_result_bool(record: &str) -> bool {
     terrane_field(record, 5) == "1"
 }
@@ -79,6 +85,17 @@ fn terrane_io_error(error: std::io::Error) -> String {
         message: error.to_string(),
         ..TerraneSystemResult::default()
     })
+}
+
+#[cfg(unix)]
+fn terrane_permission_detail(metadata: &std::fs::Metadata) -> String {
+    use std::os::unix::fs::PermissionsExt as _;
+    format!("unix-mode:{:04o}", metadata.permissions().mode() & 0o7777)
+}
+
+#[cfg(not(unix))]
+fn terrane_permission_detail(metadata: &std::fs::Metadata) -> String {
+    format!("readonly:{}", metadata.permissions().readonly())
 }
 
 fn terrane_metadata(path: &std::path::Path, follow: bool) -> String {
@@ -100,13 +117,18 @@ fn terrane_metadata(path: &std::path::Path, follow: bool) -> String {
                 "other"
             };
             terrane_pack(TerraneSystemResult {
-                text: kind.to_owned(),
+                text: format!("{kind}|{}", terrane_permission_detail(&metadata)),
                 number: i128::from(metadata.len()),
                 flag: metadata.permissions().readonly(),
                 ..TerraneSystemResult::default()
             })
         }
-        Err(error) => terrane_io_error(error),
+        Err(error) => terrane_pack(TerraneSystemResult {
+            failed: true,
+            message: error.to_string(),
+            text: "other|unavailable".to_owned(),
+            ..TerraneSystemResult::default()
+        }),
     }
 }
 
@@ -189,6 +211,7 @@ fn terrane_open_beneath(_: &std::path::Path, _: &std::path::Path, _: bool) -> st
     ))
 }
 
+#[allow(dead_code, reason = "filesystem intrinsics are selected independently")]
 fn terrane_filesystem_call(
     operation: String,
     path: String,
@@ -279,9 +302,27 @@ fn terrane_platform_value(value: std::ffi::OsString) -> String {
     )
 }
 
+#[allow(dead_code, reason = "process intrinsics are selected independently")]
+fn terrane_platform_value_is_text(value: &str) -> bool {
+    value.starts_with("text:")
+}
+
+#[allow(dead_code, reason = "process intrinsics are selected independently")]
+fn terrane_platform_value_text(value: &str) -> String {
+    value.strip_prefix("text:").unwrap_or("").to_owned()
+}
+
+#[allow(dead_code, reason = "process intrinsics are selected independently")]
+fn terrane_platform_value_bytes(value: &str) -> Vec<u8> {
+    value
+        .strip_prefix("raw:")
+        .map(terrane_unhex)
+        .unwrap_or_default()
+}
+
 #[allow(dead_code, reason = "process intrinsics are selected independently of filesystem intrinsics")]
 fn terrane_process_arguments() -> Vec<String> {
-    std::env::args_os().map(terrane_platform_value).collect()
+    std::env::args_os().skip(1).map(terrane_platform_value).collect()
 }
 
 #[allow(dead_code, reason = "process intrinsics are selected independently of filesystem intrinsics")]

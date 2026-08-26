@@ -163,7 +163,11 @@ fn compile_and_maybe_run(case: &Path, phase: &str, rust: &str, build: &Conforman
     );
 
     if phase == "run" {
-        let mut child = Command::new(&binary_path)
+        let mut command = Command::new(&binary_path);
+        if let Some(arguments) = optional_text(case.join("arguments.txt")) {
+            command.args(arguments.lines());
+        }
+        let mut child = command
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
             .stderr(Stdio::piped())

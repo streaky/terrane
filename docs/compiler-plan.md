@@ -1373,6 +1373,26 @@ Deliver:
 
 Exit criterion: lexical resolution and filesystem canonicalization are separately observable, a traversal escape attempt is refused, and the CLI parser returns structured diagnostics without calling process exit itself.
 
+Implemented on `filesystem-process-facilities`. Import-driven bundled Terrane packages keep
+`/standard/paths`, `/standard/filesystem`, and `/standard/process` visible through semantic
+analysis and lowering. Rust is limited to host filesystem, descriptor, environment, argument, and
+process-exit boundaries. Paths normalize and resolve lexically in Terrane; filesystem
+canonicalization is a distinct host operation. The explicit filesystem capability gates metadata,
+symlink metadata, canonicalization, read-link, bounded reads, atomic replacement, rename, removal,
+file handles, and directory-relative no-follow traversal with beneath and cross-filesystem policy.
+Portable metadata includes kind, size, read-only state, Unix mode detail where available, and
+failure detail.
+
+Process facilities expose lossless text-or-raw platform strings, explicit argument and environment
+snapshots, a schema-driven parser that returns option names, values, positionals, and structured
+diagnostics without terminating, and validated `exit-status` values in `0..=255`. Accepted
+conformance distinguishes lexical resolution from canonicalization, rejects a traversal escape,
+exercises file-handle and atomic-write behavior, passes real process arguments, checks parser
+diagnostics and invalid exit-status construction, and compiles untouched generated Rust with
+warnings denied and canonical-Rust validation enabled. Milestone evidence:
+`RUSTFLAGS='-D warnings' cargo test -p terrane-compiler --tests`, direct canonical executions of the
+filesystem and process cases, and a process-exit smoke program observed returning status 7.
+
 ### Milestone 22 — Document values, JSON, YAML, and URLs
 
 Written in Terrane over the minimal Rust core, per delivery principle 9. Each layer implemented in Rust states which of the four justifications applies; everything above it is Terrane.

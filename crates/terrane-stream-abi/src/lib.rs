@@ -141,25 +141,42 @@ pub struct FileStream {
 impl FileStream {
     fn read(&mut self, limit: usize) -> io::Result<ReadOutcome> {
         if !self.readable {
-            return Err(io::Error::new(io::ErrorKind::InvalidInput, "file is not readable"));
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "file is not readable",
+            ));
         }
         let mut data = vec![0; limit];
         let completed = self.file.read(&mut data)?;
         data.truncate(completed);
-        Ok(ReadOutcome { data, end: completed == 0 })
+        Ok(ReadOutcome {
+            data,
+            end: completed == 0,
+        })
     }
 
     fn write(&mut self, data: &[u8]) -> io::Result<usize> {
         if !self.writable {
-            return Err(io::Error::new(io::ErrorKind::InvalidInput, "file is not writable"));
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "file is not writable",
+            ));
         }
         self.file.write(data)
     }
 
-    fn flush(&mut self) -> io::Result<()> { self.file.flush() }
-    fn sync_data(&mut self) -> io::Result<()> { self.file.sync_data() }
-    fn sync_all(&mut self) -> io::Result<()> { self.file.sync_all() }
-    fn close(&mut self) -> io::Result<()> { self.file.flush() }
+    fn flush(&mut self) -> io::Result<()> {
+        self.file.flush()
+    }
+    fn sync_data(&mut self) -> io::Result<()> {
+        self.file.sync_data()
+    }
+    fn sync_all(&mut self) -> io::Result<()> {
+        self.file.sync_all()
+    }
+    fn close(&mut self) -> io::Result<()> {
+        self.file.flush()
+    }
 }
 
 #[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
@@ -228,7 +245,11 @@ pub fn open_file(
     truncate: bool,
 ) -> io::Result<StreamHandle> {
     let mut options = std::fs::OpenOptions::new();
-    options.read(readable).write(writable).create(create).truncate(truncate);
+    options
+        .read(readable)
+        .write(writable)
+        .create(create)
+        .truncate(truncate);
     #[cfg(unix)]
     {
         use std::os::unix::fs::OpenOptionsExt as _;
@@ -236,7 +257,11 @@ pub fn open_file(
         options.custom_flags(O_NOFOLLOW);
     }
     let file = options.open(path)?;
-    Ok(acquire(StandardStream::File(FileStream { file, readable, writable })))
+    Ok(acquire(StandardStream::File(FileStream {
+        file,
+        readable,
+        writable,
+    })))
 }
 
 /// Performs at most one host read through a registered process-stream handle.
@@ -432,10 +457,8 @@ mod tests {
 
     #[test]
     fn file_handles_preserve_partial_io_and_explicit_close() {
-        let path = std::env::temp_dir().join(format!(
-            "terrane-stream-abi-file-{}",
-            std::process::id()
-        ));
+        let path =
+            std::env::temp_dir().join(format!("terrane-stream-abi-file-{}", std::process::id()));
         let writer = open_file(path.to_str().unwrap(), false, true, true, true).unwrap();
         assert_eq!(write(writer, b"content").unwrap(), 7);
         sync_all(writer).unwrap();
@@ -458,10 +481,8 @@ mod tests {
     fn file_open_refuses_a_final_symlink() {
         use std::os::unix::fs::symlink;
 
-        let directory = std::env::temp_dir().join(format!(
-            "terrane-stream-abi-symlink-{}",
-            std::process::id()
-        ));
+        let directory =
+            std::env::temp_dir().join(format!("terrane-stream-abi-symlink-{}", std::process::id()));
         std::fs::create_dir_all(&directory).unwrap();
         let target = directory.join("target");
         let link = directory.join("link");

@@ -20,6 +20,10 @@ impl TerranePlatformStreamHandle {
     }
 }
 
+#[allow(
+    dead_code,
+    reason = "file intrinsics are selected independently of standard stream intrinsics"
+)]
 #[derive(Clone)]
 struct TerranePlatformOpenResult {
     handle: TerranePlatformStreamHandle,
@@ -64,6 +68,10 @@ fn terrane_platform_acquire_stderr() -> TerranePlatformStreamHandle {
     TerranePlatformStreamHandle::new(terrane_stream_abi::acquire_stderr())
 }
 
+#[allow(
+    dead_code,
+    reason = "file intrinsics are selected independently of standard stream intrinsics"
+)]
 fn terrane_platform_open_file(
     path: String,
     readable: bool,

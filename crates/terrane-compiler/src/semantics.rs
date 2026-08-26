@@ -5403,6 +5403,39 @@ fn declared_value_type_with_visible_objects(
     {
         return Ok(ValueType::Object(type_name.to_owned()));
     }
+    for (constructor, construct) in [
+        ("list of ", ValueType::List as fn(ElementType) -> ValueType),
+        (
+            "tuple of ",
+            (|item| ValueType::Tuple(item, None)) as fn(ElementType) -> ValueType,
+        ),
+        (
+            "iterator of ",
+            ValueType::Iterator as fn(ElementType) -> ValueType,
+        ),
+    ] {
+        if let Some(argument) = type_name.strip_prefix(constructor) {
+            let argument = argument.trim();
+            let imported_argument = lexical_scope_chain(unit, type_node.span.start).any(|scope| {
+                scope.symbols.get(argument).is_some_and(|symbols| {
+                    symbols.iter().rev().any(|symbol| {
+                        matches!(
+                            symbol.kind,
+                            SymbolKind::Class | SymbolKind::Interface | SymbolKind::Trait
+                        )
+                    })
+                })
+            });
+            if imported_argument
+                || visible_object_names.contains(argument)
+                || unit.objects.iter().any(|object| object.name == argument)
+            {
+                return Ok(construct(ElementType::new(ValueType::Object(
+                    argument.to_owned(),
+                ))));
+            }
+        }
+    }
     if type_name == "resource-handle" {
         return Ok(ValueType::PlatformStreamHandle);
     }
@@ -6204,19 +6237,20 @@ fn infer_value_type(
                         Some(ValueType::Scalar(ScalarType::String))
                     }
                     "/core/platform-system::result-failed"
-                    | "/core/platform-system::result-bool" => {
+                    | "/core/platform-system::result-bool"
+                    | "/core/platform-system::platform-value-is-text" => {
                         Some(ValueType::Scalar(ScalarType::Bool))
                     }
                     "/core/platform-system::result-message"
-                    | "/core/platform-system::result-text" => {
+                    | "/core/platform-system::result-text"
+                    | "/core/platform-system::platform-value-text" => {
                         Some(ValueType::Scalar(ScalarType::String))
                     }
-                    "/core/platform-system::result-bytes" => {
+                    "/core/platform-system::result-bytes"
+                    | "/core/platform-system::platform-value-bytes" => {
                         Some(ValueType::Scalar(ScalarType::Bytes))
                     }
-                    "/core/platform-system::result-int" => {
-                        Some(ValueType::Scalar(ScalarType::Int))
-                    }
+                    "/core/platform-system::result-int" => Some(ValueType::Scalar(ScalarType::Int)),
                     "/core/platform-system::process-arguments"
                     | "/core/platform-system::environment-entries" => Some(ValueType::StringList),
                     "/core/platform-system::process-exit" => {
@@ -9808,6 +9842,9 @@ fn bootstrap_namespaces() -> BTreeMap<String, Namespace> {
                 "result-bytes",
                 "result-int",
                 "result-bool",
+                "platform-value-is-text",
+                "platform-value-text",
+                "platform-value-bytes",
                 "process-arguments",
                 "environment-entries",
                 "process-exit",
