@@ -1,6 +1,7 @@
 use std::fs;
+use std::io::Write as _;
 use std::path::{Path, PathBuf};
-use std::process::Command;
+use std::process::{Command, Stdio};
 
 fn corpus() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).join("../../tests/conformance")
@@ -24,11 +25,20 @@ impl ConformanceBuild {
     fn write_manifest(&self) {
         fs::write(
             self.root.join("Cargo.toml"),
-            "[package]\nname = \"terrane_conformance_program\"\nversion = \"0.0.0\"\nedition = \"2024\"\n\n\
-             [dependencies]\nterrane-int-support = { path = \"support/terrane-int-support\" }\n\
-             terrane-collection-support = { path = \"support/terrane-collection-support\" }\n\
-             terrane-scalar-support = { path = \"support/terrane-scalar-support\" }\n\
-             terrane-string-support = { path = \"support/terrane-string-support\" }\n\n[workspace]\n",
+            r#"[package]
+name = "terrane_conformance_program"
+version = "0.0.0"
+edition = "2024"
+
+[dependencies]
+terrane-int-support = { path = "support/terrane-int-support" }
+terrane-collection-support = { path = "support/terrane-collection-support" }
+terrane-scalar-support = { path = "support/terrane-scalar-support" }
+terrane-string-support = { path = "support/terrane-string-support" }
+terrane-stream-abi = { path = "support/terrane-stream-abi" }
+
+[workspace]
+"#,
         )
         .unwrap();
     }
@@ -62,21 +72,16 @@ fn every_manifest_drives_a_conformance_case() {
                 let expected = fs::read_to_string(case.join("lower.rs")).unwrap();
                 let (compilation, sources) = if package_case {
                     let package = terrane_compiler::Package::load(&source_path).unwrap();
-                    let sources = package
-                        .units
-                        .iter()
-                        .map(|unit| unit.source.clone())
-                        .collect::<Vec<_>>();
-                    (
-                        terrane_compiler::compile_package_with_options(&package, options).unwrap(),
-                        sources,
-                    )
+                    let compilation =
+                        terrane_compiler::compile_package_with_options(&package, options).unwrap();
+                    let sources = compilation.sources.clone();
+                    (compilation, sources)
                 } else {
                     let source = fs::read_to_string(&source_path).unwrap();
                     let compilation =
                         terrane_compiler::compile_with_options(&source_path, source, options)
                             .unwrap();
-                    let sources = vec![compilation.source.clone()];
+                    let sources = compilation.sources.clone();
                     (compilation, sources)
                 };
                 if let Some(warnings_file) = field(&manifest, "warnings") {
@@ -158,7 +163,26 @@ fn compile_and_maybe_run(case: &Path, phase: &str, rust: &str, build: &Conforman
     );
 
     if phase == "run" {
-        let output = Command::new(&binary_path).output().unwrap();
+        let mut child = Command::new(&binary_path)
+            .stdin(Stdio::piped())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .spawn()
+            .unwrap();
+        if let Err(error) = child
+            .stdin
+            .take()
+            .unwrap()
+            .write_all(&optional_bytes(case.join("stdin.txt")))
+        {
+            assert_eq!(
+                error.kind(),
+                std::io::ErrorKind::BrokenPipe,
+                "{} could not receive conformance stdin",
+                case.display()
+            );
+        }
+        let output = child.wait_with_output().unwrap();
         let expected_stdout = fs::read(case.join("stdout.txt")).unwrap();
         let expected_stderr = optional_bytes(case.join("stderr.txt"));
         let expected_code = optional_text(case.join("exit-code.txt"))
@@ -179,10 +203,12 @@ fn write_support_crates(directory: &Path) {
     let collection = directory.join("support/terrane-collection-support");
     let scalar = directory.join("support/terrane-scalar-support");
     let string = directory.join("support/terrane-string-support");
+    let stream = directory.join("support/terrane-stream-abi");
     fs::create_dir_all(int.join("src")).unwrap();
     fs::create_dir_all(collection.join("src")).unwrap();
     fs::create_dir_all(scalar.join("src")).unwrap();
     fs::create_dir_all(string.join("src")).unwrap();
+    fs::create_dir_all(stream.join("src")).unwrap();
     fs::write(
         int.join("Cargo.toml"),
         "[package]\nname = \"terrane-int-support\"\nversion = \"0.1.0\"\nedition = \"2024\"\n\n[dependencies]\nnum-bigint = { version = \"0.4\", features = [\"std\"] }\nnum-integer = \"0.1\"\nnum-traits = \"0.2\"\n",
@@ -221,6 +247,16 @@ fn write_support_crates(directory: &Path) {
     fs::write(
         string.join("src/lib.rs"),
         include_bytes!("../../terrane-string-support/src/lib.rs"),
+    )
+    .unwrap();
+    fs::write(
+        stream.join("Cargo.toml"),
+        "[package]\nname = \"terrane-stream-abi\"\nversion = \"0.1.0\"\nedition = \"2024\"\n",
+    )
+    .unwrap();
+    fs::write(
+        stream.join("src/lib.rs"),
+        include_bytes!("../../terrane-stream-abi/src/lib.rs"),
     )
     .unwrap();
 }

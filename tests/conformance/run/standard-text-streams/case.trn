@@ -1,0 +1,37 @@
+namespace standard-text-streams
+from /standard/streams import stdin, stdout
+
+function main;
+    bytes-input = stdin;
+    input = bytes-input.text; utf8
+    read = input.read-all; 100
+    if read.failed
+        print; read.message
+    if read.completed != 3 or not read.end
+        print; 'unexpected text read'
+    bytes-output = stdout;
+    output = bytes-output.text; utf8
+    copied = output.write-all; read.text
+    if copied.failed
+        print; copied.message
+    if copied.completed != 3
+        print; 'unexpected copied count'
+    first = output.write; 'one\r'
+    if first.failed
+        print; first.message
+    if first.completed != 4
+        print; 'unexpected text write count'
+    second = output.line; 'two'
+    if second.failed
+        print; second.message
+    if second.completed != 4
+        print; 'unexpected line count'
+    flushed = output.flush;
+    if flushed.failed
+        print; flushed.message
+    input-closed = input.close;
+    if input-closed.failed
+        print; input-closed.message
+    output-closed = output.close;
+    if output-closed.failed
+        print; output-closed.message

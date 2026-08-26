@@ -1,3 +1,4 @@
+mod bundled;
 mod compiler;
 pub mod diagnostic;
 pub mod highlight;

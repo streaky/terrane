@@ -1,0 +1,9 @@
+namespace streams-no-prelude
+from /standard/streams import stdin, stdout, stderr
+function main;
+    input = stdin;
+    input.close;
+    output = stdout;
+    output.close;
+    errors = stderr;
+    errors.close;

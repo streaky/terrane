@@ -458,20 +458,22 @@ lowering: contextual constants materialise directly; widening changes representa
 ## VALUE / REF / MOVE / LIFETIME
 
 ```yaml
-ordinary_assignment: value semantics
+ordinary_assignment: copyable values use value semantics; resource-owning values transfer automatically
 implementation: COW/share storage allowed if mutation cannot leak
 mutation: separates backing storage before observable change
 ref: explicit non-owning source-visible identity; does not extend lifetime
 shared_ref: explicit shared identity plus shared ownership; extends lifetime
 reference_provenance: compiler-tracked; derived references may narrow, never widen lifetime
 interior_ref: separates COW, pins path, cannot escape/replace/remove while live
-linear: noncopyable exclusive resource; move transfers identity
+resource_ownership: inferred transitively from compiler-known noncopyable fields; no 'linear class' qualifier
+resource_assignment: transfers identity and makes source unavailable; no 'move' ceremony required
+move: explicit transfer request for a value ordinary assignment would copy
 constants: cannot rebind
 constant_scope: rejects reassignment regardless of lexical, namespace-local, or program-global identity tier
 shadowing: a namespace-local binding may shadow a distinct program-global constant; writes resolve to the local identity
 parameter_and_for_target_reassignment: allowed within lexical scope; value semantics preserve caller arguments and iterated collections
 lowering_mutability: emit mutable target storage only when resolver-backed write analysis finds a reassignment
-cleanup: deterministic lexical destruction; each independently owned source value has one lifecycle lineage and invokes each applicable `destruct` once when that lineage ends, ordered most-derived class to root base; value separation copies state into a fresh lineage, compiler representation clones cannot multiply the hook, move transfers it, and `ref` never delays it
+cleanup: deterministic lexical destruction; each independently owned source value has one lifecycle lineage and invokes each applicable `destruct` once when that lineage ends, ordered most-derived class to root base; value separation copies state into a fresh lineage, compiler representation clones cannot multiply the hook, transfer moves it, and `ref` never delays it
 cycles: only `shared ref` can form ownership cycles; never promise deterministic collection; reject provable cycles or diagnose/document leak
 ```
 
@@ -686,6 +688,27 @@ encoding: explicit utf8/utf16-le/utf16-be/utf32-le/utf32-be; encode total; decod
 - Deadlines are explicit, never ambient. Child effective deadline is `min(parent, requested)`; a statically provable extension is diagnosed and dynamic inputs clamp to the earlier instant.
 - No borrow crosses suspension unless its owner lifetime and executor transfer requirements are proven.
 - Runtime remains profile-selected; channels/mutexes/atomics are library objects; unavailable target capability rejects async statically.
+
+## STREAMS
+
+```yaml
+package: /standard/streams; ordinary bundled Terrane source included recursively only when imported
+resource_objects: byte-reader | byte-writer | text-reader | text-writer; inferred from stored process handle; no copy, use after transfer/consume, or double release
+process_factories: stdin -> byte-reader; stdout/stderr -> byte-writer
+text_adapter: 'byte-endpoint.text; encoding' transfers endpoint; adapter carries explicit encoding
+read_result: data bytes, completed byte count, end bool, failed bool, message string
+text_read_result: text string plus the same byte-count/status fields; malformed input throws decode-error
+write_result: incomplete result retains encoded data bytes for resume; completed result releases data; completed byte count, failed bool, message string
+partial_policy: read/write/resume may complete partially; resume performs one host write and may be repeated; read-exact fails on short EOF, bounded read-all accepts EOF, write-all loops until complete/failure/no progress
+bounded_read_all: explicit limit REQUIRED
+newline: no implicit translation; text-writer.line explicitly appends '\n' and its completed count includes the encoded newline
+close: explicit, consuming, idempotent host release with observable failure; destruction explicitly discards release failure
+writer_durability: byte/text writer flush, sync-data, and sync-all are distinct; unsupported/failure never silently weakens
+async: read-async/write-async preserve synchronous result contracts; cancellation is task-outcome state and never fabricates stream progress
+rust_boundary: process-I/O syscall/ABI handle registry and one partial operation only
+terrane_layers: public protocols/results, loops, adapters, policy, factories, async wrappers
+generated_ownership: transfers/use-after-consume/double-release checked statically; current handle refcount only coordinates one host release after adapter transfer
+```
 
 ## TARGET
 

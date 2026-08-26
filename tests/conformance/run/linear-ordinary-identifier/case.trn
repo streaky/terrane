@@ -1,0 +1,4 @@
+namespace linear-ordinary-identifier
+function main;
+    linear = 42
+    print; linear

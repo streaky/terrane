@@ -44,9 +44,9 @@ pub(crate) fn lower(package: &SemanticPackage) -> Program {
         .iter()
         .any(|unit| unit.functions.iter().any(|function| function.is_async))
     {
-        let mut support = include_str!("runtime/async.rs.txt").to_owned();
+        let mut support = include_str!("runtime/async.rs").to_owned();
         if package_uses_task_scope(package) {
-            support.push_str(include_str!("runtime/async_cancellable.rs.txt"));
+            support.push_str(include_str!("runtime/async_cancellable.rs"));
         }
         runtime.push(GeneratedModule {
             name: "async",
@@ -56,15 +56,25 @@ pub(crate) fn lower(package: &SemanticPackage) -> Program {
     if package_uses_task_scope(package) {
         let support = match package.executor {
             crate::package::ExecutorProfile::Cooperative => {
-                include_str!("runtime/tasks_cooperative.rs.txt")
+                include_str!("runtime/tasks_cooperative.rs")
             }
             crate::package::ExecutorProfile::Threaded => {
-                include_str!("runtime/tasks_threaded.rs.txt")
+                include_str!("runtime/tasks_threaded.rs")
             }
         };
         runtime.push(GeneratedModule {
             name: "tasks",
             items: vec![Item::generated(support)],
+        });
+    }
+    if package
+        .units
+        .iter()
+        .any(|unit| unit.namespace == "/standard/streams")
+    {
+        runtime.push(GeneratedModule {
+            name: "platform_streams",
+            items: vec![Item::generated(include_str!("runtime/platform_streams.rs"))],
         });
     }
     if package.units.iter().any(|unit| {
@@ -711,7 +721,9 @@ impl Emitter<'_> {
                 self.line(&format!("fn separate_box(&self) -> Box<dyn {protocol}>;"));
                 for method in &methods {
                     self.line_start();
-                    let receiver = if method.mutates_receiver {
+                    let receiver = if method.consumes_receiver {
+                        "self: Box<Self>"
+                    } else if method.mutates_receiver {
                         "&mut self"
                     } else {
                         "&self"
@@ -745,7 +757,9 @@ impl Emitter<'_> {
                 self.indent += 1;
                 for method in &methods {
                     self.line_start();
-                    let receiver = if method.mutates_receiver {
+                    let receiver = if method.consumes_receiver {
+                        "self"
+                    } else if method.mutates_receiver {
                         "&mut self"
                     } else {
                         "&self"
@@ -796,10 +810,12 @@ impl Emitter<'_> {
                 };
                 let methods = effective_object_methods(self.unit, object);
                 let has_destructor = methods.iter().any(|method| method.name == "destruct");
-                self.line("#[derive(Clone)]");
+                if !object.resource_owning {
+                    self.line("#[derive(Clone)]");
+                }
                 self.line(&format!("pub struct {storage_type} {{"));
                 self.indent += 1;
-                if has_destructor {
+                if has_destructor && !object.resource_owning {
                     self.line("__terrane_lifetime: std::sync::Arc<()>,");
                 }
                 for field in &fields {
@@ -840,12 +856,15 @@ impl Emitter<'_> {
                                     .and_then(|index| binding_initializer(binding, index))
                             });
                         let value = initializer.map_or_else(
-                            || "panic!(\"object field was not initialized\")".to_owned(),
+                            || match field.value_type {
+                                ValueType::PlatformStreamHandle => "Default::default()".to_owned(),
+                                _ => "panic!(\"object field was not initialized\")".to_owned(),
+                            },
                             |initializer| self.expression_as(initializer, field.value_type.clone()),
                         );
                         self.line(&format!("{}: {value},", rust_name(&field.name)));
                     }
-                    if has_destructor {
+                    if has_destructor && !object.resource_owning {
                         self.line("__terrane_lifetime: std::sync::Arc::new(()),");
                     }
                     self.indent -= 1;
@@ -875,12 +894,15 @@ impl Emitter<'_> {
                                     .and_then(|index| binding_initializer(binding, index))
                             });
                         let value = initializer.map_or_else(
-                            || "panic!(\"object field was not initialized\")".to_owned(),
+                            || match field.value_type {
+                                ValueType::PlatformStreamHandle => "Default::default()".to_owned(),
+                                _ => "panic!(\"object field was not initialized\")".to_owned(),
+                            },
                             |initializer| self.expression_as(initializer, field.value_type.clone()),
                         );
                         self.line(&format!("{}: {value},", rust_name(&field.name)));
                     }
-                    if has_destructor {
+                    if has_destructor && !object.resource_owning {
                         self.line("__terrane_lifetime: std::sync::Arc::new(()),");
                     }
                     self.indent -= 1;
@@ -888,7 +910,7 @@ impl Emitter<'_> {
                     self.indent -= 1;
                     self.line("}");
                 }
-                if has_destructor {
+                if has_destructor && !object.resource_owning {
                     self.line("pub fn terrane_separate(&self) -> Self {");
                     self.indent += 1;
                     self.line("let mut value = self.clone();");
@@ -925,7 +947,9 @@ impl Emitter<'_> {
                 self.indent -= 1;
                 self.line("}");
                 if !descendants.is_empty() {
-                    self.line("#[derive(Clone)]");
+                    if !object.resource_owning {
+                        self.line("#[derive(Clone)]");
+                    }
                     self.line(&format!("pub enum {class_type} {{"));
                     self.indent += 1;
                     self.line(&format!("Own({storage_type}),"));
@@ -1012,7 +1036,9 @@ impl Emitter<'_> {
                         .filter(|method| !matches!(method.name.as_str(), "construct" | "destruct"))
                     {
                         self.line_start();
-                        let receiver = if method.mutates_receiver {
+                        let receiver = if method.consumes_receiver {
+                            "self"
+                        } else if method.mutates_receiver {
                             "&mut self"
                         } else {
                             "&self"
@@ -1154,7 +1180,9 @@ impl Emitter<'_> {
                     }
                     for method in effective_object_methods(self.unit, interface) {
                         self.line_start();
-                        let receiver = if method.mutates_receiver {
+                        let receiver = if method.consumes_receiver {
+                            "self: Box<Self>"
+                        } else if method.mutates_receiver {
                             "&mut self"
                         } else {
                             "&self"
@@ -1183,8 +1211,13 @@ impl Emitter<'_> {
                             .map(|parameter| rust_name(&parameter.name))
                             .collect::<Vec<_>>()
                             .join(", ");
+                        let receiver = if method.consumes_receiver {
+                            "*self"
+                        } else {
+                            "self"
+                        };
                         self.line(&format!(
-                            "{class_type}::{}(self, {arguments})",
+                            "{class_type}::{}({receiver}, {arguments})",
                             rust_name(&method.name)
                         ));
                         self.indent -= 1;
@@ -1201,18 +1234,31 @@ impl Emitter<'_> {
                     self.indent += 1;
                     self.line("fn drop(&mut self) {");
                     self.indent += 1;
-                    self.line("if std::sync::Arc::strong_count(&self.__terrane_lifetime) == 1 {");
-                    self.indent += 1;
-                    self.line("self.destruct();");
-                    for index in (0..object_destructor_chain(self.unit, object)
-                        .len()
-                        .saturating_sub(1))
-                        .rev()
-                    {
-                        self.line(&format!("self.terrane_destruct_{index}();"));
+                    if object.resource_owning {
+                        self.line("self.destruct();");
+                        for index in (0..object_destructor_chain(self.unit, object)
+                            .len()
+                            .saturating_sub(1))
+                            .rev()
+                        {
+                            self.line(&format!("self.terrane_destruct_{index}();"));
+                        }
+                    } else {
+                        self.line(
+                            "if std::sync::Arc::strong_count(&self.__terrane_lifetime) == 1 {",
+                        );
+                        self.indent += 1;
+                        self.line("self.destruct();");
+                        for index in (0..object_destructor_chain(self.unit, object)
+                            .len()
+                            .saturating_sub(1))
+                            .rev()
+                        {
+                            self.line(&format!("self.terrane_destruct_{index}();"));
+                        }
+                        self.indent -= 1;
+                        self.line("}");
                     }
-                    self.indent -= 1;
-                    self.line("}");
                     self.indent -= 1;
                     self.line("}");
                     self.indent -= 1;
@@ -1233,7 +1279,9 @@ impl Emitter<'_> {
             .iter()
             .find(|contract| contract.span == node.span)
             .expect("object method must have an analyzed contract");
-        let receiver = if contract.mutates_receiver {
+        let receiver = if contract.consumes_receiver {
+            "self"
+        } else if contract.mutates_receiver {
             "&mut self"
         } else {
             "&self"
@@ -1247,7 +1295,9 @@ impl Emitter<'_> {
             .iter()
             .find(|contract| contract.span == node.span)
             .expect("object method must have an analyzed contract");
-        let receiver = if contract.mutates_receiver {
+        let receiver = if contract.consumes_receiver {
+            "self"
+        } else if contract.mutates_receiver {
             "&mut self"
         } else {
             "&self"
@@ -1281,7 +1331,9 @@ impl Emitter<'_> {
         write!(
             self.output,
             "{}{}fn {name}(",
-            if receiver.is_some() && name_override.is_none() {
+            if (receiver.is_some() && name_override.is_none())
+                || (receiver.is_none() && self.unit.bundled)
+            {
                 "pub "
             } else {
                 ""
@@ -2722,6 +2774,14 @@ impl Emitter<'_> {
                     rust_element_type(value)
                 )
             }
+            ValueType::PlatformStreamHandle if node.kind == SyntaxKind::MemberExpression => {
+                format!("({}).clone()", self.expression(node))
+            }
+            ValueType::Object(name)
+                if node.kind == SyntaxKind::Name && self.object_owns_resource(node, &name) =>
+            {
+                self.expression(node)
+            }
             ValueType::Object(name)
                 if node.kind == SyntaxKind::Name && self.object_requires_separation(&name) =>
             {
@@ -3473,6 +3533,22 @@ impl Emitter<'_> {
                 _ => String::new(),
             };
         }
+        if matches!(
+            receiver_type,
+            Some(
+                ValueType::PlatformReadResult
+                    | ValueType::PlatformWriteResult
+                    | ValueType::PlatformUnitResult
+            )
+        ) {
+            let receiver = self.expression(receiver);
+            return match self.text(member) {
+                "data" | "completed" | "message" => {
+                    format!("({receiver}).{}.clone()", self.text(member))
+                }
+                name => format!("({receiver}).{name}"),
+            };
+        }
         if let Some(length) =
             self.direct_string_view_length(receiver, receiver_type.clone(), member)
         {
@@ -3496,7 +3572,9 @@ impl Emitter<'_> {
             "bytes" | "scalars" | "graphemes" if receiver_type == Some(ValueType::TextRange) => {
                 receiver
             }
-            boundary @ ("start" | "end") => {
+            boundary @ ("start" | "end")
+                if matches!(receiver_type, Some(ValueType::TextRangeView(_))) =>
+            {
                 let method = match (receiver_type.clone(), boundary) {
                     (
                         Some(ValueType::TextRangeView(crate::semantics::TextUnit::Bytes)),
@@ -3960,6 +4038,46 @@ impl Emitter<'_> {
             let format = "{}".repeat(values.len());
             return format!("println!(\"{format}\", {})", values.join(", "));
         }
+        let platform_call = [
+            ("acquire-stdin", "acquire_stdin"),
+            ("acquire-stdout", "acquire_stdout"),
+            ("acquire-stderr", "acquire_stderr"),
+            ("read", "read"),
+            ("write", "write"),
+            ("flush", "flush"),
+            ("sync-data", "sync_data"),
+            ("sync-all", "sync_all"),
+            ("close", "close"),
+            ("release", "release"),
+        ]
+        .into_iter()
+        .find_map(|(terrane, rust)| {
+            self.is_builtin(callee, &format!("/core/platform-streams::{terrane}"))
+                .then_some(rust)
+        });
+        if let Some(function) = platform_call {
+            let values = argument_values
+                .iter()
+                .map(|value| self.expression(value))
+                .collect::<Vec<_>>();
+            if function.starts_with("acquire_") {
+                return format!("terrane_platform_{function}()");
+            }
+            if function == "write" && values.len() == 3 {
+                return format!(
+                    "terrane_platform_write(&({}), &({}), terrane_int_support::Int::from(({}).clone()))",
+                    values[0], values[1], values[2]
+                );
+            }
+            let Some((handle, arguments)) = values.split_first() else {
+                unreachable!("validated platform operation has a stream handle");
+            };
+            let arguments = std::iter::once(format!("&({handle})"))
+                .chain(arguments.iter().cloned())
+                .collect::<Vec<_>>()
+                .join(", ");
+            return format!("terrane_platform_{function}({arguments})");
+        }
         let mut values = argument_values
             .into_iter()
             .map(|value| self.expression(value))
@@ -3987,6 +4105,13 @@ impl Emitter<'_> {
                 .is_some_and(|member| self.text(member) == "concat")
         {
             let receiver = self.receiver_expression(&callee.children[0]);
+            if self.value_type(&callee.children[0]) == Some(ValueType::Scalar(ScalarType::Bytes)) {
+                let value = values
+                    .first()
+                    .cloned()
+                    .unwrap_or_else(|| "Vec::new()".to_owned());
+                return format!("{{ let mut bytes = {receiver}; bytes.extend({value}); bytes }}");
+            }
             values.insert(0, receiver);
             let values = values
                 .into_iter()
@@ -4788,6 +4913,32 @@ impl Emitter<'_> {
                 .any(|field| field.name == name)
     }
 
+    fn object_owns_resource(&self, node: &SyntaxNode, name: &str) -> bool {
+        let declaration = self
+            .package
+            .resolve_name_at(self.unit, node.span.start, name)
+            .and_then(|symbol| symbol.declaration_span)
+            .or_else(|| {
+                let mut matches = self
+                    .unit
+                    .objects
+                    .iter()
+                    .filter(|object| object.name == name)
+                    .map(|object| object.span);
+                let span = matches.next()?;
+                matches.all(|candidate| candidate == span).then_some(span)
+            });
+        declaration
+            .and_then(|declaration| {
+                self.package
+                    .units
+                    .iter()
+                    .flat_map(|unit| &unit.objects)
+                    .find(|object| object.span == declaration)
+            })
+            .is_some_and(|object| object.resource_owning)
+    }
+
     fn object_requires_separation(&self, name: &str) -> bool {
         let Some(object) = self.unit.objects.iter().find(|object| object.name == name) else {
             return false;
@@ -5345,6 +5496,10 @@ fn rust_value_type(ty: ValueType) -> String {
         ValueType::TaskOutcome(result) => {
             format!("TerraneTaskOutcome<{}>", rust_element_type(result))
         }
+        ValueType::PlatformStreamHandle => "TerranePlatformStreamHandle".to_owned(),
+        ValueType::PlatformReadResult => "TerranePlatformReadResult".to_owned(),
+        ValueType::PlatformWriteResult => "TerranePlatformWriteResult".to_owned(),
+        ValueType::PlatformUnitResult => "TerranePlatformUnitResult".to_owned(),
         ValueType::Descriptor(_) => "TerraneDescriptor".to_owned(),
         ValueType::Object(name) => rust_object_name(&name),
         ValueType::SharedReference(item) => format!(

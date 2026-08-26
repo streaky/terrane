@@ -93,7 +93,7 @@ fn run(arguments: &[OsString]) -> Result<ExitCode, CliFailure> {
             });
         }
     };
-    emit_warnings(&compilation, &package);
+    emit_warnings(&compilation);
     if command == "rust" {
         print_rust(&compilation);
         return Ok(ExitCode::SUCCESS);
@@ -152,16 +152,15 @@ fn parse_input(arguments: &[OsString], command: &str) -> Result<(PathBuf, bool),
     Ok((input_path, require_canonical_rust))
 }
 
-fn emit_warnings(compilation: &terrane_compiler::Compilation, package: &terrane_compiler::Package) {
+fn emit_warnings(compilation: &terrane_compiler::Compilation) {
     for warning in &compilation.warnings {
         let source = warning
             .primary
             .and_then(|span| {
-                package
-                    .units
+                compilation
+                    .sources
                     .iter()
-                    .find(|unit| unit.source.id() == span.file)
-                    .map(|unit| &unit.source)
+                    .find(|source| source.id() == span.file)
             })
             .unwrap_or(&compilation.source);
         eprint!("{}", warning.render(source));
@@ -222,7 +221,7 @@ fn print_rust(compilation: &terrane_compiler::Compilation) {
             .join(", ")
     );
     println!(
-        "// Vendored support crates: terrane-int-support, terrane-scalar-support, terrane-string-support"
+        "// Vendored support crates: terrane-int-support, terrane-scalar-support, terrane-string-support, terrane-stream-abi"
     );
 }
 
@@ -354,6 +353,7 @@ fn generated_crate_path(
         include_bytes!("../../terrane-int-support/src/lib.rs").as_slice(),
         include_bytes!("../../terrane-scalar-support/src/lib.rs").as_slice(),
         include_bytes!("../../terrane-string-support/src/lib.rs").as_slice(),
+        include_bytes!("../../terrane-stream-abi/src/lib.rs").as_slice(),
     ] {
         hash.update(support);
         hash.update(b"\0");
@@ -410,7 +410,8 @@ fn write_generated_crate(
                     [dependencies]\nterrane-int-support = { path = \"support/terrane-int-support\" }\n\
                     terrane-collection-support = { path = \"support/terrane-collection-support\" }\n\
                     terrane-scalar-support = { path = \"support/terrane-scalar-support\" }\n\
-                    terrane-string-support = { path = \"support/terrane-string-support\" }\n\n[workspace]\n";
+                    terrane-string-support = { path = \"support/terrane-string-support\" }\n\
+                    terrane-stream-abi = { path = \"support/terrane-stream-abi\" }\n\n[workspace]\n";
     write_if_changed(&directory.join("Cargo.toml"), manifest.as_bytes()).map_err(|error| {
         CliFailure::backend(format!("cannot write generated manifest: {error}"))
     })?;
@@ -447,10 +448,12 @@ fn write_generated_support(directory: &Path) -> std::io::Result<()> {
     let collection = directory.join("support/terrane-collection-support");
     let scalar = directory.join("support/terrane-scalar-support");
     let string = directory.join("support/terrane-string-support");
+    let stream = directory.join("support/terrane-stream-abi");
     fs::create_dir_all(int.join("src"))?;
     fs::create_dir_all(collection.join("src"))?;
     fs::create_dir_all(scalar.join("src"))?;
     fs::create_dir_all(string.join("src"))?;
+    fs::create_dir_all(stream.join("src"))?;
     write_if_changed(
         &int.join("Cargo.toml"),
         b"[package]\nname = \"terrane-int-support\"\nversion = \"0.1.0\"\nedition = \"2024\"\n\n[dependencies]\nnum-bigint = { version = \"0.4\", features = [\"std\"] }\nnum-integer = \"0.1\"\nnum-traits = \"0.2\"\n",
@@ -482,6 +485,14 @@ fn write_generated_support(directory: &Path) -> std::io::Result<()> {
     write_if_changed(
         &string.join("src/lib.rs"),
         include_bytes!("../../terrane-string-support/src/lib.rs"),
+    )?;
+    write_if_changed(
+        &stream.join("Cargo.toml"),
+        b"[package]\nname = \"terrane-stream-abi\"\nversion = \"0.1.0\"\nedition = \"2024\"\n",
+    )?;
+    write_if_changed(
+        &stream.join("src/lib.rs"),
+        include_bytes!("../../terrane-stream-abi/src/lib.rs"),
     )
 }
 

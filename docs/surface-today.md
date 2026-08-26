@@ -91,6 +91,18 @@ Terrane package
 │   ├── utf32-be                               encoding name for /core/encodings::utf32-be
 │   └── task-scope                             binding to /core/async::task-scope
 └── source-declared package surface
+    ├── /standard/streams                      bundled Terrane package, included when imported
+    │   ├── operation-result                   failed / message
+    │   ├── read-result                        bytes / completed / end / failed / message
+    │   ├── text-read-result                   text / completed / end / failed / message
+    │   ├── write-result                       encoded bytes / completed / failed / message
+    │   ├── byte-reader                        inferred resource-owning process-byte input
+    │   ├── byte-writer                        inferred resource-owning process-byte output
+    │   ├── text-reader                        inferred resource-owning encoded input adapter
+    │   ├── text-writer                        inferred resource-owning encoded output adapter
+    │   ├── stdin                              byte-reader factory
+    │   ├── stdout                             byte-writer factory
+    │   └── stderr                             byte-writer factory
     ├── namespace                              hierarchical object container
     │   ├── variable                           namespace-local value
     │   ├── constant                           namespace-local or program-global value
@@ -567,6 +579,17 @@ change the generated manifest.
 | map / unordered map | `.set`, `.keys`, `.values`, `.entries` | methods | deterministic mutation/views |
 | set / unordered set | `.contains`, `.add`, `.remove` | methods | deterministic membership/mutation |
 | entry | `.key`, `.value` | properties | cloned key/value |
+| byte reader | `.read`, `.read-exact`, `.read-all`, `.read-async` | methods | partial/exact/bounded/async byte read results |
+| byte writer | `.write`, `.write-all`, `.resume`, `.write-async` | methods | partial/complete/resumed/async byte write results |
+| byte reader / writer | `.text; encoding` | method | consuming explicitly encoded text adapter |
+| text reader | `.read`, `.read-exact`, `.read-all`, `.read-async` | methods | decoded text result or `decode-error` |
+| text writer | `.write`, `.write-all`, `.resume`, `.line`, `.write-async` | methods | encoded write result; `.line` alone appends newline |
+| writer | `.flush` | method | observable buffering result |
+| byte / text writer | `.sync-data`, `.sync-all` | methods | distinct observable durability results |
+| any stream | `.close` | method | consuming idempotent release with observable result |
+
+Stream classes become resource-owning transitively from their compiler-owned process handle field.
+There is no source `linear class` qualifier; assignment transfers these values automatically.
 
 The compiler represents callable families as bound methods with a distinguished default,
 typed children, signatures, and availability constraints. Semantic analysis resolves the

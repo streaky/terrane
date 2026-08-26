@@ -1929,10 +1929,10 @@ A numeric constant has no type before context, so `is a` supplies that context a
 The following values carry source-visible identity without requiring a new `ref` at the comparison site:
 
 - every value participating in an explicit `ref` identity group, including the original logical value from which the reference was obtained;
-- linear and other uniquely owned resource objects, such as device handles, capabilities, guards, and foreign-runtime proxies;
+- uniquely owned resource objects, such as device handles, capabilities, guards, and foreign-runtime proxies;
 - canonical semantic descriptor objects whose contract defines one identity, including type, namespace, package, and declared-function descriptors.
 
-Other ordinary values—including scalars, strings, collections, non-linear class instances, closures, and bound methods—have no source-visible identity merely because an implementation boxes, interns, caches, or shares them. Their type may expose identity only through `ref` or by declaring an inherently identity-bearing linear/resource/descriptor contract. Whether a type is inherently identity-bearing is reflected in its public type metadata and cannot vary secretly by representation or instance.
+Other ordinary values—including scalars, strings, collections, non-resource-owning class instances, closures, and bound methods—have no source-visible identity merely because an implementation boxes, interns, caches, or shares them. Their type may expose identity only through `ref` or by carrying an inherently identity-bearing resource/descriptor contract. Whether a type is inherently identity-bearing is reflected in its public type metadata and cannot vary secretly by representation or instance.
 
 Exact runtime type is expressed through the value’s `type` descriptor. Requiring both exact type and value equality remains an explicit conjunction:
 
@@ -1950,7 +1950,7 @@ Mutable values used as hash keys must either be rejected or use a stable immutab
 
 ### 12.1 The central rule
 
-> Assignment creates an independently mutable value and may use copy-on-write. `ref` observes mutable identity without owning it. `shared ref` shares ownership. `move` transfers ownership.
+> Assignment creates an independently mutable value and may use copy-on-write, except that assigning a resource-owning value transfers it. `ref` observes mutable identity without owning it. `shared ref` shares ownership. `move` explicitly requests transfer where ordinary assignment would copy.
 
 ### 12.2 Value assignment
 
@@ -1960,7 +1960,7 @@ b = a
 
 has value semantics. After the assignment, mutations to `b` must not become visible through `a`, and mutations to `a` must not become visible through `b`.
 
-This guarantee applies uniformly to ordinary scalars, strings, collections, class instances, functions, and other non-linear values. Assignment already provides independently mutable value semantics, so the source language needs no separate operation for eager duplication.
+This guarantee applies uniformly to ordinary scalars, strings, collections, non-resource-owning class instances, functions, and other copyable values. Assignment already provides independently mutable value semantics, so the source language needs no separate operation for eager duplication.
 
 ### 12.3 Universal copy-on-write
 
@@ -2116,10 +2116,10 @@ lifetime. Use `ref T` for non-owning language-level identity, `shared ref T` onl
 extend that identity's lifetime, and a narrower domain type when provenance, address space, extent,
 ABI, or lifetime differs observably.
 
-Linear resource values are inherently identity-bearing because their unique ownership denotes one
-source-visible resource even before a reference is taken. Moving such a value preserves that
-identity; the moved-from binding becomes unavailable. A `ref` may observe a linear resource without
-owning it when the resource contract permits; `shared ref` is invalid for a uniquely owned linear
+Resource-owning values are inherently identity-bearing because their unique ownership denotes one
+source-visible resource even before a reference is taken. Assignment transfers such a value
+automatically; the source binding becomes unavailable. A `ref` may observe a resource without
+owning it when the resource contract permits; `shared ref` is invalid for a uniquely owned
 resource. Foreign-runtime proxies follow the same rule unless their declared adapter explicitly
 provides shared ownership.
 
@@ -2137,34 +2137,33 @@ is released.
 
 ### 12.6 Ownership transfer
 
-Some values are inherently linear or non-copyable: exclusive device handles, unique capabilities, interrupt guards, or other low-level resources.
+Some values are inherently non-copyable: exclusive device handles, unique capabilities, interrupt
+guards, or classes that directly or transitively contain such resources. The compiler derives
+resource ownership from the complete stored-field graph; source code does not declare a `linear`
+class qualifier.
 
-Such a type may reject ordinary value assignment.
+Ordinary assignment of a resource-owning value transfers ownership:
 
-Ownership transfer is explicit:
+```terrane
+b = a
+```
+
+After the transfer, `a` is unavailable until rebound. The same assignment remains ordinary value
+assignment for copyable values, so ownership consequences follow the statically known value
+contract rather than call-site ceremony.
+
+`move` remains an explicit request to transfer a value that would otherwise be copied:
 
 ```terrane
 b = move a
 ```
 
-After a successful move, `a` is unavailable until rebound.
+### 12.7 Resource-owning classes
 
-This keeps Rust-like ownership consequences available without imposing move semantics on ordinary application values.
-
-### 12.7 Linear classes
-
-A class may declare itself linear:
-
-```text
-linear class device-handle
-```
-
-Linear objects:
-
-- cannot be value-assigned unless they define an explicit copy protocol;
-- may be moved;
-- may be referenced subject to lifetime and mutability rules;
-- are deterministically dropped.
+Resource-owning objects cannot satisfy copyable base, interface, or trait contracts; may be
+referenced subject to lifetime and mutability rules; and are deterministically dropped. Attaching
+or removing a resource changes the enclosing class contract transitively, and diagnostics identify
+the resource field that caused transfer semantics.
 
 ### 12.8 Constants and immutability
 
@@ -5334,7 +5333,7 @@ binding
 
 class-declaration
   = [ modifier-clause ]
-    [ visibility ] [ "linear" ] "class" identifier
+    [ visibility ] "class" identifier
     [ "extends" type-expression ]
     [ "implements" type-expression { "," type-expression } ]
     indented-body
@@ -5752,7 +5751,8 @@ The imported NumPy array is a foreign proxy with explicit runtime reflection. Th
 ```terrane
 namespace kernel/memory
 
-linear class mapped-page
+class mapped-page
+  handle stream-handle
 
 function map-page mapped-page; virtual uint64, physical uint64
   unsafe rust
@@ -5914,6 +5914,63 @@ Standard APIs should follow the same object conventions as user packages. Compil
 This section fixes the shape only. The object contracts of individual version-one facilities — document formats, URLs, paths and filesystem access, streams, process and environment access, date and time, networking and TLS, randomness and digests, compression, and logging — are mapped in `docs/surface-v1.md`, which carries them at the level of members, return types, and failure modes. That document is a proposal rather than normative prose; where it and this specification disagree, this specification governs.
 
 Those facilities are written in Terrane over the minimal Rust core, per §5.7. The standard library is therefore an ordinary set of packages rather than a privileged layer, and it uses the same dependency mechanism as any other package when it needs a Rust crate beneath it.
+
+### 37.1 Byte and text streams
+
+`/standard/streams` is an ordinary Terrane package. Importing one of its exports includes that
+Terrane source, and its recursively imported bundled dependencies, in the same semantic and
+lowering pipeline as the importing program. Standard-library source remains visible to
+whole-program analysis and produces ordinary Terrane source associations in generated Rust.
+
+The package exports `byte-reader`, `byte-writer`, `text-reader`, and `text-writer` classes whose
+resource ownership is inferred from their compiler-owned process-handle fields. `stdin`, `stdout`,
+and `stderr` are factories for the process-owned byte stream endpoints; `.text; encoding`
+transfers a byte endpoint into the corresponding explicitly encoded text adapter. Stream objects
+cannot be copied, used after transfer or consumption, or released twice.
+
+A read result carries `data`, the completed byte count, an explicit `end` flag, `failed`, and a
+diagnostic message. An incomplete write result retains the encoded `data` together with its
+completed byte count, `failed`, and a message, so a caller can resume a partial byte or text write
+without re-encoding or slicing a string by a byte offset. A completed write result releases that
+buffer. Each `resume` performs one host write; if that write is also partial, the returned result
+retains the same data and may be passed to `resume` again. Partial completion is ordinary and
+observable.
+`read-exact` repeats partial host reads and reports failure if EOF arrives before the requested
+count; bounded `read-all` instead returns successfully after EOF, at its explicit limit, on
+failure, or when the host reports no progress. `write-all` repeats until all encoded bytes are
+written, a failure occurs, or the host reports no progress. Text read results carry decoded text
+but retain byte completion counts.
+
+Text adapters never translate newlines implicitly. Their encoding is carried by the adapter;
+decoding validates the complete returned byte sequence and throws `decode-error` on malformed
+input. `.line` is the explicit convenience operation which appends `\n`; its completed byte count
+includes that encoded newline.
+
+`close` is explicit and idempotent at the host boundary, returns an observable operation result
+containing `failed` and a diagnostic message, and consumes the source binding. Destruction invokes
+the same idempotent release path for an unconsumed stream but necessarily discards a release
+failure because a destructor has no result channel. Writer `flush`, `sync-data`, and `sync-all`
+are distinct operations on byte and text writers: `flush` drains language/host buffering, while
+the sync operations request the corresponding durability guarantee when the endpoint supports
+one. Unsupported or failed operations are reported rather than silently weakened.
+
+Async read and write variants have the same result contracts as their synchronous forms.
+Cancellation is observed through the enclosing task operation rather than duplicated on stream
+result objects: it preserves any completed result and its exact byte count when completion wins
+the race, and otherwise reports a cancelled task outcome without fabricating stream progress.
+
+The irreducible host boundary is Rust because it invokes process I/O and owns the host handle
+registry: this is the syscall/ABI justification from §5.7. It exposes only handle acquisition,
+single partial read/write operations, flush, durability sync, and idempotent close to
+compiler-generated intrinsics. The public protocols, result objects, partial-operation loops,
+encoding adapters, newline policy, factories, and async wrappers remain Terrane.
+
+The source ownership checker determines transfers, use-after-consume, and double release
+statically. The current generated representation uses a shared host-handle reference count only
+to ensure that ownership transferred into a text adapter reaches the host release path exactly
+once despite both generated Rust wrappers remaining live until their ordinary drop points. That
+representation mechanism is not a dynamic substitute for the source ownership rules and may
+change without changing their semantics.
 
 ---
 

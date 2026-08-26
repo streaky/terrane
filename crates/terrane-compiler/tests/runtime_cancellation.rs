@@ -19,9 +19,9 @@ use std::{
 #[derive(Debug)]
 pub struct TerraneError;
 
-include!("../src/runtime/async.rs.txt");
-include!("../src/runtime/async_cancellable.rs.txt");
-include!("../src/runtime/tasks_threaded.rs.txt");
+include!("../src/runtime/async.rs");
+include!("../src/runtime/async_cancellable.rs");
+include!("../src/runtime/tasks_threaded.rs");
 
 struct ReadyAfterCancellation {
     reached_await: Option<mpsc::Sender<()>>,

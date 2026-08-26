@@ -74,7 +74,7 @@ object
 |   +-- closure
 +-- instance
 |   +-- ordinary class instance                 COW value by default
-|   +-- linear/resource instance                identity-bearing
+|   +-- resource-owning instance                inferred from stored fields; identity-bearing
 |   +-- foreign proxy                           identity-bearing, adapter-owned
 +-- error                                       catchable object contract
 +-- iterator                                    explicit end-of-stream state
@@ -656,9 +656,13 @@ classes such as `file-error` and `python-error` are not implicit `/core` childre
 ## 10. Ownership, identity, and lifetime objects
 
 ```text
-ordinary value assignment
+ordinary copyable value assignment
 +-- independent semantic value
 +-- shared physical storage permitted via COW
+
+resource-owning value assignment
++-- automatic ownership transfer
++-- source unavailable until rebound
 
 ref object
 +-- explicit shared identity
@@ -671,11 +675,12 @@ shared ref object
 +-- cycle analysis
 
 move
-+-- ownership transfer for linear/resource values
++-- explicit transfer request for an otherwise copyable value
 
-linear/resource object
+resource-owning object
++-- inferred transitively from noncopyable stored fields; no declaration qualifier
 +-- inherent identity
-+-- no implicit copying
++-- no copying
 +-- deterministic drop
 ```
 

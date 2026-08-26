@@ -1,0 +1,6 @@
+namespace stream-resource-transfer-use-after
+from /standard/streams import stdin
+function main;
+    input = stdin;
+    copied = input
+    input.read; 1

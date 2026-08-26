@@ -1,0 +1,12 @@
+namespace stream-method-argument-transfer-use-after
+from /standard/streams import byte-reader, stdin
+
+class sink
+    function take; input byte-reader
+        input.read; 1
+
+function main;
+    input = stdin;
+    target sink = sink;
+    target.take; input
+    input.read; 1

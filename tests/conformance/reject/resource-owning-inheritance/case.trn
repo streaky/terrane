@@ -1,0 +1,7 @@
+namespace resource-owning-inheritance
+from /standard/streams import byte-reader, stdin
+
+class base
+
+class derived extends base
+    input byte-reader = stdin;

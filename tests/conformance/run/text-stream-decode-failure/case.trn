@@ -1,0 +1,17 @@
+namespace text-stream-decode-failure
+from /core/errors import decode-error
+from /standard/streams import stdin, text-reader
+
+function read-all string throws decode-error; input text-reader
+    decoded = input.read-all; 10
+    input.close;
+    return decoded.text
+
+function main;
+    bytes-input = stdin;
+    input = bytes-input.text; utf8
+    try
+        print; (read-all; move input)
+    catch decode-error
+        print; 'caught decode'
+    return

@@ -1,0 +1,44 @@
+namespace standard-byte-streams
+from /standard/streams import stdin, stdout, write-result
+
+function main;
+    input = stdin;
+    reader = input
+    first = reader.read-exact; 3
+    if first.failed
+        print; first.message
+    if first.completed != 3 or first.end
+        print; 'unexpected first read'
+    remainder = reader.read-all; 100
+    if remainder.failed
+        print; remainder.message
+    if remainder.completed != 4 or not remainder.end
+        print; 'unexpected remainder'
+    output = stdout;
+    writer = output
+    first-write = writer.write-all; first.data
+    if first-write.failed
+        print; first-write.message
+    second-write = writer.write-all; remainder.data
+    if second-write.failed
+        print; second-write.message
+    prefix = writer.write; b'd'
+    partial = write-result; b'def', 1, false, ''
+    resumed = writer.resume; partial
+    if prefix.completed != 1 or resumed.completed != 3
+        print; 'unexpected resumed write'
+    flushed = writer.flush;
+    if flushed.failed
+        print; flushed.message
+    synced = writer.sync-data;
+    if not synced.failed
+        print; 'unexpected standard stream sync'
+    fully-synced = writer.sync-all;
+    if not fully-synced.failed
+        print; 'unexpected standard stream full sync'
+    input-closed = reader.close;
+    if input-closed.failed
+        print; input-closed.message
+    output-closed = writer.close;
+    if output-closed.failed
+        print; output-closed.message
