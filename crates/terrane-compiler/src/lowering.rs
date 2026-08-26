@@ -44,9 +44,9 @@ pub(crate) fn lower(package: &SemanticPackage) -> Program {
         .iter()
         .any(|unit| unit.functions.iter().any(|function| function.is_async))
     {
-        let mut support = include_str!("runtime/async.rs.txt").to_owned();
+        let mut support = include_str!("runtime/async.rs").to_owned();
         if package_uses_task_scope(package) {
-            support.push_str(include_str!("runtime/async_cancellable.rs.txt"));
+            support.push_str(include_str!("runtime/async_cancellable.rs"));
         }
         runtime.push(GeneratedModule {
             name: "async",
@@ -56,10 +56,10 @@ pub(crate) fn lower(package: &SemanticPackage) -> Program {
     if package_uses_task_scope(package) {
         let support = match package.executor {
             crate::package::ExecutorProfile::Cooperative => {
-                include_str!("runtime/tasks_cooperative.rs.txt")
+                include_str!("runtime/tasks_cooperative.rs")
             }
             crate::package::ExecutorProfile::Threaded => {
-                include_str!("runtime/tasks_threaded.rs.txt")
+                include_str!("runtime/tasks_threaded.rs")
             }
         };
         runtime.push(GeneratedModule {
@@ -74,9 +74,7 @@ pub(crate) fn lower(package: &SemanticPackage) -> Program {
     {
         runtime.push(GeneratedModule {
             name: "platform_streams",
-            items: vec![Item::generated(include_str!(
-                "runtime/platform_streams.rs.txt"
-            ))],
+            items: vec![Item::generated(include_str!("runtime/platform_streams.rs"))],
         });
     }
     if package.units.iter().any(|unit| {
