@@ -1387,11 +1387,14 @@ Process facilities expose lossless text-or-raw platform strings, explicit argume
 snapshots, a schema-driven parser that returns option names, values, positionals, and structured
 diagnostics without terminating, and validated `exit-status` values in `0..=255`. Accepted
 conformance distinguishes lexical resolution from canonicalization, rejects a traversal escape,
-exercises file-handle and atomic-write behavior, passes real process arguments, checks parser
-diagnostics and invalid exit-status construction, and compiles untouched generated Rust with
-warnings denied and canonical-Rust validation enabled. Milestone evidence:
-`RUSTFLAGS='-D warnings' cargo test -p terrane-compiler --tests`, direct canonical executions of the
-filesystem and process cases, and a process-exit smoke program observed returning status 7.
+exercises file-handle and atomic-write behavior, passes text and non-Unicode process arguments,
+checks parser diagnostics and invalid exit-status construction, and observes process exit status
+7. Direct imports of compiler-owned platform intrinsics are rejected. Runtime templates are split
+by selected standard facility so stream-only, filesystem-only, and process-only programs emit no
+unrelated host intrinsics or corresponding dead-code allowances. Untouched generated Rust passes
+warnings-denied compilation and canonical-Rust validation. Milestone evidence:
+`RUSTFLAGS='-D warnings' cargo test --workspace --all-targets` and
+`cargo clippy --workspace --all-targets -- -D warnings`.
 
 ### Milestone 22 — Document values, JSON, YAML, and URLs
 

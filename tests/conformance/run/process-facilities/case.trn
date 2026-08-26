@@ -7,7 +7,7 @@ from /standard/process import cli-schema, parse-command-line, make-exit-status
 
 function main;
     actual = (arguments;)
-    print; actual.length, actual[0].text, actual[1].text
+    print; actual.length, actual[0].text, actual[1].text, actual[2].is-text, actual[2].raw.length
     ambient = (environment;)
     print; ambient.length > 0
     schema-entries list of string = list; 'flag:--verbose', 'value:--output'

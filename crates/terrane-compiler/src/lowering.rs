@@ -67,26 +67,44 @@ pub(crate) fn lower(package: &SemanticPackage) -> Program {
             items: vec![Item::generated(support)],
         });
     }
-    if package.units.iter().any(|unit| {
-        matches!(
-            unit.namespace.as_str(),
-            "/standard/streams" | "/standard/filesystem"
-        )
-    }) {
+    let uses_standard_streams = package
+        .units
+        .iter()
+        .any(|unit| unit.namespace == "/standard/streams");
+    let uses_filesystem = package
+        .units
+        .iter()
+        .any(|unit| unit.namespace == "/standard/filesystem");
+    let uses_process = package
+        .units
+        .iter()
+        .any(|unit| unit.namespace == "/standard/process");
+    if uses_standard_streams || uses_filesystem {
+        let mut items = vec![Item::generated(include_str!("runtime/platform_streams.rs"))];
+        if uses_standard_streams {
+            items.push(Item::generated(include_str!(
+                "runtime/platform_standard_streams.rs"
+            )));
+        }
+        if uses_filesystem {
+            items.push(Item::generated(include_str!("runtime/platform_files.rs")));
+        }
         runtime.push(GeneratedModule {
             name: "platform_streams",
-            items: vec![Item::generated(include_str!("runtime/platform_streams.rs"))],
+            items,
         });
     }
-    if package.units.iter().any(|unit| {
-        matches!(
-            unit.namespace.as_str(),
-            "/standard/filesystem" | "/standard/process"
-        )
-    }) {
+    if uses_filesystem || uses_process {
+        let mut items = Vec::new();
+        if uses_filesystem {
+            items.push(Item::generated(include_str!("runtime/platform_system.rs")));
+        }
+        if uses_process {
+            items.push(Item::generated(include_str!("runtime/platform_process.rs")));
+        }
         runtime.push(GeneratedModule {
             name: "platform_system",
-            items: vec![Item::generated(include_str!("runtime/platform_system.rs"))],
+            items,
         });
     }
     if package.units.iter().any(|unit| {
@@ -869,7 +887,8 @@ impl Emitter<'_> {
                             });
                         let value = initializer.map_or_else(
                             || match field.value_type {
-                                ValueType::PlatformStreamHandle => "Default::default()".to_owned(),
+                                ValueType::PlatformStreamHandle
+                                | ValueType::FilesystemAuthority => "Default::default()".to_owned(),
                                 _ => "panic!(\"object field was not initialized\")".to_owned(),
                             },
                             |initializer| self.expression_as(initializer, field.value_type.clone()),
@@ -907,7 +926,8 @@ impl Emitter<'_> {
                             });
                         let value = initializer.map_or_else(
                             || match field.value_type {
-                                ValueType::PlatformStreamHandle => "Default::default()".to_owned(),
+                                ValueType::PlatformStreamHandle
+                                | ValueType::FilesystemAuthority => "Default::default()".to_owned(),
                                 _ => "panic!(\"object field was not initialized\")".to_owned(),
                             },
                             |initializer| self.expression_as(initializer, field.value_type.clone()),
@@ -4075,13 +4095,17 @@ impl Emitter<'_> {
             return format!("println!(\"{format}\", {})", values.join(", "));
         }
         let system_call = [
+            (
+                "acquire-filesystem-authority",
+                "acquire_filesystem_authority",
+            ),
             ("filesystem-call", "filesystem_call"),
-            ("result-failed", "system_result_failed"),
-            ("result-message", "system_result_message"),
-            ("result-text", "system_result_text"),
-            ("result-bytes", "system_result_bytes"),
-            ("result-int", "system_result_int"),
-            ("result-bool", "system_result_bool"),
+            ("result-failed", "filesystem_result_failed"),
+            ("result-message", "filesystem_result_message"),
+            ("result-text", "filesystem_result_text"),
+            ("result-bytes", "filesystem_result_bytes"),
+            ("result-int", "filesystem_result_int"),
+            ("result-bool", "filesystem_result_bool"),
             ("platform-value-is-text", "platform_value_is_text"),
             ("platform-value-text", "platform_value_text"),
             ("platform-value-bytes", "platform_value_bytes"),
@@ -4107,7 +4131,8 @@ impl Emitter<'_> {
                 })
                 .collect::<Vec<_>>()
                 .join(", ");
-            if function.starts_with("system_result_") || function.starts_with("platform_value_") {
+            if function.starts_with("filesystem_result_") || function.starts_with("platform_value_")
+            {
                 return format!("terrane_{function}(&({values}))");
             }
             return format!("terrane_{function}({values})");
@@ -4117,6 +4142,8 @@ impl Emitter<'_> {
             ("acquire-stdout", "acquire_stdout"),
             ("acquire-stderr", "acquire_stderr"),
             ("open-file", "open_file"),
+            ("open-directory-beneath", "open_directory_beneath"),
+            ("open-file-beneath", "open_file_beneath"),
             ("read", "read"),
             ("write", "write"),
             ("flush", "flush"),
@@ -4138,8 +4165,8 @@ impl Emitter<'_> {
             if function.starts_with("acquire_") {
                 return format!("terrane_platform_{function}()");
             }
-            if function == "open_file" {
-                return format!("terrane_platform_open_file({})", values.join(", "));
+            if matches!(function, "open_file" | "open_directory_beneath") {
+                return format!("terrane_platform_{function}({})", values.join(", "));
             }
             if function == "write" && values.len() == 3 {
                 return format!(
@@ -5575,6 +5602,8 @@ fn rust_value_type(ty: ValueType) -> String {
             format!("TerraneTaskOutcome<{}>", rust_element_type(result))
         }
         ValueType::PlatformStreamHandle => "TerranePlatformStreamHandle".to_owned(),
+        ValueType::FilesystemAuthority => "TerraneFilesystemAuthority".to_owned(),
+        ValueType::PlatformFilesystemResult => "TerraneFilesystemResult".to_owned(),
         ValueType::PlatformOpenResult => "TerranePlatformOpenResult".to_owned(),
         ValueType::PlatformReadResult => "TerranePlatformReadResult".to_owned(),
         ValueType::PlatformWriteResult => "TerranePlatformWriteResult".to_owned(),

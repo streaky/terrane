@@ -175,7 +175,11 @@ impl FileStream {
         self.file.sync_all()
     }
     fn close(&mut self) -> io::Result<()> {
-        self.file.flush()
+        if self.writable {
+            self.file.flush()
+        } else {
+            Ok(())
+        }
     }
 }
 
@@ -232,19 +236,45 @@ pub fn acquire_stderr() -> StreamHandle {
     acquire(StandardStream::Stderr(StderrWriter::acquire()))
 }
 
+#[derive(Clone, Copy, Debug)]
+pub enum FileAccess {
+    Read,
+    Write,
+    ReadWrite,
+}
+
+#[derive(Clone, Copy, Debug)]
+pub enum FileCreation {
+    Existing,
+    Create,
+    Truncate,
+    CreateOrTruncate,
+}
+
+#[derive(Clone, Copy, Debug)]
+pub struct FileOpenOptions {
+    pub access: FileAccess,
+    pub creation: FileCreation,
+}
+
 /// Opens a filesystem file without following a final symlink on Unix targets.
 ///
 /// # Errors
 ///
 /// Returns the host open error, including a refusal to follow the final symlink.
-pub fn open_file(
-    path: &str,
-    readable: bool,
-    writable: bool,
-    create: bool,
-    truncate: bool,
-) -> io::Result<StreamHandle> {
+pub fn open_file(path: &str, request: FileOpenOptions) -> io::Result<StreamHandle> {
     let mut options = std::fs::OpenOptions::new();
+    let (readable, writable) = match request.access {
+        FileAccess::Read => (true, false),
+        FileAccess::Write => (false, true),
+        FileAccess::ReadWrite => (true, true),
+    };
+    let (create, truncate) = match request.creation {
+        FileCreation::Existing => (false, false),
+        FileCreation::Create => (true, false),
+        FileCreation::Truncate => (false, true),
+        FileCreation::CreateOrTruncate => (true, true),
+    };
     options
         .read(readable)
         .write(writable)
@@ -253,8 +283,7 @@ pub fn open_file(
     #[cfg(unix)]
     {
         use std::os::unix::fs::OpenOptionsExt as _;
-        const O_NOFOLLOW: i32 = 0o400000;
-        options.custom_flags(O_NOFOLLOW);
+        options.custom_flags(libc::O_NOFOLLOW);
     }
     let file = options.open(path)?;
     Ok(acquire(StandardStream::File(FileStream {
@@ -262,6 +291,119 @@ pub fn open_file(
         readable,
         writable,
     })))
+}
+#[cfg(target_os = "linux")]
+fn linux_open_beneath(
+    directory: impl std::os::fd::AsFd,
+    child: &str,
+    flags: rustix::fs::OFlags,
+    cross_filesystem: bool,
+) -> io::Result<std::fs::File> {
+    let mut resolve = rustix::fs::ResolveFlags::BENEATH
+        | rustix::fs::ResolveFlags::NO_MAGICLINKS
+        | rustix::fs::ResolveFlags::NO_SYMLINKS;
+    if !cross_filesystem {
+        resolve |= rustix::fs::ResolveFlags::NO_XDEV;
+    }
+    Ok(std::fs::File::from(rustix::fs::openat2(
+        directory,
+        child,
+        flags,
+        rustix::fs::Mode::empty(),
+        resolve,
+    )?))
+}
+
+/// Opens a directory through race-resistant, no-follow traversal beneath `base`.
+///
+/// # Errors
+///
+/// Returns an I/O error when traversal escapes `base`, crosses a filesystem without permission,
+/// encounters a symlink, or the target does not support this operation.
+#[cfg(target_os = "linux")]
+pub fn open_directory_beneath(
+    base: &str,
+    child: &str,
+    cross_filesystem: bool,
+) -> io::Result<StreamHandle> {
+    let base = std::fs::File::open(base)?;
+    let directory = linux_open_beneath(
+        &base,
+        child,
+        rustix::fs::OFlags::RDONLY | rustix::fs::OFlags::DIRECTORY | rustix::fs::OFlags::CLOEXEC,
+        cross_filesystem,
+    )?;
+    Ok(acquire(StandardStream::File(FileStream {
+        file: directory,
+        readable: false,
+        writable: false,
+    })))
+}
+
+/// Opens a file relative to a directory handle returned by [`open_directory_beneath`].
+///
+/// # Errors
+///
+/// Returns an I/O error for an invalid directory handle, traversal escape, symlink, or host open
+/// failure.
+#[cfg(target_os = "linux")]
+pub fn open_file_beneath(
+    directory: StreamHandle,
+    child: &str,
+    request: FileOpenOptions,
+) -> io::Result<StreamHandle> {
+    let (readable, writable) = match request.access {
+        FileAccess::Read => (true, false),
+        FileAccess::Write => (false, true),
+        FileAccess::ReadWrite => (true, true),
+    };
+    let creation_flags = match request.creation {
+        FileCreation::Existing => rustix::fs::OFlags::empty(),
+        FileCreation::Create => rustix::fs::OFlags::CREATE,
+        FileCreation::Truncate => rustix::fs::OFlags::TRUNC,
+        FileCreation::CreateOrTruncate => rustix::fs::OFlags::CREATE | rustix::fs::OFlags::TRUNC,
+    };
+    let access_flags = match request.access {
+        FileAccess::Read => rustix::fs::OFlags::RDONLY,
+        FileAccess::Write => rustix::fs::OFlags::WRONLY,
+        FileAccess::ReadWrite => rustix::fs::OFlags::RDWR,
+    };
+    let file = {
+        let streams = registry();
+        let Some(StandardStream::File(directory)) = streams.get(&directory.0) else {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "invalid directory handle",
+            ));
+        };
+        linux_open_beneath(
+            &directory.file,
+            child,
+            access_flags | creation_flags | rustix::fs::OFlags::CLOEXEC,
+            false,
+        )?
+    };
+    Ok(acquire(StandardStream::File(FileStream {
+        file,
+        readable,
+        writable,
+    })))
+}
+
+#[cfg(not(target_os = "linux"))]
+pub fn open_directory_beneath(_: &str, _: &str, _: bool) -> io::Result<StreamHandle> {
+    Err(io::Error::new(
+        io::ErrorKind::Unsupported,
+        "race-resistant beneath traversal is unavailable in this target profile",
+    ))
+}
+
+#[cfg(not(target_os = "linux"))]
+pub fn open_file_beneath(_: StreamHandle, _: &str, _: FileOpenOptions) -> io::Result<StreamHandle> {
+    Err(io::Error::new(
+        io::ErrorKind::Unsupported,
+        "handle-relative traversal is unavailable in this target profile",
+    ))
 }
 
 /// Performs at most one host read through a registered process-stream handle.
@@ -459,12 +601,26 @@ mod tests {
     fn file_handles_preserve_partial_io_and_explicit_close() {
         let path =
             std::env::temp_dir().join(format!("terrane-stream-abi-file-{}", std::process::id()));
-        let writer = open_file(path.to_str().unwrap(), false, true, true, true).unwrap();
+        let writer = open_file(
+            path.to_str().unwrap(),
+            FileOpenOptions {
+                access: FileAccess::Write,
+                creation: FileCreation::CreateOrTruncate,
+            },
+        )
+        .unwrap();
         assert_eq!(write(writer, b"content").unwrap(), 7);
         sync_all(writer).unwrap();
         close(writer).unwrap();
 
-        let reader = open_file(path.to_str().unwrap(), true, false, false, false).unwrap();
+        let reader = open_file(
+            path.to_str().unwrap(),
+            FileOpenOptions {
+                access: FileAccess::Read,
+                creation: FileCreation::Existing,
+            },
+        )
+        .unwrap();
         let first = read(reader, 3).unwrap();
         assert_eq!(first.data, b"con");
         assert!(!first.end);
@@ -488,7 +644,66 @@ mod tests {
         let link = directory.join("link");
         std::fs::write(&target, b"content").unwrap();
         symlink(&target, &link).unwrap();
-        assert!(open_file(link.to_str().unwrap(), true, false, false, false).is_err());
+        assert!(
+            open_file(
+                link.to_str().unwrap(),
+                FileOpenOptions {
+                    access: FileAccess::Read,
+                    creation: FileCreation::Existing,
+                },
+            )
+            .is_err()
+        );
+        std::fs::remove_dir_all(directory).unwrap();
+    }
+
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn directory_handle_confines_relative_file_traversal() {
+        use std::os::unix::fs::symlink;
+
+        let directory =
+            std::env::temp_dir().join(format!("terrane-stream-abi-beneath-{}", std::process::id()));
+        let nested = directory.join("nested");
+        std::fs::create_dir_all(&nested).unwrap();
+        std::fs::write(nested.join("target"), b"content").unwrap();
+        symlink("../target", nested.join("link")).unwrap();
+
+        let handle = open_directory_beneath(directory.to_str().unwrap(), "nested", false).unwrap();
+        let opened = open_file_beneath(
+            handle,
+            "target",
+            FileOpenOptions {
+                access: FileAccess::Read,
+                creation: FileCreation::Existing,
+            },
+        )
+        .unwrap();
+        assert_eq!(read(opened, 7).unwrap().data, b"content");
+        close(opened).unwrap();
+        assert!(
+            open_file_beneath(
+                handle,
+                "../outside",
+                FileOpenOptions {
+                    access: FileAccess::Read,
+                    creation: FileCreation::Existing,
+                },
+            )
+            .is_err()
+        );
+        assert!(
+            open_file_beneath(
+                handle,
+                "link",
+                FileOpenOptions {
+                    access: FileAccess::Read,
+                    creation: FileCreation::Existing,
+                },
+            )
+            .is_err()
+        );
+        close(handle).unwrap();
         std::fs::remove_dir_all(directory).unwrap();
     }
 }

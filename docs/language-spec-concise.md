@@ -710,6 +710,29 @@ terrane_layers: public protocols/results, loops, adapters, policy, factories, as
 generated_ownership: transfers/use-after-consume/double-release checked statically; current handle refcount only coordinates one host release after adapter transfer
 ```
 
+## PATHS_FILESYSTEM_PROCESS
+
+```yaml
+packages: /standard/paths | /standard/filesystem | /standard/process; ordinary import-driven Terrane source
+path: platform-neutral lexical value with canonical '/' separator; no host lookup or existence implication
+path_normalise: discard empty/'.'; resolve '..' lexically; rooted paths never cross root; unrooted unresolved leading parents remain
+path_join: absolute child replaces base; otherwise concatenate then normalise
+canonicalisation: distinct capability-mediated host operation; follows filesystem and may fail
+filesystem_authority: unforgeable value acquired only by package factory; REQUIRED by every host filesystem operation and handle method
+metadata: metadata follows final link; symlink-metadata inspects it; portable kind/size/read-only plus platform permission detail
+bounded_read: explicit limit; excess fails, never truncates
+atomic_replace: sibling temporary then rename over destination without following destination link
+directory_relative: resource-owning directory handle; no-follow default; beneath rejects escape; cross-filesystem requires explicit permission
+handles: linear resource transfer and idempotent host release shared with streams; partial file write exposes completed offset for resume
+platform_string: exactly one host component; is-text selects lossless Unicode text or lossless raw bytes; NEVER replacement decoding
+snapshots: arguments and environment are explicit; environment returns paired platform-string names/values
+cli_schema: exact flag:/value: long-option spellings; parser returns flags/options/positionals plus diagnostic argument indices/messages; NEVER exits
+cli_v1_limits: no --option=value, -- separator, or short clustering; undeclared short spellings remain positional
+exit_status: exact int 0..=255 valid; invalid construction yields valid=false and sentinel 255 without terminating; exit alone terminates
+rust_boundary: filesystem/descriptor syscalls, lossless OS argument/environment access, process exit
+terrane_layers: paths, filesystem objects/policy/results, platform-string model, CLI parser, exit validation
+```
+
 ## TARGET
 
 - Build selects target profile/capabilities.

@@ -3,13 +3,13 @@ namespace conformance/filesystem-facilities
 from /core/output import print
 from /core/types import bytes
 from /standard/paths import path, normalise-path
-from /standard/filesystem import filesystem, filesystem-write-atomic, filesystem-exists
+from /standard/filesystem import filesystem-capability, filesystem-write-atomic, filesystem-exists
 from /standard/filesystem import filesystem-metadata, filesystem-read-bounded, filesystem-canonical
 from /standard/filesystem import filesystem-open-beneath, filesystem-remove
-from /standard/filesystem import file-handle, open-file, file-read, file-close
+from /standard/filesystem import directory-handle, file-handle, open-file, open-file-beneath, file-read, file-write, file-close
 
 function main;
-    fs = filesystem;
+    fs = filesystem-capability;
     target = path; 'terrane-filesystem-case.txt'
     written = filesystem-write-atomic; fs, target, b'content'
     print; written.failed
@@ -19,11 +19,11 @@ function main;
     print; metadata.failed, metadata.kind, metadata.size, metadata.readonly
     data = filesystem-read-bounded; fs, target, 7
     print; data.failed, data.completed
-    opened file-handle = open-file; target, true, false
-    streamed = file-read; ref opened, 16
+    opened file-handle = open-file; fs, target, true, false
+    streamed = file-read; fs, ref opened, 16
     print; streamed.failed, streamed.completed, streamed.end
-    closing = open-file; target, true, false
-    closed = file-close; closing
+    closing = open-file; fs, target, true, false
+    closed = file-close; fs, closing
     print; closed.failed
     lexical-input = path; 'missing/../terrane-filesystem-case.txt'
     lexical = normalise-path; lexical-input
@@ -34,5 +34,16 @@ function main;
     escape = path; '../Cargo.toml'
     escaped = filesystem-open-beneath; fs, base, escape
     print; escaped.failed
+    current = path; '.'
+    root directory-handle = filesystem-open-beneath; fs, base, current
+    manifest = path; 'Cargo.toml'
+    relative-file file-handle = open-file-beneath; fs, ref root, manifest, true, false
+    relative-data = file-read; fs, ref relative-file, 8
+    print; relative-data.failed, relative-data.completed
+    partial-target file-handle = open-file; fs, target, false, true, false, true
+    partial = file-write; fs, ref partial-target, b'abc', 1
+    print; partial.failed, partial.completed
+    partial-read = filesystem-read-bounded; fs, target, 3
+    print; partial-read.failed, partial-read.completed
     removed = filesystem-remove; fs, target
     print; removed.failed

@@ -167,6 +167,7 @@ fn compile_and_maybe_run(case: &Path, phase: &str, rust: &str, build: &Conforman
         if let Some(arguments) = optional_text(case.join("arguments.txt")) {
             command.args(arguments.lines());
         }
+        command.args(platform_arguments(case.join("arguments-raw.hex")));
         let mut child = command
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
@@ -255,7 +256,7 @@ fn write_support_crates(directory: &Path) {
     .unwrap();
     fs::write(
         stream.join("Cargo.toml"),
-        "[package]\nname = \"terrane-stream-abi\"\nversion = \"0.1.0\"\nedition = \"2024\"\n",
+        "[package]\nname = \"terrane-stream-abi\"\nversion = \"0.1.0\"\nedition = \"2024\"\n\n[dependencies]\nlibc = \"0.2\"\nrustix = { version = \"1\", features = [\"fs\"] }\n",
     )
     .unwrap();
     fs::write(
@@ -271,6 +272,41 @@ fn optional_bytes(path: PathBuf) -> Vec<u8> {
 
 fn optional_text(path: PathBuf) -> Option<String> {
     fs::read_to_string(path).ok()
+}
+
+fn platform_arguments(path: PathBuf) -> Vec<std::ffi::OsString> {
+    let Some(encoded) = optional_text(path) else {
+        return Vec::new();
+    };
+    encoded
+        .lines()
+        .filter(|line| !line.is_empty())
+        .map(|line| {
+            let bytes = line
+                .as_bytes()
+                .chunks_exact(2)
+                .map(|pair| {
+                    let text = std::str::from_utf8(pair).expect("argument hex is ASCII");
+                    u8::from_str_radix(text, 16).expect("argument bytes use hexadecimal")
+                })
+                .collect::<Vec<_>>();
+            assert_eq!(line.len(), bytes.len() * 2, "argument hex has an odd digit");
+            #[cfg(unix)]
+            {
+                use std::os::unix::ffi::OsStringExt as _;
+                std::ffi::OsString::from_vec(bytes)
+            }
+            #[cfg(windows)]
+            {
+                use std::os::windows::ffi::OsStringExt as _;
+                assert_eq!(bytes.len() % 2, 0, "Windows arguments use UTF-16LE units");
+                let units = bytes
+                    .chunks_exact(2)
+                    .map(|pair| u16::from_le_bytes([pair[0], pair[1]]));
+                std::ffi::OsString::from_wide(&units.collect::<Vec<_>>())
+            }
+        })
+        .collect()
 }
 
 fn manifests_below(root: &Path) -> Vec<PathBuf> {
@@ -304,6 +340,17 @@ fn boolean_field(manifest: &str, name: &str) -> Option<bool> {
             _ => None,
         }
     })
+}
+
+#[cfg(unix)]
+#[test]
+fn raw_argument_fixture_preserves_non_utf8_bytes() {
+    use std::os::unix::ffi::OsStrExt as _;
+    let root = std::env::temp_dir().join(format!("terrane-raw-arguments-{}", std::process::id()));
+    fs::write(&root, "ff0061\n").unwrap();
+    let values = platform_arguments(root.clone());
+    assert_eq!(values[0].as_os_str().as_bytes(), &[0xff, 0x00, b'a']);
+    fs::remove_file(root).unwrap();
 }
 
 #[test]

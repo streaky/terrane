@@ -4,7 +4,10 @@ from /core/types import int, bool, string, bytes
 from /standard/paths import path
 from /core/platform-system import filesystem-call, result-failed, result-message
 from /core/platform-system import result-text, result-bytes, result-int, result-bool
+from /core/platform-system import filesystem-authority, acquire-filesystem-authority
 from /core/platform-streams import resource-handle, open-file as platform-open-file
+from /core/platform-streams import open-directory-beneath as platform-open-directory-beneath
+from /core/platform-streams import open-file-beneath as platform-open-file-beneath
 from /core/platform-streams import read as platform-read, write as platform-write
 from /core/platform-streams import flush as platform-flush, sync-data as platform-sync-data
 from /core/platform-streams import sync-all as platform-sync-all, close as platform-close
@@ -71,36 +74,56 @@ class file-handle
     function destruct;
         platform-release; this.handle
 
-function open-file file-handle; target path, readable bool, writable bool, create bool = false, truncate bool = false
+class directory-handle
+    handle resource-handle
+    failed bool = false
+    message string = ''
+
+    function construct; raw resource-handle, failure bool, detail string
+        this.handle = raw
+        this.failed = failure
+        this.message = detail
+
+    function destruct;
+        platform-release; this.handle
+
+function open-file file-handle; capability filesystem, target path, readable bool, writable bool, create bool = false, truncate bool = false
     raw = platform-open-file; target.text, readable, writable, create, truncate
     return file-handle; raw.handle, raw.failed, raw.message
 
-function file-read file-data; file ref file-handle, limit int
+function file-read file-data; capability filesystem, file ref file-handle, limit int
     raw = platform-read; file.handle, limit
     return file-data; raw.data, raw.completed, raw.end, raw.failed, raw.message
 
-function file-write file-data; file ref file-handle, data bytes
-    offset int = 0
+function file-write file-data; capability filesystem, file ref file-handle, data bytes, offset int = 0
     raw = platform-write; file.handle, data, offset
     return file-data; data, raw.completed, false, raw.failed, raw.message
 
-function file-flush operation-result; file ref file-handle
+function file-flush operation-result; capability filesystem, file ref file-handle
     raw = platform-flush; file.handle
     return operation-result; raw.failed, raw.message
 
-function file-sync-data operation-result; file ref file-handle
+function file-sync-data operation-result; capability filesystem, file ref file-handle
     raw = platform-sync-data; file.handle
     return operation-result; raw.failed, raw.message
 
-function file-sync-all operation-result; file ref file-handle
+function file-sync-all operation-result; capability filesystem, file ref file-handle
     raw = platform-sync-all; file.handle
     return operation-result; raw.failed, raw.message
 
-function file-close operation-result; file file-handle
+function file-close operation-result; capability filesystem, file file-handle
     raw = platform-close; file.handle
     return operation-result; raw.failed, raw.message
 
 class filesystem
+    authority filesystem-authority
+
+    function construct; authority filesystem-authority
+        this.authority = authority
+
+function filesystem-capability filesystem;
+    authority = acquire-filesystem-authority;
+    return filesystem; authority
 
 function filesystem-exists bool; capability filesystem, target path
     record = filesystem-call; 'exists', target.text, '', b'', 0, false, false
@@ -126,10 +149,13 @@ function filesystem-read-link path-result; capability filesystem, target path
     linked = path; (result-text; record)
     return path-result; linked, (result-failed; record), (result-message; record)
 
-function filesystem-open-beneath path-result; capability filesystem, directory path, relative path, cross-filesystem bool = false
-    record = filesystem-call; 'beneath', directory.text, relative.text, b'', 0, false, cross-filesystem
-    resolved = path; (result-text; record)
-    return path-result; resolved, (result-failed; record), (result-message; record)
+function filesystem-open-beneath directory-handle; capability filesystem, directory path, relative path, cross-filesystem bool = false
+    raw = platform-open-directory-beneath; directory.text, relative.text, cross-filesystem
+    return directory-handle; raw.handle, raw.failed, raw.message
+
+function open-file-beneath file-handle; capability filesystem, directory ref directory-handle, relative path, readable bool, writable bool, create bool = false, truncate bool = false
+    raw = platform-open-file-beneath; directory.handle, relative.text, readable, writable, create, truncate
+    return file-handle; raw.handle, raw.failed, raw.message
 
 function filesystem-read-bounded file-data; capability filesystem, target path, limit int
     record = filesystem-call; 'read', target.text, '', b'', limit, false, false

@@ -182,16 +182,6 @@ impl TerranePlatformStreamHandle {
         terrane_stream_abi::StreamHandle::from_id(*self.0)
     }
 }
-#[allow(
-    dead_code,
-    reason = "file intrinsics are selected independently of standard stream intrinsics"
-)]
-#[derive(Clone)]
-struct TerranePlatformOpenResult {
-    handle: TerranePlatformStreamHandle,
-    failed: bool,
-    message: String,
-}
 #[derive(Clone)]
 struct TerranePlatformReadResult {
     data: Vec<u8>,
@@ -210,55 +200,6 @@ struct TerranePlatformWriteResult {
 struct TerranePlatformUnitResult {
     failed: bool,
     message: String,
-}
-#[allow(
-    dead_code,
-    reason = "standard stream intrinsics are selected independently of file intrinsics"
-)]
-fn terrane_platform_acquire_stdin() -> TerranePlatformStreamHandle {
-    TerranePlatformStreamHandle::new(terrane_stream_abi::acquire_stdin())
-}
-#[allow(
-    dead_code,
-    reason = "standard stream intrinsics are selected independently of file intrinsics"
-)]
-fn terrane_platform_acquire_stdout() -> TerranePlatformStreamHandle {
-    TerranePlatformStreamHandle::new(terrane_stream_abi::acquire_stdout())
-}
-#[allow(
-    dead_code,
-    reason = "standard stream intrinsics are selected independently of file intrinsics"
-)]
-fn terrane_platform_acquire_stderr() -> TerranePlatformStreamHandle {
-    TerranePlatformStreamHandle::new(terrane_stream_abi::acquire_stderr())
-}
-#[allow(
-    dead_code,
-    reason = "file intrinsics are selected independently of standard stream intrinsics"
-)]
-fn terrane_platform_open_file(
-    path: String,
-    readable: bool,
-    writable: bool,
-    create: bool,
-    truncate: bool,
-) -> TerranePlatformOpenResult {
-    match terrane_stream_abi::open_file(&path, readable, writable, create, truncate) {
-        Ok(handle) => {
-            TerranePlatformOpenResult {
-                handle: TerranePlatformStreamHandle::new(handle),
-                failed: false,
-                message: String::new(),
-            }
-        }
-        Err(error) => {
-            TerranePlatformOpenResult {
-                handle: TerranePlatformStreamHandle::default(),
-                failed: true,
-                message: error.to_string(),
-            }
-        }
-    }
 }
 fn terrane_platform_read(
     handle: &TerranePlatformStreamHandle,
@@ -370,6 +311,15 @@ fn terrane_platform_unit(result: std::io::Result<()>) -> TerranePlatformUnitResu
             }
         }
     }
+}
+fn terrane_platform_acquire_stdin() -> TerranePlatformStreamHandle {
+    TerranePlatformStreamHandle::new(terrane_stream_abi::acquire_stdin())
+}
+fn terrane_platform_acquire_stdout() -> TerranePlatformStreamHandle {
+    TerranePlatformStreamHandle::new(terrane_stream_abi::acquire_stdout())
+}
+fn terrane_platform_acquire_stderr() -> TerranePlatformStreamHandle {
+    TerranePlatformStreamHandle::new(terrane_stream_abi::acquire_stderr())
 }
 // Source: case.trn
 // Namespace: stream-read-exact-eof
