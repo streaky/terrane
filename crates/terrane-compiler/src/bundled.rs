@@ -15,6 +15,11 @@ const SOURCES: &[BundledSource] = &[
         path: "standard/paths.trn",
         text: include_str!("standard/paths.trn"),
     },
+    BundledSource {
+        namespace: "/standard/filesystem",
+        path: "standard/filesystem.trn",
+        text: include_str!("standard/filesystem.trn"),
+    },
 ];
 
 pub(crate) fn source(namespace: &str) -> Option<&'static BundledSource> {

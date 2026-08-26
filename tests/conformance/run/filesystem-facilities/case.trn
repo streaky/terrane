@@ -1,0 +1,38 @@
+namespace conformance/filesystem-facilities
+
+from /core/output import print
+from /core/types import bytes
+from /standard/paths import path, normalise-path
+from /standard/filesystem import filesystem, filesystem-write-atomic, filesystem-exists
+from /standard/filesystem import filesystem-metadata, filesystem-read-bounded, filesystem-canonical
+from /standard/filesystem import filesystem-open-beneath, filesystem-remove
+from /standard/filesystem import file-handle, open-file, file-read, file-close
+
+function main;
+    fs = filesystem;
+    target = path; 'terrane-filesystem-case.txt'
+    written = filesystem-write-atomic; fs, target, b'content'
+    print; written.failed
+    exists = filesystem-exists; fs, target
+    print; exists
+    metadata = filesystem-metadata; fs, target
+    print; metadata.failed, metadata.kind, metadata.size, metadata.readonly
+    data = filesystem-read-bounded; fs, target, 7
+    print; data.failed, data.completed
+    opened file-handle = open-file; target, true, false
+    streamed = file-read; ref opened, 16
+    print; streamed.failed, streamed.completed, streamed.end
+    closing = open-file; target, true, false
+    closed = file-close; closing
+    print; closed.failed
+    lexical-input = path; 'missing/../terrane-filesystem-case.txt'
+    lexical = normalise-path; lexical-input
+    canonical = filesystem-canonical; fs, target
+    print; lexical.text
+    print; canonical.failed
+    base = path; '.'
+    escape = path; '../Cargo.toml'
+    escaped = filesystem-open-beneath; fs, base, escape
+    print; escaped.failed
+    removed = filesystem-remove; fs, target
+    print; removed.failed

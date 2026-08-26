@@ -1,0 +1,10 @@
+false
+true
+falseregular-file7false
+false7
+false7false
+false
+terrane-filesystem-case.txt
+false
+true
+false

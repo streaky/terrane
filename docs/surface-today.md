@@ -109,6 +109,16 @@ Terrane package
     │   ├── join-path                          lexical base/child resolution
     │   ├── path-components / path-is-absolute
     │   └── path-name / path-parent / path-stem / path-extension
+    ├── /standard/filesystem                   bundled Terrane package over minimal host intrinsics
+    │   ├── filesystem                         explicit capability object
+    │   ├── file-handle                        inferred resource-owning file stream
+    │   ├── open-file / file-read / file-write handle-based partial I/O with explicit EOF
+    │   ├── file-flush / file-sync-data / file-sync-all / file-close
+    │   ├── filesystem-exists / filesystem-metadata / filesystem-symlink-metadata
+    │   ├── filesystem-canonical / filesystem-read-link
+    │   ├── filesystem-read-bounded / filesystem-write-atomic
+    │   ├── filesystem-rename / filesystem-remove
+    │   └── filesystem-open-beneath            race-resistant relative traversal
     ├── namespace                              hierarchical object container
     │   ├── variable                           namespace-local value
     │   ├── constant                           namespace-local or program-global value

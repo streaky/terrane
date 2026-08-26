@@ -208,6 +208,7 @@ pub enum ValueType {
     TaskScope,
     TaskOutcome(ElementType),
     PlatformStreamHandle,
+    PlatformOpenResult,
     PlatformReadResult,
     PlatformWriteResult,
     PlatformUnitResult,
@@ -352,6 +353,7 @@ impl std::fmt::Display for ValueType {
             Self::TaskScope => formatter.write_str("task-scope"),
             Self::TaskOutcome(result) => write!(formatter, "task-outcome of {result}"),
             Self::PlatformStreamHandle => formatter.write_str("platform-stream-handle"),
+            Self::PlatformOpenResult => formatter.write_str("platform-open-result"),
             Self::PlatformReadResult => formatter.write_str("platform-read-result"),
             Self::PlatformWriteResult => formatter.write_str("platform-write-result"),
             Self::PlatformUnitResult => formatter.write_str("platform-unit-result"),
@@ -848,6 +850,7 @@ pub fn analyze(package: &Package) -> Result<SemanticPackage, SemanticFailure> {
                 | "/core/errors"
                 | "/core/collections"
                 | "/core/platform-streams"
+                | "/core/platform-system"
         ) || (crate::bundled::source(&unit.namespace).is_some() && !bundled)
         {
             let span = unit
@@ -1725,11 +1728,20 @@ fn imported_object(
     import: &Import,
     namespaces: &BTreeMap<String, Namespace>,
 ) -> Result<Symbol, SemanticFailure> {
-    if import.target == "/core/platform-streams" && !import.bundled {
+    if matches!(
+        import.target.as_str(),
+        "/core/platform-streams" | "/core/platform-system"
+    ) && !import.bundled
+    {
+        let facility = if import.target == "/core/platform-streams" {
+            "`/standard/streams`"
+        } else {
+            "`/standard/filesystem` or `/standard/process`"
+        };
         return Err(failure(
             &import.source,
             "T0100",
-            "process stream host intrinsics are private to the bundled `/standard/streams` package",
+            format!("host intrinsics are private to the bundled {facility} package"),
             import.span,
         ));
     }
@@ -6180,6 +6192,7 @@ fn infer_value_type(
                     | "/core/platform-streams::acquire-stderr" => {
                         Some(ValueType::PlatformStreamHandle)
                     }
+                    "/core/platform-streams::open-file" => Some(ValueType::PlatformOpenResult),
                     "/core/platform-streams::read" => Some(ValueType::PlatformReadResult),
                     "/core/platform-streams::write" => Some(ValueType::PlatformWriteResult),
                     "/core/platform-streams::flush"
@@ -6187,6 +6200,28 @@ fn infer_value_type(
                     | "/core/platform-streams::sync-all"
                     | "/core/platform-streams::close"
                     | "/core/platform-streams::release" => Some(ValueType::PlatformUnitResult),
+                    "/core/platform-system::filesystem-call" => {
+                        Some(ValueType::Scalar(ScalarType::String))
+                    }
+                    "/core/platform-system::result-failed"
+                    | "/core/platform-system::result-bool" => {
+                        Some(ValueType::Scalar(ScalarType::Bool))
+                    }
+                    "/core/platform-system::result-message"
+                    | "/core/platform-system::result-text" => {
+                        Some(ValueType::Scalar(ScalarType::String))
+                    }
+                    "/core/platform-system::result-bytes" => {
+                        Some(ValueType::Scalar(ScalarType::Bytes))
+                    }
+                    "/core/platform-system::result-int" => {
+                        Some(ValueType::Scalar(ScalarType::Int))
+                    }
+                    "/core/platform-system::process-arguments"
+                    | "/core/platform-system::environment-entries" => Some(ValueType::StringList),
+                    "/core/platform-system::process-exit" => {
+                        Some(ValueType::Scalar(ScalarType::None))
+                    }
                     _ => None,
                 };
                 if platform_result.is_some() {
@@ -7053,25 +7088,29 @@ fn infer_member_value_type(
     if let Some(result) = &receiver_type
         && matches!(
             result,
-            ValueType::PlatformReadResult
+            ValueType::PlatformOpenResult
+                | ValueType::PlatformReadResult
                 | ValueType::PlatformWriteResult
                 | ValueType::PlatformUnitResult
         )
     {
         let member_type = match (result, member_name) {
+            (ValueType::PlatformOpenResult, "handle") => Some(ValueType::PlatformStreamHandle),
             (ValueType::PlatformReadResult, "data") => Some(ValueType::Scalar(ScalarType::Bytes)),
             (ValueType::PlatformReadResult | ValueType::PlatformWriteResult, "completed") => {
                 Some(ValueType::Scalar(ScalarType::Int))
             }
             (ValueType::PlatformReadResult, "end")
             | (
-                ValueType::PlatformReadResult
+                ValueType::PlatformOpenResult
+                | ValueType::PlatformReadResult
                 | ValueType::PlatformWriteResult
                 | ValueType::PlatformUnitResult,
                 "failed",
             ) => Some(ValueType::Scalar(ScalarType::Bool)),
             (
-                ValueType::PlatformReadResult
+                ValueType::PlatformOpenResult
+                | ValueType::PlatformReadResult
                 | ValueType::PlatformWriteResult
                 | ValueType::PlatformUnitResult,
                 "message",
@@ -9744,6 +9783,7 @@ fn bootstrap_namespaces() -> BTreeMap<String, Namespace> {
                 "acquire-stdin",
                 "acquire-stdout",
                 "acquire-stderr",
+                "open-file",
                 "resource-handle",
                 "read",
                 "write",
@@ -9752,6 +9792,25 @@ fn bootstrap_namespaces() -> BTreeMap<String, Namespace> {
                 "sync-all",
                 "close",
                 "release",
+            ],
+            SymbolKind::Function,
+        ),
+    );
+    namespaces.insert(
+        "/core/platform-system".to_owned(),
+        namespace_with_objects(
+            "/core/platform-system",
+            [
+                "filesystem-call",
+                "result-failed",
+                "result-message",
+                "result-text",
+                "result-bytes",
+                "result-int",
+                "result-bool",
+                "process-arguments",
+                "environment-entries",
+                "process-exit",
             ],
             SymbolKind::Function,
         ),

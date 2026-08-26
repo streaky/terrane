@@ -70,11 +70,27 @@ pub(crate) fn lower(package: &SemanticPackage) -> Program {
     if package
         .units
         .iter()
-        .any(|unit| unit.namespace == "/standard/streams")
+        .any(|unit| {
+            matches!(
+                unit.namespace.as_str(),
+                "/standard/streams" | "/standard/filesystem"
+            )
+        })
     {
         runtime.push(GeneratedModule {
             name: "platform_streams",
             items: vec![Item::generated(include_str!("runtime/platform_streams.rs"))],
+        });
+    }
+    if package.units.iter().any(|unit| {
+        matches!(
+            unit.namespace.as_str(),
+            "/standard/filesystem" | "/standard/process"
+        )
+    }) {
+        runtime.push(GeneratedModule {
+            name: "platform_system",
+            items: vec![Item::generated(include_str!("runtime/platform_system.rs"))],
         });
     }
     if package.units.iter().any(|unit| {
@@ -3545,14 +3561,15 @@ impl Emitter<'_> {
         if matches!(
             receiver_type,
             Some(
-                ValueType::PlatformReadResult
+                ValueType::PlatformOpenResult
+                    | ValueType::PlatformReadResult
                     | ValueType::PlatformWriteResult
                     | ValueType::PlatformUnitResult
             )
         ) {
             let receiver = self.expression(receiver);
             return match self.text(member) {
-                "data" | "completed" | "message" => {
+                "handle" | "data" | "completed" | "message" => {
                     format!("({receiver}).{}.clone()", self.text(member))
                 }
                 name => format!("({receiver}).{name}"),
@@ -3564,6 +3581,20 @@ impl Emitter<'_> {
             return length;
         }
         let wrapped_field = self.wrapped_object_field(receiver, self.text(member));
+        if matches!(
+            self.value_type(receiver),
+            Some(ValueType::Reference(_) | ValueType::SharedReference(_))
+        ) && matches!(receiver_type, Some(ValueType::Object(_)))
+        {
+            let guard = self.receiver_guard_expression(receiver);
+            let field = rust_name(self.text(member));
+            let access = if wrapped_field {
+                format!("({guard}).terrane_field_{field}().clone()")
+            } else {
+                format!("({guard}).{field}.clone()")
+            };
+            return self.wrap_receiver_guard(receiver, access);
+        }
         let receiver = self.receiver_expression(receiver);
         match self.text(member) {
             "bytes" if receiver_type == Some(ValueType::Scalar(ScalarType::String)) => {
@@ -4047,10 +4078,48 @@ impl Emitter<'_> {
             let format = "{}".repeat(values.len());
             return format!("println!(\"{format}\", {})", values.join(", "));
         }
+        let system_call = [
+            ("filesystem-call", "filesystem_call"),
+            ("result-failed", "system_result_failed"),
+            ("result-message", "system_result_message"),
+            ("result-text", "system_result_text"),
+            ("result-bytes", "system_result_bytes"),
+            ("result-int", "system_result_int"),
+            ("result-bool", "system_result_bool"),
+            ("process-arguments", "process_arguments"),
+            ("environment-entries", "environment_entries"),
+            ("process-exit", "process_exit"),
+        ]
+        .into_iter()
+        .find_map(|(terrane, rust)| {
+            self.is_builtin(callee, &format!("/core/platform-system::{terrane}"))
+                .then_some(rust)
+        });
+        if let Some(function) = system_call {
+            let values = argument_values
+                .iter()
+                .enumerate()
+                .map(|(index, value)| {
+                    if (function == "filesystem_call" && index == 4)
+                        || function == "process_exit"
+                    {
+                        self.expression_as(value, ValueType::Scalar(ScalarType::Int))
+                    } else {
+                        self.expression(value)
+                    }
+                })
+                .collect::<Vec<_>>()
+                .join(", ");
+            if function.starts_with("system_result_") {
+                return format!("terrane_{function}(&({values}))");
+            }
+            return format!("terrane_{function}({values})");
+        }
         let platform_call = [
             ("acquire-stdin", "acquire_stdin"),
             ("acquire-stdout", "acquire_stdout"),
             ("acquire-stderr", "acquire_stderr"),
+            ("open-file", "open_file"),
             ("read", "read"),
             ("write", "write"),
             ("flush", "flush"),
@@ -4071,6 +4140,9 @@ impl Emitter<'_> {
                 .collect::<Vec<_>>();
             if function.starts_with("acquire_") {
                 return format!("terrane_platform_{function}()");
+            }
+            if function == "open_file" {
+                return format!("terrane_platform_open_file({})", values.join(", "));
             }
             if function == "write" && values.len() == 3 {
                 return format!(
@@ -5506,6 +5578,7 @@ fn rust_value_type(ty: ValueType) -> String {
             format!("TerraneTaskOutcome<{}>", rust_element_type(result))
         }
         ValueType::PlatformStreamHandle => "TerranePlatformStreamHandle".to_owned(),
+        ValueType::PlatformOpenResult => "TerranePlatformOpenResult".to_owned(),
         ValueType::PlatformReadResult => "TerranePlatformReadResult".to_owned(),
         ValueType::PlatformWriteResult => "TerranePlatformWriteResult".to_owned(),
         ValueType::PlatformUnitResult => "TerranePlatformUnitResult".to_owned(),

@@ -1,0 +1,144 @@
+namespace standard/filesystem
+
+from /core/types import int, bool, string, bytes
+from /standard/paths import path
+from /core/platform-system import filesystem-call, result-failed, result-message
+from /core/platform-system import result-text, result-bytes, result-int, result-bool
+from /core/platform-streams import resource-handle, open-file as platform-open-file
+from /core/platform-streams import read as platform-read, write as platform-write
+from /core/platform-streams import flush as platform-flush, sync-data as platform-sync-data
+from /core/platform-streams import sync-all as platform-sync-all, close as platform-close
+from /core/platform-streams import release as platform-release
+
+class operation-result
+    failed bool = false
+    message string = ''
+
+    function construct; failure bool, detail string
+        this.failed = failure
+        this.message = detail
+
+class path-result
+    resolved path = path; ''
+    failed bool = false
+    message string = ''
+
+    function construct; target path, failure bool, detail string
+        this.resolved = target
+        this.failed = failure
+        this.message = detail
+
+class file-metadata
+    kind string = 'other'
+    size int = 0
+    readonly bool = false
+    failed bool = false
+    message string = ''
+
+    function construct; kind string, size int, readonly bool, failure bool, detail string
+        this.kind = kind
+        this.size = size
+        this.readonly = readonly
+        this.failed = failure
+        this.message = detail
+
+class file-data
+    data bytes = b''
+    completed int = 0
+    end bool = false
+    failed bool = false
+    message string = ''
+
+    function construct; data bytes, completed int, end bool, failure bool, detail string
+        this.data = data
+        this.completed = completed
+        this.end = end
+        this.failed = failure
+        this.message = detail
+
+class file-handle
+    handle resource-handle
+    failed bool = false
+    message string = ''
+
+    function construct; raw resource-handle, failure bool, detail string
+        this.handle = raw
+        this.failed = failure
+        this.message = detail
+
+    function destruct;
+        platform-release; this.handle
+
+function open-file file-handle; target path, readable bool, writable bool, create bool = false, truncate bool = false
+    raw = platform-open-file; target.text, readable, writable, create, truncate
+    return file-handle; raw.handle, raw.failed, raw.message
+
+function file-read file-data; file ref file-handle, limit int
+    raw = platform-read; file.handle, limit
+    return file-data; raw.data, raw.completed, raw.end, raw.failed, raw.message
+
+function file-write file-data; file ref file-handle, data bytes
+    offset int = 0
+    raw = platform-write; file.handle, data, offset
+    return file-data; data, raw.completed, false, raw.failed, raw.message
+
+function file-flush operation-result; file ref file-handle
+    raw = platform-flush; file.handle
+    return operation-result; raw.failed, raw.message
+
+function file-sync-data operation-result; file ref file-handle
+    raw = platform-sync-data; file.handle
+    return operation-result; raw.failed, raw.message
+
+function file-sync-all operation-result; file ref file-handle
+    raw = platform-sync-all; file.handle
+    return operation-result; raw.failed, raw.message
+
+function file-close operation-result; file file-handle
+    raw = platform-close; file.handle
+    return operation-result; raw.failed, raw.message
+
+class filesystem
+
+function filesystem-exists bool; capability filesystem, target path
+    record = filesystem-call; 'exists', target.text, '', b'', 0, false, false
+    return result-bool; record
+
+function filesystem-metadata file-metadata; capability filesystem, target path
+    record = filesystem-call; 'metadata', target.text, '', b'', 0, true, false
+    return file-metadata; (result-text; record), (result-int; record), (result-bool; record), (result-failed; record), (result-message; record)
+
+function filesystem-symlink-metadata file-metadata; capability filesystem, target path
+    record = filesystem-call; 'metadata', target.text, '', b'', 0, false, false
+    return file-metadata; (result-text; record), (result-int; record), (result-bool; record), (result-failed; record), (result-message; record)
+
+function filesystem-canonical path-result; capability filesystem, target path
+    record = filesystem-call; 'canonical', target.text, '', b'', 0, false, false
+    canonical = path; (result-text; record)
+    return path-result; canonical, (result-failed; record), (result-message; record)
+
+function filesystem-read-link path-result; capability filesystem, target path
+    record = filesystem-call; 'read-link', target.text, '', b'', 0, false, false
+    linked = path; (result-text; record)
+    return path-result; linked, (result-failed; record), (result-message; record)
+
+function filesystem-open-beneath path-result; capability filesystem, directory path, relative path, cross-filesystem bool = false
+    record = filesystem-call; 'beneath', directory.text, relative.text, b'', 0, false, cross-filesystem
+    resolved = path; (result-text; record)
+    return path-result; resolved, (result-failed; record), (result-message; record)
+
+function filesystem-read-bounded file-data; capability filesystem, target path, limit int
+    record = filesystem-call; 'read', target.text, '', b'', limit, false, false
+    return file-data; (result-bytes; record), (result-int; record), true, (result-failed; record), (result-message; record)
+
+function filesystem-write-atomic operation-result; capability filesystem, target path, data bytes
+    record = filesystem-call; 'atomic-write', target.text, '', data, 0, false, false
+    return operation-result; (result-failed; record), (result-message; record)
+
+function filesystem-rename operation-result; capability filesystem, source path, destination path
+    record = filesystem-call; 'rename', source.text, destination.text, b'', 0, false, false
+    return operation-result; (result-failed; record), (result-message; record)
+
+function filesystem-remove operation-result; capability filesystem, target path
+    record = filesystem-call; 'remove', target.text, '', b'', 0, false, false
+    return operation-result; (result-failed; record), (result-message; record)

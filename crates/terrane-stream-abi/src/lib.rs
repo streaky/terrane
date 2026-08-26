@@ -131,6 +131,37 @@ macro_rules! impl_standard_writer {
 impl_standard_writer!(StdoutWriter, stdout, io::stdout());
 impl_standard_writer!(StderrWriter, stderr, io::stderr());
 
+#[derive(Debug)]
+pub struct FileStream {
+    file: std::fs::File,
+    readable: bool,
+    writable: bool,
+}
+
+impl FileStream {
+    fn read(&mut self, limit: usize) -> io::Result<ReadOutcome> {
+        if !self.readable {
+            return Err(io::Error::new(io::ErrorKind::InvalidInput, "file is not readable"));
+        }
+        let mut data = vec![0; limit];
+        let completed = self.file.read(&mut data)?;
+        data.truncate(completed);
+        Ok(ReadOutcome { data, end: completed == 0 })
+    }
+
+    fn write(&mut self, data: &[u8]) -> io::Result<usize> {
+        if !self.writable {
+            return Err(io::Error::new(io::ErrorKind::InvalidInput, "file is not writable"));
+        }
+        self.file.write(data)
+    }
+
+    fn flush(&mut self) -> io::Result<()> { self.file.flush() }
+    fn sync_data(&mut self) -> io::Result<()> { self.file.sync_data() }
+    fn sync_all(&mut self) -> io::Result<()> { self.file.sync_all() }
+    fn close(&mut self) -> io::Result<()> { self.file.flush() }
+}
+
 #[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub struct StreamHandle(i64);
 
@@ -150,6 +181,7 @@ enum StandardStream {
     Stdin(StdinReader),
     Stdout(StdoutWriter),
     Stderr(StderrWriter),
+    File(FileStream),
 }
 
 static NEXT_HANDLE: AtomicI64 = AtomicI64::new(1);
@@ -183,6 +215,30 @@ pub fn acquire_stderr() -> StreamHandle {
     acquire(StandardStream::Stderr(StderrWriter::acquire()))
 }
 
+/// Opens a filesystem file without following a final symlink on Unix targets.
+///
+/// # Errors
+///
+/// Returns the host open error, including a refusal to follow the final symlink.
+pub fn open_file(
+    path: &str,
+    readable: bool,
+    writable: bool,
+    create: bool,
+    truncate: bool,
+) -> io::Result<StreamHandle> {
+    let mut options = std::fs::OpenOptions::new();
+    options.read(readable).write(writable).create(create).truncate(truncate);
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::OpenOptionsExt as _;
+        const O_NOFOLLOW: i32 = 0o400000;
+        options.custom_flags(O_NOFOLLOW);
+    }
+    let file = options.open(path)?;
+    Ok(acquire(StandardStream::File(FileStream { file, readable, writable })))
+}
+
 /// Performs at most one host read through a registered process-stream handle.
 ///
 /// # Errors
@@ -197,6 +253,7 @@ pub fn read(handle: StreamHandle, limit: usize) -> io::Result<ReadOutcome> {
     }
     match registry().get_mut(&handle.0) {
         Some(StandardStream::Stdin(reader)) => reader.read(limit),
+        Some(StandardStream::File(file)) => file.read(limit),
         Some(StandardStream::Stdout(_) | StandardStream::Stderr(_)) => Err(io::Error::new(
             io::ErrorKind::InvalidInput,
             "stream is not readable",
@@ -214,6 +271,7 @@ pub fn write(handle: StreamHandle, data: &[u8]) -> io::Result<usize> {
     match registry().get_mut(&handle.0) {
         Some(StandardStream::Stdout(writer)) => writer.write(data),
         Some(StandardStream::Stderr(writer)) => writer.write(data),
+        Some(StandardStream::File(file)) => file.write(data),
         Some(StandardStream::Stdin(_)) => Err(io::Error::new(
             io::ErrorKind::InvalidInput,
             "stream is not writable",
@@ -268,6 +326,7 @@ pub fn close(handle: StreamHandle) -> io::Result<()> {
         StandardStream::Stdin(reader) => reader.close(),
         StandardStream::Stdout(writer) => writer.close(),
         StandardStream::Stderr(writer) => writer.close(),
+        StandardStream::File(file) => file.close(),
     };
     if result.is_err() {
         registry().insert(handle.0, stream);
@@ -290,6 +349,7 @@ pub fn release(handle: StreamHandle) -> io::Result<()> {
         StandardStream::Stdin(reader) => reader.close(),
         StandardStream::Stdout(writer) => writer.close(),
         StandardStream::Stderr(writer) => writer.close(),
+        StandardStream::File(file) => file.close(),
     }
 }
 
@@ -300,6 +360,7 @@ fn with_writer(
     match registry().get_mut(&handle.0) {
         Some(StandardStream::Stdout(writer)) => operation(writer),
         Some(StandardStream::Stderr(writer)) => operation(writer),
+        Some(StandardStream::File(writer)) => operation(writer),
         Some(StandardStream::Stdin(_)) => Err(io::Error::new(
             io::ErrorKind::InvalidInput,
             "stream is not writable",
@@ -334,6 +395,7 @@ macro_rules! impl_writer_trait {
 
 impl_writer_trait!(StdoutWriter);
 impl_writer_trait!(StderrWriter);
+impl_writer_trait!(FileStream);
 
 fn invalid_handle() -> io::Error {
     io::Error::new(io::ErrorKind::NotFound, "unknown standard stream handle")
@@ -366,5 +428,46 @@ mod tests {
         release(handle).unwrap();
         assert_eq!(read(handle, 1).unwrap_err().kind(), io::ErrorKind::NotFound);
         release(handle).unwrap();
+    }
+
+    #[test]
+    fn file_handles_preserve_partial_io_and_explicit_close() {
+        let path = std::env::temp_dir().join(format!(
+            "terrane-stream-abi-file-{}",
+            std::process::id()
+        ));
+        let writer = open_file(path.to_str().unwrap(), false, true, true, true).unwrap();
+        assert_eq!(write(writer, b"content").unwrap(), 7);
+        sync_all(writer).unwrap();
+        close(writer).unwrap();
+
+        let reader = open_file(path.to_str().unwrap(), true, false, false, false).unwrap();
+        let first = read(reader, 3).unwrap();
+        assert_eq!(first.data, b"con");
+        assert!(!first.end);
+        let second = read(reader, 8).unwrap();
+        assert_eq!(second.data, b"tent");
+        assert!(!second.end);
+        assert!(read(reader, 8).unwrap().end);
+        close(reader).unwrap();
+        std::fs::remove_file(path).unwrap();
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn file_open_refuses_a_final_symlink() {
+        use std::os::unix::fs::symlink;
+
+        let directory = std::env::temp_dir().join(format!(
+            "terrane-stream-abi-symlink-{}",
+            std::process::id()
+        ));
+        std::fs::create_dir_all(&directory).unwrap();
+        let target = directory.join("target");
+        let link = directory.join("link");
+        std::fs::write(&target, b"content").unwrap();
+        symlink(&target, &link).unwrap();
+        assert!(open_file(link.to_str().unwrap(), true, false, false, false).is_err());
+        std::fs::remove_dir_all(directory).unwrap();
     }
 }
