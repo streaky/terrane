@@ -1,0 +1,7 @@
+namespace resource-owning-collection-signature
+from /core/collections import list
+from /standard/streams import byte-writer
+
+function collect list of byte-writer;
+    result list of byte-writer = list
+    return result

@@ -5,3 +5,6 @@ file.tar
 gz
 /beta
 work/next
+.profile
+
+.

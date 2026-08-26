@@ -717,7 +717,7 @@ packages: /standard/paths | /standard/filesystem | /standard/process; ordinary i
 path: platform-neutral lexical value with canonical '/' separator; no host lookup or existence implication
 path_normalise: discard empty/'.'; resolve '..' lexically; rooted paths never cross root; unrooted unresolved leading parents remain
 path_join: absolute child replaces base; otherwise concatenate then normalise
-canonicalisation: distinct capability-mediated host operation; follows filesystem and may fail
+canonicalisation: `filesystem-canonical` and explicit `filesystem-realpath` use the same capability-mediated native host resolution; follows filesystem and may fail; lexical path operations remain Terrane
 filesystem_authority: unforgeable value acquired only by package factory; REQUIRED by every host filesystem operation and handle method
 metadata: metadata follows final link; symlink-metadata inspects it; portable kind/size/read-only plus platform permission detail
 bounded_read: explicit limit; excess fails, never truncates

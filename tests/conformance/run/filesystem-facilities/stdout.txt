@@ -1,11 +1,13 @@
 false
-true
-falseregular-file7false
+truefalse
+falseregular-file7falsefalse
 false7
 false7false
 false
 terrane-filesystem-case.txt
 false
+falsetrue
+falsefalse
 true
 false8
 false2

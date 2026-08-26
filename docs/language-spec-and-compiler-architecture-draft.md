@@ -5985,8 +5985,10 @@ filesystem lookup and does not imply that the named object exists. Its operation
 identify rooted values, select name/parent/stem/extension, join, and normalise. Normalisation
 removes empty and `.` components and resolves `..` lexically. A rooted path never ascends above
 its root; an unrooted path retains leading parents which cannot be discharged. Joining an
-absolute child replaces the base. Canonicalisation is deliberately separate: it is a
-capability-mediated host operation which follows the filesystem and may fail.
+absolute child replaces the base. Canonicalisation is deliberately separate:
+`filesystem-canonical` and the explicitly named `filesystem-realpath` operation both invoke
+capability-mediated native host resolution, follow the filesystem, and may fail. Lexical path
+operations remain in Terrane and never substitute for native real-path resolution.
 
 The `filesystem` object carries an unforgeable host authority acquired only by its package
 factory. Every host filesystem operation requires that capability, including operations reached

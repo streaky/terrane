@@ -111,11 +111,12 @@ Terrane package
     │   └── path-name / path-parent / path-stem / path-extension
     ├── /standard/filesystem                   bundled Terrane package over minimal host intrinsics
     │   ├── filesystem                         explicit capability object
-    │   ├── file-handle                        inferred resource-owning file stream
+    │   ├── file-handle / directory-handle     inferred resource-owning host handles
     │   ├── open-file / file-read / file-write handle-based partial I/O with explicit EOF
+    │   ├── open-file-beneath                   handle-relative no-follow file open
     │   ├── file-flush / file-sync-data / file-sync-all / file-close
     │   ├── filesystem-exists / filesystem-metadata / filesystem-symlink-metadata
-    │   ├── filesystem-canonical / filesystem-read-link
+    │   ├── filesystem-canonical / filesystem-realpath / filesystem-read-link
     │   ├── filesystem-read-bounded / filesystem-write-atomic
     │   ├── filesystem-rename / filesystem-remove
     │   └── filesystem-open-beneath            race-resistant relative traversal

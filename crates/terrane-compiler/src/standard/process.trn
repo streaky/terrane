@@ -38,7 +38,7 @@ function environment list of environment-entry;
     encoded = (platform-environment;)
     values list of environment-entry = list
     index int = 0
-    while index < encoded.length
+    while index + 1 < encoded.length
         name = platform-string; encoded[index]
         value = platform-string; encoded[index + 1]
         values.append; (environment-entry; name, value)

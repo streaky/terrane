@@ -13,6 +13,7 @@ pub struct TerraneFilesystemResult {
     failed: bool,
     message: String,
     text: String,
+    detail: String,
     data: Vec<u8>,
     number: i128,
     flag: bool,
@@ -35,6 +36,9 @@ fn terrane_filesystem_result_message(result: &TerraneFilesystemResult) -> String
 }
 fn terrane_filesystem_result_text(result: &TerraneFilesystemResult) -> String {
     result.text.clone()
+}
+fn terrane_filesystem_result_detail(result: &TerraneFilesystemResult) -> String {
+    result.detail.clone()
 }
 fn terrane_filesystem_result_bytes(result: &TerraneFilesystemResult) -> Vec<u8> {
     result.data.clone()
@@ -76,7 +80,8 @@ fn terrane_metadata(path: &std::path::Path, follow: bool) -> TerraneFilesystemRe
                 "other"
             };
             TerraneFilesystemResult {
-                text: format!("{kind}|{}", terrane_permission_detail(&metadata)),
+                text: kind.to_owned(),
+                detail: terrane_permission_detail(&metadata),
                 number: i128::from(metadata.len()),
                 flag: metadata.permissions().readonly(),
                 ..TerraneFilesystemResult::default()
@@ -85,7 +90,8 @@ fn terrane_metadata(path: &std::path::Path, follow: bool) -> TerraneFilesystemRe
         Err(error) => TerraneFilesystemResult {
             failed: true,
             message: error.to_string(),
-            text: "other|unavailable".to_owned(),
+            text: "other".to_owned(),
+            detail: "unavailable".to_owned(),
             ..TerraneFilesystemResult::default()
         },
     }
@@ -142,17 +148,19 @@ fn terrane_filesystem_call(
     data: Vec<u8>,
     limit: impl Into<terrane_int_support::Int>,
     follow: bool,
-    _cross: bool,
 ) -> TerraneFilesystemResult {
     let limit = limit.into();
     let path = std::path::Path::new(&path);
     match operation.as_str() {
-        "exists" => TerraneFilesystemResult {
-            flag: path.try_exists().unwrap_or(false),
-            ..TerraneFilesystemResult::default()
+        "exists" => match path.try_exists() {
+            Ok(exists) => TerraneFilesystemResult {
+                flag: exists,
+                ..TerraneFilesystemResult::default()
+            },
+            Err(error) => terrane_io_error(error),
         },
         "metadata" => terrane_metadata(path, follow),
-        "canonical" => match std::fs::canonicalize(path).and_then(terrane_path_text) {
+        "canonical" | "realpath" => match std::fs::canonicalize(path).and_then(terrane_path_text) {
             Ok(value) => TerraneFilesystemResult {
                 text: value,
                 ..TerraneFilesystemResult::default()

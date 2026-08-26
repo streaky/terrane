@@ -415,7 +415,9 @@ pub fn environment() -> terrane_collection_support::List<EnvironmentEntry> {
         EnvironmentEntry,
     >::new(Vec::new());
     let mut index: terrane_int_support::Int = terrane_int_support::Int::from(0_i128);
-    while index.clone() < terrane_int_support::Int::from(encoded.len() as i128) {
+    while index.clone() + terrane_int_support::Int::from(1_i128)
+        < terrane_int_support::Int::from(encoded.len() as i128)
+    {
         let name: PlatformString = PlatformString::terrane_construct(
             encoded
                 .get(

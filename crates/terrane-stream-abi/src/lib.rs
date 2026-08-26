@@ -9,7 +9,7 @@ use std::{
     collections::BTreeMap,
     io::{self, Read, Write},
     sync::{
-        LazyLock, Mutex,
+        Arc, LazyLock, Mutex,
         atomic::{AtomicI64, Ordering},
     },
 };
@@ -136,6 +136,7 @@ pub struct FileStream {
     file: std::fs::File,
     readable: bool,
     writable: bool,
+    cross_filesystem: bool,
 }
 
 impl FileStream {
@@ -206,10 +207,10 @@ enum StandardStream {
 }
 
 static NEXT_HANDLE: AtomicI64 = AtomicI64::new(1);
-static STREAMS: LazyLock<Mutex<BTreeMap<i64, StandardStream>>> =
+static STREAMS: LazyLock<Mutex<BTreeMap<i64, Arc<Mutex<StandardStream>>>>> =
     LazyLock::new(|| Mutex::new(BTreeMap::new()));
 
-fn registry() -> std::sync::MutexGuard<'static, BTreeMap<i64, StandardStream>> {
+fn registry() -> std::sync::MutexGuard<'static, BTreeMap<i64, Arc<Mutex<StandardStream>>>> {
     STREAMS
         .lock()
         .unwrap_or_else(std::sync::PoisonError::into_inner)
@@ -217,7 +218,7 @@ fn registry() -> std::sync::MutexGuard<'static, BTreeMap<i64, StandardStream>> {
 
 fn acquire(stream: StandardStream) -> StreamHandle {
     let handle = NEXT_HANDLE.fetch_add(1, Ordering::Relaxed);
-    registry().insert(handle, stream);
+    registry().insert(handle, Arc::new(Mutex::new(stream)));
     StreamHandle(handle)
 }
 
@@ -290,6 +291,7 @@ pub fn open_file(path: &str, request: FileOpenOptions) -> io::Result<StreamHandl
         file,
         readable,
         writable,
+        cross_filesystem: false,
     })))
 }
 #[cfg(target_os = "linux")]
@@ -326,7 +328,14 @@ pub fn open_directory_beneath(
     child: &str,
     cross_filesystem: bool,
 ) -> io::Result<StreamHandle> {
-    let base = std::fs::File::open(base)?;
+    let base = std::fs::File::from(rustix::fs::open(
+        base,
+        rustix::fs::OFlags::RDONLY
+            | rustix::fs::OFlags::DIRECTORY
+            | rustix::fs::OFlags::NOFOLLOW
+            | rustix::fs::OFlags::CLOEXEC,
+        rustix::fs::Mode::empty(),
+    )?);
     let directory = linux_open_beneath(
         &base,
         child,
@@ -337,6 +346,7 @@ pub fn open_directory_beneath(
         file: directory,
         readable: false,
         writable: false,
+        cross_filesystem,
     })))
 }
 
@@ -368,9 +378,12 @@ pub fn open_file_beneath(
         FileAccess::Write => rustix::fs::OFlags::WRONLY,
         FileAccess::ReadWrite => rustix::fs::OFlags::RDWR,
     };
+    let stream = registered_stream(directory)?;
     let file = {
-        let streams = registry();
-        let Some(StandardStream::File(directory)) = streams.get(&directory.0) else {
+        let stream = stream
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        let StandardStream::File(directory) = &*stream else {
             return Err(io::Error::new(
                 io::ErrorKind::InvalidInput,
                 "invalid directory handle",
@@ -380,13 +393,14 @@ pub fn open_file_beneath(
             &directory.file,
             child,
             access_flags | creation_flags | rustix::fs::OFlags::CLOEXEC,
-            false,
+            directory.cross_filesystem,
         )?
     };
     Ok(acquire(StandardStream::File(FileStream {
         file,
         readable,
         writable,
+        cross_filesystem: false,
     })))
 }
 
@@ -418,14 +432,17 @@ pub fn read(handle: StreamHandle, limit: usize) -> io::Result<ReadOutcome> {
             end: false,
         });
     }
-    match registry().get_mut(&handle.0) {
-        Some(StandardStream::Stdin(reader)) => reader.read(limit),
-        Some(StandardStream::File(file)) => file.read(limit),
-        Some(StandardStream::Stdout(_) | StandardStream::Stderr(_)) => Err(io::Error::new(
+    let stream = registered_stream(handle)?;
+    let mut stream = stream
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+    match &mut *stream {
+        StandardStream::Stdin(reader) => reader.read(limit),
+        StandardStream::File(file) => file.read(limit),
+        StandardStream::Stdout(_) | StandardStream::Stderr(_) => Err(io::Error::new(
             io::ErrorKind::InvalidInput,
             "stream is not readable",
         )),
-        None => Err(invalid_handle()),
     }
 }
 
@@ -435,15 +452,18 @@ pub fn read(handle: StreamHandle, limit: usize) -> io::Result<ReadOutcome> {
 ///
 /// Returns an I/O error for an invalid or non-writable handle, or when the host write fails.
 pub fn write(handle: StreamHandle, data: &[u8]) -> io::Result<usize> {
-    match registry().get_mut(&handle.0) {
-        Some(StandardStream::Stdout(writer)) => writer.write(data),
-        Some(StandardStream::Stderr(writer)) => writer.write(data),
-        Some(StandardStream::File(file)) => file.write(data),
-        Some(StandardStream::Stdin(_)) => Err(io::Error::new(
+    let stream = registered_stream(handle)?;
+    let mut stream = stream
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+    match &mut *stream {
+        StandardStream::Stdout(writer) => writer.write(data),
+        StandardStream::Stderr(writer) => writer.write(data),
+        StandardStream::File(file) => file.write(data),
+        StandardStream::Stdin(_) => Err(io::Error::new(
             io::ErrorKind::InvalidInput,
             "stream is not writable",
         )),
-        None => Err(invalid_handle()),
     }
 }
 
@@ -486,14 +506,19 @@ pub fn sync_all(handle: StreamHandle) -> io::Result<()> {
 ///
 /// Returns an I/O error when a final writer flush fails.
 pub fn close(handle: StreamHandle) -> io::Result<()> {
-    let Some(mut stream) = registry().remove(&handle.0) else {
+    let Some(stream) = registry().remove(&handle.0) else {
         return Ok(());
     };
-    let result = match &mut stream {
-        StandardStream::Stdin(reader) => reader.close(),
-        StandardStream::Stdout(writer) => writer.close(),
-        StandardStream::Stderr(writer) => writer.close(),
-        StandardStream::File(file) => file.close(),
+    let result = {
+        let mut locked = stream
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        match &mut *locked {
+            StandardStream::Stdin(reader) => reader.close(),
+            StandardStream::Stdout(writer) => writer.close(),
+            StandardStream::Stderr(writer) => writer.close(),
+            StandardStream::File(file) => file.close(),
+        }
     };
     if result.is_err() {
         registry().insert(handle.0, stream);
@@ -509,10 +534,13 @@ pub fn close(handle: StreamHandle) -> io::Result<()> {
 ///
 /// Returns an I/O error when a final writer flush fails.
 pub fn release(handle: StreamHandle) -> io::Result<()> {
-    let Some(mut stream) = registry().remove(&handle.0) else {
+    let Some(stream) = registry().remove(&handle.0) else {
         return Ok(());
     };
-    match &mut stream {
+    let mut stream = stream
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+    match &mut *stream {
         StandardStream::Stdin(reader) => reader.close(),
         StandardStream::Stdout(writer) => writer.close(),
         StandardStream::Stderr(writer) => writer.close(),
@@ -524,16 +552,23 @@ fn with_writer(
     handle: StreamHandle,
     operation: impl FnOnce(&mut dyn StandardWriter) -> io::Result<()>,
 ) -> io::Result<()> {
-    match registry().get_mut(&handle.0) {
-        Some(StandardStream::Stdout(writer)) => operation(writer),
-        Some(StandardStream::Stderr(writer)) => operation(writer),
-        Some(StandardStream::File(writer)) => operation(writer),
-        Some(StandardStream::Stdin(_)) => Err(io::Error::new(
+    let stream = registered_stream(handle)?;
+    let mut stream = stream
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+    match &mut *stream {
+        StandardStream::Stdout(writer) => operation(writer),
+        StandardStream::Stderr(writer) => operation(writer),
+        StandardStream::File(writer) => operation(writer),
+        StandardStream::Stdin(_) => Err(io::Error::new(
             io::ErrorKind::InvalidInput,
             "stream is not writable",
         )),
-        None => Err(invalid_handle()),
     }
+}
+
+fn registered_stream(handle: StreamHandle) -> io::Result<Arc<Mutex<StandardStream>>> {
+    registry().get(&handle.0).cloned().ok_or_else(invalid_handle)
 }
 
 trait StandardWriter {

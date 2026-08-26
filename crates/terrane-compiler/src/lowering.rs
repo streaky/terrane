@@ -4103,6 +4103,7 @@ impl Emitter<'_> {
             ("result-failed", "filesystem_result_failed"),
             ("result-message", "filesystem_result_message"),
             ("result-text", "filesystem_result_text"),
+            ("result-detail", "filesystem_result_detail"),
             ("result-bytes", "filesystem_result_bytes"),
             ("result-int", "filesystem_result_int"),
             ("result-bool", "filesystem_result_bool"),

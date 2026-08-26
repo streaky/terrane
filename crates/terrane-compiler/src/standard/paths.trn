@@ -74,6 +74,8 @@ function path-parent path; subject path
     parts = path-components; normal
     if parts.length == 0
         return normal
+    if parts.length == 1 and not (path-is-absolute; normal)
+        return path; '.'
     result string = ''
     index int = 0
     while index < parts.length - 1
@@ -91,6 +93,8 @@ function path-stem string; subject path
     pieces = current.split; '.'
     if pieces.length <= 1
         return current
+    if pieces.length == 2 and pieces[0] == ''
+        return current
     result string = ''
     index int = 0
     while index < pieces.length - 1
@@ -104,6 +108,8 @@ function path-extension string; subject path
     current = path-name; subject
     pieces = current.split; '.'
     if pieces.length <= 1
+        return ''
+    if pieces.length == 2 and pieces[0] == ''
         return ''
     return pieces[pieces.length - 1]
 

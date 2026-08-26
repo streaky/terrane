@@ -2049,7 +2049,6 @@ fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFailure> {
                 };
                 let value = argument.children.last().unwrap_or(argument);
                 if expects_resource
-                    && crate::bundled::source(&unit.namespace).is_none()
                     && matches!(
                         value.kind,
                         SyntaxKind::MemberExpression | SyntaxKind::IndexExpression
@@ -3770,8 +3769,81 @@ fn propagate_resource_ownership(package: &mut SemanticPackage) -> Result<(), Sem
                 return Err(failure(
                     &unit.source,
                     "T0101",
-                    "resource-owning values in collection fields are not supported yet",
+                    "resource-owning values in collections are not supported yet",
                     field.span,
+                ));
+            }
+        }
+    }
+    Ok(())
+}
+fn validate_resource_collection_types(
+    package: &SemanticPackage,
+) -> Result<(), SemanticFailure> {
+    let resource_identities = package
+        .units
+        .iter()
+        .flat_map(|unit| {
+            unit.objects
+                .iter()
+                .filter(|object| object.resource_owning)
+                .filter_map(|object| {
+                    package
+                        .resolve_name_at(unit, object.span.start, &object.name)
+                        .map(|symbol| symbol.identity.clone())
+                })
+        })
+        .collect::<BTreeSet<_>>();
+    for unit in &package.units {
+        if let Some(binding) = unit.typed_bindings.iter().find(|binding| {
+            value_type_is_resource_container(
+                package,
+                unit,
+                &binding.value_type,
+                binding.span.start,
+                &resource_identities,
+            )
+        }) {
+            return Err(failure(
+                &unit.source,
+                "T0101",
+                "resource-owning values in collections are not supported yet",
+                binding.span,
+            ));
+        }
+        for function in &unit.functions {
+            if let Some(parameter) = function.parameters.iter().find(|parameter| {
+                parameter.value_type.as_ref().is_some_and(|value_type| {
+                    value_type_is_resource_container(
+                        package,
+                        unit,
+                        value_type,
+                        parameter.span.start,
+                        &resource_identities,
+                    )
+                })
+            }) {
+                return Err(failure(
+                    &unit.source,
+                    "T0101",
+                    "resource-owning values in collections are not supported yet",
+                    parameter.span,
+                ));
+            }
+            if function.return_type.as_ref().is_some_and(|value_type| {
+                value_type_is_resource_container(
+                    package,
+                    unit,
+                    value_type,
+                    function.span.start,
+                    &resource_identities,
+                )
+            }) {
+                return Err(failure(
+                    &unit.source,
+                    "T0101",
+                    "resource-owning values in collections are not supported yet",
+                    function.span,
                 ));
             }
         }
@@ -4400,6 +4472,7 @@ fn analyze_types(package: &mut SemanticPackage) -> Result<(), SemanticFailure> {
         )?;
         package.units[index].typed_bindings = bindings;
     }
+    validate_resource_collection_types(package)?;
     infer_receiver_consumption(package);
     validate_object_conformance(package)?;
     populate_closure_captures(package);
@@ -6438,6 +6511,7 @@ fn infer_value_type(
                     }
                     "/core/platform-system::result-message"
                     | "/core/platform-system::result-text"
+                    | "/core/platform-system::result-detail"
                     | "/core/platform-system::platform-value-text" => {
                         Some(ValueType::Scalar(ScalarType::String))
                     }
@@ -10038,6 +10112,7 @@ fn bootstrap_namespaces() -> BTreeMap<String, Namespace> {
                 "result-failed",
                 "result-message",
                 "result-text",
+                "result-detail",
                 "result-bytes",
                 "result-int",
                 "result-bool",

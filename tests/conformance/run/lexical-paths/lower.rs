@@ -159,6 +159,14 @@ fn main() {
     let resolved: Path = join_path(base.clone(), child.clone());
     let resolved_text: String = resolved.text.clone();
     println!("{}", terrane_scalar_support::scalar_text(&resolved_text));
+    let hidden: Path = Path::terrane_construct(String::from(".profile"));
+    println!("{}", terrane_scalar_support::scalar_text(&path_stem(hidden.clone())));
+    println!("{}", terrane_scalar_support::scalar_text(&path_extension(hidden.clone())));
+    println!(
+        "{}",
+        terrane_scalar_support::scalar_text(&path_parent(Path::terrane_construct(String::from("child")))
+        .text)
+    );
 }
 // Source: standard/paths.trn
 // Namespace: standard/paths
@@ -387,6 +395,11 @@ pub fn path_parent(subject: Path) -> Path {
     {
         return normal.clone();
     }
+    if terrane_int_support::Int::from(terrane_int_support::Int::from(parts.length()))
+        == terrane_int_support::Int::from(1_i128) && !path_is_absolute(normal.clone())
+    {
+        return Path::terrane_construct(String::from("."));
+    }
     let mut result: String = String::from("");
     let mut index: terrane_int_support::Int = terrane_int_support::Int::from(0_i128);
     while index.clone()
@@ -404,9 +417,9 @@ pub fn path_parent(subject: Path) -> Path {
             terrane_scalar_support::scalar_text(&parts
             .get_or_error(terrane_collection_support::index_from_int(&index.clone())
             .unwrap_or_else(| error | __terrane_uncaught(TerraneError::from(error)
-            .at("/standard/paths::path-parent (paths.trn:82:33)")))).unwrap_or_else(|
+            .at("/standard/paths::path-parent (paths.trn:84:33)")))).unwrap_or_else(|
             error | __terrane_uncaught(TerraneError::from(error)
-            .at("/standard/paths::path-parent (paths.trn:82:33)"))))
+            .at("/standard/paths::path-parent (paths.trn:84:33)"))))
         );
         index = index.clone() + terrane_int_support::Int::from(1_i128);
     }
@@ -430,6 +443,35 @@ pub fn path_stem(subject: Path) -> String {
     {
         return current;
     }
+    if terrane_int_support::Int::from(pieces.len() as i128)
+        == terrane_int_support::Int::from(2_i128)
+        && pieces
+            .get(
+                terrane_collection_support::index_from_int(
+                        &terrane_int_support::Int::from(0_i128),
+                    )
+                    .unwrap_or_else(|error| __terrane_uncaught(
+                        TerraneError::from(error)
+                            .at("/standard/paths::path-stem (paths.trn:96:31)"),
+                    )),
+            )
+            .cloned()
+            .ok_or(terrane_collection_support::IndexError {
+                index: terrane_collection_support::index_from_int(
+                        &terrane_int_support::Int::from(0_i128),
+                    )
+                    .unwrap_or_else(|error| __terrane_uncaught(
+                        TerraneError::from(error)
+                            .at("/standard/paths::path-stem (paths.trn:96:31)"),
+                    )),
+            })
+            .unwrap_or_else(|error| __terrane_uncaught(
+                TerraneError::from(error)
+                    .at("/standard/paths::path-stem (paths.trn:96:31)"),
+            )) == String::from("")
+    {
+        return current;
+    }
     let mut result: String = String::from("");
     let mut index: terrane_int_support::Int = terrane_int_support::Int::from(0_i128);
     while index.clone()
@@ -447,13 +489,13 @@ pub fn path_stem(subject: Path) -> String {
             terrane_scalar_support::scalar_text(&pieces
             .get(terrane_collection_support::index_from_int(&index.clone())
             .unwrap_or_else(| error | __terrane_uncaught(TerraneError::from(error)
-            .at("/standard/paths::path-stem (paths.trn:99:33)")))).cloned()
+            .at("/standard/paths::path-stem (paths.trn:103:33)")))).cloned()
             .ok_or(terrane_collection_support::IndexError { index :
             terrane_collection_support::index_from_int(&index.clone()).unwrap_or_else(|
             error | __terrane_uncaught(TerraneError::from(error)
-            .at("/standard/paths::path-stem (paths.trn:99:33)"))) }).unwrap_or_else(|
+            .at("/standard/paths::path-stem (paths.trn:103:33)"))) }).unwrap_or_else(|
             error | __terrane_uncaught(TerraneError::from(error)
-            .at("/standard/paths::path-stem (paths.trn:99:33)"))))
+            .at("/standard/paths::path-stem (paths.trn:103:33)"))))
         );
         index = index.clone() + terrane_int_support::Int::from(1_i128);
     }
@@ -470,6 +512,35 @@ pub fn path_extension(subject: Path) -> String {
     {
         return String::from("");
     }
+    if terrane_int_support::Int::from(pieces.len() as i128)
+        == terrane_int_support::Int::from(2_i128)
+        && pieces
+            .get(
+                terrane_collection_support::index_from_int(
+                        &terrane_int_support::Int::from(0_i128),
+                    )
+                    .unwrap_or_else(|error| __terrane_uncaught(
+                        TerraneError::from(error)
+                            .at("/standard/paths::path-extension (paths.trn:112:31)"),
+                    )),
+            )
+            .cloned()
+            .ok_or(terrane_collection_support::IndexError {
+                index: terrane_collection_support::index_from_int(
+                        &terrane_int_support::Int::from(0_i128),
+                    )
+                    .unwrap_or_else(|error| __terrane_uncaught(
+                        TerraneError::from(error)
+                            .at("/standard/paths::path-extension (paths.trn:112:31)"),
+                    )),
+            })
+            .unwrap_or_else(|error| __terrane_uncaught(
+                TerraneError::from(error)
+                    .at("/standard/paths::path-extension (paths.trn:112:31)"),
+            )) == String::from("")
+    {
+        return String::from("");
+    }
     return pieces
         .get(
             terrane_collection_support::index_from_int(
@@ -478,7 +549,7 @@ pub fn path_extension(subject: Path) -> String {
                 )
                 .unwrap_or_else(|error| __terrane_uncaught(
                     TerraneError::from(error)
-                        .at("/standard/paths::path-extension (paths.trn:108:12)"),
+                        .at("/standard/paths::path-extension (paths.trn:114:12)"),
                 )),
         )
         .cloned()
@@ -489,12 +560,12 @@ pub fn path_extension(subject: Path) -> String {
                 )
                 .unwrap_or_else(|error| __terrane_uncaught(
                     TerraneError::from(error)
-                        .at("/standard/paths::path-extension (paths.trn:108:12)"),
+                        .at("/standard/paths::path-extension (paths.trn:114:12)"),
                 )),
         })
         .unwrap_or_else(|error| __terrane_uncaught(
             TerraneError::from(error)
-                .at("/standard/paths::path-extension (paths.trn:108:12)"),
+                .at("/standard/paths::path-extension (paths.trn:114:12)"),
         ));
 }
 pub fn join_path(base: Path, child: Path) -> Path {

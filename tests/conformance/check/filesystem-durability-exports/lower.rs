@@ -632,160 +632,30 @@ fn terrane_path_text(path: std::path::PathBuf) -> std::io::Result<String> {
         })
 }
 // Source: case.trn
-// Namespace: conformance/filesystem-facilities
+// Namespace: conformance/filesystem-durability-exports
+fn exercise(
+    capability: Filesystem,
+    output: std::sync::Weak<std::sync::Mutex<FileHandle>>,
+) -> bool {
+    let data: OperationResult = file_sync_data(capability.clone(), output.clone());
+    let all: OperationResult = file_sync_all(capability.clone(), output.clone());
+    return data.failed || all.failed;
+}
 fn main() {
-    let fs: Filesystem = filesystem_capability();
-    let target: Path = Path::terrane_construct(
-        String::from("terrane-filesystem-case.txt"),
-    );
-    let written: OperationResult = filesystem_write_atomic(
-        fs.clone(),
-        target.clone(),
-        Vec::from([99, 111, 110, 116, 101, 110, 116]),
-    );
-    println!("{}", terrane_scalar_support::scalar_text(&written.failed));
-    let exists: ExistenceResult = filesystem_exists(fs.clone(), target.clone());
-    println!(
-        "{}{}", terrane_scalar_support::scalar_text(&exists.exists),
-        terrane_scalar_support::scalar_text(&exists.failed)
-    );
-    let metadata: FileMetadata = filesystem_metadata(fs.clone(), target.clone());
-    println!(
-        "{}{}{}{}{}", terrane_scalar_support::scalar_text(&metadata.failed),
-        terrane_scalar_support::scalar_text(&metadata.kind),
-        terrane_scalar_support::scalar_text(&metadata.size),
-        terrane_scalar_support::scalar_text(&metadata.readonly),
-        terrane_scalar_support::scalar_text(&(metadata.permission_detail ==
-        String::from("")))
-    );
-    let data: FileData = filesystem_read_bounded(
-        fs.clone(),
-        target.clone(),
-        terrane_int_support::Int::from(7_i128),
-    );
-    println!(
-        "{}{}", terrane_scalar_support::scalar_text(&data.failed),
-        terrane_scalar_support::scalar_text(&data.completed)
-    );
-    let opened: std::sync::Arc<std::sync::Mutex<FileHandle>> = std::sync::Arc::new(
+    let capability: Filesystem = filesystem_capability();
+    let output: std::sync::Arc<std::sync::Mutex<FileHandle>> = std::sync::Arc::new(
         std::sync::Mutex::new(
-            open_file(fs.clone(), target.clone(), true, false, false, false),
-        ),
-    );
-    let streamed: FileData = file_read(
-        fs.clone(),
-        std::sync::Arc::downgrade(&opened),
-        terrane_int_support::Int::from(16_i128),
-    );
-    println!(
-        "{}{}{}", terrane_scalar_support::scalar_text(&streamed.failed),
-        terrane_scalar_support::scalar_text(&streamed.completed),
-        terrane_scalar_support::scalar_text(&streamed.end)
-    );
-    let closing: FileHandle = open_file(
-        fs.clone(),
-        target.clone(),
-        true,
-        false,
-        false,
-        false,
-    );
-    let closed: OperationResult = file_close(fs.clone(), closing);
-    println!("{}", terrane_scalar_support::scalar_text(&closed.failed));
-    let lexical_input: Path = Path::terrane_construct(
-        String::from("missing/../terrane-filesystem-case.txt"),
-    );
-    let lexical: Path = normalise_path(lexical_input.clone());
-    let canonical: PathResult = filesystem_canonical(fs.clone(), target.clone());
-    println!("{}", terrane_scalar_support::scalar_text(&lexical.text));
-    println!("{}", terrane_scalar_support::scalar_text(&canonical.failed));
-    let real: PathResult = filesystem_realpath(fs.clone(), target.clone());
-    println!(
-        "{}{}", terrane_scalar_support::scalar_text(&real.failed),
-        terrane_scalar_support::scalar_text(&(real.resolved.text == canonical.resolved
-        .text))
-    );
-    let renamed_target: Path = Path::terrane_construct(
-        String::from("terrane-filesystem-case-renamed.txt"),
-    );
-    let renamed: OperationResult = filesystem_rename(
-        fs.clone(),
-        target.clone(),
-        renamed_target.clone(),
-    );
-    let restored: OperationResult = filesystem_rename(
-        fs.clone(),
-        renamed_target.clone(),
-        target.clone(),
-    );
-    println!(
-        "{}{}", terrane_scalar_support::scalar_text(&renamed.failed),
-        terrane_scalar_support::scalar_text(&restored.failed)
-    );
-    let base: Path = Path::terrane_construct(String::from("."));
-    let escape: Path = Path::terrane_construct(String::from("../Cargo.toml"));
-    let escaped: DirectoryHandle = filesystem_open_beneath(
-        fs.clone(),
-        base.clone(),
-        escape.clone(),
-        false,
-    );
-    println!("{}", terrane_scalar_support::scalar_text(&escaped.failed));
-    let current: Path = Path::terrane_construct(String::from("."));
-    let root: std::sync::Arc<std::sync::Mutex<DirectoryHandle>> = std::sync::Arc::new(
-        std::sync::Mutex::new(
-            filesystem_open_beneath(fs.clone(), base.clone(), current.clone(), false),
-        ),
-    );
-    let manifest: Path = Path::terrane_construct(String::from("Cargo.toml"));
-    let relative_file: std::sync::Arc<std::sync::Mutex<FileHandle>> = std::sync::Arc::new(
-        std::sync::Mutex::new(
-            open_file_beneath(
-                fs.clone(),
-                std::sync::Arc::downgrade(&root),
-                manifest.clone(),
+            open_file(
+                capability.clone(),
+                Path::terrane_construct(String::from("durability-check.tmp")),
+                false,
                 true,
-                false,
-                false,
-                false,
+                true,
+                true,
             ),
         ),
     );
-    let relative_data: FileData = file_read(
-        fs.clone(),
-        std::sync::Arc::downgrade(&relative_file),
-        terrane_int_support::Int::from(8_i128),
-    );
-    println!(
-        "{}{}", terrane_scalar_support::scalar_text(&relative_data.failed),
-        terrane_scalar_support::scalar_text(&relative_data.completed)
-    );
-    let partial_target: std::sync::Arc<std::sync::Mutex<FileHandle>> = std::sync::Arc::new(
-        std::sync::Mutex::new(
-            open_file(fs.clone(), target.clone(), false, true, false, true),
-        ),
-    );
-    let partial: FileData = file_write(
-        fs.clone(),
-        std::sync::Arc::downgrade(&partial_target),
-        Vec::from([97, 98, 99]),
-        terrane_int_support::Int::from(1_i128),
-    );
-    println!(
-        "{}{}", terrane_scalar_support::scalar_text(&partial.failed),
-        terrane_scalar_support::scalar_text(&partial.completed)
-    );
-    let partial_read: FileData = filesystem_read_bounded(
-        fs.clone(),
-        target.clone(),
-        terrane_int_support::Int::from(3_i128),
-    );
-    println!(
-        "{}{}", terrane_scalar_support::scalar_text(&partial_read.failed),
-        terrane_scalar_support::scalar_text(&partial_read.completed)
-    );
-    let removed: OperationResult = filesystem_remove(fs.clone(), target.clone());
-    println!("{}", terrane_scalar_support::scalar_text(&removed.failed));
+    exercise(capability.clone(), std::sync::Arc::downgrade(&output));
 }
 // Source: standard/filesystem.trn
 // Namespace: standard/filesystem

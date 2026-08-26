@@ -26,3 +26,7 @@ function main;
     resolved = join-path; base, child
     resolved-text = resolved.text
     print; resolved-text
+    hidden = path; '.profile'
+    print; (path-stem; hidden)
+    print; (path-extension; hidden)
+    print; (path-parent; (path; 'child')).text
