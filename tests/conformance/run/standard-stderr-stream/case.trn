@@ -1,0 +1,8 @@
+namespace standard-stderr-stream
+from /standard/streams import stderr
+function main;
+    error = stderr;
+    written = error.write-all; b'typed stderr\n'
+    if written.failed
+        print; written.message
+    error.close;

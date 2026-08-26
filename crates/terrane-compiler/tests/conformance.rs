@@ -169,12 +169,19 @@ fn compile_and_maybe_run(case: &Path, phase: &str, rust: &str, build: &Conforman
             .stderr(Stdio::piped())
             .spawn()
             .unwrap();
-        child
+        if let Err(error) = child
             .stdin
             .take()
             .unwrap()
             .write_all(&optional_bytes(case.join("stdin.txt")))
-            .unwrap();
+        {
+            assert_eq!(
+                error.kind(),
+                std::io::ErrorKind::BrokenPipe,
+                "{} could not receive conformance stdin",
+                case.display()
+            );
+        }
         let output = child.wait_with_output().unwrap();
         let expected_stdout = fs::read(case.join("stdout.txt")).unwrap();
         let expected_stderr = optional_bytes(case.join("stderr.txt"));

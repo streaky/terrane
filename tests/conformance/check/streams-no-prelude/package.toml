@@ -1,0 +1,4 @@
+package = "streams-no-prelude"
+prelude = false
+[namespaces]
+streams-no-prelude = "src"

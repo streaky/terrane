@@ -1328,9 +1328,9 @@ Deliver:
 - byte reader and writer protocols with partial-operation and EOF contracts;
 - text reader and writer adapters carrying explicit encodings and performing no implicit newline translation;
 - typed stdin, stdout, and stderr over the same protocols;
-- explicit idempotent close with observable close and flush failures, and `flush` distinguished from `sync-data` and `sync-all`;
-- inferred resource ownership, deferred here from milestone 17 because a stream handle is the first genuinely noncopyable field: the enclosing class becomes resource-owning transitively without a declaration qualifier, assignment transfers it automatically, release uses the milestone 14 drop pipeline, and double release is a compile-time failure rather than a runtime one;
-- async variants sharing the same contracts with cancellation.
+- explicit idempotent close with observable close and flush failures, and `flush` distinguished from `sync-data` and `sync-all` on both byte and text writers;
+- inferred resource ownership, deferred here from milestone 17 because a stream handle is the first genuinely noncopyable field: the enclosing class becomes resource-owning transitively without a declaration qualifier, assignment and ordinary resource-accepting calls transfer it automatically, release uses the milestone 14 drop pipeline, and use after transfer or release is a compile-time failure rather than a runtime one; the current generated representation uses a host-handle reference count only to coordinate exactly one host release after transfer into an adapter;
+- async variants sharing the same contracts with cancellation reported by the enclosing task outcome.
 
 Exit criterion: partial reads and writes, EOF, and use-after-close each have cases; a cancelled stream operation reports what it completed; and a released resource cannot be used again.
 
@@ -1344,11 +1344,14 @@ syscall/ABI layer: an
 opaque handle registry and one host read, write, flush, durability-sync, or idempotent-close
 operation.
 
-Accepted conformance exercises partial reads and writes, explicit EOF, byte-exact UTF-8 data,
-text adaptation without implicit newline translation, malformed decode failure, distinct flush and
-sync operations, observable idempotent close, and cancellation racing an async stream operation.
-Rejected conformance covers implicit resource transfer followed by use, use after close, double
-close, and the removed `linear class` declaration qualifier. Accepted cases compile their generated
+Accepted conformance exercises partial reads and writes, explicit EOF including a zero-length read,
+distinct exact and bounded-all reads, resumable partial text writes, byte-exact UTF-8 data,
+text adaptation without implicit newline translation, typed standard error, malformed decode
+failure, distinct flush and sync operations on both writer adapters, observable idempotent close,
+and cancellation racing an async stream operation. Rejected conformance covers resource transfer
+through assignment and ordinary calls followed by use, use after close, double close,
+resource-owning inheritance, direct imports of private host intrinsics, and the removed
+`linear class` declaration qualifier. Accepted cases compile their generated
 crates with warnings denied; canonical-Rust validation is enabled for
 the accepted cases that pass untouched structural validation. Milestone evidence:
 `cargo test -p terrane-compiler --tests` with `RUSTFLAGS=-D warnings`, plus piped executions of the

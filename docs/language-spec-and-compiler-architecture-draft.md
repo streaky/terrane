@@ -5928,34 +5928,46 @@ and `stderr` are factories for the process-owned byte stream endpoints; `.text; 
 transfers a byte endpoint into the corresponding explicitly encoded text adapter. Stream objects
 cannot be copied, used after transfer or consumption, or released twice.
 
-A read result carries `data`, the completed byte count, an explicit `end` flag, `cancelled`,
-`failed`, and a diagnostic message. A write result carries completed byte count, `cancelled`,
-`failed`, and a message. Partial completion is ordinary and observable. `read-exact` and
-`write-all` repeat partial host operations until their requested contract is satisfied, EOF or a
-failure occurs, or the host reports no progress. `read-all` is always bounded by an explicit
-limit. Text read results carry decoded text but retain byte completion counts.
+A read result carries `data`, the completed byte count, an explicit `end` flag, `failed`, and a
+diagnostic message. A write result retains the encoded `data` together with its completed byte
+count, `failed`, and a message, so a caller can resume a partial byte or text write without
+re-encoding or slicing a string by a byte offset. Partial completion is ordinary and observable.
+`read-exact` repeats partial host reads and reports failure if EOF arrives before the requested
+count; bounded `read-all` instead returns successfully after EOF, at its explicit limit, on
+failure, or when the host reports no progress. `write-all` repeats until all encoded bytes are
+written, a failure occurs, or the host reports no progress. Text read results carry decoded text
+but retain byte completion counts.
 
 Text adapters never translate newlines implicitly. Their encoding is carried by the adapter;
 decoding validates the complete returned byte sequence and throws `decode-error` on malformed
-input. `.line` is the explicit convenience operation which appends `\n`.
+input. `.line` is the explicit convenience operation which appends `\n`; its completed byte count
+includes that encoded newline.
 
-`close` is explicit and idempotent at the host boundary, returns an observable operation result,
-and consumes the source binding. Destruction invokes the same idempotent release path for an
-unconsumed stream. Writer `flush`, `sync-data`, and `sync-all` are distinct operations:
-`flush` drains language/host buffering, while the sync operations request the corresponding
-durability guarantee when the endpoint supports one. Unsupported or failed operations are
-reported rather than silently weakened.
+`close` is explicit and idempotent at the host boundary, returns an observable operation result
+containing `failed` and a diagnostic message, and consumes the source binding. Destruction invokes
+the same idempotent release path for an unconsumed stream but necessarily discards a release
+failure because a destructor has no result channel. Writer `flush`, `sync-data`, and `sync-all`
+are distinct operations on byte and text writers: `flush` drains language/host buffering, while
+the sync operations request the corresponding durability guarantee when the endpoint supports
+one. Unsupported or failed operations are reported rather than silently weakened.
 
 Async read and write variants have the same result contracts as their synchronous forms.
-Cancellation is observed through the enclosing task operation: it preserves any completed result
-when completion wins the race, and otherwise reports a cancelled task outcome without fabricating
-stream progress.
+Cancellation is observed through the enclosing task operation rather than duplicated on stream
+result objects: it preserves any completed result and its exact byte count when completion wins
+the race, and otherwise reports a cancelled task outcome without fabricating stream progress.
 
 The irreducible host boundary is Rust because it invokes process I/O and owns the host handle
 registry: this is the syscall/ABI justification from §5.7. It exposes only handle acquisition,
 single partial read/write operations, flush, durability sync, and idempotent close to
 compiler-generated intrinsics. The public protocols, result objects, partial-operation loops,
 encoding adapters, newline policy, factories, and async wrappers remain Terrane.
+
+The source ownership checker determines transfers, use-after-consume, and double release
+statically. The current generated representation uses a shared host-handle reference count only
+to ensure that ownership transferred into a text adapter reaches the host release path exactly
+once despite both generated Rust wrappers remaining live until their ordinary drop points. That
+representation mechanism is not a dynamic substitute for the source ownership rules and may
+change without changing their semantics.
 
 ---
 

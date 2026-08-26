@@ -1,0 +1,10 @@
+namespace stream-zero-length-read
+from /standard/streams import stdin
+function main;
+    input = stdin;
+    zero = input.read; 0
+    print; zero.completed
+    print; zero.end
+    rest = input.read-exact; 3
+    print; (rest.data.decode; utf8)
+    input.close;

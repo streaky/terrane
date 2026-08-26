@@ -99,8 +99,16 @@ impl Parser<'_> {
                 self.parse_binding()
             }
             "import" => self.parse_import_selection(),
-            "yield" | "match" | "unsafe" | "rust" | "linear" | "label" | "goto" | "when"
-            | "use" | "catch" | "finally" | "case" => self.parse_unsupported(),
+            "linear"
+                if matches!(
+                    self.peek_text(1),
+                    Some("class" | "interface" | "trait" | "function")
+                ) =>
+            {
+                self.parse_unsupported()
+            }
+            "yield" | "match" | "unsafe" | "rust" | "label" | "goto" | "when" | "use" | "catch"
+            | "finally" | "case" => self.parse_unsupported(),
             _ if self.looks_like_binding() => self.parse_binding(),
             _ => self.parse_expression_statement(),
         }

@@ -92,10 +92,10 @@ Terrane package
 │   └── task-scope                             binding to /core/async::task-scope
 └── source-declared package surface
     ├── /standard/streams                      bundled Terrane package, included when imported
-    │   ├── operation-result                   completed / failed / message
-    │   ├── read-result                        bytes / completed / end / cancelled / failed / message
-    │   ├── text-read-result                   text / completed / end / cancelled / failed / message
-    │   ├── write-result                       completed / cancelled / failed / message
+    │   ├── operation-result                   failed / message
+    │   ├── read-result                        bytes / completed / end / failed / message
+    │   ├── text-read-result                   text / completed / end / failed / message
+    │   ├── write-result                       encoded bytes / completed / failed / message
     │   ├── byte-reader                        inferred resource-owning process-byte input
     │   ├── byte-writer                        inferred resource-owning process-byte output
     │   ├── text-reader                        inferred resource-owning encoded input adapter

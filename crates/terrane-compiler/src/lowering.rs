@@ -721,7 +721,9 @@ impl Emitter<'_> {
                 self.line(&format!("fn separate_box(&self) -> Box<dyn {protocol}>;"));
                 for method in &methods {
                     self.line_start();
-                    let receiver = if method.mutates_receiver {
+                    let receiver = if method.consumes_receiver {
+                        "self: Box<Self>"
+                    } else if method.mutates_receiver {
                         "&mut self"
                     } else {
                         "&self"
@@ -755,7 +757,9 @@ impl Emitter<'_> {
                 self.indent += 1;
                 for method in &methods {
                     self.line_start();
-                    let receiver = if method.mutates_receiver {
+                    let receiver = if method.consumes_receiver {
+                        "self"
+                    } else if method.mutates_receiver {
                         "&mut self"
                     } else {
                         "&self"
@@ -1032,7 +1036,9 @@ impl Emitter<'_> {
                         .filter(|method| !matches!(method.name.as_str(), "construct" | "destruct"))
                     {
                         self.line_start();
-                        let receiver = if method.mutates_receiver {
+                        let receiver = if method.consumes_receiver {
+                            "self"
+                        } else if method.mutates_receiver {
                             "&mut self"
                         } else {
                             "&self"
@@ -1174,7 +1180,9 @@ impl Emitter<'_> {
                     }
                     for method in effective_object_methods(self.unit, interface) {
                         self.line_start();
-                        let receiver = if method.mutates_receiver {
+                        let receiver = if method.consumes_receiver {
+                            "self: Box<Self>"
+                        } else if method.mutates_receiver {
                             "&mut self"
                         } else {
                             "&self"
@@ -1203,8 +1211,13 @@ impl Emitter<'_> {
                             .map(|parameter| rust_name(&parameter.name))
                             .collect::<Vec<_>>()
                             .join(", ");
+                        let receiver = if method.consumes_receiver {
+                            "*self"
+                        } else {
+                            "self"
+                        };
                         self.line(&format!(
-                            "{class_type}::{}(self, {arguments})",
+                            "{class_type}::{}({receiver}, {arguments})",
                             rust_name(&method.name)
                         ));
                         self.indent -= 1;
@@ -1266,7 +1279,9 @@ impl Emitter<'_> {
             .iter()
             .find(|contract| contract.span == node.span)
             .expect("object method must have an analyzed contract");
-        let receiver = if contract.mutates_receiver {
+        let receiver = if contract.consumes_receiver {
+            "self"
+        } else if contract.mutates_receiver {
             "&mut self"
         } else {
             "&self"
@@ -1280,7 +1295,9 @@ impl Emitter<'_> {
             .iter()
             .find(|contract| contract.span == node.span)
             .expect("object method must have an analyzed contract");
-        let receiver = if contract.mutates_receiver {
+        let receiver = if contract.consumes_receiver {
+            "self"
+        } else if contract.mutates_receiver {
             "&mut self"
         } else {
             "&self"
@@ -2761,7 +2778,7 @@ impl Emitter<'_> {
                 format!("({}).clone()", self.expression(node))
             }
             ValueType::Object(name)
-                if node.kind == SyntaxKind::Name && self.object_owns_resource(&name) =>
+                if node.kind == SyntaxKind::Name && self.object_owns_resource(node, &name) =>
             {
                 self.expression(node)
             }
@@ -4896,12 +4913,27 @@ impl Emitter<'_> {
                 .any(|field| field.name == name)
     }
 
-    fn object_owns_resource(&self, name: &str) -> bool {
-        self.package
-            .units
-            .iter()
-            .flat_map(|unit| unit.objects.iter())
-            .any(|object| object.name == name && object.resource_owning)
+    fn object_owns_resource(&self, node: &SyntaxNode, name: &str) -> bool {
+        let declaration = self
+            .package
+            .resolve_name_at(self.unit, node.span.start, name)
+            .and_then(|symbol| symbol.declaration_span);
+        declaration
+            .and_then(|declaration| {
+                self.package
+                    .units
+                    .iter()
+                    .flat_map(|unit| &unit.objects)
+                    .find(|object| object.span == declaration)
+            })
+            .or_else(|| {
+                self.package
+                    .units
+                    .iter()
+                    .flat_map(|unit| &unit.objects)
+                    .find(|object| object.name == name)
+            })
+            .is_some_and(|object| object.resource_owning)
     }
 
     fn object_requires_separation(&self, name: &str) -> bool {

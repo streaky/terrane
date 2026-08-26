@@ -240,6 +240,12 @@ pub fn acquire_stderr() -> StreamHandle {
 ///
 /// Returns an I/O error for an invalid, non-readable, closed, or host-failed stream.
 pub fn read(handle: StreamHandle, limit: usize) -> io::Result<ReadOutcome> {
+    if limit == 0 {
+        return Ok(ReadOutcome {
+            data: Vec::new(),
+            end: false,
+        });
+    }
     match registry().get_mut(&handle.0) {
         Some(StandardStream::Stdin(reader)) => reader.read(limit),
         Some(StandardStream::Stdout(_) | StandardStream::Stderr(_)) => Err(io::Error::new(
@@ -296,17 +302,45 @@ pub fn sync_all(handle: StreamHandle) -> io::Result<()> {
     with_writer(handle, |writer| writer.sync_all())
 }
 
-/// Releases a registered process-stream wrapper.
+/// Releases a registered process-stream wrapper and removes it from the live registry.
+///
+/// Releasing an already-absent handle is successful so host release remains idempotent. A stream
+/// whose final flush fails stays registered, allowing the caller to retry or report the failure
+/// without leaking an unreachable live entry.
 ///
 /// # Errors
 ///
-/// Returns an I/O error for an invalid handle or a failed final writer flush.
+/// Returns an I/O error when a final writer flush fails.
 pub fn close(handle: StreamHandle) -> io::Result<()> {
-    match registry().get_mut(&handle.0) {
-        Some(StandardStream::Stdin(reader)) => reader.close(),
-        Some(StandardStream::Stdout(writer)) => writer.close(),
-        Some(StandardStream::Stderr(writer)) => writer.close(),
-        None => Err(invalid_handle()),
+    let Some(mut stream) = registry().remove(&handle.0) else {
+        return Ok(());
+    };
+    let result = match &mut stream {
+        StandardStream::Stdin(reader) => reader.close(),
+        StandardStream::Stdout(writer) => writer.close(),
+        StandardStream::Stderr(writer) => writer.close(),
+    };
+    if result.is_err() {
+        registry().insert(handle.0, stream);
+    }
+    result
+}
+/// Releases a registered process-stream wrapper without preserving close failures for retry.
+///
+/// This is the destructor path: the entry is removed unconditionally because no source-level
+/// owner remains to retry or report a failed final flush.
+///
+/// # Errors
+///
+/// Returns an I/O error when a final writer flush fails.
+pub fn release(handle: StreamHandle) -> io::Result<()> {
+    let Some(mut stream) = registry().remove(&handle.0) else {
+        return Ok(());
+    };
+    match &mut stream {
+        StandardStream::Stdin(reader) => reader.close(),
+        StandardStream::Stdout(writer) => writer.close(),
+        StandardStream::Stderr(writer) => writer.close(),
     }
 }
 
@@ -354,4 +388,34 @@ impl_writer_trait!(StderrWriter);
 
 fn invalid_handle() -> io::Error {
     io::Error::new(io::ErrorKind::NotFound, "unknown standard stream handle")
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn zero_length_read_is_not_end_of_stream() {
+        let handle = acquire_stdin();
+        let outcome = read(handle, 0).unwrap();
+        assert!(outcome.data.is_empty());
+        assert!(!outcome.end);
+        close(handle).unwrap();
+    }
+
+    #[test]
+    fn close_removes_live_entry_and_stays_idempotent() {
+        let handle = acquire_stdin();
+        close(handle).unwrap();
+        assert_eq!(read(handle, 1).unwrap_err().kind(), io::ErrorKind::NotFound);
+        close(handle).unwrap();
+    }
+
+    #[test]
+    fn release_removes_entry_even_when_no_owner_can_retry() {
+        let handle = acquire_stdin();
+        release(handle).unwrap();
+        assert_eq!(read(handle, 1).unwrap_err().kind(), io::ErrorKind::NotFound);
+        release(handle).unwrap();
+    }
 }

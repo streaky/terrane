@@ -696,17 +696,18 @@ package: /standard/streams; ordinary bundled Terrane source included recursively
 resource_objects: byte-reader | byte-writer | text-reader | text-writer; inferred from stored process handle; no copy, use after transfer/consume, or double release
 process_factories: stdin -> byte-reader; stdout/stderr -> byte-writer
 text_adapter: 'byte-endpoint.text; encoding' transfers endpoint; adapter carries explicit encoding
-read_result: data bytes, completed byte count, end bool, cancelled bool, failed bool, message string
+read_result: data bytes, completed byte count, end bool, failed bool, message string
 text_read_result: text string plus the same byte-count/status fields; malformed input throws decode-error
-write_result: completed byte count, cancelled bool, failed bool, message string
-partial_policy: read/write may complete partially; exact/all loop until satisfied, EOF/failure, or no progress
+write_result: encoded data bytes retained for resume, completed byte count, failed bool, message string
+partial_policy: read/write may complete partially; read-exact fails on short EOF, bounded read-all accepts EOF, write-all loops until complete/failure/no progress
 bounded_read_all: explicit limit REQUIRED
-newline: no implicit translation; text-writer.line explicitly appends '\n'
-close: explicit, consuming, idempotent host release with observable failure; destruction uses same release path
-writer_durability: flush, sync-data, and sync-all are distinct; unsupported/failure never silently weakens
-async: read-async/write-async preserve synchronous result contracts; task cancellation never fabricates progress
+newline: no implicit translation; text-writer.line explicitly appends '\n' and its completed count includes the encoded newline
+close: explicit, consuming, idempotent host release with observable failure; destruction explicitly discards release failure
+writer_durability: byte/text writer flush, sync-data, and sync-all are distinct; unsupported/failure never silently weakens
+async: read-async/write-async preserve synchronous result contracts; cancellation is task-outcome state and never fabricates stream progress
 rust_boundary: process-I/O syscall/ABI handle registry and one partial operation only
 terrane_layers: public protocols/results, loops, adapters, policy, factories, async wrappers
+generated_ownership: transfers/use-after-consume/double-release checked statically; current handle refcount only coordinates one host release after adapter transfer
 ```
 
 ## TARGET

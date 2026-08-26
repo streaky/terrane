@@ -19,5 +19,5 @@ function main;
         consistent = true
     if outcome.completed
         if value != none
-            consistent = value.completed >= 0 and not value.cancelled
+            consistent = value.completed == 0 and value.end and not value.failed
     print; consistent

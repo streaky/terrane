@@ -1,0 +1,16 @@
+namespace text-writer-contracts
+from /standard/streams import stdout
+from /core/encodings import utf8
+function main;
+    writer = (stdout;).text; utf8
+    first = writer.write; '∆'
+    resumed = writer.resume; first
+    line = writer.line; 'x'
+    data-sync = writer.sync-data;
+    all-sync = writer.sync-all;
+    print; first.completed
+    print; resumed.completed
+    print; line.completed
+    print; data-sync.failed
+    print; all-sync.failed
+    writer.close;

@@ -1,0 +1,4 @@
+namespace platform-stream-intrinsics
+from /core/platform-streams import acquire-stdin
+function main;
+    acquire-stdin;

@@ -1,3 +1,6 @@
+// `Arc` keeps a host handle alive while a consuming Terrane adapter transfers it between
+// generated wrappers. It is lowering machinery, not shared ownership in Terrane: static move
+// analysis still permits exactly one source-level owner.
 #[derive(Clone)]
 pub struct TerranePlatformStreamHandle(std::sync::Arc<i64>);
 impl Default for TerranePlatformStreamHandle {
@@ -124,11 +127,12 @@ fn terrane_platform_close(handle: &TerranePlatformStreamHandle) -> TerranePlatfo
     terrane_platform_unit(terrane_stream_abi::close(handle.abi_handle()))
 }
 
-// Resource ownership is compiler-inferred in Terrane. The final owning wrapper releases the
-// process handle; adapters may share this compiler-owned indirection without exposing aliases.
+// Resource ownership is compiler-inferred in Terrane. The final generated wrapper releases the
+// process handle. The Arc count only distinguishes an in-progress adapter transfer; it does not
+// make the handle copyable or observable as shared ownership in Terrane.
 fn terrane_platform_release(handle: &TerranePlatformStreamHandle) -> TerranePlatformUnitResult {
     if std::sync::Arc::strong_count(&handle.0) == 1 {
-        terrane_platform_close(handle)
+        terrane_platform_unit(terrane_stream_abi::release(handle.abi_handle()))
     } else {
         TerranePlatformUnitResult {
             failed: false,

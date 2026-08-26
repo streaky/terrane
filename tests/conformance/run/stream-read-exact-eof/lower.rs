@@ -167,124 +167,6 @@ fn __terrane_block_on<F: Future>(future: F) -> F::Output {
         }
     }
 }
-fn __terrane_block_on_cancellable<F: Future>(
-    future: F,
-    cancelled: impl Fn() -> bool,
-) -> Option<F::Output> {
-    struct Wake;
-    impl std::task::Wake for Wake {
-        fn wake(self: std::sync::Arc<Self>) {}
-    }
-    let waker = std::task::Waker::from(std::sync::Arc::new(Wake));
-    let mut context = std::task::Context::from_waker(&waker);
-    let mut future = std::pin::pin!(future);
-    loop {
-        if cancelled() {
-            return None;
-        }
-        match future.as_mut().poll(&mut context) {
-            std::task::Poll::Ready(value) => return Some(value),
-            std::task::Poll::Pending => std::thread::yield_now(),
-        }
-    }
-}
-#[derive(Clone)]
-pub struct TerraneTaskScope {
-    cancelled: std::sync::Arc<std::sync::atomic::AtomicBool>,
-    deadline: Option<std::time::Instant>,
-}
-impl TerraneTaskScope {
-    pub fn new(deadline_ms: Option<u64>) -> Self {
-        Self {
-            cancelled: std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false)),
-            deadline: deadline_ms
-                .map(|value| {
-                    std::time::Instant::now() + std::time::Duration::from_millis(value)
-                }),
-        }
-    }
-    pub fn child_scope(&self, deadline_ms: u64) -> Self {
-        let requested = std::time::Instant::now()
-            + std::time::Duration::from_millis(deadline_ms);
-        let deadline = Some(
-            self.deadline.map_or(requested, |parent| std::cmp::min(parent, requested)),
-        );
-        Self {
-            cancelled: self.cancelled.clone(),
-            deadline,
-        }
-    }
-    pub fn cancel(&self) {
-        self.cancelled.store(true, std::sync::atomic::Ordering::Release);
-    }
-    pub fn should_cancel(&self) -> bool {
-        self.cancelled.load(std::sync::atomic::Ordering::Acquire)
-            || self
-                .deadline
-                .is_some_and(|deadline| std::time::Instant::now() >= deadline)
-    }
-    pub fn join<T>(&self, mut task: TerraneScopedTask<T>) -> TerraneTaskOutcome<T> {
-        let result = task
-            .handle
-            .take()
-            .expect("scoped task joined once")
-            .join()
-            .expect("task worker panicked");
-        match result {
-            TerraneTaskResult::Completed(value) => {
-                TerraneTaskOutcome {
-                    completed: true,
-                    cancelled: self.should_cancel(),
-                    value: Some(value),
-                    error: None,
-                }
-            }
-            TerraneTaskResult::Failed(error) => {
-                self.cancel();
-                TerraneTaskOutcome {
-                    completed: false,
-                    cancelled: false,
-                    value: None,
-                    error: Some(error),
-                }
-            }
-            TerraneTaskResult::Cancelled => {
-                TerraneTaskOutcome {
-                    completed: false,
-                    cancelled: true,
-                    value: None,
-                    error: None,
-                }
-            }
-        }
-    }
-}
-#[allow(
-    dead_code,
-    reason = "task result ABI is emitted before per-variant usage shaping"
-)]
-enum TerraneTaskResult<T> {
-    Completed(T),
-    Failed(TerraneError),
-    Cancelled,
-}
-pub struct TerraneScopedTask<T> {
-    handle: Option<std::thread::JoinHandle<TerraneTaskResult<T>>>,
-}
-impl<T: Send + 'static> TerraneScopedTask<T> {
-    #[allow(dead_code, reason = "task spawn ABI is emitted before usage shaping")]
-    fn spawn<F: FnOnce() -> TerraneTaskResult<T> + Send + 'static>(work: F) -> Self {
-        Self {
-            handle: Some(std::thread::spawn(work)),
-        }
-    }
-}
-pub struct TerraneTaskOutcome<T> {
-    pub completed: bool,
-    pub cancelled: bool,
-    pub value: Option<T>,
-    pub error: Option<TerraneError>,
-}
 #[derive(Clone)]
 pub struct TerranePlatformStreamHandle(std::sync::Arc<i64>);
 impl Default for TerranePlatformStreamHandle {
@@ -440,48 +322,20 @@ fn terrane_platform_unit(result: std::io::Result<()>) -> TerranePlatformUnitResu
     }
 }
 // Source: case.trn
-// Namespace: cancelled-stream-operation
-async fn read_one() -> ReadResult {
-    let input: ByteReader = stdin();
-    let pending: std::pin::Pin<Box<dyn Future<Output = ReadResult>>> = Box::pin(
-        input.read_async(terrane_int_support::Int::from(2_i128)),
-    );
-    let result: ReadResult = __terrane_await(pending).await;
-    input.close();
-    return result.clone();
-}
+// Namespace: stream-read-exact-eof
 fn main() {
-    let scope: TerraneTaskScope = TerraneTaskScope::new(None);
-    let child: TerraneScopedTask<ReadResult> = {
-        let __terrane_scope = scope.clone();
-        let __terrane_cancel = __terrane_scope.clone();
-        TerraneScopedTask::spawn(move || match __terrane_block_on_cancellable(
-            read_one(),
-            move || __terrane_cancel.should_cancel(),
-        ) {
-            Some(value) => TerraneTaskResult::Completed(value),
-            None => TerraneTaskResult::Cancelled,
-        })
-    };
-    scope.cancel();
-    let outcome: TerraneTaskOutcome<ReadResult> = scope.join(child);
-    let value: Option<ReadResult> = outcome.value.clone();
-    let mut consistent: bool = false;
-    if outcome.cancelled && value.is_none() {
-        consistent = true;
-    }
-    if outcome.completed {
-        if value.is_some() {
-            consistent = value
-                .as_ref()
-                .expect("semantic optional narrowing")
-                .completed
-                .clone() == terrane_int_support::Int::from(0_i128)
-                && value.as_ref().expect("semantic optional narrowing").end
-                && !value.as_ref().expect("semantic optional narrowing").failed;
-        }
-    }
-    println!("{}", terrane_scalar_support::scalar_text(&consistent));
+    let input: ByteReader = stdin();
+    let result: ReadResult = input.read_exact(terrane_int_support::Int::from(5_i128));
+    println!(
+        "{}", terrane_scalar_support::scalar_text(&terrane_string_support::decode(&result
+        .data, terrane_string_support::Encoding::Utf8).unwrap_or_else(| error |
+        __terrane_uncaught(TerraneError::from(error)
+        .at("/stream-read-exact-eof::main (case.trn:6:13)"))))
+    );
+    println!("{}", terrane_scalar_support::scalar_text(&result.completed));
+    println!("{}", terrane_scalar_support::scalar_text(&result.end));
+    println!("{}", terrane_scalar_support::scalar_text(&result.failed));
+    input.close();
 }
 // Source: standard/streams.trn
 // Namespace: standard/streams

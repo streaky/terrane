@@ -1,0 +1,10 @@
+namespace stream-read-exact-eof
+from /standard/streams import stdin
+function main;
+    input = stdin;
+    result = input.read-exact; 5
+    print; (result.data.decode; utf8)
+    print; result.completed
+    print; result.end
+    print; result.failed
+    input.close;
