@@ -1334,6 +1334,24 @@ Deliver:
 
 Exit criterion: partial reads and writes, EOF, and use-after-close each have cases; a cancelled stream operation reports what it completed; and a released resource cannot be used again.
 
+Implemented on `byte-text-streams`. Import-driven bundled source infrastructure recursively includes
+registered Terrane namespaces only when selected by an ordinary import, preserves every included
+source for diagnostics and generated-source associations, and lowers the bundled source beside the
+application rather than pre-lowering it. `/standard/streams` uses that path for result objects,
+linear stream classes, partial/exact/all loops, explicit encoding adapters, process factories,
+newline policy, and async wrappers. Rust is limited to the process-I/O syscall/ABI layer: an
+opaque handle registry and one host read, write, flush, durability-sync, or idempotent-close
+operation.
+
+Accepted conformance exercises partial reads and writes, explicit EOF, byte-exact UTF-8 data,
+text adaptation without implicit newline translation, malformed decode failure, distinct flush and
+sync operations, observable idempotent close, and cancellation racing an async stream operation.
+Rejected conformance covers copying a linear stream, use after close, and double close. Accepted
+cases compile their generated crates with warnings denied; canonical-Rust validation is enabled for
+the accepted cases that pass untouched structural validation. Milestone evidence:
+`cargo test -p terrane-compiler --tests` with `RUSTFLAGS=-D warnings`, plus piped executions of the
+byte, text, decode-failure, and cancelled-operation cases through `terrane run`.
+
 ### Milestone 21 — Paths, filesystem, and process facilities
 
 Written in Terrane over the minimal Rust core, per delivery principle 9. Each layer implemented in Rust states which of the four justifications applies; everything above it is Terrane.

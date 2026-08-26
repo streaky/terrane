@@ -91,6 +91,18 @@ Terrane package
 │   ├── utf32-be                               encoding name for /core/encodings::utf32-be
 │   └── task-scope                             binding to /core/async::task-scope
 └── source-declared package surface
+    ├── /standard/streams                      bundled Terrane package, included when imported
+    │   ├── operation-result                   completed / failed / message
+    │   ├── read-result                        bytes / completed / end / cancelled / failed / message
+    │   ├── text-read-result                   text / completed / end / cancelled / failed / message
+    │   ├── write-result                       completed / cancelled / failed / message
+    │   ├── byte-reader                        linear process-byte input
+    │   ├── byte-writer                        linear process-byte output
+    │   ├── text-reader                        linear explicitly encoded input adapter
+    │   ├── text-writer                        linear explicitly encoded output adapter
+    │   ├── stdin                              byte-reader factory
+    │   ├── stdout                             byte-writer factory
+    │   └── stderr                             byte-writer factory
     ├── namespace                              hierarchical object container
     │   ├── variable                           namespace-local value
     │   ├── constant                           namespace-local or program-global value
@@ -567,6 +579,14 @@ change the generated manifest.
 | map / unordered map | `.set`, `.keys`, `.values`, `.entries` | methods | deterministic mutation/views |
 | set / unordered set | `.contains`, `.add`, `.remove` | methods | deterministic membership/mutation |
 | entry | `.key`, `.value` | properties | cloned key/value |
+| byte reader | `.read`, `.read-exact`, `.read-all`, `.read-async` | methods | partial/exact/bounded/async byte read results |
+| byte writer | `.write`, `.write-all`, `.write-async` | methods | partial/complete/async byte write results |
+| byte reader / writer | `.text; encoding` | method | consuming explicitly encoded text adapter |
+| text reader | `.read`, `.read-exact`, `.read-all`, `.read-async` | methods | decoded text result or `decode-error` |
+| text writer | `.write`, `.write-all`, `.line`, `.write-async` | methods | encoded write result; `.line` alone appends newline |
+| writer | `.flush` | method | observable buffering result |
+| byte writer | `.sync-data`, `.sync-all` | methods | distinct observable durability results |
+| any stream | `.close` | method | consuming idempotent release with observable result |
 
 The compiler represents callable families as bound methods with a distinguished default,
 typed children, signatures, and availability constraints. Semantic analysis resolves the

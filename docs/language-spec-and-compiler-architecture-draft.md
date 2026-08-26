@@ -5915,6 +5915,47 @@ This section fixes the shape only. The object contracts of individual version-on
 
 Those facilities are written in Terrane over the minimal Rust core, per §5.7. The standard library is therefore an ordinary set of packages rather than a privileged layer, and it uses the same dependency mechanism as any other package when it needs a Rust crate beneath it.
 
+### 37.1 Byte and text streams
+
+`/standard/streams` is an ordinary Terrane package. Importing one of its exports includes that
+Terrane source, and its recursively imported bundled dependencies, in the same semantic and
+lowering pipeline as the importing program. Standard-library source remains visible to
+whole-program analysis and produces ordinary Terrane source associations in generated Rust.
+
+The package exports linear `byte-reader`, `byte-writer`, `text-reader`, and `text-writer` classes.
+`stdin`, `stdout`, and `stderr` are factories for the process-owned byte stream endpoints; `.text;
+encoding` consumes a byte endpoint into the corresponding explicitly encoded text adapter. Stream
+objects cannot be copied, used after consumption, or released twice.
+
+A read result carries `data`, the completed byte count, an explicit `end` flag, `cancelled`,
+`failed`, and a diagnostic message. A write result carries completed byte count, `cancelled`,
+`failed`, and a message. Partial completion is ordinary and observable. `read-exact` and
+`write-all` repeat partial host operations until their requested contract is satisfied, EOF or a
+failure occurs, or the host reports no progress. `read-all` is always bounded by an explicit
+limit. Text read results carry decoded text but retain byte completion counts.
+
+Text adapters never translate newlines implicitly. Their encoding is carried by the adapter;
+decoding validates the complete returned byte sequence and throws `decode-error` on malformed
+input. `.line` is the explicit convenience operation which appends `\n`.
+
+`close` is explicit and idempotent at the host boundary, returns an observable operation result,
+and consumes the source binding. Destruction invokes the same idempotent release path for an
+unconsumed stream. Writer `flush`, `sync-data`, and `sync-all` are distinct operations:
+`flush` drains language/host buffering, while the sync operations request the corresponding
+durability guarantee when the endpoint supports one. Unsupported or failed operations are
+reported rather than silently weakened.
+
+Async read and write variants have the same result contracts as their synchronous forms.
+Cancellation is observed through the enclosing task operation: it preserves any completed result
+when completion wins the race, and otherwise reports a cancelled task outcome without fabricating
+stream progress.
+
+The irreducible host boundary is Rust because it invokes process I/O and owns the host handle
+registry: this is the syscall/ABI justification from §5.7. It exposes only handle acquisition,
+single partial read/write operations, flush, durability sync, and idempotent close to
+compiler-generated intrinsics. The public protocols, result objects, partial-operation loops,
+encoding adapters, newline policy, factories, and async wrappers remain Terrane.
+
 ---
 
 ## 38. Implementation sequencing

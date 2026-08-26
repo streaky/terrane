@@ -687,6 +687,26 @@ encoding: explicit utf8/utf16-le/utf16-be/utf32-le/utf32-be; encode total; decod
 - No borrow crosses suspension unless its owner lifetime and executor transfer requirements are proven.
 - Runtime remains profile-selected; channels/mutexes/atomics are library objects; unavailable target capability rejects async statically.
 
+## STREAMS
+
+```yaml
+package: /standard/streams; ordinary bundled Terrane source included recursively only when imported
+linear_objects: byte-reader | byte-writer | text-reader | text-writer; no copy, use after consume, or double release
+process_factories: stdin -> byte-reader; stdout/stderr -> byte-writer
+text_adapter: 'byte-endpoint.text; encoding' consumes endpoint; adapter carries explicit encoding
+read_result: data bytes, completed byte count, end bool, cancelled bool, failed bool, message string
+text_read_result: text string plus the same byte-count/status fields; malformed input throws decode-error
+write_result: completed byte count, cancelled bool, failed bool, message string
+partial_policy: read/write may complete partially; exact/all loop until satisfied, EOF/failure, or no progress
+bounded_read_all: explicit limit REQUIRED
+newline: no implicit translation; text-writer.line explicitly appends '\n'
+close: explicit, consuming, idempotent host release with observable failure; destruction uses same release path
+writer_durability: flush, sync-data, and sync-all are distinct; unsupported/failure never silently weakens
+async: read-async/write-async preserve synchronous result contracts; task cancellation never fabricates progress
+rust_boundary: process-I/O syscall/ABI handle registry and one partial operation only
+terrane_layers: public protocols/results, loops, adapters, policy, factories, async wrappers
+```
+
 ## TARGET
 
 - Build selects target profile/capabilities.
