@@ -1,4 +1,4 @@
-namespace stream-linear-copy
+namespace stream-resource-transfer-use-after
 from /standard/streams import stdin
 function main;
     input = stdin;

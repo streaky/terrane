@@ -1329,7 +1329,7 @@ Deliver:
 - text reader and writer adapters carrying explicit encodings and performing no implicit newline translation;
 - typed stdin, stdout, and stderr over the same protocols;
 - explicit idempotent close with observable close and flush failures, and `flush` distinguished from `sync-data` and `sync-all`;
-- linear resource semantics, deferred here from milestone 17 because a stream handle is the first value that is genuinely linear: a resource is consumed rather than copied, its release is the drop pipeline milestone 14 delivers, and double release is a compile-time failure rather than a runtime one;
+- inferred resource ownership, deferred here from milestone 17 because a stream handle is the first genuinely noncopyable field: the enclosing class becomes resource-owning transitively without a declaration qualifier, assignment transfers it automatically, release uses the milestone 14 drop pipeline, and double release is a compile-time failure rather than a runtime one;
 - async variants sharing the same contracts with cancellation.
 
 Exit criterion: partial reads and writes, EOF, and use-after-close each have cases; a cancelled stream operation reports what it completed; and a released resource cannot be used again.
@@ -1338,16 +1338,18 @@ Implemented on `byte-text-streams`. Import-driven bundled source infrastructure 
 registered Terrane namespaces only when selected by an ordinary import, preserves every included
 source for diagnostics and generated-source associations, and lowers the bundled source beside the
 application rather than pre-lowering it. `/standard/streams` uses that path for result objects,
-linear stream classes, partial/exact/all loops, explicit encoding adapters, process factories,
-newline policy, and async wrappers. Rust is limited to the process-I/O syscall/ABI layer: an
+inferred resource-owning stream classes, partial/exact/all loops, explicit encoding adapters,
+process factories, newline policy, and async wrappers. Rust is limited to the process-I/O
+syscall/ABI layer: an
 opaque handle registry and one host read, write, flush, durability-sync, or idempotent-close
 operation.
 
 Accepted conformance exercises partial reads and writes, explicit EOF, byte-exact UTF-8 data,
 text adaptation without implicit newline translation, malformed decode failure, distinct flush and
 sync operations, observable idempotent close, and cancellation racing an async stream operation.
-Rejected conformance covers copying a linear stream, use after close, and double close. Accepted
-cases compile their generated crates with warnings denied; canonical-Rust validation is enabled for
+Rejected conformance covers implicit resource transfer followed by use, use after close, double
+close, and the removed `linear class` declaration qualifier. Accepted cases compile their generated
+crates with warnings denied; canonical-Rust validation is enabled for
 the accepted cases that pass untouched structural validation. Milestone evidence:
 `cargo test -p terrane-compiler --tests` with `RUSTFLAGS=-D warnings`, plus piped executions of the
 byte, text, decode-failure, and cancelled-operation cases through `terrane run`.

@@ -322,60 +322,22 @@ fn terrane_platform_unit(result: std::io::Result<()>) -> TerranePlatformUnitResu
     }
 }
 // Source: case.trn
-// Namespace: text-stream-decode-failure
-fn read_all(input: TextReader) -> Result<String, TerraneError> {
-    let decoded: TextReadResult = input
-        .read_all(terrane_int_support::Int::from(10_i128))
-        .map_err(|error| {
-            error.at("/text-stream-decode-failure::read-all (case.trn:6:15)")
-        })?;
-    input.close();
-    return Ok(decoded.text.clone());
+// Namespace: resource-owning-class-inference
+pub struct StreamOwner {
+    pub input: ByteReader,
+}
+impl StreamOwner {
+    pub fn terrane_construct() -> Self {
+        Self { input: stdin() }
+    }
 }
 fn main() {
-    let bytes_input: ByteReader = stdin();
-    let input: TextReader = bytes_input.text(terrane_string_support::Encoding::Utf8);
-    let __terrane_completion_0: TerraneCompletion<()> = (|| {
-        let __terrane_try_0: TerraneCompletion<()> = (|| {
-            println!(
-                "{}", terrane_scalar_support::scalar_text(&match read_all(input) {
-                Ok(value) => value, Err(error) => return TerraneCompletion::Error(error
-                .at("/text-stream-decode-failure::main (case.trn:14:17)")) })
-            );
-            TerraneCompletion::Normal
-        })();
-        match __terrane_try_0 {
-            TerraneCompletion::Return(value) => return TerraneCompletion::Return(value),
-            TerraneCompletion::Break => return TerraneCompletion::Break,
-            TerraneCompletion::Continue => return TerraneCompletion::Continue,
-            TerraneCompletion::Normal => {}
-            TerraneCompletion::Error(__terrane_error_0) => {
-                let mut __terrane_handled_0 = false;
-                if !__terrane_handled_0
-                    && __terrane_error_0.kind == TerraneErrorKind::DecodeError
-                {
-                    __terrane_handled_0 = true;
-                    println!(
-                        "{}",
-                        terrane_scalar_support::scalar_text(&String::from("caught decode"))
-                    );
-                }
-                if !__terrane_handled_0 {
-                    return TerraneCompletion::Error(__terrane_error_0);
-                }
-            }
-        }
-        TerraneCompletion::Normal
-    })();
-    match __terrane_completion_0 {
-        TerraneCompletion::Normal => {}
-        TerraneCompletion::Return(value) => return value,
-        TerraneCompletion::Error(error) => __terrane_uncaught(error),
-        TerraneCompletion::Break | TerraneCompletion::Continue => {
-            __terrane_generated_defect("loop control escaped a non-loop try")
-        }
-    }
-    return ();
+    let source: StreamOwner = StreamOwner::terrane_construct();
+    let destination: StreamOwner = source;
+    let result: ReadResult = destination
+        .input
+        .read(terrane_int_support::Int::from(1_i128));
+    println!("{}", terrane_scalar_support::scalar_text(&result.completed));
 }
 // Source: standard/streams.trn
 // Namespace: standard/streams

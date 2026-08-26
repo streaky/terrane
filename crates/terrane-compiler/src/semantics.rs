@@ -206,6 +206,7 @@ pub enum ValueType {
     ScopedTask(ElementType),
     TaskScope,
     TaskOutcome(ElementType),
+    PlatformStreamHandle,
     PlatformReadResult,
     PlatformWriteResult,
     PlatformUnitResult,
@@ -349,6 +350,7 @@ impl std::fmt::Display for ValueType {
             Self::ScopedTask(result) => write!(formatter, "scoped task of {result}"),
             Self::TaskScope => formatter.write_str("task-scope"),
             Self::TaskOutcome(result) => write!(formatter, "task-outcome of {result}"),
+            Self::PlatformStreamHandle => formatter.write_str("platform-stream-handle"),
             Self::PlatformReadResult => formatter.write_str("platform-read-result"),
             Self::PlatformWriteResult => formatter.write_str("platform-write-result"),
             Self::PlatformUnitResult => formatter.write_str("platform-unit-result"),
@@ -500,7 +502,7 @@ pub struct ObjectContract {
     pub name: String,
     pub span: Span,
     pub kind: ObjectKind,
-    pub linear: bool,
+    pub resource_owning: bool,
     pub base: Option<String>,
     pub interfaces: Vec<String>,
     pub traits: Vec<String>,
@@ -1788,15 +1790,16 @@ fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFailure> {
             .map(|(index, _)| index)
     }
 
-    fn linear_binding(
+    fn resource_binding(
         unit: &SemanticUnit,
         binding: usize,
-        linear_objects: &BTreeSet<String>,
+        resource_objects: &BTreeSet<String>,
     ) -> bool {
-        matches!(
-            &unit.typed_bindings[binding].value_type,
-            ValueType::Object(name) if linear_objects.contains(name)
-        )
+        match &unit.typed_bindings[binding].value_type {
+            ValueType::PlatformStreamHandle => true,
+            ValueType::Object(name) => resource_objects.contains(name),
+            _ => false,
+        }
     }
 
     #[expect(
@@ -1808,7 +1811,7 @@ fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFailure> {
         node: &SyntaxNode,
         moved: &mut BTreeSet<usize>,
         declaration_name: bool,
-        linear_objects: &BTreeSet<String>,
+        resource_objects: &BTreeSet<String>,
     ) -> Result<(), SemanticFailure> {
         if node.kind == SyntaxKind::UnaryExpression
             && let Some(operand) = node.children.last()
@@ -1836,10 +1839,10 @@ fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFailure> {
             && matches!(node_text(&unit.source, member), "close" | "text")
             && let Some(binding) =
                 binding_at(unit, node_text(&unit.source, receiver), receiver.span.start)
-            && linear_binding(unit, binding, linear_objects)
+            && resource_binding(unit, binding, resource_objects)
         {
             for child in &node.children {
-                visit(unit, child, moved, false, linear_objects)?;
+                visit(unit, child, moved, false, resource_objects)?;
             }
             moved.insert(binding);
             return Ok(());
@@ -1859,32 +1862,28 @@ fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFailure> {
             return Ok(());
         }
         if matches!(node.kind, SyntaxKind::Binding | SyntaxKind::Assignment) {
-            if let Some(initializer) = node.children.last()
-                && initializer.kind == SyntaxKind::Name
-                && let Some(binding) = binding_at(
-                    unit,
-                    node_text(&unit.source, initializer),
-                    initializer.span.start,
-                )
-                && linear_binding(unit, binding, linear_objects)
-            {
-                return Err(failure(
-                    &unit.source,
-                    "T0099",
-                    format!(
-                        "linear resource `{}` must be transferred with `move`",
-                        node_text(&unit.source, initializer)
-                    ),
-                    initializer.span,
-                ));
-            }
+            let transferred = node
+                .children
+                .last()
+                .filter(|initializer| initializer.kind == SyntaxKind::Name)
+                .and_then(|initializer| {
+                    binding_at(
+                        unit,
+                        node_text(&unit.source, initializer),
+                        initializer.span.start,
+                    )
+                })
+                .filter(|binding| resource_binding(unit, *binding, resource_objects));
             let mut skipped_name = false;
             for child in &node.children {
                 if !skipped_name && child.kind == SyntaxKind::Name {
                     skipped_name = true;
                     continue;
                 }
-                visit(unit, child, moved, false, linear_objects)?;
+                visit(unit, child, moved, false, resource_objects)?;
+            }
+            if let Some(binding) = transferred {
+                moved.insert(binding);
             }
             if node.kind == SyntaxKind::Assignment
                 && let Some(name) = node
@@ -1902,7 +1901,7 @@ fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFailure> {
             let mut entry = moved.clone();
             for child in &node.children {
                 if !matches!(child.kind, SyntaxKind::Block | SyntaxKind::ElseClause) {
-                    visit(unit, child, &mut entry, false, linear_objects)?;
+                    visit(unit, child, &mut entry, false, resource_objects)?;
                 }
             }
             let mut branches = Vec::new();
@@ -1911,7 +1910,7 @@ fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFailure> {
                 if matches!(child.kind, SyntaxKind::Block | SyntaxKind::ElseClause) {
                     has_else |= child.kind == SyntaxKind::ElseClause;
                     let mut branch = entry.clone();
-                    visit(unit, child, &mut branch, false, linear_objects)?;
+                    visit(unit, child, &mut branch, false, resource_objects)?;
                     branches.push(branch);
                 }
             }
@@ -1933,40 +1932,41 @@ fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFailure> {
                 .find(|child| child.kind == SyntaxKind::Block);
             for child in &node.children {
                 if Some(child) != body {
-                    visit(unit, child, &mut entry, false, linear_objects)?;
+                    visit(unit, child, &mut entry, false, resource_objects)?;
                 }
             }
             if let Some(body) = body {
                 let mut after_iteration = entry.clone();
-                visit(unit, body, &mut after_iteration, false, linear_objects)?;
+                visit(unit, body, &mut after_iteration, false, resource_objects)?;
                 // Validate the back edge: the next iteration starts with the first iteration's
                 // move state, even though only the may-execute-once state leaves the loop.
                 let mut next_iteration = after_iteration.clone();
-                visit(unit, body, &mut next_iteration, false, linear_objects)?;
+                visit(unit, body, &mut next_iteration, false, resource_objects)?;
                 entry.extend(after_iteration);
             }
             *moved = entry;
             return Ok(());
         }
         for child in &node.children {
-            visit(unit, child, moved, false, linear_objects)?;
+            visit(unit, child, moved, false, resource_objects)?;
         }
         Ok(())
     }
 
+    let resource_objects = package
+        .units
+        .iter()
+        .flat_map(|unit| unit.objects.iter())
+        .filter(|object| object.resource_owning)
+        .map(|object| object.name.clone())
+        .collect();
     for unit in &package.units {
-        let linear_objects = unit
-            .objects
-            .iter()
-            .filter(|object| object.linear)
-            .map(|object| object.name.clone())
-            .collect();
         visit(
             unit,
             &unit.tree.root,
             &mut BTreeSet::new(),
             false,
-            &linear_objects,
+            &resource_objects,
         )?;
     }
     Ok(())
@@ -3166,6 +3166,7 @@ fn descriptor_construct_alias_history(
 fn analyze_object_contracts(
     unit: &SemanticUnit,
     aliases: &BTreeMap<String, Vec<DescriptorAlias>>,
+    visible_object_names: &BTreeSet<String>,
 ) -> Result<Vec<ObjectContract>, SemanticFailure> {
     let visible = visible_descriptor_aliases(aliases, unit.source.id(), 0);
     let mut objects = Vec::new();
@@ -3176,10 +3177,7 @@ fn analyze_object_contracts(
             SyntaxKind::TraitDeclaration => ObjectKind::Trait,
             _ => continue,
         };
-        let linear = node.children.iter().any(|child| {
-            child.kind == SyntaxKind::DeclarationQualifier
-                && node_text(&unit.source, child) == "linear"
-        });
+        let resource_owning = false;
         let name = declaration_name(node, &unit.source).ok_or_else(|| {
             failure(
                 &unit.source,
@@ -3231,23 +3229,17 @@ fn analyze_object_contracts(
                                 | SyntaxKind::TypeExpression
                         )
                 });
-                if kind == ObjectKind::Class && initializer.is_none() {
-                    return Err(failure(
-                        &unit.source,
-                        "T0061",
-                        format!(
-                            "class field `{}` requires an initializer",
-                            node_text(&unit.source, field_name)
-                        ),
-                        field.span,
-                    ));
-                }
                 let value_type = if let Some(type_node) = field
                     .children
                     .iter()
                     .find(|child| child.kind == SyntaxKind::TypeExpression)
                 {
-                    declared_value_type(unit, type_node, &visible)?
+                    declared_value_type_with_visible_objects(
+                        unit,
+                        type_node,
+                        &visible,
+                        visible_object_names,
+                    )?
                 } else if let Some(initializer) = initializer {
                     infer_value_type(unit, initializer, &[])?.ok_or_else(|| {
                         failure(
@@ -3265,6 +3257,20 @@ fn analyze_object_contracts(
                         field.span,
                     ));
                 };
+                if kind == ObjectKind::Class
+                    && initializer.is_none()
+                    && value_type != ValueType::PlatformStreamHandle
+                {
+                    return Err(failure(
+                        &unit.source,
+                        "T0061",
+                        format!(
+                            "class field `{}` requires an initializer",
+                            node_text(&unit.source, field_name)
+                        ),
+                        field.span,
+                    ));
+                }
                 fields.push(ObjectField {
                     name: node_text(&unit.source, field_name).to_owned(),
                     span: field.span,
@@ -3276,21 +3282,53 @@ fn analyze_object_contracts(
             name,
             span: node.span,
             kind,
-            linear,
+            resource_owning,
             base,
             interfaces,
             traits,
             fields,
         });
     }
+    loop {
+        let resource_names = objects
+            .iter()
+            .filter(|object| object.resource_owning)
+            .map(|object| object.name.as_str())
+            .collect::<BTreeSet<_>>();
+        let newly_resource_owning = objects
+            .iter()
+            .enumerate()
+            .filter(|(_, object)| {
+                object.kind == ObjectKind::Class
+                    && !object.resource_owning
+                    && (object.fields.iter().any(|field| {
+                        matches!(field.value_type, ValueType::PlatformStreamHandle)
+                            || matches!(
+                                &field.value_type,
+                                ValueType::Object(name) if resource_names.contains(name.as_str())
+                            )
+                    }) || object
+                        .base
+                        .as_deref()
+                        .is_some_and(|base| resource_names.contains(base)))
+            })
+            .map(|(index, _)| index)
+            .collect::<Vec<_>>();
+        if newly_resource_owning.is_empty() {
+            break;
+        }
+        for index in newly_resource_owning {
+            objects[index].resource_owning = true;
+        }
+    }
     for object in &objects {
-        if object.linear
+        if object.resource_owning
             && (object.base.is_some() || !object.interfaces.is_empty() || !object.traits.is_empty())
         {
             return Err(failure(
                 &unit.source,
                 "T0098",
-                "a linear class cannot extend, implement, or use copyable object contracts",
+                "a resource-owning class cannot extend, implement, or use copyable object contracts",
                 object.span,
             ));
         }
@@ -3319,6 +3357,76 @@ fn analyze_object_contracts(
         }
     }
     Ok(objects)
+}
+
+fn propagate_resource_ownership(package: &mut SemanticPackage) -> Result<(), SemanticFailure> {
+    loop {
+        let resource_identities = package
+            .units
+            .iter()
+            .flat_map(|unit| {
+                unit.objects
+                    .iter()
+                    .filter(|object| object.resource_owning)
+                    .filter_map(|object| {
+                        package
+                            .resolve_name_at(unit, object.span.start, &object.name)
+                            .map(|symbol| symbol.identity.clone())
+                    })
+            })
+            .collect::<BTreeSet<_>>();
+        let mut newly_resource_owning = Vec::new();
+        for (unit_index, unit) in package.units.iter().enumerate() {
+            for (object_index, object) in unit.objects.iter().enumerate() {
+                if object.kind != ObjectKind::Class || object.resource_owning {
+                    continue;
+                }
+                let owns_field_resource = object.fields.iter().any(|field| {
+                    matches!(field.value_type, ValueType::PlatformStreamHandle)
+                        || match &field.value_type {
+                            ValueType::Object(name) => package
+                                .resolve_name_at(unit, field.span.start, name)
+                                .is_some_and(|symbol| {
+                                    resource_identities.contains(&symbol.identity)
+                                }),
+                            _ => false,
+                        }
+                });
+                let owns_base_resource = object.base.as_deref().is_some_and(|base| {
+                    package
+                        .resolve_name_at(unit, object.span.start, base)
+                        .is_some_and(|symbol| resource_identities.contains(&symbol.identity))
+                });
+                if owns_field_resource || owns_base_resource {
+                    newly_resource_owning.push((unit_index, object_index));
+                }
+            }
+        }
+        if newly_resource_owning.is_empty() {
+            break;
+        }
+        for (unit_index, object_index) in newly_resource_owning {
+            package.units[unit_index].objects[object_index].resource_owning = true;
+        }
+    }
+
+    for unit in &package.units {
+        for object in &unit.objects {
+            if object.resource_owning
+                && (object.base.is_some()
+                    || !object.interfaces.is_empty()
+                    || !object.traits.is_empty())
+            {
+                return Err(failure(
+                    &unit.source,
+                    "T0098",
+                    "a resource-owning class cannot extend, implement, or use copyable object contracts",
+                    object.span,
+                ));
+            }
+        }
+    }
+    Ok(())
 }
 
 #[expect(
@@ -3605,11 +3713,28 @@ fn propagate_interface_receiver_mutability(package: &mut SemanticPackage) {
 
 fn analyze_types(package: &mut SemanticPackage) -> Result<(), SemanticFailure> {
     for index in 0..package.units.len() {
-        let unit = &package.units[index];
-        let alias_history = descriptor_construct_alias_history(package, unit);
-        package.units[index].objects = analyze_object_contracts(unit, &alias_history)?;
+        let objects = {
+            let unit = &package.units[index];
+            let alias_history = descriptor_construct_alias_history(package, unit);
+            let visible_object_names = package
+                .namespaces
+                .get(&unit.namespace)
+                .into_iter()
+                .flat_map(|namespace| &namespace.symbols)
+                .filter(|(_, symbol)| {
+                    matches!(
+                        symbol.kind,
+                        SymbolKind::Class | SymbolKind::Interface | SymbolKind::Trait
+                    )
+                })
+                .map(|(name, _)| name.clone())
+                .collect::<BTreeSet<_>>();
+            analyze_object_contracts(unit, &alias_history, &visible_object_names)?
+        };
+        package.units[index].objects = objects;
     }
     populate_object_aliases(package);
+    propagate_resource_ownership(package)?;
     for index in 0..package.units.len() {
         let unit = &package.units[index];
         let mut alias_history = descriptor_construct_alias_history(package, unit);
@@ -4719,6 +4844,15 @@ fn declared_value_type(
     type_node: &SyntaxNode,
     aliases: &BTreeMap<String, ScalarType>,
 ) -> Result<ValueType, SemanticFailure> {
+    declared_value_type_with_visible_objects(unit, type_node, aliases, &BTreeSet::new())
+}
+
+fn declared_value_type_with_visible_objects(
+    unit: &SemanticUnit,
+    type_node: &SyntaxNode,
+    aliases: &BTreeMap<String, ScalarType>,
+    visible_object_names: &BTreeSet<String>,
+) -> Result<ValueType, SemanticFailure> {
     let shape = if type_node.kind == SyntaxKind::TypeExpression {
         type_node.children.first().unwrap_or(type_node)
     } else {
@@ -4727,7 +4861,12 @@ fn declared_value_type(
     if shape.kind == SyntaxKind::PrefixType
         && let Some(inner) = shape.children.first()
     {
-        let inner = ElementType::new(declared_value_type(unit, inner, aliases)?);
+        let inner = ElementType::new(declared_value_type_with_visible_objects(
+            unit,
+            inner,
+            aliases,
+            visible_object_names,
+        )?);
         return Ok(
             if node_text(&unit.source, shape)
                 .split_whitespace()
@@ -4752,9 +4891,22 @@ fn declared_value_type(
         };
         let parameters = parameters
             .iter()
-            .map(|parameter| declared_value_type(unit, parameter, aliases).map(ElementType::new))
+            .map(|parameter| {
+                declared_value_type_with_visible_objects(
+                    unit,
+                    parameter,
+                    aliases,
+                    visible_object_names,
+                )
+                .map(ElementType::new)
+            })
             .collect::<Result<Vec<_>, _>>()?;
-        let result = ElementType::new(declared_value_type(unit, result, aliases)?);
+        let result = ElementType::new(declared_value_type_with_visible_objects(
+            unit,
+            result,
+            aliases,
+            visible_object_names,
+        )?);
         return Ok(if node_text(&unit.source, function).starts_with("async") {
             ValueType::AsyncFunction(parameters, result)
         } else {
@@ -4782,8 +4934,24 @@ fn declared_value_type(
         }
     }
     let type_name = node_text(&unit.source, type_node).trim();
-    if unit.objects.iter().any(|object| object.name == type_name) {
+    let imported_object = lexical_scope_chain(unit, type_node.span.start).any(|scope| {
+        scope.symbols.get(type_name).is_some_and(|symbols| {
+            symbols.iter().rev().any(|symbol| {
+                matches!(
+                    symbol.kind,
+                    SymbolKind::Class | SymbolKind::Interface | SymbolKind::Trait
+                )
+            })
+        })
+    });
+    if imported_object
+        || visible_object_names.contains(type_name)
+        || unit.objects.iter().any(|object| object.name == type_name)
+    {
         return Ok(ValueType::Object(type_name.to_owned()));
+    }
+    if type_name == "resource-handle" {
+        return Ok(ValueType::PlatformStreamHandle);
     }
     if type_name == "encoding" {
         return Ok(ValueType::Encoding);
@@ -5568,14 +5736,15 @@ fn infer_value_type(
                     "/core/platform-streams::acquire-stdin"
                     | "/core/platform-streams::acquire-stdout"
                     | "/core/platform-streams::acquire-stderr" => {
-                        Some(ValueType::Scalar(ScalarType::Int64))
+                        Some(ValueType::PlatformStreamHandle)
                     }
                     "/core/platform-streams::read" => Some(ValueType::PlatformReadResult),
                     "/core/platform-streams::write" => Some(ValueType::PlatformWriteResult),
                     "/core/platform-streams::flush"
                     | "/core/platform-streams::sync-data"
                     | "/core/platform-streams::sync-all"
-                    | "/core/platform-streams::close" => Some(ValueType::PlatformUnitResult),
+                    | "/core/platform-streams::close"
+                    | "/core/platform-streams::release" => Some(ValueType::PlatformUnitResult),
                     _ => None,
                 };
                 if platform_result.is_some() {
@@ -9129,12 +9298,14 @@ fn bootstrap_namespaces() -> BTreeMap<String, Namespace> {
                 "acquire-stdin",
                 "acquire-stdout",
                 "acquire-stderr",
+                "resource-handle",
                 "read",
                 "write",
                 "flush",
                 "sync-data",
                 "sync-all",
                 "close",
+                "release",
             ],
             SymbolKind::Function,
         ),

@@ -808,12 +808,12 @@ impl Emitter<'_> {
                 };
                 let methods = effective_object_methods(self.unit, object);
                 let has_destructor = methods.iter().any(|method| method.name == "destruct");
-                if !object.linear {
+                if !object.resource_owning {
                     self.line("#[derive(Clone)]");
                 }
                 self.line(&format!("pub struct {storage_type} {{"));
                 self.indent += 1;
-                if has_destructor && !object.linear {
+                if has_destructor && !object.resource_owning {
                     self.line("__terrane_lifetime: std::sync::Arc<()>,");
                 }
                 for field in &fields {
@@ -854,12 +854,15 @@ impl Emitter<'_> {
                                     .and_then(|index| binding_initializer(binding, index))
                             });
                         let value = initializer.map_or_else(
-                            || "panic!(\"object field was not initialized\")".to_owned(),
+                            || match field.value_type {
+                                ValueType::PlatformStreamHandle => "Default::default()".to_owned(),
+                                _ => "panic!(\"object field was not initialized\")".to_owned(),
+                            },
                             |initializer| self.expression_as(initializer, field.value_type.clone()),
                         );
                         self.line(&format!("{}: {value},", rust_name(&field.name)));
                     }
-                    if has_destructor && !object.linear {
+                    if has_destructor && !object.resource_owning {
                         self.line("__terrane_lifetime: std::sync::Arc::new(()),");
                     }
                     self.indent -= 1;
@@ -889,12 +892,15 @@ impl Emitter<'_> {
                                     .and_then(|index| binding_initializer(binding, index))
                             });
                         let value = initializer.map_or_else(
-                            || "panic!(\"object field was not initialized\")".to_owned(),
+                            || match field.value_type {
+                                ValueType::PlatformStreamHandle => "Default::default()".to_owned(),
+                                _ => "panic!(\"object field was not initialized\")".to_owned(),
+                            },
                             |initializer| self.expression_as(initializer, field.value_type.clone()),
                         );
                         self.line(&format!("{}: {value},", rust_name(&field.name)));
                     }
-                    if has_destructor && !object.linear {
+                    if has_destructor && !object.resource_owning {
                         self.line("__terrane_lifetime: std::sync::Arc::new(()),");
                     }
                     self.indent -= 1;
@@ -902,7 +908,7 @@ impl Emitter<'_> {
                     self.indent -= 1;
                     self.line("}");
                 }
-                if has_destructor && !object.linear {
+                if has_destructor && !object.resource_owning {
                     self.line("pub fn terrane_separate(&self) -> Self {");
                     self.indent += 1;
                     self.line("let mut value = self.clone();");
@@ -939,7 +945,7 @@ impl Emitter<'_> {
                 self.indent -= 1;
                 self.line("}");
                 if !descendants.is_empty() {
-                    if !object.linear {
+                    if !object.resource_owning {
                         self.line("#[derive(Clone)]");
                     }
                     self.line(&format!("pub enum {class_type} {{"));
@@ -1217,7 +1223,7 @@ impl Emitter<'_> {
                     self.indent += 1;
                     self.line("fn drop(&mut self) {");
                     self.indent += 1;
-                    if object.linear {
+                    if object.resource_owning {
                         self.line("self.destruct();");
                         for index in (0..object_destructor_chain(self.unit, object)
                             .len()
@@ -2753,6 +2759,14 @@ impl Emitter<'_> {
                     rust_element_type(value)
                 )
             }
+            ValueType::PlatformStreamHandle if node.kind == SyntaxKind::MemberExpression => {
+                format!("({}).clone()", self.expression(node))
+            }
+            ValueType::Object(name)
+                if node.kind == SyntaxKind::Name && self.object_owns_resource(&name) =>
+            {
+                self.expression(node)
+            }
             ValueType::Object(name)
                 if node.kind == SyntaxKind::Name && self.object_requires_separation(&name) =>
             {
@@ -4019,6 +4033,7 @@ impl Emitter<'_> {
             ("sync-data", "sync_data"),
             ("sync-all", "sync_all"),
             ("close", "close"),
+            ("release", "release"),
         ]
         .into_iter()
         .find_map(|(terrane, rust)| {
@@ -4030,13 +4045,23 @@ impl Emitter<'_> {
                 .iter()
                 .map(|value| self.expression(value))
                 .collect::<Vec<_>>();
+            if function.starts_with("acquire_") {
+                return format!("terrane_platform_{function}()");
+            }
             if function == "write" && values.len() == 3 {
                 return format!(
-                    "terrane_platform_write({}, &({}), terrane_int_support::Int::from(({}).clone()))",
+                    "terrane_platform_write(&({}), &({}), terrane_int_support::Int::from(({}).clone()))",
                     values[0], values[1], values[2]
                 );
             }
-            return format!("terrane_platform_{function}({})", values.join(", "));
+            let Some((handle, arguments)) = values.split_first() else {
+                unreachable!("validated platform operation has a stream handle");
+            };
+            let arguments = std::iter::once(format!("&({handle})"))
+                .chain(arguments.iter().cloned())
+                .collect::<Vec<_>>()
+                .join(", ");
+            return format!("terrane_platform_{function}({arguments})");
         }
         let mut values = argument_values
             .into_iter()
@@ -4873,6 +4898,14 @@ impl Emitter<'_> {
                 .any(|field| field.name == name)
     }
 
+    fn object_owns_resource(&self, name: &str) -> bool {
+        self.package
+            .units
+            .iter()
+            .flat_map(|unit| unit.objects.iter())
+            .any(|object| object.name == name && object.resource_owning)
+    }
+
     fn object_requires_separation(&self, name: &str) -> bool {
         let Some(object) = self.unit.objects.iter().find(|object| object.name == name) else {
             return false;
@@ -5430,6 +5463,7 @@ fn rust_value_type(ty: ValueType) -> String {
         ValueType::TaskOutcome(result) => {
             format!("TerraneTaskOutcome<{}>", rust_element_type(result))
         }
+        ValueType::PlatformStreamHandle => "TerranePlatformStreamHandle".to_owned(),
         ValueType::PlatformReadResult => "TerranePlatformReadResult".to_owned(),
         ValueType::PlatformWriteResult => "TerranePlatformWriteResult".to_owned(),
         ValueType::PlatformUnitResult => "TerranePlatformUnitResult".to_owned(),

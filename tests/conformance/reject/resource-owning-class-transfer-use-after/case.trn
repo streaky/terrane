@@ -1,0 +1,10 @@
+namespace resource-owning-class-transfer-use-after
+from /standard/streams import byte-reader, stdin
+
+class stream-owner
+    input byte-reader = stdin;
+
+function main;
+    source stream-owner = stream-owner;
+    destination stream-owner = source
+    result = source.input.read; 1

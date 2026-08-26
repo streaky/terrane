@@ -96,10 +96,10 @@ Terrane package
     │   ├── read-result                        bytes / completed / end / cancelled / failed / message
     │   ├── text-read-result                   text / completed / end / cancelled / failed / message
     │   ├── write-result                       completed / cancelled / failed / message
-    │   ├── byte-reader                        linear process-byte input
-    │   ├── byte-writer                        linear process-byte output
-    │   ├── text-reader                        linear explicitly encoded input adapter
-    │   ├── text-writer                        linear explicitly encoded output adapter
+    │   ├── byte-reader                        inferred resource-owning process-byte input
+    │   ├── byte-writer                        inferred resource-owning process-byte output
+    │   ├── text-reader                        inferred resource-owning encoded input adapter
+    │   ├── text-writer                        inferred resource-owning encoded output adapter
     │   ├── stdin                              byte-reader factory
     │   ├── stdout                             byte-writer factory
     │   └── stderr                             byte-writer factory
@@ -587,6 +587,9 @@ change the generated manifest.
 | writer | `.flush` | method | observable buffering result |
 | byte writer | `.sync-data`, `.sync-all` | methods | distinct observable durability results |
 | any stream | `.close` | method | consuming idempotent release with observable result |
+
+Stream classes become resource-owning transitively from their compiler-owned process handle field.
+There is no source `linear class` qualifier; assignment transfers these values automatically.
 
 The compiler represents callable families as bound methods with a distinguished default,
 typed children, signatures, and availability constraints. Semantic analysis resolves the

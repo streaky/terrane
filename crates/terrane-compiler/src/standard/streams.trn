@@ -2,12 +2,13 @@ namespace standard/streams
 
 from /core/types import int64
 from /core/errors import decode-error
-from /core/platform-streams import acquire-stdin, acquire-stdout, acquire-stderr
+from /core/platform-streams import resource-handle, acquire-stdin, acquire-stdout, acquire-stderr
 from /core/platform-streams import read as platform-read, write as platform-write
 from /core/platform-streams import flush as platform-flush
 from /core/platform-streams import sync-data as platform-sync-data
 from /core/platform-streams import sync-all as platform-sync-all
 from /core/platform-streams import close as platform-close
+from /core/platform-streams import release as platform-release
 
 class operation-result
     completed bool = false
@@ -63,10 +64,10 @@ class write-result
         this.failed = failed
         this.message = message
 
-linear class byte-reader
-    handle int64 = 0
+class byte-reader
+    handle resource-handle
 
-    function construct; handle int64
+    function construct; handle resource-handle
         this.handle = handle
 
     function read read-result; count int
@@ -105,14 +106,14 @@ linear class byte-reader
         return operation-result; not raw.failed, raw.failed, raw.message
 
     function destruct;
-        closed = platform-close; this.handle
+        closed = platform-release; this.handle
         if closed.failed
             return
 
-linear class byte-writer
-    handle int64 = 0
+class byte-writer
+    handle resource-handle
 
-    function construct; handle int64
+    function construct; handle resource-handle
         this.handle = handle
 
     function write write-result; data bytes
@@ -157,15 +158,15 @@ linear class byte-writer
         return operation-result; not raw.failed, raw.failed, raw.message
 
     function destruct;
-        closed = platform-close; this.handle
+        closed = platform-release; this.handle
         if closed.failed
             return
 
-linear class text-reader
-    handle int64 = 0
+class text-reader
+    handle resource-handle
     encoding encoding = utf8
 
-    function construct; handle int64, encoding encoding
+    function construct; handle resource-handle, encoding encoding
         this.handle = handle
         this.encoding = encoding
 
@@ -204,15 +205,15 @@ linear class text-reader
         return operation-result; not raw.failed, raw.failed, raw.message
 
     function destruct;
-        closed = platform-close; this.handle
+        closed = platform-release; this.handle
         if closed.failed
             return
 
-linear class text-writer
-    handle int64 = 0
+class text-writer
+    handle resource-handle
     encoding encoding = utf8
 
-    function construct; handle int64, encoding encoding
+    function construct; handle resource-handle, encoding encoding
         this.handle = handle
         this.encoding = encoding
 
@@ -250,7 +251,7 @@ linear class text-writer
         return operation-result; not raw.failed, raw.failed, raw.message
 
     function destruct;
-        closed = platform-close; this.handle
+        closed = platform-release; this.handle
         if closed.failed
             return
 

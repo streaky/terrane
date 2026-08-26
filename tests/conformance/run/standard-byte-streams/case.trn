@@ -3,35 +3,37 @@ from /standard/streams import stdin, stdout
 
 function main;
     input = stdin;
-    first = input.read-exact; 3
+    reader = input
+    first = reader.read-exact; 3
     if first.failed
         print; first.message
     if first.completed != 3 or first.end
         print; 'unexpected first read'
-    remainder = input.read-all; 100
+    remainder = reader.read-all; 100
     if remainder.failed
         print; remainder.message
     if remainder.completed != 4 or not remainder.end
         print; 'unexpected remainder'
     output = stdout;
-    first-write = output.write-all; first.data
+    writer = output
+    first-write = writer.write-all; first.data
     if first-write.failed
         print; first-write.message
-    second-write = output.write-all; remainder.data
+    second-write = writer.write-all; remainder.data
     if second-write.failed
         print; second-write.message
-    flushed = output.flush;
+    flushed = writer.flush;
     if flushed.failed
         print; flushed.message
-    synced = output.sync-data;
+    synced = writer.sync-data;
     if not synced.failed
         print; 'unexpected standard stream sync'
-    fully-synced = output.sync-all;
+    fully-synced = writer.sync-all;
     if not fully-synced.failed
         print; 'unexpected standard stream full sync'
-    input-closed = input.close;
+    input-closed = reader.close;
     if input-closed.failed
         print; input-closed.message
-    output-closed = output.close;
+    output-closed = writer.close;
     if output-closed.failed
         print; output-closed.message
