@@ -1390,8 +1390,9 @@ snapshots, a schema-driven parser that returns option names, values, positionals
 diagnostics without terminating, and validated `exit-status` values in `0..=255`. Accepted
 conformance distinguishes lexical resolution from canonicalization, rejects a traversal escape,
 and executes flush, sync-data, and sync-all against a real file descriptor alongside atomic
-replacement and rename; passes text and non-Unicode process arguments; checks parser diagnostics;
-and observes process exit status 7. Direct imports of compiler-owned platform intrinsics are rejected.
+replacement and rename; passes text and non-Unicode process arguments; checks parser diagnostics
+and invalid exit-status construction; and observes process exit status 7. Direct imports of
+compiler-owned platform intrinsics are rejected.
 Runtime templates are split by selected standard facility so stream-only, filesystem-only, and
 process-only programs emit no unrelated host intrinsics or corresponding dead-code allowances.
 Resource-owning collection types are rejected before lowering, and stream operations release the
