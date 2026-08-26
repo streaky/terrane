@@ -1,0 +1,78 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Terrane",
+  "scopeName": "source.terrane",
+  "patterns": [
+    { "include": "#comments" },
+    { "include": "#block-text" },
+    { "include": "#tail-text" },
+    { "include": "#quoted-text" },
+    { "include": "#numbers" },
+    { "include": "#keywords" },
+    { "include": "#operators" }
+  ],
+  "repository": {
+    "comments": {
+      "patterns": [
+        {
+          "name": "comment.block.terrane",
+          "begin": "/\\*",
+          "end": "\\*/"
+        },
+        {
+          "name": "comment.line.number-sign.terrane",
+          "match": "#.*$"
+        },
+        {
+          "name": "comment.line.double-slash.terrane",
+          "match": "//.*$"
+        }
+      ]
+    },
+    "block-text": {
+      "name": "string.unquoted.block.terrane",
+      "begin": "^(\\s*)>>\\s*$",
+      "end": "^(?!\\1[ \\t]+)(?=\\S)",
+      "patterns": [
+        { "include": "#escapes" }
+      ]
+    },
+    "tail-text": {
+      "match": "(^\\s*)(>.*$)|([=;(,]\\s*)(>.*$)",
+      "captures": {
+        "2": { "name": "string.unquoted.tail.terrane" },
+        "4": { "name": "string.unquoted.tail.terrane" }
+      }
+    },
+    "quoted-text": {
+      "name": "string.quoted.single.terrane",
+      "begin": "b?'",
+      "beginCaptures": {
+        "0": { "name": "punctuation.definition.string.begin.terrane" }
+      },
+      "end": "'",
+      "endCaptures": {
+        "0": { "name": "punctuation.definition.string.end.terrane" }
+      },
+      "patterns": [
+        { "include": "#escapes" }
+      ]
+    },
+    "escapes": {
+      "name": "constant.character.escape.terrane",
+      "match": "\\\\(?:[\\\\'nrt0]|x[0-9A-Fa-f]{2}|u\\{[0-9A-Fa-f]+\\})"
+    },
+    "numbers": {
+      "name": "constant.numeric.terrane",
+      "match": "\\b(?:0x[0-9A-Fa-f](?:_?[0-9A-Fa-f])*|[0-9](?:_?[0-9])*(?:\\.[0-9](?:_?[0-9])*)?)\\b"
+    },
+    "keywords": {
+      "name": "keyword.control.terrane",
+      "match": "\\b(?:a|and|as|async|await|break|case|catch|class|constant|construct|continue|destruct|else|extends|false|finally|for|from|function|global|goto|if|implements|import|in|interface|is|label|match|move|namespace|not|of|or|private|protected|public|ref|return|rust|shared|static|this|throw|throws|to|trait|true|try|unsafe|use|uses|when|while|yield)\\b"
+    },
+    "operators": {
+      "name": "keyword.operator.terrane",
+      "match": "(?<!\\S)(?:\\+\\+|--|==|!=|<=|>=|=>|[-+*/%<>=!&|^~])(?=\\s|$)"
+    }
+  }
+}

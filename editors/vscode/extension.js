@@ -34,7 +34,10 @@ async function activate(context) {
     'Terrane Language Server',
     { command },
     {
-      documentSelector: [{ scheme: 'file', language: 'terrane' }],
+      documentSelector: [
+        { scheme: 'file', language: 'terrane' },
+        { scheme: 'untitled', language: 'terrane' },
+      ],
       synchronize: {
         configurationSection: 'terrane',
       },

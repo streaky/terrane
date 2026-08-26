@@ -36,6 +36,15 @@ fn receive_response(stdout: &mut BufReader<ChildStdout>, id: u64) -> Value {
     }
 }
 
+fn receive_notification(stdout: &mut BufReader<ChildStdout>, method: &str) -> Value {
+    loop {
+        let message = receive(stdout);
+        if message.get("method").and_then(Value::as_str) == Some(method) {
+            return message;
+        }
+    }
+}
+
 #[test]
 fn serves_semantic_tokens_for_an_open_document() {
     let mut child = Command::new(env!("CARGO_BIN_EXE_terrane-language-server"))
@@ -81,6 +90,8 @@ fn serves_semantic_tokens_for_an_open_document() {
             }
         }),
     );
+    let diagnostics = receive_notification(&mut stdout, "textDocument/publishDiagnostics");
+    assert_eq!(diagnostics["params"]["version"], 1);
     send(
         &mut stdin,
         &json!({
@@ -94,6 +105,7 @@ fn serves_semantic_tokens_for_an_open_document() {
     let data = tokens["result"]["data"].as_array().unwrap();
     assert!(!data.is_empty());
     assert_eq!(data.len() % 5, 0);
+    assert_eq!(tokens["result"]["resultId"], "1");
 
     send(
         &mut stdin,

@@ -33,6 +33,7 @@ const TOKEN_TYPES: [SemanticTokenType; 11] = [
 #[derive(Clone, Debug)]
 struct Document {
     text: String,
+    version: i32,
 }
 
 #[derive(Debug)]
@@ -50,11 +51,8 @@ impl Backend {
         }
     }
 
-    async fn analyze(&self, uri: &Uri, text: &str) {
-        let path = uri
-            .to_file_path()
-            .map_or_else(|| PathBuf::from(uri.as_str()), std::borrow::Cow::into_owned);
-        let source = SourceFile::new(0, path, text.to_owned());
+    async fn analyze(&self, uri: &Uri, text: &str, version: i32) {
+        let source = source_file(uri, text);
         let output = highlight(&source);
         let diagnostics = output
             .diagnostics
@@ -62,7 +60,7 @@ impl Backend {
             .map(|diagnostic| lsp_diagnostic(&source, diagnostic))
             .collect();
         self.client
-            .publish_diagnostics(uri.clone(), diagnostics, None)
+            .publish_diagnostics(uri.clone(), diagnostics, Some(version))
             .await;
     }
 }
@@ -109,11 +107,15 @@ impl LanguageServer for Backend {
     async fn did_open(&self, params: DidOpenTextDocumentParams) {
         let uri = params.text_document.uri;
         let text = params.text_document.text;
-        self.documents
-            .write()
-            .await
-            .insert(uri.clone(), Document { text: text.clone() });
-        self.analyze(&uri, &text).await;
+        let version = params.text_document.version;
+        self.documents.write().await.insert(
+            uri.clone(),
+            Document {
+                text: text.clone(),
+                version,
+            },
+        );
+        self.analyze(&uri, &text, version).await;
     }
 
     async fn did_change(&self, params: DidChangeTextDocumentParams) {
@@ -122,11 +124,15 @@ impl LanguageServer for Backend {
         };
         let uri = params.text_document.uri;
         let text = change.text;
-        self.documents
-            .write()
-            .await
-            .insert(uri.clone(), Document { text: text.clone() });
-        self.analyze(&uri, &text).await;
+        let version = params.text_document.version;
+        self.documents.write().await.insert(
+            uri.clone(),
+            Document {
+                text: text.clone(),
+                version,
+            },
+        );
+        self.analyze(&uri, &text, version).await;
     }
 
     async fn did_close(&self, params: DidCloseTextDocumentParams) {
@@ -144,11 +150,11 @@ impl LanguageServer for Backend {
         let Some(document) = documents.get(&uri) else {
             return Ok(None);
         };
-        let source = SourceFile::new(0, PathBuf::from(uri.as_str()), document.text.clone());
-        let highlights = highlight(&source).highlights;
+        let source = source_file(&uri, &document.text);
+        let output = highlight(&source);
         Ok(Some(SemanticTokensResult::Tokens(SemanticTokens {
-            result_id: None,
-            data: encode_semantic_tokens(source.text(), &highlights),
+            result_id: Some(document.version.to_string()),
+            data: encode_semantic_tokens(source.text(), &output.highlights),
         })))
     }
 }
@@ -195,17 +201,22 @@ fn split_lines(text: &str, span: Span) -> impl Iterator<Item = Span> + '_ {
 }
 
 fn utf16_range(text: &str, span: Span) -> (u32, u32, u32) {
-    let line = text[..span.start]
-        .bytes()
-        .filter(|byte| *byte == b'\n')
-        .count();
-    let line_start = text[..span.start].rfind('\n').map_or(0, |index| index + 1);
-    let start = text[line_start..span.start].encode_utf16().count();
+    let start = utf16_position(text, span.start);
     let length = text[span.start..span.end].encode_utf16().count();
     (
-        u32::try_from(line).expect("document line fits in LSP position"),
-        u32::try_from(start).expect("document column fits in LSP position"),
+        start.line,
+        start.character,
         u32::try_from(length).expect("token length fits in LSP position"),
+    )
+}
+
+fn utf16_position(text: &str, offset: usize) -> Position {
+    let line = text[..offset].bytes().filter(|byte| *byte == b'\n').count();
+    let line_start = text[..offset].rfind('\n').map_or(0, |index| index + 1);
+    let character = text[line_start..offset].encode_utf16().count();
+    Position::new(
+        u32::try_from(line).expect("document line fits in LSP position"),
+        u32::try_from(character).expect("document column fits in LSP position"),
     )
 }
 
@@ -213,12 +224,15 @@ fn lsp_diagnostic(source: &SourceFile, diagnostic: &TerraneDiagnostic) -> Diagno
     let range = diagnostic.primary.map_or_else(
         || Range::new(Position::new(0, 0), Position::new(0, 0)),
         |span| {
-            let (line, start, length) = utf16_range(source.text(), span);
             Range::new(
-                Position::new(line, start),
-                Position::new(line, start + length),
+                utf16_position(source.text(), span.start),
+                utf16_position(source.text(), span.end),
             )
         },
+    );
+    let message = diagnostic.help.as_ref().map_or_else(
+        || diagnostic.message.clone(),
+        |help| format!("{}\n\nhelp: {help}", diagnostic.message),
     );
     Diagnostic {
         range,
@@ -228,9 +242,16 @@ fn lsp_diagnostic(source: &SourceFile, diagnostic: &TerraneDiagnostic) -> Diagno
         }),
         code: Some(NumberOrString::String(diagnostic.code.to_owned())),
         source: Some("terrane".to_owned()),
-        message: diagnostic.message.clone(),
+        message,
         ..Default::default()
     }
+}
+
+fn source_file(uri: &Uri, text: &str) -> SourceFile {
+    let path = uri
+        .to_file_path()
+        .map_or_else(|| PathBuf::from(uri.as_str()), std::borrow::Cow::into_owned);
+    SourceFile::new(0, path, text.to_owned())
 }
 
 const fn token_type(kind: HighlightKind) -> u32 {
@@ -246,5 +267,33 @@ const fn token_type(kind: HighlightKind) -> u32 {
         HighlightKind::Parameter => 8,
         HighlightKind::Property => 9,
         HighlightKind::Variable => 10,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn diagnostics_use_utf16_positions_at_both_ends_of_multiline_spans() {
+        let source = SourceFile::new(0, "editor.trn".into(), "🙂 start\nend".to_owned());
+        let diagnostic =
+            TerraneDiagnostic::error("S0000", "multiline", Span::new(0, 0, source.text().len()));
+
+        let converted = lsp_diagnostic(&source, &diagnostic);
+
+        assert_eq!(converted.range.start, Position::new(0, 0));
+        assert_eq!(converted.range.end, Position::new(1, 3));
+    }
+
+    #[test]
+    fn diagnostics_retain_compiler_help() {
+        let source = SourceFile::new(0, "editor.trn".into(), "bad".to_owned());
+        let diagnostic = TerraneDiagnostic::error("S0000", "invalid source", Span::new(0, 0, 3))
+            .with_help("replace it");
+
+        let converted = lsp_diagnostic(&source, &diagnostic);
+
+        assert_eq!(converted.message, "invalid source\n\nhelp: replace it");
     }
 }

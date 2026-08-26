@@ -2,12 +2,12 @@
   "name": "terrane-language",
   "displayName": "Terrane Language",
   "description": "Compiler-backed language support for Terrane",
-  "version": "0.0.1",
+  "version": "0.0.3",
   "publisher": "terrane",
   "license": "UNLICENSED",
   "main": "./extension.js",
   "engines": {
-    "vscode": "^1.90.0"
+    "vscode": "^1.91.0"
   },
   "activationEvents": [
     "onLanguage:terrane"
@@ -17,7 +17,7 @@
     "check": "node --check extension.js && node --check scripts/package-server.js"
   },
   "dependencies": {
-    "vscode-languageclient": "^9.0.1"
+    "vscode-languageclient": "^10.1.0"
   },
   "categories": [
     "Programming Languages"
@@ -34,6 +34,23 @@
           ".trn"
         ],
         "configuration": "./language-configuration.json"
+      }
+    ],
+    "grammars": [
+      {
+        "language": "terrane",
+        "scopeName": "source.terrane",
+        "path": "./syntaxes/terrane.tmLanguage.json"
+      },
+      {
+        "scopeName": "markdown.terrane.codeblock",
+        "path": "./syntaxes/terrane-markdown.tmLanguage.json",
+        "injectTo": [
+          "text.html.markdown"
+        ],
+        "embeddedLanguages": {
+          "meta.embedded.block.terrane": "terrane"
+        }
       }
     ],
     "configuration": {
