@@ -68,14 +68,7 @@ fn terrane_document_field(result: &terrane_document_support::DataResult, key: St
     terrane_document_support::document_field(result, &key)
 }
 fn terrane_string_list(value: terrane_collection_support::List<String>) -> Vec<String> {
-    (0..usize::try_from(value.length()).expect("list length fits in usize"))
-        .map(|index| {
-            value
-                .get(index)
-                .cloned()
-                .expect("Terrane list length and indexed access must agree")
-        })
-        .collect()
+    value.into_iter().collect()
 }
 
 fn terrane_validate_mapping(
