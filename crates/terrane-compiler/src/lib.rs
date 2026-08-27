@@ -34,12 +34,39 @@ pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 
 #[must_use]
 pub fn platform_support_manifest() -> String {
-    let source = include_str!("../../terrane-platform-support/Cargo.toml");
-    let dependencies = source
-        .split_once("[dependencies]\n")
-        .and_then(|(_, rest)| rest.split_once("\n[dev-dependencies]"))
-        .map_or("", |(dependencies, _)| dependencies);
+    platform_support_manifest_from(include_str!("../../terrane-platform-support/Cargo.toml"))
+}
+
+fn platform_support_manifest_from(source: &str) -> String {
+    let (_, rest) = source
+        .split_once("[dependencies]")
+        .expect("platform support manifest must declare dependencies");
+    let dependencies = rest
+        .lines()
+        .skip_while(|line| line.trim().is_empty())
+        .take_while(|line| !line.trim_start().starts_with('['))
+        .collect::<Vec<_>>()
+        .join("\n");
     format!(
         "[package]\nname = \"terrane-platform-support\"\nversion = \"{VERSION}\"\nedition = \"2024\"\n\n[dependencies]\n{dependencies}\n"
     )
+}
+
+#[cfg(test)]
+mod manifest_tests {
+    use super::platform_support_manifest_from;
+
+    #[test]
+    fn dependency_extraction_stops_at_any_following_section() {
+        let with_features = "[dependencies]\nbase64 = \"0.22\"\n\n[features]\ndefault = []\n\n[dev-dependencies]\nrcgen = \"0.14\"\n";
+        let without_following_section = "[dependencies]\nbase64 = \"0.22\"\n";
+
+        let with_features = platform_support_manifest_from(with_features);
+        let without_following_section = platform_support_manifest_from(without_following_section);
+
+        assert!(with_features.contains("base64 = \"0.22\""));
+        assert!(!with_features.contains("[features]"));
+        assert!(!with_features.contains("rcgen"));
+        assert!(without_following_section.contains("base64 = \"0.22\""));
+    }
 }
