@@ -1,0 +1,229 @@
+namespace standard/networking
+
+from /core/types import int, bool, string, bytes
+from /core/collections import list
+from /core/platform-capabilities import platform-resource-handle
+from /core/platform-capabilities import parse-ip, parse-socket, tcp-bind, tcp-connect, tcp-accept
+from /core/platform-capabilities import tcp-read, tcp-write, tcp-shutdown, udp-bind, udp-send-to, udp-receive-from
+from /core/platform-capabilities import dns-lookup, close as platform-close
+from /core/platform-capabilities import result-failed, result-truncated, result-message, result-text, result-detail
+from /core/platform-capabilities import result-bytes, result-int, result-bool, result-entries, result-resource
+
+class operation-options
+    deadline-ms int = 30000
+    cancelled bool = false
+
+    function construct; deadline-ms int, cancelled bool
+        this.deadline-ms = deadline-ms
+        this.cancelled = cancelled
+
+class operation-result
+    failed bool = false
+    message string = ''
+
+    function construct; failed bool, message string
+        this.failed = failed
+        this.message = message
+
+class ip-address
+    value string = ''
+    version string = ''
+    is-loopback bool = false
+
+    function construct; text string, version string, is-loopback bool
+        this.value = text
+        this.version = version
+        this.is-loopback = is-loopback
+
+    function string string;
+        return this.value
+
+class ip-result
+    failed bool = false
+    message string = ''
+    value ip-address = ip-address; '', '', false
+
+    function construct; failed bool, message string, address ip-address
+        this.failed = failed
+        this.message = message
+        this.value = address
+
+function ip-address-from-string ip-result; text string
+    raw = parse-ip; text
+    return ip-result; (result-failed; raw), (result-message; raw), (ip-address; (result-text; raw), (result-detail; raw), (result-bool; raw))
+
+class socket-address
+    value string = ''
+    ip ip-address = ip-address; '', '', false
+    port int = 0
+
+    function construct; ip ip-address, port int
+        raw = parse-socket; ip.value, port
+        this.value = result-text; raw
+        this.ip = ip
+        this.port = port
+
+    function string string;
+        return this.value
+
+class io-result
+    failed bool = false
+    truncated bool = false
+    message string = ''
+    data bytes = b''
+    completed int = 0
+    peer string = ''
+    end bool = false
+
+    function construct; failed bool, truncated bool, message string, data bytes, completed int, peer string, end bool
+        this.failed = failed
+        this.truncated = truncated
+        this.message = message
+        this.data = data
+        this.completed = completed
+        this.peer = peer
+        this.end = end
+
+class tcp-stream
+    handle platform-resource-handle
+
+    function read io-result; limit int, options operation-options
+        raw = tcp-read; this.handle, limit, options.deadline-ms, options.cancelled
+        return io-result; (result-failed; raw), false, (result-message; raw), (result-bytes; raw), (result-int; raw), '', (result-bool; raw)
+
+    function write io-result; data bytes, options operation-options
+        raw = tcp-write; this.handle, data, options.deadline-ms, options.cancelled
+        return io-result; (result-failed; raw), false, (result-message; raw), b'', (result-int; raw), '', false
+
+    function shutdown operation-result; direction string
+        raw = tcp-shutdown; this.handle, direction
+        return operation-result; (result-failed; raw), (result-message; raw)
+
+    function close operation-result;
+        raw = platform-close; this.handle
+        return operation-result; (result-failed; raw), (result-message; raw)
+
+    function destruct;
+        platform-close; this.handle
+
+class stream-result
+    failed bool = false
+    message string = ''
+    peer string = ''
+    value tcp-stream = tcp-stream;
+
+    function construct; failed bool, message string, peer string, stream tcp-stream
+        this.failed = failed
+        this.message = message
+        this.peer = peer
+        this.value = stream
+
+function connect-tcp stream-result; address socket-address, options operation-options
+    raw = tcp-connect; address.value, options.deadline-ms, options.cancelled
+    stream = tcp-stream;
+    if not (result-failed; raw)
+        stream.handle = result-resource; raw
+    return stream-result; (result-failed; raw), (result-message; raw), '', stream
+
+class tcp-listener
+    handle platform-resource-handle
+    local-address string = ''
+
+    function accept stream-result; options operation-options
+        raw = tcp-accept; this.handle, options.deadline-ms, options.cancelled
+        stream = tcp-stream;
+        if not (result-failed; raw)
+            stream.handle = result-resource; raw
+        return stream-result; (result-failed; raw), (result-message; raw), (result-text; raw), stream
+
+    function close operation-result;
+        raw = platform-close; this.handle
+        return operation-result; (result-failed; raw), (result-message; raw)
+
+    function destruct;
+        platform-close; this.handle
+
+class listener-result
+    failed bool = false
+    message string = ''
+    value tcp-listener = tcp-listener;
+
+    function construct; failed bool, message string, listener tcp-listener
+        this.failed = failed
+        this.message = message
+        this.value = listener
+
+function bind-tcp listener-result; address socket-address
+    raw = tcp-bind; address.value
+    listener = tcp-listener;
+    if not (result-failed; raw)
+        listener.handle = result-resource; raw
+        listener.local-address = result-text; raw
+    return listener-result; (result-failed; raw), (result-message; raw), listener
+
+class udp-socket
+    handle platform-resource-handle
+    local-address string = ''
+
+    function send-to io-result; data bytes, address socket-address, options operation-options
+        raw = udp-send-to; this.handle, data, address.value, options.deadline-ms, options.cancelled
+        return io-result; (result-failed; raw), false, (result-message; raw), b'', (result-int; raw), '', false
+
+    function receive-from io-result; limit int, options operation-options
+        raw = udp-receive-from; this.handle, limit, options.deadline-ms, options.cancelled
+        return io-result; (result-failed; raw), (result-truncated; raw), (result-message; raw), (result-bytes; raw), (result-int; raw), (result-text; raw), false
+
+    function close operation-result;
+        raw = platform-close; this.handle
+        return operation-result; (result-failed; raw), (result-message; raw)
+
+    function destruct;
+        platform-close; this.handle
+
+class udp-result
+    failed bool = false
+    message string = ''
+    value udp-socket = udp-socket;
+
+    function construct; failed bool, message string, socket udp-socket
+        this.failed = failed
+        this.message = message
+        this.value = socket
+
+function bind-udp udp-result; address socket-address
+    raw = udp-bind; address.value
+    socket = udp-socket;
+    if not (result-failed; raw)
+        socket.handle = result-resource; raw
+        socket.local-address = result-text; raw
+    return udp-result; (result-failed; raw), (result-message; raw), socket
+
+class dns-result
+    failed bool = false
+    message string = ''
+    candidates list of string = list; ''
+    ttl int = 0
+    ttl-known bool = false
+
+    function construct; failed bool, message string, ttl int, ttl-known bool, candidates list of string
+        this.failed = failed
+        this.message = message
+        this.ttl = ttl
+        this.ttl-known = ttl-known
+        this.candidates = candidates
+
+class host-name
+    value string = ''
+
+    function construct; address string
+        this.value = address
+
+function lookup-dns dns-result; host host-name, port int, options operation-options
+    raw = dns-lookup; host.value, port, options.deadline-ms, options.cancelled
+    raw-candidates = result-entries; raw
+    candidates list of string = list; ''
+    index int = 0
+    while index < raw-candidates.length
+        candidates.append; raw-candidates[index]
+        index = index + 1
+    return dns-result; (result-failed; raw), (result-message; raw), (result-int; raw), false, candidates

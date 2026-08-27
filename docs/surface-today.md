@@ -122,7 +122,7 @@ Terrane package
     │   ├── filesystem-open-beneath(filesystem, directory, relative, cross-filesystem) -> directory-handle
     │   ├── open-file-beneath(filesystem, ref directory-handle, relative, …) -> file-handle
     │   ├── filesystem-exists / filesystem-metadata / filesystem-symlink-metadata
-    │   ├── filesystem-canonical / filesystem-realpath (deliberate POSIX spelling alias) / filesystem-read-link
+    │   ├── filesystem-realpath / filesystem-read-link
     │   ├── filesystem-read-bounded / filesystem-write-atomic
     │   └── filesystem-rename / filesystem-remove
     ├── /standard/process                      bundled Terrane package over minimal host intrinsics
@@ -155,6 +155,27 @@ Terrane package
     │   ├── url-query                          ordered duplicate-preserving query entries (read-only after parsing)
     │   ├── url-result                         value or failed / message result
     │   └── parse-url / parse-url-relative
+    ├── /standard/random                      bundled Terrane random, digest, and secret-value policy
+    │   ├── secure-random / pseudo-random      incompatible source types; bounded generation rejects bias
+    │   ├── secret-buffer                      opaque, best-effort-zeroised key material
+    │   ├── sha256 / sha512                    digest algorithms with HMAC and constant-time comparison
+    │   └── pseudo-bytes / secure-bytes / digest-bytes / sign-hmac
+    ├── /standard/codecs                      bundled Terrane strict codec policy
+    │   ├── encode-hex / decode-hex
+    │   └── encode-base64 / decode-base64      standard or URL-safe alphabet with explicit padding
+    ├── /standard/compression                 bundled Terrane bounded compression policy
+    │   ├── gzip / zlib / deflate-raw / zstd  explicit codecs; no auto-detection
+    │   ├── compression-options               level and deterministic-output policy
+    │   └── decompression-limits              mandatory output, ratio, nesting, and work limits
+    ├── /standard/uuid                        bundled Terrane UUID values
+    │   └── parse-uuid / random-uuid / time-uuid strict parsing plus v4 and v7 generation
+    ├── /standard/networking                  bundled Terrane sockets and name-resolution policy
+    │   ├── ip-address / socket-address / host-name
+    │   ├── tcp-stream / tcp-listener / udp-socket
+    │   ├── parse-address / connect-tcp / bind-tcp / bind-udp
+    │   └── resolve-host                      ordered DNS candidates with explicit failure results
+    ├── /standard/tls                         bundled Terrane TLS policy over linear network resources
+    │   └── connect-tls                       validated TLS 1.3/1.2 client connection
     ├── namespace                              hierarchical object container
     │   ├── variable                           namespace-local value
     │   ├── constant                           namespace-local or program-global value

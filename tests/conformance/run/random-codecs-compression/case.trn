@@ -1,0 +1,38 @@
+namespace app
+
+from /core/output import print
+from /core/encodings import utf8
+from /standard/random import pseudo-random, pseudo-bytes, secret-buffer, sha256, digest-bytes, sign-hmac, digest-equals
+from /standard/codecs import encode-hex, decode-hex, encode-base64, decode-base64
+from /standard/compression import gzip, compression-options, decompression-limits
+from /standard/uuid import parse-uuid
+
+function main;
+    first = pseudo-random; b'seed'
+    second = pseudo-random; b'seed'
+    hash = sha256;
+    gzip-codec = gzip;
+    left = pseudo-bytes; first, 32
+    right = pseudo-bytes; second, 32
+    print; left.value == right.value
+    digest = digest-bytes; hash, b'abc'
+    print; (encode-hex; digest.value)
+    key = secret-buffer; b'key'
+    mac = sign-hmac; hash, key, b'data'
+    print; (digest-equals; mac, mac)
+    print; (encode-base64; b'hello', false, true)
+    print; (encode-base64; b'hello?', true, false)
+    strict = decode-base64; 'aGVsbG8=', false, true
+    print; (strict.value.decode; utf8)
+    malformed = decode-hex; 'abc'
+    print; malformed.failed
+    options = compression-options; 6, true
+    packed = gzip-codec.compress; b'compress me', options
+    limits = decompression-limits; 1024, 100, 1, 4096
+    unpacked = gzip-codec.decompress; packed.value, limits
+    print; (unpacked.value.decode; utf8)
+    bomb-limits = decompression-limits; 4, 2, 1, 8
+    refused = gzip-codec.decompress; packed.value, bomb-limits
+    print; refused.resource-limit
+    parsed = parse-uuid; '01890f3e-7b4d-7cc0-98c8-77e22c318a14'
+    print; parsed.value.string

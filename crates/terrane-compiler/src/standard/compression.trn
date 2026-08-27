@@ -1,0 +1,65 @@
+namespace standard/compression
+
+from /core/types import int, bool, string, bytes
+from /core/platform-capabilities import compress as platform-compress, decompress as platform-decompress
+from /core/platform-capabilities import result-failed, result-resource-limit, result-message, result-bytes
+
+class compression-options
+    level int = 6
+    deterministic bool = true
+
+    function construct; level int, deterministic bool
+        this.level = level
+        this.deterministic = deterministic
+
+class decompression-limits
+    max-output int = 16777216
+    max-ratio int = 100
+    max-nesting int = 1
+    max-work int = 67108864
+
+    function construct; max-output int, max-ratio int, max-nesting int, max-work int
+        this.max-output = max-output
+        this.max-ratio = max-ratio
+        this.max-nesting = max-nesting
+        this.max-work = max-work
+
+class compression-result
+    failed bool = false
+    resource-limit bool = false
+    message string = ''
+    value bytes = b''
+
+    function construct; failed bool, resource-limit bool, message string, data bytes
+        this.failed = failed
+        this.resource-limit = resource-limit
+        this.message = message
+        this.value = data
+
+class compression-codec
+    format string = ''
+
+    function construct; format string
+        this.format = format
+
+    function compress compression-result; data bytes, options compression-options
+        format = this.format
+        raw = platform-compress; format, data, options.level, options.deterministic
+        return compression-result; (result-failed; raw), (result-resource-limit; raw), (result-message; raw), (result-bytes; raw)
+
+    function decompress compression-result; data bytes, limits decompression-limits
+        format = this.format
+        raw = platform-decompress; format, data, limits.max-output, limits.max-ratio, limits.max-nesting, limits.max-work
+        return compression-result; (result-failed; raw), (result-resource-limit; raw), (result-message; raw), (result-bytes; raw)
+
+function gzip compression-codec;
+    return compression-codec; 'gzip'
+
+function zlib compression-codec;
+    return compression-codec; 'zlib'
+
+function deflate-raw compression-codec;
+    return compression-codec; 'deflate-raw'
+
+function zstd compression-codec;
+    return compression-codec; 'zstd'

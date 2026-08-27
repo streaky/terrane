@@ -1453,6 +1453,16 @@ Deliver:
 
 Exit criterion: a pseudo-random source cannot satisfy a secure-random parameter; a decompression bomb is refused with a distinct resource-limit error rather than truncated success.
 
+Implemented on `randomness-networking-tls`. Import-driven bundled Terrane packages retain the
+public random-source, secret-buffer, digest, codec, UUID, and compression policy until application
+lowering. One generated support crate supplies only operating-system entropy, opaque resource
+storage, constant-time/zeroising primitives, and audited codec/compression implementations.
+Accepted execution covers deterministic pseudo-random splitting, SHA-256 and HMAC, strict codec
+round trips, UUID parsing, deterministic gzip, bounded decompression, and distinct limit refusal.
+Rejected cases prove that pseudo-random values cannot satisfy secure-random parameters and that
+the private host intrinsic namespace cannot be imported directly.
+
+
 ### Milestone 24 — Networking and TLS
 
 Written in Terrane over the minimal Rust core, per delivery principle 9. Each layer implemented in Rust states which of the four justifications applies; everything above it is Terrane.
@@ -1467,6 +1477,15 @@ Deliver:
 - TLS over the shared stream protocol, defaulting to TLS 1.3 with supported 1.2, performing chain and hostname validation, with any insecure connector requiring a separately imported unsafe capability and remaining visibly typed as insecure.
 
 Exit criterion: a loopback client and server exchange data under a deadline; certificate validation cannot be disabled through an ordinary option; a truncated datagram is reported rather than silently shortened.
+
+Implemented on `randomness-networking-tls`. Bundled Terrane packages own parsed address values,
+operation options and structured results, while the generated host support owns only DNS and
+socket/TLS resources crossing the OS and audited-protocol boundaries. TCP, UDP, DNS, and TLS
+operations carry explicit deadline/cancellation inputs; UDP receive results preserve truncation.
+The TLS client uses platform roots, validates both certificate chains and host names, negotiates
+TLS 1.3 or supported TLS 1.2, and exposes no ordinary option for disabling validation. Host-boundary
+tests exercise deadline-bounded loopback TCP exchange, UDP truncation, DNS ordering, and validation
+failure; accepted Terrane cases exercise address parsing and resource-producing factories.
 
 ### Milestone 25 — Structured logging
 

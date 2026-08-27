@@ -1,0 +1,4 @@
+2001:db8::1
+ipv6
+true
+operation cancelled

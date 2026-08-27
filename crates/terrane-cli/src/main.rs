@@ -354,6 +354,7 @@ fn generated_crate_path(
         include_bytes!("../../terrane-scalar-support/src/lib.rs").as_slice(),
         include_bytes!("../../terrane-string-support/src/lib.rs").as_slice(),
         include_bytes!("../../terrane-stream-abi/src/lib.rs").as_slice(),
+        include_bytes!("../../terrane-platform-support/src/lib.rs").as_slice(),
     ] {
         hash.update(support);
         hash.update(b"\0");
@@ -412,7 +413,8 @@ fn write_generated_crate(
                     terrane-scalar-support = { path = \"support/terrane-scalar-support\" }\n\
                     terrane-string-support = { path = \"support/terrane-string-support\" }\n\
                     terrane-document-support = { path = \"support/terrane-document-support\" }\n\
-                    terrane-stream-abi = { path = \"support/terrane-stream-abi\" }\n\n[workspace]\n";
+                    terrane-stream-abi = { path = \"support/terrane-stream-abi\" }\n\
+                    terrane-platform-support = { path = \"support/terrane-platform-support\" }\n\n[workspace]\n";
     write_if_changed(&directory.join("Cargo.toml"), manifest.as_bytes()).map_err(|error| {
         CliFailure::backend(format!("cannot write generated manifest: {error}"))
     })?;
@@ -451,12 +453,14 @@ fn write_generated_support(directory: &Path) -> std::io::Result<()> {
     let string = directory.join("support/terrane-string-support");
     let document = directory.join("support/terrane-document-support");
     let stream = directory.join("support/terrane-stream-abi");
+    let platform = directory.join("support/terrane-platform-support");
     fs::create_dir_all(int.join("src"))?;
     fs::create_dir_all(collection.join("src"))?;
     fs::create_dir_all(scalar.join("src"))?;
     fs::create_dir_all(string.join("src"))?;
     fs::create_dir_all(document.join("src"))?;
     fs::create_dir_all(stream.join("src"))?;
+    fs::create_dir_all(platform.join("src"))?;
     write_if_changed(
         &int.join("Cargo.toml"),
         b"[package]\nname = \"terrane-int-support\"\nversion = \"0.1.0\"\nedition = \"2024\"\n\n[dependencies]\nnum-bigint = { version = \"0.4\", features = [\"std\"] }\nnum-integer = \"0.1\"\nnum-traits = \"0.2\"\n",
@@ -504,6 +508,14 @@ fn write_generated_support(directory: &Path) -> std::io::Result<()> {
     write_if_changed(
         &stream.join("src/lib.rs"),
         include_bytes!("../../terrane-stream-abi/src/lib.rs"),
+    )?;
+    write_if_changed(
+        &platform.join("Cargo.toml"),
+        b"[package]\nname = \"terrane-platform-support\"\nversion = \"0.1.0\"\nedition = \"2024\"\n\n[dependencies]\nbase64 = \"0.22\"\nflate2 = \"1\"\ngetrandom = \"0.3\"\nhmac = \"0.12\"\nrand_chacha = \"0.3\"\nrand_core = \"0.6\"\nrustls = { version = \"0.23\", default-features = false, features = [\"aws_lc_rs\", \"std\", \"tls12\"] }\nsha2 = \"0.10\"\nsubtle = \"2\"\nuuid = { version = \"1\", features = [\"v4\", \"v7\"] }\nwebpki-roots = \"1\"\nzeroize = \"1\"\nzstd = \"0.13\"\n",
+    )?;
+    write_if_changed(
+        &platform.join("src/lib.rs"),
+        include_bytes!("../../terrane-platform-support/src/lib.rs"),
     )
 }
 

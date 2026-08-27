@@ -245,7 +245,7 @@ fn main() {
     let schema_entries: terrane_collection_support::List<String> = terrane_collection_support::List::<
         String,
     >::new(vec![String::from("flag:--verbose"), String::from("value:--output")]);
-    let schema: CliSchema = CliSchema::terrane_construct(schema_entries);
+    let schema: CliSchema = CliSchema::terrane_construct(schema_entries.clone());
     let supplied: terrane_collection_support::List<PlatformString> = terrane_collection_support::List::<
         PlatformString,
     >::new(

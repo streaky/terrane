@@ -1,0 +1,6 @@
+namespace app
+
+from /core/platform-capabilities import secure-random
+
+function main;
+    secure-random;

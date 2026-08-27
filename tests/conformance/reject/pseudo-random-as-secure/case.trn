@@ -1,0 +1,11 @@
+namespace app
+
+from /standard/random import secure-random, pseudo-random
+from /standard/uuid import random-uuid
+
+function require-secure; source secure-random
+    random-uuid; source
+
+function main;
+    source = pseudo-random; b'test'
+    require-secure; source
