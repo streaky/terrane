@@ -4227,7 +4227,7 @@ impl Emitter<'_> {
                 .map(|(index, value)| {
                     let integer_argument = matches!(
                         (function, index),
-                        ("json_parse", 2 | 3)
+                        ("json_parse", 1 | 2)
                             | ("yaml_parse", 1..=3)
                             | (
                                 "document_item"

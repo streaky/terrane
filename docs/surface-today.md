@@ -146,7 +146,7 @@ Terrane package
     │   └── decode-json / encode-json
     ├── /standard/yaml                         bundled Terrane policy and document integration
     │   ├── yaml-options / default-yaml-options / make-yaml-options
-    │   │                                       depth, byte, and alias-expanded-node limits
+    │   │                                       depth (capped at 255), byte, and alias-expanded-node limits
     │   ├── parse-yaml                         JSON-shaped safe scalars; tags and duplicate keys rejected
     │   ├── stringify-yaml                     emits canonical JSON, a valid YAML 1.2 document
     │   └── decode-yaml / encode-yaml

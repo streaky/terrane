@@ -18,7 +18,7 @@ function default-json-options json-options;
     return json-options; 256, 16777216
 
 function parse-json document-result; input string, options json-options
-    raw = platform-parse; input, true, options.max-depth, options.max-bytes
+    raw = platform-parse; input, options.max-depth, options.max-bytes
     return make-document-result; raw
 
 function stringify-json document-result; value document-value, options json-options

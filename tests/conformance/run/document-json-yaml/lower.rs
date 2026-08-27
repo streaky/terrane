@@ -137,7 +137,7 @@ fn terrane_index(value: &terrane_int_support::Int) -> Option<usize> {
     value.as_usize()
 }
 fn terrane_empty_document() -> terrane_document_support::DataResult {
-    terrane_document_support::parse_json("null", true, 0, 4)
+    terrane_document_support::parse_json("null", 0, 4)
 }
 fn terrane_make_document_none() -> terrane_document_support::DataResult {
     terrane_document_support::document_none()
@@ -266,13 +266,11 @@ fn terrane_validate_mapping(
 }
 fn terrane_json_parse(
     input: String,
-    reject_duplicates: bool,
     max_depth: terrane_int_support::Int,
     max_bytes: terrane_int_support::Int,
 ) -> terrane_document_support::DataResult {
     terrane_document_support::parse_json(
         &input,
-        reject_duplicates,
         terrane_limit(&max_depth),
         terrane_limit(&max_bytes),
     )
@@ -640,6 +638,19 @@ fn main() {
         "{}{}", terrane_scalar_support::scalar_text(&yaml_depth.failed),
         terrane_scalar_support::scalar_text(&yaml_depth.message
         .contains(&String::from("depth limit")))
+    );
+    let excessive_yaml_depth: DocumentResult = parse_yaml(
+        String::from("[]"),
+        make_yaml_options(
+            terrane_int_support::Int::from(256_i128),
+            terrane_int_support::Int::from(1024_i128),
+            terrane_int_support::Int::from(65536_i128),
+        ),
+    );
+    println!(
+        "{}{}", terrane_scalar_support::scalar_text(&excessive_yaml_depth.failed),
+        terrane_scalar_support::scalar_text(&excessive_yaml_depth.message
+        .contains(&String::from("cannot exceed 255")))
     );
 }
 // Source: standard/documents.trn
@@ -1301,7 +1312,6 @@ pub fn default_json_options() -> JsonOptions {
 pub fn parse_json(input: String, options: JsonOptions) -> DocumentResult {
     let raw: terrane_document_support::DataResult = terrane_json_parse(
         input,
-        true,
         options.max_depth.clone(),
         options.max_bytes.clone(),
     );

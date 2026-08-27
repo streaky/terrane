@@ -1428,10 +1428,13 @@ policy, and URL/query objects are bundled Terrane sources selected by imports an
 until application lowering. Rust owns opaque parser/URL result ABIs, externally reviewed scanners
 and WHATWG URL machinery, and the YAML event-stream policy that must reject tags, duplicate keys,
 excessive depth, and excessive alias-expanded nodes before materialization. Each boundary module
-records its delivery-principle justification. Accepted conformance covers exact and kind-stable
-JSON/YAML numbers, unconditional duplicate-key rejection, deterministic JCS key ordering with exact
-number serialization, serializing and deserializing descriptor interfaces, document paths and
-unknown fields, JSON/YAML depth and size limits, YAML alias-node limits and safe scalar behavior,
+records its delivery-principle justification. JSON refuses requested depth above 512 and YAML
+refuses requested depth above `yaml-rust2`'s reachable limit of 255, so both report Terrane resource
+diagnostics instead of leaking parser-library limits. Accepted conformance covers exact and
+kind-stable JSON/YAML numbers, unconditional duplicate-key rejection, deterministic JCS key
+ordering with exact number serialization, serializing and deserializing descriptor interfaces,
+document paths and unknown fields, JSON/YAML depth and size limits, YAML alias-node limits and safe
+scalar behavior,
 URL credential-safe display, duplicate ordered query entries, relative resolution, and generated-
 Rust compilation and execution with warnings denied. A rejection case keeps host intrinsics private.
 

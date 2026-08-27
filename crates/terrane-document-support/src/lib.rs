@@ -14,6 +14,7 @@ use yaml_rust2::scanner::{Marker, TScalarStyle};
 
 const DESCRIPTOR_DEFAULT_DEPTH: usize = 256;
 const MAXIMUM_JSON_DEPTH: usize = 512;
+const MAXIMUM_YAML_DEPTH: usize = 255;
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Document {
     None,
@@ -172,12 +173,7 @@ fn classify_number(value: &str) -> Result<Document, String> {
 }
 
 #[must_use]
-pub fn parse_json(
-    input: &str,
-    _reject_duplicates: bool,
-    max_depth: usize,
-    max_bytes: usize,
-) -> DataResult {
+pub fn parse_json(input: &str, max_depth: usize, max_bytes: usize) -> DataResult {
     if max_depth > MAXIMUM_JSON_DEPTH {
         return DataResult::failure(
             format!("JSON depth limit cannot exceed {MAXIMUM_JSON_DEPTH}"),
@@ -199,9 +195,6 @@ pub fn parse_json(
         Ok(value) => value,
         Err(error) => return DataResult::failure(error.to_string(), "$", "JSON value"),
     };
-    if let Err(error) = deserializer.end() {
-        return DataResult::failure(error.to_string(), "$", "JSON value");
-    }
     DataResult::success(value)
 }
 
@@ -212,6 +205,13 @@ pub fn parse_yaml(
     max_bytes: usize,
     max_alias_nodes: usize,
 ) -> DataResult {
+    if max_depth > MAXIMUM_YAML_DEPTH {
+        return DataResult::failure(
+            format!("YAML depth limit cannot exceed {MAXIMUM_YAML_DEPTH}"),
+            "$",
+            "bounded YAML document",
+        );
+    }
     if input.len() > max_bytes {
         return DataResult::failure("document exceeds byte limit", "$", "bounded YAML document");
     }
@@ -558,7 +558,7 @@ fn normalize_number(value: &str) -> Result<String, String> {
 fn parse_default(input: &str) -> Option<Document> {
     // Descriptor defaults are compiler-authored schema data, not caller documents. Keep their
     // independent bound explicit so changing a parser option cannot make schema defaults unsafe.
-    parse_json(input, true, DESCRIPTOR_DEFAULT_DEPTH, input.len())
+    parse_json(input, DESCRIPTOR_DEFAULT_DEPTH, input.len())
         .value()
         .cloned()
 }

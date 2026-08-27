@@ -118,3 +118,5 @@ function main;
     print; bomb.failed, (bomb.message.contains; 'alias node limit')
     yaml-depth = parse-yaml; 'a: [[[[]]]]', (make-yaml-options; 2, 1024, 65536)
     print; yaml-depth.failed, (yaml-depth.message.contains; 'depth limit')
+    excessive-yaml-depth = parse-yaml; '[]', (make-yaml-options; 256, 1024, 65536)
+    print; excessive-yaml-depth.failed, (excessive-yaml-depth.message.contains; 'cannot exceed 255')

@@ -7,7 +7,7 @@ fn terrane_index(value: &terrane_int_support::Int) -> Option<usize> {
     value.as_usize()
 }
 fn terrane_empty_document() -> terrane_document_support::DataResult {
-    terrane_document_support::parse_json("null", true, 0, 4)
+    terrane_document_support::parse_json("null", 0, 4)
 }
 fn terrane_make_document_none() -> terrane_document_support::DataResult {
     terrane_document_support::document_none()
