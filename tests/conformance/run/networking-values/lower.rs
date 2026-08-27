@@ -391,19 +391,26 @@ fn main() {
 #[derive(Clone)]
 pub struct OperationResult {
     pub failed: bool,
+    pub deadline_exceeded: bool,
     pub message: String,
 }
 impl OperationResult {
-    pub fn terrane_construct(failed: bool, message: String) -> Self {
+    pub fn terrane_construct(
+        failed: bool,
+        deadline_exceeded: bool,
+        message: String,
+    ) -> Self {
         let mut value = Self {
             failed: false,
+            deadline_exceeded: false,
             message: String::from(""),
         };
-        value.construct(failed, message);
+        value.construct(failed, deadline_exceeded, message);
         value
     }
-    pub fn construct(&mut self, failed: bool, message: String) {
+    pub fn construct(&mut self, failed: bool, deadline_exceeded: bool, message: String) {
         self.failed = failed;
+        self.deadline_exceeded = deadline_exceeded;
         self.message = message;
     }
 }
@@ -422,6 +429,7 @@ pub fn cancel_operation(cancellation: CancellationToken) -> OperationResult {
     let raw: TerranePlatformResult = terrane_platform_cancel(&cancellation.handle);
     return OperationResult::terrane_construct(
         terrane_platform_result_failed(&raw),
+        terrane_platform_result_deadline_exceeded(&raw),
         terrane_platform_result_message(&raw),
     );
 }
@@ -499,19 +507,19 @@ pub struct IpAddress {
     pub is_loopback: bool,
 }
 impl IpAddress {
-    pub fn terrane_construct(text: String, version: String, is_loopback: bool) -> Self {
+    pub fn terrane_construct(raw: TerranePlatformResult) -> Self {
         let mut value = Self {
             value: String::from(""),
             version: String::from(""),
             is_loopback: false,
         };
-        value.construct(text, version, is_loopback);
+        value.construct(raw);
         value
     }
-    pub fn construct(&mut self, text: String, version: String, is_loopback: bool) {
-        self.value = text;
-        self.version = version;
-        self.is_loopback = is_loopback;
+    pub fn construct(&mut self, raw: TerranePlatformResult) {
+        self.value = terrane_platform_result_text(&raw);
+        self.version = terrane_platform_result_detail(&raw);
+        self.is_loopback = terrane_platform_result_bool(&raw);
     }
     pub fn string(&self) -> String {
         return self.value.clone();
@@ -529,9 +537,7 @@ impl IpResult {
             failed: false,
             message: String::from(""),
             value: IpAddress::terrane_construct(
-                String::from(""),
-                String::from(""),
-                false,
+                terrane_platform_parse_ip(String::from("")),
             ),
         };
         value.construct(failed, message, address);
@@ -545,14 +551,12 @@ impl IpResult {
 }
 pub fn ip_address_from_string(text: String) -> IpResult {
     let raw: TerranePlatformResult = terrane_platform_parse_ip(text);
+    let failed: bool = terrane_platform_result_failed(&raw);
+    let message: String = terrane_platform_result_message(&raw);
     return IpResult::terrane_construct(
-        terrane_platform_result_failed(&raw),
-        terrane_platform_result_message(&raw),
-        IpAddress::terrane_construct(
-            terrane_platform_result_text(&raw),
-            terrane_platform_result_detail(&raw),
-            terrane_platform_result_bool(&raw),
-        ),
+        failed,
+        message,
+        IpAddress::terrane_construct(raw),
     );
 }
 #[derive(Clone)]
@@ -562,12 +566,30 @@ pub struct SocketAddress {
     pub port: terrane_int_support::Int,
 }
 impl SocketAddress {
-    pub fn terrane_construct() -> Self {
-        Self {
+    pub fn terrane_construct(
+        raw: TerranePlatformResult,
+        address_ip: IpAddress,
+        address_port: terrane_int_support::Int,
+    ) -> Self {
+        let mut value = Self {
             value: String::from(""),
-            ip: IpAddress::terrane_construct(String::from(""), String::from(""), false),
+            ip: IpAddress::terrane_construct(
+                terrane_platform_parse_ip(String::from("")),
+            ),
             port: terrane_int_support::Int::from(0_i128),
-        }
+        };
+        value.construct(raw, address_ip, address_port);
+        value
+    }
+    pub fn construct(
+        &mut self,
+        raw: TerranePlatformResult,
+        address_ip: IpAddress,
+        address_port: terrane_int_support::Int,
+    ) {
+        self.value = terrane_platform_result_text(&raw);
+        self.ip = address_ip.clone();
+        self.port = address_port.clone();
     }
     pub fn string(&self) -> String {
         return self.value.clone();
@@ -588,7 +610,13 @@ impl SocketResult {
         let mut value = Self {
             failed: false,
             message: String::from(""),
-            value: SocketAddress::terrane_construct(),
+            value: SocketAddress::terrane_construct(
+                terrane_platform_parse_ip(String::from("")),
+                IpAddress::terrane_construct(
+                    terrane_platform_parse_ip(String::from("")),
+                ),
+                terrane_int_support::Int::from(0_i128),
+            ),
         };
         value.construct(failed, message, address);
         value
@@ -604,17 +632,14 @@ pub fn socket_address_from_ip(
     port: terrane_int_support::Int,
 ) -> SocketResult {
     let raw: TerranePlatformResult = terrane_platform_parse_socket(&ip.value, &port);
-    let mut address: SocketAddress = SocketAddress::terrane_construct();
-    if !terrane_platform_result_failed(&raw) {
-        address.value = terrane_platform_result_text(&raw);
-        address.ip = ip.clone();
-        address.port = port.clone();
-    }
-    return SocketResult::terrane_construct(
-        terrane_platform_result_failed(&raw),
-        terrane_platform_result_message(&raw),
-        address.clone(),
+    let failed: bool = terrane_platform_result_failed(&raw);
+    let message: String = terrane_platform_result_message(&raw);
+    let address: SocketAddress = SocketAddress::terrane_construct(
+        raw,
+        ip.clone(),
+        port.clone(),
     );
+    return SocketResult::terrane_construct(failed, message, address.clone());
 }
 #[derive(Clone)]
 pub struct IoResult {
@@ -686,8 +711,13 @@ pub struct TcpStream {
     pub handle: TerranePlatformCapability,
 }
 impl TcpStream {
-    pub fn terrane_construct() -> Self {
-        Self { handle: Default::default() }
+    pub fn terrane_construct(resource: TerranePlatformCapability) -> Self {
+        let mut value = Self { handle: Default::default() };
+        value.construct(resource);
+        value
+    }
+    pub fn construct(&mut self, resource: TerranePlatformCapability) {
+        self.handle = resource;
     }
     pub fn read(
         &self,
@@ -737,6 +767,7 @@ impl TcpStream {
         );
         return OperationResult::terrane_construct(
             terrane_platform_result_failed(&raw),
+            terrane_platform_result_deadline_exceeded(&raw),
             terrane_platform_result_message(&raw),
         );
     }
@@ -747,6 +778,7 @@ impl TcpStream {
         );
         return OperationResult::terrane_construct(
             terrane_platform_result_failed(&raw),
+            terrane_platform_result_deadline_exceeded(&raw),
             terrane_platform_result_message(&raw),
         );
     }
@@ -754,6 +786,7 @@ impl TcpStream {
         let raw: TerranePlatformResult = terrane_platform_close(&self.handle);
         return OperationResult::terrane_construct(
             terrane_platform_result_failed(&raw),
+            terrane_platform_result_deadline_exceeded(&raw),
             terrane_platform_result_message(&raw),
         );
     }
@@ -768,6 +801,7 @@ impl Drop for TcpStream {
 }
 pub struct StreamResult {
     pub failed: bool,
+    pub deadline_exceeded: bool,
     pub message: String,
     pub peer: String,
     pub value: TcpStream,
@@ -775,27 +809,35 @@ pub struct StreamResult {
 impl StreamResult {
     pub fn terrane_construct(
         failed: bool,
+        deadline_exceeded: bool,
         message: String,
         peer: String,
         stream: TcpStream,
     ) -> Self {
         let mut value = Self {
             failed: false,
+            deadline_exceeded: false,
             message: String::from(""),
             peer: String::from(""),
-            value: TcpStream::terrane_construct(),
+            value: TcpStream::terrane_construct(
+                terrane_platform_result_capability(
+                    &terrane_platform_parse_ip(String::from("")),
+                ),
+            ),
         };
-        value.construct(failed, message, peer, stream);
+        value.construct(failed, deadline_exceeded, message, peer, stream);
         value
     }
     pub fn construct(
         &mut self,
         failed: bool,
+        deadline_exceeded: bool,
         message: String,
         peer: String,
         stream: TcpStream,
     ) {
         self.failed = failed;
+        self.deadline_exceeded = deadline_exceeded;
         self.message = message;
         self.peer = peer;
         self.value = stream;
@@ -807,12 +849,12 @@ pub fn connect_tcp(address: SocketAddress, options: OperationOptions) -> StreamR
         options.deadline_ms,
         &options.cancellation.handle,
     );
-    let mut stream: TcpStream = TcpStream::terrane_construct();
-    if !terrane_platform_result_failed(&raw) {
-        stream.handle = terrane_platform_result_capability(&raw);
-    }
+    let stream: TcpStream = TcpStream::terrane_construct(
+        terrane_platform_result_capability(&raw),
+    );
     return StreamResult::terrane_construct(
         terrane_platform_result_failed(&raw),
+        terrane_platform_result_deadline_exceeded(&raw),
         terrane_platform_result_message(&raw),
         String::from(""),
         stream,
@@ -829,12 +871,12 @@ pub fn connect_host(
         options.deadline_ms,
         &options.cancellation.handle,
     );
-    let mut stream: TcpStream = TcpStream::terrane_construct();
-    if !terrane_platform_result_failed(&raw) {
-        stream.handle = terrane_platform_result_capability(&raw);
-    }
+    let stream: TcpStream = TcpStream::terrane_construct(
+        terrane_platform_result_capability(&raw),
+    );
     return StreamResult::terrane_construct(
         terrane_platform_result_failed(&raw),
+        terrane_platform_result_deadline_exceeded(&raw),
         terrane_platform_result_message(&raw),
         terrane_platform_result_text(&raw),
         stream,
@@ -845,11 +887,16 @@ pub struct TcpListener {
     pub local_address: String,
 }
 impl TcpListener {
-    pub fn terrane_construct() -> Self {
-        Self {
+    pub fn terrane_construct(resource: TerranePlatformCapability) -> Self {
+        let mut value = Self {
             handle: Default::default(),
             local_address: String::from(""),
-        }
+        };
+        value.construct(resource);
+        value
+    }
+    pub fn construct(&mut self, resource: TerranePlatformCapability) {
+        self.handle = resource;
     }
     pub fn accept(&self, options: OperationOptions) -> StreamResult {
         let raw: TerranePlatformResult = terrane_platform_tcp_accept(
@@ -857,12 +904,12 @@ impl TcpListener {
             options.deadline_ms,
             &options.cancellation.handle,
         );
-        let mut stream: TcpStream = TcpStream::terrane_construct();
-        if !terrane_platform_result_failed(&raw) {
-            stream.handle = terrane_platform_result_capability(&raw);
-        }
+        let stream: TcpStream = TcpStream::terrane_construct(
+            terrane_platform_result_capability(&raw),
+        );
         return StreamResult::terrane_construct(
             terrane_platform_result_failed(&raw),
+            terrane_platform_result_deadline_exceeded(&raw),
             terrane_platform_result_message(&raw),
             terrane_platform_result_text(&raw),
             stream,
@@ -872,6 +919,7 @@ impl TcpListener {
         let raw: TerranePlatformResult = terrane_platform_close(&self.handle);
         return OperationResult::terrane_construct(
             terrane_platform_result_failed(&raw),
+            terrane_platform_result_deadline_exceeded(&raw),
             terrane_platform_result_message(&raw),
         );
     }
@@ -886,38 +934,54 @@ impl Drop for TcpListener {
 }
 pub struct ListenerResult {
     pub failed: bool,
+    pub deadline_exceeded: bool,
     pub message: String,
     pub value: TcpListener,
 }
 impl ListenerResult {
     pub fn terrane_construct(
         failed: bool,
+        deadline_exceeded: bool,
         message: String,
         listener: TcpListener,
     ) -> Self {
         let mut value = Self {
             failed: false,
+            deadline_exceeded: false,
             message: String::from(""),
-            value: TcpListener::terrane_construct(),
+            value: TcpListener::terrane_construct(
+                terrane_platform_result_capability(
+                    &terrane_platform_parse_ip(String::from("")),
+                ),
+            ),
         };
-        value.construct(failed, message, listener);
+        value.construct(failed, deadline_exceeded, message, listener);
         value
     }
-    pub fn construct(&mut self, failed: bool, message: String, listener: TcpListener) {
+    pub fn construct(
+        &mut self,
+        failed: bool,
+        deadline_exceeded: bool,
+        message: String,
+        listener: TcpListener,
+    ) {
         self.failed = failed;
+        self.deadline_exceeded = deadline_exceeded;
         self.message = message;
         self.value = listener;
     }
 }
 pub fn bind_tcp(address: SocketAddress) -> ListenerResult {
     let raw: TerranePlatformResult = terrane_platform_tcp_bind(address.value);
-    let mut listener: TcpListener = TcpListener::terrane_construct();
+    let mut listener: TcpListener = TcpListener::terrane_construct(
+        terrane_platform_result_capability(&raw),
+    );
     if !terrane_platform_result_failed(&raw) {
-        listener.handle = terrane_platform_result_capability(&raw);
         listener.local_address = terrane_platform_result_text(&raw);
     }
     return ListenerResult::terrane_construct(
         terrane_platform_result_failed(&raw),
+        terrane_platform_result_deadline_exceeded(&raw),
         terrane_platform_result_message(&raw),
         listener,
     );
@@ -927,11 +991,16 @@ pub struct UdpSocket {
     pub local_address: String,
 }
 impl UdpSocket {
-    pub fn terrane_construct() -> Self {
-        Self {
+    pub fn terrane_construct(resource: TerranePlatformCapability) -> Self {
+        let mut value = Self {
             handle: Default::default(),
             local_address: String::from(""),
-        }
+        };
+        value.construct(resource);
+        value
+    }
+    pub fn construct(&mut self, resource: TerranePlatformCapability) {
+        self.handle = resource;
     }
     pub fn send_to(
         &self,
@@ -987,6 +1056,7 @@ impl UdpSocket {
         );
         return OperationResult::terrane_construct(
             terrane_platform_result_failed(&raw),
+            terrane_platform_result_deadline_exceeded(&raw),
             terrane_platform_result_message(&raw),
         );
     }
@@ -994,6 +1064,7 @@ impl UdpSocket {
         let raw: TerranePlatformResult = terrane_platform_close(&self.handle);
         return OperationResult::terrane_construct(
             terrane_platform_result_failed(&raw),
+            terrane_platform_result_deadline_exceeded(&raw),
             terrane_platform_result_message(&raw),
         );
     }
@@ -1008,34 +1079,54 @@ impl Drop for UdpSocket {
 }
 pub struct UdpResult {
     pub failed: bool,
+    pub deadline_exceeded: bool,
     pub message: String,
     pub value: UdpSocket,
 }
 impl UdpResult {
-    pub fn terrane_construct(failed: bool, message: String, socket: UdpSocket) -> Self {
+    pub fn terrane_construct(
+        failed: bool,
+        deadline_exceeded: bool,
+        message: String,
+        socket: UdpSocket,
+    ) -> Self {
         let mut value = Self {
             failed: false,
+            deadline_exceeded: false,
             message: String::from(""),
-            value: UdpSocket::terrane_construct(),
+            value: UdpSocket::terrane_construct(
+                terrane_platform_result_capability(
+                    &terrane_platform_parse_ip(String::from("")),
+                ),
+            ),
         };
-        value.construct(failed, message, socket);
+        value.construct(failed, deadline_exceeded, message, socket);
         value
     }
-    pub fn construct(&mut self, failed: bool, message: String, socket: UdpSocket) {
+    pub fn construct(
+        &mut self,
+        failed: bool,
+        deadline_exceeded: bool,
+        message: String,
+        socket: UdpSocket,
+    ) {
         self.failed = failed;
+        self.deadline_exceeded = deadline_exceeded;
         self.message = message;
         self.value = socket;
     }
 }
 pub fn bind_udp(address: SocketAddress) -> UdpResult {
     let raw: TerranePlatformResult = terrane_platform_udp_bind(address.value);
-    let mut socket: UdpSocket = UdpSocket::terrane_construct();
+    let mut socket: UdpSocket = UdpSocket::terrane_construct(
+        terrane_platform_result_capability(&raw),
+    );
     if !terrane_platform_result_failed(&raw) {
-        socket.handle = terrane_platform_result_capability(&raw);
         socket.local_address = terrane_platform_result_text(&raw);
     }
     return UdpResult::terrane_construct(
         terrane_platform_result_failed(&raw),
+        terrane_platform_result_deadline_exceeded(&raw),
         terrane_platform_result_message(&raw),
         socket,
     );
@@ -1043,6 +1134,7 @@ pub fn bind_udp(address: SocketAddress) -> UdpResult {
 #[derive(Clone)]
 pub struct DnsResult {
     pub failed: bool,
+    pub deadline_exceeded: bool,
     pub message: String,
     pub candidates: terrane_collection_support::List<String>,
     pub ttl: terrane_int_support::Int,
@@ -1051,6 +1143,7 @@ pub struct DnsResult {
 impl DnsResult {
     pub fn terrane_construct(
         failed: bool,
+        deadline_exceeded: bool,
         message: String,
         ttl: terrane_int_support::Int,
         ttl_known: bool,
@@ -1058,6 +1151,7 @@ impl DnsResult {
     ) -> Self {
         let mut value = Self {
             failed: false,
+            deadline_exceeded: false,
             message: String::from(""),
             candidates: terrane_collection_support::List::<
                 String,
@@ -1065,18 +1159,20 @@ impl DnsResult {
             ttl: terrane_int_support::Int::from(0_i128),
             ttl_known: false,
         };
-        value.construct(failed, message, ttl, ttl_known, candidates);
+        value.construct(failed, deadline_exceeded, message, ttl, ttl_known, candidates);
         value
     }
     pub fn construct(
         &mut self,
         failed: bool,
+        deadline_exceeded: bool,
         message: String,
         ttl: terrane_int_support::Int,
         ttl_known: bool,
         candidates: terrane_collection_support::List<String>,
     ) {
         self.failed = failed;
+        self.deadline_exceeded = deadline_exceeded;
         self.message = message;
         self.ttl = ttl.clone();
         self.ttl_known = ttl_known;
@@ -1088,8 +1184,13 @@ pub struct HostName {
     pub value: String,
 }
 impl HostName {
-    pub fn terrane_construct() -> Self {
-        Self { value: String::from("") }
+    pub fn terrane_construct(raw: TerranePlatformResult) -> Self {
+        let mut value = Self { value: String::from("") };
+        value.construct(raw);
+        value
+    }
+    pub fn construct(&mut self, raw: TerranePlatformResult) {
+        self.value = terrane_platform_result_text(&raw);
     }
 }
 #[derive(Clone)]
@@ -1103,7 +1204,9 @@ impl HostNameResult {
         let mut value = Self {
             failed: false,
             message: String::from(""),
-            value: HostName::terrane_construct(),
+            value: HostName::terrane_construct(
+                terrane_platform_parse_host_name(String::from("")),
+            ),
         };
         value.construct(failed, message, host);
         value
@@ -1116,15 +1219,10 @@ impl HostNameResult {
 }
 pub fn parse_host_name(text: String) -> HostNameResult {
     let raw: TerranePlatformResult = terrane_platform_parse_host_name(text);
-    let mut host: HostName = HostName::terrane_construct();
-    if !terrane_platform_result_failed(&raw) {
-        host.value = terrane_platform_result_text(&raw);
-    }
-    return HostNameResult::terrane_construct(
-        terrane_platform_result_failed(&raw),
-        terrane_platform_result_message(&raw),
-        host.clone(),
-    );
+    let failed: bool = terrane_platform_result_failed(&raw);
+    let message: String = terrane_platform_result_message(&raw);
+    let host: HostName = HostName::terrane_construct(raw);
+    return HostNameResult::terrane_construct(failed, message, host.clone());
 }
 pub fn lookup_dns(
     host: HostName,
@@ -1151,7 +1249,7 @@ pub fn lookup_dns(
                             .unwrap_or_else(|error| __terrane_uncaught(
                                 TerraneError::from(error)
                                     .at(
-                                        "/standard/networking::lookup-dns (networking.trn:298:28)",
+                                        "/standard/networking::lookup-dns (networking.trn:317:28)",
                                     ),
                             )),
                     )
@@ -1161,14 +1259,14 @@ pub fn lookup_dns(
                             .unwrap_or_else(|error| __terrane_uncaught(
                                 TerraneError::from(error)
                                     .at(
-                                        "/standard/networking::lookup-dns (networking.trn:298:28)",
+                                        "/standard/networking::lookup-dns (networking.trn:317:28)",
                                     ),
                             )),
                     })
                     .unwrap_or_else(|error| __terrane_uncaught(
                         TerraneError::from(error)
                             .at(
-                                "/standard/networking::lookup-dns (networking.trn:298:28)",
+                                "/standard/networking::lookup-dns (networking.trn:317:28)",
                             ),
                     )),
             );
@@ -1176,6 +1274,7 @@ pub fn lookup_dns(
     }
     return DnsResult::terrane_construct(
         terrane_platform_result_failed(&raw),
+        terrane_platform_result_deadline_exceeded(&raw),
         terrane_platform_result_message(&raw),
         terrane_platform_result_int(&raw),
         terrane_platform_result_bool(&raw),

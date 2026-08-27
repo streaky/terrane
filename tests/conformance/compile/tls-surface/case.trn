@@ -2,8 +2,5 @@ namespace app
 
 from /standard/tls import tls-stream
 
-function consume; value tls-stream
-
 function main;
-    stream = tls-stream;
-    consume; stream
+    return

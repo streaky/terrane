@@ -540,7 +540,7 @@ fn write_generated_support(directory: &Path, uses_platform_support: bool) -> std
     if let Some(platform) = platform {
         write_if_changed(
             &platform.join("Cargo.toml"),
-            b"[package]\nname = \"terrane-platform-support\"\nversion = \"0.1.0\"\nedition = \"2024\"\n\n[dependencies]\nbase64 = \"0.22\"\nflate2 = \"1\"\ngetrandom = \"0.3\"\nhickory-resolver = \"0.25\"\nhmac = \"0.12\"\nrand_chacha = \"0.3\"\nrand_core = \"0.6\"\nrustls = { version = \"0.23\", default-features = false, features = [\"aws_lc_rs\", \"std\", \"tls12\"] }\nsha2 = \"0.10\"\nsubtle = \"2\"\ntokio = { version = \"1\", features = [\"rt-multi-thread\", \"time\"] }\nuuid = { version = \"1\", features = [\"v4\", \"v7\"] }\nwebpki-roots = \"1\"\nzeroize = \"1\"\nzstd = \"0.13\"\n",
+            b"[package]\nname = \"terrane-platform-support\"\nversion = \"0.1.0\"\nedition = \"2024\"\n\n[dependencies]\nbase64 = \"0.22\"\nflate2 = \"1\"\ngetrandom = \"0.3\"\nhickory-resolver = \"0.25\"\nidna = \"1\"\nhmac = \"0.12\"\nrand_chacha = \"0.9\"\nrand_core = \"0.9\"\nrustls = { version = \"0.23\", default-features = false, features = [\"aws_lc_rs\", \"std\", \"tls12\"] }\nsha2 = \"0.10\"\nsubtle = \"2\"\ntokio = { version = \"1\", features = [\"net\", \"rt-multi-thread\", \"time\"] }\nuuid = \"1\"\nwebpki-roots = \"1\"\nzeroize = \"1\"\nzstd = \"0.13\"\n",
         )?;
         write_if_changed(
             &platform.join("src/lib.rs"),

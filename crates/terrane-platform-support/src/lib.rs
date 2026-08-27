@@ -22,7 +22,7 @@ use sha2::Digest as _;
 use std::io::{Read, Write as _};
 use std::net::{IpAddr, Shutdown, SocketAddr, TcpListener, TcpStream, UdpSocket};
 use std::sync::{
-    Arc, Mutex,
+    Arc, LazyLock, Mutex,
     atomic::{AtomicBool, Ordering},
 };
 use std::time::Duration;
@@ -63,6 +63,11 @@ impl ResultValue {
     }
 }
 
+struct SecretState {
+    bytes: Zeroizing<Vec<u8>>,
+    destroyed: bool,
+}
+
 #[derive(Clone)]
 pub struct Capability(Arc<CapabilityInner>);
 
@@ -70,7 +75,7 @@ enum CapabilityInner {
     Secure,
     Invalid(String),
     Pseudo(Mutex<rand_chacha::ChaCha20Rng>),
-    Secret(Mutex<Zeroizing<Vec<u8>>>),
+    Secret(Mutex<SecretState>),
     Cancellation(AtomicBool),
     Listener(Mutex<Option<TcpListener>>),
     Tcp(Mutex<Option<TcpStream>>),
@@ -141,16 +146,19 @@ pub fn pseudo_random(algorithm: &str, seed: &[u8]) -> Capability {
 }
 
 pub fn secret_buffer(data: Vec<u8>) -> Capability {
-    Capability(Arc::new(CapabilityInner::Secret(Mutex::new(
-        Zeroizing::new(data),
-    ))))
+    Capability(Arc::new(CapabilityInner::Secret(Mutex::new(SecretState {
+        bytes: Zeroizing::new(data),
+        destroyed: false,
+    }))))
 }
 
 pub fn destroy_secret(secret: &Capability) -> ResultValue {
     let CapabilityInner::Secret(secret) = secret.0.as_ref() else {
         return ResultValue::error("capability is not a secret buffer");
     };
-    secret.lock().expect("secret lock poisoned").clear();
+    let mut secret = secret.lock().expect("secret lock poisoned");
+    secret.bytes.clear();
+    secret.destroyed = true;
     ResultValue::default()
 }
 
@@ -244,18 +252,18 @@ pub fn hmac(algorithm: &str, key: &Capability, data: &[u8]) -> ResultValue {
         return ResultValue::error("HMAC key is not a secret buffer");
     };
     let secret = secret.lock().expect("secret lock poisoned");
-    if secret.is_empty() {
+    if secret.destroyed {
         return ResultValue::error("secret buffer was destroyed");
     }
     let output = match algorithm {
         "sha-256" => {
-            let mut mac = hmac::Hmac::<sha2::Sha256>::new_from_slice(secret.as_slice())
+            let mut mac = hmac::Hmac::<sha2::Sha256>::new_from_slice(secret.bytes.as_slice())
                 .expect("HMAC accepts every key length");
             mac.update(data);
             mac.finalize().into_bytes().to_vec()
         }
         "sha-512" => {
-            let mut mac = hmac::Hmac::<sha2::Sha512>::new_from_slice(secret.as_slice())
+            let mut mac = hmac::Hmac::<sha2::Sha512>::new_from_slice(secret.bytes.as_slice())
                 .expect("HMAC accepts every key length");
             mac.update(data);
             mac.finalize().into_bytes().to_vec()
@@ -444,46 +452,29 @@ pub fn decompress(
         Ok(value) => value,
         Err(error) => return error,
     };
-    let Ok(nesting_limit) = usize::try_from(nesting_limit) else {
-        return ResultValue::limit("decompression nesting limit must be positive");
-    };
-    if ratio_limit <= 0 || nesting_limit == 0 {
+    if ratio_limit <= 0 || nesting_limit <= 0 {
         return ResultValue::limit("decompression ratio and nesting limits must be positive");
     }
-    let mut current = input.to_vec();
-    let mut current_format = format;
-    let mut work = input.len();
-    for depth in 0..nesting_limit {
-        if work > work_limit {
-            return ResultValue::limit("decompression work-byte limit exceeded");
-        }
-        let maximum = output_limit
-            .min(work_limit.saturating_sub(work))
-            .saturating_add(1);
-        let data = match decompress_one(current_format, &current, maximum, output_limit) {
-            Ok(value) => value,
-            Err(error) => return error,
-        };
-        work = work.saturating_add(data.len());
-        if data.len() > output_limit || work > work_limit {
-            return ResultValue::limit("decompression output or work-byte limit exceeded");
-        }
-        if !current.is_empty() && data.len() as u128 > current.len() as u128 * ratio_limit as u128 {
-            return ResultValue::limit("decompression ratio limit exceeded");
-        }
-        let Some(next_format) = compressed_format(&data) else {
-            return ResultValue {
-                data,
-                ..ResultValue::default()
-            };
-        };
-        if depth + 1 == nesting_limit {
-            return ResultValue::limit("decompression nesting limit exceeded");
-        }
-        current = data;
-        current_format = next_format;
+    if input.len() > work_limit {
+        return ResultValue::limit("decompression work-byte limit exceeded");
     }
-    ResultValue::limit("decompression nesting limit exceeded")
+    let maximum = output_limit
+        .min(work_limit.saturating_sub(input.len()))
+        .saturating_add(1);
+    let data = match decompress_one(format, input, maximum, output_limit) {
+        Ok(value) => value,
+        Err(error) => return error,
+    };
+    if data.len() > output_limit || input.len().saturating_add(data.len()) > work_limit {
+        return ResultValue::limit("decompression output or work-byte limit exceeded");
+    }
+    if !input.is_empty() && data.len() as u128 > input.len() as u128 * ratio_limit as u128 {
+        return ResultValue::limit("decompression ratio limit exceeded");
+    }
+    ResultValue {
+        data,
+        ..ResultValue::default()
+    }
 }
 
 fn decompress_one(
@@ -524,19 +515,6 @@ fn decompress_one(
     Ok(data)
 }
 
-fn compressed_format(data: &[u8]) -> Option<&'static str> {
-    if data.starts_with(&[0x1f, 0x8b]) {
-        Some("gzip")
-    } else if data.starts_with(&[0x28, 0xb5, 0x2f, 0xfd]) {
-        Some("zstd")
-    } else if data.len() >= 2 && data[0] == 0x78 && u16::from_be_bytes([data[0], data[1]]) % 31 == 0
-    {
-        Some("zlib")
-    } else {
-        None
-    }
-}
-
 pub fn parse_ip(text: &str) -> ResultValue {
     match text.parse::<IpAddr>() {
         Ok(ip) => ResultValue {
@@ -549,10 +527,16 @@ pub fn parse_ip(text: &str) -> ResultValue {
     }
 }
 pub fn parse_host_name(text: &str) -> ResultValue {
-    if text.is_empty() || text.len() > 253 || !text.is_ascii() {
-        return ResultValue::error("host name must contain 1..=253 ASCII bytes");
+    let ascii = match idna::domain_to_ascii(text) {
+        Ok(value) => value,
+        Err(error) => return ResultValue::error(format!("invalid host name: {error}")),
+    };
+    if ascii.is_empty() || ascii.len() > 253 {
+        return ResultValue::error(
+            "host name must contain 1..=253 ASCII bytes after UTS-46 processing",
+        );
     }
-    let valid = text.split('.').all(|label| {
+    let valid = ascii.split('.').all(|label| {
         !label.is_empty()
             && label.len() <= 63
             && !label.starts_with('-')
@@ -565,7 +549,7 @@ pub fn parse_host_name(text: &str) -> ResultValue {
         return ResultValue::error("invalid host name");
     }
     ResultValue {
-        text: text.to_ascii_lowercase(),
+        text: ascii.to_ascii_lowercase(),
         ..ResultValue::default()
     }
 }
@@ -590,6 +574,30 @@ fn timeout(milliseconds: i128) -> Result<Duration, ResultValue> {
         .filter(|value| *value > 0)
         .ok_or_else(|| ResultValue::error("deadline must be positive milliseconds"))?;
     Ok(Duration::from_millis(value))
+}
+
+fn network_runtime() -> Result<&'static tokio::runtime::Runtime, ResultValue> {
+    static RUNTIME: LazyLock<Result<tokio::runtime::Runtime, String>> = LazyLock::new(|| {
+        tokio::runtime::Builder::new_multi_thread()
+            .enable_all()
+            .build()
+            .map_err(|error| format!("cannot start network runtime: {error}"))
+    });
+    RUNTIME
+        .as_ref()
+        .map_err(|error| ResultValue::error(error.clone()))
+}
+
+fn dns_resolver() -> Result<&'static hickory_resolver::TokioResolver, ResultValue> {
+    static RESOLVER: LazyLock<Result<hickory_resolver::TokioResolver, String>> =
+        LazyLock::new(|| {
+            hickory_resolver::TokioResolver::builder_tokio()
+                .map(hickory_resolver::ResolverBuilder::build)
+                .map_err(|error| format!("cannot configure DNS resolver: {error}"))
+        });
+    RESOLVER
+        .as_ref()
+        .map_err(|error| ResultValue::error(error.clone()))
 }
 
 fn io_error(operation: &str, error: &std::io::Error) -> ResultValue {
@@ -679,8 +687,7 @@ pub fn tcp_connect_host(
     let candidates = resolved
         .entries
         .iter()
-        .filter_map(|entry| entry.parse::<IpAddr>().ok())
-        .map(|ip| SocketAddr::new(ip, port))
+        .filter_map(|entry| entry.parse::<SocketAddr>().ok())
         .collect::<Vec<_>>();
     if candidates.is_empty() {
         return ResultValue::error("DNS lookup returned no usable addresses");
@@ -694,53 +701,70 @@ pub fn tcp_connect_host(
             ..ResultValue::default()
         };
     }
-    let (sender, receiver) = std::sync::mpsc::channel();
-    for (index, address) in candidates.into_iter().enumerate() {
-        let sender = sender.clone();
-        std::thread::spawn(move || {
-            let delay = Duration::from_millis((index as u64).saturating_mul(250));
-            if delay >= remaining {
-                return;
-            }
-            std::thread::sleep(delay);
-            if let Ok(stream) =
-                TcpStream::connect_timeout(&address, remaining.checked_sub(delay).unwrap())
-            {
-                let _ = sender.send((stream, address));
-            }
-        });
-    }
-    drop(sender);
-    let poll = Duration::from_millis(25);
-    loop {
-        if let Some(error) = cancellation_error(cancellation) {
-            return error;
+    let runtime = match network_runtime() {
+        Ok(value) => value,
+        Err(error) => return error,
+    };
+    let outcome = runtime.block_on(async {
+        let mut tasks = tokio::task::JoinSet::new();
+        for (index, address) in candidates.into_iter().enumerate() {
+            tasks.spawn(async move {
+                tokio::time::sleep(Duration::from_millis(
+                    (index as u64).saturating_mul(250),
+                ))
+                .await;
+                tokio::net::TcpStream::connect(address)
+                    .await
+                    .ok()
+                    .map(|stream| (stream, address))
+            });
         }
-        let elapsed = started.elapsed();
-        if elapsed >= duration {
-            return ResultValue {
+        let race = async {
+            loop {
+                tokio::select! {
+                    joined = tasks.join_next() => match joined {
+                        Some(Ok(Some(value))) => break Ok(value),
+                        Some(Ok(None) | Err(_)) => {}
+                        None => break Err(ResultValue::error("all TCP connection candidates failed")),
+                    },
+                    () = tokio::time::sleep(Duration::from_millis(10)) => {
+                        if is_cancelled(cancellation).unwrap_or(true) {
+                            break Err(ResultValue::error("operation cancelled"));
+                        }
+                    }
+                }
+            }
+        };
+        let result = match tokio::time::timeout(remaining, race).await {
+            Ok(value) => value,
+            Err(_) => Err(ResultValue {
                 failed: true,
                 deadline_exceeded: true,
                 message: "TCP connect deadline exceeded".to_owned(),
                 ..ResultValue::default()
-            };
-        }
-        let remaining = duration.checked_sub(elapsed).unwrap();
-        match receiver.recv_timeout(poll.min(remaining)) {
-            Ok((stream, peer)) => {
-                return ResultValue {
-                    text: peer.to_string(),
-                    capability: Some(Capability(Arc::new(CapabilityInner::Tcp(Mutex::new(
-                        Some(stream),
-                    ))))),
-                    ..ResultValue::default()
-                };
-            }
-            Err(std::sync::mpsc::RecvTimeoutError::Timeout) => {}
-            Err(std::sync::mpsc::RecvTimeoutError::Disconnected) => {
-                return ResultValue::error("all TCP connection candidates failed");
-            }
-        }
+            }),
+        };
+        tasks.abort_all();
+        while tasks.join_next().await.is_some() {}
+        result
+    });
+    let (stream, peer) = match outcome {
+        Ok(value) => value,
+        Err(error) => return error,
+    };
+    let stream = match stream.into_std() {
+        Ok(value) => value,
+        Err(error) => return io_error("TCP connect", &error),
+    };
+    if let Err(error) = stream.set_nonblocking(false) {
+        return io_error("TCP connect configuration", &error);
+    }
+    ResultValue {
+        text: peer.to_string(),
+        capability: Some(Capability(Arc::new(CapabilityInner::Tcp(Mutex::new(
+            Some(stream),
+        ))))),
+        ..ResultValue::default()
     }
 }
 pub fn tcp_accept(
@@ -758,47 +782,69 @@ pub fn tcp_accept(
         Ok(value) => value,
         Err(error) => return error,
     };
-    let guard = listener.lock().expect("listener lock poisoned");
-    let Some(listener) = guard.as_ref() else {
-        return ResultValue::error("listener is closed");
+    let listener = {
+        let guard = listener.lock().expect("listener lock poisoned");
+        let Some(listener) = guard.as_ref() else {
+            return ResultValue::error("listener is closed");
+        };
+        match listener.try_clone() {
+            Ok(value) => value,
+            Err(error) => return io_error("TCP listener clone", &error),
+        }
     };
     if let Err(error) = listener.set_nonblocking(true) {
-        return ResultValue::error(error.to_string());
+        return io_error("TCP accept configuration", &error);
     }
-    let started = std::time::Instant::now();
-    loop {
-        if let Some(error) = cancellation_error(cancellation) {
-            let _ = listener.set_nonblocking(false);
-            return error;
-        }
-        match listener.accept() {
-            Ok((stream, peer)) => {
-                let _ = listener.set_nonblocking(false);
-                if let Err(error) = stream.set_read_timeout(Some(duration)) {
-                    return io_error("TCP read timeout configuration", &error);
+    let runtime = match network_runtime() {
+        Ok(value) => value,
+        Err(error) => return error,
+    };
+    let enter = runtime.enter();
+    let listener = match tokio::net::TcpListener::from_std(listener) {
+        Ok(value) => value,
+        Err(error) => return io_error("TCP accept configuration", &error),
+    };
+    drop(enter);
+    let accepted = runtime.block_on(async {
+        let cancellation_wait = async {
+            loop {
+                if is_cancelled(cancellation).unwrap_or(true) {
+                    break;
                 }
-                if let Err(error) = stream.set_write_timeout(Some(duration)) {
-                    return io_error("TCP write timeout configuration", &error);
-                }
-                return ResultValue {
-                    text: peer.to_string(),
-                    capability: Some(Capability(Arc::new(CapabilityInner::Tcp(Mutex::new(
-                        Some(stream),
-                    ))))),
-                    ..ResultValue::default()
-                };
+                tokio::time::sleep(Duration::from_millis(10)).await;
             }
-            Err(error)
-                if error.kind() == std::io::ErrorKind::WouldBlock
-                    && started.elapsed() < duration =>
-            {
-                std::thread::sleep(Duration::from_millis(10))
-            }
-            Err(error) => {
-                let _ = listener.set_nonblocking(false);
-                return io_error("TCP accept", &error);
-            }
+        };
+        tokio::select! {
+            result = tokio::time::timeout(duration, listener.accept()) => Some(result),
+            () = cancellation_wait => None,
         }
+    });
+    let (stream, peer) = match accepted {
+        None => return ResultValue::error("operation cancelled"),
+        Some(Err(_)) => {
+            return ResultValue {
+                failed: true,
+                deadline_exceeded: true,
+                message: "TCP accept deadline exceeded".to_owned(),
+                ..ResultValue::default()
+            };
+        }
+        Some(Ok(Err(error))) => return io_error("TCP accept", &error),
+        Some(Ok(Ok(value))) => value,
+    };
+    let stream = match stream.into_std() {
+        Ok(value) => value,
+        Err(error) => return io_error("TCP accept", &error),
+    };
+    if let Err(error) = stream.set_nonblocking(false) {
+        return io_error("TCP accept configuration", &error);
+    }
+    ResultValue {
+        text: peer.to_string(),
+        capability: Some(Capability(Arc::new(CapabilityInner::Tcp(Mutex::new(
+            Some(stream),
+        ))))),
+        ..ResultValue::default()
     }
 }
 pub fn tcp_read(
@@ -1042,16 +1088,13 @@ pub fn dns_lookup(
     let Ok(port) = u16::try_from(port) else {
         return ResultValue::error("port must be in 0..=65535");
     };
-    let runtime = match tokio::runtime::Builder::new_multi_thread()
-        .enable_all()
-        .build()
-    {
+    let runtime = match network_runtime() {
         Ok(value) => value,
-        Err(error) => return ResultValue::error(format!("cannot start DNS resolver: {error}")),
+        Err(error) => return error,
     };
-    let resolver = match hickory_resolver::Resolver::builder_tokio() {
-        Ok(builder) => builder.build(),
-        Err(error) => return ResultValue::error(format!("cannot configure DNS resolver: {error}")),
+    let resolver = match dns_resolver() {
+        Ok(value) => value,
+        Err(error) => return error,
     };
     let lookup = runtime.block_on(async {
         let cancellation_wait = async {
@@ -1135,12 +1178,20 @@ pub fn tls_client(
     };
     let mut tls = rustls::StreamOwned::new(connection, tcp);
     match tls.flush() {
-        Ok(()) => ResultValue {
-            capability: Some(Capability(Arc::new(CapabilityInner::Tls(Mutex::new(
-                Some(tls),
-            ))))),
-            ..ResultValue::default()
-        },
+        Ok(()) => {
+            let version = match tls.conn.protocol_version() {
+                Some(rustls::ProtocolVersion::TLSv1_3) => "TLS 1.3",
+                Some(rustls::ProtocolVersion::TLSv1_2) => "TLS 1.2",
+                Some(_) | None => "unknown",
+            };
+            ResultValue {
+                text: version.to_owned(),
+                capability: Some(Capability(Arc::new(CapabilityInner::Tls(Mutex::new(
+                    Some(tls),
+                ))))),
+                ..ResultValue::default()
+            }
+        }
         Err(error) => io_error("TLS handshake", &error),
     }
 }
@@ -1312,5 +1363,58 @@ mod tests {
         assert!(parse_host_name("-invalid.example").failed);
         assert!(parse_host_name("invalid-.example").failed);
         assert!(parse_host_name("contains space.example").failed);
+    }
+
+    #[test]
+    fn connect_host_races_resolved_loopback_candidates() {
+        let listener = tcp_bind("127.0.0.1:0");
+        assert!(!listener.failed);
+        let port = listener.text.parse::<SocketAddr>().unwrap().port();
+        let cancellation = cancellation_token();
+        let client = tcp_connect_host("localhost", i128::from(port), 1_000, &cancellation);
+        assert!(!client.failed, "{}", client.message);
+        let server = tcp_accept(listener.capability.as_ref().unwrap(), 1_000, &cancellation);
+        assert!(!server.failed, "{}", server.message);
+    }
+
+    #[test]
+    fn explicitly_selected_decompression_returns_nested_payload_intact() {
+        let inner = compress("gzip", b"inner document", 6, true);
+        assert!(!inner.failed);
+        let outer = compress("gzip", &inner.data, 6, true);
+        assert!(!outer.failed);
+        let unpacked = decompress("gzip", &outer.data, 4096, 100, 1, 8192);
+        assert!(!unpacked.failed, "{}", unpacked.message);
+        assert_eq!(unpacked.data, inner.data);
+    }
+
+    #[test]
+    fn empty_secret_remains_a_valid_hmac_key_until_destroyed() {
+        let key = secret_buffer(Vec::new());
+        assert!(!hmac("sha-256", &key, b"data").failed);
+        assert!(!destroy_secret(&key).failed);
+        let destroyed = hmac("sha-256", &key, b"data");
+        assert!(destroyed.failed);
+        assert_eq!(destroyed.message, "secret buffer was destroyed");
+    }
+
+    #[test]
+    fn host_names_apply_uts46_consistently() {
+        let host = parse_host_name("bücher.example");
+        assert!(!host.failed, "{}", host.message);
+        assert_eq!(host.text, "xn--bcher-kva.example");
+    }
+
+    #[test]
+    fn accept_reports_an_expired_deadline_structurally() {
+        let listener = tcp_bind("127.0.0.1:0");
+        assert!(!listener.failed);
+        let result = tcp_accept(
+            listener.capability.as_ref().unwrap(),
+            1,
+            &cancellation_token(),
+        );
+        assert!(result.failed);
+        assert!(result.deadline_exceeded);
     }
 }

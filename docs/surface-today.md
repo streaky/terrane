@@ -122,7 +122,7 @@ Terrane package
     │   ├── filesystem-open-beneath(filesystem, directory, relative, cross-filesystem) -> directory-handle
     │   ├── open-file-beneath(filesystem, ref directory-handle, relative, …) -> file-handle
     │   ├── filesystem-exists / filesystem-metadata / filesystem-symlink-metadata
-    │   ├── filesystem-realpath / filesystem-read-link
+    │   ├── filesystem-canonical / filesystem-realpath / filesystem-read-link
     │   ├── filesystem-read-bounded / filesystem-write-atomic
     │   └── filesystem-rename / filesystem-remove
     ├── /standard/process                      bundled Terrane package over minimal host intrinsics
