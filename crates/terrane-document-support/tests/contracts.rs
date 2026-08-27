@@ -18,6 +18,13 @@ fn json_preserves_exact_numbers_and_rejects_duplicates() {
     let duplicate = parse_json("{\"key\":1,\"key\":2}", true, 32, 1024);
     assert!(duplicate.failed);
     assert!(duplicate.message.contains("duplicate key"));
+    let duplicate_with_legacy_flag_disabled = parse_json("{\"key\":1,\"key\":2}", false, 32, 1024);
+    assert!(duplicate_with_legacy_flag_disabled.failed);
+    assert!(
+        duplicate_with_legacy_flag_disabled
+            .message
+            .contains("duplicate key")
+    );
 }
 
 #[test]
@@ -38,6 +45,21 @@ fn canonical_numbers_are_valid_and_value_equivalent() {
     let overflow = parse_json("{\"n\":1e999999999999999999999}", true, 32, 1024);
     assert!(overflow.failed);
     assert!(overflow.message.contains("exponent"));
+    let integer = parse_json("123456789012345678901234567890", true, 32, 1024);
+    assert_eq!(terrane_document_support::document_kind(&integer), "integer");
+    let reparsed = parse_json(&integer.encoded, true, 32, 1024);
+    assert_eq!(
+        terrane_document_support::document_kind(&reparsed),
+        "integer"
+    );
+    let integral_exponent = parse_json("1e2", true, 32, 1024);
+    assert_eq!(
+        terrane_document_support::document_kind(&integral_exponent),
+        "integer"
+    );
+    let unsafe_depth = parse_json("[]", true, 513, 1024);
+    assert!(unsafe_depth.failed);
+    assert!(unsafe_depth.message.contains("cannot exceed"));
 }
 
 #[test]
@@ -102,13 +124,20 @@ fn yaml_preserves_exact_scalars_and_enforces_limits_before_expansion() {
         20,
     );
     assert!(aliases.failed);
-    assert!(aliases.message.contains("alias expansion limit"));
+    assert!(aliases.message.contains("alias node limit"));
     let tagged = parse_yaml("value: !execute command", 32, 1024, 1);
     assert!(tagged.failed);
     assert!(tagged.message.contains("tags are disabled"));
     let depth = parse_yaml("a: [[[[]]]]", 2, 1024, 64);
     assert!(depth.failed);
     assert!(depth.message.contains("depth limit"));
+    let ordinary_reuse = parse_yaml(
+        "shared: &s {a: 1, b: 2, c: 3, d: 4, e: 5}\nx: *s\ny: *s\nz: *s\nq: *s\nr: *s\ns: *s\nt: *s\nu: *s\nv: *s\nw: *s\nxx: *s\nyy: *s",
+        32,
+        4096,
+        65_536,
+    );
+    assert!(!ordinary_reuse.failed, "{}", ordinary_reuse.message);
 }
 
 #[test]

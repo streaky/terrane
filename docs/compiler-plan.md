@@ -1409,8 +1409,11 @@ Written in Terrane over the minimal Rust core, per delivery principle 9. Each la
 Deliver:
 
 - the shared document-value model with exact `document-integer` and `document-decimal`, never routed through `float`;
-- JSON parse, write, and canonical output per RFC 8785 ordering, with duplicate keys rejected by default;
-- YAML restricted to a safe core schema with no executable tags and enforced depth, size, and alias-expansion limits;
+- JSON parse and write with JCS UTF-16 key ordering and escaping, exact duplicate-key rejection,
+  and ECMAScript-shaped exact number serialization; exact document numbers deliberately retain
+  precision rather than applying RFC 8785's binary64 rounding;
+- YAML restricted to a JSON-shaped safe scalar subset with no executable tags and enforced depth,
+  size, and alias-expanded-node limits; its safe writer emits JSON, which is valid YAML 1.2;
 - descriptor-driven `serializable` and `deserializable` mapping with field names, optional and default fields, unknown-field policy, and full data-path diagnostics;
 - parsed `url` values following the pinned WHATWG standard with UTS #46 processing, ordered query entries, and credentials never displayed by default.
 - adversarial-key handling for document maps: the core collection contract uses a deterministic
@@ -1420,14 +1423,17 @@ Deliver:
 Exit criterion: a decode failure reports its document path and expected descriptor; canonical output is byte-identical across runs; a YAML alias bomb is refused by limit.
 
 Status: implemented on the `document-json-yaml-urls` branch. The shared exact document model,
-descriptor mappings, JSON/YAML policy, and URL/query objects are bundled Terrane sources selected
-by imports and remain Terrane until application lowering. Rust is confined to the ABI boundary for
-opaque parser/URL results and to the large, externally reviewed parser and WHATWG URL state
-machines; each boundary module records that justification. Accepted conformance covers exact JSON
-numbers, duplicate-key rejection, deterministic canonical ordering, descriptor paths and unknown
-fields, YAML alias limits, URL credential-safe display, duplicate ordered query entries, relative
-resolution, and generated-Rust compilation and execution with warnings denied. A rejection case
-keeps the host scanner intrinsics private.
+`serializable` / `deserializable` mappings, live exact integer and decimal constructors, JSON/YAML
+policy, and URL/query objects are bundled Terrane sources selected by imports and remain Terrane
+until application lowering. Rust owns opaque parser/URL result ABIs, externally reviewed scanners
+and WHATWG URL machinery, and the YAML event-stream policy that must reject tags, duplicate keys,
+excessive depth, and excessive alias-expanded nodes before materialization. Each boundary module
+records its delivery-principle justification. Accepted conformance covers exact and kind-stable
+JSON/YAML numbers, unconditional duplicate-key rejection, deterministic JCS key ordering with exact
+number serialization, serializing and deserializing descriptor interfaces, document paths and
+unknown fields, JSON/YAML depth and size limits, YAML alias-node limits and safe scalar behavior,
+URL credential-safe display, duplicate ordered query entries, relative resolution, and generated-
+Rust compilation and execution with warnings denied. A rejection case keeps host intrinsics private.
 
 ### Milestone 23 — Randomness, codecs, digests, and compression
 

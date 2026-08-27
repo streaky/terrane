@@ -8,7 +8,7 @@ from /standard/documents import make-document-none, make-document-string, make-d
 from /standard/documents import make-document-list, make-document-map, append-document-map-entry
 from /core/collections import list
 from /standard/json import json-options, default-json-options, parse-json, stringify-json, canonical-json, encode-json, decode-json
-from /standard/yaml import make-yaml-options, parse-yaml, stringify-yaml, encode-yaml
+from /standard/yaml import make-yaml-options, parse-yaml, stringify-yaml, encode-yaml, decode-yaml
 
 class note implements serializable
     text string = ''
@@ -45,6 +45,8 @@ function main;
     second = list-document.item; 1
     nested = second.value.field; 'nested'
     print; (list-document.length;), (list-document.key; 0), first.value.scalar, nested.value.scalar
+    negative-item = list-document.item; -1
+    print; negative-item.failed
 
     duplicate = parse-json; '{"key":1,"key":2}', options
     print; duplicate.failed, (duplicate.message.contains; 'duplicate key')
@@ -91,14 +93,16 @@ function main;
     duplicate-entries = append-document-map-entry; duplicate-entries, 'same', (make-document-string; 'first')
     duplicate-entries = append-document-map-entry; duplicate-entries, 'same', (make-document-string; 'second')
     duplicate-map = make-document-map; duplicate-entries
-    invalid-exact = make-document-integer; '1e2'
-    print; duplicate-map.failed, duplicate-map.path, invalid-exact.failed
+    canonical-integer = make-document-integer; '1.2345678901234567890123456789e+29'
+    print; duplicate-map.failed, duplicate-map.path, canonical-integer.failed
     decoded-through-interface = decode-json; '{"name":"Ada"}', mapping, options
     print; decoded-through-interface.failed
 
-    negative-limits = json-options; true, false, -1, -1
+    negative-limits = json-options; -1, -1
     limited = parse-json; '{}', negative-limits
     print; limited.failed, (limited.message.contains; 'byte limit')
+    excessive-depth = parse-json; '[]', (json-options; 1000000, 1024)
+    print; excessive-depth.failed, (excessive-depth.message.contains; 'cannot exceed')
 
     yaml-limits = make-yaml-options; 32, 2048, 20
     yaml-value = parse-yaml; 'integer: 123456789012345678901234567890\ndecimal: 3.141592653589793238462643383279', yaml-limits
@@ -106,7 +110,11 @@ function main;
     yaml-decimal = yaml-value.value.field; 'decimal'
     print; yaml-value.failed, yaml-integer.value.integer.text
     print; yaml-decimal.value.decimal.coefficient, yaml-decimal.value.decimal.exponent
+    yaml-decoded = decode-yaml; 'name: Ada', mapping, (make-yaml-options; 32, 1024, 65536)
+    print; yaml-decoded.failed
     ordinary-star = parse-yaml; 'glob: "a * b * c"', (make-yaml-options; 32, 1024, 0)
     print; ordinary-star.failed
     bomb = parse-yaml; 'leaf: &leaf [1, 2, 3, 4]\na: &a [*leaf, *leaf, *leaf, *leaf]\nb: [*a, *a, *a, *a]', yaml-limits
-    print; bomb.failed, (bomb.message.contains; 'alias expansion limit')
+    print; bomb.failed, (bomb.message.contains; 'alias node limit')
+    yaml-depth = parse-yaml; 'a: [[[[]]]]', (make-yaml-options; 2, 1024, 65536)
+    print; yaml-depth.failed, (yaml-depth.message.contains; 'depth limit')

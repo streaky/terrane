@@ -133,6 +133,9 @@ enum TerraneCompletion<T> {
 fn terrane_limit(value: &terrane_int_support::Int) -> usize {
     value.as_usize().unwrap_or(0)
 }
+fn terrane_index(value: &terrane_int_support::Int) -> Option<usize> {
+    value.as_usize()
+}
 fn terrane_empty_document() -> terrane_document_support::DataResult {
     terrane_document_support::parse_json("null", true, 0, 4)
 }
@@ -213,13 +216,21 @@ fn terrane_document_item(
     result: &terrane_document_support::DataResult,
     index: terrane_int_support::Int,
 ) -> terrane_document_support::DataResult {
-    terrane_document_support::document_item(result, terrane_limit(&index))
+    terrane_index(&index)
+        .map_or_else(
+            || terrane_document_support::invalid_document_index(),
+            |index| terrane_document_support::document_item(result, index),
+        )
 }
 fn terrane_document_key(
     result: &terrane_document_support::DataResult,
     index: terrane_int_support::Int,
 ) -> String {
-    terrane_document_support::document_key(result, terrane_limit(&index))
+    terrane_index(&index)
+        .map_or_else(
+            String::new,
+            |index| terrane_document_support::document_key(result, index),
+        )
 }
 fn terrane_document_field(
     result: &terrane_document_support::DataResult,
@@ -393,6 +404,9 @@ fn main() {
         terrane_scalar_support::scalar_text(&first.value.scalar),
         terrane_scalar_support::scalar_text(&nested.value.scalar)
     );
+    let negative_item: DocumentResult = list_document
+        .item(terrane_int_support::Int::from(-1_i128));
+    println!("{}", terrane_scalar_support::scalar_text(&negative_item.failed));
     let duplicate: DocumentResult = parse_json(
         String::from("{\"key\":1,\"key\":2}"),
         options.clone(),
@@ -521,11 +535,13 @@ fn main() {
         make_document_string(String::from("second")),
     );
     let duplicate_map: DocumentResult = make_document_map(duplicate_entries.clone());
-    let invalid_exact: DocumentResult = make_document_integer(String::from("1e2"));
+    let canonical_integer: DocumentResult = make_document_integer(
+        String::from("1.2345678901234567890123456789e+29"),
+    );
     println!(
         "{}{}{}", terrane_scalar_support::scalar_text(&duplicate_map.failed),
         terrane_scalar_support::scalar_text(&duplicate_map.path),
-        terrane_scalar_support::scalar_text(&invalid_exact.failed)
+        terrane_scalar_support::scalar_text(&canonical_integer.failed)
     );
     let decoded_through_interface: DocumentResult = decode_json(
         String::from("{\"name\":\"Ada\"}"),
@@ -536,8 +552,6 @@ fn main() {
         "{}", terrane_scalar_support::scalar_text(&decoded_through_interface.failed)
     );
     let negative_limits: JsonOptions = JsonOptions::terrane_construct(
-        true,
-        false,
         terrane_int_support::Int::from(-1_i128),
         terrane_int_support::Int::from(-1_i128),
     );
@@ -549,6 +563,18 @@ fn main() {
         "{}{}", terrane_scalar_support::scalar_text(&limited.failed),
         terrane_scalar_support::scalar_text(&limited.message
         .contains(&String::from("byte limit")))
+    );
+    let excessive_depth: DocumentResult = parse_json(
+        String::from("[]"),
+        JsonOptions::terrane_construct(
+            terrane_int_support::Int::from(1000000_i128),
+            terrane_int_support::Int::from(1024_i128),
+        ),
+    );
+    println!(
+        "{}{}", terrane_scalar_support::scalar_text(&excessive_depth.failed),
+        terrane_scalar_support::scalar_text(&excessive_depth.message
+        .contains(&String::from("cannot exceed")))
     );
     let yaml_limits: YamlOptions = make_yaml_options(
         terrane_int_support::Int::from(32_i128),
@@ -572,6 +598,16 @@ fn main() {
         .coefficient), terrane_scalar_support::scalar_text(&yaml_decimal.value.decimal
         .exponent)
     );
+    let yaml_decoded: DocumentResult = decode_yaml(
+        String::from("name: Ada"),
+        Deserializable::from(mapping.clone()),
+        make_yaml_options(
+            terrane_int_support::Int::from(32_i128),
+            terrane_int_support::Int::from(1024_i128),
+            terrane_int_support::Int::from(65536_i128),
+        ),
+    );
+    println!("{}", terrane_scalar_support::scalar_text(&yaml_decoded.failed));
     let ordinary_star: DocumentResult = parse_yaml(
         String::from("glob: \"a * b * c\""),
         make_yaml_options(
@@ -590,7 +626,20 @@ fn main() {
     println!(
         "{}{}", terrane_scalar_support::scalar_text(&bomb.failed),
         terrane_scalar_support::scalar_text(&bomb.message
-        .contains(&String::from("alias expansion limit")))
+        .contains(&String::from("alias node limit")))
+    );
+    let yaml_depth: DocumentResult = parse_yaml(
+        String::from("a: [[[[]]]]"),
+        make_yaml_options(
+            terrane_int_support::Int::from(2_i128),
+            terrane_int_support::Int::from(1024_i128),
+            terrane_int_support::Int::from(65536_i128),
+        ),
+    );
+    println!(
+        "{}{}", terrane_scalar_support::scalar_text(&yaml_depth.failed),
+        terrane_scalar_support::scalar_text(&yaml_depth.message
+        .contains(&String::from("depth limit")))
     );
 }
 // Source: standard/documents.trn
@@ -1219,44 +1268,32 @@ pub fn decode_document(
 // Namespace: standard/json
 #[derive(Clone)]
 pub struct JsonOptions {
-    pub reject_duplicate_keys: bool,
-    pub canonical: bool,
     pub max_depth: terrane_int_support::Int,
     pub max_bytes: terrane_int_support::Int,
 }
 impl JsonOptions {
     pub fn terrane_construct(
-        reject_duplicate_keys: bool,
-        canonical: bool,
         max_depth: terrane_int_support::Int,
         max_bytes: terrane_int_support::Int,
     ) -> Self {
         let mut value = Self {
-            reject_duplicate_keys: true,
-            canonical: false,
             max_depth: terrane_int_support::Int::from(256_i128),
             max_bytes: terrane_int_support::Int::from(16777216_i128),
         };
-        value.construct(reject_duplicate_keys, canonical, max_depth, max_bytes);
+        value.construct(max_depth, max_bytes);
         value
     }
     pub fn construct(
         &mut self,
-        reject_duplicate_keys: bool,
-        canonical: bool,
         max_depth: terrane_int_support::Int,
         max_bytes: terrane_int_support::Int,
     ) {
-        self.reject_duplicate_keys = reject_duplicate_keys;
-        self.canonical = canonical;
         self.max_depth = max_depth.clone();
         self.max_bytes = max_bytes.clone();
     }
 }
 pub fn default_json_options() -> JsonOptions {
     return JsonOptions::terrane_construct(
-        true,
-        false,
         terrane_int_support::Int::from(256_i128),
         terrane_int_support::Int::from(16777216_i128),
     );
@@ -1264,7 +1301,7 @@ pub fn default_json_options() -> JsonOptions {
 pub fn parse_json(input: String, options: JsonOptions) -> DocumentResult {
     let raw: terrane_document_support::DataResult = terrane_json_parse(
         input,
-        options.reject_duplicate_keys,
+        true,
         options.max_depth.clone(),
         options.max_bytes.clone(),
     );
@@ -1299,49 +1336,49 @@ pub fn encode_json(value: Serializable, options: JsonOptions) -> DocumentResult 
 pub struct YamlOptions {
     pub max_depth: terrane_int_support::Int,
     pub max_bytes: terrane_int_support::Int,
-    pub max_aliases: terrane_int_support::Int,
+    pub max_alias_nodes: terrane_int_support::Int,
 }
 impl YamlOptions {
     pub fn terrane_construct(
         max_depth: terrane_int_support::Int,
         max_bytes: terrane_int_support::Int,
-        max_aliases: terrane_int_support::Int,
+        max_alias_nodes: terrane_int_support::Int,
     ) -> Self {
         let mut value = Self {
             max_depth: terrane_int_support::Int::from(128_i128),
             max_bytes: terrane_int_support::Int::from(16777216_i128),
-            max_aliases: terrane_int_support::Int::from(64_i128),
+            max_alias_nodes: terrane_int_support::Int::from(65536_i128),
         };
-        value.construct(max_depth, max_bytes, max_aliases);
+        value.construct(max_depth, max_bytes, max_alias_nodes);
         value
     }
     pub fn construct(
         &mut self,
         max_depth: terrane_int_support::Int,
         max_bytes: terrane_int_support::Int,
-        max_aliases: terrane_int_support::Int,
+        max_alias_nodes: terrane_int_support::Int,
     ) {
         self.max_depth = max_depth.clone();
         self.max_bytes = max_bytes.clone();
-        self.max_aliases = max_aliases.clone();
+        self.max_alias_nodes = max_alias_nodes.clone();
     }
 }
 pub fn default_yaml_options() -> YamlOptions {
     return YamlOptions::terrane_construct(
         terrane_int_support::Int::from(128_i128),
         terrane_int_support::Int::from(16777216_i128),
-        terrane_int_support::Int::from(64_i128),
+        terrane_int_support::Int::from(65536_i128),
     );
 }
 pub fn make_yaml_options(
     max_depth: terrane_int_support::Int,
     max_bytes: terrane_int_support::Int,
-    max_aliases: terrane_int_support::Int,
+    max_alias_nodes: terrane_int_support::Int,
 ) -> YamlOptions {
     return YamlOptions::terrane_construct(
         max_depth.clone(),
         max_bytes.clone(),
-        max_aliases.clone(),
+        max_alias_nodes.clone(),
     );
 }
 pub fn parse_yaml(input: String, options: YamlOptions) -> DocumentResult {
@@ -1349,7 +1386,7 @@ pub fn parse_yaml(input: String, options: YamlOptions) -> DocumentResult {
         input,
         options.max_depth.clone(),
         options.max_bytes.clone(),
-        options.max_aliases.clone(),
+        options.max_alias_nodes.clone(),
     );
     return make_document_result(raw);
 }

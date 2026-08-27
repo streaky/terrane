@@ -1,6 +1,7 @@
-// Rust justification: large, externally reviewed, security-critical implementations.
-// serde_json's scanner, yaml-rust2's non-expanding event parser, and url's WHATWG state
-// machine are kept below the boundary; document policy, limits, and the public API stay in Terrane.
+// Rust justifications: large, externally reviewed, security-critical implementations, plus parser-
+// event policy that must run below an expanding representation to enforce resource limits. The
+// serde_json scanner, yaml-rust2 non-expanding event parser, safe YAML event receiver, and url
+// WHATWG state machine stay below the boundary; the public coherent API remains authored in Terrane.
 
 use serde::Deserializer;
 use serde::de::{DeserializeSeed, Error as _, MapAccess, SeqAccess, Visitor};
@@ -11,6 +12,8 @@ use url::Url;
 use yaml_rust2::parser::{Event, MarkedEventReceiver, Parser};
 use yaml_rust2::scanner::{Marker, TScalarStyle};
 
+const DESCRIPTOR_DEFAULT_DEPTH: usize = 256;
+const MAXIMUM_JSON_DEPTH: usize = 512;
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Document {
     None,
@@ -65,7 +68,6 @@ impl DataResult {
 }
 
 struct DocumentSeed {
-    reject_duplicates: bool,
     depth: usize,
     max_depth: usize,
 }
@@ -78,7 +80,6 @@ impl<'de> DeserializeSeed<'de> for DocumentSeed {
             return Err(serde::de::Error::custom("document depth limit exceeded"));
         }
         deserializer.deserialize_any(DocumentVisitor {
-            reject_duplicates: self.reject_duplicates,
             depth: self.depth,
             max_depth: self.max_depth,
         })
@@ -86,7 +87,6 @@ impl<'de> DeserializeSeed<'de> for DocumentSeed {
 }
 
 struct DocumentVisitor {
-    reject_duplicates: bool,
     depth: usize,
     max_depth: usize,
 }
@@ -133,7 +133,6 @@ impl<'de> Visitor<'de> for DocumentVisitor {
     fn visit_seq<A: SeqAccess<'de>>(self, mut sequence: A) -> Result<Self::Value, A::Error> {
         let mut values = Vec::new();
         while let Some(value) = sequence.next_element_seed(DocumentSeed {
-            reject_duplicates: self.reject_duplicates,
             depth: self.depth + 1,
             max_depth: self.max_depth,
         })? {
@@ -149,11 +148,10 @@ impl<'de> Visitor<'de> for DocumentVisitor {
                 let number = map.next_value::<String>()?;
                 return classify_number(&number).map_err(A::Error::custom);
             }
-            if self.reject_duplicates && values.contains_key(&key) {
+            if values.contains_key(&key) {
                 return Err(A::Error::custom(format!("duplicate key `{key}`")));
             }
             let value = map.next_value_seed(DocumentSeed {
-                reject_duplicates: self.reject_duplicates,
                 depth: self.depth + 1,
                 max_depth: self.max_depth,
             })?;
@@ -165,27 +163,34 @@ impl<'de> Visitor<'de> for DocumentVisitor {
 
 fn classify_number(value: &str) -> Result<Document, String> {
     let normalized = normalize_number(value)?;
-    if value.bytes().any(|byte| matches!(byte, b'.' | b'e' | b'E')) {
-        Ok(Document::Decimal(normalized))
-    } else {
+    let (_, exponent) = decimal_parts(&normalized);
+    if exponent >= 0 {
         Ok(Document::Integer(normalized))
+    } else {
+        Ok(Document::Decimal(normalized))
     }
 }
 
 #[must_use]
 pub fn parse_json(
     input: &str,
-    reject_duplicates: bool,
+    _reject_duplicates: bool,
     max_depth: usize,
     max_bytes: usize,
 ) -> DataResult {
+    if max_depth > MAXIMUM_JSON_DEPTH {
+        return DataResult::failure(
+            format!("JSON depth limit cannot exceed {MAXIMUM_JSON_DEPTH}"),
+            "$",
+            "bounded JSON document",
+        );
+    }
     if input.len() > max_bytes {
         return DataResult::failure("document exceeds byte limit", "$", "bounded JSON document");
     }
     let mut deserializer = serde_json::Deserializer::from_str(input);
     deserializer.disable_recursion_limit();
     let value = match (DocumentSeed {
-        reject_duplicates,
         depth: 0,
         max_depth,
     })
@@ -205,12 +210,12 @@ pub fn parse_yaml(
     input: &str,
     max_depth: usize,
     max_bytes: usize,
-    max_aliases: usize,
+    max_alias_nodes: usize,
 ) -> DataResult {
     if input.len() > max_bytes {
         return DataResult::failure("document exceeds byte limit", "$", "bounded YAML document");
     }
-    let mut builder = YamlBuilder::new(max_depth, max_aliases);
+    let mut builder = YamlBuilder::new(max_depth, max_alias_nodes);
     if let Err(error) = Parser::new_from_str(input).load(&mut builder, false) {
         return DataResult::failure(error.to_string(), "$", "safe YAML core document");
     }
@@ -241,19 +246,19 @@ struct YamlBuilder {
     anchors: BTreeMap<usize, Document>,
     expanded_nodes: usize,
     max_depth: usize,
-    max_aliases: usize,
+    max_alias_nodes: usize,
     error: Option<DataResult>,
 }
 
 impl YamlBuilder {
-    fn new(max_depth: usize, max_aliases: usize) -> Self {
+    fn new(max_depth: usize, max_alias_nodes: usize) -> Self {
         Self {
             root: None,
             stack: Vec::new(),
             anchors: BTreeMap::new(),
             expanded_nodes: 0,
             max_depth,
-            max_aliases,
+            max_alias_nodes,
             error: None,
         }
     }
@@ -382,9 +387,9 @@ impl MarkedEventReceiver for YamlBuilder {
                     return;
                 };
                 self.expanded_nodes = self.expanded_nodes.saturating_add(document_nodes(&value));
-                if self.expanded_nodes > self.max_aliases {
+                if self.expanded_nodes > self.max_alias_nodes {
                     self.fail(
-                        "YAML alias expansion limit exceeded",
+                        "YAML alias node limit exceeded",
                         "bounded YAML alias expansion",
                     );
                 } else {
@@ -551,7 +556,11 @@ fn normalize_number(value: &str) -> Result<String, String> {
 }
 
 fn parse_default(input: &str) -> Option<Document> {
-    parse_json(input, true, 256, input.len()).value().cloned()
+    // Descriptor defaults are compiler-authored schema data, not caller documents. Keep their
+    // independent bound explicit so changing a parser option cannot make schema defaults unsafe.
+    parse_json(input, true, DESCRIPTOR_DEFAULT_DEPTH, input.len())
+        .value()
+        .cloned()
 }
 
 #[must_use]
@@ -578,6 +587,11 @@ pub fn document_length(result: &DataResult) -> usize {
         Some(Document::Map(values)) => values.len(),
         _ => 0,
     }
+}
+
+#[must_use]
+pub fn invalid_document_index() -> DataResult {
+    DataResult::failure("document index is out of range", "$", "existing list item")
 }
 
 #[must_use]

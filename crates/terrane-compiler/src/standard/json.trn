@@ -7,22 +7,18 @@ from /standard/documents import document-mapping, decode-document
 from /standard/documents import serializable, deserializable, serialize-document, deserialize-document
 
 class json-options
-    reject-duplicate-keys bool = true
-    canonical bool = false
     max-depth int = 256
     max-bytes int = 16777216
 
-    function construct; reject-duplicate-keys bool, canonical bool, max-depth int, max-bytes int
-        this.reject-duplicate-keys = reject-duplicate-keys
-        this.canonical = canonical
+    function construct; max-depth int, max-bytes int
         this.max-depth = max-depth
         this.max-bytes = max-bytes
 
 function default-json-options json-options;
-    return json-options; true, false, 256, 16777216
+    return json-options; 256, 16777216
 
 function parse-json document-result; input string, options json-options
-    raw = platform-parse; input, options.reject-duplicate-keys, options.max-depth, options.max-bytes
+    raw = platform-parse; input, true, options.max-depth, options.max-bytes
     return make-document-result; raw
 
 function stringify-json document-result; value document-value, options json-options

@@ -3,6 +3,9 @@
 fn terrane_limit(value: &terrane_int_support::Int) -> usize {
     value.as_usize().unwrap_or(0)
 }
+fn terrane_index(value: &terrane_int_support::Int) -> Option<usize> {
+    value.as_usize()
+}
 fn terrane_empty_document() -> terrane_document_support::DataResult {
     terrane_document_support::parse_json("null", true, 0, 4)
 }
@@ -59,10 +62,13 @@ fn terrane_document_length(result: &terrane_document_support::DataResult) -> ter
     terrane_int_support::Int::from(i128::try_from(terrane_document_support::document_length(result)).expect("document length fits in i128"))
 }
 fn terrane_document_item(result: &terrane_document_support::DataResult, index: terrane_int_support::Int) -> terrane_document_support::DataResult {
-    terrane_document_support::document_item(result, terrane_limit(&index))
+    terrane_index(&index).map_or_else(
+        || terrane_document_support::invalid_document_index(),
+        |index| terrane_document_support::document_item(result, index),
+    )
 }
 fn terrane_document_key(result: &terrane_document_support::DataResult, index: terrane_int_support::Int) -> String {
-    terrane_document_support::document_key(result, terrane_limit(&index))
+    terrane_index(&index).map_or_else(String::new, |index| terrane_document_support::document_key(result, index))
 }
 fn terrane_document_field(result: &terrane_document_support::DataResult, key: String) -> terrane_document_support::DataResult {
     terrane_document_support::document_field(result, &key)

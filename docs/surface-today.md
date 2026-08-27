@@ -131,19 +131,24 @@ Terrane package
     │   ├── cli-schema / parse-command-line    schema-driven options and structured diagnostics
     │   └── exit-status / make-exit-status / exit explicit validated termination
     ├── /standard/documents                    bundled Terrane document model over narrow scanner intrinsics
-    │   ├── document-integer                   exact integer text value
-    │   ├── document-decimal                   coefficient / exponent / exact text value
+    │   ├── document-integer                   exact integral value; text uses canonical exact number spelling
+    │   ├── document-decimal                   coefficient / exponent / canonical exact text value
     │   ├── document-value                     none / bool / integer / decimal / string / list / map
     │   ├── document-result                    value or failed / message / path / expected diagnostic
     │   ├── document-mapping                   descriptor name, expected kind, fields, defaults, unknown-field policy
+    │   ├── serializable / deserializable      explicit typed conversion interfaces
+    │   ├── exact scalar/list/map constructors programmatic document construction with duplicate rejection
     │   └── decode-document                    descriptor-driven validation with document-path diagnostics
     ├── /standard/json                         bundled Terrane policy and document integration
-    │   ├── json-options / default-json-options
+    │   ├── json-options / default-json-options depth and byte limits; duplicates always rejected
     │   ├── parse-json / stringify-json / canonical-json
+    │   │                                       JCS key ordering/escaping with exact, ECMAScript-shaped numbers
     │   └── decode-json / encode-json
     ├── /standard/yaml                         bundled Terrane policy and document integration
     │   ├── yaml-options / default-yaml-options / make-yaml-options
-    │   ├── parse-yaml / stringify-yaml
+    │   │                                       depth, byte, and alias-expanded-node limits
+    │   ├── parse-yaml                         JSON-shaped safe scalars; tags and duplicate keys rejected
+    │   ├── stringify-yaml                     emits canonical JSON, a valid YAML 1.2 document
     │   └── decode-yaml / encode-yaml
     ├── /standard/urls                         bundled Terrane URL and ordered-query model
     │   ├── url                                serialized / display / components / query / origin
