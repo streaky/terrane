@@ -215,6 +215,8 @@ pub enum ValueType {
     PlatformReadResult,
     PlatformWriteResult,
     PlatformUnitResult,
+    PlatformDataResult,
+    PlatformUrlResult,
     Object(String),
     Reference(ElementType),
     SharedReference(ElementType),
@@ -362,6 +364,8 @@ impl std::fmt::Display for ValueType {
             Self::PlatformReadResult => formatter.write_str("platform-read-result"),
             Self::PlatformWriteResult => formatter.write_str("platform-write-result"),
             Self::PlatformUnitResult => formatter.write_str("platform-unit-result"),
+            Self::PlatformDataResult => formatter.write_str("platform-data-result"),
+            Self::PlatformUrlResult => formatter.write_str("platform-url-result"),
             Self::Reference(item) => write!(formatter, "ref {}", item.value_type()),
             Self::SharedReference(item) => write!(formatter, "shared ref {}", item.value_type()),
         }
@@ -856,6 +860,7 @@ pub fn analyze(package: &Package) -> Result<SemanticPackage, SemanticFailure> {
                 | "/core/collections"
                 | "/core/platform-streams"
                 | "/core/platform-system"
+                | "/core/platform-data"
         ) || (crate::bundled::source(&unit.namespace).is_some() && !bundled)
         {
             let span = unit
@@ -1735,13 +1740,15 @@ fn imported_object(
 ) -> Result<Symbol, SemanticFailure> {
     if matches!(
         import.target.as_str(),
-        "/core/platform-streams" | "/core/platform-system"
+        "/core/platform-streams" | "/core/platform-system" | "/core/platform-data"
     ) && !import.bundled
     {
-        let facility = if import.target == "/core/platform-streams" {
-            "`/standard/streams`"
-        } else {
-            "`/standard/filesystem` or `/standard/process`"
+        let facility = match import.target.as_str() {
+            "/core/platform-streams" => "`/standard/streams`",
+            "/core/platform-data" => {
+                "`/standard/documents`, `/standard/json`, `/standard/yaml`, or `/standard/urls`"
+            }
+            _ => "`/standard/filesystem` or `/standard/process`",
         };
         return Err(failure(
             &import.source,
@@ -3584,10 +3591,10 @@ fn analyze_object_contracts(
     }
     for object in &objects {
         let require_kind = |name: &str, expected: ObjectKind, role: &str| {
+            let local = objects.iter().find(|candidate| candidate.name == name);
             let valid = (expected == ObjectKind::Interface && name == "throwable")
-                || objects
-                    .iter()
-                    .any(|candidate| candidate.name == name && candidate.kind == expected);
+                || local.is_some_and(|candidate| candidate.kind == expected)
+                || local.is_none() && visible_object_names.contains(name);
             valid.then_some(()).ok_or_else(|| {
                 failure(
                     &unit.source,
@@ -3777,9 +3784,7 @@ fn propagate_resource_ownership(package: &mut SemanticPackage) -> Result<(), Sem
     }
     Ok(())
 }
-fn validate_resource_collection_types(
-    package: &SemanticPackage,
-) -> Result<(), SemanticFailure> {
+fn validate_resource_collection_types(package: &SemanticPackage) -> Result<(), SemanticFailure> {
     let resource_identities = package
         .units
         .iter()
@@ -3900,11 +3905,26 @@ fn validate_object_conformance(package: &SemanticPackage) -> Result<(), Semantic
             .iter()
             .filter(|object| object.kind == ObjectKind::Class)
         {
+            let declaration_unit = package
+                .units
+                .iter()
+                .find(|candidate| candidate.source.id() == object.span.file)
+                .expect("object declaration source must belong to the semantic package");
             for interface_name in &object.interfaces {
-                if package
-                    .resolve_name_at(unit, object.span.start, interface_name)
-                    .is_some_and(|symbol| symbol.identity == "/core/errors::throwable")
-                {
+                let Some(resolved_interface) =
+                    package.resolve_name_at(declaration_unit, object.span.start, interface_name)
+                else {
+                    return Err(failure(
+                        &declaration_unit.source,
+                        "T0001",
+                        format!(
+                            "interface `{interface_name}` implemented by `{}` does not resolve",
+                            object.name
+                        ),
+                        object.span,
+                    ));
+                };
+                if resolved_interface.identity == "/core/errors::throwable" {
                     let has_message = object.fields.iter().any(|field| {
                         field.name == "message"
                             && field.value_type == ValueType::Scalar(ScalarType::String)
@@ -3959,19 +3979,31 @@ fn validate_object_conformance(package: &SemanticPackage) -> Result<(), Semantic
                     }
                     continue;
                 }
-                let interface = unit
+                let interface_unit = package
+                    .units
+                    .iter()
+                    .find(|candidate| {
+                        candidate.namespace == resolved_interface.namespace
+                            && candidate.objects.iter().any(|candidate| {
+                                candidate.name == resolved_interface.name
+                                    && candidate.kind == ObjectKind::Interface
+                            })
+                    })
+                    .expect("resolved interface must have a semantic declaration");
+                let interface = interface_unit
                     .objects
                     .iter()
-                    .find(|candidate| &candidate.name == interface_name)
-                    .expect("object-kind validation must resolve implemented interfaces");
-                for required in unit
+                    .find(|candidate| candidate.name == resolved_interface.name)
+                    .expect("resolved interface must have an object contract");
+                for required in interface_unit
                     .functions
                     .iter()
                     .filter(|method| method.owner.as_deref() == Some(&interface.name))
                 {
-                    let Some(actual) = effective_method(unit, object, &required.name) else {
+                    let Some(actual) = effective_method(declaration_unit, object, &required.name)
+                    else {
                         return Err(failure(
-                            &unit.source,
+                            &declaration_unit.source,
                             "T0062",
                             format!(
                                 "class `{}` does not implement interface member `{}.{}`",
@@ -3982,7 +4014,7 @@ fn validate_object_conformance(package: &SemanticPackage) -> Result<(), Semantic
                     };
                     if !same_signature(required, actual) {
                         return Err(failure(
-                            &unit.source,
+                            &declaration_unit.source,
                             "T0067",
                             format!(
                                 "class `{}` implements `{}.{}` with an incompatible signature",
@@ -5700,6 +5732,12 @@ fn declared_value_type_with_visible_objects(
     if type_name == "filesystem-authority" {
         return Ok(ValueType::FilesystemAuthority);
     }
+    if type_name == "platform-data-result" {
+        return Ok(ValueType::PlatformDataResult);
+    }
+    if type_name == "platform-url-result" {
+        return Ok(ValueType::PlatformUrlResult);
+    }
     if type_name == "encoding" {
         return Ok(ValueType::Encoding);
     }
@@ -6501,6 +6539,25 @@ fn infer_value_type(
                     | "/core/platform-streams::sync-all"
                     | "/core/platform-streams::close"
                     | "/core/platform-streams::release" => Some(ValueType::PlatformUnitResult),
+                    "/core/platform-data::empty-document"
+                    | "/core/platform-data::make-document-none"
+                    | "/core/platform-data::make-document-bool"
+                    | "/core/platform-data::make-document-string"
+                    | "/core/platform-data::make-document-integer"
+                    | "/core/platform-data::make-document-decimal"
+                    | "/core/platform-data::make-document-list"
+                    | "/core/platform-data::make-document-map"
+                    | "/core/platform-data::document-list-append"
+                    | "/core/platform-data::document-map-insert"
+                    | "/core/platform-data::json-parse"
+                    | "/core/platform-data::json-canonical"
+                    | "/core/platform-data::yaml-parse"
+                    | "/core/platform-data::document-item"
+                    | "/core/platform-data::document-field"
+                    | "/core/platform-data::validate-mapping" => {
+                        Some(ValueType::PlatformDataResult)
+                    }
+                    "/core/platform-data::url-parse" => Some(ValueType::PlatformUrlResult),
                     "/core/platform-system::filesystem-exists"
                     | "/core/platform-system::filesystem-metadata"
                     | "/core/platform-system::filesystem-realpath"
@@ -6513,20 +6570,48 @@ fn infer_value_type(
                     }
                     "/core/platform-system::result-failed"
                     | "/core/platform-system::result-bool"
-                    | "/core/platform-system::platform-value-is-text" => {
+                    | "/core/platform-system::platform-value-is-text"
+                    | "/core/platform-data::data-failed"
+                    | "/core/platform-data::url-failed" => {
                         Some(ValueType::Scalar(ScalarType::Bool))
                     }
                     "/core/platform-system::result-message"
                     | "/core/platform-system::result-text"
                     | "/core/platform-system::result-detail"
-                    | "/core/platform-system::platform-value-text" => {
+                    | "/core/platform-system::platform-value-text"
+                    | "/core/platform-data::data-message"
+                    | "/core/platform-data::data-path"
+                    | "/core/platform-data::data-expected"
+                    | "/core/platform-data::data-encoded"
+                    | "/core/platform-data::document-kind"
+                    | "/core/platform-data::document-text"
+                    | "/core/platform-data::document-coefficient"
+                    | "/core/platform-data::document-key"
+                    | "/core/platform-data::url-message"
+                    | "/core/platform-data::url-serialized"
+                    | "/core/platform-data::url-display"
+                    | "/core/platform-data::url-scheme"
+                    | "/core/platform-data::url-username"
+                    | "/core/platform-data::url-password"
+                    | "/core/platform-data::url-host"
+                    | "/core/platform-data::url-port"
+                    | "/core/platform-data::url-path"
+                    | "/core/platform-data::url-query-key"
+                    | "/core/platform-data::url-query-value"
+                    | "/core/platform-data::url-fragment"
+                    | "/core/platform-data::url-origin" => {
                         Some(ValueType::Scalar(ScalarType::String))
                     }
                     "/core/platform-system::result-bytes"
                     | "/core/platform-system::platform-value-bytes" => {
                         Some(ValueType::Scalar(ScalarType::Bytes))
                     }
-                    "/core/platform-system::result-int" => Some(ValueType::Scalar(ScalarType::Int)),
+                    "/core/platform-system::result-int"
+                    | "/core/platform-data::document-exponent"
+                    | "/core/platform-data::document-length"
+                    | "/core/platform-data::url-query-length" => {
+                        Some(ValueType::Scalar(ScalarType::Int))
+                    }
                     "/core/platform-system::process-arguments"
                     | "/core/platform-system::environment-entries" => Some(ValueType::StringList),
                     "/core/platform-system::process-exit" => {
@@ -10136,6 +10221,60 @@ fn bootstrap_namespaces() -> BTreeMap<String, Namespace> {
                 "process-arguments",
                 "environment-entries",
                 "process-exit",
+            ],
+            SymbolKind::Function,
+        ),
+    );
+    namespaces.insert(
+        "/core/platform-data".to_owned(),
+        namespace_with_objects(
+            "/core/platform-data",
+            [
+                "platform-data-result",
+                "platform-url-result",
+                "empty-document",
+                "make-document-none",
+                "make-document-bool",
+                "make-document-string",
+                "make-document-integer",
+                "make-document-decimal",
+                "make-document-list",
+                "make-document-map",
+                "document-list-append",
+                "document-map-insert",
+                "json-parse",
+                "json-canonical",
+                "yaml-parse",
+                "data-failed",
+                "data-message",
+                "data-path",
+                "data-expected",
+                "data-encoded",
+                "document-kind",
+                "document-text",
+                "document-length",
+                "document-coefficient",
+                "document-exponent",
+                "document-item",
+                "document-key",
+                "document-field",
+                "validate-mapping",
+                "url-parse",
+                "url-failed",
+                "url-message",
+                "url-serialized",
+                "url-display",
+                "url-scheme",
+                "url-username",
+                "url-password",
+                "url-host",
+                "url-port",
+                "url-path",
+                "url-query-length",
+                "url-query-key",
+                "url-query-value",
+                "url-fragment",
+                "url-origin",
             ],
             SymbolKind::Function,
         ),

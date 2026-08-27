@@ -79,6 +79,22 @@ pub(crate) fn lower(package: &SemanticPackage) -> Program {
         .units
         .iter()
         .any(|unit| unit.namespace == "/standard/process");
+    let uses_documents = package
+        .units
+        .iter()
+        .any(|unit| unit.namespace == "/standard/documents");
+    let uses_json = package
+        .units
+        .iter()
+        .any(|unit| unit.namespace == "/standard/json");
+    let uses_yaml = package
+        .units
+        .iter()
+        .any(|unit| unit.namespace == "/standard/yaml");
+    let uses_urls = package
+        .units
+        .iter()
+        .any(|unit| unit.namespace == "/standard/urls");
     if uses_standard_streams || uses_filesystem {
         let mut items = vec![Item::generated(include_str!("runtime/platform_streams.rs"))];
         if uses_standard_streams {
@@ -104,6 +120,27 @@ pub(crate) fn lower(package: &SemanticPackage) -> Program {
         }
         runtime.push(GeneratedModule {
             name: "platform_system",
+            items,
+        });
+    }
+    if uses_documents || uses_urls {
+        let mut items = Vec::new();
+        if uses_documents {
+            items.push(Item::generated(include_str!(
+                "runtime/platform_documents.rs"
+            )));
+        }
+        if uses_json {
+            items.push(Item::generated(include_str!("runtime/platform_json.rs")));
+        }
+        if uses_yaml {
+            items.push(Item::generated(include_str!("runtime/platform_yaml.rs")));
+        }
+        if uses_urls {
+            items.push(Item::generated(include_str!("runtime/platform_urls.rs")));
+        }
+        runtime.push(GeneratedModule {
+            name: "platform_data",
             items,
         });
     }
@@ -1187,12 +1224,21 @@ impl Emitter<'_> {
                     if interface_name == "throwable" {
                         continue;
                     }
-                    let interface = self
-                        .unit
+                    let resolved_interface = self
+                        .package
+                        .resolve_name_at(self.unit, object.span.start, interface_name)
+                        .expect("validated interface reference");
+                    let interface_unit = self
+                        .package
+                        .units
+                        .iter()
+                        .find(|candidate| candidate.namespace == resolved_interface.namespace)
+                        .expect("resolved interface namespace");
+                    let interface = interface_unit
                         .objects
                         .iter()
-                        .find(|candidate| candidate.name == interface_name)
-                        .expect("validated interface reference");
+                        .find(|candidate| candidate.name == resolved_interface.name)
+                        .expect("validated interface contract");
                     let interface_type = rust_object_name(interface_name);
                     let protocol = format!("{interface_type}Protocol");
                     let class_type = rust_object_name(&object.name);
@@ -1210,7 +1256,7 @@ impl Emitter<'_> {
                             "fn separate_box(&self) -> Box<dyn {protocol}> {{ Box::new(self.clone()) }}"
                         ));
                     }
-                    for method in effective_object_methods(self.unit, interface) {
+                    for method in effective_object_methods(interface_unit, interface) {
                         self.line_start();
                         let receiver = if method.consumes_receiver {
                             "self: Box<Self>"
@@ -2674,6 +2720,28 @@ impl Emitter<'_> {
                 .objects
                 .iter()
                 .find(|object| object.name == *expected)
+                .or_else(|| {
+                    self.package
+                        .resolve_name_at(self.unit, node.span.start, expected)
+                        .and_then(|symbol| {
+                            self.package
+                                .units
+                                .iter()
+                                .find(|unit| unit.namespace == symbol.namespace)
+                                .and_then(|unit| {
+                                    unit.objects
+                                        .iter()
+                                        .find(|object| object.name == symbol.name)
+                                })
+                        })
+                })
+                .or_else(|| {
+                    self.package.units.iter().find_map(|unit| {
+                        unit.objects.iter().find(|object| {
+                            object.name == *expected && object.kind == ObjectKind::Interface
+                        })
+                    })
+                })
         {
             let expression = if self.text(node) == "this" {
                 if self.object_requires_separation(&actual) {
@@ -3612,6 +3680,14 @@ impl Emitter<'_> {
             return self.wrap_receiver_guard(receiver, access);
         }
         let receiver = self.receiver_expression(receiver);
+        if self.text(member) == "length"
+            && matches!(
+                self.value_type(node),
+                Some(ValueType::Function(_, _) | ValueType::AsyncFunction(_, _))
+            )
+        {
+            return format!("({receiver}).length");
+        }
         match self.text(member) {
             "bytes" if receiver_type == Some(ValueType::Scalar(ScalarType::String)) => {
                 format!("({receiver}).as_bytes().to_vec()")
@@ -4093,6 +4169,98 @@ impl Emitter<'_> {
                 .collect::<Vec<_>>();
             let format = "{}".repeat(values.len());
             return format!("println!(\"{format}\", {})", values.join(", "));
+        }
+        let data_call = [
+            ("empty-document", "empty_document"),
+            ("make-document-none", "make_document_none"),
+            ("make-document-bool", "make_document_bool"),
+            ("make-document-string", "make_document_string"),
+            ("make-document-integer", "make_document_integer"),
+            ("make-document-decimal", "make_document_decimal"),
+            ("make-document-list", "make_document_list"),
+            ("make-document-map", "make_document_map"),
+            ("document-list-append", "document_list_append"),
+            ("document-map-insert", "document_map_insert"),
+            ("json-parse", "json_parse"),
+            ("json-canonical", "json_canonical"),
+            ("yaml-parse", "yaml_parse"),
+            ("data-failed", "data_failed"),
+            ("data-message", "data_message"),
+            ("data-path", "data_path"),
+            ("data-expected", "data_expected"),
+            ("data-encoded", "data_encoded"),
+            ("document-kind", "document_kind"),
+            ("document-text", "document_text"),
+            ("document-coefficient", "document_coefficient"),
+            ("document-exponent", "document_exponent"),
+            ("document-length", "document_length"),
+            ("document-item", "document_item"),
+            ("document-key", "document_key"),
+            ("document-field", "document_field"),
+            ("validate-mapping", "validate_mapping"),
+            ("url-parse", "url_parse"),
+            ("url-failed", "url_failed"),
+            ("url-message", "url_message"),
+            ("url-serialized", "url_serialized"),
+            ("url-display", "url_display"),
+            ("url-scheme", "url_scheme"),
+            ("url-username", "url_username"),
+            ("url-password", "url_password"),
+            ("url-host", "url_host"),
+            ("url-port", "url_port"),
+            ("url-path", "url_path"),
+            ("url-query-length", "url_query_length"),
+            ("url-query-key", "url_query_key"),
+            ("url-query-value", "url_query_value"),
+            ("url-fragment", "url_fragment"),
+            ("url-origin", "url_origin"),
+        ]
+        .into_iter()
+        .find_map(|(terrane, rust)| {
+            self.is_builtin(callee, &format!("/core/platform-data::{terrane}"))
+                .then_some(rust)
+        });
+        if let Some(function) = data_call {
+            let values = argument_values
+                .iter()
+                .enumerate()
+                .map(|(index, value)| {
+                    let integer_argument = matches!(
+                        (function, index),
+                        ("json_parse", 1 | 2)
+                            | ("yaml_parse", 1..=3)
+                            | (
+                                "document_item"
+                                    | "document_key"
+                                    | "url_query_key"
+                                    | "url_query_value",
+                                1,
+                            )
+                    );
+                    let value = if integer_argument {
+                        self.expression_as(value, ValueType::Scalar(ScalarType::Int))
+                    } else {
+                        self.expression(value)
+                    };
+                    let borrowed_result = (index == 0
+                        && (function.starts_with("data_")
+                            || function.starts_with("document_")
+                            || function == "json_canonical"
+                            || function == "validate_mapping"
+                            || function.starts_with("url_") && function != "url_parse"))
+                        || matches!(
+                            (function, index),
+                            ("document_list_append", 1) | ("document_map_insert", 2)
+                        );
+                    if borrowed_result {
+                        format!("&({value})")
+                    } else {
+                        value
+                    }
+                })
+                .collect::<Vec<_>>()
+                .join(", ");
+            return format!("terrane_{function}({values})");
         }
         let system_call = [
             (
@@ -5616,6 +5784,8 @@ fn rust_value_type(ty: ValueType) -> String {
         ValueType::PlatformReadResult => "TerranePlatformReadResult".to_owned(),
         ValueType::PlatformWriteResult => "TerranePlatformWriteResult".to_owned(),
         ValueType::PlatformUnitResult => "TerranePlatformUnitResult".to_owned(),
+        ValueType::PlatformDataResult => "terrane_document_support::DataResult".to_owned(),
+        ValueType::PlatformUrlResult => "terrane_document_support::UrlResult".to_owned(),
         ValueType::Descriptor(_) => "TerraneDescriptor".to_owned(),
         ValueType::Object(name) => rust_object_name(&name),
         ValueType::SharedReference(item) => format!(

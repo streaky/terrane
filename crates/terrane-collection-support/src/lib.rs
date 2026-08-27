@@ -131,6 +131,15 @@ impl<T> List<T> {
     }
 }
 
+impl<T: Clone> IntoIterator for List<T> {
+    type Item = T;
+    type IntoIter = std::vec::IntoIter<T>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        Arc::unwrap_or_clone(self.0).into_iter()
+    }
+}
+
 impl<T: Clone> List<T> {
     /// Replaces an indexed item.
     ///

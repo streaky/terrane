@@ -1,0 +1,124 @@
+namespace conformance/document-json-yaml
+# Exact numeric and safety contracts share the same Terrane document model.
+
+from /core/output import print
+from /standard/documents import document-mapping, decode-document, serializable
+from /standard/documents import document-value, document-map-entries
+from /standard/documents import make-document-none, make-document-string, make-document-integer, make-document-decimal
+from /standard/documents import make-document-list, make-document-map, append-document-map-entry
+from /core/collections import list
+from /standard/json import json-options, default-json-options, parse-json, stringify-json, canonical-json, encode-json, decode-json
+from /standard/yaml import make-yaml-options, parse-yaml, stringify-yaml, encode-yaml, decode-yaml
+
+class note implements serializable
+    text string = ''
+
+    function construct; text string
+        this.text = text
+
+    function to-document document-value;
+        return make-document-string; this.text
+
+function main;
+    options = default-json-options;
+    parsed = parse-json; '{"a":123456789012345678901234567890,"z":1.2300}', options
+    print; parsed.failed, parsed.value.kind
+    integer = parsed.value.field; 'a'
+    decimal = parsed.value.field; 'z'
+    print; integer.value.kind, integer.value.scalar
+    print; decimal.value.kind, decimal.value.scalar
+    print; integer.value.integer.text
+    print; decimal.value.decimal.coefficient, decimal.value.decimal.exponent
+    canonical = canonical-json; parsed.value
+    print; canonical.value.encoded
+    reparsed = parse-json; canonical.value.encoded, options
+    equivalent = parse-json; '{"a":1.2345678901234567890123456789e+29,"z":1.23}', options
+    print; reparsed.failed, (canonical.value.encoded == equivalent.value.encoded)
+    stringify-input = parse-json; '{"a":1,"z":1.23}', options
+    stringified = stringify-json; stringify-input.value, options
+    yaml-input = parse-json; '{"a":1,"z":1.23}', options
+    yaml-written = stringify-yaml; yaml-input.value
+    print; stringified.failed, yaml-written.failed
+    list-value = parse-json; '["first",{"nested":true}]', options
+    list-document = list-value.value
+    first = list-document.item; 0
+    second = list-document.item; 1
+    nested = second.value.field; 'nested'
+    print; (list-document.length;), (list-document.key; 0), first.value.scalar, nested.value.scalar
+    negative-item = list-document.item; -1
+    print; negative-item.failed
+
+    duplicate = parse-json; '{"key":1,"key":2}', options
+    print; duplicate.failed, (duplicate.message.contains; 'duplicate key')
+
+    fields list of string = list; 'name', 'nickname', 'active'
+    optional-fields list of string = list; 'nickname'
+    default-fields list of string = list; 'active'
+    default-values list of string = list; 'true'
+    mapping = document-mapping; 'person', 'map', false
+    mapping.field-names = fields
+    mapping.optional-fields = optional-fields
+    mapping.default-fields = default-fields
+    mapping.default-values = default-values
+    missing = parse-json; '{}', options
+    missing = decode-document; missing.value, mapping
+    print; missing.failed, missing.path, missing.expected
+    unknown = parse-json; '{"name":"Ada","extra":1}', options
+    unknown = decode-document; unknown.value, mapping
+    print; unknown.failed, unknown.path, unknown.expected
+    mapped = parse-json; '{"name":"Ada","nickname":"A"}', options
+    mapped = decode-document; mapped.value, mapping
+    active = mapped.value.field; 'active'
+    print; mapped.failed, active.value.scalar
+    constructor-mapping = document-mapping; 'open-map', 'map', true
+    constructor-input = parse-json; '{"a":1}', options
+    constructor-result = decode-document; constructor-input.value, constructor-mapping
+    print; constructor-result.failed, constructor-result.value.encoded
+
+    encoded-note = encode-json; (note; 'hello'), options
+    encoded-yaml-note = encode-yaml; (note; 'hello')
+    print; encoded-note.value.encoded, encoded-yaml-note.value.encoded
+    exact-integer = make-document-integer; '123456789012345678901234567890'
+    exact-decimal = make-document-decimal; '1.2300'
+    values list of document-value = list; exact-integer.value, exact-decimal.value, (make-document-none;)
+    built-list = make-document-list; values
+    print; built-list.failed, built-list.value.encoded
+    entries = document-map-entries;
+    entries = append-document-map-entry; entries, 'message', (make-document-string; 'hello')
+    count-value = make-document-integer; '123456789012345678901234567890'
+    entries = append-document-map-entry; entries, 'count', count-value.value
+    built-map = make-document-map; entries
+    print; built-map.failed, built-map.value.encoded
+    duplicate-entries = document-map-entries;
+    duplicate-entries = append-document-map-entry; duplicate-entries, 'same', (make-document-string; 'first')
+    duplicate-entries = append-document-map-entry; duplicate-entries, 'same', (make-document-string; 'second')
+    duplicate-map = make-document-map; duplicate-entries
+    canonical-integer = make-document-integer; '1.2345678901234567890123456789e+29'
+    print; duplicate-map.failed, duplicate-map.path, canonical-integer.failed
+    decoded-through-interface = decode-json; '{"name":"Ada"}', mapping, options
+    print; decoded-through-interface.failed
+
+    negative-limits = json-options; -1, -1
+    limited = parse-json; '{}', negative-limits
+    print; limited.failed, (limited.message.contains; 'byte limit')
+    excessive-depth = parse-json; '[]', (json-options; 1000000, 1024)
+    print; excessive-depth.failed, (excessive-depth.message.contains; 'cannot exceed')
+    trailing-json = parse-json; '{"a":1} garbage', options
+    print; trailing-json.failed, (trailing-json.message.contains; 'trailing characters')
+
+    yaml-limits = make-yaml-options; 32, 2048, 20
+    yaml-value = parse-yaml; 'integer: 123456789012345678901234567890\ndecimal: 3.141592653589793238462643383279', yaml-limits
+    yaml-integer = yaml-value.value.field; 'integer'
+    yaml-decimal = yaml-value.value.field; 'decimal'
+    print; yaml-value.failed, yaml-integer.value.integer.text
+    print; yaml-decimal.value.decimal.coefficient, yaml-decimal.value.decimal.exponent
+    yaml-decoded = decode-yaml; 'name: Ada', mapping, (make-yaml-options; 32, 1024, 65536)
+    print; yaml-decoded.failed
+    ordinary-star = parse-yaml; 'glob: "a * b * c"', (make-yaml-options; 32, 1024, 0)
+    print; ordinary-star.failed
+    bomb = parse-yaml; 'leaf: &leaf [1, 2, 3, 4]\na: &a [*leaf, *leaf, *leaf, *leaf]\nb: [*a, *a, *a, *a]', yaml-limits
+    print; bomb.failed, (bomb.message.contains; 'alias node limit')
+    yaml-depth = parse-yaml; 'a: [[[[]]]]', (make-yaml-options; 2, 1024, 65536)
+    print; yaml-depth.failed, (yaml-depth.message.contains; 'depth limit')
+    excessive-yaml-depth = parse-yaml; '[]', (make-yaml-options; 256, 1024, 65536)
+    print; excessive-yaml-depth.failed, (excessive-yaml-depth.message.contains; 'cannot exceed 255')

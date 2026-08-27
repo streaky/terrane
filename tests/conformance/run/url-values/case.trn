@@ -1,0 +1,18 @@
+namespace conformance/url-values
+
+from /core/output import print
+from /standard/urls import parse-url
+
+function main;
+    parsed = parse-url; 'https://user:pass@bücher.example:443/a?x=1&x=2#f'
+    print; parsed.failed
+    value = parsed.value
+    print; value.scheme, value.host, value.port, value.path
+    print; (value.string;)
+    print; value.username, value.password
+    print; value.query.count
+    print; (value.query.get; 'x'), (value.query.get-all; 'x').length
+    print; value.fragment, value.origin
+    print; (value.serialized.contains; 'user:pass@'), (value.display.contains; 'user:pass@')
+    relative = value.resolve; '../b?q=hello%20world'
+    print; relative.value.host, relative.value.path, (relative.value.query.get; 'q')
