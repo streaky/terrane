@@ -25,6 +25,9 @@ function main;
     mac = sign-hmac; hash, key, b'data'
     same-mac = sign-hmac; hash, same-key, b'data'
     print; (signature-equals; mac.value, same-mac.value)
+    wide-mac = sign-hmac; wide-hash, key, b'data'
+    same-wide-mac = sign-hmac; wide-hash, same-key, b'data'
+    print; (signature-equals; wide-mac.value, same-wide-mac.value)
     destroy-secret; same-key
     destroyed = sign-hmac; hash, same-key, b'data'
     print; destroyed.failed
