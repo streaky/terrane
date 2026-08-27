@@ -1486,17 +1486,18 @@ Implemented on `randomness-networking-tls`. Bundled Terrane packages own validat
 values, typed socket options, shared cancellation tokens, positive per-operation deadlines, and
 structured results. Generated host support owns only DNS and socket/TLS resources crossing the OS
 and audited-protocol boundaries. TCP host connection races ordered DNS candidates concurrently; DNS
-returns deterministic candidate order with TTL and is itself deadline- and cancellation-aware.
-TCP, UDP, DNS, and TLS operations carry the same observable cancellation capability and deadline
-contract; the distinct resource-owning TCP and TLS stream types expose the same read/write/close
-method shape, and UDP receive results preserve truncation. TLS consumes the TCP resource during
-upgrade, applies each operation's deadline, uses the bundled Mozilla root set, validates certificate
-chains and host names, negotiates TLS 1.3 or supported TLS 1.2, sends close-notify on explicit
-shutdown, and exposes no ordinary option for disabling validation. Host-boundary tests exercise
-deadline-bounded loopback TCP exchange, concurrent accepts, UDP truncation, deterministic DNS
-candidate ordering and TTL projection, and local untrusted-certificate validation failure; accepted
-Terrane cases exercise address and host parsing, cancellation, socket options, loopback TCP and UDP,
-and resource-producing factories.
+returns candidates in a deterministic address sort rather than resolver preference order, includes
+TTL, and is itself deadline- and cancellation-aware. TCP, UDP, DNS, and TLS operations carry the
+same observable cancellation capability and deadline contract; the distinct resource-owning TCP
+and TLS stream types expose the same read/write/close method shape, and UDP receive results preserve
+truncation. TLS consumes the TCP resource during upgrade, applies each operation's deadline, uses
+the bundled Mozilla root set, validates certificate chains and host names, negotiates TLS 1.3 or
+supported TLS 1.2, sends close-notify on explicit shutdown, and exposes no ordinary option for
+disabling validation. Host-boundary tests exercise deadline-bounded loopback TCP exchange,
+concurrent accepts without listener-lock serialization, UDP truncation, deterministic DNS candidate
+ordering and TTL projection, trusted local TLS 1.3 negotiation, close-notify, and local
+untrusted-certificate validation failure. Accepted Terrane cases exercise address and host parsing,
+cancellation, socket options, loopback TCP and UDP exchange, and resource-producing factories.
 
 ### Milestone 25 — Structured logging
 

@@ -31,3 +31,15 @@ pub use source::{SourceFile, Span};
 pub use types::{DescriptorSchema, ScalarType, TypeCategory};
 
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
+
+#[must_use]
+pub fn platform_support_manifest() -> String {
+    let source = include_str!("../../terrane-platform-support/Cargo.toml");
+    let dependencies = source
+        .split_once("[dependencies]\n")
+        .and_then(|(_, rest)| rest.split_once("\n[dev-dependencies]"))
+        .map_or("", |(dependencies, _)| dependencies);
+    format!(
+        "[package]\nname = \"terrane-platform-support\"\nversion = \"{VERSION}\"\nedition = \"2024\"\n\n[dependencies]\n{dependencies}\n"
+    )
+}

@@ -2,15 +2,14 @@ namespace app
 
 from /core/output import print
 from /core/encodings import utf8
-from /standard/networking import ip-address-from-string, socket-address-from-ip, cancellation-token, operation-options, udp-options, udp-result, bind-udp
+from /standard/networking import ip-address-from-string, socket-address-from-ip, socket-address-from-string, cancellation-token, operation-options, udp-options, udp-result, bind-udp
 
 function main;
     loopback = ip-address-from-string; '127.0.0.1'
-    address = socket-address-from-ip; loopback.value, 39173
-    destination-ip = ip-address-from-string; '127.0.0.1'
-    destination = socket-address-from-ip; destination-ip.value, 39173
+    address = socket-address-from-ip; loopback.value, 0
     bound udp-result = bind-udp; address.value
     socket = move bound.value
+    destination = socket-address-from-string; socket.local-address
     configured = socket.configure; (udp-options; false, 32)
     cancellation = cancellation-token;
     options = operation-options; 1000, cancellation

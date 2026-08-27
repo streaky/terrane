@@ -567,6 +567,18 @@ pub fn parse_socket(ip: &str, port: i128) -> ResultValue {
         ..ResultValue::default()
     }
 }
+
+pub fn parse_socket_text(text: &str) -> ResultValue {
+    let Ok(address) = text.parse::<SocketAddr>() else {
+        return ResultValue::error("invalid socket address");
+    };
+    ResultValue {
+        text: address.to_string(),
+        detail: address.ip().to_string(),
+        number: i128::from(address.port()),
+        ..ResultValue::default()
+    }
+}
 fn timeout(milliseconds: i128) -> Result<Duration, ResultValue> {
     let value = u64::try_from(milliseconds)
         .ok()
@@ -621,6 +633,9 @@ pub fn tcp_bind(address: &str) -> ResultValue {
             let text = listener
                 .local_addr()
                 .map_or_else(|_| String::new(), |value| value.to_string());
+            if let Err(error) = listener.set_nonblocking(true) {
+                return io_error("TCP listener configuration", &error);
+            }
             ResultValue {
                 text,
                 capability: Some(Capability(Arc::new(CapabilityInner::Listener(Mutex::new(
@@ -791,9 +806,6 @@ pub fn tcp_accept(
             Err(error) => return io_error("TCP listener clone", &error),
         }
     };
-    if let Err(error) = listener.set_nonblocking(true) {
-        return io_error("TCP accept configuration", &error);
-    }
     let runtime = match network_runtime() {
         Ok(value) => value,
         Err(error) => return error,
@@ -1152,6 +1164,29 @@ pub fn tls_client(
     deadline_ms: i128,
     cancellation: &Capability,
 ) -> ResultValue {
+    let roots = webpki_roots::TLS_SERVER_ROOTS
+        .iter()
+        .cloned()
+        .collect::<rustls::RootCertStore>();
+    let config = rustls::ClientConfig::builder()
+        .with_root_certificates(roots)
+        .with_no_client_auth();
+    tls_client_with_config(
+        stream,
+        server_name,
+        deadline_ms,
+        cancellation,
+        Arc::new(config),
+    )
+}
+
+fn tls_client_with_config(
+    stream: &Capability,
+    server_name: &str,
+    deadline_ms: i128,
+    cancellation: &Capability,
+    config: Arc<rustls::ClientConfig>,
+) -> ResultValue {
     if let Some(error) = cancellation_error(cancellation) {
         return error;
     }
@@ -1172,17 +1207,10 @@ pub fn tls_client(
     if let Err(error) = tcp.set_write_timeout(Some(duration)) {
         return io_error("TLS write timeout configuration", &error);
     }
-    let roots = webpki_roots::TLS_SERVER_ROOTS
-        .iter()
-        .cloned()
-        .collect::<rustls::RootCertStore>();
-    let config = rustls::ClientConfig::builder()
-        .with_root_certificates(roots)
-        .with_no_client_auth();
     let Ok(name) = rustls::pki_types::ServerName::try_from(server_name.to_owned()) else {
         return ResultValue::error("invalid TLS server name");
     };
-    let Ok(connection) = rustls::ClientConnection::new(Arc::new(config), name) else {
+    let Ok(connection) = rustls::ClientConnection::new(config, name) else {
         return ResultValue::error("cannot create TLS client");
     };
     let mut tls = rustls::StreamOwned::new(connection, tcp);
@@ -1353,6 +1381,36 @@ mod tests {
     }
 
     #[test]
+    fn concurrent_accepts_share_a_listener_without_serializing_on_its_lock() {
+        let listener = tcp_bind("127.0.0.1:0");
+        assert!(!listener.failed);
+        let listener = listener.capability.unwrap();
+        let first_listener = listener.clone();
+        let second_listener = listener.clone();
+        let first =
+            std::thread::spawn(move || tcp_accept(&first_listener, 1_000, &cancellation_token()));
+        let second =
+            std::thread::spawn(move || tcp_accept(&second_listener, 1_000, &cancellation_token()));
+        let address = match listener.0.as_ref() {
+            CapabilityInner::Listener(listener) => listener
+                .lock()
+                .unwrap()
+                .as_ref()
+                .unwrap()
+                .local_addr()
+                .unwrap(),
+            _ => unreachable!(),
+        };
+        let first_client = TcpStream::connect(address).unwrap();
+        let second_client = TcpStream::connect(address).unwrap();
+        let first = first.join().unwrap();
+        let second = second.join().unwrap();
+        assert!(!first.failed, "{}", first.message);
+        assert!(!second.failed, "{}", second.message);
+        drop((first_client, second_client));
+    }
+
+    #[test]
     fn oversized_udp_datagram_reports_truncation() {
         let receiver = udp_bind("127.0.0.1:0");
         let sender = udp_bind("127.0.0.1:0");
@@ -1485,6 +1543,122 @@ mod tests {
         );
         assert!(result.failed);
         assert!(result.deadline_exceeded);
+    }
+
+    #[test]
+    fn accept_preserves_the_listener_nonblocking_descriptor_state() {
+        let listener = tcp_bind("127.0.0.1:0");
+        assert!(!listener.failed);
+        let listener = listener.capability.unwrap();
+        let would_block = || match listener.0.as_ref() {
+            CapabilityInner::Listener(listener) => {
+                listener
+                    .lock()
+                    .unwrap()
+                    .as_ref()
+                    .unwrap()
+                    .accept()
+                    .unwrap_err()
+                    .kind()
+                    == std::io::ErrorKind::WouldBlock
+            }
+            _ => false,
+        };
+        assert!(would_block());
+        let accepted = tcp_accept(&listener, 1, &cancellation_token());
+        assert!(accepted.deadline_exceeded);
+        assert!(would_block());
+    }
+
+    #[test]
+    fn tls_accepts_a_trusted_local_certificate_and_reports_tls_1_3() {
+        let rcgen::CertifiedKey { cert, signing_key } =
+            rcgen::generate_simple_self_signed(["localhost".to_owned()]).unwrap();
+        let config = rustls::ServerConfig::builder()
+            .with_no_client_auth()
+            .with_single_cert(
+                vec![cert.der().clone()],
+                rustls::pki_types::PrivatePkcs8KeyDer::from(signing_key.serialize_der()).into(),
+            )
+            .unwrap();
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let address = listener.local_addr().unwrap();
+        let server = std::thread::spawn(move || {
+            let (socket, _) = listener.accept().unwrap();
+            let connection = rustls::ServerConnection::new(Arc::new(config)).unwrap();
+            let mut stream = rustls::StreamOwned::new(connection, socket);
+            stream.write_all(b"x").unwrap();
+            stream.flush().unwrap();
+        });
+        let mut roots = rustls::RootCertStore::empty();
+        roots.add(cert.der().clone()).unwrap();
+        let config = rustls::ClientConfig::builder()
+            .with_root_certificates(roots)
+            .with_no_client_auth();
+        let tcp = tcp_connect(&address.to_string(), 1_000, &cancellation_token());
+        let result = tls_client_with_config(
+            tcp.capability.as_ref().unwrap(),
+            "localhost",
+            1_000,
+            &cancellation_token(),
+            Arc::new(config),
+        );
+        assert!(!result.failed, "{}", result.message);
+        assert_eq!(result.text, "TLS 1.3");
+        let read = tls_read(
+            result.capability.as_ref().unwrap(),
+            1,
+            1_000,
+            &cancellation_token(),
+        );
+        assert_eq!(read.data, b"x");
+        server.join().unwrap();
+    }
+
+    #[test]
+    fn tls_shutdown_sends_close_notify() {
+        let rcgen::CertifiedKey { cert, signing_key } =
+            rcgen::generate_simple_self_signed(["localhost".to_owned()]).unwrap();
+        let config = rustls::ServerConfig::builder()
+            .with_no_client_auth()
+            .with_single_cert(
+                vec![cert.der().clone()],
+                rustls::pki_types::PrivatePkcs8KeyDer::from(signing_key.serialize_der()).into(),
+            )
+            .unwrap();
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let address = listener.local_addr().unwrap();
+        let server = std::thread::spawn(move || {
+            let (socket, _) = listener.accept().unwrap();
+            let connection = rustls::ServerConnection::new(Arc::new(config)).unwrap();
+            let mut stream = rustls::StreamOwned::new(connection, socket);
+            let mut byte = [0];
+            stream.read_exact(&mut byte).unwrap();
+            assert_eq!(byte, [b'x']);
+            assert_eq!(stream.read(&mut byte).unwrap(), 0);
+        });
+        let mut roots = rustls::RootCertStore::empty();
+        roots.add(cert.der().clone()).unwrap();
+        let config = rustls::ClientConfig::builder()
+            .with_root_certificates(roots)
+            .with_no_client_auth();
+        let tcp = tcp_connect(&address.to_string(), 1_000, &cancellation_token());
+        let tls = tls_client_with_config(
+            tcp.capability.as_ref().unwrap(),
+            "localhost",
+            1_000,
+            &cancellation_token(),
+            Arc::new(config),
+        );
+        assert!(!tls.failed, "{}", tls.message);
+        let tls = tls.capability.unwrap();
+        assert_eq!(
+            tls_write(&tls, b"x", 1_000, &cancellation_token()).number,
+            1
+        );
+        let shutdown = tls_shutdown(&tls, 1_000, &cancellation_token());
+        assert!(!shutdown.failed, "{}", shutdown.message);
+        server.join().unwrap();
     }
 
     #[test]

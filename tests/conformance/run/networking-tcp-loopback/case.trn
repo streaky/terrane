@@ -1,0 +1,47 @@
+namespace app
+
+from /core/output import print
+from /core/encodings import utf8
+from /standard/networking import ip-address-from-string, socket-address-from-ip, socket-address-from-string, cancellation-token, operation-options, tcp-listener, listener-result, stream-result, bind-tcp, connect-tcp
+
+class async-runner
+    callback function to none = function none;
+        return
+
+    function construct; callback function to none
+        this.callback = callback
+
+    async function run none;
+        callback = this.callback
+        callback;
+
+function main;
+    loopback = ip-address-from-string; '127.0.0.1'
+    bind-address = socket-address-from-ip; loopback.value, 0
+    bound listener-result = bind-tcp; bind-address.value
+    listener = move bound.value
+    endpoint-text string = listener.local-address
+    server-options = operation-options; 1000, (cancellation-token;)
+    serve = function none;
+        accepted stream-result = listener.accept; server-options
+        stream = move accepted.value
+        request = stream.read; 7, server-options
+        if request.data != b'terrane'
+            return
+        stream.write; b'reply', server-options
+        stream.shutdown; 'both'
+        stream.close;
+    server = async-runner; serve
+    scope = task-scope;
+    child = scope.spawn; server.run
+    destination = socket-address-from-string; endpoint-text
+    client-options = operation-options; 1000, (cancellation-token;)
+    connected stream-result = connect-tcp; destination.value, client-options
+    client = move connected.value
+    sent = client.write; b'terrane', client-options
+    response = client.read; 5, client-options
+    outcome = scope.join; move child
+    print; sent.completed
+    print; (response.data.decode; utf8)
+    print; outcome.completed
+    client.close;

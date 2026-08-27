@@ -6598,10 +6598,8 @@ fn infer_value_type(
                     | "/core/platform-capabilities::no-resource" => {
                         Some(ValueType::PlatformResourceHandle)
                     }
-                    "/core/platform-capabilities::failed-result" => {
-                        Some(ValueType::PlatformResult)
-                    }
-                    "/core/platform-capabilities::random-bytes"
+                    "/core/platform-capabilities::failed-result"
+                    | "/core/platform-capabilities::random-bytes"
                     | "/core/platform-capabilities::random-bounded"
                     | "/core/platform-capabilities::random-split"
                     | "/core/platform-capabilities::digest"
@@ -6617,6 +6615,7 @@ fn infer_value_type(
                     | "/core/platform-capabilities::parse-ip"
                     | "/core/platform-capabilities::parse-host-name"
                     | "/core/platform-capabilities::parse-socket"
+                    | "/core/platform-capabilities::parse-socket-text"
                     | "/core/platform-capabilities::tcp-bind"
                     | "/core/platform-capabilities::tcp-connect"
                     | "/core/platform-capabilities::tcp-connect-host"
@@ -10405,6 +10404,7 @@ fn bootstrap_namespaces() -> BTreeMap<String, Namespace> {
                 "parse-host-name",
                 "parse-ip",
                 "parse-socket",
+                "parse-socket-text",
                 "tcp-bind",
                 "tcp-connect",
                 "tcp-connect-host",

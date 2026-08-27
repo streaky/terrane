@@ -1,6 +1,7 @@
 fn terrane_platform_parse_ip(text: String) -> TerranePlatformResult { terrane_platform_support::parse_ip(&text) }
 fn terrane_platform_parse_host_name(text: String) -> TerranePlatformResult { terrane_platform_support::parse_host_name(&text) }
 fn terrane_platform_parse_socket(ip: &String, port: &terrane_int_support::Int) -> TerranePlatformResult { terrane_platform_support::parse_socket(ip, terrane_platform_i128!(port, "socket port")) }
+fn terrane_platform_parse_socket_text(text: String) -> TerranePlatformResult { terrane_platform_support::parse_socket_text(&text) }
 fn terrane_platform_tcp_bind(address: String) -> TerranePlatformResult { terrane_platform_support::tcp_bind(&address) }
 fn terrane_platform_tcp_connect(address: String, deadline: terrane_int_support::Int, cancellation: &TerranePlatformCapability) -> TerranePlatformResult { terrane_platform_support::tcp_connect(&address, terrane_platform_i128!(deadline, "TCP connect deadline"), cancellation) }
 fn terrane_platform_tcp_connect_host(host: String, port: terrane_int_support::Int, deadline: terrane_int_support::Int, cancellation: &TerranePlatformCapability) -> TerranePlatformResult { terrane_platform_support::tcp_connect_host(&host, terrane_platform_i128!(port, "TCP host port"), terrane_platform_i128!(deadline, "TCP host connect deadline"), cancellation) }

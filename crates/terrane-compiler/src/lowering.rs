@@ -1664,8 +1664,23 @@ impl Emitter<'_> {
         for capture in &contract.captures {
             let name = rust_name(capture);
             let source = if capture == "this" { "self" } else { &name };
-            write!(captures, "let {name} = {source}.clone(); ")
-                .expect("writing to a String cannot fail");
+            let transfer = self
+                .unit
+                .typed_bindings
+                .iter()
+                .rev()
+                .find(|binding| {
+                    binding.name == *capture
+                        && binding.is_visible_at(self.source.id(), node.span.start)
+                })
+                .is_some_and(|binding| self.value_type_owns_resource(&binding.value_type));
+            if transfer {
+                write!(captures, "let {name} = {source}; ")
+                    .expect("writing to a String cannot fail");
+            } else {
+                write!(captures, "let {name} = {source}.clone(); ")
+                    .expect("writing to a String cannot fail");
+            }
         }
         format!(
             "{{ {captures}std::sync::Arc::new(move |{parameters}| -> {result_type} {{\n{body}{}}}) }}",
@@ -2959,7 +2974,9 @@ impl Emitter<'_> {
             {
                 format!("({}).clone()", self.expression(node))
             }
-            ValueType::Function(parameters, _) if node.kind == SyntaxKind::MemberExpression => {
+            ValueType::AsyncFunction(parameters, _)
+                if node.kind == SyntaxKind::MemberExpression =>
+            {
                 let [receiver, member] = node.children.as_slice() else {
                     return String::new();
                 };
@@ -2980,9 +2997,42 @@ impl Emitter<'_> {
                     .collect::<Vec<_>>()
                     .join(", ");
                 format!(
-                    "{{ let receiver = {receiver}; std::sync::Arc::new(move |{declarations}| receiver.{}({arguments})) }}",
+                    "{{ let receiver = {receiver}; std::sync::Arc::new(move |{declarations}| -> std::pin::Pin<Box<dyn Future<Output = _>>> {{ let receiver = receiver.clone(); Box::pin(async move {{ receiver.{}({arguments}).await }}) }}) }}",
                     rust_name(self.text(member))
                 )
+            }
+            ValueType::Function(parameters, _) if node.kind == SyntaxKind::MemberExpression => {
+                let [receiver, member] = node.children.as_slice() else {
+                    return String::new();
+                };
+                let callable_field = self.callable_object_field(receiver, self.text(member));
+                let receiver_type = self
+                    .value_type(receiver)
+                    .expect("bound object method receiver must have a static type");
+                let receiver = self.expression_as(receiver, receiver_type);
+                let declarations = parameters
+                    .iter()
+                    .enumerate()
+                    .map(|(index, parameter)| {
+                        format!("argument_{index}: {}", rust_element_type(parameter.clone()))
+                    })
+                    .collect::<Vec<_>>()
+                    .join(", ");
+                let arguments = (0..parameters.len())
+                    .map(|index| format!("argument_{index}"))
+                    .collect::<Vec<_>>()
+                    .join(", ");
+                if callable_field {
+                    format!(
+                        "{{ let receiver = {receiver}; std::sync::Arc::new(move |{declarations}| (receiver.{})({arguments})) }}",
+                        rust_name(self.text(member))
+                    )
+                } else {
+                    format!(
+                        "{{ let receiver = {receiver}; std::sync::Arc::new(move |{declarations}| receiver.{}({arguments})) }}",
+                        rust_name(self.text(member))
+                    )
+                }
             }
             ValueType::Function(_, _) if node.kind == SyntaxKind::Name => {
                 if let Some(contract) = self
@@ -3883,7 +3933,11 @@ impl Emitter<'_> {
                     let throws = self
                         .contract_for_call(callable)
                         .is_some_and(|contract| contract.throws);
-                    let callable = self.expression(callable);
+                    let callable = if let Some(value_type) = self.value_type(callable) {
+                        self.expression_as(callable, value_type)
+                    } else {
+                        self.expression(callable)
+                    };
                     if throws {
                         format!(
                             "{{ let __terrane_scope = ({receiver}).clone(); let __terrane_cancel = __terrane_scope.clone(); TerraneScopedTask::spawn(move || match __terrane_block_on_cancellable(({callable})(), move || __terrane_cancel.should_cancel()) {{ Some(Ok(value)) => TerraneTaskResult::Completed(value), Some(Err(error)) => TerraneTaskResult::Failed(error), None => TerraneTaskResult::Cancelled }}) }}"
@@ -4347,6 +4401,7 @@ impl Emitter<'_> {
             ("parse-ip", "platform_parse_ip"),
             ("parse-host-name", "platform_parse_host_name"),
             ("parse-socket", "platform_parse_socket"),
+            ("parse-socket-text", "platform_parse_socket_text"),
             ("tcp-bind", "platform_tcp_bind"),
             ("tcp-connect", "platform_tcp_connect"),
             ("tcp-connect-host", "platform_tcp_connect_host"),
@@ -4421,7 +4476,12 @@ impl Emitter<'_> {
                                 | "platform_destroy_secret",
                             0,
                         ) | ("platform_parse_socket" | "platform_hmac", 1)
-                            | ("platform_tcp_connect" | "platform_tcp_accept" | "platform_tls_shutdown", 2)
+                            | (
+                                "platform_tcp_connect"
+                                    | "platform_tcp_accept"
+                                    | "platform_tls_shutdown",
+                                2
+                            )
                             | (
                                 "platform_tcp_connect_host"
                                     | "platform_tcp_read"
@@ -4634,6 +4694,16 @@ impl Emitter<'_> {
             && contract.owner.is_none()
         {
             function_name(contract)
+        } else if contract
+            .as_ref()
+            .is_some_and(|contract| contract.owner.is_some())
+            && let [receiver, member] = callee.children.as_slice()
+        {
+            format!(
+                "({}).{}",
+                self.receiver_expression(receiver),
+                rust_name(self.text(member))
+            )
         } else {
             self.expression(callee)
         };
@@ -5084,7 +5154,7 @@ impl Emitter<'_> {
     fn contract_for_call(&self, callee: &SyntaxNode) -> Option<&FunctionContract> {
         if let [receiver, member] = callee.children.as_slice()
             && callee.kind == SyntaxKind::MemberExpression
-            && let Some(ValueType::Object(object_name)) = self.value_type(receiver)
+            && let Some(ValueType::Object(object_name)) = self.receiver_value_type(receiver)
             && let Some(object) = self
                 .unit
                 .objects
@@ -5370,6 +5440,30 @@ impl Emitter<'_> {
             })
     }
 
+    fn callable_object_field(&self, receiver: &SyntaxNode, name: &str) -> bool {
+        let Some(ValueType::Object(identity)) = self.receiver_value_type(receiver) else {
+            return false;
+        };
+        self.unit
+            .objects
+            .iter()
+            .find(|object| object.name == identity)
+            .is_some_and(|object| {
+                !self
+                    .package
+                    .units
+                    .iter()
+                    .flat_map(|unit| &unit.functions)
+                    .any(|method| method.owner.is_some() && method.name == name)
+                    && effective_object_fields(self.unit, object)
+                        .iter()
+                        .any(|field| {
+                            field.name == name
+                                && matches!(field.value_type, ValueType::Function(_, _))
+                        })
+            })
+    }
+
     fn wrapped_object_field(&self, receiver: &SyntaxNode, name: &str) -> bool {
         let Some(ValueType::Object(identity)) = self.receiver_value_type(receiver) else {
             return false;
@@ -5387,6 +5481,17 @@ impl Emitter<'_> {
             && effective_object_fields(self.unit, object)
                 .iter()
                 .any(|field| field.name == name)
+    }
+
+    fn value_type_owns_resource(&self, value_type: &ValueType) -> bool {
+        let ValueType::Object(identity) = value_type else {
+            return false;
+        };
+        self.package
+            .units
+            .iter()
+            .flat_map(|unit| &unit.objects)
+            .any(|object| object.name == *identity && object.resource_owning)
     }
 
     fn object_owns_resource(&self, node: &SyntaxNode, name: &str) -> bool {
@@ -5942,7 +6047,7 @@ fn rust_value_type(ty: ValueType) -> String {
         }
         ValueType::TextRangeList => "Vec<terrane_string_support::TextRange>".to_owned(),
         ValueType::Function(parameters, result) => format!(
-            "std::sync::Arc<dyn Fn({}) -> {}>",
+            "std::sync::Arc<dyn Fn({}) -> {} + Send + Sync>",
             parameters
                 .into_iter()
                 .map(rust_element_type)
@@ -5951,7 +6056,7 @@ fn rust_value_type(ty: ValueType) -> String {
             rust_element_type(result)
         ),
         ValueType::AsyncFunction(parameters, result) => format!(
-            "std::sync::Arc<dyn Fn({}) -> std::pin::Pin<Box<dyn Future<Output = {}>>>>",
+            "std::sync::Arc<dyn Fn({}) -> std::pin::Pin<Box<dyn Future<Output = {}>>> + Send + Sync>",
             parameters
                 .into_iter()
                 .map(rust_element_type)

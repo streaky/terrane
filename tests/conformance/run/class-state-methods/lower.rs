@@ -50,7 +50,7 @@ fn main() {
     );
     let mut second: Counter = first.terrane_separate();
     let shift: std::sync::Arc<
-        dyn Fn(terrane_int_support::Int) -> terrane_int_support::Int,
+        dyn Fn(terrane_int_support::Int) -> terrane_int_support::Int + Send + Sync,
     > = {
         let receiver = first.terrane_separate();
         std::sync::Arc::new(move |argument_0: terrane_int_support::Int| {

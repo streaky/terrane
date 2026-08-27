@@ -3,7 +3,7 @@
 // Namespace: function-values-closures
 fn apply(
     callback: std::sync::Arc<
-        dyn Fn(terrane_int_support::Int) -> terrane_int_support::Int,
+        dyn Fn(terrane_int_support::Int) -> terrane_int_support::Int + Send + Sync,
     >,
     value: terrane_int_support::Int,
 ) -> terrane_int_support::Int {
@@ -12,7 +12,7 @@ fn apply(
 fn main() {
     let base: i64 = 10;
     let add: std::sync::Arc<
-        dyn Fn(terrane_int_support::Int) -> terrane_int_support::Int,
+        dyn Fn(terrane_int_support::Int) -> terrane_int_support::Int + Send + Sync,
     > = {
         let base = base.clone();
         std::sync::Arc::new(move |

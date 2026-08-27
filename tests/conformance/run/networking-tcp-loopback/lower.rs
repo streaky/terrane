@@ -130,6 +130,161 @@ enum TerraneCompletion<T> {
     Break,
     Continue,
 }
+async fn __terrane_await<F: Future>(future: F) -> F::Output {
+    struct YieldOnce(bool);
+    impl Future for YieldOnce {
+        type Output = ();
+        fn poll(
+            mut self: std::pin::Pin<&mut Self>,
+            context: &mut std::task::Context<'_>,
+        ) -> std::task::Poll<Self::Output> {
+            if self.0 {
+                std::task::Poll::Ready(())
+            } else {
+                self.0 = true;
+                context.waker().wake_by_ref();
+                std::task::Poll::Pending
+            }
+        }
+    }
+    YieldOnce(false).await;
+    let output = future.await;
+    YieldOnce(false).await;
+    output
+}
+fn __terrane_block_on<F: Future>(future: F) -> F::Output {
+    struct Wake;
+    impl std::task::Wake for Wake {
+        fn wake(self: std::sync::Arc<Self>) {}
+    }
+    let waker = std::task::Waker::from(std::sync::Arc::new(Wake));
+    let mut context = std::task::Context::from_waker(&waker);
+    let mut future = std::pin::pin!(future);
+    loop {
+        match future.as_mut().poll(&mut context) {
+            std::task::Poll::Ready(value) => return value,
+            std::task::Poll::Pending => std::thread::yield_now(),
+        }
+    }
+}
+fn __terrane_block_on_cancellable<F: Future>(
+    future: F,
+    cancelled: impl Fn() -> bool,
+) -> Option<F::Output> {
+    struct Wake;
+    impl std::task::Wake for Wake {
+        fn wake(self: std::sync::Arc<Self>) {}
+    }
+    let waker = std::task::Waker::from(std::sync::Arc::new(Wake));
+    let mut context = std::task::Context::from_waker(&waker);
+    let mut future = std::pin::pin!(future);
+    loop {
+        if cancelled() {
+            return None;
+        }
+        match future.as_mut().poll(&mut context) {
+            std::task::Poll::Ready(value) => return Some(value),
+            std::task::Poll::Pending => std::thread::yield_now(),
+        }
+    }
+}
+#[derive(Clone)]
+pub struct TerraneTaskScope {
+    cancelled: std::sync::Arc<std::sync::atomic::AtomicBool>,
+    deadline: Option<std::time::Instant>,
+}
+impl TerraneTaskScope {
+    pub fn new(deadline_ms: Option<u64>) -> Self {
+        Self {
+            cancelled: std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false)),
+            deadline: deadline_ms
+                .map(|value| {
+                    std::time::Instant::now() + std::time::Duration::from_millis(value)
+                }),
+        }
+    }
+    pub fn child_scope(&self, deadline_ms: u64) -> Self {
+        let requested = std::time::Instant::now()
+            + std::time::Duration::from_millis(deadline_ms);
+        let deadline = Some(
+            self.deadline.map_or(requested, |parent| std::cmp::min(parent, requested)),
+        );
+        Self {
+            cancelled: self.cancelled.clone(),
+            deadline,
+        }
+    }
+    pub fn cancel(&self) {
+        self.cancelled.store(true, std::sync::atomic::Ordering::Release);
+    }
+    pub fn should_cancel(&self) -> bool {
+        self.cancelled.load(std::sync::atomic::Ordering::Acquire)
+            || self
+                .deadline
+                .is_some_and(|deadline| std::time::Instant::now() >= deadline)
+    }
+    pub fn join<T>(&self, mut task: TerraneScopedTask<T>) -> TerraneTaskOutcome<T> {
+        let result = task
+            .handle
+            .take()
+            .expect("scoped task joined once")
+            .join()
+            .expect("task worker panicked");
+        match result {
+            TerraneTaskResult::Completed(value) => {
+                TerraneTaskOutcome {
+                    completed: true,
+                    cancelled: self.should_cancel(),
+                    value: Some(value),
+                    error: None,
+                }
+            }
+            TerraneTaskResult::Failed(error) => {
+                self.cancel();
+                TerraneTaskOutcome {
+                    completed: false,
+                    cancelled: false,
+                    value: None,
+                    error: Some(error),
+                }
+            }
+            TerraneTaskResult::Cancelled => {
+                TerraneTaskOutcome {
+                    completed: false,
+                    cancelled: true,
+                    value: None,
+                    error: None,
+                }
+            }
+        }
+    }
+}
+#[allow(
+    dead_code,
+    reason = "task result ABI is emitted before per-variant usage shaping"
+)]
+enum TerraneTaskResult<T> {
+    Completed(T),
+    Failed(TerraneError),
+    Cancelled,
+}
+pub struct TerraneScopedTask<T> {
+    handle: Option<std::thread::JoinHandle<TerraneTaskResult<T>>>,
+}
+impl<T: Send + 'static> TerraneScopedTask<T> {
+    #[allow(dead_code, reason = "task spawn ABI is emitted before usage shaping")]
+    fn spawn<F: FnOnce() -> TerraneTaskResult<T> + Send + 'static>(work: F) -> Self {
+        Self {
+            handle: Some(std::thread::spawn(work)),
+        }
+    }
+}
+pub struct TerraneTaskOutcome<T> {
+    pub completed: bool,
+    pub cancelled: bool,
+    pub value: Option<T>,
+    pub error: Option<TerraneError>,
+}
 type TerranePlatformCapability = terrane_platform_support::Capability;
 type TerranePlatformResult = terrane_platform_support::ResultValue;
 fn terrane_platform_i128(
@@ -376,44 +531,106 @@ fn terrane_platform_close(
 }
 // Source: case.trn
 // Namespace: app
+#[derive(Clone)]
+pub struct AsyncRunner {
+    pub callback: std::sync::Arc<dyn Fn() -> () + Send + Sync>,
+}
+impl AsyncRunner {
+    pub fn terrane_construct(
+        callback: std::sync::Arc<dyn Fn() -> () + Send + Sync>,
+    ) -> Self {
+        let mut value = Self {
+            callback: {
+                std::sync::Arc::new(move || -> () {
+                    return ();
+                })
+            },
+        };
+        value.construct(callback);
+        value
+    }
+    pub fn construct(&mut self, callback: std::sync::Arc<dyn Fn() -> () + Send + Sync>) {
+        self.callback = callback.clone();
+    }
+    pub async fn run(&self) {
+        let callback: std::sync::Arc<dyn Fn() -> () + Send + Sync> = {
+            let receiver = self.clone();
+            std::sync::Arc::new(move || (receiver.callback)())
+        };
+        callback();
+    }
+}
 fn main() {
     let loopback: IpResult = ip_address_from_string(String::from("127.0.0.1"));
-    let address: SocketResult = socket_address_from_ip(
+    let bind_address: SocketResult = socket_address_from_ip(
         loopback.value,
         terrane_int_support::Int::from(0_i128),
     );
-    let bound: UdpResult = bind_udp(address.value);
-    let socket: UdpSocket = bound.value;
-    let destination: SocketResult = socket_address_from_string(
-        socket.local_address.clone(),
-    );
-    let configured: OperationResult = socket
-        .configure(
-            UdpOptions::terrane_construct(false, terrane_int_support::Int::from(32_i128)),
-        );
-    let cancellation: CancellationToken = CancellationToken::terrane_construct();
-    let options: OperationOptions = OperationOptions::terrane_construct(
+    let bound: ListenerResult = bind_tcp(bind_address.value);
+    let listener: TcpListener = bound.value;
+    let endpoint_text: String = listener.local_address.clone();
+    let server_options: OperationOptions = OperationOptions::terrane_construct(
         terrane_int_support::Int::from(1000_i128),
-        cancellation.clone(),
+        CancellationToken::terrane_construct(),
     );
-    let sent: IoResult = socket
-        .send_to(
-            Vec::from([116, 101, 114, 114, 97, 110, 101]),
-            destination.value,
-            options.clone(),
-        );
-    let received: IoResult = socket
-        .receive_from(terrane_int_support::Int::from(32_i128), options.clone());
-    println!("{}", terrane_scalar_support::scalar_text(&! configured.failed));
+    let serve: std::sync::Arc<dyn Fn() -> () + Send + Sync> = {
+        let listener = listener;
+        let server_options = server_options.clone();
+        std::sync::Arc::new(move || -> () {
+            let accepted: StreamResult = listener.accept(server_options.clone());
+            let stream: TcpStream = accepted.value;
+            let request: IoResult = stream
+                .read(terrane_int_support::Int::from(7_i128), server_options.clone());
+            if request.data != Vec::from([116, 101, 114, 114, 97, 110, 101]) {
+                return ();
+            }
+            stream.write(Vec::from([114, 101, 112, 108, 121]), server_options.clone());
+            stream.shutdown(String::from("both"));
+            stream.close();
+        })
+    };
+    let server: AsyncRunner = AsyncRunner::terrane_construct(serve.clone());
+    let scope: TerraneTaskScope = TerraneTaskScope::new(None);
+    let child: TerraneScopedTask<()> = {
+        let __terrane_scope = scope.clone();
+        let __terrane_cancel = __terrane_scope.clone();
+        TerraneScopedTask::spawn(move || match __terrane_block_on_cancellable(
+            {
+                let receiver = server.clone();
+                std::sync::Arc::new(move || -> std::pin::Pin<
+                    Box<dyn Future<Output = _>>,
+                > {
+                    let receiver = receiver.clone();
+                    Box::pin(async move { receiver.run().await })
+                })
+            }(),
+            move || __terrane_cancel.should_cancel(),
+        ) {
+            Some(value) => TerraneTaskResult::Completed(value),
+            None => TerraneTaskResult::Cancelled,
+        })
+    };
+    let destination: SocketResult = socket_address_from_string(endpoint_text);
+    let client_options: OperationOptions = OperationOptions::terrane_construct(
+        terrane_int_support::Int::from(1000_i128),
+        CancellationToken::terrane_construct(),
+    );
+    let connected: StreamResult = connect_tcp(destination.value, client_options.clone());
+    let client: TcpStream = connected.value;
+    let sent: IoResult = client
+        .write(Vec::from([116, 101, 114, 114, 97, 110, 101]), client_options.clone());
+    let response: IoResult = client
+        .read(terrane_int_support::Int::from(5_i128), client_options.clone());
+    let outcome: TerraneTaskOutcome<()> = scope.join(child);
     println!("{}", terrane_scalar_support::scalar_text(&sent.completed));
     println!(
         "{}",
-        terrane_scalar_support::scalar_text(&terrane_string_support::decode(&received
+        terrane_scalar_support::scalar_text(&terrane_string_support::decode(&response
         .data, terrane_string_support::Encoding::Utf8).unwrap_or_else(| error |
-        __terrane_uncaught(TerraneError::from(error).at("/app::main (case.trn:20:13)"))))
+        __terrane_uncaught(TerraneError::from(error).at("/app::main (case.trn:45:13)"))))
     );
-    println!("{}", terrane_scalar_support::scalar_text(&! received.truncated));
-    socket.close();
+    println!("{}", terrane_scalar_support::scalar_text(&outcome.completed));
+    client.close();
 }
 // Source: standard/networking.trn
 // Namespace: standard/networking

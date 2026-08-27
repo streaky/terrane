@@ -230,6 +230,9 @@ fn terrane_platform_parse_socket(
         terrane_platform_i128!(port, "socket port"),
     )
 }
+fn terrane_platform_parse_socket_text(text: String) -> TerranePlatformResult {
+    terrane_platform_support::parse_socket_text(&text)
+}
 fn terrane_platform_tcp_bind(address: String) -> TerranePlatformResult {
     terrane_platform_support::tcp_bind(&address)
 }
@@ -833,6 +836,21 @@ pub fn socket_address_from_ip(
     );
     return SocketResult::terrane_construct(failed, message, address.clone());
 }
+pub fn socket_address_from_string(text: String) -> SocketResult {
+    let raw: TerranePlatformResult = terrane_platform_parse_socket_text(text);
+    let failed: bool = terrane_platform_result_failed(&raw);
+    let message: String = terrane_platform_result_message(&raw);
+    let address_ip: IpAddress = IpAddress::terrane_construct(
+        terrane_platform_parse_ip(terrane_platform_result_detail(&raw)),
+    );
+    let port: terrane_int_support::Int = terrane_platform_result_int(&raw);
+    let address: SocketAddress = SocketAddress::terrane_construct(
+        raw,
+        address_ip.clone(),
+        port.clone(),
+    );
+    return SocketResult::terrane_construct(failed, message, address.clone());
+}
 #[derive(Clone)]
 pub struct IoResult {
     pub failed: bool,
@@ -1427,7 +1445,7 @@ pub fn lookup_dns(
                             .unwrap_or_else(|error| __terrane_uncaught(
                                 TerraneError::from(error)
                                     .at(
-                                        "/standard/networking::lookup-dns (networking.trn:317:28)",
+                                        "/standard/networking::lookup-dns (networking.trn:326:28)",
                                     ),
                             )),
                     )
@@ -1437,14 +1455,14 @@ pub fn lookup_dns(
                             .unwrap_or_else(|error| __terrane_uncaught(
                                 TerraneError::from(error)
                                     .at(
-                                        "/standard/networking::lookup-dns (networking.trn:317:28)",
+                                        "/standard/networking::lookup-dns (networking.trn:326:28)",
                                     ),
                             )),
                     })
                     .unwrap_or_else(|error| __terrane_uncaught(
                         TerraneError::from(error)
                             .at(
-                                "/standard/networking::lookup-dns (networking.trn:317:28)",
+                                "/standard/networking::lookup-dns (networking.trn:326:28)",
                             ),
                     )),
             );
