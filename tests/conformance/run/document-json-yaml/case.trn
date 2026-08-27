@@ -103,6 +103,8 @@ function main;
     print; limited.failed, (limited.message.contains; 'byte limit')
     excessive-depth = parse-json; '[]', (json-options; 1000000, 1024)
     print; excessive-depth.failed, (excessive-depth.message.contains; 'cannot exceed')
+    trailing-json = parse-json; '{"a":1} garbage', options
+    print; trailing-json.failed, (trailing-json.message.contains; 'trailing characters')
 
     yaml-limits = make-yaml-options; 32, 2048, 20
     yaml-value = parse-yaml; 'integer: 123456789012345678901234567890\ndecimal: 3.141592653589793238462643383279', yaml-limits

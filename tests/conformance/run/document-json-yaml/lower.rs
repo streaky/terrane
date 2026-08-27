@@ -574,6 +574,15 @@ fn main() {
         terrane_scalar_support::scalar_text(&excessive_depth.message
         .contains(&String::from("cannot exceed")))
     );
+    let trailing_json: DocumentResult = parse_json(
+        String::from("{\"a\":1} garbage"),
+        options.clone(),
+    );
+    println!(
+        "{}{}", terrane_scalar_support::scalar_text(&trailing_json.failed),
+        terrane_scalar_support::scalar_text(&trailing_json.message
+        .contains(&String::from("trailing characters")))
+    );
     let yaml_limits: YamlOptions = make_yaml_options(
         terrane_int_support::Int::from(32_i128),
         terrane_int_support::Int::from(2048_i128),

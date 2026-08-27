@@ -1434,9 +1434,9 @@ diagnostics instead of leaking parser-library limits. Accepted conformance cover
 kind-stable JSON/YAML numbers, unconditional duplicate-key rejection, deterministic JCS key
 ordering with exact number serialization, serializing and deserializing descriptor interfaces,
 document paths and unknown fields, JSON/YAML depth and size limits, YAML alias-node limits and safe
-scalar behavior,
-URL credential-safe display, duplicate ordered query entries, relative resolution, and generated-
-Rust compilation and execution with warnings denied. A rejection case keeps host intrinsics private.
+scalar behavior, URL credential-safe display, duplicate ordered query entries, relative resolution,
+and generated-Rust compilation and execution with warnings denied. A rejection case keeps host
+intrinsics private.
 
 ### Milestone 23 — Randomness, codecs, digests, and compression
 

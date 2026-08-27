@@ -20,6 +20,21 @@ fn json_preserves_exact_numbers_and_rejects_duplicates() {
 }
 
 #[test]
+fn json_rejects_trailing_content_after_a_complete_value() {
+    for input in [
+        "{\"a\":1} garbage",
+        "{\"a\":1}{\"b\":2}",
+        "1 2",
+        "null null",
+    ] {
+        let parsed = parse_json(input, 32, 1024);
+        assert!(parsed.failed, "{input} parsed as {}", parsed.encoded);
+        assert_eq!(parsed.expected, "one complete JSON value");
+    }
+    assert!(!parse_json(" \t{\"a\":1}\n ", 32, 1024).failed);
+}
+
+#[test]
 fn canonical_numbers_are_valid_and_value_equivalent() {
     let first = parse_json("{\"😀\":1,\"a\":1.0e-1,\"€\":1e2,\"zero\":-0}", 32, 1024);
     let second = parse_json("{\"€\":100,\"😀\":1,\"a\":0.1,\"zero\":0}", 32, 1024);
@@ -121,6 +136,10 @@ fn yaml_preserves_exact_scalars_and_enforces_limits_before_expansion() {
     let excessive_depth = parse_yaml("[]", 256, 1024, 64);
     assert!(excessive_depth.failed);
     assert!(excessive_depth.message.contains("cannot exceed 255"));
+    let deeply_nested = format!("{}null{}", "[".repeat(300), "]".repeat(300));
+    let masked_depth = parse_yaml(&deeply_nested, 100, 1024, 64);
+    assert!(masked_depth.failed);
+    assert_eq!(masked_depth.message, "document depth limit exceeded");
     let ordinary_reuse = parse_yaml(
         "shared: &s {a: 1, b: 2, c: 3, d: 4, e: 5}\nx: *s\ny: *s\nz: *s\nq: *s\nr: *s\ns: *s\nt: *s\nu: *s\nv: *s\nw: *s\nxx: *s\nyy: *s",
         32,

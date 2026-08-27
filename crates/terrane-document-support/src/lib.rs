@@ -195,6 +195,9 @@ pub fn parse_json(input: &str, max_depth: usize, max_bytes: usize) -> DataResult
         Ok(value) => value,
         Err(error) => return DataResult::failure(error.to_string(), "$", "JSON value"),
     };
+    if let Err(error) = deserializer.end() {
+        return DataResult::failure(error.to_string(), "$", "one complete JSON value");
+    }
     DataResult::success(value)
 }
 
@@ -216,11 +219,20 @@ pub fn parse_yaml(
         return DataResult::failure("document exceeds byte limit", "$", "bounded YAML document");
     }
     let mut builder = YamlBuilder::new(max_depth, max_alias_nodes);
-    if let Err(error) = Parser::new_from_str(input).load(&mut builder, false) {
-        return DataResult::failure(error.to_string(), "$", "safe YAML core document");
-    }
+    let parsed = Parser::new_from_str(input).load(&mut builder, false);
     if let Some(error) = builder.error {
         return error;
+    }
+    if let Err(error) = parsed {
+        let message = error.to_string();
+        if message.contains("recursion limit exceeded") {
+            return DataResult::failure(
+                "document depth limit exceeded",
+                "$",
+                "bounded YAML document",
+            );
+        }
+        return DataResult::failure(message, "$", "safe YAML core document");
     }
     builder.root.map_or_else(
         || DataResult::failure("YAML document is empty", "$", "safe YAML core document"),
