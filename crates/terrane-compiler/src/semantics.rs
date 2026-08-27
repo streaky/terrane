@@ -3591,10 +3591,10 @@ fn analyze_object_contracts(
     }
     for object in &objects {
         let require_kind = |name: &str, expected: ObjectKind, role: &str| {
+            let local = objects.iter().find(|candidate| candidate.name == name);
             let valid = (expected == ObjectKind::Interface && name == "throwable")
-                || objects
-                    .iter()
-                    .any(|candidate| candidate.name == name && candidate.kind == expected);
+                || local.is_some_and(|candidate| candidate.kind == expected)
+                || local.is_none() && visible_object_names.contains(name);
             valid.then_some(()).ok_or_else(|| {
                 failure(
                     &unit.source,
@@ -3905,11 +3905,26 @@ fn validate_object_conformance(package: &SemanticPackage) -> Result<(), Semantic
             .iter()
             .filter(|object| object.kind == ObjectKind::Class)
         {
+            let declaration_unit = package
+                .units
+                .iter()
+                .find(|candidate| candidate.source.id() == object.span.file)
+                .expect("object declaration source must belong to the semantic package");
             for interface_name in &object.interfaces {
-                if package
-                    .resolve_name_at(unit, object.span.start, interface_name)
-                    .is_some_and(|symbol| symbol.identity == "/core/errors::throwable")
-                {
+                let Some(resolved_interface) =
+                    package.resolve_name_at(declaration_unit, object.span.start, interface_name)
+                else {
+                    return Err(failure(
+                        &declaration_unit.source,
+                        "T0001",
+                        format!(
+                            "interface `{interface_name}` implemented by `{}` does not resolve",
+                            object.name
+                        ),
+                        object.span,
+                    ));
+                };
+                if resolved_interface.identity == "/core/errors::throwable" {
                     let has_message = object.fields.iter().any(|field| {
                         field.name == "message"
                             && field.value_type == ValueType::Scalar(ScalarType::String)
@@ -3964,19 +3979,31 @@ fn validate_object_conformance(package: &SemanticPackage) -> Result<(), Semantic
                     }
                     continue;
                 }
-                let interface = unit
+                let interface_unit = package
+                    .units
+                    .iter()
+                    .find(|candidate| {
+                        candidate.namespace == resolved_interface.namespace
+                            && candidate.objects.iter().any(|candidate| {
+                                candidate.name == resolved_interface.name
+                                    && candidate.kind == ObjectKind::Interface
+                            })
+                    })
+                    .expect("resolved interface must have a semantic declaration");
+                let interface = interface_unit
                     .objects
                     .iter()
-                    .find(|candidate| &candidate.name == interface_name)
-                    .expect("object-kind validation must resolve implemented interfaces");
-                for required in unit
+                    .find(|candidate| candidate.name == resolved_interface.name)
+                    .expect("resolved interface must have an object contract");
+                for required in interface_unit
                     .functions
                     .iter()
                     .filter(|method| method.owner.as_deref() == Some(&interface.name))
                 {
-                    let Some(actual) = effective_method(unit, object, &required.name) else {
+                    let Some(actual) = effective_method(declaration_unit, object, &required.name)
+                    else {
                         return Err(failure(
-                            &unit.source,
+                            &declaration_unit.source,
                             "T0062",
                             format!(
                                 "class `{}` does not implement interface member `{}.{}`",
@@ -3987,7 +4014,7 @@ fn validate_object_conformance(package: &SemanticPackage) -> Result<(), Semantic
                     };
                     if !same_signature(required, actual) {
                         return Err(failure(
-                            &unit.source,
+                            &declaration_unit.source,
                             "T0067",
                             format!(
                                 "class `{}` implements `{}.{}` with an incompatible signature",
@@ -6512,7 +6539,17 @@ fn infer_value_type(
                     | "/core/platform-streams::sync-all"
                     | "/core/platform-streams::close"
                     | "/core/platform-streams::release" => Some(ValueType::PlatformUnitResult),
-                    "/core/platform-data::json-parse"
+                    "/core/platform-data::empty-document"
+                    | "/core/platform-data::make-document-none"
+                    | "/core/platform-data::make-document-bool"
+                    | "/core/platform-data::make-document-string"
+                    | "/core/platform-data::make-document-integer"
+                    | "/core/platform-data::make-document-decimal"
+                    | "/core/platform-data::make-document-list"
+                    | "/core/platform-data::make-document-map"
+                    | "/core/platform-data::document-list-append"
+                    | "/core/platform-data::document-map-insert"
+                    | "/core/platform-data::json-parse"
                     | "/core/platform-data::json-canonical"
                     | "/core/platform-data::yaml-parse"
                     | "/core/platform-data::document-item"
@@ -6548,6 +6585,7 @@ fn infer_value_type(
                     | "/core/platform-data::data-encoded"
                     | "/core/platform-data::document-kind"
                     | "/core/platform-data::document-text"
+                    | "/core/platform-data::document-coefficient"
                     | "/core/platform-data::document-key"
                     | "/core/platform-data::url-message"
                     | "/core/platform-data::url-serialized"
@@ -6568,8 +6606,9 @@ fn infer_value_type(
                     | "/core/platform-system::platform-value-bytes" => {
                         Some(ValueType::Scalar(ScalarType::Bytes))
                     }
-                    "/core/platform-system::result-int" => Some(ValueType::Scalar(ScalarType::Int)),
-                    "/core/platform-data::document-length"
+                    "/core/platform-system::result-int"
+                    | "/core/platform-data::document-exponent"
+                    | "/core/platform-data::document-length"
                     | "/core/platform-data::url-query-length" => {
                         Some(ValueType::Scalar(ScalarType::Int))
                     }
@@ -10193,6 +10232,16 @@ fn bootstrap_namespaces() -> BTreeMap<String, Namespace> {
             [
                 "platform-data-result",
                 "platform-url-result",
+                "empty-document",
+                "make-document-none",
+                "make-document-bool",
+                "make-document-string",
+                "make-document-integer",
+                "make-document-decimal",
+                "make-document-list",
+                "make-document-map",
+                "document-list-append",
+                "document-map-insert",
                 "json-parse",
                 "json-canonical",
                 "yaml-parse",
@@ -10204,6 +10253,8 @@ fn bootstrap_namespaces() -> BTreeMap<String, Namespace> {
                 "document-kind",
                 "document-text",
                 "document-length",
+                "document-coefficient",
+                "document-exponent",
                 "document-item",
                 "document-key",
                 "document-field",

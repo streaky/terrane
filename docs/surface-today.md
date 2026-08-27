@@ -122,7 +122,7 @@ Terrane package
     │   ├── filesystem-open-beneath(filesystem, directory, relative, cross-filesystem) -> directory-handle
     │   ├── open-file-beneath(filesystem, ref directory-handle, relative, …) -> file-handle
     │   ├── filesystem-exists / filesystem-metadata / filesystem-symlink-metadata
-    │   ├── filesystem-realpath / filesystem-read-link
+    │   ├── filesystem-canonical / filesystem-realpath (deliberate POSIX spelling alias) / filesystem-read-link
     │   ├── filesystem-read-bounded / filesystem-write-atomic
     │   └── filesystem-rename / filesystem-remove
     ├── /standard/process                      bundled Terrane package over minimal host intrinsics
@@ -147,7 +147,7 @@ Terrane package
     │   └── decode-yaml / encode-yaml
     ├── /standard/urls                         bundled Terrane URL and ordered-query model
     │   ├── url                                serialized / display / components / query / origin
-    │   ├── url-query                          ordered duplicate-preserving query entries and mutations
+    │   ├── url-query                          ordered duplicate-preserving query entries (read-only after parsing)
     │   ├── url-result                         value or failed / message result
     │   └── parse-url / parse-url-relative
     ├── namespace                              hierarchical object container

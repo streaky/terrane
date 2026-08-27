@@ -4,4 +4,6 @@ https://xn--bcher-kva.example/a?x=1&x=2#f
 userpass
 2
 12
+fhttps://xn--bcher-kva.example
+truefalse
 xn--bcher-kva.example/bhello world

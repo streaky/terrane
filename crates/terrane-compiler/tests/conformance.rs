@@ -289,7 +289,7 @@ fn write_support_crates(directory: &Path) {
     .unwrap();
     fs::write(
         document.join("Cargo.toml"),
-        "[package]\nname = \"terrane-document-support\"\nversion = \"0.1.0\"\nedition = \"2024\"\n\n[dependencies]\nserde = \"1\"\nserde_json = { version = \"1\", features = [\"arbitrary_precision\"] }\nserde_yaml = \"0.9\"\nurl = \"2\"\n",
+        "[package]\nname = \"terrane-document-support\"\nversion = \"0.1.0\"\nedition = \"2024\"\n\n[dependencies]\nserde = \"=1.0.219\"\nserde_json = { version = \"=1.0.143\", features = [\"arbitrary_precision\", \"unbounded_depth\"] }\nurl = \"=2.5.7\"\nyaml-rust2 = \"=0.10.4\"\n",
     )
     .unwrap();
     fs::write(

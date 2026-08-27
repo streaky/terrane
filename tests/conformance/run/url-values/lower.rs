@@ -220,6 +220,16 @@ fn main() {
         terrane_scalar_support::scalar_text(&terrane_int_support::Int::from(value.query
         .get_all(String::from("x")).length()))
     );
+    println!(
+        "{}{}", terrane_scalar_support::scalar_text(&value.fragment),
+        terrane_scalar_support::scalar_text(&value.origin)
+    );
+    println!(
+        "{}{}", terrane_scalar_support::scalar_text(&value.serialized
+        .contains(&String::from("user:pass@"))),
+        terrane_scalar_support::scalar_text(&value.display
+        .contains(&String::from("user:pass@")))
+    );
     let relative: UrlResult = value.resolve(String::from("../b?q=hello%20world"));
     println!(
         "{}{}{}", terrane_scalar_support::scalar_text(&relative.value.host),
@@ -346,148 +356,12 @@ impl UrlQuery {
         }
         return result.clone();
     }
-    pub fn append(&mut self, name: String, value: String) {
-        self.count = self.count.clone() + terrane_int_support::Int::from(1_i128);
-        self.keys.append(name);
-        self.values.append(value);
-    }
-    pub fn set(&mut self, name: String, value: String) {
-        let mut kept_keys: terrane_collection_support::List<String> = terrane_collection_support::List::<
-            String,
-        >::new(vec![]);
-        let mut kept_values: terrane_collection_support::List<String> = terrane_collection_support::List::<
-            String,
-        >::new(vec![]);
-        let mut index: terrane_int_support::Int = terrane_int_support::Int::from(0_i128);
-        while index.clone()
-            < terrane_int_support::Int::from(
-                terrane_int_support::Int::from(self.keys.length()),
-            )
-        {
-            if self
-                .keys
-                .get_or_error(
-                    terrane_collection_support::index_from_int(&index.clone())
-                        .unwrap_or_else(|error| __terrane_uncaught(
-                            TerraneError::from(error)
-                                .at("/standard/urls::set (urls.trn:53:16)"),
-                        )),
-                )
-                .unwrap_or_else(|error| __terrane_uncaught(
-                    TerraneError::from(error).at("/standard/urls::set (urls.trn:53:16)"),
-                )) != name
-            {
-                kept_keys
-                    .append(
-                        self
-                            .keys
-                            .get_or_error(
-                                terrane_collection_support::index_from_int(&index.clone())
-                                    .unwrap_or_else(|error| __terrane_uncaught(
-                                        TerraneError::from(error)
-                                            .at("/standard/urls::set (urls.trn:54:35)"),
-                                    )),
-                            )
-                            .unwrap_or_else(|error| __terrane_uncaught(
-                                TerraneError::from(error)
-                                    .at("/standard/urls::set (urls.trn:54:35)"),
-                            )),
-                    );
-                kept_values
-                    .append(
-                        self
-                            .values
-                            .get_or_error(
-                                terrane_collection_support::index_from_int(&index.clone())
-                                    .unwrap_or_else(|error| __terrane_uncaught(
-                                        TerraneError::from(error)
-                                            .at("/standard/urls::set (urls.trn:55:37)"),
-                                    )),
-                            )
-                            .unwrap_or_else(|error| __terrane_uncaught(
-                                TerraneError::from(error)
-                                    .at("/standard/urls::set (urls.trn:55:37)"),
-                            )),
-                    );
-            }
-            index = index.clone() + terrane_int_support::Int::from(1_i128);
-        }
-        kept_keys.append(name);
-        kept_values.append(value);
-        self.count = terrane_int_support::Int::from(
-            terrane_int_support::Int::from(kept_keys.length()),
-        );
-        self.keys = kept_keys.clone();
-        self.values = kept_values.clone();
-    }
-    pub fn remove(&mut self, name: String) {
-        let mut kept_keys: terrane_collection_support::List<String> = terrane_collection_support::List::<
-            String,
-        >::new(vec![]);
-        let mut kept_values: terrane_collection_support::List<String> = terrane_collection_support::List::<
-            String,
-        >::new(vec![]);
-        let mut index: terrane_int_support::Int = terrane_int_support::Int::from(0_i128);
-        while index.clone()
-            < terrane_int_support::Int::from(
-                terrane_int_support::Int::from(self.keys.length()),
-            )
-        {
-            if self
-                .keys
-                .get_or_error(
-                    terrane_collection_support::index_from_int(&index.clone())
-                        .unwrap_or_else(|error| __terrane_uncaught(
-                            TerraneError::from(error)
-                                .at("/standard/urls::remove (urls.trn:68:16)"),
-                        )),
-                )
-                .unwrap_or_else(|error| __terrane_uncaught(
-                    TerraneError::from(error)
-                        .at("/standard/urls::remove (urls.trn:68:16)"),
-                )) != name
-            {
-                kept_keys
-                    .append(
-                        self
-                            .keys
-                            .get_or_error(
-                                terrane_collection_support::index_from_int(&index.clone())
-                                    .unwrap_or_else(|error| __terrane_uncaught(
-                                        TerraneError::from(error)
-                                            .at("/standard/urls::remove (urls.trn:69:35)"),
-                                    )),
-                            )
-                            .unwrap_or_else(|error| __terrane_uncaught(
-                                TerraneError::from(error)
-                                    .at("/standard/urls::remove (urls.trn:69:35)"),
-                            )),
-                    );
-                kept_values
-                    .append(
-                        self
-                            .values
-                            .get_or_error(
-                                terrane_collection_support::index_from_int(&index.clone())
-                                    .unwrap_or_else(|error| __terrane_uncaught(
-                                        TerraneError::from(error)
-                                            .at("/standard/urls::remove (urls.trn:70:37)"),
-                                    )),
-                            )
-                            .unwrap_or_else(|error| __terrane_uncaught(
-                                TerraneError::from(error)
-                                    .at("/standard/urls::remove (urls.trn:70:37)"),
-                            )),
-                    );
-            }
-            index = index.clone() + terrane_int_support::Int::from(1_i128);
-        }
-        self.count = terrane_int_support::Int::from(
-            terrane_int_support::Int::from(kept_keys.length()),
-        );
-        self.keys = kept_keys.clone();
-        self.values = kept_values.clone();
-    }
+}
+pub fn append_query_entry(mut query: UrlQuery, name: String, value: String) -> UrlQuery {
+    query.count = query.count.clone() + terrane_int_support::Int::from(1_i128);
+    query.keys.append(name);
+    query.values.append(value);
+    return query.clone();
 }
 #[derive(Clone)]
 pub struct Url {
@@ -640,11 +514,11 @@ pub fn url_from_platform(raw: terrane_document_support::UrlResult) -> UrlResult 
     let count: terrane_int_support::Int = terrane_url_query_length(&raw);
     let mut index: terrane_int_support::Int = terrane_int_support::Int::from(0_i128);
     while index.clone() < count.clone() {
-        query
-            .append(
-                terrane_url_query_key(&raw, index.clone()),
-                terrane_url_query_value(&raw, index.clone()),
-            );
+        query = append_query_entry(
+            query.clone(),
+            terrane_url_query_key(&raw, index.clone()),
+            terrane_url_query_value(&raw, index.clone()),
+        );
         index = index.clone() + terrane_int_support::Int::from(1_i128);
     }
     let value: Url = Url::terrane_construct(
@@ -675,7 +549,4 @@ pub fn parse_url_relative(input: String, base: Url) -> UrlResult {
         base.serialized,
     );
     return url_from_platform(raw);
-}
-pub fn parse_url_checked(input: String) -> UrlResult {
-    return parse_url(input);
 }

@@ -13,7 +13,7 @@ fn json_preserves_exact_numbers_and_rejects_duplicates() {
     assert!(!parsed.failed, "{}", parsed.message);
     assert_eq!(
         parsed.encoded,
-        "{\"a\":123456789012345678901234567890,\"z\":1.23}"
+        "{\"a\":1.2345678901234567890123456789e+29,\"z\":1.23}"
     );
     let duplicate = parse_json("{\"key\":1,\"key\":2}", true, 32, 1024);
     assert!(duplicate.failed);
@@ -21,11 +21,23 @@ fn json_preserves_exact_numbers_and_rejects_duplicates() {
 }
 
 #[test]
-fn canonical_order_is_utf16_and_repeatable() {
-    let first = canonical_json("{\"😀\":1,\"a\":2,\"€\":3}");
-    let second = canonical_json("{\"€\":3,\"😀\":1,\"a\":2}");
-    assert_eq!(first.encoded, second.encoded);
-    assert_eq!(first.encoded, "{\"a\":2,\"€\":3,\"😀\":1}");
+fn canonical_numbers_are_valid_and_value_equivalent() {
+    let first = parse_json(
+        "{\"😀\":1,\"a\":1.0e-1,\"€\":1e2,\"zero\":-0}",
+        true,
+        32,
+        1024,
+    );
+    let second = parse_json("{\"€\":100,\"😀\":1,\"a\":0.1,\"zero\":0}", true, 32, 1024);
+    assert_eq!(
+        canonical_json(&first).encoded,
+        canonical_json(&second).encoded
+    );
+    assert_eq!(first.encoded, "{\"a\":0.1,\"zero\":0,\"€\":100,\"😀\":1}");
+    assert!(!parse_json(&first.encoded, true, 32, 1024).failed);
+    let overflow = parse_json("{\"n\":1e999999999999999999999}", true, 32, 1024);
+    assert!(overflow.failed);
+    assert!(overflow.message.contains("exponent"));
 }
 
 #[test]
@@ -38,8 +50,9 @@ fn mapping_accepts_optional_fields_applies_defaults_and_rejects_unknown_fields()
     ];
     let default_fields = vec!["active".to_owned()];
     let default_values = vec!["true".to_owned()];
+    let input = parse_json("{\"name\":\"Ada\",\"nickname\":\"A\"}", true, 32, 1024);
     let mapped = validate_mapping(
-        "{\"name\":\"Ada\",\"nickname\":\"A\"}",
+        &input,
         "map",
         &required,
         &declared,
@@ -53,8 +66,9 @@ fn mapping_accepts_optional_fields_applies_defaults_and_rejects_unknown_fields()
         "{\"active\":true,\"name\":\"Ada\",\"nickname\":\"A\"}"
     );
 
+    let input = parse_json("{\"name\":\"Ada\",\"extra\":1}", true, 32, 1024);
     let unknown = validate_mapping(
-        "{\"name\":\"Ada\",\"extra\":1}",
+        &input,
         "map",
         &required,
         &declared,
@@ -67,13 +81,34 @@ fn mapping_accepts_optional_fields_applies_defaults_and_rejects_unknown_fields()
 }
 
 #[test]
-fn yaml_limits_and_safe_tags_are_enforced() {
-    let aliases = parse_yaml("root: &root [1]\na: *root\nb: *root", 32, 1024, 1);
+fn yaml_preserves_exact_scalars_and_enforces_limits_before_expansion() {
+    let exact = parse_yaml(
+        "integer: 123456789012345678901234567890\ndecimal: 3.141592653589793238462643383279",
+        32,
+        1024,
+        64,
+    );
+    assert!(!exact.failed, "{}", exact.message);
+    assert_eq!(
+        exact.encoded,
+        "{\"decimal\":3.141592653589793238462643383279,\"integer\":1.2345678901234567890123456789e+29}"
+    );
+    let ordinary = parse_yaml("glob: \"a * b * c\"", 32, 1024, 0);
+    assert!(!ordinary.failed, "{}", ordinary.message);
+    let aliases = parse_yaml(
+        "leaf: &leaf [1, 2, 3, 4]\na: &a [*leaf, *leaf, *leaf, *leaf]\nb: [*a, *a, *a, *a]",
+        32,
+        1024,
+        20,
+    );
     assert!(aliases.failed);
     assert!(aliases.message.contains("alias expansion limit"));
     let tagged = parse_yaml("value: !execute command", 32, 1024, 1);
     assert!(tagged.failed);
     assert!(tagged.message.contains("tags are disabled"));
+    let depth = parse_yaml("a: [[[[]]]]", 2, 1024, 64);
+    assert!(depth.failed);
+    assert!(depth.message.contains("depth limit"));
 }
 
 #[test]

@@ -1224,12 +1224,21 @@ impl Emitter<'_> {
                     if interface_name == "throwable" {
                         continue;
                     }
-                    let interface = self
-                        .unit
+                    let resolved_interface = self
+                        .package
+                        .resolve_name_at(self.unit, object.span.start, interface_name)
+                        .expect("validated interface reference");
+                    let interface_unit = self
+                        .package
+                        .units
+                        .iter()
+                        .find(|candidate| candidate.namespace == resolved_interface.namespace)
+                        .expect("resolved interface namespace");
+                    let interface = interface_unit
                         .objects
                         .iter()
-                        .find(|candidate| candidate.name == interface_name)
-                        .expect("validated interface reference");
+                        .find(|candidate| candidate.name == resolved_interface.name)
+                        .expect("validated interface contract");
                     let interface_type = rust_object_name(interface_name);
                     let protocol = format!("{interface_type}Protocol");
                     let class_type = rust_object_name(&object.name);
@@ -1247,7 +1256,7 @@ impl Emitter<'_> {
                             "fn separate_box(&self) -> Box<dyn {protocol}> {{ Box::new(self.clone()) }}"
                         ));
                     }
-                    for method in effective_object_methods(self.unit, interface) {
+                    for method in effective_object_methods(interface_unit, interface) {
                         self.line_start();
                         let receiver = if method.consumes_receiver {
                             "self: Box<Self>"
@@ -2711,6 +2720,28 @@ impl Emitter<'_> {
                 .objects
                 .iter()
                 .find(|object| object.name == *expected)
+                .or_else(|| {
+                    self.package
+                        .resolve_name_at(self.unit, node.span.start, expected)
+                        .and_then(|symbol| {
+                            self.package
+                                .units
+                                .iter()
+                                .find(|unit| unit.namespace == symbol.namespace)
+                                .and_then(|unit| {
+                                    unit.objects
+                                        .iter()
+                                        .find(|object| object.name == symbol.name)
+                                })
+                        })
+                })
+                .or_else(|| {
+                    self.package.units.iter().find_map(|unit| {
+                        unit.objects.iter().find(|object| {
+                            object.name == *expected && object.kind == ObjectKind::Interface
+                        })
+                    })
+                })
         {
             let expression = if self.text(node) == "this" {
                 if self.object_requires_separation(&actual) {
@@ -3649,6 +3680,14 @@ impl Emitter<'_> {
             return self.wrap_receiver_guard(receiver, access);
         }
         let receiver = self.receiver_expression(receiver);
+        if self.text(member) == "length"
+            && matches!(
+                self.value_type(node),
+                Some(ValueType::Function(_, _) | ValueType::AsyncFunction(_, _))
+            )
+        {
+            return format!("({receiver}).length");
+        }
         match self.text(member) {
             "bytes" if receiver_type == Some(ValueType::Scalar(ScalarType::String)) => {
                 format!("({receiver}).as_bytes().to_vec()")
@@ -4132,6 +4171,16 @@ impl Emitter<'_> {
             return format!("println!(\"{format}\", {})", values.join(", "));
         }
         let data_call = [
+            ("empty-document", "empty_document"),
+            ("make-document-none", "make_document_none"),
+            ("make-document-bool", "make_document_bool"),
+            ("make-document-string", "make_document_string"),
+            ("make-document-integer", "make_document_integer"),
+            ("make-document-decimal", "make_document_decimal"),
+            ("make-document-list", "make_document_list"),
+            ("make-document-map", "make_document_map"),
+            ("document-list-append", "document_list_append"),
+            ("document-map-insert", "document_map_insert"),
             ("json-parse", "json_parse"),
             ("json-canonical", "json_canonical"),
             ("yaml-parse", "yaml_parse"),
@@ -4142,6 +4191,8 @@ impl Emitter<'_> {
             ("data-encoded", "data_encoded"),
             ("document-kind", "document_kind"),
             ("document-text", "document_text"),
+            ("document-coefficient", "document_coefficient"),
+            ("document-exponent", "document_exponent"),
             ("document-length", "document_length"),
             ("document-item", "document_item"),
             ("document-key", "document_key"),
@@ -4191,11 +4242,16 @@ impl Emitter<'_> {
                     } else {
                         self.expression(value)
                     };
-                    let borrowed_result = index == 0
+                    let borrowed_result = (index == 0
                         && (function.starts_with("data_")
                             || function.starts_with("document_")
+                            || function == "json_canonical"
                             || function == "validate_mapping"
-                            || function.starts_with("url_") && function != "url_parse");
+                            || function.starts_with("url_") && function != "url_parse"))
+                        || matches!(
+                            (function, index),
+                            ("document_list_append", 1) | ("document_map_insert", 2)
+                        );
                     if borrowed_result {
                         format!("&({value})")
                     } else {

@@ -6,10 +6,10 @@ license.workspace = true
 rust-version.workspace = true
 
 [dependencies]
-serde = "1"
-serde_json = { version = "1", features = ["arbitrary_precision"] }
-serde_yaml = "0.9"
-url = "2"
+serde = "=1.0.219"
+serde_json = { version = "=1.0.143", features = ["arbitrary_precision", "unbounded_depth"] }
+url = "=2.5.7"
+yaml-rust2 = "=0.10.4"
 
 [lints]
 workspace = true

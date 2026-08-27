@@ -40,38 +40,12 @@ class url-query
             index = index + 1
         return result
 
-    function append; name string, value string
-        this.count = this.count + 1
-        this.keys.append; name
-        this.values.append; value
+function append-query-entry url-query; query url-query, name string, value string
+    query.count = query.count + 1
+    query.keys.append; name
+    query.values.append; value
+    return query
 
-    function set; name string, value string
-        kept-keys list of string = list;
-        kept-values list of string = list;
-        index int = 0
-        while index < this.keys.length
-            if this.keys[index] != name
-                kept-keys.append; this.keys[index]
-                kept-values.append; this.values[index]
-            index = index + 1
-        kept-keys.append; name
-        kept-values.append; value
-        this.count = kept-keys.length
-        this.keys = kept-keys
-        this.values = kept-values
-
-    function remove; name string
-        kept-keys list of string = list;
-        kept-values list of string = list;
-        index int = 0
-        while index < this.keys.length
-            if this.keys[index] != name
-                kept-keys.append; this.keys[index]
-                kept-values.append; this.values[index]
-            index = index + 1
-        this.count = kept-keys.length
-        this.keys = kept-keys
-        this.values = kept-values
 
 class url
     serialized string = ''
@@ -125,7 +99,7 @@ function url-from-platform url-result; raw platform-url-result
     count = url-query-length; raw
     index int = 0
     while index < count
-        query.append; (url-query-key; raw, index), (url-query-value; raw, index)
+        query = append-query-entry; query, (url-query-key; raw, index), (url-query-value; raw, index)
         index = index + 1
     value = url; (url-serialized; raw), (url-display; raw), (url-scheme; raw), (url-username; raw), (url-password; raw), (url-host; raw), (url-port; raw), (url-path; raw), query, (url-fragment; raw), (url-origin; raw)
     return url-result; false, '', value
@@ -138,5 +112,3 @@ function parse-url-relative url-result; input string, base url
     raw = platform-parse; input, base.serialized
     return url-from-platform; raw
 
-function parse-url-checked url-result; input string
-    return parse-url; input
