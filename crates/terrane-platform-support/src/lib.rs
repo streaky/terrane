@@ -1616,6 +1616,53 @@ mod tests {
     }
 
     #[test]
+    fn tls_accepts_a_trusted_local_certificate_and_reports_tls_1_2() {
+        let rcgen::CertifiedKey { cert, signing_key } =
+            rcgen::generate_simple_self_signed(["localhost".to_owned()]).unwrap();
+        let config =
+            rustls::ServerConfig::builder_with_protocol_versions(&[&rustls::version::TLS12])
+                .with_no_client_auth()
+                .with_single_cert(
+                    vec![cert.der().clone()],
+                    rustls::pki_types::PrivatePkcs8KeyDer::from(signing_key.serialize_der()).into(),
+                )
+                .unwrap();
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let address = listener.local_addr().unwrap();
+        let server = std::thread::spawn(move || {
+            let (socket, _) = listener.accept().unwrap();
+            let connection = rustls::ServerConnection::new(Arc::new(config)).unwrap();
+            let mut stream = rustls::StreamOwned::new(connection, socket);
+            stream.write_all(b"x").unwrap();
+            stream.flush().unwrap();
+        });
+        let mut roots = rustls::RootCertStore::empty();
+        roots.add(cert.der().clone()).unwrap();
+        let config =
+            rustls::ClientConfig::builder_with_protocol_versions(&[&rustls::version::TLS12])
+                .with_root_certificates(roots)
+                .with_no_client_auth();
+        let tcp = tcp_connect(&address.to_string(), 1_000, &cancellation_token());
+        let result = tls_client_with_config(
+            tcp.capability.as_ref().unwrap(),
+            "localhost",
+            1_000,
+            &cancellation_token(),
+            Arc::new(config),
+        );
+        assert!(!result.failed, "{}", result.message);
+        assert_eq!(result.text, "TLS 1.2");
+        let read = tls_read(
+            result.capability.as_ref().unwrap(),
+            1,
+            1_000,
+            &cancellation_token(),
+        );
+        assert_eq!(read.data, b"x");
+        server.join().unwrap();
+    }
+
+    #[test]
     fn tls_shutdown_sends_close_notify() {
         let rcgen::CertifiedKey { cert, signing_key } =
             rcgen::generate_simple_self_signed(["localhost".to_owned()]).unwrap();

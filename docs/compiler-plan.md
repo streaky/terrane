@@ -1495,7 +1495,7 @@ the bundled Mozilla root set, validates certificate chains and host names, negot
 supported TLS 1.2, sends close-notify on explicit shutdown, and exposes no ordinary option for
 disabling validation. Host-boundary tests exercise deadline-bounded loopback TCP exchange,
 concurrent accepts without listener-lock serialization, UDP truncation, deterministic DNS candidate
-ordering and TTL projection, trusted local TLS 1.3 negotiation, close-notify, and local
+ordering and TTL projection, trusted local TLS 1.3 and TLS 1.2 negotiation, close-notify, and local
 untrusted-certificate validation failure. Accepted Terrane cases exercise address and host parsing,
 cancellation, socket options, loopback TCP and UDP exchange, and resource-producing factories.
 

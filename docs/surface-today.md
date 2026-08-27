@@ -179,6 +179,7 @@ Terrane package
     │   ├── connect-tcp / connect-host / bind-tcp / bind-udp
     │   └── lookup-dns                         ordered candidates with TTL and explicit failure results
     ├── /standard/tls                          bundled Terrane TLS policy over transferred network resources
+    │   ├── tls-stream                         negotiated-version plus deadline-aware read, write, shutdown, and close
     │   └── connect-tls                        validated TLS 1.3/1.2 client connection; no insecure ordinary option
     ├── namespace                              hierarchical object container
     │   ├── variable                           namespace-local value
