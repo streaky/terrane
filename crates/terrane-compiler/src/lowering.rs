@@ -4328,6 +4328,9 @@ impl Emitter<'_> {
             ("random-bounded", "platform_random_bounded"),
             ("random-split", "platform_random_split"),
             ("digest", "platform_digest"),
+            ("destroy-secret", "platform_destroy_secret"),
+            ("cancellation-token", "platform_cancellation_token"),
+            ("cancel", "platform_cancel"),
             ("hmac", "platform_hmac"),
             ("constant-time-equal", "platform_constant_time_equal"),
             ("hex-encode", "platform_hex_encode"),
@@ -4340,14 +4343,18 @@ impl Emitter<'_> {
             ("compress", "platform_compress"),
             ("decompress", "platform_decompress"),
             ("parse-ip", "platform_parse_ip"),
+            ("parse-host-name", "platform_parse_host_name"),
             ("parse-socket", "platform_parse_socket"),
             ("tcp-bind", "platform_tcp_bind"),
             ("tcp-connect", "platform_tcp_connect"),
+            ("tcp-connect-host", "platform_tcp_connect_host"),
             ("tcp-accept", "platform_tcp_accept"),
             ("tcp-read", "platform_tcp_read"),
             ("tcp-write", "platform_tcp_write"),
             ("tcp-shutdown", "platform_tcp_shutdown"),
+            ("tcp-configure", "platform_tcp_configure"),
             ("udp-bind", "platform_udp_bind"),
+            ("udp-configure", "platform_udp_configure"),
             ("udp-send-to", "platform_udp_send_to"),
             ("udp-receive-from", "platform_udp_receive_from"),
             ("dns-lookup", "platform_dns_lookup"),
@@ -4358,6 +4365,10 @@ impl Emitter<'_> {
             ("result-failed", "platform_result_failed"),
             ("result-resource-limit", "platform_result_resource_limit"),
             ("result-truncated", "platform_result_truncated"),
+            (
+                "result-deadline-exceeded",
+                "platform_result_deadline_exceeded",
+            ),
             ("result-message", "platform_result_message"),
             ("result-text", "platform_result_text"),
             ("result-detail", "platform_result_detail"),
@@ -4386,21 +4397,39 @@ impl Emitter<'_> {
                                 | "platform_random_bounded"
                                 | "platform_random_split"
                                 | "platform_uuid_v4"
+                                | "platform_uuid_v7"
                                 | "platform_tcp_accept"
                                 | "platform_tcp_read"
                                 | "platform_tcp_write"
                                 | "platform_tcp_shutdown"
+                                | "platform_tcp_configure"
                                 | "platform_udp_send_to"
                                 | "platform_udp_receive_from"
+                                | "platform_udp_configure"
                                 | "platform_tls_client"
                                 | "platform_tls_read"
                                 | "platform_tls_write"
                                 | "platform_close"
                                 | "platform_digest"
                                 | "platform_hmac"
-                                | "platform_parse_socket",
-                            0
+                                | "platform_parse_socket"
+                                | "platform_cancel"
+                                | "platform_destroy_secret",
+                            0,
                         ) | ("platform_parse_socket" | "platform_hmac", 1)
+                            | ("platform_tcp_connect" | "platform_tcp_accept", 2)
+                            | (
+                                "platform_tcp_connect_host"
+                                    | "platform_tcp_read"
+                                    | "platform_tcp_write"
+                                    | "platform_udp_receive_from"
+                                    | "platform_dns_lookup"
+                                    | "platform_tls_client"
+                                    | "platform_tls_read"
+                                    | "platform_tls_write",
+                                3,
+                            )
+                            | ("platform_udp_send_to", 4)
                     ) || function.starts_with("platform_result_") && index == 0;
                     if borrowed {
                         format!("&({value})")

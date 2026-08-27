@@ -2,20 +2,12 @@ namespace standard/networking
 
 from /core/types import int, bool, string, bytes
 from /core/collections import list
-from /core/platform-capabilities import platform-resource-handle
-from /core/platform-capabilities import parse-ip, parse-socket, tcp-bind, tcp-connect, tcp-accept
-from /core/platform-capabilities import tcp-read, tcp-write, tcp-shutdown, udp-bind, udp-send-to, udp-receive-from
-from /core/platform-capabilities import dns-lookup, close as platform-close
-from /core/platform-capabilities import result-failed, result-truncated, result-message, result-text, result-detail
+from /core/platform-capabilities import platform-resource-handle, platform-capability
+from /core/platform-capabilities import parse-ip, parse-host-name as platform-parse-host-name, parse-socket, tcp-bind, tcp-connect, tcp-connect-host, tcp-accept
+from /core/platform-capabilities import tcp-read, tcp-write, tcp-shutdown, tcp-configure, udp-bind, udp-send-to, udp-receive-from, udp-configure
+from /core/platform-capabilities import cancellation-token as platform-cancellation-token, cancel as platform-cancel, dns-lookup, close as platform-close
+from /core/platform-capabilities import result-failed, result-truncated, result-deadline-exceeded, result-message, result-text, result-detail
 from /core/platform-capabilities import result-bytes, result-int, result-bool, result-entries, result-resource
-
-class operation-options
-    deadline-ms int = 30000
-    cancelled bool = false
-
-    function construct; deadline-ms int, cancelled bool
-        this.deadline-ms = deadline-ms
-        this.cancelled = cancelled
 
 class operation-result
     failed bool = false
@@ -24,6 +16,41 @@ class operation-result
     function construct; failed bool, message string
         this.failed = failed
         this.message = message
+class cancellation-token
+    handle platform-capability = platform-cancellation-token;
+
+
+function cancel-operation operation-result; cancellation cancellation-token
+    raw = platform-cancel; cancellation.handle
+    return operation-result; (result-failed; raw), (result-message; raw)
+
+class operation-options
+    deadline-ms int = 30000
+    cancellation cancellation-token = cancellation-token;
+
+    function construct; deadline-ms int, cancellation cancellation-token
+        this.deadline-ms = deadline-ms
+        this.cancellation = cancellation
+
+
+function operation-cancellation platform-capability; options operation-options
+    return options.cancellation.handle
+class tcp-options
+    no-delay bool = true
+    ttl int = 64
+
+    function construct; no-delay bool, ttl int
+        this.no-delay = no-delay
+        this.ttl = ttl
+
+class udp-options
+    broadcast bool = false
+    ttl int = 64
+
+    function construct; broadcast bool, ttl int
+        this.broadcast = broadcast
+        this.ttl = ttl
+
 
 class ip-address
     value string = ''
@@ -57,27 +84,42 @@ class socket-address
     ip ip-address = ip-address; '', '', false
     port int = 0
 
-    function construct; ip ip-address, port int
-        raw = parse-socket; ip.value, port
-        this.value = result-text; raw
-        this.ip = ip
-        this.port = port
-
     function string string;
         return this.value
+
+class socket-result
+    failed bool = false
+    message string = ''
+    value socket-address = socket-address;
+
+    function construct; failed bool, message string, address socket-address
+        this.failed = failed
+        this.message = message
+        this.value = address
+
+function socket-address-from-ip socket-result; ip ip-address, port int
+    raw = parse-socket; ip.value, port
+    address = socket-address;
+    if not (result-failed; raw)
+        address.value = result-text; raw
+        address.ip = ip
+        address.port = port
+    return socket-result; (result-failed; raw), (result-message; raw), address
 
 class io-result
     failed bool = false
     truncated bool = false
+    deadline-exceeded bool = false
     message string = ''
     data bytes = b''
     completed int = 0
     peer string = ''
     end bool = false
 
-    function construct; failed bool, truncated bool, message string, data bytes, completed int, peer string, end bool
+    function construct; failed bool, truncated bool, deadline-exceeded bool, message string, data bytes, completed int, peer string, end bool
         this.failed = failed
         this.truncated = truncated
+        this.deadline-exceeded = deadline-exceeded
         this.message = message
         this.data = data
         this.completed = completed
@@ -88,12 +130,16 @@ class tcp-stream
     handle platform-resource-handle
 
     function read io-result; limit int, options operation-options
-        raw = tcp-read; this.handle, limit, options.deadline-ms, options.cancelled
-        return io-result; (result-failed; raw), false, (result-message; raw), (result-bytes; raw), (result-int; raw), '', (result-bool; raw)
+        raw = tcp-read; this.handle, limit, options.deadline-ms, options.cancellation.handle
+        return io-result; (result-failed; raw), false, (result-deadline-exceeded; raw), (result-message; raw), (result-bytes; raw), (result-int; raw), '', (result-bool; raw)
 
     function write io-result; data bytes, options operation-options
-        raw = tcp-write; this.handle, data, options.deadline-ms, options.cancelled
-        return io-result; (result-failed; raw), false, (result-message; raw), b'', (result-int; raw), '', false
+        raw = tcp-write; this.handle, data, options.deadline-ms, options.cancellation.handle
+        return io-result; (result-failed; raw), false, (result-deadline-exceeded; raw), (result-message; raw), b'', (result-int; raw), '', false
+
+    function configure operation-result; options tcp-options
+        raw = tcp-configure; this.handle, options.no-delay, options.ttl
+        return operation-result; (result-failed; raw), (result-message; raw)
 
     function shutdown operation-result; direction string
         raw = tcp-shutdown; this.handle, direction
@@ -119,18 +165,25 @@ class stream-result
         this.value = stream
 
 function connect-tcp stream-result; address socket-address, options operation-options
-    raw = tcp-connect; address.value, options.deadline-ms, options.cancelled
+    raw = tcp-connect; address.value, options.deadline-ms, options.cancellation.handle
     stream = tcp-stream;
     if not (result-failed; raw)
         stream.handle = result-resource; raw
     return stream-result; (result-failed; raw), (result-message; raw), '', stream
+
+function connect-host stream-result; host host-name, port int, options operation-options
+    raw = tcp-connect-host; host.value, port, options.deadline-ms, options.cancellation.handle
+    stream = tcp-stream;
+    if not (result-failed; raw)
+        stream.handle = result-resource; raw
+    return stream-result; (result-failed; raw), (result-message; raw), (result-text; raw), stream
 
 class tcp-listener
     handle platform-resource-handle
     local-address string = ''
 
     function accept stream-result; options operation-options
-        raw = tcp-accept; this.handle, options.deadline-ms, options.cancelled
+        raw = tcp-accept; this.handle, options.deadline-ms, options.cancellation.handle
         stream = tcp-stream;
         if not (result-failed; raw)
             stream.handle = result-resource; raw
@@ -166,12 +219,16 @@ class udp-socket
     local-address string = ''
 
     function send-to io-result; data bytes, address socket-address, options operation-options
-        raw = udp-send-to; this.handle, data, address.value, options.deadline-ms, options.cancelled
-        return io-result; (result-failed; raw), false, (result-message; raw), b'', (result-int; raw), '', false
+        raw = udp-send-to; this.handle, data, address.value, options.deadline-ms, options.cancellation.handle
+        return io-result; (result-failed; raw), false, (result-deadline-exceeded; raw), (result-message; raw), b'', (result-int; raw), '', false
 
     function receive-from io-result; limit int, options operation-options
-        raw = udp-receive-from; this.handle, limit, options.deadline-ms, options.cancelled
-        return io-result; (result-failed; raw), (result-truncated; raw), (result-message; raw), (result-bytes; raw), (result-int; raw), (result-text; raw), false
+        raw = udp-receive-from; this.handle, limit, options.deadline-ms, options.cancellation.handle
+        return io-result; (result-failed; raw), (result-truncated; raw), (result-deadline-exceeded; raw), (result-message; raw), (result-bytes; raw), (result-int; raw), (result-text; raw), false
+
+    function configure operation-result; options udp-options
+        raw = udp-configure; this.handle, options.broadcast, options.ttl
+        return operation-result; (result-failed; raw), (result-message; raw)
 
     function close operation-result;
         raw = platform-close; this.handle
@@ -215,15 +272,29 @@ class dns-result
 class host-name
     value string = ''
 
-    function construct; address string
-        this.value = address
+class host-name-result
+    failed bool = false
+    message string = ''
+    value host-name = host-name;
+
+    function construct; failed bool, message string, host host-name
+        this.failed = failed
+        this.message = message
+        this.value = host
+
+function parse-host-name host-name-result; text string
+    raw = platform-parse-host-name; text
+    host = host-name;
+    if not (result-failed; raw)
+        host.value = result-text; raw
+    return host-name-result; (result-failed; raw), (result-message; raw), host
 
 function lookup-dns dns-result; host host-name, port int, options operation-options
-    raw = dns-lookup; host.value, port, options.deadline-ms, options.cancelled
+    raw = dns-lookup; host.value, port, options.deadline-ms, options.cancellation.handle
     raw-candidates = result-entries; raw
     candidates list of string = list; ''
     index int = 0
     while index < raw-candidates.length
         candidates.append; raw-candidates[index]
         index = index + 1
-    return dns-result; (result-failed; raw), (result-message; raw), (result-int; raw), false, candidates
+    return dns-result; (result-failed; raw), (result-message; raw), (result-int; raw), (result-bool; raw), candidates

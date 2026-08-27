@@ -1,7 +1,7 @@
 namespace app
 
 from /core/output import print
-from /standard/networking import ip-address-from-string, socket-address, host-name, operation-options, lookup-dns
+from /standard/networking import ip-address-from-string, parse-host-name, cancellation-token, cancel-operation, operation-options, lookup-dns
 
 function main;
     parsed = ip-address-from-string; '2001:0db8:0:0:0:0:0:1'
@@ -9,7 +9,10 @@ function main;
     print; parsed.value.version
     port int = 443
     deadline int = 1000
-    cancelled = operation-options; deadline, true
-    lookup = lookup-dns; (host-name; 'localhost'), port, cancelled
+    cancellation = cancellation-token;
+    cancel-operation; cancellation
+    cancelled = operation-options; deadline, cancellation
+    host = parse-host-name; 'localhost'
+    lookup = lookup-dns; host.value, port, cancelled
     print; lookup.failed
     print; lookup.message

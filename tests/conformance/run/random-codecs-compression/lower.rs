@@ -132,6 +132,29 @@ enum TerraneCompletion<T> {
 }
 type TerranePlatformCapability = terrane_platform_support::Capability;
 type TerranePlatformResult = terrane_platform_support::ResultValue;
+fn terrane_platform_i128(
+    value: &terrane_int_support::Int,
+    label: &str,
+) -> Result<i128, TerranePlatformResult> {
+    terrane_int_support::coerce::<i128>(value)
+        .map_err(|_| TerranePlatformResult::error(
+            format!("{label} is outside the signed 128-bit platform range"),
+        ))
+}
+macro_rules! terrane_platform_i128 {
+    ($value:expr, $label:literal) => {
+        match terrane_platform_i128(&$value, $label) { Ok(value) => value, Err(error) =>
+        return error, }
+    };
+}
+#[allow(dead_code)]
+fn terrane_platform_cancellation_token() -> TerranePlatformCapability {
+    terrane_platform_support::cancellation_token()
+}
+#[allow(dead_code)]
+fn terrane_platform_cancel(token: &TerranePlatformCapability) -> TerranePlatformResult {
+    terrane_platform_support::cancel(token)
+}
 #[allow(dead_code)]
 fn terrane_platform_result_failed(result: &TerranePlatformResult) -> bool {
     result.failed
@@ -143,6 +166,10 @@ fn terrane_platform_result_resource_limit(result: &TerranePlatformResult) -> boo
 #[allow(dead_code)]
 fn terrane_platform_result_truncated(result: &TerranePlatformResult) -> bool {
     result.truncated
+}
+#[allow(dead_code)]
+fn terrane_platform_result_deadline_exceeded(result: &TerranePlatformResult) -> bool {
+    result.deadline_exceeded
 }
 #[allow(dead_code)]
 fn terrane_platform_result_message(result: &TerranePlatformResult) -> String {
@@ -178,16 +205,24 @@ fn terrane_platform_result_entries(result: &TerranePlatformResult) -> Vec<String
 fn terrane_platform_result_capability(
     result: &TerranePlatformResult,
 ) -> TerranePlatformCapability {
-    result.capability.clone().expect("successful platform result carries capability")
+    result.capability.clone().unwrap_or_default()
 }
 fn terrane_platform_secure_random() -> TerranePlatformCapability {
     terrane_platform_support::secure_random()
 }
-fn terrane_platform_pseudo_random(seed: Vec<u8>) -> TerranePlatformCapability {
-    terrane_platform_support::pseudo_random(&seed)
+fn terrane_platform_pseudo_random(
+    algorithm: String,
+    seed: Vec<u8>,
+) -> TerranePlatformCapability {
+    terrane_platform_support::pseudo_random(&algorithm, &seed)
 }
 fn terrane_platform_secret_buffer(data: Vec<u8>) -> TerranePlatformCapability {
     terrane_platform_support::secret_buffer(data)
+}
+fn terrane_platform_destroy_secret(
+    secret: &TerranePlatformCapability,
+) -> TerranePlatformResult {
+    terrane_platform_support::destroy_secret(secret)
 }
 fn terrane_platform_random_bytes(
     source: &TerranePlatformCapability,
@@ -195,7 +230,7 @@ fn terrane_platform_random_bytes(
 ) -> TerranePlatformResult {
     terrane_platform_support::random_bytes(
         source,
-        count.as_big().to_string().parse::<i128>().unwrap_or(-1),
+        terrane_platform_i128!(count, "random byte count"),
     )
 }
 fn terrane_platform_random_bounded(
@@ -204,7 +239,7 @@ fn terrane_platform_random_bounded(
 ) -> TerranePlatformResult {
     terrane_platform_support::random_bounded(
         source,
-        upper.as_big().to_string().parse::<i128>().unwrap_or(-1),
+        terrane_platform_i128!(upper, "random upper bound"),
     )
 }
 fn terrane_platform_random_split(
@@ -254,7 +289,7 @@ fn terrane_platform_compress(
     terrane_platform_support::compress(
         &format,
         &data,
-        level.as_big().to_string().parse::<i128>().unwrap_or(6),
+        terrane_platform_i128!(level, "compression level"),
         deterministic,
     )
 }
@@ -269,10 +304,10 @@ fn terrane_platform_decompress(
     terrane_platform_support::decompress(
         &format,
         &data,
-        output.as_big().to_string().parse::<i128>().unwrap_or(-1),
-        ratio.as_big().to_string().parse::<i128>().unwrap_or(-1),
-        nesting.as_big().to_string().parse::<i128>().unwrap_or(-1),
-        work.as_big().to_string().parse::<i128>().unwrap_or(-1),
+        terrane_platform_i128!(output, "decompression output limit"),
+        terrane_platform_i128!(ratio, "decompression ratio limit"),
+        terrane_platform_i128!(nesting, "decompression nesting limit"),
+        terrane_platform_i128!(work, "decompression work limit"),
     )
 }
 fn terrane_platform_uuid_parse(text: String) -> TerranePlatformResult {
@@ -283,16 +318,24 @@ fn terrane_platform_uuid_v4(
 ) -> TerranePlatformResult {
     terrane_platform_support::uuid_v4(source)
 }
-fn terrane_platform_uuid_v7() -> TerranePlatformResult {
-    terrane_platform_support::uuid_v7()
+fn terrane_platform_uuid_v7(
+    source: &TerranePlatformCapability,
+    unix_milliseconds: terrane_int_support::Int,
+) -> TerranePlatformResult {
+    terrane_platform_support::uuid_v7(
+        source,
+        terrane_platform_i128!(unix_milliseconds, "UUID v7 timestamp"),
+    )
 }
 // Source: case.trn
 // Namespace: app
 fn main() {
     let first: PseudoRandom = PseudoRandom::terrane_construct(
+        chacha20(),
         Vec::from([115, 101, 101, 100]),
     );
     let second: PseudoRandom = PseudoRandom::terrane_construct(
+        chacha20(),
         Vec::from([115, 101, 101, 100]),
     );
     let hash: HashAlgorithm = sha256();
@@ -306,20 +349,45 @@ fn main() {
         terrane_int_support::Int::from(32_i128),
     );
     println!("{}", terrane_scalar_support::scalar_text(&(left.value == right.value)));
-    let digest: DigestValue = digest_bytes(hash.clone(), Vec::from([97, 98, 99]));
+    let digest: DigestResult = digest_bytes(hash.clone(), Vec::from([97, 98, 99]));
     println!(
-        "{}", terrane_scalar_support::scalar_text(&encode_hex(digest.value.clone()))
+        "{}", terrane_scalar_support::scalar_text(&encode_hex(digest.value.value
+        .clone()))
+    );
+    let wide_hash: HashAlgorithm = sha512();
+    let wide_digest: DigestResult = digest_bytes(
+        wide_hash.clone(),
+        Vec::from([97, 98, 99]),
+    );
+    println!(
+        "{}", terrane_scalar_support::scalar_text(&encode_hex(wide_digest.value.value
+        .clone()))
     );
     let key: SecretBuffer = SecretBuffer::terrane_construct(Vec::from([107, 101, 121]));
-    let mac: DigestValue = sign_hmac(
+    let same_key: SecretBuffer = SecretBuffer::terrane_construct(
+        Vec::from([107, 101, 121]),
+    );
+    let mac: SignatureResult = sign_hmac(
         hash.clone(),
         key.clone(),
         Vec::from([100, 97, 116, 97]),
     );
-    println!(
-        "{}", terrane_scalar_support::scalar_text(&digest_equals(mac.clone(), mac
-        .clone()))
+    let same_mac: SignatureResult = sign_hmac(
+        hash.clone(),
+        same_key.clone(),
+        Vec::from([100, 97, 116, 97]),
     );
+    println!(
+        "{}", terrane_scalar_support::scalar_text(&signature_equals(mac.value, same_mac
+        .value))
+    );
+    destroy_secret(same_key.clone());
+    let destroyed: SignatureResult = sign_hmac(
+        hash.clone(),
+        same_key.clone(),
+        Vec::from([100, 97, 116, 97]),
+    );
+    println!("{}", terrane_scalar_support::scalar_text(&destroyed.failed));
     println!(
         "{}", terrane_scalar_support::scalar_text(&encode_base64(Vec::from([104, 101,
         108, 108, 111]), false, true))
@@ -332,7 +400,7 @@ fn main() {
     println!(
         "{}", terrane_scalar_support::scalar_text(&terrane_string_support::decode(&strict
         .value, terrane_string_support::Encoding::Utf8).unwrap_or_else(| error |
-        __terrane_uncaught(TerraneError::from(error).at("/app::main (case.trn:26:13)"))))
+        __terrane_uncaught(TerraneError::from(error).at("/app::main (case.trn:34:13)"))))
     );
     let malformed: DecodeResult = decode_hex(String::from("abc"));
     println!("{}", terrane_scalar_support::scalar_text(&malformed.failed));
@@ -357,7 +425,55 @@ fn main() {
         "{}",
         terrane_scalar_support::scalar_text(&terrane_string_support::decode(&unpacked
         .value, terrane_string_support::Encoding::Utf8).unwrap_or_else(| error |
-        __terrane_uncaught(TerraneError::from(error).at("/app::main (case.trn:33:13)"))))
+        __terrane_uncaught(TerraneError::from(error).at("/app::main (case.trn:41:13)"))))
+    );
+    let zlib_codec: CompressionCodec = zlib();
+    let zlib_packed: CompressionResult = zlib_codec
+        .compress(
+            Vec::from([99, 111, 109, 112, 114, 101, 115, 115, 32, 109, 101]),
+            options.clone(),
+        );
+    let zlib_unpacked: CompressionResult = zlib_codec
+        .decompress(zlib_packed.value.clone(), limits.clone());
+    println!(
+        "{}",
+        terrane_scalar_support::scalar_text(&terrane_string_support::decode(&zlib_unpacked
+        .value, terrane_string_support::Encoding::Utf8).unwrap_or_else(| error |
+        __terrane_uncaught(TerraneError::from(error).at("/app::main (case.trn:45:13)"))))
+    );
+    let raw_codec: CompressionCodec = deflate_raw();
+    let raw_packed: CompressionResult = raw_codec
+        .compress(
+            Vec::from([99, 111, 109, 112, 114, 101, 115, 115, 32, 109, 101]),
+            options.clone(),
+        );
+    let raw_unpacked: CompressionResult = raw_codec
+        .decompress(raw_packed.value.clone(), limits.clone());
+    println!(
+        "{}",
+        terrane_scalar_support::scalar_text(&terrane_string_support::decode(&raw_unpacked
+        .value, terrane_string_support::Encoding::Utf8).unwrap_or_else(| error |
+        __terrane_uncaught(TerraneError::from(error).at("/app::main (case.trn:49:13)"))))
+    );
+    let zstd_codec: CompressionCodec = zstd();
+    let zstd_packed: CompressionResult = zstd_codec
+        .compress(
+            Vec::from([99, 111, 109, 112, 114, 101, 115, 115, 32, 109, 101]),
+            options.clone(),
+        );
+    let zstd_limits: DecompressionLimits = DecompressionLimits::terrane_construct(
+        terrane_int_support::Int::from(1073741824_i128),
+        terrane_int_support::Int::from(100_i128),
+        terrane_int_support::Int::from(1_i128),
+        terrane_int_support::Int::from(1073741824_i128),
+    );
+    let zstd_unpacked: CompressionResult = zstd_codec
+        .decompress(zstd_packed.value.clone(), zstd_limits.clone());
+    println!(
+        "{}",
+        terrane_scalar_support::scalar_text(&terrane_string_support::decode(&zstd_unpacked
+        .value, terrane_string_support::Encoding::Utf8).unwrap_or_else(| error |
+        __terrane_uncaught(TerraneError::from(error).at("/app::main (case.trn:54:13)"))))
     );
     let bomb_limits: DecompressionLimits = DecompressionLimits::terrane_construct(
         terrane_int_support::Int::from(4_i128),
@@ -697,6 +813,25 @@ impl IntResult {
     }
 }
 #[derive(Clone)]
+pub struct SecretOperationResult {
+    pub failed: bool,
+    pub message: String,
+}
+impl SecretOperationResult {
+    pub fn terrane_construct(failed: bool, message: String) -> Self {
+        let mut value = Self {
+            failed: false,
+            message: String::from(""),
+        };
+        value.construct(failed, message);
+        value
+    }
+    pub fn construct(&mut self, failed: bool, message: String) {
+        self.failed = failed;
+        self.message = message;
+    }
+}
+#[derive(Clone)]
 pub struct SecretBuffer {
     pub handle: TerranePlatformCapability,
 }
@@ -711,6 +846,13 @@ impl SecretBuffer {
     pub fn construct(&mut self, data: Vec<u8>) {
         self.handle = terrane_platform_secret_buffer(data);
     }
+}
+pub fn destroy_secret(secret: SecretBuffer) -> SecretOperationResult {
+    let raw: TerranePlatformResult = terrane_platform_destroy_secret(&secret.handle);
+    return SecretOperationResult::terrane_construct(
+        terrane_platform_result_failed(&raw),
+        terrane_platform_result_message(&raw),
+    );
 }
 #[derive(Clone)]
 pub struct DigestValue {
@@ -736,6 +878,89 @@ impl DigestValue {
         }
         let left: Vec<u8> = self.value.clone();
         return terrane_platform_constant_time_equal(left, other.value);
+    }
+}
+#[derive(Clone)]
+pub struct DigestResult {
+    pub failed: bool,
+    pub message: String,
+    pub value: DigestValue,
+}
+impl DigestResult {
+    pub fn terrane_construct(
+        failed: bool,
+        message: String,
+        digest: DigestValue,
+    ) -> Self {
+        let mut value = Self {
+            failed: false,
+            message: String::from(""),
+            value: DigestValue::terrane_construct(String::from(""), Vec::from([])),
+        };
+        value.construct(failed, message, digest);
+        value
+    }
+    pub fn construct(&mut self, failed: bool, message: String, digest: DigestValue) {
+        self.failed = failed;
+        self.message = message;
+        self.value = digest.clone();
+    }
+}
+#[derive(Clone)]
+pub struct SignatureValue {
+    pub algorithm: String,
+    pub value: Vec<u8>,
+}
+impl SignatureValue {
+    pub fn terrane_construct(algorithm: String, data: Vec<u8>) -> Self {
+        let mut value = Self {
+            algorithm: String::from(""),
+            value: Vec::from([]),
+        };
+        value.construct(algorithm, data);
+        value
+    }
+    pub fn construct(&mut self, algorithm: String, data: Vec<u8>) {
+        self.algorithm = algorithm;
+        self.value = data;
+    }
+    pub fn constant_time_equals(&self, other: SignatureValue) -> bool {
+        if self.algorithm != other.algorithm {
+            return false;
+        }
+        let left: Vec<u8> = self.value.clone();
+        return terrane_platform_constant_time_equal(left, other.value);
+    }
+}
+#[derive(Clone)]
+pub struct SignatureResult {
+    pub failed: bool,
+    pub message: String,
+    pub value: SignatureValue,
+}
+impl SignatureResult {
+    pub fn terrane_construct(
+        failed: bool,
+        message: String,
+        signature: SignatureValue,
+    ) -> Self {
+        let mut value = Self {
+            failed: false,
+            message: String::from(""),
+            value: SignatureValue::terrane_construct(String::from(""), Vec::from([])),
+        };
+        value.construct(failed, message, signature);
+        value
+    }
+    pub fn construct(
+        &mut self,
+        failed: bool,
+        message: String,
+        signature: SignatureValue,
+    ) {
+        self.failed = failed;
+        self.message = message;
+        self.value = signature.clone();
     }
 }
 #[derive(Clone)]
@@ -777,19 +1002,39 @@ impl SecureRandom {
     }
 }
 #[derive(Clone)]
+pub struct PseudoRandomAlgorithm {
+    pub name: String,
+}
+impl PseudoRandomAlgorithm {
+    pub fn terrane_construct(name: String) -> Self {
+        let mut value = Self { name: String::from("") };
+        value.construct(name);
+        value
+    }
+    pub fn construct(&mut self, name: String) {
+        self.name = name;
+    }
+}
+pub fn chacha20() -> PseudoRandomAlgorithm {
+    return PseudoRandomAlgorithm::terrane_construct(String::from("chacha20"));
+}
+#[derive(Clone)]
 pub struct PseudoRandom {
     pub handle: TerranePlatformCapability,
 }
 impl PseudoRandom {
-    pub fn terrane_construct(seed: Vec<u8>) -> Self {
+    pub fn terrane_construct(algorithm: PseudoRandomAlgorithm, seed: Vec<u8>) -> Self {
         let mut value = Self {
-            handle: terrane_platform_pseudo_random(Vec::from([])),
+            handle: terrane_platform_pseudo_random(
+                String::from("chacha20"),
+                Vec::from([]),
+            ),
         };
-        value.construct(seed);
+        value.construct(algorithm, seed);
         value
     }
-    pub fn construct(&mut self, seed: Vec<u8>) {
-        self.handle = terrane_platform_pseudo_random(seed);
+    pub fn construct(&mut self, algorithm: PseudoRandomAlgorithm, seed: Vec<u8>) {
+        self.handle = terrane_platform_pseudo_random(algorithm.name, seed);
     }
     pub fn generate_bytes(&self, count: terrane_int_support::Int) -> ByteResult {
         let raw: TerranePlatformResult = terrane_platform_random_bytes(
@@ -815,7 +1060,10 @@ impl PseudoRandom {
     }
     pub fn split(&self) -> PseudoRandom {
         let raw: TerranePlatformResult = terrane_platform_random_split(&self.handle);
-        let mut child: PseudoRandom = PseudoRandom::terrane_construct(Vec::from([]));
+        let mut child: PseudoRandom = PseudoRandom::terrane_construct(
+            chacha20(),
+            Vec::from([]),
+        );
         child.handle = terrane_platform_result_capability(&raw);
         return child.clone();
     }
@@ -896,33 +1144,43 @@ pub fn sha256() -> HashAlgorithm {
 pub fn sha512() -> HashAlgorithm {
     return HashAlgorithm::terrane_construct(String::from("sha-512"));
 }
-pub fn digest_bytes(algorithm: HashAlgorithm, data: Vec<u8>) -> DigestValue {
+pub fn digest_bytes(algorithm: HashAlgorithm, data: Vec<u8>) -> DigestResult {
     let raw: TerranePlatformResult = terrane_platform_digest(&algorithm.name, data);
-    return DigestValue::terrane_construct(
+    let value: DigestValue = DigestValue::terrane_construct(
         algorithm.name.clone(),
         terrane_platform_result_bytes(&raw),
+    );
+    return DigestResult::terrane_construct(
+        terrane_platform_result_failed(&raw),
+        terrane_platform_result_message(&raw),
+        value.clone(),
     );
 }
 pub fn sign_hmac(
     algorithm: HashAlgorithm,
     key: SecretBuffer,
     data: Vec<u8>,
-) -> DigestValue {
+) -> SignatureResult {
     let raw: TerranePlatformResult = terrane_platform_hmac(
         &algorithm.name,
         &key.handle,
         data,
     );
-    return DigestValue::terrane_construct(
+    let value: SignatureValue = SignatureValue::terrane_construct(
         algorithm.name.clone(),
         terrane_platform_result_bytes(&raw),
     );
+    return SignatureResult::terrane_construct(
+        terrane_platform_result_failed(&raw),
+        terrane_platform_result_message(&raw),
+        value.clone(),
+    );
 }
 pub fn digest_equals(left: DigestValue, right: DigestValue) -> bool {
-    if left.algorithm != right.algorithm {
-        return false;
-    }
-    return terrane_platform_constant_time_equal(left.value, right.value);
+    return left.constant_time_equals(right.clone());
+}
+pub fn signature_equals(left: SignatureValue, right: SignatureValue) -> bool {
+    return left.constant_time_equals(right.clone());
 }
 // Source: standard/uuid.trn
 // Namespace: standard/uuid
@@ -989,8 +1247,14 @@ pub fn random_uuid(source: SecureRandom) -> UuidResult {
         ),
     );
 }
-pub fn time_uuid() -> UuidResult {
-    let raw: TerranePlatformResult = terrane_platform_uuid_v7();
+pub fn time_uuid(
+    source: SecureRandom,
+    unix_milliseconds: terrane_int_support::Int,
+) -> UuidResult {
+    let raw: TerranePlatformResult = terrane_platform_uuid_v7(
+        &source.handle,
+        unix_milliseconds,
+    );
     return UuidResult::terrane_construct(
         terrane_platform_result_failed(&raw),
         terrane_platform_result_message(&raw),

@@ -1,6 +1,6 @@
 namespace standard/uuid
 
-from /core/types import bool, string, bytes
+from /core/types import bool, string, bytes, int
 from /core/platform-capabilities import platform-capability
 from /core/platform-capabilities import uuid-parse, uuid-v4, uuid-v7
 from /core/platform-capabilities import result-failed, result-message, result-text, result-bytes
@@ -32,6 +32,6 @@ function random-uuid uuid-result; source secure-random
     raw = uuid-v4; source.handle
     return uuid-result; (result-failed; raw), (result-message; raw), (uuid; (result-text; raw), (result-bytes; raw))
 
-function time-uuid uuid-result;
-    raw = uuid-v7;
+function time-uuid uuid-result; source secure-random, unix-milliseconds int
+    raw = uuid-v7; source.handle, unix-milliseconds
     return uuid-result; (result-failed; raw), (result-message; raw), (uuid; (result-text; raw), (result-bytes; raw))

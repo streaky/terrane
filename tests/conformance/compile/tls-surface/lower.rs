@@ -132,6 +132,29 @@ enum TerraneCompletion<T> {
 }
 type TerranePlatformCapability = terrane_platform_support::Capability;
 type TerranePlatformResult = terrane_platform_support::ResultValue;
+fn terrane_platform_i128(
+    value: &terrane_int_support::Int,
+    label: &str,
+) -> Result<i128, TerranePlatformResult> {
+    terrane_int_support::coerce::<i128>(value)
+        .map_err(|_| TerranePlatformResult::error(
+            format!("{label} is outside the signed 128-bit platform range"),
+        ))
+}
+macro_rules! terrane_platform_i128 {
+    ($value:expr, $label:literal) => {
+        match terrane_platform_i128(&$value, $label) { Ok(value) => value, Err(error) =>
+        return error, }
+    };
+}
+#[allow(dead_code)]
+fn terrane_platform_cancellation_token() -> TerranePlatformCapability {
+    terrane_platform_support::cancellation_token()
+}
+#[allow(dead_code)]
+fn terrane_platform_cancel(token: &TerranePlatformCapability) -> TerranePlatformResult {
+    terrane_platform_support::cancel(token)
+}
 #[allow(dead_code)]
 fn terrane_platform_result_failed(result: &TerranePlatformResult) -> bool {
     result.failed
@@ -143,6 +166,10 @@ fn terrane_platform_result_resource_limit(result: &TerranePlatformResult) -> boo
 #[allow(dead_code)]
 fn terrane_platform_result_truncated(result: &TerranePlatformResult) -> bool {
     result.truncated
+}
+#[allow(dead_code)]
+fn terrane_platform_result_deadline_exceeded(result: &TerranePlatformResult) -> bool {
+    result.deadline_exceeded
 }
 #[allow(dead_code)]
 fn terrane_platform_result_message(result: &TerranePlatformResult) -> String {
@@ -178,10 +205,13 @@ fn terrane_platform_result_entries(result: &TerranePlatformResult) -> Vec<String
 fn terrane_platform_result_capability(
     result: &TerranePlatformResult,
 ) -> TerranePlatformCapability {
-    result.capability.clone().expect("successful platform result carries capability")
+    result.capability.clone().unwrap_or_default()
 }
 fn terrane_platform_parse_ip(text: String) -> TerranePlatformResult {
     terrane_platform_support::parse_ip(&text)
+}
+fn terrane_platform_parse_host_name(text: String) -> TerranePlatformResult {
+    terrane_platform_support::parse_host_name(&text)
 }
 fn terrane_platform_parse_socket(
     ip: &String,
@@ -189,7 +219,7 @@ fn terrane_platform_parse_socket(
 ) -> TerranePlatformResult {
     terrane_platform_support::parse_socket(
         ip,
-        port.as_big().to_string().parse::<i128>().unwrap_or(-1),
+        terrane_platform_i128!(port, "socket port"),
     )
 }
 fn terrane_platform_tcp_bind(address: String) -> TerranePlatformResult {
@@ -198,49 +228,62 @@ fn terrane_platform_tcp_bind(address: String) -> TerranePlatformResult {
 fn terrane_platform_tcp_connect(
     address: String,
     deadline: terrane_int_support::Int,
-    cancelled: bool,
+    cancellation: &TerranePlatformCapability,
 ) -> TerranePlatformResult {
     terrane_platform_support::tcp_connect(
         &address,
-        deadline.as_big().to_string().parse::<i128>().unwrap_or(-1),
-        cancelled,
+        terrane_platform_i128!(deadline, "TCP connect deadline"),
+        cancellation,
+    )
+}
+fn terrane_platform_tcp_connect_host(
+    host: String,
+    port: terrane_int_support::Int,
+    deadline: terrane_int_support::Int,
+    cancellation: &TerranePlatformCapability,
+) -> TerranePlatformResult {
+    terrane_platform_support::tcp_connect_host(
+        &host,
+        terrane_platform_i128!(port, "TCP host port"),
+        terrane_platform_i128!(deadline, "TCP host connect deadline"),
+        cancellation,
     )
 }
 fn terrane_platform_tcp_accept(
     listener: &TerranePlatformCapability,
     deadline: terrane_int_support::Int,
-    cancelled: bool,
+    cancellation: &TerranePlatformCapability,
 ) -> TerranePlatformResult {
     terrane_platform_support::tcp_accept(
         listener,
-        deadline.as_big().to_string().parse::<i128>().unwrap_or(-1),
-        cancelled,
+        terrane_platform_i128!(deadline, "TCP accept deadline"),
+        cancellation,
     )
 }
 fn terrane_platform_tcp_read(
     stream: &TerranePlatformCapability,
     limit: terrane_int_support::Int,
     deadline: terrane_int_support::Int,
-    cancelled: bool,
+    cancellation: &TerranePlatformCapability,
 ) -> TerranePlatformResult {
     terrane_platform_support::tcp_read(
         stream,
-        limit.as_big().to_string().parse::<i128>().unwrap_or(-1),
-        deadline.as_big().to_string().parse::<i128>().unwrap_or(-1),
-        cancelled,
+        terrane_platform_i128!(limit, "TCP read limit"),
+        terrane_platform_i128!(deadline, "TCP read deadline"),
+        cancellation,
     )
 }
 fn terrane_platform_tcp_write(
     stream: &TerranePlatformCapability,
     data: Vec<u8>,
     deadline: terrane_int_support::Int,
-    cancelled: bool,
+    cancellation: &TerranePlatformCapability,
 ) -> TerranePlatformResult {
     terrane_platform_support::tcp_write(
         stream,
         &data,
-        deadline.as_big().to_string().parse::<i128>().unwrap_or(-1),
-        cancelled,
+        terrane_platform_i128!(deadline, "TCP write deadline"),
+        cancellation,
     )
 }
 fn terrane_platform_tcp_shutdown(
@@ -249,48 +292,70 @@ fn terrane_platform_tcp_shutdown(
 ) -> TerranePlatformResult {
     terrane_platform_support::tcp_shutdown(stream, &direction)
 }
+fn terrane_platform_tcp_configure(
+    stream: &TerranePlatformCapability,
+    no_delay: bool,
+    ttl: terrane_int_support::Int,
+) -> TerranePlatformResult {
+    terrane_platform_support::tcp_configure(
+        stream,
+        no_delay,
+        terrane_platform_i128!(ttl, "TCP TTL"),
+    )
+}
 fn terrane_platform_udp_bind(address: String) -> TerranePlatformResult {
     terrane_platform_support::udp_bind(&address)
+}
+fn terrane_platform_udp_configure(
+    socket: &TerranePlatformCapability,
+    broadcast: bool,
+    ttl: terrane_int_support::Int,
+) -> TerranePlatformResult {
+    terrane_platform_support::udp_configure(
+        socket,
+        broadcast,
+        terrane_platform_i128!(ttl, "UDP TTL"),
+    )
 }
 fn terrane_platform_udp_send_to(
     socket: &TerranePlatformCapability,
     data: Vec<u8>,
     address: String,
     deadline: terrane_int_support::Int,
-    cancelled: bool,
+    cancellation: &TerranePlatformCapability,
 ) -> TerranePlatformResult {
     terrane_platform_support::udp_send_to(
         socket,
         &data,
         &address,
-        deadline.as_big().to_string().parse::<i128>().unwrap_or(-1),
-        cancelled,
+        terrane_platform_i128!(deadline, "UDP send deadline"),
+        cancellation,
     )
 }
 fn terrane_platform_udp_receive_from(
     socket: &TerranePlatformCapability,
     limit: terrane_int_support::Int,
     deadline: terrane_int_support::Int,
-    cancelled: bool,
+    cancellation: &TerranePlatformCapability,
 ) -> TerranePlatformResult {
     terrane_platform_support::udp_receive_from(
         socket,
-        limit.as_big().to_string().parse::<i128>().unwrap_or(-1),
-        deadline.as_big().to_string().parse::<i128>().unwrap_or(-1),
-        cancelled,
+        terrane_platform_i128!(limit, "UDP receive limit"),
+        terrane_platform_i128!(deadline, "UDP receive deadline"),
+        cancellation,
     )
 }
 fn terrane_platform_dns_lookup(
     host: String,
     port: terrane_int_support::Int,
     deadline: terrane_int_support::Int,
-    cancelled: bool,
+    cancellation: &TerranePlatformCapability,
 ) -> TerranePlatformResult {
     terrane_platform_support::dns_lookup(
         &host,
-        port.as_big().to_string().parse::<i128>().unwrap_or(-1),
-        deadline.as_big().to_string().parse::<i128>().unwrap_or(-1),
-        cancelled,
+        terrane_platform_i128!(port, "DNS port"),
+        terrane_platform_i128!(deadline, "DNS deadline"),
+        cancellation,
     )
 }
 fn terrane_platform_close(
@@ -302,39 +367,39 @@ fn terrane_platform_tls_client(
     stream: &TerranePlatformCapability,
     server: String,
     deadline: terrane_int_support::Int,
-    cancelled: bool,
+    cancellation: &TerranePlatformCapability,
 ) -> TerranePlatformResult {
     terrane_platform_support::tls_client(
         stream,
         &server,
-        deadline.as_big().to_string().parse::<i128>().unwrap_or(-1),
-        cancelled,
+        terrane_platform_i128!(deadline, "TLS deadline"),
+        cancellation,
     )
 }
 fn terrane_platform_tls_read(
     stream: &TerranePlatformCapability,
     limit: terrane_int_support::Int,
     deadline: terrane_int_support::Int,
-    cancelled: bool,
+    cancellation: &TerranePlatformCapability,
 ) -> TerranePlatformResult {
     terrane_platform_support::tls_read(
         stream,
-        limit.as_big().to_string().parse::<i128>().unwrap_or(-1),
-        deadline.as_big().to_string().parse::<i128>().unwrap_or(-1),
-        cancelled,
+        terrane_platform_i128!(limit, "TLS read limit"),
+        terrane_platform_i128!(deadline, "TLS read deadline"),
+        cancellation,
     )
 }
 fn terrane_platform_tls_write(
     stream: &TerranePlatformCapability,
     data: Vec<u8>,
     deadline: terrane_int_support::Int,
-    cancelled: bool,
+    cancellation: &TerranePlatformCapability,
 ) -> TerranePlatformResult {
     terrane_platform_support::tls_write(
         stream,
         &data,
-        deadline.as_big().to_string().parse::<i128>().unwrap_or(-1),
-        cancelled,
+        terrane_platform_i128!(deadline, "TLS write deadline"),
+        cancellation,
     )
 }
 // Source: case.trn
@@ -360,15 +425,19 @@ impl TlsStream {
         limit: terrane_int_support::Int,
         options: OperationOptions,
     ) -> IoResult {
+        let cancellation: TerranePlatformCapability = operation_cancellation(
+            options.clone(),
+        );
         let raw: TerranePlatformResult = terrane_platform_tls_read(
             &self.handle,
             limit,
             options.deadline_ms,
-            options.cancelled,
+            &cancellation,
         );
         return IoResult::terrane_construct(
             terrane_platform_result_failed(&raw),
             false,
+            terrane_platform_result_deadline_exceeded(&raw),
             terrane_platform_result_message(&raw),
             terrane_platform_result_bytes(&raw),
             terrane_platform_result_int(&raw),
@@ -377,15 +446,19 @@ impl TlsStream {
         );
     }
     pub fn write(&self, data: Vec<u8>, options: OperationOptions) -> IoResult {
+        let cancellation: TerranePlatformCapability = operation_cancellation(
+            options.clone(),
+        );
         let raw: TerranePlatformResult = terrane_platform_tls_write(
             &self.handle,
             data,
             options.deadline_ms,
-            options.cancelled,
+            &cancellation,
         );
         return IoResult::terrane_construct(
             terrane_platform_result_failed(&raw),
             false,
+            terrane_platform_result_deadline_exceeded(&raw),
             terrane_platform_result_message(&raw),
             Vec::from([]),
             terrane_platform_result_int(&raw),
@@ -435,11 +508,14 @@ pub fn connect_tls(
     server_name: HostName,
     options: OperationOptions,
 ) -> TlsResult {
+    let cancellation: TerranePlatformCapability = operation_cancellation(
+        options.clone(),
+    );
     let raw: TerranePlatformResult = terrane_platform_tls_client(
         &stream.handle,
         server_name.value,
         options.deadline_ms,
-        options.cancelled,
+        &cancellation,
     );
     let mut value: TlsStream = TlsStream::terrane_construct();
     if !terrane_platform_result_failed(&raw) {
@@ -453,28 +529,6 @@ pub fn connect_tls(
 }
 // Source: standard/networking.trn
 // Namespace: standard/networking
-#[derive(Clone)]
-pub struct OperationOptions {
-    pub deadline_ms: terrane_int_support::Int,
-    pub cancelled: bool,
-}
-impl OperationOptions {
-    pub fn terrane_construct(
-        deadline_ms: terrane_int_support::Int,
-        cancelled: bool,
-    ) -> Self {
-        let mut value = Self {
-            deadline_ms: terrane_int_support::Int::from(30000_i128),
-            cancelled: false,
-        };
-        value.construct(deadline_ms, cancelled);
-        value
-    }
-    pub fn construct(&mut self, deadline_ms: terrane_int_support::Int, cancelled: bool) {
-        self.deadline_ms = deadline_ms.clone();
-        self.cancelled = cancelled;
-    }
-}
 #[derive(Clone)]
 pub struct OperationResult {
     pub failed: bool,
@@ -492,6 +546,91 @@ impl OperationResult {
     pub fn construct(&mut self, failed: bool, message: String) {
         self.failed = failed;
         self.message = message;
+    }
+}
+#[derive(Clone)]
+pub struct CancellationToken {
+    pub handle: TerranePlatformCapability,
+}
+impl CancellationToken {
+    pub fn terrane_construct() -> Self {
+        Self {
+            handle: terrane_platform_cancellation_token(),
+        }
+    }
+}
+pub fn cancel_operation(cancellation: CancellationToken) -> OperationResult {
+    let raw: TerranePlatformResult = terrane_platform_cancel(&cancellation.handle);
+    return OperationResult::terrane_construct(
+        terrane_platform_result_failed(&raw),
+        terrane_platform_result_message(&raw),
+    );
+}
+#[derive(Clone)]
+pub struct OperationOptions {
+    pub deadline_ms: terrane_int_support::Int,
+    pub cancellation: CancellationToken,
+}
+impl OperationOptions {
+    pub fn terrane_construct(
+        deadline_ms: terrane_int_support::Int,
+        cancellation: CancellationToken,
+    ) -> Self {
+        let mut value = Self {
+            deadline_ms: terrane_int_support::Int::from(30000_i128),
+            cancellation: CancellationToken::terrane_construct(),
+        };
+        value.construct(deadline_ms, cancellation);
+        value
+    }
+    pub fn construct(
+        &mut self,
+        deadline_ms: terrane_int_support::Int,
+        cancellation: CancellationToken,
+    ) {
+        self.deadline_ms = deadline_ms.clone();
+        self.cancellation = cancellation.clone();
+    }
+}
+pub fn operation_cancellation(options: OperationOptions) -> TerranePlatformCapability {
+    return options.cancellation.handle;
+}
+#[derive(Clone)]
+pub struct TcpOptions {
+    pub no_delay: bool,
+    pub ttl: terrane_int_support::Int,
+}
+impl TcpOptions {
+    pub fn terrane_construct(no_delay: bool, ttl: terrane_int_support::Int) -> Self {
+        let mut value = Self {
+            no_delay: true,
+            ttl: terrane_int_support::Int::from(64_i128),
+        };
+        value.construct(no_delay, ttl);
+        value
+    }
+    pub fn construct(&mut self, no_delay: bool, ttl: terrane_int_support::Int) {
+        self.no_delay = no_delay;
+        self.ttl = ttl.clone();
+    }
+}
+#[derive(Clone)]
+pub struct UdpOptions {
+    pub broadcast: bool,
+    pub ttl: terrane_int_support::Int,
+}
+impl UdpOptions {
+    pub fn terrane_construct(broadcast: bool, ttl: terrane_int_support::Int) -> Self {
+        let mut value = Self {
+            broadcast: false,
+            ttl: terrane_int_support::Int::from(64_i128),
+        };
+        value.construct(broadcast, ttl);
+        value
+    }
+    pub fn construct(&mut self, broadcast: bool, ttl: terrane_int_support::Int) {
+        self.broadcast = broadcast;
+        self.ttl = ttl.clone();
     }
 }
 #[derive(Clone)]
@@ -564,29 +703,65 @@ pub struct SocketAddress {
     pub port: terrane_int_support::Int,
 }
 impl SocketAddress {
-    pub fn terrane_construct(ip: IpAddress, port: terrane_int_support::Int) -> Self {
-        let mut value = Self {
+    pub fn terrane_construct() -> Self {
+        Self {
             value: String::from(""),
             ip: IpAddress::terrane_construct(String::from(""), String::from(""), false),
             port: terrane_int_support::Int::from(0_i128),
-        };
-        value.construct(ip, port);
-        value
-    }
-    pub fn construct(&mut self, ip: IpAddress, port: terrane_int_support::Int) {
-        let raw: TerranePlatformResult = terrane_platform_parse_socket(&ip.value, &port);
-        self.value = terrane_platform_result_text(&raw);
-        self.ip = ip.clone();
-        self.port = port.clone();
+        }
     }
     pub fn string(&self) -> String {
         return self.value.clone();
     }
 }
 #[derive(Clone)]
+pub struct SocketResult {
+    pub failed: bool,
+    pub message: String,
+    pub value: SocketAddress,
+}
+impl SocketResult {
+    pub fn terrane_construct(
+        failed: bool,
+        message: String,
+        address: SocketAddress,
+    ) -> Self {
+        let mut value = Self {
+            failed: false,
+            message: String::from(""),
+            value: SocketAddress::terrane_construct(),
+        };
+        value.construct(failed, message, address);
+        value
+    }
+    pub fn construct(&mut self, failed: bool, message: String, address: SocketAddress) {
+        self.failed = failed;
+        self.message = message;
+        self.value = address.clone();
+    }
+}
+pub fn socket_address_from_ip(
+    ip: IpAddress,
+    port: terrane_int_support::Int,
+) -> SocketResult {
+    let raw: TerranePlatformResult = terrane_platform_parse_socket(&ip.value, &port);
+    let mut address: SocketAddress = SocketAddress::terrane_construct();
+    if !terrane_platform_result_failed(&raw) {
+        address.value = terrane_platform_result_text(&raw);
+        address.ip = ip.clone();
+        address.port = port.clone();
+    }
+    return SocketResult::terrane_construct(
+        terrane_platform_result_failed(&raw),
+        terrane_platform_result_message(&raw),
+        address.clone(),
+    );
+}
+#[derive(Clone)]
 pub struct IoResult {
     pub failed: bool,
     pub truncated: bool,
+    pub deadline_exceeded: bool,
     pub message: String,
     pub data: Vec<u8>,
     pub completed: terrane_int_support::Int,
@@ -597,6 +772,7 @@ impl IoResult {
     pub fn terrane_construct(
         failed: bool,
         truncated: bool,
+        deadline_exceeded: bool,
         message: String,
         data: Vec<u8>,
         completed: terrane_int_support::Int,
@@ -606,19 +782,31 @@ impl IoResult {
         let mut value = Self {
             failed: false,
             truncated: false,
+            deadline_exceeded: false,
             message: String::from(""),
             data: Vec::from([]),
             completed: terrane_int_support::Int::from(0_i128),
             peer: String::from(""),
             end: false,
         };
-        value.construct(failed, truncated, message, data, completed, peer, end);
+        value
+            .construct(
+                failed,
+                truncated,
+                deadline_exceeded,
+                message,
+                data,
+                completed,
+                peer,
+                end,
+            );
         value
     }
     pub fn construct(
         &mut self,
         failed: bool,
         truncated: bool,
+        deadline_exceeded: bool,
         message: String,
         data: Vec<u8>,
         completed: terrane_int_support::Int,
@@ -627,6 +815,7 @@ impl IoResult {
     ) {
         self.failed = failed;
         self.truncated = truncated;
+        self.deadline_exceeded = deadline_exceeded;
         self.message = message;
         self.data = data;
         self.completed = completed.clone();
@@ -650,11 +839,12 @@ impl TcpStream {
             &self.handle,
             limit,
             options.deadline_ms,
-            options.cancelled,
+            &options.cancellation.handle,
         );
         return IoResult::terrane_construct(
             terrane_platform_result_failed(&raw),
             false,
+            terrane_platform_result_deadline_exceeded(&raw),
             terrane_platform_result_message(&raw),
             terrane_platform_result_bytes(&raw),
             terrane_platform_result_int(&raw),
@@ -667,16 +857,28 @@ impl TcpStream {
             &self.handle,
             data,
             options.deadline_ms,
-            options.cancelled,
+            &options.cancellation.handle,
         );
         return IoResult::terrane_construct(
             terrane_platform_result_failed(&raw),
             false,
+            terrane_platform_result_deadline_exceeded(&raw),
             terrane_platform_result_message(&raw),
             Vec::from([]),
             terrane_platform_result_int(&raw),
             String::from(""),
             false,
+        );
+    }
+    pub fn configure(&self, options: TcpOptions) -> OperationResult {
+        let raw: TerranePlatformResult = terrane_platform_tcp_configure(
+            &self.handle,
+            options.no_delay,
+            options.ttl,
+        );
+        return OperationResult::terrane_construct(
+            terrane_platform_result_failed(&raw),
+            terrane_platform_result_message(&raw),
         );
     }
     pub fn shutdown(&self, direction: String) -> OperationResult {
@@ -744,7 +946,7 @@ pub fn connect_tcp(address: SocketAddress, options: OperationOptions) -> StreamR
     let raw: TerranePlatformResult = terrane_platform_tcp_connect(
         address.value,
         options.deadline_ms,
-        options.cancelled,
+        &options.cancellation.handle,
     );
     let mut stream: TcpStream = TcpStream::terrane_construct();
     if !terrane_platform_result_failed(&raw) {
@@ -754,6 +956,28 @@ pub fn connect_tcp(address: SocketAddress, options: OperationOptions) -> StreamR
         terrane_platform_result_failed(&raw),
         terrane_platform_result_message(&raw),
         String::from(""),
+        stream,
+    );
+}
+pub fn connect_host(
+    host: HostName,
+    port: terrane_int_support::Int,
+    options: OperationOptions,
+) -> StreamResult {
+    let raw: TerranePlatformResult = terrane_platform_tcp_connect_host(
+        host.value,
+        port,
+        options.deadline_ms,
+        &options.cancellation.handle,
+    );
+    let mut stream: TcpStream = TcpStream::terrane_construct();
+    if !terrane_platform_result_failed(&raw) {
+        stream.handle = terrane_platform_result_capability(&raw);
+    }
+    return StreamResult::terrane_construct(
+        terrane_platform_result_failed(&raw),
+        terrane_platform_result_message(&raw),
+        terrane_platform_result_text(&raw),
         stream,
     );
 }
@@ -772,7 +996,7 @@ impl TcpListener {
         let raw: TerranePlatformResult = terrane_platform_tcp_accept(
             &self.handle,
             options.deadline_ms,
-            options.cancelled,
+            &options.cancellation.handle,
         );
         let mut stream: TcpStream = TcpStream::terrane_construct();
         if !terrane_platform_result_failed(&raw) {
@@ -861,11 +1085,12 @@ impl UdpSocket {
             data,
             address.value,
             options.deadline_ms,
-            options.cancelled,
+            &options.cancellation.handle,
         );
         return IoResult::terrane_construct(
             terrane_platform_result_failed(&raw),
             false,
+            terrane_platform_result_deadline_exceeded(&raw),
             terrane_platform_result_message(&raw),
             Vec::from([]),
             terrane_platform_result_int(&raw),
@@ -882,16 +1107,28 @@ impl UdpSocket {
             &self.handle,
             limit,
             options.deadline_ms,
-            options.cancelled,
+            &options.cancellation.handle,
         );
         return IoResult::terrane_construct(
             terrane_platform_result_failed(&raw),
             terrane_platform_result_truncated(&raw),
+            terrane_platform_result_deadline_exceeded(&raw),
             terrane_platform_result_message(&raw),
             terrane_platform_result_bytes(&raw),
             terrane_platform_result_int(&raw),
             terrane_platform_result_text(&raw),
             false,
+        );
+    }
+    pub fn configure(&self, options: UdpOptions) -> OperationResult {
+        let raw: TerranePlatformResult = terrane_platform_udp_configure(
+            &self.handle,
+            options.broadcast,
+            options.ttl,
+        );
+        return OperationResult::terrane_construct(
+            terrane_platform_result_failed(&raw),
+            terrane_platform_result_message(&raw),
         );
     }
     pub fn close(&self) -> OperationResult {
@@ -992,14 +1229,43 @@ pub struct HostName {
     pub value: String,
 }
 impl HostName {
-    pub fn terrane_construct(address: String) -> Self {
-        let mut value = Self { value: String::from("") };
-        value.construct(address);
+    pub fn terrane_construct() -> Self {
+        Self { value: String::from("") }
+    }
+}
+#[derive(Clone)]
+pub struct HostNameResult {
+    pub failed: bool,
+    pub message: String,
+    pub value: HostName,
+}
+impl HostNameResult {
+    pub fn terrane_construct(failed: bool, message: String, host: HostName) -> Self {
+        let mut value = Self {
+            failed: false,
+            message: String::from(""),
+            value: HostName::terrane_construct(),
+        };
+        value.construct(failed, message, host);
         value
     }
-    pub fn construct(&mut self, address: String) {
-        self.value = address;
+    pub fn construct(&mut self, failed: bool, message: String, host: HostName) {
+        self.failed = failed;
+        self.message = message;
+        self.value = host.clone();
     }
+}
+pub fn parse_host_name(text: String) -> HostNameResult {
+    let raw: TerranePlatformResult = terrane_platform_parse_host_name(text);
+    let mut host: HostName = HostName::terrane_construct();
+    if !terrane_platform_result_failed(&raw) {
+        host.value = terrane_platform_result_text(&raw);
+    }
+    return HostNameResult::terrane_construct(
+        terrane_platform_result_failed(&raw),
+        terrane_platform_result_message(&raw),
+        host.clone(),
+    );
 }
 pub fn lookup_dns(
     host: HostName,
@@ -1010,7 +1276,7 @@ pub fn lookup_dns(
         host.value,
         port,
         options.deadline_ms,
-        options.cancelled,
+        &options.cancellation.handle,
     );
     let raw_candidates: Vec<String> = terrane_platform_result_entries(&raw);
     let mut candidates: terrane_collection_support::List<String> = terrane_collection_support::List::<
@@ -1026,7 +1292,7 @@ pub fn lookup_dns(
                             .unwrap_or_else(|error| __terrane_uncaught(
                                 TerraneError::from(error)
                                     .at(
-                                        "/standard/networking::lookup-dns (networking.trn:227:28)",
+                                        "/standard/networking::lookup-dns (networking.trn:298:28)",
                                     ),
                             )),
                     )
@@ -1036,14 +1302,14 @@ pub fn lookup_dns(
                             .unwrap_or_else(|error| __terrane_uncaught(
                                 TerraneError::from(error)
                                     .at(
-                                        "/standard/networking::lookup-dns (networking.trn:227:28)",
+                                        "/standard/networking::lookup-dns (networking.trn:298:28)",
                                     ),
                             )),
                     })
                     .unwrap_or_else(|error| __terrane_uncaught(
                         TerraneError::from(error)
                             .at(
-                                "/standard/networking::lookup-dns (networking.trn:227:28)",
+                                "/standard/networking::lookup-dns (networking.trn:298:28)",
                             ),
                     )),
             );
@@ -1053,7 +1319,7 @@ pub fn lookup_dns(
         terrane_platform_result_failed(&raw),
         terrane_platform_result_message(&raw),
         terrane_platform_result_int(&raw),
-        false,
+        terrane_platform_result_bool(&raw),
         candidates.clone(),
     );
 }

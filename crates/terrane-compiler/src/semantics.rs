@@ -6588,6 +6588,7 @@ fn infer_value_type(
                     }
                     "/core/platform-data::url-parse" => Some(ValueType::PlatformUrlResult),
                     "/core/platform-capabilities::secure-random"
+                    | "/core/platform-capabilities::cancellation-token"
                     | "/core/platform-capabilities::pseudo-random"
                     | "/core/platform-capabilities::secret-buffer"
                     | "/core/platform-capabilities::result-capability" => {
@@ -6601,6 +6602,7 @@ fn infer_value_type(
                     | "/core/platform-capabilities::random-split"
                     | "/core/platform-capabilities::digest"
                     | "/core/platform-capabilities::hmac"
+                    | "/core/platform-capabilities::destroy-secret"
                     | "/core/platform-capabilities::hex-decode"
                     | "/core/platform-capabilities::base64-decode"
                     | "/core/platform-capabilities::uuid-parse"
@@ -6609,20 +6611,25 @@ fn infer_value_type(
                     | "/core/platform-capabilities::compress"
                     | "/core/platform-capabilities::decompress"
                     | "/core/platform-capabilities::parse-ip"
+                    | "/core/platform-capabilities::parse-host-name"
                     | "/core/platform-capabilities::parse-socket"
                     | "/core/platform-capabilities::tcp-bind"
                     | "/core/platform-capabilities::tcp-connect"
+                    | "/core/platform-capabilities::tcp-connect-host"
                     | "/core/platform-capabilities::tcp-accept"
                     | "/core/platform-capabilities::tcp-read"
                     | "/core/platform-capabilities::tcp-write"
                     | "/core/platform-capabilities::tcp-shutdown"
+                    | "/core/platform-capabilities::tcp-configure"
                     | "/core/platform-capabilities::udp-bind"
+                    | "/core/platform-capabilities::udp-configure"
                     | "/core/platform-capabilities::udp-send-to"
                     | "/core/platform-capabilities::udp-receive-from"
                     | "/core/platform-capabilities::dns-lookup"
                     | "/core/platform-capabilities::tls-client"
                     | "/core/platform-capabilities::tls-read"
                     | "/core/platform-capabilities::tls-write"
+                    | "/core/platform-capabilities::cancel"
                     | "/core/platform-capabilities::close" => Some(ValueType::PlatformResult),
                     "/core/platform-system::filesystem-exists"
                     | "/core/platform-system::filesystem-metadata"
@@ -6643,6 +6650,7 @@ fn infer_value_type(
                     | "/core/platform-capabilities::result-failed"
                     | "/core/platform-capabilities::result-resource-limit"
                     | "/core/platform-capabilities::result-truncated"
+                    | "/core/platform-capabilities::result-deadline-exceeded"
                     | "/core/platform-capabilities::result-bool" => {
                         Some(ValueType::Scalar(ScalarType::Bool))
                     }
@@ -10373,7 +10381,10 @@ fn bootstrap_namespaces() -> BTreeMap<String, Namespace> {
                 "random-bounded",
                 "random-split",
                 "digest",
+                "destroy-secret",
                 "hmac",
+                "cancellation-token",
+                "cancel",
                 "constant-time-equal",
                 "hex-encode",
                 "hex-decode",
@@ -10384,15 +10395,19 @@ fn bootstrap_namespaces() -> BTreeMap<String, Namespace> {
                 "uuid-v7",
                 "compress",
                 "decompress",
+                "parse-host-name",
                 "parse-ip",
                 "parse-socket",
                 "tcp-bind",
                 "tcp-connect",
+                "tcp-connect-host",
                 "tcp-accept",
                 "tcp-read",
                 "tcp-write",
+                "tcp-configure",
                 "tcp-shutdown",
                 "udp-bind",
+                "udp-configure",
                 "udp-send-to",
                 "udp-receive-from",
                 "dns-lookup",
@@ -10403,6 +10418,7 @@ fn bootstrap_namespaces() -> BTreeMap<String, Namespace> {
                 "result-failed",
                 "result-resource-limit",
                 "result-truncated",
+                "result-deadline-exceeded",
                 "result-message",
                 "result-text",
                 "result-detail",

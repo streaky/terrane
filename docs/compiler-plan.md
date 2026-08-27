@@ -1454,13 +1454,16 @@ Deliver:
 Exit criterion: a pseudo-random source cannot satisfy a secure-random parameter; a decompression bomb is refused with a distinct resource-limit error rather than truncated success.
 
 Implemented on `randomness-networking-tls`. Import-driven bundled Terrane packages retain the
-public random-source, secret-buffer, digest, codec, UUID, and compression policy until application
-lowering. One generated support crate supplies only operating-system entropy, opaque resource
-storage, constant-time/zeroising primitives, and audited codec/compression implementations.
-Accepted execution covers deterministic pseudo-random splitting, SHA-256 and HMAC, strict codec
-round trips, UUID parsing, deterministic gzip, bounded decompression, and distinct limit refusal.
-Rejected cases prove that pseudo-random values cannot satisfy secure-random parameters and that
-the private host intrinsic namespace cannot be imported directly.
+public random-source, explicitly selected pseudo-random algorithm, secret-buffer, distinct digest
+and signature values, codec, UUID, and compression policy until application lowering. Secret
+buffers support explicit destruction as well as best-effort zeroisation on final release. One
+generated support crate supplies only operating-system entropy, opaque capability storage,
+constant-time/zeroising primitives, and audited codec/compression implementations. Accepted
+execution covers deterministic ChaCha20 splitting, SHA-256 and SHA-512, HMAC and destroyed-key
+failure, strict codec round trips, UUID parsing, all four compression formats, bounded nested
+decompression, and distinct limit refusal. Rejected cases prove that pseudo-random values cannot
+satisfy secure-random parameters and that the private host intrinsic namespace cannot be imported
+directly.
 
 
 ### Milestone 24 — Networking and TLS
@@ -1478,14 +1481,17 @@ Deliver:
 
 Exit criterion: a loopback client and server exchange data under a deadline; certificate validation cannot be disabled through an ordinary option; a truncated datagram is reported rather than silently shortened.
 
-Implemented on `randomness-networking-tls`. Bundled Terrane packages own parsed address values,
-operation options and structured results, while the generated host support owns only DNS and
-socket/TLS resources crossing the OS and audited-protocol boundaries. TCP, UDP, DNS, and TLS
-operations carry explicit deadline/cancellation inputs; UDP receive results preserve truncation.
-The TLS client uses platform roots, validates both certificate chains and host names, negotiates
-TLS 1.3 or supported TLS 1.2, and exposes no ordinary option for disabling validation. Host-boundary
-tests exercise deadline-bounded loopback TCP exchange, UDP truncation, DNS ordering, and validation
-failure; accepted Terrane cases exercise address parsing and resource-producing factories.
+Implemented on `randomness-networking-tls`. Bundled Terrane packages own validated address and host
+values, typed socket options, shared cancellation tokens, positive per-operation deadlines, and
+structured results. Generated host support owns only DNS and socket/TLS resources crossing the OS
+and audited-protocol boundaries. TCP host connection races ordered DNS candidates; DNS retains TTL
+and is itself deadline- and cancellation-aware. TCP, UDP, DNS, and TLS operations carry the same
+observable cancellation capability and deadline contract; UDP receive results preserve truncation.
+TLS consumes the TCP resource during upgrade, applies each operation's deadline, uses platform
+roots, validates certificate chains and host names, negotiates TLS 1.3 or supported TLS 1.2, and
+exposes no ordinary option for disabling validation. Host-boundary tests exercise deadline-bounded
+loopback TCP exchange, UDP truncation, DNS ordering, and validation failure; accepted Terrane cases
+exercise address and host parsing, cancellation, and resource-producing factories.
 
 ### Milestone 25 — Structured logging
 

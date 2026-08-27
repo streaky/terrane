@@ -99,8 +99,21 @@ fn run(arguments: &[OsString]) -> Result<ExitCode, CliFailure> {
         return Ok(ExitCode::SUCCESS);
     }
     ensure_rust_toolchain()?;
-    let crate_dir = generated_crate_path(&package.root, &compilation.rust_files)?;
-    write_generated_crate(&crate_dir, &compilation.rust_files, &package.units)?;
+    let uses_platform_support = compilation
+        .rust_files
+        .iter()
+        .any(|file| file.path == "src/runtime/platform_capabilities.rs");
+    let crate_dir = generated_crate_path(
+        &package.root,
+        &compilation.rust_files,
+        uses_platform_support,
+    )?;
+    write_generated_crate(
+        &crate_dir,
+        &compilation.rust_files,
+        &package.units,
+        uses_platform_support,
+    )?;
     record_and_prune_generated_crates(&crate_dir)?;
     let target_dir = package.root.join(".trn/cache/target");
     let executable = prepare_artifact(
@@ -321,6 +334,7 @@ fn run_cargo(
 fn generated_crate_path(
     package_root: &Path,
     rust_files: &[terrane_compiler::rust_ir::RenderedFile],
+    uses_platform_support: bool,
 ) -> Result<PathBuf, CliFailure> {
     let root = package_root.canonicalize().map_err(|error| {
         CliFailure::backend(format!(
@@ -354,9 +368,12 @@ fn generated_crate_path(
         include_bytes!("../../terrane-scalar-support/src/lib.rs").as_slice(),
         include_bytes!("../../terrane-string-support/src/lib.rs").as_slice(),
         include_bytes!("../../terrane-stream-abi/src/lib.rs").as_slice(),
-        include_bytes!("../../terrane-platform-support/src/lib.rs").as_slice(),
     ] {
         hash.update(support);
+        hash.update(b"\0");
+    }
+    if uses_platform_support {
+        hash.update(include_bytes!("../../terrane-platform-support/src/lib.rs"));
         hash.update(b"\0");
     }
     Ok(root
@@ -404,21 +421,29 @@ fn write_generated_crate(
     directory: &Path,
     rust_files: &[terrane_compiler::rust_ir::RenderedFile],
     units: &[terrane_compiler::SourceUnit],
+    uses_platform_support: bool,
 ) -> Result<(), CliFailure> {
     fs::create_dir_all(directory.join("src"))
         .map_err(|error| CliFailure::backend(format!("cannot create generated crate: {error}")))?;
-    let manifest = "[package]\nname = \"terrane_program\"\nversion = \"0.0.0\"\nedition = \"2024\"\n\n\
-                    [dependencies]\nterrane-int-support = { path = \"support/terrane-int-support\" }\n\
-                    terrane-collection-support = { path = \"support/terrane-collection-support\" }\n\
-                    terrane-scalar-support = { path = \"support/terrane-scalar-support\" }\n\
-                    terrane-string-support = { path = \"support/terrane-string-support\" }\n\
-                    terrane-document-support = { path = \"support/terrane-document-support\" }\n\
-                    terrane-stream-abi = { path = \"support/terrane-stream-abi\" }\n\
-                    terrane-platform-support = { path = \"support/terrane-platform-support\" }\n\n[workspace]\n";
+    let mut manifest = String::from(
+        "[package]\nname = \"terrane_program\"\nversion = \"0.0.0\"\nedition = \"2024\"\n\n\
+         [dependencies]\nterrane-int-support = { path = \"support/terrane-int-support\" }\n\
+         terrane-collection-support = { path = \"support/terrane-collection-support\" }\n\
+         terrane-scalar-support = { path = \"support/terrane-scalar-support\" }\n\
+         terrane-string-support = { path = \"support/terrane-string-support\" }\n\
+         terrane-document-support = { path = \"support/terrane-document-support\" }\n\
+         terrane-stream-abi = { path = \"support/terrane-stream-abi\" }\n",
+    );
+    if uses_platform_support {
+        manifest.push_str(
+            "terrane-platform-support = { path = \"support/terrane-platform-support\" }\n",
+        );
+    }
+    manifest.push_str("\n[workspace]\n");
     write_if_changed(&directory.join("Cargo.toml"), manifest.as_bytes()).map_err(|error| {
         CliFailure::backend(format!("cannot write generated manifest: {error}"))
     })?;
-    write_generated_support(directory).map_err(|error| {
+    write_generated_support(directory, uses_platform_support).map_err(|error| {
         CliFailure::backend(format!("cannot write generated runtime support: {error}"))
     })?;
     for rust_file in rust_files {
@@ -446,21 +471,24 @@ fn write_generated_crate(
     Ok(())
 }
 
-fn write_generated_support(directory: &Path) -> std::io::Result<()> {
+fn write_generated_support(directory: &Path, uses_platform_support: bool) -> std::io::Result<()> {
     let int = directory.join("support/terrane-int-support");
     let collection = directory.join("support/terrane-collection-support");
     let scalar = directory.join("support/terrane-scalar-support");
     let string = directory.join("support/terrane-string-support");
     let document = directory.join("support/terrane-document-support");
     let stream = directory.join("support/terrane-stream-abi");
-    let platform = directory.join("support/terrane-platform-support");
+    let platform =
+        uses_platform_support.then(|| directory.join("support/terrane-platform-support"));
     fs::create_dir_all(int.join("src"))?;
     fs::create_dir_all(collection.join("src"))?;
     fs::create_dir_all(scalar.join("src"))?;
     fs::create_dir_all(string.join("src"))?;
     fs::create_dir_all(document.join("src"))?;
     fs::create_dir_all(stream.join("src"))?;
-    fs::create_dir_all(platform.join("src"))?;
+    if let Some(platform) = &platform {
+        fs::create_dir_all(platform.join("src"))?;
+    }
     write_if_changed(
         &int.join("Cargo.toml"),
         b"[package]\nname = \"terrane-int-support\"\nversion = \"0.1.0\"\nedition = \"2024\"\n\n[dependencies]\nnum-bigint = { version = \"0.4\", features = [\"std\"] }\nnum-integer = \"0.1\"\nnum-traits = \"0.2\"\n",
@@ -509,14 +537,17 @@ fn write_generated_support(directory: &Path) -> std::io::Result<()> {
         &stream.join("src/lib.rs"),
         include_bytes!("../../terrane-stream-abi/src/lib.rs"),
     )?;
-    write_if_changed(
-        &platform.join("Cargo.toml"),
-        b"[package]\nname = \"terrane-platform-support\"\nversion = \"0.1.0\"\nedition = \"2024\"\n\n[dependencies]\nbase64 = \"0.22\"\nflate2 = \"1\"\ngetrandom = \"0.3\"\nhmac = \"0.12\"\nrand_chacha = \"0.3\"\nrand_core = \"0.6\"\nrustls = { version = \"0.23\", default-features = false, features = [\"aws_lc_rs\", \"std\", \"tls12\"] }\nsha2 = \"0.10\"\nsubtle = \"2\"\nuuid = { version = \"1\", features = [\"v4\", \"v7\"] }\nwebpki-roots = \"1\"\nzeroize = \"1\"\nzstd = \"0.13\"\n",
-    )?;
-    write_if_changed(
-        &platform.join("src/lib.rs"),
-        include_bytes!("../../terrane-platform-support/src/lib.rs"),
-    )
+    if let Some(platform) = platform {
+        write_if_changed(
+            &platform.join("Cargo.toml"),
+            b"[package]\nname = \"terrane-platform-support\"\nversion = \"0.1.0\"\nedition = \"2024\"\n\n[dependencies]\nbase64 = \"0.22\"\nflate2 = \"1\"\ngetrandom = \"0.3\"\nhickory-resolver = \"0.25\"\nhmac = \"0.12\"\nrand_chacha = \"0.3\"\nrand_core = \"0.6\"\nrustls = { version = \"0.23\", default-features = false, features = [\"aws_lc_rs\", \"std\", \"tls12\"] }\nsha2 = \"0.10\"\nsubtle = \"2\"\ntokio = { version = \"1\", features = [\"rt-multi-thread\", \"time\"] }\nuuid = { version = \"1\", features = [\"v4\", \"v7\"] }\nwebpki-roots = \"1\"\nzeroize = \"1\"\nzstd = \"0.13\"\n",
+        )?;
+        write_if_changed(
+            &platform.join("src/lib.rs"),
+            include_bytes!("../../terrane-platform-support/src/lib.rs"),
+        )?;
+    }
+    Ok(())
 }
 
 fn write_if_changed(path: &Path, content: &[u8]) -> std::io::Result<()> {

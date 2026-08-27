@@ -155,27 +155,31 @@ Terrane package
     │   ├── url-query                          ordered duplicate-preserving query entries (read-only after parsing)
     │   ├── url-result                         value or failed / message result
     │   └── parse-url / parse-url-relative
-    ├── /standard/random                      bundled Terrane random, digest, and secret-value policy
-    │   ├── secure-random / pseudo-random      incompatible source types; bounded generation rejects bias
-    │   ├── secret-buffer                      opaque, best-effort-zeroised key material
-    │   ├── sha256 / sha512                    digest algorithms with HMAC and constant-time comparison
-    │   └── pseudo-bytes / secure-bytes / digest-bytes / sign-hmac
-    ├── /standard/codecs                      bundled Terrane strict codec policy
+    ├── /standard/random                       bundled Terrane random, digest, and secret-value policy
+    │   ├── secure-random / pseudo-random      incompatible source types; ChaCha20 is selected explicitly
+    │   ├── pseudo-bytes / pseudo-bounded-int / split-pseudo
+    │   ├── secure-bytes / secure-bounded-int
+    │   ├── secret-buffer / destroy-secret     opaque key material with explicit best-effort zeroisation
+    │   ├── sha256 / sha512                    distinct digest algorithms
+    │   └── digest-bytes / sign-hmac / digest-equals / signature-equals
+    ├── /standard/codecs                       bundled Terrane strict codec policy
     │   ├── encode-hex / decode-hex
     │   └── encode-base64 / decode-base64      standard or URL-safe alphabet with explicit padding
-    ├── /standard/compression                 bundled Terrane bounded compression policy
-    │   ├── gzip / zlib / deflate-raw / zstd  explicit codecs; no auto-detection
-    │   ├── compression-options               level and deterministic-output policy
-    │   └── decompression-limits              mandatory output, ratio, nesting, and work limits
-    ├── /standard/uuid                        bundled Terrane UUID values
-    │   └── parse-uuid / random-uuid / time-uuid strict parsing plus v4 and v7 generation
-    ├── /standard/networking                  bundled Terrane sockets and name-resolution policy
-    │   ├── ip-address / socket-address / host-name
+    ├── /standard/compression                  bundled Terrane bounded compression policy
+    │   ├── gzip / zlib / deflate-raw / zstd   explicit codecs; no auto-detection
+    │   ├── compression-options                level and deterministic-output policy
+    │   └── decompression-limits               mandatory output, ratio, nesting, and work limits
+    ├── /standard/uuid                         bundled Terrane UUID values
+    │   └── parse-uuid / random-uuid / time-uuid strict canonical parsing plus v4 and v7 generation
+    ├── /standard/networking                   bundled Terrane sockets and name-resolution policy
+    │   ├── ip-address / socket-address / host-name validated value objects with structured parse results
+    │   ├── cancellation-token / operation-options shared observable cancellation and positive deadlines
     │   ├── tcp-stream / tcp-listener / udp-socket
-    │   ├── parse-address / connect-tcp / bind-tcp / bind-udp
-    │   └── resolve-host                      ordered DNS candidates with explicit failure results
-    ├── /standard/tls                         bundled Terrane TLS policy over linear network resources
-    │   └── connect-tls                       validated TLS 1.3/1.2 client connection
+    │   ├── ip-address-from-string / socket-address-from-ip / parse-host-name
+    │   ├── connect-tcp / connect-host / bind-tcp / bind-udp
+    │   └── lookup-dns                         ordered candidates with TTL and explicit failure results
+    ├── /standard/tls                          bundled Terrane TLS policy over transferred network resources
+    │   └── connect-tls                        validated TLS 1.3/1.2 client connection; no insecure ordinary option
     ├── namespace                              hierarchical object container
     │   ├── variable                           namespace-local value
     │   ├── constant                           namespace-local or program-global value

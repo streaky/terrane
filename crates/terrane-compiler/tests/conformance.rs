@@ -312,7 +312,7 @@ fn write_support_crates(directory: &Path) {
     .unwrap();
     fs::write(
         platform.join("Cargo.toml"),
-        "[package]\nname = \"terrane-platform-support\"\nversion = \"0.1.0\"\nedition = \"2024\"\n\n[dependencies]\nbase64 = \"0.22\"\nflate2 = \"1\"\ngetrandom = \"0.3\"\nhmac = \"0.12\"\nrand_chacha = \"0.3\"\nrand_core = \"0.6\"\nrustls = { version = \"0.23\", default-features = false, features = [\"aws_lc_rs\", \"std\", \"tls12\"] }\nsha2 = \"0.10\"\nsubtle = \"2\"\nuuid = { version = \"1\", features = [\"v4\", \"v7\"] }\nwebpki-roots = \"1\"\nzeroize = \"1\"\nzstd = \"0.13\"\n",
+        "[package]\nname = \"terrane-platform-support\"\nversion = \"0.1.0\"\nedition = \"2024\"\n\n[dependencies]\nbase64 = \"0.22\"\nflate2 = \"1\"\ngetrandom = \"0.3\"\nhickory-resolver = \"0.25\"\nhmac = \"0.12\"\nrand_chacha = \"0.3\"\nrand_core = \"0.6\"\nrustls = { version = \"0.23\", default-features = false, features = [\"aws_lc_rs\", \"std\", \"tls12\"] }\nsha2 = \"0.10\"\nsubtle = \"2\"\ntokio = { version = \"1\", features = [\"rt-multi-thread\", \"time\"] }\nuuid = { version = \"1\", features = [\"v4\", \"v7\"] }\nwebpki-roots = \"1\"\nzeroize = \"1\"\nzstd = \"0.13\"\n",
     )
     .unwrap();
     fs::write(

@@ -2,24 +2,32 @@ namespace app
 
 from /core/output import print
 from /core/encodings import utf8
-from /standard/random import pseudo-random, pseudo-bytes, secret-buffer, sha256, digest-bytes, sign-hmac, digest-equals
+from /standard/random import pseudo-random, chacha20, pseudo-bytes, secret-buffer, destroy-secret, sha256, sha512, digest-bytes, sign-hmac, signature-equals
 from /standard/codecs import encode-hex, decode-hex, encode-base64, decode-base64
-from /standard/compression import gzip, compression-options, decompression-limits
+from /standard/compression import gzip, zlib, deflate-raw, zstd, compression-options, decompression-limits
 from /standard/uuid import parse-uuid
 
 function main;
-    first = pseudo-random; b'seed'
-    second = pseudo-random; b'seed'
+    first = pseudo-random; (chacha20;), b'seed'
+    second = pseudo-random; (chacha20;), b'seed'
     hash = sha256;
     gzip-codec = gzip;
     left = pseudo-bytes; first, 32
     right = pseudo-bytes; second, 32
     print; left.value == right.value
     digest = digest-bytes; hash, b'abc'
-    print; (encode-hex; digest.value)
+    print; (encode-hex; digest.value.value)
+    wide-hash = sha512;
+    wide-digest = digest-bytes; wide-hash, b'abc'
+    print; (encode-hex; wide-digest.value.value)
     key = secret-buffer; b'key'
+    same-key = secret-buffer; b'key'
     mac = sign-hmac; hash, key, b'data'
-    print; (digest-equals; mac, mac)
+    same-mac = sign-hmac; hash, same-key, b'data'
+    print; (signature-equals; mac.value, same-mac.value)
+    destroy-secret; same-key
+    destroyed = sign-hmac; hash, same-key, b'data'
+    print; destroyed.failed
     print; (encode-base64; b'hello', false, true)
     print; (encode-base64; b'hello?', true, false)
     strict = decode-base64; 'aGVsbG8=', false, true
@@ -31,6 +39,19 @@ function main;
     limits = decompression-limits; 1024, 100, 1, 4096
     unpacked = gzip-codec.decompress; packed.value, limits
     print; (unpacked.value.decode; utf8)
+    zlib-codec = zlib;
+    zlib-packed = zlib-codec.compress; b'compress me', options
+    zlib-unpacked = zlib-codec.decompress; zlib-packed.value, limits
+    print; (zlib-unpacked.value.decode; utf8)
+    raw-codec = deflate-raw;
+    raw-packed = raw-codec.compress; b'compress me', options
+    raw-unpacked = raw-codec.decompress; raw-packed.value, limits
+    print; (raw-unpacked.value.decode; utf8)
+    zstd-codec = zstd;
+    zstd-packed = zstd-codec.compress; b'compress me', options
+    zstd-limits = decompression-limits; 1073741824, 100, 1, 1073741824
+    zstd-unpacked = zstd-codec.decompress; zstd-packed.value, zstd-limits
+    print; (zstd-unpacked.value.decode; utf8)
     bomb-limits = decompression-limits; 4, 2, 1, 8
     refused = gzip-codec.decompress; packed.value, bomb-limits
     print; refused.resource-limit
