@@ -2970,9 +2970,22 @@ impl Emitter<'_> {
             | ValueType::UnorderedMap(_, _)
             | ValueType::UnorderedSet(_)
             | ValueType::Object(_)
-                if node.kind == SyntaxKind::Name =>
+                if node.kind == SyntaxKind::Name && !self.is_only_binding_use(node) =>
             {
                 format!("({}).clone()", self.expression(node))
+            }
+            ValueType::List(_)
+            | ValueType::Map(_, _)
+            | ValueType::Set(_)
+            | ValueType::Tuple(_, _)
+            | ValueType::Range
+            | ValueType::Entry(_, _)
+            | ValueType::UnorderedMap(_, _)
+            | ValueType::UnorderedSet(_)
+            | ValueType::Object(_)
+                if node.kind == SyntaxKind::Name =>
+            {
+                self.expression(node)
             }
             ValueType::AsyncFunction(parameters, _)
                 if node.kind == SyntaxKind::MemberExpression =>
@@ -3492,6 +3505,46 @@ impl Emitter<'_> {
 
     fn discarded_expression(expression: String) -> String {
         format!("let _ = {};", Self::unwrapped_expression(expression))
+    }
+
+    fn is_only_binding_use(&self, node: &SyntaxNode) -> bool {
+        fn count_references(
+            emitter: &Emitter<'_>,
+            node: &SyntaxNode,
+            binding_span: crate::Span,
+            name: &str,
+        ) -> usize {
+            let here = usize::from(
+                node.kind == SyntaxKind::Name
+                    && emitter.text(node).trim() == name
+                    && emitter
+                        .unit
+                        .typed_bindings
+                        .iter()
+                        .rev()
+                        .find(|candidate| {
+                            candidate.name == name
+                                && candidate.is_visible_at(emitter.source.id(), node.span.start)
+                        })
+                        .is_some_and(|candidate| candidate.span == binding_span),
+            );
+            here + node
+                .children
+                .iter()
+                .map(|child| count_references(emitter, child, binding_span, name))
+                .sum::<usize>()
+        }
+        let name = self.text(node).trim();
+        if name == "this" {
+            return false;
+        }
+        let Some(binding) = self.unit.typed_bindings.iter().rev().find(|binding| {
+            binding.name == name && binding.is_visible_at(self.source.id(), node.span.start)
+        }) else {
+            return false;
+        };
+
+        count_references(self, &self.unit.tree.root, binding.span, name) == 1
     }
 
     fn value_type(&self, node: &SyntaxNode) -> Option<ValueType> {

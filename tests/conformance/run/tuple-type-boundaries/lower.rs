@@ -156,7 +156,7 @@ fn main() {
         ],
     );
     let returned: terrane_collection_support::Tuple<terrane_int_support::Int> = echo(
-        pair.clone(),
+        pair,
     );
     println!(
         "{}{}{}",
@@ -196,7 +196,7 @@ fn main() {
     );
     let echoed: terrane_collection_support::List<
         terrane_collection_support::Tuple<terrane_int_support::Int>,
-    > = nested(groups.clone());
+    > = nested(groups);
     println!(
         "{}{}{}",
         terrane_scalar_support::scalar_text(&terrane_int_support::Int::from(echoed

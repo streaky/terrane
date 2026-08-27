@@ -431,7 +431,7 @@ fn main() {
         String::from("map"),
         false,
     );
-    mapping.field_names = fields.clone();
+    mapping.field_names = fields;
     mapping.optional_fields = optional_fields.clone();
     mapping.default_fields = default_fields.clone();
     mapping.default_values = default_values.clone();
@@ -473,7 +473,7 @@ fn main() {
     );
     let constructor_result: DocumentResult = decode_document(
         constructor_input.value,
-        constructor_mapping.clone(),
+        constructor_mapping,
     );
     println!(
         "{}{}", terrane_scalar_support::scalar_text(&constructor_result.failed),
@@ -497,7 +497,7 @@ fn main() {
     let values: terrane_collection_support::List<DocumentValue> = terrane_collection_support::List::<
         DocumentValue,
     >::new(vec![exact_integer.value, exact_decimal.value, make_document_none()]);
-    let built_list: DocumentResult = make_document_list(values.clone());
+    let built_list: DocumentResult = make_document_list(values);
     println!(
         "{}{}", terrane_scalar_support::scalar_text(&built_list.failed),
         terrane_scalar_support::scalar_text(&built_list.value.encoded)
@@ -553,10 +553,7 @@ fn main() {
         terrane_int_support::Int::from(-1_i128),
         terrane_int_support::Int::from(-1_i128),
     );
-    let limited: DocumentResult = parse_json(
-        String::from("{}"),
-        negative_limits.clone(),
-    );
+    let limited: DocumentResult = parse_json(String::from("{}"), negative_limits);
     println!(
         "{}{}", terrane_scalar_support::scalar_text(&limited.failed),
         terrane_scalar_support::scalar_text(&limited.message

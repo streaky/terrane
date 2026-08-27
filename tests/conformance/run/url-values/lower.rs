@@ -500,15 +500,11 @@ pub fn url_from_platform(raw: terrane_document_support::UrlResult) -> UrlResult 
             String::from(""),
             String::from(""),
             String::from(""),
-            empty_query.clone(),
+            empty_query,
             String::from(""),
             String::from(""),
         );
-        return UrlResult::terrane_construct(
-            true,
-            terrane_url_message(&raw),
-            empty_url.clone(),
-        );
+        return UrlResult::terrane_construct(true, terrane_url_message(&raw), empty_url);
     }
     let mut query: UrlQuery = UrlQuery::terrane_construct();
     let count: terrane_int_support::Int = terrane_url_query_length(&raw);
@@ -534,7 +530,7 @@ pub fn url_from_platform(raw: terrane_document_support::UrlResult) -> UrlResult 
         terrane_url_fragment(&raw),
         terrane_url_origin(&raw),
     );
-    return UrlResult::terrane_construct(false, String::from(""), value.clone());
+    return UrlResult::terrane_construct(false, String::from(""), value);
 }
 pub fn parse_url(input: String) -> UrlResult {
     let raw: terrane_document_support::UrlResult = terrane_url_parse(

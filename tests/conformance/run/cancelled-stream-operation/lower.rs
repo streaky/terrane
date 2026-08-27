@@ -448,7 +448,7 @@ async fn read_one() -> ReadResult {
     );
     let result: ReadResult = __terrane_await(pending).await;
     input.close();
-    return result.clone();
+    return result;
 }
 fn main() {
     let completed_scope: TerraneTaskScope = TerraneTaskScope::new(None);

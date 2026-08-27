@@ -358,9 +358,9 @@ fn main() {
     let first_child: PseudoRandom = split_pseudo(first.clone());
     let second_child: PseudoRandom = split_pseudo(second.clone());
     println!(
-        "{}", terrane_scalar_support::scalar_text(&(pseudo_bytes(first_child.clone(),
-        terrane_int_support::Int::from(16_i128)).value == pseudo_bytes(second_child
-        .clone(), terrane_int_support::Int::from(16_i128)).value))
+        "{}", terrane_scalar_support::scalar_text(&(pseudo_bytes(first_child,
+        terrane_int_support::Int::from(16_i128)).value == pseudo_bytes(second_child,
+        terrane_int_support::Int::from(16_i128)).value))
     );
     let bounded: IntResult = pseudo_bounded_int(
         first.clone(),
@@ -554,7 +554,7 @@ fn main() {
         terrane_int_support::Int::from(1073741824_i128),
     );
     let zstd_unpacked: CompressionResult = zstd_codec
-        .decompress(zstd_packed.value.clone(), zstd_limits.clone());
+        .decompress(zstd_packed.value.clone(), zstd_limits);
     println!(
         "{}",
         terrane_scalar_support::scalar_text(&terrane_string_support::decode(&zstd_unpacked
@@ -567,7 +567,7 @@ fn main() {
         terrane_int_support::Int::from(8_i128),
     );
     let refused: CompressionResult = gzip_codec
-        .decompress(packed.value.clone(), bomb_limits.clone());
+        .decompress(packed.value.clone(), bomb_limits);
     println!("{}", terrane_scalar_support::scalar_text(&refused.resource_limit));
     let parsed: UuidResult = parse_uuid(
         String::from("01890f3e-7b4d-7cc0-98c8-77e22c318a14"),
@@ -1267,7 +1267,7 @@ pub fn digest_bytes(algorithm: HashAlgorithm, data: Vec<u8>) -> DigestResult {
     return DigestResult::terrane_construct(
         terrane_platform_result_failed(&raw),
         terrane_platform_result_message(&raw),
-        value.clone(),
+        value,
     );
 }
 pub fn sign_hmac(
@@ -1287,7 +1287,7 @@ pub fn sign_hmac(
     return SignatureResult::terrane_construct(
         terrane_platform_result_failed(&raw),
         terrane_platform_result_message(&raw),
-        value.clone(),
+        value,
     );
 }
 pub fn digest_equals(left: DigestValue, right: DigestValue) -> bool {

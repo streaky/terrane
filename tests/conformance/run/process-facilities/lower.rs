@@ -245,7 +245,7 @@ fn main() {
     let schema_entries: terrane_collection_support::List<String> = terrane_collection_support::List::<
         String,
     >::new(vec![String::from("flag:--verbose"), String::from("value:--output")]);
-    let schema: CliSchema = CliSchema::terrane_construct(schema_entries.clone());
+    let schema: CliSchema = CliSchema::terrane_construct(schema_entries);
     let supplied: terrane_collection_support::List<PlatformString> = terrane_collection_support::List::<
         PlatformString,
     >::new(
@@ -258,7 +258,7 @@ fn main() {
             PlatformString::terrane_construct(String::from("text:--output"))
         ],
     );
-    let parsed: CommandLine = parse_command_line(schema.clone(), supplied.clone());
+    let parsed: CommandLine = parse_command_line(schema, supplied);
     println!(
         "{}{}{}",
         terrane_scalar_support::scalar_text(&terrane_int_support::Int::from(parsed.flags
@@ -466,7 +466,7 @@ pub fn environment() -> terrane_collection_support::List<EnvironmentEntry> {
                         .at("/standard/process::environment (process.trn:43:34)"),
                 )),
         );
-        values.append(EnvironmentEntry::terrane_construct(name.clone(), value.clone()));
+        values.append(EnvironmentEntry::terrane_construct(name, value));
         index = index.clone() + terrane_int_support::Int::from(2_i128);
     }
     return values.clone();

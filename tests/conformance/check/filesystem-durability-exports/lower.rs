@@ -1047,7 +1047,7 @@ pub fn filesystem_canonical(capability: Filesystem, target: Path) -> PathResult 
         terrane_filesystem_result_text(&record),
     );
     return PathResult::terrane_construct(
-        resolved.clone(),
+        resolved,
         terrane_filesystem_result_failed(&record),
         terrane_filesystem_result_message(&record),
     );
@@ -1060,7 +1060,7 @@ pub fn filesystem_read_link(capability: Filesystem, target: Path) -> PathResult 
     let record: TerraneFilesystemResult = terrane_filesystem_read_link(target.text);
     let linked: Path = Path::terrane_construct(terrane_filesystem_result_text(&record));
     return PathResult::terrane_construct(
-        linked.clone(),
+        linked,
         terrane_filesystem_result_failed(&record),
         terrane_filesystem_result_message(&record),
     );
@@ -1357,9 +1357,7 @@ pub fn normalise_path(subject: Path) -> Path {
 }
 pub fn path_name(subject: Path) -> String {
     let normal: Path = normalise_path(subject.clone());
-    let parts: terrane_collection_support::List<String> = path_components(
-        normal.clone(),
-    );
+    let parts: terrane_collection_support::List<String> = path_components(normal);
     if terrane_int_support::Int::from(terrane_int_support::Int::from(parts.length()))
         == terrane_int_support::Int::from(0_i128)
     {
@@ -1581,5 +1579,5 @@ pub fn join_path(base: Path, child: Path) -> Path {
         terrane_scalar_support::scalar_text(&child.text)
     );
     let combined: Path = Path::terrane_construct(joined);
-    return normalise_path(combined.clone());
+    return normalise_path(combined);
 }

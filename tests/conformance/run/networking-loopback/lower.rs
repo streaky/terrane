@@ -394,7 +394,7 @@ fn main() {
     let cancellation: CancellationToken = CancellationToken::terrane_construct();
     let options: OperationOptions = OperationOptions::terrane_construct(
         terrane_int_support::Int::from(1000_i128),
-        cancellation.clone(),
+        cancellation,
     );
     let sent: IoResult = socket
         .send_to(
@@ -662,7 +662,7 @@ pub fn socket_address_from_ip(
         ip.clone(),
         port.clone(),
     );
-    return SocketResult::terrane_construct(failed, message, address.clone());
+    return SocketResult::terrane_construct(failed, message, address);
 }
 pub fn socket_address_from_string(text: String) -> SocketResult {
     let raw: TerranePlatformResult = terrane_platform_parse_socket_text(text);
@@ -674,10 +674,10 @@ pub fn socket_address_from_string(text: String) -> SocketResult {
     let port: terrane_int_support::Int = terrane_platform_result_int(&raw);
     let address: SocketAddress = SocketAddress::terrane_construct(
         raw,
-        address_ip.clone(),
+        address_ip,
         port.clone(),
     );
-    return SocketResult::terrane_construct(failed, message, address.clone());
+    return SocketResult::terrane_construct(failed, message, address);
 }
 #[derive(Clone)]
 pub struct IoResult {
@@ -1246,7 +1246,7 @@ pub fn parse_host_name(text: String) -> HostNameResult {
     let failed: bool = terrane_platform_result_failed(&raw);
     let message: String = terrane_platform_result_message(&raw);
     let host: HostName = HostName::terrane_construct(raw);
-    return HostNameResult::terrane_construct(failed, message, host.clone());
+    return HostNameResult::terrane_construct(failed, message, host);
 }
 pub fn lookup_dns(
     host: HostName,
