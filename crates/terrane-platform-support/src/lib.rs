@@ -441,7 +441,6 @@ pub fn decompress(
     input: &[u8],
     output_limit: i128,
     ratio_limit: i128,
-    nesting_limit: i128,
     work_limit: i128,
 ) -> ResultValue {
     let output_limit = match count(output_limit, "output limit") {
@@ -452,8 +451,8 @@ pub fn decompress(
         Ok(value) => value,
         Err(error) => return error,
     };
-    if ratio_limit <= 0 || nesting_limit <= 0 {
-        return ResultValue::limit("decompression ratio and nesting limits must be positive");
+    if ratio_limit <= 0 {
+        return ResultValue::limit("decompression ratio limit must be positive");
     }
     if input.len() > work_limit {
         return ResultValue::limit("decompression work-byte limit exceeded");
@@ -1072,6 +1071,19 @@ pub fn udp_receive_from(
     }
 }
 
+fn ordered_socket_candidates(
+    addresses: impl IntoIterator<Item = IpAddr>,
+    port: u16,
+) -> Vec<String> {
+    let mut addresses = addresses.into_iter().collect::<Vec<_>>();
+    addresses.sort_unstable();
+    addresses.dedup();
+    addresses
+        .into_iter()
+        .map(|ip| SocketAddr::new(ip, port).to_string())
+        .collect()
+}
+
 pub fn dns_lookup(
     host: &str,
     port: i128,
@@ -1118,10 +1130,7 @@ pub fn dns_lookup(
                 .saturating_duration_since(std::time::Instant::now())
                 .as_secs();
             ResultValue {
-                entries: values
-                    .iter()
-                    .map(|ip| SocketAddr::new(ip, port).to_string())
-                    .collect(),
+                entries: ordered_socket_candidates(values.iter(), port),
                 number: i128::from(ttl),
                 flag: true,
                 ..ResultValue::default()
@@ -1267,6 +1276,35 @@ pub fn tls_write(
         Err(error) => io_error("TLS write", &error),
     }
 }
+pub fn tls_shutdown(
+    stream: &Capability,
+    deadline_ms: i128,
+    cancellation: &Capability,
+) -> ResultValue {
+    if let Some(error) = cancellation_error(cancellation) {
+        return error;
+    }
+    let duration = match timeout(deadline_ms) {
+        Ok(value) => value,
+        Err(error) => return error,
+    };
+    let CapabilityInner::Tls(stream) = stream.0.as_ref() else {
+        return ResultValue::error("capability is not a TLS stream");
+    };
+    let mut guard = stream.lock().expect("TLS lock poisoned");
+    let Some(stream) = guard.as_mut() else {
+        return ResultValue::error("TLS stream is closed");
+    };
+    if let Err(error) = stream.sock.set_write_timeout(Some(duration)) {
+        return io_error("TLS shutdown timeout configuration", &error);
+    }
+    stream.conn.send_close_notify();
+    match stream.flush() {
+        Ok(()) => ResultValue::default(),
+        Err(error) => io_error("TLS shutdown", &error),
+    }
+}
+
 pub fn close(capability: &Capability) -> ResultValue {
     match capability.0.as_ref() {
         CapabilityInner::Listener(value) => {
@@ -1319,6 +1357,8 @@ mod tests {
         let receiver = udp_bind("127.0.0.1:0");
         let sender = udp_bind("127.0.0.1:0");
         assert!(!receiver.failed && !sender.failed);
+        assert!(!udp_configure(sender.capability.as_ref().unwrap(), true, 32).failed);
+        assert!(udp_configure(sender.capability.as_ref().unwrap(), false, -1).failed);
         let cancellation = cancellation_token();
         let sent = udp_send_to(
             sender.capability.as_ref().unwrap(),
@@ -1375,17 +1415,46 @@ mod tests {
         assert!(!client.failed, "{}", client.message);
         let server = tcp_accept(listener.capability.as_ref().unwrap(), 1_000, &cancellation);
         assert!(!server.failed, "{}", server.message);
+        assert!(!tcp_configure(client.capability.as_ref().unwrap(), true, 32).failed);
+        assert!(tcp_configure(client.capability.as_ref().unwrap(), false, -1).failed);
     }
 
     #[test]
-    fn explicitly_selected_decompression_returns_nested_payload_intact() {
+    fn explicitly_selected_decompression_preserves_nested_payload() {
         let inner = compress("gzip", b"inner document", 6, true);
         assert!(!inner.failed);
         let outer = compress("gzip", &inner.data, 6, true);
         assert!(!outer.failed);
-        let unpacked = decompress("gzip", &outer.data, 4096, 100, 1, 8192);
+        let unpacked = decompress("gzip", &outer.data, 4096, 100, 8192);
         assert!(!unpacked.failed, "{}", unpacked.message);
         assert_eq!(unpacked.data, inner.data);
+    }
+
+    #[test]
+    fn dns_candidates_are_sorted_and_deduplicated() {
+        let candidates = ordered_socket_candidates(
+            [
+                "2001:db8::2".parse().unwrap(),
+                "127.0.0.2".parse().unwrap(),
+                "127.0.0.1".parse().unwrap(),
+                "127.0.0.2".parse().unwrap(),
+            ],
+            443,
+        );
+        assert_eq!(
+            candidates,
+            ["127.0.0.1:443", "127.0.0.2:443", "[2001:db8::2]:443"]
+        );
+    }
+
+    #[test]
+    fn dns_lookup_projects_ordered_candidates_and_ttl() {
+        let result = dns_lookup("localhost", 443, 1_000, &cancellation_token());
+        assert!(!result.failed, "{}", result.message);
+        assert!(result.flag);
+        assert!(result.number >= 0);
+        assert!(!result.entries.is_empty());
+        assert!(result.entries.windows(2).all(|pair| pair[0] < pair[1]));
     }
 
     #[test]
@@ -1416,5 +1485,32 @@ mod tests {
         );
         assert!(result.failed);
         assert!(result.deadline_exceeded);
+    }
+
+    #[test]
+    fn tls_rejects_a_locally_self_signed_certificate() {
+        let rcgen::CertifiedKey { cert, signing_key } =
+            rcgen::generate_simple_self_signed(["localhost".to_owned()]).unwrap();
+        let config = rustls::ServerConfig::builder()
+            .with_no_client_auth()
+            .with_single_cert(
+                vec![cert.der().clone()],
+                rustls::pki_types::PrivatePkcs8KeyDer::from(signing_key.serialize_der()).into(),
+            )
+            .unwrap();
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let address = listener.local_addr().unwrap();
+        let server = std::thread::spawn(move || {
+            let (socket, _) = listener.accept().unwrap();
+            let connection = rustls::ServerConnection::new(Arc::new(config)).unwrap();
+            let mut stream = rustls::StreamOwned::new(connection, socket);
+            let _ = stream.flush();
+        });
+        let client = TcpStream::connect(address).unwrap();
+        let capability = Capability(Arc::new(CapabilityInner::Tcp(Mutex::new(Some(client)))));
+        let result = tls_client(&capability, "localhost", 1_000, &cancellation_token());
+        assert!(result.failed);
+        assert!(result.message.starts_with("TLS handshake failed:"));
+        server.join().unwrap();
     }
 }

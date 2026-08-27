@@ -1,0 +1,23 @@
+namespace app
+
+from /core/output import print
+from /core/encodings import utf8
+from /standard/networking import ip-address-from-string, socket-address-from-ip, cancellation-token, operation-options, udp-options, udp-result, bind-udp
+
+function main;
+    loopback = ip-address-from-string; '127.0.0.1'
+    address = socket-address-from-ip; loopback.value, 39173
+    destination-ip = ip-address-from-string; '127.0.0.1'
+    destination = socket-address-from-ip; destination-ip.value, 39173
+    bound udp-result = bind-udp; address.value
+    socket = move bound.value
+    configured = socket.configure; (udp-options; false, 32)
+    cancellation = cancellation-token;
+    options = operation-options; 1000, cancellation
+    sent = socket.send-to; b'terrane', destination.value, options
+    received = socket.receive-from; 32, options
+    print; not configured.failed
+    print; sent.completed
+    print; (received.data.decode; utf8)
+    print; not received.truncated
+    socket.close;

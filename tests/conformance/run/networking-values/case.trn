@@ -7,6 +7,18 @@ function main;
     parsed = ip-address-from-string; '2001:0db8:0:0:0:0:0:1'
     print; parsed.value.value
     print; parsed.value.version
+    print; parsed.value.is-loopback
+    loopback = ip-address-from-string; '127.0.0.1'
+    print; loopback.value.version
+    print; loopback.value.is-loopback
+    invalid-ip = ip-address-from-string; '999.1.1.1'
+    print; invalid-ip.failed
+    scoped-ip = ip-address-from-string; 'fe80::1%eth0'
+    print; scoped-ip.failed
+    international = parse-host-name; 'bücher.example'
+    print; international.value.value
+    invalid-host = parse-host-name; 'contains space.example'
+    print; invalid-host.failed
     port int = 443
     deadline int = 1000
     cancellation = cancellation-token;

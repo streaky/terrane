@@ -1449,7 +1449,7 @@ Deliver:
 - SHA-256 and SHA-512 digests and HMAC, with secret buffers, best-effort zeroisation, and constant-time digest comparison;
 - strict hex and distinct standard and URL-safe base64 codecs with explicit padding policy;
 - UUID parsing plus v4 and v7 generation;
-- `gzip`, `zlib`, `deflate-raw`, and `zstd` codecs with no auto-detect default, deterministic mode, and mandatory output, ratio, nesting, and work limits on decompression.
+- `gzip`, `zlib`, `deflate-raw`, and `zstd` codecs with no auto-detect default, deterministic mode, and mandatory output, ratio, and work limits on decompression.
 
 Exit criterion: a pseudo-random source cannot satisfy a secure-random parameter; a decompression bomb is refused with a distinct resource-limit error rather than truncated success.
 
@@ -1459,9 +1459,10 @@ and signature values, codec, UUID, and compression policy until application lowe
 buffers support explicit destruction as well as best-effort zeroisation on final release. One
 generated support crate supplies only operating-system entropy, opaque capability storage,
 constant-time/zeroising primitives, and audited codec/compression implementations. Accepted
-execution covers deterministic ChaCha20 splitting, SHA-256 and SHA-512, HMAC and destroyed-key
-failure, strict codec round trips, UUID parsing, all four compression formats, bounded nested
-decompression, and distinct limit refusal. Rejected cases prove that pseudo-random values cannot
+execution covers deterministic ChaCha20 generation and splitting, secure and bounded generation,
+SHA-256 and SHA-512 digests and HMAC, destroyed-key and unsupported-algorithm failures, strict codec
+padding policies, UUID parsing and v4/v7 generation, all four compression formats, explicit
+single-layer decompression, and distinct limit refusal. Rejected cases prove that pseudo-random values cannot
 satisfy secure-random parameters and that the private host intrinsic namespace cannot be imported
 directly.
 
@@ -1484,14 +1485,18 @@ Exit criterion: a loopback client and server exchange data under a deadline; cer
 Implemented on `randomness-networking-tls`. Bundled Terrane packages own validated address and host
 values, typed socket options, shared cancellation tokens, positive per-operation deadlines, and
 structured results. Generated host support owns only DNS and socket/TLS resources crossing the OS
-and audited-protocol boundaries. TCP host connection races ordered DNS candidates; DNS retains TTL
-and is itself deadline- and cancellation-aware. TCP, UDP, DNS, and TLS operations carry the same
-observable cancellation capability and deadline contract; UDP receive results preserve truncation.
-TLS consumes the TCP resource during upgrade, applies each operation's deadline, uses platform
-roots, validates certificate chains and host names, negotiates TLS 1.3 or supported TLS 1.2, and
-exposes no ordinary option for disabling validation. Host-boundary tests exercise deadline-bounded
-loopback TCP exchange, UDP truncation, DNS ordering, and validation failure; accepted Terrane cases
-exercise address and host parsing, cancellation, and resource-producing factories.
+and audited-protocol boundaries. TCP host connection races ordered DNS candidates concurrently; DNS
+returns deterministic candidate order with TTL and is itself deadline- and cancellation-aware.
+TCP, UDP, DNS, and TLS operations carry the same observable cancellation capability and deadline
+contract; the distinct resource-owning TCP and TLS stream types expose the same read/write/close
+method shape, and UDP receive results preserve truncation. TLS consumes the TCP resource during
+upgrade, applies each operation's deadline, uses the bundled Mozilla root set, validates certificate
+chains and host names, negotiates TLS 1.3 or supported TLS 1.2, sends close-notify on explicit
+shutdown, and exposes no ordinary option for disabling validation. Host-boundary tests exercise
+deadline-bounded loopback TCP exchange, concurrent accepts, UDP truncation, deterministic DNS
+candidate ordering and TTL projection, and local untrusted-certificate validation failure; accepted
+Terrane cases exercise address and host parsing, cancellation, socket options, loopback TCP and UDP,
+and resource-producing factories.
 
 ### Milestone 25 — Structured logging
 

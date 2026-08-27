@@ -15,13 +15,11 @@ class compression-options
 class decompression-limits
     max-output int = 16777216
     max-ratio int = 100
-    max-nesting int = 1
     max-work int = 67108864
 
-    function construct; max-output int, max-ratio int, max-nesting int, max-work int
+    function construct; max-output int, max-ratio int, max-work int
         this.max-output = max-output
         this.max-ratio = max-ratio
-        this.max-nesting = max-nesting
         this.max-work = max-work
 
 class compression-result
@@ -49,7 +47,7 @@ class compression-codec
 
     function decompress compression-result; data bytes, limits decompression-limits
         format = this.format
-        raw = platform-decompress; format, data, limits.max-output, limits.max-ratio, limits.max-nesting, limits.max-work
+        raw = platform-decompress; format, data, limits.max-output, limits.max-ratio, limits.max-work
         return compression-result; (result-failed; raw), (result-resource-limit; raw), (result-message; raw), (result-bytes; raw)
 
 function gzip compression-codec;

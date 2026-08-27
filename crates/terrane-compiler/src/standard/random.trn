@@ -135,6 +135,12 @@ class pseudo-random
         child = pseudo-random; (chacha20;), b''
         child.handle = result-capability; raw
         return child
+
+function split-pseudo pseudo-random; source pseudo-random
+    raw = random-split; source.handle
+    child = pseudo-random; (chacha20;), b''
+    child.handle = result-capability; raw
+    return child
 function secure-bytes byte-result; source secure-random, count int
     raw = random-bytes; source.handle, count
     return byte-result; (result-failed; raw), (result-message; raw), (result-bytes; raw)

@@ -23,5 +23,8 @@ webpki-roots = "1"
 zeroize = "1"
 zstd = "0.13"
 
+[dev-dependencies]
+rcgen = "0.14"
+
 [lints]
 workspace = true

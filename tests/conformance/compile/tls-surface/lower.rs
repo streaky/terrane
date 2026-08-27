@@ -152,6 +152,14 @@ fn terrane_platform_cancellation_token() -> TerranePlatformCapability {
     terrane_platform_support::cancellation_token()
 }
 #[allow(dead_code)]
+fn terrane_platform_no_resource() -> TerranePlatformCapability {
+    TerranePlatformCapability::default()
+}
+#[allow(dead_code)]
+fn terrane_platform_failed_result() -> TerranePlatformResult {
+    TerranePlatformResult::error("uninitialized platform value")
+}
+#[allow(dead_code)]
 fn terrane_platform_cancel(token: &TerranePlatformCapability) -> TerranePlatformResult {
     terrane_platform_support::cancel(token)
 }
@@ -402,6 +410,17 @@ fn terrane_platform_tls_write(
         cancellation,
     )
 }
+fn terrane_platform_tls_shutdown(
+    stream: &TerranePlatformCapability,
+    deadline: terrane_int_support::Int,
+    cancellation: &TerranePlatformCapability,
+) -> TerranePlatformResult {
+    terrane_platform_support::tls_shutdown(
+        stream,
+        terrane_platform_i128!(deadline, "TLS shutdown deadline"),
+        cancellation,
+    )
+}
 // Source: case.trn
 // Namespace: app
 fn main() {
@@ -479,8 +498,15 @@ impl TlsStream {
             terrane_platform_result_message(&raw),
         );
     }
-    pub fn shutdown(&self) -> OperationResult {
-        let raw: TerranePlatformResult = terrane_platform_close(&self.handle);
+    pub fn shutdown(&self, options: OperationOptions) -> OperationResult {
+        let cancellation: TerranePlatformCapability = operation_cancellation(
+            options.clone(),
+        );
+        let raw: TerranePlatformResult = terrane_platform_tls_shutdown(
+            &self.handle,
+            options.deadline_ms,
+            &cancellation,
+        );
         return OperationResult::terrane_construct(
             terrane_platform_result_failed(&raw),
             terrane_platform_result_deadline_exceeded(&raw),
@@ -513,11 +539,7 @@ impl TlsResult {
             failed: false,
             deadline_exceeded: false,
             message: String::from(""),
-            value: TlsStream::terrane_construct(
-                terrane_platform_result_capability(
-                    &terrane_platform_parse_ip(String::from("")),
-                ),
-            ),
+            value: TlsStream::terrane_construct(terrane_platform_no_resource()),
         };
         value.construct(failed, deadline_exceeded, message, stream);
         value
@@ -712,9 +734,7 @@ impl IpResult {
         let mut value = Self {
             failed: false,
             message: String::from(""),
-            value: IpAddress::terrane_construct(
-                terrane_platform_parse_ip(String::from("")),
-            ),
+            value: IpAddress::terrane_construct(terrane_platform_failed_result()),
         };
         value.construct(failed, message, address);
         value
@@ -749,9 +769,7 @@ impl SocketAddress {
     ) -> Self {
         let mut value = Self {
             value: String::from(""),
-            ip: IpAddress::terrane_construct(
-                terrane_platform_parse_ip(String::from("")),
-            ),
+            ip: IpAddress::terrane_construct(terrane_platform_failed_result()),
             port: terrane_int_support::Int::from(0_i128),
         };
         value.construct(raw, address_ip, address_port);
@@ -787,10 +805,8 @@ impl SocketResult {
             failed: false,
             message: String::from(""),
             value: SocketAddress::terrane_construct(
-                terrane_platform_parse_ip(String::from("")),
-                IpAddress::terrane_construct(
-                    terrane_platform_parse_ip(String::from("")),
-                ),
+                terrane_platform_failed_result(),
+                IpAddress::terrane_construct(terrane_platform_failed_result()),
                 terrane_int_support::Int::from(0_i128),
             ),
         };
@@ -995,11 +1011,7 @@ impl StreamResult {
             deadline_exceeded: false,
             message: String::from(""),
             peer: String::from(""),
-            value: TcpStream::terrane_construct(
-                terrane_platform_result_capability(
-                    &terrane_platform_parse_ip(String::from("")),
-                ),
-            ),
+            value: TcpStream::terrane_construct(terrane_platform_no_resource()),
         };
         value.construct(failed, deadline_exceeded, message, peer, stream);
         value
@@ -1125,11 +1137,7 @@ impl ListenerResult {
             failed: false,
             deadline_exceeded: false,
             message: String::from(""),
-            value: TcpListener::terrane_construct(
-                terrane_platform_result_capability(
-                    &terrane_platform_parse_ip(String::from("")),
-                ),
-            ),
+            value: TcpListener::terrane_construct(terrane_platform_no_resource()),
         };
         value.construct(failed, deadline_exceeded, message, listener);
         value
@@ -1270,11 +1278,7 @@ impl UdpResult {
             failed: false,
             deadline_exceeded: false,
             message: String::from(""),
-            value: UdpSocket::terrane_construct(
-                terrane_platform_result_capability(
-                    &terrane_platform_parse_ip(String::from("")),
-                ),
-            ),
+            value: UdpSocket::terrane_construct(terrane_platform_no_resource()),
         };
         value.construct(failed, deadline_exceeded, message, socket);
         value
@@ -1380,9 +1384,7 @@ impl HostNameResult {
         let mut value = Self {
             failed: false,
             message: String::from(""),
-            value: HostName::terrane_construct(
-                terrane_platform_parse_host_name(String::from("")),
-            ),
+            value: HostName::terrane_construct(terrane_platform_failed_result()),
         };
         value.construct(failed, message, host);
         value

@@ -4330,6 +4330,8 @@ impl Emitter<'_> {
             ("digest", "platform_digest"),
             ("destroy-secret", "platform_destroy_secret"),
             ("cancellation-token", "platform_cancellation_token"),
+            ("no-resource", "platform_no_resource"),
+            ("failed-result", "platform_failed_result"),
             ("cancel", "platform_cancel"),
             ("hmac", "platform_hmac"),
             ("constant-time-equal", "platform_constant_time_equal"),
@@ -4361,6 +4363,7 @@ impl Emitter<'_> {
             ("tls-client", "platform_tls_client"),
             ("tls-read", "platform_tls_read"),
             ("tls-write", "platform_tls_write"),
+            ("tls-shutdown", "platform_tls_shutdown"),
             ("close", "platform_close"),
             ("result-failed", "platform_result_failed"),
             ("result-resource-limit", "platform_result_resource_limit"),
@@ -4409,6 +4412,7 @@ impl Emitter<'_> {
                                 | "platform_tls_client"
                                 | "platform_tls_read"
                                 | "platform_tls_write"
+                                | "platform_tls_shutdown"
                                 | "platform_close"
                                 | "platform_digest"
                                 | "platform_hmac"
@@ -4417,7 +4421,7 @@ impl Emitter<'_> {
                                 | "platform_destroy_secret",
                             0,
                         ) | ("platform_parse_socket" | "platform_hmac", 1)
-                            | ("platform_tcp_connect" | "platform_tcp_accept", 2)
+                            | ("platform_tcp_connect" | "platform_tcp_accept" | "platform_tls_shutdown", 2)
                             | (
                                 "platform_tcp_connect_host"
                                     | "platform_tcp_read"

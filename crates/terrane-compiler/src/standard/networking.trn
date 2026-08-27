@@ -2,7 +2,7 @@ namespace standard/networking
 
 from /core/types import int, bool, string, bytes
 from /core/collections import list
-from /core/platform-capabilities import platform-resource-handle, platform-capability, platform-result
+from /core/platform-capabilities import platform-resource-handle, platform-capability, platform-result, no-resource, failed-result
 from /core/platform-capabilities import parse-ip, parse-host-name as platform-parse-host-name, parse-socket, tcp-bind, tcp-connect, tcp-connect-host, tcp-accept
 from /core/platform-capabilities import tcp-read, tcp-write, tcp-shutdown, tcp-configure, udp-bind, udp-send-to, udp-receive-from, udp-configure
 from /core/platform-capabilities import cancellation-token as platform-cancellation-token, cancel as platform-cancel, dns-lookup, close as platform-close
@@ -70,7 +70,7 @@ class ip-address
 class ip-result
     failed bool = false
     message string = ''
-    value ip-address = ip-address; (parse-ip; '')
+    value ip-address = ip-address; (failed-result;)
 
     function construct; failed bool, message string, address ip-address
         this.failed = failed
@@ -85,7 +85,7 @@ function ip-address-from-string ip-result; text string
 
 class socket-address
     value string = ''
-    ip ip-address = ip-address; (parse-ip; '')
+    ip ip-address = ip-address; (failed-result;)
     port int = 0
 
     function construct; raw platform-result, address-ip ip-address, address-port int
@@ -99,7 +99,7 @@ class socket-address
 class socket-result
     failed bool = false
     message string = ''
-    value socket-address = socket-address; (parse-ip; ''), (ip-address; (parse-ip; '')), 0
+    value socket-address = socket-address; (failed-result;), (ip-address; (failed-result;)), 0
 
     function construct; failed bool, message string, address socket-address
         this.failed = failed
@@ -167,7 +167,7 @@ class stream-result
     deadline-exceeded bool = false
     message string = ''
     peer string = ''
-    value tcp-stream = tcp-stream; (result-resource; (parse-ip; ''))
+    value tcp-stream = tcp-stream; (no-resource;)
 
     function construct; failed bool, deadline-exceeded bool, message string, peer string, stream tcp-stream
         this.failed = failed
@@ -209,7 +209,7 @@ class listener-result
     failed bool = false
     deadline-exceeded bool = false
     message string = ''
-    value tcp-listener = tcp-listener; (result-resource; (parse-ip; ''))
+    value tcp-listener = tcp-listener; (no-resource;)
 
     function construct; failed bool, deadline-exceeded bool, message string, listener tcp-listener
         this.failed = failed
@@ -254,7 +254,7 @@ class udp-result
     failed bool = false
     deadline-exceeded bool = false
     message string = ''
-    value udp-socket = udp-socket; (result-resource; (parse-ip; ''))
+    value udp-socket = udp-socket; (no-resource;)
 
     function construct; failed bool, deadline-exceeded bool, message string, socket udp-socket
         this.failed = failed
@@ -294,7 +294,7 @@ class host-name
 class host-name-result
     failed bool = false
     message string = ''
-    value host-name = host-name; (platform-parse-host-name; '')
+    value host-name = host-name; (failed-result;)
 
     function construct; failed bool, message string, host host-name
         this.failed = failed

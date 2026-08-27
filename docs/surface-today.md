@@ -122,7 +122,7 @@ Terrane package
     │   ├── filesystem-open-beneath(filesystem, directory, relative, cross-filesystem) -> directory-handle
     │   ├── open-file-beneath(filesystem, ref directory-handle, relative, …) -> file-handle
     │   ├── filesystem-exists / filesystem-metadata / filesystem-symlink-metadata
-    │   ├── filesystem-canonical / filesystem-realpath / filesystem-read-link
+    │   ├── filesystem-realpath / filesystem-read-link
     │   ├── filesystem-read-bounded / filesystem-write-atomic
     │   └── filesystem-rename / filesystem-remove
     ├── /standard/process                      bundled Terrane package over minimal host intrinsics
@@ -168,7 +168,7 @@ Terrane package
     ├── /standard/compression                  bundled Terrane bounded compression policy
     │   ├── gzip / zlib / deflate-raw / zstd   explicit codecs; no auto-detection
     │   ├── compression-options                level and deterministic-output policy
-    │   └── decompression-limits               mandatory output, ratio, nesting, and work limits
+    │   └── decompression-limits               mandatory output, ratio, and work limits
     ├── /standard/uuid                         bundled Terrane UUID values
     │   └── parse-uuid / random-uuid / time-uuid strict canonical parsing plus v4 and v7 generation
     ├── /standard/networking                   bundled Terrane sockets and name-resolution policy

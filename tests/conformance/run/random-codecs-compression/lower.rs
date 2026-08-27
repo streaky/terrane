@@ -152,6 +152,14 @@ fn terrane_platform_cancellation_token() -> TerranePlatformCapability {
     terrane_platform_support::cancellation_token()
 }
 #[allow(dead_code)]
+fn terrane_platform_no_resource() -> TerranePlatformCapability {
+    TerranePlatformCapability::default()
+}
+#[allow(dead_code)]
+fn terrane_platform_failed_result() -> TerranePlatformResult {
+    TerranePlatformResult::error("uninitialized platform value")
+}
+#[allow(dead_code)]
 fn terrane_platform_cancel(token: &TerranePlatformCapability) -> TerranePlatformResult {
     terrane_platform_support::cancel(token)
 }
@@ -298,7 +306,6 @@ fn terrane_platform_decompress(
     data: Vec<u8>,
     output: terrane_int_support::Int,
     ratio: terrane_int_support::Int,
-    nesting: terrane_int_support::Int,
     work: terrane_int_support::Int,
 ) -> TerranePlatformResult {
     terrane_platform_support::decompress(
@@ -306,7 +313,6 @@ fn terrane_platform_decompress(
         &data,
         terrane_platform_i128!(output, "decompression output limit"),
         terrane_platform_i128!(ratio, "decompression ratio limit"),
-        terrane_platform_i128!(nesting, "decompression nesting limit"),
         terrane_platform_i128!(work, "decompression work limit"),
     )
 }
@@ -349,6 +355,41 @@ fn main() {
         terrane_int_support::Int::from(32_i128),
     );
     println!("{}", terrane_scalar_support::scalar_text(&(left.value == right.value)));
+    let first_child: PseudoRandom = split_pseudo(first.clone());
+    let second_child: PseudoRandom = split_pseudo(second.clone());
+    println!(
+        "{}", terrane_scalar_support::scalar_text(&(pseudo_bytes(first_child.clone(),
+        terrane_int_support::Int::from(16_i128)).value == pseudo_bytes(second_child
+        .clone(), terrane_int_support::Int::from(16_i128)).value))
+    );
+    let bounded: IntResult = pseudo_bounded_int(
+        first.clone(),
+        terrane_int_support::Int::from(17_i128),
+    );
+    println!(
+        "{}", terrane_scalar_support::scalar_text(&(bounded.value.clone() >=
+        terrane_int_support::Int::from(0_i128) &&bounded.value.clone() <
+        terrane_int_support::Int::from(17_i128)))
+    );
+    let secure: SecureRandom = SecureRandom::terrane_construct();
+    let secure_data: ByteResult = secure_bytes(
+        secure.clone(),
+        terrane_int_support::Int::from(16_i128),
+    );
+    println!(
+        "{}", terrane_scalar_support::scalar_text(&(! secure_data.failed
+        &&terrane_int_support::Int::from(secure_data.value.len() as i128) ==
+        terrane_int_support::Int::from(16_i128)))
+    );
+    let secure_number: IntResult = secure_bounded_int(
+        secure.clone(),
+        terrane_int_support::Int::from(17_i128),
+    );
+    println!(
+        "{}", terrane_scalar_support::scalar_text(&(! secure_number.failed
+        &&secure_number.value.clone() >= terrane_int_support::Int::from(0_i128)
+        &&secure_number.value.clone() < terrane_int_support::Int::from(17_i128)))
+    );
     let digest: DigestResult = digest_bytes(hash.clone(), Vec::from([97, 98, 99]));
     println!(
         "{}", terrane_scalar_support::scalar_text(&encode_hex(digest.value.value
@@ -428,8 +469,27 @@ fn main() {
     println!(
         "{}", terrane_scalar_support::scalar_text(&terrane_string_support::decode(&strict
         .value, terrane_string_support::Encoding::Utf8).unwrap_or_else(| error |
-        __terrane_uncaught(TerraneError::from(error).at("/app::main (case.trn:42:13)"))))
+        __terrane_uncaught(TerraneError::from(error).at("/app::main (case.trn:52:13)"))))
     );
+    let unpadded_as_padded: DecodeResult = decode_base64(
+        String::from("aGVsbG8"),
+        false,
+        true,
+    );
+    println!("{}", terrane_scalar_support::scalar_text(&unpadded_as_padded.failed));
+    let unpadded: DecodeResult = decode_base64(String::from("aGVsbG8"), false, false);
+    println!(
+        "{}",
+        terrane_scalar_support::scalar_text(&terrane_string_support::decode(&unpadded
+        .value, terrane_string_support::Encoding::Utf8).unwrap_or_else(| error |
+        __terrane_uncaught(TerraneError::from(error).at("/app::main (case.trn:56:13)"))))
+    );
+    let wrong_alphabet: DecodeResult = decode_base64(
+        String::from("aGVsbG8_"),
+        false,
+        false,
+    );
+    println!("{}", terrane_scalar_support::scalar_text(&wrong_alphabet.failed));
     let malformed: DecodeResult = decode_hex(String::from("abc"));
     println!("{}", terrane_scalar_support::scalar_text(&malformed.failed));
     let options: CompressionOptions = CompressionOptions::terrane_construct(
@@ -444,7 +504,6 @@ fn main() {
     let limits: DecompressionLimits = DecompressionLimits::terrane_construct(
         terrane_int_support::Int::from(1024_i128),
         terrane_int_support::Int::from(100_i128),
-        terrane_int_support::Int::from(1_i128),
         terrane_int_support::Int::from(4096_i128),
     );
     let unpacked: CompressionResult = gzip_codec
@@ -453,7 +512,7 @@ fn main() {
         "{}",
         terrane_scalar_support::scalar_text(&terrane_string_support::decode(&unpacked
         .value, terrane_string_support::Encoding::Utf8).unwrap_or_else(| error |
-        __terrane_uncaught(TerraneError::from(error).at("/app::main (case.trn:49:13)"))))
+        __terrane_uncaught(TerraneError::from(error).at("/app::main (case.trn:65:13)"))))
     );
     let zlib_codec: CompressionCodec = zlib();
     let zlib_packed: CompressionResult = zlib_codec
@@ -467,7 +526,7 @@ fn main() {
         "{}",
         terrane_scalar_support::scalar_text(&terrane_string_support::decode(&zlib_unpacked
         .value, terrane_string_support::Encoding::Utf8).unwrap_or_else(| error |
-        __terrane_uncaught(TerraneError::from(error).at("/app::main (case.trn:53:13)"))))
+        __terrane_uncaught(TerraneError::from(error).at("/app::main (case.trn:69:13)"))))
     );
     let raw_codec: CompressionCodec = deflate_raw();
     let raw_packed: CompressionResult = raw_codec
@@ -481,7 +540,7 @@ fn main() {
         "{}",
         terrane_scalar_support::scalar_text(&terrane_string_support::decode(&raw_unpacked
         .value, terrane_string_support::Encoding::Utf8).unwrap_or_else(| error |
-        __terrane_uncaught(TerraneError::from(error).at("/app::main (case.trn:57:13)"))))
+        __terrane_uncaught(TerraneError::from(error).at("/app::main (case.trn:73:13)"))))
     );
     let zstd_codec: CompressionCodec = zstd();
     let zstd_packed: CompressionResult = zstd_codec
@@ -492,7 +551,6 @@ fn main() {
     let zstd_limits: DecompressionLimits = DecompressionLimits::terrane_construct(
         terrane_int_support::Int::from(1073741824_i128),
         terrane_int_support::Int::from(100_i128),
-        terrane_int_support::Int::from(1_i128),
         terrane_int_support::Int::from(1073741824_i128),
     );
     let zstd_unpacked: CompressionResult = zstd_codec
@@ -501,12 +559,11 @@ fn main() {
         "{}",
         terrane_scalar_support::scalar_text(&terrane_string_support::decode(&zstd_unpacked
         .value, terrane_string_support::Encoding::Utf8).unwrap_or_else(| error |
-        __terrane_uncaught(TerraneError::from(error).at("/app::main (case.trn:62:13)"))))
+        __terrane_uncaught(TerraneError::from(error).at("/app::main (case.trn:78:13)"))))
     );
     let bomb_limits: DecompressionLimits = DecompressionLimits::terrane_construct(
         terrane_int_support::Int::from(4_i128),
         terrane_int_support::Int::from(2_i128),
-        terrane_int_support::Int::from(1_i128),
         terrane_int_support::Int::from(8_i128),
     );
     let refused: CompressionResult = gzip_codec
@@ -516,6 +573,32 @@ fn main() {
         String::from("01890f3e-7b4d-7cc0-98c8-77e22c318a14"),
     );
     println!("{}", terrane_scalar_support::scalar_text(&parsed.value.string));
+    let generated_v4: UuidResult = random_uuid(secure.clone());
+    let reparsed_v4: UuidResult = parse_uuid(generated_v4.value.string.clone());
+    println!(
+        "{}", terrane_scalar_support::scalar_text(&(! generated_v4.failed &&! reparsed_v4
+        .failed &&terrane_int_support::Int::from(generated_v4.value.bytes.len() as i128)
+        == terrane_int_support::Int::from(16_i128)))
+    );
+    let generated_v7: UuidResult = time_uuid(
+        secure.clone(),
+        terrane_int_support::Int::from(1700000000000_i128),
+    );
+    let reparsed_v7: UuidResult = parse_uuid(generated_v7.value.string.clone());
+    println!(
+        "{}", terrane_scalar_support::scalar_text(&(! generated_v7.failed &&! reparsed_v7
+        .failed &&terrane_int_support::Int::from(generated_v7.value.bytes.len() as i128)
+        == terrane_int_support::Int::from(16_i128)))
+    );
+    let noncanonical: UuidResult = parse_uuid(
+        String::from("01890F3E-7B4D-7CC0-98C8-77E22C318A14"),
+    );
+    println!("{}", terrane_scalar_support::scalar_text(&noncanonical.failed));
+    let invalid_time: UuidResult = time_uuid(
+        secure.clone(),
+        terrane_int_support::Int::from(-1_i128),
+    );
+    println!("{}", terrane_scalar_support::scalar_text(&invalid_time.failed));
 }
 // Source: standard/codecs.trn
 // Namespace: standard/codecs
@@ -651,35 +734,30 @@ impl CompressionOptions {
 pub struct DecompressionLimits {
     pub max_output: terrane_int_support::Int,
     pub max_ratio: terrane_int_support::Int,
-    pub max_nesting: terrane_int_support::Int,
     pub max_work: terrane_int_support::Int,
 }
 impl DecompressionLimits {
     pub fn terrane_construct(
         max_output: terrane_int_support::Int,
         max_ratio: terrane_int_support::Int,
-        max_nesting: terrane_int_support::Int,
         max_work: terrane_int_support::Int,
     ) -> Self {
         let mut value = Self {
             max_output: terrane_int_support::Int::from(16777216_i128),
             max_ratio: terrane_int_support::Int::from(100_i128),
-            max_nesting: terrane_int_support::Int::from(1_i128),
             max_work: terrane_int_support::Int::from(67108864_i128),
         };
-        value.construct(max_output, max_ratio, max_nesting, max_work);
+        value.construct(max_output, max_ratio, max_work);
         value
     }
     pub fn construct(
         &mut self,
         max_output: terrane_int_support::Int,
         max_ratio: terrane_int_support::Int,
-        max_nesting: terrane_int_support::Int,
         max_work: terrane_int_support::Int,
     ) {
         self.max_output = max_output.clone();
         self.max_ratio = max_ratio.clone();
-        self.max_nesting = max_nesting.clone();
         self.max_work = max_work.clone();
     }
 }
@@ -762,7 +840,6 @@ impl CompressionCodec {
             data,
             limits.max_output,
             limits.max_ratio,
-            limits.max_nesting,
             limits.max_work,
         );
         return CompressionResult::terrane_construct(
@@ -1095,6 +1172,15 @@ impl PseudoRandom {
         child.handle = terrane_platform_result_capability(&raw);
         return child.clone();
     }
+}
+pub fn split_pseudo(source: PseudoRandom) -> PseudoRandom {
+    let raw: TerranePlatformResult = terrane_platform_random_split(&source.handle);
+    let mut child: PseudoRandom = PseudoRandom::terrane_construct(
+        chacha20(),
+        Vec::from([]),
+    );
+    child.handle = terrane_platform_result_capability(&raw);
+    return child.clone();
 }
 pub fn secure_bytes(
     source: SecureRandom,

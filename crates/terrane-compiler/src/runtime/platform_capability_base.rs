@@ -15,6 +15,8 @@ macro_rules! terrane_platform_i128 {
     };
 }
 #[allow(dead_code)] fn terrane_platform_cancellation_token() -> TerranePlatformCapability { terrane_platform_support::cancellation_token() }
+#[allow(dead_code)] fn terrane_platform_no_resource() -> TerranePlatformCapability { TerranePlatformCapability::default() }
+#[allow(dead_code)] fn terrane_platform_failed_result() -> TerranePlatformResult { TerranePlatformResult::error("uninitialized platform value") }
 #[allow(dead_code)] fn terrane_platform_cancel(token: &TerranePlatformCapability) -> TerranePlatformResult { terrane_platform_support::cancel(token) }
 #[allow(dead_code)] fn terrane_platform_result_failed(result: &TerranePlatformResult) -> bool { result.failed }
 #[allow(dead_code)] fn terrane_platform_result_resource_limit(result: &TerranePlatformResult) -> bool { result.resource_limit }

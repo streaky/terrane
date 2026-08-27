@@ -2,19 +2,29 @@ namespace app
 
 from /core/output import print
 from /core/encodings import utf8
-from /standard/random import pseudo-random, chacha20, pseudo-bytes, secret-buffer, destroy-secret, hash-algorithm, sha256, sha512, digest-bytes, sign-hmac, signature-equals
+from /standard/random import secure-random, secure-bytes, secure-bounded-int, pseudo-random, chacha20, pseudo-bytes, pseudo-bounded-int, split-pseudo, secret-buffer, destroy-secret, hash-algorithm, sha256, sha512, digest-bytes, sign-hmac, signature-equals
 from /standard/codecs import encode-hex, decode-hex, encode-base64, decode-base64
 from /standard/compression import gzip, zlib, deflate-raw, zstd, compression-options, decompression-limits
-from /standard/uuid import parse-uuid
+from /standard/uuid import parse-uuid, random-uuid, time-uuid
 
 function main;
-    first = pseudo-random; (chacha20;), b'seed'
-    second = pseudo-random; (chacha20;), b'seed'
+    first pseudo-random = pseudo-random; (chacha20;), b'seed'
+    second pseudo-random = pseudo-random; (chacha20;), b'seed'
     hash = sha256;
     gzip-codec = gzip;
     left = pseudo-bytes; first, 32
     right = pseudo-bytes; second, 32
     print; left.value == right.value
+    first-child = split-pseudo; first
+    second-child = split-pseudo; second
+    print; (pseudo-bytes; first-child, 16).value == (pseudo-bytes; second-child, 16).value
+    bounded = pseudo-bounded-int; first, 17
+    print; bounded.value >= 0 and bounded.value < 17
+    secure = secure-random;
+    secure-data = secure-bytes; secure, 16
+    print; not secure-data.failed and secure-data.value.length == 16
+    secure-number = secure-bounded-int; secure, 17
+    print; not secure-number.failed and secure-number.value >= 0 and secure-number.value < 17
     digest = digest-bytes; hash, b'abc'
     print; (encode-hex; digest.value.value)
     wide-hash = sha512;
@@ -40,11 +50,17 @@ function main;
     print; (encode-base64; b'hello?', true, false)
     strict = decode-base64; 'aGVsbG8=', false, true
     print; (strict.value.decode; utf8)
+    unpadded-as-padded = decode-base64; 'aGVsbG8', false, true
+    print; unpadded-as-padded.failed
+    unpadded = decode-base64; 'aGVsbG8', false, false
+    print; (unpadded.value.decode; utf8)
+    wrong-alphabet = decode-base64; 'aGVsbG8_', false, false
+    print; wrong-alphabet.failed
     malformed = decode-hex; 'abc'
     print; malformed.failed
     options = compression-options; 6, true
     packed = gzip-codec.compress; b'compress me', options
-    limits = decompression-limits; 1024, 100, 1, 4096
+    limits = decompression-limits; 1024, 100, 4096
     unpacked = gzip-codec.decompress; packed.value, limits
     print; (unpacked.value.decode; utf8)
     zlib-codec = zlib;
@@ -57,11 +73,21 @@ function main;
     print; (raw-unpacked.value.decode; utf8)
     zstd-codec = zstd;
     zstd-packed = zstd-codec.compress; b'compress me', options
-    zstd-limits = decompression-limits; 1073741824, 100, 1, 1073741824
+    zstd-limits = decompression-limits; 1073741824, 100, 1073741824
     zstd-unpacked = zstd-codec.decompress; zstd-packed.value, zstd-limits
     print; (zstd-unpacked.value.decode; utf8)
-    bomb-limits = decompression-limits; 4, 2, 1, 8
+    bomb-limits = decompression-limits; 4, 2, 8
     refused = gzip-codec.decompress; packed.value, bomb-limits
     print; refused.resource-limit
     parsed = parse-uuid; '01890f3e-7b4d-7cc0-98c8-77e22c318a14'
     print; parsed.value.string
+    generated-v4 = random-uuid; secure
+    reparsed-v4 = parse-uuid; generated-v4.value.string
+    print; not generated-v4.failed and not reparsed-v4.failed and generated-v4.value.bytes.length == 16
+    generated-v7 = time-uuid; secure, 1700000000000
+    reparsed-v7 = parse-uuid; generated-v7.value.string
+    print; not generated-v7.failed and not reparsed-v7.failed and generated-v7.value.bytes.length == 16
+    noncanonical = parse-uuid; '01890F3E-7B4D-7CC0-98C8-77E22C318A14'
+    print; noncanonical.failed
+    invalid-time = time-uuid; secure, -1
+    print; invalid-time.failed

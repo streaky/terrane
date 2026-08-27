@@ -1,8 +1,8 @@
 namespace standard/tls
 
 from /core/types import int, bool, string, bytes
-from /core/platform-capabilities import platform-resource-handle
-from /core/platform-capabilities import tls-client as platform-client, tls-read, tls-write, close as platform-close, parse-ip
+from /core/platform-capabilities import platform-resource-handle, no-resource
+from /core/platform-capabilities import tls-client as platform-client, tls-read, tls-write, tls-shutdown, close as platform-close
 from /core/platform-capabilities import result-failed, result-deadline-exceeded, result-message, result-text, result-bytes, result-int, result-bool, result-resource
 from /standard/networking import tcp-stream, operation-options, operation-result, io-result, host-name, operation-cancellation
 
@@ -27,8 +27,9 @@ class tls-stream
         raw = platform-close; this.handle
         return operation-result; (result-failed; raw), (result-deadline-exceeded; raw), (result-message; raw)
 
-    function shutdown operation-result;
-        raw = platform-close; this.handle
+    function shutdown operation-result; options operation-options
+        cancellation = operation-cancellation; options
+        raw = tls-shutdown; this.handle, options.deadline-ms, cancellation
         return operation-result; (result-failed; raw), (result-deadline-exceeded; raw), (result-message; raw)
 
     function destruct;
@@ -38,7 +39,7 @@ class tls-result
     failed bool = false
     deadline-exceeded bool = false
     message string = ''
-    value tls-stream = tls-stream; (result-resource; (parse-ip; ''))
+    value tls-stream = tls-stream; (no-resource;)
 
     function construct; failed bool, deadline-exceeded bool, message string, stream tls-stream
         this.failed = failed

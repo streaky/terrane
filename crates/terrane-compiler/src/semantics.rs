@@ -6594,8 +6594,12 @@ fn infer_value_type(
                     | "/core/platform-capabilities::result-capability" => {
                         Some(ValueType::PlatformCapability)
                     }
-                    "/core/platform-capabilities::result-resource" => {
+                    "/core/platform-capabilities::result-resource"
+                    | "/core/platform-capabilities::no-resource" => {
                         Some(ValueType::PlatformResourceHandle)
+                    }
+                    "/core/platform-capabilities::failed-result" => {
+                        Some(ValueType::PlatformResult)
                     }
                     "/core/platform-capabilities::random-bytes"
                     | "/core/platform-capabilities::random-bounded"
@@ -6629,6 +6633,7 @@ fn infer_value_type(
                     | "/core/platform-capabilities::tls-client"
                     | "/core/platform-capabilities::tls-read"
                     | "/core/platform-capabilities::tls-write"
+                    | "/core/platform-capabilities::tls-shutdown"
                     | "/core/platform-capabilities::cancel"
                     | "/core/platform-capabilities::close" => Some(ValueType::PlatformResult),
                     "/core/platform-system::filesystem-exists"
@@ -10384,6 +10389,8 @@ fn bootstrap_namespaces() -> BTreeMap<String, Namespace> {
                 "destroy-secret",
                 "hmac",
                 "cancellation-token",
+                "no-resource",
+                "failed-result",
                 "cancel",
                 "constant-time-equal",
                 "hex-encode",
@@ -10414,6 +10421,7 @@ fn bootstrap_namespaces() -> BTreeMap<String, Namespace> {
                 "tls-client",
                 "tls-read",
                 "tls-write",
+                "tls-shutdown",
                 "close",
                 "result-failed",
                 "result-resource-limit",

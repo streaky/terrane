@@ -374,39 +374,45 @@ fn terrane_platform_close(
 // Source: case.trn
 // Namespace: app
 fn main() {
-    let parsed: IpResult = ip_address_from_string(String::from("2001:0db8:0:0:0:0:0:1"));
-    println!("{}", terrane_scalar_support::scalar_text(&parsed.value.value));
-    println!("{}", terrane_scalar_support::scalar_text(&parsed.value.version));
-    println!("{}", terrane_scalar_support::scalar_text(&parsed.value.is_loopback));
     let loopback: IpResult = ip_address_from_string(String::from("127.0.0.1"));
-    println!("{}", terrane_scalar_support::scalar_text(&loopback.value.version));
-    println!("{}", terrane_scalar_support::scalar_text(&loopback.value.is_loopback));
-    let invalid_ip: IpResult = ip_address_from_string(String::from("999.1.1.1"));
-    println!("{}", terrane_scalar_support::scalar_text(&invalid_ip.failed));
-    let scoped_ip: IpResult = ip_address_from_string(String::from("fe80::1%eth0"));
-    println!("{}", terrane_scalar_support::scalar_text(&scoped_ip.failed));
-    let international: HostNameResult = parse_host_name(String::from("bücher.example"));
-    println!("{}", terrane_scalar_support::scalar_text(&international.value.value));
-    let invalid_host: HostNameResult = parse_host_name(
-        String::from("contains space.example"),
+    let address: SocketResult = socket_address_from_ip(
+        loopback.value,
+        terrane_int_support::Int::from(39173_i128),
     );
-    println!("{}", terrane_scalar_support::scalar_text(&invalid_host.failed));
-    let port: i64 = 443;
-    let deadline: i64 = 1000;
+    let destination_ip: IpResult = ip_address_from_string(String::from("127.0.0.1"));
+    let destination: SocketResult = socket_address_from_ip(
+        destination_ip.value,
+        terrane_int_support::Int::from(39173_i128),
+    );
+    let bound: UdpResult = bind_udp(address.value);
+    let socket: UdpSocket = bound.value;
+    let configured: OperationResult = socket
+        .configure(
+            UdpOptions::terrane_construct(false, terrane_int_support::Int::from(32_i128)),
+        );
     let cancellation: CancellationToken = CancellationToken::terrane_construct();
-    cancel_operation(cancellation.clone());
-    let cancelled: OperationOptions = OperationOptions::terrane_construct(
-        terrane_int_support::Int::from(deadline as i128),
+    let options: OperationOptions = OperationOptions::terrane_construct(
+        terrane_int_support::Int::from(1000_i128),
         cancellation.clone(),
     );
-    let host: HostNameResult = parse_host_name(String::from("localhost"));
-    let lookup: DnsResult = lookup_dns(
-        host.value,
-        terrane_int_support::Int::from(port as i128),
-        cancelled.clone(),
+    let sent: IoResult = socket
+        .send_to(
+            Vec::from([116, 101, 114, 114, 97, 110, 101]),
+            destination.value,
+            options.clone(),
+        );
+    let received: IoResult = socket
+        .receive_from(terrane_int_support::Int::from(32_i128), options.clone());
+    println!("{}", terrane_scalar_support::scalar_text(&! configured.failed));
+    println!("{}", terrane_scalar_support::scalar_text(&sent.completed));
+    println!(
+        "{}",
+        terrane_scalar_support::scalar_text(&terrane_string_support::decode(&received
+        .data, terrane_string_support::Encoding::Utf8).unwrap_or_else(| error |
+        __terrane_uncaught(TerraneError::from(error).at("/app::main (case.trn:21:13)"))))
     );
-    println!("{}", terrane_scalar_support::scalar_text(&lookup.failed));
-    println!("{}", terrane_scalar_support::scalar_text(&lookup.message));
+    println!("{}", terrane_scalar_support::scalar_text(&! received.truncated));
+    socket.close();
 }
 // Source: standard/networking.trn
 // Namespace: standard/networking
