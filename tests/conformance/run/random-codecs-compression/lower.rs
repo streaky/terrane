@@ -388,6 +388,20 @@ fn main() {
         Vec::from([100, 97, 116, 97]),
     );
     println!("{}", terrane_scalar_support::scalar_text(&destroyed.failed));
+    let unsupported: HashAlgorithm = HashAlgorithm::terrane_construct(
+        String::from("unsupported"),
+    );
+    let failed_digest: DigestResult = digest_bytes(
+        unsupported.clone(),
+        Vec::from([100, 97, 116, 97]),
+    );
+    println!("{}", terrane_scalar_support::scalar_text(&failed_digest.failed));
+    let failed_mac: SignatureResult = sign_hmac(
+        unsupported.clone(),
+        key.clone(),
+        Vec::from([100, 97, 116, 97]),
+    );
+    println!("{}", terrane_scalar_support::scalar_text(&failed_mac.failed));
     println!(
         "{}", terrane_scalar_support::scalar_text(&encode_base64(Vec::from([104, 101,
         108, 108, 111]), false, true))
@@ -400,7 +414,7 @@ fn main() {
     println!(
         "{}", terrane_scalar_support::scalar_text(&terrane_string_support::decode(&strict
         .value, terrane_string_support::Encoding::Utf8).unwrap_or_else(| error |
-        __terrane_uncaught(TerraneError::from(error).at("/app::main (case.trn:34:13)"))))
+        __terrane_uncaught(TerraneError::from(error).at("/app::main (case.trn:39:13)"))))
     );
     let malformed: DecodeResult = decode_hex(String::from("abc"));
     println!("{}", terrane_scalar_support::scalar_text(&malformed.failed));
@@ -425,7 +439,7 @@ fn main() {
         "{}",
         terrane_scalar_support::scalar_text(&terrane_string_support::decode(&unpacked
         .value, terrane_string_support::Encoding::Utf8).unwrap_or_else(| error |
-        __terrane_uncaught(TerraneError::from(error).at("/app::main (case.trn:41:13)"))))
+        __terrane_uncaught(TerraneError::from(error).at("/app::main (case.trn:46:13)"))))
     );
     let zlib_codec: CompressionCodec = zlib();
     let zlib_packed: CompressionResult = zlib_codec
@@ -439,7 +453,7 @@ fn main() {
         "{}",
         terrane_scalar_support::scalar_text(&terrane_string_support::decode(&zlib_unpacked
         .value, terrane_string_support::Encoding::Utf8).unwrap_or_else(| error |
-        __terrane_uncaught(TerraneError::from(error).at("/app::main (case.trn:45:13)"))))
+        __terrane_uncaught(TerraneError::from(error).at("/app::main (case.trn:50:13)"))))
     );
     let raw_codec: CompressionCodec = deflate_raw();
     let raw_packed: CompressionResult = raw_codec
@@ -453,7 +467,7 @@ fn main() {
         "{}",
         terrane_scalar_support::scalar_text(&terrane_string_support::decode(&raw_unpacked
         .value, terrane_string_support::Encoding::Utf8).unwrap_or_else(| error |
-        __terrane_uncaught(TerraneError::from(error).at("/app::main (case.trn:49:13)"))))
+        __terrane_uncaught(TerraneError::from(error).at("/app::main (case.trn:54:13)"))))
     );
     let zstd_codec: CompressionCodec = zstd();
     let zstd_packed: CompressionResult = zstd_codec
@@ -473,7 +487,7 @@ fn main() {
         "{}",
         terrane_scalar_support::scalar_text(&terrane_string_support::decode(&zstd_unpacked
         .value, terrane_string_support::Encoding::Utf8).unwrap_or_else(| error |
-        __terrane_uncaught(TerraneError::from(error).at("/app::main (case.trn:54:13)"))))
+        __terrane_uncaught(TerraneError::from(error).at("/app::main (case.trn:59:13)"))))
     );
     let bomb_limits: DecompressionLimits = DecompressionLimits::terrane_construct(
         terrane_int_support::Int::from(4_i128),

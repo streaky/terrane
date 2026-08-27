@@ -2,7 +2,7 @@ namespace app
 
 from /core/output import print
 from /core/encodings import utf8
-from /standard/random import pseudo-random, chacha20, pseudo-bytes, secret-buffer, destroy-secret, sha256, sha512, digest-bytes, sign-hmac, signature-equals
+from /standard/random import pseudo-random, chacha20, pseudo-bytes, secret-buffer, destroy-secret, hash-algorithm, sha256, sha512, digest-bytes, sign-hmac, signature-equals
 from /standard/codecs import encode-hex, decode-hex, encode-base64, decode-base64
 from /standard/compression import gzip, zlib, deflate-raw, zstd, compression-options, decompression-limits
 from /standard/uuid import parse-uuid
@@ -28,6 +28,11 @@ function main;
     destroy-secret; same-key
     destroyed = sign-hmac; hash, same-key, b'data'
     print; destroyed.failed
+    unsupported = hash-algorithm; 'unsupported'
+    failed-digest = digest-bytes; unsupported, b'data'
+    print; failed-digest.failed
+    failed-mac = sign-hmac; unsupported, key, b'data'
+    print; failed-mac.failed
     print; (encode-base64; b'hello', false, true)
     print; (encode-base64; b'hello?', true, false)
     strict = decode-base64; 'aGVsbG8=', false, true
