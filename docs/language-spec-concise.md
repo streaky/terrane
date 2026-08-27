@@ -710,6 +710,16 @@ terrane_layers: public protocols/results, loops, adapters, policy, factories, as
 generated_ownership: transfers/use-after-consume/double-release checked statically; current handle refcount only coordinates one host release after adapter transfer
 ```
 
+## CRYPTOGRAPHIC_ALGORITHM_IDENTITY
+
+```yaml
+hash_descriptor: selects SHA-256 or SHA-512 for both unkeyed digest and corresponding HMAC
+hmac_mapping: SHA-256 -> HMAC-SHA-256; SHA-512 -> HMAC-SHA-512
+independence: HMAC consumes descriptor/key/message, never a prior digest; no cross-algorithm pairing is inferred
+value_types: digest and MAC are distinct and retain algorithm identity; constant-time equality requires matching value kind and algorithm
+unsupported: structured operation failure; never fallback substitution
+```
+
 ## PATHS_FILESYSTEM_PROCESS
 
 ```yaml

@@ -5915,7 +5915,17 @@ This section fixes the shape only. The object contracts of individual version-on
 
 Those facilities are written in Terrane over the minimal Rust core, per §5.7. The standard library is therefore an ordinary set of packages rather than a privileged layer, and it uses the same dependency mechanism as any other package when it needs a Rust crate beneath it.
 
-### 37.1 Byte and text streams
+### 37.1 Cryptographic algorithm identity
+
+A hash-algorithm descriptor selects both its unkeyed digest operation and the corresponding HMAC
+construction. SHA-256 therefore selects SHA-256 or HMAC-SHA-256 according to the operation being
+invoked, and SHA-512 selects SHA-512 or HMAC-SHA-512. A digest value is not an input to HMAC, so
+there is no implicit pairing between a previously computed digest and a later MAC. Digest and MAC
+values are distinct types, retain their algorithm identity, and compare equal only through their
+own constant-time operation when both values use the same algorithm. Unsupported descriptors
+produce a structured operation failure rather than selecting a fallback algorithm.
+
+### 37.2 Byte and text streams
 
 `/standard/streams` is an ordinary Terrane package. Importing one of its exports includes that
 Terrane source, and its recursively imported bundled dependencies, in the same semantic and
@@ -5972,10 +5982,10 @@ once despite both generated Rust wrappers remaining live until their ordinary dr
 representation mechanism is not a dynamic substitute for the source ownership rules and may
 change without changing their semantics.
 
-### 37.2 Paths, filesystem, and process facilities
+### 37.3 Paths, filesystem, and process facilities
 
 `/standard/paths`, `/standard/filesystem`, and `/standard/process` are ordinary Terrane packages
-included through the same import-driven source pipeline described in §37.1. Their object models,
+included through the same import-driven source pipeline described in §37.2. Their object models,
 policy, validation, structured results, and command-line parsing remain Terrane. Rust is limited
 to host filesystem calls, descriptor ownership, lossless operating-system argument and
 environment acquisition, and process termination: the syscall/ABI justification from §5.7.

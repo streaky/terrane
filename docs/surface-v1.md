@@ -1190,7 +1190,7 @@ uuid
 +-- bytes / string
 ```
 
-`secure-random` and reproducible `pseudo-random` are different types so deterministic tests cannot accidentally supply cryptographic entropy and security-sensitive code cannot quietly use a seeded generator. Hex and base64 are codecs, not string coercions. Digest and MAC algorithms are explicit descriptors, digest/MAC comparisons use their typed constant-time operation, and streaming inputs do not require buffering an entire message. Algorithm availability, output types, key handling, UUID versions, namespace constants, decoding strictness, and no-entropy profile failures require explicit specification; obsolete or weak algorithms do not become default conveniences.
+`secure-random` and reproducible `pseudo-random` are different types so deterministic tests cannot accidentally supply cryptographic entropy and security-sensitive code cannot quietly use a seeded generator. Hex and base64 are codecs, not string coercions. A hash descriptor selects both its unkeyed digest and corresponding keyed HMAC construction: SHA-256 selects SHA-256 or HMAC-SHA-256, while SHA-512 selects SHA-512 or HMAC-SHA-512. HMAC consumes the descriptor, key, and message rather than a prior digest, so no cross-algorithm pairing is inferred. Digest and MAC values are distinct, retain algorithm identity, and compare only through their typed constant-time operations. Algorithm availability, output types, key handling, UUID versions, namespace constants, decoding strictness, and no-entropy profile failures require explicit specification; obsolete or weak algorithms do not become default conveniences.
 
 ### 13.9 Compression
 
