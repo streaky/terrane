@@ -1499,22 +1499,7 @@ ordering and TTL projection, trusted local TLS 1.3 negotiation, close-notify, an
 untrusted-certificate validation failure. Accepted Terrane cases exercise address and host parsing,
 cancellation, socket options, loopback TCP and UDP exchange, and resource-producing factories.
 
-### Milestone 25 — Structured logging
-
-Written in Terrane over the minimal Rust core, per delivery principle 9. Each layer implemented in Rust states which of the four justifications applies; everything above it is Terrane.
-
-
-Deliver:
-
-- an imported, capability-gated `logging` package with named and default loggers and `debug`, `info`, `warning`, and `error` operations;
-- immutable field and context enrichment, with fields retaining keys, values, source context, and severity rather than being flattened to text;
-- an explicit `log-value` protocol, descriptor-driven redaction, and dot-separated logger hierarchies with filtering before expensive rendering;
-- host- or profile-supplied sinks, bounded buffers with an explicit backpressure policy, and a fallback diagnostic sink that does not recursively log;
-- an in-memory deterministic test sink with logical sequence numbers and controlled timestamps.
-
-Exit criterion: structured fields survive to the sink unflattened, a secret-typed field is redacted by policy, and captured test output is byte-identical across runs.
-
-### Milestone 26 — Rust dependencies, `reqwest`, and editor integration
+### Milestone 25 — Rust dependencies, `reqwest`, and editor integration
 
 Deliver:
 
@@ -1534,7 +1519,7 @@ Deliver:
 
 Exit criterion: accepted and rejected dependency fixtures, lock and feature mismatch diagnostics, deterministic generated Cargo and Rust goldens, and a warning-free local loopback `reqwest` build and run. External-network tests do not prove the contract.
 
-### Milestone 27 — Remaining concurrency and foreign adapters
+### Milestone 26 — Remaining concurrency and foreign adapters
 
 Deliver:
 
@@ -1544,6 +1529,21 @@ Deliver:
 - the first Python runtime contract if it remains in version-one scope.
 
 Exit criterion: each surface enters with a selected target-capability contract, typed objects and explicit operational contracts, deterministic lowering, and compiled and run evidence. No surface is represented as an empty compiler-owned name to make the map look complete.
+
+### Milestone 27 — Structured logging
+
+Written in Terrane over the minimal Rust core, per delivery principle 9. Each layer implemented in Rust states which of the four justifications applies; everything above it is Terrane.
+
+
+Deliver:
+
+- an imported, capability-gated `logging` package with named and default loggers and `debug`, `info`, `warning`, and `error` operations;
+- immutable field and context enrichment, with fields retaining keys, values, source context, and severity rather than being flattened to text;
+- an explicit `log-value` protocol, descriptor-driven redaction, and dot-separated logger hierarchies with filtering before expensive rendering;
+- host- or profile-supplied sinks, bounded buffers with an explicit backpressure policy, and a fallback diagnostic sink that does not recursively log;
+- an in-memory deterministic test sink with logical sequence numbers and controlled timestamps.
+
+Exit criterion: structured fields survive to the sink unflattened, a secret-typed field is redacted by policy, and captured test output is byte-identical across runs.
 
 ### Milestone 28 — First-version hardening and release gate
 
