@@ -157,6 +157,7 @@ fn projected_reqwest_runs_against_a_loopback_server() {
                 "from /deps/reqwest/blocking import get\n",
                 "function main;\n",
                 "    response = get; >http://{}/\n",
+                "    response.headers_mut;\n",
                 "    body string = response.text;\n",
                 "    print; body\n",
             ),
@@ -176,12 +177,12 @@ fn projected_reqwest_runs_against_a_loopback_server() {
         .args(["run", package.0.join("package.toml").to_str().unwrap()])
         .output()
         .unwrap();
-    server.join().unwrap();
     assert!(
         output.status.success(),
         "{}",
         String::from_utf8_lossy(&output.stderr)
     );
+    server.join().unwrap();
     assert_eq!(output.stdout, b"projected dependency\n\n");
     let generated = fs::read_dir(package.0.join(".trn/build"))
         .unwrap()

@@ -455,6 +455,7 @@ pub fn resolve(
                 ),
             })?;
         cached.containment = sandbox;
+        prune_projection_cache(&workspace, &cache_path)?;
         return Ok(cached);
     }
     let mut projected = Vec::new();
@@ -497,7 +498,26 @@ pub fn resolve(
         message: format!("cannot serialize dependency projection: {error}"),
     })?;
     write_if_changed(&cache_path, &bytes)?;
+    prune_projection_cache(&workspace, &cache_path)?;
     Ok(projection)
+}
+
+fn prune_projection_cache(directory: &Path, retained: &Path) -> Result<(), ProjectionError> {
+    let entries = fs::read_dir(directory).map_err(io_error("read dependency projection cache"))?;
+    for entry in entries {
+        let entry = entry.map_err(io_error("read dependency projection cache entry"))?;
+        let path = entry.path();
+        let Some(name) = path.file_name().and_then(|name| name.to_str()) else {
+            continue;
+        };
+        if path != retained
+            && name.starts_with("projection-")
+            && path.extension() == Some(std::ffi::OsStr::new("json"))
+        {
+            fs::remove_file(&path).map_err(io_error("remove stale dependency projection"))?;
+        }
+    }
+    Ok(())
 }
 
 fn write_workspace(
@@ -1291,9 +1311,11 @@ fn io_error(context: &'static str) -> impl FnOnce(std::io::Error) -> ProjectionE
 
 #[cfg(test)]
 mod tests {
+    use std::fs;
+
     use serde_json::json;
 
-    use super::{Receiver, has_type_parameters, receiver_kind};
+    use super::{Receiver, has_type_parameters, prune_projection_cache, receiver_kind};
 
     #[test]
     fn type_parameter_guard_reads_destructured_type_descriptors() {
@@ -1317,5 +1339,25 @@ mod tests {
             Receiver::Borrow
         );
         assert_eq!(receiver_kind(&json!({})), Receiver::Move);
+    }
+
+    #[test]
+    fn projection_cache_prunes_only_stale_projection_records() {
+        let directory =
+            std::env::temp_dir().join(format!("terrane-projection-prune-{}", std::process::id()));
+        let retained = directory.join("projection-current.json");
+        let stale = directory.join("projection-stale.json");
+        let unrelated = directory.join("Cargo.lock");
+        fs::create_dir_all(&directory).unwrap();
+        fs::write(&retained, b"current").unwrap();
+        fs::write(&stale, b"stale").unwrap();
+        fs::write(&unrelated, b"lock").unwrap();
+
+        prune_projection_cache(&directory, &retained).unwrap();
+
+        assert!(retained.exists());
+        assert!(!stale.exists());
+        assert!(unrelated.exists());
+        fs::remove_dir_all(directory).unwrap();
     }
 }

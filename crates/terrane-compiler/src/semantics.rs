@@ -936,19 +936,7 @@ fn dependency_projection(
 pub fn analyze(package: &Package) -> Result<SemanticPackage, SemanticFailure> {
     let projection = dependency_projection(package)?;
     let mut units = parse_units(package, &projection)?;
-    for unit in units
-        .iter()
-        .filter(|unit| unit.bundled && !unit.namespace.starts_with("/deps/"))
-    {
-        if let Some((text, span)) = invalid_name_style_declarations(unit).into_iter().next() {
-            return Err(failure(
-                &unit.source,
-                "S2018",
-                format!("compiler-owned declaration `{text}` is not kebab-case"),
-                span,
-            ));
-        }
-    }
+    validate_compiler_owned_names(&units)?;
 
     let mut namespaces = bootstrap_namespaces();
     for unit in &units {
@@ -11564,6 +11552,23 @@ fn invalid_name_style_declarations(unit: &SemanticUnit) -> Vec<(&str, Span)> {
     declarations
 }
 
+fn validate_compiler_owned_names(units: &[SemanticUnit]) -> Result<(), SemanticFailure> {
+    for unit in units
+        .iter()
+        .filter(|unit| unit.bundled && !unit.namespace.starts_with("/deps/"))
+    {
+        if let Some((text, span)) = invalid_name_style_declarations(unit).into_iter().next() {
+            return Err(failure(
+                &unit.source,
+                "S2018",
+                format!("compiler-owned declaration `{text}` is not kebab-case"),
+                span,
+            ));
+        }
+    }
+    Ok(())
+}
+
 fn collect_name_style_warnings(unit: &SemanticUnit, warnings: &mut Vec<Diagnostic>) {
     for (text, span) in invalid_name_style_declarations(unit) {
         warnings.push(
@@ -11647,6 +11652,38 @@ pub(crate) fn warnings(package: &SemanticPackage, lint_name_style: bool) -> Vec<
     warnings
 }
 
+fn object_method_mutates(
+    package: &SemanticPackage,
+    unit: &SemanticUnit,
+    position: usize,
+    object_name: &str,
+    method_name: &str,
+) -> bool {
+    fn contract_mutates(unit: &SemanticUnit, object_name: &str, method_name: &str) -> bool {
+        if let Some(method) = unit.functions.iter().find(|method| {
+            method.owner.as_deref() == Some(object_name) && method.name == method_name
+        }) {
+            return method.mutates_receiver;
+        }
+        unit.objects
+            .iter()
+            .find(|object| object.name == object_name)
+            .and_then(|object| object.base.as_deref())
+            .is_some_and(|base| contract_mutates(unit, base, method_name))
+    }
+
+    let Some(declaration) = resolved_object_span(package, unit, position, object_name) else {
+        return false;
+    };
+    package.units.iter().any(|candidate| {
+        candidate
+            .objects
+            .iter()
+            .find(|object| object.span == declaration)
+            .is_some_and(|object| contract_mutates(candidate, &object.name, method_name))
+    })
+}
+
 pub(crate) fn binding_span_is_mutated(
     package: &SemanticPackage,
     unit: &SemanticUnit,
@@ -11660,23 +11697,6 @@ pub(crate) fn binding_span_is_mutated(
         iterator_binding: bool,
         node: &SyntaxNode,
     ) -> usize {
-        fn object_method_mutates(
-            unit: &SemanticUnit,
-            object_name: &str,
-            method_name: &str,
-        ) -> bool {
-            if let Some(method) = unit.functions.iter().find(|method| {
-                method.owner.as_deref() == Some(object_name) && method.name == method_name
-            }) {
-                return method.mutates_receiver;
-            }
-            unit.objects
-                .iter()
-                .find(|object| object.name == object_name)
-                .and_then(|object| object.base.as_deref())
-                .is_some_and(|base| object_method_mutates(unit, base, method_name))
-        }
-
         let resolves_to_binding = |target: &SyntaxNode| {
             target.kind == SyntaxKind::Name
                 && !package.is_lexical_replacement(unit, node.span, node_text(&unit.source, target))
@@ -11708,10 +11728,18 @@ pub(crate) fn binding_span_is_mutated(
                         infer_value_type(unit, receiver, &unit.typed_bindings),
                         Ok(Some(ValueType::Object(object)))
                             if object_method_mutates(
+                                package,
                                 unit,
+                                receiver.span.start,
                                 &object,
                                 node_text(&unit.source, member)
-                            )
+                            ) || package
+                                .projection
+                                .method("", &object, node_text(&unit.source, member))
+                                .is_some_and(|method| matches!(
+                                    method.receiver,
+                                    Some(crate::projection::Receiver::MutableBorrow)
+                                ))
                     ))
                     && resolves_to_binding(receiver)
             });
@@ -11837,5 +11865,44 @@ fn failure(
     SemanticFailure {
         source: source.clone(),
         diagnostics: vec![Diagnostic::error(code, message, span)],
+    }
+}
+
+#[cfg(test)]
+mod name_style_tests {
+    use super::*;
+
+    #[test]
+    fn compiler_owned_declarations_require_kebab_case() {
+        let package = Package::implicit(
+            "main.trn",
+            "namespace app\nfunction NotKebab;\n  return\nfunction main;\n  return\n".to_owned(),
+        );
+        let mut semantic = analyze(&package).unwrap();
+        semantic.units[0].bundled = true;
+
+        let failure = validate_compiler_owned_names(&semantic.units).unwrap_err();
+        assert_eq!(failure.diagnostics[0].code, "S2018");
+        assert_eq!(
+            failure.diagnostics[0].message,
+            "compiler-owned declaration `NotKebab` is not kebab-case"
+        );
+    }
+
+    #[test]
+    fn authored_name_style_is_an_opt_in_warning() {
+        let package = Package::implicit(
+            "main.trn",
+            "namespace app\nfunction main;\n  Answer = 42\n  print; Answer\n".to_owned(),
+        );
+        let semantic = analyze(&package).unwrap();
+
+        assert!(warnings(&semantic, false).is_empty());
+        let diagnostics = warnings(&semantic, true);
+        assert!(diagnostics.iter().any(|diagnostic| {
+            diagnostic.code == "S2018"
+                && diagnostic.message == "declared name `Answer` is not kebab-case"
+                && diagnostic.severity == crate::Severity::Warning
+        }));
     }
 }

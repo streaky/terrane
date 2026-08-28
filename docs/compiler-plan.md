@@ -1531,9 +1531,10 @@ Deliver:
   requiring `move` under the existing foreign-resource rule; panic contained at the crossing and
   converted to `dependency-panic` on unwinding profiles, and not contained on aborting profiles;
 - **diagnostics in Terrane terms** for moves, drops, `Send`/`Sync` at task boundaries, and escaping
-  borrows, per the existing translation contract; and a diagnostic naming the member and version
-  change when a lock bump removes a projected member, rather than a rustc error against generated
-  source;
+  borrows, per the existing translation contract. A removed crossed member is diagnosed as missing at
+  its Terrane import or use site rather than surfacing as a rustc error against generated source;
+  distinguishing removal from a never-present member and naming the lock version change is deferred
+  until projection history has a durable, machine-independent home;
 - **capability and containment.** The manifest declaration is the grant, transitively, with the build
   report identifying what executed; a profile forbidding an effect rejects the dependency at manifest
   resolution rather than at a call site. Builds fetch online and then compile `--offline --frozen`
@@ -1574,10 +1575,12 @@ unwinding panics into distinct Terrane throwable completion. Rust dependency pro
 Linux `bwrap` containment tier and fails explicitly when it is unavailable; dependency-free programs
 do not probe containment, rustdoc, or the pinned nightly toolchain. Wiring projection itself to a
 build-capability grant, rejecting dependency effects forbidden by a selected profile, distinguishing
-unwinding from aborting profiles, and containing generated-crate compilation remain explicit
-follow-on capability requirements.
+unwinding from aborting profiles, containing generated-crate compilation, and retaining durable
+projection history for version-naming removed-member diagnostics remain explicit follow-on capability
+requirements.
 Accepted execution covers a loopback `reqwest` request and the dissimilar `httpdate` crate through
-the same machinery, including caught dependency errors, uppercase and underscored identifiers, and
+the same machinery, including caught dependency errors, a fixture-owned generated-Rust panic
+boundary preserving payload and crate/member context, uppercase and underscored identifiers, and
 verbatim projected names. Package tests cover aliasing, selected
 features, and loopback execution; generated Rust and Cargo output remain deterministic and warning
 free. Target-specific dependency tables, recorded projection declines, and asynchronous

@@ -242,6 +242,7 @@ pub(crate) fn lower(package: &SemanticPackage) -> Program {
                 parameter_types: Vec::new(),
                 namespace_initializer: None,
                 propagate_errors: false,
+                discarded_call: None,
                 function_errors: false,
                 try_counter: 0,
                 current_error: None,
@@ -403,6 +404,7 @@ struct Emitter<'a> {
     parameter_types: Vec<(String, ValueType)>,
     namespace_initializer: Option<(String, String)>,
     propagate_errors: bool,
+    discarded_call: Option<crate::Span>,
     function_errors: bool,
     try_counter: usize,
     current_error: Option<String>,
@@ -697,6 +699,7 @@ fn emit_global_storage(package: &SemanticPackage, output: &mut String) {
             parameter_types: Vec::new(),
             namespace_initializer: None,
             propagate_errors: false,
+            discarded_call: None,
             function_errors: false,
             try_counter: 0,
             current_error: None,
@@ -757,6 +760,7 @@ fn emit_global_storage(package: &SemanticPackage, output: &mut String) {
                 parameter_types: Vec::new(),
                 namespace_initializer: None,
                 propagate_errors: false,
+                discarded_call: None,
                 function_errors: false,
                 try_counter: 0,
                 current_error: None,
@@ -1936,9 +1940,15 @@ impl Emitter<'_> {
             }
             SyntaxKind::Assignment => self.assignment(node),
             SyntaxKind::CallExpression => {
-                let expression = self
-                    .collection_mutation_statement(node)
-                    .unwrap_or_else(|| self.expression(node));
+                let expression = if let Some(expression) = self.collection_mutation_statement(node)
+                {
+                    expression
+                } else {
+                    self.discarded_call = Some(node.span);
+                    let expression = self.expression(node);
+                    self.discarded_call = None;
+                    expression
+                };
                 self.line(&format!("{expression};"));
             }
             SyntaxKind::PostfixExpression => self.postfix(node),
@@ -4926,8 +4936,13 @@ impl Emitter<'_> {
                     "match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {call})) {{ Ok(Ok(value)) => Ok(value), Ok(Err(error)) => Err(crate::TerraneError::new(crate::TerraneErrorKind::Custom(\"dependency-error\"), format!(\"Rust dependency `{dependency}` member `{member}` failed: {{error}}\"))), Err(payload) => Err(crate::__terrane_dependency_panic(payload, {dependency:?}, {member:?})) }}"
                 )
             } else {
+                let unwind_body = if self.discarded_call == Some(node.span) {
+                    format!("{{ {call}; }}")
+                } else {
+                    call
+                };
                 format!(
-                    "match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {call})) {{ Ok(value) => Ok(value), Err(payload) => Err(crate::__terrane_dependency_panic(payload, {dependency:?}, {member:?})) }}"
+                    "match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {unwind_body})) {{ Ok(value) => Ok(value), Err(payload) => Err(crate::__terrane_dependency_panic(payload, {dependency:?}, {member:?})) }}"
                 )
             }
         } else {

@@ -102,6 +102,9 @@ as name binding — carried to its conclusion. `from /deps/reqwest import get` p
 binding; the manifest performed the composition. A `from /deps/...` import naming a crate the
 package's manifest does not declare is a Terrane diagnostic.
 
+The root was shortened from `/dependencies` to `/deps` before milestone 25 merged, solely to keep
+dependency imports concise; the longer spelling was never a compatibility contract.
+
 The projected surface appears at a predictable path:
 
 ```terrane
@@ -200,6 +203,13 @@ Milestone 25 emits `catch_unwind(AssertUnwindSafe(...))` for the generated crate
 profile. Profile-aware selection between unwind containment and abort semantics, and replacing the
 blanket unwind-safety assertion with a proven boundary contract, are deferred until build profiles
 and dependency capability contracts are represented by the compiler.
+
+End-to-end Terrane catch coverage for this boundary remains deferred until the admitted projected
+surface contains a deterministic panicking member with representable arguments. The current
+`bytes` witness exposes such operations only behind the deliberately deferred `usize` projection,
+and inventing a crate-specific panic hook would violate the generic projection contract. Milestone
+25 therefore verifies panic payload and crate/member preservation in fixture-owned generated Rust;
+ordinary Terrane `try`/`catch` coverage already verifies the `dependency-panic` throwable class.
 
 ### 6.4 Diagnostic translation, not new language features
 
@@ -403,9 +413,11 @@ The projection pass is treated exactly as a build script is: same build capabili
 policy, same cache-identity inputs. If the two are governed separately they will eventually disagree
 about what a build is permitted to do.
 
-Generated Cargo and generated Rust are golden-tested. A lock bump that removes a projected member is
-a source-visible interface change and must produce a Terrane diagnostic naming the member and the
-version change, not a rustc error against generated source.
+Generated Cargo and generated Rust are golden-tested. A lock bump that removes a crossed projected
+member is a source-visible interface change. Milestone 25 diagnoses the missing member at its Terrane
+import or use site rather than allowing an unexplained rustc error in generated source. Distinguishing
+that removal from a member that never existed, and naming the version change, is deferred until
+projection history has a durable, machine-independent home.
 
 ## 10. Conflicts with the current specification
 
@@ -530,9 +542,9 @@ here is conditional or outstanding.
   A6a, under the A15a policy. Manifest, lock checksum, features, default-feature
   policy, target triple, toolchain version, package source checksums. The projection pass runs under
   the same build capability, sandbox policy, and cache-identity inputs as a build script. (§9)
-- **A16 — lock-change diagnostics.** A lock bump that removes a projected member produces a Terrane
-  diagnostic naming the member and the version change, not a rustc error against generated source.
-  (§9)
+- **A16 — lock-change diagnostics.** Milestone 25 diagnoses a missing crossed member at its Terrane
+  import or use site rather than as a rustc error against generated source. Durable distinction from
+  a never-present member and version-change naming are deferred with projection-history storage. (§9)
 
 ### 11.3 Tooling
 

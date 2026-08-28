@@ -199,9 +199,14 @@ fn compile_and_maybe_run(
 ) {
     build.write_manifest(dependencies);
     let build_dir = &build.root;
-    let rust = if boolean_field(manifest, "exercise-dependency-panic") == Some(true) {
+    let dependency_panic_test = field(manifest, "dependency-panic-test");
+    let rust = if let Some(test_path) = dependency_panic_test {
         format!(
-            "{rust}\n#[cfg(test)]\nmod dependency_panic_tests {{\n    #[test]\n    fn preserves_payload_and_crossing_context() {{\n        let payload = std::panic::catch_unwind(|| panic!(\"fixture panic\"))\n            .expect_err(\"fixture must panic\");\n        let error = super::__terrane_dependency_panic(\n            payload,\n            \"fixture-crate\",\n            \"fixture_crate::explode\",\n        );\n        assert_eq!(\n            error.render(),\n            \"dependency-panic: Rust dependency `fixture-crate` member `fixture_crate::explode` panicked: fixture panic\"\n        );\n    }}\n}}\n"
+            "{rust}\n{}",
+            fs::read_to_string(case.join(test_path)).unwrap_or_else(|error| panic!(
+                "cannot read {}: {error}",
+                case.join(test_path).display()
+            ))
         )
     } else {
         rust.to_owned()
@@ -222,7 +227,7 @@ fn compile_and_maybe_run(
         case.display(),
         String::from_utf8_lossy(&output.stderr)
     );
-    if boolean_field(manifest, "exercise-dependency-panic") == Some(true) {
+    if dependency_panic_test.is_some() {
         let output = Command::new("cargo")
             .args(["test", "--quiet", "--manifest-path"])
             .arg(build_dir.join("Cargo.toml"))

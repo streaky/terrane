@@ -150,9 +150,28 @@ fn __terrane_dependency_panic(
 // Source: src/main.trn
 // Namespace: app
 fn main() {
-    let response: Response = get(String::from("http://127.0.0.1:38125/"))
+    let mut response: Response = get(String::from("http://127.0.0.1:38125/"))
         .unwrap_or_else(|error| __terrane_uncaught(
             error.at("/app::main (main.trn:4:16)"),
+        ));
+    match std::panic::catch_unwind(
+        std::panic::AssertUnwindSafe(|| {
+            response.headers_mut();
+        }),
+    ) {
+        Ok(value) => Ok(value),
+        Err(payload) => {
+            Err(
+                crate::__terrane_dependency_panic(
+                    payload,
+                    "reqwest",
+                    "reqwest::Response::headers_mut",
+                ),
+            )
+        }
+    }
+        .unwrap_or_else(|error| __terrane_uncaught(
+            error.at("/app::main (main.trn:5:5)"),
         ));
     let body: String = match std::panic::catch_unwind(
         std::panic::AssertUnwindSafe(|| response.text()),
@@ -179,7 +198,7 @@ fn main() {
         }
     }
         .unwrap_or_else(|error| __terrane_uncaught(
-            error.at("/app::main (main.trn:5:19)"),
+            error.at("/app::main (main.trn:6:19)"),
         ));
     println!("{}", terrane_scalar_support::scalar_text(&body));
 }
