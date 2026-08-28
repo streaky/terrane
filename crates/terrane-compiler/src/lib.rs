@@ -20,7 +20,7 @@ pub use compiler::{
 pub use diagnostic::{Diagnostic, Severity};
 pub use package::{
     ExecutorProfile, IMPLICIT_PACKAGE_ID, MANIFEST_FILE_NAME, Package, PackageLoadError,
-    ReflectionProfile, SourceUnit,
+    ReflectionProfile, RustDependency, SourceUnit,
 };
 pub use semantics::{
     BOOTSTRAP_VERSION, BoundMethod, EvaluationKind, EvaluationStep, FunctionContract, MemberFamily,

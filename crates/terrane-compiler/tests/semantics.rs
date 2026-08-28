@@ -27,6 +27,7 @@ fn package(prelude: bool, sources: &[(&str, &str)]) -> Package {
                 expected_namespace: None,
             })
             .collect(),
+        rust_dependencies: Vec::new(),
     }
 }
 
