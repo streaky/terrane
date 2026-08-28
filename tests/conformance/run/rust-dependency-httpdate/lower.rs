@@ -11,6 +11,7 @@ enum TerraneErrorKind {
     MissingKey,
     ResourceError,
     SourceError,
+    Custom(&'static str),
 }
 impl TerraneErrorKind {
     fn from_source_name(name: &str) -> Self {
@@ -39,6 +40,7 @@ impl TerraneErrorKind {
             Self::MissingKey => ".missing-key",
             Self::ResourceError => ".resource-error",
             Self::SourceError => ".error",
+            Self::Custom(name) => name,
         }
     }
 }
@@ -156,7 +158,7 @@ pub fn fmt_http_date(d: SystemTime) -> Result<String, crate::TerraneError> {
         Err(_) => {
             Err(
                 crate::TerraneError::new(
-                    crate::TerraneErrorKind::SourceError,
+                    crate::TerraneErrorKind::Custom("dependency-panic"),
                     "Rust dependency call panicked",
                 ),
             )
@@ -171,7 +173,7 @@ pub fn parse_http_date(s: String) -> Result<SystemTime, crate::TerraneError> {
         Ok(Err(error)) => {
             Err(
                 crate::TerraneError::new(
-                    crate::TerraneErrorKind::SourceError,
+                    crate::TerraneErrorKind::Custom("dependency-error"),
                     format!("Rust dependency call failed: {error}"),
                 ),
             )
@@ -179,7 +181,7 @@ pub fn parse_http_date(s: String) -> Result<SystemTime, crate::TerraneError> {
         Err(_) => {
             Err(
                 crate::TerraneError::new(
-                    crate::TerraneErrorKind::SourceError,
+                    crate::TerraneErrorKind::Custom("dependency-panic"),
                     "Rust dependency call panicked",
                 ),
             )

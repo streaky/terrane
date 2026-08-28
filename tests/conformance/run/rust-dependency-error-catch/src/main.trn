@@ -1,8 +1,8 @@
 namespace app
 from /dependencies/httpdate import parse_http_date
-from /core/errors import throwable
+from /core/errors import dependency-error
 function main;
     try
         parse_http_date; >not a date
-    catch throwable
+    catch dependency-error
         print; 'caught dependency error'

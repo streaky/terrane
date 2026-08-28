@@ -259,6 +259,8 @@ fn core_error_registry_distinguishes_the_interface_and_mandated_objects() {
             "arithmetic-overflow",
             "coercion-error",
             "decode-error",
+            "dependency-error",
+            "dependency-panic",
             "division-by-zero",
             "index-error",
             "integer-conversion-overflow",

@@ -238,11 +238,17 @@ impl LanguageServer for Backend {
         let Some(projection) = projection_for_uri(&uri).await else {
             return Ok(None);
         };
+        let namespace = imported_dependency_namespace(&document.text, name);
         let content = projection
             .dependencies
             .iter()
             .flat_map(|dependency| &dependency.items)
-            .find(|item| item.name == name)
+            .find(|item| {
+                item.name == name
+                    && namespace
+                        .as_deref()
+                        .is_none_or(|value| item.namespace == value)
+            })
             .map(|item| {
                 let mut text = format!("`{}`", item.rust_path);
                 if let Some(docs) = &item.docs {
@@ -255,9 +261,21 @@ impl LanguageServer for Backend {
                 projection
                     .dependencies
                     .iter()
-                    .flat_map(|dependency| &dependency.declined)
-                    .find(|item| item.rust_path.rsplit("::").next() == Some(name))
-                    .map(|item| format!("`{}`\n\nNot projected: {}", item.rust_path, item.reason))
+                    .flat_map(|dependency| {
+                        dependency
+                            .declined
+                            .iter()
+                            .map(move |item| (dependency, item))
+                    })
+                    .find(|(dependency, item)| {
+                        item.rust_path.rsplit("::").next() == Some(name)
+                            && namespace.as_deref().is_none_or(|value| {
+                                declined_namespace(dependency, &item.rust_path) == value
+                            })
+                    })
+                    .map(|(_, item)| {
+                        format!("`{}`\n\nNot projected: {}", item.rust_path, item.reason)
+                    })
             });
         Ok(content.map(|content| Hover {
             contents: HoverContents::Scalar(MarkedString::String(content)),
@@ -280,17 +298,26 @@ impl LanguageServer for Backend {
         let Some(projection) = projection_for_uri(&uri).await else {
             return Ok(None);
         };
+        let namespace = imported_dependency_namespace(&document.text, name);
         let function = projection
             .dependencies
             .iter()
             .flat_map(|dependency| &dependency.items)
-            .find_map(|item| match &item.kind {
-                terrane_compiler::projection::ProjectedKind::Function(function)
-                    if function.name == name =>
+            .find_map(|item| {
+                if namespace
+                    .as_deref()
+                    .is_some_and(|value| item.namespace != value)
                 {
-                    Some(function)
+                    return None;
                 }
-                _ => None,
+                match &item.kind {
+                    terrane_compiler::projection::ProjectedKind::Function(function)
+                        if function.name == name =>
+                    {
+                        Some(function)
+                    }
+                    _ => None,
+                }
             });
         let Some(function) = function else {
             return Ok(None);
@@ -471,6 +498,25 @@ fn dependency_import_namespace(text: &str, position: Position) -> Option<String>
     let line = line_prefix(text, position)?;
     let path = line.strip_prefix("from ")?.split(" import").next()?;
     path.starts_with("/dependencies/").then(|| path.to_owned())
+}
+
+fn imported_dependency_namespace(text: &str, name: &str) -> Option<String> {
+    text.lines().find_map(|line| {
+        let (path, imported) = line.strip_prefix("from ")?.split_once(" import ")?;
+        if !path.starts_with("/dependencies/") {
+            return None;
+        }
+        imported
+            .split(',')
+            .map(str::trim)
+            .any(|item| {
+                item == name
+                    || item
+                        .rsplit_once(" as ")
+                        .is_some_and(|(_, alias)| alias == name)
+            })
+            .then(|| path.to_owned())
+    })
 }
 
 fn word_at(text: &str, position: Position) -> Option<&str> {

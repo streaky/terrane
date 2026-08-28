@@ -945,6 +945,36 @@ pub fn analyze(package: &Package) -> Result<SemanticPackage, SemanticFailure> {
             .filter(|node| node.kind == SyntaxKind::ImportDeclaration)
         {
             for import in imports_from_syntax(unit, node)? {
+                if import.target.starts_with("/dependencies/")
+                    && projection.item(&import.target, &import.object).is_none()
+                {
+                    let reason = projection.dependencies.iter().find_map(|dependency| {
+                        dependency.declined.iter().find_map(|declined| {
+                            (crate::projection::namespace_for_rust_path(
+                                dependency,
+                                &declined.rust_path,
+                            ) == import.target
+                                && declined.rust_path.rsplit("::").next()
+                                    == Some(import.object.as_str()))
+                            .then_some(declined.reason.as_str())
+                        })
+                    });
+                    let message = reason.map_or_else(
+                        || {
+                            format!(
+                                "Rust dependency projection has no member `{}` in `{}`",
+                                import.object, import.target
+                            )
+                        },
+                        |reason| {
+                            format!(
+                                "Rust dependency member `{}` in `{}` is not projected: {reason}",
+                                import.object, import.target
+                            )
+                        },
+                    );
+                    return Err(failure(&import.source, "S2029", message, import.span));
+                }
                 if let Some(removed) = projection
                     .removed
                     .iter()
@@ -5895,6 +5925,8 @@ fn parse_declared_value_type(
             | "decode-error"
             | "index-error"
             | "missing-key"
+            | "dependency-error"
+            | "dependency-panic"
     ) {
         return Some(ValueType::Object(type_name.to_owned()));
     }
@@ -10593,6 +10625,8 @@ fn bootstrap_namespaces() -> BTreeMap<String, Namespace> {
             "decode-error",
             "index-error",
             "missing-key",
+            "dependency-error",
+            "dependency-panic",
         ],
         SymbolKind::ErrorObject,
     );

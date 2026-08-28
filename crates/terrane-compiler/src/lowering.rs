@@ -24,14 +24,15 @@ pub(crate) fn lower(package: &SemanticPackage) -> Program {
     let mut runtime = Vec::new();
     let mut globals = String::new();
     if package_uses_structured_errors(package) || package_uses_task_scope(package) {
-        let has_custom_throwable = package.units.iter().any(|unit| {
-            unit.objects.iter().any(|object| {
-                object
-                    .interfaces
-                    .iter()
-                    .any(|interface| interface == "throwable")
-            })
-        });
+        let has_custom_throwable = !package.projection.dependencies.is_empty()
+            || package.units.iter().any(|unit| {
+                unit.objects.iter().any(|object| {
+                    object
+                        .interfaces
+                        .iter()
+                        .any(|interface| interface == "throwable")
+                })
+            });
         let mut support = String::new();
         emit_error_support(&mut support, has_custom_throwable);
         runtime.push(GeneratedModule {
@@ -362,14 +363,14 @@ fn emit_dependency_unit(package: &SemanticPackage, unit: &SemanticUnit) -> Strin
         if projected.error.is_some() {
             writeln!(
                 output,
-                "    match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {}({arguments}))) {{\n        Ok(Ok(value)) => Ok(value),\n        Ok(Err(error)) => Err(crate::TerraneError::new(crate::TerraneErrorKind::SourceError, format!(\"Rust dependency call failed: {{error}}\"))),\n        Err(_) => Err(crate::TerraneError::new(crate::TerraneErrorKind::SourceError, \"Rust dependency call panicked\")),\n    }}",
+                "    match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {}({arguments}))) {{\n        Ok(Ok(value)) => Ok(value),\n        Ok(Err(error)) => Err(crate::TerraneError::new(crate::TerraneErrorKind::Custom(\"dependency-error\"), format!(\"Rust dependency call failed: {{error}}\"))),\n        Err(_) => Err(crate::TerraneError::new(crate::TerraneErrorKind::Custom(\"dependency-panic\"), \"Rust dependency call panicked\")),\n    }}",
                 item.rust_path
             )
             .expect("writing to a string cannot fail");
         } else {
             writeln!(
                 output,
-                "    match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {}({arguments}))) {{\n        Ok(value) => Ok(value),\n        Err(_) => Err(crate::TerraneError::new(crate::TerraneErrorKind::SourceError, \"Rust dependency call panicked\")),\n    }}",
+                "    match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {}({arguments}))) {{\n        Ok(value) => Ok(value),\n        Err(_) => Err(crate::TerraneError::new(crate::TerraneErrorKind::Custom(\"dependency-panic\"), \"Rust dependency call panicked\")),\n    }}",
                 item.rust_path
             )
             .expect("writing to a string cannot fail");
@@ -4884,11 +4885,11 @@ impl Emitter<'_> {
                     }));
         let call = if foreign_method.is_some_and(|method| method.error.is_some()) {
             format!(
-                "match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {call})) {{ Ok(Ok(value)) => Ok(value), Ok(Err(error)) => Err(crate::TerraneError::new(crate::TerraneErrorKind::SourceError, format!(\"Rust dependency call failed: {{error}}\"))), Err(_) => Err(crate::TerraneError::new(crate::TerraneErrorKind::SourceError, \"Rust dependency call panicked\")) }}"
+                "match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {call})) {{ Ok(Ok(value)) => Ok(value), Ok(Err(error)) => Err(crate::TerraneError::new(crate::TerraneErrorKind::Custom(\"dependency-error\"), format!(\"Rust dependency call failed: {{error}}\"))), Err(_) => Err(crate::TerraneError::new(crate::TerraneErrorKind::Custom(\"dependency-panic\"), \"Rust dependency call panicked\")) }}"
             )
         } else if foreign_method.is_some() {
             format!(
-                "match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {call})) {{ Ok(value) => Ok(value), Err(_) => Err(crate::TerraneError::new(crate::TerraneErrorKind::SourceError, \"Rust dependency call panicked\")) }}"
+                "match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {call})) {{ Ok(value) => Ok(value), Err(_) => Err(crate::TerraneError::new(crate::TerraneErrorKind::Custom(\"dependency-panic\"), \"Rust dependency call panicked\")) }}"
             )
         } else {
             call
@@ -6403,6 +6404,8 @@ fn rust_error_kind(kind: &str) -> String {
         "decode-error" => "DecodeError".to_owned(),
         "index-error" => "IndexError".to_owned(),
         "missing-key" => "MissingKey".to_owned(),
+        "dependency-error" => "Custom(\"dependency-error\")".to_owned(),
+        "dependency-panic" => "Custom(\"dependency-panic\")".to_owned(),
         "resource-error" => "ResourceError".to_owned(),
         "error" | "throwable" => "SourceError".to_owned(),
         custom => format!("Custom({custom:?})"),
@@ -6419,6 +6422,8 @@ fn error_message(kind: &str) -> &'static str {
         "decode-error" => "invalid byte sequence for selected encoding",
         "index-error" => "collection index is out of range",
         "missing-key" => "collection key is absent",
+        "dependency-error" => "Rust dependency returned an error",
+        "dependency-panic" => "Rust dependency panicked",
         "resource-error" => "integer shift count cannot be represented on this target",
         _ => "source error",
     }

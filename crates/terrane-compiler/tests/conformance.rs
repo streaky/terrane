@@ -68,6 +68,39 @@ impl Drop for ConformanceBuild {
     }
 }
 
+fn copy_package_fixture(source: &Path, destination: &Path) {
+    fs::create_dir_all(destination).unwrap();
+    for entry in fs::read_dir(source).unwrap() {
+        let entry = entry.unwrap();
+        let name = entry.file_name();
+        if name == ".trn" || name == "case.toml" || name == "lower.rs" {
+            continue;
+        }
+        let source_path = entry.path();
+        let destination_path = destination.join(name);
+        if source_path.is_dir() {
+            copy_package_fixture(&source_path, &destination_path);
+        } else {
+            fs::copy(source_path, destination_path).unwrap();
+        }
+    }
+}
+
+fn case_source_path(build: &ConformanceBuild, case: &Path, entrypoint: &str) -> PathBuf {
+    if entrypoint != terrane_compiler::MANIFEST_FILE_NAME {
+        return case.join(entrypoint);
+    }
+    let staged = build.root.join("package-input").join(
+        case.file_name()
+            .expect("conformance case directory must have a name"),
+    );
+    if staged.exists() {
+        fs::remove_dir_all(&staged).unwrap();
+    }
+    copy_package_fixture(case, &staged);
+    staged.join(entrypoint)
+}
+
 #[test]
 fn every_manifest_drives_a_conformance_case() {
     let manifests = manifests_below(&corpus());
@@ -79,8 +112,8 @@ fn every_manifest_drives_a_conformance_case() {
         let phase = field(&manifest, "phase").unwrap();
         let status = field(&manifest, "status").unwrap();
         let entrypoint = field(&manifest, "entrypoint").unwrap_or("case.trn");
-        let source_path = case.join(entrypoint);
         let package_case = entrypoint == terrane_compiler::MANIFEST_FILE_NAME;
+        let source_path = case_source_path(&build, case, entrypoint);
         let options = terrane_compiler::CompilerOptions {
             require_canonical_rust: boolean_field(&manifest, "canonical-rust").unwrap_or(false),
             lint_name_style: false,

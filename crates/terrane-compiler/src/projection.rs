@@ -178,10 +178,7 @@ impl Projection {
                             && rust_prefix(namespace)
                                 .is_some_and(|prefix| item.rust_path.starts_with(&prefix)))
                 }) {
-                    for method in methods
-                        .iter()
-                        .filter(|method| projected_source_signature_supported(method))
-                    {
+                    for method in methods {
                         render_function(&mut text, method, false, 4);
                     }
                 }
@@ -382,22 +379,6 @@ fn foreign_type_name(ty: &ProjectedType) -> Option<&str> {
     }
 }
 
-fn projected_source_signature_supported(function: &ProjectedFunction) -> bool {
-    function
-        .parameters
-        .iter()
-        .map(|parameter| &parameter.ty)
-        .chain(std::iter::once(&function.result))
-        .all(projected_source_type_supported)
-}
-
-fn projected_source_type_supported(ty: &ProjectedType) -> bool {
-    !matches!(
-        ty,
-        ProjectedType::Optional(inner) if matches!(inner.as_ref(), ProjectedType::Foreign { .. })
-    )
-}
-
 fn render_function(output: &mut String, function: &ProjectedFunction, public: bool, indent: usize) {
     let prefix = " ".repeat(indent);
     let visibility = if public { "public " } else { "" };
@@ -455,6 +436,12 @@ pub fn resolve(
             dependencies: Vec::new(),
             containment: sandbox,
             removed: Vec::new(),
+        });
+    }
+    if sandbox == Containment::Unavailable {
+        return Err(ProjectionError {
+            message: "Rust dependency projection requires an available `bwrap` containment tier"
+                .to_owned(),
         });
     }
     let workspace = root.join(".trn/dependencies");
@@ -772,7 +759,7 @@ fn project_rustdoc(
         let projected = if let Some(function) = inner.get("function") {
             project_function(function, index, paths, Some(&name)).map(ProjectedKind::Function)
         } else if let Some(structure) = inner.get("struct") {
-            if has_type_parameters(item) {
+            if has_type_parameters(structure) {
                 Err("type has generic or lifetime parameters".to_owned())
             } else {
                 let (methods, method_declines) = project_methods(structure, index, paths);
@@ -787,7 +774,7 @@ fn project_rustdoc(
                 Ok(ProjectedKind::ForeignType { methods })
             }
         } else if let Some(enumeration) = inner.get("enum") {
-            if has_type_parameters(item) {
+            if has_type_parameters(enumeration) {
                 Err("type has generic or lifetime parameters".to_owned())
             } else {
                 let data_carrying = enumeration["variants"].as_array().is_some_and(|variants| {
@@ -849,10 +836,10 @@ fn project_methods(
     index: &serde_json::Map<String, Value>,
     paths: &serde_json::Map<String, Value>,
 ) -> (Vec<ProjectedFunction>, Vec<(String, String)>) {
-    let mut methods = Vec::new();
+    let mut candidates = Vec::new();
     let mut declined = Vec::new();
     let Some(impls) = structure["impls"].as_array() else {
-        return (methods, declined);
+        return (Vec::new(), declined);
     };
     for impl_id in impls {
         let Some(implementation) = value_id(impl_id)
@@ -864,6 +851,7 @@ fn project_methods(
         if implementation["is_negative"].as_bool() == Some(true) {
             continue;
         }
+        let inherent = implementation["trait"].is_null();
         let Some(method_ids) = implementation["items"].as_array() else {
             continue;
         };
@@ -877,6 +865,14 @@ fn project_methods(
             let Some(name) = item["name"].as_str() else {
                 continue;
             };
+            if !inherent {
+                declined.push((
+                    name.to_owned(),
+                    "trait method projection is deferred until receiver-first trait namespaces are implemented"
+                        .to_owned(),
+                ));
+                continue;
+            }
             let Some(function) = item["inner"].get("function") else {
                 declined.push((
                     name.to_owned(),
@@ -885,11 +881,45 @@ fn project_methods(
                 continue;
             };
             match project_function(function, index, paths, Some(name)) {
-                Ok(method) => methods.push(method),
+                Ok(method) => candidates.push((inherent, method)),
                 Err(reason) => declined.push((name.to_owned(), reason)),
             }
         }
     }
+    let mut methods = Vec::new();
+    while let Some((inherent, method)) = candidates.pop() {
+        let mut matching = vec![(inherent, method)];
+        let name = matching[0].1.name.clone();
+        let mut index = 0;
+        while index < candidates.len() {
+            if candidates[index].1.name == name {
+                matching.push(candidates.swap_remove(index));
+            } else {
+                index += 1;
+            }
+        }
+        if matching.len() == 1 {
+            methods.push(matching.pop().expect("one matching method").1);
+            continue;
+        }
+        if let Some(position) = matching.iter().position(|(inherent, _)| *inherent) {
+            methods.push(matching.swap_remove(position).1);
+            declined.extend(matching.into_iter().map(|(_, method)| {
+                (
+                    method.name,
+                    "trait method collides with an inherent method of the same name".to_owned(),
+                )
+            }));
+        } else {
+            declined.extend(matching.into_iter().map(|(_, method)| {
+                (
+                    method.name,
+                    "multiple projected traits provide a method of the same name".to_owned(),
+                )
+            }));
+        }
+    }
+    methods.sort_by(|left, right| left.name.cmp(&right.name));
     (methods, declined)
 }
 
@@ -956,6 +986,16 @@ fn project_function(
             project_type(output, paths, &generic_types)?
         }
     };
+    if parameters
+        .iter()
+        .any(|parameter| matches!(parameter.ty, ProjectedType::Optional(_)))
+        || matches!(result, ProjectedType::Optional(_))
+    {
+        return Err(
+            "Option projection is deferred until general `T|none` semantic types are implemented"
+                .to_owned(),
+        );
+    }
     Ok(ProjectedFunction {
         name: method_name.unwrap_or_default().to_owned(),
         parameters,
@@ -1160,18 +1200,30 @@ fn safe_parameter_name(name: &str) -> String {
     if matches!(
         name,
         "as" | "await"
+            | "case"
+            | "catch"
             | "class"
             | "else"
+            | "finally"
             | "for"
             | "function"
+            | "goto"
             | "if"
             | "import"
             | "is"
+            | "label"
+            | "linear"
+            | "match"
             | "move"
             | "namespace"
             | "ref"
             | "return"
+            | "rust"
             | "throw"
+            | "unsafe"
+            | "use"
+            | "when"
+            | "yield"
     ) {
         format!("{name}_")
     } else {

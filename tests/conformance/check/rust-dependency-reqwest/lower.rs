@@ -11,6 +11,7 @@ enum TerraneErrorKind {
     MissingKey,
     ResourceError,
     SourceError,
+    Custom(&'static str),
 }
 impl TerraneErrorKind {
     fn from_source_name(name: &str) -> Self {
@@ -39,6 +40,7 @@ impl TerraneErrorKind {
             Self::MissingKey => ".missing-key",
             Self::ResourceError => ".resource-error",
             Self::SourceError => ".error",
+            Self::Custom(name) => name,
         }
     }
 }
@@ -144,7 +146,7 @@ fn main() {
         Ok(Err(error)) => {
             Err(
                 crate::TerraneError::new(
-                    crate::TerraneErrorKind::SourceError,
+                    crate::TerraneErrorKind::Custom("dependency-error"),
                     format!("Rust dependency call failed: {error}"),
                 ),
             )
@@ -152,7 +154,7 @@ fn main() {
         Err(_) => {
             Err(
                 crate::TerraneError::new(
-                    crate::TerraneErrorKind::SourceError,
+                    crate::TerraneErrorKind::Custom("dependency-panic"),
                     "Rust dependency call panicked",
                 ),
             )
@@ -174,7 +176,7 @@ pub fn get(url: String) -> Result<Response, crate::TerraneError> {
         Ok(Err(error)) => {
             Err(
                 crate::TerraneError::new(
-                    crate::TerraneErrorKind::SourceError,
+                    crate::TerraneErrorKind::Custom("dependency-error"),
                     format!("Rust dependency call failed: {error}"),
                 ),
             )
@@ -182,7 +184,7 @@ pub fn get(url: String) -> Result<Response, crate::TerraneError> {
         Err(_) => {
             Err(
                 crate::TerraneError::new(
-                    crate::TerraneErrorKind::SourceError,
+                    crate::TerraneErrorKind::Custom("dependency-panic"),
                     "Rust dependency call panicked",
                 ),
             )
