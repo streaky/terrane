@@ -258,7 +258,7 @@ fn main() {
             PlatformString::terrane_construct(String::from("text:--output"))
         ],
     );
-    let parsed: CommandLine = parse_command_line(schema.clone(), supplied.clone());
+    let parsed: CommandLine = parse_command_line(schema, supplied);
     println!(
         "{}{}{}",
         terrane_scalar_support::scalar_text(&terrane_int_support::Int::from(parsed.flags
@@ -466,7 +466,7 @@ pub fn environment() -> terrane_collection_support::List<EnvironmentEntry> {
                         .at("/standard/process::environment (process.trn:43:34)"),
                 )),
         );
-        values.append(EnvironmentEntry::terrane_construct(name.clone(), value.clone()));
+        values.append(EnvironmentEntry::terrane_construct(name, value));
         index = index.clone() + terrane_int_support::Int::from(2_i128);
     }
     return values.clone();

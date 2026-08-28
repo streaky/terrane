@@ -1,0 +1,37 @@
+namespace standard/uuid
+
+from /core/types import bool, string, bytes, int
+from /core/platform-capabilities import platform-capability
+from /core/platform-capabilities import uuid-parse, uuid-v4, uuid-v7
+from /core/platform-capabilities import result-failed, result-message, result-text, result-bytes
+from /standard/random import secure-random
+
+class uuid
+    string string = ''
+    bytes bytes = b''
+
+    function construct; text string, data bytes
+        this.string = text
+        this.bytes = data
+
+class uuid-result
+    failed bool = false
+    message string = ''
+    value uuid = uuid; '', b''
+
+    function construct; failed bool, message string, identifier uuid
+        this.failed = failed
+        this.message = message
+        this.value = identifier
+
+function parse-uuid uuid-result; text string
+    raw = uuid-parse; text
+    return uuid-result; (result-failed; raw), (result-message; raw), (uuid; (result-text; raw), (result-bytes; raw))
+
+function random-uuid uuid-result; source secure-random
+    raw = uuid-v4; source.handle
+    return uuid-result; (result-failed; raw), (result-message; raw), (uuid; (result-text; raw), (result-bytes; raw))
+
+function time-uuid uuid-result; source secure-random, unix-milliseconds int
+    raw = uuid-v7; source.handle, unix-milliseconds
+    return uuid-result; (result-failed; raw), (result-message; raw), (uuid; (result-text; raw), (result-bytes; raw))

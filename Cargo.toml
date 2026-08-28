@@ -9,6 +9,7 @@ members = [
     "crates/terrane-string-support",
     "crates/terrane-document-support",
     "crates/terrane-stream-abi",
+    "crates/terrane-platform-support",
 ]
 resolver = "2"
 

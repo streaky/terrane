@@ -45,6 +45,36 @@ const SOURCES: &[BundledSource] = &[
         path: "standard/urls.trn",
         text: include_str!("standard/urls.trn"),
     },
+    BundledSource {
+        namespace: "/standard/random",
+        path: "standard/random.trn",
+        text: include_str!("standard/random.trn"),
+    },
+    BundledSource {
+        namespace: "/standard/codecs",
+        path: "standard/codecs.trn",
+        text: include_str!("standard/codecs.trn"),
+    },
+    BundledSource {
+        namespace: "/standard/compression",
+        path: "standard/compression.trn",
+        text: include_str!("standard/compression.trn"),
+    },
+    BundledSource {
+        namespace: "/standard/uuid",
+        path: "standard/uuid.trn",
+        text: include_str!("standard/uuid.trn"),
+    },
+    BundledSource {
+        namespace: "/standard/networking",
+        path: "standard/networking.trn",
+        text: include_str!("standard/networking.trn"),
+    },
+    BundledSource {
+        namespace: "/standard/tls",
+        path: "standard/tls.trn",
+        text: include_str!("standard/tls.trn"),
+    },
 ];
 
 pub(crate) fn source(namespace: &str) -> Option<&'static BundledSource> {

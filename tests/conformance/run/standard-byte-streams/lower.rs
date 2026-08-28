@@ -366,7 +366,7 @@ fn main() {
         false,
         String::from(""),
     );
-    let resumed: WriteResult = writer.resume(partial.clone());
+    let resumed: WriteResult = writer.resume(partial);
     if prefix.completed.clone() != terrane_int_support::Int::from(1_i128)
         || resumed.completed.clone() != terrane_int_support::Int::from(3_i128)
     {

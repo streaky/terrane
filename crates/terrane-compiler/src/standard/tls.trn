@@ -1,0 +1,58 @@
+namespace standard/tls
+
+from /core/types import int, bool, string, bytes
+from /core/platform-capabilities import platform-resource-handle, no-resource
+from /core/platform-capabilities import tls-client as platform-client, tls-read, tls-write, tls-shutdown, close as platform-close
+from /core/platform-capabilities import result-failed, result-deadline-exceeded, result-message, result-text, result-bytes, result-int, result-bool, result-resource
+from /standard/networking import tcp-stream, operation-options, operation-result, io-result, host-name, operation-cancellation
+
+class tls-stream
+    handle platform-resource-handle
+    negotiated-version string = ''
+
+    function construct; resource platform-resource-handle
+        this.handle = resource
+
+    function read io-result; limit int, options operation-options
+        cancellation = operation-cancellation; options
+        raw = tls-read; this.handle, limit, options.deadline-ms, cancellation
+        return io-result; (result-failed; raw), false, (result-deadline-exceeded; raw), (result-message; raw), (result-bytes; raw), (result-int; raw), '', (result-bool; raw)
+
+    function write io-result; data bytes, options operation-options
+        cancellation = operation-cancellation; options
+        raw = tls-write; this.handle, data, options.deadline-ms, cancellation
+        return io-result; (result-failed; raw), false, (result-deadline-exceeded; raw), (result-message; raw), b'', (result-int; raw), '', false
+
+    function close operation-result;
+        raw = platform-close; this.handle
+        return operation-result; (result-failed; raw), (result-deadline-exceeded; raw), (result-message; raw)
+
+    function shutdown operation-result; options operation-options
+        cancellation = operation-cancellation; options
+        raw = tls-shutdown; this.handle, options.deadline-ms, cancellation
+        return operation-result; (result-failed; raw), (result-deadline-exceeded; raw), (result-message; raw)
+
+    function destruct;
+        platform-close; this.handle
+
+class tls-result
+    failed bool = false
+    deadline-exceeded bool = false
+    message string = ''
+    value tls-stream = tls-stream; (no-resource;)
+
+    function construct; failed bool, deadline-exceeded bool, message string, stream tls-stream
+        this.failed = failed
+        this.deadline-exceeded = deadline-exceeded
+        this.message = message
+        this.value = stream
+
+# Certificate-chain and hostname validation are unconditional on this ordinary connector.
+# An insecure connector is intentionally absent; it can only live in a separately imported unsafe package.
+function connect-tls tls-result; stream tcp-stream, server-name host-name, options operation-options
+    cancellation = operation-cancellation; options
+    raw = platform-client; stream.handle, server-name.value, options.deadline-ms, cancellation
+    value = tls-stream; (result-resource; raw)
+    if not (result-failed; raw)
+        value.negotiated-version = result-text; raw
+    return tls-result; (result-failed; raw), (result-deadline-exceeded; raw), (result-message; raw), value

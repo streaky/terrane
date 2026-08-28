@@ -207,7 +207,7 @@ fn terrane_process_exit(code: terrane_int_support::Int) {
 // Namespace: conformance/process-exit
 fn main() {
     let status: ExitStatus = make_exit_status(terrane_int_support::Int::from(7_i128));
-    exit(status.clone());
+    exit(status);
 }
 // Source: standard/process.trn
 // Namespace: standard/process
@@ -347,7 +347,7 @@ pub fn environment() -> terrane_collection_support::List<EnvironmentEntry> {
                         .at("/standard/process::environment (process.trn:43:34)"),
                 )),
         );
-        values.append(EnvironmentEntry::terrane_construct(name.clone(), value.clone()));
+        values.append(EnvironmentEntry::terrane_construct(name, value));
         index = index.clone() + terrane_int_support::Int::from(2_i128);
     }
     return values.clone();

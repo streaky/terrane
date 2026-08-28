@@ -1449,9 +1449,23 @@ Deliver:
 - SHA-256 and SHA-512 digests and HMAC, with secret buffers, best-effort zeroisation, and constant-time digest comparison;
 - strict hex and distinct standard and URL-safe base64 codecs with explicit padding policy;
 - UUID parsing plus v4 and v7 generation;
-- `gzip`, `zlib`, `deflate-raw`, and `zstd` codecs with no auto-detect default, deterministic mode, and mandatory output, ratio, nesting, and work limits on decompression.
+- `gzip`, `zlib`, `deflate-raw`, and `zstd` codecs with no auto-detect default, deterministic mode, and mandatory output, ratio, and work limits on decompression.
 
 Exit criterion: a pseudo-random source cannot satisfy a secure-random parameter; a decompression bomb is refused with a distinct resource-limit error rather than truncated success.
+
+Implemented on `randomness-networking-tls`. Import-driven bundled Terrane packages retain the
+public random-source, explicitly selected pseudo-random algorithm, secret-buffer, distinct digest
+and signature values, codec, UUID, and compression policy until application lowering. Secret
+buffers support explicit destruction as well as best-effort zeroisation on final release. One
+generated support crate supplies only operating-system entropy, opaque capability storage,
+constant-time/zeroising primitives, and audited codec/compression implementations. Accepted
+execution covers deterministic ChaCha20 generation and splitting, secure and bounded generation,
+SHA-256 and SHA-512 digests and HMAC, destroyed-key and unsupported-algorithm failures, strict codec
+padding policies, UUID parsing and v4/v7 generation, all four compression formats, explicit
+single-layer decompression, and distinct limit refusal. Rejected cases prove that pseudo-random values cannot
+satisfy secure-random parameters and that the private host intrinsic namespace cannot be imported
+directly.
+
 
 ### Milestone 24 — Networking and TLS
 
@@ -1468,7 +1482,100 @@ Deliver:
 
 Exit criterion: a loopback client and server exchange data under a deadline; certificate validation cannot be disabled through an ordinary option; a truncated datagram is reported rather than silently shortened.
 
-### Milestone 25 — Structured logging
+Implemented on `randomness-networking-tls`. Bundled Terrane packages own validated address and host
+values, typed socket options, shared cancellation tokens, positive per-operation deadlines, and
+structured results. Generated host support owns only DNS and socket/TLS resources crossing the OS
+and audited-protocol boundaries. TCP host connection races ordered DNS candidates concurrently; DNS
+returns candidates in a deterministic address sort rather than resolver preference order, includes
+TTL, and is itself deadline- and cancellation-aware. TCP, UDP, DNS, and TLS operations carry the
+same observable cancellation capability and deadline contract; the distinct resource-owning TCP
+and TLS stream types expose the same read/write/close method shape, and UDP receive results preserve
+truncation. TLS consumes the TCP resource during upgrade, applies each operation's deadline, uses
+the bundled Mozilla root set, validates certificate chains and host names, negotiates TLS 1.3 or
+supported TLS 1.2, sends close-notify on explicit shutdown, and exposes no ordinary option for
+disabling validation. Host-boundary tests exercise deadline-bounded loopback TCP exchange,
+concurrent accepts without listener-lock serialization, UDP truncation, deterministic DNS candidate
+ordering and TTL projection, trusted local TLS 1.3 and TLS 1.2 negotiation, close-notify, and local
+untrusted-certificate validation failure. Accepted Terrane cases exercise address and host parsing,
+cancellation, socket options, loopback TCP and UDP exchange, and resource-producing factories.
+
+### Milestone 25 — Rust dependencies, projection, and editor integration
+
+Design detail, rationale, and the full action list are in `docs/rust-deps.md`; this milestone is
+its delivery contract. Terrane lowers to Rust, so generated code calling a dependency is Rust calling
+Rust inside one crate. There is no adapter layer and no marshalling: the boundary is exactly the set
+of places where a guarantee Terrane makes does not hold on the crate's side.
+
+Nothing in this milestone may be crate-specific. `reqwest` is the proving case, not the target.
+
+Deliver:
+
+- the governing dependency principle, which this milestone implements for Rust and later milestones
+  specialise elsewhere: declarations name ecosystems and packages rather than APIs, the build
+  generates only the machinery Terrane source actually crosses, and the surface offered to editors is
+  derived from the resolved package rather than owned by the compiler;
+- **manifest-only declaration.** The project manifest carries crate, version, features, default-feature
+  policy, and target conditions. There is no source-level dependency declaration; `/dependencies` is a
+  reserved root namespace segment, and a `from /dependencies/...` import naming an undeclared crate is
+  a Terrane diagnostic;
+- **the projector**, one artifact computed from the lock-resolved package, features, target, and
+  rustdoc JSON, consumed by both the compiler and the language server so hints and lowering cannot
+  disagree: module paths to namespaces, verbatim third-party names, `async fn` to async, bound-driven
+  monomorphisation where a bound has a closed impl set, inherent methods as members, trait methods
+  into the trait's own namespace as receiver-first functions, data-free and data-carrying enums as
+  opaque values, and a recorded reason for every item it declines to project;
+- **boundary lowering.** A general foreign value type keyed by crate and Rust path, replacing the
+  per-support-crate platform value types; generated shims for crossed members only; `Result<T, E>` as a
+  return of `T` under a `throws` contract naming the projected error class, and `Option<T>` as
+  `T|none`; receivers projected faithfully, with `&self` borrowing, `&mut self` as `ref`, and `self`
+  requiring `move` under the existing foreign-resource rule; panic contained at the crossing and
+  converted to `dependency-panic` on unwinding profiles, and not contained on aborting profiles;
+- **diagnostics in Terrane terms** for moves, drops, `Send`/`Sync` at task boundaries, and escaping
+  borrows, per the existing translation contract; and a diagnostic naming the member and version
+  change when a lock bump removes a projected member, rather than a rustc error against generated
+  source;
+- **capability and containment.** The manifest declaration is the grant, transitively, with the build
+  report identifying what executed; a profile forbidding an effect rejects the dependency at manifest
+  resolution rather than at a call site. Builds fetch online and then compile `--offline --frozen`
+  with the filesystem scoped to project, cargo home, and target, and no process execution outside the
+  toolchain, with an allowlist tier for crates needing system discovery. Containment is at the cargo
+  invocation, since proc macros expand inside rustc, and a platform that cannot enforce it says so.
+  The projection pass runs under the same capability and the same policy as a build script;
+- **cache identity** covering manifest, lock checksum, features, default-feature policy, target
+  triple, toolchain version, package source checksums, and sandbox tier, so a build that reached
+  further is not cache-equivalent to one that did not;
+- **the specification amendments this requires**, which are language changes and not editorial: making
+  uppercase and underscore legal identifier characters so verbatim projected names are writable, with
+  kebab-case kept mandatory for compiler-owned and standard-library names and every documentation
+  example and available as an opt-in lint elsewhere; scoping the tooling-execution prohibition to
+  foreign-runtime adapters, since for Rust inspection is compilation; removing the source-level
+  dependency declaration form; adding `dependency-panic` to the standard throwables; and confirming
+  the foreign-resource ownership rule covers Rust values;
+- **language-server integration** rendering the projector's model for completion, signature help, and
+  hover, showing the verbatim Rust path and the recorded reason for declined items, advisory
+  throughout with Cargo and rustc the authority on what compiles.
+
+Exit criterion: a warning-free local loopback `reqwest` build and run, using `default-features = false`
+with explicit `blocking` and `rustls-tls` and a chosen roots variant, called from Terrane through the
+projection with no authored wrapper; **and a second, deliberately dissimilar crate** — synchronous,
+non-network, data-shaped, a different API idiom — projected and called through the same machinery with
+no special casing, since one witness cannot distinguish a general rule from a tuned one. Accepted and
+rejected dependency fixtures, lock and feature mismatch diagnostics, deterministic generated Cargo and
+Rust goldens, and conformance cases for an uppercase identifier, an underscored identifier, and a
+verbatim projected name. External-network tests do not prove the contract.
+
+### Milestone 26 — Remaining concurrency and foreign adapters
+
+Deliver:
+
+- channels, mutexes, read/write locks, atomics, and thread-local objects as library objects over the milestone 19 core;
+- capability profiles for the system and embedded targets;
+- Rust and system adapters with explicit lifetime and error-translation contracts;
+- the first Python runtime contract if it remains in version-one scope.
+
+Exit criterion: each surface enters with a selected target-capability contract, typed objects and explicit operational contracts, deterministic lowering, and compiled and run evidence. No surface is represented as an empty compiler-owned name to make the map look complete.
+
+### Milestone 27 — Structured logging
 
 Written in Terrane over the minimal Rust core, per delivery principle 9. Each layer implemented in Rust states which of the four justifications applies; everything above it is Terrane.
 
@@ -1482,37 +1589,6 @@ Deliver:
 - an in-memory deterministic test sink with logical sequence numbers and controlled timestamps.
 
 Exit criterion: structured fields survive to the sink unflattened, a secret-typed field is redacted by policy, and captured test output is byte-identical across runs.
-
-### Milestone 26 — Rust dependencies, `reqwest`, and editor integration
-
-Deliver:
-
-- the governing dependency principle, which this milestone implements for Rust and later
-  milestones specialise elsewhere: declarations name ecosystems and packages rather than APIs,
-  the build resolves the exact package and generates only the boundary machinery Terrane source
-  actually crosses, and tooling projects an advisory surface that never decides whether a
-  program compiles. No generated adapter layer, no translation of Rust generics into
-  instantiations, and no mapping of Rust traits, lifetimes, or error types into the Terrane
-  model — those stay in Rust and are touched only inside native Rust bodies. A Terrane-visible
-  wrapper is authored deliberately, never produced automatically;
-- `use rust crate-name` adding a locked dependency directly to the generated Cargo graph, with exact version or lock-resolved requirement, feature set, default-feature policy, and target conditions declared in the manifest;
-- build scripts and proc macros executing only under an explicit build capability and sandbox policy, with their outputs part of cache identity;
-- Cargo errors source-mapped to the dependency declaration or native Rust span, without presenting Rust API errors as Terrane member errors;
-- the `reqwest` vertical slice with `default-features = false` and explicit `blocking` and `rustls-tls` features plus a chosen roots variant, calling `reqwest::blocking` from a native Rust body with no Terrane request or error bridge;
-- language-server integration reading Cargo metadata and lock data and delegating Rust semantic intelligence to rust-analyzer, with cache identity covering manifests, locks, features, target, toolchain, and source checksums.
-
-Exit criterion: accepted and rejected dependency fixtures, lock and feature mismatch diagnostics, deterministic generated Cargo and Rust goldens, and a warning-free local loopback `reqwest` build and run. External-network tests do not prove the contract.
-
-### Milestone 27 — Remaining concurrency and foreign adapters
-
-Deliver:
-
-- channels, mutexes, read/write locks, atomics, and thread-local objects as library objects over the milestone 19 core;
-- capability profiles for the system and embedded targets;
-- Rust and system adapters with explicit lifetime and error-translation contracts;
-- the first Python runtime contract if it remains in version-one scope.
-
-Exit criterion: each surface enters with a selected target-capability contract, typed objects and explicit operational contracts, deterministic lowering, and compiled and run evidence. No surface is represented as an empty compiler-owned name to make the map look complete.
 
 ### Milestone 28 — First-version hardening and release gate
 

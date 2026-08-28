@@ -1,0 +1,11 @@
+2001:db8::1
+ipv6
+false
+ipv4
+true
+true
+true
+xn--bcher-kva.example
+true
+true
+operation cancelled

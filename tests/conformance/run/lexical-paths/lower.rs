@@ -141,8 +141,8 @@ fn main() {
     );
     let base: Path = Path::terrane_construct(String::from("work/root"));
     let child: Path = Path::terrane_construct(String::from("../next"));
-    let relative_normal: Path = normalise_path(relative.clone());
-    let rooted_normal: Path = normalise_path(rooted.clone());
+    let relative_normal: Path = normalise_path(relative);
+    let rooted_normal: Path = normalise_path(rooted);
     let relative_text: String = relative_normal.text.clone();
     let rooted_text: String = rooted_normal.text.clone();
     let rooted_name: String = path_name(rooted_normal.clone());
@@ -156,7 +156,7 @@ fn main() {
     println!("{}", terrane_scalar_support::scalar_text(&rooted_stem));
     println!("{}", terrane_scalar_support::scalar_text(&rooted_extension));
     println!("{}", terrane_scalar_support::scalar_text(&rooted_parent_text));
-    let resolved: Path = join_path(base.clone(), child.clone());
+    let resolved: Path = join_path(base, child);
     let resolved_text: String = resolved.text.clone();
     println!("{}", terrane_scalar_support::scalar_text(&resolved_text));
     let components: terrane_collection_support::List<String> = path_components(
@@ -371,9 +371,7 @@ pub fn normalise_path(subject: Path) -> Path {
 }
 pub fn path_name(subject: Path) -> String {
     let normal: Path = normalise_path(subject.clone());
-    let parts: terrane_collection_support::List<String> = path_components(
-        normal.clone(),
-    );
+    let parts: terrane_collection_support::List<String> = path_components(normal);
     if terrane_int_support::Int::from(terrane_int_support::Int::from(parts.length()))
         == terrane_int_support::Int::from(0_i128)
     {
@@ -595,5 +593,5 @@ pub fn join_path(base: Path, child: Path) -> Path {
         terrane_scalar_support::scalar_text(&child.text)
     );
     let combined: Path = Path::terrane_construct(joined);
-    return normalise_path(combined.clone());
+    return normalise_path(combined);
 }

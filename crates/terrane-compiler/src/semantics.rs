@@ -217,6 +217,9 @@ pub enum ValueType {
     PlatformUnitResult,
     PlatformDataResult,
     PlatformUrlResult,
+    PlatformCapability,
+    PlatformResourceHandle,
+    PlatformResult,
     Object(String),
     Reference(ElementType),
     SharedReference(ElementType),
@@ -366,6 +369,9 @@ impl std::fmt::Display for ValueType {
             Self::PlatformUnitResult => formatter.write_str("platform-unit-result"),
             Self::PlatformDataResult => formatter.write_str("platform-data-result"),
             Self::PlatformUrlResult => formatter.write_str("platform-url-result"),
+            Self::PlatformCapability => formatter.write_str("platform-capability"),
+            Self::PlatformResourceHandle => formatter.write_str("platform-resource-handle"),
+            Self::PlatformResult => formatter.write_str("platform-result"),
             Self::Reference(item) => write!(formatter, "ref {}", item.value_type()),
             Self::SharedReference(item) => write!(formatter, "shared ref {}", item.value_type()),
         }
@@ -861,6 +867,7 @@ pub fn analyze(package: &Package) -> Result<SemanticPackage, SemanticFailure> {
                 | "/core/platform-streams"
                 | "/core/platform-system"
                 | "/core/platform-data"
+                | "/core/platform-capabilities"
         ) || (crate::bundled::source(&unit.namespace).is_some() && !bundled)
         {
             let span = unit
@@ -1740,13 +1747,19 @@ fn imported_object(
 ) -> Result<Symbol, SemanticFailure> {
     if matches!(
         import.target.as_str(),
-        "/core/platform-streams" | "/core/platform-system" | "/core/platform-data"
+        "/core/platform-streams"
+            | "/core/platform-system"
+            | "/core/platform-data"
+            | "/core/platform-capabilities"
     ) && !import.bundled
     {
         let facility = match import.target.as_str() {
             "/core/platform-streams" => "`/standard/streams`",
             "/core/platform-data" => {
                 "`/standard/documents`, `/standard/json`, `/standard/yaml`, or `/standard/urls`"
+            }
+            "/core/platform-capabilities" => {
+                "`/standard/random`, `/standard/codecs`, `/standard/compression`, `/standard/uuid`, `/standard/networking`, or `/standard/tls`"
             }
             _ => "`/standard/filesystem` or `/standard/process`",
         };
@@ -1855,7 +1868,7 @@ fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFailure> {
         resource_objects: &BTreeSet<(u32, usize, usize)>,
     ) -> bool {
         match &unit.typed_bindings[binding].value_type {
-            ValueType::PlatformStreamHandle => true,
+            ValueType::PlatformStreamHandle | ValueType::PlatformResourceHandle => true,
             ValueType::Object(name) => {
                 resolved_object_span(package, unit, unit.typed_bindings[binding].span.start, name)
                     .is_some_and(|span| resource_objects.contains(&span_key(span)))
@@ -2047,7 +2060,7 @@ fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFailure> {
                     continue;
                 };
                 let expects_resource = match expected {
-                    ValueType::PlatformStreamHandle => true,
+                    ValueType::PlatformStreamHandle | ValueType::PlatformResourceHandle => true,
                     ValueType::Object(name) => {
                         resolved_object_span(package, unit, callee.span.start, name)
                             .is_some_and(|span| resource_objects.contains(&span_key(span)))
@@ -2084,7 +2097,9 @@ fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFailure> {
                         .filter(|value_type| {
                             matches!(
                                 value_type,
-                                ValueType::PlatformStreamHandle | ValueType::Object(_)
+                                ValueType::PlatformStreamHandle
+                                    | ValueType::PlatformResourceHandle
+                                    | ValueType::Object(_)
                             )
                         })
                         .and_then(|_| argument.children.last())
@@ -3554,7 +3569,9 @@ fn analyze_object_contracts(
                     && initializer.is_none()
                     && !matches!(
                         value_type,
-                        ValueType::PlatformStreamHandle | ValueType::FilesystemAuthority
+                        ValueType::PlatformStreamHandle
+                            | ValueType::PlatformResourceHandle
+                            | ValueType::FilesystemAuthority
                     )
                 {
                     return Err(failure(
@@ -3575,9 +3592,12 @@ fn analyze_object_contracts(
             }
         }
         let resource_owning = kind == ObjectKind::Class
-            && fields
-                .iter()
-                .any(|field| matches!(field.value_type, ValueType::PlatformStreamHandle));
+            && fields.iter().any(|field| {
+                matches!(
+                    field.value_type,
+                    ValueType::PlatformStreamHandle | ValueType::PlatformResourceHandle
+                )
+            });
         objects.push(ObjectContract {
             name,
             span: node.span,
@@ -3625,7 +3645,7 @@ fn value_type_owns_resource(
     resource_identities: &BTreeSet<String>,
 ) -> bool {
     match value_type {
-        ValueType::PlatformStreamHandle => true,
+        ValueType::PlatformStreamHandle | ValueType::PlatformResourceHandle => true,
         ValueType::Object(name) => package
             .resolve_name_at(unit, span_start, name)
             .is_some_and(|symbol| resource_identities.contains(&symbol.identity)),
@@ -4178,7 +4198,7 @@ fn infer_receiver_consumption(package: &mut SemanticPackage) {
         value_type: &ValueType,
     ) -> bool {
         match value_type {
-            ValueType::PlatformStreamHandle => true,
+            ValueType::PlatformStreamHandle | ValueType::PlatformResourceHandle => true,
             ValueType::Object(name) => resolved_object_span(package, unit, position, name)
                 .and_then(|span| {
                     package
@@ -5738,6 +5758,15 @@ fn declared_value_type_with_visible_objects(
     if type_name == "platform-url-result" {
         return Ok(ValueType::PlatformUrlResult);
     }
+    if type_name == "platform-capability" {
+        return Ok(ValueType::PlatformCapability);
+    }
+    if type_name == "platform-resource-handle" {
+        return Ok(ValueType::PlatformResourceHandle);
+    }
+    if type_name == "platform-result" {
+        return Ok(ValueType::PlatformResult);
+    }
     if type_name == "encoding" {
         return Ok(ValueType::Encoding);
     }
@@ -6558,6 +6587,54 @@ fn infer_value_type(
                         Some(ValueType::PlatformDataResult)
                     }
                     "/core/platform-data::url-parse" => Some(ValueType::PlatformUrlResult),
+                    "/core/platform-capabilities::secure-random"
+                    | "/core/platform-capabilities::cancellation-token"
+                    | "/core/platform-capabilities::pseudo-random"
+                    | "/core/platform-capabilities::secret-buffer"
+                    | "/core/platform-capabilities::result-capability" => {
+                        Some(ValueType::PlatformCapability)
+                    }
+                    "/core/platform-capabilities::result-resource"
+                    | "/core/platform-capabilities::no-resource" => {
+                        Some(ValueType::PlatformResourceHandle)
+                    }
+                    "/core/platform-capabilities::failed-result"
+                    | "/core/platform-capabilities::random-bytes"
+                    | "/core/platform-capabilities::random-bounded"
+                    | "/core/platform-capabilities::random-split"
+                    | "/core/platform-capabilities::digest"
+                    | "/core/platform-capabilities::hmac"
+                    | "/core/platform-capabilities::destroy-secret"
+                    | "/core/platform-capabilities::hex-decode"
+                    | "/core/platform-capabilities::base64-decode"
+                    | "/core/platform-capabilities::uuid-parse"
+                    | "/core/platform-capabilities::uuid-v4"
+                    | "/core/platform-capabilities::uuid-v7"
+                    | "/core/platform-capabilities::compress"
+                    | "/core/platform-capabilities::decompress"
+                    | "/core/platform-capabilities::parse-ip"
+                    | "/core/platform-capabilities::parse-host-name"
+                    | "/core/platform-capabilities::parse-socket"
+                    | "/core/platform-capabilities::parse-socket-text"
+                    | "/core/platform-capabilities::tcp-bind"
+                    | "/core/platform-capabilities::tcp-connect"
+                    | "/core/platform-capabilities::tcp-connect-host"
+                    | "/core/platform-capabilities::tcp-accept"
+                    | "/core/platform-capabilities::tcp-read"
+                    | "/core/platform-capabilities::tcp-write"
+                    | "/core/platform-capabilities::tcp-shutdown"
+                    | "/core/platform-capabilities::tcp-configure"
+                    | "/core/platform-capabilities::udp-bind"
+                    | "/core/platform-capabilities::udp-configure"
+                    | "/core/platform-capabilities::udp-send-to"
+                    | "/core/platform-capabilities::udp-receive-from"
+                    | "/core/platform-capabilities::dns-lookup"
+                    | "/core/platform-capabilities::tls-client"
+                    | "/core/platform-capabilities::tls-read"
+                    | "/core/platform-capabilities::tls-write"
+                    | "/core/platform-capabilities::tls-shutdown"
+                    | "/core/platform-capabilities::cancel"
+                    | "/core/platform-capabilities::close" => Some(ValueType::PlatformResult),
                     "/core/platform-system::filesystem-exists"
                     | "/core/platform-system::filesystem-metadata"
                     | "/core/platform-system::filesystem-realpath"
@@ -6572,7 +6649,13 @@ fn infer_value_type(
                     | "/core/platform-system::result-bool"
                     | "/core/platform-system::platform-value-is-text"
                     | "/core/platform-data::data-failed"
-                    | "/core/platform-data::url-failed" => {
+                    | "/core/platform-data::url-failed"
+                    | "/core/platform-capabilities::constant-time-equal"
+                    | "/core/platform-capabilities::result-failed"
+                    | "/core/platform-capabilities::result-resource-limit"
+                    | "/core/platform-capabilities::result-truncated"
+                    | "/core/platform-capabilities::result-deadline-exceeded"
+                    | "/core/platform-capabilities::result-bool" => {
                         Some(ValueType::Scalar(ScalarType::Bool))
                     }
                     "/core/platform-system::result-message"
@@ -6599,21 +6682,29 @@ fn infer_value_type(
                     | "/core/platform-data::url-query-key"
                     | "/core/platform-data::url-query-value"
                     | "/core/platform-data::url-fragment"
-                    | "/core/platform-data::url-origin" => {
+                    | "/core/platform-data::url-origin"
+                    | "/core/platform-capabilities::hex-encode"
+                    | "/core/platform-capabilities::base64-encode"
+                    | "/core/platform-capabilities::result-message"
+                    | "/core/platform-capabilities::result-text"
+                    | "/core/platform-capabilities::result-detail" => {
                         Some(ValueType::Scalar(ScalarType::String))
                     }
                     "/core/platform-system::result-bytes"
-                    | "/core/platform-system::platform-value-bytes" => {
+                    | "/core/platform-system::platform-value-bytes"
+                    | "/core/platform-capabilities::result-bytes" => {
                         Some(ValueType::Scalar(ScalarType::Bytes))
                     }
                     "/core/platform-system::result-int"
                     | "/core/platform-data::document-exponent"
                     | "/core/platform-data::document-length"
-                    | "/core/platform-data::url-query-length" => {
+                    | "/core/platform-data::url-query-length"
+                    | "/core/platform-capabilities::result-int" => {
                         Some(ValueType::Scalar(ScalarType::Int))
                     }
                     "/core/platform-system::process-arguments"
-                    | "/core/platform-system::environment-entries" => Some(ValueType::StringList),
+                    | "/core/platform-system::environment-entries"
+                    | "/core/platform-capabilities::result-entries" => Some(ValueType::StringList),
                     "/core/platform-system::process-exit" => {
                         Some(ValueType::Scalar(ScalarType::None))
                     }
@@ -10275,6 +10366,76 @@ fn bootstrap_namespaces() -> BTreeMap<String, Namespace> {
                 "url-query-value",
                 "url-fragment",
                 "url-origin",
+            ],
+            SymbolKind::Function,
+        ),
+    );
+    namespaces.insert(
+        "/core/platform-capabilities".to_owned(),
+        namespace_with_objects(
+            "/core/platform-capabilities",
+            [
+                "platform-capability",
+                "platform-resource-handle",
+                "platform-result",
+                "secure-random",
+                "pseudo-random",
+                "secret-buffer",
+                "random-bytes",
+                "random-bounded",
+                "random-split",
+                "digest",
+                "destroy-secret",
+                "hmac",
+                "cancellation-token",
+                "no-resource",
+                "failed-result",
+                "cancel",
+                "constant-time-equal",
+                "hex-encode",
+                "hex-decode",
+                "base64-encode",
+                "base64-decode",
+                "uuid-parse",
+                "uuid-v4",
+                "uuid-v7",
+                "compress",
+                "decompress",
+                "parse-host-name",
+                "parse-ip",
+                "parse-socket",
+                "parse-socket-text",
+                "tcp-bind",
+                "tcp-connect",
+                "tcp-connect-host",
+                "tcp-accept",
+                "tcp-read",
+                "tcp-write",
+                "tcp-configure",
+                "tcp-shutdown",
+                "udp-bind",
+                "udp-configure",
+                "udp-send-to",
+                "udp-receive-from",
+                "dns-lookup",
+                "tls-client",
+                "tls-read",
+                "tls-write",
+                "tls-shutdown",
+                "close",
+                "result-failed",
+                "result-resource-limit",
+                "result-truncated",
+                "result-deadline-exceeded",
+                "result-message",
+                "result-text",
+                "result-detail",
+                "result-bytes",
+                "result-int",
+                "result-bool",
+                "result-entries",
+                "result-capability",
+                "result-resource",
             ],
             SymbolKind::Function,
         ),

@@ -95,6 +95,32 @@ pub(crate) fn lower(package: &SemanticPackage) -> Program {
         .units
         .iter()
         .any(|unit| unit.namespace == "/standard/urls");
+    let uses_random = package
+        .units
+        .iter()
+        .any(|unit| unit.namespace == "/standard/random");
+    let uses_codecs = package
+        .units
+        .iter()
+        .any(|unit| unit.namespace == "/standard/codecs");
+    let uses_compression = package
+        .units
+        .iter()
+        .any(|unit| unit.namespace == "/standard/compression");
+    let uses_uuid = package
+        .units
+        .iter()
+        .any(|unit| unit.namespace == "/standard/uuid");
+    let uses_networking = package
+        .units
+        .iter()
+        .any(|unit| unit.namespace == "/standard/networking");
+    let uses_tls = package
+        .units
+        .iter()
+        .any(|unit| unit.namespace == "/standard/tls");
+    let uses_platform_capabilities =
+        uses_random || uses_codecs || uses_compression || uses_uuid || uses_networking || uses_tls;
     if uses_standard_streams || uses_filesystem {
         let mut items = vec![Item::generated(include_str!("runtime/platform_streams.rs"))];
         if uses_standard_streams {
@@ -141,6 +167,37 @@ pub(crate) fn lower(package: &SemanticPackage) -> Program {
         }
         runtime.push(GeneratedModule {
             name: "platform_data",
+            items,
+        });
+    }
+    if uses_platform_capabilities {
+        let mut items = vec![Item::generated(include_str!(
+            "runtime/platform_capability_base.rs"
+        ))];
+        if uses_random {
+            items.push(Item::generated(include_str!("runtime/platform_random.rs")));
+        }
+        if uses_codecs {
+            items.push(Item::generated(include_str!("runtime/platform_codecs.rs")));
+        }
+        if uses_compression {
+            items.push(Item::generated(include_str!(
+                "runtime/platform_compression.rs"
+            )));
+        }
+        if uses_uuid {
+            items.push(Item::generated(include_str!("runtime/platform_uuid.rs")));
+        }
+        if uses_networking {
+            items.push(Item::generated(include_str!(
+                "runtime/platform_networking.rs"
+            )));
+        }
+        if uses_tls {
+            items.push(Item::generated(include_str!("runtime/platform_tls.rs")));
+        }
+        runtime.push(GeneratedModule {
+            name: "platform_capabilities",
             items,
         });
     }
@@ -925,6 +982,7 @@ impl Emitter<'_> {
                         let value = initializer.map_or_else(
                             || match field.value_type {
                                 ValueType::PlatformStreamHandle
+                                | ValueType::PlatformResourceHandle
                                 | ValueType::FilesystemAuthority => "Default::default()".to_owned(),
                                 _ => "panic!(\"object field was not initialized\")".to_owned(),
                             },
@@ -964,6 +1022,7 @@ impl Emitter<'_> {
                         let value = initializer.map_or_else(
                             || match field.value_type {
                                 ValueType::PlatformStreamHandle
+                                | ValueType::PlatformResourceHandle
                                 | ValueType::FilesystemAuthority => "Default::default()".to_owned(),
                                 _ => "panic!(\"object field was not initialized\")".to_owned(),
                             },
@@ -1605,8 +1664,23 @@ impl Emitter<'_> {
         for capture in &contract.captures {
             let name = rust_name(capture);
             let source = if capture == "this" { "self" } else { &name };
-            write!(captures, "let {name} = {source}.clone(); ")
-                .expect("writing to a String cannot fail");
+            let transfer = self
+                .unit
+                .typed_bindings
+                .iter()
+                .rev()
+                .find(|binding| {
+                    binding.name == *capture
+                        && binding.is_visible_at(self.source.id(), node.span.start)
+                })
+                .is_some_and(|binding| self.value_type_owns_resource(&binding.value_type));
+            if transfer {
+                write!(captures, "let {name} = {source}; ")
+                    .expect("writing to a String cannot fail");
+            } else {
+                write!(captures, "let {name} = {source}.clone(); ")
+                    .expect("writing to a String cannot fail");
+            }
         }
         format!(
             "{{ {captures}std::sync::Arc::new(move |{parameters}| -> {result_type} {{\n{body}{}}}) }}",
@@ -2896,11 +2970,26 @@ impl Emitter<'_> {
             | ValueType::UnorderedMap(_, _)
             | ValueType::UnorderedSet(_)
             | ValueType::Object(_)
-                if node.kind == SyntaxKind::Name =>
+                if node.kind == SyntaxKind::Name && !self.is_only_binding_use(node) =>
             {
                 format!("({}).clone()", self.expression(node))
             }
-            ValueType::Function(parameters, _) if node.kind == SyntaxKind::MemberExpression => {
+            ValueType::List(_)
+            | ValueType::Map(_, _)
+            | ValueType::Set(_)
+            | ValueType::Tuple(_, _)
+            | ValueType::Range
+            | ValueType::Entry(_, _)
+            | ValueType::UnorderedMap(_, _)
+            | ValueType::UnorderedSet(_)
+            | ValueType::Object(_)
+                if node.kind == SyntaxKind::Name =>
+            {
+                self.expression(node)
+            }
+            ValueType::AsyncFunction(parameters, _)
+                if node.kind == SyntaxKind::MemberExpression =>
+            {
                 let [receiver, member] = node.children.as_slice() else {
                     return String::new();
                 };
@@ -2921,9 +3010,42 @@ impl Emitter<'_> {
                     .collect::<Vec<_>>()
                     .join(", ");
                 format!(
-                    "{{ let receiver = {receiver}; std::sync::Arc::new(move |{declarations}| receiver.{}({arguments})) }}",
+                    "{{ let receiver = {receiver}; std::sync::Arc::new(move |{declarations}| -> std::pin::Pin<Box<dyn Future<Output = _>>> {{ let receiver = receiver.clone(); Box::pin(async move {{ receiver.{}({arguments}).await }}) }}) }}",
                     rust_name(self.text(member))
                 )
+            }
+            ValueType::Function(parameters, _) if node.kind == SyntaxKind::MemberExpression => {
+                let [receiver, member] = node.children.as_slice() else {
+                    return String::new();
+                };
+                let callable_field = self.callable_object_field(receiver, self.text(member));
+                let receiver_type = self
+                    .value_type(receiver)
+                    .expect("bound object method receiver must have a static type");
+                let receiver = self.expression_as(receiver, receiver_type);
+                let declarations = parameters
+                    .iter()
+                    .enumerate()
+                    .map(|(index, parameter)| {
+                        format!("argument_{index}: {}", rust_element_type(parameter.clone()))
+                    })
+                    .collect::<Vec<_>>()
+                    .join(", ");
+                let arguments = (0..parameters.len())
+                    .map(|index| format!("argument_{index}"))
+                    .collect::<Vec<_>>()
+                    .join(", ");
+                if callable_field {
+                    format!(
+                        "{{ let receiver = {receiver}; std::sync::Arc::new(move |{declarations}| (receiver.{})({arguments})) }}",
+                        rust_name(self.text(member))
+                    )
+                } else {
+                    format!(
+                        "{{ let receiver = {receiver}; std::sync::Arc::new(move |{declarations}| receiver.{}({arguments})) }}",
+                        rust_name(self.text(member))
+                    )
+                }
             }
             ValueType::Function(_, _) if node.kind == SyntaxKind::Name => {
                 if let Some(contract) = self
@@ -3385,6 +3507,46 @@ impl Emitter<'_> {
         format!("let _ = {};", Self::unwrapped_expression(expression))
     }
 
+    fn is_only_binding_use(&self, node: &SyntaxNode) -> bool {
+        fn count_references(
+            emitter: &Emitter<'_>,
+            node: &SyntaxNode,
+            binding_span: crate::Span,
+            name: &str,
+        ) -> usize {
+            let here = usize::from(
+                node.kind == SyntaxKind::Name
+                    && emitter.text(node).trim() == name
+                    && emitter
+                        .unit
+                        .typed_bindings
+                        .iter()
+                        .rev()
+                        .find(|candidate| {
+                            candidate.name == name
+                                && candidate.is_visible_at(emitter.source.id(), node.span.start)
+                        })
+                        .is_some_and(|candidate| candidate.span == binding_span),
+            );
+            here + node
+                .children
+                .iter()
+                .map(|child| count_references(emitter, child, binding_span, name))
+                .sum::<usize>()
+        }
+        let name = self.text(node).trim();
+        if name == "this" {
+            return false;
+        }
+        let Some(binding) = self.unit.typed_bindings.iter().rev().find(|binding| {
+            binding.name == name && binding.is_visible_at(self.source.id(), node.span.start)
+        }) else {
+            return false;
+        };
+
+        count_references(self, &self.unit.tree.root, binding.span, name) == 1
+    }
+
     fn value_type(&self, node: &SyntaxNode) -> Option<ValueType> {
         if let Some(value_type) = self.unit.inferred_value_type(node) {
             return Some(value_type);
@@ -3824,7 +3986,11 @@ impl Emitter<'_> {
                     let throws = self
                         .contract_for_call(callable)
                         .is_some_and(|contract| contract.throws);
-                    let callable = self.expression(callable);
+                    let callable = if let Some(value_type) = self.value_type(callable) {
+                        self.expression_as(callable, value_type)
+                    } else {
+                        self.expression(callable)
+                    };
                     if throws {
                         format!(
                             "{{ let __terrane_scope = ({receiver}).clone(); let __terrane_cancel = __terrane_scope.clone(); TerraneScopedTask::spawn(move || match __terrane_block_on_cancellable(({callable})(), move || __terrane_cancel.should_cancel()) {{ Some(Ok(value)) => TerraneTaskResult::Completed(value), Some(Err(error)) => TerraneTaskResult::Failed(error), None => TerraneTaskResult::Cancelled }}) }}"
@@ -3853,9 +4019,7 @@ impl Emitter<'_> {
                     object.kind == ObjectKind::Class && object.name == self.text(callee)
                 })
         {
-            let construct = effective_object_methods(self.unit, object)
-                .into_iter()
-                .find(|method| method.name == "construct");
+            let construct = self.contract_for_call(callee).cloned();
             let values = arguments
                 .children
                 .iter()
@@ -3863,6 +4027,7 @@ impl Emitter<'_> {
                 .map(|(index, argument)| {
                     let value = argument.children.last().unwrap_or(argument);
                     let destination = construct
+                        .as_ref()
                         .and_then(|contract| contract.parameters.get(index))
                         .and_then(|parameter| parameter.value_type.clone());
                     if let Some(ty) = destination {
@@ -4262,6 +4427,137 @@ impl Emitter<'_> {
                 .join(", ");
             return format!("terrane_{function}({values})");
         }
+        let capability_call = [
+            ("secure-random", "platform_secure_random"),
+            ("pseudo-random", "platform_pseudo_random"),
+            ("secret-buffer", "platform_secret_buffer"),
+            ("random-bytes", "platform_random_bytes"),
+            ("random-bounded", "platform_random_bounded"),
+            ("random-split", "platform_random_split"),
+            ("digest", "platform_digest"),
+            ("destroy-secret", "platform_destroy_secret"),
+            ("cancellation-token", "platform_cancellation_token"),
+            ("no-resource", "platform_no_resource"),
+            ("failed-result", "platform_failed_result"),
+            ("cancel", "platform_cancel"),
+            ("hmac", "platform_hmac"),
+            ("constant-time-equal", "platform_constant_time_equal"),
+            ("hex-encode", "platform_hex_encode"),
+            ("hex-decode", "platform_hex_decode"),
+            ("base64-encode", "platform_base64_encode"),
+            ("base64-decode", "platform_base64_decode"),
+            ("uuid-parse", "platform_uuid_parse"),
+            ("uuid-v4", "platform_uuid_v4"),
+            ("uuid-v7", "platform_uuid_v7"),
+            ("compress", "platform_compress"),
+            ("decompress", "platform_decompress"),
+            ("parse-ip", "platform_parse_ip"),
+            ("parse-host-name", "platform_parse_host_name"),
+            ("parse-socket", "platform_parse_socket"),
+            ("parse-socket-text", "platform_parse_socket_text"),
+            ("tcp-bind", "platform_tcp_bind"),
+            ("tcp-connect", "platform_tcp_connect"),
+            ("tcp-connect-host", "platform_tcp_connect_host"),
+            ("tcp-accept", "platform_tcp_accept"),
+            ("tcp-read", "platform_tcp_read"),
+            ("tcp-write", "platform_tcp_write"),
+            ("tcp-shutdown", "platform_tcp_shutdown"),
+            ("tcp-configure", "platform_tcp_configure"),
+            ("udp-bind", "platform_udp_bind"),
+            ("udp-configure", "platform_udp_configure"),
+            ("udp-send-to", "platform_udp_send_to"),
+            ("udp-receive-from", "platform_udp_receive_from"),
+            ("dns-lookup", "platform_dns_lookup"),
+            ("tls-client", "platform_tls_client"),
+            ("tls-read", "platform_tls_read"),
+            ("tls-write", "platform_tls_write"),
+            ("tls-shutdown", "platform_tls_shutdown"),
+            ("close", "platform_close"),
+            ("result-failed", "platform_result_failed"),
+            ("result-resource-limit", "platform_result_resource_limit"),
+            ("result-truncated", "platform_result_truncated"),
+            (
+                "result-deadline-exceeded",
+                "platform_result_deadline_exceeded",
+            ),
+            ("result-message", "platform_result_message"),
+            ("result-text", "platform_result_text"),
+            ("result-detail", "platform_result_detail"),
+            ("result-bytes", "platform_result_bytes"),
+            ("result-int", "platform_result_int"),
+            ("result-bool", "platform_result_bool"),
+            ("result-entries", "platform_result_entries"),
+            ("result-capability", "platform_result_capability"),
+            ("result-resource", "platform_result_capability"),
+        ]
+        .into_iter()
+        .find_map(|(terrane, rust)| {
+            self.is_builtin(callee, &format!("/core/platform-capabilities::{terrane}"))
+                .then_some(rust)
+        });
+        if let Some(function) = capability_call {
+            let values = argument_values
+                .iter()
+                .enumerate()
+                .map(|(index, value)| {
+                    let value = self.expression(value);
+                    let borrowed = matches!(
+                        (function, index),
+                        (
+                            "platform_random_bytes"
+                                | "platform_random_bounded"
+                                | "platform_random_split"
+                                | "platform_uuid_v4"
+                                | "platform_uuid_v7"
+                                | "platform_tcp_accept"
+                                | "platform_tcp_read"
+                                | "platform_tcp_write"
+                                | "platform_tcp_shutdown"
+                                | "platform_tcp_configure"
+                                | "platform_udp_send_to"
+                                | "platform_udp_receive_from"
+                                | "platform_udp_configure"
+                                | "platform_tls_client"
+                                | "platform_tls_read"
+                                | "platform_tls_write"
+                                | "platform_tls_shutdown"
+                                | "platform_close"
+                                | "platform_digest"
+                                | "platform_hmac"
+                                | "platform_parse_socket"
+                                | "platform_cancel"
+                                | "platform_destroy_secret",
+                            0,
+                        ) | ("platform_parse_socket" | "platform_hmac", 1)
+                            | (
+                                "platform_tcp_connect"
+                                    | "platform_tcp_accept"
+                                    | "platform_tls_shutdown",
+                                2
+                            )
+                            | (
+                                "platform_tcp_connect_host"
+                                    | "platform_tcp_read"
+                                    | "platform_tcp_write"
+                                    | "platform_udp_receive_from"
+                                    | "platform_dns_lookup"
+                                    | "platform_tls_client"
+                                    | "platform_tls_read"
+                                    | "platform_tls_write",
+                                3,
+                            )
+                            | ("platform_udp_send_to", 4)
+                    ) || function.starts_with("platform_result_") && index == 0;
+                    if borrowed {
+                        format!("&({value})")
+                    } else {
+                        value
+                    }
+                })
+                .collect::<Vec<_>>()
+                .join(", ");
+            return format!("terrane_{function}({values})");
+        }
         let system_call = [
             (
                 "acquire-filesystem-authority",
@@ -4451,6 +4747,16 @@ impl Emitter<'_> {
             && contract.owner.is_none()
         {
             function_name(contract)
+        } else if contract
+            .as_ref()
+            .is_some_and(|contract| contract.owner.is_some())
+            && let [receiver, member] = callee.children.as_slice()
+        {
+            format!(
+                "({}).{}",
+                self.receiver_expression(receiver),
+                rust_name(self.text(member))
+            )
         } else {
             self.expression(callee)
         };
@@ -4901,7 +5207,7 @@ impl Emitter<'_> {
     fn contract_for_call(&self, callee: &SyntaxNode) -> Option<&FunctionContract> {
         if let [receiver, member] = callee.children.as_slice()
             && callee.kind == SyntaxKind::MemberExpression
-            && let Some(ValueType::Object(object_name)) = self.value_type(receiver)
+            && let Some(ValueType::Object(object_name)) = self.receiver_value_type(receiver)
             && let Some(object) = self
                 .unit
                 .objects
@@ -4919,6 +5225,18 @@ impl Emitter<'_> {
             self.package
                 .resolve_name_at(self.unit, callee.span.start, self.text(callee))?;
         let span = symbol.declaration_span?;
+        if let Some((namespace, object_name)) = symbol.identity.rsplit_once("::")
+            && let Some(unit) = self
+                .package
+                .units
+                .iter()
+                .find(|unit| unit.namespace == namespace)
+            && unit.objects.iter().any(|object| object.name == object_name)
+        {
+            return unit.functions.iter().find(|contract| {
+                contract.owner.as_deref() == Some(object_name) && contract.name == "construct"
+            });
+        }
         self.package
             .units
             .iter()
@@ -5175,6 +5493,30 @@ impl Emitter<'_> {
             })
     }
 
+    fn callable_object_field(&self, receiver: &SyntaxNode, name: &str) -> bool {
+        let Some(ValueType::Object(identity)) = self.receiver_value_type(receiver) else {
+            return false;
+        };
+        self.unit
+            .objects
+            .iter()
+            .find(|object| object.name == identity)
+            .is_some_and(|object| {
+                !self
+                    .package
+                    .units
+                    .iter()
+                    .flat_map(|unit| &unit.functions)
+                    .any(|method| method.owner.is_some() && method.name == name)
+                    && effective_object_fields(self.unit, object)
+                        .iter()
+                        .any(|field| {
+                            field.name == name
+                                && matches!(field.value_type, ValueType::Function(_, _))
+                        })
+            })
+    }
+
     fn wrapped_object_field(&self, receiver: &SyntaxNode, name: &str) -> bool {
         let Some(ValueType::Object(identity)) = self.receiver_value_type(receiver) else {
             return false;
@@ -5192,6 +5534,17 @@ impl Emitter<'_> {
             && effective_object_fields(self.unit, object)
                 .iter()
                 .any(|field| field.name == name)
+    }
+
+    fn value_type_owns_resource(&self, value_type: &ValueType) -> bool {
+        let ValueType::Object(identity) = value_type else {
+            return false;
+        };
+        self.package
+            .units
+            .iter()
+            .flat_map(|unit| &unit.objects)
+            .any(|object| object.name == *identity && object.resource_owning)
     }
 
     fn object_owns_resource(&self, node: &SyntaxNode, name: &str) -> bool {
@@ -5747,7 +6100,7 @@ fn rust_value_type(ty: ValueType) -> String {
         }
         ValueType::TextRangeList => "Vec<terrane_string_support::TextRange>".to_owned(),
         ValueType::Function(parameters, result) => format!(
-            "std::sync::Arc<dyn Fn({}) -> {}>",
+            "std::sync::Arc<dyn Fn({}) -> {} + Send + Sync>",
             parameters
                 .into_iter()
                 .map(rust_element_type)
@@ -5756,7 +6109,7 @@ fn rust_value_type(ty: ValueType) -> String {
             rust_element_type(result)
         ),
         ValueType::AsyncFunction(parameters, result) => format!(
-            "std::sync::Arc<dyn Fn({}) -> std::pin::Pin<Box<dyn Future<Output = {}>>>>",
+            "std::sync::Arc<dyn Fn({}) -> std::pin::Pin<Box<dyn Future<Output = {}>>> + Send + Sync>",
             parameters
                 .into_iter()
                 .map(rust_element_type)
@@ -5787,6 +6140,10 @@ fn rust_value_type(ty: ValueType) -> String {
         ValueType::PlatformDataResult => "terrane_document_support::DataResult".to_owned(),
         ValueType::PlatformUrlResult => "terrane_document_support::UrlResult".to_owned(),
         ValueType::Descriptor(_) => "TerraneDescriptor".to_owned(),
+        ValueType::PlatformCapability | ValueType::PlatformResourceHandle => {
+            "TerranePlatformCapability".to_owned()
+        }
+        ValueType::PlatformResult => "TerranePlatformResult".to_owned(),
         ValueType::Object(name) => rust_object_name(&name),
         ValueType::SharedReference(item) => format!(
             "std::sync::Arc<std::sync::Mutex<{}>>",

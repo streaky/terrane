@@ -568,7 +568,10 @@ fn with_writer(
 }
 
 fn registered_stream(handle: StreamHandle) -> io::Result<Arc<Mutex<StandardStream>>> {
-    registry().get(&handle.0).cloned().ok_or_else(invalid_handle)
+    registry()
+        .get(&handle.0)
+        .cloned()
+        .ok_or_else(invalid_handle)
 }
 
 trait StandardWriter {

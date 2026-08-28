@@ -3,7 +3,7 @@
 // Namespace: closure-semantic-captures
 fn apply(
     callback: std::sync::Arc<
-        dyn Fn(terrane_int_support::Int) -> terrane_int_support::Int,
+        dyn Fn(terrane_int_support::Int) -> terrane_int_support::Int + Send + Sync,
     >,
     value: terrane_int_support::Int,
 ) -> terrane_int_support::Int {
@@ -12,7 +12,7 @@ fn apply(
 fn main() {
     let outer: i64 = 10;
     let callback: std::sync::Arc<
-        dyn Fn(terrane_int_support::Int) -> terrane_int_support::Int,
+        dyn Fn(terrane_int_support::Int) -> terrane_int_support::Int + Send + Sync,
     > = {
         std::sync::Arc::new(move |
             outer: terrane_int_support::Int,

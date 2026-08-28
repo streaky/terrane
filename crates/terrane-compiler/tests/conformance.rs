@@ -37,6 +37,7 @@ terrane-scalar-support = { path = "support/terrane-scalar-support" }
 terrane-string-support = { path = "support/terrane-string-support" }
 terrane-document-support = { path = "support/terrane-document-support" }
 terrane-stream-abi = { path = "support/terrane-stream-abi" }
+terrane-platform-support = { path = "support/terrane-platform-support" }
 
 [workspace]
 "#,
@@ -241,12 +242,14 @@ fn write_support_crates(directory: &Path) {
     let string = directory.join("support/terrane-string-support");
     let document = directory.join("support/terrane-document-support");
     let stream = directory.join("support/terrane-stream-abi");
+    let platform = directory.join("support/terrane-platform-support");
     fs::create_dir_all(int.join("src")).unwrap();
     fs::create_dir_all(collection.join("src")).unwrap();
     fs::create_dir_all(scalar.join("src")).unwrap();
     fs::create_dir_all(string.join("src")).unwrap();
     fs::create_dir_all(document.join("src")).unwrap();
     fs::create_dir_all(stream.join("src")).unwrap();
+    fs::create_dir_all(platform.join("src")).unwrap();
     fs::write(
         int.join("Cargo.toml"),
         "[package]\nname = \"terrane-int-support\"\nversion = \"0.1.0\"\nedition = \"2024\"\n\n[dependencies]\nnum-bigint = { version = \"0.4\", features = [\"std\"] }\nnum-integer = \"0.1\"\nnum-traits = \"0.2\"\n",
@@ -305,6 +308,16 @@ fn write_support_crates(directory: &Path) {
     fs::write(
         stream.join("src/lib.rs"),
         include_bytes!("../../terrane-stream-abi/src/lib.rs"),
+    )
+    .unwrap();
+    fs::write(
+        platform.join("Cargo.toml"),
+        terrane_compiler::platform_support_manifest(),
+    )
+    .unwrap();
+    fs::write(
+        platform.join("src/lib.rs"),
+        include_bytes!("../../terrane-platform-support/src/lib.rs"),
     )
     .unwrap();
 }

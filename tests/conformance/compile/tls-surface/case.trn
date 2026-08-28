@@ -1,0 +1,6 @@
+namespace app
+
+from /standard/tls import tls-stream
+
+function main;
+    return

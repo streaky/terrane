@@ -13,7 +13,9 @@ impl Maker {
     }
     pub fn offset(
         &self,
-    ) -> std::sync::Arc<dyn Fn(terrane_int_support::Int) -> terrane_int_support::Int> {
+    ) -> std::sync::Arc<
+        dyn Fn(terrane_int_support::Int) -> terrane_int_support::Int + Send + Sync,
+    > {
         return {
             let this = self.clone();
             std::sync::Arc::new(move |
@@ -27,7 +29,7 @@ impl Maker {
 fn main() {
     let value: Maker = Maker::terrane_construct();
     let add: std::sync::Arc<
-        dyn Fn(terrane_int_support::Int) -> terrane_int_support::Int,
+        dyn Fn(terrane_int_support::Int) -> terrane_int_support::Int + Send + Sync,
     > = value.offset();
     let result: terrane_int_support::Int = add(terrane_int_support::Int::from(5_i128));
     println!("{}", terrane_scalar_support::scalar_text(&result));

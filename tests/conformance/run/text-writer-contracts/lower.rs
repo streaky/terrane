@@ -333,7 +333,7 @@ fn main() {
         false,
         String::from(""),
     );
-    let resumed: WriteResult = writer.resume(partial.clone());
+    let resumed: WriteResult = writer.resume(partial);
     let line: WriteResult = writer.line(String::from("x"));
     let data_sync: OperationResult = writer.sync_data();
     let all_sync: OperationResult = writer.sync_all();

@@ -1,0 +1,30 @@
+[package]
+name = "terrane-platform-support"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+base64 = "0.22"
+flate2 = "1"
+getrandom = "0.3"
+hickory-resolver = "0.25"
+idna = "1"
+hmac = "0.12"
+rand_chacha = "0.9"
+rand_core = "0.9"
+rustls = { version = "0.23", default-features = false, features = ["aws_lc_rs", "std", "tls12"] }
+sha2 = "0.10"
+subtle = "2"
+tokio = { version = "1", features = ["net", "rt-multi-thread", "time"] }
+uuid = "1"
+webpki-roots = "1"
+zeroize = "1"
+zstd = "0.13"
+
+[dev-dependencies]
+rcgen = "0.14"
+
+[lints]
+workspace = true
