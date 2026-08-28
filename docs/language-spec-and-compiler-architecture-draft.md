@@ -3661,7 +3661,7 @@ Three consequences follow, and they apply uniformly to Rust crates, system libra
 
 **Tooling advises; it does not define.** The language server may read package metadata, rustdoc output, or runtime introspection to offer completion, signature help, hover text, and documentation. That projection is advisory: it never alters compiler output, never invents members, and is never the authority on whether a program compiles. The authority is the ecosystem's own toolchain — Cargo and rustc for Rust, the C compiler and linker for system libraries, the runtime for a hosted language.
 
-Tooling must also not execute arbitrary package code merely to inspect it, and its cache identity must include everything that can change the resolved interface: manifest contents, lock checksum, enabled features, target triple, toolchain version, and source checksums.
+Tooling must not execute arbitrary foreign-runtime package code merely to inspect it. Rust projection is compilation and runs under the same capability and containment policy as a build script. Its cache identity includes everything that can change the resolved interface: manifest contents, lock checksum, enabled features and default-feature policy, target triple, toolchain version, package source checksums, and sandbox tier.
 
 ### 23.2 Four dependency origins
 
@@ -3672,33 +3672,27 @@ The package system supports:
 3. system libraries, ordinarily exposed through C ABI metadata or a wrapper;
 4. foreign-runtime packages hosted through an explicit runtime adapter.
 
-Example manifest/source declarations:
+Rust dependencies are declared only in `package.toml`; dependency declarations do not appear in Terrane source. Resolved dependency objects are imported through the reserved `/dependencies` namespace:
 
 ```terrane
-use image-tools
-use rust serde
-use system libjpeg
-use runtime python
+from /dependencies/serde-json import parse
 ```
 
-A native package is the default dependency kind.
+Native Terrane packages, system libraries, and foreign-runtime packages retain their origin-specific manifest forms.
 
-### 23.3 `use` versus `from ... import`
+### 23.3 Manifest dependencies versus `from ... import`
 
-`use` declares a build dependency.
-
-`from ... import` brings object symbols from an available namespace into source scope.
+The package manifest declares build dependencies. A `from ... import` declaration brings projected objects from an available namespace into source scope; it does not grant or resolve a package.
 
 ```terrane
-use image-tools
-
-from /image/tools import resize
+from /dependencies/image-tools import resize
 ```
 
 The distinction is intentional:
 
 - dependency graph composition is not the same operation as name binding;
-- installing a package must not automatically pollute source names.
+- installing a package must not automatically pollute source names;
+- importing `/dependencies/<crate>/...` without a matching manifest declaration is a source-oriented error.
 
 ### 23.4 Package contents
 
@@ -3773,21 +3767,20 @@ The build report must identify packages that executed code during compilation.
 
 ### 23.8 Rust crates
 
-A Rust crate dependency is declared with:
+A Rust crate dependency is declared in `package.toml` with its package name, version requirement, selected features, default-feature policy, and optional target condition:
 
-```terrane
-use rust crate-name
+```toml
+[rust-dependencies]
+reqwest = { version = "0.12", default-features = false, features = ["blocking", "rustls-tls-webpki-roots"] }
 ```
 
-This adds a locked dependency to the generated Cargo graph. It does not describe the crate, and the compiler does not predefine an API surface for it.
+Resolution and Cargo's lockfile determine the exact package interface. The build runs rustdoc for that resolved graph and produces one projection artifact shared by compiler and language server. Rust module paths become `/dependencies/<manifest-name>/...` namespaces; public names remain verbatim. The projection admits directly representable functions, inherent methods, receiver-first trait functions, opaque foreign types, and data-free or data-carrying enums. It records a reason for every public item it declines.
 
-The resolved package, version, selected features, target, and lockfile determine the native interface available to a given build. Inline Rust and maintained Rust modules use that interface directly, in Rust, with Rust's own types. Cargo and rustc type-check it, and build diagnostics are source-mapped back to the dependency declaration or the native Rust span that produced them.
+The compiler generates Rust shims only for projected members crossed by Terrane source. This is direct Rust-to-Rust calling inside the generated crate, not an adapter or marshalled runtime boundary. `Option<T>` projects as `T|none`. A representable `Result<T, E>` returns `T` and throws the projected error class. `&self`, `&mut self`, and `self` retain borrow, `ref`, and `move` semantics respectively; foreign values follow the ordinary foreign-resource ownership rule. On unwinding profiles, a panic crossing a generated shim becomes `dependency-panic`; aborting profiles do not claim containment.
 
-The compiler does **not** project a crate into high-level Terrane objects. There is no generated adapter layer, no translation of Rust generics into instantiations, and no mapping of Rust traits, lifetimes, or error types into the Terrane model. Those constructs remain in Rust, where they are already well defined, and Terrane source touches them only inside a native Rust body. A projection layer would be a second, weaker copy of Rust's type system that drifts with every crate release, and it would make the compiler responsible for representing constructs the language has no equivalent for.
+Cargo and rustc remain authoritative. Projection and editor information are advisory and derived from the resolved package rather than predefined by Terrane. The language server uses the shared artifact for completion, signature help, hover, exact Rust paths, and declined-item reasons. Projection executes under the build-script capability policy without arbitrary foreign-runtime introspection.
 
-A Terrane-visible wrapper is therefore something an author writes deliberately when they want one, not something the build produces automatically. Writing it is ordinary work: a Rust module that exposes a boundary the Terrane side crosses, with the ownership and error contracts stated at that boundary.
-
-Editor intelligence follows §23.1: the language server reads Cargo metadata and lock data for resolved package, version, feature, and target facts, and delegates Rust semantic questions to rust-analyzer over the exact generated and native module graph. Rustdoc output is a documentation fallback, never a second type checker. Everything it offers is advisory — lowering, Cargo, and rustc remain the authority on what compiles.
+The generated dependency crate graph preserves the manifest's selected features and default-feature policy, compiles offline and frozen after resolution, and records whether containment was enforced. Its cache identity covers the manifest, lock checksum, selected features, target triple, Rust toolchain, package source checksums, and sandbox tier. A lock update that removes a crossed projected member is diagnosed against that member and version change rather than exposed as an unexplained rustc error in generated source.
 
 ### 23.9 System and C libraries
 

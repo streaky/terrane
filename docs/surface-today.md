@@ -685,6 +685,22 @@ catches and `finally` replacement. A postfix `throws T` clause is an optional up
 every escaping throwable must implement `T`. Reflection exposes the declared bound separately from
 the inferred escaping set.
 
+## Projected Rust dependencies
+
+`package.toml` accepts lock-resolved `[rust-dependencies]` entries with version, features,
+default-feature policy, package alias, and target condition. Declared crates are projected from
+rustdoc into reserved `/dependencies/<manifest-name>/...` namespaces. The shared projection records
+verbatim public names, Rust paths, documentation, representable free and inherent methods, receiver
+ownership, opaque foreign types, enums, optional and throwable returns, and a reason for each
+declined public item.
+
+Semantic import resolution and the language server consume that same projection. Lowering emits
+only crossed-member Rust shims and generated Cargo dependencies; calls remain direct Rust calls
+inside one generated crate. Foreign receivers borrow, use `ref`, or require `move` according to
+their Rust receiver. Unwinding dependency panics enter the compiler-owned `dependency-panic`
+throwable path. Completion, signature help, and hover are advisory; Cargo and rustc remain the
+authority.
+
 ## Major planned surface absent today
 
 The authoritative language draft proposes a much larger ontology. None of the following should be inferred from compiler-owned names or Rust support internals as implemented Terrane API:

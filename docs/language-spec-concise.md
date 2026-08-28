@@ -796,7 +796,7 @@ rust_justified_only_if:
   - large externally-audited security-critical implementation
   - data rather than code (Unicode tables, tz database), generated
 rust_layer_rule: a layer claiming to be Rust states WHICH of the four applies
-dependency_path: core libraries use the ordinary §23 mechanism - declaration plus authored wrapper; no privileged path, so they double as worked examples
+dependency_path: core libraries use the ordinary §23 manifest declaration and generated crossed-member projection; no privileged path
 profiles: core libraries declare Rust dependencies explicitly so a profile may exclude them
 consequence_build: package-level artifact caching becomes load-bearing, not an optimisation
 consequence_profile: capabilities become which Terrane packages are present, not which support crates were compiled in
@@ -806,15 +806,18 @@ consequence_profile: capabilities become which Terrane packages are present, not
 
 ```yaml
 rule: declarations name ECOSYSTEMS and PACKAGES, never APIs
-truth: the resolved manifest/lock/features/target/toolchain define the interface; nothing in the language predefines it
-bridging: the build generates boundary machinery ONLY for what Terrane source actually crosses; no wholesale projection
-tooling: LSP projects an ADVISORY surface (cargo metadata, rustdoc, runtime introspection); never compiler-authoritative, never invents members, never alters output
-authority: the ecosystem's own toolchain - cargo/rustc, C compiler/linker, the foreign runtime
-no_execution: tooling must not execute arbitrary package code to inspect it
-cache_identity: manifest contents + lock checksum + features + target triple + toolchain + source checksums
-rust_specialisation: no generated adapter layer, no generic instantiation translation, no trait/lifetime/error mapping; those stay in Rust and are touched only inside native Rust bodies
-rust_wrapper: a Terrane-visible wrapper is authored deliberately, never generated automatically
-foreign_specialisation: 'from python/x import y' names a crossing point, not an API import; adapters define boundary behaviour, not a translation of the ecosystem
+truth: resolved manifest/lock/features/default-features/target/toolchain define the interface; nothing in the language predefines it
+rust_declaration: package.toml [rust-dependencies] only; no source dependency declaration
+rust_import: /dependencies/<manifest-name>/<rust-modules>; undeclared root is S2027
+bridging: generated Rust shims ONLY for projected members source crosses; direct Rust calls in one crate, no marshalling/runtime adapter
+projection: one lock-resolved rustdoc artifact shared by compiler and LSP; verbatim names; module namespaces; functions/methods/trait receiver-functions/opaque types/enums; every decline has a reason
+types: Option<T> => T|none; Result<T,E> => T throws projected-E; &self => borrow; &mut self => ref; self => move
+panic: unwinding profile converts crossing panic to dependency-panic; abort profile claims no containment
+tooling: completion/signature/hover and declined reasons are ADVISORY; Cargo/rustc remain authoritative
+execution: Rust inspection is compilation under build-script capability/containment policy; arbitrary foreign-runtime inspection remains forbidden
+cache_identity: manifest + lock checksum + features/default-feature policy + target + toolchain + package source checksums + sandbox tier
+containment: fetch may be online; compilation is offline/frozen and reports whether enforcement was available
+foreign_specialisation: 'from python/x import y' names a crossing point, not an API import; adapters define boundary behaviour
 ```
 
 ## RUST
