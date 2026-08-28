@@ -1,0 +1,4 @@
+namespace underscored-identifier
+function main;
+    answer_value = 42
+    print; answer_value

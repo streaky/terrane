@@ -1,0 +1,4 @@
+namespace uppercase-identifier
+function main;
+    Answer = 42
+    print; Answer

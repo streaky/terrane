@@ -435,22 +435,20 @@ Python-style triple-string “comments” are deliberately not supported. A stri
 
 ### 6.5 Identifiers
 
-An identifier begins with a letter and ends with a letter or digit. Between those ends it may contain:
+An identifier begins with an ASCII letter or underscore. It may continue with:
 
-- letters and digits;
+- ASCII letters, digits, and underscores;
 - runs of the identifier-joiner glyphs `+`, `-`, `*`, `%`, `<`, and `>`.
 
 `/` is deliberately **not** an identifier joiner. It is the namespace separator, and a character cannot be both without making `namespace foo/bar` ambiguous between one segment and two. Context-sensitive lexing is rejected here because it would contradict the rule below that a compact joiner sequence is always an identifier, permanently. The cost is that a name such as `ipv4/ipv6` must be written `ipv4-ipv6`.
 
-All user-declared names are lowercase: namespaces, functions, classes, interfaces, traits, fields, and bindings. The convention is kebab-case, so `parse-json` rather than `parseJson` or `parseJSON` — which removes the acronym-casing question permanently rather than leaving it to per-project taste.
+Uppercase and underscore are legal because projected dependency names are written verbatim: `ClientBuilder` and `parse_json` must match their Rust documentation. User code may use any case. Kebab-case remains Terrane's naming convention and an opt-in advisory lint with a formatter fixit, off by default; projected dependency names are exempt even when that lint is enabled.
 
-Case carries no semantic load in Terrane, which is what makes this affordable. Go uses case for export, Haskell for constructors, Rust for types against values; Terrane expresses type membership through `is a` and member access through `receiver.member`, so case is free to constrain.
+Compiler-owned names, standard-library names, language-mandated throwable classes, and every documentation example remain kebab-case. This is enforced as a defect in Terrane-owned code rather than as a lexical restriction on user code.
 
-Uppercase parses and is then rejected with a diagnostic naming the lowercase form, plus a formatter fixit. It is never silently folded.
+Namespace segments are unchanged: they remain lowercase ASCII with hyphens because they map to portable directory names. A projected Rust module segment maps `_` to `-`; member and type names remain verbatim. Type parameters retain their established uppercase spelling: `list of T`, `map of K, V`, `iteration-step of Item`.
 
-Type parameters are the one carve-out and remain uppercase: `list of T`, `map of K, V`, `iteration-step of Item`. A type parameter is a different kind of name — it stands in for a thing rather than naming one — is never user-declared in version one, and never forms part of a path.
-
-Identifiers may end in digits: `http2`, `sha256`, and `vector4` are valid. The restriction applies only when a terminal digits-only unit is introduced by an identifier joiner. Compact forms such as `count-1` and `x+4` are lexical errors rather than identifiers or arithmetic. Names such as `http2-client`, `ipv4-ipv6`, and `sha3-256sum` remain valid because each unit after a joiner contains a letter.
+Identifiers may end in digits or underscores: `http2`, `sha256`, `vector4`, and `parse_json_` are valid. The restriction applies only when a terminal digits-only unit is introduced by an identifier joiner. Compact forms such as `count-1` and `x+4` are lexical errors rather than identifiers or arithmetic. Names such as `http2-client`, `ipv4-ipv6`, and `sha3-256sum` remain valid because each unit after a joiner contains a letter.
 
 A compact letter-to-letter joiner sequence is always an identifier, permanently: `total-count`, `page-size`, and `width-height` never mean subtraction without surrounding operator whitespace, even if a same-spelled binding exists. Arithmetic must be written `total - count`. This asymmetry is intentional: kebab-case names require a stable lexical interpretation, while a terminal joiner-plus-digits form is reserved as an error because it is not needed for that naming convention.
 
@@ -463,6 +461,8 @@ http2-client
 foo+bar
 ipv4-ipv6
 input>output
+ClientBuilder
+parse_json
 ```
 
 The rule is lexical and universal for those glyphs: a maximal joiner run directly surrounded on both sides by identifier characters belongs to the identifier only when the following identifier unit contains a letter. A symbolic run cannot begin an identifier. When it begins a token after whitespace, a delimiter, or the start of a line and is immediately followed by an identifier character, it has behavioural/operator meaning rather than becoming part of the following name.

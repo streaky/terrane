@@ -42,20 +42,20 @@ layout: indentation-delimited; NEWLINE/INDENT/DEDENT
 empty_block: legal; no pass/no-op statement
 comments: ['# line', '// line', '/* first terminator closes */']
 identifier_case:
-  rule: all user-declared names are lowercase - namespaces, functions, classes, interfaces, traits, fields, bindings
-  form: kebab-case; 'parse-json' not 'parseJSON', which removes the acronym-casing bikeshed permanently
-  rationale: case carries no semantic load in Terrane - 'is a' expresses type membership and 'receiver.member' expresses access, so case is free to constrain
-  enforcement: uppercase parses, then is rejected with a precise diagnostic and formatter fixit; never silently folded
-  carve_out: type parameters are uppercase ('list of T', 'map of K, V', 'iteration-step of Item') - a different KIND of name, standing in for a thing rather than naming one; never user-declared in v1 and never part of a path
+  legality: uppercase and underscore are legal; user declarations may use any case
+  verbatim_projection: third-party member/type names retain their Rust spelling and are exempt from Terrane naming lint
+  convention: kebab-case remains mandatory for compiler-owned and standard-library names and every documentation example
+  lint: kebab-case is advisory, opt-in, and off by default for user code
+  namespace_segments: unchanged lowercase ASCII with hyphens; Rust module `_` maps to `-`
 charset:
   v1: ASCII only, per the version-one identifier policy
   namespaces: ASCII PERMANENTLY - non-ASCII segments hit the filesystem, where macOS NFD and Linux NFC produce different bytes for one identifier
   post_v1_extension: non-ASCII permitted in non-namespace identifiers only, and only with UAX #31 for the character set, NFC for equality, UTS #39 mixed-script confusable linting, and bidi control characters rejected outright (CVE-2021-42574, Trojan Source)
   ordering: widening an identifier set is backward compatible, narrowing is not; ship ASCII and extend later
 identifier:
-  version_1_characters: ASCII letters and digits only
-  start: ASCII letter
-  continuation: ASCII letters|digits|joiners
+  version_1_characters: ASCII letters, digits, underscore, and normative joiners
+  start: ASCII letter|underscore
+  continuation: ASCII letters|digits|underscore|joiners
   joiners: punctuation admitted by normative grammar
   exact_identity: punctuation retained; no normalization
   examples_valid: [http2, sha256, ipv4-ipv6, foo+bar, sha3-256sum]

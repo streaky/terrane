@@ -1471,41 +1471,8 @@ fn is_reserved_namespace_segment(component: &str) -> bool {
             .is_some_and(|suffix| suffix.len() == 1 && matches!(suffix.as_bytes()[0], b'1'..=b'9'))
 }
 
-fn validate_declared_names(source: &SourceFile, tree: &SyntaxTree) -> Result<(), Diagnostic> {
-    fn visit(source: &SourceFile, node: &SyntaxNode) -> Result<(), Diagnostic> {
-        let declared_children = matches!(
-            node.kind,
-            SyntaxKind::Binding
-                | SyntaxKind::FunctionDeclaration
-                | SyntaxKind::ClassDeclaration
-                | SyntaxKind::InterfaceDeclaration
-                | SyntaxKind::TraitDeclaration
-                | SyntaxKind::Parameter
-                | SyntaxKind::ForTarget
-                | SyntaxKind::ImportAlias
-        );
-        if declared_children {
-            for child in &node.children {
-                if child.kind == SyntaxKind::Name {
-                    let authored = node_text(source, child);
-                    if authored.bytes().any(|byte| byte.is_ascii_uppercase()) {
-                        let replacement = authored.to_ascii_lowercase();
-                        return Err(Diagnostic::error(
-                            "S2018",
-                            format!("declared name `{authored}` must be lowercase"),
-                            child.span,
-                        )
-                        .with_help(format!("use `{replacement}`")));
-                    }
-                }
-            }
-        }
-        for child in &node.children {
-            visit(source, child)?;
-        }
-        Ok(())
-    }
-    visit(source, &tree.root)
+fn validate_declared_names(_source: &SourceFile, _tree: &SyntaxTree) -> Result<(), Diagnostic> {
+    Ok(())
 }
 
 fn collect_unit(
