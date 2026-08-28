@@ -3,6 +3,7 @@ use std::fmt::Write as _;
 use std::fs;
 use std::path::Path;
 use std::process::Command;
+use std::sync::LazyLock;
 
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -467,6 +468,13 @@ fn removed_items(previous: &Projection, current: &[ProjectedDependency]) -> Vec<
     }
     removed
         .sort_by(|left, right| (&left.namespace, &left.name).cmp(&(&right.namespace, &right.name)));
+    removed.dedup_by(|left, right| {
+        left.namespace == right.namespace
+            && left.name == right.name
+            && left.package == right.package
+            && left.previous_version == right.previous_version
+            && left.current_version == right.current_version
+    });
     removed
 }
 
@@ -524,10 +532,17 @@ fn write_dependency_spec(manifest: &mut String, dependency: &RustDependency) {
 }
 
 fn run_cargo(directory: &Path, arguments: &[&str], nightly: bool) -> Result<(), ProjectionError> {
-    let directory = directory
-        .canonicalize()
-        .map_err(io_error("canonicalize dependency projection workspace"))?;
     let sandboxed = nightly && containment() == Containment::Enforced;
+    let canonical_directory = if sandboxed {
+        Some(
+            directory
+                .canonicalize()
+                .map_err(io_error("canonicalize dependency projection workspace"))?,
+        )
+    } else {
+        None
+    };
+    let working_directory = canonical_directory.as_deref().unwrap_or(directory);
     let mut command = if sandboxed {
         let mut command = Command::new("bwrap");
         command.args([
@@ -545,8 +560,8 @@ fn run_cargo(directory: &Path, arguments: &[&str], nightly: bool) -> Result<(), 
             "--bind",
         ]);
         command
-            .arg(&directory)
-            .arg(&directory)
+            .arg(working_directory)
+            .arg(working_directory)
             .arg("--")
             .arg("cargo");
         command
@@ -558,7 +573,7 @@ fn run_cargo(directory: &Path, arguments: &[&str], nightly: bool) -> Result<(), 
     }
     let output = command
         .args(arguments)
-        .current_dir(&directory)
+        .current_dir(working_directory)
         .output()
         .map_err(|error| ProjectionError {
             message: format!("cannot run Cargo dependency projection: {error}"),
@@ -1070,27 +1085,30 @@ fn tool_version(program: &str, arguments: &[&str]) -> Result<String, ProjectionE
 }
 
 fn containment() -> Containment {
-    let available = Command::new("bwrap")
-        .args([
-            "--die-with-parent",
-            "--unshare-all",
-            "--ro-bind",
-            "/",
-            "/",
-            "--dev",
-            "/dev",
-            "--proc",
-            "/proc",
-            "--",
-            "/bin/true",
-        ])
-        .output()
-        .is_ok_and(|output| output.status.success());
-    if available {
-        Containment::Enforced
-    } else {
-        Containment::Unavailable
-    }
+    static CONTAINMENT: LazyLock<Containment> = LazyLock::new(|| {
+        let available = Command::new("bwrap")
+            .args([
+                "--die-with-parent",
+                "--unshare-all",
+                "--ro-bind",
+                "/",
+                "/",
+                "--dev",
+                "/dev",
+                "--proc",
+                "/proc",
+                "--",
+                "/bin/true",
+            ])
+            .output()
+            .is_ok_and(|output| output.status.success());
+        if available {
+            Containment::Enforced
+        } else {
+            Containment::Unavailable
+        }
+    });
+    *CONTAINMENT
 }
 
 fn write_if_changed(path: &Path, content: &[u8]) -> Result<(), ProjectionError> {
