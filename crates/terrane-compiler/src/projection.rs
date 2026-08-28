@@ -1338,3 +1338,21 @@ fn io_error(context: &'static str) -> impl FnOnce(std::io::Error) -> ProjectionE
         message: format!("{context}: {error}"),
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use serde_json::json;
+
+    use super::has_type_parameters;
+
+    #[test]
+    fn type_parameter_guard_reads_destructured_type_descriptors() {
+        for descriptor in [
+            json!({"generics": {"params": [{"name": "T"}]}}),
+            json!({"generics": {"params": [{"lifetime": "'a"}]}}),
+        ] {
+            assert!(has_type_parameters(&descriptor));
+        }
+        assert!(!has_type_parameters(&json!({"generics": {"params": []}})));
+    }
+}
