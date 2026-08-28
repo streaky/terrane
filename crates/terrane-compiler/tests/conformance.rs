@@ -1,3 +1,5 @@
+use std::collections::BTreeSet;
+use std::fmt::Write as _;
 use std::fs;
 use std::io::Write as _;
 use std::path::{Path, PathBuf};
@@ -9,6 +11,7 @@ fn corpus() -> PathBuf {
 
 struct ConformanceBuild {
     root: PathBuf,
+    target: PathBuf,
 }
 
 impl ConformanceBuild {
@@ -19,12 +22,12 @@ impl ConformanceBuild {
         }
         fs::create_dir_all(root.join("src")).unwrap();
         write_support_crates(&root);
-        Self { root }
+        let target = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../target/conformance");
+        Self { root, target }
     }
 
-    fn write_manifest(&self) {
-        fs::write(
-            self.root.join("Cargo.toml"),
+    fn write_manifest(&self, dependencies: &[terrane_compiler::RustDependency]) {
+        let mut manifest = String::from(
             r#"[package]
 name = "terrane_conformance_program"
 version = "0.0.0"
@@ -38,11 +41,30 @@ terrane-string-support = { path = "support/terrane-string-support" }
 terrane-document-support = { path = "support/terrane-document-support" }
 terrane-stream-abi = { path = "support/terrane-stream-abi" }
 terrane-platform-support = { path = "support/terrane-platform-support" }
-
-[workspace]
 "#,
-        )
-        .unwrap();
+        );
+        for dependency in dependencies
+            .iter()
+            .filter(|dependency| dependency.cargo_manifest_table() == "dependencies")
+        {
+            manifest.push_str(&dependency.cargo_dependency_spec());
+        }
+        let target_tables = dependencies
+            .iter()
+            .map(terrane_compiler::RustDependency::cargo_manifest_table)
+            .filter(|table| table != "dependencies")
+            .collect::<BTreeSet<_>>();
+        for table in target_tables {
+            writeln!(manifest, "\n[{table}]").unwrap();
+            for dependency in dependencies
+                .iter()
+                .filter(|dependency| dependency.cargo_manifest_table() == table)
+            {
+                manifest.push_str(&dependency.cargo_dependency_spec());
+            }
+        }
+        manifest.push_str("\n[workspace]\n");
+        fs::write(self.root.join("Cargo.toml"), manifest).unwrap();
     }
 }
 
@@ -50,6 +72,39 @@ impl Drop for ConformanceBuild {
     fn drop(&mut self) {
         let _ = fs::remove_dir_all(&self.root);
     }
+}
+
+fn copy_package_fixture(source: &Path, destination: &Path) {
+    fs::create_dir_all(destination).unwrap();
+    for entry in fs::read_dir(source).unwrap() {
+        let entry = entry.unwrap();
+        let name = entry.file_name();
+        if name == ".trn" || name == "case.toml" || name == "lower.rs" {
+            continue;
+        }
+        let source_path = entry.path();
+        let destination_path = destination.join(name);
+        if source_path.is_dir() {
+            copy_package_fixture(&source_path, &destination_path);
+        } else {
+            fs::copy(source_path, destination_path).unwrap();
+        }
+    }
+}
+
+fn case_source_path(build: &ConformanceBuild, case: &Path, entrypoint: &str) -> PathBuf {
+    if entrypoint != terrane_compiler::MANIFEST_FILE_NAME {
+        return case.join(entrypoint);
+    }
+    let staged = build.root.join("package-input").join(
+        case.file_name()
+            .expect("conformance case directory must have a name"),
+    );
+    if staged.exists() {
+        fs::remove_dir_all(&staged).unwrap();
+    }
+    copy_package_fixture(case, &staged);
+    staged.join(entrypoint)
 }
 
 #[test]
@@ -63,28 +118,29 @@ fn every_manifest_drives_a_conformance_case() {
         let phase = field(&manifest, "phase").unwrap();
         let status = field(&manifest, "status").unwrap();
         let entrypoint = field(&manifest, "entrypoint").unwrap_or("case.trn");
-        let source_path = case.join(entrypoint);
         let package_case = entrypoint == terrane_compiler::MANIFEST_FILE_NAME;
+        let source_path = case_source_path(&build, case, entrypoint);
         let options = terrane_compiler::CompilerOptions {
             require_canonical_rust: boolean_field(&manifest, "canonical-rust").unwrap_or(false),
+            lint_name_style: false,
         };
 
         match (phase, status) {
             ("run" | "check", "accept") => {
                 let expected = fs::read_to_string(case.join("lower.rs")).unwrap();
-                let (compilation, sources) = if package_case {
+                let (compilation, sources, dependencies) = if package_case {
                     let package = terrane_compiler::Package::load(&source_path).unwrap();
                     let compilation =
                         terrane_compiler::compile_package_with_options(&package, options).unwrap();
                     let sources = compilation.sources.clone();
-                    (compilation, sources)
+                    (compilation, sources, package.rust_dependencies)
                 } else {
                     let source = fs::read_to_string(&source_path).unwrap();
                     let compilation =
                         terrane_compiler::compile_with_options(&source_path, source, options)
                             .unwrap();
                     let sources = compilation.sources.clone();
-                    (compilation, sources)
+                    (compilation, sources, Vec::new())
                 };
                 if let Some(warnings_file) = field(&manifest, "warnings") {
                     let expected_warnings = fs::read_to_string(case.join(warnings_file)).unwrap();
@@ -116,7 +172,14 @@ fn every_manifest_drives_a_conformance_case() {
                     .rust
                     .replace(terrane_compiler::VERSION, "<version>");
                 assert_eq!(normalized, expected, "{}", case.display());
-                compile_and_maybe_run(case, phase, &manifest, &compilation.rust, &build);
+                compile_and_maybe_run(
+                    case,
+                    phase,
+                    &manifest,
+                    &compilation.rust,
+                    &dependencies,
+                    &build,
+                );
             }
             ("check", "reject") => {
                 let code = field(&manifest, "code").unwrap();
@@ -150,18 +213,32 @@ fn compile_and_maybe_run(
     phase: &str,
     manifest: &str,
     rust: &str,
+    dependencies: &[terrane_compiler::RustDependency],
     build: &ConformanceBuild,
 ) {
-    build.write_manifest();
+    build.write_manifest(dependencies);
     let build_dir = &build.root;
+    let dependency_panic_test = field(manifest, "dependency-panic-test");
+    let rust = if let Some(test_path) = dependency_panic_test {
+        format!(
+            "{rust}\n{}",
+            fs::read_to_string(case.join(test_path)).unwrap_or_else(|error| panic!(
+                "cannot read {}: {error}",
+                case.join(test_path).display()
+            ))
+        )
+    } else {
+        rust.to_owned()
+    };
     fs::write(build_dir.join("src/main.rs"), rust).unwrap();
     let output = Command::new("cargo")
         .args(["build", "--quiet", "--manifest-path"])
         .arg(build_dir.join("Cargo.toml"))
+        .env("CARGO_TARGET_DIR", &build.target)
         .env("RUSTFLAGS", "-Dwarnings")
         .output()
         .unwrap();
-    let mut binary_path = build_dir.join("target/debug/terrane_conformance_program");
+    let mut binary_path = build.target.join("debug/terrane_conformance_program");
     binary_path.set_extension(std::env::consts::EXE_EXTENSION);
     assert!(
         output.status.success(),
@@ -169,6 +246,21 @@ fn compile_and_maybe_run(
         case.display(),
         String::from_utf8_lossy(&output.stderr)
     );
+    if dependency_panic_test.is_some() {
+        let output = Command::new("cargo")
+            .args(["test", "--quiet", "--manifest-path"])
+            .arg(build_dir.join("Cargo.toml"))
+            .env("CARGO_TARGET_DIR", &build.target)
+            .env("RUSTFLAGS", "-Dwarnings")
+            .output()
+            .unwrap();
+        assert!(
+            output.status.success(),
+            "{} generated dependency panic test failed:\n{}",
+            case.display(),
+            String::from_utf8_lossy(&output.stderr)
+        );
+    }
 
     if phase == "run" {
         let mut command = Command::new(&binary_path);

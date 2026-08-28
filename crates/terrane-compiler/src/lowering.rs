@@ -24,16 +24,18 @@ pub(crate) fn lower(package: &SemanticPackage) -> Program {
     let mut runtime = Vec::new();
     let mut globals = String::new();
     if package_uses_structured_errors(package) || package_uses_task_scope(package) {
-        let has_custom_throwable = package.units.iter().any(|unit| {
-            unit.objects.iter().any(|object| {
-                object
-                    .interfaces
-                    .iter()
-                    .any(|interface| interface == "throwable")
-            })
-        });
+        let has_dependency = !package.projection.dependencies.is_empty();
+        let has_custom_throwable = has_dependency
+            || package.units.iter().any(|unit| {
+                unit.objects.iter().any(|object| {
+                    object
+                        .interfaces
+                        .iter()
+                        .any(|interface| interface == "throwable")
+                })
+            });
         let mut support = String::new();
-        emit_error_support(&mut support, has_custom_throwable);
+        emit_error_support(&mut support, has_custom_throwable, has_dependency);
         runtime.push(GeneratedModule {
             name: "errors",
             items: vec![Item::generated(&support)],
@@ -220,6 +222,14 @@ pub(crate) fn lower(package: &SemanticPackage) -> Program {
         .units
         .iter()
         .map(|unit| {
+            if unit.bundled && unit.namespace.starts_with("/deps/") {
+                let rust = emit_dependency_unit(package, unit);
+                return Module {
+                    source_path: unit.source_path.clone(),
+                    namespace: unit.namespace.clone(),
+                    items: vec![Item::generated(&rust)],
+                };
+            }
             let mut emitter = Emitter {
                 package,
                 unit,
@@ -232,6 +242,7 @@ pub(crate) fn lower(package: &SemanticPackage) -> Program {
                 parameter_types: Vec::new(),
                 namespace_initializer: None,
                 propagate_errors: false,
+                discarded_call: None,
                 function_errors: false,
                 try_counter: 0,
                 current_error: None,
@@ -281,6 +292,101 @@ pub(crate) fn lower(package: &SemanticPackage) -> Program {
     }
 }
 
+fn emit_dependency_unit(package: &SemanticPackage, unit: &SemanticUnit) -> String {
+    let mut output = String::new();
+    for object in &unit.objects {
+        if let Some(path) = package
+            .projection
+            .foreign_rust_path(&unit.namespace, &object.name)
+        {
+            writeln!(output, "pub use {path};").expect("writing to a string cannot fail");
+        }
+    }
+    for contract in unit
+        .functions
+        .iter()
+        .filter(|contract| contract.owner.is_none())
+    {
+        let Some(item) = package.projection.item(&unit.namespace, &contract.name) else {
+            continue;
+        };
+        let crate::projection::ProjectedKind::Function(projected) = &item.kind else {
+            continue;
+        };
+        let dependency_name = package
+            .projection
+            .dependency_name(&unit.namespace, &contract.name)
+            .unwrap_or("dependency");
+        let parameters = contract
+            .parameters
+            .iter()
+            .zip(&projected.parameters)
+            .map(|(parameter, projected)| {
+                format!(
+                    "{}{}: {}",
+                    if projected.mutable_borrow { "mut " } else { "" },
+                    rust_name(&parameter.name),
+                    parameter
+                        .value_type
+                        .clone()
+                        .map_or_else(|| "()".to_owned(), rust_value_type)
+                )
+            })
+            .collect::<Vec<_>>();
+        let arguments = contract
+            .parameters
+            .iter()
+            .zip(&projected.parameters)
+            .map(|(parameter, projected)| {
+                let name = rust_name(&parameter.name);
+                if projected.mutable_borrow {
+                    format!("&mut {name}")
+                } else if projected.borrowed {
+                    format!("&{name}")
+                } else {
+                    name
+                }
+            })
+            .collect::<Vec<_>>()
+            .join(", ");
+        let value = contract
+            .return_type
+            .clone()
+            .map_or_else(|| "()".to_owned(), rust_value_type);
+        let result = format!("Result<{value}, crate::TerraneError>");
+        writeln!(
+            output,
+            "pub fn {}({}) -> {result} {{",
+            rust_name(&contract.name),
+            parameters.join(", ")
+        )
+        .expect("writing to a string cannot fail");
+        if projected.error.is_some() {
+            writeln!(
+                output,
+                "    match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {}({arguments}))) {{\n        Ok(Ok(value)) => Ok(value),\n        Ok(Err(error)) => Err(crate::TerraneError::new(crate::TerraneErrorKind::Custom(\"dependency-error\"), format!(\"Rust dependency `{}` member `{}` failed: {{error}}\"))),\n        Err(payload) => Err(crate::__terrane_dependency_panic(payload, {:?}, {:?})),\n    }}",
+                item.rust_path,
+                dependency_name,
+                item.rust_path,
+                dependency_name,
+                item.rust_path,
+            )
+            .expect("writing to a string cannot fail");
+        } else {
+            writeln!(
+                output,
+                "    match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {}({arguments}))) {{\n        Ok(value) => Ok(value),\n        Err(payload) => Err(crate::__terrane_dependency_panic(payload, {:?}, {:?})),\n    }}",
+                item.rust_path,
+                dependency_name,
+                item.rust_path,
+            )
+            .expect("writing to a string cannot fail");
+        }
+        output.push_str("}\n");
+    }
+    output
+}
+
 #[expect(
     clippy::struct_excessive_bools,
     reason = "these independent lexical control contexts are saved and restored separately"
@@ -297,6 +403,7 @@ struct Emitter<'a> {
     parameter_types: Vec<(String, ValueType)>,
     namespace_initializer: Option<(String, String)>,
     propagate_errors: bool,
+    discarded_call: Option<crate::Span>,
     function_errors: bool,
     try_counter: usize,
     current_error: Option<String>,
@@ -372,6 +479,12 @@ fn package_uses_structured_errors(package: &SemanticPackage) -> bool {
     package.units.iter().any(|unit| {
         unit.functions.iter().any(|contract| contract.throws)
             || contains(package, unit, &unit.tree.root)
+    }) || package.projection.dependencies.iter().any(|dependency| {
+        dependency.items.iter().any(|item| match &item.kind {
+            crate::projection::ProjectedKind::Function(_) => true,
+            crate::projection::ProjectedKind::ForeignType { methods } => !methods.is_empty(),
+            crate::projection::ProjectedKind::Enum { .. } => false,
+        })
     })
 }
 
@@ -379,7 +492,7 @@ fn package_uses_structured_errors(package: &SemanticPackage) -> bool {
     clippy::too_many_lines,
     reason = "the generated error runtime remains directly reviewable as one canonical Rust template"
 )]
-fn emit_error_support(output: &mut String, has_custom_throwable: bool) {
+fn emit_error_support(output: &mut String, has_custom_throwable: bool, has_dependency: bool) {
     output.push_str(indoc! {r"
         #[derive(Clone, Copy, Debug, Eq, PartialEq)]
         enum TerraneErrorKind {
@@ -523,6 +636,25 @@ fn emit_error_support(output: &mut String, has_custom_throwable: bool) {
             Continue,
         }
     "#});
+    if has_dependency {
+        output.push_str(indoc! {r#"
+            fn __terrane_dependency_panic(
+                payload: Box<dyn std::any::Any + Send>,
+                crate_name: &'static str,
+                member: &'static str,
+            ) -> TerraneError {
+                let detail = payload
+                    .downcast_ref::<&str>()
+                    .copied()
+                    .or_else(|| payload.downcast_ref::<String>().map(String::as_str))
+                    .unwrap_or("non-string panic payload");
+                TerraneError::new(
+                    TerraneErrorKind::Custom("dependency-panic"),
+                    format!("Rust dependency `{crate_name}` member `{member}` panicked: {detail}"),
+                )
+            }
+        "#});
+    }
 }
 
 #[expect(
@@ -566,6 +698,7 @@ fn emit_global_storage(package: &SemanticPackage, output: &mut String) {
             parameter_types: Vec::new(),
             namespace_initializer: None,
             propagate_errors: false,
+            discarded_call: None,
             function_errors: false,
             try_counter: 0,
             current_error: None,
@@ -626,6 +759,7 @@ fn emit_global_storage(package: &SemanticPackage, output: &mut String) {
                 parameter_types: Vec::new(),
                 namespace_initializer: None,
                 propagate_errors: false,
+                discarded_call: None,
                 function_errors: false,
                 try_counter: 0,
                 current_error: None,
@@ -1805,9 +1939,15 @@ impl Emitter<'_> {
             }
             SyntaxKind::Assignment => self.assignment(node),
             SyntaxKind::CallExpression => {
-                let expression = self
-                    .collection_mutation_statement(node)
-                    .unwrap_or_else(|| self.expression(node));
+                let expression = if let Some(expression) = self.collection_mutation_statement(node)
+                {
+                    expression
+                } else {
+                    self.discarded_call = Some(node.span);
+                    let expression = self.expression(node);
+                    self.discarded_call = None;
+                    expression
+                };
                 self.line(&format!("{expression};"));
             }
             SyntaxKind::PostfixExpression => self.postfix(node),
@@ -4761,6 +4901,52 @@ impl Emitter<'_> {
             self.expression(callee)
         };
         let call = format!("{name}({})", values.join(", "));
+        let foreign_method = contract.as_ref().and_then(|contract| {
+            contract.owner.as_ref().and_then(|owner| {
+                self.package
+                    .projection
+                    .method(&self.unit.namespace, owner, &contract.name)
+            })
+        });
+        let foreign_error = foreign_method.is_some()
+            || (callee.kind == SyntaxKind::Name
+                && self
+                    .package
+                    .resolve_name_at(self.unit, callee.span.start, self.text(callee))
+                    .and_then(|symbol| symbol.identity.rsplit_once("::"))
+                    .and_then(|(namespace, name)| self.package.projection.item(namespace, name))
+                    .is_some_and(|item| {
+                        matches!(&item.kind, crate::projection::ProjectedKind::Function(_))
+                    }));
+        let call = if let Some(method) = foreign_method {
+            let owner = contract
+                .as_ref()
+                .and_then(|contract| contract.owner.as_deref())
+                .expect("foreign methods have an owner");
+            let type_path = self
+                .package
+                .projection
+                .foreign_rust_path(&self.unit.namespace, owner)
+                .expect("foreign method owner has a projected Rust path");
+            let dependency = type_path.split("::").next().unwrap_or("dependency");
+            let member = format!("{type_path}::{}", method.name);
+            if method.error.is_some() {
+                format!(
+                    "match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {call})) {{ Ok(Ok(value)) => Ok(value), Ok(Err(error)) => Err(crate::TerraneError::new(crate::TerraneErrorKind::Custom(\"dependency-error\"), format!(\"Rust dependency `{dependency}` member `{member}` failed: {{error}}\"))), Err(payload) => Err(crate::__terrane_dependency_panic(payload, {dependency:?}, {member:?})) }}"
+                )
+            } else {
+                let unwind_body = if self.discarded_call == Some(node.span) {
+                    format!("{{ {call}; }}")
+                } else {
+                    call
+                };
+                format!(
+                    "match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {unwind_body})) {{ Ok(value) => Ok(value), Err(payload) => Err(crate::__terrane_dependency_panic(payload, {dependency:?}, {member:?})) }}"
+                )
+            }
+        } else {
+            call
+        };
         let call = if contract.as_ref().is_some_and(|contract| contract.is_async)
             && matches!(self.value_type(node), Some(ValueType::Task(_)))
         {
@@ -4768,7 +4954,7 @@ impl Emitter<'_> {
         } else {
             call
         };
-        if contract.is_some_and(|contract| contract.throws) {
+        if contract.is_some_and(|contract| contract.throws) || foreign_error {
             let context = self.error_context(node);
             if self.try_completion {
                 format!(
@@ -6271,6 +6457,8 @@ fn rust_error_kind(kind: &str) -> String {
         "decode-error" => "DecodeError".to_owned(),
         "index-error" => "IndexError".to_owned(),
         "missing-key" => "MissingKey".to_owned(),
+        "dependency-error" => "Custom(\"dependency-error\")".to_owned(),
+        "dependency-panic" => "Custom(\"dependency-panic\")".to_owned(),
         "resource-error" => "ResourceError".to_owned(),
         "error" | "throwable" => "SourceError".to_owned(),
         custom => format!("Custom({custom:?})"),
@@ -6287,6 +6475,8 @@ fn error_message(kind: &str) -> &'static str {
         "decode-error" => "invalid byte sequence for selected encoding",
         "index-error" => "collection index is out of range",
         "missing-key" => "collection key is absent",
+        "dependency-error" => "Rust dependency returned an error",
+        "dependency-panic" => "Rust dependency panicked",
         "resource-error" => "integer shift count cannot be represented on this target",
         _ => "source error",
     }
@@ -6326,10 +6516,10 @@ fn rust_object_name(name: &str) -> String {
 }
 
 fn rust_name(name: &str) -> String {
-    let readable_identifier = name.as_bytes().first().is_some_and(u8::is_ascii_alphabetic)
+    let readable_identifier = name.as_bytes().first().is_some_and(u8::is_ascii_lowercase)
         && name
             .bytes()
-            .all(|byte| byte.is_ascii_alphanumeric() || byte == b'-');
+            .all(|byte| byte.is_ascii_alphanumeric() || byte == b'-' || byte == b'_');
     let keyword = matches!(
         name,
         "as" | "break"
@@ -6393,9 +6583,10 @@ mod tests {
 
     #[test]
     fn error_support_is_canonical_rust() {
-        for has_custom_throwable in [false, true] {
+        for (has_custom_throwable, has_dependency) in [(false, false), (true, false), (true, true)]
+        {
             let mut emitted = String::new();
-            emit_error_support(&mut emitted, has_custom_throwable);
+            emit_error_support(&mut emitted, has_custom_throwable, has_dependency);
             let parsed = syn::parse_file(&emitted).unwrap();
 
             assert_eq!(prettyplease::unparse(&parsed), emitted);

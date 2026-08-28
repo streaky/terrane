@@ -435,22 +435,20 @@ Python-style triple-string “comments” are deliberately not supported. A stri
 
 ### 6.5 Identifiers
 
-An identifier begins with a letter and ends with a letter or digit. Between those ends it may contain:
+An identifier begins with an ASCII letter or underscore. It may continue with:
 
-- letters and digits;
+- ASCII letters, digits, and underscores;
 - runs of the identifier-joiner glyphs `+`, `-`, `*`, `%`, `<`, and `>`.
 
 `/` is deliberately **not** an identifier joiner. It is the namespace separator, and a character cannot be both without making `namespace foo/bar` ambiguous between one segment and two. Context-sensitive lexing is rejected here because it would contradict the rule below that a compact joiner sequence is always an identifier, permanently. The cost is that a name such as `ipv4/ipv6` must be written `ipv4-ipv6`.
 
-All user-declared names are lowercase: namespaces, functions, classes, interfaces, traits, fields, and bindings. The convention is kebab-case, so `parse-json` rather than `parseJson` or `parseJSON` — which removes the acronym-casing question permanently rather than leaving it to per-project taste.
+Uppercase and underscore are legal because projected dependency names are written verbatim: `ClientBuilder` and `parse_json` must match their Rust documentation. User code may use any case. Kebab-case remains Terrane's naming convention and is available through an opt-in compiler advisory, off by default; diagnostics identify the declaration and suggest kebab-case. Projected dependency names are exempt even when that advisory is enabled.
 
-Case carries no semantic load in Terrane, which is what makes this affordable. Go uses case for export, Haskell for constructors, Rust for types against values; Terrane expresses type membership through `is a` and member access through `receiver.member`, so case is free to constrain.
+Compiler-owned names, standard-library names, language-mandated throwable classes, and every documentation example remain kebab-case. This is enforced as a defect in Terrane-owned code rather than as a lexical restriction on user code.
 
-Uppercase parses and is then rejected with a diagnostic naming the lowercase form, plus a formatter fixit. It is never silently folded.
+Namespace segments are unchanged: they remain lowercase ASCII with hyphens because they map to portable directory names. A projected Rust module segment maps `_` to `-`; member and type names remain verbatim. Type parameters retain their established uppercase spelling: `list of T`, `map of K, V`, `iteration-step of Item`.
 
-Type parameters are the one carve-out and remain uppercase: `list of T`, `map of K, V`, `iteration-step of Item`. A type parameter is a different kind of name — it stands in for a thing rather than naming one — is never user-declared in version one, and never forms part of a path.
-
-Identifiers may end in digits: `http2`, `sha256`, and `vector4` are valid. The restriction applies only when a terminal digits-only unit is introduced by an identifier joiner. Compact forms such as `count-1` and `x+4` are lexical errors rather than identifiers or arithmetic. Names such as `http2-client`, `ipv4-ipv6`, and `sha3-256sum` remain valid because each unit after a joiner contains a letter.
+Identifiers may end in digits or underscores: `http2`, `sha256`, `vector4`, and `parse_json_` are valid. The restriction applies only when a terminal digits-only unit is introduced by an identifier joiner. Compact forms such as `count-1` and `x+4` are lexical errors rather than identifiers or arithmetic. Names such as `http2-client`, `ipv4-ipv6`, and `sha3-256sum` remain valid because each unit after a joiner contains a letter.
 
 A compact letter-to-letter joiner sequence is always an identifier, permanently: `total-count`, `page-size`, and `width-height` never mean subtraction without surrounding operator whitespace, even if a same-spelled binding exists. Arithmetic must be written `total - count`. This asymmetry is intentional: kebab-case names require a stable lexical interpretation, while a terminal joiner-plus-digits form is reserved as an error because it is not needed for that naming convention.
 
@@ -463,6 +461,8 @@ http2-client
 foo+bar
 ipv4-ipv6
 input>output
+ClientBuilder
+parse_json
 ```
 
 The rule is lexical and universal for those glyphs: a maximal joiner run directly surrounded on both sides by identifier characters belongs to the identifier only when the following identifier unit contains a letter. A symbolic run cannot begin an identifier. When it begins a token after whitespace, a delimiter, or the start of a line and is immediately followed by an identifier character, it has behavioural/operator meaning rather than becoming part of the following name.
@@ -2778,6 +2778,8 @@ language-mandated classes, each of which implements it:
 | `integer-conversion-overflow` | An exact-or-throw numeric destination cannot preserve the mathematical source value. | Implicit assignment, argument, return, element, or field conversion across numeric types; throwing `coerce` to a fixed-width integer destination; floating-to-integer conversion for a fractional, NaN, or infinite value. | source value/type, destination type, and failed exactness condition |
 | `negative-shift-count` | An integer shift count is negative. | Unbounded-`int` `<<` and `>>`. | attempted count and shift operation |
 | `coercion-error` | An explicit coercion has no result compatible with the requested destination, outside the integer-overflow case above. | `coerce` where the source value or text cannot be represented in the destination type, including parsing coercion from `string` and an out-of-range floating-point destination whose protocol does not declare infinity. | source value/type and destination type |
+| `dependency-error` | A crossed Rust dependency call returned `Result::Err`. | Projected Rust functions and methods returning `Result<T, E>`. | dependency member and rendered Rust error |
+| `dependency-panic` | A crossed Rust dependency call unwound through a profile that contains dependency panics. | Projected Rust functions and methods that panic under an unwinding profile. | dependency member and crossing context |
 
 Each class has `message`, `cause`, deterministic source context, and the structured information
 listed above. Implementations may attach additional diagnostic fields without changing
@@ -3661,7 +3663,7 @@ Three consequences follow, and they apply uniformly to Rust crates, system libra
 
 **Tooling advises; it does not define.** The language server may read package metadata, rustdoc output, or runtime introspection to offer completion, signature help, hover text, and documentation. That projection is advisory: it never alters compiler output, never invents members, and is never the authority on whether a program compiles. The authority is the ecosystem's own toolchain — Cargo and rustc for Rust, the C compiler and linker for system libraries, the runtime for a hosted language.
 
-Tooling must also not execute arbitrary package code merely to inspect it, and its cache identity must include everything that can change the resolved interface: manifest contents, lock checksum, enabled features, target triple, toolchain version, and source checksums.
+Tooling must not execute arbitrary foreign-runtime package code merely to inspect it. Rust projection is compilation and runs under the same capability and containment policy as a build script. Its cache identity includes everything that can change the resolved interface: manifest contents, lock checksum, enabled features and default-feature policy, target triple, toolchain version, package source checksums, and sandbox tier.
 
 ### 23.2 Four dependency origins
 
@@ -3672,33 +3674,27 @@ The package system supports:
 3. system libraries, ordinarily exposed through C ABI metadata or a wrapper;
 4. foreign-runtime packages hosted through an explicit runtime adapter.
 
-Example manifest/source declarations:
+Rust dependencies are declared only in `package.toml`; dependency declarations do not appear in Terrane source. Resolved dependency objects are imported through the reserved `/deps` namespace:
 
 ```terrane
-use image-tools
-use rust serde
-use system libjpeg
-use runtime python
+from /deps/serde-json import parse
 ```
 
-A native package is the default dependency kind.
+Native Terrane packages, system libraries, and foreign-runtime packages retain their origin-specific manifest forms.
 
-### 23.3 `use` versus `from ... import`
+### 23.3 Manifest dependencies versus `from ... import`
 
-`use` declares a build dependency.
-
-`from ... import` brings object symbols from an available namespace into source scope.
+The package manifest declares build dependencies. A `from ... import` declaration brings projected objects from an available namespace into source scope; it does not grant or resolve a package.
 
 ```terrane
-use image-tools
-
-from /image/tools import resize
+from /deps/image-tools import resize
 ```
 
 The distinction is intentional:
 
 - dependency graph composition is not the same operation as name binding;
-- installing a package must not automatically pollute source names.
+- installing a package must not automatically pollute source names;
+- importing `/deps/<crate>/...` without a matching manifest declaration is a source-oriented error.
 
 ### 23.4 Package contents
 
@@ -3773,21 +3769,20 @@ The build report must identify packages that executed code during compilation.
 
 ### 23.8 Rust crates
 
-A Rust crate dependency is declared with:
+A Rust crate dependency is declared in `package.toml` with its package name, version requirement, selected features, default-feature policy, and optional target condition:
 
-```terrane
-use rust crate-name
+```toml
+[rust-dependencies]
+reqwest = { version = "0.12", default-features = false, features = ["blocking", "rustls-tls-webpki-roots"] }
 ```
 
-This adds a locked dependency to the generated Cargo graph. It does not describe the crate, and the compiler does not predefine an API surface for it.
+Resolution and Cargo's lockfile determine the exact package interface. The build runs rustdoc for that resolved graph and produces one projection artifact shared by compiler and language server. Rust module paths become `/deps/<manifest-name>/...` namespaces; public names remain verbatim. The projection admits directly representable functions, inherent methods, receiver-first trait functions, opaque foreign types, and data-free or data-carrying enums. It records a reason for every public item it declines.
 
-The resolved package, version, selected features, target, and lockfile determine the native interface available to a given build. Inline Rust and maintained Rust modules use that interface directly, in Rust, with Rust's own types. Cargo and rustc type-check it, and build diagnostics are source-mapped back to the dependency declaration or the native Rust span that produced them.
+The compiler generates Rust shims only for projected members crossed by Terrane source. This is direct Rust-to-Rust calling inside the generated crate, not an adapter or marshalled runtime boundary. `Option<T>` projects as `T|none`. A representable `Result<T, E>` returns `T` and throws the projected error class. `&self` projects as a shared receiver, `&mut self` records receiver mutability on the projected contract, and `self` retains `move` semantics under the ordinary foreign-resource ownership rule. Both borrowed receiver forms use ordinary Terrane member-call syntax; the projected contract makes lowering emit the required Rust borrow and mutable binding. On unwinding profiles, a panic crossing a generated shim becomes `dependency-panic`; aborting profiles do not claim containment.
 
-The compiler does **not** project a crate into high-level Terrane objects. There is no generated adapter layer, no translation of Rust generics into instantiations, and no mapping of Rust traits, lifetimes, or error types into the Terrane model. Those constructs remain in Rust, where they are already well defined, and Terrane source touches them only inside a native Rust body. A projection layer would be a second, weaker copy of Rust's type system that drifts with every crate release, and it would make the compiler responsible for representing constructs the language has no equivalent for.
+Cargo and rustc remain authoritative. Projection and editor information are advisory and derived from the resolved package rather than predefined by Terrane. The language server uses the shared artifact for completion, signature help, hover, exact Rust paths, and declined-item reasons. Projection executes under the build-script capability policy without arbitrary foreign-runtime introspection.
 
-A Terrane-visible wrapper is therefore something an author writes deliberately when they want one, not something the build produces automatically. Writing it is ordinary work: a Rust module that exposes a boundary the Terrane side crosses, with the ownership and error contracts stated at that boundary.
-
-Editor intelligence follows §23.1: the language server reads Cargo metadata and lock data for resolved package, version, feature, and target facts, and delegates Rust semantic questions to rust-analyzer over the exact generated and native module graph. Rustdoc output is a documentation fallback, never a second type checker. Everything it offers is advisory — lowering, Cargo, and rustc remain the authority on what compiles.
+The generated dependency crate graph preserves the manifest's selected features and default-feature policy, compiles offline and frozen after resolution, and records whether containment was enforced. Its cache identity covers the manifest, lock checksum, selected features, target triple, Rust toolchain, package source checksums, and sandbox tier. The project-local cache retains the current projection and at most three prior projection artifacts for ordinary rollback and editor churn; this bounded operational history is not the durable, machine-independent history required for version-aware diagnostics. A lock update that removes a crossed projected member is diagnosed as missing at its Terrane import or use site rather than exposed as an unexplained rustc error in generated source; distinguishing removal from a never-present member and naming the version change are deferred until durable projection history is retained.
 
 ### 23.9 System and C libraries
 

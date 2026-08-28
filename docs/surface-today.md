@@ -57,7 +57,9 @@ Terrane package
 │   │   │   ├── coercion-error                 compiler-owned throwable object
 │   │   │   ├── decode-error                   compiler-owned throwable object
 │   │   │   ├── index-error                    compiler-owned throwable object
-│   │   │   └── missing-key                    compiler-owned throwable object
+│   │   │   ├── missing-key                    compiler-owned throwable object
+│   │   │   ├── dependency-error               dependency `Result::Err` throwable object
+│   │   │   └── dependency-panic               unwinding dependency-panic throwable object
 │   │   ├── /core/encodings
 │   │   │   ├── utf8                           encoding object
 │   │   │   ├── utf16-le                       encoding object
@@ -684,6 +686,23 @@ path and are catchable. Exact escaping throwable alternatives are inferred trans
 catches and `finally` replacement. A postfix `throws T` clause is an optional upper-bound contract:
 every escaping throwable must implement `T`. Reflection exposes the declared bound separately from
 the inferred escaping set.
+
+## Projected Rust dependencies
+
+`package.toml` accepts lock-resolved `[rust-dependencies]` entries with version, features,
+default-feature policy, package alias, and target condition. Declared crates are projected from
+rustdoc into reserved `/deps/<manifest-name>/...` namespaces. The shared projection records
+verbatim public names, Rust paths, documentation, representable free and inherent methods, receiver
+ownership, opaque foreign types and enums, and directly representable `Result` returns. Every
+declined public item carries a reason. `Option` signatures, enum variants and comparison, unresolved
+type aliases, and trait methods are recorded as declines rather than exposed as members.
+
+Semantic import resolution and the language server consume that same projection. Lowering emits
+only crossed-member Rust shims and generated Cargo dependencies; calls remain direct Rust calls
+inside one generated crate. Foreign receivers borrow, use `ref`, or require `move` according to
+their Rust receiver. Unwinding dependency panics enter the compiler-owned `dependency-panic`
+throwable path. Completion, signature help, and hover are advisory; Cargo and rustc remain the
+authority.
 
 ## Major planned surface absent today
 

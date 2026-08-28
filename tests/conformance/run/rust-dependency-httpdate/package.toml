@@ -1,0 +1,7 @@
+package = "rust-dependency-httpdate"
+[namespaces]
+app = "src"
+[rust-dependencies.date-codec]
+package = "httpdate"
+version = "=1.0.3"
+default-features = true

@@ -520,3 +520,27 @@ fn parse_callbacks_resolve_through_import_aliases() {
     assert!(compilation.rust.contains("parse_radix"));
     assert!(compilation.rust.contains("decode"));
 }
+
+#[test]
+fn rust_dependency_manifest_preserves_resolution_inputs() {
+    let package = TempPackage::new();
+    package.write(
+        "package.toml",
+        "package = \"dependencies\"\n[namespaces]\napp = \"src\"\n[rust-dependencies.http]\npackage = \"reqwest\"\nversion = \"=0.12.23\"\nfeatures = [\"blocking\", \"rustls-tls-webpki-roots\"]\ndefault-features = false\ntarget = \"x86_64-unknown-linux-gnu\"\n",
+    );
+    package.write("src/main.trn", "namespace app\nfunction main;\n");
+
+    let loaded = Package::load(&package.0).unwrap();
+
+    assert_eq!(loaded.rust_dependencies.len(), 1);
+    let dependency = &loaded.rust_dependencies[0];
+    assert_eq!(dependency.name, "http");
+    assert_eq!(dependency.package, "reqwest");
+    assert_eq!(dependency.version, "=0.12.23");
+    assert_eq!(dependency.features, ["blocking", "rustls-tls-webpki-roots"]);
+    assert!(!dependency.default_features);
+    assert_eq!(
+        dependency.target.as_deref(),
+        Some("x86_64-unknown-linux-gnu")
+    );
+}

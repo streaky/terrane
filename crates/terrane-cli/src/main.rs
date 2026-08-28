@@ -1,4 +1,5 @@
 use sha2::{Digest, Sha256};
+use std::collections::BTreeSet;
 use std::ffi::OsString;
 use std::fmt::Write as _;
 use std::fs;
@@ -42,6 +43,10 @@ fn main() -> ExitCode {
     }
 }
 
+#[expect(
+    clippy::too_many_lines,
+    reason = "the shared CLI pipeline keeps command phase ordering explicit"
+)]
 fn run(arguments: &[OsString]) -> Result<ExitCode, CliFailure> {
     let Some(command) = arguments.first().and_then(|value| value.to_str()) else {
         return Err(CliFailure::usage());
@@ -57,7 +62,7 @@ fn run(arguments: &[OsString]) -> Result<ExitCode, CliFailure> {
     if !matches!(command, "check" | "rust" | "build" | "run") {
         return Err(CliFailure::usage());
     }
-    let (input_path, require_canonical_rust) = parse_input(arguments, command)?;
+    let (input_path, require_canonical_rust, lint_name_style) = parse_input(arguments, command)?;
     let package = if input_path
         .extension()
         .is_some_and(|extension| extension == "trn")
@@ -79,6 +84,7 @@ fn run(arguments: &[OsString]) -> Result<ExitCode, CliFailure> {
         &package,
         terrane_compiler::CompilerOptions {
             require_canonical_rust,
+            lint_name_style,
         },
     ) {
         Ok(compilation) => compilation,
@@ -107,11 +113,13 @@ fn run(arguments: &[OsString]) -> Result<ExitCode, CliFailure> {
         &package.root,
         &compilation.rust_files,
         uses_platform_support,
+        &compilation.rust_dependencies,
     )?;
     write_generated_crate(
         &crate_dir,
         &compilation.rust_files,
         &package.units,
+        &compilation.rust_dependencies,
         uses_platform_support,
     )?;
     record_and_prune_generated_crates(&crate_dir)?;
@@ -144,11 +152,18 @@ fn run(arguments: &[OsString]) -> Result<ExitCode, CliFailure> {
     ))
 }
 
-fn parse_input(arguments: &[OsString], command: &str) -> Result<(PathBuf, bool), CliFailure> {
-    let require_canonical_rust = arguments
-        .get(1)
-        .is_some_and(|argument| argument == "--require-canonical-rust");
-    let input_index = usize::from(require_canonical_rust) + 1;
+fn parse_input(arguments: &[OsString], command: &str) -> Result<(PathBuf, bool, bool), CliFailure> {
+    let mut input_index = 1;
+    let mut require_canonical_rust = false;
+    let mut lint_name_style = false;
+    while let Some(argument) = arguments.get(input_index).and_then(|value| value.to_str()) {
+        match argument {
+            "--require-canonical-rust" => require_canonical_rust = true,
+            "--lint-name-style" => lint_name_style = true,
+            _ => break,
+        }
+        input_index += 1;
+    }
     let has_valid_arity = if command == "run" {
         arguments.len() == input_index + 1
             || (arguments.len() >= input_index + 2 && arguments[input_index + 1] == "--")
@@ -162,7 +177,7 @@ fn parse_input(arguments: &[OsString], command: &str) -> Result<(PathBuf, bool),
         .get(input_index)
         .map(PathBuf::from)
         .ok_or_else(CliFailure::usage)?;
-    Ok((input_path, require_canonical_rust))
+    Ok((input_path, require_canonical_rust, lint_name_style))
 }
 
 fn emit_warnings(compilation: &terrane_compiler::Compilation) {
@@ -335,6 +350,7 @@ fn generated_crate_path(
     package_root: &Path,
     rust_files: &[terrane_compiler::rust_ir::RenderedFile],
     uses_platform_support: bool,
+    rust_dependencies: &[terrane_compiler::RustDependency],
 ) -> Result<PathBuf, CliFailure> {
     let root = package_root.canonicalize().map_err(|error| {
         CliFailure::backend(format!(
@@ -362,6 +378,21 @@ fn generated_crate_path(
         hash.update(b"\0");
         hash.update(file.contents.as_bytes());
         hash.update(b"\0");
+    }
+    for dependency in rust_dependencies {
+        hash.update(dependency.name.as_bytes());
+        hash.update(b"\0");
+        hash.update(dependency.package.as_bytes());
+        hash.update(b"\0");
+        hash.update(dependency.version.as_bytes());
+        hash.update(b"\0");
+        hash.update([u8::from(dependency.default_features)]);
+        hash.update(b"\0target=");
+        hash.update(dependency.target.as_deref().unwrap_or_default().as_bytes());
+        for feature in &dependency.features {
+            hash.update(feature.as_bytes());
+            hash.update(b"\0");
+        }
     }
     for support in [
         include_bytes!("../../terrane-int-support/src/lib.rs").as_slice(),
@@ -421,6 +452,7 @@ fn write_generated_crate(
     directory: &Path,
     rust_files: &[terrane_compiler::rust_ir::RenderedFile],
     units: &[terrane_compiler::SourceUnit],
+    rust_dependencies: &[terrane_compiler::RustDependency],
     uses_platform_support: bool,
 ) -> Result<(), CliFailure> {
     fs::create_dir_all(directory.join("src"))
@@ -438,6 +470,26 @@ fn write_generated_crate(
         manifest.push_str(
             "terrane-platform-support = { path = \"support/terrane-platform-support\" }\n",
         );
+    }
+    for dependency in rust_dependencies
+        .iter()
+        .filter(|dependency| dependency.cargo_manifest_table() == "dependencies")
+    {
+        write_rust_dependency(&mut manifest, dependency);
+    }
+    let target_tables = rust_dependencies
+        .iter()
+        .map(terrane_compiler::RustDependency::cargo_manifest_table)
+        .filter(|table| table != "dependencies")
+        .collect::<BTreeSet<_>>();
+    for table in target_tables {
+        writeln!(manifest, "\n[{table}]").expect("writing to a string cannot fail");
+        for dependency in rust_dependencies
+            .iter()
+            .filter(|dependency| dependency.cargo_manifest_table() == table)
+        {
+            write_rust_dependency(&mut manifest, dependency);
+        }
     }
     manifest.push_str("\n[workspace]\n");
     write_if_changed(&directory.join("Cargo.toml"), manifest.as_bytes()).map_err(|error| {
@@ -469,6 +521,10 @@ fn write_generated_crate(
     write_if_changed(&directory.join("terrane-build.toml"), sources.as_bytes())
         .map_err(|error| CliFailure::backend(format!("cannot write build metadata: {error}")))?;
     Ok(())
+}
+
+fn write_rust_dependency(manifest: &mut String, dependency: &terrane_compiler::RustDependency) {
+    manifest.push_str(&dependency.cargo_dependency_spec());
 }
 
 fn write_generated_support(directory: &Path, uses_platform_support: bool) -> std::io::Result<()> {
@@ -581,9 +637,10 @@ fn ensure_rust_toolchain() -> Result<(), CliFailure> {
 }
 
 fn usage() -> String {
-    "usage: terrane <check|rust|build|run> [--require-canonical-rust] \
+    "usage: terrane <check|rust|build|run> [--require-canonical-rust] [--lint-name-style] \
      <source.trn> [-- program arguments]\n\
-     options:\n  --require-canonical-rust  fail unless lowering emits bundled-formatter output\n\
+     options:\n  --require-canonical-rust  fail unless lowering emits bundled-formatter output\n  \
+     --lint-name-style  warn when authored declarations are not kebab-case\n\
      commands:\n  check  validate and compile generated Rust\n  rust   print generated Rust\n  \
      build  compile a native executable\n  run    compile and execute the program"
         .to_owned()

@@ -1,0 +1,5 @@
+phase = "run"
+status = "accept"
+entrypoint = "package.toml"
+canonical-rust = true
+dependency-panic-test = "dependency-panic.rs"

@@ -1,0 +1,8 @@
+namespace app
+from /deps/httpdate import parse_http_date
+from /core/errors import dependency-error
+function main;
+    try
+        parse_http_date; >not a date
+    catch dependency-error
+        print; 'caught dependency error'

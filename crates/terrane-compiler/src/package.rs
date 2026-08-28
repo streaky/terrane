@@ -35,6 +35,42 @@ pub enum ExecutorProfile {
     Threaded,
 }
 
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct RustDependency {
+    pub name: String,
+    pub package: String,
+    pub version: String,
+    pub features: Vec<String>,
+    pub default_features: bool,
+    pub target: Option<String>,
+}
+
+impl RustDependency {
+    #[must_use]
+    pub fn cargo_manifest_table(&self) -> String {
+        self.target.as_ref().map_or_else(
+            || "dependencies".to_owned(),
+            |target| format!("target.{target:?}.dependencies"),
+        )
+    }
+
+    #[must_use]
+    pub fn cargo_dependency_spec(&self) -> String {
+        use std::fmt::Write as _;
+
+        let mut entry = format!(
+            "{} = {{ package = {:?}, version = {:?}, default-features = {}",
+            self.name, self.package, self.version, self.default_features
+        );
+        if !self.features.is_empty() {
+            write!(entry, ", features = {:?}", self.features)
+                .expect("writing to a string cannot fail");
+        }
+        entry.push_str(" }\n");
+        entry
+    }
+}
+
 #[derive(Clone, Debug)]
 pub struct Package {
     pub identity: String,
@@ -43,6 +79,7 @@ pub struct Package {
     pub reflection: ReflectionProfile,
     pub executor: ExecutorProfile,
     pub units: Vec<SourceUnit>,
+    pub rust_dependencies: Vec<RustDependency>,
 }
 
 #[derive(Clone, Debug)]
@@ -87,6 +124,7 @@ impl Package {
                 source: SourceFile::new(0, path, text),
                 expected_namespace: None,
             }],
+            rust_dependencies: Vec::new(),
         }
     }
 
@@ -122,6 +160,7 @@ impl Package {
             reflection: manifest.reflection,
             executor: manifest.executor,
             units,
+            rust_dependencies: manifest.rust_dependencies,
         })
     }
 }
@@ -132,6 +171,7 @@ struct ParsedManifest {
     reflection: ReflectionProfile,
     executor: ExecutorProfile,
     namespace_roots: Vec<NamespaceRoot>,
+    rust_dependencies: Vec<RustDependency>,
 }
 
 #[derive(Clone, Debug)]
@@ -140,6 +180,10 @@ struct NamespaceRoot {
     directory: PathBuf,
 }
 
+#[expect(
+    clippy::too_many_lines,
+    reason = "linear validation of one manifest table"
+)]
 fn parse_manifest(
     manifest_path: &Path,
     text: &str,
@@ -159,7 +203,7 @@ fn parse_manifest(
     for key in table.keys() {
         if !matches!(
             key.as_str(),
-            "package" | "prelude" | "reflection" | "executor" | "namespaces"
+            "package" | "prelude" | "reflection" | "executor" | "namespaces" | "rust-dependencies"
         ) {
             errors.push(manifest_error(
                 manifest_path,
@@ -232,6 +276,7 @@ fn parse_manifest(
         None => ExecutorProfile::Threaded,
     };
     let namespace_roots = parse_namespace_roots(manifest_path, text, &table, &mut errors);
+    let rust_dependencies = parse_rust_dependencies(manifest_path, text, &table, &mut errors);
     if errors.is_empty() {
         Ok(ParsedManifest {
             identity: identity.expect("validated package identity"),
@@ -239,10 +284,130 @@ fn parse_manifest(
             reflection,
             executor,
             namespace_roots,
+            rust_dependencies,
         })
     } else {
         Err(errors)
     }
+}
+
+#[expect(
+    clippy::too_many_lines,
+    reason = "linear validation keeps every dependency field diagnostic together"
+)]
+fn parse_rust_dependencies(
+    manifest_path: &Path,
+    text: &str,
+    table: &toml::Table,
+    errors: &mut Vec<PackageLoadError>,
+) -> Vec<RustDependency> {
+    let Some(value) = table.get("rust-dependencies") else {
+        return Vec::new();
+    };
+    let Some(dependencies) = value.as_table() else {
+        errors.push(manifest_error(
+            manifest_path,
+            text,
+            "`rust-dependencies` must be a table",
+            Some("rust-dependencies"),
+        ));
+        return Vec::new();
+    };
+    let mut parsed = Vec::new();
+    for (name, value) in dependencies {
+        let Some(fields) = value.as_table() else {
+            errors.push(manifest_error(
+                manifest_path,
+                text,
+                format!("Rust dependency `{name}` must be a table"),
+                Some(name),
+            ));
+            continue;
+        };
+        for key in fields.keys() {
+            if !matches!(
+                key.as_str(),
+                "package" | "version" | "features" | "default-features" | "target"
+            ) {
+                errors.push(manifest_error(
+                    manifest_path,
+                    text,
+                    format!("unknown field `{key}` in Rust dependency `{name}`"),
+                    Some(key),
+                ));
+            }
+        }
+        let package = fields
+            .get("package")
+            .and_then(toml::Value::as_str)
+            .unwrap_or(name);
+        let Some(version) = fields.get("version").and_then(toml::Value::as_str) else {
+            errors.push(manifest_error(
+                manifest_path,
+                text,
+                format!("Rust dependency `{name}` requires a string `version`"),
+                Some(name),
+            ));
+            continue;
+        };
+        let features = match fields.get("features") {
+            None => Vec::new(),
+            Some(toml::Value::Array(values))
+                if values.iter().all(|value| value.as_str().is_some()) =>
+            {
+                values
+                    .iter()
+                    .filter_map(toml::Value::as_str)
+                    .map(str::to_owned)
+                    .collect()
+            }
+            Some(_) => {
+                errors.push(manifest_error(
+                    manifest_path,
+                    text,
+                    format!("Rust dependency `{name}` has a non-string `features` entry"),
+                    Some(name),
+                ));
+                continue;
+            }
+        };
+        let default_features = match fields.get("default-features") {
+            None => true,
+            Some(toml::Value::Boolean(value)) => *value,
+            Some(_) => {
+                errors.push(manifest_error(
+                    manifest_path,
+                    text,
+                    format!("Rust dependency `{name}` has a non-boolean `default-features`"),
+                    Some(name),
+                ));
+                continue;
+            }
+        };
+        let target = match fields.get("target") {
+            None => None,
+            Some(toml::Value::String(value)) => Some(value.clone()),
+            Some(_) => {
+                errors.push(manifest_error(
+                    manifest_path,
+                    text,
+                    format!("Rust dependency `{name}` has a non-string `target`"),
+                    Some(name),
+                ));
+                continue;
+            }
+        };
+        parsed.push(RustDependency {
+            name: name.clone(),
+            package: package.to_owned(),
+            version: version.to_owned(),
+            features,
+            default_features,
+            target,
+        });
+    }
+    parsed.sort_by(|left, right| left.name.cmp(&right.name));
+    parsed
 }
 
 fn parse_namespace_roots(
@@ -594,5 +759,25 @@ mod tests {
             };
             assert_eq!(unit.relative_path_text(), expected);
         }
+    }
+
+    #[test]
+    fn rust_dependency_manifest_parts_preserve_target_alias_and_features() {
+        let dependency = RustDependency {
+            name: "date-codec".to_owned(),
+            package: "httpdate".to_owned(),
+            version: "=1.0.3".to_owned(),
+            features: vec!["clock".to_owned(), "serde".to_owned()],
+            default_features: false,
+            target: Some("cfg(unix)".to_owned()),
+        };
+        assert_eq!(
+            dependency.cargo_manifest_table(),
+            "target.\"cfg(unix)\".dependencies"
+        );
+        assert_eq!(
+            dependency.cargo_dependency_spec(),
+            "date-codec = { package = \"httpdate\", version = \"=1.0.3\", default-features = false, features = [\"clock\", \"serde\"] }\n"
+        );
     }
 }

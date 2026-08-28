@@ -44,7 +44,7 @@ to Terrane source:
 4. **Authored Terrane wrapper.** `crates/terrane-compiler/src/standard/urls.trn` imports the platform
    primitives and presents an ordinary Terrane API.
 
-Milestone 25 generalises layers 2, 3 and 4: `/dependencies/<crate>` replaces the hard-coded platform
+Milestone 25 generalises layers 2, 3 and 4: `/deps/<crate>` replaces the hard-coded platform
 namespace, the shims are generated from a projection instead of being written by hand, and layer 4
 becomes optional rather than mandatory.
 
@@ -98,24 +98,27 @@ dependency declaration: no `use rust crate-name`, no per-file ceremony. Once a d
 manifest it is available, and importing from it is the only thing source does.
 
 This is the distinction §23.3 already draws — dependency graph composition is not the same operation
-as name binding — carried to its conclusion. `from /dependencies/reqwest import get` performs the
-binding; the manifest performed the composition. A `from /dependencies/...` import naming a crate the
+as name binding — carried to its conclusion. `from /deps/reqwest import get` performs the
+binding; the manifest performed the composition. A `from /deps/...` import naming a crate the
 package's manifest does not declare is a Terrane diagnostic.
+
+The root was shortened from `/dependencies` to `/deps` before milestone 25 merged, solely to keep
+dependency imports concise; the longer spelling was never a compatibility contract.
 
 The projected surface appears at a predictable path:
 
 ```terrane
-namespace /dependencies/reqwest
+namespace /deps/reqwest
 ```
 
-`/dependencies` is a reserved root segment so a package cannot collide with it. Members are projected
+`/deps` is a reserved root segment so a package cannot collide with it. Members are projected
 under the crate's own module structure, with Rust naming mapped to Terrane naming.
 
 Use is ordinary:
 
 ```terrane
 namespace my-app
-from /dependencies/reqwest import get as reqwest-get
+from /deps/reqwest import get as reqwest-get
 foo = await reqwest-get; >https://httpbin.org/ip
 ```
 
@@ -151,11 +154,11 @@ foo = await reqwest-get; >https://httpbin.org/ip
   value is an identity-bearing resource, not an ordinary COW value — the rule §23.13 already states
   for foreign proxies and invariant 22 already makes normative. So:
 
-  | Rust receiver | Terrane call site |
+  | Rust receiver | Terrane contract and call |
   |---|---|
-  | `&self` | ordinary borrow; a call may borrow without transferring |
-  | `&mut self` | `ref` |
-  | `self` | `move` |
+  | `&self` | ordinary member call; receiver borrowed without transfer |
+  | `&mut self` | ordinary member call; projected contract marks the receiver mutable, so lowering emits a mutable binding and borrow |
+  | `self` | `move` under the ordinary foreign-resource ownership rule |
 
   Self-consuming methods therefore need no special handling. A builder chain binds no intermediate, so
   it reads without ceremony; `move` becomes visible only where an author binds an intermediate and
@@ -196,6 +199,18 @@ spawned cannot be caught at the call boundary; `catch_unwind` imposes `UnwindSaf
 crate value satisfies; and containment cannot be elided per member, since panic freedom is not
 statically knowable.
 
+Milestone 25 emits `catch_unwind(AssertUnwindSafe(...))` for the generated crate's current unwinding
+profile. Profile-aware selection between unwind containment and abort semantics, and replacing the
+blanket unwind-safety assertion with a proven boundary contract, are deferred until build profiles
+and dependency capability contracts are represented by the compiler.
+
+End-to-end Terrane catch coverage for this boundary remains deferred until the admitted projected
+surface contains a deterministic panicking member with representable arguments. The current
+`bytes` witness exposes such operations only behind the deliberately deferred `usize` projection,
+and inventing a crate-specific panic hook would violate the generic projection contract. Milestone
+25 therefore verifies panic payload and crate/member preservation in fixture-owned generated Rust;
+ordinary Terrane `try`/`catch` coverage already verifies the `dependency-panic` throwable class.
+
 ### 6.4 Diagnostic translation, not new language features
 
 Rust already enforces these in the generated crate; the work is reporting them in Terrane terms
@@ -225,7 +240,7 @@ versions. No package code is executed. Output: a namespace model.
 
 Mechanical rules:
 
-- module paths become namespace paths under `/dependencies/<crate>`;
+- module paths become namespace paths under `/deps/<crate>`;
 - `async fn` projects as an async Terrane function; the existing async model applies, with tokio
   already in the generated crate;
 - **bound-driven monomorphisation**: for a generic parameter with a closed, inspectable bound, the
@@ -244,7 +259,7 @@ pub async fn get<T: IntoUrl>(url: T) -> Result<Response>
 which projects to (syntax illustrative):
 
 ```terrane
-namespace /dependencies/reqwest
+namespace /deps/reqwest
 async function get response throws reqwest-error; url string
 ```
 
@@ -298,8 +313,8 @@ way — UFCS, plus the requirement that a trait be in scope to call its methods.
 - **Trait methods** project into the **trait's own namespace**, as free functions taking the receiver
   as the first parameter. The trait's canonical Rust path gives the namespace deterministically, and
   it may belong to another crate. Two traits are two namespaces, so a collision is not representable.
-- **Choosing between them is an import**, not a heuristic: `from /dependencies/tokio/io/AsyncReadExt
-  import read-to-end` is Terrane's spelling of Rust's "the trait must be in scope", and the choice is
+- **Choosing between them is an import**, not a heuristic: `from /deps/tokio/io/AsyncReadExt import
+  read-to-end` is Terrane's spelling of Rust's "the trait must be in scope", and the choice is
   recorded in the author's own file.
 
 This is also the shape the hand-written boundary already uses: `platform_urls.rs` exposes
@@ -315,6 +330,11 @@ The cost, stated deliberately: a trait method reads as `read-to-end; response` r
 ergonomic rule could permit method syntax where exactly one imported trait supplies the name and no
 inherent member competes; it is not needed for correctness.
 
+Milestone 25 implements inherent methods and records every trait method as declined with an explicit
+reason. Receiver-first trait namespaces remain the required design above; projecting trait methods is
+deferred until that namespace form is implemented rather than merging trait methods into the
+receiver's member set.
+
 ### 7.4 Enums
 
 - **Data-free enums** (`Method`, `Version`) project as an opaque value with projected constants and
@@ -322,6 +342,19 @@ inherent member competes; it is not needed for correctness.
 - **Data-carrying enums** project as opaque values with whatever accessors the crate provides. Without
   general pattern matching there is no safe destructuring form to offer, so none is offered.
 - `Result` and `Option` are not enums for this purpose; see 6.2.
+
+Milestone 25 lowers `Result<T, E>` for directly representable `T`. Although the version-one design
+maps `Option<T>` to `T|none`, the current semantic model has optional variants only for selected
+built-in value families, not arbitrary foreign objects. The projector therefore records an explicit
+decline for every `Option` signature rather than emitting source that the semantic pass cannot type.
+Primitive projection is likewise deliberately limited to the exact set supported by
+`project_type`; unsupported Rust primitives are recorded as declines rather than narrowed.
+
+The current milestone also treats every projected Rust enum as an opaque foreign value: variants,
+constructors, and comparison are not yet projected. Rust type aliases resolve only when rustdoc
+supplies a concrete directly representable target; generic, associated, and otherwise unresolved
+aliases are recorded as declines. The richer enum contract above remains deferred until those
+members can be represented and exercised end to end.
 
 ## 8. Capabilities and transitive dependencies
 
@@ -375,14 +408,21 @@ Cache identity covers manifest contents, lock checksum, enabled features, defaul
 target triple, toolchain version, and package source checksums — the same set §23.1 already requires
 of tooling. The projection is a pure function of that identity, so the language server and the
 compiler compute the same model or neither does.
+The project-local cache retains the current projection and at most three prior projection artifacts.
+This bounded history avoids repeated rustdoc work during ordinary lockfile rollback and editor churn
+without allowing one project directory to grow indefinitely. It is an operational cache, not the
+durable, machine-independent projection history needed to distinguish a removed member from one that
+never existed or to name the version change in a diagnostic.
 
 The projection pass is treated exactly as a build script is: same build capability, same sandbox
 policy, same cache-identity inputs. If the two are governed separately they will eventually disagree
 about what a build is permitted to do.
 
-Generated Cargo and generated Rust are golden-tested. A lock bump that removes a projected member is
-a source-visible interface change and must produce a Terrane diagnostic naming the member and the
-version change, not a rustc error against generated source.
+Generated Cargo and generated Rust are golden-tested. A lock bump that removes a crossed projected
+member is a source-visible interface change. Milestone 25 diagnoses the missing member at its Terrane
+import or use site rather than allowing an unexplained rustc error in generated source. Distinguishing
+that removal from a member that never existed, and naming the version change, is deferred until
+projection history has a durable, machine-independent home.
 
 ## 10. Conflicts with the current specification
 
@@ -398,7 +438,7 @@ entry. §23.8 must be reconciled with §23.1.
 
 §23.2 and §23.8 also show `use rust serde` as a source-level dependency declaration. Section 5 above
 removes it: dependencies are declared in the project manifest only. The `use` form is redundant once
-`from /dependencies/...` performs the binding, and its removal makes §23.3's own distinction cleaner
+`from /deps/...` performs the binding, and its removal makes §23.3's own distinction cleaner
 rather than weaker. Whether the same applies to the other three dependency origins in §23.2 — native
 Terrane packages, system libraries, and foreign runtimes — is a larger question this note does not
 settle, but consistency argues for one answer across all four.
@@ -434,7 +474,7 @@ here is conditional or outstanding.
   - **all documentation examples use kebab-case**, including examples in this note and in the
     specification;
   - **user code may use any case, and the language does not enforce its own house style on it.** The
-    kebab-case check survives as an available lint with the §5 wording and formatter fixit intact, but
+    kebab-case check survives as an available compiler advisory with the §5 wording and declaration-specific help, but
     it is advisory and off by default: a project that wants Terrane's convention can turn it on, and
     one that does not is not nagged. What changes is that the rule stops being a rejection and stops
     being applied to code Terrane does not own;
@@ -450,7 +490,7 @@ here is conditional or outstanding.
   "authored deliberately, never produced automatically" wrapper sentence. An authored wrapper becomes
   optional ergonomics, not the price of entry. (§10)
 - **A3 — §23.2, §23.3.** Remove the source-level `use rust crate-name` form and its examples.
-  Dependencies are declared in the project manifest only; `from /dependencies/...` performs the
+  Dependencies are declared in the project manifest only; `from /deps/...` performs the
   binding. Decide separately whether the same applies to the other three dependency origins. (§5)
 - **A4 — `docs/surface-v1.md` §14.1.** Restate to match A2; it currently asserts the §23.8 position.
   (§10)
@@ -474,9 +514,9 @@ here is conditional or outstanding.
 
 ### 11.2 Compiler
 
-- **A7 — reserve `/dependencies`** as a root namespace segment. (§5)
+- **A7 — reserve `/deps`** as a root namespace segment. (§5)
 - **A8 — manifest schema** for Rust dependencies: crate, version, features, default-feature policy,
-  target conditions. Diagnose a `from /dependencies/...` import naming an undeclared crate. (§5)
+  target conditions. Diagnose a `from /deps/...` import naming an undeclared crate. (§5)
 - **A9 — generalise the opaque value type.** Replace `ValueType::PlatformDataResult` and
   `ValueType::PlatformUrlResult` with a general foreign value type keyed by crate and Rust path.
   (§3)
@@ -485,9 +525,13 @@ here is conditional or outstanding.
   verbatim names, `async fn` to async, bound-driven monomorphisation, inherent methods as members,
   trait methods into the trait's namespace, enums per §7.4, and a recorded reason for every item it
   declines to project. (§4, §6.5, §7)
-- **A11 — shim generation** for crossed members only: receivers projected faithfully (`&self` borrow,
-  `&mut self` as `ref`, `self` as `move`), owned returns with an edge clone where the crate returns a
-  cloneable borrow, and edge coercion for scalars. (§6.2)
+- **A11 — shim generation** for crossed members only: receivers projected faithfully (`&self` as a
+  shared receiver, `&mut self` as receiver mutability on the projected contract, and `self` as
+  `move`), owned returns with an edge clone where the crate returns a cloneable borrow, and edge
+  coercion for scalars. Mutable receivers use ordinary Terrane member-call syntax; the contract drives
+  mutable binding and borrowing in generated Rust. Until object identity includes its namespace,
+  conflicting receiver contracts on same-named projected types are a compile-time ambiguity rather
+  than being selected by projection order. (§6.2)
 - **A11a — foreign values are identity-bearing resources**, per invariant 22, so ordinary value
   assignment does not apply to them and use-after-move is diagnosed by the existing rules. Confirm the
   §23.13 foreign-proxy wording covers Rust values rather than only foreign-runtime proxies; extend it
@@ -507,9 +551,9 @@ here is conditional or outstanding.
   A6a, under the A15a policy. Manifest, lock checksum, features, default-feature
   policy, target triple, toolchain version, package source checksums. The projection pass runs under
   the same build capability, sandbox policy, and cache-identity inputs as a build script. (§9)
-- **A16 — lock-change diagnostics.** A lock bump that removes a projected member produces a Terrane
-  diagnostic naming the member and the version change, not a rustc error against generated source.
-  (§9)
+- **A16 — lock-change diagnostics.** Milestone 25 diagnoses a missing crossed member at its Terrane
+  import or use site rather than as a rustc error against generated source. Durable distinction from
+  a never-present member and version-change naming are deferred with projection-history storage. (§9)
 
 ### 11.3 Tooling
 

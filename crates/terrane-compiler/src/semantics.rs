@@ -72,6 +72,7 @@ pub struct SemanticPackage {
     pub prelude: bool,
     pub reflection: crate::package::ReflectionProfile,
     pub executor: crate::package::ExecutorProfile,
+    pub projection: crate::projection::Projection,
     pub namespaces: BTreeMap<String, Namespace>,
     pub globals: BTreeMap<String, Symbol>,
     pub prelude_bindings: BTreeMap<String, Symbol>,
@@ -726,10 +727,6 @@ fn parse_unit(
             diagnostics: parsed.diagnostics,
         });
     }
-    validate_declared_names(source, &parsed.tree).map_err(|diagnostic| SemanticFailure {
-        source: source.clone(),
-        diagnostics: vec![diagnostic],
-    })?;
     let namespace =
         declared_namespace(source, &parsed.tree).map_err(|diagnostic| SemanticFailure {
             source: source.clone(),
@@ -780,7 +777,10 @@ fn parse_unit(
     })
 }
 
-fn parse_units(package: &Package) -> Result<Vec<SemanticUnit>, SemanticFailure> {
+fn parse_units(
+    package: &Package,
+    projection: &crate::projection::Projection,
+) -> Result<Vec<SemanticUnit>, SemanticFailure> {
     let mut units = package
         .units
         .iter()
@@ -804,6 +804,44 @@ fn parse_units(package: &Package) -> Result<Vec<SemanticUnit>, SemanticFailure> 
         .max()
         .unwrap_or(0)
         .saturating_add(1);
+    let mut dependency_imports = BTreeMap::<String, BTreeSet<String>>::new();
+    for unit in &units {
+        for import in unit
+            .tree
+            .root
+            .children
+            .iter()
+            .filter(|node| node.kind == SyntaxKind::ImportDeclaration)
+            .map(|node| imports_from_syntax(unit, node))
+            .collect::<Result<Vec<_>, _>>()?
+            .into_iter()
+            .flatten()
+            .filter(|import| import.target.starts_with("/deps/"))
+        {
+            dependency_imports
+                .entry(import.target)
+                .or_default()
+                .insert(import.object);
+        }
+    }
+    for (namespace, text) in projection.source_for_imports(&dependency_imports) {
+        if !loaded.insert(namespace.clone()) {
+            continue;
+        }
+        let path = format!(
+            "<terrane>/projected/{}.trn",
+            namespace.trim_start_matches('/')
+        );
+        let source = SourceFile::new(next_source_id, path.clone().into(), text);
+        next_source_id = next_source_id.saturating_add(1);
+        units.push(parse_unit(
+            &source,
+            path,
+            Some(&namespace),
+            package.prelude,
+            true,
+        )?);
+    }
     let mut index = 0;
     while index < units.len() {
         let targets = units[index]
@@ -841,7 +879,46 @@ fn parse_units(package: &Package) -> Result<Vec<SemanticUnit>, SemanticFailure> 
         }
         index += 1;
     }
+    apply_projected_method_contracts(&mut units, projection);
     Ok(units)
+}
+fn apply_projected_method_contracts(
+    units: &mut [SemanticUnit],
+    projection: &crate::projection::Projection,
+) {
+    for unit in units {
+        if !unit.namespace.starts_with("/deps/") {
+            continue;
+        }
+        for contract in &mut unit.functions {
+            let Some(owner) = contract.owner.as_deref() else {
+                continue;
+            };
+            let Some(method) = projection.method(&unit.namespace, owner, &contract.name) else {
+                continue;
+            };
+            contract.throws = true;
+            contract.mutates_receiver = matches!(
+                method.receiver,
+                Some(crate::projection::Receiver::MutableBorrow)
+            );
+            contract.consumes_receiver =
+                matches!(method.receiver, Some(crate::projection::Receiver::Move));
+        }
+    }
+}
+
+fn dependency_projection(
+    package: &Package,
+) -> Result<crate::projection::Projection, SemanticFailure> {
+    crate::projection::resolve(&package.root, &package.rust_dependencies).map_err(|error| {
+        failure(
+            &package.units[0].source,
+            "S2028",
+            error.message,
+            Span::new(package.units[0].source.id(), 0, 0),
+        )
+    })
 }
 
 /// Builds the complete namespace tree, then resolves declarations and imports.
@@ -852,8 +929,14 @@ fn parse_units(package: &Package) -> Result<Vec<SemanticUnit>, SemanticFailure> 
 ///
 /// # Errors
 /// Returns the first source-oriented lexer, parser, namespace, scope, or import failure.
+#[expect(
+    clippy::too_many_lines,
+    reason = "semantic phase orchestration remains linear and order-sensitive"
+)]
 pub fn analyze(package: &Package) -> Result<SemanticPackage, SemanticFailure> {
-    let mut units = parse_units(package)?;
+    let projection = dependency_projection(package)?;
+    let mut units = parse_units(package, &projection)?;
+    validate_compiler_owned_names(&units)?;
 
     let mut namespaces = bootstrap_namespaces();
     for unit in &units {
@@ -868,7 +951,8 @@ pub fn analyze(package: &Package) -> Result<SemanticPackage, SemanticFailure> {
                 | "/core/platform-system"
                 | "/core/platform-data"
                 | "/core/platform-capabilities"
-        ) || (crate::bundled::source(&unit.namespace).is_some() && !bundled)
+        ) || ((unit.namespace == "/deps" || unit.namespace.starts_with("/deps/")) && !bundled)
+            || (crate::bundled::source(&unit.namespace).is_some() && !bundled)
         {
             let span = unit
                 .tree
@@ -895,6 +979,52 @@ pub fn analyze(package: &Package) -> Result<SemanticPackage, SemanticFailure> {
     for unit in &units {
         collect_unit(unit, &mut namespaces, &mut globals, &mut imports)?;
     }
+    for import in &imports {
+        let Some(dependency) = import
+            .target
+            .strip_prefix("/deps/")
+            .and_then(|path| path.split('/').next())
+        else {
+            continue;
+        };
+        if !package
+            .rust_dependencies
+            .iter()
+            .any(|declared| declared.name.replace('_', "-") == dependency)
+        {
+            return Err(failure(
+                &import.source,
+                "S2027",
+                format!("Rust dependency `{dependency}` is not declared in `package.toml`"),
+                import.span,
+            ));
+        }
+        if projection.item(&import.target, &import.object).is_none() {
+            let reason = projection.dependencies.iter().find_map(|dependency| {
+                dependency.declined.iter().find_map(|declined| {
+                    (crate::projection::namespace_for_rust_path(dependency, &declined.rust_path)
+                        == import.target
+                        && declined.rust_path.rsplit("::").next() == Some(import.object.as_str()))
+                    .then_some(declined.reason.as_str())
+                })
+            });
+            let message = reason.map_or_else(
+                || {
+                    format!(
+                        "Rust dependency projection has no member `{}` in `{}`",
+                        import.object, import.target
+                    )
+                },
+                |reason| {
+                    format!(
+                        "Rust dependency member `{}` in `{}` is not projected: {reason}",
+                        import.object, import.target
+                    )
+                },
+            );
+            return Err(failure(&import.source, "S2029", message, import.span));
+        }
+    }
     resolve_imports(imports, &mut namespaces)?;
     for unit in &mut units {
         unit.scopes = collect_lexical_scopes(unit, &namespaces, &globals)?;
@@ -916,12 +1046,14 @@ pub fn analyze(package: &Package) -> Result<SemanticPackage, SemanticFailure> {
         prelude_bindings,
         descriptor_constructs,
         units,
+        projection,
         binding_events: BTreeMap::new(),
         bootstrap_version: BOOTSTRAP_VERSION,
     };
     validate_initializer_dependencies(&semantic)?;
     validate_references(&semantic)?;
     analyze_types(&mut semantic)?;
+    validate_projected_receiver_mutability(&semantic)?;
     validate_error_clauses(&semantic)?;
     validate_moves(&semantic)?;
     validate_reference_origins(&semantic)?;
@@ -1469,43 +1601,6 @@ fn is_reserved_namespace_segment(component: &str) -> bool {
             .strip_prefix("com")
             .or_else(|| component.strip_prefix("lpt"))
             .is_some_and(|suffix| suffix.len() == 1 && matches!(suffix.as_bytes()[0], b'1'..=b'9'))
-}
-
-fn validate_declared_names(source: &SourceFile, tree: &SyntaxTree) -> Result<(), Diagnostic> {
-    fn visit(source: &SourceFile, node: &SyntaxNode) -> Result<(), Diagnostic> {
-        let declared_children = matches!(
-            node.kind,
-            SyntaxKind::Binding
-                | SyntaxKind::FunctionDeclaration
-                | SyntaxKind::ClassDeclaration
-                | SyntaxKind::InterfaceDeclaration
-                | SyntaxKind::TraitDeclaration
-                | SyntaxKind::Parameter
-                | SyntaxKind::ForTarget
-                | SyntaxKind::ImportAlias
-        );
-        if declared_children {
-            for child in &node.children {
-                if child.kind == SyntaxKind::Name {
-                    let authored = node_text(source, child);
-                    if authored.bytes().any(|byte| byte.is_ascii_uppercase()) {
-                        let replacement = authored.to_ascii_lowercase();
-                        return Err(Diagnostic::error(
-                            "S2018",
-                            format!("declared name `{authored}` must be lowercase"),
-                            child.span,
-                        )
-                        .with_help(format!("use `{replacement}`")));
-                    }
-                }
-            }
-        }
-        for child in &node.children {
-            visit(source, child)?;
-        }
-        Ok(())
-    }
-    visit(source, &tree.root)
 }
 
 fn collect_unit(
@@ -5795,6 +5890,8 @@ fn parse_declared_value_type(
             | "decode-error"
             | "index-error"
             | "missing-key"
+            | "dependency-error"
+            | "dependency-panic"
     ) {
         return Some(ValueType::Object(type_name.to_owned()));
     }
@@ -9637,6 +9734,9 @@ fn validate_control_flow(package: &SemanticPackage) -> Result<Vec<Vec<Span>>, Se
             else {
                 continue;
             };
+            if block.children.is_empty() {
+                continue;
+            }
             let bindings = call_site_bindings(unit, Some(contract));
             let falls_through =
                 validate_flow_block(unit, block, contract, &bindings, 0, &mut unreachable)?;
@@ -10490,6 +10590,8 @@ fn bootstrap_namespaces() -> BTreeMap<String, Namespace> {
             "decode-error",
             "index-error",
             "missing-key",
+            "dependency-error",
+            "dependency-panic",
         ],
         SymbolKind::ErrorObject,
     );
@@ -11425,9 +11527,70 @@ fn collect_loop_target_spans(node: &SyntaxNode, loop_targets: &mut BTreeSet<(u32
     }
 }
 
-pub(crate) fn warnings(package: &SemanticPackage) -> Vec<Diagnostic> {
+fn invalid_name_style_declarations(unit: &SemanticUnit) -> Vec<(&str, Span)> {
+    let mut declarations = unit
+        .typed_bindings
+        .iter()
+        .map(|binding| (binding.name.as_str(), binding.span))
+        .chain(
+            unit.functions
+                .iter()
+                .map(|function| (function.name.as_str(), function.span)),
+        )
+        .chain(
+            unit.objects
+                .iter()
+                .map(|object| (object.name.as_str(), object.span)),
+        )
+        .collect::<Vec<_>>();
+    declarations.sort_by_key(|(_, span)| (span.start, span.end));
+    declarations.dedup_by_key(|(_, span)| (span.start, span.end));
+    declarations.retain(|(text, _)| {
+        !text.bytes().enumerate().all(|(index, byte)| {
+            byte.is_ascii_lowercase() || byte.is_ascii_digit() || (index > 0 && byte == b'-')
+        })
+    });
+    declarations
+}
+
+fn validate_compiler_owned_names(units: &[SemanticUnit]) -> Result<(), SemanticFailure> {
+    for unit in units
+        .iter()
+        .filter(|unit| unit.bundled && !unit.namespace.starts_with("/deps/"))
+    {
+        if let Some((text, span)) = invalid_name_style_declarations(unit).into_iter().next() {
+            return Err(failure(
+                &unit.source,
+                "S2018",
+                format!("compiler-owned declaration `{text}` is not kebab-case"),
+                span,
+            ));
+        }
+    }
+    Ok(())
+}
+
+fn collect_name_style_warnings(unit: &SemanticUnit, warnings: &mut Vec<Diagnostic>) {
+    for (text, span) in invalid_name_style_declarations(unit) {
+        warnings.push(
+            Diagnostic::warning(
+                "S2018",
+                format!("declared name `{text}` is not kebab-case"),
+                span,
+            )
+            .with_help(
+                "use kebab-case for Terrane-owned declarations; projected dependency names remain verbatim",
+            ),
+        );
+    }
+}
+
+pub(crate) fn warnings(package: &SemanticPackage, lint_name_style: bool) -> Vec<Diagnostic> {
     let mut warnings = Vec::new();
     for unit in &package.units {
+        if lint_name_style && !unit.bundled && !unit.namespace.starts_with("/deps/") {
+            collect_name_style_warnings(unit, &mut warnings);
+        }
         let mut loop_targets = BTreeSet::new();
         collect_loop_target_spans(&unit.tree.root, &mut loop_targets);
         for binding in &unit.typed_bindings {
@@ -11490,6 +11653,133 @@ pub(crate) fn warnings(package: &SemanticPackage) -> Vec<Diagnostic> {
     warnings
 }
 
+fn projected_method_mutability(
+    package: &SemanticPackage,
+    unit: &SemanticUnit,
+    position: usize,
+    object_name: &str,
+    method_name: &str,
+) -> Result<Option<bool>, Vec<String>> {
+    let resolved = package
+        .resolve_name_at(unit, position, object_name)
+        .and_then(|symbol| {
+            let (namespace, _) = symbol.identity.rsplit_once("::")?;
+            package
+                .projection
+                .method(namespace, object_name, method_name)
+                .map(|method| {
+                    matches!(
+                        method.receiver,
+                        Some(crate::projection::Receiver::MutableBorrow)
+                    )
+                })
+        });
+    resolved.map_or_else(
+        || {
+            package
+                .projection
+                .method_mutability(object_name, method_name)
+        },
+        |mutates| Ok(Some(mutates)),
+    )
+}
+
+fn validate_projected_receiver_mutability(
+    package: &SemanticPackage,
+) -> Result<(), SemanticFailure> {
+    fn ambiguity(
+        package: &SemanticPackage,
+        unit: &SemanticUnit,
+        node: &SyntaxNode,
+    ) -> Option<Diagnostic> {
+        if node.kind == SyntaxKind::CallExpression
+            && let Some(callee) = node.children.first()
+            && callee.kind == SyntaxKind::MemberExpression
+            && let [receiver, member] = callee.children.as_slice()
+            && let Ok(Some(ValueType::Object(object_name))) =
+                infer_value_type(unit, receiver, &unit.typed_bindings)
+            && let Err(mut candidates) = projected_method_mutability(
+                package,
+                unit,
+                receiver.span.start,
+                &object_name,
+                node_text(&unit.source, member),
+            )
+        {
+            candidates.sort();
+            return Some(
+                Diagnostic::error(
+                    "S2030",
+                    format!(
+                        "projected method `{}.{}` has ambiguous receiver mutability across `{}`",
+                        object_name,
+                        node_text(&unit.source, member),
+                        candidates.join("`, `")
+                    ),
+                    member.span,
+                )
+                .with_help(
+                    "import the intended projected type explicitly so its namespace determines the receiver contract",
+                ),
+            );
+        }
+        node.children
+            .iter()
+            .find_map(|child| ambiguity(package, unit, child))
+    }
+
+    for unit in &package.units {
+        if let Some(diagnostic) = ambiguity(package, unit, &unit.tree.root) {
+            return Err(SemanticFailure {
+                source: unit.source.clone(),
+                diagnostics: vec![diagnostic],
+            });
+        }
+    }
+    Ok(())
+}
+
+fn object_method_mutates(
+    package: &SemanticPackage,
+    unit: &SemanticUnit,
+    position: usize,
+    object_name: &str,
+    method_name: &str,
+) -> bool {
+    fn contract_mutates(unit: &SemanticUnit, object_name: &str, method_name: &str) -> bool {
+        if let Some(method) = unit.functions.iter().find(|method| {
+            method.owner.as_deref() == Some(object_name) && method.name == method_name
+        }) {
+            return method.mutates_receiver;
+        }
+        unit.objects
+            .iter()
+            .find(|object| object.name == object_name)
+            .and_then(|object| object.base.as_deref())
+            .is_some_and(|base| contract_mutates(unit, base, method_name))
+    }
+
+    if contract_mutates(unit, object_name, method_name) {
+        return true;
+    }
+
+    if let Some(declaration) = resolved_object_span(package, unit, position, object_name)
+        && package.units.iter().any(|candidate| {
+            candidate
+                .objects
+                .iter()
+                .find(|object| object.span == declaration)
+                .is_some_and(|object| contract_mutates(candidate, &object.name, method_name))
+        })
+    {
+        return true;
+    }
+    projected_method_mutability(package, unit, position, object_name, method_name)
+        .ok()
+        .flatten()
+        .unwrap_or(false)
+}
+
 pub(crate) fn binding_span_is_mutated(
     package: &SemanticPackage,
     unit: &SemanticUnit,
@@ -11503,23 +11793,6 @@ pub(crate) fn binding_span_is_mutated(
         iterator_binding: bool,
         node: &SyntaxNode,
     ) -> usize {
-        fn object_method_mutates(
-            unit: &SemanticUnit,
-            object_name: &str,
-            method_name: &str,
-        ) -> bool {
-            if let Some(method) = unit.functions.iter().find(|method| {
-                method.owner.as_deref() == Some(object_name) && method.name == method_name
-            }) {
-                return method.mutates_receiver;
-            }
-            unit.objects
-                .iter()
-                .find(|object| object.name == object_name)
-                .and_then(|object| object.base.as_deref())
-                .is_some_and(|base| object_method_mutates(unit, base, method_name))
-        }
-
         let resolves_to_binding = |target: &SyntaxNode| {
             target.kind == SyntaxKind::Name
                 && !package.is_lexical_replacement(unit, node.span, node_text(&unit.source, target))
@@ -11551,7 +11824,9 @@ pub(crate) fn binding_span_is_mutated(
                         infer_value_type(unit, receiver, &unit.typed_bindings),
                         Ok(Some(ValueType::Object(object)))
                             if object_method_mutates(
+                                package,
                                 unit,
+                                receiver.span.start,
                                 &object,
                                 node_text(&unit.source, member)
                             )
@@ -11680,5 +11955,118 @@ fn failure(
     SemanticFailure {
         source: source.clone(),
         diagnostics: vec![Diagnostic::error(code, message, span)],
+    }
+}
+
+#[cfg(test)]
+mod name_style_tests {
+    use super::*;
+
+    #[test]
+    fn compiler_owned_declarations_require_kebab_case() {
+        let package = Package::implicit(
+            "main.trn",
+            "namespace app\nfunction NotKebab;\n  return\nfunction main;\n  return\n".to_owned(),
+        );
+        let mut semantic = analyze(&package).unwrap();
+        semantic.units[0].bundled = true;
+
+        let failure = validate_compiler_owned_names(&semantic.units).unwrap_err();
+        assert_eq!(failure.diagnostics[0].code, "S2018");
+        assert_eq!(
+            failure.diagnostics[0].message,
+            "compiler-owned declaration `NotKebab` is not kebab-case"
+        );
+    }
+
+    #[test]
+    fn authored_name_style_is_an_opt_in_warning() {
+        let package = Package::implicit(
+            "main.trn",
+            "namespace app\nfunction main;\n  Answer = 42\n  print; Answer\n".to_owned(),
+        );
+        let semantic = analyze(&package).unwrap();
+
+        assert!(warnings(&semantic, false).is_empty());
+        let diagnostics = warnings(&semantic, true);
+        assert!(diagnostics.iter().any(|diagnostic| {
+            diagnostic.code == "S2018"
+                && diagnostic.message == "declared name `Answer` is not kebab-case"
+                && diagnostic.severity == crate::Severity::Warning
+        }));
+    }
+}
+
+#[cfg(test)]
+mod projected_receiver_tests {
+    use super::*;
+    use crate::projection::{
+        Containment, ProjectedDependency, ProjectedFunction, ProjectedItem, ProjectedKind,
+        ProjectedType, Projection, Receiver,
+    };
+
+    fn projected_response(namespace: &str, rust_path: &str, receiver: Receiver) -> ProjectedItem {
+        ProjectedItem {
+            namespace: namespace.to_owned(),
+            name: "ProjectedResponse".to_owned(),
+            rust_path: rust_path.to_owned(),
+            docs: None,
+            kind: ProjectedKind::ForeignType {
+                methods: vec![ProjectedFunction {
+                    name: "touch".to_owned(),
+                    parameters: Vec::new(),
+                    result: ProjectedType::None,
+                    error: None,
+                    is_async: false,
+                    receiver: Some(receiver),
+                }],
+            },
+        }
+    }
+
+    #[test]
+    fn ambiguous_projected_receiver_contract_reports_s2030() {
+        let package = Package::implicit(
+            "main.trn",
+            "namespace app\nclass Response\n  function touch;\n    return\nfunction main;\n  response Response = Response;\n  response.touch;\n".to_owned(),
+        );
+        let mut semantic = analyze(&package).unwrap();
+        for binding in semantic.units[0]
+            .typed_bindings
+            .iter_mut()
+            .filter(|binding| binding.name == "response")
+        {
+            binding.value_type = ValueType::Object("ProjectedResponse".to_owned());
+        }
+        semantic.projection = Projection {
+            cache_identity: "test".to_owned(),
+            dependencies: vec![ProjectedDependency {
+                name: "witness".to_owned(),
+                package: "witness".to_owned(),
+                version: "=1.0.0".to_owned(),
+                items: vec![
+                    projected_response(
+                        "/deps/witness/async",
+                        "witness::async_impl::Response",
+                        Receiver::Borrow,
+                    ),
+                    projected_response(
+                        "/deps/witness/blocking",
+                        "witness::blocking::Response",
+                        Receiver::MutableBorrow,
+                    ),
+                ],
+                declined: Vec::new(),
+            }],
+            containment: Containment::Unavailable,
+        };
+
+        let failure = validate_projected_receiver_mutability(&semantic).unwrap_err();
+        let diagnostic = &failure.diagnostics[0];
+        assert_eq!(diagnostic.code, "S2030");
+        assert_eq!(
+            diagnostic.message,
+            "projected method `ProjectedResponse.touch` has ambiguous receiver mutability across `witness::async_impl::Response`, `witness::blocking::Response`"
+        );
     }
 }

@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 
 use crate::{
-    Diagnostic, Package, SourceFile, Span,
+    Diagnostic, Package, RustDependency, SourceFile, Span,
     rust_ir::RenderedFile,
     semantics::{self, SymbolKind},
 };
@@ -9,6 +9,7 @@ use crate::{
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub struct CompilerOptions {
     pub require_canonical_rust: bool,
+    pub lint_name_style: bool,
 }
 
 #[derive(Clone, Debug)]
@@ -18,6 +19,7 @@ pub struct Compilation {
     pub rust: String,
     pub rust_files: Vec<RenderedFile>,
     pub warnings: Vec<Diagnostic>,
+    pub rust_dependencies: Vec<RustDependency>,
 }
 
 #[derive(Clone, Debug)]
@@ -134,10 +136,26 @@ pub fn compile_package_with_options(
         .iter()
         .map(|unit| unit.source.clone())
         .collect();
-    let warnings = semantics::warnings(&semantic);
+    let warnings = semantics::warnings(&semantic, options.lint_name_style);
     let rust_ir = crate::lowering::lower(&semantic);
     let rust = rust_ir.render();
     let rust_files = rust_ir.render_files();
+    let rust_dependencies = package
+        .rust_dependencies
+        .iter()
+        .map(|dependency| {
+            let mut dependency = dependency.clone();
+            if let Some(projected) = semantic
+                .projection
+                .dependencies
+                .iter()
+                .find(|projected| projected.name == dependency.name)
+            {
+                dependency.version = format!("={}", projected.version);
+            }
+            dependency
+        })
+        .collect();
     if options.require_canonical_rust {
         validate_canonical_rust(&rust_files, &semantic.units, source, entry_span)?;
     }
@@ -147,6 +165,7 @@ pub fn compile_package_with_options(
         rust,
         rust_files,
         warnings,
+        rust_dependencies,
     })
 }
 

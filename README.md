@@ -58,6 +58,10 @@ The working `terrane` CLI can check, lower, build, and run manifest-backed progr
 
 This repository uses [`sccache`](https://github.com/mozilla/sccache) as its Cargo compiler wrapper and therefore expects `sccache` on `PATH`. This requirement applies to working on the Terrane toolchain itself; it is not imposed on projects compiled with Terrane. Install a prebuilt package from your system package manager or with `cargo binstall sccache`. `cargo install sccache --locked` also works, but compiling the cache from source is slower than installing a release binary.
 
+Projects that declare `[rust-dependencies]` additionally require the pinned Rust nightly toolchain and
+Linux [`bubblewrap`](https://github.com/containers/bubblewrap) (`bwrap`) on `PATH`. Bubblewrap contains
+Cargo and rustdoc inspection of third-party packages; dependency-free Terrane projects do not require it.
+
 Cargo already retains downloaded registry indexes and crate archives in `CARGO_HOME`, so repeated toolchain and conformance builds do not download unchanged dependencies again. The conformance runner additionally reuses one generated Cargo workspace for all accepted cases in a corpus run, while `sccache` carries reusable Rust compilation artifacts across separate runs and branches.
 
 Generated Rust is returned exactly as Terrane lowering emits it. Compiler work can pass

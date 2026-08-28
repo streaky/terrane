@@ -442,6 +442,8 @@ S2010 inaccessible imported name             S2023 initializer self-reference
 S2011 import collision                       S2024 namespace initialization cycle
 S2012 duplicate lexical binding              S2025 public namespace variable
 S2013 unresolved source name                 S2026 namespace-variable confinement
+S2027 undeclared Rust dependency             S2029 projected member absent or declined
+S2028 Rust dependency projection failure     S2030 ambiguous projected receiver mutability
 ```
 
 Retired codes remain unavailable so a stable code never acquires a second meaning.
@@ -1515,8 +1517,8 @@ Deliver:
   generates only the machinery Terrane source actually crosses, and the surface offered to editors is
   derived from the resolved package rather than owned by the compiler;
 - **manifest-only declaration.** The project manifest carries crate, version, features, default-feature
-  policy, and target conditions. There is no source-level dependency declaration; `/dependencies` is a
-  reserved root namespace segment, and a `from /dependencies/...` import naming an undeclared crate is
+  policy, and target conditions. There is no source-level dependency declaration; `/deps` is a
+  reserved root namespace segment, and a `from /deps/...` import naming an undeclared crate is
   a Terrane diagnostic;
 - **the projector**, one artifact computed from the lock-resolved package, features, target, and
   rustdoc JSON, consumed by both the compiler and the language server so hints and lowering cannot
@@ -1527,13 +1529,16 @@ Deliver:
 - **boundary lowering.** A general foreign value type keyed by crate and Rust path, replacing the
   per-support-crate platform value types; generated shims for crossed members only; `Result<T, E>` as a
   return of `T` under a `throws` contract naming the projected error class, and `Option<T>` as
-  `T|none`; receivers projected faithfully, with `&self` borrowing, `&mut self` as `ref`, and `self`
-  requiring `move` under the existing foreign-resource rule; panic contained at the crossing and
+  `T|none`; receivers projected faithfully, with `&self` as a shared receiver, `&mut self` recorded as
+  receiver mutability on the projected contract, and `self` requiring `move` under the existing
+  foreign-resource rule. Mutable receivers use ordinary Terrane member-call syntax; the contract
+  drives mutable binding and borrowing in generated Rust. Panic is contained at the crossing and
   converted to `dependency-panic` on unwinding profiles, and not contained on aborting profiles;
 - **diagnostics in Terrane terms** for moves, drops, `Send`/`Sync` at task boundaries, and escaping
-  borrows, per the existing translation contract; and a diagnostic naming the member and version
-  change when a lock bump removes a projected member, rather than a rustc error against generated
-  source;
+  borrows, per the existing translation contract. A removed crossed member is diagnosed as missing at
+  its Terrane import or use site rather than surfacing as a rustc error against generated source;
+  distinguishing removal from a never-present member and naming the lock version change is deferred
+  until projection history has a durable, machine-independent home;
 - **capability and containment.** The manifest declaration is the grant, transitively, with the build
   report identifying what executed; a profile forbidding an effect rejects the dependency at manifest
   resolution rather than at a call site. Builds fetch online and then compile `--offline --frozen`
@@ -1541,9 +1546,12 @@ Deliver:
   toolchain, with an allowlist tier for crates needing system discovery. Containment is at the cargo
   invocation, since proc macros expand inside rustc, and a platform that cannot enforce it says so.
   The projection pass runs under the same capability and the same policy as a build script;
-- **cache identity** covering manifest, lock checksum, features, default-feature policy, target
-  triple, toolchain version, package source checksums, and sandbox tier, so a build that reached
-  further is not cache-equivalent to one that did not;
+- **cache identity and retention** covering manifest, lock checksum, features, default-feature policy,
+  target triple, toolchain version, package source checksums, and sandbox tier, so a build that reached
+  further is not cache-equivalent to one that did not. The project-local cache retains the current
+  projection plus at most three prior artifacts for ordinary rollback and editor churn; this bounded
+  operational history is not the durable, machine-independent history required by the deferred
+  version-aware diagnostics;
 - **the specification amendments this requires**, which are language changes and not editorial: making
   uppercase and underscore legal identifier characters so verbatim projected names are writable, with
   kebab-case kept mandatory for compiler-owned and standard-library names and every documentation
@@ -1563,6 +1571,190 @@ no special casing, since one witness cannot distinguish a general rule from a tu
 rejected dependency fixtures, lock and feature mismatch diagnostics, deterministic generated Cargo and
 Rust goldens, and conformance cases for an uppercase identifier, an underscored identifier, and a
 verbatim projected name. External-network tests do not prove the contract.
+
+Implemented on `rust-dependency-projection`. Manifest-declared Rust packages resolve through one
+lock-derived rustdoc projection shared by compilation and editor tooling. The compiler projects
+verbatim functions, inherent methods, receiver ownership, opaque foreign values, enums, and
+`Result`; it records `Option` signatures and trait methods as declined until general `T|none`
+semantic types and receiver-first trait namespaces arrive in milestone 25.2. It generates only
+crossed shims, pins generated Cargo dependencies to the projected versions, and translates dependency
+failures and unwinding panics into distinct Terrane throwable completion. A projected mutable-borrow
+method makes the receiver binding mutable; while object identity remains name-only, conflicting
+receiver contracts on same-named projected types are rejected as `S2030` rather than selected by
+import or artifact order. Rust dependency projection requires the Linux `bwrap` containment tier and fails explicitly
+when it is unavailable; dependency-free programs do not probe containment, rustdoc, or the pinned
+nightly toolchain. Wiring projection itself to a build-capability grant, rejecting dependency effects
+forbidden by a selected profile, distinguishing unwinding from aborting profiles, containing
+generated-crate compilation, and retaining durable projection history for version-naming
+removed-member diagnostics remain explicit follow-on capability requirements, staged in milestone
+25.2.
+Accepted execution covers a loopback `reqwest` request and the dissimilar `httpdate` crate through
+the same machinery, including caught dependency errors, a fixture-owned generated-Rust panic
+boundary preserving payload and crate/member context, uppercase and underscored identifiers, and
+verbatim projected names. Package tests cover aliasing, selected features, and loopback execution;
+generated Rust and Cargo output remain deterministic and warning free. Target-specific dependency
+tables, recorded projection declines, and asynchronous namespace-aware completion, hover, and
+signature help cover the corresponding resolution and editor contracts.
+
+Four small items are carried out of milestone 25 rather than blocking it. None changes an observable
+contract, and each is cheap to take whenever its file is next open:
+
+- **`cargo_manifest_table` is a stringly-typed discriminator.** It returns a `String`, and six call
+  sites in `terrane-cli/src/main.rs`, `terrane-compiler/src/projection.rs`, and
+  `terrane-compiler/tests/conformance.rs` compare it against the literal `"dependencies"` to decide
+  whether an entry belongs in the default Cargo table — over information `RustDependency::target`
+  already carries as an `Option`. Returning `Option<String>`, with `None` meaning the default table,
+  removes all six literals;
+- **`selected_target` reads only `CARGO_BUILD_TARGET`.** Cache identity distinguishes a
+  cross-compiled projection from a host one through that variable, falling back to `rustc -vV`'s
+  `host:` line. A target selected by a `--target` argument or by `build.target` in a
+  `.cargo/config.toml` is not seen, so two such builds share a cache entry. Narrower than the gap it
+  replaced, and worth closing when the build surface next grows a target flag of its own;
+- **the language server resolves an imported name by its first matching import line.**
+  `imported_dependency_namespace` scans the document for a `from /deps/... import ...` naming the
+  symbol, so a name imported from two dependency namespaces in one file resolves to whichever line
+  comes first. The surface is advisory and the compiler is unaffected, but hover and signature help
+  can name the wrong namespace where completion would not;
+- **`S2030` has no conformance case, and the corpus cannot supply one.** No same-named projected type
+  pair in any declared crate disagrees on a receiver kind, so the ambiguity is unreachable from source
+  and is covered by a semantics test over a synthetic projection instead. If a later dependency makes
+  the case reachable, it earns a fixture; until then the absence should be recorded in
+  `docs/rust-deps.md` §6.2 the way §6.3 records the equivalent gap for a Terrane-level
+  `dependency-panic` catch.
+
+### Milestone 25.1 — Namespace-qualified object identity
+
+Milestone 3 gave an object type the shape `ValueType::Object(String)`, holding the declared name and
+nothing else. Every namespace tier since has been resolved by that bare name, and the whole corpus has
+stayed inside packages where names happen not to repeat. Milestone 25 removed that condition: a
+projected crate surfaces its own module structure verbatim, and a crate of any size names the same type
+in sibling modules. `reqwest` alone projects `Action`, `Body`, `Client`, `ClientBuilder`, `Request`,
+`RequestBuilder`, and `Response` into two module namespaces each. Object identity is now
+under-determined in ordinary use rather than in a contrived one.
+
+Two shipped behaviours follow from the bare name, and both are wrong in the same way:
+
+- **type identity ignores the namespace.** `value_types_compatible` compares
+  `ValueType::Object(expected)` to `ValueType::Object(actual)` by string equality, then resolves
+  interfaces and bases with `objects.iter().find(|object| object.name == *actual)`. A
+  `/deps/reqwest/blocking::Response` is therefore accepted where `/deps/reqwest/async-impl/response::Response`
+  is declared. The program compiles, and the mistake reaches rustc rather than the author;
+- **generated Rust names ignore the namespace.** Terrane-declared objects collide because
+  `rust_object_name` maps each bare declared name to the same Rust type name (`E0428`), while projected
+  foreign types collide because same-named types from sibling namespaces become duplicate re-exports
+  in one Rust module scope (`E0252`). Both are failures against generated source — the failure mode
+  §29.3 exists to prevent, and the one this milestone's predecessor spent its diagnostic work
+  eliminating everywhere else.
+
+Neither is specific to dependency projection. Two Terrane packages, or two namespaces in one package,
+declaring the same class name hit the identical pair. Projection is what made it reachable without
+trying.
+
+The fix is to make the declaring namespace part of the identity rather than to add ambiguity checks
+around a name that cannot carry one.
+
+Deliver:
+
+- **`ValueType::Object` carries the declaring namespace alongside the declared name**, and the pair is
+  the identity. The name alone stops being a key anywhere in semantics: construction sites at
+  declaration, inference, parameter and return contracts, field types, thrown-type bounds, and the
+  bootstrap error objects all supply the namespace that declared the object. `ValueType::Descriptor`
+  is the same shape and the same problem; decide whether it moves with this change or is explicitly
+  left for a later one, and record which;
+- **object equality, interface satisfaction, and base-chain resolution keyed on the qualified
+  identity.** `value_types_compatible`'s object arm compares both halves, and its `objects` lookup
+  finds the object declared by that namespace rather than the first with a matching name. The same
+  applies to every other `objects.iter().find(|object| object.name == …)` in the semantic pass;
+- **namespace-qualified generated Rust type names.** Two same-named objects in two namespaces emit two
+  distinct Rust items. Generated Rust remains a readable debugging surface, so the qualification is
+  legible and deterministic rather than a hash: the unqualified name stays where nothing collides, and
+  the encoding is stated once rather than discovered per case. Whatever form it takes must survive the
+  existing canonical-Rust check;
+- **diagnostics that name the short form and qualify only when it is ambiguous.** An author reading
+  `expected Response, found Response` learns nothing. When two candidates share a name, the diagnostic
+  names both namespaces; when they do not, it stays as it reads today. The type-mismatch,
+  interface-satisfaction, and unresolved-type diagnostics all go through this;
+- **retire the by-name fallbacks the missing namespace forced.** `Projection::foreign_rust_path`
+  currently falls back to a prefix-less search across every dependency, resolved by shortest Rust path;
+  `Projection::method_mutability` exists only to reject when same-named projected types disagree; and
+  `object_method_mutates` ends in a call to it. With a qualified receiver type all three become
+  unnecessary. They are removed rather than left as unreachable paths, and the milestone-25
+  `S2030` receiver-mutability diagnostic added in their place is removed with them;
+- **the language-document statement of object identity.** §16 and §23.13 describe objects by declared
+  name; identity is the namespace-qualified pair, two identically named objects in two namespaces are
+  two types, and no aliasing or structural rule relates them. `docs/language-spec-concise.md` and
+  `docs/surface-today.md` follow in the same work unit.
+
+Exit criterion: two namespaces in one package declare a class of the same name; both are usable, a
+value of one is rejected where the other is declared, and the diagnostic names both namespaces. Two
+same-named types projected from sibling modules of one crate — the `reqwest` `Response` pair is the
+witness already in the corpus — are simultaneously imported, both crossed, and the generated crate
+compiles warning-free with two distinct Rust types. Accepted and rejected conformance cases cover the
+Terrane-declared pair and the projected pair, and no case relies on a package whose object names
+happen to be unique.
+
+### Milestone 25.2 — Deferred projection surface and dependency capability
+
+Milestone 25 delivered a projection that declines more than it admits, deliberately: every construct it
+could not represent is recorded with a reason that reaches the author as `S2029` rather than as a rustc
+error. `docs/rust-deps.md` records each decision beside the design it defers. This milestone is where
+those deferrals are staged, so a decline recorded in a working note has a milestone that removes it
+rather than remaining a permanent shape of the language.
+
+Nothing here reopens a settled decision. The designs in §6.3, §7.3, and §7.4 of `docs/rust-deps.md`
+stand as written; what they lack is a delivery point.
+
+Deliver:
+
+- **`Option<T>` as `T|none` for projected values.** The projector currently declines every `Option`
+  parameter and result because the semantic model has optional variants only for selected built-in
+  value families, not arbitrary foreign objects. Generalising that union to a foreign object type is
+  the prerequisite, and it is a language change rather than a projector change. The decline reason and
+  its `docs/rust-deps.md` §7.4 note are removed with it;
+- **receiver-first trait namespaces.** Trait methods are declined today with an explicit deferral
+  reason. §7.3 specifies the form: a trait method projects into the trait's own canonical namespace as
+  a free function taking the receiver first, so two traits are two namespaces and a collision is not
+  representable, and choosing between them is an import rather than a heuristic. Delivering it retires
+  both the decline and the merged-inherent alternative that was rejected;
+- **enum variants, constants, and comparison.** Projected enums are opaque values today. §7.4 asks for
+  data-free enums to carry projected constants and comparison, and data-carrying enums to expose
+  whatever accessors the crate provides, with no destructuring form offered until general pattern
+  matching exists;
+- **a wider representable primitive and alias set.** `project_type` admits `bool`, `i64`, `f64`, `str`,
+  and unit, and declines everything else rather than narrowing silently. The remaining integer widths,
+  `f32`, and `char` want edge coercion with an explicit contract at the boundary, matching the rule the
+  hand-written support crates already follow. Type aliases resolve only when rustdoc supplies a
+  concrete directly representable target; the unresolved cases are declined and want the same
+  treatment;
+- **the build-capability grant and profile-based rejection.** §23.1 and `docs/rust-deps.md` A6a require
+  the projection pass to run under the same explicit build capability as a build script, and §8
+  requires a profile forbidding an effect to reject the dependency at manifest resolution rather than
+  at a call site. Neither exists: `dependency_projection` runs unconditionally from `analyze`, and
+  nothing reads a profile. Milestone 26 delivers capability profiles for the system and embedded
+  targets; this milestone owns the dependency-side half, and the two must agree on one capability
+  model rather than growing two;
+- **containment of the generated-crate build, and a tier for platforms without `bwrap`.** Today only
+  the rustdoc pass is contained, and it is contained by requiring Linux bubblewrap outright — so
+  `[rust-dependencies]` is unusable on macOS, on Windows, and on any Linux without it. Both halves are
+  wrong in the same direction: the pass that matters most is uncontained, and the pass that is
+  contained refuses rather than degrading. §8.1 already states the rule — a platform that cannot
+  enforce containment says so — which is a declaration, not a refusal;
+- **profile-aware panic containment and a proven unwind-safety boundary.** §6.3 defers both: unwinding
+  profiles contain a crossing panic and convert it to `dependency-panic`, aborting profiles do not
+  claim containment, and the blanket `AssertUnwindSafe` at every crossing is replaced by a stated
+  contract. Build profiles must be represented by the compiler before either is expressible;
+- **durable projection history.** A lock update that removes a crossed member is diagnosed as a missing
+  member today. §9 defers distinguishing that from a member that never existed, and naming the version
+  change, until projection history has a durable, machine-independent home. The project-local cache is
+  not that home, and §23.8 says so.
+
+Exit criterion: a crate whose public surface uses `Option`, trait methods, a data-free enum, and an
+integer width outside the current set is projected and called from Terrane with no decline for those
+constructs, and the corresponding `docs/rust-deps.md` deferral notes are removed rather than reworded.
+A profile forbidding an effect rejects its dependency at manifest resolution with a Terrane diagnostic
+naming the profile and the effect. The generated crate builds contained on a platform that can enforce
+it and reports the tier it used on one that cannot, rather than refusing. A lock update that removes a
+crossed member names the member and the version change.
 
 ### Milestone 26 — Remaining concurrency and foreign adapters
 

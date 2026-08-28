@@ -6,6 +6,7 @@ pub mod lexer;
 mod lowering;
 pub mod package;
 pub mod parser;
+pub mod projection;
 pub mod rust_ir;
 pub mod semantics;
 pub mod source;
@@ -20,7 +21,7 @@ pub use compiler::{
 pub use diagnostic::{Diagnostic, Severity};
 pub use package::{
     ExecutorProfile, IMPLICIT_PACKAGE_ID, MANIFEST_FILE_NAME, Package, PackageLoadError,
-    ReflectionProfile, SourceUnit,
+    ReflectionProfile, RustDependency, SourceUnit,
 };
 pub use semantics::{
     BOOTSTRAP_VERSION, BoundMethod, EvaluationKind, EvaluationStep, FunctionContract, MemberFamily,

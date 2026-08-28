@@ -348,10 +348,10 @@ fn lex_line(
                     ));
                 }
             }
-            byte if byte.is_ascii_alphabetic() => {
+            byte if byte.is_ascii_alphabetic() || byte == b'_' => {
                 index += 1;
                 while index < bytes.len() {
-                    if bytes[index].is_ascii_alphanumeric() {
+                    if bytes[index].is_ascii_alphanumeric() || bytes[index] == b'_' {
                         index += 1;
                         continue;
                     }
@@ -363,7 +363,9 @@ fn lex_line(
                         index += 1;
                     }
                     let unit_start = index;
-                    while index < bytes.len() && bytes[index].is_ascii_alphanumeric() {
+                    while index < bytes.len()
+                        && (bytes[index].is_ascii_alphanumeric() || bytes[index] == b'_')
+                    {
                         index += 1;
                     }
                     if unit_start == index {

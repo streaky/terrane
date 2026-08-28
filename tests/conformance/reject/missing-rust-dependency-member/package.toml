@@ -1,0 +1,5 @@
+package = "missing-rust-dependency-member"
+[namespaces]
+app = "src"
+[rust-dependencies.httpdate]
+version = "=1.0.3"
