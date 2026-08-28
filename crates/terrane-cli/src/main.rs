@@ -84,6 +84,7 @@ fn run(arguments: &[OsString]) -> Result<ExitCode, CliFailure> {
         &package,
         terrane_compiler::CompilerOptions {
             require_canonical_rust,
+            lint_name_style: false,
         },
     ) {
         Ok(compilation) => compilation,

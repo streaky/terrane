@@ -9708,10 +9708,6 @@ fn validate_assigned_reads(
 fn validate_control_flow(package: &SemanticPackage) -> Result<Vec<Vec<Span>>, SemanticFailure> {
     let mut unreachable_units = Vec::with_capacity(package.units.len());
     for unit in &package.units {
-        if unit.bundled && unit.namespace.starts_with("/dependencies/") {
-            unreachable_units.push(Vec::new());
-            continue;
-        }
         let mut unreachable = Vec::new();
         for function in unit
             .tree
@@ -9741,6 +9737,9 @@ fn validate_control_flow(package: &SemanticPackage) -> Result<Vec<Vec<Span>>, Se
             else {
                 continue;
             };
+            if block.children.is_empty() {
+                continue;
+            }
             let bindings = call_site_bindings(unit, Some(contract));
             let falls_through =
                 validate_flow_block(unit, block, contract, &bindings, 0, &mut unreachable)?;
@@ -11564,10 +11563,10 @@ fn collect_name_style_warnings(unit: &SemanticUnit, warnings: &mut Vec<Diagnosti
     }
 }
 
-pub(crate) fn warnings(package: &SemanticPackage) -> Vec<Diagnostic> {
+pub(crate) fn warnings(package: &SemanticPackage, lint_name_style: bool) -> Vec<Diagnostic> {
     let mut warnings = Vec::new();
     for unit in &package.units {
-        if !unit.bundled {
+        if lint_name_style && !unit.bundled && !unit.namespace.starts_with("/dependencies/") {
             collect_name_style_warnings(unit, &mut warnings);
         }
         let mut loop_targets = BTreeSet::new();

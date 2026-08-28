@@ -83,6 +83,7 @@ fn every_manifest_drives_a_conformance_case() {
         let package_case = entrypoint == terrane_compiler::MANIFEST_FILE_NAME;
         let options = terrane_compiler::CompilerOptions {
             require_canonical_rust: boolean_field(&manifest, "canonical-rust").unwrap_or(false),
+            lint_name_style: false,
         };
 
         match (phase, status) {

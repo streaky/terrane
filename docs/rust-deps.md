@@ -434,7 +434,7 @@ here is conditional or outstanding.
   - **all documentation examples use kebab-case**, including examples in this note and in the
     specification;
   - **user code may use any case, and the language does not enforce its own house style on it.** The
-    kebab-case check survives as an available lint with the §5 wording and formatter fixit intact, but
+    kebab-case check survives as an available compiler advisory with the §5 wording and declaration-specific help, but
     it is advisory and off by default: a project that wants Terrane's convention can turn it on, and
     one that does not is not nagged. What changes is that the rule stops being a rejection and stops
     being applied to code Terrane does not own;

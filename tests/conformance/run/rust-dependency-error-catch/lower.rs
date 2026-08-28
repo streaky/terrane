@@ -133,36 +133,53 @@ enum TerraneCompletion<T> {
 // Source: src/main.trn
 // Namespace: app
 fn main() {
-    let moment: SystemTime = parse_http_date(
-            String::from("Sun, 06 Nov 1994 08:49:37 GMT"),
-        )
-        .unwrap_or_else(|error| __terrane_uncaught(
-            error.at("/app::main (main.trn:4:14)"),
-        ));
-    let rendered: String = fmt_http_date(moment)
-        .unwrap_or_else(|error| __terrane_uncaught(
-            error.at("/app::main (main.trn:5:23)"),
-        ));
-    println!("{}", terrane_scalar_support::scalar_text(&rendered));
+    let __terrane_completion_0: TerraneCompletion<()> = (|| {
+        let __terrane_try_0: TerraneCompletion<()> = (|| {
+            match parse_http_date(String::from("not a date")) {
+                Ok(value) => value,
+                Err(error) => {
+                    return TerraneCompletion::Error(
+                        error.at("/app::main (main.trn:6:9)"),
+                    );
+                }
+            };
+            TerraneCompletion::Normal
+        })();
+        match __terrane_try_0 {
+            TerraneCompletion::Return(value) => return TerraneCompletion::Return(value),
+            TerraneCompletion::Break => return TerraneCompletion::Break,
+            TerraneCompletion::Continue => return TerraneCompletion::Continue,
+            TerraneCompletion::Normal => {}
+            TerraneCompletion::Error(__terrane_error_0) => {
+                let mut __terrane_handled_0 = false;
+                if !__terrane_handled_0
+                    && __terrane_error_0.kind == TerraneErrorKind::SourceError
+                {
+                    __terrane_handled_0 = true;
+                    println!(
+                        "{}",
+                        terrane_scalar_support::scalar_text(&String::from("caught dependency error"))
+                    );
+                }
+                if !__terrane_handled_0 {
+                    return TerraneCompletion::Error(__terrane_error_0);
+                }
+            }
+        }
+        TerraneCompletion::Normal
+    })();
+    match __terrane_completion_0 {
+        TerraneCompletion::Normal => {}
+        TerraneCompletion::Return(value) => return value,
+        TerraneCompletion::Error(error) => __terrane_uncaught(error),
+        TerraneCompletion::Break | TerraneCompletion::Continue => {
+            __terrane_generated_defect("loop control escaped a non-loop try")
+        }
+    }
 }
 // Source: <terrane>/projected/dependencies/httpdate.trn
 // Namespace: dependencies/httpdate
 pub type SystemTime = std::time::SystemTime;
-pub fn fmt_http_date(d: SystemTime) -> Result<String, crate::TerraneError> {
-    match std::panic::catch_unwind(
-        std::panic::AssertUnwindSafe(|| httpdate::fmt_http_date(d)),
-    ) {
-        Ok(value) => Ok(value),
-        Err(_) => {
-            Err(
-                crate::TerraneError::new(
-                    crate::TerraneErrorKind::SourceError,
-                    "Rust dependency call panicked",
-                ),
-            )
-        }
-    }
-}
 pub fn parse_http_date(s: String) -> Result<SystemTime, crate::TerraneError> {
     match std::panic::catch_unwind(
         std::panic::AssertUnwindSafe(|| httpdate::parse_http_date(&s)),

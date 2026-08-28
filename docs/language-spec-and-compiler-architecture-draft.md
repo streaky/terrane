@@ -442,7 +442,7 @@ An identifier begins with an ASCII letter or underscore. It may continue with:
 
 `/` is deliberately **not** an identifier joiner. It is the namespace separator, and a character cannot be both without making `namespace foo/bar` ambiguous between one segment and two. Context-sensitive lexing is rejected here because it would contradict the rule below that a compact joiner sequence is always an identifier, permanently. The cost is that a name such as `ipv4/ipv6` must be written `ipv4-ipv6`.
 
-Uppercase and underscore are legal because projected dependency names are written verbatim: `ClientBuilder` and `parse_json` must match their Rust documentation. User code may use any case. Kebab-case remains Terrane's naming convention and an opt-in advisory lint with a formatter fixit, off by default; projected dependency names are exempt even when that lint is enabled.
+Uppercase and underscore are legal because projected dependency names are written verbatim: `ClientBuilder` and `parse_json` must match their Rust documentation. User code may use any case. Kebab-case remains Terrane's naming convention and is available through an opt-in compiler advisory, off by default; diagnostics identify the declaration and suggest kebab-case. Projected dependency names are exempt even when that advisory is enabled.
 
 Compiler-owned names, standard-library names, language-mandated throwable classes, and every documentation example remain kebab-case. This is enforced as a defect in Terrane-owned code rather than as a lexical restriction on user code.
 

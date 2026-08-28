@@ -9,6 +9,7 @@ use crate::{
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub struct CompilerOptions {
     pub require_canonical_rust: bool,
+    pub lint_name_style: bool,
 }
 
 #[derive(Clone, Debug)]
@@ -135,7 +136,7 @@ pub fn compile_package_with_options(
         .iter()
         .map(|unit| unit.source.clone())
         .collect();
-    let warnings = semantics::warnings(&semantic);
+    let warnings = semantics::warnings(&semantic, options.lint_name_style);
     let rust_ir = crate::lowering::lower(&semantic);
     let rust = rust_ir.render();
     let rust_files = rust_ir.render_files();

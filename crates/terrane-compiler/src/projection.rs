@@ -142,19 +142,32 @@ impl Projection {
             if selected.is_empty() {
                 continue;
             }
-            let mut foreign = BTreeMap::<String, String>::new();
-            for item in &selected {
-                match &item.kind {
-                    ProjectedKind::Function(function) => {
-                        collect_foreign_function(function, &mut foreign);
-                    }
-                    ProjectedKind::ForeignType { .. } | ProjectedKind::Enum { .. } => {
-                        foreign.insert(item.name.clone(), item.rust_path.clone());
-                    }
-                }
-            }
+            let foreign = collect_source_foreign(&all_items, &selected, namespace);
+            let mut ordered_foreign = foreign.iter().collect::<Vec<_>>();
+            ordered_foreign.sort_by_key(|(name, rust_path)| {
+                let dependency_count = all_items
+                    .iter()
+                    .copied()
+                    .find(|item| {
+                        item.rust_path == ***rust_path
+                            || (item.name == ***name
+                                && rust_prefix(namespace)
+                                    .is_some_and(|prefix| item.rust_path.starts_with(&prefix)))
+                    })
+                    .and_then(|item| match &item.kind {
+                        ProjectedKind::ForeignType { methods } => Some(
+                            methods
+                                .iter()
+                                .map(|method| foreign_function_dependency_count(method, name))
+                                .sum::<usize>(),
+                        ),
+                        _ => None,
+                    })
+                    .unwrap_or_default();
+                (dependency_count, *name)
+            });
             let mut text = format!("namespace {}\n\n", namespace.trim_start_matches('/'));
-            for (name, rust_path) in &foreign {
+            for (name, rust_path) in ordered_foreign {
                 writeln!(text, "class {name}").expect("writing to a string cannot fail");
                 if let Some(ProjectedItem {
                     kind: ProjectedKind::ForeignType { methods },
@@ -165,13 +178,10 @@ impl Projection {
                             && rust_prefix(namespace)
                                 .is_some_and(|prefix| item.rust_path.starts_with(&prefix)))
                 }) {
-                    for method in methods.iter().filter(|method| {
-                        method
-                            .parameters
-                            .iter()
-                            .all(|parameter| !contains_foreign(&parameter.ty))
-                            && !contains_foreign(&method.result)
-                    }) {
+                    for method in methods
+                        .iter()
+                        .filter(|method| projected_source_signature_supported(method))
+                    {
                         render_function(&mut text, method, false, 4);
                     }
                 }
@@ -282,6 +292,56 @@ fn foreign_path_named<'a>(ty: &'a ProjectedType, name: &str) -> Option<&'a str> 
         _ => None,
     }
 }
+fn collect_source_foreign(
+    all_items: &[&ProjectedItem],
+    selected: &[&ProjectedItem],
+    namespace: &str,
+) -> BTreeMap<String, String> {
+    let mut foreign = BTreeMap::<String, String>::new();
+    for item in selected {
+        match &item.kind {
+            ProjectedKind::Function(function) => {
+                collect_foreign_function(function, &mut foreign);
+            }
+            ProjectedKind::ForeignType { methods } => {
+                foreign.insert(item.name.clone(), item.rust_path.clone());
+                for method in methods {
+                    collect_foreign_function(method, &mut foreign);
+                }
+            }
+            ProjectedKind::Enum { .. } => {
+                foreign.insert(item.name.clone(), item.rust_path.clone());
+            }
+        }
+    }
+    loop {
+        let previous_len = foreign.len();
+        let referenced = foreign
+            .iter()
+            .map(|(name, rust_path)| (name.clone(), rust_path.clone()))
+            .collect::<Vec<_>>();
+        for (name, rust_path) in referenced {
+            let Some(ProjectedItem {
+                kind: ProjectedKind::ForeignType { methods },
+                ..
+            }) = all_items.iter().copied().find(|item| {
+                item.rust_path == rust_path
+                    || (item.name == name
+                        && rust_prefix(namespace)
+                            .is_some_and(|prefix| item.rust_path.starts_with(&prefix)))
+            })
+            else {
+                continue;
+            };
+            for method in methods {
+                collect_foreign_function(method, &mut foreign);
+            }
+        }
+        if foreign.len() == previous_len {
+            return foreign;
+        }
+    }
+}
 
 fn collect_foreign_function(function: &ProjectedFunction, foreign: &mut BTreeMap<String, String>) {
     for ty in function
@@ -304,12 +364,38 @@ fn collect_foreign_type(ty: &ProjectedType, foreign: &mut BTreeMap<String, Strin
     }
 }
 
-fn contains_foreign(ty: &ProjectedType) -> bool {
+fn foreign_function_dependency_count(function: &ProjectedFunction, owner: &str) -> usize {
+    function
+        .parameters
+        .iter()
+        .map(|parameter| &parameter.ty)
+        .chain(std::iter::once(&function.result))
+        .filter(|ty| foreign_type_name(ty).is_some_and(|name| name != owner))
+        .count()
+}
+
+fn foreign_type_name(ty: &ProjectedType) -> Option<&str> {
     match ty {
-        ProjectedType::Foreign { .. } => true,
-        ProjectedType::Optional(inner) => contains_foreign(inner),
-        _ => false,
+        ProjectedType::Foreign { name, .. } => Some(name),
+        ProjectedType::Optional(inner) => foreign_type_name(inner),
+        _ => None,
     }
+}
+
+fn projected_source_signature_supported(function: &ProjectedFunction) -> bool {
+    function
+        .parameters
+        .iter()
+        .map(|parameter| &parameter.ty)
+        .chain(std::iter::once(&function.result))
+        .all(projected_source_type_supported)
+}
+
+fn projected_source_type_supported(ty: &ProjectedType) -> bool {
+    !matches!(
+        ty,
+        ProjectedType::Optional(inner) if matches!(inner.as_ref(), ProjectedType::Foreign { .. })
+    )
 }
 
 fn render_function(output: &mut String, function: &ProjectedFunction, public: bool, indent: usize) {
@@ -689,7 +775,15 @@ fn project_rustdoc(
             if has_type_parameters(item) {
                 Err("type has generic or lifetime parameters".to_owned())
             } else {
-                let methods = project_methods(structure, index, paths);
+                let (methods, method_declines) = project_methods(structure, index, paths);
+                declined.extend(
+                    method_declines
+                        .into_iter()
+                        .map(|(name, reason)| DeclinedItem {
+                            rust_path: format!("{rust_path}::{name}"),
+                            reason,
+                        }),
+                );
                 Ok(ProjectedKind::ForeignType { methods })
             }
         } else if let Some(enumeration) = inner.get("enum") {
@@ -754,10 +848,11 @@ fn project_methods(
     structure: &Value,
     index: &serde_json::Map<String, Value>,
     paths: &serde_json::Map<String, Value>,
-) -> Vec<ProjectedFunction> {
+) -> (Vec<ProjectedFunction>, Vec<(String, String)>) {
     let mut methods = Vec::new();
+    let mut declined = Vec::new();
     let Some(impls) = structure["impls"].as_array() else {
-        return methods;
+        return (methods, declined);
     };
     for impl_id in impls {
         let Some(implementation) = value_id(impl_id)
@@ -779,15 +874,23 @@ fn project_methods(
             if item["visibility"].as_str() != Some("public") {
                 continue;
             }
-            let Some(function) = item["inner"].get("function") else {
+            let Some(name) = item["name"].as_str() else {
                 continue;
             };
-            if let Ok(method) = project_function(function, index, paths, item["name"].as_str()) {
-                methods.push(method);
+            let Some(function) = item["inner"].get("function") else {
+                declined.push((
+                    name.to_owned(),
+                    "item kind has no Terrane method projection".to_owned(),
+                ));
+                continue;
+            };
+            match project_function(function, index, paths, Some(name)) {
+                Ok(method) => methods.push(method),
+                Err(reason) => declined.push((name.to_owned(), reason)),
             }
         }
     }
-    methods
+    (methods, declined)
 }
 
 fn project_function(
@@ -954,10 +1057,9 @@ fn project_type(
     if let Some(primitive) = ty.get("primitive").and_then(Value::as_str) {
         return match primitive {
             "bool" => Ok(ProjectedType::Bool),
-            "str" | "char" => Ok(ProjectedType::String),
-            "f32" | "f64" => Ok(ProjectedType::Float),
-            "i8" | "i16" | "i32" | "i64" | "i128" | "isize" | "u8" | "u16" | "u32" | "u64"
-            | "u128" | "usize" => Ok(ProjectedType::Int),
+            "str" => Ok(ProjectedType::String),
+            "f64" => Ok(ProjectedType::Float),
+            "i64" => Ok(ProjectedType::Int),
             "unit" => Ok(ProjectedType::None),
             other => Err(format!("unsupported primitive `{other}`")),
         };
