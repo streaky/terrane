@@ -47,7 +47,15 @@ pub struct RustDependency {
 
 impl RustDependency {
     #[must_use]
-    pub fn cargo_manifest_entry(&self) -> String {
+    pub fn cargo_manifest_table(&self) -> String {
+        self.target.as_ref().map_or_else(
+            || "dependencies".to_owned(),
+            |target| format!("target.{target:?}.dependencies"),
+        )
+    }
+
+    #[must_use]
+    pub fn cargo_dependency_spec(&self) -> String {
         use std::fmt::Write as _;
 
         let mut entry = format!(
@@ -754,7 +762,7 @@ mod tests {
     }
 
     #[test]
-    fn rust_dependency_manifest_entries_preserve_alias_and_features() {
+    fn rust_dependency_manifest_parts_preserve_target_alias_and_features() {
         let dependency = RustDependency {
             name: "date-codec".to_owned(),
             package: "httpdate".to_owned(),
@@ -764,7 +772,11 @@ mod tests {
             target: Some("cfg(unix)".to_owned()),
         };
         assert_eq!(
-            dependency.cargo_manifest_entry(),
+            dependency.cargo_manifest_table(),
+            "target.\"cfg(unix)\".dependencies"
+        );
+        assert_eq!(
+            dependency.cargo_dependency_spec(),
             "date-codec = { package = \"httpdate\", version = \"=1.0.3\", default-features = false, features = [\"clock\", \"serde\"] }\n"
         );
     }

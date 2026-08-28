@@ -164,7 +164,7 @@ fn main() {
 }
 // Source: <terrane>/projected/deps/date-codec.trn
 // Namespace: deps/date-codec
-pub type SystemTime = std::time::SystemTime;
+pub use std::time::SystemTime;
 pub fn fmt_http_date(d: SystemTime) -> Result<String, crate::TerraneError> {
     match std::panic::catch_unwind(
         std::panic::AssertUnwindSafe(|| date_codec::fmt_http_date(d)),
@@ -174,7 +174,7 @@ pub fn fmt_http_date(d: SystemTime) -> Result<String, crate::TerraneError> {
             Err(
                 crate::__terrane_dependency_panic(
                     payload,
-                    "date_codec",
+                    "date-codec",
                     "date_codec::fmt_http_date",
                 ),
             )
@@ -191,7 +191,7 @@ pub fn parse_http_date(s: String) -> Result<SystemTime, crate::TerraneError> {
                 crate::TerraneError::new(
                     crate::TerraneErrorKind::Custom("dependency-error"),
                     format!(
-                        "Rust dependency `date_codec` member `date_codec::parse_http_date` failed: {error}"
+                        "Rust dependency `date-codec` member `date_codec::parse_http_date` failed: {error}"
                     ),
                 ),
             )
@@ -200,7 +200,7 @@ pub fn parse_http_date(s: String) -> Result<SystemTime, crate::TerraneError> {
             Err(
                 crate::__terrane_dependency_panic(
                     payload,
-                    "date_codec",
+                    "date-codec",
                     "date_codec::parse_http_date",
                 ),
             )

@@ -1,3 +1,5 @@
+use std::collections::BTreeSet;
+use std::fmt::Write as _;
 use std::fs;
 use std::io::Write as _;
 use std::path::{Path, PathBuf};
@@ -41,8 +43,25 @@ terrane-stream-abi = { path = "support/terrane-stream-abi" }
 terrane-platform-support = { path = "support/terrane-platform-support" }
 "#,
         );
-        for dependency in dependencies {
-            manifest.push_str(&dependency.cargo_manifest_entry());
+        for dependency in dependencies
+            .iter()
+            .filter(|dependency| dependency.cargo_manifest_table() == "dependencies")
+        {
+            manifest.push_str(&dependency.cargo_dependency_spec());
+        }
+        let target_tables = dependencies
+            .iter()
+            .map(terrane_compiler::RustDependency::cargo_manifest_table)
+            .filter(|table| table != "dependencies")
+            .collect::<BTreeSet<_>>();
+        for table in target_tables {
+            writeln!(manifest, "\n[{table}]").unwrap();
+            for dependency in dependencies
+                .iter()
+                .filter(|dependency| dependency.cargo_manifest_table() == table)
+            {
+                manifest.push_str(&dependency.cargo_dependency_spec());
+            }
         }
         manifest.push_str("\n[workspace]\n");
         fs::write(self.root.join("Cargo.toml"), manifest).unwrap();

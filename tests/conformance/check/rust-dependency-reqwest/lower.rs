@@ -204,7 +204,7 @@ fn main() {
 }
 // Source: <terrane>/projected/deps/reqwest/blocking.trn
 // Namespace: deps/reqwest/blocking
-pub type Response = reqwest::blocking::Response;
+pub use reqwest::blocking::Response;
 pub fn get(url: String) -> Result<Response, crate::TerraneError> {
     match std::panic::catch_unwind(
         std::panic::AssertUnwindSafe(|| reqwest::blocking::get(url)),

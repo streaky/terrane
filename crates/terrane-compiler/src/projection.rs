@@ -27,6 +27,17 @@ pub enum Containment {
     Enforced,
     Unavailable,
 }
+#[derive(Clone, Copy)]
+enum CargoToolchain {
+    Default,
+    RustdocNightly,
+}
+
+#[derive(Clone, Copy)]
+enum CargoExecution {
+    Host,
+    Contained,
+}
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub struct ProjectedDependency {
@@ -191,6 +202,16 @@ impl Projection {
             .iter()
             .flat_map(|dependency| &dependency.items)
             .find(|item| item.namespace == namespace && item.name == name)
+    }
+    #[must_use]
+    pub(crate) fn dependency_name(&self, namespace: &str, name: &str) -> Option<&str> {
+        self.dependencies.iter().find_map(|dependency| {
+            dependency
+                .items
+                .iter()
+                .any(|item| item.namespace == namespace && item.name == name)
+                .then_some(dependency.name.as_str())
+        })
     }
 
     #[must_use]
@@ -474,9 +495,19 @@ pub fn resolve(
     let workspace = root.join(".trn/dependencies");
     write_workspace(&workspace, dependencies)?;
     if workspace.join("Cargo.lock").exists() {
-        run_cargo(&workspace, &["fetch", "--locked"], false)?;
+        run_cargo(
+            &workspace,
+            &["fetch", "--locked"],
+            CargoToolchain::Default,
+            CargoExecution::Host,
+        )?;
     } else {
-        run_cargo(&workspace, &["fetch"], false)?;
+        run_cargo(
+            &workspace,
+            &["fetch"],
+            CargoToolchain::Default,
+            CargoExecution::Host,
+        )?;
     }
     let identity = cache_identity(root, &workspace, dependencies, sandbox)?;
     let cache_path = workspace.join(format!("projection-{identity}.json"));
@@ -509,7 +540,8 @@ pub fn resolve(
                 "--output-format",
                 "json",
             ],
-            true,
+            CargoToolchain::RustdocNightly,
+            CargoExecution::Contained,
         )?;
         let crate_name = dependency.package.replace('-', "_");
         let rustdoc_path = workspace
@@ -577,22 +609,22 @@ fn write_workspace(
     );
     for dependency in dependencies
         .iter()
-        .filter(|dependency| dependency.target.is_none())
+        .filter(|dependency| dependency.cargo_manifest_table() == "dependencies")
     {
-        write_dependency_spec(&mut manifest, dependency);
+        manifest.push_str(&dependency.cargo_dependency_spec());
     }
-    let targets = dependencies
+    let target_tables = dependencies
         .iter()
-        .filter_map(|dependency| dependency.target.as_deref())
+        .map(RustDependency::cargo_manifest_table)
+        .filter(|table| table != "dependencies")
         .collect::<BTreeSet<_>>();
-    for target in targets {
-        writeln!(manifest, "\n[target.{target:?}.dependencies]")
-            .expect("writing to a string cannot fail");
+    for table in target_tables {
+        writeln!(manifest, "\n[{table}]").expect("writing to a string cannot fail");
         for dependency in dependencies
             .iter()
-            .filter(|dependency| dependency.target.as_deref() == Some(target))
+            .filter(|dependency| dependency.cargo_manifest_table() == table)
         {
-            write_dependency_spec(&mut manifest, dependency);
+            manifest.push_str(&dependency.cargo_dependency_spec());
         }
     }
     manifest.push_str("\n[workspace]\n");
@@ -601,27 +633,13 @@ fn write_workspace(
     Ok(())
 }
 
-fn write_dependency_spec(manifest: &mut String, dependency: &RustDependency) {
-    let features = dependency
-        .features
-        .iter()
-        .map(|feature| format!("{feature:?}"))
-        .collect::<Vec<_>>()
-        .join(", ");
-    writeln!(
-        manifest,
-        "{} = {{ package = {:?}, version = {:?}, default-features = {}, features = [{}] }}",
-        dependency.name.replace('-', "_"),
-        dependency.package,
-        dependency.version,
-        dependency.default_features,
-        features
-    )
-    .expect("writing to a string cannot fail");
-}
-
-fn run_cargo(directory: &Path, arguments: &[&str], nightly: bool) -> Result<(), ProjectionError> {
-    let sandboxed = nightly && containment() == Containment::Enforced;
+fn run_cargo(
+    directory: &Path,
+    arguments: &[&str],
+    toolchain: CargoToolchain,
+    execution: CargoExecution,
+) -> Result<(), ProjectionError> {
+    let sandboxed = matches!(execution, CargoExecution::Contained);
     let canonical_directory = if sandboxed {
         Some(
             directory
@@ -657,7 +675,7 @@ fn run_cargo(directory: &Path, arguments: &[&str], nightly: bool) -> Result<(), 
     } else {
         Command::new("cargo")
     };
-    if nightly {
+    if matches!(toolchain, CargoToolchain::RustdocNightly) {
         command.arg(format!("+{RUSTDOC_TOOLCHAIN}"));
     }
     let output = command
@@ -1278,6 +1296,7 @@ fn cache_identity(
         .or_else(|_| fs::read(root.join("Cargo.lock")))
         .unwrap_or_default();
     let rustc = tool_version("rustc", &["-vV"])?;
+    let target = selected_target(&rustc);
     let nightly = format!("+{RUSTDOC_TOOLCHAIN}");
     let rustdoc = tool_version("rustdoc", &[&nightly, "--version"])?;
     let mut hash = Sha256::new();
@@ -1285,6 +1304,7 @@ fn cache_identity(
         ("manifest", manifest.as_slice()),
         ("lock", lock.as_slice()),
         ("inputs", format!("{dependencies:?}").as_bytes()),
+        ("target", target.as_bytes()),
         ("rustc", rustc.as_bytes()),
         ("rustdoc", rustdoc.as_bytes()),
         ("schema", PROJECTION_SCHEMA.as_bytes()),
@@ -1296,6 +1316,18 @@ fn cache_identity(
         hash.update(bytes);
     }
     Ok(format!("{:x}", hash.finalize()))
+}
+
+fn selected_target(rustc_verbose_version: &str) -> String {
+    std::env::var("CARGO_BUILD_TARGET")
+        .ok()
+        .filter(|target| !target.is_empty())
+        .or_else(|| {
+            rustc_verbose_version
+                .lines()
+                .find_map(|line| line.strip_prefix("host: ").map(str::to_owned))
+        })
+        .unwrap_or_else(|| "unknown-target".to_owned())
 }
 
 fn tool_version(program: &str, arguments: &[&str]) -> Result<String, ProjectionError> {

@@ -299,12 +299,7 @@ fn emit_dependency_unit(package: &SemanticPackage, unit: &SemanticUnit) -> Strin
             .projection
             .foreign_rust_path(&unit.namespace, &object.name)
         {
-            writeln!(
-                output,
-                "pub type {} = {path};",
-                rust_object_name(&object.name)
-            )
-            .expect("writing to a string cannot fail");
+            writeln!(output, "pub use {path};").expect("writing to a string cannot fail");
         }
     }
     for contract in unit
@@ -318,6 +313,10 @@ fn emit_dependency_unit(package: &SemanticPackage, unit: &SemanticUnit) -> Strin
         let crate::projection::ProjectedKind::Function(projected) = &item.kind else {
             continue;
         };
+        let dependency_name = package
+            .projection
+            .dependency_name(&unit.namespace, &contract.name)
+            .unwrap_or("dependency");
         let parameters = contract
             .parameters
             .iter()
@@ -367,9 +366,9 @@ fn emit_dependency_unit(package: &SemanticPackage, unit: &SemanticUnit) -> Strin
                 output,
                 "    match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {}({arguments}))) {{\n        Ok(Ok(value)) => Ok(value),\n        Ok(Err(error)) => Err(crate::TerraneError::new(crate::TerraneErrorKind::Custom(\"dependency-error\"), format!(\"Rust dependency `{}` member `{}` failed: {{error}}\"))),\n        Err(payload) => Err(crate::__terrane_dependency_panic(payload, {:?}, {:?})),\n    }}",
                 item.rust_path,
-                item.rust_path.split("::").next().unwrap_or("dependency"),
+                dependency_name,
                 item.rust_path,
-                item.rust_path.split("::").next().unwrap_or("dependency"),
+                dependency_name,
                 item.rust_path,
             )
             .expect("writing to a string cannot fail");
@@ -378,7 +377,7 @@ fn emit_dependency_unit(package: &SemanticPackage, unit: &SemanticUnit) -> Strin
                 output,
                 "    match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {}({arguments}))) {{\n        Ok(value) => Ok(value),\n        Err(payload) => Err(crate::__terrane_dependency_panic(payload, {:?}, {:?})),\n    }}",
                 item.rust_path,
-                item.rust_path.split("::").next().unwrap_or("dependency"),
+                dependency_name,
                 item.rust_path,
             )
             .expect("writing to a string cannot fail");

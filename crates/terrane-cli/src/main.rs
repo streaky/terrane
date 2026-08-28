@@ -473,20 +473,20 @@ fn write_generated_crate(
     }
     for dependency in rust_dependencies
         .iter()
-        .filter(|dependency| dependency.target.is_none())
+        .filter(|dependency| dependency.cargo_manifest_table() == "dependencies")
     {
         write_rust_dependency(&mut manifest, dependency);
     }
-    let targets = rust_dependencies
+    let target_tables = rust_dependencies
         .iter()
-        .filter_map(|dependency| dependency.target.as_deref())
+        .map(terrane_compiler::RustDependency::cargo_manifest_table)
+        .filter(|table| table != "dependencies")
         .collect::<BTreeSet<_>>();
-    for target in targets {
-        writeln!(manifest, "\n[target.{target:?}.dependencies]")
-            .expect("writing to a string cannot fail");
+    for table in target_tables {
+        writeln!(manifest, "\n[{table}]").expect("writing to a string cannot fail");
         for dependency in rust_dependencies
             .iter()
-            .filter(|dependency| dependency.target.as_deref() == Some(target))
+            .filter(|dependency| dependency.cargo_manifest_table() == table)
         {
             write_rust_dependency(&mut manifest, dependency);
         }
@@ -524,7 +524,7 @@ fn write_generated_crate(
 }
 
 fn write_rust_dependency(manifest: &mut String, dependency: &terrane_compiler::RustDependency) {
-    manifest.push_str(&dependency.cargo_manifest_entry());
+    manifest.push_str(&dependency.cargo_dependency_spec());
 }
 
 fn write_generated_support(directory: &Path, uses_platform_support: bool) -> std::io::Result<()> {
