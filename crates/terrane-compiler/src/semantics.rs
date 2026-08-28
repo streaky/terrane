@@ -11996,3 +11996,77 @@ mod name_style_tests {
         }));
     }
 }
+
+#[cfg(test)]
+mod projected_receiver_tests {
+    use super::*;
+    use crate::projection::{
+        Containment, ProjectedDependency, ProjectedFunction, ProjectedItem, ProjectedKind,
+        ProjectedType, Projection, Receiver,
+    };
+
+    fn projected_response(namespace: &str, rust_path: &str, receiver: Receiver) -> ProjectedItem {
+        ProjectedItem {
+            namespace: namespace.to_owned(),
+            name: "ProjectedResponse".to_owned(),
+            rust_path: rust_path.to_owned(),
+            docs: None,
+            kind: ProjectedKind::ForeignType {
+                methods: vec![ProjectedFunction {
+                    name: "touch".to_owned(),
+                    parameters: Vec::new(),
+                    result: ProjectedType::None,
+                    error: None,
+                    is_async: false,
+                    receiver: Some(receiver),
+                }],
+            },
+        }
+    }
+
+    #[test]
+    fn ambiguous_projected_receiver_contract_reports_s2030() {
+        let package = Package::implicit(
+            "main.trn",
+            "namespace app\nclass Response\n  function touch;\n    return\nfunction main;\n  response Response = Response;\n  response.touch;\n".to_owned(),
+        );
+        let mut semantic = analyze(&package).unwrap();
+        for binding in semantic.units[0]
+            .typed_bindings
+            .iter_mut()
+            .filter(|binding| binding.name == "response")
+        {
+            binding.value_type = ValueType::Object("ProjectedResponse".to_owned());
+        }
+        semantic.projection = Projection {
+            cache_identity: "test".to_owned(),
+            dependencies: vec![ProjectedDependency {
+                name: "witness".to_owned(),
+                package: "witness".to_owned(),
+                version: "=1.0.0".to_owned(),
+                items: vec![
+                    projected_response(
+                        "/deps/witness/async",
+                        "witness::async_impl::Response",
+                        Receiver::Borrow,
+                    ),
+                    projected_response(
+                        "/deps/witness/blocking",
+                        "witness::blocking::Response",
+                        Receiver::MutableBorrow,
+                    ),
+                ],
+                declined: Vec::new(),
+            }],
+            containment: Containment::Unavailable,
+        };
+
+        let failure = validate_projected_receiver_mutability(&semantic).unwrap_err();
+        let diagnostic = &failure.diagnostics[0];
+        assert_eq!(diagnostic.code, "S2030");
+        assert_eq!(
+            diagnostic.message,
+            "projected method `ProjectedResponse.touch` has ambiguous receiver mutability across `witness::async_impl::Response`, `witness::blocking::Response`"
+        );
+    }
+}
