@@ -4,27 +4,30 @@ use std::fs;
 use std::path::Path;
 use std::process::Command;
 
+use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 use crate::RustDependency;
 
 pub const RUSTDOC_TOOLCHAIN: &str = "nightly-2026-04-29";
-const PROJECTION_SCHEMA: &str = "2";
+const PROJECTION_SCHEMA: &str = "4";
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub struct Projection {
     pub cache_identity: String,
     pub dependencies: Vec<ProjectedDependency>,
     pub containment: Containment,
+    #[serde(default)]
+    pub removed: Vec<RemovedItem>,
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub enum Containment {
     Enforced,
     Unavailable,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub struct ProjectedDependency {
     pub name: String,
     pub package: String,
@@ -33,7 +36,16 @@ pub struct ProjectedDependency {
     pub declined: Vec<DeclinedItem>,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+pub struct RemovedItem {
+    pub namespace: String,
+    pub name: String,
+    pub package: String,
+    pub previous_version: String,
+    pub current_version: String,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub struct ProjectedItem {
     pub namespace: String,
     pub name: String,
@@ -42,14 +54,14 @@ pub struct ProjectedItem {
     pub kind: ProjectedKind,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub enum ProjectedKind {
     Function(ProjectedFunction),
     ForeignType { methods: Vec<ProjectedFunction> },
     Enum { data_carrying: bool },
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub struct ProjectedFunction {
     pub name: String,
     pub parameters: Vec<ProjectedParameter>,
@@ -59,7 +71,7 @@ pub struct ProjectedFunction {
     pub receiver: Option<Receiver>,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub struct ProjectedParameter {
     pub name: String,
     pub ty: ProjectedType,
@@ -67,14 +79,14 @@ pub struct ProjectedParameter {
     pub mutable_borrow: bool,
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub enum Receiver {
     Borrow,
     MutableBorrow,
     Move,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub enum ProjectedType {
     None,
     Bool,
@@ -102,7 +114,7 @@ impl ProjectedType {
     }
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub struct DeclinedItem {
     pub rust_path: String,
     pub reason: String,
@@ -348,12 +360,13 @@ pub fn resolve(
     root: &Path,
     dependencies: &[RustDependency],
 ) -> Result<Projection, ProjectionError> {
-    let identity = cache_identity(root, dependencies);
+    let sandbox = containment();
     if dependencies.is_empty() {
         return Ok(Projection {
-            cache_identity: identity,
+            cache_identity: cache_identity(root, root, dependencies, sandbox)?,
             dependencies: Vec::new(),
-            containment: containment(),
+            containment: sandbox,
+            removed: Vec::new(),
         });
     }
     let workspace = root.join(".trn/dependencies");
@@ -363,6 +376,22 @@ pub fn resolve(
     } else {
         run_cargo(&workspace, &["fetch"], false)?;
     }
+    let identity = cache_identity(root, &workspace, dependencies, sandbox)?;
+    let cache_path = workspace.join(format!("projection-{identity}.json"));
+    if let Ok(bytes) = fs::read(&cache_path) {
+        let mut cached =
+            serde_json::from_slice::<Projection>(&bytes).map_err(|error| ProjectionError {
+                message: format!(
+                    "invalid cached dependency projection `{}`: {error}",
+                    cache_path.display()
+                ),
+            })?;
+        cached.containment = sandbox;
+        return Ok(cached);
+    }
+    let previous = fs::read(workspace.join("projection.json"))
+        .ok()
+        .and_then(|bytes| serde_json::from_slice::<Projection>(&bytes).ok());
     let mut projected = Vec::new();
     for dependency in dependencies {
         run_cargo(
@@ -394,11 +423,51 @@ pub fn resolve(
         })?;
         projected.push(project_rustdoc(dependency, &bytes)?);
     }
-    Ok(Projection {
+    let removed = previous
+        .as_ref()
+        .map_or_else(Vec::new, |previous| removed_items(previous, &projected));
+    let projection = Projection {
         cache_identity: identity,
         dependencies: projected,
-        containment: containment(),
-    })
+        containment: sandbox,
+        removed,
+    };
+    let bytes = serde_json::to_vec_pretty(&projection).map_err(|error| ProjectionError {
+        message: format!("cannot serialize dependency projection: {error}"),
+    })?;
+    write_if_changed(&cache_path, &bytes)?;
+    write_if_changed(&workspace.join("projection.json"), &bytes)?;
+    Ok(projection)
+}
+
+fn removed_items(previous: &Projection, current: &[ProjectedDependency]) -> Vec<RemovedItem> {
+    let mut removed = Vec::new();
+    for old_dependency in &previous.dependencies {
+        let Some(new_dependency) = current
+            .iter()
+            .find(|dependency| dependency.name == old_dependency.name)
+        else {
+            continue;
+        };
+        for old_item in &old_dependency.items {
+            if !new_dependency.items.iter().any(|item| {
+                item.namespace == old_item.namespace
+                    && item.name == old_item.name
+                    && item.rust_path == old_item.rust_path
+            }) {
+                removed.push(RemovedItem {
+                    namespace: old_item.namespace.clone(),
+                    name: old_item.name.clone(),
+                    package: new_dependency.package.clone(),
+                    previous_version: old_dependency.version.clone(),
+                    current_version: new_dependency.version.clone(),
+                });
+            }
+        }
+    }
+    removed
+        .sort_by(|left, right| (&left.namespace, &left.name).cmp(&(&right.namespace, &right.name)));
+    removed
 }
 
 fn write_workspace(
@@ -409,46 +478,87 @@ fn write_workspace(
     let mut manifest = String::from(
         "[package]\nname = \"terrane_dependency_projection\"\nversion = \"0.0.0\"\nedition = \"2024\"\n\n[dependencies]\n",
     );
-    let mut source = String::new();
-    for dependency in dependencies {
-        let features = dependency
-            .features
+    for dependency in dependencies
+        .iter()
+        .filter(|dependency| dependency.target.is_none())
+    {
+        write_dependency_spec(&mut manifest, dependency);
+    }
+    let targets = dependencies
+        .iter()
+        .filter_map(|dependency| dependency.target.as_deref())
+        .collect::<BTreeSet<_>>();
+    for target in targets {
+        writeln!(manifest, "\n[target.{target:?}.dependencies]")
+            .expect("writing to a string cannot fail");
+        for dependency in dependencies
             .iter()
-            .map(|feature| format!("{feature:?}"))
-            .collect::<Vec<_>>()
-            .join(", ");
-        writeln!(
-            manifest,
-            "{} = {{ package = {:?}, version = {:?}, default-features = {}, features = [{}] }}",
-            dependency.name.replace('-', "_"),
-            dependency.package,
-            dependency.version,
-            dependency.default_features,
-            features
-        )
-        .expect("writing to a string cannot fail");
-        writeln!(
-            source,
-            "pub use {} as {};",
-            dependency.name.replace('-', "_"),
-            dependency.name.replace('-', "_")
-        )
-        .expect("writing to a string cannot fail");
+            .filter(|dependency| dependency.target.as_deref() == Some(target))
+        {
+            write_dependency_spec(&mut manifest, dependency);
+        }
     }
     manifest.push_str("\n[workspace]\n");
     write_if_changed(&directory.join("Cargo.toml"), manifest.as_bytes())?;
-    write_if_changed(&directory.join("src/lib.rs"), source.as_bytes())?;
+    write_if_changed(&directory.join("src/lib.rs"), b"")?;
     Ok(())
 }
 
+fn write_dependency_spec(manifest: &mut String, dependency: &RustDependency) {
+    let features = dependency
+        .features
+        .iter()
+        .map(|feature| format!("{feature:?}"))
+        .collect::<Vec<_>>()
+        .join(", ");
+    writeln!(
+        manifest,
+        "{} = {{ package = {:?}, version = {:?}, default-features = {}, features = [{}] }}",
+        dependency.name.replace('-', "_"),
+        dependency.package,
+        dependency.version,
+        dependency.default_features,
+        features
+    )
+    .expect("writing to a string cannot fail");
+}
+
 fn run_cargo(directory: &Path, arguments: &[&str], nightly: bool) -> Result<(), ProjectionError> {
-    let mut command = Command::new("cargo");
+    let directory = directory
+        .canonicalize()
+        .map_err(io_error("canonicalize dependency projection workspace"))?;
+    let sandboxed = nightly && containment() == Containment::Enforced;
+    let mut command = if sandboxed {
+        let mut command = Command::new("bwrap");
+        command.args([
+            "--die-with-parent",
+            "--unshare-all",
+            "--ro-bind",
+            "/",
+            "/",
+            "--dev",
+            "/dev",
+            "--proc",
+            "/proc",
+            "--tmpfs",
+            "/tmp",
+            "--bind",
+        ]);
+        command
+            .arg(&directory)
+            .arg(&directory)
+            .arg("--")
+            .arg("cargo");
+        command
+    } else {
+        Command::new("cargo")
+    };
     if nightly {
         command.arg(format!("+{RUSTDOC_TOOLCHAIN}"));
     }
     let output = command
         .args(arguments)
-        .current_dir(directory)
+        .current_dir(&directory)
         .output()
         .map_err(|error| ProjectionError {
             message: format!("cannot run Cargo dependency projection: {error}"),
@@ -741,15 +851,21 @@ fn generic_monomorphisations(
         else {
             return Err(format!("generic bound for `{name}` has no closed impl set"));
         };
-        let candidates = implementations
+        let mut candidates = implementations
             .iter()
             .filter_map(|id| index.get(&id.to_string()))
             .filter_map(|item| item["inner"]["impl"].get("for"))
             .filter_map(|ty| project_type(ty, paths, &BTreeMap::new()).ok())
             .collect::<Vec<_>>();
-        let chosen = candidates
+        let mut unique = Vec::new();
+        for candidate in candidates.drain(..) {
+            if !unique.contains(&candidate) {
+                unique.push(candidate);
+            }
+        }
+        let direct = unique
             .iter()
-            .find(|ty| {
+            .filter(|ty| {
                 matches!(
                     ty,
                     ProjectedType::String
@@ -759,12 +875,20 @@ fn generic_monomorphisations(
                         | ProjectedType::Float
                 )
             })
-            .or_else(|| candidates.first())
             .cloned()
-            .ok_or_else(|| {
+            .collect::<Vec<_>>();
+        let selected = if direct.is_empty() { &unique } else { &direct };
+        let [chosen] = selected.as_slice() else {
+            return Err(if selected.is_empty() {
                 format!("generic bound for `{name}` has no Terrane-representable impl")
-            })?;
-        result.insert(name.to_owned(), chosen);
+            } else {
+                format!(
+                    "generic bound for `{name}` has {} viable Terrane representations and requires a caller-chosen type",
+                    selected.len()
+                )
+            });
+        };
+        result.insert(name.to_owned(), chosen.clone());
     }
     Ok(result)
 }
@@ -903,25 +1027,66 @@ fn value_id(value: &Value) -> Option<String> {
         .or_else(|| value.as_u64().map(|number| number.to_string()))
 }
 
-fn cache_identity(root: &Path, dependencies: &[RustDependency]) -> String {
+fn cache_identity(
+    root: &Path,
+    workspace: &Path,
+    dependencies: &[RustDependency],
+    containment: Containment,
+) -> Result<String, ProjectionError> {
     let manifest = fs::read(root.join(crate::MANIFEST_FILE_NAME)).unwrap_or_default();
-    let lock = fs::read(root.join("Cargo.lock")).unwrap_or_default();
+    let lock = fs::read(workspace.join("Cargo.lock"))
+        .or_else(|_| fs::read(root.join("Cargo.lock")))
+        .unwrap_or_default();
+    let rustc = tool_version("rustc", &["-vV"])?;
+    let nightly = format!("+{RUSTDOC_TOOLCHAIN}");
+    let rustdoc = tool_version("rustdoc", &[&nightly, "--version"])?;
     let mut hash = 0xcbf2_9ce4_8422_2325_u64;
     for byte in manifest.iter().chain(lock.iter()).chain(
-        format!(
-            "{dependencies:?}|{}|{RUSTDOC_TOOLCHAIN}|{PROJECTION_SCHEMA}",
-            std::env::consts::ARCH
-        )
-        .as_bytes(),
+        format!("{dependencies:?}|{rustc}|{rustdoc}|{PROJECTION_SCHEMA}|{containment:?}")
+            .as_bytes(),
     ) {
         hash ^= u64::from(*byte);
         hash = hash.wrapping_mul(0x0000_0100_0000_01b3);
     }
-    format!("{hash:016x}")
+    Ok(format!("{hash:016x}"))
+}
+
+fn tool_version(program: &str, arguments: &[&str]) -> Result<String, ProjectionError> {
+    let output = Command::new(program)
+        .args(arguments)
+        .output()
+        .map_err(|error| ProjectionError {
+            message: format!("cannot inspect dependency projection toolchain: {error}"),
+        })?;
+    if !output.status.success() {
+        return Err(ProjectionError {
+            message: format!(
+                "cannot inspect dependency projection toolchain: {}",
+                String::from_utf8_lossy(&output.stderr).trim()
+            ),
+        });
+    }
+    Ok(String::from_utf8_lossy(&output.stdout).trim().to_owned())
 }
 
 fn containment() -> Containment {
-    if cfg!(target_os = "linux") {
+    let available = Command::new("bwrap")
+        .args([
+            "--die-with-parent",
+            "--unshare-all",
+            "--ro-bind",
+            "/",
+            "/",
+            "--dev",
+            "/dev",
+            "--proc",
+            "/proc",
+            "--",
+            "/bin/true",
+        ])
+        .output()
+        .is_ok_and(|output| output.status.success());
+    if available {
         Containment::Enforced
     } else {
         Containment::Unavailable

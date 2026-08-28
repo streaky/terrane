@@ -907,6 +907,36 @@ fn dependency_projection(
 pub fn analyze(package: &Package) -> Result<SemanticPackage, SemanticFailure> {
     let projection = dependency_projection(package)?;
     let mut units = parse_units(package, &projection)?;
+    for unit in &units {
+        for node in unit
+            .tree
+            .root
+            .children
+            .iter()
+            .filter(|node| node.kind == SyntaxKind::ImportDeclaration)
+        {
+            for import in imports_from_syntax(unit, node)? {
+                if let Some(removed) = projection
+                    .removed
+                    .iter()
+                    .find(|item| item.namespace == import.target && item.name == import.object)
+                {
+                    return Err(failure(
+                        &import.source,
+                        "S2029",
+                        format!(
+                            "Rust dependency update removed projected member `{}` from `{}` ({} -> {})",
+                            import.object,
+                            removed.package,
+                            removed.previous_version,
+                            removed.current_version
+                        ),
+                        import.span,
+                    ));
+                }
+            }
+        }
+    }
 
     let mut namespaces = bootstrap_namespaces();
     for unit in &units {

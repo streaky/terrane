@@ -179,7 +179,7 @@ impl LanguageServer for Backend {
         let Some(namespace) = namespace else {
             return Ok(None);
         };
-        let items = projection
+        let mut items = projection
             .dependencies
             .iter()
             .flat_map(|dependency| &dependency.items)
@@ -196,7 +196,30 @@ impl LanguageServer for Backend {
                 documentation: item.docs.clone().map(Documentation::String),
                 ..Default::default()
             })
-            .collect();
+            .collect::<Vec<_>>();
+        for dependency in &projection.dependencies {
+            items.extend(
+                dependency
+                    .declined
+                    .iter()
+                    .filter(|item| declined_namespace(dependency, &item.rust_path) == namespace)
+                    .filter_map(|item| {
+                        item.rust_path
+                            .rsplit("::")
+                            .next()
+                            .map(|name| CompletionItem {
+                                label: name.to_owned(),
+                                kind: Some(CompletionItemKind::REFERENCE),
+                                detail: Some(item.rust_path.clone()),
+                                documentation: Some(Documentation::String(format!(
+                                    "Not projected: {}",
+                                    item.reason
+                                ))),
+                                ..Default::default()
+                            })
+                    }),
+            );
+        }
         Ok(Some(CompletionResponse::Array(items)))
     }
 
@@ -405,6 +428,24 @@ fn projection_for_uri(uri: &Uri) -> Option<terrane_compiler::projection::Project
         .find(|candidate| candidate.is_file())?;
     let package = terrane_compiler::Package::load(&manifest).ok()?;
     terrane_compiler::projection::resolve(&package.root, &package.rust_dependencies).ok()
+}
+
+fn declined_namespace(
+    dependency: &terrane_compiler::projection::ProjectedDependency,
+    rust_path: &str,
+) -> String {
+    let mut parts = rust_path.split("::").collect::<Vec<_>>();
+    parts.pop();
+    if parts
+        .first()
+        .is_some_and(|root| *root == dependency.package.replace('-', "_"))
+    {
+        parts.remove(0);
+    }
+    std::iter::once(format!("/dependencies/{}", dependency.name))
+        .chain(parts.into_iter().map(str::to_owned))
+        .collect::<Vec<_>>()
+        .join("/")
 }
 
 fn dependency_import_namespace(text: &str, position: Position) -> Option<String> {

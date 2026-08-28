@@ -1,4 +1,5 @@
 use sha2::{Digest, Sha256};
+use std::collections::BTreeSet;
 use std::ffi::OsString;
 use std::fmt::Write as _;
 use std::fs;
@@ -460,19 +461,25 @@ fn write_generated_crate(
             "terrane-platform-support = { path = \"support/terrane-platform-support\" }\n",
         );
     }
-    for dependency in rust_dependencies {
-        use std::fmt::Write as _;
-        write!(
-            manifest,
-            "{} = {{ package = {:?}, version = {:?}, default-features = {}",
-            dependency.name, dependency.package, dependency.version, dependency.default_features
-        )
-        .expect("writing to a string cannot fail");
-        if !dependency.features.is_empty() {
-            write!(manifest, ", features = {:?}", dependency.features)
-                .expect("writing to a string cannot fail");
+    for dependency in rust_dependencies
+        .iter()
+        .filter(|dependency| dependency.target.is_none())
+    {
+        write_rust_dependency(&mut manifest, dependency);
+    }
+    let targets = rust_dependencies
+        .iter()
+        .filter_map(|dependency| dependency.target.as_deref())
+        .collect::<BTreeSet<_>>();
+    for target in targets {
+        writeln!(manifest, "\n[target.{target:?}.dependencies]")
+            .expect("writing to a string cannot fail");
+        for dependency in rust_dependencies
+            .iter()
+            .filter(|dependency| dependency.target.as_deref() == Some(target))
+        {
+            write_rust_dependency(&mut manifest, dependency);
         }
-        manifest.push_str(" }\n");
     }
     manifest.push_str("\n[workspace]\n");
     write_if_changed(&directory.join("Cargo.toml"), manifest.as_bytes()).map_err(|error| {
@@ -504,6 +511,20 @@ fn write_generated_crate(
     write_if_changed(&directory.join("terrane-build.toml"), sources.as_bytes())
         .map_err(|error| CliFailure::backend(format!("cannot write build metadata: {error}")))?;
     Ok(())
+}
+
+fn write_rust_dependency(manifest: &mut String, dependency: &terrane_compiler::RustDependency) {
+    write!(
+        manifest,
+        "{} = {{ package = {:?}, version = {:?}, default-features = {}",
+        dependency.name, dependency.package, dependency.version, dependency.default_features
+    )
+    .expect("writing to a string cannot fail");
+    if !dependency.features.is_empty() {
+        write!(manifest, ", features = {:?}", dependency.features)
+            .expect("writing to a string cannot fail");
+    }
+    manifest.push_str(" }\n");
 }
 
 fn write_generated_support(directory: &Path, uses_platform_support: bool) -> std::io::Result<()> {
