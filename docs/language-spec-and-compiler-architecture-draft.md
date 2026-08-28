@@ -3782,7 +3782,7 @@ The compiler generates Rust shims only for projected members crossed by Terrane 
 
 Cargo and rustc remain authoritative. Projection and editor information are advisory and derived from the resolved package rather than predefined by Terrane. The language server uses the shared artifact for completion, signature help, hover, exact Rust paths, and declined-item reasons. Projection executes under the build-script capability policy without arbitrary foreign-runtime introspection.
 
-The generated dependency crate graph preserves the manifest's selected features and default-feature policy, compiles offline and frozen after resolution, and records whether containment was enforced. Its cache identity covers the manifest, lock checksum, selected features, target triple, Rust toolchain, package source checksums, and sandbox tier. A lock update that removes a crossed projected member is diagnosed against that member and version change rather than exposed as an unexplained rustc error in generated source.
+The generated dependency crate graph preserves the manifest's selected features and default-feature policy, compiles offline and frozen after resolution, and records whether containment was enforced. Its cache identity covers the manifest, lock checksum, selected features, target triple, Rust toolchain, package source checksums, and sandbox tier. A lock update that removes a crossed projected member is diagnosed as missing at its Terrane import or use site rather than exposed as an unexplained rustc error in generated source; distinguishing removal from a never-present member and naming the version change are deferred until projection history is retained.
 
 ### 23.9 System and C libraries
 

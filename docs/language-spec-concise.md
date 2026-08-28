@@ -817,6 +817,7 @@ tooling: completion/signature/hover and declined reasons are ADVISORY; Cargo/rus
 execution: Rust inspection is compilation under build-script capability/containment policy; arbitrary foreign-runtime inspection remains forbidden
 cache_identity: manifest + lock checksum + features/default-feature policy + target + toolchain + package source checksums + sandbox tier
 containment: fetch may be online; compilation is offline/frozen and reports whether enforcement was available
+lock_change_diagnostic: a removed crossed member is diagnosed as missing at its Terrane import/use; distinguishing removal from a never-present member and naming the version change are deferred until projection history is retained
 foreign_specialisation: 'from python/x import y' names a crossing point, not an API import; adapters define boundary behaviour
 ```
 
