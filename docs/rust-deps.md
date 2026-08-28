@@ -529,7 +529,9 @@ here is conditional or outstanding.
   shared receiver, `&mut self` as receiver mutability on the projected contract, and `self` as
   `move`), owned returns with an edge clone where the crate returns a cloneable borrow, and edge
   coercion for scalars. Mutable receivers use ordinary Terrane member-call syntax; the contract drives
-  mutable binding and borrowing in generated Rust. (§6.2)
+  mutable binding and borrowing in generated Rust. Until object identity includes its namespace,
+  conflicting receiver contracts on same-named projected types are a compile-time ambiguity rather
+  than being selected by projection order. (§6.2)
 - **A11a — foreign values are identity-bearing resources**, per invariant 22, so ordinary value
   assignment does not apply to them and use-after-move is diagnosed by the existing rules. Confirm the
   §23.13 foreign-proxy wording covers Rust values rather than only foreign-runtime proxies; extend it

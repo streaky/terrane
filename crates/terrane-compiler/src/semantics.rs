@@ -1053,6 +1053,7 @@ pub fn analyze(package: &Package) -> Result<SemanticPackage, SemanticFailure> {
     validate_initializer_dependencies(&semantic)?;
     validate_references(&semantic)?;
     analyze_types(&mut semantic)?;
+    validate_projected_receiver_mutability(&semantic)?;
     validate_error_clauses(&semantic)?;
     validate_moves(&semantic)?;
     validate_reference_origins(&semantic)?;
@@ -11652,6 +11653,92 @@ pub(crate) fn warnings(package: &SemanticPackage, lint_name_style: bool) -> Vec<
     warnings
 }
 
+fn projected_method_mutability(
+    package: &SemanticPackage,
+    unit: &SemanticUnit,
+    position: usize,
+    object_name: &str,
+    method_name: &str,
+) -> Result<Option<bool>, Vec<String>> {
+    let resolved = package
+        .resolve_name_at(unit, position, object_name)
+        .and_then(|symbol| {
+            let (namespace, _) = symbol.identity.rsplit_once("::")?;
+            package
+                .projection
+                .method(namespace, object_name, method_name)
+                .map(|method| {
+                    matches!(
+                        method.receiver,
+                        Some(crate::projection::Receiver::MutableBorrow)
+                    )
+                })
+        });
+    resolved.map_or_else(
+        || {
+            package
+                .projection
+                .method_mutability(object_name, method_name)
+        },
+        |mutates| Ok(Some(mutates)),
+    )
+}
+
+fn validate_projected_receiver_mutability(
+    package: &SemanticPackage,
+) -> Result<(), SemanticFailure> {
+    fn ambiguity(
+        package: &SemanticPackage,
+        unit: &SemanticUnit,
+        node: &SyntaxNode,
+    ) -> Option<Diagnostic> {
+        if node.kind == SyntaxKind::CallExpression
+            && let Some(callee) = node.children.first()
+            && callee.kind == SyntaxKind::MemberExpression
+            && let [receiver, member] = callee.children.as_slice()
+            && let Ok(Some(ValueType::Object(object_name))) =
+                infer_value_type(unit, receiver, &unit.typed_bindings)
+            && let Err(mut candidates) = projected_method_mutability(
+                package,
+                unit,
+                receiver.span.start,
+                &object_name,
+                node_text(&unit.source, member),
+            )
+        {
+            candidates.sort();
+            return Some(
+                Diagnostic::error(
+                    "S2030",
+                    format!(
+                        "projected method `{}.{}` has ambiguous receiver mutability across `{}`",
+                        object_name,
+                        node_text(&unit.source, member),
+                        candidates.join("`, `")
+                    ),
+                    member.span,
+                )
+                .with_help(
+                    "import the intended projected type explicitly so its namespace determines the receiver contract",
+                ),
+            );
+        }
+        node.children
+            .iter()
+            .find_map(|child| ambiguity(package, unit, child))
+    }
+
+    for unit in &package.units {
+        if let Some(diagnostic) = ambiguity(package, unit, &unit.tree.root) {
+            return Err(SemanticFailure {
+                source: unit.source.clone(),
+                diagnostics: vec![diagnostic],
+            });
+        }
+    }
+    Ok(())
+}
+
 fn object_method_mutates(
     package: &SemanticPackage,
     unit: &SemanticUnit,
@@ -11687,27 +11774,10 @@ fn object_method_mutates(
     {
         return true;
     }
-    let resolved = package
-        .resolve_name_at(unit, position, object_name)
-        .and_then(|symbol| {
-            let (namespace, _) = symbol.identity.rsplit_once("::")?;
-            package
-                .projection
-                .method(namespace, object_name, method_name)
-                .map(|method| {
-                    matches!(
-                        method.receiver,
-                        Some(crate::projection::Receiver::MutableBorrow)
-                    )
-                })
-        });
-    match resolved {
-        Some(mutates) => mutates,
-        None => package
-            .projection
-            .method_mutates_consistently(object_name, method_name)
-            .unwrap_or(false),
-    }
+    projected_method_mutability(package, unit, position, object_name, method_name)
+        .ok()
+        .flatten()
+        .unwrap_or(false)
 }
 
 pub(crate) fn binding_span_is_mutated(

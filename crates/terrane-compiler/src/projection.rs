@@ -257,9 +257,12 @@ impl Projection {
             })
     }
 
-    #[must_use]
-    pub fn method_mutates_consistently(&self, type_name: &str, method_name: &str) -> Option<bool> {
-        let mut receivers = self
+    pub(crate) fn method_mutability(
+        &self,
+        type_name: &str,
+        method_name: &str,
+    ) -> Result<Option<bool>, Vec<String>> {
+        let candidates = self
             .dependencies
             .iter()
             .flat_map(|dependency| &dependency.items)
@@ -268,14 +271,23 @@ impl Projection {
                 ProjectedKind::ForeignType { methods } => methods
                     .iter()
                     .find(|method| method.name == method_name)
-                    .map(|method| method.receiver),
+                    .map(|method| {
+                        (
+                            matches!(method.receiver, Some(Receiver::MutableBorrow)),
+                            item.rust_path.clone(),
+                        )
+                    }),
                 _ => None,
             })
-            .map(|receiver| matches!(receiver, Some(Receiver::MutableBorrow)));
-        let mutates = receivers.next()?;
-        receivers
-            .all(|candidate| candidate == mutates)
-            .then_some(mutates)
+            .collect::<Vec<_>>();
+        let Some((mutates, _)) = candidates.first() else {
+            return Ok(None);
+        };
+        if candidates.iter().all(|(candidate, _)| candidate == mutates) {
+            Ok(Some(*mutates))
+        } else {
+            Err(candidates.into_iter().map(|(_, path)| path).collect())
+        }
     }
 }
 
@@ -1433,8 +1445,11 @@ mod tests {
             Some(Receiver::MutableBorrow)
         );
         assert_eq!(
-            projection.method_mutates_consistently("Response", "touch"),
-            None
+            projection.method_mutability("Response", "touch"),
+            Err(vec![
+                "witness::async::Response".to_owned(),
+                "witness::blocking::Response".to_owned()
+            ])
         );
     }
 

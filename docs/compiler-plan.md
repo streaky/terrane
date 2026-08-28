@@ -1576,21 +1576,91 @@ verbatim functions, inherent methods, receiver ownership, opaque foreign values,
 `Result`; it records `Option` signatures and trait methods as declined until general `T|none`
 semantic types and receiver-first trait namespaces are implemented. It generates only crossed shims,
 pins generated Cargo dependencies to the projected versions, and translates dependency failures and
-unwinding panics into distinct Terrane throwable completion. Rust dependency projection requires the
-Linux `bwrap` containment tier and fails explicitly when it is unavailable; dependency-free programs
-do not probe containment, rustdoc, or the pinned nightly toolchain. Wiring projection itself to a
-build-capability grant, rejecting dependency effects forbidden by a selected profile, distinguishing
-unwinding from aborting profiles, containing generated-crate compilation, and retaining durable
-projection history for version-naming removed-member diagnostics remain explicit follow-on capability
-requirements.
+unwinding panics into distinct Terrane throwable completion. A projected mutable-borrow method makes
+the receiver binding mutable; while object identity remains name-only, conflicting receiver contracts
+on same-named projected types are rejected as `S2030` rather than selected by import or artifact
+order. Rust dependency projection requires the Linux `bwrap` containment tier and fails explicitly
+when it is unavailable; dependency-free programs do not probe containment, rustdoc, or the pinned
+nightly toolchain. Wiring projection itself to a build-capability grant, rejecting dependency effects
+forbidden by a selected profile, distinguishing unwinding from aborting profiles, containing
+generated-crate compilation, and retaining durable projection history for version-naming
+removed-member diagnostics remain explicit follow-on capability requirements.
 Accepted execution covers a loopback `reqwest` request and the dissimilar `httpdate` crate through
 the same machinery, including caught dependency errors, a fixture-owned generated-Rust panic
 boundary preserving payload and crate/member context, uppercase and underscored identifiers, and
-verbatim projected names. Package tests cover aliasing, selected
-features, and loopback execution; generated Rust and Cargo output remain deterministic and warning
-free. Target-specific dependency tables, recorded projection declines, and asynchronous
-namespace-aware completion, hover, and signature help cover the corresponding resolution and editor
-contracts.
+verbatim projected names. Package tests cover aliasing, selected features, and loopback execution;
+generated Rust and Cargo output remain deterministic and warning free. Target-specific dependency
+tables, recorded projection declines, and asynchronous namespace-aware completion, hover, and
+signature help cover the corresponding resolution and editor contracts.
+
+### Milestone 25.1 — Namespace-qualified object identity
+
+Milestone 3 gave an object type the shape `ValueType::Object(String)`, holding the declared name and
+nothing else. Every namespace tier since has been resolved by that bare name, and the whole corpus has
+stayed inside packages where names happen not to repeat. Milestone 25 removed that condition: a
+projected crate surfaces its own module structure verbatim, and a crate of any size names the same type
+in sibling modules. `reqwest` alone projects `Action`, `Body`, `Client`, `ClientBuilder`, `Request`,
+`RequestBuilder`, and `Response` into two module namespaces each. Object identity is now
+under-determined in ordinary use rather than in a contrived one.
+
+Two shipped behaviours follow from the bare name, and both are wrong in the same way:
+
+- **type identity ignores the namespace.** `value_types_compatible` compares
+  `ValueType::Object(expected)` to `ValueType::Object(actual)` by string equality, then resolves
+  interfaces and bases with `objects.iter().find(|object| object.name == *actual)`. A
+  `/deps/reqwest/blocking::Response` is therefore accepted where `/deps/reqwest/async-impl/response::Response`
+  is declared. The program compiles, and the mistake reaches rustc rather than the author;
+- **generated Rust names ignore the namespace.** `rust_object_name` maps a declared name to a Rust
+  type name with no qualification, so two same-named objects in two namespaces emit one Rust name
+  twice. That is `E0428` against generated source — the failure mode §29.3 exists to prevent, and the
+  one this milestone's predecessor spent its diagnostic work eliminating everywhere else.
+
+Neither is specific to dependency projection. Two Terrane packages, or two namespaces in one package,
+declaring the same class name hit the identical pair. Projection is what made it reachable without
+trying.
+
+The fix is to make the declaring namespace part of the identity rather than to add ambiguity checks
+around a name that cannot carry one.
+
+Deliver:
+
+- **`ValueType::Object` carries the declaring namespace alongside the declared name**, and the pair is
+  the identity. The name alone stops being a key anywhere in semantics: construction sites at
+  declaration, inference, parameter and return contracts, field types, thrown-type bounds, and the
+  bootstrap error objects all supply the namespace that declared the object. `ValueType::Descriptor`
+  is the same shape and the same problem; decide whether it moves with this change or is explicitly
+  left for a later one, and record which;
+- **object equality, interface satisfaction, and base-chain resolution keyed on the qualified
+  identity.** `value_types_compatible`'s object arm compares both halves, and its `objects` lookup
+  finds the object declared by that namespace rather than the first with a matching name. The same
+  applies to every other `objects.iter().find(|object| object.name == …)` in the semantic pass;
+- **namespace-qualified generated Rust type names.** Two same-named objects in two namespaces emit two
+  distinct Rust items. Generated Rust remains a readable debugging surface, so the qualification is
+  legible and deterministic rather than a hash: the unqualified name stays where nothing collides, and
+  the encoding is stated once rather than discovered per case. Whatever form it takes must survive the
+  existing canonical-Rust check;
+- **diagnostics that name the short form and qualify only when it is ambiguous.** An author reading
+  `expected Response, found Response` learns nothing. When two candidates share a name, the diagnostic
+  names both namespaces; when they do not, it stays as it reads today. The type-mismatch,
+  interface-satisfaction, and unresolved-type diagnostics all go through this;
+- **retire the by-name fallbacks the missing namespace forced.** `Projection::foreign_rust_path`
+  currently falls back to a prefix-less search across every dependency, resolved by shortest Rust path;
+  `Projection::method_mutability` exists only to reject when same-named projected types disagree; and
+  `object_method_mutates` ends in a call to it. With a qualified receiver type all three become
+  unnecessary. They are removed rather than left as unreachable paths, and the milestone-25
+  `S2030` receiver-mutability diagnostic added in their place is removed with them;
+- **the language-document statement of object identity.** §16 and §23.13 describe objects by declared
+  name; identity is the namespace-qualified pair, two identically named objects in two namespaces are
+  two types, and no aliasing or structural rule relates them. `docs/language-spec-concise.md` and
+  `docs/surface-today.md` follow in the same work unit.
+
+Exit criterion: two namespaces in one package declare a class of the same name; both are usable, a
+value of one is rejected where the other is declared, and the diagnostic names both namespaces. Two
+same-named types projected from sibling modules of one crate — the `reqwest` `Response` pair is the
+witness already in the corpus — are simultaneously imported, both crossed, and the generated crate
+compiles warning-free with two distinct Rust types. Accepted and rejected conformance cases cover the
+Terrane-declared pair and the projected pair, and no case relies on a package whose object names
+happen to be unique.
 
 ### Milestone 26 — Remaining concurrency and foreign adapters
 
