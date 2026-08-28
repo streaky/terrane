@@ -2,8 +2,6 @@
 // Source: case.trn
 // Namespace: uppercase-identifier
 fn main() {
-    let Answer: i64 = 42;
-    println!("{}", terrane_scalar_support::scalar_text(&Answer));
+    let __trn_416e73776572: i64 = 42;
+    println!("{}", terrane_scalar_support::scalar_text(&__trn_416e73776572));
 }
-// Generated Rust files: src/authored/case.trn.rs, src/main.rs
-// Vendored support crates: terrane-int-support, terrane-scalar-support, terrane-string-support, terrane-stream-abi

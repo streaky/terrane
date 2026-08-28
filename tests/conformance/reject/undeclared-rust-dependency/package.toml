@@ -1,0 +1,3 @@
+package = "undeclared-rust-dependency"
+[namespaces]
+app = "src"

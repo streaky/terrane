@@ -7,12 +7,16 @@ use terrane_compiler::{Diagnostic as TerraneDiagnostic, Severity, SourceFile, Sp
 use tokio::sync::RwLock;
 use tower_lsp_server::jsonrpc::Result;
 use tower_lsp_server::ls_types::{
+    CompletionItem, CompletionItemKind, CompletionOptions, CompletionParams, CompletionResponse,
     Diagnostic, DiagnosticSeverity, DidChangeTextDocumentParams, DidCloseTextDocumentParams,
-    DidOpenTextDocumentParams, InitializeParams, InitializeResult, InitializedParams, MessageType,
-    NumberOrString, Position, Range, SemanticToken, SemanticTokenModifier, SemanticTokenType,
-    SemanticTokens, SemanticTokensFullOptions, SemanticTokensLegend, SemanticTokensOptions,
-    SemanticTokensParams, SemanticTokensResult, SemanticTokensServerCapabilities,
-    ServerCapabilities, ServerInfo, TextDocumentSyncCapability, TextDocumentSyncKind, Uri,
+    DidOpenTextDocumentParams, Documentation, Hover, HoverContents, HoverParams,
+    HoverProviderCapability, InitializeParams, InitializeResult, InitializedParams, MarkedString,
+    MessageType, NumberOrString, ParameterInformation, ParameterLabel, Position, Range,
+    SemanticToken, SemanticTokenModifier, SemanticTokenType, SemanticTokens,
+    SemanticTokensFullOptions, SemanticTokensLegend, SemanticTokensOptions, SemanticTokensParams,
+    SemanticTokensResult, SemanticTokensServerCapabilities, ServerCapabilities, ServerInfo,
+    SignatureHelp, SignatureHelpOptions, SignatureHelpParams, SignatureInformation,
+    TextDocumentSyncCapability, TextDocumentSyncKind, Uri,
 };
 use tower_lsp_server::{Client, LanguageServer};
 
@@ -84,6 +88,12 @@ impl LanguageServer for Backend {
                         },
                     ),
                 ),
+                completion_provider: Some(CompletionOptions::default()),
+                hover_provider: Some(HoverProviderCapability::Simple(true)),
+                signature_help_provider: Some(SignatureHelpOptions {
+                    trigger_characters: Some(vec![";".to_owned()]),
+                    ..Default::default()
+                }),
                 ..Default::default()
             },
             server_info: Some(ServerInfo {
@@ -156,6 +166,146 @@ impl LanguageServer for Backend {
             result_id: Some(document.version.to_string()),
             data: encode_semantic_tokens(source.text(), &output.highlights),
         })))
+    }
+
+    async fn completion(&self, params: CompletionParams) -> Result<Option<CompletionResponse>> {
+        let uri = params.text_document_position.text_document.uri;
+        let Some(projection) = projection_for_uri(&uri) else {
+            return Ok(None);
+        };
+        let namespace = self.documents.read().await.get(&uri).and_then(|document| {
+            dependency_import_namespace(&document.text, params.text_document_position.position)
+        });
+        let Some(namespace) = namespace else {
+            return Ok(None);
+        };
+        let items = projection
+            .dependencies
+            .iter()
+            .flat_map(|dependency| &dependency.items)
+            .filter(|item| item.namespace == namespace)
+            .map(|item| CompletionItem {
+                label: item.name.clone(),
+                kind: Some(match item.kind {
+                    terrane_compiler::projection::ProjectedKind::Function(_) => {
+                        CompletionItemKind::FUNCTION
+                    }
+                    _ => CompletionItemKind::CLASS,
+                }),
+                detail: Some(item.rust_path.clone()),
+                documentation: item.docs.clone().map(Documentation::String),
+                ..Default::default()
+            })
+            .collect();
+        Ok(Some(CompletionResponse::Array(items)))
+    }
+
+    async fn hover(&self, params: HoverParams) -> Result<Option<Hover>> {
+        let uri = params.text_document_position_params.text_document.uri;
+        let documents = self.documents.read().await;
+        let Some(document) = documents.get(&uri) else {
+            return Ok(None);
+        };
+        let Some(name) = word_at(
+            &document.text,
+            params.text_document_position_params.position,
+        ) else {
+            return Ok(None);
+        };
+        let Some(projection) = projection_for_uri(&uri) else {
+            return Ok(None);
+        };
+        let content = projection
+            .dependencies
+            .iter()
+            .flat_map(|dependency| &dependency.items)
+            .find(|item| item.name == name)
+            .map(|item| {
+                let mut text = format!("`{}`", item.rust_path);
+                if let Some(docs) = &item.docs {
+                    text.push_str("\n\n");
+                    text.push_str(docs);
+                }
+                text
+            })
+            .or_else(|| {
+                projection
+                    .dependencies
+                    .iter()
+                    .flat_map(|dependency| &dependency.declined)
+                    .find(|item| item.rust_path.rsplit("::").next() == Some(name))
+                    .map(|item| format!("`{}`\n\nNot projected: {}", item.rust_path, item.reason))
+            });
+        Ok(content.map(|content| Hover {
+            contents: HoverContents::Scalar(MarkedString::String(content)),
+            range: None,
+        }))
+    }
+
+    async fn signature_help(&self, params: SignatureHelpParams) -> Result<Option<SignatureHelp>> {
+        let uri = params.text_document_position_params.text_document.uri;
+        let documents = self.documents.read().await;
+        let Some(document) = documents.get(&uri) else {
+            return Ok(None);
+        };
+        let Some(name) = call_name_before(
+            &document.text,
+            params.text_document_position_params.position,
+        ) else {
+            return Ok(None);
+        };
+        let Some(projection) = projection_for_uri(&uri) else {
+            return Ok(None);
+        };
+        let function = projection
+            .dependencies
+            .iter()
+            .flat_map(|dependency| &dependency.items)
+            .find_map(|item| match &item.kind {
+                terrane_compiler::projection::ProjectedKind::Function(function)
+                    if function.name == name =>
+                {
+                    Some(function)
+                }
+                _ => None,
+            });
+        let Some(function) = function else {
+            return Ok(None);
+        };
+        let parameters = function
+            .parameters
+            .iter()
+            .map(|parameter| ParameterInformation {
+                label: ParameterLabel::Simple(format!(
+                    "{} {}",
+                    parameter.name,
+                    parameter.ty.terrane_name()
+                )),
+                documentation: None,
+            })
+            .collect::<Vec<_>>();
+        let label = format!(
+            "{}; {}",
+            function.name,
+            parameters
+                .iter()
+                .filter_map(|parameter| match &parameter.label {
+                    ParameterLabel::Simple(label) => Some(label.as_str()),
+                    ParameterLabel::LabelOffsets(_) => None,
+                })
+                .collect::<Vec<_>>()
+                .join(", ")
+        );
+        Ok(Some(SignatureHelp {
+            signatures: vec![SignatureInformation {
+                label,
+                documentation: None,
+                parameters: Some(parameters),
+                active_parameter: None,
+            }],
+            active_signature: Some(0),
+            active_parameter: Some(0),
+        }))
     }
 }
 
@@ -245,6 +395,64 @@ fn lsp_diagnostic(source: &SourceFile, diagnostic: &TerraneDiagnostic) -> Diagno
         message,
         ..Default::default()
     }
+}
+
+fn projection_for_uri(uri: &Uri) -> Option<terrane_compiler::projection::Projection> {
+    let path = uri.to_file_path()?.into_owned();
+    let manifest = path
+        .ancestors()
+        .map(|directory| directory.join(terrane_compiler::MANIFEST_FILE_NAME))
+        .find(|candidate| candidate.is_file())?;
+    let package = terrane_compiler::Package::load(&manifest).ok()?;
+    terrane_compiler::projection::resolve(&package.root, &package.rust_dependencies).ok()
+}
+
+fn dependency_import_namespace(text: &str, position: Position) -> Option<String> {
+    let line = line_prefix(text, position)?;
+    let path = line.strip_prefix("from ")?.split(" import").next()?;
+    path.starts_with("/dependencies/").then(|| path.to_owned())
+}
+
+fn word_at(text: &str, position: Position) -> Option<&str> {
+    let line = text.lines().nth(usize::try_from(position.line).ok()?)?;
+    let byte = line_prefix(text, position)?.len();
+    let is_name = |character: char| character.is_ascii_alphanumeric() || character == '_';
+    let start = line[..byte]
+        .char_indices()
+        .rev()
+        .find(|(_, character)| !is_name(*character))
+        .map_or(0, |(index, character)| index + character.len_utf8());
+    let end = line[byte..]
+        .char_indices()
+        .find(|(_, character)| !is_name(*character))
+        .map_or(line.len(), |(index, _)| byte + index);
+    (start < end).then_some(&line[start..end])
+}
+
+fn call_name_before(text: &str, position: Position) -> Option<&str> {
+    let prefix = line_prefix(text, position)?;
+    let callee = prefix.rsplit_once(';')?.0.trim_end();
+    callee
+        .rsplit(|character: char| {
+            !(character.is_ascii_alphanumeric() || matches!(character, '_' | '-' | '.'))
+        })
+        .next()?
+        .rsplit('.')
+        .next()
+}
+
+fn line_prefix(text: &str, position: Position) -> Option<&str> {
+    let line = text.lines().nth(usize::try_from(position.line).ok()?)?;
+    let mut utf16 = 0_u32;
+    let mut end = 0;
+    for (index, character) in line.char_indices() {
+        if utf16 >= position.character {
+            break;
+        }
+        utf16 += u32::try_from(character.len_utf16()).ok()?;
+        end = index + character.len_utf8();
+    }
+    Some(&line[..end])
 }
 
 fn source_file(uri: &Uri, text: &str) -> SourceFile {

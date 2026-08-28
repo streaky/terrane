@@ -1,4 +1,6 @@
 use std::fs;
+use std::io::{Read as _, Write as _};
+use std::net::TcpListener;
 use std::path::PathBuf;
 use std::process::Command;
 use std::sync::atomic::{AtomicU64, Ordering};
@@ -127,4 +129,68 @@ fn manifest_file_and_package_directory_use_the_shared_cli_pipeline() {
         PathBuf::from(String::from_utf8(cached_build.stdout).unwrap().trim()),
         executable_path
     );
+}
+
+#[test]
+fn projected_reqwest_runs_against_a_loopback_server() {
+    let package = TempPackage::new();
+    fs::write(
+        package.0.join("package.toml"),
+        concat!(
+            "package = \"reqwest-loopback\"\n",
+            "[namespaces]\n",
+            "app = \"app\"\n",
+            "[rust-dependencies.reqwest]\n",
+            "version = \"=0.12.23\"\n",
+            "features = [\"blocking\", \"rustls-tls-webpki-roots\"]\n",
+            "default-features = false\n",
+        ),
+    )
+    .unwrap();
+    let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+    let address = listener.local_addr().unwrap();
+    fs::write(
+        package.0.join("app/main.trn"),
+        format!(
+            concat!(
+                "namespace app\n",
+                "from /dependencies/reqwest/blocking import get\n",
+                "function main;\n",
+                "    response = get; >http://{}/\n",
+                "    body string = response.text;\n",
+                "    print; body\n",
+            ),
+            address
+        ),
+    )
+    .unwrap();
+    let server = std::thread::spawn(move || {
+        let (mut connection, _) = listener.accept().unwrap();
+        let mut request = [0_u8; 4096];
+        let _ = connection.read(&mut request).unwrap();
+        connection
+            .write_all(b"HTTP/1.1 200 OK\r\nContent-Length: 21\r\nConnection: close\r\n\r\nprojected dependency\n")
+            .unwrap();
+    });
+    let output = Command::new(env!("CARGO_BIN_EXE_terrane"))
+        .args(["run", package.0.join("package.toml").to_str().unwrap()])
+        .output()
+        .unwrap();
+    server.join().unwrap();
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert_eq!(output.stdout, b"projected dependency\n\n");
+    let generated = fs::read_dir(package.0.join(".trn/build"))
+        .unwrap()
+        .next()
+        .unwrap()
+        .unwrap()
+        .path();
+    let manifest = fs::read_to_string(generated.join("Cargo.toml")).unwrap();
+    assert!(manifest.contains("default-features = false"));
+    assert!(manifest.contains("\"blocking\""));
+    assert!(manifest.contains("\"rustls-tls-webpki-roots\""));
 }

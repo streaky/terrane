@@ -42,6 +42,10 @@ fn main() -> ExitCode {
     }
 }
 
+#[expect(
+    clippy::too_many_lines,
+    reason = "the shared CLI pipeline keeps command phase ordering explicit"
+)]
 fn run(arguments: &[OsString]) -> Result<ExitCode, CliFailure> {
     let Some(command) = arguments.first().and_then(|value| value.to_str()) else {
         return Err(CliFailure::usage());
@@ -107,11 +111,13 @@ fn run(arguments: &[OsString]) -> Result<ExitCode, CliFailure> {
         &package.root,
         &compilation.rust_files,
         uses_platform_support,
+        &package.rust_dependencies,
     )?;
     write_generated_crate(
         &crate_dir,
         &compilation.rust_files,
         &package.units,
+        &package.rust_dependencies,
         uses_platform_support,
     )?;
     record_and_prune_generated_crates(&crate_dir)?;
@@ -335,6 +341,7 @@ fn generated_crate_path(
     package_root: &Path,
     rust_files: &[terrane_compiler::rust_ir::RenderedFile],
     uses_platform_support: bool,
+    rust_dependencies: &[terrane_compiler::RustDependency],
 ) -> Result<PathBuf, CliFailure> {
     let root = package_root.canonicalize().map_err(|error| {
         CliFailure::backend(format!(
@@ -362,6 +369,19 @@ fn generated_crate_path(
         hash.update(b"\0");
         hash.update(file.contents.as_bytes());
         hash.update(b"\0");
+    }
+    for dependency in rust_dependencies {
+        hash.update(dependency.name.as_bytes());
+        hash.update(b"\0");
+        hash.update(dependency.package.as_bytes());
+        hash.update(b"\0");
+        hash.update(dependency.version.as_bytes());
+        hash.update(b"\0");
+        hash.update([u8::from(dependency.default_features)]);
+        for feature in &dependency.features {
+            hash.update(feature.as_bytes());
+            hash.update(b"\0");
+        }
     }
     for support in [
         include_bytes!("../../terrane-int-support/src/lib.rs").as_slice(),
@@ -421,6 +441,7 @@ fn write_generated_crate(
     directory: &Path,
     rust_files: &[terrane_compiler::rust_ir::RenderedFile],
     units: &[terrane_compiler::SourceUnit],
+    rust_dependencies: &[terrane_compiler::RustDependency],
     uses_platform_support: bool,
 ) -> Result<(), CliFailure> {
     fs::create_dir_all(directory.join("src"))
@@ -438,6 +459,20 @@ fn write_generated_crate(
         manifest.push_str(
             "terrane-platform-support = { path = \"support/terrane-platform-support\" }\n",
         );
+    }
+    for dependency in rust_dependencies {
+        use std::fmt::Write as _;
+        write!(
+            manifest,
+            "{} = {{ package = {:?}, version = {:?}, default-features = {}",
+            dependency.name, dependency.package, dependency.version, dependency.default_features
+        )
+        .expect("writing to a string cannot fail");
+        if !dependency.features.is_empty() {
+            write!(manifest, ", features = {:?}", dependency.features)
+                .expect("writing to a string cannot fail");
+        }
+        manifest.push_str(" }\n");
     }
     manifest.push_str("\n[workspace]\n");
     write_if_changed(&directory.join("Cargo.toml"), manifest.as_bytes()).map_err(|error| {

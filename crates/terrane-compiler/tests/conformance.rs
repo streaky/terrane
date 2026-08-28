@@ -9,6 +9,7 @@ fn corpus() -> PathBuf {
 
 struct ConformanceBuild {
     root: PathBuf,
+    target: PathBuf,
 }
 
 impl ConformanceBuild {
@@ -19,12 +20,12 @@ impl ConformanceBuild {
         }
         fs::create_dir_all(root.join("src")).unwrap();
         write_support_crates(&root);
-        Self { root }
+        let target = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../target/conformance");
+        Self { root, target }
     }
 
-    fn write_manifest(&self) {
-        fs::write(
-            self.root.join("Cargo.toml"),
+    fn write_manifest(&self, dependencies: &[terrane_compiler::RustDependency]) {
+        let mut manifest = String::from(
             r#"[package]
 name = "terrane_conformance_program"
 version = "0.0.0"
@@ -38,11 +39,26 @@ terrane-string-support = { path = "support/terrane-string-support" }
 terrane-document-support = { path = "support/terrane-document-support" }
 terrane-stream-abi = { path = "support/terrane-stream-abi" }
 terrane-platform-support = { path = "support/terrane-platform-support" }
-
-[workspace]
 "#,
-        )
-        .unwrap();
+        );
+        for dependency in dependencies {
+            use std::fmt::Write as _;
+            write!(
+                manifest,
+                "{} = {{ package = {:?}, version = {:?}, default-features = {}",
+                dependency.name,
+                dependency.package,
+                dependency.version,
+                dependency.default_features
+            )
+            .unwrap();
+            if !dependency.features.is_empty() {
+                write!(manifest, ", features = {:?}", dependency.features).unwrap();
+            }
+            manifest.push_str(" }\n");
+        }
+        manifest.push_str("\n[workspace]\n");
+        fs::write(self.root.join("Cargo.toml"), manifest).unwrap();
     }
 }
 
@@ -72,19 +88,19 @@ fn every_manifest_drives_a_conformance_case() {
         match (phase, status) {
             ("run" | "check", "accept") => {
                 let expected = fs::read_to_string(case.join("lower.rs")).unwrap();
-                let (compilation, sources) = if package_case {
+                let (compilation, sources, dependencies) = if package_case {
                     let package = terrane_compiler::Package::load(&source_path).unwrap();
                     let compilation =
                         terrane_compiler::compile_package_with_options(&package, options).unwrap();
                     let sources = compilation.sources.clone();
-                    (compilation, sources)
+                    (compilation, sources, package.rust_dependencies)
                 } else {
                     let source = fs::read_to_string(&source_path).unwrap();
                     let compilation =
                         terrane_compiler::compile_with_options(&source_path, source, options)
                             .unwrap();
                     let sources = compilation.sources.clone();
-                    (compilation, sources)
+                    (compilation, sources, Vec::new())
                 };
                 if let Some(warnings_file) = field(&manifest, "warnings") {
                     let expected_warnings = fs::read_to_string(case.join(warnings_file)).unwrap();
@@ -116,7 +132,14 @@ fn every_manifest_drives_a_conformance_case() {
                     .rust
                     .replace(terrane_compiler::VERSION, "<version>");
                 assert_eq!(normalized, expected, "{}", case.display());
-                compile_and_maybe_run(case, phase, &manifest, &compilation.rust, &build);
+                compile_and_maybe_run(
+                    case,
+                    phase,
+                    &manifest,
+                    &compilation.rust,
+                    &dependencies,
+                    &build,
+                );
             }
             ("check", "reject") => {
                 let code = field(&manifest, "code").unwrap();
@@ -150,18 +173,20 @@ fn compile_and_maybe_run(
     phase: &str,
     manifest: &str,
     rust: &str,
+    dependencies: &[terrane_compiler::RustDependency],
     build: &ConformanceBuild,
 ) {
-    build.write_manifest();
+    build.write_manifest(dependencies);
     let build_dir = &build.root;
     fs::write(build_dir.join("src/main.rs"), rust).unwrap();
     let output = Command::new("cargo")
         .args(["build", "--quiet", "--manifest-path"])
         .arg(build_dir.join("Cargo.toml"))
+        .env("CARGO_TARGET_DIR", &build.target)
         .env("RUSTFLAGS", "-Dwarnings")
         .output()
         .unwrap();
-    let mut binary_path = build_dir.join("target/debug/terrane_conformance_program");
+    let mut binary_path = build.target.join("debug/terrane_conformance_program");
     binary_path.set_extension(std::env::consts::EXE_EXTENSION);
     assert!(
         output.status.success(),

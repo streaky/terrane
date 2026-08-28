@@ -72,6 +72,7 @@ pub struct SemanticPackage {
     pub prelude: bool,
     pub reflection: crate::package::ReflectionProfile,
     pub executor: crate::package::ExecutorProfile,
+    pub projection: crate::projection::Projection,
     pub namespaces: BTreeMap<String, Namespace>,
     pub globals: BTreeMap<String, Symbol>,
     pub prelude_bindings: BTreeMap<String, Symbol>,
@@ -726,10 +727,6 @@ fn parse_unit(
             diagnostics: parsed.diagnostics,
         });
     }
-    validate_declared_names(source, &parsed.tree).map_err(|diagnostic| SemanticFailure {
-        source: source.clone(),
-        diagnostics: vec![diagnostic],
-    })?;
     let namespace =
         declared_namespace(source, &parsed.tree).map_err(|diagnostic| SemanticFailure {
             source: source.clone(),
@@ -780,7 +777,10 @@ fn parse_unit(
     })
 }
 
-fn parse_units(package: &Package) -> Result<Vec<SemanticUnit>, SemanticFailure> {
+fn parse_units(
+    package: &Package,
+    projection: &crate::projection::Projection,
+) -> Result<Vec<SemanticUnit>, SemanticFailure> {
     let mut units = package
         .units
         .iter()
@@ -804,6 +804,41 @@ fn parse_units(package: &Package) -> Result<Vec<SemanticUnit>, SemanticFailure> 
         .max()
         .unwrap_or(0)
         .saturating_add(1);
+    let mut dependency_imports = BTreeMap::<String, BTreeSet<String>>::new();
+    for unit in &units {
+        for import in unit
+            .tree
+            .root
+            .children
+            .iter()
+            .filter(|node| node.kind == SyntaxKind::ImportDeclaration)
+            .map(|node| imports_from_syntax(unit, node))
+            .collect::<Result<Vec<_>, _>>()?
+            .into_iter()
+            .flatten()
+            .filter(|import| import.target.starts_with("/dependencies/"))
+        {
+            dependency_imports
+                .entry(import.target)
+                .or_default()
+                .insert(import.object);
+        }
+    }
+    for (namespace, text) in projection.source_for_imports(&dependency_imports) {
+        if !loaded.insert(namespace.clone()) {
+            continue;
+        }
+        let path = format!("<terrane>/projected/{namespace}.trn");
+        let source = SourceFile::new(next_source_id, path.clone().into(), text);
+        next_source_id = next_source_id.saturating_add(1);
+        units.push(parse_unit(
+            &source,
+            path,
+            Some(&namespace),
+            package.prelude,
+            true,
+        )?);
+    }
     let mut index = 0;
     while index < units.len() {
         let targets = units[index]
@@ -844,6 +879,19 @@ fn parse_units(package: &Package) -> Result<Vec<SemanticUnit>, SemanticFailure> 
     Ok(units)
 }
 
+fn dependency_projection(
+    package: &Package,
+) -> Result<crate::projection::Projection, SemanticFailure> {
+    crate::projection::resolve(&package.root, &package.rust_dependencies).map_err(|error| {
+        failure(
+            &package.units[0].source,
+            "S2028",
+            error.message,
+            Span::new(package.units[0].source.id(), 0, 0),
+        )
+    })
+}
+
 /// Builds the complete namespace tree, then resolves declarations and imports.
 ///
 /// Semantic phases fail at the first diagnostic in deterministic package and source
@@ -852,8 +900,13 @@ fn parse_units(package: &Package) -> Result<Vec<SemanticUnit>, SemanticFailure> 
 ///
 /// # Errors
 /// Returns the first source-oriented lexer, parser, namespace, scope, or import failure.
+#[expect(
+    clippy::too_many_lines,
+    reason = "semantic phase orchestration remains linear and order-sensitive"
+)]
 pub fn analyze(package: &Package) -> Result<SemanticPackage, SemanticFailure> {
-    let mut units = parse_units(package)?;
+    let projection = dependency_projection(package)?;
+    let mut units = parse_units(package, &projection)?;
 
     let mut namespaces = bootstrap_namespaces();
     for unit in &units {
@@ -868,7 +921,10 @@ pub fn analyze(package: &Package) -> Result<SemanticPackage, SemanticFailure> {
                 | "/core/platform-system"
                 | "/core/platform-data"
                 | "/core/platform-capabilities"
-        ) || (crate::bundled::source(&unit.namespace).is_some() && !bundled)
+        ) || ((unit.namespace == "/dependencies"
+            || unit.namespace.starts_with("/dependencies/"))
+            && !bundled)
+            || (crate::bundled::source(&unit.namespace).is_some() && !bundled)
         {
             let span = unit
                 .tree
@@ -895,6 +951,27 @@ pub fn analyze(package: &Package) -> Result<SemanticPackage, SemanticFailure> {
     for unit in &units {
         collect_unit(unit, &mut namespaces, &mut globals, &mut imports)?;
     }
+    for import in &imports {
+        let Some(dependency) = import
+            .target
+            .strip_prefix("/dependencies/")
+            .and_then(|path| path.split('/').next())
+        else {
+            continue;
+        };
+        if !package
+            .rust_dependencies
+            .iter()
+            .any(|declared| declared.name.replace('_', "-") == dependency)
+        {
+            return Err(failure(
+                &import.source,
+                "S2027",
+                format!("Rust dependency `{dependency}` is not declared in `package.toml`"),
+                import.span,
+            ));
+        }
+    }
     resolve_imports(imports, &mut namespaces)?;
     for unit in &mut units {
         unit.scopes = collect_lexical_scopes(unit, &namespaces, &globals)?;
@@ -916,6 +993,7 @@ pub fn analyze(package: &Package) -> Result<SemanticPackage, SemanticFailure> {
         prelude_bindings,
         descriptor_constructs,
         units,
+        projection,
         binding_events: BTreeMap::new(),
         bootstrap_version: BOOTSTRAP_VERSION,
     };
@@ -1469,10 +1547,6 @@ fn is_reserved_namespace_segment(component: &str) -> bool {
             .strip_prefix("com")
             .or_else(|| component.strip_prefix("lpt"))
             .is_some_and(|suffix| suffix.len() == 1 && matches!(suffix.as_bytes()[0], b'1'..=b'9'))
-}
-
-fn validate_declared_names(_source: &SourceFile, _tree: &SyntaxTree) -> Result<(), Diagnostic> {
-    Ok(())
 }
 
 fn collect_unit(
@@ -9575,6 +9649,10 @@ fn validate_assigned_reads(
 fn validate_control_flow(package: &SemanticPackage) -> Result<Vec<Vec<Span>>, SemanticFailure> {
     let mut unreachable_units = Vec::with_capacity(package.units.len());
     for unit in &package.units {
+        if unit.bundled && unit.namespace.starts_with("/dependencies/") {
+            unreachable_units.push(Vec::new());
+            continue;
+        }
         let mut unreachable = Vec::new();
         for function in unit
             .tree

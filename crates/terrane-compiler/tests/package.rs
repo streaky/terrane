@@ -537,10 +537,7 @@ fn rust_dependency_manifest_preserves_resolution_inputs() {
     assert_eq!(dependency.name, "http");
     assert_eq!(dependency.package, "reqwest");
     assert_eq!(dependency.version, "=0.12.23");
-    assert_eq!(
-        dependency.features,
-        ["blocking", "rustls-tls-webpki-roots"]
-    );
+    assert_eq!(dependency.features, ["blocking", "rustls-tls-webpki-roots"]);
     assert!(!dependency.default_features);
     assert_eq!(
         dependency.target.as_deref(),

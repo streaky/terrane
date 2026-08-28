@@ -220,6 +220,14 @@ pub(crate) fn lower(package: &SemanticPackage) -> Program {
         .units
         .iter()
         .map(|unit| {
+            if unit.bundled && unit.namespace.starts_with("/dependencies/") {
+                let rust = emit_dependency_unit(package, unit);
+                return Module {
+                    source_path: unit.source_path.clone(),
+                    namespace: unit.namespace.clone(),
+                    items: vec![Item::generated(&rust)],
+                };
+            }
             let mut emitter = Emitter {
                 package,
                 unit,
@@ -279,6 +287,93 @@ pub(crate) fn lower(package: &SemanticPackage) -> Program {
             .collect(),
         modules,
     }
+}
+
+fn emit_dependency_unit(package: &SemanticPackage, unit: &SemanticUnit) -> String {
+    let mut output = String::new();
+    for object in &unit.objects {
+        if let Some(path) = package
+            .projection
+            .foreign_rust_path(&unit.namespace, &object.name)
+        {
+            writeln!(
+                output,
+                "pub type {} = {path};",
+                rust_object_name(&object.name)
+            )
+            .expect("writing to a string cannot fail");
+        }
+    }
+    for contract in unit
+        .functions
+        .iter()
+        .filter(|contract| contract.owner.is_none())
+    {
+        let Some(item) = package.projection.item(&unit.namespace, &contract.name) else {
+            continue;
+        };
+        let crate::projection::ProjectedKind::Function(projected) = &item.kind else {
+            continue;
+        };
+        let parameters = contract
+            .parameters
+            .iter()
+            .zip(&projected.parameters)
+            .map(|(parameter, projected)| {
+                format!(
+                    "{}{}: {}",
+                    if projected.mutable_borrow { "mut " } else { "" },
+                    rust_name(&parameter.name),
+                    parameter
+                        .value_type
+                        .clone()
+                        .map_or_else(|| "()".to_owned(), rust_value_type)
+                )
+            })
+            .collect::<Vec<_>>();
+        let arguments = contract
+            .parameters
+            .iter()
+            .zip(&projected.parameters)
+            .map(|(parameter, projected)| {
+                let name = rust_name(&parameter.name);
+                if projected.mutable_borrow {
+                    format!("&mut {name}")
+                } else if projected.borrowed {
+                    format!("&{name}")
+                } else {
+                    name
+                }
+            })
+            .collect::<Vec<_>>()
+            .join(", ");
+        let result = contract
+            .return_type
+            .clone()
+            .map_or_else(|| "()".to_owned(), rust_value_type);
+        writeln!(
+            output,
+            "pub fn {}({}) -> {result} {{",
+            rust_name(&contract.name),
+            parameters.join(", ")
+        )
+        .expect("writing to a string cannot fail");
+        writeln!(
+            output,
+            "    let crossed = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {}({arguments}))).unwrap_or_else(|payload| std::panic::resume_unwind(payload));",
+            item.rust_path
+        )
+        .expect("writing to a string cannot fail");
+        if projected.error.is_some() {
+            output.push_str(
+                "    crossed.unwrap_or_else(|error| panic!(\"Rust dependency call failed: {error}\"))\n",
+            );
+        } else {
+            output.push_str("    crossed\n");
+        }
+        output.push_str("}\n");
+    }
+    output
 }
 
 #[expect(
@@ -4761,6 +4856,23 @@ impl Emitter<'_> {
             self.expression(callee)
         };
         let call = format!("{name}({})", values.join(", "));
+        let foreign_error = contract
+            .as_ref()
+            .and_then(|contract| {
+                contract.owner.as_ref().and_then(|owner| {
+                    self.package
+                        .projection
+                        .method(&self.unit.namespace, owner, &contract.name)
+                })
+            })
+            .is_some_and(|method| method.error.is_some());
+        let call = if foreign_error {
+            format!(
+                "std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {call})).unwrap_or_else(|payload| std::panic::resume_unwind(payload)).unwrap_or_else(|error| panic!(\"Rust dependency call failed: {{error}}\"))"
+            )
+        } else {
+            call
+        };
         let call = if contract.as_ref().is_some_and(|contract| contract.is_async)
             && matches!(self.value_type(node), Some(ValueType::Task(_)))
         {
@@ -6326,7 +6438,7 @@ fn rust_object_name(name: &str) -> String {
 }
 
 fn rust_name(name: &str) -> String {
-    let readable_identifier = name.as_bytes().first().is_some_and(u8::is_ascii_alphabetic)
+    let readable_identifier = name.as_bytes().first().is_some_and(u8::is_ascii_lowercase)
         && name
             .bytes()
             .all(|byte| byte.is_ascii_alphanumeric() || byte == b'-');

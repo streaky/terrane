@@ -1,0 +1,4 @@
+namespace app
+from /dependencies/reqwest/blocking import get
+function main;
+    response = get; >http://127.0.0.1

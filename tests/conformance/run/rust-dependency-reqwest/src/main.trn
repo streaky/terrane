@@ -1,0 +1,6 @@
+namespace app
+from /dependencies/reqwest/blocking import get
+function main;
+    response = get; >http://127.0.0.1:38125/
+    body string = response.text;
+    print; body

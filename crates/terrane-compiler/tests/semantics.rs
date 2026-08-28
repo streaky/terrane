@@ -1755,7 +1755,7 @@ fn records_mutability_against_resolved_binding_identity() {
 }
 
 #[test]
-fn validates_namespace_segments_and_declared_name_casing() {
+fn validates_namespace_segments() {
     for (source, code, message, help) in [
         (
             "namespace My-App\n",
@@ -1768,12 +1768,6 @@ fn validates_namespace_segments_and_declared_name_casing() {
             "S2019",
             "namespace segment `con` is reserved",
             "choose a different name, such as `con-app`",
-        ),
-        (
-            "namespace app\nfunction Main;\n",
-            "S2018",
-            "declared name `Main` must be lowercase",
-            "use `main`",
         ),
     ] {
         let failure = analyze(&package(false, &[("main.trn", source)])).unwrap_err();

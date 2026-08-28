@@ -154,6 +154,10 @@ struct NamespaceRoot {
     directory: PathBuf,
 }
 
+#[expect(
+    clippy::too_many_lines,
+    reason = "linear validation of one manifest table"
+)]
 fn parse_manifest(
     manifest_path: &Path,
     text: &str,
@@ -173,12 +177,7 @@ fn parse_manifest(
     for key in table.keys() {
         if !matches!(
             key.as_str(),
-            "package"
-                | "prelude"
-                | "reflection"
-                | "executor"
-                | "namespaces"
-                | "rust-dependencies"
+            "package" | "prelude" | "reflection" | "executor" | "namespaces" | "rust-dependencies"
         ) {
             errors.push(manifest_error(
                 manifest_path,
@@ -251,8 +250,7 @@ fn parse_manifest(
         None => ExecutorProfile::Threaded,
     };
     let namespace_roots = parse_namespace_roots(manifest_path, text, &table, &mut errors);
-    let rust_dependencies =
-        parse_rust_dependencies(manifest_path, text, &table, &mut errors);
+    let rust_dependencies = parse_rust_dependencies(manifest_path, text, &table, &mut errors);
     if errors.is_empty() {
         Ok(ParsedManifest {
             identity: identity.expect("validated package identity"),
@@ -267,6 +265,10 @@ fn parse_manifest(
     }
 }
 
+#[expect(
+    clippy::too_many_lines,
+    reason = "linear validation keeps every dependency field diagnostic together"
+)]
 fn parse_rust_dependencies(
     manifest_path: &Path,
     text: &str,
