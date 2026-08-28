@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 use std::path::PathBuf;
-use std::sync::Arc;
+use std::sync::{Arc, LazyLock, Mutex};
 
 use terrane_compiler::highlight::{Highlight, HighlightKind, highlight};
 use terrane_compiler::{Diagnostic as TerraneDiagnostic, Severity, SourceFile, Span};
@@ -170,7 +170,7 @@ impl LanguageServer for Backend {
 
     async fn completion(&self, params: CompletionParams) -> Result<Option<CompletionResponse>> {
         let uri = params.text_document_position.text_document.uri;
-        let Some(projection) = projection_for_uri(&uri) else {
+        let Some(projection) = projection_for_uri(&uri).await else {
             return Ok(None);
         };
         let namespace = self.documents.read().await.get(&uri).and_then(|document| {
@@ -235,7 +235,7 @@ impl LanguageServer for Backend {
         ) else {
             return Ok(None);
         };
-        let Some(projection) = projection_for_uri(&uri) else {
+        let Some(projection) = projection_for_uri(&uri).await else {
             return Ok(None);
         };
         let content = projection
@@ -277,7 +277,7 @@ impl LanguageServer for Backend {
         ) else {
             return Ok(None);
         };
-        let Some(projection) = projection_for_uri(&uri) else {
+        let Some(projection) = projection_for_uri(&uri).await else {
             return Ok(None);
         };
         let function = projection
@@ -420,32 +420,51 @@ fn lsp_diagnostic(source: &SourceFile, diagnostic: &TerraneDiagnostic) -> Diagno
     }
 }
 
-fn projection_for_uri(uri: &Uri) -> Option<terrane_compiler::projection::Projection> {
+type CachedProjection = (
+    std::time::SystemTime,
+    terrane_compiler::projection::Projection,
+);
+
+static PROJECTIONS: LazyLock<Mutex<HashMap<PathBuf, CachedProjection>>> =
+    LazyLock::new(|| Mutex::new(HashMap::new()));
+
+async fn projection_for_uri(uri: &Uri) -> Option<terrane_compiler::projection::Projection> {
     let path = uri.to_file_path()?.into_owned();
-    let manifest = path
-        .ancestors()
-        .map(|directory| directory.join(terrane_compiler::MANIFEST_FILE_NAME))
-        .find(|candidate| candidate.is_file())?;
-    let package = terrane_compiler::Package::load(&manifest).ok()?;
-    terrane_compiler::projection::resolve(&package.root, &package.rust_dependencies).ok()
+    tokio::task::spawn_blocking(move || {
+        let manifest = path
+            .ancestors()
+            .map(|directory| directory.join(terrane_compiler::MANIFEST_FILE_NAME))
+            .find(|candidate| candidate.is_file())?;
+        let modified = manifest.metadata().ok()?.modified().ok()?;
+        if let Some((cached_at, projection)) = PROJECTIONS
+            .lock()
+            .expect("projection cache lock is not poisoned")
+            .get(&manifest)
+        {
+            if *cached_at == modified {
+                return Some(projection.clone());
+            }
+        }
+        let package = terrane_compiler::Package::load(&manifest).ok()?;
+        let projection =
+            terrane_compiler::projection::resolve(&package.root, &package.rust_dependencies)
+                .ok()?;
+        PROJECTIONS
+            .lock()
+            .expect("projection cache lock is not poisoned")
+            .insert(manifest, (modified, projection.clone()));
+        Some(projection)
+    })
+    .await
+    .ok()
+    .flatten()
 }
 
 fn declined_namespace(
     dependency: &terrane_compiler::projection::ProjectedDependency,
     rust_path: &str,
 ) -> String {
-    let mut parts = rust_path.split("::").collect::<Vec<_>>();
-    parts.pop();
-    if parts
-        .first()
-        .is_some_and(|root| *root == dependency.package.replace('-', "_"))
-    {
-        parts.remove(0);
-    }
-    std::iter::once(format!("/dependencies/{}", dependency.name))
-        .chain(parts.into_iter().map(str::to_owned))
-        .collect::<Vec<_>>()
-        .join("/")
+    terrane_compiler::projection::namespace_for_rust_path(dependency, rust_path)
 }
 
 fn dependency_import_namespace(text: &str, position: Position) -> Option<String> {
@@ -457,7 +476,8 @@ fn dependency_import_namespace(text: &str, position: Position) -> Option<String>
 fn word_at(text: &str, position: Position) -> Option<&str> {
     let line = text.lines().nth(usize::try_from(position.line).ok()?)?;
     let byte = line_prefix(text, position)?.len();
-    let is_name = |character: char| character.is_ascii_alphanumeric() || character == '_';
+    let is_name =
+        |character: char| character.is_ascii_alphanumeric() || matches!(character, '_' | '-');
     let start = line[..byte]
         .char_indices()
         .rev()

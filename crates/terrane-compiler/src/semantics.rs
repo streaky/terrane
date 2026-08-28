@@ -828,7 +828,10 @@ fn parse_units(
         if !loaded.insert(namespace.clone()) {
             continue;
         }
-        let path = format!("<terrane>/projected/{namespace}.trn");
+        let path = format!(
+            "<terrane>/projected/{}.trn",
+            namespace.trim_start_matches('/')
+        );
         let source = SourceFile::new(next_source_id, path.clone().into(), text);
         next_source_id = next_source_id.saturating_add(1);
         units.push(parse_unit(
@@ -876,7 +879,33 @@ fn parse_units(
         }
         index += 1;
     }
+    apply_projected_method_contracts(&mut units, projection);
     Ok(units)
+}
+fn apply_projected_method_contracts(
+    units: &mut [SemanticUnit],
+    projection: &crate::projection::Projection,
+) {
+    for unit in units {
+        if !unit.namespace.starts_with("/dependencies/") {
+            continue;
+        }
+        for contract in &mut unit.functions {
+            let Some(owner) = contract.owner.as_deref() else {
+                continue;
+            };
+            let Some(method) = projection.method(&unit.namespace, owner, &contract.name) else {
+                continue;
+            };
+            contract.throws = true;
+            contract.mutates_receiver = matches!(
+                method.receiver,
+                Some(crate::projection::Receiver::MutableBorrow)
+            );
+            contract.consumes_receiver =
+                matches!(method.receiver, Some(crate::projection::Receiver::Move));
+        }
+    }
 }
 
 fn dependency_projection(
@@ -11500,9 +11529,47 @@ fn collect_loop_target_spans(node: &SyntaxNode, loop_targets: &mut BTreeSet<(u32
     }
 }
 
+fn collect_name_style_warnings(unit: &SemanticUnit, warnings: &mut Vec<Diagnostic>) {
+    let mut declarations = unit
+        .typed_bindings
+        .iter()
+        .map(|binding| (binding.name.as_str(), binding.span))
+        .chain(
+            unit.functions
+                .iter()
+                .map(|function| (function.name.as_str(), function.span)),
+        )
+        .chain(
+            unit.objects
+                .iter()
+                .map(|object| (object.name.as_str(), object.span)),
+        )
+        .collect::<Vec<_>>();
+    declarations.sort_by_key(|(_, span)| (span.start, span.end));
+    declarations.dedup_by_key(|(_, span)| (span.start, span.end));
+    for (text, span) in declarations {
+        let valid = text.bytes().enumerate().all(|(index, byte)| {
+            byte.is_ascii_lowercase() || byte.is_ascii_digit() || (index > 0 && byte == b'-')
+        });
+        if !valid {
+            warnings.push(
+                Diagnostic::warning(
+                    "S2018",
+                    format!("declared name `{text}` is not kebab-case"),
+                    span,
+                )
+                .with_help("use kebab-case for Terrane-owned declarations; projected dependency names remain verbatim"),
+            );
+        }
+    }
+}
+
 pub(crate) fn warnings(package: &SemanticPackage) -> Vec<Diagnostic> {
     let mut warnings = Vec::new();
     for unit in &package.units {
+        if !unit.bundled {
+            collect_name_style_warnings(unit, &mut warnings);
+        }
         let mut loop_targets = BTreeSet::new();
         collect_loop_target_spans(&unit.tree.root, &mut loop_targets);
         for binding in &unit.typed_bindings {

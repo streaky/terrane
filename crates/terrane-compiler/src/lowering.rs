@@ -347,10 +347,11 @@ fn emit_dependency_unit(package: &SemanticPackage, unit: &SemanticUnit) -> Strin
             })
             .collect::<Vec<_>>()
             .join(", ");
-        let result = contract
+        let value = contract
             .return_type
             .clone()
             .map_or_else(|| "()".to_owned(), rust_value_type);
+        let result = format!("Result<{value}, crate::TerraneError>");
         writeln!(
             output,
             "pub fn {}({}) -> {result} {{",
@@ -358,18 +359,20 @@ fn emit_dependency_unit(package: &SemanticPackage, unit: &SemanticUnit) -> Strin
             parameters.join(", ")
         )
         .expect("writing to a string cannot fail");
-        writeln!(
-            output,
-            "    let crossed = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {}({arguments}))).unwrap_or_else(|payload| std::panic::resume_unwind(payload));",
-            item.rust_path
-        )
-        .expect("writing to a string cannot fail");
         if projected.error.is_some() {
-            output.push_str(
-                "    crossed.unwrap_or_else(|error| panic!(\"Rust dependency call failed: {error}\"))\n",
-            );
+            writeln!(
+                output,
+                "    match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {}({arguments}))) {{\n        Ok(Ok(value)) => Ok(value),\n        Ok(Err(error)) => Err(crate::TerraneError::new(crate::TerraneErrorKind::SourceError, format!(\"Rust dependency call failed: {{error}}\"))),\n        Err(_) => Err(crate::TerraneError::new(crate::TerraneErrorKind::SourceError, \"Rust dependency call panicked\")),\n    }}",
+                item.rust_path
+            )
+            .expect("writing to a string cannot fail");
         } else {
-            output.push_str("    crossed\n");
+            writeln!(
+                output,
+                "    match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {}({arguments}))) {{\n        Ok(value) => Ok(value),\n        Err(_) => Err(crate::TerraneError::new(crate::TerraneErrorKind::SourceError, \"Rust dependency call panicked\")),\n    }}",
+                item.rust_path
+            )
+            .expect("writing to a string cannot fail");
         }
         output.push_str("}\n");
     }
@@ -467,6 +470,12 @@ fn package_uses_structured_errors(package: &SemanticPackage) -> bool {
     package.units.iter().any(|unit| {
         unit.functions.iter().any(|contract| contract.throws)
             || contains(package, unit, &unit.tree.root)
+    }) || package.projection.dependencies.iter().any(|dependency| {
+        dependency.items.iter().any(|item| match &item.kind {
+            crate::projection::ProjectedKind::Function(_) => true,
+            crate::projection::ProjectedKind::ForeignType { methods } => !methods.is_empty(),
+            crate::projection::ProjectedKind::Enum { .. } => false,
+        })
     })
 }
 
@@ -4856,19 +4865,30 @@ impl Emitter<'_> {
             self.expression(callee)
         };
         let call = format!("{name}({})", values.join(", "));
-        let foreign_error = contract
-            .as_ref()
-            .and_then(|contract| {
-                contract.owner.as_ref().and_then(|owner| {
-                    self.package
-                        .projection
-                        .method(&self.unit.namespace, owner, &contract.name)
-                })
+        let foreign_method = contract.as_ref().and_then(|contract| {
+            contract.owner.as_ref().and_then(|owner| {
+                self.package
+                    .projection
+                    .method(&self.unit.namespace, owner, &contract.name)
             })
-            .is_some_and(|method| method.error.is_some());
-        let call = if foreign_error {
+        });
+        let foreign_error = foreign_method.is_some()
+            || (callee.kind == SyntaxKind::Name
+                && self
+                    .package
+                    .resolve_name_at(self.unit, callee.span.start, self.text(callee))
+                    .and_then(|symbol| symbol.identity.rsplit_once("::"))
+                    .and_then(|(namespace, name)| self.package.projection.item(namespace, name))
+                    .is_some_and(|item| {
+                        matches!(&item.kind, crate::projection::ProjectedKind::Function(_))
+                    }));
+        let call = if foreign_method.is_some_and(|method| method.error.is_some()) {
             format!(
-                "std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {call})).unwrap_or_else(|payload| std::panic::resume_unwind(payload)).unwrap_or_else(|error| panic!(\"Rust dependency call failed: {{error}}\"))"
+                "match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {call})) {{ Ok(Ok(value)) => Ok(value), Ok(Err(error)) => Err(crate::TerraneError::new(crate::TerraneErrorKind::SourceError, format!(\"Rust dependency call failed: {{error}}\"))), Err(_) => Err(crate::TerraneError::new(crate::TerraneErrorKind::SourceError, \"Rust dependency call panicked\")) }}"
+            )
+        } else if foreign_method.is_some() {
+            format!(
+                "match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {call})) {{ Ok(value) => Ok(value), Err(_) => Err(crate::TerraneError::new(crate::TerraneErrorKind::SourceError, \"Rust dependency call panicked\")) }}"
             )
         } else {
             call
@@ -4880,7 +4900,7 @@ impl Emitter<'_> {
         } else {
             call
         };
-        if contract.is_some_and(|contract| contract.throws) {
+        if contract.is_some_and(|contract| contract.throws) || foreign_error {
             let context = self.error_context(node);
             if self.try_completion {
                 format!(
@@ -6441,7 +6461,7 @@ fn rust_name(name: &str) -> String {
     let readable_identifier = name.as_bytes().first().is_some_and(u8::is_ascii_lowercase)
         && name
             .bytes()
-            .all(|byte| byte.is_ascii_alphanumeric() || byte == b'-');
+            .all(|byte| byte.is_ascii_alphanumeric() || byte == b'-' || byte == b'_');
     let keyword = matches!(
         name,
         "as" | "break"

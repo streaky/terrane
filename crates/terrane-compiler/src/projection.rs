@@ -326,6 +326,7 @@ fn render_function(output: &mut String, function: &ProjectedFunction, public: bo
         write!(output, " {}", function.result.terrane_name())
             .expect("writing to a string cannot fail");
     }
+    output.push_str(" throws throwable");
     output.push(';');
     if !function.parameters.is_empty() {
         output.push(' ');
@@ -364,7 +365,7 @@ pub fn resolve(
     let sandbox = containment();
     if dependencies.is_empty() {
         return Ok(Projection {
-            cache_identity: cache_identity(root, root, dependencies, sandbox)?,
+            cache_identity: String::from("no-rust-dependencies"),
             dependencies: Vec::new(),
             containment: sandbox,
             removed: Vec::new(),
@@ -673,27 +674,38 @@ fn project_rustdoc(
             continue;
         };
         let namespace = dependency_namespace(dependency, &path[..path.len().saturating_sub(1)]);
-        let rust_path = public_paths
-            .get(id)
-            .cloned()
-            .unwrap_or_else(|| path.join("::"));
+        let rust_path = extern_rust_path(
+            dependency,
+            &public_paths
+                .get(id)
+                .cloned()
+                .unwrap_or_else(|| path.join("::")),
+        );
         let docs = item["docs"].as_str().map(str::to_owned);
         let inner = &item["inner"];
         let projected = if let Some(function) = inner.get("function") {
             project_function(function, index, paths, Some(&name)).map(ProjectedKind::Function)
         } else if let Some(structure) = inner.get("struct") {
-            let methods = project_methods(structure, index, paths);
-            Ok(ProjectedKind::ForeignType { methods })
+            if has_type_parameters(item) {
+                Err("type has generic or lifetime parameters".to_owned())
+            } else {
+                let methods = project_methods(structure, index, paths);
+                Ok(ProjectedKind::ForeignType { methods })
+            }
         } else if let Some(enumeration) = inner.get("enum") {
-            let data_carrying = enumeration["variants"].as_array().is_some_and(|variants| {
-                variants.iter().any(|id| {
-                    index
-                        .get(&id.to_string())
-                        .and_then(|variant| variant["inner"]["variant"]["kind"].as_str())
-                        .is_none()
-                })
-            });
-            Ok(ProjectedKind::Enum { data_carrying })
+            if has_type_parameters(item) {
+                Err("type has generic or lifetime parameters".to_owned())
+            } else {
+                let data_carrying = enumeration["variants"].as_array().is_some_and(|variants| {
+                    variants.iter().any(|id| {
+                        value_id(id)
+                            .and_then(|id| index.get(&id))
+                            .and_then(|variant| variant["inner"]["variant"]["kind"].as_str())
+                            .is_none()
+                    })
+                });
+                Ok(ProjectedKind::Enum { data_carrying })
+            }
         } else {
             Err("item kind has no Terrane projection".to_owned())
         };
@@ -723,6 +735,21 @@ fn project_rustdoc(
     })
 }
 
+fn has_type_parameters(item: &Value) -> bool {
+    item["generics"]["params"]
+        .as_array()
+        .is_some_and(|parameters| !parameters.is_empty())
+}
+
+fn extern_rust_path(dependency: &RustDependency, path: &str) -> String {
+    let mut segments = path.split("::");
+    let _package_root = segments.next();
+    std::iter::once(dependency.name.replace('-', "_"))
+        .chain(segments.map(str::to_owned))
+        .collect::<Vec<_>>()
+        .join("::")
+}
+
 fn project_methods(
     structure: &Value,
     index: &serde_json::Map<String, Value>,
@@ -733,22 +760,20 @@ fn project_methods(
         return methods;
     };
     for impl_id in impls {
-        let Some(implementation) = index
-            .get(&impl_id.to_string())
+        let Some(implementation) = value_id(impl_id)
+            .and_then(|id| index.get(&id))
             .and_then(|item| item["inner"]["impl"].as_object())
         else {
             continue;
         };
-        if !implementation["trait"].is_null()
-            || implementation["is_negative"].as_bool() == Some(true)
-        {
+        if implementation["is_negative"].as_bool() == Some(true) {
             continue;
         }
         let Some(method_ids) = implementation["items"].as_array() else {
             continue;
         };
         for method_id in method_ids {
-            let Some(item) = index.get(&method_id.to_string()) else {
+            let Some(item) = value_id(method_id).and_then(|id| index.get(&id)) else {
                 continue;
             };
             if item["visibility"].as_str() != Some("public") {
@@ -856,19 +881,20 @@ fn generic_monomorphisations(
         };
         let Some(trait_id) = bounds
             .first()
-            .and_then(|bound| bound["trait_bound"]["trait"]["id"].as_u64())
+            .and_then(|bound| value_id(&bound["trait_bound"]["trait"]["id"]))
         else {
             return Err(format!("open generic `{name}`"));
         };
         let Some(implementations) = index
-            .get(&trait_id.to_string())
+            .get(&trait_id)
             .and_then(|item| item["inner"]["trait"]["implementations"].as_array())
         else {
             return Err(format!("generic bound for `{name}` has no closed impl set"));
         };
         let mut candidates = implementations
             .iter()
-            .filter_map(|id| index.get(&id.to_string()))
+            .filter_map(value_id)
+            .filter_map(|id| index.get(&id))
             .filter_map(|item| item["inner"]["impl"].get("for"))
             .filter_map(|ty| project_type(ty, paths, &BTreeMap::new()).ok())
             .collect::<Vec<_>>();
@@ -1009,10 +1035,45 @@ fn dependency_namespace(dependency: &RustDependency, path: &[String]) -> String 
     }
 }
 
+#[must_use]
+pub fn namespace_for_rust_path(dependency: &ProjectedDependency, rust_path: &str) -> String {
+    let modules = rust_path.split("::").skip(1).collect::<Vec<_>>();
+    let modules = &modules[..modules.len().saturating_sub(1)];
+    if modules.is_empty() {
+        format!("/dependencies/{}", dependency.name.replace('_', "-"))
+    } else {
+        format!(
+            "/dependencies/{}/{}",
+            dependency.name.replace('_', "-"),
+            modules
+                .iter()
+                .map(|segment| segment.replace('_', "-"))
+                .collect::<Vec<_>>()
+                .join("/")
+        )
+    }
+}
+
 fn safe_parameter_name(name: &str) -> String {
-    match name {
-        "ref" | "move" | "function" | "class" | "return" | "throw" => format!("{name}_"),
-        _ => name.to_owned(),
+    if matches!(
+        name,
+        "as" | "await"
+            | "class"
+            | "else"
+            | "for"
+            | "function"
+            | "if"
+            | "import"
+            | "is"
+            | "move"
+            | "namespace"
+            | "ref"
+            | "return"
+            | "throw"
+    ) {
+        format!("{name}_")
+    } else {
+        name.to_owned()
     }
 }
 

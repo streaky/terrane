@@ -112,13 +112,13 @@ fn run(arguments: &[OsString]) -> Result<ExitCode, CliFailure> {
         &package.root,
         &compilation.rust_files,
         uses_platform_support,
-        &package.rust_dependencies,
+        &compilation.rust_dependencies,
     )?;
     write_generated_crate(
         &crate_dir,
         &compilation.rust_files,
         &package.units,
-        &package.rust_dependencies,
+        &compilation.rust_dependencies,
         uses_platform_support,
     )?;
     record_and_prune_generated_crates(&crate_dir)?;
@@ -379,6 +379,8 @@ fn generated_crate_path(
         hash.update(dependency.version.as_bytes());
         hash.update(b"\0");
         hash.update([u8::from(dependency.default_features)]);
+        hash.update(b"\0target=");
+        hash.update(dependency.target.as_deref().unwrap_or_default().as_bytes());
         for feature in &dependency.features {
             hash.update(feature.as_bytes());
             hash.update(b"\0");
