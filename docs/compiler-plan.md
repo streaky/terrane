@@ -442,6 +442,8 @@ S2010 inaccessible imported name             S2023 initializer self-reference
 S2011 import collision                       S2024 namespace initialization cycle
 S2012 duplicate lexical binding              S2025 public namespace variable
 S2013 unresolved source name                 S2026 namespace-variable confinement
+S2027 undeclared Rust dependency             S2029 projected member absent or declined
+S2028 Rust dependency projection failure     S2030 ambiguous projected receiver mutability
 ```
 
 Retired codes remain unavailable so a stable code never acquires a second meaning.
@@ -1610,10 +1612,12 @@ Two shipped behaviours follow from the bare name, and both are wrong in the same
   interfaces and bases with `objects.iter().find(|object| object.name == *actual)`. A
   `/deps/reqwest/blocking::Response` is therefore accepted where `/deps/reqwest/async-impl/response::Response`
   is declared. The program compiles, and the mistake reaches rustc rather than the author;
-- **generated Rust names ignore the namespace.** `rust_object_name` maps a declared name to a Rust
-  type name with no qualification, so two same-named objects in two namespaces emit one Rust name
-  twice. That is `E0428` against generated source — the failure mode §29.3 exists to prevent, and the
-  one this milestone's predecessor spent its diagnostic work eliminating everywhere else.
+- **generated Rust names ignore the namespace.** Terrane-declared objects collide because
+  `rust_object_name` maps each bare declared name to the same Rust type name (`E0428`), while projected
+  foreign types collide because same-named types from sibling namespaces become duplicate re-exports
+  in one Rust module scope (`E0252`). Both are failures against generated source — the failure mode
+  §29.3 exists to prevent, and the one this milestone's predecessor spent its diagnostic work
+  eliminating everywhere else.
 
 Neither is specific to dependency projection. Two Terrane packages, or two namespaces in one package,
 declaring the same class name hit the identical pair. Projection is what made it reachable without
