@@ -2778,6 +2778,8 @@ language-mandated classes, each of which implements it:
 | `integer-conversion-overflow` | An exact-or-throw numeric destination cannot preserve the mathematical source value. | Implicit assignment, argument, return, element, or field conversion across numeric types; throwing `coerce` to a fixed-width integer destination; floating-to-integer conversion for a fractional, NaN, or infinite value. | source value/type, destination type, and failed exactness condition |
 | `negative-shift-count` | An integer shift count is negative. | Unbounded-`int` `<<` and `>>`. | attempted count and shift operation |
 | `coercion-error` | An explicit coercion has no result compatible with the requested destination, outside the integer-overflow case above. | `coerce` where the source value or text cannot be represented in the destination type, including parsing coercion from `string` and an out-of-range floating-point destination whose protocol does not declare infinity. | source value/type and destination type |
+| `dependency-error` | A crossed Rust dependency call returned `Result::Err`. | Projected Rust functions and methods returning `Result<T, E>`. | dependency member and rendered Rust error |
+| `dependency-panic` | A crossed Rust dependency call unwound through a profile that contains dependency panics. | Projected Rust functions and methods that panic under an unwinding profile. | dependency member and crossing context |
 
 Each class has `message`, `cause`, deterministic source context, and the structured information
 listed above. Implementations may attach additional diagnostic fields without changing

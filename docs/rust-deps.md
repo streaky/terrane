@@ -315,6 +315,11 @@ The cost, stated deliberately: a trait method reads as `read-to-end; response` r
 ergonomic rule could permit method syntax where exactly one imported trait supplies the name and no
 inherent member competes; it is not needed for correctness.
 
+Milestone 25 implements inherent methods and records every trait method as declined with an explicit
+reason. Receiver-first trait namespaces remain the required design above; projecting trait methods is
+deferred until that namespace form is implemented rather than merging trait methods into the
+receiver's member set.
+
 ### 7.4 Enums
 
 - **Data-free enums** (`Method`, `Version`) project as an opaque value with projected constants and
@@ -322,6 +327,13 @@ inherent member competes; it is not needed for correctness.
 - **Data-carrying enums** project as opaque values with whatever accessors the crate provides. Without
   general pattern matching there is no safe destructuring form to offer, so none is offered.
 - `Result` and `Option` are not enums for this purpose; see 6.2.
+
+Milestone 25 lowers `Result<T, E>` for directly representable `T`. Although the version-one design
+maps `Option<T>` to `T|none`, the current semantic model has optional variants only for selected
+built-in value families, not arbitrary foreign objects. The projector therefore records an explicit
+decline for every `Option` signature rather than emitting source that the semantic pass cannot type.
+Primitive projection is likewise deliberately limited to the exact set supported by
+`project_type`; unsupported Rust primitives are recorded as declines rather than narrowed.
 
 ## 8. Capabilities and transitive dependencies
 

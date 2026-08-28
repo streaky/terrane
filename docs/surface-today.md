@@ -57,7 +57,9 @@ Terrane package
 │   │   │   ├── coercion-error                 compiler-owned throwable object
 │   │   │   ├── decode-error                   compiler-owned throwable object
 │   │   │   ├── index-error                    compiler-owned throwable object
-│   │   │   └── missing-key                    compiler-owned throwable object
+│   │   │   ├── missing-key                    compiler-owned throwable object
+│   │   │   ├── dependency-error               dependency `Result::Err` throwable object
+│   │   │   └── dependency-panic               unwinding dependency-panic throwable object
 │   │   ├── /core/encodings
 │   │   │   ├── utf8                           encoding object
 │   │   │   ├── utf16-le                       encoding object

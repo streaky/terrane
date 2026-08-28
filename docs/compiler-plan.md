@@ -1566,14 +1566,17 @@ verbatim projected name. External-network tests do not prove the contract.
 
 Implemented on `rust-dependency-projection`. Manifest-declared Rust packages resolve through one
 lock-derived rustdoc projection shared by compilation and editor tooling. The compiler projects
-verbatim functions, inherent and trait methods, receiver ownership, opaque foreign values, enums,
-`Option`, and `Result`; generates only crossed shims; pins generated Cargo dependencies to the
-projected versions; and translates dependency failures and unwinding panics into Terrane throwable
-completion. Projection and generated-crate compilation use the available Linux `bwrap` containment
-tier, with explicit unavailable reporting, and dependency-free programs do not probe rustdoc or the
-pinned nightly toolchain. Accepted execution covers a loopback `reqwest` request and the dissimilar
-`httpdate` crate through the same machinery, including caught dependency errors, uppercase and
-underscored identifiers, and verbatim projected names. Package tests cover aliasing, selected
+verbatim functions, inherent methods, receiver ownership, opaque foreign values, enums, and
+`Result`; it records `Option` signatures and trait methods as declined until general `T|none`
+semantic types and receiver-first trait namespaces are implemented. It generates only crossed shims,
+pins generated Cargo dependencies to the projected versions, and translates dependency failures and
+unwinding panics into distinct Terrane throwable completion. Rust dependency projection requires the
+Linux `bwrap` containment tier and fails explicitly when it is unavailable; dependency-free programs
+do not probe containment, rustdoc, or the pinned nightly toolchain. Generated-crate compilation is
+not yet contained and remains an explicit follow-on capability requirement.
+Accepted execution covers a loopback `reqwest` request and the dissimilar `httpdate` crate through
+the same machinery, including caught dependency errors, uppercase and underscored identifiers, and
+verbatim projected names. Package tests cover aliasing, selected
 features, and loopback execution; generated Rust and Cargo output remain deterministic and warning
 free. Target-specific dependency tables, removed-member diagnostics, recorded projection declines,
 and asynchronous namespace-aware completion, hover, and signature help cover the corresponding
