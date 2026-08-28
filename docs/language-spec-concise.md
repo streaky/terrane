@@ -811,11 +811,11 @@ rust_declaration: package.toml [rust-dependencies] only; no source dependency de
 rust_import: /deps/<manifest-name>/<rust-modules>; undeclared root is S2027
 bridging: generated Rust shims ONLY for projected members source crosses; direct Rust calls in one crate, no marshalling/runtime adapter
 projection: one lock-resolved rustdoc artifact shared by compiler and LSP; verbatim names; module namespaces; functions/methods/trait receiver-functions/opaque types/enums; every decline has a reason
-types: Option<T> => T|none; Result<T,E> => T throws projected-E; &self => borrow; &mut self => ref; self => move
+types: Option<T> => T|none; Result<T,E> => T throws projected-E; &self => shared receiver; &mut self => mutable-receiver contract; self => move. Borrowed receivers use ordinary member-call syntax; the contract drives Rust borrowing and mutable binding
 panic: unwinding profile converts crossing panic to dependency-panic; abort profile claims no containment
 tooling: completion/signature/hover and declined reasons are ADVISORY; Cargo/rustc remain authoritative
 execution: Rust inspection is compilation under build-script capability/containment policy; arbitrary foreign-runtime inspection remains forbidden
-cache_identity: manifest + lock checksum + features/default-feature policy + target + toolchain + package source checksums + sandbox tier
+cache_identity: manifest + lock checksum + features/default-feature policy + target + toolchain + package source checksums + sandbox tier; project-local cache keeps current + at most 3 prior projections, not durable version-diagnostic history
 containment: fetch may be online; compilation is offline/frozen and reports whether enforcement was available
 lock_change_diagnostic: a removed crossed member is diagnosed as missing at its Terrane import/use; distinguishing removal from a never-present member and naming the version change are deferred until projection history is retained
 foreign_specialisation: 'from python/x import y' names a crossing point, not an API import; adapters define boundary behaviour

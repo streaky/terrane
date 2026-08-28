@@ -154,11 +154,11 @@ foo = await reqwest-get; >https://httpbin.org/ip
   value is an identity-bearing resource, not an ordinary COW value — the rule §23.13 already states
   for foreign proxies and invariant 22 already makes normative. So:
 
-  | Rust receiver | Terrane call site |
+  | Rust receiver | Terrane contract and call |
   |---|---|
-  | `&self` | ordinary borrow; a call may borrow without transferring |
-  | `&mut self` | `ref` |
-  | `self` | `move` |
+  | `&self` | ordinary member call; receiver borrowed without transfer |
+  | `&mut self` | ordinary member call; projected contract marks the receiver mutable, so lowering emits a mutable binding and borrow |
+  | `self` | `move` under the ordinary foreign-resource ownership rule |
 
   Self-consuming methods therefore need no special handling. A builder chain binds no intermediate, so
   it reads without ceremony; `move` becomes visible only where an author binds an intermediate and
@@ -408,6 +408,11 @@ Cache identity covers manifest contents, lock checksum, enabled features, defaul
 target triple, toolchain version, and package source checksums — the same set §23.1 already requires
 of tooling. The projection is a pure function of that identity, so the language server and the
 compiler compute the same model or neither does.
+The project-local cache retains the current projection and at most three prior projection artifacts.
+This bounded history avoids repeated rustdoc work during ordinary lockfile rollback and editor churn
+without allowing one project directory to grow indefinitely. It is an operational cache, not the
+durable, machine-independent projection history needed to distinguish a removed member from one that
+never existed or to name the version change in a diagnostic.
 
 The projection pass is treated exactly as a build script is: same build capability, same sandbox
 policy, same cache-identity inputs. If the two are governed separately they will eventually disagree
@@ -520,9 +525,11 @@ here is conditional or outstanding.
   verbatim names, `async fn` to async, bound-driven monomorphisation, inherent methods as members,
   trait methods into the trait's namespace, enums per §7.4, and a recorded reason for every item it
   declines to project. (§4, §6.5, §7)
-- **A11 — shim generation** for crossed members only: receivers projected faithfully (`&self` borrow,
-  `&mut self` as `ref`, `self` as `move`), owned returns with an edge clone where the crate returns a
-  cloneable borrow, and edge coercion for scalars. (§6.2)
+- **A11 — shim generation** for crossed members only: receivers projected faithfully (`&self` as a
+  shared receiver, `&mut self` as receiver mutability on the projected contract, and `self` as
+  `move`), owned returns with an edge clone where the crate returns a cloneable borrow, and edge
+  coercion for scalars. Mutable receivers use ordinary Terrane member-call syntax; the contract drives
+  mutable binding and borrowing in generated Rust. (§6.2)
 - **A11a — foreign values are identity-bearing resources**, per invariant 22, so ordinary value
   assignment does not apply to them and use-after-move is diagnosed by the existing rules. Confirm the
   §23.13 foreign-proxy wording covers Rust values rather than only foreign-runtime proxies; extend it

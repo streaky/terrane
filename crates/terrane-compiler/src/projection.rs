@@ -13,6 +13,7 @@ use crate::RustDependency;
 
 pub const RUSTDOC_TOOLCHAIN: &str = "nightly-2026-04-29";
 const PROJECTION_SCHEMA: &str = "4";
+const MAX_PROJECTION_CACHE_RECORDS: usize = 4;
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub struct Projection {
@@ -254,6 +255,27 @@ impl Projection {
                 }
                 _ => None,
             })
+    }
+
+    #[must_use]
+    pub fn method_mutates_consistently(&self, type_name: &str, method_name: &str) -> Option<bool> {
+        let mut receivers = self
+            .dependencies
+            .iter()
+            .flat_map(|dependency| &dependency.items)
+            .filter(|item| item.name == type_name)
+            .filter_map(|item| match &item.kind {
+                ProjectedKind::ForeignType { methods } => methods
+                    .iter()
+                    .find(|method| method.name == method_name)
+                    .map(|method| method.receiver),
+                _ => None,
+            })
+            .map(|receiver| matches!(receiver, Some(Receiver::MutableBorrow)));
+        let mutates = receivers.next()?;
+        receivers
+            .all(|candidate| candidate == mutates)
+            .then_some(mutates)
     }
 }
 
@@ -504,18 +526,31 @@ pub fn resolve(
 
 fn prune_projection_cache(directory: &Path, retained: &Path) -> Result<(), ProjectionError> {
     let entries = fs::read_dir(directory).map_err(io_error("read dependency projection cache"))?;
+    let mut previous = Vec::new();
     for entry in entries {
         let entry = entry.map_err(io_error("read dependency projection cache entry"))?;
         let path = entry.path();
         let Some(name) = path.file_name().and_then(|name| name.to_str()) else {
             continue;
         };
-        if path != retained
-            && name.starts_with("projection-")
-            && path.extension() == Some(std::ffi::OsStr::new("json"))
+        if path == retained
+            || !name.starts_with("projection-")
+            || path.extension() != Some(std::ffi::OsStr::new("json"))
         {
-            fs::remove_file(&path).map_err(io_error("remove stale dependency projection"))?;
+            continue;
         }
+        let modified = entry
+            .metadata()
+            .and_then(|metadata| metadata.modified())
+            .map_err(io_error("read dependency projection cache metadata"))?;
+        previous.push((modified, path));
+    }
+    previous.sort_by(|left, right| right.cmp(left));
+    for (_, path) in previous
+        .into_iter()
+        .skip(MAX_PROJECTION_CACHE_RECORDS.saturating_sub(1))
+    {
+        fs::remove_file(&path).map_err(io_error("remove stale dependency projection"))?;
     }
     Ok(())
 }
@@ -1315,7 +1350,7 @@ mod tests {
 
     use serde_json::json;
 
-    use super::{Receiver, has_type_parameters, prune_projection_cache, receiver_kind};
+    use super::{Projection, Receiver, has_type_parameters, prune_projection_cache, receiver_kind};
 
     #[test]
     fn type_parameter_guard_reads_destructured_type_descriptors() {
@@ -1342,21 +1377,98 @@ mod tests {
     }
 
     #[test]
-    fn projection_cache_prunes_only_stale_projection_records() {
+    fn method_lookup_keeps_colliding_foreign_types_in_their_namespaces() {
+        let projection: Projection = serde_json::from_value(json!({
+            "cache_identity": "test",
+            "containment": "Unavailable",
+            "dependencies": [{
+                "name": "witness",
+                "package": "witness",
+                "version": "1.0.0",
+                "declined": [],
+                "items": [
+                    {
+                        "namespace": "/deps/witness/async",
+                        "name": "Response",
+                        "rust_path": "witness::async::Response",
+                        "docs": null,
+                        "kind": {"ForeignType": {"methods": [{
+                            "name": "touch",
+                            "parameters": [],
+                            "result": "None",
+                            "error": null,
+                            "is_async": false,
+                            "receiver": "Borrow"
+                        }]}}
+                    },
+                    {
+                        "namespace": "/deps/witness/blocking",
+                        "name": "Response",
+                        "rust_path": "witness::blocking::Response",
+                        "docs": null,
+                        "kind": {"ForeignType": {"methods": [{
+                            "name": "touch",
+                            "parameters": [],
+                            "result": "None",
+                            "error": null,
+                            "is_async": false,
+                            "receiver": "MutableBorrow"
+                        }]}}
+                    }
+                ]
+            }]
+        }))
+        .unwrap();
+
+        assert_eq!(
+            projection
+                .method("/deps/witness/async", "Response", "touch")
+                .and_then(|method| method.receiver),
+            Some(Receiver::Borrow)
+        );
+        assert_eq!(
+            projection
+                .method("/deps/witness/blocking", "Response", "touch")
+                .and_then(|method| method.receiver),
+            Some(Receiver::MutableBorrow)
+        );
+        assert_eq!(
+            projection.method_mutates_consistently("Response", "touch"),
+            None
+        );
+    }
+
+    #[test]
+    fn projection_cache_retains_a_bounded_history_and_unrelated_files() {
         let directory =
             std::env::temp_dir().join(format!("terrane-projection-prune-{}", std::process::id()));
         let retained = directory.join("projection-current.json");
-        let stale = directory.join("projection-stale.json");
         let unrelated = directory.join("Cargo.lock");
         fs::create_dir_all(&directory).unwrap();
         fs::write(&retained, b"current").unwrap();
-        fs::write(&stale, b"stale").unwrap();
+        for index in 0..6 {
+            fs::write(
+                directory.join(format!("projection-previous-{index}.json")),
+                b"previous",
+            )
+            .unwrap();
+        }
         fs::write(&unrelated, b"lock").unwrap();
 
         prune_projection_cache(&directory, &retained).unwrap();
 
+        let projection_count = fs::read_dir(&directory)
+            .unwrap()
+            .filter_map(Result::ok)
+            .filter(|entry| {
+                entry
+                    .file_name()
+                    .to_str()
+                    .is_some_and(|name| name.starts_with("projection-"))
+            })
+            .count();
+        assert_eq!(projection_count, super::MAX_PROJECTION_CACHE_RECORDS);
         assert!(retained.exists());
-        assert!(!stale.exists());
         assert!(unrelated.exists());
         fs::remove_dir_all(directory).unwrap();
     }

@@ -1527,8 +1527,10 @@ Deliver:
 - **boundary lowering.** A general foreign value type keyed by crate and Rust path, replacing the
   per-support-crate platform value types; generated shims for crossed members only; `Result<T, E>` as a
   return of `T` under a `throws` contract naming the projected error class, and `Option<T>` as
-  `T|none`; receivers projected faithfully, with `&self` borrowing, `&mut self` as `ref`, and `self`
-  requiring `move` under the existing foreign-resource rule; panic contained at the crossing and
+  `T|none`; receivers projected faithfully, with `&self` as a shared receiver, `&mut self` recorded as
+  receiver mutability on the projected contract, and `self` requiring `move` under the existing
+  foreign-resource rule. Mutable receivers use ordinary Terrane member-call syntax; the contract
+  drives mutable binding and borrowing in generated Rust. Panic is contained at the crossing and
   converted to `dependency-panic` on unwinding profiles, and not contained on aborting profiles;
 - **diagnostics in Terrane terms** for moves, drops, `Send`/`Sync` at task boundaries, and escaping
   borrows, per the existing translation contract. A removed crossed member is diagnosed as missing at
@@ -1542,9 +1544,12 @@ Deliver:
   toolchain, with an allowlist tier for crates needing system discovery. Containment is at the cargo
   invocation, since proc macros expand inside rustc, and a platform that cannot enforce it says so.
   The projection pass runs under the same capability and the same policy as a build script;
-- **cache identity** covering manifest, lock checksum, features, default-feature policy, target
-  triple, toolchain version, package source checksums, and sandbox tier, so a build that reached
-  further is not cache-equivalent to one that did not;
+- **cache identity and retention** covering manifest, lock checksum, features, default-feature policy,
+  target triple, toolchain version, package source checksums, and sandbox tier, so a build that reached
+  further is not cache-equivalent to one that did not. The project-local cache retains the current
+  projection plus at most three prior artifacts for ordinary rollback and editor churn; this bounded
+  operational history is not the durable, machine-independent history required by the deferred
+  version-aware diagnostics;
 - **the specification amendments this requires**, which are language changes and not editorial: making
   uppercase and underscore legal identifier characters so verbatim projected names are writable, with
   kebab-case kept mandatory for compiler-owned and standard-library names and every documentation

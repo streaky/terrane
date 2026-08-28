@@ -11672,16 +11672,42 @@ fn object_method_mutates(
             .is_some_and(|base| contract_mutates(unit, base, method_name))
     }
 
-    let Some(declaration) = resolved_object_span(package, unit, position, object_name) else {
-        return false;
-    };
-    package.units.iter().any(|candidate| {
-        candidate
-            .objects
-            .iter()
-            .find(|object| object.span == declaration)
-            .is_some_and(|object| contract_mutates(candidate, &object.name, method_name))
-    })
+    if contract_mutates(unit, object_name, method_name) {
+        return true;
+    }
+
+    if let Some(declaration) = resolved_object_span(package, unit, position, object_name)
+        && package.units.iter().any(|candidate| {
+            candidate
+                .objects
+                .iter()
+                .find(|object| object.span == declaration)
+                .is_some_and(|object| contract_mutates(candidate, &object.name, method_name))
+        })
+    {
+        return true;
+    }
+    let resolved = package
+        .resolve_name_at(unit, position, object_name)
+        .and_then(|symbol| {
+            let (namespace, _) = symbol.identity.rsplit_once("::")?;
+            package
+                .projection
+                .method(namespace, object_name, method_name)
+                .map(|method| {
+                    matches!(
+                        method.receiver,
+                        Some(crate::projection::Receiver::MutableBorrow)
+                    )
+                })
+        });
+    match resolved {
+        Some(mutates) => mutates,
+        None => package
+            .projection
+            .method_mutates_consistently(object_name, method_name)
+            .unwrap_or(false),
+    }
 }
 
 pub(crate) fn binding_span_is_mutated(
@@ -11733,13 +11759,7 @@ pub(crate) fn binding_span_is_mutated(
                                 receiver.span.start,
                                 &object,
                                 node_text(&unit.source, member)
-                            ) || package
-                                .projection
-                                .method("", &object, node_text(&unit.source, member))
-                                .is_some_and(|method| matches!(
-                                    method.receiver,
-                                    Some(crate::projection::Receiver::MutableBorrow)
-                                ))
+                            )
                     ))
                     && resolves_to_binding(receiver)
             });
