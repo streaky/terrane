@@ -1515,8 +1515,8 @@ Deliver:
   generates only the machinery Terrane source actually crosses, and the surface offered to editors is
   derived from the resolved package rather than owned by the compiler;
 - **manifest-only declaration.** The project manifest carries crate, version, features, default-feature
-  policy, and target conditions. There is no source-level dependency declaration; `/dependencies` is a
-  reserved root namespace segment, and a `from /dependencies/...` import naming an undeclared crate is
+  policy, and target conditions. There is no source-level dependency declaration; `/deps` is a
+  reserved root namespace segment, and a `from /deps/...` import naming an undeclared crate is
   a Terrane diagnostic;
 - **the projector**, one artifact computed from the lock-resolved package, features, target, and
   rustdoc JSON, consumed by both the compiler and the language server so hints and lowering cannot
@@ -1572,15 +1572,17 @@ semantic types and receiver-first trait namespaces are implemented. It generates
 pins generated Cargo dependencies to the projected versions, and translates dependency failures and
 unwinding panics into distinct Terrane throwable completion. Rust dependency projection requires the
 Linux `bwrap` containment tier and fails explicitly when it is unavailable; dependency-free programs
-do not probe containment, rustdoc, or the pinned nightly toolchain. Generated-crate compilation is
-not yet contained and remains an explicit follow-on capability requirement.
+do not probe containment, rustdoc, or the pinned nightly toolchain. Wiring projection itself to a
+build-capability grant, rejecting dependency effects forbidden by a selected profile, distinguishing
+unwinding from aborting profiles, and containing generated-crate compilation remain explicit
+follow-on capability requirements.
 Accepted execution covers a loopback `reqwest` request and the dissimilar `httpdate` crate through
 the same machinery, including caught dependency errors, uppercase and underscored identifiers, and
 verbatim projected names. Package tests cover aliasing, selected
 features, and loopback execution; generated Rust and Cargo output remain deterministic and warning
-free. Target-specific dependency tables, removed-member diagnostics, recorded projection declines,
-and asynchronous namespace-aware completion, hover, and signature help cover the corresponding
-resolution and editor contracts.
+free. Target-specific dependency tables, recorded projection declines, and asynchronous
+namespace-aware completion, hover, and signature help cover the corresponding resolution and editor
+contracts.
 
 ### Milestone 26 — Remaining concurrency and foreign adapters
 

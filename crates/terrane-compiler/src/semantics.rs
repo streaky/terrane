@@ -816,7 +816,7 @@ fn parse_units(
             .collect::<Result<Vec<_>, _>>()?
             .into_iter()
             .flatten()
-            .filter(|import| import.target.starts_with("/dependencies/"))
+            .filter(|import| import.target.starts_with("/deps/"))
         {
             dependency_imports
                 .entry(import.target)
@@ -887,7 +887,7 @@ fn apply_projected_method_contracts(
     projection: &crate::projection::Projection,
 ) {
     for unit in units {
-        if !unit.namespace.starts_with("/dependencies/") {
+        if !unit.namespace.starts_with("/deps/") {
             continue;
         }
         for contract in &mut unit.functions {
@@ -936,64 +936,17 @@ fn dependency_projection(
 pub fn analyze(package: &Package) -> Result<SemanticPackage, SemanticFailure> {
     let projection = dependency_projection(package)?;
     let mut units = parse_units(package, &projection)?;
-    for unit in &units {
-        for node in unit
-            .tree
-            .root
-            .children
-            .iter()
-            .filter(|node| node.kind == SyntaxKind::ImportDeclaration)
-        {
-            for import in imports_from_syntax(unit, node)? {
-                if import.target.starts_with("/dependencies/")
-                    && projection.item(&import.target, &import.object).is_none()
-                {
-                    let reason = projection.dependencies.iter().find_map(|dependency| {
-                        dependency.declined.iter().find_map(|declined| {
-                            (crate::projection::namespace_for_rust_path(
-                                dependency,
-                                &declined.rust_path,
-                            ) == import.target
-                                && declined.rust_path.rsplit("::").next()
-                                    == Some(import.object.as_str()))
-                            .then_some(declined.reason.as_str())
-                        })
-                    });
-                    let message = reason.map_or_else(
-                        || {
-                            format!(
-                                "Rust dependency projection has no member `{}` in `{}`",
-                                import.object, import.target
-                            )
-                        },
-                        |reason| {
-                            format!(
-                                "Rust dependency member `{}` in `{}` is not projected: {reason}",
-                                import.object, import.target
-                            )
-                        },
-                    );
-                    return Err(failure(&import.source, "S2029", message, import.span));
-                }
-                if let Some(removed) = projection
-                    .removed
-                    .iter()
-                    .find(|item| item.namespace == import.target && item.name == import.object)
-                {
-                    return Err(failure(
-                        &import.source,
-                        "S2029",
-                        format!(
-                            "Rust dependency update removed projected member `{}` from `{}` ({} -> {})",
-                            import.object,
-                            removed.package,
-                            removed.previous_version,
-                            removed.current_version
-                        ),
-                        import.span,
-                    ));
-                }
-            }
+    for unit in units
+        .iter()
+        .filter(|unit| unit.bundled && !unit.namespace.starts_with("/deps/"))
+    {
+        if let Some((text, span)) = invalid_name_style_declarations(unit).into_iter().next() {
+            return Err(failure(
+                &unit.source,
+                "S2018",
+                format!("compiler-owned declaration `{text}` is not kebab-case"),
+                span,
+            ));
         }
     }
 
@@ -1010,9 +963,7 @@ pub fn analyze(package: &Package) -> Result<SemanticPackage, SemanticFailure> {
                 | "/core/platform-system"
                 | "/core/platform-data"
                 | "/core/platform-capabilities"
-        ) || ((unit.namespace == "/dependencies"
-            || unit.namespace.starts_with("/dependencies/"))
-            && !bundled)
+        ) || ((unit.namespace == "/deps" || unit.namespace.starts_with("/deps/")) && !bundled)
             || (crate::bundled::source(&unit.namespace).is_some() && !bundled)
         {
             let span = unit
@@ -1043,7 +994,7 @@ pub fn analyze(package: &Package) -> Result<SemanticPackage, SemanticFailure> {
     for import in &imports {
         let Some(dependency) = import
             .target
-            .strip_prefix("/dependencies/")
+            .strip_prefix("/deps/")
             .and_then(|path| path.split('/').next())
         else {
             continue;
@@ -1059,6 +1010,31 @@ pub fn analyze(package: &Package) -> Result<SemanticPackage, SemanticFailure> {
                 format!("Rust dependency `{dependency}` is not declared in `package.toml`"),
                 import.span,
             ));
+        }
+        if projection.item(&import.target, &import.object).is_none() {
+            let reason = projection.dependencies.iter().find_map(|dependency| {
+                dependency.declined.iter().find_map(|declined| {
+                    (crate::projection::namespace_for_rust_path(dependency, &declined.rust_path)
+                        == import.target
+                        && declined.rust_path.rsplit("::").next() == Some(import.object.as_str()))
+                    .then_some(declined.reason.as_str())
+                })
+            });
+            let message = reason.map_or_else(
+                || {
+                    format!(
+                        "Rust dependency projection has no member `{}` in `{}`",
+                        import.object, import.target
+                    )
+                },
+                |reason| {
+                    format!(
+                        "Rust dependency member `{}` in `{}` is not projected: {reason}",
+                        import.object, import.target
+                    )
+                },
+            );
+            return Err(failure(&import.source, "S2029", message, import.span));
         }
     }
     resolve_imports(imports, &mut namespaces)?;
@@ -11562,7 +11538,7 @@ fn collect_loop_target_spans(node: &SyntaxNode, loop_targets: &mut BTreeSet<(u32
     }
 }
 
-fn collect_name_style_warnings(unit: &SemanticUnit, warnings: &mut Vec<Diagnostic>) {
+fn invalid_name_style_declarations(unit: &SemanticUnit) -> Vec<(&str, Span)> {
     let mut declarations = unit
         .typed_bindings
         .iter()
@@ -11580,27 +11556,33 @@ fn collect_name_style_warnings(unit: &SemanticUnit, warnings: &mut Vec<Diagnosti
         .collect::<Vec<_>>();
     declarations.sort_by_key(|(_, span)| (span.start, span.end));
     declarations.dedup_by_key(|(_, span)| (span.start, span.end));
-    for (text, span) in declarations {
-        let valid = text.bytes().enumerate().all(|(index, byte)| {
+    declarations.retain(|(text, _)| {
+        !text.bytes().enumerate().all(|(index, byte)| {
             byte.is_ascii_lowercase() || byte.is_ascii_digit() || (index > 0 && byte == b'-')
-        });
-        if !valid {
-            warnings.push(
-                Diagnostic::warning(
-                    "S2018",
-                    format!("declared name `{text}` is not kebab-case"),
-                    span,
-                )
-                .with_help("use kebab-case for Terrane-owned declarations; projected dependency names remain verbatim"),
-            );
-        }
+        })
+    });
+    declarations
+}
+
+fn collect_name_style_warnings(unit: &SemanticUnit, warnings: &mut Vec<Diagnostic>) {
+    for (text, span) in invalid_name_style_declarations(unit) {
+        warnings.push(
+            Diagnostic::warning(
+                "S2018",
+                format!("declared name `{text}` is not kebab-case"),
+                span,
+            )
+            .with_help(
+                "use kebab-case for Terrane-owned declarations; projected dependency names remain verbatim",
+            ),
+        );
     }
 }
 
 pub(crate) fn warnings(package: &SemanticPackage, lint_name_style: bool) -> Vec<Diagnostic> {
     let mut warnings = Vec::new();
     for unit in &package.units {
-        if lint_name_style && !unit.bundled && !unit.namespace.starts_with("/dependencies/") {
+        if lint_name_style && !unit.bundled && !unit.namespace.starts_with("/deps/") {
             collect_name_style_warnings(unit, &mut warnings);
         }
         let mut loop_targets = BTreeSet::new();

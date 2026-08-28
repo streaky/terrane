@@ -7,6 +7,7 @@ use std::sync::LazyLock;
 
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use sha2::{Digest, Sha256};
 
 use crate::RustDependency;
 
@@ -18,8 +19,6 @@ pub struct Projection {
     pub cache_identity: String,
     pub dependencies: Vec<ProjectedDependency>,
     pub containment: Containment,
-    #[serde(default)]
-    pub removed: Vec<RemovedItem>,
 }
 
 #[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
@@ -35,15 +34,6 @@ pub struct ProjectedDependency {
     pub version: String,
     pub items: Vec<ProjectedItem>,
     pub declined: Vec<DeclinedItem>,
-}
-
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
-pub struct RemovedItem {
-    pub namespace: String,
-    pub name: String,
-    pub package: String,
-    pub previous_version: String,
-    pub current_version: String,
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
@@ -268,7 +258,7 @@ impl Projection {
 }
 
 fn rust_prefix(namespace: &str) -> Option<String> {
-    let mut segments = namespace.strip_prefix("/dependencies/")?.split('/');
+    let mut segments = namespace.strip_prefix("/deps/")?.split('/');
     let dependency = segments.next()?.replace('-', "_");
     let modules = segments.map(|segment| segment.replace('-', "_"));
     Some(
@@ -393,7 +383,11 @@ fn render_function(output: &mut String, function: &ProjectedFunction, public: bo
         write!(output, " {}", function.result.terrane_name())
             .expect("writing to a string cannot fail");
     }
-    output.push_str(" throws throwable");
+    output.push_str(if function.error.is_some() {
+        " throws dependency-error"
+    } else {
+        " throws dependency-panic"
+    });
     output.push(';');
     if !function.parameters.is_empty() {
         output.push(' ');
@@ -435,12 +429,11 @@ pub fn resolve(
             cache_identity: String::from("no-rust-dependencies"),
             dependencies: Vec::new(),
             containment: sandbox,
-            removed: Vec::new(),
         });
     }
     if sandbox == Containment::Unavailable {
         return Err(ProjectionError {
-            message: "Rust dependency projection requires an available `bwrap` containment tier"
+            message: "Rust dependency projection requires bubblewrap (`bwrap`); install bubblewrap and ensure `bwrap` is available on PATH"
                 .to_owned(),
         });
     }
@@ -464,9 +457,6 @@ pub fn resolve(
         cached.containment = sandbox;
         return Ok(cached);
     }
-    let previous = fs::read(workspace.join("projection.json"))
-        .ok()
-        .and_then(|bytes| serde_json::from_slice::<Projection>(&bytes).ok());
     let mut projected = Vec::new();
     for dependency in dependencies {
         run_cargo(
@@ -498,58 +488,16 @@ pub fn resolve(
         })?;
         projected.push(project_rustdoc(dependency, &bytes)?);
     }
-    let removed = previous
-        .as_ref()
-        .map_or_else(Vec::new, |previous| removed_items(previous, &projected));
     let projection = Projection {
         cache_identity: identity,
         dependencies: projected,
         containment: sandbox,
-        removed,
     };
     let bytes = serde_json::to_vec_pretty(&projection).map_err(|error| ProjectionError {
         message: format!("cannot serialize dependency projection: {error}"),
     })?;
     write_if_changed(&cache_path, &bytes)?;
-    write_if_changed(&workspace.join("projection.json"), &bytes)?;
     Ok(projection)
-}
-
-fn removed_items(previous: &Projection, current: &[ProjectedDependency]) -> Vec<RemovedItem> {
-    let mut removed = Vec::new();
-    for old_dependency in &previous.dependencies {
-        let Some(new_dependency) = current
-            .iter()
-            .find(|dependency| dependency.name == old_dependency.name)
-        else {
-            continue;
-        };
-        for old_item in &old_dependency.items {
-            if !new_dependency.items.iter().any(|item| {
-                item.namespace == old_item.namespace
-                    && item.name == old_item.name
-                    && item.rust_path == old_item.rust_path
-            }) {
-                removed.push(RemovedItem {
-                    namespace: old_item.namespace.clone(),
-                    name: old_item.name.clone(),
-                    package: new_dependency.package.clone(),
-                    previous_version: old_dependency.version.clone(),
-                    current_version: new_dependency.version.clone(),
-                });
-            }
-        }
-    }
-    removed
-        .sort_by(|left, right| (&left.namespace, &left.name).cmp(&(&right.namespace, &right.name)));
-    removed.dedup_by(|left, right| {
-        left.namespace == right.namespace
-            && left.name == right.name
-            && left.package == right.package
-            && left.previous_version == right.previous_version
-            && left.current_version == right.current_version
-    });
-    removed
 }
 
 fn write_workspace(
@@ -787,6 +735,11 @@ fn project_rustdoc(
                 });
                 Ok(ProjectedKind::Enum { data_carrying })
             }
+        } else if inner.get("trait").is_some() {
+            Err(
+                "trait projection is deferred until receiver-first trait namespaces are implemented"
+                    .to_owned(),
+            )
         } else {
             Err("item kind has no Terrane projection".to_owned())
         };
@@ -881,43 +834,33 @@ fn project_methods(
                 continue;
             };
             match project_function(function, index, paths, Some(name)) {
-                Ok(method) => candidates.push((inherent, method)),
+                Ok(method) => candidates.push(method),
                 Err(reason) => declined.push((name.to_owned(), reason)),
             }
         }
     }
     let mut methods = Vec::new();
-    while let Some((inherent, method)) = candidates.pop() {
-        let mut matching = vec![(inherent, method)];
-        let name = matching[0].1.name.clone();
+    while let Some(method) = candidates.pop() {
+        let name = method.name.clone();
+        let mut matching = vec![method];
         let mut index = 0;
         while index < candidates.len() {
-            if candidates[index].1.name == name {
+            if candidates[index].name == name {
                 matching.push(candidates.swap_remove(index));
             } else {
                 index += 1;
             }
         }
         if matching.len() == 1 {
-            methods.push(matching.pop().expect("one matching method").1);
+            methods.push(matching.pop().expect("one matching method"));
             continue;
         }
-        if let Some(position) = matching.iter().position(|(inherent, _)| *inherent) {
-            methods.push(matching.swap_remove(position).1);
-            declined.extend(matching.into_iter().map(|(_, method)| {
-                (
-                    method.name,
-                    "trait method collides with an inherent method of the same name".to_owned(),
-                )
-            }));
-        } else {
-            declined.extend(matching.into_iter().map(|(_, method)| {
-                (
-                    method.name,
-                    "multiple projected traits provide a method of the same name".to_owned(),
-                )
-            }));
-        }
+        declined.extend(matching.into_iter().map(|method| {
+            (
+                method.name,
+                "multiple inherent methods with the same name are not projectable".to_owned(),
+            )
+        }));
     }
     methods.sort_by(|left, right| left.name.cmp(&right.name));
     (methods, declined)
@@ -1167,10 +1110,10 @@ fn dependency_namespace(dependency: &RustDependency, path: &[String]) -> String 
         .map(|segment| segment.replace('_', "-"))
         .collect::<Vec<_>>();
     if modules.is_empty() {
-        format!("/dependencies/{}", dependency.name.replace('_', "-"))
+        format!("/deps/{}", dependency.name.replace('_', "-"))
     } else {
         format!(
-            "/dependencies/{}/{}",
+            "/deps/{}/{}",
             dependency.name.replace('_', "-"),
             modules.join("/")
         )
@@ -1182,10 +1125,10 @@ pub fn namespace_for_rust_path(dependency: &ProjectedDependency, rust_path: &str
     let modules = rust_path.split("::").skip(1).collect::<Vec<_>>();
     let modules = &modules[..modules.len().saturating_sub(1)];
     if modules.is_empty() {
-        format!("/dependencies/{}", dependency.name.replace('_', "-"))
+        format!("/deps/{}", dependency.name.replace('_', "-"))
     } else {
         format!(
-            "/dependencies/{}/{}",
+            "/deps/{}/{}",
             dependency.name.replace('_', "-"),
             modules
                 .iter()
@@ -1270,15 +1213,22 @@ fn cache_identity(
     let rustc = tool_version("rustc", &["-vV"])?;
     let nightly = format!("+{RUSTDOC_TOOLCHAIN}");
     let rustdoc = tool_version("rustdoc", &[&nightly, "--version"])?;
-    let mut hash = 0xcbf2_9ce4_8422_2325_u64;
-    for byte in manifest.iter().chain(lock.iter()).chain(
-        format!("{dependencies:?}|{rustc}|{rustdoc}|{PROJECTION_SCHEMA}|{containment:?}")
-            .as_bytes(),
-    ) {
-        hash ^= u64::from(*byte);
-        hash = hash.wrapping_mul(0x0000_0100_0000_01b3);
+    let mut hash = Sha256::new();
+    for (label, bytes) in [
+        ("manifest", manifest.as_slice()),
+        ("lock", lock.as_slice()),
+        ("inputs", format!("{dependencies:?}").as_bytes()),
+        ("rustc", rustc.as_bytes()),
+        ("rustdoc", rustdoc.as_bytes()),
+        ("schema", PROJECTION_SCHEMA.as_bytes()),
+        ("containment", format!("{containment:?}").as_bytes()),
+    ] {
+        hash.update(label.len().to_le_bytes());
+        hash.update(label.as_bytes());
+        hash.update(bytes.len().to_le_bytes());
+        hash.update(bytes);
     }
-    Ok(format!("{hash:016x}"))
+    Ok(format!("{:x}", hash.finalize()))
 }
 
 fn tool_version(program: &str, arguments: &[&str]) -> Result<String, ProjectionError> {
@@ -1343,7 +1293,7 @@ fn io_error(context: &'static str) -> impl FnOnce(std::io::Error) -> ProjectionE
 mod tests {
     use serde_json::json;
 
-    use super::has_type_parameters;
+    use super::{Receiver, has_type_parameters, receiver_kind};
 
     #[test]
     fn type_parameter_guard_reads_destructured_type_descriptors() {
@@ -1354,5 +1304,18 @@ mod tests {
             assert!(has_type_parameters(&descriptor));
         }
         assert!(!has_type_parameters(&json!({"generics": {"params": []}})));
+    }
+
+    #[test]
+    fn receiver_kind_preserves_mutable_borrows() {
+        assert_eq!(
+            receiver_kind(&json!({"borrowed_ref": {"is_mutable": true}})),
+            Receiver::MutableBorrow
+        );
+        assert_eq!(
+            receiver_kind(&json!({"borrowed_ref": {"is_mutable": false}})),
+            Receiver::Borrow
+        );
+        assert_eq!(receiver_kind(&json!({})), Receiver::Move);
     }
 }

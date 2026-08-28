@@ -524,17 +524,7 @@ fn write_generated_crate(
 }
 
 fn write_rust_dependency(manifest: &mut String, dependency: &terrane_compiler::RustDependency) {
-    write!(
-        manifest,
-        "{} = {{ package = {:?}, version = {:?}, default-features = {}",
-        dependency.name, dependency.package, dependency.version, dependency.default_features
-    )
-    .expect("writing to a string cannot fail");
-    if !dependency.features.is_empty() {
-        write!(manifest, ", features = {:?}", dependency.features)
-            .expect("writing to a string cannot fail");
-    }
-    manifest.push_str(" }\n");
+    manifest.push_str(&dependency.cargo_manifest_entry());
 }
 
 fn write_generated_support(directory: &Path, uses_platform_support: bool) -> std::io::Result<()> {

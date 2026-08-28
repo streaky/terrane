@@ -808,7 +808,7 @@ consequence_profile: capabilities become which Terrane packages are present, not
 rule: declarations name ECOSYSTEMS and PACKAGES, never APIs
 truth: resolved manifest/lock/features/default-features/target/toolchain define the interface; nothing in the language predefines it
 rust_declaration: package.toml [rust-dependencies] only; no source dependency declaration
-rust_import: /dependencies/<manifest-name>/<rust-modules>; undeclared root is S2027
+rust_import: /deps/<manifest-name>/<rust-modules>; undeclared root is S2027
 bridging: generated Rust shims ONLY for projected members source crosses; direct Rust calls in one crate, no marshalling/runtime adapter
 projection: one lock-resolved rustdoc artifact shared by compiler and LSP; verbatim names; module namespaces; functions/methods/trait receiver-functions/opaque types/enums; every decline has a reason
 types: Option<T> => T|none; Result<T,E> => T throws projected-E; &self => borrow; &mut self => ref; self => move

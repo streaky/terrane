@@ -44,7 +44,7 @@ to Terrane source:
 4. **Authored Terrane wrapper.** `crates/terrane-compiler/src/standard/urls.trn` imports the platform
    primitives and presents an ordinary Terrane API.
 
-Milestone 25 generalises layers 2, 3 and 4: `/dependencies/<crate>` replaces the hard-coded platform
+Milestone 25 generalises layers 2, 3 and 4: `/deps/<crate>` replaces the hard-coded platform
 namespace, the shims are generated from a projection instead of being written by hand, and layer 4
 becomes optional rather than mandatory.
 
@@ -98,24 +98,24 @@ dependency declaration: no `use rust crate-name`, no per-file ceremony. Once a d
 manifest it is available, and importing from it is the only thing source does.
 
 This is the distinction §23.3 already draws — dependency graph composition is not the same operation
-as name binding — carried to its conclusion. `from /dependencies/reqwest import get` performs the
-binding; the manifest performed the composition. A `from /dependencies/...` import naming a crate the
+as name binding — carried to its conclusion. `from /deps/reqwest import get` performs the
+binding; the manifest performed the composition. A `from /deps/...` import naming a crate the
 package's manifest does not declare is a Terrane diagnostic.
 
 The projected surface appears at a predictable path:
 
 ```terrane
-namespace /dependencies/reqwest
+namespace /deps/reqwest
 ```
 
-`/dependencies` is a reserved root segment so a package cannot collide with it. Members are projected
+`/deps` is a reserved root segment so a package cannot collide with it. Members are projected
 under the crate's own module structure, with Rust naming mapped to Terrane naming.
 
 Use is ordinary:
 
 ```terrane
 namespace my-app
-from /dependencies/reqwest import get as reqwest-get
+from /deps/reqwest import get as reqwest-get
 foo = await reqwest-get; >https://httpbin.org/ip
 ```
 
@@ -196,6 +196,11 @@ spawned cannot be caught at the call boundary; `catch_unwind` imposes `UnwindSaf
 crate value satisfies; and containment cannot be elided per member, since panic freedom is not
 statically knowable.
 
+Milestone 25 emits `catch_unwind(AssertUnwindSafe(...))` for the generated crate's current unwinding
+profile. Profile-aware selection between unwind containment and abort semantics, and replacing the
+blanket unwind-safety assertion with a proven boundary contract, are deferred until build profiles
+and dependency capability contracts are represented by the compiler.
+
 ### 6.4 Diagnostic translation, not new language features
 
 Rust already enforces these in the generated crate; the work is reporting them in Terrane terms
@@ -225,7 +230,7 @@ versions. No package code is executed. Output: a namespace model.
 
 Mechanical rules:
 
-- module paths become namespace paths under `/dependencies/<crate>`;
+- module paths become namespace paths under `/deps/<crate>`;
 - `async fn` projects as an async Terrane function; the existing async model applies, with tokio
   already in the generated crate;
 - **bound-driven monomorphisation**: for a generic parameter with a closed, inspectable bound, the
@@ -244,7 +249,7 @@ pub async fn get<T: IntoUrl>(url: T) -> Result<Response>
 which projects to (syntax illustrative):
 
 ```terrane
-namespace /dependencies/reqwest
+namespace /deps/reqwest
 async function get response throws reqwest-error; url string
 ```
 
@@ -298,8 +303,8 @@ way — UFCS, plus the requirement that a trait be in scope to call its methods.
 - **Trait methods** project into the **trait's own namespace**, as free functions taking the receiver
   as the first parameter. The trait's canonical Rust path gives the namespace deterministically, and
   it may belong to another crate. Two traits are two namespaces, so a collision is not representable.
-- **Choosing between them is an import**, not a heuristic: `from /dependencies/tokio/io/AsyncReadExt
-  import read-to-end` is Terrane's spelling of Rust's "the trait must be in scope", and the choice is
+- **Choosing between them is an import**, not a heuristic: `from /deps/tokio/io/AsyncReadExt import
+  read-to-end` is Terrane's spelling of Rust's "the trait must be in scope", and the choice is
   recorded in the author's own file.
 
 This is also the shape the hand-written boundary already uses: `platform_urls.rs` exposes
@@ -334,6 +339,12 @@ built-in value families, not arbitrary foreign objects. The projector therefore 
 decline for every `Option` signature rather than emitting source that the semantic pass cannot type.
 Primitive projection is likewise deliberately limited to the exact set supported by
 `project_type`; unsupported Rust primitives are recorded as declines rather than narrowed.
+
+The current milestone also treats every projected Rust enum as an opaque foreign value: variants,
+constructors, and comparison are not yet projected. Rust type aliases resolve only when rustdoc
+supplies a concrete directly representable target; generic, associated, and otherwise unresolved
+aliases are recorded as declines. The richer enum contract above remains deferred until those
+members can be represented and exercised end to end.
 
 ## 8. Capabilities and transitive dependencies
 
@@ -410,7 +421,7 @@ entry. §23.8 must be reconciled with §23.1.
 
 §23.2 and §23.8 also show `use rust serde` as a source-level dependency declaration. Section 5 above
 removes it: dependencies are declared in the project manifest only. The `use` form is redundant once
-`from /dependencies/...` performs the binding, and its removal makes §23.3's own distinction cleaner
+`from /deps/...` performs the binding, and its removal makes §23.3's own distinction cleaner
 rather than weaker. Whether the same applies to the other three dependency origins in §23.2 — native
 Terrane packages, system libraries, and foreign runtimes — is a larger question this note does not
 settle, but consistency argues for one answer across all four.
@@ -462,7 +473,7 @@ here is conditional or outstanding.
   "authored deliberately, never produced automatically" wrapper sentence. An authored wrapper becomes
   optional ergonomics, not the price of entry. (§10)
 - **A3 — §23.2, §23.3.** Remove the source-level `use rust crate-name` form and its examples.
-  Dependencies are declared in the project manifest only; `from /dependencies/...` performs the
+  Dependencies are declared in the project manifest only; `from /deps/...` performs the
   binding. Decide separately whether the same applies to the other three dependency origins. (§5)
 - **A4 — `docs/surface-v1.md` §14.1.** Restate to match A2; it currently asserts the §23.8 position.
   (§10)
@@ -486,9 +497,9 @@ here is conditional or outstanding.
 
 ### 11.2 Compiler
 
-- **A7 — reserve `/dependencies`** as a root namespace segment. (§5)
+- **A7 — reserve `/deps`** as a root namespace segment. (§5)
 - **A8 — manifest schema** for Rust dependencies: crate, version, features, default-feature policy,
-  target conditions. Diagnose a `from /dependencies/...` import naming an undeclared crate. (§5)
+  target conditions. Diagnose a `from /deps/...` import naming an undeclared crate. (§5)
 - **A9 — generalise the opaque value type.** Replace `ValueType::PlatformDataResult` and
   `ValueType::PlatformUrlResult` with a general foreign value type keyed by crate and Rust path.
   (§3)

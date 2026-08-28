@@ -132,6 +132,21 @@ enum TerraneCompletion<T> {
     Break,
     Continue,
 }
+fn __terrane_dependency_panic(
+    payload: Box<dyn std::any::Any + Send>,
+    crate_name: &'static str,
+    member: &'static str,
+) -> TerraneError {
+    let detail = payload
+        .downcast_ref::<&str>()
+        .copied()
+        .or_else(|| payload.downcast_ref::<String>().map(String::as_str))
+        .unwrap_or("non-string panic payload");
+    TerraneError::new(
+        TerraneErrorKind::Custom("dependency-panic"),
+        format!("Rust dependency `{crate_name}` member `{member}` panicked: {detail}"),
+    )
+}
 // Source: src/main.trn
 // Namespace: app
 fn main() {
@@ -180,8 +195,8 @@ fn main() {
         }
     }
 }
-// Source: <terrane>/projected/dependencies/httpdate.trn
-// Namespace: dependencies/httpdate
+// Source: <terrane>/projected/deps/httpdate.trn
+// Namespace: deps/httpdate
 pub type SystemTime = std::time::SystemTime;
 pub fn parse_http_date(s: String) -> Result<SystemTime, crate::TerraneError> {
     match std::panic::catch_unwind(
@@ -192,15 +207,18 @@ pub fn parse_http_date(s: String) -> Result<SystemTime, crate::TerraneError> {
             Err(
                 crate::TerraneError::new(
                     crate::TerraneErrorKind::Custom("dependency-error"),
-                    format!("Rust dependency call failed: {error}"),
+                    format!(
+                        "Rust dependency `httpdate` member `httpdate::parse_http_date` failed: {error}"
+                    ),
                 ),
             )
         }
-        Err(_) => {
+        Err(payload) => {
             Err(
-                crate::TerraneError::new(
-                    crate::TerraneErrorKind::Custom("dependency-panic"),
-                    "Rust dependency call panicked",
+                crate::__terrane_dependency_panic(
+                    payload,
+                    "httpdate",
+                    "httpdate::parse_http_date",
                 ),
             )
         }

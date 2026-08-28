@@ -1,5 +1,5 @@
 namespace app
-from /dependencies/httpdate import parse_http_date
+from /deps/httpdate import parse_http_date
 from /core/errors import dependency-error
 function main;
     try

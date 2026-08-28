@@ -3674,10 +3674,10 @@ The package system supports:
 3. system libraries, ordinarily exposed through C ABI metadata or a wrapper;
 4. foreign-runtime packages hosted through an explicit runtime adapter.
 
-Rust dependencies are declared only in `package.toml`; dependency declarations do not appear in Terrane source. Resolved dependency objects are imported through the reserved `/dependencies` namespace:
+Rust dependencies are declared only in `package.toml`; dependency declarations do not appear in Terrane source. Resolved dependency objects are imported through the reserved `/deps` namespace:
 
 ```terrane
-from /dependencies/serde-json import parse
+from /deps/serde-json import parse
 ```
 
 Native Terrane packages, system libraries, and foreign-runtime packages retain their origin-specific manifest forms.
@@ -3687,14 +3687,14 @@ Native Terrane packages, system libraries, and foreign-runtime packages retain t
 The package manifest declares build dependencies. A `from ... import` declaration brings projected objects from an available namespace into source scope; it does not grant or resolve a package.
 
 ```terrane
-from /dependencies/image-tools import resize
+from /deps/image-tools import resize
 ```
 
 The distinction is intentional:
 
 - dependency graph composition is not the same operation as name binding;
 - installing a package must not automatically pollute source names;
-- importing `/dependencies/<crate>/...` without a matching manifest declaration is a source-oriented error.
+- importing `/deps/<crate>/...` without a matching manifest declaration is a source-oriented error.
 
 ### 23.4 Package contents
 
@@ -3776,7 +3776,7 @@ A Rust crate dependency is declared in `package.toml` with its package name, ver
 reqwest = { version = "0.12", default-features = false, features = ["blocking", "rustls-tls-webpki-roots"] }
 ```
 
-Resolution and Cargo's lockfile determine the exact package interface. The build runs rustdoc for that resolved graph and produces one projection artifact shared by compiler and language server. Rust module paths become `/dependencies/<manifest-name>/...` namespaces; public names remain verbatim. The projection admits directly representable functions, inherent methods, receiver-first trait functions, opaque foreign types, and data-free or data-carrying enums. It records a reason for every public item it declines.
+Resolution and Cargo's lockfile determine the exact package interface. The build runs rustdoc for that resolved graph and produces one projection artifact shared by compiler and language server. Rust module paths become `/deps/<manifest-name>/...` namespaces; public names remain verbatim. The projection admits directly representable functions, inherent methods, receiver-first trait functions, opaque foreign types, and data-free or data-carrying enums. It records a reason for every public item it declines.
 
 The compiler generates Rust shims only for projected members crossed by Terrane source. This is direct Rust-to-Rust calling inside the generated crate, not an adapter or marshalled runtime boundary. `Option<T>` projects as `T|none`. A representable `Result<T, E>` returns `T` and throws the projected error class. `&self`, `&mut self`, and `self` retain borrow, `ref`, and `move` semantics respectively; foreign values follow the ordinary foreign-resource ownership rule. On unwinding profiles, a panic crossing a generated shim becomes `dependency-panic`; aborting profiles do not claim containment.
 

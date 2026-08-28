@@ -24,7 +24,8 @@ pub(crate) fn lower(package: &SemanticPackage) -> Program {
     let mut runtime = Vec::new();
     let mut globals = String::new();
     if package_uses_structured_errors(package) || package_uses_task_scope(package) {
-        let has_custom_throwable = !package.projection.dependencies.is_empty()
+        let has_dependency = !package.projection.dependencies.is_empty();
+        let has_custom_throwable = has_dependency
             || package.units.iter().any(|unit| {
                 unit.objects.iter().any(|object| {
                     object
@@ -34,7 +35,7 @@ pub(crate) fn lower(package: &SemanticPackage) -> Program {
                 })
             });
         let mut support = String::new();
-        emit_error_support(&mut support, has_custom_throwable);
+        emit_error_support(&mut support, has_custom_throwable, has_dependency);
         runtime.push(GeneratedModule {
             name: "errors",
             items: vec![Item::generated(&support)],
@@ -221,7 +222,7 @@ pub(crate) fn lower(package: &SemanticPackage) -> Program {
         .units
         .iter()
         .map(|unit| {
-            if unit.bundled && unit.namespace.starts_with("/dependencies/") {
+            if unit.bundled && unit.namespace.starts_with("/deps/") {
                 let rust = emit_dependency_unit(package, unit);
                 return Module {
                     source_path: unit.source_path.clone(),
@@ -363,15 +364,21 @@ fn emit_dependency_unit(package: &SemanticPackage, unit: &SemanticUnit) -> Strin
         if projected.error.is_some() {
             writeln!(
                 output,
-                "    match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {}({arguments}))) {{\n        Ok(Ok(value)) => Ok(value),\n        Ok(Err(error)) => Err(crate::TerraneError::new(crate::TerraneErrorKind::Custom(\"dependency-error\"), format!(\"Rust dependency call failed: {{error}}\"))),\n        Err(_) => Err(crate::TerraneError::new(crate::TerraneErrorKind::Custom(\"dependency-panic\"), \"Rust dependency call panicked\")),\n    }}",
-                item.rust_path
+                "    match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {}({arguments}))) {{\n        Ok(Ok(value)) => Ok(value),\n        Ok(Err(error)) => Err(crate::TerraneError::new(crate::TerraneErrorKind::Custom(\"dependency-error\"), format!(\"Rust dependency `{}` member `{}` failed: {{error}}\"))),\n        Err(payload) => Err(crate::__terrane_dependency_panic(payload, {:?}, {:?})),\n    }}",
+                item.rust_path,
+                item.rust_path.split("::").next().unwrap_or("dependency"),
+                item.rust_path,
+                item.rust_path.split("::").next().unwrap_or("dependency"),
+                item.rust_path,
             )
             .expect("writing to a string cannot fail");
         } else {
             writeln!(
                 output,
-                "    match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {}({arguments}))) {{\n        Ok(value) => Ok(value),\n        Err(_) => Err(crate::TerraneError::new(crate::TerraneErrorKind::Custom(\"dependency-panic\"), \"Rust dependency call panicked\")),\n    }}",
-                item.rust_path
+                "    match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {}({arguments}))) {{\n        Ok(value) => Ok(value),\n        Err(payload) => Err(crate::__terrane_dependency_panic(payload, {:?}, {:?})),\n    }}",
+                item.rust_path,
+                item.rust_path.split("::").next().unwrap_or("dependency"),
+                item.rust_path,
             )
             .expect("writing to a string cannot fail");
         }
@@ -484,7 +491,7 @@ fn package_uses_structured_errors(package: &SemanticPackage) -> bool {
     clippy::too_many_lines,
     reason = "the generated error runtime remains directly reviewable as one canonical Rust template"
 )]
-fn emit_error_support(output: &mut String, has_custom_throwable: bool) {
+fn emit_error_support(output: &mut String, has_custom_throwable: bool, has_dependency: bool) {
     output.push_str(indoc! {r"
         #[derive(Clone, Copy, Debug, Eq, PartialEq)]
         enum TerraneErrorKind {
@@ -628,6 +635,25 @@ fn emit_error_support(output: &mut String, has_custom_throwable: bool) {
             Continue,
         }
     "#});
+    if has_dependency {
+        output.push_str(indoc! {r#"
+            fn __terrane_dependency_panic(
+                payload: Box<dyn std::any::Any + Send>,
+                crate_name: &'static str,
+                member: &'static str,
+            ) -> TerraneError {
+                let detail = payload
+                    .downcast_ref::<&str>()
+                    .copied()
+                    .or_else(|| payload.downcast_ref::<String>().map(String::as_str))
+                    .unwrap_or("non-string panic payload");
+                TerraneError::new(
+                    TerraneErrorKind::Custom("dependency-panic"),
+                    format!("Rust dependency `{crate_name}` member `{member}` panicked: {detail}"),
+                )
+            }
+        "#});
+    }
 }
 
 #[expect(
@@ -4883,14 +4909,27 @@ impl Emitter<'_> {
                     .is_some_and(|item| {
                         matches!(&item.kind, crate::projection::ProjectedKind::Function(_))
                     }));
-        let call = if foreign_method.is_some_and(|method| method.error.is_some()) {
-            format!(
-                "match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {call})) {{ Ok(Ok(value)) => Ok(value), Ok(Err(error)) => Err(crate::TerraneError::new(crate::TerraneErrorKind::Custom(\"dependency-error\"), format!(\"Rust dependency call failed: {{error}}\"))), Err(_) => Err(crate::TerraneError::new(crate::TerraneErrorKind::Custom(\"dependency-panic\"), \"Rust dependency call panicked\")) }}"
-            )
-        } else if foreign_method.is_some() {
-            format!(
-                "match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {call})) {{ Ok(value) => Ok(value), Err(_) => Err(crate::TerraneError::new(crate::TerraneErrorKind::Custom(\"dependency-panic\"), \"Rust dependency call panicked\")) }}"
-            )
+        let call = if let Some(method) = foreign_method {
+            let owner = contract
+                .as_ref()
+                .and_then(|contract| contract.owner.as_deref())
+                .expect("foreign methods have an owner");
+            let type_path = self
+                .package
+                .projection
+                .foreign_rust_path(&self.unit.namespace, owner)
+                .expect("foreign method owner has a projected Rust path");
+            let dependency = type_path.split("::").next().unwrap_or("dependency");
+            let member = format!("{type_path}::{}", method.name);
+            if method.error.is_some() {
+                format!(
+                    "match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {call})) {{ Ok(Ok(value)) => Ok(value), Ok(Err(error)) => Err(crate::TerraneError::new(crate::TerraneErrorKind::Custom(\"dependency-error\"), format!(\"Rust dependency `{dependency}` member `{member}` failed: {{error}}\"))), Err(payload) => Err(crate::__terrane_dependency_panic(payload, {dependency:?}, {member:?})) }}"
+                )
+            } else {
+                format!(
+                    "match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {call})) {{ Ok(value) => Ok(value), Err(payload) => Err(crate::__terrane_dependency_panic(payload, {dependency:?}, {member:?})) }}"
+                )
+            }
         } else {
             call
         };
@@ -6530,9 +6569,10 @@ mod tests {
 
     #[test]
     fn error_support_is_canonical_rust() {
-        for has_custom_throwable in [false, true] {
+        for (has_custom_throwable, has_dependency) in [(false, false), (true, false), (true, true)]
+        {
             let mut emitted = String::new();
-            emit_error_support(&mut emitted, has_custom_throwable);
+            emit_error_support(&mut emitted, has_custom_throwable, has_dependency);
             let parsed = syn::parse_file(&emitted).unwrap();
 
             assert_eq!(prettyplease::unparse(&parsed), emitted);

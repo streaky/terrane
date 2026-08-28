@@ -154,7 +154,7 @@ fn projected_reqwest_runs_against_a_loopback_server() {
         format!(
             concat!(
                 "namespace app\n",
-                "from /dependencies/reqwest/blocking import get\n",
+                "from /deps/reqwest/blocking import get\n",
                 "function main;\n",
                 "    response = get; >http://{}/\n",
                 "    body string = response.text;\n",

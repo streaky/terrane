@@ -1,0 +1,4 @@
+namespace app
+from /deps/httpdate import missing_member
+function main;
+    missing_member;

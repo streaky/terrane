@@ -42,20 +42,7 @@ terrane-platform-support = { path = "support/terrane-platform-support" }
 "#,
         );
         for dependency in dependencies {
-            use std::fmt::Write as _;
-            write!(
-                manifest,
-                "{} = {{ package = {:?}, version = {:?}, default-features = {}",
-                dependency.name,
-                dependency.package,
-                dependency.version,
-                dependency.default_features
-            )
-            .unwrap();
-            if !dependency.features.is_empty() {
-                write!(manifest, ", features = {:?}", dependency.features).unwrap();
-            }
-            manifest.push_str(" }\n");
+            manifest.push_str(&dependency.cargo_manifest_entry());
         }
         manifest.push_str("\n[workspace]\n");
         fs::write(self.root.join("Cargo.toml"), manifest).unwrap();
@@ -212,6 +199,13 @@ fn compile_and_maybe_run(
 ) {
     build.write_manifest(dependencies);
     let build_dir = &build.root;
+    let rust = if boolean_field(manifest, "exercise-dependency-panic") == Some(true) {
+        format!(
+            "{rust}\n#[cfg(test)]\nmod dependency_panic_tests {{\n    #[test]\n    fn preserves_payload_and_crossing_context() {{\n        let payload = std::panic::catch_unwind(|| panic!(\"fixture panic\"))\n            .expect_err(\"fixture must panic\");\n        let error = super::__terrane_dependency_panic(\n            payload,\n            \"fixture-crate\",\n            \"fixture_crate::explode\",\n        );\n        assert_eq!(\n            error.render(),\n            \"dependency-panic: Rust dependency `fixture-crate` member `fixture_crate::explode` panicked: fixture panic\"\n        );\n    }}\n}}\n"
+        )
+    } else {
+        rust.to_owned()
+    };
     fs::write(build_dir.join("src/main.rs"), rust).unwrap();
     let output = Command::new("cargo")
         .args(["build", "--quiet", "--manifest-path"])
@@ -228,6 +222,21 @@ fn compile_and_maybe_run(
         case.display(),
         String::from_utf8_lossy(&output.stderr)
     );
+    if boolean_field(manifest, "exercise-dependency-panic") == Some(true) {
+        let output = Command::new("cargo")
+            .args(["test", "--quiet", "--manifest-path"])
+            .arg(build_dir.join("Cargo.toml"))
+            .env("CARGO_TARGET_DIR", &build.target)
+            .env("RUSTFLAGS", "-Dwarnings")
+            .output()
+            .unwrap();
+        assert!(
+            output.status.success(),
+            "{} generated dependency panic test failed:\n{}",
+            case.display(),
+            String::from_utf8_lossy(&output.stderr)
+        );
+    }
 
     if phase == "run" {
         let mut command = Command::new(&binary_path);

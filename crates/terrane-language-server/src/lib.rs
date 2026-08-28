@@ -497,13 +497,13 @@ fn declined_namespace(
 fn dependency_import_namespace(text: &str, position: Position) -> Option<String> {
     let line = line_prefix(text, position)?;
     let path = line.strip_prefix("from ")?.split(" import").next()?;
-    path.starts_with("/dependencies/").then(|| path.to_owned())
+    path.starts_with("/deps/").then(|| path.to_owned())
 }
 
 fn imported_dependency_namespace(text: &str, name: &str) -> Option<String> {
     text.lines().find_map(|line| {
         let (path, imported) = line.strip_prefix("from ")?.split_once(" import ")?;
-        if !path.starts_with("/dependencies/") {
+        if !path.starts_with("/deps/") {
             return None;
         }
         imported

@@ -1,5 +1,5 @@
 namespace app
-from /dependencies/httpdate import parse_http_date, fmt_http_date
+from /deps/date-codec import parse_http_date, fmt_http_date
 function main;
     moment = parse_http_date; >Sun, 06 Nov 1994 08:49:37 GMT
     rendered string = fmt_http_date; move moment

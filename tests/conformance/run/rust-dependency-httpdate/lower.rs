@@ -132,6 +132,21 @@ enum TerraneCompletion<T> {
     Break,
     Continue,
 }
+fn __terrane_dependency_panic(
+    payload: Box<dyn std::any::Any + Send>,
+    crate_name: &'static str,
+    member: &'static str,
+) -> TerraneError {
+    let detail = payload
+        .downcast_ref::<&str>()
+        .copied()
+        .or_else(|| payload.downcast_ref::<String>().map(String::as_str))
+        .unwrap_or("non-string panic payload");
+    TerraneError::new(
+        TerraneErrorKind::Custom("dependency-panic"),
+        format!("Rust dependency `{crate_name}` member `{member}` panicked: {detail}"),
+    )
+}
 // Source: src/main.trn
 // Namespace: app
 fn main() {
@@ -147,19 +162,20 @@ fn main() {
         ));
     println!("{}", terrane_scalar_support::scalar_text(&rendered));
 }
-// Source: <terrane>/projected/dependencies/httpdate.trn
-// Namespace: dependencies/httpdate
+// Source: <terrane>/projected/deps/date-codec.trn
+// Namespace: deps/date-codec
 pub type SystemTime = std::time::SystemTime;
 pub fn fmt_http_date(d: SystemTime) -> Result<String, crate::TerraneError> {
     match std::panic::catch_unwind(
-        std::panic::AssertUnwindSafe(|| httpdate::fmt_http_date(d)),
+        std::panic::AssertUnwindSafe(|| date_codec::fmt_http_date(d)),
     ) {
         Ok(value) => Ok(value),
-        Err(_) => {
+        Err(payload) => {
             Err(
-                crate::TerraneError::new(
-                    crate::TerraneErrorKind::Custom("dependency-panic"),
-                    "Rust dependency call panicked",
+                crate::__terrane_dependency_panic(
+                    payload,
+                    "date_codec",
+                    "date_codec::fmt_http_date",
                 ),
             )
         }
@@ -167,22 +183,25 @@ pub fn fmt_http_date(d: SystemTime) -> Result<String, crate::TerraneError> {
 }
 pub fn parse_http_date(s: String) -> Result<SystemTime, crate::TerraneError> {
     match std::panic::catch_unwind(
-        std::panic::AssertUnwindSafe(|| httpdate::parse_http_date(&s)),
+        std::panic::AssertUnwindSafe(|| date_codec::parse_http_date(&s)),
     ) {
         Ok(Ok(value)) => Ok(value),
         Ok(Err(error)) => {
             Err(
                 crate::TerraneError::new(
                     crate::TerraneErrorKind::Custom("dependency-error"),
-                    format!("Rust dependency call failed: {error}"),
+                    format!(
+                        "Rust dependency `date_codec` member `date_codec::parse_http_date` failed: {error}"
+                    ),
                 ),
             )
         }
-        Err(_) => {
+        Err(payload) => {
             Err(
-                crate::TerraneError::new(
-                    crate::TerraneErrorKind::Custom("dependency-panic"),
-                    "Rust dependency call panicked",
+                crate::__terrane_dependency_panic(
+                    payload,
+                    "date_codec",
+                    "date_codec::parse_http_date",
                 ),
             )
         }

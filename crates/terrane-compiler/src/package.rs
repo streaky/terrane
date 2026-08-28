@@ -45,6 +45,24 @@ pub struct RustDependency {
     pub target: Option<String>,
 }
 
+impl RustDependency {
+    #[must_use]
+    pub fn cargo_manifest_entry(&self) -> String {
+        use std::fmt::Write as _;
+
+        let mut entry = format!(
+            "{} = {{ package = {:?}, version = {:?}, default-features = {}",
+            self.name, self.package, self.version, self.default_features
+        );
+        if !self.features.is_empty() {
+            write!(entry, ", features = {:?}", self.features)
+                .expect("writing to a string cannot fail");
+        }
+        entry.push_str(" }\n");
+        entry
+    }
+}
+
 #[derive(Clone, Debug)]
 pub struct Package {
     pub identity: String,
@@ -733,5 +751,21 @@ mod tests {
             };
             assert_eq!(unit.relative_path_text(), expected);
         }
+    }
+
+    #[test]
+    fn rust_dependency_manifest_entries_preserve_alias_and_features() {
+        let dependency = RustDependency {
+            name: "date-codec".to_owned(),
+            package: "httpdate".to_owned(),
+            version: "=1.0.3".to_owned(),
+            features: vec!["clock".to_owned(), "serde".to_owned()],
+            default_features: false,
+            target: Some("cfg(unix)".to_owned()),
+        };
+        assert_eq!(
+            dependency.cargo_manifest_entry(),
+            "date-codec = { package = \"httpdate\", version = \"=1.0.3\", default-features = false, features = [\"clock\", \"serde\"] }\n"
+        );
     }
 }
