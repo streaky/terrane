@@ -5682,6 +5682,7 @@ fn analyze_binding_node(
     } else {
         declared
             .and_then(|type_node| union_destination_candidates(unit, type_node).ok())
+            .filter(|arms| arms.len() > 1)
             .unwrap_or_default()
     };
     let storage_type = (value_type == ValueType::Scalar(ScalarType::Int))
@@ -6035,22 +6036,24 @@ fn union_destination_candidates(
             type_node.span,
         ));
     };
-    union
-        .children
-        .iter()
-        .map(|arm| {
-            let name = node_text(&unit.source, arm).trim();
-            unit.descriptor_alias_at(name, arm.span.start)
-                .ok_or_else(|| {
-                    failure(
-                        &unit.source,
-                        "T0001",
-                        format!("`{name}` does not resolve to a scalar type descriptor"),
-                        arm.span,
-                    )
-                })
-        })
-        .collect()
+    let mut candidates = Vec::new();
+    for arm in &union.children {
+        let name = node_text(&unit.source, arm).trim();
+        let candidate = unit
+            .descriptor_alias_at(name, arm.span.start)
+            .ok_or_else(|| {
+                failure(
+                    &unit.source,
+                    "T0001",
+                    format!("`{name}` does not resolve to a scalar type descriptor"),
+                    arm.span,
+                )
+            })?;
+        if !candidates.contains(&candidate) {
+            candidates.push(candidate);
+        }
+    }
+    Ok(candidates)
 }
 
 fn select_union_destination(
@@ -11763,12 +11766,45 @@ fn collect_name_style_warnings(unit: &SemanticUnit, warnings: &mut Vec<Diagnosti
     }
 }
 
+fn collect_duplicate_union_arm_warnings(unit: &SemanticUnit, warnings: &mut Vec<Diagnostic>) {
+    fn collect(unit: &SemanticUnit, node: &SyntaxNode, warnings: &mut Vec<Diagnostic>) {
+        if node.kind == SyntaxKind::UnionType {
+            let mut seen = BTreeSet::new();
+            for arm in &node.children {
+                let text = node_text(&unit.source, arm).trim();
+                let identity = unit.descriptor_alias_at(text, arm.span.start).map_or_else(
+                    || format!("object:{text}"),
+                    |scalar| format!("scalar:{}", scalar.source_name()),
+                );
+                if !seen.insert(identity) {
+                    warnings.push(
+                        Diagnostic::warning(
+                            "W4003",
+                            format!("union arm `{text}` duplicates an earlier arm"),
+                            arm.span,
+                        )
+                        .with_help(
+                            "remove the repeated arm; union arms are normalized by semantic identity",
+                        ),
+                    );
+                }
+            }
+        }
+        for child in &node.children {
+            collect(unit, child, warnings);
+        }
+    }
+
+    collect(unit, &unit.tree.root, warnings);
+}
+
 pub(crate) fn warnings(package: &SemanticPackage, lint_name_style: bool) -> Vec<Diagnostic> {
     let mut warnings = Vec::new();
     for unit in &package.units {
         if lint_name_style && !unit.bundled && !unit.namespace.starts_with("/deps/") {
             collect_name_style_warnings(unit, &mut warnings);
         }
+        collect_duplicate_union_arm_warnings(unit, &mut warnings);
         let mut loop_targets = BTreeSet::new();
         collect_loop_target_spans(&unit.tree.root, &mut loop_targets);
         for binding in &unit.typed_bindings {

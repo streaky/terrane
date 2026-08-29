@@ -1802,6 +1802,9 @@ function parse int|parse-error; source string
 ```
 
 The spelling `optional<thing>` is not part of the language: write `thing|none`. `none` is not automatically admitted into every type.
+Repeated union arms denote one semantic alternative rather than distinct runtime tags. The compiler
+normalizes them by canonical type identity and reports each repeated authored arm as `W4003`; aliases
+of the same descriptor therefore duplicate one another even when their spellings differ.
 Where a destination type is a union, an exact type match wins. Otherwise the compiler selects the unique arm that admits the value under the contextual-constant or numeric destination rules. If two or more arms admit it, the destination is ambiguous and compilation fails naming those arms; source order never breaks the tie. Thus an `int8` value selects `int8` from `int8|int`, while the constant `5` is ambiguous in `int8|int32`.
 A `T|none` destination is valid wherever a declared source type is valid, including binding declarations, parameter types, and function return types. It is not restricted to inferred results or compiler-owned checked operations.
 
@@ -4777,7 +4780,8 @@ do not receive unused-binding warnings: an unused parameter can be required by a
 and parameter-name linting belongs to a later explicit policy rather than these local-store
 diagnostics. Loop targets likewise remain outside `W4001`; generated Rust explicitly consumes unused
 loop targets, dead stores, and other warning-only locals so source-level warnings do not leak into
-opaque `rustc` warning failures.
+opaque `rustc` warning failures. `W4003` reports an authored union arm whose canonical semantic
+identity already occurred earlier in the same union; lowering uses the normalized unique arm set.
 
 
 ### 29.1 Bidirectional maps

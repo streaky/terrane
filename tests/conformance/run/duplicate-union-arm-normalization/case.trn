@@ -1,0 +1,7 @@
+namespace duplicate-union-arm-normalization
+from /core/types import int8 as byte
+function main;
+  value byte|int8 = 7
+  empty none|none = none
+  print; value
+  print; empty is a none

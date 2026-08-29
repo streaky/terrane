@@ -454,6 +454,7 @@ Terrane source warnings own the stable `W4xxx` range:
 ```text
 W4001 initialized local binding is never read
 W4002 initial or later store cannot reach a read before definite replacement
+W4003 duplicate semantic union arm
 ```
 
 Warnings are non-blocking diagnostics. Their codes have the same stability rule as error

@@ -1,0 +1,4 @@
+case.trn:4:14: warning[W4003]: union arm `int8` duplicates an earlier arm
+  help: remove the repeated arm; union arms are normalized by semantic identity
+case.trn:5:14: warning[W4003]: union arm `none` duplicates an earlier arm
+  help: remove the repeated arm; union arms are normalized by semantic identity
