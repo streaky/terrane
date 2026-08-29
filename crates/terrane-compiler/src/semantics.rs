@@ -72,6 +72,7 @@ pub struct SemanticPackage {
     pub prelude: bool,
     pub reflection: crate::package::ReflectionProfile,
     pub executor: crate::package::ExecutorProfile,
+    pub profile: crate::package::CapabilityProfile,
     pub projection: crate::projection::Projection,
     pub namespaces: BTreeMap<String, Namespace>,
     pub globals: BTreeMap<String, Symbol>,
@@ -207,6 +208,7 @@ impl std::fmt::Display for ObjectIdentity {
 pub enum ValueType {
     Scalar(ScalarType),
     ScalarOrNone(ScalarType),
+    Optional(Box<ValueType>),
     OverflowResult(ScalarType),
     DivRemResult(ScalarType),
     StringView(TextUnit),
@@ -326,6 +328,7 @@ impl std::fmt::Display for ValueType {
         match self {
             Self::Scalar(ty) => ty.fmt(formatter),
             Self::ScalarOrNone(ty) => write!(formatter, "{ty}|none"),
+            Self::Optional(inner) => write!(formatter, "{inner}|none"),
             Self::OverflowResult(ty) => write!(formatter, "overflow-result of {ty}"),
             Self::DivRemResult(ty) => write!(formatter, "div-rem-result of {ty}"),
             Self::StringView(TextUnit::Bytes) => formatter.write_str("string.bytes"),
@@ -1028,6 +1031,24 @@ pub fn analyze(package: &Package) -> Result<SemanticPackage, SemanticFailure> {
             ));
         }
         if projection.item(&import.target, &import.object).is_none() {
+            if let Some(removed) = projection
+                .removed
+                .iter()
+                .find(|removed| removed.namespace == import.target && removed.name == import.object)
+            {
+                return Err(failure(
+                    &import.source,
+                    "S2031",
+                    format!(
+                        "Rust dependency member `{}` in `{}` was removed when the projected dependency changed from version `{}` to `{}`",
+                        import.object,
+                        import.target,
+                        removed.previous_version,
+                        removed.current_version
+                    ),
+                    import.span,
+                ));
+            }
             let reason = projection.dependencies.iter().find_map(|dependency| {
                 dependency.declined.iter().find_map(|declined| {
                     (crate::projection::namespace_for_rust_path(dependency, &declined.rust_path)
@@ -1069,6 +1090,7 @@ pub fn analyze(package: &Package) -> Result<SemanticPackage, SemanticFailure> {
         prelude: package.prelude,
         reflection: package.reflection,
         executor: package.executor,
+        profile: package.profile.clone(),
         namespaces,
         globals,
         prelude_bindings,
@@ -5744,19 +5766,22 @@ fn declared_value_type_with_visible_objects(
         .first()
         .filter(|child| child.kind == SyntaxKind::UnionType)
     {
-        let mut non_none = union
+        let arms = union
             .children
             .iter()
-            .filter(|arm| node_text(&unit.source, arm).trim() != "none");
-        if union.children.len() == 2
-            && let Some(arm) = non_none.next()
-            && non_none.next().is_none()
-            && let Some(scalar) = aliases
+            .filter(|arm| node_text(&unit.source, arm).trim() != "none")
+            .collect::<Vec<_>>();
+        if union.children.len() == 2 && arms.len() == 1 {
+            let arm = arms[0];
+            if let Some(scalar) = aliases
                 .get(node_text(&unit.source, arm).trim())
                 .copied()
                 .or_else(|| ScalarType::from_source_name(node_text(&unit.source, arm).trim()))
-        {
-            return Ok(ValueType::ScalarOrNone(scalar));
+            {
+                return Ok(ValueType::ScalarOrNone(scalar));
+            }
+            return declared_value_type_with_visible_objects(unit, arm, aliases, visible_objects)
+                .map(|inner| ValueType::Optional(Box::new(inner)));
         }
     }
     let type_name = node_text(&unit.source, type_node).trim();
@@ -6113,6 +6138,9 @@ fn diagnostic_object_identity(objects: &[ObjectContract], identity: &ObjectIdent
 fn diagnostic_value_type(objects: &[ObjectContract], value_type: &ValueType) -> String {
     let nested = |item: &ElementType| diagnostic_value_type(objects, &item.value_type());
     match value_type {
+        ValueType::Optional(inner) => {
+            format!("{}|none", diagnostic_value_type(objects, inner))
+        }
         ValueType::Object(identity) => diagnostic_object_identity(objects, identity),
         ValueType::Iterator(item) => format!("iterator of {}", nested(item)),
         ValueType::IterationStep(item) => format!("iteration-step of {}", nested(item)),
@@ -6178,6 +6206,17 @@ fn validate_value_destination(
         }
         return validate_numeric_destination(source, name, expected, actual, value, mismatch_code);
     }
+    if let ValueType::Optional(expected_inner) = &expected {
+        if actual == ValueType::Scalar(ScalarType::None)
+            || matches!(
+                &actual,
+                ValueType::Optional(actual_inner)
+                    if value_types_compatible(objects, expected_inner, actual_inner)
+            )
+        {
+            return Ok(());
+        }
+    }
     if value_types_compatible(objects, &expected, &actual) {
         return Ok(());
     }
@@ -6199,6 +6238,9 @@ fn value_types_compatible(
     actual: &ValueType,
 ) -> bool {
     match (expected, actual) {
+        (ValueType::Optional(expected), ValueType::Optional(actual)) => {
+            value_types_compatible(objects, expected, actual)
+        }
         (ValueType::Tuple(expected_item, None), ValueType::Tuple(actual_item, _)) => {
             value_types_compatible(
                 objects,
@@ -6334,6 +6376,7 @@ const fn is_numeric(ty: ScalarType) -> bool {
 fn optional_inner(value_type: ValueType) -> Option<ValueType> {
     match value_type {
         ValueType::ScalarOrNone(scalar) => Some(ValueType::Scalar(scalar)),
+        ValueType::Optional(inner) => Some(*inner),
         ValueType::TextRangeOrNone => Some(ValueType::TextRange),
         ValueType::ElementOrNone(item) => Some(item.value_type()),
         _ => None,
@@ -11978,5 +12021,25 @@ mod name_style_tests {
                 && diagnostic.message == "declared name `Answer` is not kebab-case"
                 && diagnostic.severity == crate::Severity::Warning
         }));
+    }
+
+    #[test]
+    fn arbitrary_object_optional_types_are_semantic_values() {
+        let package = Package::implicit(
+            "main.trn",
+            "namespace app\nclass widget\nfunction maybe widget|none;\n  return none\nfunction main;\n  value widget|none = maybe;\n  return\n".to_owned(),
+        );
+        let semantic = analyze(&package).unwrap();
+        let maybe = semantic.units[0]
+            .functions
+            .iter()
+            .find(|function| function.name == "maybe")
+            .unwrap();
+
+        assert!(matches!(
+            &maybe.return_type,
+            Some(ValueType::Optional(inner))
+                if matches!(inner.as_ref(), ValueType::Object(identity) if identity.name == "widget")
+        ));
     }
 }

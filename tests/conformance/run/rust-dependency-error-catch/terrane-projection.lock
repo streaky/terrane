@@ -1,0 +1,27 @@
+{
+  "dependencies": [
+    {
+      "name": "httpdate",
+      "version": "1.0.3",
+      "members": [
+        [
+          "/deps/httpdate",
+          "Error"
+        ],
+        [
+          "/deps/httpdate",
+          "fmt_http_date"
+        ],
+        [
+          "/deps/httpdate",
+          "parse_http_date"
+        ],
+        [
+          "/deps/httpdate/date",
+          "HttpDate"
+        ]
+      ]
+    }
+  ],
+  "removed": []
+}

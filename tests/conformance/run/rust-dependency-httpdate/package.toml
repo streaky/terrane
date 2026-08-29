@@ -1,4 +1,6 @@
 package = "rust-dependency-httpdate"
+[profile]
+panic = "abort"
 [namespaces]
 app = "src"
 [rust-dependencies.date-codec]

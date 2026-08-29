@@ -2,7 +2,7 @@ use std::fs;
 use std::path::Path;
 use std::sync::atomic::{AtomicU64, Ordering};
 
-use terrane_compiler::{IMPLICIT_PACKAGE_ID, Package, analyze, compile_package};
+use terrane_compiler::{IMPLICIT_PACKAGE_ID, Package, PanicProfile, analyze, compile_package};
 
 static NEXT_TEMP: AtomicU64 = AtomicU64::new(0);
 
@@ -543,4 +543,41 @@ fn rust_dependency_manifest_preserves_resolution_inputs() {
         dependency.target.as_deref(),
         Some("x86_64-unknown-linux-gnu")
     );
+}
+
+#[test]
+fn capability_profile_and_dependency_effects_are_loaded() {
+    let package = TempPackage::new();
+    package.write(
+        "package.toml",
+        "package = \"profiled\"\n[profile]\nname = \"service\"\ncapabilities = [\"build\", \"networking\", \"tls\"]\npanic = \"abort\"\n[namespaces]\napp = \"src\"\n[rust-dependencies.http]\npackage = \"httpdate\"\nversion = \"=1.0.3\"\neffects = [\"networking\"]\n",
+    );
+    package.write("src/main.trn", "namespace app\nfunction main;\n");
+
+    let loaded = Package::load(&package.0).unwrap();
+
+    assert_eq!(loaded.profile.name, "service");
+    assert_eq!(loaded.profile.panic, PanicProfile::Abort);
+    assert!(loaded.profile.allows("networking"));
+    assert!(!loaded.profile.allows("filesystem"));
+    assert_eq!(loaded.rust_dependencies[0].effects, ["networking"]);
+}
+
+#[test]
+fn dependency_effect_outside_selected_profile_is_rejected() {
+    let package = TempPackage::new();
+    package.write(
+        "package.toml",
+        "package = \"profiled\"\n[profile]\nname = \"restricted\"\ncapabilities = [\"build\", \"filesystem\"]\n[namespaces]\napp = \"src\"\n[rust-dependencies.http]\npackage = \"httpdate\"\nversion = \"=1.0.3\"\neffects = [\"networking\"]\n",
+    );
+    package.write("src/main.trn", "namespace app\nfunction main;\n");
+
+    let errors = Package::load(&package.0).unwrap_err();
+
+    assert!(errors.iter().any(|error| {
+        error
+            .diagnostic
+            .message
+            .contains("forbids effect `networking`")
+    }));
 }

@@ -170,42 +170,19 @@ fn main() {
 // Namespace: deps/date-codec
 pub use std::time::SystemTime;
 pub fn fmt_http_date(d: SystemTime) -> Result<String, crate::TerraneError> {
-    match std::panic::catch_unwind(
-        std::panic::AssertUnwindSafe(|| date_codec::fmt_http_date(d)),
-    ) {
-        Ok(value) => Ok(value),
-        Err(payload) => {
-            Err(
-                crate::__terrane_dependency_panic(
-                    payload,
-                    "date-codec",
-                    "date_codec::fmt_http_date",
-                ),
-            )
-        }
-    }
+    let value = date_codec::fmt_http_date(d);
+    Ok(value)
 }
 pub fn parse_http_date(s: String) -> Result<SystemTime, crate::TerraneError> {
-    match std::panic::catch_unwind(
-        std::panic::AssertUnwindSafe(|| date_codec::parse_http_date(&s)),
-    ) {
-        Ok(Ok(value)) => Ok(value),
-        Ok(Err(error)) => {
+    match date_codec::parse_http_date(&{ s }) {
+        Ok(value) => Ok(value),
+        Err(error) => {
             Err(
                 crate::TerraneError::new(
                     crate::TerraneErrorKind::Custom("dependency-error"),
                     format!(
                         "Rust dependency `date-codec` member `date_codec::parse_http_date` failed: {error}"
                     ),
-                ),
-            )
-        }
-        Err(payload) => {
-            Err(
-                crate::__terrane_dependency_panic(
-                    payload,
-                    "date-codec",
-                    "date_codec::parse_http_date",
                 ),
             )
         }

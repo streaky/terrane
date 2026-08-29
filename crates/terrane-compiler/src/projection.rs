@@ -12,7 +12,7 @@ use sha2::{Digest, Sha256};
 use crate::RustDependency;
 
 pub const RUSTDOC_TOOLCHAIN: &str = "nightly-2026-04-29";
-const PROJECTION_SCHEMA: &str = "4";
+const PROJECTION_SCHEMA: &str = "5";
 const MAX_PROJECTION_CACHE_RECORDS: usize = 4;
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
@@ -20,6 +20,8 @@ pub struct Projection {
     pub cache_identity: String,
     pub dependencies: Vec<ProjectedDependency>,
     pub containment: Containment,
+    #[serde(default)]
+    pub removed: Vec<RemovedItem>,
 }
 
 #[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
@@ -49,6 +51,28 @@ pub struct ProjectedDependency {
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+pub struct RemovedItem {
+    pub namespace: String,
+    pub name: String,
+    pub previous_version: String,
+    pub current_version: String,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+struct ProjectionHistory {
+    dependencies: Vec<ProjectionHistoryDependency>,
+    #[serde(default)]
+    removed: Vec<RemovedItem>,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+struct ProjectionHistoryDependency {
+    name: String,
+    version: String,
+    members: BTreeSet<(String, String)>,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub struct ProjectedItem {
     pub namespace: String,
     pub name: String,
@@ -62,6 +86,7 @@ pub enum ProjectedKind {
     Function(ProjectedFunction),
     ForeignType { methods: Vec<ProjectedFunction> },
     Enum { data_carrying: bool },
+    Trait,
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
@@ -94,7 +119,10 @@ pub enum ProjectedType {
     None,
     Bool,
     Int,
+    RustInt(String),
     Float,
+    Float32,
+    Char,
     String,
     Bytes,
     Foreign { rust_path: String, name: String },
@@ -107,9 +135,10 @@ impl ProjectedType {
         match self {
             Self::None => "none".to_owned(),
             Self::Bool => "bool".to_owned(),
-            Self::Int => "int".to_owned(),
+            Self::Int | Self::RustInt(_) => "int".to_owned(),
             Self::Float => "float64".to_owned(),
-            Self::String => "string".to_owned(),
+            Self::Float32 => "float32".to_owned(),
+            Self::Char | Self::String => "string".to_owned(),
             Self::Bytes => "bytes".to_owned(),
             Self::Foreign { name, .. } => name.clone(),
             Self::Optional(inner) => format!("{}|none", inner.terrane_name()),
@@ -369,6 +398,7 @@ fn collect_source_foreign(
             ProjectedKind::Enum { .. } => {
                 foreign.insert(item.rust_path.clone(), item.name.clone());
             }
+            ProjectedKind::Trait => {}
         }
     }
     loop {
@@ -507,7 +537,7 @@ fn projected_type_name(ty: &ProjectedType, foreign_aliases: &BTreeMap<String, St
             .cloned()
             .unwrap_or_else(|| name.clone()),
         ProjectedType::Optional(inner) => {
-            format!("optional {}", projected_type_name(inner, foreign_aliases))
+            format!("{}|none", projected_type_name(inner, foreign_aliases))
         }
         _ => ty.terrane_name(),
     }
@@ -539,13 +569,8 @@ pub fn resolve(
         return Ok(Projection {
             cache_identity: String::from("no-rust-dependencies"),
             dependencies: Vec::new(),
+            removed: Vec::new(),
             containment: sandbox,
-        });
-    }
-    if sandbox == Containment::Unavailable {
-        return Err(ProjectionError {
-            message: "Rust dependency projection requires bubblewrap (`bwrap`); install bubblewrap and ensure `bwrap` is available on PATH"
-                .to_owned(),
         });
     }
     let workspace = root.join(".trn/dependencies");
@@ -576,6 +601,7 @@ pub fn resolve(
                 ),
             })?;
         cached.containment = sandbox;
+        apply_projection_history(root, &mut cached)?;
         prune_projection_cache(&workspace, &cache_path)?;
         return Ok(cached);
     }
@@ -597,7 +623,11 @@ pub fn resolve(
                 "json",
             ],
             CargoToolchain::RustdocNightly,
-            CargoExecution::Contained,
+            if sandbox == Containment::Enforced {
+                CargoExecution::Contained
+            } else {
+                CargoExecution::Host
+            },
         )?;
         let crate_name = dependency.package.replace('-', "_");
         let rustdoc_path = workspace
@@ -615,13 +645,99 @@ pub fn resolve(
         cache_identity: identity,
         dependencies: projected,
         containment: sandbox,
+        removed: Vec::new(),
     };
     let bytes = serde_json::to_vec_pretty(&projection).map_err(|error| ProjectionError {
         message: format!("cannot serialize dependency projection: {error}"),
     })?;
     write_if_changed(&cache_path, &bytes)?;
+    let mut projection = projection;
+    apply_projection_history(root, &mut projection)?;
     prune_projection_cache(&workspace, &cache_path)?;
     Ok(projection)
+}
+fn apply_projection_history(
+    root: &Path,
+    projection: &mut Projection,
+) -> Result<(), ProjectionError> {
+    let path = root.join("terrane-projection.lock");
+    let previous = match fs::read(&path) {
+        Ok(bytes) => Some(serde_json::from_slice::<ProjectionHistory>(&bytes).map_err(
+            |error| ProjectionError {
+                message: format!("invalid projection history `{}`: {error}", path.display()),
+            },
+        )?),
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => None,
+        Err(error) => {
+            return Err(ProjectionError {
+                message: format!(
+                    "cannot read projection history `{}`: {error}",
+                    path.display()
+                ),
+            });
+        }
+    };
+    let dependencies = projection
+        .dependencies
+        .iter()
+        .map(|dependency| ProjectionHistoryDependency {
+            name: dependency.name.clone(),
+            version: dependency.version.clone(),
+            members: dependency
+                .items
+                .iter()
+                .map(|item| (item.namespace.clone(), item.name.clone()))
+                .collect(),
+        })
+        .collect::<Vec<_>>();
+    let mut removed = previous
+        .as_ref()
+        .map_or_else(Vec::new, |history| history.removed.clone());
+    removed.retain(|removed| {
+        !dependencies.iter().any(|dependency| {
+            dependency
+                .members
+                .contains(&(removed.namespace.clone(), removed.name.clone()))
+        })
+    });
+    if let Some(previous) = &previous {
+        for old in &previous.dependencies {
+            let Some(current) = dependencies
+                .iter()
+                .find(|dependency| dependency.name == old.name)
+            else {
+                continue;
+            };
+            if old.version == current.version {
+                continue;
+            }
+            for (namespace, name) in old.members.difference(&current.members) {
+                let removed_item = RemovedItem {
+                    namespace: namespace.clone(),
+                    name: name.clone(),
+                    previous_version: old.version.clone(),
+                    current_version: current.version.clone(),
+                };
+                if !removed.iter().any(|existing| {
+                    existing.namespace == removed_item.namespace
+                        && existing.name == removed_item.name
+                }) {
+                    removed.push(removed_item);
+                }
+            }
+        }
+    }
+    removed
+        .sort_by(|left, right| (&left.namespace, &left.name).cmp(&(&right.namespace, &right.name)));
+    projection.removed.clone_from(&removed);
+    let history = ProjectionHistory {
+        dependencies,
+        removed,
+    };
+    let bytes = serde_json::to_vec_pretty(&history).map_err(|error| ProjectionError {
+        message: format!("cannot serialize projection history: {error}"),
+    })?;
+    write_if_changed(&path, &bytes)
 }
 
 fn prune_projection_cache(directory: &Path, retained: &Path) -> Result<(), ProjectionError> {
@@ -822,7 +938,9 @@ fn project_rustdoc(
         }
     }
     let mut items = Vec::new();
+    let mut projected_enum_items = Vec::new();
     let mut declined = Vec::new();
+    let mut projected_trait_items = Vec::new();
     for (id, summary) in paths {
         if summary["crate_id"].as_u64() != Some(0) {
             continue;
@@ -851,7 +969,23 @@ fn project_rustdoc(
             if has_type_parameters(structure) {
                 Err("type has generic or lifetime parameters".to_owned())
             } else {
-                let (methods, method_declines) = project_methods(structure, index, paths);
+                let (methods, trait_methods, method_declines) =
+                    project_methods(structure, index, paths, &rust_path);
+                for (trait_path, method) in trait_methods {
+                    let trait_segments = trait_path
+                        .split("::")
+                        .map(str::to_owned)
+                        .collect::<Vec<_>>();
+                    let trait_namespace = dependency_namespace(dependency, &trait_segments);
+                    let trait_rust_path = extern_rust_path(dependency, &trait_path);
+                    projected_trait_items.push(ProjectedItem {
+                        namespace: trait_namespace,
+                        name: method.name.clone(),
+                        rust_path: format!("<{rust_path} as {trait_rust_path}>::{}", method.name),
+                        docs: None,
+                        kind: ProjectedKind::Function(method),
+                    });
+                }
                 declined.extend(
                     method_declines
                         .into_iter()
@@ -874,13 +1008,38 @@ fn project_rustdoc(
                             .is_none()
                     })
                 });
+                if !data_carrying {
+                    let variant_namespace = dependency_namespace(dependency, &path);
+                    for variant_id in string_or_number_array(&enumeration["variants"]) {
+                        let Some(variant) = index.get(&variant_id) else {
+                            continue;
+                        };
+                        let Some(variant_name) = variant["name"].as_str() else {
+                            continue;
+                        };
+                        projected_enum_items.push(ProjectedItem {
+                            namespace: variant_namespace.clone(),
+                            name: variant_name.to_owned(),
+                            rust_path: format!("{rust_path}::{variant_name}"),
+                            docs: variant["docs"].as_str().map(str::to_owned),
+                            kind: ProjectedKind::Function(ProjectedFunction {
+                                name: variant_name.to_owned(),
+                                parameters: Vec::new(),
+                                result: ProjectedType::Foreign {
+                                    rust_path: rust_path.clone(),
+                                    name: name.clone(),
+                                },
+                                error: None,
+                                is_async: false,
+                                receiver: None,
+                            }),
+                        });
+                    }
+                }
                 Ok(ProjectedKind::Enum { data_carrying })
             }
         } else if inner.get("trait").is_some() {
-            Err(
-                "trait projection is deferred until receiver-first trait namespaces are implemented"
-                    .to_owned(),
-            )
+            Ok(ProjectedKind::Trait)
         } else {
             Err("item kind has no Terrane projection".to_owned())
         };
@@ -893,6 +1052,20 @@ fn project_rustdoc(
                 kind,
             }),
             Err(reason) => declined.push(DeclinedItem { rust_path, reason }),
+        }
+    }
+    items.extend(projected_enum_items);
+    for trait_item in projected_trait_items {
+        if items
+            .iter()
+            .any(|item| item.namespace == trait_item.namespace && item.name == trait_item.name)
+        {
+            declined.push(DeclinedItem {
+                rust_path: trait_item.rust_path,
+                reason: "trait method has multiple projected receiver implementations".to_owned(),
+            });
+        } else {
+            items.push(trait_item);
         }
     }
     items
@@ -925,15 +1098,27 @@ fn extern_rust_path(dependency: &RustDependency, path: &str) -> String {
         .join("::")
 }
 
+type ProjectedMethods = (
+    Vec<ProjectedFunction>,
+    Vec<(String, ProjectedFunction)>,
+    Vec<(String, String)>,
+);
+
+#[expect(
+    clippy::too_many_lines,
+    reason = "rustdoc impl traversal keeps trait and inherent decisions in one deterministic pass"
+)]
 fn project_methods(
     structure: &Value,
     index: &serde_json::Map<String, Value>,
     paths: &serde_json::Map<String, Value>,
-) -> (Vec<ProjectedFunction>, Vec<(String, String)>) {
+    owner_rust_path: &str,
+) -> ProjectedMethods {
     let mut candidates = Vec::new();
+    let mut trait_methods = Vec::new();
     let mut declined = Vec::new();
     let Some(impls) = structure["impls"].as_array() else {
-        return (Vec::new(), declined);
+        return (Vec::new(), trait_methods, declined);
     };
     for impl_id in impls {
         let Some(implementation) = value_id(impl_id)
@@ -959,14 +1144,6 @@ fn project_methods(
             let Some(name) = item["name"].as_str() else {
                 continue;
             };
-            if !inherent {
-                declined.push((
-                    name.to_owned(),
-                    "trait method projection is deferred until receiver-first trait namespaces are implemented"
-                        .to_owned(),
-                ));
-                continue;
-            }
             let Some(function) = item["inner"].get("function") else {
                 declined.push((
                     name.to_owned(),
@@ -974,6 +1151,43 @@ fn project_methods(
                 ));
                 continue;
             };
+            if !inherent {
+                let Some(trait_path) = resolved_name(&implementation["trait"], paths) else {
+                    declined.push((
+                        name.to_owned(),
+                        "trait method has no stable canonical trait path".to_owned(),
+                    ));
+                    continue;
+                };
+                match project_function(function, index, paths, Some(name)) {
+                    Ok(mut method) => {
+                        let Some(receiver) = method.receiver.take() else {
+                            declined
+                                .push((name.to_owned(), "trait method has no receiver".to_owned()));
+                            continue;
+                        };
+                        method.parameters.insert(
+                            0,
+                            ProjectedParameter {
+                                name: "receiver".to_owned(),
+                                ty: ProjectedType::Foreign {
+                                    rust_path: owner_rust_path.to_owned(),
+                                    name: owner_rust_path
+                                        .rsplit("::")
+                                        .next()
+                                        .unwrap_or(owner_rust_path)
+                                        .to_owned(),
+                                },
+                                borrowed: receiver != Receiver::Move,
+                                mutable_borrow: receiver == Receiver::MutableBorrow,
+                            },
+                        );
+                        trait_methods.push((trait_path, method));
+                    }
+                    Err(reason) => declined.push((name.to_owned(), reason)),
+                }
+                continue;
+            }
             match project_function(function, index, paths, Some(name)) {
                 Ok(method) => candidates.push(method),
                 Err(reason) => declined.push((name.to_owned(), reason)),
@@ -1004,7 +1218,7 @@ fn project_methods(
         }));
     }
     methods.sort_by(|left, right| left.name.cmp(&right.name));
-    (methods, declined)
+    (methods, trait_methods, declined)
 }
 
 fn project_function(
@@ -1036,7 +1250,7 @@ fn project_function(
         }
         parameters.push(ProjectedParameter {
             name: safe_parameter_name(name),
-            ty: project_type(ty, paths, &generic_types)?,
+            ty: project_type(ty, index, paths, &generic_types)?,
             borrowed: ty.get("borrowed_ref").is_some(),
             mutable_borrow: ty["borrowed_ref"]["is_mutable"].as_bool() == Some(true),
         });
@@ -1057,7 +1271,7 @@ fn project_function(
                 .get(1)
                 .and_then(|ty| resolved_name(ty, paths))
                 .or_else(|| Some("Error".to_owned()));
-            project_type(value, paths, &generic_types)?
+            project_type(value, index, paths, &generic_types)?
         } else if resolved_name(output, paths)
             .is_some_and(|name| name.ends_with("::Option") || name == "Option")
         {
@@ -1065,21 +1279,11 @@ fn project_function(
                 .into_iter()
                 .next()
                 .ok_or_else(|| "Option has no value type".to_owned())?;
-            ProjectedType::Optional(Box::new(project_type(value, paths, &generic_types)?))
+            ProjectedType::Optional(Box::new(project_type(value, index, paths, &generic_types)?))
         } else {
-            project_type(output, paths, &generic_types)?
+            project_type(output, index, paths, &generic_types)?
         }
     };
-    if parameters
-        .iter()
-        .any(|parameter| matches!(parameter.ty, ProjectedType::Optional(_)))
-        || matches!(result, ProjectedType::Optional(_))
-    {
-        return Err(
-            "Option projection is deferred until general `T|none` semantic types are implemented"
-                .to_owned(),
-        );
-    }
     Ok(ProjectedFunction {
         name: method_name.unwrap_or_default().to_owned(),
         parameters,
@@ -1123,7 +1327,7 @@ fn generic_monomorphisations(
             .filter_map(value_id)
             .filter_map(|id| index.get(&id))
             .filter_map(|item| item["inner"]["impl"].get("for"))
-            .filter_map(|ty| project_type(ty, paths, &BTreeMap::new()).ok())
+            .filter_map(|ty| project_type(ty, index, paths, &BTreeMap::new()).ok())
             .collect::<Vec<_>>();
         let mut unique = Vec::new();
         for candidate in candidates.drain(..) {
@@ -1163,11 +1367,12 @@ fn generic_monomorphisations(
 
 fn project_type(
     ty: &Value,
+    index: &serde_json::Map<String, Value>,
     paths: &serde_json::Map<String, Value>,
     generics: &BTreeMap<String, ProjectedType>,
 ) -> Result<ProjectedType, String> {
     if let Some(reference) = ty.get("borrowed_ref") {
-        return project_type(&reference["type"], paths, generics);
+        return project_type(&reference["type"], index, paths, generics);
     }
     if let Some(generic) = ty.get("generic").and_then(Value::as_str) {
         if generic == "Self" {
@@ -1182,11 +1387,24 @@ fn project_type(
         return match primitive {
             "bool" => Ok(ProjectedType::Bool),
             "str" => Ok(ProjectedType::String),
+            "f32" => Ok(ProjectedType::Float32),
             "f64" => Ok(ProjectedType::Float),
+            "char" => Ok(ProjectedType::Char),
             "i64" => Ok(ProjectedType::Int),
+            "i8" | "i16" | "i32" | "i128" | "isize" | "u8" | "u16" | "u32" | "u64" | "u128"
+            | "usize" => Ok(ProjectedType::RustInt(primitive.to_owned())),
             "unit" => Ok(ProjectedType::None),
             other => Err(format!("unsupported primitive `{other}`")),
         };
+    }
+    if let Some(id) = ty
+        .get("resolved_path")
+        .and_then(|resolved| value_id(&resolved["id"]))
+        && let Some(alias) = index
+            .get(&id)
+            .and_then(|item| item["inner"].get("type_alias"))
+    {
+        return project_type(&alias["type"], index, paths, generics);
     }
     let Some(path) = resolved_name(ty, paths) else {
         return Err("type has no stable Rust path".to_owned());
@@ -1453,7 +1671,11 @@ mod tests {
 
     use serde_json::json;
 
-    use super::{Projection, Receiver, has_type_parameters, prune_projection_cache, receiver_kind};
+    use super::{
+        Containment, ProjectedDependency, ProjectedFunction, ProjectedItem, ProjectedKind,
+        ProjectedType, Projection, Receiver, apply_projection_history, has_type_parameters,
+        project_type, prune_projection_cache, receiver_kind,
+    };
 
     #[test]
     fn type_parameter_guard_reads_destructured_type_descriptors() {
@@ -1604,6 +1826,111 @@ mod tests {
         assert!(sources[0].1.contains(
             "function cross throws dependency-panic; left witness-left-Response, right witness-right-Response"
         ));
+    }
+
+    #[test]
+    fn wider_primitives_project_without_narrowing() {
+        let paths = serde_json::Map::new();
+        let generics = BTreeMap::new();
+
+        assert_eq!(
+            project_type(
+                &json!({"primitive": "u8"}),
+                &serde_json::Map::new(),
+                &paths,
+                &generics
+            )
+            .unwrap(),
+            ProjectedType::RustInt("u8".to_owned())
+        );
+        assert_eq!(
+            project_type(
+                &json!({"primitive": "f32"}),
+                &serde_json::Map::new(),
+                &paths,
+                &generics
+            )
+            .unwrap(),
+            ProjectedType::Float32
+        );
+        assert_eq!(
+            project_type(
+                &json!({"primitive": "char"}),
+                &serde_json::Map::new(),
+                &paths,
+                &generics
+            )
+            .unwrap(),
+            ProjectedType::Char
+        );
+    }
+
+    #[test]
+    fn representable_type_aliases_are_transparent() {
+        let paths =
+            serde_json::Map::from_iter([("7".to_owned(), json!({"path": ["fixture", "Count"]}))]);
+        let index = serde_json::Map::from_iter([(
+            "7".to_owned(),
+            json!({"inner": {"type_alias": {"type": {"primitive": "u32"}}}}),
+        )]);
+
+        assert_eq!(
+            project_type(
+                &json!({"resolved_path": {"id": 7, "name": "Count", "args": {"angle_bracketed": {"args": []}}}}),
+                &index,
+                &paths,
+                &BTreeMap::new()
+            )
+            .unwrap(),
+            ProjectedType::RustInt("u32".to_owned())
+        );
+    }
+
+    #[test]
+    fn projection_history_retains_removed_members_across_checks() {
+        let directory =
+            std::env::temp_dir().join(format!("terrane-projection-history-{}", std::process::id()));
+        fs::create_dir_all(&directory).unwrap();
+        let dependency = |version: &str, items: Vec<ProjectedItem>| ProjectedDependency {
+            name: "fixture".to_owned(),
+            package: "fixture".to_owned(),
+            version: version.to_owned(),
+            items,
+            declined: Vec::new(),
+        };
+        let item = ProjectedItem {
+            namespace: "/deps/fixture".to_owned(),
+            name: "removed".to_owned(),
+            rust_path: "fixture::removed".to_owned(),
+            docs: None,
+            kind: ProjectedKind::Function(ProjectedFunction {
+                name: "removed".to_owned(),
+                parameters: Vec::new(),
+                result: ProjectedType::None,
+                error: None,
+                is_async: false,
+                receiver: None,
+            }),
+        };
+        let mut old = Projection {
+            cache_identity: "old".to_owned(),
+            dependencies: vec![dependency("1.0.0", vec![item])],
+            containment: Containment::Unavailable,
+            removed: Vec::new(),
+        };
+        apply_projection_history(&directory, &mut old).unwrap();
+        let mut current = Projection {
+            cache_identity: "current".to_owned(),
+            dependencies: vec![dependency("2.0.0", Vec::new())],
+            containment: Containment::Unavailable,
+            removed: Vec::new(),
+        };
+        apply_projection_history(&directory, &mut current).unwrap();
+        assert_eq!(current.removed.len(), 1);
+        current.removed.clear();
+        apply_projection_history(&directory, &mut current).unwrap();
+        assert_eq!(current.removed.len(), 1);
+        fs::remove_dir_all(directory).unwrap();
     }
 
     #[test]

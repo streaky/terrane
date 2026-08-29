@@ -329,6 +329,50 @@ fn write_foreign_import(output: &mut String, path: &str, rust_name: &str) {
     }
 }
 
+fn projected_argument_expression(name: &str, ty: &crate::projection::ProjectedType) -> String {
+    match ty {
+        crate::projection::ProjectedType::RustInt(rust_type) => format!(
+            "terrane_int_support::coerce::<{rust_type}>(&{name}).map_err(crate::TerraneError::from)?"
+        ),
+        crate::projection::ProjectedType::Char => format!(
+            "{name}.parse::<char>().map_err(|_| crate::TerraneError::new(crate::TerraneErrorKind::CoercionError, \"projected `char` requires exactly one Unicode scalar\"))?"
+        ),
+        crate::projection::ProjectedType::Optional(inner) => match inner.as_ref() {
+            crate::projection::ProjectedType::RustInt(rust_type) => format!(
+                "{name}.map(|value| terrane_int_support::coerce::<{rust_type}>(&value)).transpose().map_err(crate::TerraneError::from)?"
+            ),
+            crate::projection::ProjectedType::Char => format!(
+                "{name}.map(|value| value.parse::<char>().map_err(|_| crate::TerraneError::new(crate::TerraneErrorKind::CoercionError, \"projected `char` requires exactly one Unicode scalar\"))).transpose()?"
+            ),
+            _ => name.to_owned(),
+        },
+        _ => name.to_owned(),
+    }
+}
+
+fn projected_result_expression(value: &str, ty: &crate::projection::ProjectedType) -> String {
+    match ty {
+        crate::projection::ProjectedType::RustInt(rust_type)
+            if rust_type.starts_with('u') || rust_type == "usize" =>
+        {
+            format!("terrane_int_support::Int::from_u128({value} as u128)")
+        }
+        crate::projection::ProjectedType::RustInt(_) => {
+            format!("terrane_int_support::Int::from({value} as i128)")
+        }
+        crate::projection::ProjectedType::Char => format!("{value}.to_string()"),
+        crate::projection::ProjectedType::Optional(inner) => {
+            let converted = projected_result_expression("value", inner);
+            format!("{value}.map(|value| {converted})")
+        }
+        _ => value.to_owned(),
+    }
+}
+
+#[expect(
+    clippy::too_many_lines,
+    reason = "dependency shim emission keeps each generated branch beside the shared call contract"
+)]
 fn emit_dependency_unit(package: &SemanticPackage, unit: &SemanticUnit) -> String {
     let mut output = String::new();
     emit_dependency_imports(package, unit, &mut output);
@@ -369,12 +413,13 @@ fn emit_dependency_unit(package: &SemanticPackage, unit: &SemanticUnit) -> Strin
             .zip(&projected.parameters)
             .map(|(parameter, projected)| {
                 let name = rust_name(&parameter.name);
+                let value = projected_argument_expression(&name, &projected.ty);
                 if projected.mutable_borrow {
-                    format!("&mut {name}")
+                    format!("&mut {{ {value} }}")
                 } else if projected.borrowed {
-                    format!("&{name}")
+                    format!("&{{ {value} }}")
                 } else {
-                    name
+                    value
                 }
             })
             .collect::<Vec<_>>()
@@ -384,6 +429,7 @@ fn emit_dependency_unit(package: &SemanticPackage, unit: &SemanticUnit) -> Strin
             |value_type| rust_value_type(package, value_type),
         );
         let result = format!("Result<{value}, crate::TerraneError>");
+        let converted_value = projected_result_expression("value", &projected.result);
         writeln!(
             output,
             "pub fn {}({}) -> {result} {{",
@@ -391,11 +437,37 @@ fn emit_dependency_unit(package: &SemanticPackage, unit: &SemanticUnit) -> Strin
             parameters.join(", ")
         )
         .expect("writing to a string cannot fail");
-        if projected.error.is_some() {
+        let call = format!("{}({arguments})", item.rust_path);
+        let caught = if projected
+            .parameters
+            .iter()
+            .any(|parameter| parameter.mutable_borrow)
+        {
+            format!("std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {call}))")
+        } else {
+            format!("std::panic::catch_unwind(|| {call})")
+        };
+        if package.profile.panic == crate::package::PanicProfile::Abort {
+            if projected.error.is_some() {
+                writeln!(
+                    output,
+                    "    match {}({arguments}) {{\n        Ok(value) => Ok({converted_value}),\n        Err(error) => Err(crate::TerraneError::new(crate::TerraneErrorKind::Custom(\"dependency-error\"), format!(\"Rust dependency `{dependency_name}` member `{}` failed: {{error}}\"))),\n    }}",
+                    item.rust_path,
+                    item.rust_path,
+                )
+                .expect("writing to a string cannot fail");
+            } else {
+                writeln!(
+                    output,
+                    "    let value = {}({arguments});\n    Ok({converted_value})",
+                    item.rust_path,
+                )
+                .expect("writing to a string cannot fail");
+            }
+        } else if projected.error.is_some() {
             writeln!(
                 output,
-                "    match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {}({arguments}))) {{\n        Ok(Ok(value)) => Ok(value),\n        Ok(Err(error)) => Err(crate::TerraneError::new(crate::TerraneErrorKind::Custom(\"dependency-error\"), format!(\"Rust dependency `{}` member `{}` failed: {{error}}\"))),\n        Err(payload) => Err(crate::__terrane_dependency_panic(payload, {:?}, {:?})),\n    }}",
-                item.rust_path,
+                "    match {caught} {{\n        Ok(Ok(value)) => Ok({converted_value}),\n        Ok(Err(error)) => Err(crate::TerraneError::new(crate::TerraneErrorKind::Custom(\"dependency-error\"), format!(\"Rust dependency `{}` member `{}` failed: {{error}}\"))),\n        Err(payload) => Err(crate::__terrane_dependency_panic(payload, {:?}, {:?})),\n    }}",
                 dependency_name,
                 item.rust_path,
                 dependency_name,
@@ -405,8 +477,7 @@ fn emit_dependency_unit(package: &SemanticPackage, unit: &SemanticUnit) -> Strin
         } else {
             writeln!(
                 output,
-                "    match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {}({arguments}))) {{\n        Ok(value) => Ok(value),\n        Err(payload) => Err(crate::__terrane_dependency_panic(payload, {:?}, {:?})),\n    }}",
-                item.rust_path,
+                "    match {caught} {{\n        Ok(value) => Ok({converted_value}),\n        Err(payload) => Err(crate::__terrane_dependency_panic(payload, {:?}, {:?})),\n    }}",
                 dependency_name,
                 item.rust_path,
             )
@@ -513,7 +584,8 @@ fn package_uses_structured_errors(package: &SemanticPackage) -> bool {
         dependency.items.iter().any(|item| match &item.kind {
             crate::projection::ProjectedKind::Function(_) => true,
             crate::projection::ProjectedKind::ForeignType { methods } => !methods.is_empty(),
-            crate::projection::ProjectedKind::Enum { .. } => false,
+            crate::projection::ProjectedKind::Enum { .. }
+            | crate::projection::ProjectedKind::Trait => false,
         })
     })
 }
@@ -4994,9 +5066,27 @@ impl Emitter<'_> {
                 .expect("foreign method owner has a projected Rust path");
             let dependency = type_path.split("::").next().unwrap_or("dependency");
             let member = format!("{type_path}::{}", method.name);
-            if method.error.is_some() {
+            let catch_unwind = |body: &str| {
+                if method.receiver.is_some() {
+                    format!("std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {body}))")
+                } else {
+                    format!("std::panic::catch_unwind(|| {body})")
+                }
+            };
+            if self.package.profile.panic == crate::package::PanicProfile::Abort {
+                if method.error.is_some() {
+                    format!(
+                        "match {call} {{ Ok(value) => Ok(value), Err(error) => Err(crate::TerraneError::new(crate::TerraneErrorKind::Custom(\"dependency-error\"), format!(\"Rust dependency `{dependency}` member `{member}` failed: {{error}}\"))) }}"
+                    )
+                } else if self.discarded_call == Some(node.span) {
+                    format!("{{ {call}; Ok(()) }}")
+                } else {
+                    format!("Ok({call})")
+                }
+            } else if method.error.is_some() {
+                let caught = catch_unwind(&call);
                 format!(
-                    "match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {call})) {{ Ok(Ok(value)) => Ok(value), Ok(Err(error)) => Err(crate::TerraneError::new(crate::TerraneErrorKind::Custom(\"dependency-error\"), format!(\"Rust dependency `{dependency}` member `{member}` failed: {{error}}\"))), Err(payload) => Err(crate::__terrane_dependency_panic(payload, {dependency:?}, {member:?})) }}"
+                    "match {caught} {{ Ok(Ok(value)) => Ok(value), Ok(Err(error)) => Err(crate::TerraneError::new(crate::TerraneErrorKind::Custom(\"dependency-error\"), format!(\"Rust dependency `{dependency}` member `{member}` failed: {{error}}\"))), Err(payload) => Err(crate::__terrane_dependency_panic(payload, {dependency:?}, {member:?})) }}"
                 )
             } else {
                 let unwind_body = if self.discarded_call == Some(node.span) {
@@ -5004,8 +5094,9 @@ impl Emitter<'_> {
                 } else {
                     call
                 };
+                let caught = catch_unwind(&unwind_body);
                 format!(
-                    "match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {unwind_body})) {{ Ok(value) => Ok(value), Err(payload) => Err(crate::__terrane_dependency_panic(payload, {dependency:?}, {member:?})) }}"
+                    "match {caught} {{ Ok(value) => Ok(value), Err(payload) => Err(crate::__terrane_dependency_panic(payload, {dependency:?}, {member:?})) }}"
                 )
             }
         } else {
@@ -6277,6 +6368,9 @@ fn rust_value_type(package: &SemanticPackage, ty: ValueType) -> String {
     match ty {
         ValueType::Scalar(scalar) => rust_type(scalar).to_owned(),
         ValueType::ScalarOrNone(scalar) => format!("Option<{}>", rust_type(scalar)),
+        ValueType::Optional(inner) => {
+            format!("Option<{}>", rust_value_type(package, *inner))
+        }
         ValueType::OverflowResult(scalar) => {
             format!("terrane_int_support::OverflowResult<{}>", rust_type(scalar))
         }
