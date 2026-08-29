@@ -1,12 +1,3 @@
-fn terrane_hex(data: &[u8]) -> String {
-    const DIGITS: &[u8; 16] = b"0123456789abcdef";
-    let mut encoded = String::with_capacity(data.len() * 2);
-    for byte in data {
-        encoded.push(DIGITS[usize::from(byte >> 4)] as char);
-        encoded.push(DIGITS[usize::from(byte & 0x0f)] as char);
-    }
-    encoded
-}
 
 fn terrane_unhex(text: &str) -> Vec<u8> {
     fn digit(byte: u8) -> Option<u8> {
@@ -23,26 +14,10 @@ fn terrane_unhex(text: &str) -> Vec<u8> {
         .collect()
 }
 
-#[cfg(unix)]
 fn terrane_platform_value(value: std::ffi::OsString) -> String {
-    use std::os::unix::ffi::OsStrExt as _;
-    value.into_string().map_or_else(
-        |raw| format!("raw:{}", terrane_hex(raw.as_bytes())),
-        |text| format!("text:{text}"),
-    )
+    terrane_platform_support::platform_value(value)
 }
 
-#[cfg(windows)]
-fn terrane_platform_value(value: std::ffi::OsString) -> String {
-    use std::os::windows::ffi::OsStrExt as _;
-    value.into_string().map_or_else(
-        |raw| {
-            let units = raw.encode_wide().flat_map(u16::to_le_bytes).collect::<Vec<_>>();
-            format!("raw:{}", terrane_hex(&units))
-        },
-        |text| format!("text:{text}"),
-    )
-}
 
 fn terrane_platform_value_is_text(value: &str) -> bool {
     value.starts_with("text:")

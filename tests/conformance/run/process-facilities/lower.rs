@@ -130,15 +130,6 @@ enum TerraneCompletion<T> {
     Break,
     Continue,
 }
-fn terrane_hex(data: &[u8]) -> String {
-    const DIGITS: &[u8; 16] = b"0123456789abcdef";
-    let mut encoded = String::with_capacity(data.len() * 2);
-    for byte in data {
-        encoded.push(DIGITS[usize::from(byte >> 4)] as char);
-        encoded.push(DIGITS[usize::from(byte & 0x0f)] as char);
-    }
-    encoded
-}
 fn terrane_unhex(text: &str) -> Vec<u8> {
     fn digit(byte: u8) -> Option<u8> {
         match byte {
@@ -153,31 +144,8 @@ fn terrane_unhex(text: &str) -> Vec<u8> {
         .filter_map(|pair| Some(digit(pair[0])? << 4 | digit(pair[1])?))
         .collect()
 }
-#[cfg(unix)]
 fn terrane_platform_value(value: std::ffi::OsString) -> String {
-    use std::os::unix::ffi::OsStrExt as _;
-    value
-        .into_string()
-        .map_or_else(
-            |raw| format!("raw:{}", terrane_hex(raw.as_bytes())),
-            |text| format!("text:{text}"),
-        )
-}
-#[cfg(windows)]
-fn terrane_platform_value(value: std::ffi::OsString) -> String {
-    use std::os::windows::ffi::OsStrExt as _;
-    value
-        .into_string()
-        .map_or_else(
-            |raw| {
-                let units = raw
-                    .encode_wide()
-                    .flat_map(u16::to_le_bytes)
-                    .collect::<Vec<_>>();
-                format!("raw:{}", terrane_hex(&units))
-            },
-            |text| format!("text:{text}"),
-        )
+    terrane_platform_support::platform_value(value)
 }
 fn terrane_platform_value_is_text(value: &str) -> bool {
     value.starts_with("text:")
@@ -202,6 +170,80 @@ fn terrane_environment_entries() -> Vec<String> {
 fn terrane_process_exit(code: terrane_int_support::Int) {
     let code = terrane_int_support::checked_coerce::<i32>(&code).unwrap_or(255);
     std::process::exit(code)
+}
+type TerranePlatformCapability = terrane_platform_support::Capability;
+type TerranePlatformResult = terrane_platform_support::ResultValue;
+#[allow(dead_code)]
+fn terrane_platform_cancellation_token() -> TerranePlatformCapability {
+    terrane_platform_support::cancellation_token()
+}
+#[allow(dead_code)]
+fn terrane_platform_no_resource() -> TerranePlatformCapability {
+    TerranePlatformCapability::default()
+}
+#[allow(dead_code)]
+fn terrane_platform_failed_result() -> TerranePlatformResult {
+    TerranePlatformResult::error("uninitialized platform value")
+}
+#[allow(dead_code)]
+fn terrane_platform_cancel(token: &TerranePlatformCapability) -> TerranePlatformResult {
+    terrane_platform_support::cancel(token)
+}
+#[allow(dead_code)]
+fn terrane_platform_result_failed(result: &TerranePlatformResult) -> bool {
+    result.failed
+}
+#[allow(dead_code)]
+fn terrane_platform_result_resource_limit(result: &TerranePlatformResult) -> bool {
+    result.resource_limit
+}
+#[allow(dead_code)]
+fn terrane_platform_result_truncated(result: &TerranePlatformResult) -> bool {
+    result.truncated
+}
+#[allow(dead_code)]
+fn terrane_platform_result_deadline_exceeded(result: &TerranePlatformResult) -> bool {
+    result.deadline_exceeded
+}
+#[allow(dead_code)]
+fn terrane_platform_result_message(result: &TerranePlatformResult) -> String {
+    result.message.clone()
+}
+#[allow(dead_code)]
+fn terrane_platform_result_text(result: &TerranePlatformResult) -> String {
+    result.text.clone()
+}
+#[allow(dead_code)]
+fn terrane_platform_result_detail(result: &TerranePlatformResult) -> String {
+    result.detail.clone()
+}
+#[allow(dead_code)]
+fn terrane_platform_result_bytes(result: &TerranePlatformResult) -> Vec<u8> {
+    result.data.clone()
+}
+#[allow(dead_code)]
+fn terrane_platform_result_int(
+    result: &TerranePlatformResult,
+) -> terrane_int_support::Int {
+    terrane_int_support::Int::from(result.number)
+}
+#[allow(dead_code)]
+fn terrane_platform_result_bool(result: &TerranePlatformResult) -> bool {
+    result.flag
+}
+#[allow(dead_code)]
+fn terrane_platform_result_entries(result: &TerranePlatformResult) -> Vec<String> {
+    result.entries.clone()
+}
+#[allow(dead_code)]
+fn terrane_platform_result_capability(
+    result: &TerranePlatformResult,
+) -> TerranePlatformCapability {
+    result.capability.clone().unwrap_or_default()
+}
+#[allow(dead_code)]
+fn terrane_platform_system_host_name() -> TerranePlatformResult {
+    terrane_platform_support::system_host_name()
 }
 // Source: case.trn
 // Namespace: conformance/process-facilities
@@ -371,6 +413,51 @@ impl EnvironmentEntry {
         self.value = entry_value.clone();
     }
 }
+#[derive(Clone)]
+pub struct HostNameResult {
+    pub failed: bool,
+    pub available: bool,
+    pub message: String,
+    pub value: PlatformString,
+}
+impl HostNameResult {
+    pub fn terrane_construct(
+        did_fail: bool,
+        is_available: bool,
+        detail: String,
+        result_value: PlatformString,
+    ) -> Self {
+        let mut value = Self {
+            failed: false,
+            available: false,
+            message: String::from(""),
+            value: PlatformString::terrane_construct(String::from("text:")),
+        };
+        value.construct(did_fail, is_available, detail, result_value);
+        value
+    }
+    pub fn construct(
+        &mut self,
+        did_fail: bool,
+        is_available: bool,
+        detail: String,
+        result_value: PlatformString,
+    ) {
+        self.failed = did_fail;
+        self.available = is_available;
+        self.message = detail;
+        self.value = result_value.clone();
+    }
+}
+pub fn host_name() -> HostNameResult {
+    let raw: TerranePlatformResult = terrane_platform_system_host_name();
+    return HostNameResult::terrane_construct(
+        terrane_platform_result_failed(&raw),
+        terrane_platform_result_bool(&raw),
+        terrane_platform_result_message(&raw),
+        PlatformString::terrane_construct(terrane_platform_result_text(&raw)),
+    );
+}
 pub fn arguments() -> terrane_collection_support::List<PlatformString> {
     let encoded: Vec<String> = terrane_process_arguments();
     let mut values: terrane_collection_support::List<PlatformString> = terrane_collection_support::List::<
@@ -386,7 +473,7 @@ pub fn arguments() -> terrane_collection_support::List<PlatformString> {
                             terrane_collection_support::index_from_int(&index.clone())
                                 .unwrap_or_else(|error| __terrane_uncaught(
                                     TerraneError::from(error)
-                                        .at("/standard/process::arguments (process.trn:33:42)"),
+                                        .at("/standard/process::arguments (process.trn:51:42)"),
                                 )),
                         )
                         .cloned()
@@ -396,12 +483,12 @@ pub fn arguments() -> terrane_collection_support::List<PlatformString> {
                                 )
                                 .unwrap_or_else(|error| __terrane_uncaught(
                                     TerraneError::from(error)
-                                        .at("/standard/process::arguments (process.trn:33:42)"),
+                                        .at("/standard/process::arguments (process.trn:51:42)"),
                                 )),
                         })
                         .unwrap_or_else(|error| __terrane_uncaught(
                             TerraneError::from(error)
-                                .at("/standard/process::arguments (process.trn:33:42)"),
+                                .at("/standard/process::arguments (process.trn:51:42)"),
                         )),
                 ),
             );
@@ -424,7 +511,7 @@ pub fn environment() -> terrane_collection_support::List<EnvironmentEntry> {
                     terrane_collection_support::index_from_int(&index.clone())
                         .unwrap_or_else(|error| __terrane_uncaught(
                             TerraneError::from(error)
-                                .at("/standard/process::environment (process.trn:42:33)"),
+                                .at("/standard/process::environment (process.trn:60:33)"),
                         )),
                 )
                 .cloned()
@@ -432,12 +519,12 @@ pub fn environment() -> terrane_collection_support::List<EnvironmentEntry> {
                     index: terrane_collection_support::index_from_int(&index.clone())
                         .unwrap_or_else(|error| __terrane_uncaught(
                             TerraneError::from(error)
-                                .at("/standard/process::environment (process.trn:42:33)"),
+                                .at("/standard/process::environment (process.trn:60:33)"),
                         )),
                 })
                 .unwrap_or_else(|error| __terrane_uncaught(
                     TerraneError::from(error)
-                        .at("/standard/process::environment (process.trn:42:33)"),
+                        .at("/standard/process::environment (process.trn:60:33)"),
                 )),
         );
         let value: PlatformString = PlatformString::terrane_construct(
@@ -448,7 +535,7 @@ pub fn environment() -> terrane_collection_support::List<EnvironmentEntry> {
                         )
                         .unwrap_or_else(|error| __terrane_uncaught(
                             TerraneError::from(error)
-                                .at("/standard/process::environment (process.trn:43:34)"),
+                                .at("/standard/process::environment (process.trn:61:34)"),
                         )),
                 )
                 .cloned()
@@ -458,12 +545,12 @@ pub fn environment() -> terrane_collection_support::List<EnvironmentEntry> {
                         )
                         .unwrap_or_else(|error| __terrane_uncaught(
                             TerraneError::from(error)
-                                .at("/standard/process::environment (process.trn:43:34)"),
+                                .at("/standard/process::environment (process.trn:61:34)"),
                         )),
                 })
                 .unwrap_or_else(|error| __terrane_uncaught(
                     TerraneError::from(error)
-                        .at("/standard/process::environment (process.trn:43:34)"),
+                        .at("/standard/process::environment (process.trn:61:34)"),
                 )),
         );
         values.append(EnvironmentEntry::terrane_construct(name, value));
@@ -567,13 +654,13 @@ pub fn parse_command_line(
                     .unwrap_or_else(|error| __terrane_uncaught(
                         TerraneError::from(error)
                             .at(
-                                "/standard/process::parse-command-line (process.trn:78:20)",
+                                "/standard/process::parse-command-line (process.trn:96:20)",
                             ),
                     )),
             )
             .unwrap_or_else(|error| __terrane_uncaught(
                 TerraneError::from(error)
-                    .at("/standard/process::parse-command-line (process.trn:78:20)"),
+                    .at("/standard/process::parse-command-line (process.trn:96:20)"),
             ));
         if !argument.is_text {
             diagnostic_arguments.append(index.clone());
@@ -610,14 +697,14 @@ pub fn parse_command_line(
                                         .unwrap_or_else(|error| __terrane_uncaught(
                                             TerraneError::from(error)
                                                 .at(
-                                                    "/standard/process::parse-command-line (process.trn:93:43)",
+                                                    "/standard/process::parse-command-line (process.trn:111:43)",
                                                 ),
                                         )),
                                 )
                                 .unwrap_or_else(|error| __terrane_uncaught(
                                     TerraneError::from(error)
                                         .at(
-                                            "/standard/process::parse-command-line (process.trn:93:43)",
+                                            "/standard/process::parse-command-line (process.trn:111:43)",
                                         ),
                                 )),
                         );

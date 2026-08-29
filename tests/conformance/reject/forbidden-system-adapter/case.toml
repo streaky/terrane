@@ -1,0 +1,5 @@
+phase = "check"
+status = "reject"
+entrypoint = "package.toml"
+code = "S2032"
+contains = "forbids capability `process` required by `/standard/process`"

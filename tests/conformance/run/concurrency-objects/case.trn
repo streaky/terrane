@@ -1,0 +1,31 @@
+namespace app
+
+from /core/output import print
+from /standard/concurrency import int-channel, int-mutex, int-read-write-lock, atomic-int64, thread-local-int
+
+function main;
+    messages = int-channel; 2
+    sent = messages.send; 11
+    print; sent.failed
+    received = messages.receive;
+    print; received.available
+    print; received.value
+
+    counter = int-mutex; 4
+    updated = counter.increase; 3
+    print; updated.value
+
+    shared = int-read-write-lock; 8
+    shared.write; 9
+    print; (shared.read;).value
+
+    atomic = atomic-int64; 10
+    atomic.increase; 5, 'sequentially-consistent'
+    print; (atomic.load; 'acquire').value
+    invalid-ordering = atomic.load; 'release'
+    print; invalid-ordering.failed
+    print; invalid-ordering.available
+
+    local = thread-local-int; 20
+    local.write; 21
+    print; (local.get;).value

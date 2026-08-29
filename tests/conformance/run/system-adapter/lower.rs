@@ -246,10 +246,12 @@ fn terrane_platform_system_host_name() -> TerranePlatformResult {
     terrane_platform_support::system_host_name()
 }
 // Source: case.trn
-// Namespace: conformance/process-exit
+// Namespace: system-adapter
 fn main() {
-    let status: ExitStatus = make_exit_status(terrane_int_support::Int::from(7_i128));
-    exit(status);
+    let name: HostNameResult = host_name();
+    println!(
+        "{}", terrane_scalar_support::scalar_text(&(name.failed || name.available))
+    );
 }
 // Source: standard/process.trn
 // Namespace: standard/process

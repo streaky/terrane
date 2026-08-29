@@ -75,6 +75,11 @@ const SOURCES: &[BundledSource] = &[
         path: "standard/tls.trn",
         text: include_str!("standard/tls.trn"),
     },
+    BundledSource {
+        namespace: "/standard/concurrency",
+        path: "standard/concurrency.trn",
+        text: include_str!("standard/concurrency.trn"),
+    },
 ];
 
 pub(crate) fn source(namespace: &str) -> Option<&'static BundledSource> {

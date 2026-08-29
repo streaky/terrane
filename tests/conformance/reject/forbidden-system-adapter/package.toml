@@ -1,0 +1,8 @@
+package = "forbidden-system-adapter"
+
+[profile]
+name = "no-process"
+capabilities = []
+
+[namespaces]
+forbidden-system-adapter = "src"

@@ -6,6 +6,8 @@ from /core/platform-system import process-arguments as platform-arguments
 from /core/platform-system import environment-entries as platform-environment
 from /core/platform-system import process-exit as platform-exit
 from /core/platform-system import platform-value-is-text, platform-value-text, platform-value-bytes
+from /core/platform-adapters import platform-result, system-host-name as platform-system-host-name
+from /core/platform-adapters import result-failed, result-message, result-text, result-bool
 
 class platform-string
     is-text bool = true
@@ -24,6 +26,22 @@ class environment-entry
     function construct; name platform-string, entry-value platform-string
         this.name = name
         this.value = entry-value
+class host-name-result
+    failed bool = false
+    available bool = false
+    message string = ''
+    value platform-string = platform-string; 'text:'
+
+    function construct; did-fail bool, is-available bool, detail string, result-value platform-string
+        this.failed = did-fail
+        this.available = is-available
+        this.message = detail
+        this.value = result-value
+
+function host-name host-name-result;
+    raw = platform-system-host-name;
+    return host-name-result; (result-failed; raw), (result-bool; raw), (result-message; raw), (platform-string; (result-text; raw))
+
 
 function arguments list of platform-string;
     encoded = (platform-arguments;)

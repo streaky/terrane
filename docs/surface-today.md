@@ -129,11 +129,12 @@ Terrane package
     │   ├── filesystem-canonical / filesystem-realpath / filesystem-read-link
     │   ├── filesystem-read-bounded / filesystem-write-atomic
     │   └── filesystem-rename / filesystem-remove
-    ├── /standard/process                      bundled Terrane package over minimal host intrinsics
+    ├── /standard/process                      bundled Terrane process/system package; requires `process`
     │   ├── platform-string                    lossless text-or-raw platform value
     │   ├── arguments / environment            explicit process snapshots
     │   ├── cli-schema / parse-command-line    schema-driven options and structured diagnostics
-    │   └── exit-status / make-exit-status / exit explicit validated termination
+    │   ├── exit-status / make-exit-status / exit explicit validated termination
+    │   └── host-name-result / host-name        lossless platform host name or translated host failure
     ├── /standard/documents                    bundled Terrane document model over narrow scanner intrinsics
     │   ├── document-integer                   exact integral value; text uses canonical exact number spelling
     │   ├── document-decimal                   coefficient / exponent / canonical exact text value
@@ -185,6 +186,13 @@ Terrane package
     ├── /standard/tls                          bundled Terrane TLS policy over transferred network resources
     │   ├── tls-stream                         negotiated-version plus deadline-aware read, write, shutdown, and close
     │   └── connect-tls                        validated TLS 1.3/1.2 client connection; no insecure ordinary option
+    ├── /standard/concurrency                  bundled Terrane synchronization objects; requires `threads`
+    │   ├── operation-result / int-result       explicit failure, availability, message, and value objects
+    │   ├── int-channel                         bounded send / receive / non-blocking try-receive
+    │   ├── int-mutex                           load / store / atomic increase
+    │   ├── int-read-write-lock                 shared read / exclusive write
+    │   ├── atomic-int64                        load / store / increase with validated memory ordering
+    │   └── thread-local-int                    per-host-thread get / write
     ├── namespace                              hierarchical object container
     │   ├── variable                           namespace-local value
     │   ├── constant                           namespace-local or program-global value

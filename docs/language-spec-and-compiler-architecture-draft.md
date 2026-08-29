@@ -44,7 +44,7 @@ The language is designed around a deliberately small set of ideas:
 - Ordinary syntax favours unshifted characters and readable words over punctuation gymnastics.
 - Control flow is conventional where conventional syntax is already good.
 - The language lowers to readable, deterministic Rust, then uses the normal Rust toolchain.
-- Native Terrane packages, Rust crates, system/C libraries, full and inline Rust, and explicit foreign-runtime adapters are first-class.
+- Native Terrane packages, Rust crates, system/C libraries, and full and inline Rust are first-class.
 - Compilation is transparent during development and explicit at deployment boundaries.
 - Reflection, source mapping, diagnostics, debugging, tracing, allocation analysis, and performance explanation are designed in from the beginning.
 - A VM or JIT is not required. Fast incremental Rust compilation is the default development model.
@@ -423,7 +423,7 @@ comment
  */
 ```
 
-`#` and `//` begin line comments outside strings, raw blocks, foreign-source blocks, and block comments. They consume through the end of the physical line.
+`#` and `//` begin line comments outside strings, raw blocks, and block comments. They consume through the end of the physical line.
 
 `/*` begins a block comment and the next `*/` ends it. Block comments may span lines. They do not nest: another `/*` inside one is comment text, and the first following `*/` closes the comment. An unterminated block comment is a compile-time error reported at its opening delimiter.
 
@@ -431,7 +431,7 @@ All `/* ... */` forms are ordinary comments, including forms beginning with `/**
 
 Comment contents do not participate in indentation. Comment-only lines are ignored when producing indentation tokens, and a multiline comment must not create or close a block. Outside comments, `//` and `/*` are recognised only as those exact two-character delimiters, so `/` remains available for root-anchored namespace paths.
 
-Python-style triple-string “comments” are deliberately not supported. A string is an expression, never a comment, and unused strings must not acquire comment semantics. An embedded foreign-source block retains the foreign language’s own lexical rules; Terrane does not reinterpret Python contents.
+Python-style triple-string “comments” are deliberately not supported. A string is an expression, never a comment, and unused strings must not acquire comment semantics.
 
 ### 6.5 Identifiers
 
@@ -1934,7 +1934,7 @@ A numeric constant has no type before context, so `is a` supplies that context a
 The following values carry source-visible identity without requiring a new `ref` at the comparison site:
 
 - every value participating in an explicit `ref` identity group, including the original logical value from which the reference was obtained;
-- uniquely owned resource objects, such as device handles, capabilities, guards, and foreign-runtime proxies;
+- uniquely owned resource objects, such as device handles, capabilities, and guards;
 - canonical semantic descriptor objects whose contract defines one identity, including type, namespace, package, and declared-function descriptors.
 
 Other ordinary values—including scalars, strings, collections, non-resource-owning class instances, closures, and bound methods—have no source-visible identity merely because an implementation boxes, interns, caches, or shares them. Their type may expose identity only through `ref` or by carrying an inherently identity-bearing resource/descriptor contract. Whether a type is inherently identity-bearing is reflected in its public type metadata and cannot vary secretly by representation or instance.
@@ -2125,8 +2125,7 @@ Resource-owning values are inherently identity-bearing because their unique owne
 source-visible resource even before a reference is taken. Assignment transfers such a value
 automatically; the source binding becomes unavailable. A `ref` may observe a resource without
 owning it when the resource contract permits; `shared ref` is invalid for a uniquely owned
-resource. Foreign-runtime proxies follow the same rule unless their declared adapter explicitly
-provides shared ownership.
+resource.
 
 Every `ref` carries compiler-assigned provenance and a compiler-assigned lifetime region; ordinary
 source does not name these regions. Member lookup, indexing, iteration, destructuring, calls, and
@@ -2788,9 +2787,8 @@ language-mandated classes, each of which implements it:
 
 Each class has `message`, `cause`, deterministic source context, and the structured information
 listed above. Implementations may attach additional diagnostic fields without changing
-program-visible matching. Names such as `file-error`, `not-found`, `config-error`, and
-`python-error` used elsewhere are package- or adapter-defined throwable classes, not additional
-implicit core classes.
+program-visible matching. Names such as `file-error`, `not-found`, and `config-error` used elsewhere
+are package- or adapter-defined throwable classes, not additional implicit core classes.
 
 
 
@@ -2815,7 +2813,6 @@ An uncaught error reports:
 - object/type context;
 - generated Rust spans as expandable detail;
 - native frames for explicit Rust/C code;
-- foreign-runtime frames and tracebacks at explicit runtime boundaries;
 - causal chains for wrapped errors;
 - async task ancestry where available.
 
@@ -3662,24 +3659,23 @@ One rule governs every ecosystem below, and each subsequent subsection is a spec
 
 > **Dependency declarations name ecosystems and packages, not APIs. The build resolves the exact package and generates only the boundary machinery that Terrane source actually crosses. Tooling projects an advisory Terrane-visible surface, which is never compiler-authoritative.**
 
-Three consequences follow, and they apply uniformly to Rust crates, system libraries, and foreign runtimes.
+Three consequences follow, and they apply uniformly to Rust crates and system libraries.
 
-**Resolution is the source of truth.** A declaration names `serde` or `numpy`; it does not describe what those packages contain. The manifest, lockfile, selected features, target, and toolchain determine the interface that exists for a given build. Nothing in the language predefines it, because a predefined surface would be a second, weaker copy of the ecosystem's own type system, guaranteed to drift.
+**Resolution is the source of truth.** A declaration names an ecosystem package; it does not describe what that package contains. The manifest, lockfile, selected features, target, and toolchain determine the interface that exists for a given build. Nothing in the language predefines it, because a predefined surface would be a second, weaker copy of the ecosystem's own type system, guaranteed to drift.
 
 **The build bridges only what is crossed.** Boundary machinery is generated for the specific calls, types, and values that Terrane source actually touches. A dependency is not projected wholesale into Terrane objects. This keeps generated output proportional to use, keeps compile times bounded by the program rather than by the dependency, and avoids committing the language to representing constructs it has no equivalent for.
 
-**Tooling advises; it does not define.** The language server may read package metadata, rustdoc output, or runtime introspection to offer completion, signature help, hover text, and documentation. That projection is advisory: it never alters compiler output, never invents members, and is never the authority on whether a program compiles. The authority is the ecosystem's own toolchain — Cargo and rustc for Rust, the C compiler and linker for system libraries, the runtime for a hosted language.
+**Tooling advises; it does not define.** The language server may read package metadata or rustdoc output to offer completion, signature help, hover text, and documentation. That projection is advisory: it never alters compiler output, never invents members, and is never the authority on whether a program compiles. The authority is the ecosystem's own toolchain — Cargo and rustc for Rust, and the C compiler and linker for system libraries.
 
-Tooling must not execute arbitrary foreign-runtime package code merely to inspect it. Rust projection is compilation and runs under the same capability and containment policy as a build script. Its cache identity includes everything that can change the resolved interface: manifest contents, lock checksum, enabled features and default-feature policy, target triple, toolchain version, package source checksums, and sandbox tier.
+Rust projection is compilation and runs under the same capability and containment policy as a build script. Its cache identity includes everything that can change the resolved interface: manifest contents, lock checksum, enabled features and default-feature policy, target triple, toolchain version, package source checksums, and sandbox tier.
 
-### 23.2 Four dependency origins
+### 23.2 Three dependency origins
 
 The package system supports:
 
 1. native Terrane packages;
 2. Rust crates;
-3. system libraries, ordinarily exposed through C ABI metadata or a wrapper;
-4. foreign-runtime packages hosted through an explicit runtime adapter.
+3. system libraries, ordinarily exposed through C ABI metadata or a wrapper.
 
 Rust dependencies are declared only in `package.toml`; dependency declarations do not appear in Terrane source. Resolved dependency objects are imported through the reserved `/deps` namespace:
 
@@ -3687,7 +3683,7 @@ Rust dependencies are declared only in `package.toml`; dependency declarations d
 from /deps/serde-json import parse
 ```
 
-Native Terrane packages, system libraries, and foreign-runtime packages retain their origin-specific manifest forms.
+Native Terrane packages and system libraries retain their origin-specific manifest forms.
 
 ### 23.3 Manifest dependencies versus `from ... import`
 
@@ -3755,7 +3751,6 @@ The package manager must produce a lockfile covering:
 - native package versions and content hashes;
 - Rust crate versions, features, and checksums;
 - system library constraints and resolved ABI metadata;
-- foreign runtime adapter, runtime ABI, interpreter, and package constraints;
 - compiler version;
 - importer version;
 - target profile;
@@ -3805,7 +3800,7 @@ Projected type identity follows the Rust item rather than the importing module a
 
 The compiler generates Rust shims only for projected members crossed by Terrane source. This is direct Rust-to-Rust calling inside the generated crate, not an adapter or marshalled runtime boundary. `Option<T>` projects as `T|none`. A representable `Result<T, E>` returns `T` and throws the projected error class. `&self` projects as a shared receiver, `&mut self` records receiver mutability on the projected contract, and `self` retains `move` semantics under the ordinary foreign-resource ownership rule. Both borrowed receiver forms use ordinary Terrane member-call syntax; the projected contract makes lowering emit the required Rust borrow and mutable binding. On unwinding profiles, a panic crossing a generated shim becomes `dependency-panic`; aborting profiles do not claim containment.
 
-Cargo and rustc remain authoritative. Projection and editor information are advisory and derived from the resolved package rather than predefined by Terrane. The language server uses the shared artifact for completion, signature help, hover, exact Rust paths, and declined-item reasons. Projection executes under the build-script capability policy without arbitrary foreign-runtime introspection.
+Cargo and rustc remain authoritative. Projection and editor information are advisory and derived from the resolved package rather than predefined by Terrane. The language server uses the shared artifact for completion, signature help, hover, exact Rust paths, and declined-item reasons. Projection executes under the build-script capability policy.
 
 The generated dependency crate graph preserves the manifest's selected features and default-feature policy, compiles offline and frozen after an online fetch, and records whether containment was enforced. Platforms with `bwrap` contain rustdoc and generated-crate compilation; platforms without it report the unavailable tier and continue under the declared host policy. Its cache identity covers the manifest, lock checksum, selected features, target triple, Rust toolchain, package source checksums, and sandbox tier. The project-local cache retains the current projection and at most three prior projection artifacts for ordinary rollback and editor churn. Machine-independent `terrane-projection.lock` history records projected members by resolved dependency version; a lock update that removes a crossed member produces `S2031` at the Terrane import with the member and version change.
 
@@ -3854,153 +3849,18 @@ The compiler generates:
 
 This makes the language embeddable rather than a one-way consumer.
 
-### 23.12 Native interop versus foreign runtimes
+### 23.12 Native interop and deferred foreign runtimes
 
-Rust is Terrane’s canonical lowering language. Inline Rust and maintained Rust modules inhabit the generated program and may use its documented native representations directly. System/C libraries cross an ABI boundary but do not introduce another language runtime.
+Rust is Terrane’s canonical lowering language. Inline Rust and maintained Rust modules inhabit the
+generated program and may use its documented native representations directly. System/C libraries
+cross an ABI boundary but do not introduce another language runtime.
 
-A foreign runtime is different:
-
-```terrane
-use runtime python
-```
-
-declares that the program hosts a subordinate runtime with its own object model, allocator or garbage collector, exceptions, module loader, concurrency rules, and deployment requirements.
-
-The distinction is constitutional:
-
-- `rust` is a native lowering escape hatch;
-- `python` is foreign-runtime execution;
-- a runtime adapter must not silently replace Terrane typing, assignment, error, thread, or ownership semantics with the foreign language’s semantics.
-
-Python is the first foreign runtime and the first adapter implementation. The initial adapter targets the CPython `libpython3` embedding API. Other adapters, such as Lua or JavaScript, may be added later through the same contracts; they are not version-one requirements.
-
-### 23.13 Runtime imports and Python objects
-
-After declaring the runtime dependency, Python modules may expose bindings:
-
-```terrane
-use runtime python
-from python/numpy import array
-
-values = array; 1, 2, 3, 4
-mean = values.mean;
-```
-
-`from python/...` names a crossing point rather than importing an API. It does not project the module into Terrane, and the compiler holds no model of what `numpy` contains. The build generates boundary machinery for exactly the members the program crosses, and the language server projects an advisory surface from runtime introspection so an author can discover what is available — advisory in the §23.1 sense, never the authority on whether the program builds.
-
-Attribute lookup and invocation use ordinary Terrane member syntax, but the semantic descriptor records a foreign transition, and resolution of those members happens against the runtime that is actually present at build time rather than against a static declaration in the language.
-
-A Python object proxy is a Terrane object whose implementation, mutable identity, and lifetime belong to CPython. Reflection must identify that fact rather than presenting it as a native value:
-
-```text
-foreign
-runtime python
-foreign-type numpy.ndarray
-```
-
-Foreign proxies are identity-bearing resources, not ordinary COW values. They cannot be value-assigned unless an adapter exposes a specific value-copy contract. Sharing one requires explicit `ref`; transferring an exclusive proxy uses `move`. Calls may borrow a proxy without transferring it. This prevents Python aliasing from silently weakening Terrane’s ordinary assignment rule.
-
-An adapter may expose a native Terrane wrapper with normal COW semantics when it can genuinely preserve those semantics—for example, through a verified immutable value or buffer-backed representation.
-
-### 23.14 Embedded foreign source
-
-An indented runtime block executes foreign source:
-
-```terrane
-python
-  import numpy as np
-
-  x = np.array([1, 2, 3])
-  print(x.mean())
-```
-
-The compiler preserves and source-maps the block, while the Python adapter compiles and executes it through `libpython3`. Values enter or leave only through an explicit adapter interface; lexical bindings are not implicitly shared with the block.
-
-Unlike inline Rust, an embedded Python block is never inserted into generated Rust as native code. Tooling must label it as foreign runtime execution and account for every transition.
-
-### 23.15 Conversion and zero-copy data
-
-The Python adapter may convert scalars with direct, documented mappings:
-
-```text
-int
-float
-bool
-string
-bytes
-none
-```
-
-Conversion is not coercion merely because it appears obvious. Runtime calls perform only conversions declared by the adapter and visible through reflection. Collections default to explicit conversion because ownership, mutability, shape, and copying costs matter:
-
-```terrane
-py-values = values.coerce; python.list
-```
-
-Large data must have standard zero-copy paths where representation and lifetime permit them. The Python adapter should support the Python buffer protocol first and may add DLPack and Arrow adapters. A zero-copy bridge must pin or otherwise preserve the producer’s storage, declare mutability and element layout, and reject incompatible lifetimes rather than copying silently.
-
-Build explanations and profiling must report whether a boundary conversion borrowed, wrapped, pinned, or copied data.
-
-### 23.16 Errors, lifetime, and threads
-
-A Python exception becomes a Terrane `python-error` preserving:
-
-- the Python exception type and message;
-- the formatted Python traceback;
-- the original Python exception object while its runtime remains alive;
-- the Terrane source location and boundary operation;
-- a causal chain when wrapped or rethrown.
-
-```terrane
-try
-  result = python-object.do-thing;
-
-catch python-error as error
-  print; error.message
-  print; error.python-trace
-```
-
-Crossing the boundary may acquire the CPython GIL, allocate in Python’s managed heap, execute arbitrary Python code, and trigger Python finalisers. The adapter owns reference-count transitions and interpreter shutdown ordering. Foreign finalisation must not be described as deterministic Terrane destruction when CPython cannot provide that guarantee.
-
-The compiler and runtime must reject unsupported cross-thread use rather than silently adding locks or moving a proxy between interpreters.
-
-### 23.17 Runtime adapter contract
-
-Every foreign runtime adapter defines:
-
-- runtime discovery, initialisation, selection, and shutdown;
-- module loading and package resolution;
-- proxy object representation and lifetime;
-- attribute lookup, invocation, and reflection;
-- scalar and collection conversion;
-- zero-copy buffer protocols where supported;
-- exception and traceback translation;
-- thread, lock, and re-entry rules;
-- debugger, profiler, and source-map integration;
-- deployment and capability metadata.
-
-Adapters expose these behaviours through Terrane’s object and binding model. They do not create a universal multi-language VM, and they do not make foreign semantics the defaults for native Terrane code.
-
-An adapter is boundary machinery, not a translation of the foreign ecosystem into Terrane. It defines how a crossing behaves — representation, lifetime, conversion, error and thread rules — and the build instantiates only the crossings a program actually contains. It does not enumerate, mirror, or typecheck the foreign package's API, which remains the responsibility of the foreign runtime and its own tooling. This is the same division §23.1 states for Rust: the ecosystem owns its interface, the build owns the boundary, and tooling advises across it.
-
-### 23.18 Deployment contract
-
-`use runtime python` adds an explicit runtime dependency. It does not preserve the pure Terrane/Rust guarantee that no language runtime is needed in production.
-
-The build report and lockfile must identify at least:
-
-```text
-runtime python
-abi libpython3
-interpreter constraint
-python packages
-adapter version
-link or bundle strategy
-```
-
-The default hosted strategy may discover and link a compatible system `libpython3`. A deployment profile may instead bundle CPython and its selected packages. Neither choice may be silent, and a build must fail when its locked ABI or package requirements cannot be satisfied.
-
-Allocator-free, firmware, kernel, and similarly constrained profiles reject foreign runtimes unless a target-specific adapter explicitly proves support.
+Foreign-runtime adapters, including Python, are deferred until after version one. Version one
+therefore defines no runtime declaration, foreign-object proxy, embedded foreign-source block, or
+runtime-specific import path. A later adapter must make its semantic, performance, ownership,
+lifetime, thread, error-translation, tooling, capability, and deployment boundaries explicit. It
+must not silently replace Terrane typing, assignment, error, concurrency, or ownership semantics
+with those of the hosted language.
 
 ---
 
@@ -4298,10 +4158,8 @@ The built-in debugger presents source-language concepts:
 - tasks;
 - thrown errors;
 - source stack frames;
-- foreign proxies, runtime ownership, and lock state;
-- foreign-runtime stack frames and transitions.
 
-Rust/native and foreign-runtime details are expandable rather than hidden.
+Rust and native details are expandable rather than hidden.
 
 ### 26.3 Value inspection
 
@@ -4331,7 +4189,6 @@ The debugger uses source maps and custom debug metadata to collapse generated fr
 
 An “enter Rust” action permits stepping into generated or handwritten Rust when desired.
 
-An “enter runtime” action permits stepping from a Terrane boundary into embedded foreign source or an available foreign debugger. If an adapter cannot provide statement-level stepping, tooling must say so rather than presenting a native call as foreign source execution.
 
 ### 26.5 Tracing
 
@@ -4349,7 +4206,6 @@ Compiler-supported tracepoints should cover:
 - non-owning and shared refs;
 - moves;
 - native FFI calls;
-- foreign-runtime entry/exit, conversions, copies, lock acquisition, and exceptions;
 - unsafe blocks.
 
 Tracing is feature/profile controlled and may be sampled.
@@ -4960,7 +4816,6 @@ For a pure Terrane/Rust program, the production target does not require:
 - dynamic recompilation;
 - a language VM.
 
-A declared foreign runtime remains a production dependency. The build report must distinguish system-linked, bundled, and externally provided runtimes and packages.
 
 ### 30.5 Containers
 
@@ -4971,7 +4826,6 @@ source and compiler
   -> generated rust
   -> release binary
   -> minimal runtime image
-  -> declared foreign runtimes and packages, if any
 ```
 
 The language toolchain belongs in the builder stage, not the runtime image.
@@ -5000,7 +4854,7 @@ Machine-readable output is always available.
 
 Compiler and Cargo caches are content-addressed by all semantically relevant inputs.
 
-The compiler must never reuse generated Rust after an importer, target capability, package feature, inline Rust unit, foreign runtime adapter or ABI, or strictness mode changes without including that change in the cache key.
+The compiler must never reuse generated Rust after an importer, target capability, package feature, inline Rust unit, system ABI, or strictness mode changes without including that change in the cache key.
 
 ---
 
@@ -5215,7 +5069,7 @@ Diagnostics must never suggest adjacency as a call form.
 
 ### 33.1 Build-time code is code
 
-Custom importers, native package build code, binding generation, arbitrary build scripts, and foreign-runtime package installation execute with explicit capabilities.
+Custom importers, native package build code, binding generation, and arbitrary build scripts execute with explicit capabilities.
 
 Their actions are recorded in build metadata.
 
@@ -5228,7 +5082,6 @@ The compiler emits an unsafe inventory covering:
 - raw C calls;
 - unchecked layout/pointer operations;
 - native packages declaring unsafe contracts.
-- embedded foreign runtimes and their loaded extension modules.
 
 ### 33.3 Reflection privacy
 
@@ -5263,7 +5116,6 @@ Build-time extensions should run under a capability sandbox where platform suppo
 
 A project may deliberately grant full access. The language does not pretend that powerful custom import behaviour is safe merely because it is elegant.
 
-Foreign packages execute with the authority of their host runtime; a Terrane object proxy is not a sandbox. Runtime adapters must expose filesystem, network, environment, process, and native-extension requirements to capability analysis where the runtime can report them, and must mark unknown effects rather than claiming isolation.
 
 ---
 
@@ -5314,16 +5166,9 @@ namespace-segment
 dependency-declaration
   = "use" package-name
   | "use" ( "rust" | "system" ) package-name
-  | "use" "runtime" runtime-name
 
 package-name
   = namespace-segment
-
-runtime-name
-  = identifier
-
-foreign-source-block
-  = runtime-name indented-foreign-body
 
 from-import
   = "from" namespace-path "import"
@@ -5444,7 +5289,6 @@ statement
   | label-statement
   | goto-statement
   | build-selection
-  | foreign-source-block
 
 assignment-statement
   = assignment-target "=" expression
@@ -5603,7 +5447,6 @@ Each function qualifier may appear at most once, and incompatible combinations a
 
 The `is a` alternative is selected only when `a` is followed by a complete `type-expression`; otherwise the comparison alternative treats `a` as an ordinary identifier. `call-free-expression` is the expression grammar instantiated with the optional `call-clause` on `postfix-expression` disabled. This parameterisation avoids duplicating every precedence production; parser-generator sources must expand it mechanically. A parenthesised `expression` re-enables calls, which is why nested invocation requires grouping.
 
-The semantic resolver checks the first component of a `from` path against declared runtime names before native namespace resolution. Thus `from python/numpy import array` is syntactically an ordinary `from-import`, but resolves through the adapter introduced by `use runtime python`. A runtime name at statement position begins an opaque, indentation-delimited `foreign-source-block`; its adapter owns the nested grammar and source map.
 
 The parser emits every `constructor-argument` as one unified syntax-node kind because identifiers and other forms may resolve as types or compile-time values. Constructor signatures classify those nodes during semantic analysis. Function types associate to the right; grouping overrides that association.
 
@@ -5629,7 +5472,7 @@ Unlike Python, a grammar production that opens a possible block may legally rece
 
 Compound clauses (`else`, `catch`, `finally`, `case`) align with the construct that owns them. A `return` without an expression ends at `NEWLINE`; `throw` and `yield` require expressions. `break` and `continue` take no value in version one. `try` requires at least one `catch` or `finally`; `catch` clauses precede the optional `finally`. Labels and `goto` remain function-local and are checked against the ownership and cleanup rules in §14.7.
 
-`match` is reserved by this grammar but remains outside the minimum compiler milestone under §14.8; an implementation that accepts it must implement this complete statement shape rather than private syntax. Rust and foreign-source bodies are opaque, indentation-delimited token regions whose owning adapter preserves nested source maps.
+`match` is reserved by this grammar but remains outside the minimum compiler milestone under §14.8; an implementation that accepts it must implement this complete statement shape rather than private syntax. Rust bodies are opaque, indentation-delimited token regions with nested source maps.
 
 ### 34.2 Call expressions
 
@@ -5751,25 +5594,8 @@ print; info.compile.rust
 print; info.compile.rust-type
 ```
 
-### 35.10 Embedded Python
+### 35.10 Kernel-oriented code
 
-```terrane
-use runtime python
-
-from python/numpy import array
-
-values = array; 1, 2, 3, 4
-print; values.mean;
-
-python
-  import torch
-  tensor = torch.tensor([1, 2, 3])
-  print(tensor.sum())
-```
-
-The imported NumPy array is a foreign proxy with explicit runtime reflection. The embedded block crosses the same visible Python boundary and retains Python source locations for errors and debugging.
-
-### 35.11 Kernel-oriented code
 
 ```terrane
 namespace kernel/memory
@@ -6046,6 +5872,10 @@ A `platform-string` represents exactly one host argument or environment componen
 selects either lossless Unicode `text` or lossless `raw` bytes; invalid host Unicode is never
 silently replaced. Argument and environment access return explicit snapshots. Environment entries
 pair platform-string names and values.
+The system host name is part of `/standard/process` rather than a parallel system namespace. Its
+`host-name-result` reports `failed`, `available`, and a translated host error message, and carries
+the value as a `platform-string`; invalid host Unicode is therefore preserved rather than replaced.
+Importing this process/system surface requires the package profile's `process` capability.
 
 Command-line parsing is schema-driven and pure with respect to process termination. In version one,
 schema entries declare exact `flag:` and `value:` long-option spellings. Declared flags, option
@@ -6095,62 +5925,58 @@ Unless a snippet explicitly tests unresolved lookup, the conformance harness sup
 19. COW avoids a physical copy until mutation.
 20. `ref` preserves shared identity.
 21. nested COW values separate on mutation without leaking changes.
-22. a foreign proxy requires explicit `ref` or `move` rather than weakening value assignment.
-23. a Python import resolves through `libpython3` and exposes a reflected foreign proxy.
-24. Python exceptions retain their traceback in a `python-error`.
-25. both `for` forms compile.
-26. throw/catch lowers without ordinary panic.
-27. a Rust error is mapped back to the source span.
-28. inline Rust sees source values through documented generated names.
-29. a function’s generated Rust is retrievable in a development build.
-30. profiling distinguishes semantic assignment, shared storage, physical copy, COW split, ref, and move.
-31. profiling exposes Python transitions and data copies.
-32. a simple allocator-free target rejects hosted-only capabilities at source level.
-33. `==`, `is`, and `is a` respectively test value equality, source-visible identity, and type membership; a numeric constant uses the queried type as context and returns false rather than failing when inadmissible, while a typed numeric value is not a member of a merely convertible concrete type; exact type-and-value comparison uses an explicit conjunction and `===` is rejected.
-34. labels are function-local; `goto` cannot enter a deeper lexical scope or cross initialisation/lifetime transitions unsafely, and every accepted jump lowers to sound Rust with identical cleanup order.
-35. `when build` selects namespace declarations and function statements deterministically, excludes inactive branches from the current build, and records every selection input in the build cache key.
-36. `ref T`, `shared ref T`, `user-ref of T`, `raw-address of T`, `array-ref of T`, `c-pointer of T`, and `function from ... to ...` enforce distinct ownership, identity, lifetime, address-space, provenance, extent, and ABI contracts without implicit conversion between them.
-37. `with per-cpu, (aligned; 64) global x int = 0` applies two package-supplied modifiers resolved through ordinary lexical scope; the comma delimits the clause, an argument-taking modifier is parenthesised, a trailing comma is an error, and `with global` is rejected because core declaration words never take `with`.
-38. `constant` declarations parse in every binding position and `const` is rejected as a declaration word.
-39. `array of vm-struct|none, nr-cached-stacks` parses as one constructor application whose signature classifies its first argument as a type and its second as a compile-time integer.
-40. `function from int, c-pointer of opaque to int` associates to the right; nested callable parameters format with grouping whenever the ungrouped form would be difficult to scan.
-41. `void` is accepted only as the no-produced-value contract, while `opaque` is accepted as a type with hidden representation; neither substitutes for the other.
-42. a reference derived through member access or collection iteration retains its origin's anonymous provenance and cannot escape or widen its inferred lifetime.
-43. reflection reports source name, generated Rust name, and native symbol independently, and `native-name; mmdrop, "__mmdrop"` changes only the last.
-44. lexical ownership and acyclic shared ownership destroy deterministically, while a provable `shared ref` cycle is rejected and an uncollectable runtime cycle is diagnosed or documented as a leak rather than promised deterministic reclamation.
-45. imports obey lexical and namespace scope, nearer imports shadow farther ones, same-scope collisions are rejected, and `as` retains both objects when two exports collide.
-46. plain top-level assignment remains namespace-local even in the root namespace; creating or replacing a program-global binding without `global` is rejected.
-47. the default prelude contains exactly `print`, `task-scope`, `int`, `float`, `bool`, `string`, `bytes`, `none`, `utf8`, `utf16-le`, `utf16-be`, `utf32-le`, and `utf32-be`; disabling it removes those defaults while explicit `/core` imports still work.
-48. a call owns its remaining logical expression, nested calls require grouping, zero-argument calls require `;`, and three-clause `for` semicolons cannot be consumed as call delimiters.
-49. source type parameters are rejected; strict code uses concrete types, unions, interfaces, or generated concrete declarations rather than silently becoming dynamic.
-50. `c is a` parses as identity against the binding `a`, `c is a widget` parses as type membership, ordinary identity-less values compare false even to themselves, explicit refs alias one identity, and linear resources preserve identity across moves.
-51. core text display renders supported scalar values canonically, `print` consumes that protocol and appends a newline, arbitrary `bytes` and values without text display are rejected rather than guessed, and locale-sensitive or styled formatting remains explicitly imported.
-52. an interior `ref` separates COW storage, remains attached to its original logical owner, pins the referenced path, and rejects removal, replacement, escape, or lifetime widening while live.
-53. exported may-throw functions expose `throws`, non-throwing callable contracts reject may-throw implementations, fixed-width checked arithmetic throws a catchable `arithmetic-overflow`, `int` representation promotion does not throw, and explicit wrapping operations do not.
-54. assigning a subclass value to a base-typed binding preserves the complete dynamic value and dispatch; implementations that would slice are rejected.
-55. protocols express structural capabilities, interfaces define typed dispatch boundaries, traits reuse implementation without becoming types, and single inheritance preserves value and dynamic-type semantics.
-56. only declared precompiled host extensions execute as importers or modifiers; `when build` accepts only its restricted deterministic query subset, records inputs and plans in cache keys, and never recursively executes ordinary Terrane source.
-57. an `async function` has an async callable type, `await` is rejected outside async context, sync and async callables are incompatible without an explicit adapter, and no borrow crosses suspension unless its contract proves that lifetime.
-58. default `string.length` requires grapheme segmentation capability; a target lacking it diagnoses the operation instead of substituting scalar or byte length, while explicit scalar/byte views remain available.
-59. representation specialisation may inspect only a package compilation unit and declared dependency metadata; downstream packages consume the published representation contract rather than changing upstream layout.
-60. precedence, associativity, comparison non-associativity, short-circuiting, receiver/index evaluation, assignment-target evaluation, argument order, and default-argument order match §34 exactly under both interpreted tooling and generated Rust.
-61. `private cache = map;`, `protected state = none`, bare rebinding, member assignment, and index assignment parse; literals, calls, postfix updates, non-assignable temporaries, and ownership-invalid paths are rejected as assignment targets.
-62. every statement form in §34 parses with empty and non-empty bodies where allowed; `else`, `catch`, `finally`, and `case` bind only to their owning constructs, and `return`, loop control, throw, yield, labels, and jumps preserve required cleanup.
-63. unary `-`, `~`, and `not` compose according to precedence; unary `+`, `ref ref value`, `shared ref ref value`, and `move move value` are rejected.
-64. unconstrained integer literals beyond `int64` and `int128` range remain `int`; runtime addition, subtraction, and negation promote exactly from the compact tier through `i128` to arbitrary precision without a source-visible overflow.
-65. completed `int` operations normalise back to the smallest exact tier, including an `i128`-tier value crossing into `int64` range and a big value producing a small result; equality and hashing remain identical across every tier.
-66. multiplying two small `int` values uses an exact `i128` intermediate, wider multiplication produces the exact arbitrary-precision result, and multiplication by `0`, `1`, or `-1` preserves promotion and normalisation edge cases.
-67. signed `/`, `%`, and `div-rem` obey the Euclidean quotient/remainder invariant for every sign combination; division by zero throws `division-by-zero`, `int` division promotes for a representation `MIN / -1`, and fixed-width `MIN / -1` follows its selected overflow mode.
-68. every signed and unsigned fixed width through 128 bits keeps its declared type under arithmetic and implements throwing ordinary, checked, wrapping, saturating, and overflowing operation contracts without build-mode-dependent behaviour.
-69. contextual constant expressions are evaluated in destination or typed-operand arithmetic, admitted by mathematical value rather than literal spelling, materialised directly in the selected representation, and rejected at compile time when the selected domain cannot represent the result.
-70. mixed integer values promote exactly to the smallest integer type containing both source ranges, while integer/floating value mixtures and unrelated categories remain rejected without an explicit policy conversion.
-71. numeric destination contexts admit exact widening without a representability check or conversion-error path and checked narrowing with `integer-conversion-overflow`; floating/integer crossings succeed implicitly only for exactly representable values, optimiser range knowledge may remove checks but never decide source validity, and widening to adaptive `int` may retain an ordinary allocation effect.
-72. `coerce`, `coerce.checked`, `coerce.wrap`, and `coerce.saturate` handle signedness and every `int`/fixed-width boundary exactly; written integer-to-float `coerce` rounds ties-to-even while an implicit float destination is exact-or-throw; flat spellings such as `checked-coerce` are rejected.
-73. `int` bitwise operations behave as infinite two's-complement arithmetic across positive and negative operands and every representation tier; `~x == -x - 1`, left shift is exact, right shift is arithmetic/flooring, negative counts throw `negative-shift-count`, and very large right shifts produce `0` or `-1` without count wrapping or proportional allocation.
-74. contextual signed fixed-width destinations accept each type's syntactically negated minimum literal, including `-128` as `int8` and `-2^127` as `int128`, reject the next lower value, and do not first reject the unsigned positive magnitude.
-75. fixed-width numeric descriptors are constructs available without import, distinct from the seven prelude ordinary bindings; explicit import remains available for aliasing and shadowing, and they are not reserved type words.
-76. canonical type descriptors are semantic objects with stable identity rather than ordinary values, requiring no runtime storage when statically resolved and materialising only where reflection or dynamic descriptor use demands it, while a first-version type expression or coercion destination must resolve to a finite compiler-known descriptor alternative.
-77. numeric-to-float coercion rounds to nearest with ties to even and reports precision loss through the destination type rather than an error, unrepresentable float destinations and unparseable text throw `coercion-error`, and parsing coercion accepts exactly the destination's canonical text-display spelling.
+22. both `for` forms compile.
+23. throw/catch lowers without ordinary panic.
+24. a Rust error is mapped back to the source span.
+25. inline Rust sees source values through documented generated names.
+26. a function’s generated Rust is retrievable in a development build.
+27. profiling distinguishes semantic assignment, shared storage, physical copy, COW split, ref, and move.
+28. a simple allocator-free target rejects hosted-only capabilities at source level.
+29. `==`, `is`, and `is a` respectively test value equality, source-visible identity, and type membership; a numeric constant uses the queried type as context and returns false rather than failing when inadmissible, while a typed numeric value is not a member of a merely convertible concrete type; exact type-and-value comparison uses an explicit conjunction and `===` is rejected.
+30. labels are function-local; `goto` cannot enter a deeper lexical scope or cross initialisation/lifetime transitions unsafely, and every accepted jump lowers to sound Rust with identical cleanup order.
+31. `when build` selects namespace declarations and function statements deterministically, excludes inactive branches from the current build, and records every selection input in the build cache key.
+32. `ref T`, `shared ref T`, `user-ref of T`, `raw-address of T`, `array-ref of T`, `c-pointer of T`, and `function from ... to ...` enforce distinct ownership, identity, lifetime, address-space, provenance, extent, and ABI contracts without implicit conversion between them.
+33. `with per-cpu, (aligned; 64) global x int = 0` applies two package-supplied modifiers resolved through ordinary lexical scope; the comma delimits the clause, an argument-taking modifier is parenthesised, a trailing comma is an error, and `with global` is rejected because core declaration words never take `with`.
+34. `constant` declarations parse in every binding position and `const` is rejected as a declaration word.
+35. `array of vm-struct|none, nr-cached-stacks` parses as one constructor application whose signature classifies its first argument as a type and its second as a compile-time integer.
+36. `function from int, c-pointer of opaque to int` associates to the right; nested callable parameters format with grouping whenever the ungrouped form would be difficult to scan.
+37. `void` is accepted only as the no-produced-value contract, while `opaque` is accepted as a type with hidden representation; neither substitutes for the other.
+38. a reference derived through member access or collection iteration retains its origin's anonymous provenance and cannot escape or widen its inferred lifetime.
+39. reflection reports source name, generated Rust name, and native symbol independently, and `native-name; mmdrop, "__mmdrop"` changes only the last.
+40. lexical ownership and acyclic shared ownership destroy deterministically, while a provable `shared ref` cycle is rejected and an uncollectable runtime cycle is diagnosed or documented as a leak rather than promised deterministic reclamation.
+41. imports obey lexical and namespace scope, nearer imports shadow farther ones, same-scope collisions are rejected, and `as` retains both objects when two exports collide.
+42. plain top-level assignment remains namespace-local even in the root namespace; creating or replacing a program-global binding without `global` is rejected.
+43. the default prelude contains exactly `print`, `task-scope`, `int`, `float`, `bool`, `string`, `bytes`, `none`, `utf8`, `utf16-le`, `utf16-be`, `utf32-le`, and `utf32-be`; disabling it removes those defaults while explicit `/core` imports still work.
+44. a call owns its remaining logical expression, nested calls require grouping, zero-argument calls require `;`, and three-clause `for` semicolons cannot be consumed as call delimiters.
+45. source type parameters are rejected; strict code uses concrete types, unions, interfaces, or generated concrete declarations rather than silently becoming dynamic.
+46. `c is a` parses as identity against the binding `a`, `c is a widget` parses as type membership, ordinary identity-less values compare false even to themselves, explicit refs alias one identity, and linear resources preserve identity across moves.
+47. core text display renders supported scalar values canonically, `print` consumes that protocol and appends a newline, arbitrary `bytes` and values without text display are rejected rather than guessed, and locale-sensitive or styled formatting remains explicitly imported.
+48. an interior `ref` separates COW storage, remains attached to its original logical owner, pins the referenced path, and rejects removal, replacement, escape, or lifetime widening while live.
+49. exported may-throw functions expose `throws`, non-throwing callable contracts reject may-throw implementations, fixed-width checked arithmetic throws a catchable `arithmetic-overflow`, `int` representation promotion does not throw, and explicit wrapping operations do not.
+50. assigning a subclass value to a base-typed binding preserves the complete dynamic value and dispatch; implementations that would slice are rejected.
+51. protocols express structural capabilities, interfaces define typed dispatch boundaries, traits reuse implementation without becoming types, and single inheritance preserves value and dynamic-type semantics.
+52. only declared precompiled host extensions execute as importers or modifiers; `when build` accepts only its restricted deterministic query subset, records inputs and plans in cache keys, and never recursively executes ordinary Terrane source.
+53. an `async function` has an async callable type, `await` is rejected outside async context, sync and async callables are incompatible without an explicit adapter, and no borrow crosses suspension unless its contract proves that lifetime.
+54. default `string.length` requires grapheme segmentation capability; a target lacking it diagnoses the operation instead of substituting scalar or byte length, while explicit scalar/byte views remain available.
+55. representation specialisation may inspect only a package compilation unit and declared dependency metadata; downstream packages consume the published representation contract rather than changing upstream layout.
+56. precedence, associativity, comparison non-associativity, short-circuiting, receiver/index evaluation, assignment-target evaluation, argument order, and default-argument order match §34 exactly under both interpreted tooling and generated Rust.
+57. `private cache = map;`, `protected state = none`, bare rebinding, member assignment, and index assignment parse; literals, calls, postfix updates, non-assignable temporaries, and ownership-invalid paths are rejected as assignment targets.
+58. every statement form in §34 parses with empty and non-empty bodies where allowed; `else`, `catch`, `finally`, and `case` bind only to their owning constructs, and `return`, loop control, throw, yield, labels, and jumps preserve required cleanup.
+59. unary `-`, `~`, and `not` compose according to precedence; unary `+`, `ref ref value`, `shared ref ref value`, and `move move value` are rejected.
+60. unconstrained integer literals beyond `int64` and `int128` range remain `int`; runtime addition, subtraction, and negation promote exactly from the compact tier through `i128` to arbitrary precision without a source-visible overflow.
+61. completed `int` operations normalise back to the smallest exact tier, including an `i128`-tier value crossing into `int64` range and a big value producing a small result; equality and hashing remain identical across every tier.
+62. multiplying two small `int` values uses an exact `i128` intermediate, wider multiplication produces the exact arbitrary-precision result, and multiplication by `0`, `1`, or `-1` preserves promotion and normalisation edge cases.
+63. signed `/`, `%`, and `div-rem` obey the Euclidean quotient/remainder invariant for every sign combination; division by zero throws `division-by-zero`, `int` division promotes for a representation `MIN / -1`, and fixed-width `MIN / -1` follows its selected overflow mode.
+64. every signed and unsigned fixed width through 128 bits keeps its declared type under arithmetic and implements throwing ordinary, checked, wrapping, saturating, and overflowing operation contracts without build-mode-dependent behaviour.
+65. contextual constant expressions are evaluated in destination or typed-operand arithmetic, admitted by mathematical value rather than literal spelling, materialised directly in the selected representation, and rejected at compile time when the selected domain cannot represent the result.
+66. mixed integer values promote exactly to the smallest integer type containing both source ranges, while integer/floating value mixtures and unrelated categories remain rejected without an explicit policy conversion.
+67. numeric destination contexts admit exact widening without a representability check or conversion-error path and checked narrowing with `integer-conversion-overflow`; floating/integer crossings succeed implicitly only for exactly representable values, optimiser range knowledge may remove checks but never decide source validity, and widening to adaptive `int` may retain an ordinary allocation effect.
+68. `coerce`, `coerce.checked`, `coerce.wrap`, and `coerce.saturate` handle signedness and every `int`/fixed-width boundary exactly; written integer-to-float `coerce` rounds ties-to-even while an implicit float destination is exact-or-throw; flat spellings such as `checked-coerce` are rejected.
+69. `int` bitwise operations behave as infinite two's-complement arithmetic across positive and negative operands and every representation tier; `~x == -x - 1`, left shift is exact, right shift is arithmetic/flooring, negative counts throw `negative-shift-count`, and very large right shifts produce `0` or `-1` without count wrapping or proportional allocation.
+70. contextual signed fixed-width destinations accept each type's syntactically negated minimum literal, including `-128` as `int8` and `-2^127` as `int128`, reject the next lower value, and do not first reject the unsigned positive magnitude.
+71. fixed-width numeric descriptors are constructs available without import, distinct from the seven prelude ordinary bindings; explicit import remains available for aliasing and shadowing, and they are not reserved type words.
+72. canonical type descriptors are semantic objects with stable identity rather than ordinary values, requiring no runtime storage when statically resolved and materialising only where reflection or dynamic descriptor use demands it, while a first-version type expression or coercion destination must resolve to a finite compiler-known descriptor alternative.
+73. numeric-to-float coercion rounds to nearest with ties to even and reports precision loss through the destination type rather than an error, unrepresentable float destinations and unparseable text throw `coercion-error`, and parsing coercion accepts exactly the destination's canonical text-display spelling.
 
 ---
 
@@ -6265,25 +6091,24 @@ The following are the design’s constitutional layer. They govern the entire do
 25. Source-to-Rust identifier encoding is exact, deterministic, and injective.
 26. Rust diagnostics are returned to source without hiding the originals.
 27. Inline and full-file Rust are first-class, not an afterthought.
-28. Native, Rust, system/C, and declared foreign-runtime dependencies belong in one inspectable package graph.
-29. Rust is native lowering; foreign runtimes remain explicit semantic, performance, ownership, and deployment boundaries.
-30. Compilation is transparent in development and explicit in deployment.
-31. Production does not require dynamic source compilation or a bespoke Terrane VM.
-32. Reflection, debugging, tracing, and performance explanation are compiler contracts, not later plugins.
-33. Hosted convenience must not prevent allocator-free, embedded, firmware, or kernel realisation where source capabilities permit it.
-34. The compiler must explain costs and constraints rather than silently repairing semantics.
-35. The abstraction must always have a clean downward path to Rust.
-36. Value equality, source-visible identity, and type membership are distinct predicates; no combined equality operator obscures which relation is intended.
-37. Labels and `goto` are function-local, lifetime-checked low-level control flow; no accepted jump may compromise deterministic cleanup or sound Rust lowering.
-38. `when build` is deterministic compile-time source selection over declared build inputs, never hidden runtime branching or untracked configuration.
-39. A non-owning object reference, a shared owner, an untrusted userspace address, a raw machine address, an ABI-erased pointer, a contiguous view, and a callable ABI address are distinct contracts; adapters may refine but never silently weaken them.
-40. Package-supplied modifiers are introduced by `with` and are available on any declaration including a local binding; core structural words remain bare keywords.
-41. Package-defined type constructors classify a common constructor-argument syntax as type or compile-time value without extending the parser grammar.
-42. `void` means no produced value and never acts as erased storage; `opaque` names unavailable representation, whose reference contract must still identify ownership, lifetime, address space, and operations.
-43. Every derived reference retains compiler-assigned provenance and may preserve or narrow, but never widen, the origin lifetime.
-44. Source names, generated Rust names, and native ABI/link symbols are independent reflected identities.
-45. Deterministic destruction is guaranteed by lexical ownership and acyclic final shared-owner release, not by arbitrary shared-cycle reachability.
-46. `int` denotes an exact arbitrary-precision signed value with compact adaptive representation; representation overflow promotes and completed results normalise, fixed-width arithmetic alone exposes width overflow, and numeric destination conversions preserve the exact mathematical value or throw.
+28. Native, Rust, and system/C dependencies belong in one inspectable package graph.
+29. Compilation is transparent in development and explicit in deployment.
+30. Production does not require dynamic source compilation or a bespoke Terrane VM.
+31. Reflection, debugging, tracing, and performance explanation are compiler contracts, not later plugins.
+32. Hosted convenience must not prevent allocator-free, embedded, firmware, or kernel realisation where source capabilities permit it.
+33. The compiler must explain costs and constraints rather than silently repairing semantics.
+34. The abstraction must always have a clean downward path to Rust.
+35. Value equality, source-visible identity, and type membership are distinct predicates; no combined equality operator obscures which relation is intended.
+36. Labels and `goto` are function-local, lifetime-checked low-level control flow; no accepted jump may compromise deterministic cleanup or sound Rust lowering.
+37. `when build` is deterministic compile-time source selection over declared build inputs, never hidden runtime branching or untracked configuration.
+38. A non-owning object reference, a shared owner, an untrusted userspace address, a raw machine address, an ABI-erased pointer, a contiguous view, and a callable ABI address are distinct contracts; adapters may refine but never silently weaken them.
+39. Package-supplied modifiers are introduced by `with` and are available on any declaration including a local binding; core structural words remain bare keywords.
+40. Package-defined type constructors classify a common constructor-argument syntax as type or compile-time value without extending the parser grammar.
+41. `void` means no produced value and never acts as erased storage; `opaque` names unavailable representation, whose reference contract must still identify ownership, lifetime, address space, and operations.
+42. Every derived reference retains compiler-assigned provenance and may preserve or narrow, but never widen, the origin lifetime.
+43. Source names, generated Rust names, and native ABI/link symbols are independent reflected identities.
+44. Deterministic destruction is guaranteed by lexical ownership and acyclic final shared-owner release, not by arbitrary shared-cycle reachability.
+45. `int` denotes an exact arbitrary-precision signed value with compact adaptive representation; representation overflow promotes and completed results normalise, fixed-width arithmetic alone exposes width overflow, and numeric destination conversions preserve the exact mathematical value or throw.
 
 ---
 
@@ -6320,7 +6145,7 @@ The following already-motivated features may be specified later when implementat
 - stateful hot-code replacement with explicit object migration semantics;
 - arbitrary C++ ABI integration beyond C-compatible shims and Rust bridges;
 - multimethod or generic-function dispatch supplied as a library or language feature without making overload resolution implicit;
-- additional foreign-runtime adapters governed by the same explicit boundary contracts as Python;
+- foreign-runtime adapters with explicit semantic, ownership, lifetime, thread, error, capability, tooling, and deployment contracts;
 
 This list is intentionally non-exhaustive. Adding an item here protects a design direction from accidental closure; it does not give that feature priority over the version-one compiler plan.
 
@@ -6340,7 +6165,6 @@ human-friendly object language
   + value semantics with explicit identity
   + transparent generated Rust
   + native/Rust/C package interoperability
-  + explicit access to foreign runtime ecosystems
   + first-class diagnostics and observability
   + direct Rust escape hatches
   + compiled deployment from ordinary dynamic-language ergonomics

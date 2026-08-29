@@ -251,7 +251,7 @@ goto/label
 try/catch/finally, throw
 yield
 when build
-rust block, foreign-source block
+rust block
 ```
 
 Compound clauses align with owner. Empty bodies legal. `return` expression optional; `throw`/`yield` expression required; version-one `break`/`continue` have no value. `try` requires catch or finally.
@@ -633,7 +633,7 @@ String members follow the same callable-family shape:
 
 ```yaml
 concat: 'a.concat; b, c' -> 'abc'; appends arguments to the receiver, NO separator
-join: "': '.join; a, b, c" -> 'a: b: c'; the RECEIVER is the separator (Python str.join / PHP implode shape)
+join: "': '.join; a, b, c" -> 'a: b: c'; the RECEIVER is the separator
 join_bounds: zero args -> ''; one arg -> that arg with no separator; separator never precedes the first or follows the last part
 composition_display: every argument converts through canonical text display; no display protocol is a typed error, never a silent rendering
 composition_purity: neither member mutates the receiver; both return a new string
@@ -737,6 +737,7 @@ directory_relative: resource-owning directory handle; final anchor component and
 handles: linear resource transfer and idempotent host release shared with streams; partial file write exposes completed offset for resume
 platform_string: exactly one host component; is-text selects lossless Unicode text or lossless raw bytes; NEVER replacement decoding
 snapshots: arguments and environment are explicit; environment returns paired platform-string names/values
+host_name: /standard/process host-name returns failed/available/message plus a lossless platform-string value; requires process capability
 cli_schema: exact flag:/value: long-option spellings; parser returns flags/options/positionals plus diagnostic argument indices/messages; NEVER exits
 cli_v1_limits: no --option=value, -- separator, or short clustering; undeclared short spellings remain positional
 exit_status: exact int 0..=255 valid; invalid construction yields valid=false and sentinel 255 without terminating; exit alone terminates
@@ -757,7 +758,7 @@ terrane_layers: paths, filesystem objects/policy/results, platform-string model,
 ## PACKAGE
 
 ```yaml
-origins: terrane packages | Rust crates | system/C libraries | foreign runtime packages
+origins: terrane packages | Rust crates | system/C libraries
 use: declares dependency
 from_import: binds exported objects into the containing scope via namespace/importer
 lockfile: reproducible exact graph
@@ -821,7 +822,6 @@ execution: Rust inspection and generated-crate compilation use the build capabil
 cache_identity: manifest + lock checksum + features/default-feature policy + target + toolchain + package source checksums + sandbox tier; project-local cache keeps current + at most 3 prior projections
 containment: bwrap-capable hosts contain compilation; other hosts report the unavailable tier and continue under declared host policy
 lock_change_diagnostic: machine-independent terrane-projection.lock history distinguishes a removed crossed member from a never-present member; S2031 names the member and dependency version change
-foreign_specialisation: 'from python/x import y' names a crossing point, not an API import; adapters define boundary behaviour
 ```
 
 ## RUST
@@ -837,14 +837,13 @@ foreign_specialisation: 'from python/x import y' names a crossing point, not an 
   generated artefact, but its formatted copy is discarded; mismatch is a compiler defect, never a
   silent rewrite.
 
-## FOREIGN
+## NATIVE INTEROP
 
-- System/C crosses explicit ABI boundary.
-- Foreign runtime adapters (e.g. Python) are explicit semantic/performance/ownership/deployment boundaries.
-- Each adapter declares conversions, operations, lifetime, thread, exception, and deployment contracts.
-- Foreign proxies require explicit `ref` or `move`; ordinary value assignment must not pretend value isolation.
-- Embedded foreign source is opaque indentation-delimited body owned by adapter with nested source map.
-- C++ initially through C-compatible shims/Rust bridges; arbitrary C++ ABI deferred.
+- System/C crosses an explicit ABI boundary.
+- Rust remains native lowering rather than a foreign runtime transition.
+- Foreign-runtime adapters are deferred until after version one.
+- Any later adapter must define conversion, ownership, lifetime, thread, exception, deployment, and tooling contracts without weakening Terrane semantics.
+- C++ initially crosses through C-compatible shims or Rust bridges; arbitrary C++ ABI integration is deferred.
 
 ## COMPILER
 
@@ -953,7 +952,7 @@ Not version-one; no private incompatible syntax:
 - stateful hot-code replacement;
 - arbitrary C++ ABI integration;
 - multimethod/generic-function dispatch;
-- additional foreign runtime adapters;
+- foreign-runtime adapters;
 
 ## AUTHORING CHECKLIST
 

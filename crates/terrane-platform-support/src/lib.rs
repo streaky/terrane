@@ -19,11 +19,14 @@ use base64::Engine as _;
 use hmac::Mac as _;
 use rand_core::{RngCore as _, SeedableRng as _};
 use sha2::Digest as _;
+use std::cell::RefCell;
+use std::collections::HashMap;
 use std::io::{Read, Write as _};
 use std::net::{IpAddr, Shutdown, SocketAddr, TcpListener, TcpStream, UdpSocket};
 use std::sync::{
-    Arc, LazyLock, Mutex,
-    atomic::{AtomicBool, Ordering},
+    Arc, LazyLock, Mutex, RwLock,
+    atomic::{AtomicBool, AtomicI64, AtomicU64, Ordering},
+    mpsc::{Receiver, SyncSender, TryRecvError, sync_channel},
 };
 use std::time::Duration;
 use subtle::ConstantTimeEq as _;
@@ -67,6 +70,19 @@ struct SecretState {
     bytes: Zeroizing<Vec<u8>>,
     destroyed: bool,
 }
+struct IntChannel {
+    sender: SyncSender<i128>,
+    receiver: Mutex<Receiver<i128>>,
+}
+struct ThreadLocalInt {
+    id: u64,
+    initial: i128,
+}
+
+static NEXT_THREAD_LOCAL_ID: AtomicU64 = AtomicU64::new(1);
+thread_local! {
+    static THREAD_LOCAL_INTS: RefCell<HashMap<u64, i128>> = RefCell::new(HashMap::new());
+}
 
 #[derive(Clone)]
 pub struct Capability(Arc<CapabilityInner>);
@@ -77,6 +93,11 @@ enum CapabilityInner {
     Pseudo(Mutex<rand_chacha::ChaCha20Rng>),
     Secret(Mutex<SecretState>),
     Cancellation(AtomicBool),
+    IntChannel(IntChannel),
+    IntMutex(Mutex<i128>),
+    IntRwLock(RwLock<i128>),
+    AtomicI64(AtomicI64),
+    ThreadLocalInt(ThreadLocalInt),
     Listener(Mutex<Option<TcpListener>>),
     Tcp(Mutex<Option<TcpStream>>),
     Udp(Mutex<Option<UdpSocket>>),
@@ -96,6 +117,282 @@ fn count(value: i128, label: &str) -> Result<usize, ResultValue> {
             "{label} must be a non-negative platform-sized integer"
         ))
     })
+}
+fn lock_error(kind: &str) -> ResultValue {
+    ResultValue::error(format!("{kind} is poisoned"))
+}
+
+#[cfg(unix)]
+pub fn platform_value(value: std::ffi::OsString) -> String {
+    use std::os::unix::ffi::OsStrExt as _;
+    value.into_string().map_or_else(
+        |raw| format!("raw:{}", hex_encode(raw.as_bytes())),
+        |text| format!("text:{text}"),
+    )
+}
+
+#[cfg(windows)]
+pub fn platform_value(value: std::ffi::OsString) -> String {
+    use std::os::windows::ffi::OsStrExt as _;
+    value.into_string().map_or_else(
+        |raw| {
+            let units = raw
+                .encode_wide()
+                .flat_map(u16::to_le_bytes)
+                .collect::<Vec<_>>();
+            format!("raw:{}", hex_encode(&units))
+        },
+        |text| format!("text:{text}"),
+    )
+}
+
+pub fn system_host_name() -> ResultValue {
+    match hostname::get() {
+        Ok(name) => ResultValue {
+            text: platform_value(name),
+            flag: true,
+            ..ResultValue::default()
+        },
+        Err(error) => ResultValue::error(format!("cannot read the system host name: {error}")),
+    }
+}
+
+pub fn int_channel(capacity: i128) -> Capability {
+    let Ok(capacity) = usize::try_from(capacity) else {
+        return Capability(Arc::new(CapabilityInner::Invalid(
+            "channel capacity must be a non-negative platform-sized integer".to_owned(),
+        )));
+    };
+    let (sender, receiver) = sync_channel(capacity);
+    Capability(Arc::new(CapabilityInner::IntChannel(IntChannel {
+        sender,
+        receiver: Mutex::new(receiver),
+    })))
+}
+pub fn int_channel_send(channel: &Capability, value: i128) -> ResultValue {
+    let CapabilityInner::IntChannel(channel) = channel.0.as_ref() else {
+        return ResultValue::error("capability is not an int channel");
+    };
+    channel.sender.send(value).map_or_else(
+        |_| ResultValue::error("channel receiver is closed"),
+        |()| ResultValue::default(),
+    )
+}
+pub fn int_channel_receive(channel: &Capability) -> ResultValue {
+    let CapabilityInner::IntChannel(channel) = channel.0.as_ref() else {
+        return ResultValue::error("capability is not an int channel");
+    };
+    let Ok(receiver) = channel.receiver.lock() else {
+        return lock_error("channel receiver");
+    };
+    receiver.recv().map_or_else(
+        |_| ResultValue::error("channel sender is closed"),
+        |number| ResultValue {
+            number,
+            flag: true,
+            ..ResultValue::default()
+        },
+    )
+}
+pub fn int_channel_try_receive(channel: &Capability) -> ResultValue {
+    let CapabilityInner::IntChannel(channel) = channel.0.as_ref() else {
+        return ResultValue::error("capability is not an int channel");
+    };
+    let Ok(receiver) = channel.receiver.lock() else {
+        return lock_error("channel receiver");
+    };
+    match receiver.try_recv() {
+        Ok(number) => ResultValue {
+            number,
+            flag: true,
+            ..ResultValue::default()
+        },
+        Err(TryRecvError::Empty) => ResultValue::default(),
+        Err(TryRecvError::Disconnected) => ResultValue::error("channel sender is closed"),
+    }
+}
+pub fn int_mutex(initial: i128) -> Capability {
+    Capability(Arc::new(CapabilityInner::IntMutex(Mutex::new(initial))))
+}
+pub fn int_mutex_load(value: &Capability) -> ResultValue {
+    let CapabilityInner::IntMutex(value) = value.0.as_ref() else {
+        return ResultValue::error("capability is not an int mutex");
+    };
+    value.lock().map_or_else(
+        |_| lock_error("mutex"),
+        |value| ResultValue {
+            number: *value,
+            flag: true,
+            ..ResultValue::default()
+        },
+    )
+}
+pub fn int_mutex_store(value: &Capability, replacement: i128) -> ResultValue {
+    let CapabilityInner::IntMutex(value) = value.0.as_ref() else {
+        return ResultValue::error("capability is not an int mutex");
+    };
+    let Ok(mut value) = value.lock() else {
+        return lock_error("mutex");
+    };
+    *value = replacement;
+    ResultValue::default()
+}
+pub fn int_mutex_add(value: &Capability, amount: i128) -> ResultValue {
+    let CapabilityInner::IntMutex(value) = value.0.as_ref() else {
+        return ResultValue::error("capability is not an int mutex");
+    };
+    let Ok(mut value) = value.lock() else {
+        return lock_error("mutex");
+    };
+    let Some(next) = value.checked_add(amount) else {
+        return ResultValue::error("mutex update overflows the platform int envelope");
+    };
+    *value = next;
+    ResultValue {
+        number: next,
+        flag: true,
+        ..ResultValue::default()
+    }
+}
+pub fn int_rw_lock(initial: i128) -> Capability {
+    Capability(Arc::new(CapabilityInner::IntRwLock(RwLock::new(initial))))
+}
+pub fn int_rw_lock_read(value: &Capability) -> ResultValue {
+    let CapabilityInner::IntRwLock(value) = value.0.as_ref() else {
+        return ResultValue::error("capability is not an int read/write lock");
+    };
+    value.read().map_or_else(
+        |_| lock_error("read/write lock"),
+        |value| ResultValue {
+            number: *value,
+            flag: true,
+            ..ResultValue::default()
+        },
+    )
+}
+pub fn int_rw_lock_write(value: &Capability, replacement: i128) -> ResultValue {
+    let CapabilityInner::IntRwLock(value) = value.0.as_ref() else {
+        return ResultValue::error("capability is not an int read/write lock");
+    };
+    let Ok(mut value) = value.write() else {
+        return lock_error("read/write lock");
+    };
+    *value = replacement;
+    ResultValue::default()
+}
+fn atomic_ordering(name: &str, load: bool) -> Result<Ordering, ResultValue> {
+    match name {
+        "relaxed" => Ok(Ordering::Relaxed),
+        "acquire" if load => Ok(Ordering::Acquire),
+        "release" if !load => Ok(Ordering::Release),
+        "acquire-release" if !load => Ok(Ordering::AcqRel),
+        "sequentially-consistent" => Ok(Ordering::SeqCst),
+        _ => Err(ResultValue::error(format!(
+            "invalid {} memory ordering `{name}`",
+            if load { "load" } else { "store/update" }
+        ))),
+    }
+}
+pub fn atomic_int64(initial: i128) -> Capability {
+    i64::try_from(initial).map_or_else(
+        |_| {
+            Capability(Arc::new(CapabilityInner::Invalid(
+                "atomic int64 initial value is out of range".to_owned(),
+            )))
+        },
+        |initial| {
+            Capability(Arc::new(CapabilityInner::AtomicI64(AtomicI64::new(
+                initial,
+            ))))
+        },
+    )
+}
+pub fn atomic_int64_load(value: &Capability, ordering: &str) -> ResultValue {
+    let CapabilityInner::AtomicI64(value) = value.0.as_ref() else {
+        return ResultValue::error("capability is not an atomic int64");
+    };
+    let ordering = match atomic_ordering(ordering, true) {
+        Ok(ordering) => ordering,
+        Err(error) => return error,
+    };
+    ResultValue {
+        number: i128::from(value.load(ordering)),
+        flag: true,
+        ..ResultValue::default()
+    }
+}
+pub fn atomic_int64_store(value: &Capability, replacement: i128, ordering: &str) -> ResultValue {
+    let CapabilityInner::AtomicI64(value) = value.0.as_ref() else {
+        return ResultValue::error("capability is not an atomic int64");
+    };
+    let Ok(replacement) = i64::try_from(replacement) else {
+        return ResultValue::error("atomic int64 value is out of range");
+    };
+    let ordering = match atomic_ordering(ordering, false) {
+        Ok(ordering) => ordering,
+        Err(error) => return error,
+    };
+    value.store(replacement, ordering);
+    ResultValue::default()
+}
+pub fn atomic_int64_add(value: &Capability, amount: i128, ordering: &str) -> ResultValue {
+    let CapabilityInner::AtomicI64(value) = value.0.as_ref() else {
+        return ResultValue::error("capability is not an atomic int64");
+    };
+    let Ok(amount) = i64::try_from(amount) else {
+        return ResultValue::error("atomic int64 amount is out of range");
+    };
+    let ordering = match atomic_ordering(ordering, false) {
+        Ok(ordering) => ordering,
+        Err(error) => return error,
+    };
+    let failure_ordering = match ordering {
+        Ordering::Acquire | Ordering::AcqRel => Ordering::Acquire,
+        Ordering::SeqCst => Ordering::SeqCst,
+        _ => Ordering::Relaxed,
+    };
+    let mut previous = value.load(failure_ordering);
+    let next = loop {
+        let Some(next) = previous.checked_add(amount) else {
+            return ResultValue::error("atomic int64 addition overflowed");
+        };
+        match value.compare_exchange_weak(previous, next, ordering, failure_ordering) {
+            Ok(_) => break next,
+            Err(observed) => previous = observed,
+        }
+    };
+    ResultValue {
+        number: i128::from(next),
+        flag: true,
+        ..ResultValue::default()
+    }
+}
+pub fn thread_local_int(initial: i128) -> Capability {
+    Capability(Arc::new(CapabilityInner::ThreadLocalInt(ThreadLocalInt {
+        id: NEXT_THREAD_LOCAL_ID.fetch_add(1, Ordering::Relaxed),
+        initial,
+    })))
+}
+pub fn thread_local_int_get(value: &Capability) -> ResultValue {
+    let CapabilityInner::ThreadLocalInt(value) = value.0.as_ref() else {
+        return ResultValue::error("capability is not a thread-local int");
+    };
+    let number = THREAD_LOCAL_INTS
+        .with(|values| *values.borrow_mut().entry(value.id).or_insert(value.initial));
+    ResultValue {
+        number,
+        flag: true,
+        ..ResultValue::default()
+    }
+}
+pub fn thread_local_int_set(value: &Capability, replacement: i128) -> ResultValue {
+    let CapabilityInner::ThreadLocalInt(value) = value.0.as_ref() else {
+        return ResultValue::error("capability is not a thread-local int");
+    };
+    THREAD_LOCAL_INTS.with(|values| {
+        values.borrow_mut().insert(value.id, replacement);
+    });
+    ResultValue::default()
 }
 
 pub fn cancellation_token() -> Capability {
@@ -282,7 +579,13 @@ pub fn constant_time_equal(left: &[u8], right: &[u8]) -> bool {
 }
 
 pub fn hex_encode(data: &[u8]) -> String {
-    data.iter().map(|byte| format!("{byte:02x}")).collect()
+    const DIGITS: &[u8; 16] = b"0123456789abcdef";
+    let mut encoded = String::with_capacity(data.len() * 2);
+    for byte in data {
+        encoded.push(DIGITS[usize::from(byte >> 4)] as char);
+        encoded.push(DIGITS[usize::from(byte & 0x0f)] as char);
+    }
+    encoded
 }
 
 pub fn hex_decode(text: &str) -> ResultValue {
@@ -1358,6 +1661,70 @@ pub fn close(capability: &Capability) -> ResultValue {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn concurrency_capabilities_share_state_and_isolate_thread_locals() {
+        let channel = int_channel(1);
+        let sender = channel.clone();
+        std::thread::spawn(move || {
+            assert!(!int_channel_send(&sender, 17).failed);
+        })
+        .join()
+        .unwrap();
+        let received = int_channel_receive(&channel);
+        assert!(!received.failed);
+        assert!(received.flag);
+        assert_eq!(received.number, 17);
+
+        let mutex = int_mutex(2);
+        let shared_mutex = mutex.clone();
+        std::thread::spawn(move || {
+            assert_eq!(int_mutex_add(&shared_mutex, 3).number, 5);
+        })
+        .join()
+        .unwrap();
+        assert_eq!(int_mutex_load(&mutex).number, 5);
+
+        let read_write_lock = int_rw_lock(7);
+        let shared_lock = read_write_lock.clone();
+        std::thread::spawn(move || {
+            assert!(!int_rw_lock_write(&shared_lock, 11).failed);
+        })
+        .join()
+        .unwrap();
+        assert_eq!(int_rw_lock_read(&read_write_lock).number, 11);
+
+        let atomic = atomic_int64(13);
+        let shared_atomic = atomic.clone();
+        std::thread::spawn(move || {
+            assert_eq!(atomic_int64_add(&shared_atomic, 4, "release").number, 17);
+        })
+        .join()
+        .unwrap();
+        assert_eq!(atomic_int64_load(&atomic, "acquire").number, 17);
+
+        let local = thread_local_int(19);
+        assert_eq!(thread_local_int_get(&local).number, 19);
+        let other_thread = local.clone();
+        std::thread::spawn(move || {
+            assert_eq!(thread_local_int_get(&other_thread).number, 19);
+            assert!(!thread_local_int_set(&other_thread, 23).failed);
+            assert_eq!(thread_local_int_get(&other_thread).number, 23);
+        })
+        .join()
+        .unwrap();
+        assert_eq!(thread_local_int_get(&local).number, 19);
+    }
+
+    #[test]
+    fn system_host_name_preserves_the_platform_string_contract() {
+        let name = system_host_name();
+        if name.failed {
+            assert!(!name.message.is_empty());
+        } else {
+            assert!(name.flag);
+            assert!(name.text.starts_with("text:") || name.text.starts_with("raw:"));
+        }
+    }
 
     #[test]
     fn loopback_tcp_exchanges_under_deadline() {

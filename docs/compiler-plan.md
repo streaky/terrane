@@ -444,7 +444,7 @@ S2012 duplicate lexical binding              S2025 public namespace variable
 S2013 unresolved source name                 S2026 namespace-variable confinement
 S2027 undeclared Rust dependency             S2029 projected member absent or declined
 S2028 Rust dependency projection failure     S2030 retired; do not reuse
-S2031 projected member removed by version change
+S2031 projected member removed by version change S2032 forbidden capability import
 ```
 
 Retired codes remain unavailable so a stable code never acquires a second meaning.
@@ -1557,9 +1557,9 @@ Deliver:
 - **the specification amendments this requires**, which are language changes and not editorial: making
   uppercase and underscore legal identifier characters so verbatim projected names are writable, with
   kebab-case kept mandatory for compiler-owned and standard-library names and every documentation
-  example and available as an opt-in lint elsewhere; scoping the tooling-execution prohibition to
-  foreign-runtime adapters, since for Rust inspection is compilation; removing the source-level
-  dependency declaration form; adding `dependency-panic` to the standard throwables; and confirming
+  example and available as an opt-in lint elsewhere; removing the tooling-execution prohibition from
+  Rust inspection because it is compilation; removing the source-level dependency declaration form;
+  adding `dependency-panic` to the standard throwables; and confirming
   the foreign-resource ownership rule covers Rust values;
 - **language-server integration** rendering the projector's model for completion, signature help, and
   hover, showing the verbatim Rust path and the recorded reason for declined items, advisory
@@ -1682,9 +1682,9 @@ Deliver:
   `object_method_mutates` ends in a call to it. With a qualified receiver type all three become
   unnecessary. They are removed rather than left as unreachable paths, and the milestone-25
   `S2030` receiver-mutability diagnostic added in their place is removed with them;
-- **the language-document statement of object identity.** §16 and §23.13 describe objects by declared
-  name; identity is the namespace-qualified pair, two identically named objects in two namespaces are
-  two types, and no aliasing or structural rule relates them. `docs/language-spec-concise.md` and
+- **the language-document statement of object identity.** §16 describes objects by declared name;
+  identity is the namespace-qualified pair, two identically named objects in two namespaces are two
+  types, and no aliasing or structural rule relates them. `docs/language-spec-concise.md` and
   `docs/surface-today.md` follow in the same work unit.
 
 Exit criterion: two namespaces in one package declare a class of the same name; both are usable, a
@@ -1788,7 +1788,7 @@ uses `serde_json`'s `Option<Number>`, `u128` edge coercion, data-free enum varia
 comparison; focused package, projection, semantic, generated-Rust, and rejection checks cover the
 remaining contracts.
 
-### Milestone 26 — Remaining concurrency and foreign adapters
+### Milestone 26 — Remaining concurrency and system adapters
 
 Milestone 25.2 already established the package `[profile]` model, validates declared dependency
 effects against it, and gives projected Rust crossings explicit receiver, error, and panic contracts.
@@ -1800,13 +1800,23 @@ Deliver:
 - channels, mutexes, read/write locks, atomics, and thread-local objects as library objects over the milestone 19 core;
 - capability enforcement for standard and system facilities under the existing package profile;
 - the remaining authored Rust and system adapters, excluding dependency-projection crossings already
-  delivered by milestone 25.2, with explicit ABI, lifetime, ownership, and error-translation contracts;
-- the first Python runtime contract if it remains in version-one scope.
+  delivered by milestone 25.2, with explicit ABI, lifetime, ownership, and error-translation contracts.
 
 Exit criterion: each new surface enters under the selected capability profile with typed objects and
 explicit operational contracts, deterministic lowering, and compiled and run evidence. A forbidden
 standard or system capability is rejected with a Terrane diagnostic. No surface is represented as an
 empty compiler-owned name to make the map look complete.
+
+Implemented evidence: `/standard/concurrency` provides typed bounded integer channels, mutexes,
+read/write locks, `atomic-int64`, and per-host-thread local integers over opaque host capabilities.
+Generated Rust delegates synchronization and ordering validation to the support crate without
+exposing host handles. Bundled standard imports are checked against `[profile]`; `S2032` names the
+forbidden capability and importing namespace, including `threads` for concurrency and `process` for
+the process/system surface. `/standard/process::host-name` demonstrates the remaining owned system
+crossing: the host ABI returns no borrowed value or handle, translates host failures, and preserves
+non-Unicode platform names in the existing `platform-string` representation. Accepted canonical-Rust
+cases compile and run both surfaces, focused rejected cases prove both capability gates, and support
+tests exercise cross-thread sharing, atomic ordering, and thread-local isolation.
 
 ### Milestone 27 — Structured logging
 
@@ -1904,7 +1914,7 @@ The release pipeline must prove, from a clean checkout:
 - variadics, if they delay the core pipeline;
 - custom declaration modifiers and package-defined type constructors;
 - custom importers and registries beyond the locked Cargo graph version one requires;
-- C ABI export, and foreign runtimes beyond the first Python contract;
+- C ABI export and foreign-runtime adapters, including Python;
 - debugger integration, tracing, and profiling beyond the retained reflection metadata;
 - stateful hot-code replacement and time-travel or replay;
 - locale-policy-rich text APIs until deterministic policy objects are specified;

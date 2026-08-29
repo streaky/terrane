@@ -1,0 +1,125 @@
+namespace standard/concurrency
+
+from /core/types import int, int64, bool, string
+from /core/platform-concurrency import platform-capability, platform-result, no-capability
+from /core/platform-concurrency import int-channel as platform-int-channel
+from /core/platform-concurrency import int-channel-send as platform-channel-send
+from /core/platform-concurrency import int-channel-receive as platform-channel-receive
+from /core/platform-concurrency import int-channel-try-receive as platform-channel-try-receive
+from /core/platform-concurrency import int-mutex as platform-int-mutex
+from /core/platform-concurrency import int-mutex-load as platform-mutex-load
+from /core/platform-concurrency import int-mutex-store as platform-mutex-store
+from /core/platform-concurrency import int-mutex-add as platform-mutex-add
+from /core/platform-concurrency import int-read-write-lock as platform-int-read-write-lock
+from /core/platform-concurrency import int-read-write-lock-read as platform-read-write-lock-read
+from /core/platform-concurrency import int-read-write-lock-write as platform-read-write-lock-write
+from /core/platform-concurrency import atomic-int64 as platform-atomic-int64
+from /core/platform-concurrency import atomic-int64-load as platform-atomic-load
+from /core/platform-concurrency import atomic-int64-store as platform-atomic-store
+from /core/platform-concurrency import atomic-int64-add as platform-atomic-add
+from /core/platform-concurrency import thread-local-int as platform-thread-local-int
+from /core/platform-concurrency import thread-local-int-get as platform-thread-local-get
+from /core/platform-concurrency import thread-local-int-set as platform-thread-local-set
+from /core/platform-concurrency import result-failed, result-message, result-int, result-bool
+
+class operation-result
+    failed bool = false
+    message string = ''
+
+    function construct; did-fail bool, detail string
+        this.failed = did-fail
+        this.message = detail
+
+class int-result
+    failed bool = false
+    available bool = false
+    message string = ''
+    value int = 0
+
+    function construct; did-fail bool, has-value bool, detail string, result-value int
+        this.failed = did-fail
+        this.available = has-value
+        this.message = detail
+        this.value = result-value
+
+class int-channel
+    handle platform-capability = no-capability;
+
+    function construct; capacity int
+        this.handle = platform-int-channel; capacity
+
+    function send operation-result; value int
+        raw = platform-channel-send; this.handle, value
+        return operation-result; (result-failed; raw), (result-message; raw)
+
+    function receive int-result;
+        raw = platform-channel-receive; this.handle
+        return int-result; (result-failed; raw), (result-bool; raw), (result-message; raw), (result-int; raw)
+
+    function try-receive int-result;
+        raw = platform-channel-try-receive; this.handle
+        return int-result; (result-failed; raw), (result-bool; raw), (result-message; raw), (result-int; raw)
+
+class int-mutex
+    handle platform-capability = no-capability;
+
+    function construct; initial int
+        this.handle = platform-int-mutex; initial
+
+    function load int-result;
+        raw = platform-mutex-load; this.handle
+        return int-result; (result-failed; raw), (result-bool; raw), (result-message; raw), (result-int; raw)
+
+    function store operation-result; value int
+        raw = platform-mutex-store; this.handle, value
+        return operation-result; (result-failed; raw), (result-message; raw)
+
+    function increase int-result; amount int
+        raw = platform-mutex-add; this.handle, amount
+        return int-result; (result-failed; raw), (result-bool; raw), (result-message; raw), (result-int; raw)
+
+class int-read-write-lock
+    handle platform-capability = no-capability;
+
+    function construct; initial int
+        this.handle = platform-int-read-write-lock; initial
+
+    function read int-result;
+        raw = platform-read-write-lock-read; this.handle
+        return int-result; (result-failed; raw), (result-bool; raw), (result-message; raw), (result-int; raw)
+
+    function write operation-result; value int
+        raw = platform-read-write-lock-write; this.handle, value
+        return operation-result; (result-failed; raw), (result-message; raw)
+
+class atomic-int64
+    handle platform-capability = no-capability;
+
+    function construct; initial int64
+        this.handle = platform-atomic-int64; initial
+
+    function load int-result; ordering string
+        raw = platform-atomic-load; this.handle, ordering
+        return int-result; (result-failed; raw), (result-bool; raw), (result-message; raw), (result-int; raw)
+
+    function store operation-result; value int64, ordering string
+        raw = platform-atomic-store; this.handle, value, ordering
+        return operation-result; (result-failed; raw), (result-message; raw)
+
+    function increase int-result; amount int64, ordering string
+        raw = platform-atomic-add; this.handle, amount, ordering
+        return int-result; (result-failed; raw), (result-bool; raw), (result-message; raw), (result-int; raw)
+
+class thread-local-int
+    handle platform-capability = no-capability;
+
+    function construct; initial int
+        this.handle = platform-thread-local-int; initial
+
+    function get int-result;
+        raw = platform-thread-local-get; this.handle
+        return int-result; (result-failed; raw), (result-bool; raw), (result-message; raw), (result-int; raw)
+
+    function write operation-result; value int
+        raw = platform-thread-local-set; this.handle, value
+        return operation-result; (result-failed; raw), (result-message; raw)

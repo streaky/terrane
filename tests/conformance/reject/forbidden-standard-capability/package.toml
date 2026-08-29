@@ -1,0 +1,8 @@
+package = "forbidden-standard-capability"
+
+[profile]
+name = "single-threaded"
+capabilities = []
+
+[namespaces]
+forbidden-standard-capability = "src"

@@ -1,0 +1,10 @@
+phase = "run"
+status = "accept"
+canonical-rust = true
+
+[profile]
+name = "system-adapter"
+capabilities = ["process"]
+
+[namespaces]
+system-adapter = "src"
