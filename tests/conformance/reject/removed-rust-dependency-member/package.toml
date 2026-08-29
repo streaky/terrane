@@ -1,9 +1,11 @@
-package = "rust-dependency-httpdate"
+package = "removed-dependency-member"
+
 [profile]
-panic = "abort"
+capabilities = ["build"]
+
 [namespaces]
 app = "src"
+
 [rust-dependencies.date-codec]
 package = "httpdate"
 version = "=1.0.3"
-default-features = true

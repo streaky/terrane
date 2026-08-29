@@ -209,9 +209,8 @@ fn main() {
 // Source: <terrane>/projected/deps/reqwest/blocking.trn
 // Namespace: deps/reqwest/blocking
 pub fn get(url: String) -> Result<Response, crate::TerraneError> {
-    match std::panic::catch_unwind(
-        std::panic::AssertUnwindSafe(|| reqwest::blocking::get(url)),
-    ) {
+    let url = url;
+    match std::panic::catch_unwind(|| reqwest::blocking::get(url)) {
         Ok(Ok(value)) => Ok(value),
         Ok(Err(error)) => {
             Err(

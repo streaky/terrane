@@ -20,6 +20,7 @@ pub struct Compilation {
     pub rust_files: Vec<RenderedFile>,
     pub warnings: Vec<Diagnostic>,
     pub rust_dependencies: Vec<RustDependency>,
+    pub dependency_containment: crate::projection::Containment,
 }
 
 #[derive(Clone, Debug)]
@@ -166,6 +167,7 @@ pub fn compile_package_with_options(
         rust_files,
         warnings,
         rust_dependencies,
+        dependency_containment: semantic.projection.containment,
     })
 }
 

@@ -1,0 +1,14 @@
+package = "deferred-projection-surface"
+
+[profile]
+capabilities = ["build"]
+
+[namespaces]
+app = "src"
+
+[rust-dependencies.bytes]
+version = "=1.10.1"
+
+[rust-dependencies.serde-json]
+package = "serde_json"
+version = "=1.0.143"

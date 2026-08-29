@@ -1802,6 +1802,9 @@ function parse int|parse-error; source string
 ```
 
 The spelling `optional<thing>` is not part of the language: write `thing|none`. `none` is not automatically admitted into every type.
+Repeated union arms denote one semantic alternative rather than distinct runtime tags. The compiler
+normalizes them by canonical type identity and reports each repeated authored arm as `W4003`; aliases
+of the same descriptor therefore duplicate one another even when their spellings differ.
 Where a destination type is a union, an exact type match wins. Otherwise the compiler selects the unique arm that admits the value under the contextual-constant or numeric destination rules. If two or more arms admit it, the destination is ambiguous and compilation fails naming those arms; source order never breaks the tie. Thus an `int8` value selects `int8` from `int8|int`, while the constant `5` is ambiguous in `int8|int32`.
 A `T|none` destination is valid wherever a declared source type is valid, including binding declarations, parameter types, and function return types. It is not restricted to inferred results or compiler-owned checked operations.
 
@@ -3731,6 +3734,22 @@ roots; absolute paths, paths containing `..`, duplicate directory roots, and
 roots containing no `.trn` source are invalid. `prelude` is an optional boolean
 and defaults to `true`.
 
+The optional `profile` table selects dependency build capability and panic policy. `name` defaults to
+`default`, `capabilities` is an optional allowlist of effect names, and `panic` is `unwind` (the
+default) or `abort`. Each Rust dependency may declare an `effects` string array; manifest resolution
+rejects an effect absent from the selected profile before projection or generated compilation:
+
+```toml
+[profile]
+name = "service"
+capabilities = ["networking", "tls"]
+panic = "unwind"
+
+[rust-dependencies.reqwest]
+version = "0.12"
+effects = ["networking", "tls"]
+```
+
 The package manager must produce a lockfile covering:
 
 - native package versions and content hashes;
@@ -3788,7 +3807,7 @@ The compiler generates Rust shims only for projected members crossed by Terrane 
 
 Cargo and rustc remain authoritative. Projection and editor information are advisory and derived from the resolved package rather than predefined by Terrane. The language server uses the shared artifact for completion, signature help, hover, exact Rust paths, and declined-item reasons. Projection executes under the build-script capability policy without arbitrary foreign-runtime introspection.
 
-The generated dependency crate graph preserves the manifest's selected features and default-feature policy, compiles offline and frozen after resolution, and records whether containment was enforced. Its cache identity covers the manifest, lock checksum, selected features, target triple, Rust toolchain, package source checksums, and sandbox tier. The project-local cache retains the current projection and at most three prior projection artifacts for ordinary rollback and editor churn; this bounded operational history is not the durable, machine-independent history required for version-aware diagnostics. A lock update that removes a crossed projected member is diagnosed as missing at its Terrane import or use site rather than exposed as an unexplained rustc error in generated source; distinguishing removal from a never-present member and naming the version change are deferred until durable projection history is retained.
+The generated dependency crate graph preserves the manifest's selected features and default-feature policy, compiles offline and frozen after an online fetch, and records whether containment was enforced. Platforms with `bwrap` contain rustdoc and generated-crate compilation; platforms without it report the unavailable tier and continue under the declared host policy. Its cache identity covers the manifest, lock checksum, selected features, target triple, Rust toolchain, package source checksums, and sandbox tier. The project-local cache retains the current projection and at most three prior projection artifacts for ordinary rollback and editor churn. Machine-independent `terrane-projection.lock` history records projected members by resolved dependency version; a lock update that removes a crossed member produces `S2031` at the Terrane import with the member and version change.
 
 ### 23.9 System and C libraries
 
@@ -4761,7 +4780,8 @@ do not receive unused-binding warnings: an unused parameter can be required by a
 and parameter-name linting belongs to a later explicit policy rather than these local-store
 diagnostics. Loop targets likewise remain outside `W4001`; generated Rust explicitly consumes unused
 loop targets, dead stores, and other warning-only locals so source-level warnings do not leak into
-opaque `rustc` warning failures.
+opaque `rustc` warning failures. `W4003` reports an authored union arm whose canonical semantic
+identity already occurred earlier in the same union; lowering uses the normalized unique arm set.
 
 
 ### 29.1 Bidirectional maps

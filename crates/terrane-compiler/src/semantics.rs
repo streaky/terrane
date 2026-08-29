@@ -72,6 +72,7 @@ pub struct SemanticPackage {
     pub prelude: bool,
     pub reflection: crate::package::ReflectionProfile,
     pub executor: crate::package::ExecutorProfile,
+    pub profile: crate::package::CapabilityProfile,
     pub projection: crate::projection::Projection,
     pub namespaces: BTreeMap<String, Namespace>,
     pub globals: BTreeMap<String, Symbol>,
@@ -206,18 +207,16 @@ impl std::fmt::Display for ObjectIdentity {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum ValueType {
     Scalar(ScalarType),
-    ScalarOrNone(ScalarType),
+    Optional(Box<ValueType>),
     OverflowResult(ScalarType),
     DivRemResult(ScalarType),
     StringView(TextUnit),
     StringList,
     TextRange,
     TextRangeView(TextUnit),
-    TextRangeOrNone,
     TextRangeList,
     Iterator(ElementType),
     IterationStep(ElementType),
-    ElementOrNone(ElementType),
     List(ElementType),
     Map(ElementType, ElementType),
     Set(ElementType),
@@ -325,7 +324,7 @@ impl std::fmt::Display for ValueType {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::Scalar(ty) => ty.fmt(formatter),
-            Self::ScalarOrNone(ty) => write!(formatter, "{ty}|none"),
+            Self::Optional(inner) => write!(formatter, "{inner}|none"),
             Self::OverflowResult(ty) => write!(formatter, "overflow-result of {ty}"),
             Self::DivRemResult(ty) => write!(formatter, "div-rem-result of {ty}"),
             Self::StringView(TextUnit::Bytes) => formatter.write_str("string.bytes"),
@@ -336,13 +335,11 @@ impl std::fmt::Display for ValueType {
             Self::TextRangeView(TextUnit::Bytes) => formatter.write_str("text-range.bytes"),
             Self::TextRangeView(TextUnit::Scalars) => formatter.write_str("text-range.scalars"),
             Self::TextRangeView(TextUnit::Graphemes) => formatter.write_str("text-range.graphemes"),
-            Self::TextRangeOrNone => formatter.write_str("text-range|none"),
             Self::TextRangeList => formatter.write_str("list of text-range"),
             Self::Iterator(item) => write!(formatter, "iterator of {}", item.value_type()),
             Self::IterationStep(item) => {
                 write!(formatter, "iteration-step of {}", item.value_type())
             }
-            Self::ElementOrNone(item) => write!(formatter, "{}|none", item.value_type()),
             Self::List(item) => write!(formatter, "list of {}", item.value_type()),
             Self::Map(key, value) => write!(formatter, "map of {key}, {value}"),
             Self::Set(item) => write!(formatter, "set of {item}"),
@@ -626,6 +623,7 @@ pub struct SemanticUnit {
     /// Function contracts declared by every source unit in this unit's namespace.
     pub functions: Vec<FunctionContract>,
     pub objects: Vec<ObjectContract>,
+    comparable_foreign_objects: BTreeSet<ObjectIdentity>,
     function_aliases: BTreeMap<String, FunctionContract>,
     enclosing_function_spans: BTreeMap<usize, Option<Span>>,
     descriptor_aliases: BTreeMap<String, Vec<DescriptorAlias>>,
@@ -797,6 +795,7 @@ fn parse_unit(
         typed_bindings: Vec::new(),
         functions: Vec::new(),
         objects: Vec::new(),
+        comparable_foreign_objects: BTreeSet::new(),
         function_aliases: BTreeMap::new(),
         descriptor_aliases: BTreeMap::new(),
         enclosing_function_spans,
@@ -964,6 +963,23 @@ fn dependency_projection(
 pub fn analyze(package: &Package) -> Result<SemanticPackage, SemanticFailure> {
     let projection = dependency_projection(package)?;
     let mut units = parse_units(package, &projection)?;
+    for unit in &mut units {
+        unit.comparable_foreign_objects = projection
+            .dependencies
+            .iter()
+            .flat_map(|dependency| &dependency.items)
+            .filter(|item| {
+                matches!(
+                    item.kind,
+                    crate::projection::ProjectedKind::Enum {
+                        data_carrying: false,
+                        comparable: true,
+                    }
+                )
+            })
+            .map(|item| ObjectIdentity::new(&item.namespace, &item.name))
+            .collect();
+    }
     validate_compiler_owned_names(&units)?;
 
     let mut namespaces = bootstrap_namespaces();
@@ -1028,6 +1044,24 @@ pub fn analyze(package: &Package) -> Result<SemanticPackage, SemanticFailure> {
             ));
         }
         if projection.item(&import.target, &import.object).is_none() {
+            if let Some(removed) = projection
+                .removed
+                .iter()
+                .find(|removed| removed.namespace == import.target && removed.name == import.object)
+            {
+                return Err(failure(
+                    &import.source,
+                    "S2031",
+                    format!(
+                        "Rust dependency member `{}` in `{}` was removed when the projected dependency changed from version `{}` to `{}`",
+                        import.object,
+                        import.target,
+                        removed.previous_version,
+                        removed.current_version
+                    ),
+                    import.span,
+                ));
+            }
             let reason = projection.dependencies.iter().find_map(|dependency| {
                 dependency.declined.iter().find_map(|declined| {
                     (crate::projection::namespace_for_rust_path(dependency, &declined.rust_path)
@@ -1069,6 +1103,7 @@ pub fn analyze(package: &Package) -> Result<SemanticPackage, SemanticFailure> {
         prelude: package.prelude,
         reflection: package.reflection,
         executor: package.executor,
+        profile: package.profile.clone(),
         namespaces,
         globals,
         prelude_bindings,
@@ -3758,9 +3793,9 @@ fn value_type_owns_resource(
     match value_type {
         ValueType::PlatformStreamHandle | ValueType::PlatformResourceHandle => true,
         ValueType::Object(identity) => resource_identities.contains(&identity.qualified()),
+        ValueType::Optional(inner) => value_type_owns_resource(inner, resource_identities),
         ValueType::Iterator(item)
         | ValueType::IterationStep(item)
-        | ValueType::ElementOrNone(item)
         | ValueType::List(item)
         | ValueType::Set(item)
         | ValueType::Tuple(item, _)
@@ -5609,7 +5644,7 @@ fn analyze_binding_node(
         .flatten();
     let value_type =
         if let (Some(type_node), Some(declared_type)) = (declared, declared_value.clone()) {
-            let value_type = if matches!(declared_type, ValueType::ScalarOrNone(_)) {
+            let value_type = if matches!(declared_type, ValueType::Optional(_)) {
                 declared_type
             } else if let (Some(inferred), Some(initializer), Ok(_)) = (
                 inferred.clone(),
@@ -5642,11 +5677,12 @@ fn analyze_binding_node(
         } else {
             return Ok(());
         };
-    let destination_arms = if matches!(value_type, ValueType::ScalarOrNone(_)) {
+    let destination_arms = if matches!(value_type, ValueType::Optional(_)) {
         Vec::new()
     } else {
         declared
             .and_then(|type_node| union_destination_candidates(unit, type_node).ok())
+            .filter(|arms| arms.len() > 1)
             .unwrap_or_default()
     };
     let storage_type = (value_type == ValueType::Scalar(ScalarType::Int))
@@ -5744,19 +5780,42 @@ fn declared_value_type_with_visible_objects(
         .first()
         .filter(|child| child.kind == SyntaxKind::UnionType)
     {
-        let mut non_none = union
+        let arms = union
             .children
             .iter()
-            .filter(|arm| node_text(&unit.source, arm).trim() != "none");
-        if union.children.len() == 2
-            && let Some(arm) = non_none.next()
-            && non_none.next().is_none()
-            && let Some(scalar) = aliases
-                .get(node_text(&unit.source, arm).trim())
-                .copied()
-                .or_else(|| ScalarType::from_source_name(node_text(&unit.source, arm).trim()))
-        {
-            return Ok(ValueType::ScalarOrNone(scalar));
+            .filter(|arm| node_text(&unit.source, arm).trim() != "none")
+            .collect::<Vec<_>>();
+        if union.children.len() == 2 && arms.len() == 1 {
+            let Some(arm) = arms.first().copied() else {
+                return Err(failure(
+                    &unit.source,
+                    "T0001",
+                    "an optional type requires one non-`none` arm",
+                    union.span,
+                ));
+            };
+            let inner =
+                declared_value_type_with_visible_objects(unit, arm, aliases, visible_objects)?;
+            if matches!(
+                inner,
+                ValueType::Scalar(ScalarType::None) | ValueType::Optional(_)
+            ) {
+                return Err(failure(
+                    &unit.source,
+                    "T0001",
+                    "an optional type cannot contain `none` or another optional type",
+                    union.span,
+                ));
+            }
+            if !matches!(inner, ValueType::Scalar(_) | ValueType::Object(_)) {
+                return Err(failure(
+                    &unit.source,
+                    "T0001",
+                    "a general optional type requires a scalar or object value",
+                    union.span,
+                ));
+            }
+            return Ok(ValueType::Optional(Box::new(inner)));
         }
     }
     let type_name = node_text(&unit.source, type_node).trim();
@@ -5977,22 +6036,24 @@ fn union_destination_candidates(
             type_node.span,
         ));
     };
-    union
-        .children
-        .iter()
-        .map(|arm| {
-            let name = node_text(&unit.source, arm).trim();
-            unit.descriptor_alias_at(name, arm.span.start)
-                .ok_or_else(|| {
-                    failure(
-                        &unit.source,
-                        "T0001",
-                        format!("`{name}` does not resolve to a scalar type descriptor"),
-                        arm.span,
-                    )
-                })
-        })
-        .collect()
+    let mut candidates = Vec::new();
+    for arm in &union.children {
+        let name = node_text(&unit.source, arm).trim();
+        let candidate = unit
+            .descriptor_alias_at(name, arm.span.start)
+            .ok_or_else(|| {
+                failure(
+                    &unit.source,
+                    "T0001",
+                    format!("`{name}` does not resolve to a scalar type descriptor"),
+                    arm.span,
+                )
+            })?;
+        if !candidates.contains(&candidate) {
+            candidates.push(candidate);
+        }
+    }
+    Ok(candidates)
 }
 
 fn select_union_destination(
@@ -6113,10 +6174,12 @@ fn diagnostic_object_identity(objects: &[ObjectContract], identity: &ObjectIdent
 fn diagnostic_value_type(objects: &[ObjectContract], value_type: &ValueType) -> String {
     let nested = |item: &ElementType| diagnostic_value_type(objects, &item.value_type());
     match value_type {
+        ValueType::Optional(inner) => {
+            format!("{}|none", diagnostic_value_type(objects, inner))
+        }
         ValueType::Object(identity) => diagnostic_object_identity(objects, identity),
         ValueType::Iterator(item) => format!("iterator of {}", nested(item)),
         ValueType::IterationStep(item) => format!("iteration-step of {}", nested(item)),
-        ValueType::ElementOrNone(item) => format!("{}|none", nested(item)),
         ValueType::List(item) => format!("list of {}", nested(item)),
         ValueType::Map(key, value) => format!("map of {}, {}", nested(key), nested(value)),
         ValueType::Set(item) => format!("set of {}", nested(item)),
@@ -6149,10 +6212,6 @@ fn diagnostic_value_type(objects: &[ObjectContract], value_type: &ValueType) -> 
     }
 }
 
-#[expect(
-    clippy::needless_pass_by_value,
-    reason = "destination validation owns both recursive type descriptions for complete matching"
-)]
 fn validate_value_destination(
     source: &SourceFile,
     objects: &[ObjectContract],
@@ -6165,18 +6224,30 @@ fn validate_value_destination(
     if let ValueType::Scalar(expected) = expected {
         return validate_numeric_destination(source, name, expected, actual, value, mismatch_code);
     }
-    if let ValueType::ScalarOrNone(expected) = expected {
-        if actual == ValueType::Scalar(ScalarType::None)
-            || actual == ValueType::ScalarOrNone(expected)
-            || matches!(
-                &actual,
-                ValueType::ElementOrNone(item)
-                    if item.value_type() == ValueType::Scalar(expected)
-            )
-        {
+    if let ValueType::Optional(expected_inner) = expected {
+        if actual == ValueType::Scalar(ScalarType::None) {
             return Ok(());
         }
-        return validate_numeric_destination(source, name, expected, actual, value, mismatch_code);
+        if let ValueType::Optional(actual_inner) = actual {
+            return validate_value_destination(
+                source,
+                objects,
+                name,
+                *expected_inner,
+                *actual_inner,
+                value,
+                mismatch_code,
+            );
+        }
+        return validate_value_destination(
+            source,
+            objects,
+            name,
+            *expected_inner,
+            actual,
+            value,
+            mismatch_code,
+        );
     }
     if value_types_compatible(objects, &expected, &actual) {
         return Ok(());
@@ -6199,6 +6270,9 @@ fn value_types_compatible(
     actual: &ValueType,
 ) -> bool {
     match (expected, actual) {
+        (ValueType::Optional(expected), ValueType::Optional(actual)) => {
+            value_types_compatible(objects, expected, actual)
+        }
         (ValueType::Tuple(expected_item, None), ValueType::Tuple(actual_item, _)) => {
             value_types_compatible(
                 objects,
@@ -6221,8 +6295,7 @@ fn value_types_compatible(
         | (ValueType::Set(expected), ValueType::Set(actual))
         | (ValueType::UnorderedSet(expected), ValueType::UnorderedSet(actual))
         | (ValueType::Iterator(expected), ValueType::Iterator(actual))
-        | (ValueType::IterationStep(expected), ValueType::IterationStep(actual))
-        | (ValueType::ElementOrNone(expected), ValueType::ElementOrNone(actual)) => {
+        | (ValueType::IterationStep(expected), ValueType::IterationStep(actual)) => {
             value_types_compatible(objects, &expected.value_type(), &actual.value_type())
         }
         (
@@ -6333,9 +6406,7 @@ const fn is_numeric(ty: ScalarType) -> bool {
 
 fn optional_inner(value_type: ValueType) -> Option<ValueType> {
     match value_type {
-        ValueType::ScalarOrNone(scalar) => Some(ValueType::Scalar(scalar)),
-        ValueType::TextRangeOrNone => Some(ValueType::TextRange),
-        ValueType::ElementOrNone(item) => Some(item.value_type()),
+        ValueType::Optional(inner) => Some(*inner),
         _ => None,
     }
 }
@@ -7344,10 +7415,10 @@ fn infer_collection_call_type(
     {
         return Ok(match receiver_type {
             ValueType::List(item) | ValueType::Tuple(item, _) => {
-                Some(ValueType::ElementOrNone(item))
+                Some(ValueType::Optional(Box::new(item.value_type())))
             }
             ValueType::Map(_, value) | ValueType::UnorderedMap(_, value) => {
-                Some(ValueType::ElementOrNone(value))
+                Some(ValueType::Optional(Box::new(value.value_type())))
             }
             _ => None,
         });
@@ -7764,10 +7835,10 @@ fn infer_member_value_type(
     if let Some(ValueType::TaskOutcome(result)) = &receiver_type {
         return match member_name {
             "completed" | "cancelled" => Ok(Some(ValueType::Scalar(ScalarType::Bool))),
-            "value" => Ok(Some(ValueType::ElementOrNone(result.clone()))),
-            "error" => Ok(Some(ValueType::ElementOrNone(ElementType::new(
-                ValueType::Object(ObjectIdentity::new("/core/errors", "TerraneError")),
-            )))),
+            "value" => Ok(Some(ValueType::Optional(Box::new(result.value_type())))),
+            "error" => Ok(Some(ValueType::Optional(Box::new(ValueType::Object(
+                ObjectIdentity::new("/core/errors", "TerraneError"),
+            ))))),
             _ => Err(failure(
                 &unit.source,
                 "T0074",
@@ -8047,7 +8118,7 @@ fn infer_string_call_type(
     }
     let result = match (family, child) {
         ("contains", "default" | "start" | "end") => ValueType::Scalar(ScalarType::Bool),
-        ("find", "default") => ValueType::TextRangeOrNone,
+        ("find", "default") => ValueType::Optional(Box::new(ValueType::TextRange)),
         ("find", "all") => ValueType::TextRangeList,
         ("find", "count") => ValueType::Scalar(ScalarType::Int),
         ("split", "default") => ValueType::StringList,
@@ -8255,7 +8326,7 @@ fn infer_parse_or_radix_type(
         unreachable!("checked above")
     };
     Ok(Some(if method.child == "checked" {
-        ValueType::ScalarOrNone(result)
+        ValueType::Optional(Box::new(ValueType::Scalar(result)))
     } else {
         ValueType::Scalar(result)
     }))
@@ -8404,7 +8475,7 @@ fn infer_arithmetic_family_type(
         }
         ValueType::DivRemResult(receiver_type)
     } else if method.child == "checked" {
-        ValueType::ScalarOrNone(receiver_type)
+        ValueType::Optional(Box::new(ValueType::Scalar(receiver_type)))
     } else {
         ValueType::Scalar(receiver_type)
     };
@@ -8527,7 +8598,9 @@ fn integer_coercion_result_type(
             "`.coerce.{}` from `{source}` requires a fixed-width integer destination",
             policy.source_name()
         )),
-        (_, _, CoercionPolicy::Checked) => Ok(ValueType::ScalarOrNone(destination)),
+        (_, _, CoercionPolicy::Checked) => Ok(ValueType::Optional(Box::new(ValueType::Scalar(
+            destination,
+        )))),
         (_, _, CoercionPolicy::Default | CoercionPolicy::Wrap | CoercionPolicy::Saturate) => {
             Ok(ValueType::Scalar(destination))
         }
@@ -8713,22 +8786,17 @@ fn infer_binary_type(
         return Ok(ValueType::Scalar(ScalarType::Bool));
     }
     if matches!(operator, "==" | "!=")
-        && ((matches!(
-            left,
-            Some(
-                ValueType::ScalarOrNone(_)
-                    | ValueType::TextRangeOrNone
-                    | ValueType::ElementOrNone(_)
-            )
-        ) && node_text(&unit.source, right_node).trim() == "none")
-            || (matches!(
-                right,
-                Some(
-                    ValueType::ScalarOrNone(_)
-                        | ValueType::TextRangeOrNone
-                        | ValueType::ElementOrNone(_)
-                )
-            ) && node_text(&unit.source, left_node).trim() == "none"))
+        && ((matches!(left, Some(ValueType::Optional(_)))
+            && node_text(&unit.source, right_node).trim() == "none")
+            || (matches!(right, Some(ValueType::Optional(_)))
+                && node_text(&unit.source, left_node).trim() == "none"))
+    {
+        return Ok(ValueType::Scalar(ScalarType::Bool));
+    }
+    if matches!(operator, "==" | "!=")
+        && let (Some(ValueType::Object(left)), Some(ValueType::Object(right))) = (&left, &right)
+        && left == right
+        && unit.comparable_foreign_objects.contains(left)
     {
         return Ok(ValueType::Scalar(ScalarType::Bool));
     }
@@ -10988,6 +11056,50 @@ fn first_write_to<'a>(
     declaration_span: Span,
     node: &'a SyntaxNode,
 ) -> Option<&'a SyntaxNode> {
+    if node.kind == SyntaxKind::CallExpression
+        && let [callee, arguments] = node.children.as_slice()
+        && callee.kind == SyntaxKind::Name
+        && let Some(symbol) =
+            package.resolve_name_at(unit, callee.span.start, node_text(&unit.source, callee))
+        && let Some(crate::projection::ProjectedKind::Function(function)) = package
+            .projection
+            .item(&symbol.namespace, &symbol.name)
+            .map(|item| &item.kind)
+    {
+        let mut positional = 0;
+        for argument in &arguments.children {
+            let named = argument
+                .children
+                .first()
+                .filter(|child| child.kind == SyntaxKind::Name && argument.children.len() > 1);
+            let index = named.map_or_else(
+                || {
+                    let index = positional;
+                    positional += 1;
+                    index
+                },
+                |name| {
+                    function
+                        .parameters
+                        .iter()
+                        .position(|parameter| parameter.name == node_text(&unit.source, name))
+                        .unwrap_or(usize::MAX)
+                },
+            );
+            let value = argument.children.last().unwrap_or(argument);
+            if function
+                .parameters
+                .get(index)
+                .is_some_and(|parameter| parameter.mutable_borrow)
+                && value.kind == SyntaxKind::Name
+                && package
+                    .resolve_name_at(unit, value.span.start, node_text(&unit.source, value))
+                    .is_some_and(|symbol| symbol.declaration_span == Some(declaration_span))
+            {
+                return Some(value);
+            }
+        }
+    }
     if matches!(
         node.kind,
         SyntaxKind::Assignment | SyntaxKind::PostfixExpression
@@ -11654,12 +11766,77 @@ fn collect_name_style_warnings(unit: &SemanticUnit, warnings: &mut Vec<Diagnosti
     }
 }
 
+fn union_arm_identity(
+    package: &SemanticPackage,
+    unit: &SemanticUnit,
+    text: &str,
+    position: usize,
+) -> String {
+    if let Some(scalar) = unit.descriptor_alias_at(text, position) {
+        return format!("scalar:{}", scalar.source_name());
+    }
+    package
+        .resolve_name_at(unit, position, text)
+        .filter(|symbol| {
+            matches!(
+                symbol.kind,
+                SymbolKind::Class
+                    | SymbolKind::Interface
+                    | SymbolKind::Trait
+                    | SymbolKind::ErrorObject
+            )
+        })
+        .map_or_else(
+            || format!("unresolved:{text}"),
+            |symbol| format!("object:{}", symbol.identity),
+        )
+}
+
+fn collect_duplicate_union_arm_warnings(
+    package: &SemanticPackage,
+    unit: &SemanticUnit,
+    warnings: &mut Vec<Diagnostic>,
+) {
+    fn collect(
+        package: &SemanticPackage,
+        unit: &SemanticUnit,
+        node: &SyntaxNode,
+        warnings: &mut Vec<Diagnostic>,
+    ) {
+        if node.kind == SyntaxKind::UnionType {
+            let mut seen = BTreeSet::new();
+            for arm in &node.children {
+                let text = node_text(&unit.source, arm).trim();
+                let identity = union_arm_identity(package, unit, text, arm.span.start);
+                if !seen.insert(identity) {
+                    warnings.push(
+                        Diagnostic::warning(
+                            "W4003",
+                            format!("union arm `{text}` duplicates an earlier arm"),
+                            arm.span,
+                        )
+                        .with_help(
+                            "remove the repeated arm; union arms are normalized by semantic identity",
+                        ),
+                    );
+                }
+            }
+        }
+        for child in &node.children {
+            collect(package, unit, child, warnings);
+        }
+    }
+
+    collect(package, unit, &unit.tree.root, warnings);
+}
+
 pub(crate) fn warnings(package: &SemanticPackage, lint_name_style: bool) -> Vec<Diagnostic> {
     let mut warnings = Vec::new();
     for unit in &package.units {
         if lint_name_style && !unit.bundled && !unit.namespace.starts_with("/deps/") {
             collect_name_style_warnings(unit, &mut warnings);
         }
+        collect_duplicate_union_arm_warnings(package, unit, &mut warnings);
         let mut loop_targets = BTreeSet::new();
         collect_loop_target_spans(&unit.tree.root, &mut loop_targets);
         for binding in &unit.typed_bindings {
@@ -11978,5 +12155,48 @@ mod name_style_tests {
                 && diagnostic.message == "declared name `Answer` is not kebab-case"
                 && diagnostic.severity == crate::Severity::Warning
         }));
+    }
+
+    #[test]
+    fn object_union_arm_identity_follows_import_aliases() {
+        let package = Package::implicit(
+            "main.trn",
+            concat!(
+                "namespace app\n",
+                "from /core/errors import throwable as first, throwable as second\n",
+                "function main;\n",
+                "  return\n",
+            )
+            .to_owned(),
+        );
+        let semantic = analyze(&package).unwrap();
+        let unit = &semantic.units[0];
+        let first = unit.source.text().find("first").unwrap();
+        let second = unit.source.text().find("second").unwrap();
+
+        assert_eq!(
+            union_arm_identity(&semantic, unit, "first", first),
+            union_arm_identity(&semantic, unit, "second", second),
+        );
+    }
+
+    #[test]
+    fn arbitrary_object_optional_types_are_semantic_values() {
+        let package = Package::implicit(
+            "main.trn",
+            "namespace app\nclass widget\nfunction maybe widget|none;\n  return none\nfunction main;\n  value widget|none = maybe;\n  return\n".to_owned(),
+        );
+        let semantic = analyze(&package).unwrap();
+        let maybe = semantic.units[0]
+            .functions
+            .iter()
+            .find(|function| function.name == "maybe")
+            .unwrap();
+
+        assert!(matches!(
+            &maybe.return_type,
+            Some(ValueType::Optional(inner))
+                if matches!(inner.as_ref(), ValueType::Object(identity) if identity.name == "widget")
+        ));
     }
 }

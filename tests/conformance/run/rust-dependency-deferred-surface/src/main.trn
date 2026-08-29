@@ -1,0 +1,15 @@
+namespace app
+from /deps/bytes/bytes-mut import BytesMut, with_capacity
+from /deps/bytes/bufmut import remaining_mut
+from /deps/serde-json/number import Number, from_u128
+from /deps/serde-json/error import Category
+from /deps/serde-json/error/category import Data, Io
+function main;
+    buffer BytesMut = with_capacity; 8
+    remaining int = remaining_mut; buffer
+    candidate Number|none = from_u128; 42
+    data Category = Data;
+    io Category = Io;
+    print; remaining > 0
+    print; candidate != none
+    print; data != io

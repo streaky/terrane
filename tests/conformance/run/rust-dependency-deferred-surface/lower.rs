@@ -154,37 +154,127 @@ fn __terrane_dependency_panic(
 // Source: src/main.trn
 // Namespace: app
 fn main() {
-    let moment: SystemTime = parse_http_date(
-            String::from("Sun, 06 Nov 1994 08:49:37 GMT"),
-        )
+    let buffer: BytesMut = with_capacity(terrane_int_support::Int::from(8_i128))
         .unwrap_or_else(|error| __terrane_uncaught(
-            error.at("/app::main (main.trn:4:14)"),
+            error.at("/app::main (main.trn:8:23)"),
         ));
-    let rendered: String = fmt_http_date(moment)
+    let remaining: terrane_int_support::Int = remaining_mut(&buffer)
         .unwrap_or_else(|error| __terrane_uncaught(
-            error.at("/app::main (main.trn:5:23)"),
+            error.at("/app::main (main.trn:9:21)"),
         ));
-    println!("{}", terrane_scalar_support::scalar_text(&rendered));
+    let candidate: Option<Number> = from_u128(terrane_int_support::Int::from(42_i128))
+        .unwrap_or_else(|error| __terrane_uncaught(
+            error.at("/app::main (main.trn:10:29)"),
+        ));
+    let data: Category = __trn_44617461()
+        .unwrap_or_else(|error| __terrane_uncaught(
+            error.at("/app::main (main.trn:11:21)"),
+        ));
+    let io: Category = __trn_496f()
+        .unwrap_or_else(|error| __terrane_uncaught(
+            error.at("/app::main (main.trn:12:19)"),
+        ));
+    println!(
+        "{}", terrane_scalar_support::scalar_text(&(remaining.clone() >
+        terrane_int_support::Int::from(0_i128)))
+    );
+    println!("{}", terrane_scalar_support::scalar_text(&candidate.is_some()));
+    println!("{}", terrane_scalar_support::scalar_text(&(data != io)));
 }
-// Source: <terrane>/projected/deps/date-codec.trn
-// Namespace: deps/date-codec
-pub use std::time::SystemTime;
-pub fn fmt_http_date(d: SystemTime) -> Result<String, crate::TerraneError> {
-    let d = d;
-    let value = date_codec::fmt_http_date(d);
-    Ok(value)
-}
-pub fn parse_http_date(s: String) -> Result<SystemTime, crate::TerraneError> {
-    let s = s;
-    match date_codec::parse_http_date(&s) {
-        Ok(value) => Ok(value),
-        Err(error) => {
+// Source: <terrane>/projected/deps/bytes/bufmut.trn
+// Namespace: deps/bytes/bufmut
+pub fn remaining_mut(
+    receiver: &BytesMut,
+) -> Result<terrane_int_support::Int, crate::TerraneError> {
+    match std::panic::catch_unwind(|| <bytes::BytesMut as bytes::BufMut>::remaining_mut(
+        receiver,
+    )) {
+        Ok(value) => Ok(terrane_int_support::Int::from_u128(value as u128)),
+        Err(payload) => {
             Err(
-                crate::TerraneError::new(
-                    crate::TerraneErrorKind::Custom("dependency-error"),
-                    format!(
-                        "Rust dependency `date-codec` member `date_codec::parse_http_date` failed: {error}"
-                    ),
+                crate::__terrane_dependency_panic(
+                    payload,
+                    "bytes",
+                    "<bytes::BytesMut as bytes::BufMut>::remaining_mut",
+                ),
+            )
+        }
+    }
+}
+// Source: <terrane>/projected/deps/bytes/bytes.trn
+// Namespace: deps/bytes/bytes
+pub use bytes::Bytes;
+// Source: <terrane>/projected/deps/bytes/bytes-mut.trn
+// Namespace: deps/bytes/bytes-mut
+pub use bytes::BytesMut;
+pub fn with_capacity(
+    capacity: terrane_int_support::Int,
+) -> Result<BytesMut, crate::TerraneError> {
+    let capacity = terrane_int_support::coerce::<usize>(&capacity)
+        .map_err(crate::TerraneError::from)?;
+    match std::panic::catch_unwind(|| bytes::BytesMut::with_capacity(capacity)) {
+        Ok(value) => Ok(value),
+        Err(payload) => {
+            Err(
+                crate::__terrane_dependency_panic(
+                    payload,
+                    "bytes",
+                    "bytes::BytesMut::with_capacity",
+                ),
+            )
+        }
+    }
+}
+// Source: <terrane>/projected/deps/serde-json/error.trn
+// Namespace: deps/serde-json/error
+pub use serde_json::error::Category;
+// Source: <terrane>/projected/deps/serde-json/error/category.trn
+// Namespace: deps/serde-json/error/category
+/// Projected enum variant constructor for `serde_json::error::Category::Data`.
+pub fn __trn_44617461() -> Result<Category, crate::TerraneError> {
+    match std::panic::catch_unwind(|| serde_json::error::Category::Data) {
+        Ok(value) => Ok(value),
+        Err(payload) => {
+            Err(
+                crate::__terrane_dependency_panic(
+                    payload,
+                    "serde-json",
+                    "serde_json::error::Category::Data",
+                ),
+            )
+        }
+    }
+}
+/// Projected enum variant constructor for `serde_json::error::Category::Io`.
+pub fn __trn_496f() -> Result<Category, crate::TerraneError> {
+    match std::panic::catch_unwind(|| serde_json::error::Category::Io) {
+        Ok(value) => Ok(value),
+        Err(payload) => {
+            Err(
+                crate::__terrane_dependency_panic(
+                    payload,
+                    "serde-json",
+                    "serde_json::error::Category::Io",
+                ),
+            )
+        }
+    }
+}
+// Source: <terrane>/projected/deps/serde-json/number.trn
+// Namespace: deps/serde-json/number
+pub use serde_json::Number;
+pub fn from_u128(
+    i: terrane_int_support::Int,
+) -> Result<Option<Number>, crate::TerraneError> {
+    let i = terrane_int_support::coerce::<u128>(&i).map_err(crate::TerraneError::from)?;
+    match std::panic::catch_unwind(|| serde_json::Number::from_u128(i)) {
+        Ok(value) => Ok(value),
+        Err(payload) => {
+            Err(
+                crate::__terrane_dependency_panic(
+                    payload,
+                    "serde-json",
+                    "serde_json::Number::from_u128",
                 ),
             )
         }

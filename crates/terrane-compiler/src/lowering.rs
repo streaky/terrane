@@ -329,6 +329,52 @@ fn write_foreign_import(output: &mut String, path: &str, rust_name: &str) {
     }
 }
 
+fn projected_argument_expression(name: &str, ty: &crate::projection::ProjectedType) -> String {
+    match ty {
+        crate::projection::ProjectedType::RustInt(rust_type) => format!(
+            "terrane_int_support::coerce::<{rust_type}>(&{name}).map_err(crate::TerraneError::from)?"
+        ),
+        crate::projection::ProjectedType::Char => format!(
+            "{name}.parse::<char>().map_err(|_| crate::TerraneError::new(crate::TerraneErrorKind::CoercionError, \"projected `char` requires exactly one Unicode scalar\"))?"
+        ),
+        crate::projection::ProjectedType::Optional(inner) => match inner.as_ref() {
+            crate::projection::ProjectedType::RustInt(rust_type) => format!(
+                "{name}.map(|value| terrane_int_support::coerce::<{rust_type}>(&value)).transpose().map_err(crate::TerraneError::from)?"
+            ),
+            crate::projection::ProjectedType::Char => format!(
+                "{name}.map(|value| value.parse::<char>().map_err(|_| crate::TerraneError::new(crate::TerraneErrorKind::CoercionError, \"projected `char` requires exactly one Unicode scalar\"))).transpose()?"
+            ),
+            _ => name.to_owned(),
+        },
+        _ => name.to_owned(),
+    }
+}
+
+fn projected_result_expression(value: &str, ty: &crate::projection::ProjectedType) -> String {
+    match ty {
+        crate::projection::ProjectedType::RustInt(rust_type) if rust_type.starts_with('u') => {
+            format!("terrane_int_support::Int::from_u128({value} as u128)")
+        }
+        crate::projection::ProjectedType::RustInt(_) => {
+            format!("terrane_int_support::Int::from({value} as i128)")
+        }
+        crate::projection::ProjectedType::Char => format!("{value}.to_string()"),
+        crate::projection::ProjectedType::Optional(inner) => {
+            let converted = projected_result_expression("value", inner);
+            if converted == "value" {
+                value.to_owned()
+            } else {
+                format!("{value}.map(|value| {converted})")
+            }
+        }
+        _ => value.to_owned(),
+    }
+}
+
+#[expect(
+    clippy::too_many_lines,
+    reason = "dependency shim emission keeps each generated branch beside the shared call contract"
+)]
 fn emit_dependency_unit(package: &SemanticPackage, unit: &SemanticUnit) -> String {
     let mut output = String::new();
     emit_dependency_imports(package, unit, &mut output);
@@ -352,38 +398,72 @@ fn emit_dependency_unit(package: &SemanticPackage, unit: &SemanticUnit) -> Strin
             .iter()
             .zip(&projected.parameters)
             .map(|(parameter, projected)| {
+                let value_type = parameter.value_type.clone().map_or_else(
+                    || "()".to_owned(),
+                    |value_type| rust_value_type(package, value_type),
+                );
+                let preserves_identity = projected.borrowed
+                    && matches!(
+                        projected.ty,
+                        crate::projection::ProjectedType::Foreign { .. }
+                    );
                 format!(
-                    "{}{}: {}",
-                    if projected.mutable_borrow { "mut " } else { "" },
+                    "{}: {}{value_type}",
                     rust_name(&parameter.name),
-                    parameter.value_type.clone().map_or_else(
-                        || "()".to_owned(),
-                        |value_type| { rust_value_type(package, value_type) }
-                    )
+                    if preserves_identity {
+                        if projected.mutable_borrow {
+                            "&mut "
+                        } else {
+                            "&"
+                        }
+                    } else {
+                        ""
+                    },
                 )
             })
             .collect::<Vec<_>>();
-        let arguments = contract
-            .parameters
-            .iter()
-            .zip(&projected.parameters)
-            .map(|(parameter, projected)| {
-                let name = rust_name(&parameter.name);
-                if projected.mutable_borrow {
-                    format!("&mut {name}")
-                } else if projected.borrowed {
-                    format!("&{name}")
-                } else {
-                    name
-                }
-            })
-            .collect::<Vec<_>>()
-            .join(", ");
+        let mut argument_conversions = Vec::new();
+        let mut arguments = Vec::new();
+        for (parameter, projected) in contract.parameters.iter().zip(&projected.parameters) {
+            let name = rust_name(&parameter.name);
+            if projected.borrowed
+                && matches!(
+                    projected.ty,
+                    crate::projection::ProjectedType::Foreign { .. }
+                )
+            {
+                arguments.push(name);
+                continue;
+            }
+            let value = projected_argument_expression(&name, &projected.ty);
+            argument_conversions.push(format!(
+                "    let {}{name} = {value};",
+                if projected.mutable_borrow { "mut " } else { "" }
+            ));
+            arguments.push(if projected.mutable_borrow {
+                format!("&mut {name}")
+            } else if projected.borrowed {
+                format!("&{name}")
+            } else {
+                name
+            });
+        }
+        let arguments = arguments.join(", ");
         let value = contract.return_type.clone().map_or_else(
             || "()".to_owned(),
             |value_type| rust_value_type(package, value_type),
         );
         let result = format!("Result<{value}, crate::TerraneError>");
+        let converted_value = projected_result_expression("value", &projected.result);
+        let unit_variant = package.projection.is_unit_variant(item);
+        if unit_variant {
+            writeln!(
+                output,
+                "/// Projected enum variant constructor for `{}`.",
+                item.rust_path
+            )
+            .expect("writing to a string cannot fail");
+        }
         writeln!(
             output,
             "pub fn {}({}) -> {result} {{",
@@ -391,11 +471,39 @@ fn emit_dependency_unit(package: &SemanticPackage, unit: &SemanticUnit) -> Strin
             parameters.join(", ")
         )
         .expect("writing to a string cannot fail");
-        if projected.error.is_some() {
+        for conversion in argument_conversions {
+            writeln!(output, "{conversion}").expect("writing to a string cannot fail");
+        }
+        let call = if unit_variant {
+            item.rust_path.clone()
+        } else {
+            format!("{}({arguments})", item.rust_path)
+        };
+        let caught = if projected
+            .parameters
+            .iter()
+            .any(|parameter| parameter.mutable_borrow)
+        {
+            format!("std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {call}))")
+        } else {
+            format!("std::panic::catch_unwind(|| {call})")
+        };
+        if package.profile.panic == crate::package::PanicProfile::Abort {
+            if projected.error.is_some() {
+                writeln!(
+                    output,
+                    "    match {call} {{\n        Ok(value) => Ok({converted_value}),\n        Err(error) => Err(crate::TerraneError::new(crate::TerraneErrorKind::Custom(\"dependency-error\"), format!(\"Rust dependency `{dependency_name}` member `{}` failed: {{error}}\"))),\n    }}",
+                    item.rust_path,
+                )
+                .expect("writing to a string cannot fail");
+            } else {
+                writeln!(output, "    let value = {call};\n    Ok({converted_value})",)
+                    .expect("writing to a string cannot fail");
+            }
+        } else if projected.error.is_some() {
             writeln!(
                 output,
-                "    match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {}({arguments}))) {{\n        Ok(Ok(value)) => Ok(value),\n        Ok(Err(error)) => Err(crate::TerraneError::new(crate::TerraneErrorKind::Custom(\"dependency-error\"), format!(\"Rust dependency `{}` member `{}` failed: {{error}}\"))),\n        Err(payload) => Err(crate::__terrane_dependency_panic(payload, {:?}, {:?})),\n    }}",
-                item.rust_path,
+                "    match {caught} {{\n        Ok(Ok(value)) => Ok({converted_value}),\n        Ok(Err(error)) => Err(crate::TerraneError::new(crate::TerraneErrorKind::Custom(\"dependency-error\"), format!(\"Rust dependency `{}` member `{}` failed: {{error}}\"))),\n        Err(payload) => Err(crate::__terrane_dependency_panic(payload, {:?}, {:?})),\n    }}",
                 dependency_name,
                 item.rust_path,
                 dependency_name,
@@ -405,8 +513,7 @@ fn emit_dependency_unit(package: &SemanticPackage, unit: &SemanticUnit) -> Strin
         } else {
             writeln!(
                 output,
-                "    match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {}({arguments}))) {{\n        Ok(value) => Ok(value),\n        Err(payload) => Err(crate::__terrane_dependency_panic(payload, {:?}, {:?})),\n    }}",
-                item.rust_path,
+                "    match {caught} {{\n        Ok(value) => Ok({converted_value}),\n        Err(payload) => Err(crate::__terrane_dependency_panic(payload, {:?}, {:?})),\n    }}",
                 dependency_name,
                 item.rust_path,
             )
@@ -2911,24 +3018,16 @@ impl Emitter<'_> {
                 return self.map_constructor(arguments, kind, key, value);
             }
         }
-        if let ValueType::ScalarOrNone(scalar) = value_type {
+        if let ValueType::Optional(inner) = value_type {
             let actual = self.value_type(node);
-            return if actual == Some(value_type)
-                || matches!(
-                    &actual,
-                    Some(ValueType::ElementOrNone(item))
-                        if item.value_type() == ValueType::Scalar(scalar)
-                ) {
+            return if actual == Some(ValueType::Optional(inner.clone())) {
                 self.expression(node)
             } else if self.text(node).trim() == "none"
                 || actual == Some(ValueType::Scalar(ScalarType::None))
             {
                 "None".to_owned()
             } else {
-                format!(
-                    "Some({})",
-                    self.expression_as(node, ValueType::Scalar(scalar))
-                )
+                format!("Some({})", self.expression_as(node, *inner))
             };
         }
         if matches!(value_type, ValueType::Reference(_))
@@ -3433,16 +3532,7 @@ impl Emitter<'_> {
         }
         let left_type = self.value_type(left);
         let right_type = self.value_type(right);
-        let is_optional = |value_type| {
-            matches!(
-                value_type,
-                Some(
-                    ValueType::ScalarOrNone(_)
-                        | ValueType::TextRangeOrNone
-                        | ValueType::ElementOrNone(_)
-                )
-            )
-        };
+        let is_optional = |value_type| matches!(value_type, Some(ValueType::Optional(_)));
         let left_is_none = self.text(left).trim() == "none"
             || left_type == Some(ValueType::Scalar(ScalarType::None));
         let right_is_none = self.text(right).trim() == "none"
@@ -3611,11 +3701,17 @@ impl Emitter<'_> {
         {
             return result.is_ok().to_string();
         }
-        if let Some(ValueType::ScalarOrNone(inner)) = value_type {
+        let optional_inner = match value_type.clone() {
+            Some(ValueType::Optional(inner)) => Some(*inner),
+            _ => None,
+        };
+        if let Some(inner) = optional_inner {
             let value = self.expression(value);
             return match descriptor_type {
                 Some(ScalarType::None) => format!("({value}).is_none()"),
-                Some(descriptor) if descriptor == inner => format!("({value}).is_some()"),
+                Some(descriptor) if inner == ValueType::Scalar(descriptor) => {
+                    format!("({value}).is_some()")
+                }
                 _ => format!("{{ let _ = {value}; false }}"),
             };
         }
@@ -3642,9 +3738,20 @@ impl Emitter<'_> {
         value_type: Option<ValueType>,
         category: TypeCategory,
     ) -> String {
-        if let Some(ValueType::ScalarOrNone(inner)) = value_type {
+        let optional_inner = match value_type.clone() {
+            Some(ValueType::Optional(inner)) => Some(*inner),
+            _ => None,
+        };
+        if let Some(inner) = optional_inner {
             let value = self.expression(node);
-            return if inner.conforms_to(category) {
+            let conforms = match inner {
+                ValueType::Scalar(scalar) => scalar.conforms_to(category),
+                ValueType::Object(_) => {
+                    matches!(category, TypeCategory::Value | TypeCategory::Object)
+                }
+                _ => false,
+            };
+            return if conforms {
                 format!("({value}).is_some()")
             } else {
                 format!("{{ let _ = {value}; false }}")
@@ -4895,6 +5002,9 @@ impl Emitter<'_> {
             let format = "{}".repeat(values.len());
             return format!("format!(\"{format}\", {})", values.join(", "));
         }
+        let projected_parameters = self
+            .projected_function_for_call(callee)
+            .map(|function| function.parameters.clone());
         let contract = self.contract_for_call(callee).cloned();
         if let Some(contract) = &contract {
             let mut ordered = vec![None; contract.parameters.len()];
@@ -4920,11 +5030,30 @@ impl Emitter<'_> {
                 );
                 let value = argument.children.last().unwrap_or(argument);
                 let parameter = &contract.parameters[index];
-                ordered[index] = Some(if let Some(ty) = parameter.value_type.clone() {
+                let expression = if let Some(ty) = parameter.value_type.clone() {
                     self.expression_as(value, ty)
                 } else {
                     self.expression(value)
-                });
+                };
+                ordered[index] = Some(
+                    projected_parameters
+                        .as_ref()
+                        .and_then(|parameters| parameters.get(index))
+                        .filter(|parameter| {
+                            parameter.borrowed
+                                && matches!(
+                                    parameter.ty,
+                                    crate::projection::ProjectedType::Foreign { .. }
+                                )
+                        })
+                        .map_or(expression.clone(), |parameter| {
+                            if parameter.mutable_borrow {
+                                format!("&mut {expression}")
+                            } else {
+                                format!("&{expression}")
+                            }
+                        }),
+                );
             }
             self.append_defaults(contract, &mut ordered);
             values = ordered.into_iter().flatten().collect();
@@ -4994,9 +5123,27 @@ impl Emitter<'_> {
                 .expect("foreign method owner has a projected Rust path");
             let dependency = type_path.split("::").next().unwrap_or("dependency");
             let member = format!("{type_path}::{}", method.name);
-            if method.error.is_some() {
+            let catch_unwind = |body: &str| {
+                if method.receiver.is_some() {
+                    format!("std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {body}))")
+                } else {
+                    format!("std::panic::catch_unwind(|| {body})")
+                }
+            };
+            if self.package.profile.panic == crate::package::PanicProfile::Abort {
+                if method.error.is_some() {
+                    format!(
+                        "match {call} {{ Ok(value) => Ok(value), Err(error) => Err(crate::TerraneError::new(crate::TerraneErrorKind::Custom(\"dependency-error\"), format!(\"Rust dependency `{dependency}` member `{member}` failed: {{error}}\"))) }}"
+                    )
+                } else if self.discarded_call == Some(node.span) {
+                    format!("{{ {call}; Ok(()) }}")
+                } else {
+                    format!("Ok({call})")
+                }
+            } else if method.error.is_some() {
+                let caught = catch_unwind(&call);
                 format!(
-                    "match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {call})) {{ Ok(Ok(value)) => Ok(value), Ok(Err(error)) => Err(crate::TerraneError::new(crate::TerraneErrorKind::Custom(\"dependency-error\"), format!(\"Rust dependency `{dependency}` member `{member}` failed: {{error}}\"))), Err(payload) => Err(crate::__terrane_dependency_panic(payload, {dependency:?}, {member:?})) }}"
+                    "match {caught} {{ Ok(Ok(value)) => Ok(value), Ok(Err(error)) => Err(crate::TerraneError::new(crate::TerraneErrorKind::Custom(\"dependency-error\"), format!(\"Rust dependency `{dependency}` member `{member}` failed: {{error}}\"))), Err(payload) => Err(crate::__terrane_dependency_panic(payload, {dependency:?}, {member:?})) }}"
                 )
             } else {
                 let unwind_body = if self.discarded_call == Some(node.span) {
@@ -5004,8 +5151,9 @@ impl Emitter<'_> {
                 } else {
                     call
                 };
+                let caught = catch_unwind(&unwind_body);
                 format!(
-                    "match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {unwind_body})) {{ Ok(value) => Ok(value), Err(payload) => Err(crate::__terrane_dependency_panic(payload, {dependency:?}, {member:?})) }}"
+                    "match {caught} {{ Ok(value) => Ok(value), Err(payload) => Err(crate::__terrane_dependency_panic(payload, {dependency:?}, {member:?})) }}"
                 )
             }
         } else {
@@ -5452,6 +5600,25 @@ impl Emitter<'_> {
                 })
                 .flatten()
         })
+    }
+
+    fn projected_function_for_call(
+        &self,
+        callee: &SyntaxNode,
+    ) -> Option<&crate::projection::ProjectedFunction> {
+        if callee.kind != SyntaxKind::Name {
+            return None;
+        }
+        let symbol =
+            self.package
+                .resolve_name_at(self.unit, callee.span.start, self.text(callee))?;
+        self.package
+            .projection
+            .item(&symbol.namespace, &symbol.name)
+            .and_then(|item| match &item.kind {
+                crate::projection::ProjectedKind::Function(function) => Some(function),
+                _ => None,
+            })
     }
 
     fn contract_for_call(&self, callee: &SyntaxNode) -> Option<&FunctionContract> {
@@ -6276,7 +6443,9 @@ fn rust_element_type(package: &SemanticPackage, ty: ElementType) -> String {
 fn rust_value_type(package: &SemanticPackage, ty: ValueType) -> String {
     match ty {
         ValueType::Scalar(scalar) => rust_type(scalar).to_owned(),
-        ValueType::ScalarOrNone(scalar) => format!("Option<{}>", rust_type(scalar)),
+        ValueType::Optional(inner) => {
+            format!("Option<{}>", rust_value_type(package, *inner))
+        }
         ValueType::OverflowResult(scalar) => {
             format!("terrane_int_support::OverflowResult<{}>", rust_type(scalar))
         }
@@ -6288,7 +6457,6 @@ fn rust_value_type(package: &SemanticPackage, ty: ValueType) -> String {
         ValueType::StringList => "Vec<String>".to_owned(),
         ValueType::Encoding => "terrane_string_support::Encoding".to_owned(),
         ValueType::TextRange => "terrane_string_support::TextRange".to_owned(),
-        ValueType::TextRangeOrNone => "Option<terrane_string_support::TextRange>".to_owned(),
         ValueType::Iterator(item) => {
             format!(
                 "terrane_collection_support::Iterator<{}>",
@@ -6300,9 +6468,6 @@ fn rust_value_type(package: &SemanticPackage, ty: ValueType) -> String {
                 "terrane_collection_support::IterationStep<{}>",
                 rust_element_type(package, item)
             )
-        }
-        ValueType::ElementOrNone(item) => {
-            format!("Option<{}>", rust_element_type(package, item))
         }
         ValueType::List(item) => {
             format!(

@@ -3,8 +3,8 @@ use std::path::PathBuf;
 use terrane_compiler::semantics::SymbolKind;
 use terrane_compiler::syntax::SyntaxKind;
 use terrane_compiler::{
-    EvaluationKind, ExecutorProfile, Package, ReflectionProfile, ScalarType, SourceFile,
-    SourceUnit, ValueType, analyze,
+    CapabilityProfile, EvaluationKind, ExecutorProfile, Package, ReflectionProfile, ScalarType,
+    SourceFile, SourceUnit, ValueType, analyze,
 };
 
 fn package(prelude: bool, sources: &[(&str, &str)]) -> Package {
@@ -14,6 +14,7 @@ fn package(prelude: bool, sources: &[(&str, &str)]) -> Package {
         prelude,
         reflection: ReflectionProfile::Ordinary,
         executor: ExecutorProfile::Threaded,
+        profile: CapabilityProfile::unrestricted(),
         units: sources
             .iter()
             .enumerate()
@@ -1151,7 +1152,7 @@ fn types_canonical_integer_coercion_family() {
     assert_eq!(type_of("exact"), ValueType::Scalar(ScalarType::Int16));
     assert_eq!(
         type_of("checked"),
-        ValueType::ScalarOrNone(ScalarType::Int8)
+        ValueType::Optional(Box::new(ValueType::Scalar(ScalarType::Int8)))
     );
     assert_eq!(type_of("wrapped"), ValueType::Scalar(ScalarType::Uint8));
     assert_eq!(type_of("saturated"), ValueType::Scalar(ScalarType::Uint8));

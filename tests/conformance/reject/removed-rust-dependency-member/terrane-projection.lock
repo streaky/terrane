@@ -1,0 +1,17 @@
+{
+  "format": 1,
+  "dependencies": [
+    {
+      "name": "date-codec",
+      "version": "1.0.2",
+      "members": [
+        ["/deps/date-codec", "Error"],
+        ["/deps/date-codec", "fmt_http_date"],
+        ["/deps/date-codec", "parse_http_date"],
+        ["/deps/date-codec", "removed_parser"],
+        ["/deps/date-codec/date", "HttpDate"]
+      ]
+    }
+  ],
+  "removed": []
+}

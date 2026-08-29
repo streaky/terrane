@@ -120,6 +120,7 @@ fn run(arguments: &[OsString]) -> Result<ExitCode, CliFailure> {
         &compilation.rust_files,
         &package.units,
         &compilation.rust_dependencies,
+        package.profile.panic,
         uses_platform_support,
     )?;
     record_and_prune_generated_crates(&crate_dir)?;
@@ -130,6 +131,8 @@ fn run(arguments: &[OsString]) -> Result<ExitCode, CliFailure> {
         &target_dir,
         &compilation.rust_files,
         &package.units,
+        !compilation.rust_dependencies.is_empty(),
+        compilation.dependency_containment,
     )?;
     if command == "check" {
         return Ok(ExitCode::SUCCESS);
@@ -201,11 +204,21 @@ fn prepare_artifact(
     target_dir: &Path,
     rust_files: &[terrane_compiler::rust_ir::RenderedFile],
     units: &[terrane_compiler::SourceUnit],
+    has_rust_dependencies: bool,
+    containment: terrane_compiler::projection::Containment,
 ) -> Result<Option<PathBuf>, CliFailure> {
     if command == "check" {
         let stamp = crate_dir.join("artifacts/check-success");
         if !stamp.is_file() {
-            run_cargo("check", crate_dir, target_dir, rust_files, units)?;
+            run_cargo(
+                "check",
+                crate_dir,
+                target_dir,
+                rust_files,
+                units,
+                has_rust_dependencies,
+                containment,
+            )?;
             fs::create_dir_all(stamp.parent().expect("artifact stamp has a parent")).map_err(
                 |error| CliFailure::backend(format!("cannot create artifact cache: {error}")),
             )?;
@@ -217,7 +230,15 @@ fn prepare_artifact(
     }
     let executable = executable_path(&crate_dir.join("artifacts"));
     if !executable.is_file() {
-        run_cargo("build", crate_dir, target_dir, rust_files, units)?;
+        run_cargo(
+            "build",
+            crate_dir,
+            target_dir,
+            rust_files,
+            units,
+            has_rust_dependencies,
+            containment,
+        )?;
         let built = executable_path(&target_dir.join("debug"));
         fs::create_dir_all(executable.parent().expect("cached executable has a parent")).map_err(
             |error| CliFailure::backend(format!("cannot create artifact cache: {error}")),
@@ -253,27 +274,97 @@ fn print_rust(compilation: &terrane_compiler::Compilation) {
     );
 }
 
+#[expect(
+    clippy::too_many_lines,
+    reason = "Cargo process policy, containment, diagnostics, and artifact caching form one operation"
+)]
 fn run_cargo(
     command: &str,
     crate_dir: &Path,
     target_dir: &Path,
     rust_files: &[terrane_compiler::rust_ir::RenderedFile],
     units: &[terrane_compiler::SourceUnit],
+    has_rust_dependencies: bool,
+    containment: terrane_compiler::projection::Containment,
 ) -> Result<(), CliFailure> {
     let mut rustflags = std::env::var_os("RUSTFLAGS").unwrap_or_default();
     if !rustflags.is_empty() {
         rustflags.push(" ");
     }
     rustflags.push("-Dwarnings");
-    let output = Command::new("cargo")
-        .args([
-            command,
-            "--quiet",
-            "--message-format=json",
-            "--manifest-path",
-        ])
-        .arg(crate_dir.join("Cargo.toml"))
-        .env("CARGO_TARGET_DIR", target_dir)
+    let contained =
+        has_rust_dependencies && containment == terrane_compiler::projection::Containment::Enforced;
+    if has_rust_dependencies {
+        let fetch = Command::new("cargo")
+            .args(["fetch", "--manifest-path"])
+            .arg(crate_dir.join("Cargo.toml"))
+            .output()
+            .map_err(|error| {
+                CliFailure::backend(format!("failed to fetch generated dependencies: {error}"))
+            })?;
+        if !fetch.status.success() {
+            return Err(CliFailure::backend(format!(
+                "Cargo dependency fetch failed: {}",
+                String::from_utf8_lossy(&fetch.stderr).trim()
+            )));
+        }
+        if !contained {
+            eprintln!(
+                "warning: generated dependency build containment is unavailable; using declared host tier"
+            );
+        }
+    }
+    fs::create_dir_all(target_dir).map_err(|error| {
+        CliFailure::backend(format!("cannot create Cargo target directory: {error}"))
+    })?;
+    let canonical_crate = crate_dir.canonicalize().map_err(|error| {
+        CliFailure::backend(format!("cannot canonicalize generated crate: {error}"))
+    })?;
+    let canonical_target = target_dir.canonicalize().map_err(|error| {
+        CliFailure::backend(format!(
+            "cannot canonicalize Cargo target directory: {error}"
+        ))
+    })?;
+    let mut cargo = if contained {
+        let mut cargo = Command::new("bwrap");
+        cargo.args([
+            "--die-with-parent",
+            "--unshare-all",
+            "--ro-bind",
+            "/",
+            "/",
+            "--dev",
+            "/dev",
+            "--proc",
+            "/proc",
+            "--tmpfs",
+            "/tmp",
+            "--bind",
+        ]);
+        cargo
+            .arg(&canonical_crate)
+            .arg(&canonical_crate)
+            .args(["--bind"])
+            .arg(&canonical_target)
+            .arg(&canonical_target)
+            .args(["--", "cargo"]);
+        cargo
+    } else {
+        Command::new("cargo")
+    };
+    cargo.args([
+        command,
+        "--quiet",
+        "--message-format=json",
+        "--manifest-path",
+    ]);
+    cargo.arg(crate_dir.join("Cargo.toml"));
+    if has_rust_dependencies {
+        cargo.args(["--offline", "--frozen"]);
+    }
+    let output = cargo
+        .current_dir(&canonical_crate)
+        .env("CARGO_TARGET_DIR", &canonical_target)
         .env("RUSTFLAGS", rustflags)
         .output()
         .map_err(|error| CliFailure::backend(format!("failed to start Cargo: {error}")))?;
@@ -453,6 +544,7 @@ fn write_generated_crate(
     rust_files: &[terrane_compiler::rust_ir::RenderedFile],
     units: &[terrane_compiler::SourceUnit],
     rust_dependencies: &[terrane_compiler::RustDependency],
+    panic: terrane_compiler::PanicProfile,
     uses_platform_support: bool,
 ) -> Result<(), CliFailure> {
     fs::create_dir_all(directory.join("src"))
@@ -490,6 +582,9 @@ fn write_generated_crate(
         {
             write_rust_dependency(&mut manifest, dependency);
         }
+    }
+    if panic == terrane_compiler::PanicProfile::Abort {
+        manifest.push_str("\n[profile.dev]\npanic = \"abort\"\n");
     }
     manifest.push_str("\n[workspace]\n");
     write_if_changed(&directory.join("Cargo.toml"), manifest.as_bytes()).map_err(|error| {
@@ -690,6 +785,8 @@ mod tests {
             &directory.join("target"),
             &rust_files,
             &units,
+            false,
+            terrane_compiler::projection::Containment::Unavailable,
         )
         .unwrap_err();
         assert_eq!(failure.code, 5);
@@ -715,6 +812,30 @@ mod tests {
         let identities = fs::read_dir(&directory).unwrap().count();
         assert_eq!(identities, 8);
         assert!(directory.join("09").is_dir());
+        fs::remove_dir_all(directory).unwrap();
+    }
+    #[test]
+    fn abort_profile_configures_generated_cargo_manifest() {
+        let directory =
+            std::env::temp_dir().join(format!("terrane-abort-profile-{}", std::process::id()));
+        if directory.exists() {
+            fs::remove_dir_all(&directory).unwrap();
+        }
+
+        assert!(
+            write_generated_crate(
+                &directory,
+                &[],
+                &[],
+                &[],
+                terrane_compiler::PanicProfile::Abort,
+                false,
+            )
+            .is_ok()
+        );
+
+        let manifest = fs::read_to_string(directory.join("Cargo.toml")).unwrap();
+        assert!(manifest.contains("[profile.dev]\npanic = \"abort\"\n"));
         fs::remove_dir_all(directory).unwrap();
     }
 }

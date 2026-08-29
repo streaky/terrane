@@ -144,6 +144,11 @@ impl Int {
     }
 
     #[must_use]
+    pub fn from_u128(value: u128) -> Self {
+        Self::from_big(BigInt::from(value))
+    }
+
+    #[must_use]
     pub const fn tier(&self) -> Tier {
         match self {
             Self::Small(_) => Tier::I64,
@@ -1037,6 +1042,7 @@ signed_destinations!(
     (i32, to_i32),
     (i64, to_i64),
     (i128, to_i128),
+    (isize, to_isize),
 );
 unsigned_destinations!(
     (u8, to_u8),
@@ -1044,6 +1050,7 @@ unsigned_destinations!(
     (u32, to_u32),
     (u64, to_u64),
     (u128, to_u128),
+    (usize, to_usize),
 );
 
 /// Materializes any fixed-width integer as an adaptive integer.

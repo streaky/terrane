@@ -35,6 +35,43 @@ pub enum ExecutorProfile {
     Threaded,
 }
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum PanicProfile {
+    Unwind,
+    Abort,
+}
+
+const CAPABILITY_NAMES: [&str; 4] = ["build", "filesystem", "networking", "tls"];
+
+fn is_capability_name(name: &str) -> bool {
+    CAPABILITY_NAMES.contains(&name)
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct CapabilityProfile {
+    pub name: String,
+    pub capabilities: Option<BTreeSet<String>>,
+    pub panic: PanicProfile,
+}
+
+impl CapabilityProfile {
+    #[must_use]
+    pub fn unrestricted() -> Self {
+        Self {
+            name: "default".to_owned(),
+            capabilities: None,
+            panic: PanicProfile::Unwind,
+        }
+    }
+
+    #[must_use]
+    pub fn allows(&self, capability: &str) -> bool {
+        self.capabilities
+            .as_ref()
+            .is_none_or(|capabilities| capabilities.contains(capability))
+    }
+}
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct RustDependency {
     pub name: String,
@@ -43,6 +80,7 @@ pub struct RustDependency {
     pub features: Vec<String>,
     pub default_features: bool,
     pub target: Option<String>,
+    pub effects: Vec<String>,
 }
 
 impl RustDependency {
@@ -78,6 +116,7 @@ pub struct Package {
     pub prelude: bool,
     pub reflection: ReflectionProfile,
     pub executor: ExecutorProfile,
+    pub profile: CapabilityProfile,
     pub units: Vec<SourceUnit>,
     pub rust_dependencies: Vec<RustDependency>,
 }
@@ -119,6 +158,7 @@ impl Package {
             prelude: true,
             reflection: ReflectionProfile::Ordinary,
             executor: ExecutorProfile::Threaded,
+            profile: CapabilityProfile::unrestricted(),
             units: vec![SourceUnit {
                 relative_path,
                 source: SourceFile::new(0, path, text),
@@ -159,6 +199,7 @@ impl Package {
             prelude: manifest.prelude,
             reflection: manifest.reflection,
             executor: manifest.executor,
+            profile: manifest.profile,
             units,
             rust_dependencies: manifest.rust_dependencies,
         })
@@ -170,6 +211,7 @@ struct ParsedManifest {
     prelude: bool,
     reflection: ReflectionProfile,
     executor: ExecutorProfile,
+    profile: CapabilityProfile,
     namespace_roots: Vec<NamespaceRoot>,
     rust_dependencies: Vec<RustDependency>,
 }
@@ -203,7 +245,13 @@ fn parse_manifest(
     for key in table.keys() {
         if !matches!(
             key.as_str(),
-            "package" | "prelude" | "reflection" | "executor" | "namespaces" | "rust-dependencies"
+            "package"
+                | "prelude"
+                | "reflection"
+                | "executor"
+                | "profile"
+                | "namespaces"
+                | "rust-dependencies"
         ) {
             errors.push(manifest_error(
                 manifest_path,
@@ -275,19 +323,120 @@ fn parse_manifest(
         }
         None => ExecutorProfile::Threaded,
     };
+    let profile = parse_capability_profile(manifest_path, text, &table, &mut errors);
     let namespace_roots = parse_namespace_roots(manifest_path, text, &table, &mut errors);
     let rust_dependencies = parse_rust_dependencies(manifest_path, text, &table, &mut errors);
+    for dependency in &rust_dependencies {
+        for effect in std::iter::once("build").chain(dependency.effects.iter().map(String::as_str))
+        {
+            if !profile.allows(effect) {
+                errors.push(manifest_error(
+                    manifest_path,
+                    text,
+                    format!(
+                        "profile `{}` forbids effect `{effect}` required by Rust dependency `{}`",
+                        profile.name, dependency.name
+                    ),
+                    Some(&dependency.name),
+                ));
+            }
+        }
+    }
     if errors.is_empty() {
         Ok(ParsedManifest {
             identity: identity.expect("validated package identity"),
             prelude,
             reflection,
             executor,
+            profile,
             namespace_roots,
             rust_dependencies,
         })
     } else {
         Err(errors)
+    }
+}
+
+fn parse_capability_profile(
+    manifest_path: &Path,
+    text: &str,
+    table: &toml::Table,
+    errors: &mut Vec<PackageLoadError>,
+) -> CapabilityProfile {
+    let Some(value) = table.get("profile") else {
+        return CapabilityProfile::unrestricted();
+    };
+    let Some(fields) = value.as_table() else {
+        errors.push(manifest_error(
+            manifest_path,
+            text,
+            "`profile` must be a table",
+            Some("profile"),
+        ));
+        return CapabilityProfile::unrestricted();
+    };
+    for key in fields.keys() {
+        if !matches!(key.as_str(), "name" | "capabilities" | "panic") {
+            errors.push(manifest_error(
+                manifest_path,
+                text,
+                format!("unknown profile field `{key}`"),
+                Some(key),
+            ));
+        }
+    }
+    let name = fields
+        .get("name")
+        .and_then(toml::Value::as_str)
+        .unwrap_or("default")
+        .to_owned();
+    let capabilities = match fields.get("capabilities") {
+        Some(toml::Value::Array(values)) if values.iter().all(|value| value.as_str().is_some()) => {
+            let values = values
+                .iter()
+                .filter_map(toml::Value::as_str)
+                .collect::<Vec<_>>();
+            for capability in &values {
+                if !is_capability_name(capability) {
+                    errors.push(manifest_error(
+                        manifest_path,
+                        text,
+                        format!("unknown profile capability `{capability}`"),
+                        Some(capability),
+                    ));
+                }
+            }
+            Some(values.into_iter().map(str::to_owned).collect())
+        }
+        Some(_) => {
+            errors.push(manifest_error(
+                manifest_path,
+                text,
+                "profile `capabilities` must be an array of strings",
+                Some("capabilities"),
+            ));
+            Some(BTreeSet::new())
+        }
+        None => None,
+    };
+    let panic = match fields.get("panic") {
+        Some(toml::Value::String(value)) if value == "unwind" => PanicProfile::Unwind,
+        Some(toml::Value::String(value)) if value == "abort" => PanicProfile::Abort,
+        Some(_) => {
+            errors.push(manifest_error(
+                manifest_path,
+                text,
+                "profile `panic` must be either `unwind` or `abort`",
+                Some("panic"),
+            ));
+            PanicProfile::Unwind
+        }
+        None => PanicProfile::Unwind,
+    };
+    CapabilityProfile {
+        name,
+        capabilities,
+        panic,
     }
 }
 
@@ -327,7 +476,7 @@ fn parse_rust_dependencies(
         for key in fields.keys() {
             if !matches!(
                 key.as_str(),
-                "package" | "version" | "features" | "default-features" | "target"
+                "package" | "version" | "features" | "default-features" | "target" | "effects"
             ) {
                 errors.push(manifest_error(
                     manifest_path,
@@ -371,6 +520,37 @@ fn parse_rust_dependencies(
                 continue;
             }
         };
+        let effects = match fields.get("effects") {
+            None => Vec::new(),
+            Some(toml::Value::Array(values))
+                if values.iter().all(|value| value.as_str().is_some()) =>
+            {
+                let values = values
+                    .iter()
+                    .filter_map(toml::Value::as_str)
+                    .collect::<Vec<_>>();
+                for effect in &values {
+                    if !is_capability_name(effect) {
+                        errors.push(manifest_error(
+                            manifest_path,
+                            text,
+                            format!("Rust dependency `{name}` declares unknown effect `{effect}`"),
+                            Some(effect),
+                        ));
+                    }
+                }
+                values.into_iter().map(str::to_owned).collect()
+            }
+            Some(_) => {
+                errors.push(manifest_error(
+                    manifest_path,
+                    text,
+                    format!("Rust dependency `{name}` has a non-string `effects` entry"),
+                    Some(name),
+                ));
+                continue;
+            }
+        };
         let default_features = match fields.get("default-features") {
             None => true,
             Some(toml::Value::Boolean(value)) => *value,
@@ -404,6 +584,7 @@ fn parse_rust_dependencies(
             features,
             default_features,
             target,
+            effects,
         });
     }
     parsed.sort_by(|left, right| left.name.cmp(&right.name));
@@ -770,6 +951,7 @@ mod tests {
             features: vec!["clock".to_owned(), "serde".to_owned()],
             default_features: false,
             target: Some("cfg(unix)".to_owned()),
+            effects: Vec::new(),
         };
         assert_eq!(
             dependency.cargo_manifest_table(),

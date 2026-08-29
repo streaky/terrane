@@ -444,6 +444,7 @@ S2012 duplicate lexical binding              S2025 public namespace variable
 S2013 unresolved source name                 S2026 namespace-variable confinement
 S2027 undeclared Rust dependency             S2029 projected member absent or declined
 S2028 Rust dependency projection failure     S2030 retired; do not reuse
+S2031 projected member removed by version change
 ```
 
 Retired codes remain unavailable so a stable code never acquires a second meaning.
@@ -453,6 +454,7 @@ Terrane source warnings own the stable `W4xxx` range:
 ```text
 W4001 initialized local binding is never read
 W4002 initial or later store cannot reach a read before definite replacement
+W4003 duplicate semantic union arm
 ```
 
 Warnings are non-blocking diagnostics. Their codes have the same stability rule as error
@@ -1771,6 +1773,20 @@ A profile forbidding an effect rejects its dependency at manifest resolution wit
 naming the profile and the effect. The generated crate builds contained on a platform that can enforce
 it and reports the tier it used on one that cannot, rather than refusing. A lock update that removes a
 crossed member names the member and the version change.
+
+Implemented evidence: arbitrary foreign-object optionals are semantic values and lower recursively;
+receiver-first trait methods, data-free enum variants, wider primitives, `char`, and transparent
+concrete aliases are projected without narrowing. `[profile]` and dependency `effects` are validated
+at manifest load; abort profiles omit unwind conversion and configure generated Cargo accordingly.
+Receiver crossings retain an explicit logical-invariant unwind assertion while receiver-free
+crossings use Rust's `UnwindSafe` proof. Rustdoc and generated-crate compilation run offline/frozen
+inside `bwrap` where available, with the unavailable host tier reported instead of rejected.
+`terrane-projection.lock` provides deterministic machine-independent history and `S2031` names a
+removed member and its resolved version transition. The accepted
+`rust-dependency-deferred-surface` execution case crosses a `bytes` receiver-first trait method and
+uses `serde_json`'s `Option<Number>`, `u128` edge coercion, data-free enum variants, and enum
+comparison; focused package, projection, semantic, generated-Rust, and rejection checks cover the
+remaining contracts.
 
 ### Milestone 26 — Remaining concurrency and foreign adapters
 
