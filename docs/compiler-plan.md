@@ -1744,8 +1744,8 @@ Deliver:
   the projection pass to run under the same explicit build capability as a build script, and §8
   requires a profile forbidding an effect to reject the dependency at manifest resolution rather than
   at a call site. Neither exists: `dependency_projection` runs unconditionally from `analyze`, and
-  nothing reads a profile. Milestone 26 delivers capability profiles for the system and embedded
-  targets; this milestone owns the dependency-side half, and the two must agree on one capability
+  nothing reads a profile. Milestone 26 applies the shared capability model to the remaining standard
+  and system facilities; this milestone owns the dependency-side half, and the two must agree on one
   model rather than growing two;
 - **containment of the generated-crate build, and a tier for platforms without `bwrap`.** Today only
   the rustdoc pass is contained, and it is contained by requiring Linux bubblewrap outright — so
@@ -1790,14 +1790,23 @@ remaining contracts.
 
 ### Milestone 26 — Remaining concurrency and foreign adapters
 
+Milestone 25.2 already established the package `[profile]` model, validates declared dependency
+effects against it, and gives projected Rust crossings explicit receiver, error, and panic contracts.
+This milestone applies that shared capability model to the remaining standard and system surfaces;
+it does not reopen the dependency-projection contracts or the explicitly deferred embedded targets.
+
 Deliver:
 
 - channels, mutexes, read/write locks, atomics, and thread-local objects as library objects over the milestone 19 core;
-- capability profiles for the system and embedded targets;
-- Rust and system adapters with explicit lifetime and error-translation contracts;
+- capability enforcement for standard and system facilities under the existing package profile;
+- the remaining authored Rust and system adapters, excluding dependency-projection crossings already
+  delivered by milestone 25.2, with explicit ABI, lifetime, ownership, and error-translation contracts;
 - the first Python runtime contract if it remains in version-one scope.
 
-Exit criterion: each surface enters with a selected target-capability contract, typed objects and explicit operational contracts, deterministic lowering, and compiled and run evidence. No surface is represented as an empty compiler-owned name to make the map look complete.
+Exit criterion: each new surface enters under the selected capability profile with typed objects and
+explicit operational contracts, deterministic lowering, and compiled and run evidence. A forbidden
+standard or system capability is rejected with a Terrane diagnostic. No surface is represented as an
+empty compiler-owned name to make the map look complete.
 
 ### Milestone 27 — Structured logging
 
@@ -1899,8 +1908,7 @@ The release pipeline must prove, from a clean checkout:
 - debugger integration, tracing, and profiling beyond the retained reflection metadata;
 - stateful hot-code replacement and time-travel or replay;
 - locale-policy-rich text APIs until deterministic policy objects are specified;
-- `no_std`, embedded, firmware, and kernel compilation;
-- parsing or compiling `demos/fork.trn` as an acceptance goal.
+- `no_std`, embedded, firmware, and kernel compilation.
 
 Items moved out of this list by the settled decisions — classes, interfaces, traits, ownership and `ref`/`move`, `throw`/`try`/`catch`/`finally`, float and string coercion destinations, closures, inline Rust with locked Rust dependencies, reflection, and async — are now required above and scheduled in milestones 7 through 27.
 
