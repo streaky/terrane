@@ -151,80 +151,76 @@ fn __terrane_dependency_panic(
         format!("Rust dependency `{crate_name}` member `{member}` panicked: {detail}"),
     )
 }
-// Source: src/main.trn
-// Namespace: app
-fn main() {
-    let __terrane_completion_0: TerraneCompletion<()> = (|| {
-        let __terrane_try_0: TerraneCompletion<()> = (|| {
-            match parse_http_date(String::from("not a date")) {
-                Ok(value) => value,
-                Err(error) => {
-                    return TerraneCompletion::Error(
-                        error.at("/app::main (main.trn:6:9)"),
-                    );
-                }
-            };
-            TerraneCompletion::Normal
-        })();
-        match __terrane_try_0 {
-            TerraneCompletion::Return(value) => return TerraneCompletion::Return(value),
-            TerraneCompletion::Break => return TerraneCompletion::Break,
-            TerraneCompletion::Continue => return TerraneCompletion::Continue,
-            TerraneCompletion::Normal => {}
-            TerraneCompletion::Error(__terrane_error_0) => {
-                let mut __terrane_handled_0 = false;
-                if !__terrane_handled_0
-                    && __terrane_error_0.kind
-                        == TerraneErrorKind::Custom("dependency-error")
-                {
-                    __terrane_handled_0 = true;
-                    println!(
-                        "{}",
-                        terrane_scalar_support::scalar_text(&String::from("caught dependency error"))
-                    );
-                }
-                if !__terrane_handled_0 {
-                    return TerraneCompletion::Error(__terrane_error_0);
-                }
+async fn __terrane_await<F: Future>(future: F) -> F::Output {
+    struct YieldOnce(bool);
+    impl Future for YieldOnce {
+        type Output = ();
+        fn poll(
+            mut self: std::pin::Pin<&mut Self>,
+            context: &mut std::task::Context<'_>,
+        ) -> std::task::Poll<Self::Output> {
+            if self.0 {
+                std::task::Poll::Ready(())
+            } else {
+                self.0 = true;
+                context.waker().wake_by_ref();
+                std::task::Poll::Pending
             }
         }
-        TerraneCompletion::Normal
-    })();
-    match __terrane_completion_0 {
-        TerraneCompletion::Normal => {}
-        TerraneCompletion::Return(value) => return value,
-        TerraneCompletion::Error(error) => __terrane_uncaught(error),
-        TerraneCompletion::Break | TerraneCompletion::Continue => {
-            __terrane_generated_defect("loop control escaped a non-loop try")
+    }
+    YieldOnce(false).await;
+    let output = future.await;
+    YieldOnce(false).await;
+    output
+}
+fn __terrane_block_on<F: Future>(future: F) -> F::Output {
+    struct Wake;
+    impl std::task::Wake for Wake {
+        fn wake(self: std::sync::Arc<Self>) {}
+    }
+    let waker = std::task::Waker::from(std::sync::Arc::new(Wake));
+    let mut context = std::task::Context::from_waker(&waker);
+    let mut future = std::pin::pin!(future);
+    loop {
+        match future.as_mut().poll(&mut context) {
+            std::task::Poll::Ready(value) => return value,
+            std::task::Poll::Pending => std::thread::yield_now(),
         }
     }
 }
-// Source: <terrane>/projected/deps/httpdate.trn
-// Namespace: deps/httpdate
-pub use std::time::SystemTime;
-pub fn parse_http_date(s: String) -> Result<SystemTime, crate::TerraneError> {
-    match std::panic::catch_unwind(
-        std::panic::AssertUnwindSafe(|| httpdate::parse_http_date(&s)),
-    ) {
-        Ok(Ok(value)) => Ok(value),
-        Ok(Err(error)) => {
-            Err(
-                crate::TerraneError::new(
-                    crate::TerraneErrorKind::Custom("dependency-error"),
-                    format!(
-                        "Rust dependency `httpdate` member `httpdate::parse_http_date` failed: {error}"
-                    ),
-                ),
-            )
-        }
-        Err(payload) => {
-            Err(
-                crate::__terrane_dependency_panic(
-                    payload,
-                    "httpdate",
-                    "httpdate::parse_http_date",
-                ),
-            )
-        }
-    }
+// Source: src/main.trn
+// Namespace: app
+fn cross_async(value: TerraneNs4Deps7Reqwest10AsyncImpl8ResponseResponse) {
+    let _ = &value;
+    return ();
 }
+fn cross_blocking(value: TerraneNs4Deps7Reqwest8Blocking8ResponseResponse) {
+    let _ = &value;
+    return ();
+}
+fn keep_crossings(
+    async_crossing: std::sync::Arc<
+        dyn Fn(TerraneNs4Deps7Reqwest10AsyncImpl8ResponseResponse) -> () + Send + Sync,
+    >,
+    blocking_crossing: std::sync::Arc<
+        dyn Fn(TerraneNs4Deps7Reqwest8Blocking8ResponseResponse) -> () + Send + Sync,
+    >,
+) {
+    let _ = (&async_crossing, &blocking_crossing);
+    return ();
+}
+fn main() {
+    keep_crossings(
+        std::sync::Arc::new(cross_async),
+        std::sync::Arc::new(cross_blocking),
+    );
+}
+// Source: <terrane>/projected/deps/reqwest/async-impl/response.trn
+// Namespace: deps/reqwest/async-impl/response
+pub use reqwest::Response as TerraneNs4Deps7Reqwest10AsyncImpl8ResponseResponse;
+// Source: <terrane>/projected/deps/reqwest/async-impl/upgrade.trn
+// Namespace: deps/reqwest/async-impl/upgrade
+pub use reqwest::Upgraded;
+// Source: <terrane>/projected/deps/reqwest/blocking/response.trn
+// Namespace: deps/reqwest/blocking/response
+pub use reqwest::blocking::Response as TerraneNs4Deps7Reqwest8Blocking8ResponseResponse;

@@ -1,0 +1,5 @@
+phase = "check"
+status = "reject"
+entrypoint = "package.toml"
+code = "T0012"
+message = "`item` requires `/left::response`, found `/right::response`"

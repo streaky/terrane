@@ -1,0 +1,18 @@
+namespace app
+from /deps/reqwest/async-impl/response import Response as async-response
+from /deps/reqwest/blocking/response import Response as blocking-response
+
+public function cross-async; value async-response
+    return
+
+public function cross-blocking; value blocking-response
+    return
+
+function keep-crossings; (
+    async-crossing function from async-response to none,
+    blocking-crossing function from blocking-response to none
+)
+    return
+
+function main;
+    keep-crossings; cross-async, cross-blocking

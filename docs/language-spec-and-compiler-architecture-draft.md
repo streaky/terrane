@@ -1065,6 +1065,8 @@ database
 
 The result is an object value: perhaps a function object, class object, singleton, prototype, namespace adapter, importer, or another callable object. A name alone never invokes — invocation always requires its own semicolon — so a bare name in argument position passes the object itself.
 
+Class, interface, and trait types are nominal. Their identity is the pair of their declaring namespace and declared name; an import alias changes only the local spelling. Two declarations with the same name in different namespaces are distinct types, with no structural compatibility or aliasing rule between them. Diagnostics use the local or short name when it is unambiguous and qualify identities when equal short names would otherwise make the message ambiguous.
+
 A dot lookup alone does not imply invocation:
 
 ```terrane
@@ -3223,6 +3225,8 @@ The compiler may lower inheritance through generated composition, enums, trait o
 
 Assigning a subclass instance to a superclass-typed binding preserves the complete dynamic object and its subclass state. Subsequent value assignment copies that complete dynamic value under the ordinary COW contract; Terrane never slices to the statically named superclass fields. A superclass annotation constrains the visible interface and accepted dynamic classes, not storage layout. Targets unable to represent the permitted dynamic class set without an unavailable capability reject the boundary at compile time rather than changing this rule.
 
+Inheritance, interface satisfaction, trait use, and superclass conversion resolve each participating type by that namespace-qualified nominal identity; a same-named declaration in another namespace never joins the hierarchy.
+
 ### 18.3 Interfaces
 
 Interfaces describe required object protocols:
@@ -3777,6 +3781,8 @@ reqwest = { version = "0.12", default-features = false, features = ["blocking", 
 ```
 
 Resolution and Cargo's lockfile determine the exact package interface. The build runs rustdoc for that resolved graph and produces one projection artifact shared by compiler and language server. Rust module paths become `/deps/<manifest-name>/...` namespaces; public names remain verbatim. The projection admits directly representable functions, inherent methods, receiver-first trait functions, opaque foreign types, and data-free or data-carrying enums. It records a reason for every public item it declines.
+
+Projected type identity follows the Rust item rather than the importing module alone. A public re-export is resolved to its canonical Rust path before the Terrane namespace and object identity are recorded. Therefore a re-exported type and its defining item denote one type, while distinct Rust items with the same short name in sibling modules remain distinct. Generated Rust imports each canonical path at most once per generated module and aliases it to the compiler-owned name derived from that namespace-qualified identity.
 
 The compiler generates Rust shims only for projected members crossed by Terrane source. This is direct Rust-to-Rust calling inside the generated crate, not an adapter or marshalled runtime boundary. `Option<T>` projects as `T|none`. A representable `Result<T, E>` returns `T` and throws the projected error class. `&self` projects as a shared receiver, `&mut self` records receiver mutability on the projected contract, and `self` retains `move` semantics under the ordinary foreign-resource ownership rule. Both borrowed receiver forms use ordinary Terrane member-call syntax; the projected contract makes lowering emit the required Rust borrow and mutable binding. On unwinding profiles, a panic crossing a generated shim becomes `dependency-panic`; aborting profiles do not claim containment.
 
@@ -4637,6 +4643,8 @@ Generated Rust is intended to be read by:
 - ordinary Rust tooling.
 
 It should avoid deliberately opaque macro expansion when straightforward Rust can express the same semantics.
+
+Generated object type names retain the readable declared name whenever it is unique in the package. On collision, the Rust name is `TerraneNs`, followed for each source namespace segment by that segment's source-byte length in decimal and its CamelCase form, then the object's CamelCase declared name. The source length, rather than the emitted CamelCase length, makes adjacent segments unambiguous and preserves distinctions that case conversion could erase.
 
 ### 28.2 Determinism
 

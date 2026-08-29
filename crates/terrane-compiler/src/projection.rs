@@ -134,8 +134,9 @@ impl Projection {
             .iter()
             .flat_map(|dependency| dependency.items.iter())
             .collect::<Vec<_>>();
+        let imports = expanded_source_imports(&all_items, imports);
         let mut sources = Vec::new();
-        for (namespace, names) in imports {
+        for (namespace, names) in &imports {
             let selected = all_items
                 .iter()
                 .copied()
@@ -144,18 +145,21 @@ impl Projection {
             if selected.is_empty() {
                 continue;
             }
-            let foreign = collect_source_foreign(&all_items, &selected, namespace);
+            let foreign = collect_source_foreign(&all_items, &selected);
+            let mut aliases = foreign_aliases(&foreign);
+            for (rust_path, alias) in &mut aliases {
+                if projected_item_for_foreign(&all_items, rust_path, &foreign[rust_path])
+                    .is_some_and(|item| item.namespace == *namespace)
+                {
+                    alias.clone_from(&foreign[rust_path]);
+                }
+            }
             let mut ordered_foreign = foreign.iter().collect::<Vec<_>>();
-            ordered_foreign.sort_by_key(|(name, rust_path)| {
+            ordered_foreign.sort_by_key(|(rust_path, name)| {
                 let dependency_count = all_items
                     .iter()
                     .copied()
-                    .find(|item| {
-                        item.rust_path == ***rust_path
-                            || (item.name == ***name
-                                && rust_prefix(namespace)
-                                    .is_some_and(|prefix| item.rust_path.starts_with(&prefix)))
-                    })
+                    .find(|item| item.rust_path == **rust_path)
                     .and_then(|item| match &item.kind {
                         ProjectedKind::ForeignType { methods } => Some(
                             methods
@@ -166,34 +170,70 @@ impl Projection {
                         _ => None,
                     })
                     .unwrap_or_default();
-                (dependency_count, *name)
+                (dependency_count, aliases.get(*rust_path))
             });
             let mut text = format!("namespace {}\n\n", namespace.trim_start_matches('/'));
-            for (name, rust_path) in ordered_foreign {
+            for (rust_path, _) in ordered_foreign {
+                let name = &aliases[rust_path];
+                if let Some(item) =
+                    projected_item_for_foreign(&all_items, rust_path, &foreign[rust_path])
+                {
+                    if item.namespace != *namespace {
+                        write!(text, "from {} import {}", item.namespace, item.name)
+                            .expect("writing to a string cannot fail");
+                        if name != &item.name {
+                            write!(text, " as {name}").expect("writing to a string cannot fail");
+                        }
+                        text.push('\n');
+                        continue;
+                    }
+                }
                 writeln!(text, "class {name}").expect("writing to a string cannot fail");
                 if let Some(ProjectedItem {
                     kind: ProjectedKind::ForeignType { methods },
                     ..
-                }) = all_items.iter().copied().find(|item| {
-                    item.rust_path == *rust_path
-                        || (item.name == *name
-                            && rust_prefix(namespace)
-                                .is_some_and(|prefix| item.rust_path.starts_with(&prefix)))
-                }) {
+                }) = projected_item_for_foreign(&all_items, rust_path, &foreign[rust_path])
+                {
                     for method in methods {
-                        render_function(&mut text, method, false, 4);
+                        render_function(&mut text, method, false, 4, &aliases);
                     }
                 }
                 text.push('\n');
             }
             for item in selected {
                 if let ProjectedKind::Function(function) = &item.kind {
-                    render_function(&mut text, function, true, 0);
+                    render_function(&mut text, function, true, 0, &aliases);
                 }
             }
             sources.push((namespace.clone(), text));
         }
         sources
+    }
+
+    #[must_use]
+    pub fn foreign_imports(&self, namespace: &str) -> BTreeMap<String, String> {
+        let all_items = self
+            .dependencies
+            .iter()
+            .flat_map(|dependency| dependency.items.iter())
+            .collect::<Vec<_>>();
+        let mut foreign = BTreeMap::new();
+        for item in all_items
+            .iter()
+            .copied()
+            .filter(|item| item.namespace == namespace)
+        {
+            if let ProjectedKind::Function(function) = &item.kind {
+                collect_foreign_function(function, &mut foreign);
+            }
+        }
+        foreign.retain(|rust_path, name| {
+            projected_item_for_foreign(&all_items, rust_path, name).is_none()
+        });
+        foreign_aliases(&foreign)
+            .into_iter()
+            .map(|(rust_path, name)| (name, rust_path))
+            .collect()
     }
 
     #[must_use]
@@ -205,57 +245,27 @@ impl Projection {
     }
     #[must_use]
     pub(crate) fn dependency_name(&self, namespace: &str, name: &str) -> Option<&str> {
-        self.dependencies.iter().find_map(|dependency| {
-            dependency
-                .items
-                .iter()
-                .any(|item| item.namespace == namespace && item.name == name)
-                .then_some(dependency.name.as_str())
-        })
+        self.dependencies
+            .iter()
+            .find(|dependency| {
+                dependency
+                    .items
+                    .iter()
+                    .any(|item| item.namespace == namespace && item.name == name)
+            })
+            .map(|dependency| dependency.name.as_str())
     }
 
     #[must_use]
     pub fn foreign_rust_path(&self, namespace: &str, name: &str) -> Option<&str> {
         self.item(namespace, name)
-            .and_then(|item| {
+            .filter(|item| {
                 matches!(
                     item.kind,
                     ProjectedKind::ForeignType { .. } | ProjectedKind::Enum { .. }
                 )
-                .then_some(item.rust_path.as_str())
             })
-            .or_else(|| {
-                let prefix = rust_prefix(namespace);
-                self.dependencies
-                    .iter()
-                    .flat_map(|dependency| &dependency.items)
-                    .filter(|item| {
-                        matches!(
-                            item.kind,
-                            ProjectedKind::ForeignType { .. } | ProjectedKind::Enum { .. }
-                        ) && item.name == name
-                            && prefix
-                                .as_ref()
-                                .is_none_or(|prefix| item.rust_path.starts_with(prefix))
-                    })
-                    .map(|item| item.rust_path.as_str())
-                    .min_by_key(|path| (path.matches("::").count(), *path))
-            })
-            .or_else(|| {
-                self.dependencies
-                    .iter()
-                    .flat_map(|dependency| &dependency.items)
-                    .filter(|item| item.namespace == namespace)
-                    .find_map(|item| match &item.kind {
-                        ProjectedKind::Function(function) => function
-                            .parameters
-                            .iter()
-                            .map(|parameter| &parameter.ty)
-                            .chain(std::iter::once(&function.result))
-                            .find_map(|ty| foreign_path_named(ty, name)),
-                        _ => None,
-                    })
-            })
+            .map(|item| item.rust_path.as_str())
     }
 
     #[must_use]
@@ -277,67 +287,72 @@ impl Projection {
                 _ => None,
             })
     }
+}
 
-    pub(crate) fn method_mutability(
-        &self,
-        type_name: &str,
-        method_name: &str,
-    ) -> Result<Option<bool>, Vec<String>> {
-        let candidates = self
-            .dependencies
+fn expanded_source_imports(
+    all_items: &[&ProjectedItem],
+    imports: &BTreeMap<String, BTreeSet<String>>,
+) -> BTreeMap<String, BTreeSet<String>> {
+    let mut expanded = imports.clone();
+    loop {
+        let previous_count = expanded.values().map(BTreeSet::len).sum::<usize>();
+        let selected = all_items
             .iter()
-            .flat_map(|dependency| &dependency.items)
-            .filter(|item| item.name == type_name)
-            .filter_map(|item| match &item.kind {
-                ProjectedKind::ForeignType { methods } => methods
-                    .iter()
-                    .find(|method| method.name == method_name)
-                    .map(|method| {
-                        (
-                            matches!(method.receiver, Some(Receiver::MutableBorrow)),
-                            item.rust_path.clone(),
-                        )
-                    }),
-                _ => None,
+            .copied()
+            .filter(|item| {
+                expanded
+                    .get(&item.namespace)
+                    .is_some_and(|names| names.contains(&item.name))
             })
             .collect::<Vec<_>>();
-        let Some((mutates, _)) = candidates.first() else {
-            return Ok(None);
-        };
-        if candidates.iter().all(|(candidate, _)| candidate == mutates) {
-            Ok(Some(*mutates))
-        } else {
-            Err(candidates.into_iter().map(|(_, path)| path).collect())
+        for (rust_path, name) in collect_source_foreign(all_items, &selected) {
+            if let Some(item) = projected_item_for_foreign(all_items, &rust_path, &name) {
+                expanded
+                    .entry(item.namespace.clone())
+                    .or_default()
+                    .insert(item.name.clone());
+            }
+        }
+        if expanded.values().map(BTreeSet::len).sum::<usize>() == previous_count {
+            return expanded;
         }
     }
 }
 
-fn rust_prefix(namespace: &str) -> Option<String> {
-    let mut segments = namespace.strip_prefix("/deps/")?.split('/');
-    let dependency = segments.next()?.replace('-', "_");
-    let modules = segments.map(|segment| segment.replace('-', "_"));
-    Some(
-        std::iter::once(dependency)
-            .chain(modules)
-            .collect::<Vec<_>>()
-            .join("::"),
-    )
+fn projected_item_for_foreign<'a>(
+    all_items: &'a [&ProjectedItem],
+    rust_path: &str,
+    name: &str,
+) -> Option<&'a ProjectedItem> {
+    if let Some(exact) = all_items
+        .iter()
+        .copied()
+        .find(|item| item.rust_path == rust_path)
+    {
+        return Some(exact);
+    }
+    let mut candidates = all_items
+        .iter()
+        .copied()
+        .filter(|item| item.name == name)
+        .filter_map(|item| {
+            let parent = item.rust_path.rsplit_once("::")?.0;
+            rust_path
+                .starts_with(&format!("{parent}::"))
+                .then_some((parent.len(), item))
+        })
+        .collect::<Vec<_>>();
+    candidates.sort_by_key(|(prefix_len, _)| std::cmp::Reverse(*prefix_len));
+    let (best_len, best) = candidates.first().copied()?;
+    (candidates
+        .get(1)
+        .is_none_or(|(next_len, _)| *next_len < best_len))
+    .then_some(best)
 }
 
-fn foreign_path_named<'a>(ty: &'a ProjectedType, name: &str) -> Option<&'a str> {
-    match ty {
-        ProjectedType::Foreign {
-            rust_path,
-            name: foreign_name,
-        } if foreign_name == name => Some(rust_path),
-        ProjectedType::Optional(inner) => foreign_path_named(inner, name),
-        _ => None,
-    }
-}
 fn collect_source_foreign(
     all_items: &[&ProjectedItem],
     selected: &[&ProjectedItem],
-    namespace: &str,
 ) -> BTreeMap<String, String> {
     let mut foreign = BTreeMap::<String, String>::new();
     for item in selected {
@@ -346,32 +361,27 @@ fn collect_source_foreign(
                 collect_foreign_function(function, &mut foreign);
             }
             ProjectedKind::ForeignType { methods } => {
-                foreign.insert(item.name.clone(), item.rust_path.clone());
+                foreign.insert(item.rust_path.clone(), item.name.clone());
                 for method in methods {
                     collect_foreign_function(method, &mut foreign);
                 }
             }
             ProjectedKind::Enum { .. } => {
-                foreign.insert(item.name.clone(), item.rust_path.clone());
+                foreign.insert(item.rust_path.clone(), item.name.clone());
             }
         }
     }
     loop {
         let previous_len = foreign.len();
-        let referenced = foreign
-            .iter()
-            .map(|(name, rust_path)| (name.clone(), rust_path.clone()))
-            .collect::<Vec<_>>();
-        for (name, rust_path) in referenced {
+        let referenced = foreign.keys().cloned().collect::<Vec<_>>();
+        for rust_path in referenced {
             let Some(ProjectedItem {
                 kind: ProjectedKind::ForeignType { methods },
                 ..
-            }) = all_items.iter().copied().find(|item| {
-                item.rust_path == rust_path
-                    || (item.name == name
-                        && rust_prefix(namespace)
-                            .is_some_and(|prefix| item.rust_path.starts_with(&prefix)))
-            })
+            }) = all_items
+                .iter()
+                .copied()
+                .find(|item| item.rust_path == rust_path)
             else {
                 continue;
             };
@@ -383,6 +393,24 @@ fn collect_source_foreign(
             return foreign;
         }
     }
+}
+
+fn foreign_aliases(foreign: &BTreeMap<String, String>) -> BTreeMap<String, String> {
+    let counts = foreign.values().fold(BTreeMap::new(), |mut counts, name| {
+        *counts.entry(name.as_str()).or_insert(0_usize) += 1;
+        counts
+    });
+    foreign
+        .iter()
+        .map(|(rust_path, name)| {
+            let alias = if counts[name.as_str()] == 1 {
+                name.clone()
+            } else {
+                rust_path.replace("::", "-").replace('_', "-")
+            };
+            (rust_path.clone(), alias)
+        })
+        .collect()
 }
 
 fn collect_foreign_function(function: &ProjectedFunction, foreign: &mut BTreeMap<String, String>) {
@@ -399,7 +427,7 @@ fn collect_foreign_function(function: &ProjectedFunction, foreign: &mut BTreeMap
 fn collect_foreign_type(ty: &ProjectedType, foreign: &mut BTreeMap<String, String>) {
     match ty {
         ProjectedType::Foreign { rust_path, name } => {
-            foreign.insert(name.clone(), rust_path.clone());
+            foreign.insert(rust_path.clone(), name.clone());
         }
         ProjectedType::Optional(inner) => collect_foreign_type(inner, foreign),
         _ => {}
@@ -424,7 +452,13 @@ fn foreign_type_name(ty: &ProjectedType) -> Option<&str> {
     }
 }
 
-fn render_function(output: &mut String, function: &ProjectedFunction, public: bool, indent: usize) {
+fn render_function(
+    output: &mut String,
+    function: &ProjectedFunction,
+    public: bool,
+    indent: usize,
+    foreign_aliases: &BTreeMap<String, String>,
+) {
     let prefix = " ".repeat(indent);
     let visibility = if public { "public " } else { "" };
     let asynchronous = if function.is_async { "async " } else { "" };
@@ -435,8 +469,12 @@ fn render_function(output: &mut String, function: &ProjectedFunction, public: bo
     )
     .expect("writing to a string cannot fail");
     if function.result != ProjectedType::None {
-        write!(output, " {}", function.result.terrane_name())
-            .expect("writing to a string cannot fail");
+        write!(
+            output,
+            " {}",
+            projected_type_name(&function.result, foreign_aliases)
+        )
+        .expect("writing to a string cannot fail");
     }
     output.push_str(if function.error.is_some() {
         " throws dependency-error"
@@ -450,11 +488,29 @@ fn render_function(output: &mut String, function: &ProjectedFunction, public: bo
             if index != 0 {
                 output.push_str(", ");
             }
-            write!(output, "{} {}", parameter.name, parameter.ty.terrane_name())
-                .expect("writing to a string cannot fail");
+            write!(
+                output,
+                "{} {}",
+                parameter.name,
+                projected_type_name(&parameter.ty, foreign_aliases)
+            )
+            .expect("writing to a string cannot fail");
         }
     }
     output.push('\n');
+}
+
+fn projected_type_name(ty: &ProjectedType, foreign_aliases: &BTreeMap<String, String>) -> String {
+    match ty {
+        ProjectedType::Foreign { rust_path, name } => foreign_aliases
+            .get(rust_path)
+            .cloned()
+            .unwrap_or_else(|| name.clone()),
+        ProjectedType::Optional(inner) => {
+            format!("optional {}", projected_type_name(inner, foreign_aliases))
+        }
+        _ => ty.terrane_name(),
+    }
 }
 #[derive(Debug)]
 pub struct ProjectionError {
@@ -1390,7 +1446,10 @@ fn io_error(context: &'static str) -> impl FnOnce(std::io::Error) -> ProjectionE
 
 #[cfg(test)]
 mod tests {
-    use std::fs;
+    use std::{
+        collections::{BTreeMap, BTreeSet},
+        fs,
+    };
 
     use serde_json::json;
 
@@ -1476,13 +1535,75 @@ mod tests {
                 .and_then(|method| method.receiver),
             Some(Receiver::MutableBorrow)
         );
+    }
+
+    #[test]
+    fn function_signatures_keep_same_named_foreign_types_distinct() {
+        let projection: Projection = serde_json::from_value(json!({
+            "cache_identity": "test",
+            "containment": "Unavailable",
+            "dependencies": [{
+                "name": "witness",
+                "package": "witness",
+                "version": "1.0.0",
+                "declined": [],
+                "items": [{
+                    "namespace": "/deps/witness",
+                    "name": "cross",
+                    "rust_path": "witness::cross",
+                    "docs": null,
+                    "kind": {"Function": {
+                        "name": "cross",
+                        "parameters": [
+                            {
+                                "name": "left",
+                                "ty": {"Foreign": {
+                                    "rust_path": "witness::left::Response",
+                                    "name": "Response"
+                                }},
+                                "borrowed": false,
+                                "mutable_borrow": false
+                            },
+                            {
+                                "name": "right",
+                                "ty": {"Foreign": {
+                                    "rust_path": "witness::right::Response",
+                                    "name": "Response"
+                                }},
+                                "borrowed": false,
+                                "mutable_borrow": false
+                            }
+                        ],
+                        "result": "None",
+                        "error": null,
+                        "is_async": false,
+                        "receiver": null
+                    }}
+                }]
+            }]
+        }))
+        .unwrap();
+
         assert_eq!(
-            projection.method_mutability("Response", "touch"),
-            Err(vec![
-                "witness::async::Response".to_owned(),
-                "witness::blocking::Response".to_owned()
+            projection.foreign_imports("/deps/witness"),
+            BTreeMap::from([
+                (
+                    "witness-left-Response".to_owned(),
+                    "witness::left::Response".to_owned()
+                ),
+                (
+                    "witness-right-Response".to_owned(),
+                    "witness::right::Response".to_owned()
+                )
             ])
         );
+        let sources = projection.source_for_imports(&BTreeMap::from([(
+            "/deps/witness".to_owned(),
+            BTreeSet::from(["cross".to_owned()]),
+        )]));
+        assert!(sources[0].1.contains(
+            "function cross throws dependency-panic; left witness-left-Response, right witness-right-Response"
+        ));
     }
 
     #[test]

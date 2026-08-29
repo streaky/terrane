@@ -1,0 +1,4 @@
+namespace right
+
+class child
+  value string = 'right'

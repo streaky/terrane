@@ -8,6 +8,8 @@ Status labels:
 - **name only** — reserved in the compiler-owned namespace, but has no implemented value semantics or operations yet.
 - **source-declared** — supplied by a Terrane program rather than the prelude.
 
+Source-declared and projected class, interface, and trait types have namespace-qualified nominal identity. Import aliases preserve that identity; same-named types from different namespaces remain distinct.
+
 ## Tree
 
 ```text

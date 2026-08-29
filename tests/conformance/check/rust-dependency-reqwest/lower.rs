@@ -132,6 +132,10 @@ enum TerraneCompletion<T> {
     Break,
     Continue,
 }
+#[allow(
+    dead_code,
+    reason = "projected type methods may be imported without being crossed"
+)]
 fn __terrane_dependency_panic(
     payload: Box<dyn std::any::Any + Send>,
     crate_name: &'static str,
@@ -165,7 +169,7 @@ fn main() {
                 crate::__terrane_dependency_panic(
                     payload,
                     "reqwest",
-                    "reqwest::Response::headers_mut",
+                    "reqwest::blocking::Response::headers_mut",
                 ),
             )
         }
@@ -182,7 +186,7 @@ fn main() {
                 crate::TerraneError::new(
                     crate::TerraneErrorKind::Custom("dependency-error"),
                     format!(
-                        "Rust dependency `reqwest` member `reqwest::Response::text` failed: {error}"
+                        "Rust dependency `reqwest` member `reqwest::blocking::Response::text` failed: {error}"
                     ),
                 ),
             )
@@ -192,7 +196,7 @@ fn main() {
                 crate::__terrane_dependency_panic(
                     payload,
                     "reqwest",
-                    "reqwest::Response::text",
+                    "reqwest::blocking::Response::text",
                 ),
             )
         }
@@ -204,7 +208,6 @@ fn main() {
 }
 // Source: <terrane>/projected/deps/reqwest/blocking.trn
 // Namespace: deps/reqwest/blocking
-pub use reqwest::blocking::Response;
 pub fn get(url: String) -> Result<Response, crate::TerraneError> {
     match std::panic::catch_unwind(
         std::panic::AssertUnwindSafe(|| reqwest::blocking::get(url)),
@@ -231,3 +234,6 @@ pub fn get(url: String) -> Result<Response, crate::TerraneError> {
         }
     }
 }
+// Source: <terrane>/projected/deps/reqwest/blocking/response.trn
+// Namespace: deps/reqwest/blocking/response
+pub use reqwest::blocking::Response;

@@ -1,0 +1,15 @@
+namespace app
+
+class base
+  function copy base;
+    return this
+  function marker int;
+    return 1
+
+class child extends base
+
+function main;
+  value child = child;
+  result base = value.copy;
+  result.marker;
+  return
