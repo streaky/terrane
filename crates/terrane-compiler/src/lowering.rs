@@ -361,7 +361,11 @@ fn projected_result_expression(value: &str, ty: &crate::projection::ProjectedTyp
         crate::projection::ProjectedType::Char => format!("{value}.to_string()"),
         crate::projection::ProjectedType::Optional(inner) => {
             let converted = projected_result_expression("value", inner);
-            format!("{value}.map(|value| {converted})")
+            if converted == "value" {
+                value.to_owned()
+            } else {
+                format!("{value}.map(|value| {converted})")
+            }
         }
         _ => value.to_owned(),
     }
@@ -451,6 +455,15 @@ fn emit_dependency_unit(package: &SemanticPackage, unit: &SemanticUnit) -> Strin
         );
         let result = format!("Result<{value}, crate::TerraneError>");
         let converted_value = projected_result_expression("value", &projected.result);
+        let unit_variant = package.projection.is_unit_variant(item);
+        if unit_variant {
+            writeln!(
+                output,
+                "/// Projected enum variant constructor for `{}`.",
+                item.rust_path
+            )
+            .expect("writing to a string cannot fail");
+        }
         writeln!(
             output,
             "pub fn {}({}) -> {result} {{",
@@ -461,7 +474,7 @@ fn emit_dependency_unit(package: &SemanticPackage, unit: &SemanticUnit) -> Strin
         for conversion in argument_conversions {
             writeln!(output, "{conversion}").expect("writing to a string cannot fail");
         }
-        let call = if package.projection.is_unit_variant(item) {
+        let call = if unit_variant {
             item.rust_path.clone()
         } else {
             format!("{}({arguments})", item.rust_path)

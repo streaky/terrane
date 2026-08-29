@@ -2189,6 +2189,95 @@ mod tests {
                 comparable: true,
             })
         ));
+        let variant = projected
+            .items
+            .iter()
+            .find(|item| item.name == "Calm")
+            .unwrap()
+            .clone();
+        let projection = Projection {
+            cache_identity: "fixture".to_owned(),
+            dependencies: vec![projected],
+            containment: Containment::Unavailable,
+            removed: Vec::new(),
+        };
+        assert!(projection.is_unit_variant(&variant));
+    }
+
+    #[test]
+    fn colliding_receiver_free_associated_functions_are_declined() {
+        let mut document = trait_and_enum_rustdoc();
+        document["index"]["0"]["inner"]["module"]["items"]
+            .as_array_mut()
+            .unwrap()
+            .push(json!(12));
+        document["index"]["1"]["inner"]["struct"]["impls"]
+            .as_array_mut()
+            .unwrap()
+            .push(json!(13));
+        document["paths"]["12"] = json!({"crate_id": 0, "path": ["witness", "Writer"]});
+        document["index"]["12"] = json!({
+            "name": "Writer",
+            "visibility": "public",
+            "docs": null,
+            "inner": {"struct": {"generics": {"params": []}, "impls": [15]}}
+        });
+        document["index"]["13"] = json!({
+            "inner": {"impl": {
+                "is_negative": false,
+                "trait": null,
+                "items": [14]
+            }}
+        });
+        document["index"]["14"] = json!({
+            "name": "new",
+            "visibility": "public",
+            "inner": {"function": {
+                "header": {"is_unsafe": false, "is_async": false},
+                "generics": {"params": []},
+                "sig": {"inputs": [], "output": null}
+            }}
+        });
+        document["index"]["15"] = json!({
+            "inner": {"impl": {
+                "is_negative": false,
+                "trait": null,
+                "items": [16]
+            }}
+        });
+        document["index"]["16"] = document["index"]["14"].clone();
+        let dependency = RustDependency {
+            name: "witness".to_owned(),
+            package: "witness".to_owned(),
+            version: "=1.0.0".to_owned(),
+            features: Vec::new(),
+            default_features: true,
+            target: None,
+            effects: Vec::new(),
+        };
+
+        let projected =
+            project_rustdoc(&dependency, &serde_json::to_vec(&document).unwrap()).unwrap();
+
+        assert!(
+            !projected
+                .items
+                .iter()
+                .any(|item| item.namespace == "/deps/witness" && item.name == "new")
+        );
+        let declines = projected
+            .declined
+            .iter()
+            .filter(|item| {
+                item.reason
+                    == "multiple receiver-free associated functions with the same projected name"
+            })
+            .map(|item| item.rust_path.as_str())
+            .collect::<BTreeSet<_>>();
+        assert_eq!(
+            declines,
+            BTreeSet::from(["witness::Reader::new", "witness::Writer::new"])
+        );
     }
 
     #[test]

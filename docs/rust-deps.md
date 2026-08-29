@@ -326,24 +326,26 @@ The cost, stated deliberately: a trait method reads as `read-to-end; response` r
 ergonomic rule could permit method syntax where exactly one imported trait supplies the name and no
 inherent member competes; it is not needed for correctness.
 
-
 ### 7.4 Enums
 
-- **Data-free enums** (`Method`, `Version`) project as an opaque value with projected constants and
-  comparison.
+- **Data-free enums** (`Method`, `Version`) project as an opaque value with projected zero-parameter
+  constructors and comparison.
 - **Data-carrying enums** project as opaque values with whatever accessors the crate provides. Without
   general pattern matching there is no safe destructuring form to offer, so none is offered.
 - `Result` and `Option` are not enums for this purpose; see 6.2.
 
 `Result<T, E>` lowers to directly representable `T` plus the throwable path, and `Option<T>` lowers
-recursively to `T|none`, including arbitrary projected foreign objects. The projector preserves all
+recursively to `T|none`, including arbitrary projected foreign objects. Identity result conversions
+emit the original `Option<T>` directly rather than an identity `map`. The projector preserves all
 Rust integer widths with checked edge coercion, projects `f32` and `char` without narrowing, and
 resolves concrete type aliases transparently. Generic, associated, cyclic, or otherwise unresolved
 aliases remain explicit declines.
 
-Data-free enum variants project as zero-parameter constructors returning the opaque enum value, so
-ordinary object equality supplies comparison. Data-carrying enums remain opaque and expose only
-representable crate-provided accessors; no destructuring form is inferred.
+Data-free enum variants project as zero-parameter constructor shims returning the opaque enum value,
+and generated Rust labels those shims as enum-variant constructors so they are not mistaken for
+ordinary Rust functions during debugging. Ordinary object equality supplies comparison.
+Data-carrying enums remain opaque and expose only representable crate-provided accessors; no
+destructuring form is inferred.
 
 ## 8. Capabilities and transitive dependencies
 

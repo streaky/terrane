@@ -230,6 +230,7 @@ pub fn with_capacity(
 pub use serde_json::error::Category;
 // Source: <terrane>/projected/deps/serde-json/error/category.trn
 // Namespace: deps/serde-json/error/category
+/// Projected enum variant constructor for `serde_json::error::Category::Data`.
 pub fn __trn_44617461() -> Result<Category, crate::TerraneError> {
     match std::panic::catch_unwind(|| serde_json::error::Category::Data) {
         Ok(value) => Ok(value),
@@ -244,6 +245,7 @@ pub fn __trn_44617461() -> Result<Category, crate::TerraneError> {
         }
     }
 }
+/// Projected enum variant constructor for `serde_json::error::Category::Io`.
 pub fn __trn_496f() -> Result<Category, crate::TerraneError> {
     match std::panic::catch_unwind(|| serde_json::error::Category::Io) {
         Ok(value) => Ok(value),
@@ -266,7 +268,7 @@ pub fn from_u128(
 ) -> Result<Option<Number>, crate::TerraneError> {
     let i = terrane_int_support::coerce::<u128>(&i).map_err(crate::TerraneError::from)?;
     match std::panic::catch_unwind(|| serde_json::Number::from_u128(i)) {
-        Ok(value) => Ok(value.map(|value| value)),
+        Ok(value) => Ok(value),
         Err(payload) => {
             Err(
                 crate::__terrane_dependency_panic(
