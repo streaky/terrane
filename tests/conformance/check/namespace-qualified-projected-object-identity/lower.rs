@@ -132,6 +132,10 @@ enum TerraneCompletion<T> {
     Break,
     Continue,
 }
+#[allow(
+    dead_code,
+    reason = "projected type methods may be imported without being crossed"
+)]
 fn __terrane_dependency_panic(
     payload: Box<dyn std::any::Any + Send>,
     crate_name: &'static str,
@@ -186,35 +190,30 @@ fn __terrane_block_on<F: Future>(future: F) -> F::Output {
 }
 // Source: src/main.trn
 // Namespace: app
-pub trait CrossingsProtocol {
-    fn clone_box(&self) -> Box<dyn CrossingsProtocol>;
-    fn separate_box(&self) -> Box<dyn CrossingsProtocol>;
-    fn cross_async(&self, value: TerraneNs4Deps7Reqwest10AsyncImpl8ResponseResponse);
-    fn cross_blocking(&self, value: TerraneNs4Deps7Reqwest8Blocking8ResponseResponse);
+fn cross_async(value: TerraneNs4Deps7Reqwest10AsyncImpl8ResponseResponse) {
+    let _ = &value;
+    return ();
 }
-impl Clone for Box<dyn CrossingsProtocol> {
-    fn clone(&self) -> Self {
-        self.clone_box()
-    }
+fn cross_blocking(value: TerraneNs4Deps7Reqwest8Blocking8ResponseResponse) {
+    let _ = &value;
+    return ();
 }
-#[derive(Clone)]
-pub struct Crossings(Box<dyn CrossingsProtocol>);
-impl Crossings {
-    pub fn cross_async(
-        &self,
-        value: TerraneNs4Deps7Reqwest10AsyncImpl8ResponseResponse,
-    ) {
-        self.0.cross_async(value)
-    }
-    pub fn cross_blocking(
-        &self,
-        value: TerraneNs4Deps7Reqwest8Blocking8ResponseResponse,
-    ) {
-        self.0.cross_blocking(value)
-    }
+fn keep_crossings(
+    async_crossing: std::sync::Arc<
+        dyn Fn(TerraneNs4Deps7Reqwest10AsyncImpl8ResponseResponse) -> () + Send + Sync,
+    >,
+    blocking_crossing: std::sync::Arc<
+        dyn Fn(TerraneNs4Deps7Reqwest8Blocking8ResponseResponse) -> () + Send + Sync,
+    >,
+) {
+    let _ = (&async_crossing, &blocking_crossing);
+    return ();
 }
 fn main() {
-    return ();
+    keep_crossings(
+        std::sync::Arc::new(cross_async),
+        std::sync::Arc::new(cross_blocking),
+    );
 }
 // Source: <terrane>/projected/deps/reqwest/async-impl/response.trn
 // Namespace: deps/reqwest/async-impl/response
@@ -225,22 +224,3 @@ pub use reqwest::Upgraded;
 // Source: <terrane>/projected/deps/reqwest/blocking/response.trn
 // Namespace: deps/reqwest/blocking/response
 pub use reqwest::blocking::Response as TerraneNs4Deps7Reqwest8Blocking8ResponseResponse;
-// Source: <terrane>/projected/deps/reqwest/retry.trn
-// Namespace: deps/reqwest/retry
-pub use reqwest::retry::Builder;
-pub fn never() -> Result<Builder, crate::TerraneError> {
-    match std::panic::catch_unwind(
-        std::panic::AssertUnwindSafe(|| reqwest::retry::never()),
-    ) {
-        Ok(value) => Ok(value),
-        Err(payload) => {
-            Err(
-                crate::__terrane_dependency_panic(
-                    payload,
-                    "reqwest",
-                    "reqwest::retry::never",
-                ),
-            )
-        }
-    }
-}

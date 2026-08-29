@@ -318,8 +318,10 @@ fn emit_dependency_imports(package: &SemanticPackage, unit: &SemanticUnit, outpu
         }
     }
     for (name, path) in package.projection.foreign_imports(&unit.namespace) {
-        if imported.insert(name) {
-            writeln!(output, "pub use {path};").expect("writing to a string cannot fail");
+        let rust_name = rust_object_name(&name);
+        if imported.insert(rust_name.clone()) {
+            writeln!(output, "pub use {path} as {rust_name};")
+                .expect("writing to a string cannot fail");
         }
     }
 }
@@ -663,6 +665,10 @@ fn emit_error_support(output: &mut String, has_custom_throwable: bool, has_depen
     "#});
     if has_dependency {
         output.push_str(indoc! {r#"
+            #[allow(
+                dead_code,
+                reason = "projected type methods may be imported without being crossed"
+            )]
             fn __terrane_dependency_panic(
                 payload: Box<dyn std::any::Any + Send>,
                 crate_name: &'static str,
@@ -6204,7 +6210,7 @@ fn effective_object_methods<'a>(
         for method in unit
             .functions
             .iter()
-            .filter(|method| method.owner.as_deref() == Some(object.name.as_str()))
+            .filter(|method| method.owner.as_deref() == Some(object.identity.name.as_str()))
         {
             if let Some(index) = methods
                 .iter()

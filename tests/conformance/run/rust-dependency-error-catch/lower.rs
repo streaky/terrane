@@ -132,6 +132,10 @@ enum TerraneCompletion<T> {
     Break,
     Continue,
 }
+#[allow(
+    dead_code,
+    reason = "projected type methods may be imported without being crossed"
+)]
 fn __terrane_dependency_panic(
     payload: Box<dyn std::any::Any + Send>,
     crate_name: &'static str,
@@ -197,7 +201,7 @@ fn main() {
 }
 // Source: <terrane>/projected/deps/httpdate.trn
 // Namespace: deps/httpdate
-pub use std::time::SystemTime;
+pub use std::time::SystemTime as SystemTime;
 pub fn parse_http_date(s: String) -> Result<SystemTime, crate::TerraneError> {
     match std::panic::catch_unwind(
         std::panic::AssertUnwindSafe(|| httpdate::parse_http_date(&s)),

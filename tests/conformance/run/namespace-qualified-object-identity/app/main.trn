@@ -6,5 +6,7 @@ from /right import response as right-response
 function main;
     left left-response = left-response;
     right right-response = right-response;
-    print; left.value
-    print; right.value
+    left-value string = left.render;
+    right-value string = right.render;
+    print; left-value
+    print; right-value

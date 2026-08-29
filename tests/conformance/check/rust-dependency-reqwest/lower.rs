@@ -132,6 +132,10 @@ enum TerraneCompletion<T> {
     Break,
     Continue,
 }
+#[allow(
+    dead_code,
+    reason = "projected type methods may be imported without being crossed"
+)]
 fn __terrane_dependency_panic(
     payload: Box<dyn std::any::Any + Send>,
     crate_name: &'static str,

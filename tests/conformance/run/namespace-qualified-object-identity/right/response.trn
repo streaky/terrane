@@ -2,3 +2,6 @@ namespace right
 
 class response
     value string = 'right'
+
+    function render string;
+        return this.value

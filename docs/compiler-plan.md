@@ -1701,7 +1701,9 @@ spellings intentionally denote the same descriptor rather than namespace-local d
 Generated Rust retains the short type name when unique; collisions use
 `TerraneNs<segment-byte-length><Segment>...<Type>`, a deterministic CamelCase encoding that remains
 warning-free under canonical Rust validation. Conformance cases cover accepted and rejected
-Terrane-declared collisions and the async/blocking `reqwest::Response` pair.
+Terrane-declared collisions, inherited `this` return lowering across a colliding type name, imported
+methods on aliased classes, canonical projected-source re-export resolution, and authored function
+boundaries carrying both the async and blocking `reqwest::Response` types.
 
 ### Milestone 25.2 — Deferred projection surface and dependency capability
 
@@ -1753,6 +1755,10 @@ Deliver:
   profiles contain a crossing panic and convert it to `dependency-panic`, aborting profiles do not
   claim containment, and the blanket `AssertUnwindSafe` at every crossing is replaced by a stated
   contract. Build profiles must be represented by the compiler before either is expressible;
+- **unrepresented residual foreign imports.** A foreign type that has no projected item still enters a
+  generated dependency unit as a direct Rust re-export. Before widening the representable type surface,
+  those imports must use their computed aliases so same-named residual types cannot collide in the
+  generated root scope. Canonical-path deduplication remains required for repeated re-exports;
 - **durable projection history.** A lock update that removes a crossed member is diagnosed as a missing
   member today. §9 defers distinguishing that from a member that never existed, and naming the version
   change, until projection history has a durable, machine-independent home. The project-local cache is

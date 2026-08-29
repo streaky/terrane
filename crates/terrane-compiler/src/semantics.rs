@@ -1403,6 +1403,15 @@ fn populate_function_type_dependencies(package: &mut SemanticPackage) {
                 Some(ValueType::Object(identity)) => Some(identity.clone()),
                 _ => None,
             })
+            .chain(
+                unit.objects
+                    .iter()
+                    .filter(|object| {
+                        object.name != object.identity.name
+                            || object.identity.namespace != unit.namespace
+                    })
+                    .map(|object| object.identity.clone()),
+            )
             .collect::<Vec<_>>();
         let mut visited = BTreeSet::new();
         while let Some(key) = queue.pop() {
@@ -7629,7 +7638,7 @@ fn object_member_type(
         return Some(field.value_type.clone());
     }
     if let Some(method) = unit.functions.iter().find(|function| {
-        function.owner.as_deref() == Some(object.name.as_str()) && function.name == member
+        function.owner.as_deref() == Some(object.identity.name.as_str()) && function.name == member
     }) {
         let parameters = method
             .parameters

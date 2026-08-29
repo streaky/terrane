@@ -4,8 +4,10 @@
 fn main() {
     let left: TerraneNs4LeftResponse = TerraneNs4LeftResponse::terrane_construct();
     let right: TerraneNs5RightResponse = TerraneNs5RightResponse::terrane_construct();
-    println!("{}", terrane_scalar_support::scalar_text(&left.value));
-    println!("{}", terrane_scalar_support::scalar_text(&right.value));
+    let left_value: String = left.render();
+    let right_value: String = right.render();
+    println!("{}", terrane_scalar_support::scalar_text(&left_value));
+    println!("{}", terrane_scalar_support::scalar_text(&right_value));
 }
 // Source: left/response.trn
 // Namespace: left
@@ -19,6 +21,9 @@ impl TerraneNs4LeftResponse {
             value: String::from("left"),
         }
     }
+    pub fn render(&self) -> String {
+        return self.value.clone();
+    }
 }
 // Source: right/response.trn
 // Namespace: right
@@ -31,5 +36,8 @@ impl TerraneNs5RightResponse {
         Self {
             value: String::from("right"),
         }
+    }
+    pub fn render(&self) -> String {
+        return self.value.clone();
     }
 }
