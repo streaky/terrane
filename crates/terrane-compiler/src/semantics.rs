@@ -178,6 +178,31 @@ fn iteration_target_bindings(
     }
 }
 
+#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
+pub struct ObjectIdentity {
+    pub namespace: String,
+    pub name: String,
+}
+
+impl ObjectIdentity {
+    fn new(namespace: impl Into<String>, name: impl Into<String>) -> Self {
+        Self {
+            namespace: namespace.into(),
+            name: name.into(),
+        }
+    }
+
+    fn qualified(&self) -> String {
+        format!("{}::{}", self.namespace, self.name)
+    }
+}
+
+impl std::fmt::Display for ObjectIdentity {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter.write_str(&self.name)
+    }
+}
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum ValueType {
     Scalar(ScalarType),
@@ -221,7 +246,7 @@ pub enum ValueType {
     PlatformCapability,
     PlatformResourceHandle,
     PlatformResult,
-    Object(String),
+    Object(ObjectIdentity),
     Reference(ElementType),
     SharedReference(ElementType),
 }
@@ -357,7 +382,7 @@ impl std::fmt::Display for ValueType {
             }
             Self::Task(result) => write!(formatter, "task of {result}"),
             Self::Descriptor(_) => formatter.write_str("descriptor"),
-            Self::Object(name) => formatter.write_str(name),
+            Self::Object(identity) => identity.fmt(formatter),
             Self::ScopedTask(result) => write!(formatter, "scoped task of {result}"),
             Self::TaskScope => formatter.write_str("task-scope"),
             Self::TaskOutcome(result) => write!(formatter, "task-outcome of {result}"),
@@ -519,12 +544,13 @@ pub struct ObjectField {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ObjectContract {
     pub name: String,
+    pub identity: ObjectIdentity,
     pub span: Span,
     pub kind: ObjectKind,
     pub resource_owning: bool,
-    pub base: Option<String>,
-    pub interfaces: Vec<String>,
-    pub traits: Vec<String>,
+    pub base: Option<ObjectIdentity>,
+    pub interfaces: Vec<ObjectIdentity>,
+    pub traits: Vec<ObjectIdentity>,
     pub fields: Vec<ObjectField>,
 }
 
@@ -1053,7 +1079,6 @@ pub fn analyze(package: &Package) -> Result<SemanticPackage, SemanticFailure> {
     validate_initializer_dependencies(&semantic)?;
     validate_references(&semantic)?;
     analyze_types(&mut semantic)?;
-    validate_projected_receiver_mutability(&semantic)?;
     validate_error_clauses(&semantic)?;
     validate_moves(&semantic)?;
     validate_reference_origins(&semantic)?;
@@ -1075,17 +1100,11 @@ pub fn analyze(package: &Package) -> Result<SemanticPackage, SemanticFailure> {
     Ok(semantic)
 }
 
-fn object_implements_identity(
-    package: &SemanticPackage,
-    unit: &SemanticUnit,
-    object: &ObjectContract,
-    target: &str,
-) -> bool {
-    object.interfaces.iter().any(|interface| {
-        package
-            .resolve_name_at(unit, object.span.start, interface)
-            .is_some_and(|symbol| symbol.identity == target)
-    })
+fn object_implements_identity(object: &ObjectContract, target: &str) -> bool {
+    object
+        .interfaces
+        .iter()
+        .any(|interface| interface.qualified() == target)
 }
 
 fn identity_implements(package: &SemanticPackage, identity: &str, target: &str) -> bool {
@@ -1098,7 +1117,7 @@ fn identity_implements(package: &SemanticPackage, identity: &str, target: &str) 
                 .any(|symbol| {
                     symbol.identity == identity && symbol.declaration_span == Some(object.span)
                 })
-                && object_implements_identity(package, unit, object, target)
+                && object_implements_identity(object, target)
         })
     })
 }
@@ -1138,9 +1157,8 @@ fn validate_error_clauses(package: &SemanticPackage) -> Result<(), SemanticFailu
                 let standard = symbol.is_some_and(|symbol| symbol.kind == SymbolKind::ErrorObject);
                 let value_type = infer_value_type(unit, thrown, &unit.typed_bindings)?;
                 let object_name = match &value_type {
-                    Some(ValueType::Descriptor(name) | ValueType::Object(name)) => {
-                        Some(name.as_str())
-                    }
+                    Some(ValueType::Descriptor(name)) => Some(name.as_str()),
+                    Some(ValueType::Object(identity)) => Some(identity.name.as_str()),
                     _ if thrown.kind == SyntaxKind::CallExpression => thrown
                         .children
                         .first()
@@ -1356,7 +1374,7 @@ fn populate_function_type_dependencies(package: &mut SemanticPackage) {
         .units
         .iter()
         .flat_map(|unit| unit.objects.iter())
-        .map(|object| ((object.span.file, object.name.clone()), object.clone()))
+        .map(|object| (object.identity.clone(), object.clone()))
         .collect::<BTreeMap<_, _>>();
     let methods = package
         .units
@@ -1380,7 +1398,7 @@ fn populate_function_type_dependencies(package: &mut SemanticPackage) {
             .function_aliases
             .values()
             .filter_map(|contract| match &contract.return_type {
-                Some(ValueType::Object(name)) => Some((contract.span.file, name.clone())),
+                Some(ValueType::Object(identity)) => Some(identity.clone()),
                 _ => None,
             })
             .collect::<Vec<_>>();
@@ -1394,17 +1412,20 @@ fn populate_function_type_dependencies(package: &mut SemanticPackage) {
             };
             for field in &object.fields {
                 if let ValueType::Object(name) = &field.value_type {
-                    queue.push((key.0, name.clone()));
+                    queue.push(name.clone());
                 }
             }
-            let object_methods = methods.get(&key).cloned().unwrap_or_default();
+            let object_methods = methods
+                .get(&(object.span.file, object.name.clone()))
+                .cloned()
+                .unwrap_or_default();
             for method in &object_methods {
                 if let Some(ValueType::Object(name)) = &method.return_type {
-                    queue.push((key.0, name.clone()));
+                    queue.push(name.clone());
                 }
                 for parameter in &method.parameters {
                     if let Some(ValueType::Object(name)) = &parameter.value_type {
-                        queue.push((key.0, name.clone()));
+                        queue.push(name.clone());
                     }
                 }
             }
@@ -1921,23 +1942,16 @@ fn resolve_imports(
 
 fn resolved_object_span(
     package: &SemanticPackage,
-    unit: &SemanticUnit,
-    position: usize,
-    name: &str,
+    _unit: &SemanticUnit,
+    _position: usize,
+    identity: &ObjectIdentity,
 ) -> Option<Span> {
-    if let Some(span) = package
-        .resolve_name_at(unit, position, name)
-        .and_then(|symbol| symbol.declaration_span)
-    {
-        return Some(span);
-    }
-    let mut matches = unit
-        .objects
+    package
+        .units
         .iter()
-        .filter(|object| object.name == name)
-        .map(|object| object.span);
-    let span = matches.next()?;
-    matches.all(|candidate| candidate == span).then_some(span)
+        .flat_map(|unit| &unit.objects)
+        .find(|object| object.identity == *identity)
+        .map(|object| object.span)
 }
 
 #[expect(
@@ -1975,7 +1989,7 @@ fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFailure> {
         package: &'a SemanticPackage,
         unit: &SemanticUnit,
         position: usize,
-        object_name: &str,
+        object_identity: &ObjectIdentity,
         method_name: &str,
     ) -> Option<&'a FunctionContract> {
         fn contract<'a>(
@@ -1992,11 +2006,14 @@ fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFailure> {
                     unit.objects
                         .iter()
                         .find(|object| object.name == object_name)
-                        .and_then(|object| object.base.as_deref())
-                        .and_then(|base| contract(unit, base, method_name))
+                        .and_then(|object| object.base.as_ref())
+                        .and_then(|base| {
+                            unit.objects.iter().find(|object| object.identity == *base)
+                        })
+                        .and_then(|base| contract(unit, &base.name, method_name))
                 })
         }
-        let declaration = resolved_object_span(package, unit, position, object_name)?;
+        let declaration = resolved_object_span(package, unit, position, object_identity)?;
         package.units.iter().find_map(|candidate| {
             candidate
                 .objects
@@ -2010,10 +2027,10 @@ fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFailure> {
         package: &SemanticPackage,
         unit: &SemanticUnit,
         position: usize,
-        object_name: &str,
+        object_identity: &ObjectIdentity,
         method_name: &str,
     ) -> bool {
-        method_contract(package, unit, position, object_name, method_name)
+        method_contract(package, unit, position, object_identity, method_name)
             .is_some_and(|method| method.consumes_receiver)
     }
     fn function_parameters<'a>(
@@ -3570,7 +3587,7 @@ fn descriptor_construct_alias_history(
 fn analyze_object_contracts(
     unit: &SemanticUnit,
     aliases: &BTreeMap<String, Vec<DescriptorAlias>>,
-    visible_object_names: &BTreeSet<String>,
+    visible_objects: &BTreeMap<String, ObjectIdentity>,
 ) -> Result<Vec<ObjectContract>, SemanticFailure> {
     let visible = visible_descriptor_aliases(aliases, unit.source.id(), 0);
     let mut objects = Vec::new();
@@ -3589,7 +3606,7 @@ fn analyze_object_contracts(
                 node.span,
             )
         })?;
-        let clause_names = |clause_kind| {
+        let clause_identities = |clause_kind| {
             node.children
                 .iter()
                 .find(|child| child.kind == clause_kind)
@@ -3597,14 +3614,25 @@ fn analyze_object_contracts(
                     clause
                         .children
                         .iter()
-                        .map(|name| node_text(&unit.source, name).to_owned())
+                        .map(|name| {
+                            let name = node_text(&unit.source, name);
+                            visible_objects.get(name).cloned().unwrap_or_else(|| {
+                                if name == "throwable" {
+                                    ObjectIdentity::new("/core/errors", name)
+                                } else {
+                                    ObjectIdentity::new(&unit.namespace, name)
+                                }
+                            })
+                        })
                         .collect::<Vec<_>>()
                 })
                 .unwrap_or_default()
         };
-        let base = clause_names(SyntaxKind::ExtendsClause).into_iter().next();
-        let interfaces = clause_names(SyntaxKind::ImplementsClause);
-        let traits = clause_names(SyntaxKind::UsesClause);
+        let base = clause_identities(SyntaxKind::ExtendsClause)
+            .into_iter()
+            .next();
+        let interfaces = clause_identities(SyntaxKind::ImplementsClause);
+        let traits = clause_identities(SyntaxKind::UsesClause);
         let mut fields = Vec::new();
         if let Some(block) = node
             .children
@@ -3641,7 +3669,7 @@ fn analyze_object_contracts(
                         unit,
                         type_node,
                         &visible,
-                        visible_object_names,
+                        visible_objects,
                     )?
                 } else if let Some(initializer) = initializer {
                     infer_value_type(unit, initializer, &[])?.ok_or_else(|| {
@@ -3694,6 +3722,7 @@ fn analyze_object_contracts(
                 )
             });
         objects.push(ObjectContract {
+            identity: ObjectIdentity::new(&unit.namespace, &name),
             name,
             span: node.span,
             kind,
@@ -3705,16 +3734,19 @@ fn analyze_object_contracts(
         });
     }
     for object in &objects {
-        let require_kind = |name: &str, expected: ObjectKind, role: &str| {
-            let local = objects.iter().find(|candidate| candidate.name == name);
-            let valid = (expected == ObjectKind::Interface && name == "throwable")
+        let require_kind = |identity: &ObjectIdentity, expected: ObjectKind, role: &str| {
+            let local = objects
+                .iter()
+                .find(|candidate| candidate.identity == *identity);
+            let valid = (expected == ObjectKind::Interface
+                && identity == &ObjectIdentity::new("/core/errors", "throwable"))
                 || local.is_some_and(|candidate| candidate.kind == expected)
-                || local.is_none() && visible_object_names.contains(name);
+                || local.is_none() && visible_objects.values().any(|visible| visible == identity);
             valid.then_some(()).ok_or_else(|| {
                 failure(
                     &unit.source,
                     "T0054",
-                    format!("`{name}` does not resolve to a {role}"),
+                    format!("`{identity}` does not resolve to a {role}"),
                     object.span,
                 )
             })
@@ -3733,17 +3765,12 @@ fn analyze_object_contracts(
 }
 
 fn value_type_owns_resource(
-    package: &SemanticPackage,
-    unit: &SemanticUnit,
     value_type: &ValueType,
-    span_start: usize,
     resource_identities: &BTreeSet<String>,
 ) -> bool {
     match value_type {
         ValueType::PlatformStreamHandle | ValueType::PlatformResourceHandle => true,
-        ValueType::Object(name) => package
-            .resolve_name_at(unit, span_start, name)
-            .is_some_and(|symbol| resource_identities.contains(&symbol.identity)),
+        ValueType::Object(identity) => resource_identities.contains(&identity.qualified()),
         ValueType::Iterator(item)
         | ValueType::IterationStep(item)
         | ValueType::ElementOrNone(item)
@@ -3755,39 +3782,21 @@ fn value_type_owns_resource(
         | ValueType::ScopedTask(item)
         | ValueType::TaskOutcome(item)
         | ValueType::Reference(item)
-        | ValueType::SharedReference(item) => value_type_owns_resource(
-            package,
-            unit,
-            &item.value_type(),
-            span_start,
-            resource_identities,
-        ),
+        | ValueType::SharedReference(item) => {
+            value_type_owns_resource(&item.value_type(), resource_identities)
+        }
         ValueType::Map(key, value)
         | ValueType::Entry(key, value)
         | ValueType::UnorderedMap(key, value) => {
-            value_type_owns_resource(
-                package,
-                unit,
-                &key.value_type(),
-                span_start,
-                resource_identities,
-            ) || value_type_owns_resource(
-                package,
-                unit,
-                &value.value_type(),
-                span_start,
-                resource_identities,
-            )
+            value_type_owns_resource(&key.value_type(), resource_identities)
+                || value_type_owns_resource(&value.value_type(), resource_identities)
         }
         _ => false,
     }
 }
 
 fn value_type_is_resource_container(
-    package: &SemanticPackage,
-    unit: &SemanticUnit,
     value_type: &ValueType,
-    span_start: usize,
     resource_identities: &BTreeSet<String>,
 ) -> bool {
     matches!(
@@ -3798,7 +3807,7 @@ fn value_type_is_resource_container(
             | ValueType::Tuple(_, _)
             | ValueType::UnorderedMap(_, _)
             | ValueType::UnorderedSet(_)
-    ) && value_type_owns_resource(package, unit, value_type, span_start, resource_identities)
+    ) && value_type_owns_resource(value_type, resource_identities)
 }
 
 fn propagate_resource_ownership(package: &mut SemanticPackage) -> Result<(), SemanticFailure> {
@@ -3823,20 +3832,14 @@ fn propagate_resource_ownership(package: &mut SemanticPackage) -> Result<(), Sem
                 if object.kind != ObjectKind::Class || object.resource_owning {
                     continue;
                 }
-                let owns_field_resource = object.fields.iter().any(|field| {
-                    value_type_owns_resource(
-                        package,
-                        unit,
-                        &field.value_type,
-                        field.span.start,
-                        &resource_identities,
-                    )
-                });
-                let owns_base_resource = object.base.as_deref().is_some_and(|base| {
-                    package
-                        .resolve_name_at(unit, object.span.start, base)
-                        .is_some_and(|symbol| resource_identities.contains(&symbol.identity))
-                });
+                let owns_field_resource = object
+                    .fields
+                    .iter()
+                    .any(|field| value_type_owns_resource(&field.value_type, &resource_identities));
+                let owns_base_resource = object
+                    .base
+                    .as_ref()
+                    .is_some_and(|base| resource_identities.contains(&base.qualified()));
                 if owns_field_resource || owns_base_resource {
                     newly_resource_owning.push((unit_index, object_index));
                 }
@@ -3880,13 +3883,7 @@ fn propagate_resource_ownership(package: &mut SemanticPackage) -> Result<(), Sem
                 ));
             }
             if let Some(field) = object.fields.iter().find(|field| {
-                value_type_is_resource_container(
-                    package,
-                    unit,
-                    &field.value_type,
-                    field.span.start,
-                    &resource_identities,
-                )
+                value_type_is_resource_container(&field.value_type, &resource_identities)
             }) {
                 return Err(failure(
                     &unit.source,
@@ -3916,13 +3913,7 @@ fn validate_resource_collection_types(package: &SemanticPackage) -> Result<(), S
         .collect::<BTreeSet<_>>();
     for unit in &package.units {
         if let Some(binding) = unit.typed_bindings.iter().find(|binding| {
-            value_type_is_resource_container(
-                package,
-                unit,
-                &binding.value_type,
-                binding.span.start,
-                &resource_identities,
-            )
+            value_type_is_resource_container(&binding.value_type, &resource_identities)
         }) {
             return Err(failure(
                 &unit.source,
@@ -3934,13 +3925,7 @@ fn validate_resource_collection_types(package: &SemanticPackage) -> Result<(), S
         for function in &unit.functions {
             if let Some(parameter) = function.parameters.iter().find(|parameter| {
                 parameter.value_type.as_ref().is_some_and(|value_type| {
-                    value_type_is_resource_container(
-                        package,
-                        unit,
-                        value_type,
-                        parameter.span.start,
-                        &resource_identities,
-                    )
+                    value_type_is_resource_container(value_type, &resource_identities)
                 })
             }) {
                 return Err(failure(
@@ -3951,13 +3936,7 @@ fn validate_resource_collection_types(package: &SemanticPackage) -> Result<(), S
                 ));
             }
             if function.return_type.as_ref().is_some_and(|value_type| {
-                value_type_is_resource_container(
-                    package,
-                    unit,
-                    value_type,
-                    function.span.start,
-                    &resource_identities,
-                )
+                value_type_is_resource_container(value_type, &resource_identities)
             }) {
                 return Err(failure(
                     &unit.source,
@@ -4008,7 +3987,7 @@ fn validate_object_conformance(package: &SemanticPackage) -> Result<(), Semantic
                     .and_then(|base| {
                         unit.objects
                             .iter()
-                            .find(|candidate| &candidate.name == base)
+                            .find(|candidate| candidate.identity == *base)
                     })
                     .and_then(|base| effective_method(unit, base, name))
             })
@@ -4025,15 +4004,15 @@ fn validate_object_conformance(package: &SemanticPackage) -> Result<(), Semantic
                 .iter()
                 .find(|candidate| candidate.source.id() == object.span.file)
                 .expect("object declaration source must belong to the semantic package");
-            for interface_name in &object.interfaces {
+            for interface_identity in &object.interfaces {
                 let Some(resolved_interface) =
-                    package.resolve_name_at(declaration_unit, object.span.start, interface_name)
+                    package.resolve_name(&interface_identity.namespace, &interface_identity.name)
                 else {
                     return Err(failure(
                         &declaration_unit.source,
                         "T0001",
                         format!(
-                            "interface `{interface_name}` implemented by `{}` does not resolve",
+                            "interface `{interface_identity}` implemented by `{}` does not resolve",
                             object.name
                         ),
                         object.span,
@@ -4157,7 +4136,7 @@ fn validate_object_conformance(package: &SemanticPackage) -> Result<(), Semantic
                 let used_trait = unit
                     .objects
                     .iter()
-                    .find(|candidate| &candidate.name == trait_name)
+                    .find(|candidate| candidate.identity == *trait_name)
                     .expect("object-kind validation must resolve used traits");
                 for method in unit
                     .functions
@@ -4209,15 +4188,19 @@ fn propagate_interface_receiver_mutability(package: &mut SemanticPackage) {
             .or_else(|| {
                 object
                     .base
-                    .as_deref()
-                    .and_then(|base| unit.objects.iter().find(|candidate| candidate.name == base))
+                    .as_ref()
+                    .and_then(|base| {
+                        unit.objects
+                            .iter()
+                            .find(|candidate| candidate.identity == *base)
+                    })
                     .and_then(|base| effective_method(unit, base, name))
             })
             .or_else(|| {
                 object.traits.iter().find_map(|used_trait| {
                     unit.objects
                         .iter()
-                        .find(|candidate| candidate.name == *used_trait)
+                        .find(|candidate| candidate.identity == *used_trait)
                         .and_then(|used_trait| effective_method(unit, used_trait, name))
                 })
             })
@@ -4234,7 +4217,7 @@ fn propagate_interface_receiver_mutability(package: &mut SemanticPackage) {
                 let Some(interface) = unit
                     .objects
                     .iter()
-                    .find(|candidate| candidate.name == *interface_name)
+                    .find(|candidate| candidate.identity == *interface_name)
                 else {
                     continue;
                 };
@@ -4321,8 +4304,9 @@ fn infer_receiver_consumption(package: &mut SemanticPackage) {
                 unit.objects
                     .iter()
                     .find(|object| object.name == object_name)
-                    .and_then(|object| object.base.as_deref())
-                    .and_then(|base| effective_method(unit, base, method_name))
+                    .and_then(|object| object.base.as_ref())
+                    .and_then(|base| unit.objects.iter().find(|object| object.identity == *base))
+                    .and_then(|base| effective_method(unit, &base.name, method_name))
             })
     }
 
@@ -4456,7 +4440,7 @@ fn infer_receiver_consumption(package: &mut SemanticPackage) {
                     Ok(Some(ValueType::Object(object_name)))
                         if effective_method(
                             unit,
-                            &object_name,
+                            &object_name.name,
                             node_text(&unit.source, member)
                         )
                         .is_some_and(|method| method.consumes_receiver)
@@ -4514,7 +4498,7 @@ fn infer_receiver_consumption(package: &mut SemanticPackage) {
         {
             for interface_name in &class.interfaces {
                 let Some(interface) = unit.objects.iter().find(|object| {
-                    object.kind == ObjectKind::Interface && object.name == *interface_name
+                    object.kind == ObjectKind::Interface && object.identity == *interface_name
                 }) else {
                     continue;
                 };
@@ -4567,7 +4551,7 @@ fn analyze_types(package: &mut SemanticPackage) -> Result<(), SemanticFailure> {
         let objects = {
             let unit = &package.units[index];
             let alias_history = descriptor_construct_alias_history(package, unit);
-            let visible_object_names = package
+            let visible_objects = package
                 .namespaces
                 .get(&unit.namespace)
                 .into_iter()
@@ -4578,9 +4562,14 @@ fn analyze_types(package: &mut SemanticPackage) -> Result<(), SemanticFailure> {
                         SymbolKind::Class | SymbolKind::Interface | SymbolKind::Trait
                     )
                 })
-                .map(|(name, _)| name.clone())
-                .collect::<BTreeSet<_>>();
-            analyze_object_contracts(unit, &alias_history, &visible_object_names)?
+                .map(|(visible_name, symbol)| {
+                    (
+                        visible_name.clone(),
+                        ObjectIdentity::new(&symbol.namespace, &symbol.name),
+                    )
+                })
+                .collect::<BTreeMap<_, _>>();
+            analyze_object_contracts(unit, &alias_history, &visible_objects)?
         };
         package.units[index].objects = objects;
     }
@@ -4954,7 +4943,7 @@ fn collect_typed_bindings(
                 span: node.span,
                 visible_from: node.span.start,
                 scope: Some(node.span),
-                value_type: ValueType::Object(owner.clone()),
+                value_type: ValueType::Object(ObjectIdentity::new(&unit.namespace, owner)),
                 destination_arms: Vec::new(),
                 storage_type: None,
                 mutable: true,
@@ -5289,7 +5278,7 @@ fn infer_throwing_effects(package: &mut SemanticPackage) -> Result<(), SemanticF
                 unit.functions
                     .iter()
                     .find(|contract| {
-                        contract.owner.as_deref() == Some(object.as_str())
+                        contract.owner.as_deref() == Some(object.name.as_str())
                             && contract.name == member_name
                     })
                     .and_then(|contract| inferred.get(&key(contract.span)))
@@ -5426,10 +5415,8 @@ fn infer_throwing_effects(package: &mut SemanticPackage) -> Result<(), SemanticF
                 let actual = identity
                     .rsplit_once("::")
                     .map_or(identity.as_str(), |(_, name)| name);
-                let bound_identity = package
-                    .resolve_name_at(unit, contract.span.start, bound)
-                    .map(|symbol| symbol.identity.as_str());
-                let compatible = bound_identity.is_some_and(|bound_identity| {
+                let bound_identity = Some(bound.qualified());
+                let compatible = bound_identity.as_deref().is_some_and(|bound_identity| {
                     bound_identity == "/core/errors::throwable"
                         || bound_identity == identity
                         || identity_implements(package, identity, bound_identity)
@@ -5698,7 +5685,7 @@ fn declared_value_type(
     type_node: &SyntaxNode,
     aliases: &BTreeMap<String, ScalarType>,
 ) -> Result<ValueType, SemanticFailure> {
-    declared_value_type_with_visible_objects(unit, type_node, aliases, &BTreeSet::new())
+    declared_value_type_with_visible_objects(unit, type_node, aliases, &BTreeMap::new())
 }
 
 #[expect(
@@ -5709,7 +5696,7 @@ fn declared_value_type_with_visible_objects(
     unit: &SemanticUnit,
     type_node: &SyntaxNode,
     aliases: &BTreeMap<String, ScalarType>,
-    visible_object_names: &BTreeSet<String>,
+    visible_objects: &BTreeMap<String, ObjectIdentity>,
 ) -> Result<ValueType, SemanticFailure> {
     let shape = if type_node.kind == SyntaxKind::TypeExpression {
         type_node.children.first().unwrap_or(type_node)
@@ -5723,7 +5710,7 @@ fn declared_value_type_with_visible_objects(
             unit,
             inner,
             aliases,
-            visible_object_names,
+            visible_objects,
         )?);
         return Ok(
             if node_text(&unit.source, shape)
@@ -5750,20 +5737,15 @@ fn declared_value_type_with_visible_objects(
         let parameters = parameters
             .iter()
             .map(|parameter| {
-                declared_value_type_with_visible_objects(
-                    unit,
-                    parameter,
-                    aliases,
-                    visible_object_names,
-                )
-                .map(ElementType::new)
+                declared_value_type_with_visible_objects(unit, parameter, aliases, visible_objects)
+                    .map(ElementType::new)
             })
             .collect::<Result<Vec<_>, _>>()?;
         let result = ElementType::new(declared_value_type_with_visible_objects(
             unit,
             result,
             aliases,
-            visible_object_names,
+            visible_objects,
         )?);
         return Ok(if node_text(&unit.source, function).starts_with("async") {
             ValueType::AsyncFunction(parameters, result)
@@ -5792,21 +5774,27 @@ fn declared_value_type_with_visible_objects(
         }
     }
     let type_name = node_text(&unit.source, type_node).trim();
-    let imported_object = lexical_scope_chain(unit, type_node.span.start).any(|scope| {
-        scope.symbols.get(type_name).is_some_and(|symbols| {
-            symbols.iter().rev().any(|symbol| {
+    let lexical_identity = lexical_scope_chain(unit, type_node.span.start).find_map(|scope| {
+        scope.symbols.get(type_name).and_then(|symbols| {
+            symbols.iter().rev().find_map(|symbol| {
                 matches!(
                     symbol.kind,
                     SymbolKind::Class | SymbolKind::Interface | SymbolKind::Trait
                 )
+                .then(|| ObjectIdentity::new(&symbol.namespace, &symbol.name))
             })
         })
     });
-    if imported_object
-        || visible_object_names.contains(type_name)
-        || unit.objects.iter().any(|object| object.name == type_name)
-    {
-        return Ok(ValueType::Object(type_name.to_owned()));
+    let object_identity = lexical_identity
+        .or_else(|| visible_objects.get(type_name).cloned())
+        .or_else(|| {
+            unit.objects
+                .iter()
+                .find(|object| object.name == type_name)
+                .map(|object| object.identity.clone())
+        });
+    if let Some(identity) = object_identity {
+        return Ok(ValueType::Object(identity));
     }
     for (constructor, construct) in [
         ("list of ", ValueType::List as fn(ElementType) -> ValueType),
@@ -5821,23 +5809,28 @@ fn declared_value_type_with_visible_objects(
     ] {
         if let Some(argument) = type_name.strip_prefix(constructor) {
             let argument = argument.trim();
-            let imported_argument = lexical_scope_chain(unit, type_node.span.start).any(|scope| {
-                scope.symbols.get(argument).is_some_and(|symbols| {
-                    symbols.iter().rev().any(|symbol| {
-                        matches!(
-                            symbol.kind,
-                            SymbolKind::Class | SymbolKind::Interface | SymbolKind::Trait
-                        )
+            let lexical_identity =
+                lexical_scope_chain(unit, type_node.span.start).find_map(|scope| {
+                    scope.symbols.get(argument).and_then(|symbols| {
+                        symbols.iter().rev().find_map(|symbol| {
+                            matches!(
+                                symbol.kind,
+                                SymbolKind::Class | SymbolKind::Interface | SymbolKind::Trait
+                            )
+                            .then(|| ObjectIdentity::new(&symbol.namespace, &symbol.name))
+                        })
                     })
-                })
-            });
-            if imported_argument
-                || visible_object_names.contains(argument)
-                || unit.objects.iter().any(|object| object.name == argument)
-            {
-                return Ok(construct(ElementType::new(ValueType::Object(
-                    argument.to_owned(),
-                ))));
+                });
+            let object_identity = lexical_identity
+                .or_else(|| visible_objects.get(argument).cloned())
+                .or_else(|| {
+                    unit.objects
+                        .iter()
+                        .find(|object| object.name == argument)
+                        .map(|object| object.identity.clone())
+                });
+            if let Some(identity) = object_identity {
+                return Ok(construct(ElementType::new(ValueType::Object(identity))));
             }
         }
     }
@@ -5893,7 +5886,10 @@ fn parse_declared_value_type(
             | "dependency-error"
             | "dependency-panic"
     ) {
-        return Some(ValueType::Object(type_name.to_owned()));
+        return Some(ValueType::Object(ObjectIdentity::new(
+            "/core/errors",
+            type_name,
+        )));
     }
     let type_name = type_name.trim();
     if let Some(scalar) = aliases
@@ -6115,6 +6111,22 @@ fn validate_numeric_destination(
     ))
 }
 
+fn diagnostic_value_type(objects: &[ObjectContract], value_type: &ValueType) -> String {
+    let ValueType::Object(identity) = value_type else {
+        return value_type.to_string();
+    };
+    let identities = objects
+        .iter()
+        .filter(|object| object.identity.name == identity.name)
+        .map(|object| &object.identity)
+        .collect::<BTreeSet<_>>();
+    if identities.len() > 1 {
+        identity.qualified()
+    } else {
+        identity.name.clone()
+    }
+}
+
 #[expect(
     clippy::needless_pass_by_value,
     reason = "destination validation owns both recursive type descriptions for complete matching"
@@ -6150,7 +6162,11 @@ fn validate_value_destination(
     Err(failure(
         source,
         mismatch_code,
-        format!("`{name}` requires `{expected}`, found `{actual}`"),
+        format!(
+            "`{name}` requires `{}`, found `{}`",
+            diagnostic_value_type(objects, &expected),
+            diagnostic_value_type(objects, &actual)
+        ),
         value.span,
     ))
 }
@@ -6213,22 +6229,24 @@ fn value_types_compatible(
             expected == actual
                 || objects
                     .iter()
-                    .find(|object| object.name == *actual)
+                    .find(|object| object.identity == *actual)
                     .is_some_and(|object| {
                         if object.interfaces.contains(expected) {
                             return true;
                         }
-                        let mut base = object.base.as_deref();
-                        while let Some(name) = base {
+                        let mut base = object.base.as_ref();
+                        while let Some(identity) = base {
                             let Some(base_object) =
-                                objects.iter().find(|object| object.name == name)
+                                objects.iter().find(|object| object.identity == *identity)
                             else {
                                 break;
                             };
-                            if name == expected || base_object.interfaces.contains(expected) {
+                            if base_object.identity == *expected
+                                || base_object.interfaces.contains(expected)
+                            {
                                 return true;
                             }
-                            base = base_object.base.as_deref();
+                            base = base_object.base.as_ref();
                         }
                         false
                     })
@@ -6961,12 +6979,12 @@ fn infer_value_type(
             && callee.kind == SyntaxKind::Name
         {
             let name = node_text(&unit.source, callee);
-            if unit
+            if let Some(object) = unit
                 .objects
                 .iter()
-                .any(|object| object.name == name && object.kind == ObjectKind::Class)
+                .find(|object| object.name == name && object.kind == ObjectKind::Class)
             {
-                return Ok(Some(ValueType::Object(name.to_owned())));
+                return Ok(Some(ValueType::Object(object.identity.clone())));
             }
             if let Some(contract) = unit.function_aliases.get(name).or_else(|| {
                 unit.functions
@@ -7579,20 +7597,27 @@ fn text_range_member_type(member_name: &str) -> Option<ValueType> {
     }
 }
 
-fn object_contract<'a>(unit: &'a SemanticUnit, name: &str) -> Option<&'a ObjectContract> {
-    unit.objects.iter().find(|object| object.name == name)
+fn object_contract<'a>(
+    unit: &'a SemanticUnit,
+    identity: &ObjectIdentity,
+) -> Option<&'a ObjectContract> {
+    unit.objects
+        .iter()
+        .find(|object| object.identity == *identity)
 }
 
-fn object_member_type(unit: &SemanticUnit, object_name: &str, member: &str) -> Option<ValueType> {
-    let object = object_contract(unit, object_name)?;
+fn object_member_type(
+    unit: &SemanticUnit,
+    object_identity: &ObjectIdentity,
+    member: &str,
+) -> Option<ValueType> {
+    let object = object_contract(unit, object_identity)?;
     if let Some(field) = object.fields.iter().find(|field| field.name == member) {
         return Some(field.value_type.clone());
     }
-    if let Some(method) = unit
-        .functions
-        .iter()
-        .find(|function| function.owner.as_deref() == Some(object_name) && function.name == member)
-    {
+    if let Some(method) = unit.functions.iter().find(|function| {
+        function.owner.as_deref() == Some(object.name.as_str()) && function.name == member
+    }) {
         let parameters = method
             .parameters
             .iter()
@@ -7611,14 +7636,19 @@ fn object_member_type(unit: &SemanticUnit, object_name: &str, member: &str) -> O
         });
     }
     for used_trait in &object.traits {
-        if let Some(found) = object_member_type(unit, used_trait, member) {
+        if let Some(trait_object) = unit.objects.iter().find(|candidate| {
+            candidate.identity == *used_trait && candidate.kind == ObjectKind::Trait
+        }) && let Some(found) = object_member_type(unit, &trait_object.identity, member)
+        {
             return Some(found);
         }
     }
-    object
-        .base
-        .as_deref()
-        .and_then(|base| object_member_type(unit, base, member))
+    object.base.as_ref().and_then(|base| {
+        unit.objects
+            .iter()
+            .find(|candidate| candidate.identity == *base)
+            .and_then(|base| object_member_type(unit, &base.identity, member))
+    })
 }
 
 fn infer_receiver_value_type(
@@ -7714,7 +7744,7 @@ fn infer_member_value_type(
             "completed" | "cancelled" => Ok(Some(ValueType::Scalar(ScalarType::Bool))),
             "value" => Ok(Some(ValueType::ElementOrNone(result.clone()))),
             "error" => Ok(Some(ValueType::ElementOrNone(ElementType::new(
-                ValueType::Object("TerraneError".to_owned()),
+                ValueType::Object(ObjectIdentity::new("/core/errors", "TerraneError")),
             )))),
             _ => Err(failure(
                 &unit.source,
@@ -11653,97 +11683,11 @@ pub(crate) fn warnings(package: &SemanticPackage, lint_name_style: bool) -> Vec<
     warnings
 }
 
-fn projected_method_mutability(
-    package: &SemanticPackage,
-    unit: &SemanticUnit,
-    position: usize,
-    object_name: &str,
-    method_name: &str,
-) -> Result<Option<bool>, Vec<String>> {
-    let resolved = package
-        .resolve_name_at(unit, position, object_name)
-        .and_then(|symbol| {
-            let (namespace, _) = symbol.identity.rsplit_once("::")?;
-            package
-                .projection
-                .method(namespace, object_name, method_name)
-                .map(|method| {
-                    matches!(
-                        method.receiver,
-                        Some(crate::projection::Receiver::MutableBorrow)
-                    )
-                })
-        });
-    resolved.map_or_else(
-        || {
-            package
-                .projection
-                .method_mutability(object_name, method_name)
-        },
-        |mutates| Ok(Some(mutates)),
-    )
-}
-
-fn validate_projected_receiver_mutability(
-    package: &SemanticPackage,
-) -> Result<(), SemanticFailure> {
-    fn ambiguity(
-        package: &SemanticPackage,
-        unit: &SemanticUnit,
-        node: &SyntaxNode,
-    ) -> Option<Diagnostic> {
-        if node.kind == SyntaxKind::CallExpression
-            && let Some(callee) = node.children.first()
-            && callee.kind == SyntaxKind::MemberExpression
-            && let [receiver, member] = callee.children.as_slice()
-            && let Ok(Some(ValueType::Object(object_name))) =
-                infer_value_type(unit, receiver, &unit.typed_bindings)
-            && let Err(mut candidates) = projected_method_mutability(
-                package,
-                unit,
-                receiver.span.start,
-                &object_name,
-                node_text(&unit.source, member),
-            )
-        {
-            candidates.sort();
-            return Some(
-                Diagnostic::error(
-                    "S2030",
-                    format!(
-                        "projected method `{}.{}` has ambiguous receiver mutability across `{}`",
-                        object_name,
-                        node_text(&unit.source, member),
-                        candidates.join("`, `")
-                    ),
-                    member.span,
-                )
-                .with_help(
-                    "import the intended projected type explicitly so its namespace determines the receiver contract",
-                ),
-            );
-        }
-        node.children
-            .iter()
-            .find_map(|child| ambiguity(package, unit, child))
-    }
-
-    for unit in &package.units {
-        if let Some(diagnostic) = ambiguity(package, unit, &unit.tree.root) {
-            return Err(SemanticFailure {
-                source: unit.source.clone(),
-                diagnostics: vec![diagnostic],
-            });
-        }
-    }
-    Ok(())
-}
-
 fn object_method_mutates(
     package: &SemanticPackage,
-    unit: &SemanticUnit,
-    position: usize,
-    object_name: &str,
+    _unit: &SemanticUnit,
+    _position: usize,
+    object_identity: &ObjectIdentity,
     method_name: &str,
 ) -> bool {
     fn contract_mutates(unit: &SemanticUnit, object_name: &str, method_name: &str) -> bool {
@@ -11755,29 +11699,34 @@ fn object_method_mutates(
         unit.objects
             .iter()
             .find(|object| object.name == object_name)
-            .and_then(|object| object.base.as_deref())
-            .is_some_and(|base| contract_mutates(unit, base, method_name))
+            .and_then(|object| object.base.as_ref())
+            .and_then(|base| unit.objects.iter().find(|object| object.identity == *base))
+            .is_some_and(|base| contract_mutates(unit, &base.name, method_name))
     }
 
-    if contract_mutates(unit, object_name, method_name) {
+    if package.units.iter().any(|candidate| {
+        candidate
+            .objects
+            .iter()
+            .find(|object| object.identity == *object_identity)
+            .is_some_and(|object| contract_mutates(candidate, &object.name, method_name))
+    }) {
         return true;
     }
 
-    if let Some(declaration) = resolved_object_span(package, unit, position, object_name)
-        && package.units.iter().any(|candidate| {
-            candidate
-                .objects
-                .iter()
-                .find(|object| object.span == declaration)
-                .is_some_and(|object| contract_mutates(candidate, &object.name, method_name))
+    package
+        .projection
+        .method(
+            &object_identity.namespace,
+            &object_identity.name,
+            method_name,
+        )
+        .is_some_and(|method| {
+            matches!(
+                method.receiver,
+                Some(crate::projection::Receiver::MutableBorrow)
+            )
         })
-    {
-        return true;
-    }
-    projected_method_mutability(package, unit, position, object_name, method_name)
-        .ok()
-        .flatten()
-        .unwrap_or(false)
 }
 
 pub(crate) fn binding_span_is_mutated(
@@ -11994,79 +11943,5 @@ mod name_style_tests {
                 && diagnostic.message == "declared name `Answer` is not kebab-case"
                 && diagnostic.severity == crate::Severity::Warning
         }));
-    }
-}
-
-#[cfg(test)]
-mod projected_receiver_tests {
-    use super::*;
-    use crate::projection::{
-        Containment, ProjectedDependency, ProjectedFunction, ProjectedItem, ProjectedKind,
-        ProjectedType, Projection, Receiver,
-    };
-
-    fn projected_response(namespace: &str, rust_path: &str, receiver: Receiver) -> ProjectedItem {
-        ProjectedItem {
-            namespace: namespace.to_owned(),
-            name: "ProjectedResponse".to_owned(),
-            rust_path: rust_path.to_owned(),
-            docs: None,
-            kind: ProjectedKind::ForeignType {
-                methods: vec![ProjectedFunction {
-                    name: "touch".to_owned(),
-                    parameters: Vec::new(),
-                    result: ProjectedType::None,
-                    error: None,
-                    is_async: false,
-                    receiver: Some(receiver),
-                }],
-            },
-        }
-    }
-
-    #[test]
-    fn ambiguous_projected_receiver_contract_reports_s2030() {
-        let package = Package::implicit(
-            "main.trn",
-            "namespace app\nclass Response\n  function touch;\n    return\nfunction main;\n  response Response = Response;\n  response.touch;\n".to_owned(),
-        );
-        let mut semantic = analyze(&package).unwrap();
-        for binding in semantic.units[0]
-            .typed_bindings
-            .iter_mut()
-            .filter(|binding| binding.name == "response")
-        {
-            binding.value_type = ValueType::Object("ProjectedResponse".to_owned());
-        }
-        semantic.projection = Projection {
-            cache_identity: "test".to_owned(),
-            dependencies: vec![ProjectedDependency {
-                name: "witness".to_owned(),
-                package: "witness".to_owned(),
-                version: "=1.0.0".to_owned(),
-                items: vec![
-                    projected_response(
-                        "/deps/witness/async",
-                        "witness::async_impl::Response",
-                        Receiver::Borrow,
-                    ),
-                    projected_response(
-                        "/deps/witness/blocking",
-                        "witness::blocking::Response",
-                        Receiver::MutableBorrow,
-                    ),
-                ],
-                declined: Vec::new(),
-            }],
-            containment: Containment::Unavailable,
-        };
-
-        let failure = validate_projected_receiver_mutability(&semantic).unwrap_err();
-        let diagnostic = &failure.diagnostics[0];
-        assert_eq!(diagnostic.code, "S2030");
-        assert_eq!(
-            diagnostic.message,
-            "projected method `ProjectedResponse.touch` has ambiguous receiver mutability across `witness::async_impl::Response`, `witness::blocking::Response`"
-        );
     }
 }

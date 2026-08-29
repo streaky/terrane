@@ -1783,6 +1783,13 @@ person user-type = user-type; data
 
 The compiler resolves type compatibility through the object’s type protocol.
 
+Class, interface, and trait types are nominal. Their identity is the pair of their declaring namespace
+and declared name; an import alias changes only the local spelling. Two declarations with the same
+name in different namespaces are distinct types, with no structural compatibility or aliasing rule
+between them. Diagnostics may use the short name when it is unambiguous, but qualify both identities
+when the short names collide.
+
+
 Alongside the concrete descriptors, `/core/types` exports abstract category descriptors: `number`, `integer`, `fixed-integer`, `signed-fixed-integer`, `unsigned-fixed-integer`, and `floating`, beneath the two identity roots `value` and `object`. `int` implements `integer` and `number` but no fixed-width contract; `int8` through `int128` implement `signed-fixed-integer`, `fixed-integer`, `integer`, and `number`; `uint8` through `uint128` implement `unsigned-fixed-integer` in place of the signed contract; `float`, `float32`, and `float64` implement `floating` and `number`. The roots `value` and `object` classify identity, copy, and ownership behaviour rather than numeric capability, so no arithmetic or conversion member attaches to them.
 
 These are interface and category contracts used for member attachment, compatibility, reflection, and finite-union reasoning. None of them is a storage supertype. Like the concrete fixed-width descriptors, they are descriptor constructs available without import rather than prelude bindings: the default prelude's ordinary bindings are unchanged, and a construct name is usable in construct position directly while explicit import remains available for rebinding, aliasing, and shadowing. In particular, fixed-width integers are not subclasses of `int`: an exact destination conversion does not change the source value's concrete type or the differing arithmetic result contracts.

@@ -1,0 +1,6 @@
+package = "namespace-qualified-object-mismatch"
+prelude = false
+[namespaces]
+app = "app"
+left = "left"
+right = "right"

@@ -349,6 +349,7 @@ function_type: 'function from A, B to R'; associates right
 - `c is a` is identity against binding `a`; `c is a widget` is membership when complete type follows.
 - Ordinary scalars/strings/collections are identity-less: `is` is false even for `x is x` and `42 is 42`. Only explicit refs, linear resources, and canonical descriptors carry identity. Exact-type-and-value comparison is `left == right and left.type is right.type`.
 - Type descriptors are language constructs backed by canonical compiler-owned objects, not independently instantiated values.
+- Class, interface, and trait identity is nominal and namespace-qualified: `(declaring namespace, declared name)`. Import aliases change spelling, not identity; same-named declarations in different namespaces are unrelated types, and diagnostics qualify them when the short form is ambiguous.
 
 ```yaml
 binding: REJECTED - 'd = int8' would store a type in a value slot; a construct is not a value to bind

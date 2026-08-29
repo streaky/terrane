@@ -1,0 +1,6 @@
+package = "namespace-qualified-object-identity"
+prelude = true
+[namespaces]
+app = "app"
+left = "left"
+right = "right"

@@ -11,7 +11,6 @@ enum TerraneErrorKind {
     MissingKey,
     ResourceError,
     SourceError,
-    Custom(&'static str),
 }
 impl TerraneErrorKind {
     fn from_source_name(name: &str) -> Self {
@@ -40,7 +39,6 @@ impl TerraneErrorKind {
             Self::MissingKey => ".missing-key",
             Self::ResourceError => ".resource-error",
             Self::SourceError => ".error",
-            Self::Custom(name) => name,
         }
     }
 }
@@ -132,102 +130,78 @@ enum TerraneCompletion<T> {
     Break,
     Continue,
 }
-fn __terrane_dependency_panic(
-    payload: Box<dyn std::any::Any + Send>,
-    crate_name: &'static str,
-    member: &'static str,
-) -> TerraneError {
-    let detail = payload
-        .downcast_ref::<&str>()
-        .copied()
-        .or_else(|| payload.downcast_ref::<String>().map(String::as_str))
-        .unwrap_or("non-string panic payload");
-    TerraneError::new(
-        TerraneErrorKind::Custom("dependency-panic"),
-        format!("Rust dependency `{crate_name}` member `{member}` panicked: {detail}"),
-    )
+async fn __terrane_await<F: Future>(future: F) -> F::Output {
+    struct YieldOnce(bool);
+    impl Future for YieldOnce {
+        type Output = ();
+        fn poll(
+            mut self: std::pin::Pin<&mut Self>,
+            context: &mut std::task::Context<'_>,
+        ) -> std::task::Poll<Self::Output> {
+            if self.0 {
+                std::task::Poll::Ready(())
+            } else {
+                self.0 = true;
+                context.waker().wake_by_ref();
+                std::task::Poll::Pending
+            }
+        }
+    }
+    YieldOnce(false).await;
+    let output = future.await;
+    YieldOnce(false).await;
+    output
+}
+fn __terrane_block_on<F: Future>(future: F) -> F::Output {
+    struct Wake;
+    impl std::task::Wake for Wake {
+        fn wake(self: std::sync::Arc<Self>) {}
+    }
+    let waker = std::task::Waker::from(std::sync::Arc::new(Wake));
+    let mut context = std::task::Context::from_waker(&waker);
+    let mut future = std::pin::pin!(future);
+    loop {
+        match future.as_mut().poll(&mut context) {
+            std::task::Poll::Ready(value) => return value,
+            std::task::Poll::Pending => std::thread::yield_now(),
+        }
+    }
 }
 // Source: src/main.trn
 // Namespace: app
+pub trait CrossingsProtocol {
+    fn clone_box(&self) -> Box<dyn CrossingsProtocol>;
+    fn separate_box(&self) -> Box<dyn CrossingsProtocol>;
+    fn cross_async(&self, value: TerraneNs4Deps7Reqwest10AsyncImpl8ResponseResponse);
+    fn cross_blocking(&self, value: TerraneNs4Deps7Reqwest8Blocking8ResponseResponse);
+}
+impl Clone for Box<dyn CrossingsProtocol> {
+    fn clone(&self) -> Self {
+        self.clone_box()
+    }
+}
+#[derive(Clone)]
+pub struct Crossings(Box<dyn CrossingsProtocol>);
+impl Crossings {
+    pub fn cross_async(
+        &self,
+        value: TerraneNs4Deps7Reqwest10AsyncImpl8ResponseResponse,
+    ) {
+        self.0.cross_async(value)
+    }
+    pub fn cross_blocking(
+        &self,
+        value: TerraneNs4Deps7Reqwest8Blocking8ResponseResponse,
+    ) {
+        self.0.cross_blocking(value)
+    }
+}
 fn main() {
-    let mut response: Response = get(String::from("http://127.0.0.1:38125/"))
-        .unwrap_or_else(|error| __terrane_uncaught(
-            error.at("/app::main (main.trn:4:16)"),
-        ));
-    match std::panic::catch_unwind(
-        std::panic::AssertUnwindSafe(|| {
-            response.headers_mut();
-        }),
-    ) {
-        Ok(value) => Ok(value),
-        Err(payload) => {
-            Err(
-                crate::__terrane_dependency_panic(
-                    payload,
-                    "reqwest",
-                    "reqwest::blocking::Response::headers_mut",
-                ),
-            )
-        }
-    }
-        .unwrap_or_else(|error| __terrane_uncaught(
-            error.at("/app::main (main.trn:5:5)"),
-        ));
-    let body: String = match std::panic::catch_unwind(
-        std::panic::AssertUnwindSafe(|| response.text()),
-    ) {
-        Ok(Ok(value)) => Ok(value),
-        Ok(Err(error)) => {
-            Err(
-                crate::TerraneError::new(
-                    crate::TerraneErrorKind::Custom("dependency-error"),
-                    format!(
-                        "Rust dependency `reqwest` member `reqwest::blocking::Response::text` failed: {error}"
-                    ),
-                ),
-            )
-        }
-        Err(payload) => {
-            Err(
-                crate::__terrane_dependency_panic(
-                    payload,
-                    "reqwest",
-                    "reqwest::blocking::Response::text",
-                ),
-            )
-        }
-    }
-        .unwrap_or_else(|error| __terrane_uncaught(
-            error.at("/app::main (main.trn:6:19)"),
-        ));
-    println!("{}", terrane_scalar_support::scalar_text(&body));
+    return ();
 }
-// Source: <terrane>/projected/deps/reqwest/blocking.trn
-// Namespace: deps/reqwest/blocking
-pub use reqwest::blocking::Response;
-pub fn get(url: String) -> Result<Response, crate::TerraneError> {
-    match std::panic::catch_unwind(
-        std::panic::AssertUnwindSafe(|| reqwest::blocking::get(url)),
-    ) {
-        Ok(Ok(value)) => Ok(value),
-        Ok(Err(error)) => {
-            Err(
-                crate::TerraneError::new(
-                    crate::TerraneErrorKind::Custom("dependency-error"),
-                    format!(
-                        "Rust dependency `reqwest` member `reqwest::blocking::get` failed: {error}"
-                    ),
-                ),
-            )
-        }
-        Err(payload) => {
-            Err(
-                crate::__terrane_dependency_panic(
-                    payload,
-                    "reqwest",
-                    "reqwest::blocking::get",
-                ),
-            )
-        }
-    }
-}
+// Source: <terrane>/projected/deps/reqwest/async-impl/response.trn
+// Namespace: deps/reqwest/async-impl/response
+pub use reqwest::Response as TerraneNs4Deps7Reqwest10AsyncImpl8ResponseResponse;
+// Source: <terrane>/projected/deps/reqwest/blocking/response.trn
+// Namespace: deps/reqwest/blocking/response
+pub use reqwest::blocking::Response as TerraneNs4Deps7Reqwest8Blocking8ResponseResponse;

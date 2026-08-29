@@ -197,6 +197,22 @@ impl Projection {
     }
 
     #[must_use]
+    pub fn foreign_imports(&self, namespace: &str) -> BTreeMap<String, String> {
+        let mut foreign = BTreeMap::new();
+        for item in self
+            .dependencies
+            .iter()
+            .flat_map(|dependency| dependency.items.iter())
+            .filter(|item| item.namespace == namespace)
+        {
+            if let ProjectedKind::Function(function) = &item.kind {
+                collect_foreign_function(function, &mut foreign);
+            }
+        }
+        foreign
+    }
+
+    #[must_use]
     pub fn item(&self, namespace: &str, name: &str) -> Option<&ProjectedItem> {
         self.dependencies
             .iter()
@@ -205,57 +221,56 @@ impl Projection {
     }
     #[must_use]
     pub(crate) fn dependency_name(&self, namespace: &str, name: &str) -> Option<&str> {
-        self.dependencies.iter().find_map(|dependency| {
-            dependency
-                .items
-                .iter()
-                .any(|item| item.namespace == namespace && item.name == name)
-                .then_some(dependency.name.as_str())
-        })
+        self.dependencies
+            .iter()
+            .find(|dependency| {
+                dependency
+                    .items
+                    .iter()
+                    .any(|item| item.namespace == namespace && item.name == name)
+            })
+            .or_else(|| {
+                let rust_path = self.foreign_item(namespace, name)?.rust_path.as_str();
+                self.dependencies.iter().find(|dependency| {
+                    dependency
+                        .items
+                        .iter()
+                        .any(|item| item.rust_path == rust_path)
+                })
+            })
+            .map(|dependency| dependency.name.as_str())
     }
 
     #[must_use]
     pub fn foreign_rust_path(&self, namespace: &str, name: &str) -> Option<&str> {
-        self.item(namespace, name)
-            .and_then(|item| {
-                matches!(
-                    item.kind,
-                    ProjectedKind::ForeignType { .. } | ProjectedKind::Enum { .. }
-                )
-                .then_some(item.rust_path.as_str())
-            })
-            .or_else(|| {
-                let prefix = rust_prefix(namespace);
-                self.dependencies
-                    .iter()
-                    .flat_map(|dependency| &dependency.items)
-                    .filter(|item| {
-                        matches!(
-                            item.kind,
-                            ProjectedKind::ForeignType { .. } | ProjectedKind::Enum { .. }
-                        ) && item.name == name
-                            && prefix
-                                .as_ref()
-                                .is_none_or(|prefix| item.rust_path.starts_with(prefix))
-                    })
-                    .map(|item| item.rust_path.as_str())
-                    .min_by_key(|path| (path.matches("::").count(), *path))
-            })
-            .or_else(|| {
-                self.dependencies
-                    .iter()
-                    .flat_map(|dependency| &dependency.items)
-                    .filter(|item| item.namespace == namespace)
-                    .find_map(|item| match &item.kind {
-                        ProjectedKind::Function(function) => function
-                            .parameters
-                            .iter()
-                            .map(|parameter| &parameter.ty)
-                            .chain(std::iter::once(&function.result))
-                            .find_map(|ty| foreign_path_named(ty, name)),
-                        _ => None,
-                    })
-            })
+        self.foreign_item(namespace, name)
+            .map(|item| item.rust_path.as_str())
+    }
+
+    fn foreign_item(&self, namespace: &str, name: &str) -> Option<&ProjectedItem> {
+        if let Some(item) = self.item(namespace, name).filter(|item| {
+            matches!(
+                item.kind,
+                ProjectedKind::ForeignType { .. } | ProjectedKind::Enum { .. }
+            )
+        }) {
+            return Some(item);
+        }
+        let prefix = format!("{}::", rust_prefix(namespace)?);
+        let mut candidates = self
+            .dependencies
+            .iter()
+            .flat_map(|dependency| &dependency.items)
+            .filter(|item| {
+                item.name == name
+                    && item.rust_path.starts_with(&prefix)
+                    && matches!(
+                        item.kind,
+                        ProjectedKind::ForeignType { .. } | ProjectedKind::Enum { .. }
+                    )
+            });
+        let candidate = candidates.next()?;
+        candidates.next().is_none().then_some(candidate)
     }
 
     #[must_use]
@@ -277,39 +292,6 @@ impl Projection {
                 _ => None,
             })
     }
-
-    pub(crate) fn method_mutability(
-        &self,
-        type_name: &str,
-        method_name: &str,
-    ) -> Result<Option<bool>, Vec<String>> {
-        let candidates = self
-            .dependencies
-            .iter()
-            .flat_map(|dependency| &dependency.items)
-            .filter(|item| item.name == type_name)
-            .filter_map(|item| match &item.kind {
-                ProjectedKind::ForeignType { methods } => methods
-                    .iter()
-                    .find(|method| method.name == method_name)
-                    .map(|method| {
-                        (
-                            matches!(method.receiver, Some(Receiver::MutableBorrow)),
-                            item.rust_path.clone(),
-                        )
-                    }),
-                _ => None,
-            })
-            .collect::<Vec<_>>();
-        let Some((mutates, _)) = candidates.first() else {
-            return Ok(None);
-        };
-        if candidates.iter().all(|(candidate, _)| candidate == mutates) {
-            Ok(Some(*mutates))
-        } else {
-            Err(candidates.into_iter().map(|(_, path)| path).collect())
-        }
-    }
 }
 
 fn rust_prefix(namespace: &str) -> Option<String> {
@@ -324,16 +306,6 @@ fn rust_prefix(namespace: &str) -> Option<String> {
     )
 }
 
-fn foreign_path_named<'a>(ty: &'a ProjectedType, name: &str) -> Option<&'a str> {
-    match ty {
-        ProjectedType::Foreign {
-            rust_path,
-            name: foreign_name,
-        } if foreign_name == name => Some(rust_path),
-        ProjectedType::Optional(inner) => foreign_path_named(inner, name),
-        _ => None,
-    }
-}
 fn collect_source_foreign(
     all_items: &[&ProjectedItem],
     selected: &[&ProjectedItem],
@@ -1475,13 +1447,6 @@ mod tests {
                 .method("/deps/witness/blocking", "Response", "touch")
                 .and_then(|method| method.receiver),
             Some(Receiver::MutableBorrow)
-        );
-        assert_eq!(
-            projection.method_mutability("Response", "touch"),
-            Err(vec![
-                "witness::async::Response".to_owned(),
-                "witness::blocking::Response".to_owned()
-            ])
         );
     }
 

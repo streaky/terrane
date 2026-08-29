@@ -1693,6 +1693,16 @@ compiles warning-free with two distinct Rust types. Accepted and rejected confor
 Terrane-declared pair and the projected pair, and no case relies on a package whose object names
 happen to be unique.
 
+Delivered on `namespace-qualified-object-identity`. `ValueType::Object` and object contracts now carry
+the declaring namespace and declared name as one identity through resolution, compatibility,
+inheritance, projected receiver lookup, diagnostics, and lowering. `ValueType::Descriptor` remains
+unchanged: descriptors already resolve to canonical compiler-owned identities, so two imported
+spellings intentionally denote the same descriptor rather than namespace-local declarations.
+Generated Rust retains the short type name when unique; collisions use
+`TerraneNs<segment-byte-length><Segment>...<Type>`, a deterministic CamelCase encoding that remains
+warning-free under canonical Rust validation. Conformance cases cover accepted and rejected
+Terrane-declared collisions and the async/blocking `reqwest::Response` pair.
+
 ### Milestone 25.2 — Deferred projection surface and dependency capability
 
 Milestone 25 delivered a projection that declines more than it admits, deliberately: every construct it

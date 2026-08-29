@@ -1,0 +1,10 @@
+namespace app
+from /left import response as left-response
+from /right import response as right-response
+
+function accept; item left-response
+    return
+
+function main;
+    actual right-response = right-response;
+    accept; actual

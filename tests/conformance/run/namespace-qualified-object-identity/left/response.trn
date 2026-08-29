@@ -1,0 +1,4 @@
+namespace left
+
+class response
+    value string = 'left'

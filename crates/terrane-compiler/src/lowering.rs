@@ -1,3 +1,4 @@
+use std::collections::BTreeSet;
 use std::fmt::Write as _;
 
 use indoc::indoc;
@@ -8,8 +9,8 @@ use crate::{
     rust_ir::{GeneratedModule, Item, Module, Program},
     semantics::{
         ArithmeticFamily, CoercionPolicy, ContextualConstant, ElementType, FunctionContract,
-        MemberFamily, ObjectContract, ObjectField, ObjectKind, SemanticPackage, SemanticUnit,
-        StringFamily, SymbolKind, TypedBinding, ValueType, binding_span_is_mutated,
+        MemberFamily, ObjectContract, ObjectField, ObjectIdentity, ObjectKind, SemanticPackage,
+        SemanticUnit, StringFamily, SymbolKind, TypedBinding, ValueType, binding_span_is_mutated,
         binding_store_value_is_read, bound_method, contextual_constant, narrowed_optional_type,
         narrowed_value_type, promoted_integer_type, string_call_selection,
     },
@@ -24,14 +25,19 @@ pub(crate) fn lower(package: &SemanticPackage) -> Program {
     let mut runtime = Vec::new();
     let mut globals = String::new();
     if package_uses_structured_errors(package) || package_uses_task_scope(package) {
-        let has_dependency = !package.projection.dependencies.is_empty();
+        let has_dependency = package.units.iter().any(|unit| {
+            unit.namespace.starts_with("/deps/")
+                && unit
+                    .functions
+                    .iter()
+                    .any(|function| function.owner.is_none())
+        });
         let has_custom_throwable = has_dependency
             || package.units.iter().any(|unit| {
                 unit.objects.iter().any(|object| {
-                    object
-                        .interfaces
-                        .iter()
-                        .any(|interface| interface == "throwable")
+                    object.interfaces.iter().any(|interface| {
+                        interface.namespace == "/core/errors" && interface.name == "throwable"
+                    })
                 })
             });
         let mut support = String::new();
@@ -292,16 +298,33 @@ pub(crate) fn lower(package: &SemanticPackage) -> Program {
     }
 }
 
-fn emit_dependency_unit(package: &SemanticPackage, unit: &SemanticUnit) -> String {
-    let mut output = String::new();
+fn emit_dependency_imports(package: &SemanticPackage, unit: &SemanticUnit, output: &mut String) {
+    let mut imported = BTreeSet::new();
     for object in &unit.objects {
         if let Some(path) = package
             .projection
-            .foreign_rust_path(&unit.namespace, &object.name)
+            .foreign_rust_path(&object.identity.namespace, &object.identity.name)
         {
+            let rust_name = rust_object_type_name(package, &object.identity);
+            if rust_name == rust_object_name(&object.name) {
+                writeln!(output, "pub use {path};").expect("writing to a string cannot fail");
+            } else {
+                writeln!(output, "pub use {path} as {rust_name};")
+                    .expect("writing to a string cannot fail");
+            }
+            imported.insert(object.name.clone());
+        }
+    }
+    for (name, path) in package.projection.foreign_imports(&unit.namespace) {
+        if imported.insert(name) {
             writeln!(output, "pub use {path};").expect("writing to a string cannot fail");
         }
     }
+}
+
+fn emit_dependency_unit(package: &SemanticPackage, unit: &SemanticUnit) -> String {
+    let mut output = String::new();
+    emit_dependency_imports(package, unit, &mut output);
     for contract in unit
         .functions
         .iter()
@@ -326,10 +349,10 @@ fn emit_dependency_unit(package: &SemanticPackage, unit: &SemanticUnit) -> Strin
                     "{}{}: {}",
                     if projected.mutable_borrow { "mut " } else { "" },
                     rust_name(&parameter.name),
-                    parameter
-                        .value_type
-                        .clone()
-                        .map_or_else(|| "()".to_owned(), rust_value_type)
+                    parameter.value_type.clone().map_or_else(
+                        || "()".to_owned(),
+                        |value_type| { rust_value_type(package, value_type) }
+                    )
                 )
             })
             .collect::<Vec<_>>();
@@ -349,10 +372,10 @@ fn emit_dependency_unit(package: &SemanticPackage, unit: &SemanticUnit) -> Strin
             })
             .collect::<Vec<_>>()
             .join(", ");
-        let value = contract
-            .return_type
-            .clone()
-            .map_or_else(|| "()".to_owned(), rust_value_type);
+        let value = contract.return_type.clone().map_or_else(
+            || "()".to_owned(),
+            |value_type| rust_value_type(package, value_type),
+        );
         let result = format!("Result<{value}, crate::TerraneError>");
         writeln!(
             output,
@@ -970,7 +993,7 @@ impl Emitter<'_> {
             .expect("analyzed object declaration must have a semantic contract");
         match object.kind {
             ObjectKind::Interface => {
-                let name = rust_object_name(&object.name);
+                let name = rust_object_type_name(self.package, &object.identity);
                 let protocol = format!("{name}Protocol");
                 let methods = effective_object_methods(self.unit, object);
                 self.line(&format!("pub trait {protocol} {{"));
@@ -988,10 +1011,10 @@ impl Emitter<'_> {
                     };
                     write!(self.output, "fn {}({receiver}", rust_name(&method.name)).unwrap();
                     for parameter in &method.parameters {
-                        let ty = parameter
-                            .value_type
-                            .clone()
-                            .map_or_else(|| "i128".to_owned(), rust_value_type);
+                        let ty = parameter.value_type.clone().map_or_else(
+                            || "i128".to_owned(),
+                            |value_type| rust_value_type(self.package, value_type),
+                        );
                         write!(self.output, ", {}: {ty}", rust_name(&parameter.name)).unwrap();
                     }
                     self.output.push(')');
@@ -1000,7 +1023,8 @@ impl Emitter<'_> {
                         .clone()
                         .filter(|result| *result != ValueType::Scalar(ScalarType::None))
                     {
-                        write!(self.output, " -> {}", rust_value_type(result)).unwrap();
+                        write!(self.output, " -> {}", rust_value_type(self.package, result))
+                            .unwrap();
                     }
                     self.output.push_str(";\n");
                 }
@@ -1024,10 +1048,10 @@ impl Emitter<'_> {
                     };
                     write!(self.output, "pub fn {}({receiver}", rust_name(&method.name)).unwrap();
                     for parameter in &method.parameters {
-                        let ty = parameter
-                            .value_type
-                            .clone()
-                            .map_or_else(|| "i128".to_owned(), rust_value_type);
+                        let ty = parameter.value_type.clone().map_or_else(
+                            || "i128".to_owned(),
+                            |value_type| rust_value_type(self.package, value_type),
+                        );
                         write!(self.output, ", {}: {ty}", rust_name(&parameter.name)).unwrap();
                     }
                     self.output.push(')');
@@ -1036,7 +1060,8 @@ impl Emitter<'_> {
                         .clone()
                         .filter(|result| *result != ValueType::Scalar(ScalarType::None))
                     {
-                        write!(self.output, " -> {}", rust_value_type(result)).unwrap();
+                        write!(self.output, " -> {}", rust_value_type(self.package, result))
+                            .unwrap();
                     }
                     self.output.push_str(" {\n");
                     self.indent += 1;
@@ -1059,7 +1084,7 @@ impl Emitter<'_> {
             ObjectKind::Trait => {}
             ObjectKind::Class => {
                 let fields = effective_object_fields(self.unit, object);
-                let class_type = rust_object_name(&object.name);
+                let class_type = rust_object_type_name(self.package, &object.identity);
                 let descendants = object_descendants(self.unit, object);
                 let storage_type = if descendants.is_empty() {
                     class_type.clone()
@@ -1080,7 +1105,7 @@ impl Emitter<'_> {
                     self.line(&format!(
                         "pub {}: {},",
                         rust_name(&field.name),
-                        rust_value_type(field.value_type.clone())
+                        rust_value_type(self.package, field.value_type.clone())
                     ));
                 }
                 self.indent -= 1;
@@ -1094,10 +1119,10 @@ impl Emitter<'_> {
                         if index != 0 {
                             self.output.push_str(", ");
                         }
-                        let ty = parameter
-                            .value_type
-                            .clone()
-                            .map_or_else(|| "i128".to_owned(), rust_value_type);
+                        let ty = parameter.value_type.clone().map_or_else(
+                            || "i128".to_owned(),
+                            |value_type| rust_value_type(self.package, value_type),
+                        );
                         write!(self.output, "{}: {ty}", rust_name(&parameter.name)).unwrap();
                     }
                     self.output.push_str(") -> Self {\n");
@@ -1216,7 +1241,8 @@ impl Emitter<'_> {
                     self.indent += 1;
                     self.line(&format!("Own({storage_type}),"));
                     for descendant in &descendants {
-                        let descendant_type = rust_object_name(&descendant.name);
+                        let descendant_type =
+                            rust_object_type_name(self.package, &descendant.identity);
                         self.line(&format!("{descendant_type}({descendant_type}),"));
                     }
                     self.indent -= 1;
@@ -1232,10 +1258,10 @@ impl Emitter<'_> {
                             if index != 0 {
                                 self.output.push_str(", ");
                             }
-                            let ty = parameter
-                                .value_type
-                                .clone()
-                                .map_or_else(|| "i128".to_owned(), rust_value_type);
+                            let ty = parameter.value_type.clone().map_or_else(
+                                || "i128".to_owned(),
+                                |value_type| rust_value_type(self.package, value_type),
+                            );
                             write!(self.output, "{}: {ty}", rust_name(&parameter.name)).unwrap();
                         }
                         self.output.push_str(") -> Self {\n");
@@ -1274,7 +1300,8 @@ impl Emitter<'_> {
                         };
                         self.line(&format!("Self::Own(value) => Self::Own({own_copy}),"));
                         for descendant in &descendants {
-                            let descendant_type = rust_object_name(&descendant.name);
+                            let descendant_type =
+                                rust_object_type_name(self.package, &descendant.identity);
                             let descendant_has_destructor =
                                 effective_object_methods(self.unit, descendant)
                                     .iter()
@@ -1308,10 +1335,10 @@ impl Emitter<'_> {
                         write!(self.output, "pub fn {}({receiver}", rust_name(&method.name))
                             .unwrap();
                         for parameter in &method.parameters {
-                            let ty = parameter
-                                .value_type
-                                .clone()
-                                .map_or_else(|| "i128".to_owned(), rust_value_type);
+                            let ty = parameter.value_type.clone().map_or_else(
+                                || "i128".to_owned(),
+                                |value_type| rust_value_type(self.package, value_type),
+                            );
                             write!(self.output, ", {}: {ty}", rust_name(&parameter.name)).unwrap();
                         }
                         self.output.push(')');
@@ -1320,7 +1347,8 @@ impl Emitter<'_> {
                             .clone()
                             .filter(|result| *result != ValueType::Scalar(ScalarType::None))
                         {
-                            write!(self.output, " -> {}", rust_value_type(result)).unwrap();
+                            write!(self.output, " -> {}", rust_value_type(self.package, result))
+                                .unwrap();
                         }
                         self.output.push_str(" {\n");
                         self.indent += 1;
@@ -1345,7 +1373,8 @@ impl Emitter<'_> {
                             rust_name(&method.name)
                         ));
                         for descendant in &descendants {
-                            let descendant_type = rust_object_name(&descendant.name);
+                            let descendant_type =
+                                rust_object_type_name(self.package, &descendant.identity);
                             self.line(&format!(
                                 "Self::{descendant_type}({receiver_binding}) => {receiver_binding}.{}({arguments}),",
                                 rust_name(&method.name)
@@ -1358,7 +1387,7 @@ impl Emitter<'_> {
                     }
                     for field in &fields {
                         let field_name = rust_name(&field.name);
-                        let field_type = rust_value_type(field.value_type.clone());
+                        let field_type = rust_value_type(self.package, field.value_type.clone());
                         self.line(&format!(
                             "pub fn terrane_field_{field_name}(&self) -> &{field_type} {{"
                         ));
@@ -1367,9 +1396,10 @@ impl Emitter<'_> {
                         self.indent += 1;
                         self.line(&format!("Self::Own(value) => &value.{field_name},"));
                         for descendant in &descendants {
-                            let descendant_type = rust_object_name(&descendant.name);
+                            let descendant_type =
+                                rust_object_type_name(self.package, &descendant.identity);
                             if self.unit.objects.iter().any(|candidate| {
-                                candidate.base.as_deref() == Some(descendant.name.as_str())
+                                candidate.base.as_ref() == Some(&descendant.identity)
                             }) {
                                 self.line(&format!(
                                     "Self::{descendant_type}(value) => value.terrane_field_{field_name}(),"
@@ -1392,9 +1422,10 @@ impl Emitter<'_> {
                         self.indent += 1;
                         self.line(&format!("Self::Own(value) => &mut value.{field_name},"));
                         for descendant in &descendants {
-                            let descendant_type = rust_object_name(&descendant.name);
+                            let descendant_type =
+                                rust_object_type_name(self.package, &descendant.identity);
                             if self.unit.objects.iter().any(|candidate| {
-                                candidate.base.as_deref() == Some(descendant.name.as_str())
+                                candidate.base.as_ref() == Some(&descendant.identity)
                             }) {
                                 self.line(&format!(
                                     "Self::{descendant_type}(value) => value.terrane_field_{field_name}_mut(),"
@@ -1413,28 +1444,26 @@ impl Emitter<'_> {
                     self.indent -= 1;
                     self.line("}");
                 }
-                for interface_name in effective_object_interfaces(self.unit, object) {
-                    if interface_name == "throwable" {
+                for interface_identity in effective_object_interfaces(self.unit, object) {
+                    if interface_identity.namespace == "/core/errors"
+                        && interface_identity.name == "throwable"
+                    {
                         continue;
                     }
-                    let resolved_interface = self
-                        .package
-                        .resolve_name_at(self.unit, object.span.start, interface_name)
-                        .expect("validated interface reference");
                     let interface_unit = self
                         .package
                         .units
                         .iter()
-                        .find(|candidate| candidate.namespace == resolved_interface.namespace)
+                        .find(|candidate| candidate.namespace == interface_identity.namespace)
                         .expect("resolved interface namespace");
                     let interface = interface_unit
                         .objects
                         .iter()
-                        .find(|candidate| candidate.name == resolved_interface.name)
+                        .find(|candidate| candidate.identity == *interface_identity)
                         .expect("validated interface contract");
-                    let interface_type = rust_object_name(interface_name);
+                    let interface_type = rust_object_type_name(self.package, &interface.identity);
                     let protocol = format!("{interface_type}Protocol");
-                    let class_type = rust_object_name(&object.name);
+                    let class_type = rust_object_type_name(self.package, &object.identity);
                     self.line(&format!("impl {protocol} for {class_type} {{"));
                     self.indent += 1;
                     self.line(&format!(
@@ -1460,10 +1489,10 @@ impl Emitter<'_> {
                         };
                         write!(self.output, "fn {}({receiver}", rust_name(&method.name)).unwrap();
                         for parameter in &method.parameters {
-                            let ty = parameter
-                                .value_type
-                                .clone()
-                                .map_or_else(|| "i128".to_owned(), rust_value_type);
+                            let ty = parameter.value_type.clone().map_or_else(
+                                || "i128".to_owned(),
+                                |value_type| rust_value_type(self.package, value_type),
+                            );
                             write!(self.output, ", {}: {ty}", rust_name(&parameter.name)).unwrap();
                         }
                         self.output.push(')');
@@ -1472,7 +1501,8 @@ impl Emitter<'_> {
                             .clone()
                             .filter(|result| *result != ValueType::Scalar(ScalarType::None))
                         {
-                            write!(self.output, " -> {}", rust_value_type(result)).unwrap();
+                            write!(self.output, " -> {}", rust_value_type(self.package, result))
+                                .unwrap();
                         }
                         self.output.push_str(" {\n");
                         self.indent += 1;
@@ -1623,25 +1653,30 @@ impl Emitter<'_> {
             if receiver.is_some() || index != 0 {
                 self.output.push_str(", ");
             }
-            let ty = parameter
-                .value_type
-                .clone()
-                .map_or_else(|| "i128".to_owned(), rust_value_type);
+            let ty = parameter.value_type.clone().map_or_else(
+                || "i128".to_owned(),
+                |value_type| rust_value_type(self.package, value_type),
+            );
             let mutable = if parameter.mutable { "mut " } else { "" };
             write!(self.output, "{mutable}{}: {ty}", rust_name(&parameter.name)).unwrap();
         }
         self.output.push(')');
         let function_errors = contract.throws && contract.name != "main";
         if function_errors {
-            let result = contract
-                .return_type
-                .clone()
-                .map_or_else(|| "()".to_owned(), rust_value_type);
+            let result = contract.return_type.clone().map_or_else(
+                || "()".to_owned(),
+                |value_type| rust_value_type(self.package, value_type),
+            );
             write!(self.output, " -> Result<{result}, TerraneError>").unwrap();
         } else if let Some(return_type) = contract.return_type.clone()
             && return_type != ValueType::Scalar(ScalarType::None)
         {
-            write!(self.output, " -> {}", rust_value_type(return_type)).unwrap();
+            write!(
+                self.output,
+                " -> {}",
+                rust_value_type(self.package, return_type)
+            )
+            .unwrap();
         }
         let block = node
             .children
@@ -1747,10 +1782,10 @@ impl Emitter<'_> {
             .parameters
             .iter()
             .map(|parameter| {
-                let ty = parameter
-                    .value_type
-                    .clone()
-                    .map_or_else(|| "i128".to_owned(), rust_value_type);
+                let ty = parameter.value_type.clone().map_or_else(
+                    || "i128".to_owned(),
+                    |value_type| rust_value_type(self.package, value_type),
+                );
                 format!("{}: {ty}", rust_name(&parameter.name))
             })
             .collect::<Vec<_>>()
@@ -1759,7 +1794,7 @@ impl Emitter<'_> {
             .return_type
             .clone()
             .unwrap_or(ValueType::Scalar(ScalarType::None));
-        let result_type = rust_value_type(result.clone());
+        let result_type = rust_value_type(self.package, result.clone());
         let outer_output = std::mem::take(&mut self.output);
         let outer_indent = self.indent;
         let outer_return_type = self.return_type.replace(result);
@@ -2223,10 +2258,10 @@ impl Emitter<'_> {
         };
         let index = self.try_counter;
         self.try_counter += 1;
-        let result = self
-            .return_type
-            .clone()
-            .map_or_else(|| "()".to_owned(), rust_value_type);
+        let result = self.return_type.clone().map_or_else(
+            || "()".to_owned(),
+            |value_type| rust_value_type(self.package, value_type),
+        );
         let mutable = if node
             .children
             .iter()
@@ -2410,7 +2445,7 @@ impl Emitter<'_> {
             } else if let Some(storage_type) = storage_type {
                 rust_type(storage_type).to_owned()
             } else {
-                rust_value_type(binding.value_type.clone())
+                rust_value_type(self.package, binding.value_type.clone())
             };
             if reference_backed {
                 format!("std::sync::Arc<std::sync::Mutex<{value_type}>>")
@@ -2830,7 +2865,7 @@ impl Emitter<'_> {
                     .collect::<Vec<_>>();
                 return format!(
                     "terrane_collection_support::{kind}::<{}>::new(vec![{}])",
-                    rust_element_type(item),
+                    rust_element_type(self.package, item),
                     values.join(", ")
                 );
             }
@@ -2846,8 +2881,8 @@ impl Emitter<'_> {
                 let value_expression = self.expression_as(value_node, value.value_type());
                 return format!(
                     "terrane_collection_support::Entry::<{}, {}>::new({key_expression}, {value_expression})",
-                    rust_element_type(key),
-                    rust_element_type(value),
+                    rust_element_type(self.package, key),
+                    rust_element_type(self.package, value),
                 );
             }
             let map_constructor = match value_type.clone() {
@@ -2905,15 +2940,18 @@ impl Emitter<'_> {
                 .unit
                 .objects
                 .iter()
-                .find(|object| object.name == *expected)
+                .find(|object| object.identity == *expected)
         {
             let copy = if self.object_requires_separation(actual) {
                 "self.terrane_separate()"
             } else {
                 "self.clone()"
             };
-            if actual == expected && !object_descendants(self.unit, destination).is_empty() {
-                return format!("{}::Own({copy})", rust_object_name(expected));
+            if actual == &expected.name && !object_descendants(self.unit, destination).is_empty() {
+                return format!(
+                    "{}::Own({copy})",
+                    rust_object_type_name(self.package, expected)
+                );
             }
             if object_descendants(self.unit, destination)
                 .iter()
@@ -2921,7 +2959,7 @@ impl Emitter<'_> {
             {
                 return format!(
                     "{}::{}({copy})",
-                    rust_object_name(expected),
+                    rust_object_type_name(self.package, expected),
                     rust_object_name(actual)
                 );
             }
@@ -2933,10 +2971,10 @@ impl Emitter<'_> {
                 .unit
                 .objects
                 .iter()
-                .find(|object| object.name == *expected)
+                .find(|object| object.identity == *expected)
                 .or_else(|| {
                     self.package
-                        .resolve_name_at(self.unit, node.span.start, expected)
+                        .resolve_name_at(self.unit, node.span.start, &expected.name)
                         .and_then(|symbol| {
                             self.package
                                 .units
@@ -2952,13 +2990,13 @@ impl Emitter<'_> {
                 .or_else(|| {
                     self.package.units.iter().find_map(|unit| {
                         unit.objects.iter().find(|object| {
-                            object.name == *expected && object.kind == ObjectKind::Interface
+                            object.identity == *expected && object.kind == ObjectKind::Interface
                         })
                     })
                 })
         {
             let expression = if self.text(node) == "this" {
-                if self.object_requires_separation(&actual) {
+                if self.object_requires_separation(&actual.name) {
                     "self.terrane_separate()".to_owned()
                 } else {
                     "self.clone()".to_owned()
@@ -2967,16 +3005,19 @@ impl Emitter<'_> {
                 self.expression_as(node, ValueType::Object(actual.clone()))
             };
             if destination.kind == ObjectKind::Interface {
-                return format!("{}::from({expression})", rust_object_name(expected));
+                return format!(
+                    "{}::from({expression})",
+                    rust_object_type_name(self.package, expected)
+                );
             }
             if object_descendants(self.unit, destination)
                 .iter()
-                .any(|descendant| descendant.name == actual)
+                .any(|descendant| descendant.identity == actual)
             {
                 return format!(
                     "{}::{}({expression})",
-                    rust_object_name(expected),
-                    rust_object_name(&actual)
+                    rust_object_type_name(self.package, expected),
+                    rust_object_type_name(self.package, &actual)
                 );
             }
         }
@@ -3038,7 +3079,7 @@ impl Emitter<'_> {
             {
                 format!(
                     "terrane_collection_support::List::<{}>::new(Vec::new())",
-                    rust_element_type(item)
+                    rust_element_type(self.package, item)
                 )
             }
             ValueType::Tuple(item, _)
@@ -3047,7 +3088,7 @@ impl Emitter<'_> {
             {
                 format!(
                     "terrane_collection_support::Tuple::<{}>::new(Vec::new())",
-                    rust_element_type(item)
+                    rust_element_type(self.package, item)
                 )
             }
             ValueType::Set(item)
@@ -3056,7 +3097,7 @@ impl Emitter<'_> {
             {
                 format!(
                     "terrane_collection_support::Set::<{}>::new(Vec::new())",
-                    rust_element_type(item)
+                    rust_element_type(self.package, item)
                 )
             }
             ValueType::UnorderedSet(item)
@@ -3065,7 +3106,7 @@ impl Emitter<'_> {
             {
                 format!(
                     "terrane_collection_support::UnorderedSet::<{}>::new(Vec::new())",
-                    rust_element_type(item)
+                    rust_element_type(self.package, item)
                 )
             }
             ValueType::Map(key, value)
@@ -3074,8 +3115,8 @@ impl Emitter<'_> {
             {
                 format!(
                     "terrane_collection_support::Map::<{}, {}>::new(Vec::new())",
-                    rust_element_type(key),
-                    rust_element_type(value)
+                    rust_element_type(self.package, key),
+                    rust_element_type(self.package, value)
                 )
             }
             ValueType::UnorderedMap(key, value)
@@ -3084,8 +3125,8 @@ impl Emitter<'_> {
             {
                 format!(
                     "terrane_collection_support::UnorderedMap::<{}, {}>::new(Vec::new())",
-                    rust_element_type(key),
-                    rust_element_type(value)
+                    rust_element_type(self.package, key),
+                    rust_element_type(self.package, value)
                 )
             }
             ValueType::PlatformStreamHandle if node.kind == SyntaxKind::MemberExpression => {
@@ -3097,7 +3138,7 @@ impl Emitter<'_> {
                 self.expression(node)
             }
             ValueType::Object(name)
-                if node.kind == SyntaxKind::Name && self.object_requires_separation(&name) =>
+                if node.kind == SyntaxKind::Name && self.object_requires_separation(&name.name) =>
             {
                 format!("({}).terrane_separate()", self.expression(node))
             }
@@ -3141,7 +3182,10 @@ impl Emitter<'_> {
                     .iter()
                     .enumerate()
                     .map(|(index, parameter)| {
-                        format!("argument_{index}: {}", rust_element_type(parameter.clone()))
+                        format!(
+                            "argument_{index}: {}",
+                            rust_element_type(self.package, parameter.clone())
+                        )
                     })
                     .collect::<Vec<_>>()
                     .join(", ");
@@ -3167,7 +3211,10 @@ impl Emitter<'_> {
                     .iter()
                     .enumerate()
                     .map(|(index, parameter)| {
-                        format!("argument_{index}: {}", rust_element_type(parameter.clone()))
+                        format!(
+                            "argument_{index}: {}",
+                            rust_element_type(self.package, parameter.clone())
+                        )
                     })
                     .collect::<Vec<_>>()
                     .join(", ");
@@ -3236,8 +3283,8 @@ impl Emitter<'_> {
             .collect::<Vec<_>>();
         format!(
             "terrane_collection_support::{kind}::<{}, {}>::new(vec![{}])",
-            rust_element_type(key),
-            rust_element_type(value),
+            rust_element_type(self.package, key),
+            rust_element_type(self.package, value),
             entries.join(", ")
         )
     }
@@ -4180,7 +4227,7 @@ impl Emitter<'_> {
                 .join(", ");
             return format!(
                 "{}::terrane_construct({values})",
-                rust_object_name(&object.name)
+                rust_object_type_name(self.package, &object.identity)
             );
         }
         if callee.kind == SyntaxKind::MemberExpression
@@ -4361,7 +4408,7 @@ impl Emitter<'_> {
                 .collect::<Vec<_>>();
             return format!(
                 "terrane_collection_support::Iterator::<{}>::new(vec![{}])",
-                rust_element_type(item_type),
+                rust_element_type(self.package, item_type),
                 values.join(", ")
             );
         }
@@ -4394,7 +4441,7 @@ impl Emitter<'_> {
                     .collect::<Vec<_>>();
                 return format!(
                     "terrane_collection_support::{kind}::<{}>::new(vec![{}])",
-                    rust_element_type(item),
+                    rust_element_type(self.package, item),
                     values.join(", ")
                 );
             }
@@ -4412,8 +4459,8 @@ impl Emitter<'_> {
                 ];
                 return format!(
                     "terrane_collection_support::Entry::<{}, {}>::new({}, {})",
-                    rust_element_type(key),
-                    rust_element_type(value),
+                    rust_element_type(self.package, key),
+                    rust_element_type(self.package, value),
                     values[0],
                     values[1]
                 );
@@ -4902,11 +4949,15 @@ impl Emitter<'_> {
         };
         let call = format!("{name}({})", values.join(", "));
         let foreign_method = contract.as_ref().and_then(|contract| {
-            contract.owner.as_ref().and_then(|owner| {
-                self.package
-                    .projection
-                    .method(&self.unit.namespace, owner, &contract.name)
-            })
+            let [receiver, _member] = callee.children.as_slice() else {
+                return None;
+            };
+            let ValueType::Object(identity) = self.value_type(receiver)? else {
+                return None;
+            };
+            self.package
+                .projection
+                .method(&identity.namespace, &identity.name, &contract.name)
         });
         let foreign_error = foreign_method.is_some()
             || (callee.kind == SyntaxKind::Name
@@ -4919,14 +4970,16 @@ impl Emitter<'_> {
                         matches!(&item.kind, crate::projection::ProjectedKind::Function(_))
                     }));
         let call = if let Some(method) = foreign_method {
-            let owner = contract
-                .as_ref()
-                .and_then(|contract| contract.owner.as_deref())
-                .expect("foreign methods have an owner");
+            let [receiver, _member] = callee.children.as_slice() else {
+                unreachable!("projected methods have a receiver")
+            };
+            let Some(ValueType::Object(identity)) = self.value_type(receiver) else {
+                unreachable!("projected method receiver has an object type")
+            };
             let type_path = self
                 .package
                 .projection
-                .foreign_rust_path(&self.unit.namespace, owner)
+                .foreign_rust_path(&identity.namespace, &identity.name)
                 .expect("foreign method owner has a projected Rust path");
             let dependency = type_path.split("::").next().unwrap_or("dependency");
             let member = format!("{type_path}::{}", method.name);
@@ -5398,7 +5451,7 @@ impl Emitter<'_> {
                 .unit
                 .objects
                 .iter()
-                .find(|object| object.name == object_name)
+                .find(|object| object.identity == object_name)
         {
             return effective_object_methods(self.unit, object)
                 .into_iter()
@@ -5686,7 +5739,7 @@ impl Emitter<'_> {
         self.unit
             .objects
             .iter()
-            .find(|object| object.name == identity)
+            .find(|object| object.identity == identity)
             .is_some_and(|object| {
                 !self
                     .package
@@ -5711,7 +5764,7 @@ impl Emitter<'_> {
             .unit
             .objects
             .iter()
-            .find(|object| object.name == identity)
+            .find(|object| object.identity == identity)
         else {
             return false;
         };
@@ -5730,32 +5783,15 @@ impl Emitter<'_> {
             .units
             .iter()
             .flat_map(|unit| &unit.objects)
-            .any(|object| object.name == *identity && object.resource_owning)
+            .any(|object| object.identity == *identity && object.resource_owning)
     }
 
-    fn object_owns_resource(&self, node: &SyntaxNode, name: &str) -> bool {
-        let declaration = self
-            .package
-            .resolve_name_at(self.unit, node.span.start, name)
-            .and_then(|symbol| symbol.declaration_span)
-            .or_else(|| {
-                let mut matches = self
-                    .unit
-                    .objects
-                    .iter()
-                    .filter(|object| object.name == name)
-                    .map(|object| object.span);
-                let span = matches.next()?;
-                matches.all(|candidate| candidate == span).then_some(span)
-            });
-        declaration
-            .and_then(|declaration| {
-                self.package
-                    .units
-                    .iter()
-                    .flat_map(|unit| &unit.objects)
-                    .find(|object| object.span == declaration)
-            })
+    fn object_owns_resource(&self, _node: &SyntaxNode, identity: &ObjectIdentity) -> bool {
+        self.package
+            .units
+            .iter()
+            .flat_map(|unit| &unit.objects)
+            .find(|object| object.identity == *identity)
             .is_some_and(|object| object.resource_owning)
     }
 
@@ -5775,7 +5811,7 @@ impl Emitter<'_> {
                 })
             || (object.kind == ObjectKind::Interface
                 && self.unit.objects.iter().any(|candidate| {
-                    candidate.interfaces.contains(&object.name)
+                    candidate.interfaces.contains(&object.identity)
                         && (effective_object_methods(self.unit, candidate)
                             .iter()
                             .any(|method| method.name == "destruct")
@@ -6036,18 +6072,18 @@ fn effective_object_fields<'a>(
         object: &'a ObjectContract,
         fields: &mut Vec<&'a ObjectField>,
     ) {
-        if let Some(base) = object
-            .base
-            .as_deref()
-            .and_then(|name| unit.objects.iter().find(|object| object.name == name))
-        {
+        if let Some(base) = object.base.as_ref().and_then(|identity| {
+            unit.objects
+                .iter()
+                .find(|object| object.identity == *identity)
+        }) {
             collect(unit, base, fields);
         }
         for reused in &object.traits {
             if let Some(reused) = unit
                 .objects
                 .iter()
-                .find(|candidate| candidate.name == *reused)
+                .find(|candidate| candidate.identity == *reused)
             {
                 collect(unit, reused, fields);
             }
@@ -6075,16 +6111,16 @@ fn object_descendants<'a>(
     unit.objects
         .iter()
         .filter(|candidate| {
-            let mut base = candidate.base.as_deref();
-            while let Some(name) = base {
-                if name == object.name {
+            let mut base = candidate.base.as_ref();
+            while let Some(identity) = base {
+                if identity == &object.identity {
                     return true;
                 }
                 base = unit
                     .objects
                     .iter()
-                    .find(|candidate| candidate.name == name)
-                    .and_then(|candidate| candidate.base.as_deref());
+                    .find(|candidate| candidate.identity == *identity)
+                    .and_then(|candidate| candidate.base.as_ref());
             }
             false
         })
@@ -6094,14 +6130,18 @@ fn object_descendants<'a>(
 fn effective_object_interfaces<'a>(
     unit: &'a SemanticUnit,
     object: &'a ObjectContract,
-) -> Vec<&'a str> {
+) -> Vec<&'a ObjectIdentity> {
     let mut interfaces = object
         .base
-        .as_deref()
-        .and_then(|name| unit.objects.iter().find(|candidate| candidate.name == name))
+        .as_ref()
+        .and_then(|identity| {
+            unit.objects
+                .iter()
+                .find(|candidate| candidate.identity == *identity)
+        })
         .map_or_else(Vec::new, |base| effective_object_interfaces(unit, base));
     for interface in &object.interfaces {
-        if !interfaces.contains(&interface.as_str()) {
+        if !interfaces.contains(&interface) {
             interfaces.push(interface);
         }
     }
@@ -6114,8 +6154,12 @@ fn object_destructor_chain<'a>(
 ) -> Vec<&'a FunctionContract> {
     let mut destructors = object
         .base
-        .as_deref()
-        .and_then(|name| unit.objects.iter().find(|candidate| candidate.name == name))
+        .as_ref()
+        .and_then(|identity| {
+            unit.objects
+                .iter()
+                .find(|candidate| candidate.identity == *identity)
+        })
         .map_or_else(Vec::new, |base| object_destructor_chain(unit, base));
     if let Some(destructor) = unit.functions.iter().find(|method| {
         method.owner.as_deref() == Some(object.name.as_str()) && method.name == "destruct"
@@ -6134,18 +6178,18 @@ fn effective_object_methods<'a>(
         object: &'a ObjectContract,
         methods: &mut Vec<&'a FunctionContract>,
     ) {
-        if let Some(base) = object
-            .base
-            .as_deref()
-            .and_then(|name| unit.objects.iter().find(|object| object.name == name))
-        {
+        if let Some(base) = object.base.as_ref().and_then(|identity| {
+            unit.objects
+                .iter()
+                .find(|object| object.identity == *identity)
+        }) {
             collect(unit, base, methods);
         }
         for reused in &object.traits {
             if let Some(reused) = unit
                 .objects
                 .iter()
-                .find(|candidate| candidate.name == *reused)
+                .find(|candidate| candidate.identity == *reused)
             {
                 collect(unit, reused, methods);
             }
@@ -6205,15 +6249,15 @@ fn rust_type(ty: ScalarType) -> &'static str {
     clippy::needless_pass_by_value,
     reason = "element lowering owns the recursively described value type"
 )]
-fn rust_element_type(ty: ElementType) -> String {
-    rust_value_type(ty.value_type())
+fn rust_element_type(package: &SemanticPackage, ty: ElementType) -> String {
+    rust_value_type(package, ty.value_type())
 }
 
 #[expect(
     clippy::too_many_lines,
     reason = "the closed semantic value-type enum has one exhaustive Rust representation mapping"
 )]
-fn rust_value_type(ty: ValueType) -> String {
+fn rust_value_type(package: &SemanticPackage, ty: ValueType) -> String {
     match ty {
         ValueType::Scalar(scalar) => rust_type(scalar).to_owned(),
         ValueType::ScalarOrNone(scalar) => format!("Option<{}>", rust_type(scalar)),
@@ -6232,56 +6276,56 @@ fn rust_value_type(ty: ValueType) -> String {
         ValueType::Iterator(item) => {
             format!(
                 "terrane_collection_support::Iterator<{}>",
-                rust_element_type(item)
+                rust_element_type(package, item)
             )
         }
         ValueType::IterationStep(item) => {
             format!(
                 "terrane_collection_support::IterationStep<{}>",
-                rust_element_type(item)
+                rust_element_type(package, item)
             )
         }
         ValueType::ElementOrNone(item) => {
-            format!("Option<{}>", rust_element_type(item))
+            format!("Option<{}>", rust_element_type(package, item))
         }
         ValueType::List(item) => {
             format!(
                 "terrane_collection_support::List<{}>",
-                rust_element_type(item)
+                rust_element_type(package, item)
             )
         }
         ValueType::Map(key, value) => format!(
             "terrane_collection_support::Map<{}, {}>",
-            rust_element_type(key),
-            rust_element_type(value)
+            rust_element_type(package, key),
+            rust_element_type(package, value)
         ),
         ValueType::Set(item) => {
             format!(
                 "terrane_collection_support::Set<{}>",
-                rust_element_type(item)
+                rust_element_type(package, item)
             )
         }
         ValueType::Tuple(item, _) => {
             format!(
                 "terrane_collection_support::Tuple<{}>",
-                rust_element_type(item)
+                rust_element_type(package, item)
             )
         }
         ValueType::Range => "terrane_collection_support::Range".to_owned(),
         ValueType::Entry(key, value) => format!(
             "terrane_collection_support::Entry<{}, {}>",
-            rust_element_type(key),
-            rust_element_type(value)
+            rust_element_type(package, key),
+            rust_element_type(package, value)
         ),
         ValueType::UnorderedMap(key, value) => format!(
             "terrane_collection_support::UnorderedMap<{}, {}>",
-            rust_element_type(key),
-            rust_element_type(value)
+            rust_element_type(package, key),
+            rust_element_type(package, value)
         ),
         ValueType::UnorderedSet(item) => {
             format!(
                 "terrane_collection_support::UnorderedSet<{}>",
-                rust_element_type(item)
+                rust_element_type(package, item)
             )
         }
         ValueType::TextRangeList => "Vec<terrane_string_support::TextRange>".to_owned(),
@@ -6289,32 +6333,32 @@ fn rust_value_type(ty: ValueType) -> String {
             "std::sync::Arc<dyn Fn({}) -> {} + Send + Sync>",
             parameters
                 .into_iter()
-                .map(rust_element_type)
+                .map(|parameter| rust_element_type(package, parameter))
                 .collect::<Vec<_>>()
                 .join(", "),
-            rust_element_type(result)
+            rust_element_type(package, result)
         ),
         ValueType::AsyncFunction(parameters, result) => format!(
             "std::sync::Arc<dyn Fn({}) -> std::pin::Pin<Box<dyn Future<Output = {}>>> + Send + Sync>",
             parameters
                 .into_iter()
-                .map(rust_element_type)
+                .map(|parameter| rust_element_type(package, parameter))
                 .collect::<Vec<_>>()
                 .join(", "),
-            rust_element_type(result)
+            rust_element_type(package, result)
         ),
         ValueType::Task(result) => {
             format!(
                 "std::pin::Pin<Box<dyn Future<Output = {}>>>",
-                rust_element_type(result)
+                rust_element_type(package, result)
             )
         }
         ValueType::ScopedTask(result) => {
-            format!("TerraneScopedTask<{}>", rust_element_type(result))
+            format!("TerraneScopedTask<{}>", rust_element_type(package, result))
         }
         ValueType::TaskScope => "TerraneTaskScope".to_owned(),
         ValueType::TaskOutcome(result) => {
-            format!("TerraneTaskOutcome<{}>", rust_element_type(result))
+            format!("TerraneTaskOutcome<{}>", rust_element_type(package, result))
         }
         ValueType::PlatformStreamHandle => "TerranePlatformStreamHandle".to_owned(),
         ValueType::FilesystemAuthority => "TerraneFilesystemAuthority".to_owned(),
@@ -6330,14 +6374,14 @@ fn rust_value_type(ty: ValueType) -> String {
             "TerranePlatformCapability".to_owned()
         }
         ValueType::PlatformResult => "TerranePlatformResult".to_owned(),
-        ValueType::Object(name) => rust_object_name(&name),
+        ValueType::Object(identity) => rust_object_type_name(package, &identity),
         ValueType::SharedReference(item) => format!(
             "std::sync::Arc<std::sync::Mutex<{}>>",
-            rust_element_type(item)
+            rust_element_type(package, item)
         ),
         ValueType::Reference(item) => format!(
             "std::sync::Weak<std::sync::Mutex<{}>>",
-            rust_element_type(item)
+            rust_element_type(package, item)
         ),
     }
 }
@@ -6513,6 +6557,27 @@ fn rust_object_name(name: &str) -> String {
             }
         })
         .collect()
+}
+
+fn rust_object_type_name(package: &SemanticPackage, identity: &ObjectIdentity) -> String {
+    let collides = package
+        .units
+        .iter()
+        .flat_map(|unit| &unit.objects)
+        .filter(|object| object.identity.name == identity.name)
+        .map(|object| &object.identity)
+        .collect::<std::collections::BTreeSet<_>>()
+        .len()
+        > 1;
+    if !collides {
+        return rust_object_name(&identity.name);
+    }
+    let mut namespace = String::new();
+    for segment in identity.namespace.trim_start_matches('/').split('/') {
+        write!(namespace, "{}{}", segment.len(), rust_object_name(segment))
+            .expect("writing to a string cannot fail");
+    }
+    format!("TerraneNs{namespace}{}", rust_object_name(&identity.name))
 }
 
 fn rust_name(name: &str) -> String {
