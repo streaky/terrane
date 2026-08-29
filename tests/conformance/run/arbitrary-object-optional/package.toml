@@ -1,0 +1,5 @@
+package = "arbitrary-object-optional"
+prelude = true
+
+[namespaces]
+app = "src"

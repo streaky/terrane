@@ -3003,6 +3003,18 @@ impl Emitter<'_> {
                 )
             };
         }
+        if let ValueType::Optional(inner) = value_type {
+            let actual = self.value_type(node);
+            return if actual == Some(ValueType::Optional(inner.clone())) {
+                self.expression(node)
+            } else if self.text(node).trim() == "none"
+                || actual == Some(ValueType::Scalar(ScalarType::None))
+            {
+                "None".to_owned()
+            } else {
+                format!("Some({})", self.expression_as(node, *inner))
+            };
+        }
         if matches!(value_type, ValueType::Reference(_))
             && node.kind == SyntaxKind::UnaryExpression
             && self.unary_operator(node).as_deref() == Some("ref")
@@ -3510,6 +3522,7 @@ impl Emitter<'_> {
                 value_type,
                 Some(
                     ValueType::ScalarOrNone(_)
+                        | ValueType::Optional(_)
                         | ValueType::TextRangeOrNone
                         | ValueType::ElementOrNone(_)
                 )
@@ -3683,11 +3696,18 @@ impl Emitter<'_> {
         {
             return result.is_ok().to_string();
         }
-        if let Some(ValueType::ScalarOrNone(inner)) = value_type {
+        let optional_inner = match value_type.clone() {
+            Some(ValueType::ScalarOrNone(inner)) => Some(ValueType::Scalar(inner)),
+            Some(ValueType::Optional(inner)) => Some(*inner),
+            _ => None,
+        };
+        if let Some(inner) = optional_inner {
             let value = self.expression(value);
             return match descriptor_type {
                 Some(ScalarType::None) => format!("({value}).is_none()"),
-                Some(descriptor) if descriptor == inner => format!("({value}).is_some()"),
+                Some(descriptor) if inner == ValueType::Scalar(descriptor) => {
+                    format!("({value}).is_some()")
+                }
                 _ => format!("{{ let _ = {value}; false }}"),
             };
         }
@@ -3714,9 +3734,21 @@ impl Emitter<'_> {
         value_type: Option<ValueType>,
         category: TypeCategory,
     ) -> String {
-        if let Some(ValueType::ScalarOrNone(inner)) = value_type {
+        let optional_inner = match value_type.clone() {
+            Some(ValueType::ScalarOrNone(inner)) => Some(ValueType::Scalar(inner)),
+            Some(ValueType::Optional(inner)) => Some(*inner),
+            _ => None,
+        };
+        if let Some(inner) = optional_inner {
             let value = self.expression(node);
-            return if inner.conforms_to(category) {
+            let conforms = match inner {
+                ValueType::Scalar(scalar) => scalar.conforms_to(category),
+                ValueType::Object(_) => {
+                    matches!(category, TypeCategory::Value | TypeCategory::Object)
+                }
+                _ => false,
+            };
+            return if conforms {
                 format!("({value}).is_some()")
             } else {
                 format!("{{ let _ = {value}; false }}")

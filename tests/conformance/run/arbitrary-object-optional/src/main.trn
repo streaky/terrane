@@ -1,0 +1,6 @@
+namespace app
+class widget
+function main;
+  value widget|none = none
+  if value is a none
+    print; >empty

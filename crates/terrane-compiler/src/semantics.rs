@@ -5664,7 +5664,10 @@ fn analyze_binding_node(
         } else {
             return Ok(());
         };
-    let destination_arms = if matches!(value_type, ValueType::ScalarOrNone(_)) {
+    let destination_arms = if matches!(
+        value_type,
+        ValueType::ScalarOrNone(_) | ValueType::Optional(_)
+    ) {
         Vec::new()
     } else {
         declared
