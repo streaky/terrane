@@ -581,3 +581,22 @@ fn dependency_effect_outside_selected_profile_is_rejected() {
             .contains("forbids effect `networking`")
     }));
 }
+
+#[test]
+fn unknown_capability_and_effect_names_are_rejected() {
+    let package = TempPackage::new();
+    package.write(
+        "package.toml",
+        "package = \"profiled\"\n[profile]\ncapabilities = [\"networking\", \"telepathy\"]\n[namespaces]\napp = \"src\"\n[rust-dependencies.http]\npackage = \"httpdate\"\nversion = \"=1.0.3\"\neffects = [\"networking\", \"prophecy\"]\n",
+    );
+    package.write("src/main.trn", "namespace app\nfunction main;\n");
+
+    let errors = Package::load(&package.0).unwrap_err();
+    let messages = errors
+        .iter()
+        .map(|error| error.diagnostic.message.as_str())
+        .collect::<Vec<_>>();
+
+    assert!(messages.contains(&"unknown profile capability `telepathy`"));
+    assert!(messages.contains(&"Rust dependency `http` declares unknown effect `prophecy`"));
+}

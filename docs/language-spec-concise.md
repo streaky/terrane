@@ -772,6 +772,7 @@ prelude = true            # optional; defaults true
 "example/tools" = "src"
 "example/generated" = "generated"
 ```
+- Optional `[profile]`: `name` defaults to `default`; `capabilities` is an effect allowlist; `panic` is `unwind` (default) or `abort`. Rust dependency `effects` must all be allowed by the selected profile or manifest resolution rejects the dependency.
 - Authored manifest filename: `package.toml`; syntax is TOML; unknown fields rejected.
 - `namespaces`: canonical namespace-root keys mapped to distinct, relative directory roots; no absolute/parent paths. Source discovery recursively includes `.trn` files only, resolves overlapping mappings by longest namespace prefix, and assigns stable file IDs in sorted package-relative path order.
 - Every discovered declaration must equal the namespace derived from its mapping and relative parent directory. Duplicate mapped directories and mapped roots containing no `.trn` files are manifest-load errors.
@@ -814,12 +815,12 @@ bridging: generated Rust shims ONLY for projected members source crosses; direct
 projection: one lock-resolved rustdoc artifact shared by compiler and LSP; verbatim names; module namespaces; functions/methods/trait receiver-functions/opaque types/enums; every decline has a reason
 projected_reexports: resolve to canonical Rust item path before assigning namespace-qualified identity; re-export and definition are one type; distinct same-named sibling items remain distinct; generated imports deduplicate canonical paths
 types: Option<T> => T|none; Result<T,E> => T throws projected-E; &self => shared receiver; &mut self => mutable-receiver contract; self => move. Borrowed receivers use ordinary member-call syntax; the contract drives Rust borrowing and mutable binding
-panic: unwinding profile converts crossing panic to dependency-panic; abort profile claims no containment
+panic: unwinding profile converts crossing panic to dependency-panic; abort profile emits no catch boundary and generated Cargo uses panic=abort. Receiver crossings use an explicit AssertUnwindSafe boundary because foreign receiver state is the captured logical invariant; receiver-free crossings retain Rust's UnwindSafe proof
 tooling: completion/signature/hover and declined reasons are ADVISORY; Cargo/rustc remain authoritative
-execution: Rust inspection is compilation under build-script capability/containment policy; arbitrary foreign-runtime inspection remains forbidden
-cache_identity: manifest + lock checksum + features/default-feature policy + target + toolchain + package source checksums + sandbox tier; project-local cache keeps current + at most 3 prior projections, not durable version-diagnostic history
-containment: fetch may be online; compilation is offline/frozen and reports whether enforcement was available
-lock_change_diagnostic: a removed crossed member is diagnosed as missing at its Terrane import/use; distinguishing removal from a never-present member and naming the version change are deferred until projection history is retained
+execution: Rust inspection and generated-crate compilation use the build capability policy; fetch may be online, then compilation is offline/frozen
+cache_identity: manifest + lock checksum + features/default-feature policy + target + toolchain + package source checksums + sandbox tier; project-local cache keeps current + at most 3 prior projections
+containment: bwrap-capable hosts contain compilation; other hosts report the unavailable tier and continue under declared host policy
+lock_change_diagnostic: machine-independent terrane-projection.lock history distinguishes a removed crossed member from a never-present member; S2031 names the member and dependency version change
 foreign_specialisation: 'from python/x import y' names a crossing point, not an API import; adapters define boundary behaviour
 ```
 

@@ -1,0 +1,4 @@
+namespace app
+from /deps/date-codec import removed_parser
+function main;
+    removed_parser;

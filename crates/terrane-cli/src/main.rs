@@ -295,21 +295,20 @@ fn run_cargo(
     let contained =
         has_rust_dependencies && containment == terrane_compiler::projection::Containment::Enforced;
     if has_rust_dependencies {
-        if contained {
-            let fetch = Command::new("cargo")
-                .args(["fetch", "--manifest-path"])
-                .arg(crate_dir.join("Cargo.toml"))
-                .output()
-                .map_err(|error| {
-                    CliFailure::backend(format!("failed to fetch generated dependencies: {error}"))
-                })?;
-            if !fetch.status.success() {
-                return Err(CliFailure::backend(format!(
-                    "Cargo dependency fetch failed: {}",
-                    String::from_utf8_lossy(&fetch.stderr).trim()
-                )));
-            }
-        } else {
+        let fetch = Command::new("cargo")
+            .args(["fetch", "--manifest-path"])
+            .arg(crate_dir.join("Cargo.toml"))
+            .output()
+            .map_err(|error| {
+                CliFailure::backend(format!("failed to fetch generated dependencies: {error}"))
+            })?;
+        if !fetch.status.success() {
+            return Err(CliFailure::backend(format!(
+                "Cargo dependency fetch failed: {}",
+                String::from_utf8_lossy(&fetch.stderr).trim()
+            )));
+        }
+        if !contained {
             eprintln!(
                 "warning: generated dependency build containment is unavailable; using declared host tier"
             );
@@ -360,7 +359,7 @@ fn run_cargo(
         "--manifest-path",
     ]);
     cargo.arg(crate_dir.join("Cargo.toml"));
-    if contained {
+    if has_rust_dependencies {
         cargo.args(["--offline", "--frozen"]);
     }
     let output = cargo
@@ -813,6 +812,30 @@ mod tests {
         let identities = fs::read_dir(&directory).unwrap().count();
         assert_eq!(identities, 8);
         assert!(directory.join("09").is_dir());
+        fs::remove_dir_all(directory).unwrap();
+    }
+    #[test]
+    fn abort_profile_configures_generated_cargo_manifest() {
+        let directory =
+            std::env::temp_dir().join(format!("terrane-abort-profile-{}", std::process::id()));
+        if directory.exists() {
+            fs::remove_dir_all(&directory).unwrap();
+        }
+
+        assert!(
+            write_generated_crate(
+                &directory,
+                &[],
+                &[],
+                &[],
+                terrane_compiler::PanicProfile::Abort,
+                false,
+            )
+            .is_ok()
+        );
+
+        let manifest = fs::read_to_string(directory.join("Cargo.toml")).unwrap();
+        assert!(manifest.contains("[profile.dev]\npanic = \"abort\"\n"));
         fs::remove_dir_all(directory).unwrap();
     }
 }

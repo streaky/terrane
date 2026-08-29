@@ -3731,6 +3731,22 @@ roots; absolute paths, paths containing `..`, duplicate directory roots, and
 roots containing no `.trn` source are invalid. `prelude` is an optional boolean
 and defaults to `true`.
 
+The optional `profile` table selects dependency build capability and panic policy. `name` defaults to
+`default`, `capabilities` is an optional allowlist of effect names, and `panic` is `unwind` (the
+default) or `abort`. Each Rust dependency may declare an `effects` string array; manifest resolution
+rejects an effect absent from the selected profile before projection or generated compilation:
+
+```toml
+[profile]
+name = "service"
+capabilities = ["networking", "tls"]
+panic = "unwind"
+
+[rust-dependencies.reqwest]
+version = "0.12"
+effects = ["networking", "tls"]
+```
+
 The package manager must produce a lockfile covering:
 
 - native package versions and content hashes;
@@ -3788,7 +3804,7 @@ The compiler generates Rust shims only for projected members crossed by Terrane 
 
 Cargo and rustc remain authoritative. Projection and editor information are advisory and derived from the resolved package rather than predefined by Terrane. The language server uses the shared artifact for completion, signature help, hover, exact Rust paths, and declined-item reasons. Projection executes under the build-script capability policy without arbitrary foreign-runtime introspection.
 
-The generated dependency crate graph preserves the manifest's selected features and default-feature policy, compiles offline and frozen after resolution, and records whether containment was enforced. Its cache identity covers the manifest, lock checksum, selected features, target triple, Rust toolchain, package source checksums, and sandbox tier. The project-local cache retains the current projection and at most three prior projection artifacts for ordinary rollback and editor churn; this bounded operational history is not the durable, machine-independent history required for version-aware diagnostics. A lock update that removes a crossed projected member is diagnosed as missing at its Terrane import or use site rather than exposed as an unexplained rustc error in generated source; distinguishing removal from a never-present member and naming the version change are deferred until durable projection history is retained.
+The generated dependency crate graph preserves the manifest's selected features and default-feature policy, compiles offline and frozen after an online fetch, and records whether containment was enforced. Platforms with `bwrap` contain rustdoc and generated-crate compilation; platforms without it report the unavailable tier and continue under the declared host policy. Its cache identity covers the manifest, lock checksum, selected features, target triple, Rust toolchain, package source checksums, and sandbox tier. The project-local cache retains the current projection and at most three prior projection artifacts for ordinary rollback and editor churn. Machine-independent `terrane-projection.lock` history records projected members by resolved dependency version; a lock update that removes a crossed member produces `S2031` at the Terrane import with the member and version change.
 
 ### 23.9 System and C libraries
 

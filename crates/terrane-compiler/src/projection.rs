@@ -12,7 +12,7 @@ use sha2::{Digest, Sha256};
 use crate::RustDependency;
 
 pub const RUSTDOC_TOOLCHAIN: &str = "nightly-2026-04-29";
-const PROJECTION_SCHEMA: &str = "5";
+const PROJECTION_SCHEMA: &str = "7";
 const MAX_PROJECTION_CACHE_RECORDS: usize = 4;
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
@@ -60,9 +60,15 @@ pub struct RemovedItem {
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 struct ProjectionHistory {
+    #[serde(default = "projection_history_format")]
+    format: u32,
     dependencies: Vec<ProjectionHistoryDependency>,
     #[serde(default)]
     removed: Vec<RemovedItem>,
+}
+
+fn projection_history_format() -> u32 {
+    1
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
@@ -84,9 +90,13 @@ pub struct ProjectedItem {
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub enum ProjectedKind {
     Function(ProjectedFunction),
-    ForeignType { methods: Vec<ProjectedFunction> },
-    Enum { data_carrying: bool },
-    Trait,
+    ForeignType {
+        methods: Vec<ProjectedFunction>,
+    },
+    Enum {
+        data_carrying: bool,
+        comparable: bool,
+    },
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
@@ -316,6 +326,24 @@ impl Projection {
                 _ => None,
             })
     }
+
+    #[must_use]
+    pub(crate) fn is_unit_variant(&self, item: &ProjectedItem) -> bool {
+        self.dependencies
+            .iter()
+            .flat_map(|dependency| &dependency.items)
+            .any(|candidate| {
+                matches!(
+                    candidate.kind,
+                    ProjectedKind::Enum {
+                        data_carrying: false,
+                        ..
+                    }
+                ) && item
+                    .rust_path
+                    .starts_with(&format!("{}::", candidate.rust_path))
+            })
+    }
 }
 
 fn expanded_source_imports(
@@ -398,7 +426,6 @@ fn collect_source_foreign(
             ProjectedKind::Enum { .. } => {
                 foreign.insert(item.rust_path.clone(), item.name.clone());
             }
-            ProjectedKind::Trait => {}
         }
     }
     loop {
@@ -662,11 +689,23 @@ fn apply_projection_history(
 ) -> Result<(), ProjectionError> {
     let path = root.join("terrane-projection.lock");
     let previous = match fs::read(&path) {
-        Ok(bytes) => Some(serde_json::from_slice::<ProjectionHistory>(&bytes).map_err(
-            |error| ProjectionError {
-                message: format!("invalid projection history `{}`: {error}", path.display()),
-            },
-        )?),
+        Ok(bytes) => {
+            let history = serde_json::from_slice::<ProjectionHistory>(&bytes).map_err(|error| {
+                ProjectionError {
+                    message: format!("invalid projection history `{}`: {error}", path.display()),
+                }
+            })?;
+            if history.format != 1 {
+                return Err(ProjectionError {
+                    message: format!(
+                        "unsupported projection history format {} in `{}`",
+                        history.format,
+                        path.display()
+                    ),
+                });
+            }
+            Some(history)
+        }
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => None,
         Err(error) => {
             return Err(ProjectionError {
@@ -731,12 +770,14 @@ fn apply_projection_history(
         .sort_by(|left, right| (&left.namespace, &left.name).cmp(&(&right.namespace, &right.name)));
     projection.removed.clone_from(&removed);
     let history = ProjectionHistory {
+        format: 1,
         dependencies,
         removed,
     };
-    let bytes = serde_json::to_vec_pretty(&history).map_err(|error| ProjectionError {
+    let mut bytes = serde_json::to_vec_pretty(&history).map_err(|error| ProjectionError {
         message: format!("cannot serialize projection history: {error}"),
     })?;
+    bytes.push(b'\n');
     write_if_changed(&path, &bytes)
 }
 
@@ -937,10 +978,22 @@ fn project_rustdoc(
                 .or_insert(candidate);
         }
     }
+    let mut resolved_paths = paths.clone();
+    for (id, public_path) in &public_paths {
+        if let Some(summary) = resolved_paths.get_mut(id) {
+            summary["path"] = Value::Array(
+                public_path
+                    .split("::")
+                    .map(|segment| Value::String(segment.to_owned()))
+                    .collect(),
+            );
+        }
+    }
     let mut items = Vec::new();
     let mut projected_enum_items = Vec::new();
     let mut declined = Vec::new();
     let mut projected_trait_items = Vec::new();
+    let mut projected_associated_items = Vec::new();
     for (id, summary) in paths {
         if summary["crate_id"].as_u64() != Some(0) {
             continue;
@@ -964,13 +1017,23 @@ fn project_rustdoc(
         let docs = item["docs"].as_str().map(str::to_owned);
         let inner = &item["inner"];
         let projected = if let Some(function) = inner.get("function") {
-            project_function(function, index, paths, Some(&name)).map(ProjectedKind::Function)
+            project_function(function, index, &resolved_paths, Some(&name))
+                .map(ProjectedKind::Function)
         } else if let Some(structure) = inner.get("struct") {
             if has_type_parameters(structure) {
                 Err("type has generic or lifetime parameters".to_owned())
             } else {
                 let (methods, trait_methods, method_declines) =
-                    project_methods(structure, index, paths, &rust_path);
+                    project_methods(structure, index, &resolved_paths, &rust_path);
+                for method in methods.iter().filter(|method| method.receiver.is_none()) {
+                    projected_associated_items.push(ProjectedItem {
+                        namespace: namespace.clone(),
+                        name: method.name.clone(),
+                        rust_path: format!("{rust_path}::{}", method.name),
+                        docs: None,
+                        kind: ProjectedKind::Function(method.clone()),
+                    });
+                }
                 for (trait_path, method) in trait_methods {
                     let trait_segments = trait_path
                         .split("::")
@@ -1005,7 +1068,7 @@ fn project_rustdoc(
                         value_id(id)
                             .and_then(|id| index.get(&id))
                             .and_then(|variant| variant["inner"]["variant"]["kind"].as_str())
-                            .is_none()
+                            != Some("plain")
                     })
                 });
                 if !data_carrying {
@@ -1036,10 +1099,18 @@ fn project_rustdoc(
                         });
                     }
                 }
-                Ok(ProjectedKind::Enum { data_carrying })
+                Ok(ProjectedKind::Enum {
+                    data_carrying,
+                    comparable: implements_trait(
+                        enumeration,
+                        index,
+                        &resolved_paths,
+                        "core::cmp::PartialEq",
+                    ),
+                })
             }
         } else if inner.get("trait").is_some() {
-            Ok(ProjectedKind::Trait)
+            continue;
         } else {
             Err("item kind has no Terrane projection".to_owned())
         };
@@ -1055,17 +1126,80 @@ fn project_rustdoc(
         }
     }
     items.extend(projected_enum_items);
-    for trait_item in projected_trait_items {
-        if items
-            .iter()
-            .any(|item| item.namespace == trait_item.namespace && item.name == trait_item.name)
+    projected_associated_items.sort_by(|left, right| {
+        (&left.namespace, &left.name, &left.rust_path).cmp(&(
+            &right.namespace,
+            &right.name,
+            &right.rust_path,
+        ))
+    });
+    let mut associated_index = 0;
+    while associated_index < projected_associated_items.len() {
+        let first = associated_index;
+        let key = (
+            projected_associated_items[first].namespace.clone(),
+            projected_associated_items[first].name.clone(),
+        );
+        while associated_index < projected_associated_items.len()
+            && projected_associated_items[associated_index].namespace == key.0
+            && projected_associated_items[associated_index].name == key.1
         {
-            declined.push(DeclinedItem {
-                rust_path: trait_item.rust_path,
-                reason: "trait method has multiple projected receiver implementations".to_owned(),
-            });
+            associated_index += 1;
+        }
+        if associated_index - first == 1
+            && !items
+                .iter()
+                .any(|item| item.namespace == key.0 && item.name == key.1)
+        {
+            items.push(projected_associated_items[first].clone());
         } else {
-            items.push(trait_item);
+            declined.extend(
+                projected_associated_items[first..associated_index]
+                    .iter()
+                    .map(|item| DeclinedItem {
+                        rust_path: item.rust_path.clone(),
+                        reason: "multiple receiver-free associated functions with the same projected name"
+                            .to_owned(),
+                    }),
+            );
+        }
+    }
+    projected_trait_items.sort_by(|left, right| {
+        (&left.namespace, &left.name, &left.rust_path).cmp(&(
+            &right.namespace,
+            &right.name,
+            &right.rust_path,
+        ))
+    });
+    let mut index = 0;
+    while index < projected_trait_items.len() {
+        let first = index;
+        let key = (
+            projected_trait_items[index].namespace.clone(),
+            projected_trait_items[index].name.clone(),
+        );
+        while index < projected_trait_items.len()
+            && projected_trait_items[index].namespace == key.0
+            && projected_trait_items[index].name == key.1
+        {
+            index += 1;
+        }
+        if index - first == 1
+            && !items
+                .iter()
+                .any(|item| item.namespace == key.0 && item.name == key.1)
+        {
+            items.push(projected_trait_items[first].clone());
+        } else {
+            declined.extend(
+                projected_trait_items[first..index]
+                    .iter()
+                    .map(|item| DeclinedItem {
+                        rust_path: item.rust_path.clone(),
+                        reason: "trait method has multiple concrete receiver implementations"
+                            .to_owned(),
+                    }),
+            );
         }
     }
     items
@@ -1138,7 +1272,7 @@ fn project_methods(
             let Some(item) = value_id(method_id).and_then(|id| index.get(&id)) else {
                 continue;
             };
-            if item["visibility"].as_str() != Some("public") {
+            if inherent && item["visibility"].as_str() != Some("public") {
                 continue;
             }
             let Some(name) = item["name"].as_str() else {
@@ -1152,10 +1286,11 @@ fn project_methods(
                 continue;
             };
             if !inherent {
-                let Some(trait_path) = resolved_name(&implementation["trait"], paths) else {
+                let Some(trait_path) = implementation_trait_path(&implementation["trait"], paths)
+                else {
                     declined.push((
                         name.to_owned(),
-                        "trait method has no stable canonical trait path".to_owned(),
+                        "trait method is not declared by this dependency crate".to_owned(),
                     ));
                     continue;
                 };
@@ -1248,11 +1383,17 @@ fn project_function(
             receiver = Some(receiver_kind(ty));
             continue;
         }
+        let projected_type = project_type(ty, index, paths, &generic_types)?;
+        let borrowed = ty.get("borrowed_ref").is_some();
+        let mutable_borrow = ty["borrowed_ref"]["is_mutable"].as_bool() == Some(true);
+        if mutable_borrow && !matches!(projected_type, ProjectedType::Foreign { .. }) {
+            return Err("mutable borrowed primitive parameters are not representable".to_owned());
+        }
         parameters.push(ProjectedParameter {
             name: safe_parameter_name(name),
-            ty: project_type(ty, index, paths, &generic_types)?,
-            borrowed: ty.get("borrowed_ref").is_some(),
-            mutable_borrow: ty["borrowed_ref"]["is_mutable"].as_bool() == Some(true),
+            ty: projected_type,
+            borrowed,
+            mutable_borrow,
         });
     }
     let mut error = None;
@@ -1435,6 +1576,36 @@ fn receiver_kind(ty: &Value) -> Receiver {
         }
     })
 }
+fn implementation_trait_path(
+    trait_path: &Value,
+    paths: &serde_json::Map<String, Value>,
+) -> Option<String> {
+    let id = trait_path["id"].as_u64()?.to_string();
+    let summary = paths.get(&id)?;
+    (summary["crate_id"].as_u64() == Some(0))
+        .then(|| string_array(&summary["path"]).join("::"))
+        .filter(|path| !path.is_empty())
+}
+
+fn implements_trait(
+    item: &Value,
+    index: &serde_json::Map<String, Value>,
+    paths: &serde_json::Map<String, Value>,
+    expected: &str,
+) -> bool {
+    string_or_number_array(&item["impls"])
+        .into_iter()
+        .any(|id| {
+            index
+                .get(&id)
+                .and_then(|implementation| implementation["inner"]["impl"]["trait"].as_object())
+                .and_then(|trait_path| trait_path.get("id"))
+                .and_then(Value::as_u64)
+                .map(|id| id.to_string())
+                .and_then(|id| paths.get(&id))
+                .is_some_and(|summary| string_array(&summary["path"]).join("::") == expected)
+        })
+}
 
 fn resolved_name(ty: &Value, paths: &serde_json::Map<String, Value>) -> Option<String> {
     let resolved = ty.get("resolved_path")?;
@@ -1466,7 +1637,7 @@ fn dependency_namespace(dependency: &RustDependency, path: &[String]) -> String 
     let modules = path
         .iter()
         .skip(1)
-        .map(|segment| segment.replace('_', "-"))
+        .map(|segment| segment.to_lowercase().replace('_', "-"))
         .collect::<Vec<_>>();
     if modules.is_empty() {
         format!("/deps/{}", dependency.name.replace('_', "-"))
@@ -1491,7 +1662,7 @@ pub fn namespace_for_rust_path(dependency: &ProjectedDependency, rust_path: &str
             dependency.name.replace('_', "-"),
             modules
                 .iter()
-                .map(|segment| segment.replace('_', "-"))
+                .map(|segment| segment.to_lowercase().replace('_', "-"))
                 .collect::<Vec<_>>()
                 .join("/")
         )
@@ -1669,13 +1840,14 @@ mod tests {
         fs,
     };
 
-    use serde_json::json;
+    use serde_json::{Value, json};
 
     use super::{
         Containment, ProjectedDependency, ProjectedFunction, ProjectedItem, ProjectedKind,
         ProjectedType, Projection, Receiver, apply_projection_history, has_type_parameters,
-        project_type, prune_projection_cache, receiver_kind,
+        project_rustdoc, project_type, prune_projection_cache, receiver_kind,
     };
+    use crate::RustDependency;
 
     #[test]
     fn type_parameter_guard_reads_destructured_type_descriptors() {
@@ -1884,6 +2056,139 @@ mod tests {
             .unwrap(),
             ProjectedType::RustInt("u32".to_owned())
         );
+    }
+
+    fn trait_and_enum_rustdoc() -> Value {
+        json!({
+            "crate_version": "1.0.0",
+            "paths": {
+                "0": {"crate_id": 0, "path": ["witness"]},
+                "1": {"crate_id": 0, "path": ["witness", "Reader"]},
+                "2": {"crate_id": 0, "path": ["witness", "Readable"]},
+                "5": {"crate_id": 0, "path": ["witness", "Mood"]},
+                "11": {"crate_id": 1, "path": ["core", "cmp", "PartialEq"]}
+            },
+            "index": {
+                "0": {
+                    "visibility": "public",
+                    "inner": {"module": {"items": [1, 2, 5]}}
+                },
+                "1": {
+                    "name": "Reader",
+                    "visibility": "public",
+                    "docs": null,
+                    "inner": {"struct": {"generics": {"params": []}, "impls": [3]}}
+                },
+                "2": {
+                    "name": "Readable",
+                    "visibility": "public",
+                    "inner": {"trait": {}}
+                },
+                "3": {
+                    "inner": {"impl": {
+                        "is_negative": false,
+                        "trait": {"id": 2},
+                        "items": [4]
+                    }}
+                },
+                "4": {
+                    "name": "remaining",
+                    "visibility": "default",
+                    "inner": {"function": {
+                        "header": {"is_unsafe": false, "is_async": false},
+                        "generics": {"params": []},
+                        "sig": {
+                            "inputs": [["self", {"borrowed_ref": {
+                                "is_mutable": false,
+                                "type": {"generic": "Self"}
+                            }}]],
+                            "output": {"primitive": "usize"}
+                        }
+                    }}
+                },
+                "5": {
+                    "name": "Mood",
+                    "visibility": "public",
+                    "docs": null,
+                    "inner": {"enum": {
+                        "generics": {"params": []},
+                        "variants": [6, 7],
+                        "impls": [10]
+                    }}
+                },
+                "6": {
+                    "name": "Calm",
+                    "docs": null,
+                    "inner": {"variant": {"kind": "plain"}}
+                },
+                "7": {
+                    "name": "Busy",
+                    "docs": null,
+                    "inner": {"variant": {"kind": "plain"}}
+                },
+                "10": {
+                    "inner": {"impl": {"trait": {"id": 11}}}
+                }
+            }
+        })
+    }
+
+    #[test]
+    fn rustdoc_projects_receiver_first_traits_and_comparable_enum_variants() {
+        let document = trait_and_enum_rustdoc();
+        let dependency = RustDependency {
+            name: "witness".to_owned(),
+            package: "witness".to_owned(),
+            version: "=1.0.0".to_owned(),
+            features: Vec::new(),
+            default_features: true,
+            target: None,
+            effects: Vec::new(),
+        };
+
+        let projected =
+            project_rustdoc(&dependency, &serde_json::to_vec(&document).unwrap()).unwrap();
+        let trait_method = projected
+            .items
+            .iter()
+            .find(|item| item.namespace == "/deps/witness/readable" && item.name == "remaining")
+            .expect("receiver-first trait method");
+        let ProjectedKind::Function(function) = &trait_method.kind else {
+            panic!("trait method must project as a function");
+        };
+        assert_eq!(function.result, ProjectedType::RustInt("usize".to_owned()));
+        assert_eq!(function.parameters.len(), 1);
+        assert!(function.parameters[0].borrowed);
+        assert_eq!(
+            function.parameters[0].ty,
+            ProjectedType::Foreign {
+                rust_path: "witness::Reader".to_owned(),
+                name: "Reader".to_owned(),
+            }
+        );
+        assert!(
+            projected
+                .items
+                .iter()
+                .any(|item| { item.namespace == "/deps/witness/mood" && item.name == "Calm" })
+        );
+        assert!(
+            projected
+                .items
+                .iter()
+                .any(|item| { item.namespace == "/deps/witness/mood" && item.name == "Busy" })
+        );
+        assert!(matches!(
+            projected
+                .items
+                .iter()
+                .find(|item| item.name == "Mood")
+                .map(|item| &item.kind),
+            Some(ProjectedKind::Enum {
+                data_carrying: false,
+                comparable: true,
+            })
+        ));
     }
 
     #[test]

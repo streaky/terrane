@@ -41,6 +41,12 @@ pub enum PanicProfile {
     Abort,
 }
 
+const CAPABILITY_NAMES: [&str; 4] = ["build", "filesystem", "networking", "tls"];
+
+fn is_capability_name(name: &str) -> bool {
+    CAPABILITY_NAMES.contains(&name)
+}
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct CapabilityProfile {
     pub name: String,
@@ -386,13 +392,21 @@ fn parse_capability_profile(
         .to_owned();
     let capabilities = match fields.get("capabilities") {
         Some(toml::Value::Array(values)) if values.iter().all(|value| value.as_str().is_some()) => {
-            Some(
-                values
-                    .iter()
-                    .filter_map(toml::Value::as_str)
-                    .map(str::to_owned)
-                    .collect(),
-            )
+            let values = values
+                .iter()
+                .filter_map(toml::Value::as_str)
+                .collect::<Vec<_>>();
+            for capability in &values {
+                if !is_capability_name(capability) {
+                    errors.push(manifest_error(
+                        manifest_path,
+                        text,
+                        format!("unknown profile capability `{capability}`"),
+                        Some(capability),
+                    ));
+                }
+            }
+            Some(values.into_iter().map(str::to_owned).collect())
         }
         Some(_) => {
             errors.push(manifest_error(
@@ -511,11 +525,21 @@ fn parse_rust_dependencies(
             Some(toml::Value::Array(values))
                 if values.iter().all(|value| value.as_str().is_some()) =>
             {
-                values
+                let values = values
                     .iter()
                     .filter_map(toml::Value::as_str)
-                    .map(str::to_owned)
-                    .collect()
+                    .collect::<Vec<_>>();
+                for effect in &values {
+                    if !is_capability_name(effect) {
+                        errors.push(manifest_error(
+                            manifest_path,
+                            text,
+                            format!("Rust dependency `{name}` declares unknown effect `{effect}`"),
+                            Some(effect),
+                        ));
+                    }
+                }
+                values.into_iter().map(str::to_owned).collect()
             }
             Some(_) => {
                 errors.push(manifest_error(

@@ -352,9 +352,7 @@ fn projected_argument_expression(name: &str, ty: &crate::projection::ProjectedTy
 
 fn projected_result_expression(value: &str, ty: &crate::projection::ProjectedType) -> String {
     match ty {
-        crate::projection::ProjectedType::RustInt(rust_type)
-            if rust_type.starts_with('u') || rust_type == "usize" =>
-        {
+        crate::projection::ProjectedType::RustInt(rust_type) if rust_type.starts_with('u') => {
             format!("terrane_int_support::Int::from_u128({value} as u128)")
         }
         crate::projection::ProjectedType::RustInt(_) => {
@@ -396,34 +394,57 @@ fn emit_dependency_unit(package: &SemanticPackage, unit: &SemanticUnit) -> Strin
             .iter()
             .zip(&projected.parameters)
             .map(|(parameter, projected)| {
+                let value_type = parameter.value_type.clone().map_or_else(
+                    || "()".to_owned(),
+                    |value_type| rust_value_type(package, value_type),
+                );
+                let preserves_identity = projected.borrowed
+                    && matches!(
+                        projected.ty,
+                        crate::projection::ProjectedType::Foreign { .. }
+                    );
                 format!(
-                    "{}{}: {}",
-                    if projected.mutable_borrow { "mut " } else { "" },
+                    "{}: {}{value_type}",
                     rust_name(&parameter.name),
-                    parameter.value_type.clone().map_or_else(
-                        || "()".to_owned(),
-                        |value_type| { rust_value_type(package, value_type) }
-                    )
+                    if preserves_identity {
+                        if projected.mutable_borrow {
+                            "&mut "
+                        } else {
+                            "&"
+                        }
+                    } else {
+                        ""
+                    },
                 )
             })
             .collect::<Vec<_>>();
-        let arguments = contract
-            .parameters
-            .iter()
-            .zip(&projected.parameters)
-            .map(|(parameter, projected)| {
-                let name = rust_name(&parameter.name);
-                let value = projected_argument_expression(&name, &projected.ty);
-                if projected.mutable_borrow {
-                    format!("&mut {{ {value} }}")
-                } else if projected.borrowed {
-                    format!("&{{ {value} }}")
-                } else {
-                    value
-                }
-            })
-            .collect::<Vec<_>>()
-            .join(", ");
+        let mut argument_conversions = Vec::new();
+        let mut arguments = Vec::new();
+        for (parameter, projected) in contract.parameters.iter().zip(&projected.parameters) {
+            let name = rust_name(&parameter.name);
+            if projected.borrowed
+                && matches!(
+                    projected.ty,
+                    crate::projection::ProjectedType::Foreign { .. }
+                )
+            {
+                arguments.push(name);
+                continue;
+            }
+            let value = projected_argument_expression(&name, &projected.ty);
+            argument_conversions.push(format!(
+                "    let {}{name} = {value};",
+                if projected.mutable_borrow { "mut " } else { "" }
+            ));
+            arguments.push(if projected.mutable_borrow {
+                format!("&mut {name}")
+            } else if projected.borrowed {
+                format!("&{name}")
+            } else {
+                name
+            });
+        }
+        let arguments = arguments.join(", ");
         let value = contract.return_type.clone().map_or_else(
             || "()".to_owned(),
             |value_type| rust_value_type(package, value_type),
@@ -437,7 +458,14 @@ fn emit_dependency_unit(package: &SemanticPackage, unit: &SemanticUnit) -> Strin
             parameters.join(", ")
         )
         .expect("writing to a string cannot fail");
-        let call = format!("{}({arguments})", item.rust_path);
+        for conversion in argument_conversions {
+            writeln!(output, "{conversion}").expect("writing to a string cannot fail");
+        }
+        let call = if package.projection.is_unit_variant(item) {
+            item.rust_path.clone()
+        } else {
+            format!("{}({arguments})", item.rust_path)
+        };
         let caught = if projected
             .parameters
             .iter()
@@ -451,18 +479,13 @@ fn emit_dependency_unit(package: &SemanticPackage, unit: &SemanticUnit) -> Strin
             if projected.error.is_some() {
                 writeln!(
                     output,
-                    "    match {}({arguments}) {{\n        Ok(value) => Ok({converted_value}),\n        Err(error) => Err(crate::TerraneError::new(crate::TerraneErrorKind::Custom(\"dependency-error\"), format!(\"Rust dependency `{dependency_name}` member `{}` failed: {{error}}\"))),\n    }}",
-                    item.rust_path,
+                    "    match {call} {{\n        Ok(value) => Ok({converted_value}),\n        Err(error) => Err(crate::TerraneError::new(crate::TerraneErrorKind::Custom(\"dependency-error\"), format!(\"Rust dependency `{dependency_name}` member `{}` failed: {{error}}\"))),\n    }}",
                     item.rust_path,
                 )
                 .expect("writing to a string cannot fail");
             } else {
-                writeln!(
-                    output,
-                    "    let value = {}({arguments});\n    Ok({converted_value})",
-                    item.rust_path,
-                )
-                .expect("writing to a string cannot fail");
+                writeln!(output, "    let value = {call};\n    Ok({converted_value})",)
+                    .expect("writing to a string cannot fail");
             }
         } else if projected.error.is_some() {
             writeln!(
@@ -584,8 +607,7 @@ fn package_uses_structured_errors(package: &SemanticPackage) -> bool {
         dependency.items.iter().any(|item| match &item.kind {
             crate::projection::ProjectedKind::Function(_) => true,
             crate::projection::ProjectedKind::ForeignType { methods } => !methods.is_empty(),
-            crate::projection::ProjectedKind::Enum { .. }
-            | crate::projection::ProjectedKind::Trait => false,
+            crate::projection::ProjectedKind::Enum { .. } => false,
         })
     })
 }
@@ -2983,26 +3005,6 @@ impl Emitter<'_> {
                 return self.map_constructor(arguments, kind, key, value);
             }
         }
-        if let ValueType::ScalarOrNone(scalar) = value_type {
-            let actual = self.value_type(node);
-            return if actual == Some(value_type)
-                || matches!(
-                    &actual,
-                    Some(ValueType::ElementOrNone(item))
-                        if item.value_type() == ValueType::Scalar(scalar)
-                ) {
-                self.expression(node)
-            } else if self.text(node).trim() == "none"
-                || actual == Some(ValueType::Scalar(ScalarType::None))
-            {
-                "None".to_owned()
-            } else {
-                format!(
-                    "Some({})",
-                    self.expression_as(node, ValueType::Scalar(scalar))
-                )
-            };
-        }
         if let ValueType::Optional(inner) = value_type {
             let actual = self.value_type(node);
             return if actual == Some(ValueType::Optional(inner.clone())) {
@@ -3517,17 +3519,7 @@ impl Emitter<'_> {
         }
         let left_type = self.value_type(left);
         let right_type = self.value_type(right);
-        let is_optional = |value_type| {
-            matches!(
-                value_type,
-                Some(
-                    ValueType::ScalarOrNone(_)
-                        | ValueType::Optional(_)
-                        | ValueType::TextRangeOrNone
-                        | ValueType::ElementOrNone(_)
-                )
-            )
-        };
+        let is_optional = |value_type| matches!(value_type, Some(ValueType::Optional(_)));
         let left_is_none = self.text(left).trim() == "none"
             || left_type == Some(ValueType::Scalar(ScalarType::None));
         let right_is_none = self.text(right).trim() == "none"
@@ -3697,7 +3689,6 @@ impl Emitter<'_> {
             return result.is_ok().to_string();
         }
         let optional_inner = match value_type.clone() {
-            Some(ValueType::ScalarOrNone(inner)) => Some(ValueType::Scalar(inner)),
             Some(ValueType::Optional(inner)) => Some(*inner),
             _ => None,
         };
@@ -3735,7 +3726,6 @@ impl Emitter<'_> {
         category: TypeCategory,
     ) -> String {
         let optional_inner = match value_type.clone() {
-            Some(ValueType::ScalarOrNone(inner)) => Some(ValueType::Scalar(inner)),
             Some(ValueType::Optional(inner)) => Some(*inner),
             _ => None,
         };
@@ -4999,6 +4989,9 @@ impl Emitter<'_> {
             let format = "{}".repeat(values.len());
             return format!("format!(\"{format}\", {})", values.join(", "));
         }
+        let projected_parameters = self
+            .projected_function_for_call(callee)
+            .map(|function| function.parameters.clone());
         let contract = self.contract_for_call(callee).cloned();
         if let Some(contract) = &contract {
             let mut ordered = vec![None; contract.parameters.len()];
@@ -5024,11 +5017,30 @@ impl Emitter<'_> {
                 );
                 let value = argument.children.last().unwrap_or(argument);
                 let parameter = &contract.parameters[index];
-                ordered[index] = Some(if let Some(ty) = parameter.value_type.clone() {
+                let expression = if let Some(ty) = parameter.value_type.clone() {
                     self.expression_as(value, ty)
                 } else {
                     self.expression(value)
-                });
+                };
+                ordered[index] = Some(
+                    projected_parameters
+                        .as_ref()
+                        .and_then(|parameters| parameters.get(index))
+                        .filter(|parameter| {
+                            parameter.borrowed
+                                && matches!(
+                                    parameter.ty,
+                                    crate::projection::ProjectedType::Foreign { .. }
+                                )
+                        })
+                        .map_or(expression.clone(), |parameter| {
+                            if parameter.mutable_borrow {
+                                format!("&mut {expression}")
+                            } else {
+                                format!("&{expression}")
+                            }
+                        }),
+                );
             }
             self.append_defaults(contract, &mut ordered);
             values = ordered.into_iter().flatten().collect();
@@ -5575,6 +5587,25 @@ impl Emitter<'_> {
                 })
                 .flatten()
         })
+    }
+
+    fn projected_function_for_call(
+        &self,
+        callee: &SyntaxNode,
+    ) -> Option<&crate::projection::ProjectedFunction> {
+        if callee.kind != SyntaxKind::Name {
+            return None;
+        }
+        let symbol =
+            self.package
+                .resolve_name_at(self.unit, callee.span.start, self.text(callee))?;
+        self.package
+            .projection
+            .item(&symbol.namespace, &symbol.name)
+            .and_then(|item| match &item.kind {
+                crate::projection::ProjectedKind::Function(function) => Some(function),
+                _ => None,
+            })
     }
 
     fn contract_for_call(&self, callee: &SyntaxNode) -> Option<&FunctionContract> {
@@ -6399,7 +6430,6 @@ fn rust_element_type(package: &SemanticPackage, ty: ElementType) -> String {
 fn rust_value_type(package: &SemanticPackage, ty: ValueType) -> String {
     match ty {
         ValueType::Scalar(scalar) => rust_type(scalar).to_owned(),
-        ValueType::ScalarOrNone(scalar) => format!("Option<{}>", rust_type(scalar)),
         ValueType::Optional(inner) => {
             format!("Option<{}>", rust_value_type(package, *inner))
         }
@@ -6414,7 +6444,6 @@ fn rust_value_type(package: &SemanticPackage, ty: ValueType) -> String {
         ValueType::StringList => "Vec<String>".to_owned(),
         ValueType::Encoding => "terrane_string_support::Encoding".to_owned(),
         ValueType::TextRange => "terrane_string_support::TextRange".to_owned(),
-        ValueType::TextRangeOrNone => "Option<terrane_string_support::TextRange>".to_owned(),
         ValueType::Iterator(item) => {
             format!(
                 "terrane_collection_support::Iterator<{}>",
@@ -6426,9 +6455,6 @@ fn rust_value_type(package: &SemanticPackage, ty: ValueType) -> String {
                 "terrane_collection_support::IterationStep<{}>",
                 rust_element_type(package, item)
             )
-        }
-        ValueType::ElementOrNone(item) => {
-            format!("Option<{}>", rust_element_type(package, item))
         }
         ValueType::List(item) => {
             format!(

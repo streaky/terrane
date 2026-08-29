@@ -1152,7 +1152,7 @@ fn types_canonical_integer_coercion_family() {
     assert_eq!(type_of("exact"), ValueType::Scalar(ScalarType::Int16));
     assert_eq!(
         type_of("checked"),
-        ValueType::ScalarOrNone(ScalarType::Int8)
+        ValueType::Optional(Box::new(ValueType::Scalar(ScalarType::Int8)))
     );
     assert_eq!(type_of("wrapped"), ValueType::Scalar(ScalarType::Uint8));
     assert_eq!(type_of("saturated"), ValueType::Scalar(ScalarType::Uint8));

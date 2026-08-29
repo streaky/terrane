@@ -692,19 +692,27 @@ the inferred escaping set.
 ## Projected Rust dependencies
 
 `package.toml` accepts lock-resolved `[rust-dependencies]` entries with version, features,
-default-feature policy, package alias, and target condition. Declared crates are projected from
-rustdoc into reserved `/deps/<manifest-name>/...` namespaces. The shared projection records
-verbatim public names, Rust paths, documentation, representable free and inherent methods, receiver
-ownership, opaque foreign types and enums, and directly representable `Result` returns. Every
-declined public item carries a reason. `Option` signatures, enum variants and comparison, unresolved
-type aliases, and trait methods are recorded as declines rather than exposed as members.
+default-feature policy, package alias, target condition, and declared effects. An optional `[profile]`
+selects an effect allowlist and unwind or abort panic policy; a forbidden dependency effect is rejected
+during manifest resolution.
 
-Semantic import resolution and the language server consume that same projection. Lowering emits
-only crossed-member Rust shims and generated Cargo dependencies; calls remain direct Rust calls
-inside one generated crate. Foreign receivers borrow, use `ref`, or require `move` according to
-their Rust receiver. Unwinding dependency panics enter the compiler-owned `dependency-panic`
-throwable path. Completion, signature help, and hover are advisory; Cargo and rustc remain the
-authority.
+Declared crates are projected from rustdoc into reserved `/deps/<manifest-name>/...` namespaces. The
+shared projection records verbatim public names, Rust paths, documentation, representable free and
+inherent methods, receiver-first trait functions, receiver ownership, opaque foreign types,
+data-free enum variant constructors, directly representable `Result` returns, arbitrary projected
+`Option<T>` values, all Rust integer widths, `f32`, `char`, and concrete representable type aliases.
+Data-carrying enums remain opaque and use projected crate accessors; every declined public item carries
+a reason.
+
+Semantic import resolution and the language server consume that same projection. Lowering emits only
+crossed-member Rust shims and generated Cargo dependencies; calls remain direct Rust calls inside one
+generated crate. Foreign receivers borrow, use `ref`, or require `move` according to their Rust
+receiver. Unwinding dependency panics enter the compiler-owned `dependency-panic` throwable path;
+abort profiles omit containment and generate Cargo `panic = "abort"`. Projection and generated-crate
+compilation use `bwrap` containment where available and report the host tier otherwise.
+`terrane-projection.lock` retains machine-independent member/version history so `S2031` names removed
+members and their version change. Completion, signature help, and hover remain advisory; Cargo and
+rustc are authoritative.
 
 ## Major planned surface absent today
 
