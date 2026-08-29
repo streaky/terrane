@@ -168,7 +168,7 @@ fn main() {
 }
 // Source: <terrane>/projected/deps/date-codec.trn
 // Namespace: deps/date-codec
-pub use std::time::SystemTime as SystemTime;
+pub use std::time::SystemTime;
 pub fn fmt_http_date(d: SystemTime) -> Result<String, crate::TerraneError> {
     match std::panic::catch_unwind(
         std::panic::AssertUnwindSafe(|| date_codec::fmt_http_date(d)),

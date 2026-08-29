@@ -201,7 +201,7 @@ fn main() {
 }
 // Source: <terrane>/projected/deps/httpdate.trn
 // Namespace: deps/httpdate
-pub use std::time::SystemTime as SystemTime;
+pub use std::time::SystemTime;
 pub fn parse_http_date(s: String) -> Result<SystemTime, crate::TerraneError> {
     match std::panic::catch_unwind(
         std::panic::AssertUnwindSafe(|| httpdate::parse_http_date(&s)),

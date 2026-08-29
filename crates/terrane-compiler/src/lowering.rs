@@ -309,20 +309,23 @@ fn emit_dependency_imports(package: &SemanticPackage, unit: &SemanticUnit, outpu
             if !imported.insert(rust_name.clone()) {
                 continue;
             }
-            if rust_name == rust_object_name(&object.name) {
-                writeln!(output, "pub use {path};").expect("writing to a string cannot fail");
-            } else {
-                writeln!(output, "pub use {path} as {rust_name};")
-                    .expect("writing to a string cannot fail");
-            }
+            write_foreign_import(output, path, &rust_name);
         }
     }
     for (name, path) in package.projection.foreign_imports(&unit.namespace) {
         let rust_name = rust_object_name(&name);
         if imported.insert(rust_name.clone()) {
-            writeln!(output, "pub use {path} as {rust_name};")
-                .expect("writing to a string cannot fail");
+            write_foreign_import(output, &path, &rust_name);
         }
+    }
+}
+
+fn write_foreign_import(output: &mut String, path: &str, rust_name: &str) {
+    if path.rsplit("::").next() == Some(rust_name) {
+        writeln!(output, "pub use {path};").expect("writing to a string cannot fail");
+    } else {
+        writeln!(output, "pub use {path} as {rust_name};")
+            .expect("writing to a string cannot fail");
     }
 }
 
