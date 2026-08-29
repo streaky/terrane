@@ -443,7 +443,7 @@ S2011 import collision                       S2024 namespace initialization cycl
 S2012 duplicate lexical binding              S2025 public namespace variable
 S2013 unresolved source name                 S2026 namespace-variable confinement
 S2027 undeclared Rust dependency             S2029 projected member absent or declined
-S2028 Rust dependency projection failure     S2030 ambiguous projected receiver mutability
+S2028 Rust dependency projection failure     S2030 retired; do not reuse
 ```
 
 Retired codes remain unavailable so a stable code never acquires a second meaning.

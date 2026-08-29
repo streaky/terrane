@@ -11,6 +11,7 @@ enum TerraneErrorKind {
     MissingKey,
     ResourceError,
     SourceError,
+    Custom(&'static str),
 }
 impl TerraneErrorKind {
     fn from_source_name(name: &str) -> Self {
@@ -39,6 +40,7 @@ impl TerraneErrorKind {
             Self::MissingKey => ".missing-key",
             Self::ResourceError => ".resource-error",
             Self::SourceError => ".error",
+            Self::Custom(name) => name,
         }
     }
 }
@@ -130,6 +132,21 @@ enum TerraneCompletion<T> {
     Break,
     Continue,
 }
+fn __terrane_dependency_panic(
+    payload: Box<dyn std::any::Any + Send>,
+    crate_name: &'static str,
+    member: &'static str,
+) -> TerraneError {
+    let detail = payload
+        .downcast_ref::<&str>()
+        .copied()
+        .or_else(|| payload.downcast_ref::<String>().map(String::as_str))
+        .unwrap_or("non-string panic payload");
+    TerraneError::new(
+        TerraneErrorKind::Custom("dependency-panic"),
+        format!("Rust dependency `{crate_name}` member `{member}` panicked: {detail}"),
+    )
+}
 async fn __terrane_await<F: Future>(future: F) -> F::Output {
     struct YieldOnce(bool);
     impl Future for YieldOnce {
@@ -202,6 +219,28 @@ fn main() {
 // Source: <terrane>/projected/deps/reqwest/async-impl/response.trn
 // Namespace: deps/reqwest/async-impl/response
 pub use reqwest::Response as TerraneNs4Deps7Reqwest10AsyncImpl8ResponseResponse;
+// Source: <terrane>/projected/deps/reqwest/async-impl/upgrade.trn
+// Namespace: deps/reqwest/async-impl/upgrade
+pub use reqwest::Upgraded;
 // Source: <terrane>/projected/deps/reqwest/blocking/response.trn
 // Namespace: deps/reqwest/blocking/response
 pub use reqwest::blocking::Response as TerraneNs4Deps7Reqwest8Blocking8ResponseResponse;
+// Source: <terrane>/projected/deps/reqwest/retry.trn
+// Namespace: deps/reqwest/retry
+pub use reqwest::retry::Builder;
+pub fn never() -> Result<Builder, crate::TerraneError> {
+    match std::panic::catch_unwind(
+        std::panic::AssertUnwindSafe(|| reqwest::retry::never()),
+    ) {
+        Ok(value) => Ok(value),
+        Err(payload) => {
+            Err(
+                crate::__terrane_dependency_panic(
+                    payload,
+                    "reqwest",
+                    "reqwest::retry::never",
+                ),
+            )
+        }
+    }
+}

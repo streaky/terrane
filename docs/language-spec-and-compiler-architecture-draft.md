@@ -1065,6 +1065,8 @@ database
 
 The result is an object value: perhaps a function object, class object, singleton, prototype, namespace adapter, importer, or another callable object. A name alone never invokes — invocation always requires its own semicolon — so a bare name in argument position passes the object itself.
 
+Class, interface, and trait types are nominal. Their identity is the pair of their declaring namespace and declared name; an import alias changes only the local spelling. Two declarations with the same name in different namespaces are distinct types, with no structural compatibility or aliasing rule between them. Diagnostics use the local or short name when it is unambiguous and qualify identities when equal short names would otherwise make the message ambiguous.
+
 A dot lookup alone does not imply invocation:
 
 ```terrane
@@ -1782,13 +1784,6 @@ person user-type = user-type; data
 ```
 
 The compiler resolves type compatibility through the object’s type protocol.
-
-Class, interface, and trait types are nominal. Their identity is the pair of their declaring namespace
-and declared name; an import alias changes only the local spelling. Two declarations with the same
-name in different namespaces are distinct types, with no structural compatibility or aliasing rule
-between them. Diagnostics may use the short name when it is unambiguous, but qualify both identities
-when the short names collide.
-
 
 Alongside the concrete descriptors, `/core/types` exports abstract category descriptors: `number`, `integer`, `fixed-integer`, `signed-fixed-integer`, `unsigned-fixed-integer`, and `floating`, beneath the two identity roots `value` and `object`. `int` implements `integer` and `number` but no fixed-width contract; `int8` through `int128` implement `signed-fixed-integer`, `fixed-integer`, `integer`, and `number`; `uint8` through `uint128` implement `unsigned-fixed-integer` in place of the signed contract; `float`, `float32`, and `float64` implement `floating` and `number`. The roots `value` and `object` classify identity, copy, and ownership behaviour rather than numeric capability, so no arithmetic or conversion member attaches to them.
 
@@ -3230,6 +3225,8 @@ The compiler may lower inheritance through generated composition, enums, trait o
 
 Assigning a subclass instance to a superclass-typed binding preserves the complete dynamic object and its subclass state. Subsequent value assignment copies that complete dynamic value under the ordinary COW contract; Terrane never slices to the statically named superclass fields. A superclass annotation constrains the visible interface and accepted dynamic classes, not storage layout. Targets unable to represent the permitted dynamic class set without an unavailable capability reject the boundary at compile time rather than changing this rule.
 
+Inheritance, interface satisfaction, trait use, and superclass conversion resolve each participating type by that namespace-qualified nominal identity; a same-named declaration in another namespace never joins the hierarchy.
+
 ### 18.3 Interfaces
 
 Interfaces describe required object protocols:
@@ -4644,6 +4641,8 @@ Generated Rust is intended to be read by:
 - ordinary Rust tooling.
 
 It should avoid deliberately opaque macro expansion when straightforward Rust can express the same semantics.
+
+Generated object type names retain the readable declared name whenever it is unique in the package. On collision, the Rust name is `TerraneNs`, followed for each source namespace segment by that segment's source-byte length in decimal and its CamelCase form, then the object's CamelCase declared name. The source length, rather than the emitted CamelCase length, makes adjacent segments unambiguous and preserves distinctions that case conversion could erase.
 
 ### 28.2 Determinism
 

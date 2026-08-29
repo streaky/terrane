@@ -25,13 +25,10 @@ pub(crate) fn lower(package: &SemanticPackage) -> Program {
     let mut runtime = Vec::new();
     let mut globals = String::new();
     if package_uses_structured_errors(package) || package_uses_task_scope(package) {
-        let has_dependency = package.units.iter().any(|unit| {
-            unit.namespace.starts_with("/deps/")
-                && unit
-                    .functions
-                    .iter()
-                    .any(|function| function.owner.is_none())
-        });
+        let has_dependency = package
+            .units
+            .iter()
+            .any(|unit| unit.namespace.starts_with("/deps/") && !unit.functions.is_empty());
         let has_custom_throwable = has_dependency
             || package.units.iter().any(|unit| {
                 unit.objects.iter().any(|object| {
@@ -301,18 +298,23 @@ pub(crate) fn lower(package: &SemanticPackage) -> Program {
 fn emit_dependency_imports(package: &SemanticPackage, unit: &SemanticUnit, output: &mut String) {
     let mut imported = BTreeSet::new();
     for object in &unit.objects {
+        if object.identity.namespace != unit.namespace {
+            continue;
+        }
         if let Some(path) = package
             .projection
             .foreign_rust_path(&object.identity.namespace, &object.identity.name)
         {
             let rust_name = rust_object_type_name(package, &object.identity);
+            if !imported.insert(rust_name.clone()) {
+                continue;
+            }
             if rust_name == rust_object_name(&object.name) {
                 writeln!(output, "pub use {path};").expect("writing to a string cannot fail");
             } else {
                 writeln!(output, "pub use {path} as {rust_name};")
                     .expect("writing to a string cannot fail");
             }
-            imported.insert(object.name.clone());
         }
     }
     for (name, path) in package.projection.foreign_imports(&unit.namespace) {
@@ -431,7 +433,7 @@ struct Emitter<'a> {
     try_counter: usize,
     current_error: Option<String>,
     current_function: Option<String>,
-    current_object: Option<String>,
+    current_object: Option<ObjectIdentity>,
     try_completion: bool,
     in_loop: bool,
     closure_depth: usize,
@@ -1075,7 +1077,7 @@ impl Emitter<'_> {
                     self.indent -= 1;
                     self.line("}");
                 }
-                if self.object_requires_separation(&object.name) {
+                if self.object_requires_separation(&object.identity) {
                     self.line("fn terrane_separate(&self) -> Self { Self(self.0.separate_box()) }");
                 }
                 self.indent -= 1;
@@ -1206,7 +1208,7 @@ impl Emitter<'_> {
                     self.indent -= 1;
                     self.line("}");
                 }
-                let previous_object = self.current_object.replace(object.name.clone());
+                let previous_object = self.current_object.replace(object.identity.clone());
                 for method in &methods {
                     let method_node = find_node(
                         &self.unit.tree.root,
@@ -1469,7 +1471,7 @@ impl Emitter<'_> {
                     self.line(&format!(
                         "fn clone_box(&self) -> Box<dyn {protocol}> {{ Box::new(self.clone()) }}"
                     ));
-                    if self.object_requires_separation(&object.name) {
+                    if self.object_requires_separation(&object.identity) {
                         self.line(&format!(
                             "fn separate_box(&self) -> Box<dyn {protocol}> {{ Box::new(self.terrane_separate()) }}"
                         ));
@@ -2947,20 +2949,20 @@ impl Emitter<'_> {
             } else {
                 "self.clone()"
             };
-            if actual == &expected.name && !object_descendants(self.unit, destination).is_empty() {
+            if actual == expected && !object_descendants(self.unit, destination).is_empty() {
                 return format!(
                     "{}::Own({copy})",
                     rust_object_type_name(self.package, expected)
                 );
             }
-            if object_descendants(self.unit, destination)
+            if let Some(descendant) = object_descendants(self.unit, destination)
                 .iter()
-                .any(|descendant| descendant.name == *actual)
+                .find(|descendant| descendant.identity == *actual)
             {
                 return format!(
                     "{}::{}({copy})",
                     rust_object_type_name(self.package, expected),
-                    rust_object_name(actual)
+                    rust_object_type_name(self.package, &descendant.identity)
                 );
             }
         }
@@ -2996,7 +2998,7 @@ impl Emitter<'_> {
                 })
         {
             let expression = if self.text(node) == "this" {
-                if self.object_requires_separation(&actual.name) {
+                if self.object_requires_separation(&actual) {
                     "self.terrane_separate()".to_owned()
                 } else {
                     "self.clone()".to_owned()
@@ -3133,12 +3135,12 @@ impl Emitter<'_> {
                 format!("({}).clone()", self.expression(node))
             }
             ValueType::Object(name)
-                if node.kind == SyntaxKind::Name && self.object_owns_resource(node, &name) =>
+                if node.kind == SyntaxKind::Name && self.object_owns_resource(&name) =>
             {
                 self.expression(node)
             }
             ValueType::Object(name)
-                if node.kind == SyntaxKind::Name && self.object_requires_separation(&name.name) =>
+                if node.kind == SyntaxKind::Name && self.object_requires_separation(&name) =>
             {
                 format!("({}).terrane_separate()", self.expression(node))
             }
@@ -5786,7 +5788,7 @@ impl Emitter<'_> {
             .any(|object| object.identity == *identity && object.resource_owning)
     }
 
-    fn object_owns_resource(&self, _node: &SyntaxNode, identity: &ObjectIdentity) -> bool {
+    fn object_owns_resource(&self, identity: &ObjectIdentity) -> bool {
         self.package
             .units
             .iter()
@@ -5795,8 +5797,13 @@ impl Emitter<'_> {
             .is_some_and(|object| object.resource_owning)
     }
 
-    fn object_requires_separation(&self, name: &str) -> bool {
-        let Some(object) = self.unit.objects.iter().find(|object| object.name == name) else {
+    fn object_requires_separation(&self, identity: &ObjectIdentity) -> bool {
+        let Some(object) = self
+            .unit
+            .objects
+            .iter()
+            .find(|object| object.identity == *identity)
+        else {
             return false;
         };
         effective_object_methods(self.unit, object)
@@ -6559,6 +6566,10 @@ fn rust_object_name(name: &str) -> String {
         .collect()
 }
 
+/// Qualifies colliding names with source-byte-length-prefixed CamelCase namespace segments.
+///
+/// Counting the source segment keeps the encoding injective when case conversion erases spelling
+/// differences; the following CamelCase letter also makes adjacent decimal lengths unambiguous.
 fn rust_object_type_name(package: &SemanticPackage, identity: &ObjectIdentity) -> String {
     let collides = package
         .units

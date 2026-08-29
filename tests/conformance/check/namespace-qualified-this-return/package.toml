@@ -1,0 +1,6 @@
+package = "namespace-qualified-this-return"
+prelude = true
+
+[namespaces]
+app = "app"
+right = "right"

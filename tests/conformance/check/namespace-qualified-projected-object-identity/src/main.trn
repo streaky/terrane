@@ -1,6 +1,7 @@
 namespace app
 from /deps/reqwest/async-impl/response import Response as async-response
 from /deps/reqwest/blocking/response import Response as blocking-response
+from /deps/reqwest/retry import never
 
 interface crossings
     function cross-async; value async-response

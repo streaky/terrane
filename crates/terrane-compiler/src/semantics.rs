@@ -543,7 +543,9 @@ pub struct ObjectField {
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ObjectContract {
+    /// Name visible in this unit; imported contracts carry their local alias here.
     pub name: String,
+    /// Stable declaration identity used for semantic equality and cross-unit lookup.
     pub identity: ObjectIdentity,
     pub span: Span,
     pub kind: ObjectKind,
@@ -1940,12 +1942,7 @@ fn resolve_imports(
     Ok(())
 }
 
-fn resolved_object_span(
-    package: &SemanticPackage,
-    _unit: &SemanticUnit,
-    _position: usize,
-    identity: &ObjectIdentity,
-) -> Option<Span> {
+fn resolved_object_span(package: &SemanticPackage, identity: &ObjectIdentity) -> Option<Span> {
     package
         .units
         .iter()
@@ -1978,17 +1975,13 @@ fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFailure> {
     ) -> bool {
         match &unit.typed_bindings[binding].value_type {
             ValueType::PlatformStreamHandle | ValueType::PlatformResourceHandle => true,
-            ValueType::Object(name) => {
-                resolved_object_span(package, unit, unit.typed_bindings[binding].span.start, name)
-                    .is_some_and(|span| resource_objects.contains(&span_key(span)))
-            }
+            ValueType::Object(name) => resolved_object_span(package, name)
+                .is_some_and(|span| resource_objects.contains(&span_key(span))),
             _ => false,
         }
     }
     fn method_contract<'a>(
         package: &'a SemanticPackage,
-        unit: &SemanticUnit,
-        position: usize,
         object_identity: &ObjectIdentity,
         method_name: &str,
     ) -> Option<&'a FunctionContract> {
@@ -2013,7 +2006,7 @@ fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFailure> {
                         .and_then(|base| contract(unit, &base.name, method_name))
                 })
         }
-        let declaration = resolved_object_span(package, unit, position, object_identity)?;
+        let declaration = resolved_object_span(package, object_identity)?;
         package.units.iter().find_map(|candidate| {
             candidate
                 .objects
@@ -2025,12 +2018,10 @@ fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFailure> {
 
     fn method_consumes_receiver(
         package: &SemanticPackage,
-        unit: &SemanticUnit,
-        position: usize,
         object_identity: &ObjectIdentity,
         method_name: &str,
     ) -> bool {
-        method_contract(package, unit, position, object_identity, method_name)
+        method_contract(package, object_identity, method_name)
             .is_some_and(|method| method.consumes_receiver)
     }
     fn function_parameters<'a>(
@@ -2045,14 +2036,8 @@ fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFailure> {
             let ValueType::Object(object_name) = unit.inferred_value_type(receiver)? else {
                 return None;
             };
-            return method_contract(
-                package,
-                unit,
-                receiver.span.start,
-                &object_name,
-                node_text(&unit.source, member),
-            )
-            .map(|method| method.parameters.as_slice());
+            return method_contract(package, &object_name, node_text(&unit.source, member))
+                .map(|method| method.parameters.as_slice());
         }
         if callee.kind != SyntaxKind::Name {
             return None;
@@ -2120,14 +2105,8 @@ fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFailure> {
             && receiver.kind != SyntaxKind::Name
             && let Ok(Some(ValueType::Object(object_name))) =
                 infer_value_type(unit, receiver, &unit.typed_bindings)
-            && method_consumes_receiver(
-                package,
-                unit,
-                receiver.span.start,
-                &object_name,
-                node_text(&unit.source, member),
-            )
-            && resolved_object_span(package, unit, receiver.span.start, &object_name)
+            && method_consumes_receiver(package, &object_name, node_text(&unit.source, member))
+            && resolved_object_span(package, &object_name)
                 .is_some_and(|span| resource_objects.contains(&span_key(span)))
         {
             return Err(failure(
@@ -2147,8 +2126,6 @@ fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFailure> {
                 Ok(Some(ValueType::Object(object_name)))
                     if method_consumes_receiver(
                         package,
-                        unit,
-                        receiver.span.start,
                         &object_name,
                         node_text(&unit.source, member),
                     )
@@ -2173,10 +2150,8 @@ fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFailure> {
                 };
                 let expects_resource = match expected {
                     ValueType::PlatformStreamHandle | ValueType::PlatformResourceHandle => true,
-                    ValueType::Object(name) => {
-                        resolved_object_span(package, unit, callee.span.start, name)
-                            .is_some_and(|span| resource_objects.contains(&span_key(span)))
-                    }
+                    ValueType::Object(name) => resolved_object_span(package, name)
+                        .is_some_and(|span| resource_objects.contains(&span_key(span))),
                     _ => false,
                 };
                 let value = argument.children.last().unwrap_or(argument);
@@ -3746,7 +3721,10 @@ fn analyze_object_contracts(
                 failure(
                     &unit.source,
                     "T0054",
-                    format!("`{identity}` does not resolve to a {role}"),
+                    format!(
+                        "`{}` does not resolve to a {role}",
+                        diagnostic_object_identity(&objects, identity)
+                    ),
                     object.span,
                 )
             })
@@ -4012,7 +3990,11 @@ fn validate_object_conformance(package: &SemanticPackage) -> Result<(), Semantic
                         &declaration_unit.source,
                         "T0001",
                         format!(
-                            "interface `{interface_identity}` implemented by `{}` does not resolve",
+                            "interface `{}` implemented by `{}` does not resolve",
+                            diagnostic_object_identity(
+                                &declaration_unit.objects,
+                                interface_identity
+                            ),
                             object.name
                         ),
                         object.span,
@@ -4269,15 +4251,10 @@ fn propagate_interface_receiver_mutability(package: &mut SemanticPackage) {
     reason = "receiver-consumption inference keeps its source-ownership helpers scoped to one fixed-point pass"
 )]
 fn infer_receiver_consumption(package: &mut SemanticPackage) {
-    fn owns_resource(
-        package: &SemanticPackage,
-        unit: &SemanticUnit,
-        position: usize,
-        value_type: &ValueType,
-    ) -> bool {
+    fn owns_resource(package: &SemanticPackage, value_type: &ValueType) -> bool {
         match value_type {
             ValueType::PlatformStreamHandle | ValueType::PlatformResourceHandle => true,
-            ValueType::Object(name) => resolved_object_span(package, unit, position, name)
+            ValueType::Object(name) => resolved_object_span(package, name)
                 .and_then(|span| {
                     package
                         .units
@@ -4346,9 +4323,7 @@ fn infer_receiver_consumption(package: &mut SemanticPackage) {
                         .iter()
                         .find(|field| field.name == node_text(&unit.source, member))
                 })
-                .is_some_and(|field| {
-                    owns_resource(package, unit, expression.span.start, &field.value_type)
-                })
+                .is_some_and(|field| owns_resource(package, &field.value_type))
         })
     }
 
@@ -4423,11 +4398,13 @@ fn infer_receiver_consumption(package: &mut SemanticPackage) {
                         .zip(parameters)
                         .any(|(argument, parameter)| {
                             argument.children.last().is_some_and(|argument| {
-                                parameter.value_type.as_ref().is_some_and(|value_type| {
-                                    owns_resource(package, unit, parameter.span.start, value_type)
-                                }) && receiver_resource_expression(
-                                    package, unit, contract, argument,
-                                )
+                                parameter
+                                    .value_type
+                                    .as_ref()
+                                    .is_some_and(|value_type| owns_resource(package, value_type))
+                                    && receiver_resource_expression(
+                                        package, unit, contract, argument,
+                                    )
                             })
                         })
                 {
@@ -6111,10 +6088,7 @@ fn validate_numeric_destination(
     ))
 }
 
-fn diagnostic_value_type(objects: &[ObjectContract], value_type: &ValueType) -> String {
-    let ValueType::Object(identity) = value_type else {
-        return value_type.to_string();
-    };
+fn diagnostic_object_identity(objects: &[ObjectContract], identity: &ObjectIdentity) -> String {
     let identities = objects
         .iter()
         .filter(|object| object.identity.name == identity.name)
@@ -6124,6 +6098,45 @@ fn diagnostic_value_type(objects: &[ObjectContract], value_type: &ValueType) -> 
         identity.qualified()
     } else {
         identity.name.clone()
+    }
+}
+
+fn diagnostic_value_type(objects: &[ObjectContract], value_type: &ValueType) -> String {
+    let nested = |item: &ElementType| diagnostic_value_type(objects, &item.value_type());
+    match value_type {
+        ValueType::Object(identity) => diagnostic_object_identity(objects, identity),
+        ValueType::Iterator(item) => format!("iterator of {}", nested(item)),
+        ValueType::IterationStep(item) => format!("iteration-step of {}", nested(item)),
+        ValueType::ElementOrNone(item) => format!("{}|none", nested(item)),
+        ValueType::List(item) => format!("list of {}", nested(item)),
+        ValueType::Map(key, value) => format!("map of {}, {}", nested(key), nested(value)),
+        ValueType::Set(item) => format!("set of {}", nested(item)),
+        ValueType::Tuple(item, _) => format!("tuple of {}", nested(item)),
+        ValueType::Entry(key, value) => format!("entry of {}, {}", nested(key), nested(value)),
+        ValueType::UnorderedMap(key, value) => {
+            format!("unordered-map of {}, {}", nested(key), nested(value))
+        }
+        ValueType::UnorderedSet(item) => format!("unordered-set of {}", nested(item)),
+        ValueType::Function(parameters, result) | ValueType::AsyncFunction(parameters, result) => {
+            let prefix = if matches!(value_type, ValueType::AsyncFunction(..)) {
+                "async function"
+            } else {
+                "function"
+            };
+            let parameters = parameters.iter().map(nested).collect::<Vec<_>>().join(", ");
+            let from = if parameters.is_empty() {
+                String::new()
+            } else {
+                format!(" from {parameters}")
+            };
+            format!("{prefix}{from} to {}", nested(result))
+        }
+        ValueType::Task(result) => format!("task of {}", nested(result)),
+        ValueType::ScopedTask(result) => format!("scoped task of {}", nested(result)),
+        ValueType::TaskOutcome(result) => format!("task-outcome of {}", nested(result)),
+        ValueType::Reference(item) => format!("ref {}", nested(item)),
+        ValueType::SharedReference(item) => format!("shared ref {}", nested(item)),
+        _ => value_type.to_string(),
     }
 }
 
@@ -7761,7 +7774,16 @@ fn infer_member_value_type(
                 failure(
                     &unit.source,
                     "T0055",
-                    format!("`{object_name}` has no member `{member_name}`"),
+                    format!(
+                        "`{}` has no member `{member_name}`",
+                        unit.objects
+                            .iter()
+                            .find(|object| object.identity == *object_name)
+                            .map_or_else(
+                                || diagnostic_object_identity(&unit.objects, object_name),
+                                |object| object.name.clone()
+                            )
+                    ),
                     member.span,
                 )
             });
@@ -10040,7 +10062,11 @@ fn validate_return(
         (Some(expected), None) => Err(failure(
             &unit.source,
             "T0015",
-            format!("function `{}` must return `{expected}`", contract.name),
+            format!(
+                "function `{}` must return `{}`",
+                contract.name,
+                diagnostic_value_type(&unit.objects, &expected)
+            ),
             statement.span,
         )),
         (Some(expected), Some(value)) => {
@@ -10057,7 +10083,11 @@ fn validate_return(
                 return Err(failure(
                     &unit.source,
                     "T0015",
-                    format!("function `{}` must return `{expected}`", contract.name),
+                    format!(
+                        "function `{}` must return `{}`",
+                        contract.name,
+                        diagnostic_value_type(&unit.objects, &expected)
+                    ),
                     value.span,
                 ));
             };
@@ -11685,8 +11715,6 @@ pub(crate) fn warnings(package: &SemanticPackage, lint_name_style: bool) -> Vec<
 
 fn object_method_mutates(
     package: &SemanticPackage,
-    _unit: &SemanticUnit,
-    _position: usize,
     object_identity: &ObjectIdentity,
     method_name: &str,
 ) -> bool {
@@ -11774,8 +11802,6 @@ pub(crate) fn binding_span_is_mutated(
                         Ok(Some(ValueType::Object(object)))
                             if object_method_mutates(
                                 package,
-                                unit,
-                                receiver.span.start,
                                 &object,
                                 node_text(&unit.source, member)
                             )
