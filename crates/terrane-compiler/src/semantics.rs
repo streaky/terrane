@@ -11766,16 +11766,48 @@ fn collect_name_style_warnings(unit: &SemanticUnit, warnings: &mut Vec<Diagnosti
     }
 }
 
-fn collect_duplicate_union_arm_warnings(unit: &SemanticUnit, warnings: &mut Vec<Diagnostic>) {
-    fn collect(unit: &SemanticUnit, node: &SyntaxNode, warnings: &mut Vec<Diagnostic>) {
+fn union_arm_identity(
+    package: &SemanticPackage,
+    unit: &SemanticUnit,
+    text: &str,
+    position: usize,
+) -> String {
+    if let Some(scalar) = unit.descriptor_alias_at(text, position) {
+        return format!("scalar:{}", scalar.source_name());
+    }
+    package
+        .resolve_name_at(unit, position, text)
+        .filter(|symbol| {
+            matches!(
+                symbol.kind,
+                SymbolKind::Class
+                    | SymbolKind::Interface
+                    | SymbolKind::Trait
+                    | SymbolKind::ErrorObject
+            )
+        })
+        .map_or_else(
+            || format!("unresolved:{text}"),
+            |symbol| format!("object:{}", symbol.identity),
+        )
+}
+
+fn collect_duplicate_union_arm_warnings(
+    package: &SemanticPackage,
+    unit: &SemanticUnit,
+    warnings: &mut Vec<Diagnostic>,
+) {
+    fn collect(
+        package: &SemanticPackage,
+        unit: &SemanticUnit,
+        node: &SyntaxNode,
+        warnings: &mut Vec<Diagnostic>,
+    ) {
         if node.kind == SyntaxKind::UnionType {
             let mut seen = BTreeSet::new();
             for arm in &node.children {
                 let text = node_text(&unit.source, arm).trim();
-                let identity = unit.descriptor_alias_at(text, arm.span.start).map_or_else(
-                    || format!("object:{text}"),
-                    |scalar| format!("scalar:{}", scalar.source_name()),
-                );
+                let identity = union_arm_identity(package, unit, text, arm.span.start);
                 if !seen.insert(identity) {
                     warnings.push(
                         Diagnostic::warning(
@@ -11791,11 +11823,11 @@ fn collect_duplicate_union_arm_warnings(unit: &SemanticUnit, warnings: &mut Vec<
             }
         }
         for child in &node.children {
-            collect(unit, child, warnings);
+            collect(package, unit, child, warnings);
         }
     }
 
-    collect(unit, &unit.tree.root, warnings);
+    collect(package, unit, &unit.tree.root, warnings);
 }
 
 pub(crate) fn warnings(package: &SemanticPackage, lint_name_style: bool) -> Vec<Diagnostic> {
@@ -11804,7 +11836,7 @@ pub(crate) fn warnings(package: &SemanticPackage, lint_name_style: bool) -> Vec<
         if lint_name_style && !unit.bundled && !unit.namespace.starts_with("/deps/") {
             collect_name_style_warnings(unit, &mut warnings);
         }
-        collect_duplicate_union_arm_warnings(unit, &mut warnings);
+        collect_duplicate_union_arm_warnings(package, unit, &mut warnings);
         let mut loop_targets = BTreeSet::new();
         collect_loop_target_spans(&unit.tree.root, &mut loop_targets);
         for binding in &unit.typed_bindings {
@@ -12123,6 +12155,29 @@ mod name_style_tests {
                 && diagnostic.message == "declared name `Answer` is not kebab-case"
                 && diagnostic.severity == crate::Severity::Warning
         }));
+    }
+
+    #[test]
+    fn object_union_arm_identity_follows_import_aliases() {
+        let package = Package::implicit(
+            "main.trn",
+            concat!(
+                "namespace app\n",
+                "from /core/errors import throwable as first, throwable as second\n",
+                "function main;\n",
+                "  return\n",
+            )
+            .to_owned(),
+        );
+        let semantic = analyze(&package).unwrap();
+        let unit = &semantic.units[0];
+        let first = unit.source.text().find("first").unwrap();
+        let second = unit.source.text().find("second").unwrap();
+
+        assert_eq!(
+            union_arm_identity(&semantic, unit, "first", first),
+            union_arm_identity(&semantic, unit, "second", second),
+        );
     }
 
     #[test]
