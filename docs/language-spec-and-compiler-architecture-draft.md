@@ -3491,6 +3491,10 @@ Channels, mutexes, read/write locks, and atomics are ordinary library objects. T
 
 They are not all injected into the prelude.
 
+They do not expose thread creation, joining, grouping, affinity, or system-level thread lifecycle.
+They synchronise tasks or host threads supplied by the profile-selected executor/runtime boundary;
+the thread-local facility observes those existing host threads but cannot create or manage them.
+
 ### 21.7 Kernel and embedded profiles
 
 Targets without an async runtime reject or statically lower async features according to available capabilities.

@@ -688,7 +688,7 @@ encoding: explicit utf8/utf16-le/utf16-be/utf32-le/utf32-be; encode total; decod
 - Cancellation is cooperative at `await`, join, and explicitly cancellable library operations. Failure requests sibling cancellation; the scope still joins cleanup and retains outcomes. Completed work is never erased, so completed+cancelled may both be true.
 - Deadlines are explicit, never ambient. Child effective deadline is `min(parent, requested)`; a statically provable extension is diagnosed and dynamic inputs clamp to the earlier instant.
 - No borrow crosses suspension unless its owner lifetime and executor transfer requirements are proven.
-- Runtime remains profile-selected; channels/mutexes/atomics are library objects; unavailable target capability rejects async statically.
+- Runtime remains profile-selected; channels/mutexes/read-write locks/atomics/thread-local storage are library objects over existing executor/runtime threads and do not expose thread creation, joining, grouping, affinity, or system lifecycle. Unavailable target capability rejects async or concurrency facilities statically.
 
 ## STREAMS
 

@@ -1798,6 +1798,8 @@ it does not reopen the dependency-projection contracts or the explicitly deferre
 Deliver:
 
 - channels, mutexes, read/write locks, atomics, and thread-local objects as library objects over the milestone 19 core;
+  These objects synchronise tasks or host threads supplied by the milestone 19 executor/runtime
+  boundary; they do not add thread creation, joining, grouping, affinity, or system lifecycle;
 - capability enforcement for standard and system facilities under the existing package profile;
 - the remaining authored Rust and system adapters, excluding dependency-projection crossings already
   delivered by milestone 25.2, with explicit ABI, lifetime, ownership, and error-translation contracts.
