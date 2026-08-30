@@ -248,7 +248,8 @@ def run_process(command: list[str], *, cwd: Path, timeout: float) -> ProcessResu
                     )
                 else:
                     raise BenchmarkError(cleanup_message) from error
-    assert result is not None
+    if result is None:
+        raise BenchmarkError(f"command produced no process result: {format_command(command)}")
     return result
 
 
