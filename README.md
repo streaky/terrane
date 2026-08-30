@@ -69,6 +69,9 @@ Generated Rust is returned exactly as Terrane lowering emits it. Compiler work c
 compiler-bundled formatter. A mismatch fails as compiler defect `S9004`; the formatter never
 silently rewrites the generated artefact.
 
+`terrane build --release` and `terrane run --release` compile generated programs with Cargo's
+optimized release profile. Development and release executables are cached separately.
+
 ## Learn more
 
 The [language specification and compiler architecture draft](docs/language-spec-and-compiler-architecture-draft.md) is the main source for syntax, semantics, examples, interoperability, tooling, and other technical details.
