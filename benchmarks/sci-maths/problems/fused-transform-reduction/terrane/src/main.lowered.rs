@@ -174,31 +174,58 @@ fn terrane_process_exit(code: terrane_int_support::Int) {
 }
 // Source: src/main.trn
 // Namespace: benchmark-fused-transform-reduction
-fn main() {
+fn benchmark_size() -> i64 {
     let supplied: terrane_collection_support::List<PlatformString> = arguments();
-    let mut count: i64 = 1000;
     if terrane_int_support::Int::from(terrane_int_support::Int::from(supplied.length()))
-        > terrane_int_support::Int::from(0_i128)
-        && supplied
-            .get_or_error(
-                terrane_collection_support::index_from_int(
-                        &terrane_int_support::Int::from(0_i128),
-                    )
-                    .unwrap_or_else(|error| __terrane_uncaught(
-                        TerraneError::from(error)
-                            .at(
-                                "/benchmark-fused-transform-reduction::main (main.trn:9:30)",
-                            ),
-                    )),
-            )
-            .unwrap_or_else(|error| __terrane_uncaught(
-                TerraneError::from(error)
-                    .at("/benchmark-fused-transform-reduction::main (main.trn:9:30)"),
-            ))
-            .text == String::from("performance")
+        != terrane_int_support::Int::from(1_i128)
     {
-        count = 20000000;
+        exit(make_exit_status(terrane_int_support::Int::from(2_i128)));
     }
+    let count: i64 = terrane_int_support::coerce::<
+        i64,
+    >(
+            &terrane_int_support::parse_radix(
+                    &supplied
+                        .get_or_error(
+                            terrane_collection_support::index_from_int(
+                                    &terrane_int_support::Int::from(0_i128),
+                                )
+                                .unwrap_or_else(|error| __terrane_uncaught(
+                                    TerraneError::from(error)
+                                        .at(
+                                            "/benchmark-fused-transform-reduction::benchmark-size (main.trn:10:18)",
+                                        ),
+                                )),
+                        )
+                        .unwrap_or_else(|error| __terrane_uncaught(
+                            TerraneError::from(error)
+                                .at(
+                                    "/benchmark-fused-transform-reduction::benchmark-size (main.trn:10:18)",
+                                ),
+                        ))
+                        .text,
+                    &10,
+                )
+                .unwrap_or_else(|error| __terrane_uncaught(
+                    TerraneError::from(error)
+                        .at(
+                            "/benchmark-fused-transform-reduction::benchmark-size (main.trn:10:18)",
+                        ),
+                )),
+        )
+        .unwrap_or_else(|error| __terrane_uncaught(
+            TerraneError::from(error)
+                .at(
+                    "/benchmark-fused-transform-reduction::benchmark-size (main.trn:10:17)",
+                ),
+        ));
+    if count <= 0 {
+        exit(make_exit_status(terrane_int_support::Int::from(2_i128)));
+    }
+    return count;
+}
+fn main() {
+    let count: i64 = benchmark_size();
     let mut total: f64 = 0.0_f64;
     let mut index: i64 = 0;
     while index < count {
@@ -207,13 +234,13 @@ fn main() {
                     .unwrap_or_else(|error| __terrane_uncaught(
                         TerraneError::from(error)
                             .at(
-                                "/benchmark-fused-transform-reduction::main (main.trn:15:19)",
+                                "/benchmark-fused-transform-reduction::main (main.trn:21:19)",
                             ),
                     )),
             )
             .unwrap_or_else(|error| __terrane_uncaught(
                 TerraneError::from(error)
-                    .at("/benchmark-fused-transform-reduction::main (main.trn:15:19)"),
+                    .at("/benchmark-fused-transform-reduction::main (main.trn:21:19)"),
             ));
         let x: f64 = raw / 100.0_f64;
         let square: f64 = x * x;
@@ -221,7 +248,7 @@ fn main() {
         index = terrane_int_support::fixed_addition(index, 1)
             .unwrap_or_else(|error| __terrane_uncaught(
                 TerraneError::from(error)
-                    .at("/benchmark-fused-transform-reduction::main (main.trn:19:5)"),
+                    .at("/benchmark-fused-transform-reduction::main (main.trn:25:5)"),
             ));
     }
     println!("{}", terrane_scalar_support::scalar_text(&total));

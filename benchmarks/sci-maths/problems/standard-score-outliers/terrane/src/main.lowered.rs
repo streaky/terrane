@@ -174,31 +174,58 @@ fn terrane_process_exit(code: terrane_int_support::Int) {
 }
 // Source: src/main.trn
 // Namespace: benchmark-standard-score-outliers
-fn main() {
+fn benchmark_size() -> i64 {
     let supplied: terrane_collection_support::List<PlatformString> = arguments();
-    let mut count: i64 = 1000;
     if terrane_int_support::Int::from(terrane_int_support::Int::from(supplied.length()))
-        > terrane_int_support::Int::from(0_i128)
-        && supplied
-            .get_or_error(
-                terrane_collection_support::index_from_int(
-                        &terrane_int_support::Int::from(0_i128),
-                    )
-                    .unwrap_or_else(|error| __terrane_uncaught(
-                        TerraneError::from(error)
-                            .at(
-                                "/benchmark-standard-score-outliers::main (main.trn:10:30)",
-                            ),
-                    )),
-            )
-            .unwrap_or_else(|error| __terrane_uncaught(
-                TerraneError::from(error)
-                    .at("/benchmark-standard-score-outliers::main (main.trn:10:30)"),
-            ))
-            .text == String::from("performance")
+        != terrane_int_support::Int::from(1_i128)
     {
-        count = 10000000;
+        exit(make_exit_status(terrane_int_support::Int::from(2_i128)));
     }
+    let count: i64 = terrane_int_support::coerce::<
+        i64,
+    >(
+            &terrane_int_support::parse_radix(
+                    &supplied
+                        .get_or_error(
+                            terrane_collection_support::index_from_int(
+                                    &terrane_int_support::Int::from(0_i128),
+                                )
+                                .unwrap_or_else(|error| __terrane_uncaught(
+                                    TerraneError::from(error)
+                                        .at(
+                                            "/benchmark-standard-score-outliers::benchmark-size (main.trn:11:18)",
+                                        ),
+                                )),
+                        )
+                        .unwrap_or_else(|error| __terrane_uncaught(
+                            TerraneError::from(error)
+                                .at(
+                                    "/benchmark-standard-score-outliers::benchmark-size (main.trn:11:18)",
+                                ),
+                        ))
+                        .text,
+                    &10,
+                )
+                .unwrap_or_else(|error| __terrane_uncaught(
+                    TerraneError::from(error)
+                        .at(
+                            "/benchmark-standard-score-outliers::benchmark-size (main.trn:11:18)",
+                        ),
+                )),
+        )
+        .unwrap_or_else(|error| __terrane_uncaught(
+            TerraneError::from(error)
+                .at(
+                    "/benchmark-standard-score-outliers::benchmark-size (main.trn:11:17)",
+                ),
+        ));
+    if count <= 0 {
+        exit(make_exit_status(terrane_int_support::Int::from(2_i128)));
+    }
+    return count;
+}
+fn main() {
+    let count: i64 = benchmark_size();
     let mut values: terrane_collection_support::List<f64> = terrane_collection_support::List::<
         f64,
     >::new(Vec::new());
@@ -211,7 +238,7 @@ fn main() {
                             .unwrap_or_else(|error| __terrane_uncaught(
                                 TerraneError::from(error)
                                     .at(
-                                        "/benchmark-standard-score-outliers::main (main.trn:17:20)",
+                                        "/benchmark-standard-score-outliers::main (main.trn:23:20)",
                                     ),
                             )),
                         100,
@@ -219,26 +246,26 @@ fn main() {
                     .unwrap_or_else(|error| __terrane_uncaught(
                         TerraneError::from(error)
                             .at(
-                                "/benchmark-standard-score-outliers::main (main.trn:17:19)",
+                                "/benchmark-standard-score-outliers::main (main.trn:23:19)",
                             ),
                     )),
             )
             .unwrap_or_else(|error| __terrane_uncaught(
                 TerraneError::from(error)
-                    .at("/benchmark-standard-score-outliers::main (main.trn:17:19)"),
+                    .at("/benchmark-standard-score-outliers::main (main.trn:23:19)"),
             ));
         let periodic: f64 = terrane_int_support::exact_f64(
                 &terrane_int_support::fixed_remainder(index, 7)
                     .unwrap_or_else(|error| __terrane_uncaught(
                         TerraneError::from(error)
                             .at(
-                                "/benchmark-standard-score-outliers::main (main.trn:18:24)",
+                                "/benchmark-standard-score-outliers::main (main.trn:24:24)",
                             ),
                     )),
             )
             .unwrap_or_else(|error| __terrane_uncaught(
                 TerraneError::from(error)
-                    .at("/benchmark-standard-score-outliers::main (main.trn:18:24)"),
+                    .at("/benchmark-standard-score-outliers::main (main.trn:24:24)"),
             ));
         let value: f64 = 0.01 * raw * raw + periodic - 3.0_f64;
         values.append(value);
@@ -246,13 +273,13 @@ fn main() {
         index = terrane_int_support::fixed_addition(index, 1)
             .unwrap_or_else(|error| __terrane_uncaught(
                 TerraneError::from(error)
-                    .at("/benchmark-standard-score-outliers::main (main.trn:22:5)"),
+                    .at("/benchmark-standard-score-outliers::main (main.trn:28:5)"),
             ));
     }
     let divisor: f64 = terrane_int_support::exact_f64(&count)
         .unwrap_or_else(|error| __terrane_uncaught(
             TerraneError::from(error)
-                .at("/benchmark-standard-score-outliers::main (main.trn:24:21)"),
+                .at("/benchmark-standard-score-outliers::main (main.trn:30:21)"),
         ));
     let mean: f64 = total / divisor;
     let mut squared_total: f64 = 0.0_f64;
@@ -282,7 +309,7 @@ fn main() {
             outliers = terrane_int_support::fixed_addition(outliers, 1)
                 .unwrap_or_else(|error| __terrane_uncaught(
                     TerraneError::from(error)
-                        .at("/benchmark-standard-score-outliers::main (main.trn:36:7)"),
+                        .at("/benchmark-standard-score-outliers::main (main.trn:42:7)"),
                 ));
         }
     }

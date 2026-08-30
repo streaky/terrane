@@ -174,29 +174,56 @@ fn terrane_process_exit(code: terrane_int_support::Int) {
 }
 // Source: src/main.trn
 // Namespace: benchmark-scalar-reduction
-fn main() {
+fn benchmark_size() -> i64 {
     let supplied: terrane_collection_support::List<PlatformString> = arguments();
-    let mut count: i64 = 1000;
     if terrane_int_support::Int::from(terrane_int_support::Int::from(supplied.length()))
-        > terrane_int_support::Int::from(0_i128)
-        && supplied
-            .get_or_error(
-                terrane_collection_support::index_from_int(
-                        &terrane_int_support::Int::from(0_i128),
-                    )
-                    .unwrap_or_else(|error| __terrane_uncaught(
-                        TerraneError::from(error)
-                            .at("/benchmark-scalar-reduction::main (main.trn:9:30)"),
-                    )),
-            )
-            .unwrap_or_else(|error| __terrane_uncaught(
-                TerraneError::from(error)
-                    .at("/benchmark-scalar-reduction::main (main.trn:9:30)"),
-            ))
-            .text == String::from("performance")
+        != terrane_int_support::Int::from(1_i128)
     {
-        count = 50000000;
+        exit(make_exit_status(terrane_int_support::Int::from(2_i128)));
     }
+    let count: i64 = terrane_int_support::coerce::<
+        i64,
+    >(
+            &terrane_int_support::parse_radix(
+                    &supplied
+                        .get_or_error(
+                            terrane_collection_support::index_from_int(
+                                    &terrane_int_support::Int::from(0_i128),
+                                )
+                                .unwrap_or_else(|error| __terrane_uncaught(
+                                    TerraneError::from(error)
+                                        .at(
+                                            "/benchmark-scalar-reduction::benchmark-size (main.trn:10:18)",
+                                        ),
+                                )),
+                        )
+                        .unwrap_or_else(|error| __terrane_uncaught(
+                            TerraneError::from(error)
+                                .at(
+                                    "/benchmark-scalar-reduction::benchmark-size (main.trn:10:18)",
+                                ),
+                        ))
+                        .text,
+                    &10,
+                )
+                .unwrap_or_else(|error| __terrane_uncaught(
+                    TerraneError::from(error)
+                        .at(
+                            "/benchmark-scalar-reduction::benchmark-size (main.trn:10:18)",
+                        ),
+                )),
+        )
+        .unwrap_or_else(|error| __terrane_uncaught(
+            TerraneError::from(error)
+                .at("/benchmark-scalar-reduction::benchmark-size (main.trn:10:17)"),
+        ));
+    if count <= 0 {
+        exit(make_exit_status(terrane_int_support::Int::from(2_i128)));
+    }
+    return count;
+}
+fn main() {
+    let count: i64 = benchmark_size();
     let mut total: i64 = 0;
     let mut index: i64 = 0;
     while index < count {
@@ -204,30 +231,30 @@ fn main() {
                 terrane_int_support::fixed_remainder(index, 1000)
                     .unwrap_or_else(|error| __terrane_uncaught(
                         TerraneError::from(error)
-                            .at("/benchmark-scalar-reduction::main (main.trn:15:20)"),
+                            .at("/benchmark-scalar-reduction::main (main.trn:21:20)"),
                     )),
                 500,
             )
             .unwrap_or_else(|error| __terrane_uncaught(
                 TerraneError::from(error)
-                    .at("/benchmark-scalar-reduction::main (main.trn:15:19)"),
+                    .at("/benchmark-scalar-reduction::main (main.trn:21:19)"),
             ));
         total = terrane_int_support::fixed_addition(
                 total,
                 terrane_int_support::fixed_multiplication(value, value)
                     .unwrap_or_else(|error| __terrane_uncaught(
                         TerraneError::from(error)
-                            .at("/benchmark-scalar-reduction::main (main.trn:16:21)"),
+                            .at("/benchmark-scalar-reduction::main (main.trn:22:21)"),
                     )),
             )
             .unwrap_or_else(|error| __terrane_uncaught(
                 TerraneError::from(error)
-                    .at("/benchmark-scalar-reduction::main (main.trn:16:13)"),
+                    .at("/benchmark-scalar-reduction::main (main.trn:22:13)"),
             ));
         index = terrane_int_support::fixed_addition(index, 1)
             .unwrap_or_else(|error| __terrane_uncaught(
                 TerraneError::from(error)
-                    .at("/benchmark-scalar-reduction::main (main.trn:17:5)"),
+                    .at("/benchmark-scalar-reduction::main (main.trn:23:5)"),
             ));
     }
     println!("{}", terrane_scalar_support::scalar_text(&total));

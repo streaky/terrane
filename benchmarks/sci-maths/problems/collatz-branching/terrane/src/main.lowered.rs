@@ -174,29 +174,56 @@ fn terrane_process_exit(code: terrane_int_support::Int) {
 }
 // Source: src/main.trn
 // Namespace: benchmark-collatz-branching
-fn main() {
+fn benchmark_size() -> i64 {
     let supplied: terrane_collection_support::List<PlatformString> = arguments();
-    let mut limit: i64 = 1000;
     if terrane_int_support::Int::from(terrane_int_support::Int::from(supplied.length()))
-        > terrane_int_support::Int::from(0_i128)
-        && supplied
-            .get_or_error(
-                terrane_collection_support::index_from_int(
-                        &terrane_int_support::Int::from(0_i128),
-                    )
-                    .unwrap_or_else(|error| __terrane_uncaught(
-                        TerraneError::from(error)
-                            .at("/benchmark-collatz-branching::main (main.trn:9:30)"),
-                    )),
-            )
-            .unwrap_or_else(|error| __terrane_uncaught(
-                TerraneError::from(error)
-                    .at("/benchmark-collatz-branching::main (main.trn:9:30)"),
-            ))
-            .text == String::from("performance")
+        != terrane_int_support::Int::from(1_i128)
     {
-        limit = 1000000;
+        exit(make_exit_status(terrane_int_support::Int::from(2_i128)));
     }
+    let limit: i64 = terrane_int_support::coerce::<
+        i64,
+    >(
+            &terrane_int_support::parse_radix(
+                    &supplied
+                        .get_or_error(
+                            terrane_collection_support::index_from_int(
+                                    &terrane_int_support::Int::from(0_i128),
+                                )
+                                .unwrap_or_else(|error| __terrane_uncaught(
+                                    TerraneError::from(error)
+                                        .at(
+                                            "/benchmark-collatz-branching::benchmark-size (main.trn:10:18)",
+                                        ),
+                                )),
+                        )
+                        .unwrap_or_else(|error| __terrane_uncaught(
+                            TerraneError::from(error)
+                                .at(
+                                    "/benchmark-collatz-branching::benchmark-size (main.trn:10:18)",
+                                ),
+                        ))
+                        .text,
+                    &10,
+                )
+                .unwrap_or_else(|error| __terrane_uncaught(
+                    TerraneError::from(error)
+                        .at(
+                            "/benchmark-collatz-branching::benchmark-size (main.trn:10:18)",
+                        ),
+                )),
+        )
+        .unwrap_or_else(|error| __terrane_uncaught(
+            TerraneError::from(error)
+                .at("/benchmark-collatz-branching::benchmark-size (main.trn:10:17)"),
+        ));
+    if limit <= 0 {
+        exit(make_exit_status(terrane_int_support::Int::from(2_i128)));
+    }
+    return limit;
+}
+fn main() {
+    let limit: i64 = benchmark_size();
     let mut total: i64 = 0;
     let mut start: i64 = 1;
     while start <= limit {
@@ -205,38 +232,38 @@ fn main() {
             if terrane_int_support::fixed_remainder(value, 2)
                 .unwrap_or_else(|error| __terrane_uncaught(
                     TerraneError::from(error)
-                        .at("/benchmark-collatz-branching::main (main.trn:17:10)"),
+                        .at("/benchmark-collatz-branching::main (main.trn:23:10)"),
                 )) == 0
             {
                 value = terrane_int_support::fixed_division(value, 2)
                     .unwrap_or_else(|error| __terrane_uncaught(
                         TerraneError::from(error)
-                            .at("/benchmark-collatz-branching::main (main.trn:18:17)"),
+                            .at("/benchmark-collatz-branching::main (main.trn:24:17)"),
                     ));
             } else {
                 value = terrane_int_support::fixed_addition(
                         terrane_int_support::fixed_multiplication(3, value)
                             .unwrap_or_else(|error| __terrane_uncaught(
                                 TerraneError::from(error)
-                                    .at("/benchmark-collatz-branching::main (main.trn:20:17)"),
+                                    .at("/benchmark-collatz-branching::main (main.trn:26:17)"),
                             )),
                         1,
                     )
                     .unwrap_or_else(|error| __terrane_uncaught(
                         TerraneError::from(error)
-                            .at("/benchmark-collatz-branching::main (main.trn:20:17)"),
+                            .at("/benchmark-collatz-branching::main (main.trn:26:17)"),
                     ));
             }
             total = terrane_int_support::fixed_addition(total, 1)
                 .unwrap_or_else(|error| __terrane_uncaught(
                     TerraneError::from(error)
-                        .at("/benchmark-collatz-branching::main (main.trn:21:7)"),
+                        .at("/benchmark-collatz-branching::main (main.trn:27:7)"),
                 ));
         }
         start = terrane_int_support::fixed_addition(start, 1)
             .unwrap_or_else(|error| __terrane_uncaught(
                 TerraneError::from(error)
-                    .at("/benchmark-collatz-branching::main (main.trn:22:5)"),
+                    .at("/benchmark-collatz-branching::main (main.trn:28:5)"),
             ));
     }
     println!("{}", terrane_scalar_support::scalar_text(&total));
