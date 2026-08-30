@@ -112,6 +112,62 @@ pub(crate) fn canonicalize_rust(rust: &str) -> Result<String, syn::Error> {
     Ok(prettyplease::unparse(&canonicalize_file(parsed)))
 }
 
+fn restore_terrane_comments(rendered: &str) -> String {
+    const MARKER: &str = "__terrane_comment!(";
+    let mut restored = String::with_capacity(rendered.len());
+    let mut remaining = rendered;
+    while let Some(start) = remaining.find(MARKER) {
+        restored.push_str(&remaining[..start]);
+        let arguments_start = start + MARKER.len();
+        let bytes = remaining.as_bytes();
+        let mut depth = 1_usize;
+        let mut in_string = false;
+        let mut escaped = false;
+        let mut separator = None;
+        let mut end = None;
+        for (offset, byte) in bytes[arguments_start..].iter().copied().enumerate() {
+            if in_string {
+                if escaped {
+                    escaped = false;
+                } else if byte == b'\\' {
+                    escaped = true;
+                } else if byte == b'"' {
+                    in_string = false;
+                }
+                continue;
+            }
+            match byte {
+                b'"' => in_string = true,
+                b'(' | b'[' | b'{' => depth += 1,
+                b')' if depth == 1 => {
+                    end = Some(arguments_start + offset);
+                    break;
+                }
+                b')' | b']' | b'}' => depth -= 1,
+                b',' if depth == 1 => separator = Some(arguments_start + offset),
+                _ => {}
+            }
+        }
+        let (Some(separator), Some(end)) = (separator, end) else {
+            restored.push_str(&remaining[start..]);
+            return restored;
+        };
+        let expression = remaining[arguments_start..separator].trim_end();
+        let encoded_comment = remaining[separator + 1..end].trim();
+        let Ok(comment) = syn::parse_str::<syn::LitStr>(encoded_comment) else {
+            restored.push_str(&remaining[start..=end]);
+            remaining = &remaining[end + 1..];
+            continue;
+        };
+        let comment = comment.value().replace("*/", "* /");
+        write!(restored, "{expression} /* {comment} */")
+            .expect("writing to a String cannot fail");
+        remaining = &remaining[end + 1..];
+    }
+    restored.push_str(remaining);
+    restored
+}
+
 impl Block {
     fn from_rendered(rust: &str) -> Self {
         let parsed = syn::parse_file(rust).expect("lowered Rust item must parse");
@@ -121,7 +177,7 @@ impl Block {
     }
 
     fn render(&self, output: &mut String) {
-        output.push_str(&prettyplease::unparse(&self.parsed));
+        output.push_str(&restore_terrane_comments(&prettyplease::unparse(&self.parsed)));
     }
 }
 
@@ -247,7 +303,7 @@ impl Program {
 
 #[cfg(test)]
 mod tests {
-    use super::Block;
+    use super::{Block, restore_terrane_comments};
 
     #[test]
     fn canonicalizes_expression_list_macro_arguments() {
@@ -272,5 +328,40 @@ mod tests {
             "{rendered}"
         );
         assert!(!rendered.contains("&(("), "{rendered}");
+    }
+
+    #[test]
+    fn restores_generated_site_comments_after_canonicalization() {
+        let block = Block::from_rendered(
+            r#"fn main() {
+                let value = raised(call(), __terrane_comment!(7, "src/main.trn:4:9-4:15"));
+                let sites = [Site {
+                    function: __terrane_comment!(0, "site 7 /demo::main"),
+                    file: 0,
+                    line: 4,
+                    column: 9,
+                }];
+            }"#,
+        );
+        let mut rendered = String::new();
+        block.render(&mut rendered);
+
+        assert!(
+            rendered.contains("7 /* src/main.trn:4:9-4:15 */"),
+            "{rendered}"
+        );
+        assert!(
+            rendered.contains("function: 0 /* site 7 /demo::main */,"),
+            "{rendered}"
+        );
+        assert!(!rendered.contains("__terrane_comment"), "{rendered}");
+    }
+
+    #[test]
+    fn leaves_unclosed_comment_marker_unchanged() {
+        assert_eq!(
+            restore_terrane_comments("__terrane_comment!(7, \"site\""),
+            "__terrane_comment!(7, \"site\""
+        );
     }
 }
