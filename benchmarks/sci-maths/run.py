@@ -8,7 +8,6 @@ import json
 import math
 import os
 import platform
-import resource
 import select
 import shutil
 import signal
@@ -38,8 +37,7 @@ class ProcessResult:
     stdout: str
     stderr: str
     wall_seconds: float
-    peak_rss_bytes: int | None
-
+    peak_memory_bytes: int | None
 
 @dataclass(frozen=True)
 class Lane:
@@ -58,7 +56,7 @@ class Lane:
     environment_commands: tuple[tuple[str, ...], ...]
 
 
-def wait_for_child(pid: int, timeout: float) -> tuple[int, resource.struct_rusage] | None:
+def wait_for_child(pid: int, timeout: float) -> int | None:
     """Wait for one child without polling when Linux pidfds are available."""
     if hasattr(os, "pidfd_open"):
         pidfd = os.pidfd_open(pid)
@@ -68,24 +66,91 @@ def wait_for_child(pid: int, timeout: float) -> tuple[int, resource.struct_rusag
             os.close(pidfd)
         if not readable:
             return None
-        _, status, usage = os.wait4(pid, 0)
-        return status, usage
+        _, status = os.waitpid(pid, 0)
+        return status
 
     deadline = time.monotonic() + timeout
     while True:
-        waited_pid, status, usage = os.wait4(pid, os.WNOHANG)
+        waited_pid, status = os.waitpid(pid, os.WNOHANG)
         if waited_pid:
-            return status, usage
+            return status
         remaining = deadline - time.monotonic()
         if remaining <= 0:
             return None
         time.sleep(min(0.001, remaining))
 
 
-def peak_rss_bytes(usage: resource.struct_rusage) -> int:
-    # macOS reports bytes; Linux and the other supported Unix platforms report KiB.
-    multiplier = 1 if sys.platform == "darwin" else 1024
-    return int(usage.ru_maxrss) * multiplier
+@dataclass(frozen=True)
+class MemoryCgroup:
+    path: Path
+
+    def join_from_child(self) -> None:
+        (self.path / "cgroup.procs").write_text(str(os.getpid()))
+
+    def peak_bytes(self) -> int:
+        return int((self.path / "memory.peak").read_text().strip())
+
+    def populated(self) -> bool:
+        return "populated 1" in (self.path / "cgroup.events").read_text().splitlines()
+
+    def kill(self) -> None:
+        kill_file = self.path / "cgroup.kill"
+        if kill_file.exists():
+            kill_file.write_text("1")
+
+    def remove(self) -> None:
+        deadline = time.monotonic() + 5.0
+        while self.populated() and time.monotonic() < deadline:
+            time.sleep(0.001)
+        self.path.rmdir()
+
+
+def memory_cgroup_parent() -> Path | None:
+    if not sys.platform.startswith("linux"):
+        return None
+    try:
+        entry = next(
+            line
+            for line in Path("/proc/self/cgroup").read_text().splitlines()
+            if line.startswith("0::")
+        )
+    except (OSError, StopIteration):
+        return None
+    relative = Path(entry[3:].lstrip("/"))
+    if ".." in relative.parts:
+        return None
+    parent = (Path("/sys/fs/cgroup") / relative).parent
+    if not (parent / "cgroup.controllers").is_file():
+        return None
+    return parent
+
+
+def create_memory_cgroup() -> MemoryCgroup | None:
+    parent = memory_cgroup_parent()
+    if parent is None:
+        return None
+    path: Path | None = None
+    try:
+        path = Path(tempfile.mkdtemp(prefix=f"terrane-sci-{os.getpid()}-", dir=parent))
+        if not (path / "memory.peak").is_file():
+            path.rmdir()
+            return None
+        return MemoryCgroup(path)
+    except OSError:
+        if path is not None:
+            try:
+                path.rmdir()
+            except OSError:
+                pass
+        return None
+
+
+def memory_measurement_available() -> bool:
+    group = create_memory_cgroup()
+    if group is None:
+        return False
+    group.remove()
+    return True
 
 
 def read_process_output(stdout_file: Any, stderr_file: Any) -> tuple[str, str]:
@@ -98,41 +163,59 @@ def read_process_output(stdout_file: Any, stderr_file: Any) -> tuple[str, str]:
 
 
 def run_process(command: list[str], *, cwd: Path, timeout: float) -> ProcessResult:
-    with tempfile.TemporaryFile() as stdout_file, tempfile.TemporaryFile() as stderr_file:
-        started = time.perf_counter()
-        process = subprocess.Popen(
-            command,
-            cwd=cwd,
-            stdout=stdout_file,
-            stderr=stderr_file,
-            start_new_session=True,
-        )
-        waited = wait_for_child(process.pid, timeout)
-        timed_out = waited is None
-        if timed_out:
-            try:
-                os.killpg(process.pid, signal.SIGKILL)
-            except ProcessLookupError:
-                pass
-            waited = wait_for_child(process.pid, 5.0)
-            if waited is None:
-                raise BenchmarkError(
-                    f"timed-out process group could not be reaped: {format_command(command)}"
-                )
+    memory_group = create_memory_cgroup()
+    try:
+        with tempfile.TemporaryFile() as stdout_file, tempfile.TemporaryFile() as stderr_file:
+            started = time.perf_counter()
+            process = subprocess.Popen(
+                command,
+                cwd=cwd,
+                stdout=stdout_file,
+                stderr=stderr_file,
+                start_new_session=True,
+                preexec_fn=memory_group.join_from_child if memory_group else None,
+            )
+            waited = wait_for_child(process.pid, timeout)
+            timed_out = waited is None
+            if timed_out:
+                if memory_group is not None:
+                    memory_group.kill()
+                try:
+                    os.killpg(process.pid, signal.SIGKILL)
+                except ProcessLookupError:
+                    pass
+                waited = wait_for_child(process.pid, 5.0)
+                if waited is None:
+                    raise BenchmarkError(
+                        f"timed-out process group could not be reaped: {format_command(command)}"
+                    )
 
-        status, usage = waited
-        process.returncode = os.waitstatus_to_exitcode(status)
-        wall_seconds = time.perf_counter() - started
-        stdout, stderr = read_process_output(stdout_file, stderr_file)
-        if timed_out:
-            raise BenchmarkError(f"command timed out after {timeout:g}s: {format_command(command)}")
-        return ProcessResult(
-            returncode=process.returncode,
-            stdout=stdout,
-            stderr=stderr,
-            wall_seconds=wall_seconds,
-            peak_rss_bytes=peak_rss_bytes(usage),
-        )
+            process.returncode = os.waitstatus_to_exitcode(waited)
+            wall_seconds = time.perf_counter() - started
+            stdout, stderr = read_process_output(stdout_file, stderr_file)
+            peak_memory_bytes = memory_group.peak_bytes() if memory_group else None
+            if memory_group is not None and memory_group.populated():
+                memory_group.kill()
+                raise BenchmarkError(
+                    f"command left descendant processes running: {format_command(command)}"
+                )
+            if timed_out:
+                raise BenchmarkError(f"command timed out after {timeout:g}s: {format_command(command)}")
+            return ProcessResult(
+                returncode=process.returncode,
+                stdout=stdout,
+                stderr=stderr,
+                wall_seconds=wall_seconds,
+                peak_memory_bytes=peak_memory_bytes,
+            )
+    finally:
+        if memory_group is not None:
+            try:
+                memory_group.remove()
+            except OSError as error:
+                raise BenchmarkError(
+                    f"cannot remove execution memory cgroup {memory_group.path.name}: {error}"
+                ) from error
 
 
 def load_toml(path: Path) -> dict[str, Any]:
@@ -456,7 +539,7 @@ def process_record(result: ProcessResult | None) -> dict[str, Any] | None:
     ]
     return {
         "wall_seconds": result.wall_seconds,
-        "peak_rss_bytes": result.peak_rss_bytes,
+        "peak_memory_bytes": result.peak_memory_bytes,
         "stderr": result.stderr,
         "warning_lines": warning_lines,
     }
@@ -577,8 +660,9 @@ def benchmark(
     warmups: int,
     cold_builds: bool,
 ) -> dict[str, Any]:
+    memory_available = memory_measurement_available()
     report: dict[str, Any] = {
-        "format": 1,
+        "format": 2,
         "suite": suite["name"],
         "created_at": datetime.now(timezone.utc).isoformat(),
         "environment": machine_environment(),
@@ -596,8 +680,16 @@ def benchmark(
                 if cold_builds
                 else "existing adapter-declared caches preserved"
             ),
-            "memory": "kernel ru_maxrss high-water mark from wait4 for the launched process and children it waited for",
-            "memory_limitations": "ru_maxrss is a lifetime high-water mark, not simultaneous summed tree RSS; it includes runtime and allocator-retained pages and does not separate shared mappings.",
+            "memory": (
+                "peak cgroup-v2 memory charged to a fresh cgroup containing the launched process and all descendants"
+                if memory_available
+                else "unavailable because delegated cgroup-v2 memory accounting is not accessible"
+            ),
+            "memory_limitations": (
+                "memory.peak includes anonymous memory, charged page cache, and kernel memory; shared pages are charged once. It is not an RSS measurement."
+                if memory_available
+                else None
+            ),
         },
         "lane_setup": {},
         "results": [],
@@ -782,14 +874,14 @@ def render_markdown(report: dict[str, Any], raw_report_name: str) -> str:
             "",
             "## Execution results",
             "",
-            "| Problem | Lane | Size | Result | Median wall time | Range | Peak RSS | Warnings |",
+            "| Problem | Lane | Size | Result | Median wall time | Range | Peak memory | Warnings |",
             "|---|---|---:|---:|---:|---:|---:|---:|",
         ]
     )
     for result in report["results"]:
         runs = result["runs"]
         times = [run["wall_seconds"] for run in runs]
-        peaks = [run["peak_rss_bytes"] for run in runs if run["peak_rss_bytes"] is not None]
+        peaks = [run["peak_memory_bytes"] for run in runs if run["peak_memory_bytes"] is not None]
         time_range = f"{format_seconds(min(times))}–{format_seconds(max(times))}"
         lines.append(
             "| "
@@ -819,7 +911,7 @@ def render_markdown(report: dict[str, Any], raw_report_name: str) -> str:
                 "",
                 "## Preparation results",
                 "",
-                "| Problem | Lane | Cold preparation | Cold peak RSS | Incremental preparation | Incremental peak RSS |",
+                "| Problem | Lane | Cold preparation | Cold peak memory | Incremental preparation | Incremental peak memory |",
                 "|---|---|---:|---:|---:|---:|",
             ]
         )
@@ -833,9 +925,9 @@ def render_markdown(report: dict[str, Any], raw_report_name: str) -> str:
                         markdown_text(result["title"]),
                         markdown_text(result["lane"]),
                         format_seconds(cold["wall_seconds"] if cold else None),
-                        format_bytes(cold["peak_rss_bytes"] if cold else None),
+                        format_bytes(cold["peak_memory_bytes"] if cold else None),
                         format_seconds(incremental["wall_seconds"] if incremental else None),
-                        format_bytes(incremental["peak_rss_bytes"] if incremental else None),
+                        format_bytes(incremental["peak_memory_bytes"] if incremental else None),
                     ]
                 )
                 + " |"

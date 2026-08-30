@@ -30,7 +30,7 @@ python3 benchmarks/sci-maths/run.py \
 `lower` refreshes each lane's declared inspectable lowering. The Terrane lane writes
 `main.lowered.rs` beside every `main.trn`, keeping the generated Rust receipt with the solution.
 
-On Unix, peak memory is the kernel's `ru_maxrss` high-water mark returned by `wait4` for each launched process. It is not an allocation count or a simultaneous sum of an entire process tree; it includes runtime state, shared mappings, and allocator-retained pages. The runner records the limitation in every report.
+On Linux systems with delegated cgroup-v2 memory accounting, every launched program and its descendants run in a fresh cgroup. Reports record that cgroup's `memory.peak`: total peak memory charged to the group, including anonymous memory, charged page cache, and kernel memory, with shared pages charged once. It is deliberately labelled peak memory rather than RSS. When this accounting is unavailable, memory results remain unavailable rather than falling back to a misleading process estimate.
 
 The Terrane adapter builds both the compiler and every generated benchmark executable with Cargo's optimized release profile. Development and release artifacts are cached separately by the Terrane CLI. Reports capture the machine platform, kernel, CPU model, core counts, memory capacity, runner Python version, and each lane's configured tool versions. Successful stderr is retained in JSON and warning-like lines are counted and surfaced in Markdown.
 

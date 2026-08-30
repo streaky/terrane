@@ -1,6 +1,6 @@
 # Terrane scientific mathematics and data workloads
 
-Generated at `2026-08-30T06:35:40.262058+00:00`.
+Generated at `2026-08-30T07:20:28.510630+00:00`.
 
 ## Environment
 
@@ -24,8 +24,8 @@ Generated at `2026-08-30T06:35:40.262058+00:00`.
 - Execution timing: program process only; setup and preparation complete before timing begins.
 - Run order: problem-major and lane-minor within each warm-up or measured run index.
 - Setup timeout: 300.000 s; runtime timeout: 60.000 s.
-- Memory: kernel ru_maxrss high-water mark from wait4 for the launched process and children it waited for.
-- Memory limitations: ru_maxrss is a lifetime high-water mark, not simultaneous summed tree RSS; it includes runtime and allocator-retained pages and does not separate shared mappings.
+- Memory: peak cgroup-v2 memory charged to a fresh cgroup containing the launched process and all descendants.
+- Memory limitations: memory.peak includes anonymous memory, charged page cache, and kernel memory; shared pages are charged once. It is not an RSS measurement.
 
 ## Lanes
 
@@ -36,18 +36,18 @@ Generated at `2026-08-30T06:35:40.262058+00:00`.
 
 ## Execution results
 
-| Problem | Lane | Size | Result | Median wall time | Range | Peak RSS | Warnings |
+| Problem | Lane | Size | Result | Median wall time | Range | Peak memory | Warnings |
 |---|---|---:|---:|---:|---:|---:|---:|
-| Deterministic sum-of-squares reduction | terrane | 50000000 | 4166675000000 | 156.56 ms | 153.17 ms–183.26 ms | 22.9 MiB | 0 |
-| Deterministic sum-of-squares reduction | python | 50000000 | 4166675000000 | 4.238 s | 4.172 s–4.561 s | 22.9 MiB | 0 |
-| Materialized quadratic element-wise transformation | terrane | 10000000 | 412683499.9998618 | 525.99 ms | 520.89 ms–536.44 ms | 80.6 MiB | 0 |
-| Materialized quadratic element-wise transformation | python | 10000000 | 412683500.0 | 1.907 s | 1.865 s–2.026 s | 396.8 MiB | 0 |
-| Fused rational transformation and reduction | terrane | 20000000 | 10225090.319585808 | 903.52 ms | 892.40 ms–969.54 ms | 22.9 MiB | 0 |
-| Fused rational transformation and reduction | python | 20000000 | 10225090.319507949 | 3.391 s | 3.329 s–3.562 s | 22.9 MiB | 0 |
-| Branch-heavy Collatz stopping-time total | terrane | 1000000 | 131434424 | 693.88 ms | 676.56 ms–786.35 ms | 22.9 MiB | 0 |
-| Branch-heavy Collatz stopping-time total | python | 1000000 | 131434424 | 8.262 s | 8.090 s–8.798 s | 22.9 MiB | 0 |
-| Composed generation, moments, and outlier classification | terrane | 10000000 | 1021428 | 792.56 ms | 719.57 ms–832.29 ms | 80.3 MiB | 0 |
-| Composed generation, moments, and outlier classification | python | 10000000 | 1021428 | 3.640 s | 3.558 s–3.736 s | 396.5 MiB | 0 |
+| Deterministic sum-of-squares reduction | terrane | 50000000 | 4166675000000 | 178.47 ms | 166.41 ms–183.17 ms | 768.0 KiB | 0 |
+| Deterministic sum-of-squares reduction | python | 50000000 | 4166675000000 | 4.420 s | 4.310 s–4.543 s | 4.2 MiB | 0 |
+| Materialized quadratic element-wise transformation | terrane | 10000000 | 412683499.9998618 | 539.21 ms | 525.53 ms–548.38 ms | 78.5 MiB | 0 |
+| Materialized quadratic element-wise transformation | python | 10000000 | 412683500.0 | 2.028 s | 1.978 s–2.177 s | 389.4 MiB | 0 |
+| Fused rational transformation and reduction | terrane | 20000000 | 10225090.319585808 | 929.69 ms | 895.85 ms–944.31 ms | 768.0 KiB | 0 |
+| Fused rational transformation and reduction | python | 20000000 | 10225090.319507949 | 3.575 s | 3.509 s–3.716 s | 4.2 MiB | 0 |
+| Branch-heavy Collatz stopping-time total | terrane | 1000000 | 131434424 | 716.50 ms | 697.46 ms–721.65 ms | 1.1 MiB | 0 |
+| Branch-heavy Collatz stopping-time total | python | 1000000 | 131434424 | 8.610 s | 8.408 s–8.732 s | 4.2 MiB | 0 |
+| Composed generation, moments, and outlier classification | terrane | 10000000 | 1021428 | 813.25 ms | 758.53 ms–820.43 ms | 78.8 MiB | 0 |
+| Composed generation, moments, and outlier classification | python | 10000000 | 1021428 | 3.814 s | 3.667 s–3.877 s | 388.9 MiB | 0 |
 
 Every recorded execution passed its problem's shared correctness contract. Successful process stderr is retained in the raw data; **0 warning line(s)** were detected.
 

@@ -89,7 +89,7 @@ class RunnerContracts(unittest.TestCase):
             self.assertEqual(execution.returncode, 0)
             self.assertIn("Python", environment[0]["stdout"])
 
-    def test_process_result_uses_kernel_peak_and_retains_successful_stderr(self) -> None:
+    def test_process_result_retains_stderr_and_records_peak_memory_when_available(self) -> None:
         result = runner.run_process(
             [sys.executable, "-c", "import sys; print('warning: fixture', file=sys.stderr); print(7)"],
             cwd=Path.cwd(),
@@ -97,10 +97,38 @@ class RunnerContracts(unittest.TestCase):
         )
         self.assertEqual(result.stdout.strip(), "7")
         self.assertIn("warning: fixture", result.stderr)
-        self.assertGreater(result.peak_rss_bytes, 0)
+        if runner.memory_measurement_available():
+            self.assertIsNotNone(result.peak_memory_bytes)
+            assert result.peak_memory_bytes is not None
+            self.assertGreater(result.peak_memory_bytes, 0)
+        else:
+            self.assertIsNone(result.peak_memory_bytes)
         record = runner.process_record(result)
         assert record is not None
         self.assertEqual(record["warning_lines"], ["warning: fixture"])
+
+    def test_cgroup_memory_measurement_distinguishes_low_and_high_allocations(self) -> None:
+        if not runner.memory_measurement_available():
+            self.skipTest("delegated cgroup-v2 memory accounting is unavailable")
+        low = runner.run_process(
+            [sys.executable, "-c", "print(0)"],
+            cwd=Path.cwd(),
+            timeout=5.0,
+        )
+        high = runner.run_process(
+            [
+                sys.executable,
+                "-c",
+                "data = bytearray(32 * 1024 * 1024); "
+                "data[::4096] = b'x' * len(data[::4096]); "
+                "print(len(data))",
+            ],
+            cwd=Path.cwd(),
+            timeout=5.0,
+        )
+        assert low.peak_memory_bytes is not None
+        assert high.peak_memory_bytes is not None
+        self.assertGreater(high.peak_memory_bytes, low.peak_memory_bytes + 24 * 1024 * 1024)
 
     def test_timeout_kills_the_whole_process_group(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
