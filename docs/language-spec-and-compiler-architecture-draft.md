@@ -10,7 +10,7 @@
 
 ## 1. Status and terminology
 
-This is a **design specification**, not a claim that an implementation exists.
+This is the **normative design specification**. Implemented language surface is tracked separately; inclusion here does not imply that every specified feature is implemented.
 
 The words **must**, **must not**, **should**, and **may** are used in their usual specification sense:
 
@@ -919,10 +919,12 @@ That creates a namespace-local `print` even though the default prelude already s
 
 The version-one default ordinary bindings are:
 
-- `print`, sourced from `/core/output`’s `print`;
-- scalar type objects `int`, `float`, `bool`, `string`, `bytes`, and `none`, sourced from `/core/types`.
+- `print`, sourced from `/core/output`'s `print`;
+- `task-scope`, sourced from `/core/concurrency`'s `task-scope`;
+- scalar type objects `int`, `float`, `bool`, `string`, `bytes`, and `none`, sourced from `/core/types`;
+- encoding objects `utf8`, `utf16-le`, `utf16-be`, `utf32-le`, and `utf32-be`, sourced from `/core/text`.
 
-This is the complete default list. In particular, collections, filesystem access, concurrency, formatting helpers, and reflection helpers require imports. `import` remains structural syntax whose behaviour is supplied by the active importer object; it is not an ordinary prelude binding.
+This is the complete default list. In particular, collections, filesystem access, concurrency facilities other than `task-scope`, formatting helpers, and reflection helpers require imports. `import` remains structural syntax whose behaviour is supplied by the active importer object; it is not an ordinary prelude binding.
 
 Prelude bindings are defaults, not reserved names. Explicit program composition may replace any of them:
 
@@ -5167,10 +5169,10 @@ This is normative EBNF for the covered core forms. Names in capitals are layout 
 
 ```terrane
 identifier-unit
-  = letter { letter | digit }
+  = ( letter | "_" ) { letter | digit | "_" }
 
 post-joiner-identifier-unit
-  = { letter | digit } letter { letter | digit }
+  = { letter | digit | "_" } letter { letter | digit | "_" }
 
 identifier
   = identifier-unit
@@ -5251,15 +5253,23 @@ class-declaration
 function-declaration
   = [ modifier-clause ]
     [ visibility ] { function-qualifier }
-    "function" [ identifier [ type-expression ] ]
-    [ ";" parameter-list ]
+    "function"
+    [ identifier [ type-expression ] [ throws-contract ] ]
+    ";"
+    [ parameter-list | delimited-parameter-list ]
     indented-function-body
 
 function-qualifier
-  = "static" | "async" | "throws"
+  = "static" | "async"
+
+throws-contract
+  = "throws" type-expression
 
 parameter-list
   = parameter { "," parameter }
+
+delimited-parameter-list
+  = "(" [ parameter { "," parameter } ] ")"
 
 parameter
   = identifier [ type-expression ] [ "=" expression ] [ "..." ]
@@ -5326,7 +5336,6 @@ statement
   | continue-statement
   | yield-statement
   | match-statement
-  | unsafe-statement
   | rust-statement
   | label-statement
   | goto-statement
@@ -5461,13 +5470,19 @@ primary-expression
   | "(" expression ")"
 
 call-clause
-  = ";" [ argument-list ]
+  = ";" [ argument-list | delimited-argument-list ]
 
 argument-list
   = argument { "," argument }
 
 argument
   = [ identifier "=" ] call-free-expression
+
+delimited-argument-list
+  = "(" [ delimited-argument { "," delimited-argument } [ "," ] ] ")"
+
+delimited-argument
+  = [ identifier "=" ] expression
 
 call-free-expression
   = expression-with-the-call-clause-production-disabled
@@ -6022,7 +6037,7 @@ Unless a snippet explicitly tests unresolved lookup, the conformance harness sup
 68. `coerce`, `coerce.checked`, `coerce.wrap`, and `coerce.saturate` handle signedness and every `int`/fixed-width boundary exactly; written integer-to-float `coerce` rounds ties-to-even while an implicit float destination is exact-or-throw; flat spellings such as `checked-coerce` are rejected.
 69. `int` bitwise operations behave as infinite two's-complement arithmetic across positive and negative operands and every representation tier; `~x == -x - 1`, left shift is exact, right shift is arithmetic/flooring, negative counts throw `negative-shift-count`, and very large right shifts produce `0` or `-1` without count wrapping or proportional allocation.
 70. contextual signed fixed-width destinations accept each type's syntactically negated minimum literal, including `-128` as `int8` and `-2^127` as `int128`, reject the next lower value, and do not first reject the unsigned positive magnitude.
-71. fixed-width numeric descriptors are constructs available without import, distinct from the seven prelude ordinary bindings; explicit import remains available for aliasing and shadowing, and they are not reserved type words.
+71. fixed-width numeric descriptors are constructs available without import, distinct from the thirteen prelude ordinary bindings; explicit import remains available for aliasing and shadowing, and they are not reserved type words.
 72. canonical type descriptors are semantic objects with stable identity rather than ordinary values, requiring no runtime storage when statically resolved and materialising only where reflection or dynamic descriptor use demands it, while a first-version type expression or coercion destination must resolve to a finite compiler-known descriptor alternative.
 73. numeric-to-float coercion rounds to nearest with ties to even and reports precision loss through the destination type rather than an error, unrepresentable float destinations and unparseable text throw `coercion-error`, and parsing coercion accepts exactly the destination's canonical text-display spelling.
 

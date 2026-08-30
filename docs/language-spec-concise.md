@@ -27,7 +27,7 @@ SELF_HEAL_RULE: when this reference is missing or unclear and SOURCE_OF_TRUTH re
 
 ## STATUS
 
-- Design specification, not claim of implementation.
+- Normative design specification; implemented surface is tracked separately, and inclusion does not imply implementation.
 - Rust is canonical lowering; no bespoke production VM required.
 - Generated Rust is deterministic, readable, inspectable, source-mapped.
 - Everything is semantically an object; representation may specialize when behavior is identical.
@@ -58,7 +58,7 @@ identifier:
   continuation: ASCII letters|digits|underscore|joiners
   joiners: punctuation admitted by normative grammar
   exact_identity: punctuation retained; no normalization
-  examples_valid: [http2, sha256, ipv4-ipv6, foo+bar, sha3-256sum]
+  examples_valid: [http2, sha256, ipv4-ipv6, foo+bar, sha3-256sum, ClientBuilder, parse_json, parse_json_]
   permanent_identifier: compact letter-joiner-letter, e.g. total-count
   lexical_error: terminal joiner + digits-only unit, e.g. count-1, x+4
   slash_excluded: '/' is the namespace separator, NOT an identifier joiner; a character cannot be both without making 'namespace foo/bar' ambiguous

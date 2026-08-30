@@ -212,11 +212,12 @@ For a finite dynamic receiver, a direct member access is valid only when every p
 The default prelude is intentionally small:
 
 ```text
-print
+print task-scope
 int float bool string bytes none
+utf8 utf16-le utf16-be utf32-le utf32-be
 ```
 
-Fixed-width numeric descriptors, abstract protocol descriptors, and collection constructors are not ordinary prelude bindings, so they do not flood value-name lookup. They are compiler-owned descriptor constructs usable directly in construct positions; explicit import remains available when a source scope needs rebinding, aliasing, or shadowing.
+These thirteen names are ordinary program-global bindings. Fixed-width numeric descriptors, abstract protocol descriptors, and collection constructors are not ordinary prelude bindings, so they do not flood value-name lookup. They are compiler-owned descriptor constructs usable directly in construct positions; explicit import remains available when a source scope needs rebinding, aliasing, or shadowing.
 
 ### 4.1 Numeric context and destinations
 
@@ -724,11 +725,11 @@ from ../../platform import clock
 
 A segment is `[a-z]([a-z0-9]|-[a-z0-9])*` — lowercase ASCII letter, then letters, digits, and internal hyphens. The allowlist makes every filesystem-hazardous character unformable rather than rejected, and `/` is therefore not an identifier character: `ipv4-ipv6`, never `ipv4/ipv6`. Windows device names (`con`, `prn`, `aux`, `nul`, `com1`–`com9`, `lpt1`–`lpt9`) are reserved as whole segments, since they are made of legal characters and the allowlist cannot see them.
 
-All user-declared names are lowercase kebab-case. Uppercase parses and is then rejected with a fixit rather than silently folded. Type parameters are the carve-out and stay uppercase: `list of T`, `map of K, V`.
+User-declared names may use uppercase and underscores so projected dependency names such as `ClientBuilder` and `parse_json` remain verbatim. Lowercase kebab-case is the Terrane convention and an opt-in advisory for user code, not a lexical restriction. Compiler-owned and standard-library names remain lowercase kebab-case. Type parameters retain their uppercase spelling: `list of T`, `map of K, V`.
 
 The namespace tree corresponds to a directory tree; a declaration disagreeing with its location is an error unless the manifest declares that mapping. The manifest maps a namespace root to a directory root, longest prefix wins, and a dependency's namespaces come from its own manifest rather than from scanning its tree.
 
-**Most programs need few imports.** The prelude supplies `print`, `int`, `float`, `bool`, `string`, `bytes`, and `none` as ordinary bindings. Other compiler-owned descriptors are constructs available directly in construct positions without becoming ordinary prelude values. This is a complete program:
+**Most programs need few imports.** The prelude supplies `print`, `task-scope`, `int`, `float`, `bool`, `string`, `bytes`, `none`, `utf8`, `utf16-le`, `utf16-be`, `utf32-le`, and `utf32-be` as ordinary bindings. Other compiler-owned descriptors are constructs available directly in construct positions without becoming ordinary prelude values. This is a complete program:
 
 ```terrane
 namespace demo
