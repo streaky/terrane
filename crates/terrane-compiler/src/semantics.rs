@@ -1032,8 +1032,8 @@ pub fn analyze(package: &Package) -> Result<SemanticPackage, SemanticFailure> {
                     &import.source,
                     "S2032",
                     format!(
-                        "profile `{}` forbids capability `{capability}` required by `{}`",
-                        package.profile.name, import.target
+                        "profile `{}` forbids capability `{capability}` required by `{}` imported by `{}`",
+                        package.profile.name, import.target, import.namespace
                     ),
                     import.span,
                 ));
@@ -6834,12 +6834,7 @@ fn infer_value_type(
                     | "/core/platform-capabilities::secret-buffer"
                     | "/core/platform-capabilities::result-capability"
                     | "/core/platform-concurrency::platform-capability"
-                    | "/core/platform-concurrency::no-capability"
-                    | "/core/platform-concurrency::int-channel"
-                    | "/core/platform-concurrency::int-mutex"
-                    | "/core/platform-concurrency::int-read-write-lock"
-                    | "/core/platform-concurrency::atomic-int64"
-                    | "/core/platform-concurrency::thread-local-int" => {
+                    | "/core/platform-concurrency::no-capability" => {
                         Some(ValueType::PlatformCapability)
                     }
                     "/core/platform-capabilities::result-resource"
@@ -6884,6 +6879,11 @@ fn infer_value_type(
                     | "/core/platform-capabilities::cancel"
                     | "/core/platform-capabilities::close"
                     | "/core/platform-concurrency::platform-result"
+                    | "/core/platform-concurrency::int-channel"
+                    | "/core/platform-concurrency::int-mutex"
+                    | "/core/platform-concurrency::int-read-write-lock"
+                    | "/core/platform-concurrency::atomic-int64"
+                    | "/core/platform-concurrency::thread-local-int"
                     | "/core/platform-concurrency::int-channel-send"
                     | "/core/platform-concurrency::int-channel-receive"
                     | "/core/platform-concurrency::int-channel-try-receive"

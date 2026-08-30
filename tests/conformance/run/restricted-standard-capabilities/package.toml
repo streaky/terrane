@@ -1,0 +1,8 @@
+package = "restricted-standard-capabilities"
+
+[profile]
+name = "restricted-standard"
+capabilities = ["threads", "process"]
+
+[namespaces]
+restricted-standard-capabilities = "src"
