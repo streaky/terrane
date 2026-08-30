@@ -15,6 +15,7 @@ python3 benchmarks/sci-maths/run.py check
 python3 benchmarks/sci-maths/run.py benchmark --runs 7 --warmups 2 \
   --output benchmarks/sci-maths/results/local.json
 python3 benchmarks/sci-maths/run.py report
+python3 benchmarks/sci-maths/run.py report --cold-builds
 ```
 
 Global selectors go before the command and may be repeated:
@@ -24,7 +25,7 @@ python3 benchmarks/sci-maths/run.py \
   --problem scalar-reduction --lane python check
 ```
 
-`check` prepares each selected implementation and runs the small correctness profile. `benchmark` clears only adapter-declared caches inside this suite, records a cold preparation, records an immediately repeated incremental preparation, rechecks correctness, performs warm-ups, and then records end-to-end runs as JSON. `report` performs the same complete run across every problem and lane, then writes a timestamped Markdown report and a same-named JSON file containing the complete measurements under `results/`. It never removes the repository's Cargo target directory.
+`check` prepares each selected implementation and runs the small correctness profile. `benchmark` and `report` preserve adapter-declared build caches by default, complete all setup and preparation before timing any program execution, recheck correctness, perform warm-ups, and then record end-to-end program runs. Compilation and preparation time is never included in an execution result; a lane with no build step, such as Python, follows the same timing boundary. Pass `--cold-builds` to clear only adapter-declared caches inside this suite and record separate cold and immediately repeated incremental preparation measurements. `benchmark` emits JSON; `report` runs every selected problem and lane and writes a timestamped Markdown report with a same-named complete JSON file under `results/`. Neither command removes the repository's Cargo target directory.
 
 `lower` refreshes each lane's declared inspectable lowering. The Terrane lane writes
 `main.lowered.rs` beside every `main.trn`, keeping the generated Rust receipt with the solution.

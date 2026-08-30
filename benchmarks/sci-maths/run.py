@@ -255,16 +255,26 @@ def setup_lane(lane: Lane, timeout: float, retain_trace: bool) -> ProcessResult 
     return result
 
 
-def clear_lane_cache(problem: dict[str, Any], lane: Lane) -> None:
+def lane_cache_paths(problem: dict[str, Any], lane: Lane) -> list[Path]:
     context = command_context(problem, lane)
-    for cache_path in lane.cache_paths:
-        resolved = Path(cache_path.format_map(context)).resolve()
-        if not resolved.is_relative_to(SUITE):
-            raise BenchmarkError(f"refusing to remove cache outside suite: {resolved}")
+    paths = [Path(cache_path.format_map(context)).resolve() for cache_path in lane.cache_paths]
+    for path in paths:
+        if not path.is_relative_to(SUITE):
+            raise BenchmarkError(f"cache path is outside suite: {path}")
+    return paths
+
+
+def clear_lane_cache(problem: dict[str, Any], lane: Lane) -> None:
+    for resolved in lane_cache_paths(problem, lane):
         if resolved.is_dir():
             shutil.rmtree(resolved)
         elif resolved.exists():
             resolved.unlink()
+
+
+def lane_cache_exists(problem: dict[str, Any], lane: Lane) -> bool:
+    paths = lane_cache_paths(problem, lane)
+    return bool(paths) and all(path.exists() for path in paths)
 
 
 def prepare_implementation(
@@ -418,6 +428,7 @@ def benchmark(
     runs: int,
     warmups: int,
     retain_trace: bool,
+    cold_builds: bool,
 ) -> dict[str, Any]:
     report: dict[str, Any] = {
         "format": 1,
@@ -434,6 +445,13 @@ def benchmark(
             "clock": "time.perf_counter",
             "runs": runs,
             "warmups": warmups,
+            "cold_builds": cold_builds,
+            "execution_timing": "program process only; setup and preparation complete before timing begins",
+            "build_cache": (
+                "adapter-declared caches cleared before initial preparation"
+                if cold_builds
+                else "existing adapter-declared caches preserved"
+            ),
             "memory": (
                 "sum of sampled Linux /proc VmRSS for the process and observed descendants"
                 if sys.platform.startswith("linux")
@@ -458,9 +476,25 @@ def benchmark(
 
     for problem in problems:
         for lane in lanes:
-            clear_lane_cache(problem, lane)
-            prepared, cold_prepare = prepare_implementation(problem, lane, timeout, retain_trace)
-            prepared, incremental_prepare = prepare_implementation(problem, lane, timeout, retain_trace)
+            cache_was_present = lane_cache_exists(problem, lane)
+            cold_prepare = None
+            incremental_prepare = None
+            if cold_builds and lane.cache_paths:
+                clear_lane_cache(problem, lane)
+                prepared, cold_prepare = prepare_implementation(
+                    problem, lane, timeout, retain_trace
+                )
+                prepared, incremental_prepare = prepare_implementation(
+                    problem, lane, timeout, retain_trace
+                )
+            else:
+                prepared, preparation = prepare_implementation(
+                    problem, lane, timeout, retain_trace
+                )
+                if cache_was_present:
+                    incremental_prepare = preparation
+                else:
+                    cold_prepare = preparation
             correctness, _ = execute(problem, lane, prepared, "correctness", timeout, False)
             for _ in range(warmups):
                 execute(problem, lane, prepared, "performance", timeout, False)
@@ -535,6 +569,8 @@ def render_markdown(report: dict[str, Any], raw_report_name: str) -> str:
         f"- Warm-up executions per problem and lane: **{measurement['warmups']}**",
         f"- Measured executions per problem and lane: **{measurement['runs']}**",
         f"- Clock: `{measurement['clock']}`",
+        f"- Build cache: {measurement['build_cache']}.",
+        f"- Execution timing: {measurement['execution_timing']}.",
         f"- Memory: {measurement['memory']}.",
     ]
     if measurement["memory_limitations"]:
@@ -545,13 +581,12 @@ def render_markdown(report: dict[str, Any], raw_report_name: str) -> str:
             "",
             "## Lanes",
             "",
-            "| Lane | Implementation | Native build profile | One-time setup | Setup peak RSS |",
-            "|---|---|---|---:|---:|",
+            "| Lane | Implementation | Native build profile |",
+            "|---|---|---|",
         ]
     )
     for lane_id, lane in report["lane_setup"].items():
         metadata = lane["metadata"]
-        setup = lane["measurement"]
         lines.append(
             "| "
             + " | ".join(
@@ -559,8 +594,6 @@ def render_markdown(report: dict[str, Any], raw_report_name: str) -> str:
                     markdown_text(lane["name"]),
                     markdown_text(metadata.get("implementation", lane_id)),
                     markdown_text(metadata.get("native-build-profile", "not applicable")),
-                    format_seconds(setup["wall_seconds"] if setup else None),
-                    format_bytes(setup["peak_rss_bytes"] if setup else None),
                 ]
             )
             + " |"
@@ -600,7 +633,7 @@ def render_markdown(report: dict[str, Any], raw_report_name: str) -> str:
         for result in report["results"]
         if result["cold_prepare"] is not None or result["incremental_prepare"] is not None
     ]
-    if preparation_results:
+    if measurement["cold_builds"] and preparation_results:
         lines.extend(
             [
                 "",
@@ -645,6 +678,11 @@ def add_measurement_arguments(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--warmups", type=int, default=None)
     parser.add_argument("--memory-trace", action="store_true")
     parser.add_argument("--output", type=Path)
+    parser.add_argument(
+        "--cold-builds",
+        action="store_true",
+        help="clear adapter-declared caches and measure cold plus incremental preparation",
+    )
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -699,6 +737,7 @@ def main() -> int:
             runs=runs,
             warmups=warmups,
             retain_trace=arguments.memory_trace,
+            cold_builds=arguments.cold_builds,
         )
         rendered = json.dumps(report, indent=2) + "\n"
         if arguments.command == "report":
