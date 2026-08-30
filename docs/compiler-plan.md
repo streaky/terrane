@@ -1836,6 +1836,42 @@ rejected cases prove both gates and message metadata, and support tests exercise
 through a Terrane task, cancellation/deadlines, cross-thread shared state, every atomic ordering
 class, and thread-local isolation plus stale-owner cleanup.
 
+### Milestone 26.1 — Structured error sites and compact values
+
+Deliver:
+
+- compiler-owned, deterministic per-program `TerraneSite` allocation with logical-file,
+  enclosing-callable, and exact source-range tables;
+- readable generated-Rust comments at every site use and table row, preserved by canonical-Rust
+  formatting;
+- a 16-byte error header containing kind, immutable origin, and optional boxed detail, with lazy
+  built-in messages and detail allocation only for message, cause, or propagation frames;
+- type-distinct helpers for fresh failure attribution and existing-error propagation;
+- namespace-qualified descriptor identity for user throwables and dependency failures;
+- accepted runtime coverage for origin/frame ordering and same-name cross-namespace catch identity,
+  plus existing rejected throwable-contract coverage and compile-time representation assertions;
+- rejection of tagged-pointer packing until binary size is a hard target constraint or profiling
+  shows that its changed calling convention matters.
+
+Exit criterion: every accepted throwing program compiles with warnings denied; fresh built-in
+failures resolve to the exact raising range without allocating frame storage; propagation retains
+that origin and appends caller frames in order; custom catches match semantic descriptor identity;
+and an alignment-controlled before/after sci-maths run shows no unexplained runtime change.
+
+Implemented evidence: generated Rust carries dense site tables with logical paths and range ends,
+uses site comments that survive canonical formatting, and compile-time asserts both
+`TerraneError` and `Result<i64, TerraneError>` at 16 bytes on the supported x86-64 target. The
+`structured-error-origin-and-frames` and `namespace-qualified-throwable-identity` package cases
+exercise table-based rendering, propagation order, and distinct same-name throwable descriptors.
+Tier 3 remains deliberately unimplemented: its generated `unsafe`, manual ownership, and custom
+trait implementations are not justified by the measured code-size benefit alone.
+The required sci-maths validation used
+`-C llvm-args=-align-all-nofallthru-blocks=6` for both compilers, two warmups, and seven measured
+runs. A first baseline-then-implementation sequence showed an apparent 6.2–12.5% improvement;
+repeating the baseline after the implementation reduced the comparison to -3.7–+1.0%, with every
+before/after range overlapping. The reversed control therefore identifies the first result as
+ordering/environment noise, not a performance benefit of this work.
+
 ### Milestone 27 — Structured logging
 
 Written in Terrane over the minimal Rust core, per delivery principle 9. Each layer implemented in Rust states which of the four justifications applies; everything above it is Terrane.

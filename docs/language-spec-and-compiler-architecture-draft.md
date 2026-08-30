@@ -2772,6 +2772,22 @@ panic unwinding. Propagation remains implicit in Terrane source, while generated
 the inferred may-throw boundary. Rust panic is reserved for unrecoverable invariant failure,
 explicit panic, or an untranslated native dependency panic.
 
+Generated Rust represents a recoverable source error as a 16-byte header containing its concrete
+kind, its originating semantic-site ID, and an optional boxed detail record. The detail record is
+allocated only when a message, cause, or propagation frame must be retained; built-in messages
+derivable from the kind remain lazy. A fresh support or foreign-boundary failure sets `origin`
+exactly once, while propagation appends frame IDs and never rewrites the origin. The lowering API
+keeps those operations type-distinct so an already structured error cannot accidentally be
+reattributed as fresh.
+
+`TerraneSite` is the compiler's general dense, deterministic per-program semantic-site identity,
+not an error-private ID. Generated Rust emits compiler-owned file, enclosing-callable, and exact
+source-range tables after lowering, with readable comments at every table entry and use site.
+Numeric IDs are stable only for a given deterministic lowering and may change after unrelated
+source edits; semantic tests resolve them through the table rather than treating the integer as a
+cross-build key. Generated Rust may enforce target-specific representation invariants at compile
+time, but no tagged-pointer or manually managed error representation is part of the contract.
+
 ### 15.5 Standard throwable classes
 
 The `/core/errors` namespace defines the compiler-owned `throwable` interface and the following
