@@ -688,7 +688,13 @@ encoding: explicit utf8/utf16-le/utf16-be/utf32-le/utf32-be; encode total; decod
 - Cancellation is cooperative at `await`, join, and explicitly cancellable library operations. Failure requests sibling cancellation; the scope still joins cleanup and retains outcomes. Completed work is never erased, so completed+cancelled may both be true.
 - Deadlines are explicit, never ambient. Child effective deadline is `min(parent, requested)`; a statically provable extension is diagnosed and dynamic inputs clamp to the earlier instant.
 - No borrow crosses suspension unless its owner lifetime and executor transfer requirements are proven.
-- Runtime remains profile-selected; channels/mutexes/read-write locks/atomics/thread-local storage are library objects over existing executor/runtime threads and do not expose thread creation, joining, grouping, affinity, or system lifecycle. Unavailable target capability rejects async or concurrency facilities statically.
+- Runtime remains profile-selected; concurrency objects synchronize existing executor/runtime host threads and expose no thread lifecycle.
+- `/standard/concurrency` requires `threads`. Its opaque capability-bearing objects share synchronized identity on assignment/argument passage; this is explicit object semantics, not a mutex silently added to ordinary values.
+- `int-channel`: bounded; capacity 0 is rendezvous; send/receive take explicit positive deadline + cancellation token; try-receive is non-blocking; disconnection is failure; explicit close/closed descriptor deferred.
+- `int-mutex` and `int-read-write-lock`: integer-specialized, individually synchronized load/store/update cells; no guard-scoped arbitrary critical section or generic element promise.
+- `atomic-int64`: typed `memory-order`; load allows relaxed/acquire/seq-cst, store relaxed/release/seq-cst, increase all five; host validates mutable authored order objects defensively.
+- `thread-local-int`: one value per existing host thread and shared object identity; dropping last owner makes entries stale and later accesses sweep them.
+- Unavailable target capability rejects async or concurrency facilities statically.
 
 ## STREAMS
 
@@ -737,7 +743,7 @@ directory_relative: resource-owning directory handle; final anchor component and
 handles: linear resource transfer and idempotent host release shared with streams; partial file write exposes completed offset for resume
 platform_string: exactly one host component; is-text selects lossless Unicode text or lossless raw bytes; NEVER replacement decoding
 snapshots: arguments and environment are explicit; environment returns paired platform-string names/values
-host_name: /standard/process host-name returns failed/available/message plus a lossless platform-string value; requires process capability
+host_name: /standard/process host-name returns failed/available/message plus a lossless platform-string value; requires process capability; Rust std has no portable host-name query, so audited hostname crate owns host ABI retrieval and non-Unicode conversion; boundary returns owned data and exposes no host handle
 cli_schema: exact flag:/value: long-option spellings; parser returns flags/options/positionals plus diagnostic argument indices/messages; NEVER exits
 cli_v1_limits: no --option=value, -- separator, or short clustering; undeclared short spellings remain positional
 exit_status: exact int 0..=255 valid; invalid construction yields valid=false and sentinel 255 without terminating; exit alone terminates
@@ -773,7 +779,7 @@ prelude = true            # optional; defaults true
 "example/tools" = "src"
 "example/generated" = "generated"
 ```
-- Optional `[profile]`: `name` defaults to `default`; `capabilities` is an effect allowlist; `panic` is `unwind` (default) or `abort`. Rust dependency `effects` must all be allowed by the selected profile or manifest resolution rejects the dependency.
+- Optional `[profile]`: `name` defaults to `default`; `capabilities` is an effect allowlist drawn from `build | entropy | filesystem | networking | process | threads | tls`; `panic` is `unwind` (default) or `abort`. Rust dependency effects and gated bundled imports must be allowed. Missing bundled capability is source diagnostic S2032 naming profile, capability, imported namespace, and importer; `/standard/concurrency` requires `threads`, `/standard/process` requires `process`.
 - Authored manifest filename: `package.toml`; syntax is TOML; unknown fields rejected.
 - `namespaces`: canonical namespace-root keys mapped to distinct, relative directory roots; no absolute/parent paths. Source discovery recursively includes `.trn` files only, resolves overlapping mappings by longest namespace prefix, and assigns stable file IDs in sorted package-relative path order.
 - Every discovered declaration must equal the namespace derived from its mapping and relative parent directory. Duplicate mapped directories and mapped roots containing no `.trn` files are manifest-load errors.

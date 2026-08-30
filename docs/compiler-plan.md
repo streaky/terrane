@@ -444,7 +444,8 @@ S2012 duplicate lexical binding              S2025 public namespace variable
 S2013 unresolved source name                 S2026 namespace-variable confinement
 S2027 undeclared Rust dependency             S2029 projected member absent or declined
 S2028 Rust dependency projection failure     S2030 retired; do not reuse
-S2031 projected member removed by version change S2032 forbidden capability import
+S2031 projected member removed by version change
+S2032 forbidden capability import
 ```
 
 Retired codes remain unavailable so a stable code never acquires a second meaning.
@@ -1809,16 +1810,25 @@ explicit operational contracts, deterministic lowering, and compiled and run evi
 standard or system capability is rejected with a Terrane diagnostic. No surface is represented as an
 empty compiler-owned name to make the map look complete.
 
-Implemented evidence: `/standard/concurrency` provides typed bounded integer channels, mutexes,
-read/write locks, `atomic-int64`, and per-host-thread local integers over opaque host capabilities.
-Generated Rust delegates synchronization and ordering validation to the support crate without
-exposing host handles. Bundled standard imports are checked against `[profile]`; `S2032` names the
-forbidden capability and importing namespace, including `threads` for concurrency and `process` for
-the process/system surface. `/standard/process::host-name` demonstrates the remaining owned system
-crossing: the host ABI returns no borrowed value or handle, translates host failures, and preserves
-non-Unicode platform names in the existing `platform-string` representation. Accepted canonical-Rust
-cases compile and run both surfaces, focused rejected cases prove both capability gates, and support
-tests exercise cross-thread sharing, atomic ordering, and thread-local isolation.
+Implemented evidence: `/standard/concurrency` provides zero-or-positive-capacity integer channels,
+integer mutex and read/write-lock cells, typed `atomic-int64` memory ordering, and per-existing-host-
+thread local integers over opaque shared host identities. Blocking channel send and receive carry
+explicit positive deadlines and cancellation tokens; `try-receive` is non-blocking. Generated Rust
+delegates synchronization and defensive operation-specific ordering validation to the support crate
+without exposing host handles. Explicit channel closure, arbitrary guard-scoped critical sections,
+and non-integer generic cells remain deferred rather than being implied by these names.
+
+Bundled standard imports are checked against `[profile]`; `S2032` names the profile, forbidden
+capability, imported namespace, and importing namespace, including `threads` for concurrency and
+`process` for the process/system surface. `/standard/process::host-name` demonstrates the remaining
+owned system crossing: its host ABI returns no borrowed value or handle, translates host failures,
+and preserves non-Unicode platform names in the existing `platform-string` representation. Rust's
+standard library has no portable host-name query, so its maintained layer uses the audited
+`hostname` crate only for host retrieval and non-Unicode OS-string conversion.
+Accepted canonical-Rust package cases compile and run both restricted-profile surfaces, focused
+rejected cases prove both gates and message metadata, and support tests exercise rendezvous channels
+through a Terrane task, cancellation/deadlines, cross-thread shared state, every atomic ordering
+class, and thread-local isolation plus stale-owner cleanup.
 
 ### Milestone 27 — Structured logging
 

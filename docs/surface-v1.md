@@ -18,7 +18,7 @@ Labels:
 
 - **v1**: required in the proposed first usable language.
 - **profile**: v1 contract, available only when the selected target/package provides its capability.
-- **adapter**: supplied by an imported native or foreign adapter, not implicitly by `/core`.
+- **adapter**: supplied by an imported native package or system boundary, not implicitly by `/core`.
 - **later**: intentionally outside v1.
 
 A type attachment such as `integer -> coerce` means every value satisfying `integer` exposes that method-object family. A child is visible only when its receiver and arguments satisfy that child's contract. Unsupported children are absent from the receiver's type; they are not runtime no-ops.
@@ -817,18 +817,21 @@ structured task scope                              v1 language-level object, not
 +-- deadline inheritance: a child may shorten but never extend its parent's
 +-- failure observation for a child that throws while siblings run
 
-profile library objects
-+-- channel
-+-- mutex
-+-- read/write lock
-+-- atomic by supported width
-+-- thread-local facility
-+-- shared collection variants
+profile library objects                              /standard/concurrency; requires threads
++-- int-channel                                      bounded, zero-capacity rendezvous; cancellable/deadline blocking operations
++-- int-mutex                                        individually synchronized integer load/store/increase cell
++-- int-read-write-lock                              integer shared-read/exclusive-write cell; no exposed guard
++-- atomic-int64 + memory-order                      operation-specific typed ordering
++-- thread-local-int                                 one value per existing host thread and shared object identity
 ```
 
 The async callable type, the task object, the structured scope, and cancellation with deadline propagation are all version one. Channels, locks, atomics, and executor selection are not: they are library objects over that core. Deadlines are explicit values that additionally propagate down scope boundaries — not ambient task-local state, because the boundary is written in the source. The language fixes the executor boundary but never hard-codes one executor.
 
 These are ordinary objects supplied by selected packages/profiles, not universal prelude names. Capabilities gate allocator, threads, filesystem, sockets, process spawning, dynamic loading, reflection, unwinding, clocks, entropy, floating point, Unicode data, exact-big-integer storage, and atomic widths. Unavailable semantics are rejected; profiles never quietly change a type's behaviour.
+
+The concurrency objects alias their synchronized identity when assigned or passed. Version one does
+not expose thread creation, explicit channel closure, arbitrary guard-scoped critical sections,
+non-integer generic synchronization cells, or shared collection variants.
 
 ## 13. Version-one data, operating-system, and I/O objects
 
@@ -1228,7 +1231,7 @@ logger
 
 Logging is not a core-prelude replacement for `print`: it is a structured, capability/profile-gated application facility. Log fields retain their keys, values, source context, and severity for tracing and reflection rather than being eagerly formatted into an opaque string. Sink selection, level filtering, redaction, field-value serialization, buffering, failure behavior, and deterministic test capture require explicit profile contracts.
 
-## 14. Packages, adapters, and foreign objects
+## 14. Packages and native adapters
 
 One principle governs every ecosystem below, and each entry is a specialisation of it:
 

@@ -3495,6 +3495,35 @@ They do not expose thread creation, joining, grouping, affinity, or system-level
 They synchronise tasks or host threads supplied by the profile-selected executor/runtime boundary;
 the thread-local facility observes those existing host threads but cannot create or manage them.
 
+The version-one `/standard/concurrency` surface contains integer-specialised synchronization cells:
+`int-channel`, `int-mutex`, `int-read-write-lock`, `atomic-int64`, and `thread-local-int`. An
+assignment or argument passage of one of these objects aliases the same opaque synchronized host
+identity; it does not copy the protected value into an independent object. This is the authored
+shared-identity contract required by §21.5, not a silent mutex inserted around an ordinary value.
+
+`int-mutex` and `int-read-write-lock` expose individually synchronized integer load, store, and
+update operations. They do not expose a guard-scoped arbitrary critical section, and their names
+must not be read as promising non-integer generic storage. Guard lifetimes and additional concrete
+element types remain deferred until they can be represented without a universal boxed value or a
+second ownership model.
+
+Channel `send` and blocking `receive` take an explicit operation-options object containing a
+positive deadline and cancellation token. `try-receive` is genuinely non-blocking and reports
+availability separately from failure. A zero-capacity channel is a rendezvous channel. The host
+boundary may report a disconnected peer as failure, but version one exposes no explicit channel
+close operation or closed-state descriptor; those remain deferred until the object surface defines
+which endpoint ownership transition closes the channel.
+
+Atomic operations take a `memory-order` object rather than a raw string. The standard package
+supplies `relaxed-order`, `acquire-order`, `release-order`, `acquire-release-order`, and
+`sequentially-consistent-order`. Loads admit relaxed, acquire, or sequentially consistent order;
+stores admit relaxed, release, or sequentially consistent order; read-modify-write increase admits
+all five. The host primitive validates the operation-specific restriction defensively because
+authored objects remain mutable. `thread-local-int` keys values by the shared object's identity and
+the existing host thread; dropping the last owner makes every thread's corresponding entry stale,
+and each later thread-local access removes stale entries before proceeding.
+
+
 ### 21.7 Kernel and embedded profiles
 
 Targets without an async runtime reject or statically lower async features according to available capabilities.
@@ -3734,10 +3763,19 @@ roots; absolute paths, paths containing `..`, duplicate directory roots, and
 roots containing no `.trn` source are invalid. `prelude` is an optional boolean
 and defaults to `true`.
 
+### 23.5 Capability profiles
+
 The optional `profile` table selects dependency build capability and panic policy. `name` defaults to
 `default`, `capabilities` is an optional allowlist of effect names, and `panic` is `unwind` (the
 default) or `abort`. Each Rust dependency may declare an `effects` string array; manifest resolution
 rejects an effect absent from the selected profile before projection or generated compilation:
+
+The version-one capability vocabulary is `build`, `entropy`, `filesystem`, `networking`, `process`,
+`threads`, and `tls`. The allowlist governs both declared dependency effects and bundled standard
+imports. Importing a gated bundled namespace without its capability is rejected at the import with
+`S2032`, which names the profile, capability, imported namespace, and importing namespace.
+`/standard/concurrency` requires `threads`; `/standard/process` requires `process`.
+
 
 ```toml
 [profile]
@@ -5880,6 +5918,12 @@ The system host name is part of `/standard/process` rather than a parallel syste
 `host-name-result` reports `failed`, `available`, and a translated host error message, and carries
 the value as a `platform-string`; invalid host Unicode is therefore preserved rather than replaced.
 Importing this process/system surface requires the package profile's `process` capability.
+The maintained Rust function used here is justified by the syscall/ABI-boundary rule: Rust's
+standard library has no portable host-name query, so the audited `hostname` crate owns that
+platform-specific retrieval. The host name may be a non-Unicode operating-system string; Rust owns
+only its conversion into the owned `text:`/`raw:` host envelope. Terrane owns `host-name-result`,
+policy, availability, and translated diagnostics. No borrowed host string or host handle crosses
+the boundary.
 
 Command-line parsing is schema-driven and pure with respect to process termination. In version one,
 schema entries declare exact `flag:` and `value:` long-option spellings. Declared flags, option
