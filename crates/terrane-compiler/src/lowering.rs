@@ -128,18 +128,13 @@ pub(crate) fn lower(package: &SemanticPackage) -> Program {
         .units
         .iter()
         .any(|unit| unit.namespace == "/standard/concurrency");
-    let uses_adapters = package
-        .units
-        .iter()
-        .any(|unit| unit.namespace == "/standard/process");
     let uses_platform_capabilities = uses_random
         || uses_codecs
         || uses_compression
         || uses_uuid
         || uses_networking
         || uses_tls
-        || uses_concurrency
-        || uses_adapters;
+        || uses_concurrency;
     if uses_standard_streams || uses_filesystem {
         let mut items = vec![Item::generated(include_str!("runtime/platform_streams.rs"))];
         if uses_standard_streams {
@@ -161,6 +156,11 @@ pub(crate) fn lower(package: &SemanticPackage) -> Program {
             items.push(Item::generated(include_str!("runtime/platform_system.rs")));
         }
         if uses_process {
+            if !uses_platform_capabilities {
+                items.push(Item::generated(include_str!(
+                    "runtime/platform_result_type.rs"
+                )));
+            }
             items.push(Item::generated(include_str!("runtime/platform_process.rs")));
         }
         runtime.push(GeneratedModule {
@@ -190,9 +190,10 @@ pub(crate) fn lower(package: &SemanticPackage) -> Program {
         });
     }
     if uses_platform_capabilities {
-        let mut items = vec![Item::generated(include_str!(
-            "runtime/platform_capability_types.rs"
-        ))];
+        let mut items = vec![
+            Item::generated(include_str!("runtime/platform_capability_types.rs")),
+            Item::generated(include_str!("runtime/platform_result_type.rs")),
+        ];
         if uses_random
             || uses_compression
             || uses_uuid
@@ -232,11 +233,6 @@ pub(crate) fn lower(package: &SemanticPackage) -> Program {
         if uses_concurrency {
             items.push(Item::generated(include_str!(
                 "runtime/platform_concurrency.rs"
-            )));
-        }
-        if uses_adapters {
-            items.push(Item::generated(include_str!(
-                "runtime/platform_adapters.rs"
             )));
         }
         runtime.push(GeneratedModule {
@@ -4940,7 +4936,7 @@ impl Emitter<'_> {
                 .enumerate()
                 .map(|(index, value)| {
                     let value = self.expression(value);
-                    let borrowed = index == 0
+                    let borrowed = (index == 0
                         && (function.starts_with("platform_result_")
                             || !matches!(
                                 function,
@@ -4949,7 +4945,9 @@ impl Emitter<'_> {
                                     | "platform_int_rw_lock"
                                     | "platform_atomic_int64"
                                     | "platform_thread_local_int"
-                            ));
+                            )))
+                        || (function == "platform_int_channel_send" && index == 3)
+                        || (function == "platform_int_channel_receive" && index == 2);
                     if borrowed {
                         format!("&({value})")
                     } else {
@@ -4960,34 +4958,26 @@ impl Emitter<'_> {
                 .join(", ");
             return format!("terrane_{function}({values})");
         }
-        let adapter_call = [
-            ("system-host-name", "platform_system_host_name"),
-            ("result-failed", "platform_result_failed"),
-            ("result-bool", "platform_result_bool"),
-            ("result-message", "platform_result_message"),
-            ("result-text", "platform_result_text"),
+        if self.is_builtin(callee, "/core/platform-adapters::system-host-name") {
+            return "terrane_platform_support::system_host_name()".to_owned();
+        }
+        let adapter_result_field = [
+            ("result-failed", "failed", false),
+            ("result-bool", "flag", false),
+            ("result-message", "message", true),
+            ("result-text", "text", true),
         ]
         .into_iter()
-        .find_map(|(terrane, rust)| {
+        .find_map(|(terrane, field, cloned)| {
             self.is_builtin(callee, &format!("/core/platform-adapters::{terrane}"))
-                .then_some(rust)
+                .then_some((field, cloned))
         });
-        if let Some(function) = adapter_call {
-            let values = argument_values
-                .iter()
-                .enumerate()
-                .map(|(index, value)| {
-                    let value = self.expression(value);
-                    let borrowed = index == 0 && function.starts_with("platform_result_");
-                    if borrowed {
-                        format!("&({value})")
-                    } else {
-                        value
-                    }
-                })
-                .collect::<Vec<_>>()
-                .join(", ");
-            return format!("terrane_{function}({values})");
+        if let Some((field, cloned)) = adapter_result_field {
+            let value = self.expression(argument_values[0]);
+            if cloned {
+                return format!("({value}).{field}.clone()");
+            }
+            return format!("({value}).{field}");
         }
         let system_call = [
             (

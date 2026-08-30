@@ -108,7 +108,7 @@ fn run(arguments: &[OsString]) -> Result<ExitCode, CliFailure> {
     let uses_platform_support = compilation
         .rust_files
         .iter()
-        .any(|file| file.path == "src/runtime/platform_capabilities.rs");
+        .any(|file| file.contents.contains("terrane_platform_support::"));
     let crate_dir = generated_crate_path(
         &package.root,
         &compilation.rust_files,

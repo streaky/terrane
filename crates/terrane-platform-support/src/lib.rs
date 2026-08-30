@@ -24,11 +24,11 @@ use std::collections::HashMap;
 use std::io::{Read, Write as _};
 use std::net::{IpAddr, Shutdown, SocketAddr, TcpListener, TcpStream, UdpSocket};
 use std::sync::{
-    Arc, LazyLock, Mutex, RwLock,
+    Arc, LazyLock, Mutex, RwLock, TryLockError, Weak,
     atomic::{AtomicBool, AtomicI64, AtomicU64, Ordering},
-    mpsc::{Receiver, SyncSender, TryRecvError, sync_channel},
+    mpsc::{Receiver, RecvTimeoutError, SyncSender, TryRecvError, TrySendError, sync_channel},
 };
-use std::time::Duration;
+use std::time::{Duration, Instant};
 use subtle::ConstantTimeEq as _;
 use zeroize::Zeroizing;
 
@@ -77,11 +77,13 @@ struct IntChannel {
 struct ThreadLocalInt {
     id: u64,
     initial: i128,
+    owner: Arc<()>,
 }
 
 static NEXT_THREAD_LOCAL_ID: AtomicU64 = AtomicU64::new(1);
 thread_local! {
-    static THREAD_LOCAL_INTS: RefCell<HashMap<u64, i128>> = RefCell::new(HashMap::new());
+    static THREAD_LOCAL_INTS: RefCell<HashMap<u64, (Weak<()>, i128)>> =
+        RefCell::new(HashMap::new());
 }
 
 #[derive(Clone)]
@@ -157,49 +159,137 @@ pub fn system_host_name() -> ResultValue {
     }
 }
 
-pub fn int_channel(capacity: i128) -> Capability {
+fn capability_result(capability: Capability) -> ResultValue {
+    ResultValue {
+        capability: Some(capability),
+        ..ResultValue::default()
+    }
+}
+
+fn capability_type_error(value: &CapabilityInner, expected: &str) -> ResultValue {
+    match value {
+        CapabilityInner::Invalid(message) => ResultValue::error(message.clone()),
+        _ => ResultValue::error(format!("capability is not {expected}")),
+    }
+}
+
+fn deadline_error(message: &str) -> ResultValue {
+    ResultValue {
+        failed: true,
+        deadline_exceeded: true,
+        message: message.to_owned(),
+        ..ResultValue::default()
+    }
+}
+
+fn operation_deadline(milliseconds: i128, label: &str) -> Result<Instant, ResultValue> {
+    let duration = timeout(milliseconds)?;
+    Instant::now()
+        .checked_add(duration)
+        .ok_or_else(|| ResultValue::error(format!("{label} is outside the platform time range")))
+}
+
+pub fn int_channel(capacity: i128) -> ResultValue {
     let Ok(capacity) = usize::try_from(capacity) else {
-        return Capability(Arc::new(CapabilityInner::Invalid(
-            "channel capacity must be a non-negative platform-sized integer".to_owned(),
-        )));
+        return ResultValue::error(
+            "channel capacity must be a non-negative platform-sized integer",
+        );
     };
     let (sender, receiver) = sync_channel(capacity);
-    Capability(Arc::new(CapabilityInner::IntChannel(IntChannel {
-        sender,
-        receiver: Mutex::new(receiver),
-    })))
-}
-pub fn int_channel_send(channel: &Capability, value: i128) -> ResultValue {
-    let CapabilityInner::IntChannel(channel) = channel.0.as_ref() else {
-        return ResultValue::error("capability is not an int channel");
-    };
-    channel.sender.send(value).map_or_else(
-        |_| ResultValue::error("channel receiver is closed"),
-        |()| ResultValue::default(),
-    )
-}
-pub fn int_channel_receive(channel: &Capability) -> ResultValue {
-    let CapabilityInner::IntChannel(channel) = channel.0.as_ref() else {
-        return ResultValue::error("capability is not an int channel");
-    };
-    let Ok(receiver) = channel.receiver.lock() else {
-        return lock_error("channel receiver");
-    };
-    receiver.recv().map_or_else(
-        |_| ResultValue::error("channel sender is closed"),
-        |number| ResultValue {
-            number,
-            flag: true,
-            ..ResultValue::default()
+    capability_result(Capability(Arc::new(CapabilityInner::IntChannel(
+        IntChannel {
+            sender,
+            receiver: Mutex::new(receiver),
         },
-    )
+    ))))
 }
+
+pub fn int_channel_send(
+    channel: &Capability,
+    value: i128,
+    deadline_ms: i128,
+    cancellation: &Capability,
+) -> ResultValue {
+    if let Some(error) = cancellation_error(cancellation) {
+        return error;
+    }
+    let deadline = match operation_deadline(deadline_ms, "channel send deadline") {
+        Ok(value) => value,
+        Err(error) => return error,
+    };
+    let CapabilityInner::IntChannel(channel) = channel.0.as_ref() else {
+        return capability_type_error(channel.0.as_ref(), "an int channel");
+    };
+    let mut value = value;
+    loop {
+        match channel.sender.try_send(value) {
+            Ok(()) => return ResultValue::default(),
+            Err(TrySendError::Disconnected(_)) => {
+                return ResultValue::error("channel receiver is closed");
+            }
+            Err(TrySendError::Full(returned)) => value = returned,
+        }
+        if let Some(error) = cancellation_error(cancellation) {
+            return error;
+        }
+        if Instant::now() >= deadline {
+            return deadline_error("channel send deadline exceeded");
+        }
+        std::thread::sleep(Duration::from_millis(1));
+    }
+}
+
+pub fn int_channel_receive(
+    channel: &Capability,
+    deadline_ms: i128,
+    cancellation: &Capability,
+) -> ResultValue {
+    if let Some(error) = cancellation_error(cancellation) {
+        return error;
+    }
+    let deadline = match operation_deadline(deadline_ms, "channel receive deadline") {
+        Ok(value) => value,
+        Err(error) => return error,
+    };
+    let CapabilityInner::IntChannel(channel) = channel.0.as_ref() else {
+        return capability_type_error(channel.0.as_ref(), "an int channel");
+    };
+    loop {
+        match channel.receiver.try_lock() {
+            Ok(receiver) => match receiver.recv_timeout(Duration::from_millis(1)) {
+                Ok(number) => {
+                    return ResultValue {
+                        number,
+                        flag: true,
+                        ..ResultValue::default()
+                    };
+                }
+                Err(RecvTimeoutError::Disconnected) => {
+                    return ResultValue::error("channel sender is closed");
+                }
+                Err(RecvTimeoutError::Timeout) => {}
+            },
+            Err(TryLockError::Poisoned(_)) => return lock_error("channel receiver"),
+            Err(TryLockError::WouldBlock) => std::thread::sleep(Duration::from_millis(1)),
+        }
+        if let Some(error) = cancellation_error(cancellation) {
+            return error;
+        }
+        if Instant::now() >= deadline {
+            return deadline_error("channel receive deadline exceeded");
+        }
+        std::thread::sleep(Duration::from_millis(1));
+    }
+}
+
 pub fn int_channel_try_receive(channel: &Capability) -> ResultValue {
     let CapabilityInner::IntChannel(channel) = channel.0.as_ref() else {
-        return ResultValue::error("capability is not an int channel");
+        return capability_type_error(channel.0.as_ref(), "an int channel");
     };
-    let Ok(receiver) = channel.receiver.lock() else {
-        return lock_error("channel receiver");
+    let receiver = match channel.receiver.try_lock() {
+        Ok(receiver) => receiver,
+        Err(TryLockError::Poisoned(_)) => return lock_error("channel receiver"),
+        Err(TryLockError::WouldBlock) => return ResultValue::default(),
     };
     match receiver.try_recv() {
         Ok(number) => ResultValue {
@@ -211,14 +301,18 @@ pub fn int_channel_try_receive(channel: &Capability) -> ResultValue {
         Err(TryRecvError::Disconnected) => ResultValue::error("channel sender is closed"),
     }
 }
-pub fn int_mutex(initial: i128) -> Capability {
-    Capability(Arc::new(CapabilityInner::IntMutex(Mutex::new(initial))))
+
+pub fn int_mutex(initial: i128) -> ResultValue {
+    capability_result(Capability(Arc::new(CapabilityInner::IntMutex(Mutex::new(
+        initial,
+    )))))
 }
+
 pub fn int_mutex_load(value: &Capability) -> ResultValue {
-    let CapabilityInner::IntMutex(value) = value.0.as_ref() else {
-        return ResultValue::error("capability is not an int mutex");
+    let CapabilityInner::IntMutex(mutex) = value.0.as_ref() else {
+        return capability_type_error(value.0.as_ref(), "an int mutex");
     };
-    value.lock().map_or_else(
+    mutex.lock().map_or_else(
         |_| lock_error("mutex"),
         |value| ResultValue {
             number: *value,
@@ -227,21 +321,23 @@ pub fn int_mutex_load(value: &Capability) -> ResultValue {
         },
     )
 }
+
 pub fn int_mutex_store(value: &Capability, replacement: i128) -> ResultValue {
-    let CapabilityInner::IntMutex(value) = value.0.as_ref() else {
-        return ResultValue::error("capability is not an int mutex");
+    let CapabilityInner::IntMutex(mutex) = value.0.as_ref() else {
+        return capability_type_error(value.0.as_ref(), "an int mutex");
     };
-    let Ok(mut value) = value.lock() else {
+    let Ok(mut value) = mutex.lock() else {
         return lock_error("mutex");
     };
     *value = replacement;
     ResultValue::default()
 }
+
 pub fn int_mutex_add(value: &Capability, amount: i128) -> ResultValue {
-    let CapabilityInner::IntMutex(value) = value.0.as_ref() else {
-        return ResultValue::error("capability is not an int mutex");
+    let CapabilityInner::IntMutex(mutex) = value.0.as_ref() else {
+        return capability_type_error(value.0.as_ref(), "an int mutex");
     };
-    let Ok(mut value) = value.lock() else {
+    let Ok(mut value) = mutex.lock() else {
         return lock_error("mutex");
     };
     let Some(next) = value.checked_add(amount) else {
@@ -254,14 +350,18 @@ pub fn int_mutex_add(value: &Capability, amount: i128) -> ResultValue {
         ..ResultValue::default()
     }
 }
-pub fn int_rw_lock(initial: i128) -> Capability {
-    Capability(Arc::new(CapabilityInner::IntRwLock(RwLock::new(initial))))
+
+pub fn int_rw_lock(initial: i128) -> ResultValue {
+    capability_result(Capability(Arc::new(CapabilityInner::IntRwLock(
+        RwLock::new(initial),
+    ))))
 }
+
 pub fn int_rw_lock_read(value: &Capability) -> ResultValue {
-    let CapabilityInner::IntRwLock(value) = value.0.as_ref() else {
-        return ResultValue::error("capability is not an int read/write lock");
+    let CapabilityInner::IntRwLock(lock) = value.0.as_ref() else {
+        return capability_type_error(value.0.as_ref(), "an int read/write lock");
     };
-    value.read().map_or_else(
+    lock.read().map_or_else(
         |_| lock_error("read/write lock"),
         |value| ResultValue {
             number: *value,
@@ -270,79 +370,100 @@ pub fn int_rw_lock_read(value: &Capability) -> ResultValue {
         },
     )
 }
+
 pub fn int_rw_lock_write(value: &Capability, replacement: i128) -> ResultValue {
-    let CapabilityInner::IntRwLock(value) = value.0.as_ref() else {
-        return ResultValue::error("capability is not an int read/write lock");
+    let CapabilityInner::IntRwLock(lock) = value.0.as_ref() else {
+        return capability_type_error(value.0.as_ref(), "an int read/write lock");
     };
-    let Ok(mut value) = value.write() else {
+    let Ok(mut value) = lock.write() else {
         return lock_error("read/write lock");
     };
     *value = replacement;
     ResultValue::default()
 }
-fn atomic_ordering(name: &str, load: bool) -> Result<Ordering, ResultValue> {
+
+fn atomic_load_ordering(name: &str) -> Result<Ordering, ResultValue> {
     match name {
         "relaxed" => Ok(Ordering::Relaxed),
-        "acquire" if load => Ok(Ordering::Acquire),
-        "release" if !load => Ok(Ordering::Release),
-        "acquire-release" if !load => Ok(Ordering::AcqRel),
+        "acquire" => Ok(Ordering::Acquire),
         "sequentially-consistent" => Ok(Ordering::SeqCst),
         _ => Err(ResultValue::error(format!(
-            "invalid {} memory ordering `{name}`",
-            if load { "load" } else { "store/update" }
+            "invalid load memory ordering `{name}`"
         ))),
     }
 }
-pub fn atomic_int64(initial: i128) -> Capability {
-    i64::try_from(initial).map_or_else(
-        |_| {
-            Capability(Arc::new(CapabilityInner::Invalid(
-                "atomic int64 initial value is out of range".to_owned(),
-            )))
-        },
-        |initial| {
-            Capability(Arc::new(CapabilityInner::AtomicI64(AtomicI64::new(
-                initial,
-            ))))
-        },
-    )
+
+fn atomic_store_ordering(name: &str) -> Result<Ordering, ResultValue> {
+    match name {
+        "relaxed" => Ok(Ordering::Relaxed),
+        "release" => Ok(Ordering::Release),
+        "sequentially-consistent" => Ok(Ordering::SeqCst),
+        _ => Err(ResultValue::error(format!(
+            "invalid store memory ordering `{name}`"
+        ))),
+    }
 }
+
+fn atomic_rmw_ordering(name: &str) -> Result<Ordering, ResultValue> {
+    match name {
+        "relaxed" => Ok(Ordering::Relaxed),
+        "acquire" => Ok(Ordering::Acquire),
+        "release" => Ok(Ordering::Release),
+        "acquire-release" => Ok(Ordering::AcqRel),
+        "sequentially-consistent" => Ok(Ordering::SeqCst),
+        _ => Err(ResultValue::error(format!(
+            "invalid read-modify-write memory ordering `{name}`"
+        ))),
+    }
+}
+
+pub fn atomic_int64(initial: i128) -> ResultValue {
+    match i64::try_from(initial) {
+        Ok(initial) => capability_result(Capability(Arc::new(CapabilityInner::AtomicI64(
+            AtomicI64::new(initial),
+        )))),
+        Err(_) => ResultValue::error("atomic int64 initial value is out of range"),
+    }
+}
+
 pub fn atomic_int64_load(value: &Capability, ordering: &str) -> ResultValue {
-    let CapabilityInner::AtomicI64(value) = value.0.as_ref() else {
-        return ResultValue::error("capability is not an atomic int64");
+    let CapabilityInner::AtomicI64(atomic) = value.0.as_ref() else {
+        return capability_type_error(value.0.as_ref(), "an atomic int64");
     };
-    let ordering = match atomic_ordering(ordering, true) {
+    let ordering = match atomic_load_ordering(ordering) {
         Ok(ordering) => ordering,
         Err(error) => return error,
     };
     ResultValue {
-        number: i128::from(value.load(ordering)),
+        number: i128::from(atomic.load(ordering)),
         flag: true,
         ..ResultValue::default()
     }
 }
+
 pub fn atomic_int64_store(value: &Capability, replacement: i128, ordering: &str) -> ResultValue {
-    let CapabilityInner::AtomicI64(value) = value.0.as_ref() else {
-        return ResultValue::error("capability is not an atomic int64");
+    let CapabilityInner::AtomicI64(atomic) = value.0.as_ref() else {
+        return capability_type_error(value.0.as_ref(), "an atomic int64");
     };
     let Ok(replacement) = i64::try_from(replacement) else {
         return ResultValue::error("atomic int64 value is out of range");
     };
-    let ordering = match atomic_ordering(ordering, false) {
+    let ordering = match atomic_store_ordering(ordering) {
         Ok(ordering) => ordering,
         Err(error) => return error,
     };
-    value.store(replacement, ordering);
+    atomic.store(replacement, ordering);
     ResultValue::default()
 }
+
 pub fn atomic_int64_add(value: &Capability, amount: i128, ordering: &str) -> ResultValue {
-    let CapabilityInner::AtomicI64(value) = value.0.as_ref() else {
-        return ResultValue::error("capability is not an atomic int64");
+    let CapabilityInner::AtomicI64(atomic) = value.0.as_ref() else {
+        return capability_type_error(value.0.as_ref(), "an atomic int64");
     };
     let Ok(amount) = i64::try_from(amount) else {
         return ResultValue::error("atomic int64 amount is out of range");
     };
-    let ordering = match atomic_ordering(ordering, false) {
+    let ordering = match atomic_rmw_ordering(ordering) {
         Ok(ordering) => ordering,
         Err(error) => return error,
     };
@@ -351,12 +472,12 @@ pub fn atomic_int64_add(value: &Capability, amount: i128, ordering: &str) -> Res
         Ordering::SeqCst => Ordering::SeqCst,
         _ => Ordering::Relaxed,
     };
-    let mut previous = value.load(failure_ordering);
+    let mut previous = atomic.load(failure_ordering);
     let next = loop {
         let Some(next) = previous.checked_add(amount) else {
             return ResultValue::error("atomic int64 addition overflowed");
         };
-        match value.compare_exchange_weak(previous, next, ordering, failure_ordering) {
+        match atomic.compare_exchange_weak(previous, next, ordering, failure_ordering) {
             Ok(_) => break next,
             Err(observed) => previous = observed,
         }
@@ -367,30 +488,44 @@ pub fn atomic_int64_add(value: &Capability, amount: i128, ordering: &str) -> Res
         ..ResultValue::default()
     }
 }
-pub fn thread_local_int(initial: i128) -> Capability {
-    Capability(Arc::new(CapabilityInner::ThreadLocalInt(ThreadLocalInt {
-        id: NEXT_THREAD_LOCAL_ID.fetch_add(1, Ordering::Relaxed),
-        initial,
-    })))
+
+pub fn thread_local_int(initial: i128) -> ResultValue {
+    capability_result(Capability(Arc::new(CapabilityInner::ThreadLocalInt(
+        ThreadLocalInt {
+            id: NEXT_THREAD_LOCAL_ID.fetch_add(1, Ordering::Relaxed),
+            initial,
+            owner: Arc::new(()),
+        },
+    ))))
 }
+
 pub fn thread_local_int_get(value: &Capability) -> ResultValue {
-    let CapabilityInner::ThreadLocalInt(value) = value.0.as_ref() else {
-        return ResultValue::error("capability is not a thread-local int");
+    let CapabilityInner::ThreadLocalInt(local) = value.0.as_ref() else {
+        return capability_type_error(value.0.as_ref(), "a thread-local int");
     };
-    let number = THREAD_LOCAL_INTS
-        .with(|values| *values.borrow_mut().entry(value.id).or_insert(value.initial));
+    let number = THREAD_LOCAL_INTS.with(|values| {
+        let mut values = values.borrow_mut();
+        values.retain(|_, (owner, _)| owner.upgrade().is_some());
+        values
+            .entry(local.id)
+            .or_insert_with(|| (Arc::downgrade(&local.owner), local.initial))
+            .1
+    });
     ResultValue {
         number,
         flag: true,
         ..ResultValue::default()
     }
 }
+
 pub fn thread_local_int_set(value: &Capability, replacement: i128) -> ResultValue {
-    let CapabilityInner::ThreadLocalInt(value) = value.0.as_ref() else {
-        return ResultValue::error("capability is not a thread-local int");
+    let CapabilityInner::ThreadLocalInt(local) = value.0.as_ref() else {
+        return capability_type_error(value.0.as_ref(), "a thread-local int");
     };
     THREAD_LOCAL_INTS.with(|values| {
-        values.borrow_mut().insert(value.id, replacement);
+        let mut values = values.borrow_mut();
+        values.retain(|_, (owner, _)| owner.upgrade().is_some());
+        values.insert(local.id, (Arc::downgrade(&local.owner), replacement));
     });
     ResultValue::default()
 }
@@ -1661,21 +1796,26 @@ pub fn close(capability: &Capability) -> ResultValue {
 #[cfg(test)]
 mod tests {
     use super::*;
+    fn result_capability(result: ResultValue) -> Capability {
+        assert!(!result.failed, "{}", result.message);
+        result.capability.expect("successful capability result")
+    }
+
     #[test]
     fn concurrency_capabilities_share_state_and_isolate_thread_locals() {
-        let channel = int_channel(1);
+        let channel = result_capability(int_channel(0));
         let sender = channel.clone();
-        std::thread::spawn(move || {
-            assert!(!int_channel_send(&sender, 17).failed);
-        })
-        .join()
-        .unwrap();
-        let received = int_channel_receive(&channel);
+        let sender_cancellation = cancellation_token();
+        let sender = std::thread::spawn(move || {
+            assert!(!int_channel_send(&sender, 17, 1_000, &sender_cancellation).failed);
+        });
+        let received = int_channel_receive(&channel, 1_000, &cancellation_token());
         assert!(!received.failed);
         assert!(received.flag);
         assert_eq!(received.number, 17);
+        sender.join().unwrap();
 
-        let mutex = int_mutex(2);
+        let mutex = result_capability(int_mutex(2));
         let shared_mutex = mutex.clone();
         std::thread::spawn(move || {
             assert_eq!(int_mutex_add(&shared_mutex, 3).number, 5);
@@ -1684,7 +1824,7 @@ mod tests {
         .unwrap();
         assert_eq!(int_mutex_load(&mutex).number, 5);
 
-        let read_write_lock = int_rw_lock(7);
+        let read_write_lock = result_capability(int_rw_lock(7));
         let shared_lock = read_write_lock.clone();
         std::thread::spawn(move || {
             assert!(!int_rw_lock_write(&shared_lock, 11).failed);
@@ -1693,16 +1833,19 @@ mod tests {
         .unwrap();
         assert_eq!(int_rw_lock_read(&read_write_lock).number, 11);
 
-        let atomic = atomic_int64(13);
+        let atomic = result_capability(atomic_int64(13));
         let shared_atomic = atomic.clone();
         std::thread::spawn(move || {
-            assert_eq!(atomic_int64_add(&shared_atomic, 4, "release").number, 17);
+            assert_eq!(
+                atomic_int64_add(&shared_atomic, 4, "acquire-release").number,
+                17
+            );
         })
         .join()
         .unwrap();
         assert_eq!(atomic_int64_load(&atomic, "acquire").number, 17);
 
-        let local = thread_local_int(19);
+        let local = result_capability(thread_local_int(19));
         assert_eq!(thread_local_int_get(&local).number, 19);
         let other_thread = local.clone();
         std::thread::spawn(move || {
@@ -1713,6 +1856,99 @@ mod tests {
         .join()
         .unwrap();
         assert_eq!(thread_local_int_get(&local).number, 19);
+    }
+
+    #[test]
+    fn atomic_orderings_are_validated_per_operation() {
+        let atomic = result_capability(atomic_int64(1));
+        for ordering in ["relaxed", "acquire", "sequentially-consistent"] {
+            assert!(!atomic_int64_load(&atomic, ordering).failed, "{ordering}");
+        }
+        for ordering in ["release", "acquire-release", "invalid"] {
+            assert!(atomic_int64_load(&atomic, ordering).failed, "{ordering}");
+        }
+
+        for ordering in ["relaxed", "release", "sequentially-consistent"] {
+            assert!(
+                !atomic_int64_store(&atomic, 1, ordering).failed,
+                "{ordering}"
+            );
+        }
+        for ordering in ["acquire", "acquire-release", "invalid"] {
+            assert!(
+                atomic_int64_store(&atomic, 1, ordering).failed,
+                "{ordering}"
+            );
+        }
+
+        for ordering in [
+            "relaxed",
+            "acquire",
+            "release",
+            "acquire-release",
+            "sequentially-consistent",
+        ] {
+            assert!(!atomic_int64_add(&atomic, 0, ordering).failed, "{ordering}");
+        }
+        assert!(atomic_int64_add(&atomic, 0, "invalid").failed);
+    }
+
+    #[test]
+    fn concurrency_failures_preserve_messages_and_blocking_is_bounded() {
+        let invalid_channel = int_channel(-1);
+        assert!(invalid_channel.failed);
+        assert!(invalid_channel.message.contains("non-negative"));
+        let invalid_atomic = atomic_int64(i128::from(i64::MAX) + 1);
+        assert!(invalid_atomic.failed);
+        assert!(invalid_atomic.message.contains("out of range"));
+
+        let invalid = Capability::default();
+        assert_eq!(
+            int_mutex_load(&invalid).message,
+            "missing platform capability"
+        );
+
+        let channel = result_capability(int_channel(1));
+        let CapabilityInner::IntChannel(inner) = channel.0.as_ref() else {
+            unreachable!();
+        };
+        let receiver_guard = inner.receiver.lock().unwrap();
+        let probe = int_channel_try_receive(&channel);
+        assert!(!probe.failed);
+        assert!(!probe.flag);
+        drop(receiver_guard);
+
+        let cancellation = cancellation_token();
+        assert!(!int_channel_send(&channel, 1, 100, &cancellation).failed);
+        let timed_out = int_channel_send(&channel, 2, 5, &cancellation);
+        assert!(timed_out.failed);
+        assert!(timed_out.deadline_exceeded);
+
+        let empty = result_capability(int_channel(1));
+        let timed_out = int_channel_receive(&empty, 5, &cancellation);
+        assert!(timed_out.failed);
+        assert!(timed_out.deadline_exceeded);
+
+        assert!(!cancel(&cancellation).failed);
+        assert_eq!(
+            int_channel_receive(&empty, 100, &cancellation).message,
+            "operation cancelled"
+        );
+    }
+
+    #[test]
+    fn thread_local_entries_sweep_dropped_owners() {
+        let first = result_capability(thread_local_int(1));
+        assert_eq!(thread_local_int_get(&first).number, 1);
+        drop(first);
+
+        let second = result_capability(thread_local_int(2));
+        assert_eq!(thread_local_int_get(&second).number, 2);
+        THREAD_LOCAL_INTS.with(|values| {
+            let values = values.borrow();
+            assert_eq!(values.len(), 1);
+            assert!(values.values().all(|(owner, _)| owner.upgrade().is_some()));
+        });
     }
 
     #[test]

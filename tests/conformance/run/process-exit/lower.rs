@@ -130,6 +130,7 @@ enum TerraneCompletion<T> {
     Break,
     Continue,
 }
+type TerranePlatformResult = terrane_platform_support::ResultValue;
 fn terrane_unhex(text: &str) -> Vec<u8> {
     fn digit(byte: u8) -> Option<u8> {
         match byte {
@@ -170,80 +171,6 @@ fn terrane_environment_entries() -> Vec<String> {
 fn terrane_process_exit(code: terrane_int_support::Int) {
     let code = terrane_int_support::checked_coerce::<i32>(&code).unwrap_or(255);
     std::process::exit(code)
-}
-type TerranePlatformCapability = terrane_platform_support::Capability;
-type TerranePlatformResult = terrane_platform_support::ResultValue;
-#[allow(dead_code)]
-fn terrane_platform_cancellation_token() -> TerranePlatformCapability {
-    terrane_platform_support::cancellation_token()
-}
-#[allow(dead_code)]
-fn terrane_platform_no_resource() -> TerranePlatformCapability {
-    TerranePlatformCapability::default()
-}
-#[allow(dead_code)]
-fn terrane_platform_failed_result() -> TerranePlatformResult {
-    TerranePlatformResult::error("uninitialized platform value")
-}
-#[allow(dead_code)]
-fn terrane_platform_cancel(token: &TerranePlatformCapability) -> TerranePlatformResult {
-    terrane_platform_support::cancel(token)
-}
-#[allow(dead_code)]
-fn terrane_platform_result_failed(result: &TerranePlatformResult) -> bool {
-    result.failed
-}
-#[allow(dead_code)]
-fn terrane_platform_result_resource_limit(result: &TerranePlatformResult) -> bool {
-    result.resource_limit
-}
-#[allow(dead_code)]
-fn terrane_platform_result_truncated(result: &TerranePlatformResult) -> bool {
-    result.truncated
-}
-#[allow(dead_code)]
-fn terrane_platform_result_deadline_exceeded(result: &TerranePlatformResult) -> bool {
-    result.deadline_exceeded
-}
-#[allow(dead_code)]
-fn terrane_platform_result_message(result: &TerranePlatformResult) -> String {
-    result.message.clone()
-}
-#[allow(dead_code)]
-fn terrane_platform_result_text(result: &TerranePlatformResult) -> String {
-    result.text.clone()
-}
-#[allow(dead_code)]
-fn terrane_platform_result_detail(result: &TerranePlatformResult) -> String {
-    result.detail.clone()
-}
-#[allow(dead_code)]
-fn terrane_platform_result_bytes(result: &TerranePlatformResult) -> Vec<u8> {
-    result.data.clone()
-}
-#[allow(dead_code)]
-fn terrane_platform_result_int(
-    result: &TerranePlatformResult,
-) -> terrane_int_support::Int {
-    terrane_int_support::Int::from(result.number)
-}
-#[allow(dead_code)]
-fn terrane_platform_result_bool(result: &TerranePlatformResult) -> bool {
-    result.flag
-}
-#[allow(dead_code)]
-fn terrane_platform_result_entries(result: &TerranePlatformResult) -> Vec<String> {
-    result.entries.clone()
-}
-#[allow(dead_code)]
-fn terrane_platform_result_capability(
-    result: &TerranePlatformResult,
-) -> TerranePlatformCapability {
-    result.capability.clone().unwrap_or_default()
-}
-#[allow(dead_code)]
-fn terrane_platform_system_host_name() -> TerranePlatformResult {
-    terrane_platform_support::system_host_name()
 }
 // Source: case.trn
 // Namespace: conformance/process-exit
@@ -331,12 +258,12 @@ impl HostNameResult {
     }
 }
 pub fn host_name() -> HostNameResult {
-    let raw: TerranePlatformResult = terrane_platform_system_host_name();
+    let raw: TerranePlatformResult = terrane_platform_support::system_host_name();
     return HostNameResult::terrane_construct(
-        terrane_platform_result_failed(&raw),
-        terrane_platform_result_bool(&raw),
-        terrane_platform_result_message(&raw),
-        PlatformString::terrane_construct(terrane_platform_result_text(&raw)),
+        raw.failed,
+        raw.flag,
+        raw.message.clone(),
+        PlatformString::terrane_construct(raw.text.clone()),
     );
 }
 pub fn arguments() -> terrane_collection_support::List<PlatformString> {

@@ -1,10 +1,4 @@
 phase = "run"
 status = "accept"
+entrypoint = "package.toml"
 canonical-rust = true
-
-[profile]
-name = "system-adapter"
-capabilities = ["process"]
-
-[namespaces]
-system-adapter = "src"
