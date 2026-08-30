@@ -10,9 +10,11 @@ Python 3.11 or newer is required for the standard-library TOML reader. The Terra
 
 ```console
 python3 benchmarks/sci-maths/run.py list
+python3 benchmarks/sci-maths/run.py lower
 python3 benchmarks/sci-maths/run.py check
 python3 benchmarks/sci-maths/run.py benchmark --runs 7 --warmups 2 \
   --output benchmarks/sci-maths/results/local.json
+python3 benchmarks/sci-maths/run.py report
 ```
 
 Global selectors go before the command and may be repeated:
@@ -22,11 +24,14 @@ python3 benchmarks/sci-maths/run.py \
   --problem scalar-reduction --lane python check
 ```
 
-`check` prepares each selected implementation and runs the small correctness profile. `benchmark` clears only adapter-declared caches inside this suite, records a cold preparation, records an immediately repeated incremental preparation, rechecks correctness, performs warm-ups, and then records end-to-end runs. It never removes the repository's Cargo target directory.
+`check` prepares each selected implementation and runs the small correctness profile. `benchmark` clears only adapter-declared caches inside this suite, records a cold preparation, records an immediately repeated incremental preparation, rechecks correctness, performs warm-ups, and then records end-to-end runs as JSON. `report` performs the same complete run across every problem and lane, then writes a timestamped Markdown report and a same-named JSON file containing the complete measurements under `results/`. It never removes the repository's Cargo target directory.
+
+`lower` refreshes each lane's declared inspectable lowering. The Terrane lane writes
+`main.lowered.rs` beside every `main.trn`, keeping the generated Rust receipt with the solution.
 
 On Linux, each process measurement includes best-effort sampling of the summed resident set size of the process and descendants. The sampler waits 5 ms between scans, so the effective cadence also includes the time needed to inspect `/proc`. `--memory-trace` retains the samples as well as the peak. Sampling can miss short-lived peaks; RSS includes runtime state, shared mappings, and allocator-retained pages. The JSON report records this limitation rather than presenting the values as exact allocation counts.
 
-Terrane's current CLI builds generated programs with Cargo's development profile. The Terrane lane records that fact in report metadata. Results are useful for finding present behaviour and regressions, but they must not be described as optimized native comparisons until the compiler exposes and records an optimized build contract.
+The Terrane adapter builds both the compiler and every generated benchmark executable with Cargo's optimized release profile. Development and release artifacts are cached separately by the Terrane CLI.
 
 ## Corpus shape
 
@@ -58,6 +63,8 @@ name = "Example language"
 implementation = "example/main.ext"
 setup = ["examplec", "--version"]                 # optional, once per run
 prepare = ["examplec", "{implementation}", "-o", "{problem}/example/program"]
+lower = ["examplec", "--emit-readable", "{implementation}"] # optional inspectable lowering
+lower-output = "{implementation_dir}/main.lowered.ext"
 prepare-output = "none"                            # or "executable-path"
 run = ["{problem}/example/program"]
 cache-paths = ["{problem}/example/cache"]          # optional, suite-local only

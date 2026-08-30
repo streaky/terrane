@@ -13,6 +13,7 @@ import subprocess
 import sys
 import threading
 import time
+from statistics import median
 import tomllib
 from dataclasses import dataclass
 from datetime import datetime, timezone
@@ -45,6 +46,8 @@ class Lane:
     implementation: str
     setup: tuple[str, ...]
     prepare: tuple[str, ...]
+    lower: tuple[str, ...]
+    lower_output: str | None
     run: tuple[str, ...]
     prepare_output: str
     cache_paths: tuple[str, ...]
@@ -201,6 +204,8 @@ def load_suite() -> tuple[dict[str, Any], list[dict[str, Any]], list[Lane]]:
                 implementation=config["implementation"],
                 setup=tuple(config.get("setup", [])),
                 prepare=tuple(config.get("prepare", [])),
+                lower=tuple(config.get("lower", [])),
+                lower_output=config.get("lower-output"),
                 run=tuple(config["run"]),
                 prepare_output=config.get("prepare-output", "none"),
                 cache_paths=tuple(config.get("cache-paths", [])),
@@ -366,6 +371,33 @@ def process_record(result: ProcessResult | None) -> dict[str, Any] | None:
         record["memory_trace"] = result.memory_trace
     return record
 
+def materialize_lowering(
+    problems: list[dict[str, Any]], lanes: list[Lane], timeout: float
+) -> None:
+    lowering_lanes = [lane for lane in lanes if lane.lower]
+    for lane in lowering_lanes:
+        setup_lane(lane, timeout, False)
+    for problem in problems:
+        for lane in lowering_lanes:
+            if lane.lower_output is None:
+                raise BenchmarkError(f"{lane.lane_id} declares lower without lower-output")
+            context = command_context(problem, lane)
+            command = expand(lane.lower, context)
+            result = run_process(
+                command,
+                cwd=problem["path"],
+                timeout=timeout,
+                retain_memory_trace=False,
+            )
+            require_success(result, command)
+            output = Path(lane.lower_output.format_map(context)).resolve()
+            if not output.is_relative_to(problem["path"]):
+                raise BenchmarkError(f"refusing to write lowering outside problem: {output}")
+            output.parent.mkdir(parents=True, exist_ok=True)
+            output.write_text(result.stdout)
+            print(f"lowered  {problem['id']:<24} {lane.lane_id:<10} {output.relative_to(SUITE)}")
+
+
 
 def check(problems: list[dict[str, Any]], lanes: list[Lane], timeout: float) -> None:
     for lane in lanes:
@@ -455,6 +487,166 @@ def benchmark(
     return report
 
 
+def format_seconds(value: float | None) -> str:
+    if value is None:
+        return "—"
+    if value < 0.001:
+        return f"{value * 1_000_000:.0f} µs"
+    if value < 1:
+        return f"{value * 1_000:.2f} ms"
+    return f"{value:.3f} s"
+
+
+def format_bytes(value: int | None) -> str:
+    if value is None:
+        return "—"
+    amount = float(value)
+    for unit in ("B", "KiB", "MiB", "GiB", "TiB"):
+        if amount < 1024 or unit == "TiB":
+            return f"{amount:.1f} {unit}"
+        amount /= 1024
+    raise AssertionError("unreachable")
+
+
+def markdown_text(value: Any) -> str:
+    return str(value).replace("|", "\\|").replace("\n", " ")
+
+
+def render_markdown(report: dict[str, Any], raw_report_name: str) -> str:
+    environment = report["environment"]
+    measurement = report["measurement"]
+    lines = [
+        f"# {report['suite']}",
+        "",
+        f"Generated at `{report['created_at']}`.",
+        "",
+        "## Environment",
+        "",
+        "| Property | Value |",
+        "|---|---|",
+        f"| Platform | {markdown_text(environment['platform'])} |",
+        f"| Machine | {markdown_text(environment['machine'])} |",
+        f"| Processor | {markdown_text(environment['processor'] or 'not reported')} |",
+        f"| Python | {markdown_text(environment['python'])} |",
+        f"| Logical CPUs | {environment['logical_cpus']} |",
+        "",
+        "## Measurement",
+        "",
+        f"- Warm-up executions per problem and lane: **{measurement['warmups']}**",
+        f"- Measured executions per problem and lane: **{measurement['runs']}**",
+        f"- Clock: `{measurement['clock']}`",
+        f"- Memory: {measurement['memory']}.",
+    ]
+    if measurement["memory_limitations"]:
+        lines.append(f"- Memory limitations: {measurement['memory_limitations']}")
+
+    lines.extend(
+        [
+            "",
+            "## Lanes",
+            "",
+            "| Lane | Implementation | Native build profile | One-time setup | Setup peak RSS |",
+            "|---|---|---|---:|---:|",
+        ]
+    )
+    for lane_id, lane in report["lane_setup"].items():
+        metadata = lane["metadata"]
+        setup = lane["measurement"]
+        lines.append(
+            "| "
+            + " | ".join(
+                [
+                    markdown_text(lane["name"]),
+                    markdown_text(metadata.get("implementation", lane_id)),
+                    markdown_text(metadata.get("native-build-profile", "not applicable")),
+                    format_seconds(setup["wall_seconds"] if setup else None),
+                    format_bytes(setup["peak_rss_bytes"] if setup else None),
+                ]
+            )
+            + " |"
+        )
+
+    lines.extend(
+        [
+            "",
+            "## Execution results",
+            "",
+            "| Problem | Lane | Result | Median wall time | Range | Peak RSS |",
+            "|---|---|---:|---:|---:|---:|",
+        ]
+    )
+    for result in report["results"]:
+        runs = result["runs"]
+        times = [run["wall_seconds"] for run in runs]
+        peaks = [run["peak_rss_bytes"] for run in runs if run["peak_rss_bytes"] is not None]
+        time_range = f"{format_seconds(min(times))}–{format_seconds(max(times))}"
+        lines.append(
+            "| "
+            + " | ".join(
+                [
+                    markdown_text(result["title"]),
+                    markdown_text(result["lane"]),
+                    markdown_text(result["performance_result"]),
+                    format_seconds(median(times)),
+                    time_range,
+                    format_bytes(max(peaks) if peaks else None),
+                ]
+            )
+            + " |"
+        )
+
+    preparation_results = [
+        result
+        for result in report["results"]
+        if result["cold_prepare"] is not None or result["incremental_prepare"] is not None
+    ]
+    if preparation_results:
+        lines.extend(
+            [
+                "",
+                "## Preparation results",
+                "",
+                "| Problem | Lane | Cold preparation | Cold peak RSS | Incremental preparation | Incremental peak RSS |",
+                "|---|---|---:|---:|---:|---:|",
+            ]
+        )
+        for result in preparation_results:
+            cold = result["cold_prepare"]
+            incremental = result["incremental_prepare"]
+            lines.append(
+                "| "
+                + " | ".join(
+                    [
+                        markdown_text(result["title"]),
+                        markdown_text(result["lane"]),
+                        format_seconds(cold["wall_seconds"] if cold else None),
+                        format_bytes(cold["peak_rss_bytes"] if cold else None),
+                        format_seconds(incremental["wall_seconds"] if incremental else None),
+                        format_bytes(incremental["peak_rss_bytes"] if incremental else None),
+                    ]
+                )
+                + " |"
+            )
+
+    lines.extend(
+        [
+            "",
+            "Every recorded execution passed its problem's shared correctness contract.",
+            "",
+            f"Complete measurements: [{raw_report_name}]({raw_report_name})",
+            "",
+        ]
+    )
+    return "\n".join(lines)
+
+
+def add_measurement_arguments(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument("--runs", type=int, default=None)
+    parser.add_argument("--warmups", type=int, default=None)
+    parser.add_argument("--memory-trace", action="store_true")
+    parser.add_argument("--output", type=Path)
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--problem", action="append", default=[], help="problem id (repeatable)")
@@ -462,12 +654,14 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--timeout", type=float, default=300.0, help="per-command timeout in seconds")
     commands = parser.add_subparsers(dest="command", required=True)
     commands.add_parser("list", help="list problems and lanes")
+    commands.add_parser("lower", help="refresh inspectable lowered sources declared by lane adapters")
     commands.add_parser("check", help="build and verify correctness profiles")
-    benchmark_parser = commands.add_parser("benchmark", help="verify and measure performance profiles")
-    benchmark_parser.add_argument("--runs", type=int, default=None)
-    benchmark_parser.add_argument("--warmups", type=int, default=None)
-    benchmark_parser.add_argument("--memory-trace", action="store_true")
-    benchmark_parser.add_argument("--output", type=Path)
+    benchmark_parser = commands.add_parser("benchmark", help="verify and emit raw JSON measurements")
+    add_measurement_arguments(benchmark_parser)
+    report_parser = commands.add_parser(
+        "report", help="run the corpus and write Markdown plus complete JSON measurements"
+    )
+    add_measurement_arguments(report_parser)
     return parser
 
 
@@ -485,6 +679,9 @@ def main() -> int:
             print("Lanes:")
             for lane in lanes:
                 print(f"  {lane.lane_id:<24} {lane.name}")
+            return 0
+        if arguments.command == "lower":
+            materialize_lowering(problems, lanes, arguments.timeout)
             return 0
         if arguments.command == "check":
             check(problems, lanes, arguments.timeout)
@@ -504,7 +701,21 @@ def main() -> int:
             retain_trace=arguments.memory_trace,
         )
         rendered = json.dumps(report, indent=2) + "\n"
-        if arguments.output:
+        if arguments.command == "report":
+            timestamp = report["created_at"].replace("-", "").replace(":", "")[:15]
+            output = (
+                arguments.output.resolve()
+                if arguments.output
+                else (SUITE / "results" / f"report-{timestamp}.md")
+            )
+            if output.suffix.lower() != ".md":
+                raise BenchmarkError("report output must use a .md extension")
+            output.parent.mkdir(parents=True, exist_ok=True)
+            raw_output = output.with_suffix(".json")
+            raw_output.write_text(rendered)
+            output.write_text(render_markdown(report, raw_output.name))
+            print(output)
+        elif arguments.output:
             output = arguments.output.resolve()
             output.parent.mkdir(parents=True, exist_ok=True)
             output.write_text(rendered)

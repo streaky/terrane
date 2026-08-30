@@ -2,11 +2,13 @@ id = "terrane"
 name = "Clean, idiomatic Terrane"
 implementation = "terrane/package.toml"
 setup = ["cargo", "build", "--release", "--quiet", "-p", "terrane-cli"]
-prepare = ["{repo}/target/release/terrane", "build", "{implementation}"]
+prepare = ["{repo}/target/release/terrane", "build", "--release", "{implementation}"]
+lower = ["{repo}/target/release/terrane", "rust", "{implementation}"]
+lower-output = "{implementation_dir}/src/main.lowered.rs"
 prepare-output = "executable-path"
 run = ["{prepared}"]
 cache-paths = ["{implementation_dir}/.trn"]
 
 [metadata]
 implementation = "Terrane compiler-generated Rust"
-native-build-profile = "development (the current Terrane CLI build contract)"
+native-build-profile = "Cargo release"
