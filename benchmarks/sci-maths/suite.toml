@@ -4,6 +4,8 @@ name = "Terrane scientific mathematics and data workloads"
 [measurement]
 warmups = 2
 runs = 7
+setup-timeout-seconds = 300
+runtime-timeout-seconds = 60
 
 [[lanes]]
 path = "lanes/terrane.toml"

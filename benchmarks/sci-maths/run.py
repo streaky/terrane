@@ -8,11 +8,15 @@ import json
 import math
 import os
 import platform
+import resource
+import select
 import shutil
+import signal
 import subprocess
 import sys
-import threading
+import tempfile
 import time
+from string import Template
 from statistics import median
 import tomllib
 from dataclasses import dataclass
@@ -35,7 +39,6 @@ class ProcessResult:
     stderr: str
     wall_seconds: float
     peak_rss_bytes: int | None
-    memory_trace: list[dict[str, int]] | None
 
 
 @dataclass(frozen=True)
@@ -52,114 +55,84 @@ class Lane:
     prepare_output: str
     cache_paths: tuple[str, ...]
     metadata: dict[str, Any]
+    environment_commands: tuple[tuple[str, ...], ...]
 
 
-class MemorySampler:
-    """Best-effort Linux RSS sampling for a process and all of its descendants."""
-
-    def __init__(self, pid: int, retain_trace: bool) -> None:
-        self.pid = pid
-        self.retain_trace = retain_trace
-        self.peak_kib = 0
-        self.trace: list[dict[str, int]] = []
-        self.started_ns = time.monotonic_ns()
-        self.stopped = threading.Event()
-        self.thread = threading.Thread(target=self._sample, daemon=True)
-
-    def start(self) -> None:
-        self.thread.start()
-
-    def finish(self) -> tuple[int | None, list[dict[str, int]] | None]:
-        self.stopped.set()
-        self.thread.join()
-        if not sys.platform.startswith("linux"):
-            return None, None
-        trace = self.trace if self.retain_trace else None
-        peak = self.peak_kib * 1024 if self.peak_kib else None
-        return peak, trace
-
-    def _sample(self) -> None:
-        if not sys.platform.startswith("linux"):
-            return
-        while not self.stopped.is_set():
-            rss_kib = process_tree_rss_kib(self.pid)
-            self.peak_kib = max(self.peak_kib, rss_kib)
-            if self.retain_trace and rss_kib:
-                elapsed_ms = (time.monotonic_ns() - self.started_ns) // 1_000_000
-                self.trace.append({"elapsed_ms": elapsed_ms, "rss_bytes": rss_kib * 1024})
-            self.stopped.wait(0.005)
-        rss_kib = process_tree_rss_kib(self.pid)
-        self.peak_kib = max(self.peak_kib, rss_kib)
-
-
-def process_tree_rss_kib(root_pid: int) -> int:
-    proc = Path("/proc")
-    parents: dict[int, int] = {}
-    for entry in proc.iterdir():
-        if not entry.name.isdigit():
-            continue
+def wait_for_child(pid: int, timeout: float) -> tuple[int, resource.struct_rusage] | None:
+    """Wait for one child without polling when Linux pidfds are available."""
+    if hasattr(os, "pidfd_open"):
+        pidfd = os.pidfd_open(pid)
         try:
-            stat = (entry / "stat").read_text()
-            close = stat.rfind(")")
-            fields = stat[close + 2 :].split()
-            parents[int(entry.name)] = int(fields[1])
-        except (OSError, ValueError, IndexError):
-            continue
+            readable, _, _ = select.select([pidfd], [], [], timeout)
+        finally:
+            os.close(pidfd)
+        if not readable:
+            return None
+        _, status, usage = os.wait4(pid, 0)
+        return status, usage
 
-    descendants = {root_pid}
-    changed = True
-    while changed:
-        changed = False
-        for pid, parent in parents.items():
-            if parent in descendants and pid not in descendants:
-                descendants.add(pid)
-                changed = True
-
-    total = 0
-    for pid in descendants:
-        try:
-            for line in (proc / str(pid) / "status").read_text().splitlines():
-                if line.startswith("VmRSS:"):
-                    total += int(line.split()[1])
-                    break
-        except (OSError, ValueError, IndexError):
-            continue
-    return total
+    deadline = time.monotonic() + timeout
+    while True:
+        waited_pid, status, usage = os.wait4(pid, os.WNOHANG)
+        if waited_pid:
+            return status, usage
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            return None
+        time.sleep(min(0.001, remaining))
 
 
-def run_process(
-    command: list[str],
-    *,
-    cwd: Path,
-    timeout: float,
-    retain_memory_trace: bool,
-) -> ProcessResult:
-    started = time.perf_counter()
-    process = subprocess.Popen(
-        command,
-        cwd=cwd,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-        text=True,
+def peak_rss_bytes(usage: resource.struct_rusage) -> int:
+    # macOS reports bytes; Linux and the other supported Unix platforms report KiB.
+    multiplier = 1 if sys.platform == "darwin" else 1024
+    return int(usage.ru_maxrss) * multiplier
+
+
+def read_process_output(stdout_file: Any, stderr_file: Any) -> tuple[str, str]:
+    stdout_file.seek(0)
+    stderr_file.seek(0)
+    return (
+        stdout_file.read().decode("utf-8", errors="replace"),
+        stderr_file.read().decode("utf-8", errors="replace"),
     )
-    sampler = MemorySampler(process.pid, retain_memory_trace)
-    sampler.start()
-    try:
-        stdout, stderr = process.communicate(timeout=timeout)
-    except subprocess.TimeoutExpired:
-        process.kill()
-        stdout, stderr = process.communicate()
-        sampler.finish()
-        raise BenchmarkError(f"command timed out after {timeout:g}s: {format_command(command)}")
-    peak_rss_bytes, memory_trace = sampler.finish()
-    return ProcessResult(
-        returncode=process.returncode,
-        stdout=stdout,
-        stderr=stderr,
-        wall_seconds=time.perf_counter() - started,
-        peak_rss_bytes=peak_rss_bytes,
-        memory_trace=memory_trace,
-    )
+
+
+def run_process(command: list[str], *, cwd: Path, timeout: float) -> ProcessResult:
+    with tempfile.TemporaryFile() as stdout_file, tempfile.TemporaryFile() as stderr_file:
+        started = time.perf_counter()
+        process = subprocess.Popen(
+            command,
+            cwd=cwd,
+            stdout=stdout_file,
+            stderr=stderr_file,
+            start_new_session=True,
+        )
+        waited = wait_for_child(process.pid, timeout)
+        timed_out = waited is None
+        if timed_out:
+            try:
+                os.killpg(process.pid, signal.SIGKILL)
+            except ProcessLookupError:
+                pass
+            waited = wait_for_child(process.pid, 5.0)
+            if waited is None:
+                raise BenchmarkError(
+                    f"timed-out process group could not be reaped: {format_command(command)}"
+                )
+
+        status, usage = waited
+        process.returncode = os.waitstatus_to_exitcode(status)
+        wall_seconds = time.perf_counter() - started
+        stdout, stderr = read_process_output(stdout_file, stderr_file)
+        if timed_out:
+            raise BenchmarkError(f"command timed out after {timeout:g}s: {format_command(command)}")
+        return ProcessResult(
+            returncode=process.returncode,
+            stdout=stdout,
+            stderr=stderr,
+            wall_seconds=wall_seconds,
+            peak_rss_bytes=peak_rss_bytes(usage),
+        )
 
 
 def load_toml(path: Path) -> dict[str, Any]:
@@ -168,6 +141,106 @@ def load_toml(path: Path) -> dict[str, Any]:
             return tomllib.load(source)
     except (OSError, tomllib.TOMLDecodeError) as error:
         raise BenchmarkError(f"cannot load {path.relative_to(SUITE)}: {error}") from error
+
+
+def string_list(value: Any, description: str, *, required: bool = False) -> tuple[str, ...]:
+    if (
+        not isinstance(value, list)
+        or not all(isinstance(item, str) and item for item in value)
+        or (required and not value)
+    ):
+        qualifier = "a non-empty list of strings" if required else "a list of strings"
+        raise BenchmarkError(f"{description} must be {qualifier}")
+    return tuple(value)
+
+
+def load_lane(config_path: Path) -> Lane:
+    config = load_toml(config_path)
+    lane_id = config.get("id")
+    name = config.get("name")
+    implementation = config.get("implementation")
+    if not isinstance(lane_id, str) or not lane_id:
+        raise BenchmarkError(f"{config_path}: id must be a non-empty string")
+    if not isinstance(name, str) or not name:
+        raise BenchmarkError(f"{config_path}: name must be a non-empty string")
+    if not isinstance(implementation, str) or not implementation:
+        raise BenchmarkError(f"{config_path}: implementation must be a non-empty string")
+    prepare_output = config.get("prepare-output", "none")
+    if prepare_output not in {"none", "executable-path"}:
+        raise BenchmarkError(f"{config_path}: unsupported prepare-output value {prepare_output!r}")
+    metadata = config.get("metadata", {})
+    if not isinstance(metadata, dict):
+        raise BenchmarkError(f"{config_path}: metadata must be a table")
+    environment = config.get("environment", [])
+    if not isinstance(environment, list):
+        raise BenchmarkError(f"{config_path}: environment must be a list of command arrays")
+    environment_commands = tuple(
+        string_list(command, f"{config_path}: environment command", required=True)
+        for command in environment
+    )
+    lower = string_list(config.get("lower", []), f"{config_path}: lower")
+    lower_output = config.get("lower-output")
+    if lower and (not isinstance(lower_output, str) or not lower_output):
+        raise BenchmarkError(f"{config_path}: lower requires a non-empty lower-output")
+    if lower_output is not None and not isinstance(lower_output, str):
+        raise BenchmarkError(f"{config_path}: lower-output must be a string")
+    return Lane(
+        lane_id=lane_id,
+        name=name,
+        config_path=config_path,
+        implementation=implementation,
+        setup=string_list(config.get("setup", []), f"{config_path}: setup"),
+        prepare=string_list(config.get("prepare", []), f"{config_path}: prepare"),
+        lower=lower,
+        lower_output=lower_output,
+        run=string_list(config.get("run"), f"{config_path}: run", required=True),
+        prepare_output=prepare_output,
+        cache_paths=string_list(config.get("cache-paths", []), f"{config_path}: cache-paths"),
+        metadata=dict(metadata),
+        environment_commands=environment_commands,
+    )
+
+def validate_problem(problem: dict[str, Any], problem_path: Path) -> None:
+    result_kind = problem.get("result")
+    if result_kind not in {"integer", "float"}:
+        raise BenchmarkError(f"{problem_path}: result must be 'integer' or 'float'")
+    if not isinstance(problem.get("dataset"), str):
+        raise BenchmarkError(f"{problem_path}: dataset must be a string")
+    if not isinstance(problem.get("title"), str):
+        raise BenchmarkError(f"{problem_path}: title must be a string")
+    profiles = problem.get("profiles")
+    if not isinstance(profiles, dict):
+        raise BenchmarkError(f"{problem_path}: profiles must be a table")
+    for profile_name in ("correctness", "performance"):
+        profile = profiles.get(profile_name)
+        if not isinstance(profile, dict):
+            raise BenchmarkError(f"{problem_path}: missing {profile_name} profile")
+        size = profile.get("size")
+        if isinstance(size, bool) or not isinstance(size, int) or size <= 0:
+            raise BenchmarkError(f"{problem_path}: {profile_name}.size must be a positive integer")
+        expected = profile.get("expected")
+        expected_type = int if result_kind == "integer" else float
+        if isinstance(expected, bool) or not isinstance(expected, expected_type):
+            raise BenchmarkError(
+                f"{problem_path}: {profile_name}.expected must match {result_kind} result kind"
+            )
+        allowed = {"size", "expected", "absolute-tolerance", "relative-tolerance"}
+        unknown = set(profile) - allowed
+        if unknown:
+            raise BenchmarkError(
+                f"{problem_path}: {profile_name} has unknown fields: {', '.join(sorted(unknown))}"
+            )
+        for tolerance_name in ("absolute-tolerance", "relative-tolerance"):
+            tolerance = profile.get(tolerance_name, 0.0)
+            if (
+                isinstance(tolerance, bool)
+                or not isinstance(tolerance, (int, float))
+                or not math.isfinite(float(tolerance))
+                or tolerance < 0
+            ):
+                raise BenchmarkError(
+                    f"{problem_path}: {profile_name}.{tolerance_name} must be finite and non-negative"
+                )
 
 
 def load_suite() -> tuple[dict[str, Any], list[dict[str, Any]], list[Lane]]:
@@ -181,6 +254,7 @@ def load_suite() -> tuple[dict[str, Any], list[dict[str, Any]], list[Lane]]:
         problem_path = (SUITE / item["path"]).resolve()
         problem = load_toml(problem_path / "problem.toml")
         problem["path"] = problem_path
+        validate_problem(problem, problem_path)
         problem_id = problem.get("id")
         if not isinstance(problem_id, str) or problem_id in seen_problems:
             raise BenchmarkError(f"invalid or duplicate problem id in {problem_path}")
@@ -191,48 +265,46 @@ def load_suite() -> tuple[dict[str, Any], list[dict[str, Any]], list[Lane]]:
     seen_lanes: set[str] = set()
     for item in suite.get("lanes", []):
         config_path = (SUITE / item["path"]).resolve()
-        config = load_toml(config_path)
-        lane_id = config.get("id")
-        if not isinstance(lane_id, str) or lane_id in seen_lanes:
-            raise BenchmarkError(f"invalid or duplicate lane id in {config_path}")
-        seen_lanes.add(lane_id)
-        lanes.append(
-            Lane(
-                lane_id=lane_id,
-                name=config["name"],
-                config_path=config_path,
-                implementation=config["implementation"],
-                setup=tuple(config.get("setup", [])),
-                prepare=tuple(config.get("prepare", [])),
-                lower=tuple(config.get("lower", [])),
-                lower_output=config.get("lower-output"),
-                run=tuple(config["run"]),
-                prepare_output=config.get("prepare-output", "none"),
-                cache_paths=tuple(config.get("cache-paths", [])),
-                metadata=dict(config.get("metadata", {})),
-            )
-        )
+        lane = load_lane(config_path)
+        if lane.lane_id in seen_lanes:
+            raise BenchmarkError(f"duplicate lane id {lane.lane_id!r} in {config_path}")
+        seen_lanes.add(lane.lane_id)
+        lanes.append(lane)
     return suite, problems, lanes
 
 
-def command_context(problem: dict[str, Any], lane: Lane, prepared: str = "") -> dict[str, str]:
-    problem_path: Path = problem["path"]
-    implementation = (problem_path / lane.implementation).resolve()
-    return {
+def command_context(
+    problem: dict[str, Any] | None, lane: Lane, prepared: str = ""
+) -> dict[str, str]:
+    context = {
         "repo": str(REPO),
         "suite": str(SUITE),
-        "problem": str(problem_path),
-        "implementation": str(implementation),
-        "implementation_dir": str(implementation.parent),
         "prepared": prepared,
     }
+    if problem is not None:
+        problem_path: Path = problem["path"]
+        implementation = (problem_path / lane.implementation).resolve()
+        context.update(
+            {
+                "problem": str(problem_path),
+                "implementation": str(implementation),
+                "implementation_dir": str(implementation.parent),
+            }
+        )
+    return context
+
+
+def substitute(value: str, context: dict[str, str]) -> str:
+    try:
+        return Template(value).substitute(context)
+    except KeyError as error:
+        raise BenchmarkError(f"unknown command placeholder {error.args[0]!r}") from error
+    except ValueError as error:
+        raise BenchmarkError(f"invalid command template: {error}") from error
 
 
 def expand(command: tuple[str, ...], context: dict[str, str]) -> list[str]:
-    try:
-        return [part.format_map(context) for part in command]
-    except KeyError as error:
-        raise BenchmarkError(f"unknown command placeholder {error.args[0]!r}") from error
+    return [substitute(part, context) for part in command]
 
 
 def format_command(command: list[str]) -> str:
@@ -246,18 +318,18 @@ def require_success(result: ProcessResult, command: list[str]) -> None:
     raise BenchmarkError(f"command failed ({result.returncode}): {format_command(command)}\n{detail}")
 
 
-def setup_lane(lane: Lane, timeout: float, retain_trace: bool) -> ProcessResult | None:
+def setup_lane(lane: Lane, timeout: float) -> ProcessResult | None:
     if not lane.setup:
         return None
-    command = expand(lane.setup, command_context({"path": SUITE}, lane))
-    result = run_process(command, cwd=REPO, timeout=timeout, retain_memory_trace=retain_trace)
+    command = expand(lane.setup, command_context(None, lane))
+    result = run_process(command, cwd=REPO, timeout=timeout)
     require_success(result, command)
     return result
 
 
 def lane_cache_paths(problem: dict[str, Any], lane: Lane) -> list[Path]:
     context = command_context(problem, lane)
-    paths = [Path(cache_path.format_map(context)).resolve() for cache_path in lane.cache_paths]
+    paths = [Path(substitute(cache_path, context)).resolve() for cache_path in lane.cache_paths]
     for path in paths:
         if not path.is_relative_to(SUITE):
             raise BenchmarkError(f"cache path is outside suite: {path}")
@@ -281,7 +353,6 @@ def prepare_implementation(
     problem: dict[str, Any],
     lane: Lane,
     timeout: float,
-    retain_trace: bool,
 ) -> tuple[str, ProcessResult | None]:
     context = command_context(problem, lane)
     implementation = Path(context["implementation"])
@@ -290,7 +361,7 @@ def prepare_implementation(
     if not lane.prepare:
         return "", None
     command = expand(lane.prepare, context)
-    result = run_process(command, cwd=REPO, timeout=timeout, retain_memory_trace=retain_trace)
+    result = run_process(command, cwd=REPO, timeout=timeout)
     require_success(result, command)
     if lane.prepare_output == "executable-path":
         lines = [line.strip() for line in result.stdout.splitlines() if line.strip()]
@@ -326,10 +397,18 @@ def expected_result(problem: dict[str, Any], profile_name: str) -> tuple[int | f
     )
 
 
-def result_matches(actual: int | float, expected: int | float, absolute: float, relative: float) -> bool:
-    if isinstance(actual, int) and isinstance(expected, int):
+def result_matches(
+    result_kind: str,
+    actual: int | float,
+    expected: int | float,
+    absolute: float,
+    relative: float,
+) -> bool:
+    if result_kind == "integer":
         return actual == expected
-    return math.isclose(float(actual), float(expected), abs_tol=absolute, rel_tol=relative)
+    if result_kind == "float":
+        return math.isclose(float(actual), float(expected), abs_tol=absolute, rel_tol=relative)
+    raise BenchmarkError(f"unsupported result kind {result_kind!r}")
 
 
 def execute(
@@ -338,16 +417,15 @@ def execute(
     prepared: str,
     profile_name: str,
     timeout: float,
-    retain_trace: bool,
 ) -> tuple[int | float, ProcessResult]:
     profile = problem["profiles"][profile_name]
     context = command_context(problem, lane, prepared)
-    command = expand(lane.run, context) + list(profile.get("arguments", []))
-    result = run_process(command, cwd=problem["path"], timeout=timeout, retain_memory_trace=retain_trace)
+    command = expand(lane.run, context) + [str(profile["size"])]
+    result = run_process(command, cwd=problem["path"], timeout=timeout)
     require_success(result, command)
     actual = parse_result(result.stdout, problem["result"])
     expected, absolute, relative = expected_result(problem, profile_name)
-    if not result_matches(actual, expected, absolute, relative):
+    if not result_matches(problem["result"], actual, expected, absolute, relative):
         raise BenchmarkError(
             f"{problem['id']} / {lane.lane_id} / {profile_name}: expected {expected!r}, got {actual!r} "
             f"(abs={absolute:g}, rel={relative:g})"
@@ -373,34 +451,31 @@ def selected(values: list[Any], requested: list[str], attribute: str) -> list[An
 def process_record(result: ProcessResult | None) -> dict[str, Any] | None:
     if result is None:
         return None
-    record: dict[str, Any] = {
+    warning_lines = [
+        line for line in result.stderr.splitlines() if "warning" in line.casefold()
+    ]
+    return {
         "wall_seconds": result.wall_seconds,
         "peak_rss_bytes": result.peak_rss_bytes,
+        "stderr": result.stderr,
+        "warning_lines": warning_lines,
     }
-    if result.memory_trace is not None:
-        record["memory_trace"] = result.memory_trace
-    return record
 
 def materialize_lowering(
     problems: list[dict[str, Any]], lanes: list[Lane], timeout: float
 ) -> None:
     lowering_lanes = [lane for lane in lanes if lane.lower]
     for lane in lowering_lanes:
-        setup_lane(lane, timeout, False)
+        setup_lane(lane, timeout)
     for problem in problems:
         for lane in lowering_lanes:
             if lane.lower_output is None:
                 raise BenchmarkError(f"{lane.lane_id} declares lower without lower-output")
             context = command_context(problem, lane)
             command = expand(lane.lower, context)
-            result = run_process(
-                command,
-                cwd=problem["path"],
-                timeout=timeout,
-                retain_memory_trace=False,
-            )
+            result = run_process(command, cwd=problem["path"], timeout=timeout)
             require_success(result, command)
-            output = Path(lane.lower_output.format_map(context)).resolve()
+            output = Path(substitute(lane.lower_output, context)).resolve()
             if not output.is_relative_to(problem["path"]):
                 raise BenchmarkError(f"refusing to write lowering outside problem: {output}")
             output.parent.mkdir(parents=True, exist_ok=True)
@@ -409,14 +484,86 @@ def materialize_lowering(
 
 
 
-def check(problems: list[dict[str, Any]], lanes: list[Lane], timeout: float) -> None:
+def check(
+    problems: list[dict[str, Any]],
+    lanes: list[Lane],
+    setup_timeout: float,
+    runtime_timeout: float,
+) -> None:
     for lane in lanes:
-        setup_lane(lane, timeout, False)
+        setup_lane(lane, setup_timeout)
     for problem in problems:
         for lane in lanes:
-            prepared, _ = prepare_implementation(problem, lane, timeout, False)
-            actual, _ = execute(problem, lane, prepared, "correctness", timeout, False)
+            prepared, _ = prepare_implementation(problem, lane, setup_timeout)
+            actual, _ = execute(problem, lane, prepared, "correctness", runtime_timeout)
             print(f"ok  {problem['id']:<24} {lane.lane_id:<10} {actual}")
+
+
+def machine_environment() -> dict[str, Any]:
+    cpu_model = platform.processor()
+    memory_bytes = None
+    physical_cores = None
+    if sys.platform.startswith("linux"):
+        try:
+            for line in Path("/proc/cpuinfo").read_text().splitlines():
+                if line.startswith("model name"):
+                    cpu_model = line.split(":", 1)[1].strip()
+                    break
+        except OSError:
+            pass
+        try:
+            for line in Path("/proc/meminfo").read_text().splitlines():
+                if line.startswith("MemTotal:"):
+                    memory_bytes = int(line.split()[1]) * 1024
+                    break
+        except (OSError, ValueError, IndexError):
+            pass
+        try:
+            core_ids = {
+                (
+                    (path / "physical_package_id").read_text().strip(),
+                    (path / "core_id").read_text().strip(),
+                )
+                for path in Path("/sys/devices/system/cpu").glob("cpu[0-9]*/topology")
+            }
+            physical_cores = len(core_ids) or None
+        except OSError:
+            pass
+    return {
+        "platform": platform.platform(),
+        "kernel": platform.release(),
+        "machine": platform.machine(),
+        "cpu_model": cpu_model,
+        "logical_cpus": os.cpu_count(),
+        "physical_cores": physical_cores,
+        "memory_bytes": memory_bytes,
+        "runner_python": platform.python_version(),
+    }
+
+
+def portable_command(command: list[str]) -> list[str]:
+    repository = str(REPO)
+    return [
+        f"$repo{part[len(repository):]}" if part.startswith(repository + os.sep) else part
+        for part in command
+    ]
+
+
+def capture_lane_environment(lane: Lane, timeout: float) -> list[dict[str, Any]]:
+    captured = []
+    context = command_context(None, lane)
+    for template in lane.environment_commands:
+        command = expand(template, context)
+        result = run_process(command, cwd=REPO, timeout=timeout)
+        require_success(result, command)
+        captured.append(
+            {
+                "command": portable_command(command),
+                "stdout": result.stdout,
+                "stderr": result.stderr,
+            }
+        )
+    return captured
 
 
 def benchmark(
@@ -424,56 +571,47 @@ def benchmark(
     problems: list[dict[str, Any]],
     lanes: list[Lane],
     *,
-    timeout: float,
+    setup_timeout: float,
+    runtime_timeout: float,
     runs: int,
     warmups: int,
-    retain_trace: bool,
     cold_builds: bool,
 ) -> dict[str, Any]:
     report: dict[str, Any] = {
         "format": 1,
         "suite": suite["name"],
         "created_at": datetime.now(timezone.utc).isoformat(),
-        "environment": {
-            "platform": platform.platform(),
-            "machine": platform.machine(),
-            "processor": platform.processor(),
-            "python": platform.python_version(),
-            "logical_cpus": os.cpu_count(),
-        },
+        "environment": machine_environment(),
         "measurement": {
             "clock": "time.perf_counter",
             "runs": runs,
             "warmups": warmups,
             "cold_builds": cold_builds,
+            "setup_timeout_seconds": setup_timeout,
+            "runtime_timeout_seconds": runtime_timeout,
             "execution_timing": "program process only; setup and preparation complete before timing begins",
+            "run_order": "problem-major and lane-minor within each warm-up or measured run index",
             "build_cache": (
                 "adapter-declared caches cleared before initial preparation"
                 if cold_builds
                 else "existing adapter-declared caches preserved"
             ),
-            "memory": (
-                "sum of sampled Linux /proc VmRSS for the process and observed descendants"
-                if sys.platform.startswith("linux")
-                else "unavailable on this platform"
-            ),
-            "memory_limitations": (
-                "The sampler waits 5 ms between scans, so its effective cadence also includes /proc scan time. Sampling can miss short-lived peaks; RSS includes runtime and allocator-retained pages and does not separate shared mappings."
-                if sys.platform.startswith("linux")
-                else None
-            ),
+            "memory": "kernel ru_maxrss high-water mark from wait4 for the launched process and children it waited for",
+            "memory_limitations": "ru_maxrss is a lifetime high-water mark, not simultaneous summed tree RSS; it includes runtime and allocator-retained pages and does not separate shared mappings.",
         },
         "lane_setup": {},
         "results": [],
     }
     for lane in lanes:
-        setup = setup_lane(lane, timeout, retain_trace)
+        setup = setup_lane(lane, setup_timeout)
         report["lane_setup"][lane.lane_id] = {
             "name": lane.name,
             "metadata": lane.metadata,
+            "environment": capture_lane_environment(lane, setup_timeout),
             "measurement": process_record(setup),
         }
 
+    cases: list[dict[str, Any]] = []
     for problem in problems:
         for lane in lanes:
             cache_was_present = lane_cache_exists(problem, lane)
@@ -482,42 +620,72 @@ def benchmark(
             if cold_builds and lane.cache_paths:
                 clear_lane_cache(problem, lane)
                 prepared, cold_prepare = prepare_implementation(
-                    problem, lane, timeout, retain_trace
+                    problem, lane, setup_timeout
                 )
                 prepared, incremental_prepare = prepare_implementation(
-                    problem, lane, timeout, retain_trace
+                    problem, lane, setup_timeout
                 )
             else:
                 prepared, preparation = prepare_implementation(
-                    problem, lane, timeout, retain_trace
+                    problem, lane, setup_timeout
                 )
                 if cache_was_present:
                     incremental_prepare = preparation
                 else:
                     cold_prepare = preparation
-            correctness, _ = execute(problem, lane, prepared, "correctness", timeout, False)
-            for _ in range(warmups):
-                execute(problem, lane, prepared, "performance", timeout, False)
-            measured_runs = []
-            observed = None
-            for _ in range(runs):
-                observed, measurement = execute(
-                    problem, lane, prepared, "performance", timeout, retain_trace
-                )
-                measured_runs.append(process_record(measurement))
-            report["results"].append(
+            correctness, _ = execute(
+                problem, lane, prepared, "correctness", runtime_timeout
+            )
+            result_record = {
+                "problem": problem["id"],
+                "title": problem["title"],
+                "dataset": problem["dataset"],
+                "correctness_profile": dict(problem["profiles"]["correctness"]),
+                "performance_profile": dict(problem["profiles"]["performance"]),
+                "lane": lane.lane_id,
+                "correctness_result": correctness,
+                "performance_result": None,
+                "cold_prepare": process_record(cold_prepare),
+                "incremental_prepare": process_record(incremental_prepare),
+                "runs": [],
+            }
+            report["results"].append(result_record)
+            cases.append(
                 {
-                    "problem": problem["id"],
-                    "title": problem["title"],
-                    "lane": lane.lane_id,
-                    "correctness_result": correctness,
-                    "performance_result": observed,
-                    "cold_prepare": process_record(cold_prepare),
-                    "incremental_prepare": process_record(incremental_prepare),
-                    "runs": measured_runs,
+                    "problem": problem,
+                    "lane": lane,
+                    "prepared": prepared,
+                    "record": result_record,
                 }
             )
-            print(f"benchmarked  {problem['id']:<24} {lane.lane_id}", file=sys.stderr)
+
+    for _ in range(warmups):
+        for case in cases:
+            execute(
+                case["problem"],
+                case["lane"],
+                case["prepared"],
+                "performance",
+                runtime_timeout,
+            )
+
+    for _ in range(runs):
+        for case in cases:
+            observed, measurement = execute(
+                case["problem"],
+                case["lane"],
+                case["prepared"],
+                "performance",
+                runtime_timeout,
+            )
+            case["record"]["performance_result"] = observed
+            case["record"]["runs"].append(process_record(measurement))
+
+    for case in cases:
+        print(
+            f"benchmarked  {case['problem']['id']:<24} {case['lane'].lane_id}",
+            file=sys.stderr,
+        )
     return report
 
 
@@ -559,10 +727,13 @@ def render_markdown(report: dict[str, Any], raw_report_name: str) -> str:
         "| Property | Value |",
         "|---|---|",
         f"| Platform | {markdown_text(environment['platform'])} |",
+        f"| Kernel | {markdown_text(environment['kernel'])} |",
         f"| Machine | {markdown_text(environment['machine'])} |",
-        f"| Processor | {markdown_text(environment['processor'] or 'not reported')} |",
-        f"| Python | {markdown_text(environment['python'])} |",
+        f"| CPU model | {markdown_text(environment['cpu_model'] or 'not reported')} |",
+        f"| Physical cores | {environment['physical_cores'] or 'not reported'} |",
         f"| Logical CPUs | {environment['logical_cpus']} |",
+        f"| Memory | {format_bytes(environment['memory_bytes'])} |",
+        f"| Runner Python | {markdown_text(environment['runner_python'])} |",
         "",
         "## Measurement",
         "",
@@ -571,6 +742,8 @@ def render_markdown(report: dict[str, Any], raw_report_name: str) -> str:
         f"- Clock: `{measurement['clock']}`",
         f"- Build cache: {measurement['build_cache']}.",
         f"- Execution timing: {measurement['execution_timing']}.",
+        f"- Run order: {measurement['run_order']}.",
+        f"- Setup timeout: {format_seconds(measurement['setup_timeout_seconds'])}; runtime timeout: {format_seconds(measurement['runtime_timeout_seconds'])}.",
         f"- Memory: {measurement['memory']}.",
     ]
     if measurement["memory_limitations"]:
@@ -581,12 +754,16 @@ def render_markdown(report: dict[str, Any], raw_report_name: str) -> str:
             "",
             "## Lanes",
             "",
-            "| Lane | Implementation | Native build profile |",
-            "|---|---|---|",
+            "| Lane | Implementation | Native build profile | Captured environment |",
+            "|---|---|---|---|",
         ]
     )
     for lane_id, lane in report["lane_setup"].items():
         metadata = lane["metadata"]
+        environment_evidence = "; ".join(
+            (item["stdout"].strip() or item["stderr"].strip()).replace("\n", " / ")
+            for item in lane["environment"]
+        )
         lines.append(
             "| "
             + " | ".join(
@@ -594,6 +771,7 @@ def render_markdown(report: dict[str, Any], raw_report_name: str) -> str:
                     markdown_text(lane["name"]),
                     markdown_text(metadata.get("implementation", lane_id)),
                     markdown_text(metadata.get("native-build-profile", "not applicable")),
+                    markdown_text(environment_evidence or "not declared"),
                 ]
             )
             + " |"
@@ -604,8 +782,8 @@ def render_markdown(report: dict[str, Any], raw_report_name: str) -> str:
             "",
             "## Execution results",
             "",
-            "| Problem | Lane | Result | Median wall time | Range | Peak RSS |",
-            "|---|---|---:|---:|---:|---:|",
+            "| Problem | Lane | Size | Result | Median wall time | Range | Peak RSS | Warnings |",
+            "|---|---|---:|---:|---:|---:|---:|---:|",
         ]
     )
     for result in report["results"]:
@@ -619,10 +797,12 @@ def render_markdown(report: dict[str, Any], raw_report_name: str) -> str:
                 [
                     markdown_text(result["title"]),
                     markdown_text(result["lane"]),
+                    str(result["performance_profile"]["size"]),
                     markdown_text(result["performance_result"]),
                     format_seconds(median(times)),
                     time_range,
                     format_bytes(max(peaks) if peaks else None),
+                    str(sum(len(run["warning_lines"]) for run in runs)),
                 ]
             )
             + " |"
@@ -661,10 +841,19 @@ def render_markdown(report: dict[str, Any], raw_report_name: str) -> str:
                 + " |"
             )
 
+    warning_count = 0
+    for lane in report["lane_setup"].values():
+        if lane["measurement"]:
+            warning_count += len(lane["measurement"]["warning_lines"])
+    for result in report["results"]:
+        for key in ("cold_prepare", "incremental_prepare"):
+            if result[key]:
+                warning_count += len(result[key]["warning_lines"])
+        warning_count += sum(len(run["warning_lines"]) for run in result["runs"])
     lines.extend(
         [
             "",
-            "Every recorded execution passed its problem's shared correctness contract.",
+            f"Every recorded execution passed its problem's shared correctness contract. Successful process stderr is retained in the raw data; **{warning_count} warning line(s)** were detected.",
             "",
             f"Complete measurements: [{raw_report_name}]({raw_report_name})",
             "",
@@ -676,7 +865,6 @@ def render_markdown(report: dict[str, Any], raw_report_name: str) -> str:
 def add_measurement_arguments(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--runs", type=int, default=None)
     parser.add_argument("--warmups", type=int, default=None)
-    parser.add_argument("--memory-trace", action="store_true")
     parser.add_argument("--output", type=Path)
     parser.add_argument(
         "--cold-builds",
@@ -689,7 +877,18 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--problem", action="append", default=[], help="problem id (repeatable)")
     parser.add_argument("--lane", action="append", default=[], help="lane id (repeatable)")
-    parser.add_argument("--timeout", type=float, default=300.0, help="per-command timeout in seconds")
+    parser.add_argument(
+        "--setup-timeout",
+        type=float,
+        default=None,
+        help="setup, preparation, and lowering timeout in seconds",
+    )
+    parser.add_argument(
+        "--runtime-timeout",
+        type=float,
+        default=None,
+        help="correctness, warm-up, and measured execution timeout in seconds",
+    )
     commands = parser.add_subparsers(dest="command", required=True)
     commands.add_parser("list", help="list problems and lanes")
     commands.add_parser("lower", help="refresh inspectable lowered sources declared by lane adapters")
@@ -710,6 +909,19 @@ def main() -> int:
         suite, problems, lanes = load_suite()
         problems = selected(problems, arguments.problem, "id")
         lanes = selected(lanes, arguments.lane, "lane_id")
+        measurement = suite["measurement"]
+        setup_timeout = (
+            arguments.setup_timeout
+            if arguments.setup_timeout is not None
+            else float(measurement["setup-timeout-seconds"])
+        )
+        runtime_timeout = (
+            arguments.runtime_timeout
+            if arguments.runtime_timeout is not None
+            else float(measurement["runtime-timeout-seconds"])
+        )
+        if setup_timeout <= 0 or runtime_timeout <= 0:
+            raise BenchmarkError("setup and runtime timeouts must be positive")
         if arguments.command == "list":
             print("Problems:")
             for problem in problems:
@@ -719,10 +931,10 @@ def main() -> int:
                 print(f"  {lane.lane_id:<24} {lane.name}")
             return 0
         if arguments.command == "lower":
-            materialize_lowering(problems, lanes, arguments.timeout)
+            materialize_lowering(problems, lanes, setup_timeout)
             return 0
         if arguments.command == "check":
-            check(problems, lanes, arguments.timeout)
+            check(problems, lanes, setup_timeout, runtime_timeout)
             return 0
         measurement = suite["measurement"]
         runs = arguments.runs if arguments.runs is not None else int(measurement["runs"])
@@ -733,10 +945,10 @@ def main() -> int:
             suite,
             problems,
             lanes,
-            timeout=arguments.timeout,
+            setup_timeout=setup_timeout,
+            runtime_timeout=runtime_timeout,
             runs=runs,
             warmups=warmups,
-            retain_trace=arguments.memory_trace,
             cold_builds=arguments.cold_builds,
         )
         rendered = json.dumps(report, indent=2) + "\n"
@@ -745,7 +957,7 @@ def main() -> int:
             output = (
                 arguments.output.resolve()
                 if arguments.output
-                else (SUITE / "results" / f"report-{timestamp}.md")
+                else (SUITE / "reports" / f"report-{timestamp}.md")
             )
             if output.suffix.lower() != ".md":
                 raise BenchmarkError("report output must use a .md extension")

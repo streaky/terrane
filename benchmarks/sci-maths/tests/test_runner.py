@@ -1,0 +1,202 @@
+import importlib.util
+import os
+from pathlib import Path
+import sys
+import tempfile
+import time
+import unittest
+
+
+RUNNER_PATH = Path(__file__).resolve().parents[1] / "run.py"
+SPEC = importlib.util.spec_from_file_location("sci_maths_runner", RUNNER_PATH)
+assert SPEC is not None and SPEC.loader is not None
+runner = importlib.util.module_from_spec(SPEC)
+sys.modules[SPEC.name] = runner
+SPEC.loader.exec_module(runner)
+
+
+def lane(
+    lane_id: str,
+    command: tuple[str, ...],
+    implementation: str = "implementation.py",
+) -> runner.Lane:
+    return runner.Lane(
+        lane_id=lane_id,
+        name=lane_id,
+        config_path=Path("fixture.toml"),
+        implementation=implementation,
+        setup=(),
+        prepare=(),
+        lower=(),
+        lower_output=None,
+        run=command,
+        prepare_output="none",
+        cache_paths=(),
+        metadata={},
+        environment_commands=(),
+    )
+
+
+class RunnerContracts(unittest.TestCase):
+    def test_float_contract_accepts_either_absolute_or_relative_tolerance(self) -> None:
+        self.assertTrue(runner.result_matches("float", 100.2, 100.0, 0.25, 0.0))
+        self.assertTrue(runner.result_matches("float", 10_001.0, 10_000.0, 0.0, 0.0001))
+        self.assertFalse(runner.result_matches("float", 100.3, 100.0, 0.25, 0.001))
+
+    def test_templates_allow_literal_braces_and_reject_unknown_placeholders(self) -> None:
+        expanded = runner.expand(("$implementation", "lambda {value: 1}"), {"implementation": "main.py"})
+        self.assertEqual(expanded, ["main.py", "lambda {value: 1}"])
+        with self.assertRaisesRegex(runner.BenchmarkError, "unknown command placeholder"):
+            runner.expand(("$missing",), {})
+
+    def test_fixture_lane_exercises_setup_prepare_run_and_environment(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            problem_path = Path(directory)
+            implementation = problem_path / "implementation.py"
+            implementation.write_text("import sys\nprint(sys.argv[1])\n")
+            config_path = problem_path / "lane.toml"
+            config_path.write_text(
+                "\n".join(
+                    [
+                        'id = "fixture"',
+                        'name = "Fixture lane"',
+                        'implementation = "implementation.py"',
+                        f'setup = ["{sys.executable}", "--version"]',
+                        f'prepare = ["{sys.executable}", "-c", "import sys; print(sys.argv[1])", "$implementation"]',
+                        'prepare-output = "executable-path"',
+                        f'run = ["{sys.executable}", "$prepared"]',
+                        f'environment = [["{sys.executable}", "--version"]]',
+                    ]
+                )
+            )
+            fixture_lane = runner.load_lane(config_path)
+            problem = {
+                "id": "fixture",
+                "path": problem_path,
+                "result": "integer",
+                "profiles": {"correctness": {"size": 41, "expected": 41}},
+            }
+            setup = runner.setup_lane(fixture_lane, 5.0)
+            prepared, preparation = runner.prepare_implementation(problem, fixture_lane, 5.0)
+            actual, execution = runner.execute(
+                problem, fixture_lane, prepared, "correctness", 5.0
+            )
+            environment = runner.capture_lane_environment(fixture_lane, 5.0)
+            self.assertIsNotNone(setup)
+            self.assertIsNotNone(preparation)
+            self.assertEqual(Path(prepared), implementation)
+            self.assertEqual(actual, 41)
+            self.assertEqual(execution.returncode, 0)
+            self.assertIn("Python", environment[0]["stdout"])
+
+    def test_process_result_uses_kernel_peak_and_retains_successful_stderr(self) -> None:
+        result = runner.run_process(
+            [sys.executable, "-c", "import sys; print('warning: fixture', file=sys.stderr); print(7)"],
+            cwd=Path.cwd(),
+            timeout=5.0,
+        )
+        self.assertEqual(result.stdout.strip(), "7")
+        self.assertIn("warning: fixture", result.stderr)
+        self.assertGreater(result.peak_rss_bytes, 0)
+        record = runner.process_record(result)
+        assert record is not None
+        self.assertEqual(record["warning_lines"], ["warning: fixture"])
+
+    def test_timeout_kills_the_whole_process_group(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            group_file = Path(directory) / "group"
+            script = (
+                "import os, pathlib, subprocess, sys, time; "
+                "subprocess.Popen([sys.executable, '-c', 'import time; time.sleep(60)']); "
+                "pathlib.Path(sys.argv[1]).write_text(str(os.getpgrp())); "
+                "time.sleep(60)"
+            )
+            with self.assertRaisesRegex(runner.BenchmarkError, "timed out"):
+                runner.run_process(
+                    [sys.executable, "-c", script, str(group_file)],
+                    cwd=Path.cwd(),
+                    timeout=0.2,
+                )
+            process_group = int(group_file.read_text())
+            deadline = time.monotonic() + 2.0
+            while True:
+                try:
+                    os.killpg(process_group, 0)
+                except ProcessLookupError:
+                    break
+                if time.monotonic() >= deadline:
+                    self.fail("timed-out process group still exists")
+                time.sleep(0.01)
+
+    def test_execute_passes_manifest_size_as_the_only_workload_argument(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            problem_path = Path(directory)
+            implementation = problem_path / "implementation.py"
+            implementation.write_text("import sys\nprint(sys.argv[1] if len(sys.argv) == 2 else -1)\n")
+            problem = {
+                "id": "fixture",
+                "path": problem_path,
+                "result": "integer",
+                "profiles": {
+                    "performance": {"size": 37, "expected": 37},
+                },
+            }
+            actual, _ = runner.execute(
+                problem,
+                lane("fixture", (sys.executable, "$implementation")),
+                "",
+                "performance",
+                5.0,
+            )
+            self.assertEqual(actual, 37)
+
+    def test_benchmark_interleaves_cases_within_each_run_index(self) -> None:
+        lanes = [lane("first", (), str(RUNNER_PATH)), lane("second", (), str(RUNNER_PATH))]
+        problems = [
+            {
+                "id": problem_id,
+                "title": problem_id,
+                "dataset": "fixture data",
+                "path": Path.cwd(),
+                "result": "integer",
+                "profiles": {
+                    "correctness": {"size": 1, "expected": 1},
+                    "performance": {"size": 1, "expected": 1},
+                },
+            }
+            for problem_id in ("alpha", "beta")
+        ]
+        calls: list[tuple[str, str, str]] = []
+        original_execute = runner.execute
+
+        def fake_execute(problem, selected_lane, prepared, profile_name, timeout):
+            calls.append((profile_name, problem["id"], selected_lane.lane_id))
+            return 1, runner.ProcessResult(0, "1\n", "", 0.01, 1024)
+
+        runner.execute = fake_execute
+        try:
+            runner.benchmark(
+                {"name": "fixture"},
+                problems,
+                lanes,
+                setup_timeout=5.0,
+                runtime_timeout=5.0,
+                runs=2,
+                warmups=1,
+                cold_builds=False,
+            )
+        finally:
+            runner.execute = original_execute
+
+        expected_order = [
+            ("performance", "alpha", "first"),
+            ("performance", "alpha", "second"),
+            ("performance", "beta", "first"),
+            ("performance", "beta", "second"),
+        ]
+        performance_calls = [call for call in calls if call[0] == "performance"]
+        self.assertEqual(performance_calls, expected_order * 3)
+
+
+if __name__ == "__main__":
+    unittest.main()
