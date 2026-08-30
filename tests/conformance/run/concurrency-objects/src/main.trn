@@ -1,0 +1,63 @@
+namespace concurrency-objects
+
+from /core/output import print
+from /standard/concurrency import operation-options, cancellation-token, int-channel, int-mutex, int-read-write-lock, atomic-int64, acquire-order, release-order, acquire-release-order, thread-local-int
+
+class async-runner
+    callback function to none = function none;
+        return
+
+    function construct; callback function to none
+        this.callback = callback
+
+    async function run none;
+        callback = this.callback
+        callback;
+
+function main;
+    options = operation-options; 30_000, (cancellation-token;)
+    messages = int-channel; 0
+    counter = int-mutex; 4
+    work = function none;
+        messages.send; 11, options
+        counter.increase; 3
+    worker = async-runner; work
+    scope = task-scope;
+    child = scope.spawn; worker.run
+    received = messages.receive; options
+    outcome = scope.join; move child
+    print; messages.failed
+    invalid-channel = int-channel; -1
+    print; invalid-channel.failed
+    cancelled = cancellation-token;
+    cancelled.cancel;
+    cancelled-options = operation-options; 1000, cancelled
+    cancelled-channel = int-channel; 1
+    cancelled-receive = cancelled-channel.receive; cancelled-options
+    print; cancelled-receive.failed
+    timeout-options = operation-options; 1, (cancellation-token;)
+    timeout-channel = int-channel; 1
+    timed-out = timeout-channel.receive; timeout-options
+    print; timed-out.deadline-exceeded
+    print; received.available
+    print; received.value
+    print; outcome.completed
+    print; (counter.load;).value
+
+    shared = int-read-write-lock; 8
+    shared.write; 9
+    print; (shared.read;).value
+
+    atomic = atomic-int64; 10
+    updated = atomic.increase; 5, (acquire-release-order;)
+    print; updated.failed
+    print; (atomic.load; (acquire-order;)).value
+    invalid-store = atomic.store; 16, (acquire-release-order;)
+    print; invalid-store.failed
+    invalid-ordering = atomic.load; (release-order;)
+    print; invalid-ordering.failed
+    print; invalid-ordering.available
+
+    local = thread-local-int; 20
+    local.write; 21
+    print; (local.get;).value

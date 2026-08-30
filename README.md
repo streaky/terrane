@@ -24,7 +24,7 @@ Its guiding priorities are:
 - **Readable everyday code.** Common syntax should favour clear words and familiar control flow over punctuation-heavy ceremony.
 - **Progressive strictness.** Start with concise bindings and add precise contracts at the function, type, package, or build level when needed.
 - **Native reach.** The same language should be able to target applications, libraries, WebAssembly, embedded devices, and systems software when the program uses capabilities available in that environment.
-- **Ecosystem access.** Rust crates, native libraries, platform APIs, and carefully isolated foreign runtimes should be usable without turning Terrane into an island.
+- **Ecosystem access.** Rust crates, native libraries, and platform APIs should be usable without turning Terrane into an island.
 - **Inspectable lowering.** Generated Rust is not hidden compiler exhaust: it is the public lowered form, available for auditing, debugging, profiling, and understanding why the compiler made a particular representation, allocation, copy, or performance choice.
 - **Explicit power.** Shared identity, ownership transfer, unsafe operations, and platform-specific facilities should be visible choices rather than hidden surprises.
 
@@ -44,7 +44,7 @@ Terrane is a source language designed to behave like a semantic layer over Rust 
 
 Rust also provides a much safer foundation for the execution layer itself. Building a bespoke runtime means taking responsibility for memory management, object lifetime, dispatch, concurrency, native-extension boundaries, buffer handling, platform integration, and a large amount of security-sensitive infrastructure. Rust cannot eliminate every class of bug, especially across unsafe and foreign interfaces, but it removes a substantial amount of memory-safety risk from the default implementation model.
 
-The alternative is therefore not merely the engineering cost of building something on the scale of CPython or Zend. It is also the long-term security, compatibility, optimisation, and maintenance burden of owning an execution platform. Terrane instead spends its complexity on language semantics and lowering, while inheriting a mature native toolchain and a safer implementation substrate.
+The alternative is therefore not merely the engineering cost of building a large managed-language runtime. It is also the long-term security, compatibility, optimisation, and maintenance burden of owning an execution platform. Terrane instead spends its complexity on language semantics and lowering, while inheriting a mature native toolchain and a safer implementation substrate.
 
 Terrane compiles at development and build boundaries, not at execution boundaries. Its lowering is deterministic and incrementally cacheable, and the generated Rust participates in the existing Cargo/rustc caching ecosystem. Large native programs still take time to build because large native programs take time to build; that cost is paid when the program changes, not every time it runs.
 

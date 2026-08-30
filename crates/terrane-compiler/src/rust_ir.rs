@@ -7,6 +7,7 @@ use crate::Span;
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Program {
     pub version: &'static str,
+    pub requires_platform_support: bool,
     pub runtime: Vec<GeneratedModule>,
     pub globals: Vec<Item>,
     pub modules: Vec<Module>,

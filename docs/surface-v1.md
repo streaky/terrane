@@ -18,7 +18,7 @@ Labels:
 
 - **v1**: required in the proposed first usable language.
 - **profile**: v1 contract, available only when the selected target/package provides its capability.
-- **adapter**: supplied by an imported native or foreign adapter, not implicitly by `/core`.
+- **adapter**: supplied by an imported native package or system boundary, not implicitly by `/core`.
 - **later**: intentionally outside v1.
 
 A type attachment such as `integer -> coerce` means every value satisfying `integer` exposes that method-object family. A child is visible only when its receiver and arguments satisfy that child's contract. Unsupported children are absent from the receiver's type; they are not runtime no-ops.
@@ -75,7 +75,6 @@ object
 +-- instance
 |   +-- ordinary class instance                 COW value by default
 |   +-- resource-owning instance                inferred from stored fields; identity-bearing
-|   +-- foreign proxy                           identity-bearing, adapter-owned
 +-- error                                       catchable object contract
 +-- iterator                                    explicit end-of-stream state
 +-- reference
@@ -208,7 +207,6 @@ For a finite dynamic receiver, a direct member access is valid only when every p
 |       +-- task scopes, channels, locks, atomics, thread-local facilities
 +-- source-declared package namespaces
 +-- imported native package namespaces
-+-- imported adapter namespaces                  e.g. python
 ```
 
 The default prelude is intentionally small:
@@ -650,8 +648,8 @@ narrate an inferred effect. Reflection exposes the written upper bound separatel
 set. Ordinary throws lower through compiler-owned result propagation, not Rust panic or native
 unwinding. `finally` always runs and may replace a pending outcome only by explicitly returning or
 throwing. Uncaught rendering prints deterministic cause/source chains, then exits through the
-profile's failure policy. `panic` is separate and profile-selectable. Package/adapter throwable
-classes such as `file-error` and `python-error` are not implicit `/core` children.
+profile's failure policy. `panic` is separate and profile-selectable. Package throwable classes such
+as `file-error` are not implicit `/core` children.
 
 ## 10. Ownership, identity, and lifetime objects
 
@@ -708,7 +706,7 @@ try / catch / finally / throw
 when build
 function / class / interface / trait declarations
 namespace / import / use declarations
-rust / unsafe rust / foreign runtime blocks
+rust / unsafe rust blocks
 ```
 
 Postfix `++` and `--` are statements, not expression values. Pattern matching and user-replaceable core constructs remain later.
@@ -819,18 +817,21 @@ structured task scope                              v1 language-level object, not
 +-- deadline inheritance: a child may shorten but never extend its parent's
 +-- failure observation for a child that throws while siblings run
 
-profile library objects
-+-- channel
-+-- mutex
-+-- read/write lock
-+-- atomic by supported width
-+-- thread-local facility
-+-- shared collection variants
+profile library objects                              /standard/concurrency; requires threads
++-- int-channel                                      bounded, zero-capacity rendezvous; cancellable/deadline blocking operations
++-- int-mutex                                        individually synchronized integer load/store/increase cell
++-- int-read-write-lock                              integer shared-read/exclusive-write cell; no exposed guard
++-- atomic-int64 + memory-order                      operation-specific typed ordering
++-- thread-local-int                                 one value per existing host thread and shared object identity
 ```
 
 The async callable type, the task object, the structured scope, and cancellation with deadline propagation are all version one. Channels, locks, atomics, and executor selection are not: they are library objects over that core. Deadlines are explicit values that additionally propagate down scope boundaries — not ambient task-local state, because the boundary is written in the source. The language fixes the executor boundary but never hard-codes one executor.
 
 These are ordinary objects supplied by selected packages/profiles, not universal prelude names. Capabilities gate allocator, threads, filesystem, sockets, process spawning, dynamic loading, reflection, unwinding, clocks, entropy, floating point, Unicode data, exact-big-integer storage, and atomic widths. Unavailable semantics are rejected; profiles never quietly change a type's behaviour.
+
+The concurrency objects alias their synchronized identity when assigned or passed. Version one does
+not expose thread creation, explicit channel closure, arbitrary guard-scoped critical sections,
+non-integer generic synchronization cells, or shared collection variants.
 
 ## 13. Version-one data, operating-system, and I/O objects
 
@@ -1066,6 +1067,11 @@ process arguments
 +-- values -> list of string
 +-- raw values -> platform argument values        profile-specific
 
+host identity
++-- host-name -> host-name-result
++-- result -> failed / available / message / platform-string value
+
+
 argument parser
 +-- invocation; argument schema -> argument parser
 +-- parse; process arguments|list of string -> parsed arguments
@@ -1084,7 +1090,7 @@ process
 +-- success / failure canonical statuses
 ```
 
-Environment access, argument decoding, and process termination are explicit effects. Environment snapshots are preferred over repeated ambient reads. CLI parsing is schema-driven and separate from raw argument acquisition. `exit` defines whether and how deterministic cleanup runs; it never masquerades as an ordinary returning function. Platform-invalid Unicode arguments and environment values must not be silently replaced.
+Environment access, argument decoding, host identity, and process termination are explicit effects. Environment snapshots are preferred over repeated ambient reads. CLI parsing is schema-driven and separate from raw argument acquisition. `exit` defines whether and how deterministic cleanup runs; it never masquerades as an ordinary returning function. Platform-invalid Unicode arguments, environment values, and host names must not be silently replaced.
 
 ### 13.7 Networking
 
@@ -1225,13 +1231,13 @@ logger
 
 Logging is not a core-prelude replacement for `print`: it is a structured, capability/profile-gated application facility. Log fields retain their keys, values, source context, and severity for tracing and reflection rather than being eagerly formatted into an opaque string. Sink selection, level filtering, redaction, field-value serialization, buffering, failure behavior, and deterministic test capture require explicit profile contracts.
 
-## 14. Packages, adapters, and foreign objects
+## 14. Packages and native adapters
 
 One principle governs every ecosystem below, and each entry is a specialisation of it:
 
 > Dependency declarations name ecosystems and packages, not APIs. The build resolves the exact package and generates only the boundary machinery that Terrane source actually crosses. Tooling projects an advisory surface, which is never compiler-authoritative.
 
-A declaration names `serde` or `numpy`; it does not describe what they contain. The resolved manifest, lock, features, target, and toolchain define the interface for a given build, because a predefined surface would be a second, weaker copy of the ecosystem's own type system and would drift with every release. Nothing is projected wholesale: boundary machinery exists for the specific calls and values a program crosses, so generated output stays proportional to use. Editor knowledge — Cargo metadata, rustdoc, runtime introspection — is advisory, never invents members, and never decides whether a program compiles. Tooling must not execute arbitrary package code to inspect it.
+A declaration names an ecosystem package; it does not describe what it contains. The resolved manifest, lock, features, target, and toolchain define the interface for a given build, because a predefined surface would be a second, weaker copy of the ecosystem's own type system and would drift with every release. Nothing is projected wholesale: boundary machinery exists for the specific calls and values a program crosses, so generated output stays proportional to use. Editor knowledge from Cargo metadata or rustdoc is advisory, never invents members, and never decides whether a program compiles. Tooling must not execute arbitrary package code to inspect it.
 
 ```text
 package descriptor
@@ -1246,14 +1252,6 @@ Rust crate dependency
 +-- build-time native Rust interface from resolved package graph
 +-- optional editor index/cache; not a compiler API projection
 system/C adapter
-foreign runtime adapter                            boundary machinery, NOT a translation of the ecosystem
-+-- runtime/module loading
-+-- proxy type descriptors for crossings the program contains
-+-- explicit scalar/collection conversion
-+-- errors and traceback translation
-+-- ownership/thread/lifetime rules
-+-- reflection/debug/profiling metadata
-+-- does NOT enumerate, mirror, or typecheck the foreign package's API
 ```
 
 ### 14.1 Rust crates and editor contracts
@@ -1275,7 +1273,6 @@ type: identity, compatibility, protocols, members, ownership, capabilities
 callable: parameters, return, contracts, receiver, source identity
 namespace/package: children, visibility, origin/version
 value: source type, identity category, storage/copy facts where permitted
-foreign proxy: runtime, foreign type, ownership, transition contracts
 build: target, profile, capabilities, selected branches, adapter inputs
 ```
 
@@ -1294,7 +1291,7 @@ replaceable core structural constructs
 stateful hot-code replacement
 time-travel/replay
 arbitrary C++ ABI integration
-additional foreign runtimes beyond the first Python contract
+foreign-runtime adapters
 locale-policy-rich text API until deterministic policy objects are specified
 ```
 

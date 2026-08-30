@@ -995,6 +995,8 @@ pub fn analyze(package: &Package) -> Result<SemanticPackage, SemanticFailure> {
                 | "/core/platform-system"
                 | "/core/platform-data"
                 | "/core/platform-capabilities"
+                | "/core/platform-concurrency"
+                | "/core/platform-adapters"
         ) || ((unit.namespace == "/deps" || unit.namespace.starts_with("/deps/")) && !bundled)
             || (crate::bundled::source(&unit.namespace).is_some() && !bundled)
         {
@@ -1022,6 +1024,21 @@ pub fn analyze(package: &Package) -> Result<SemanticPackage, SemanticFailure> {
     let mut globals = BTreeMap::<String, Symbol>::new();
     for unit in &units {
         collect_unit(unit, &mut namespaces, &mut globals, &mut imports)?;
+    }
+    for import in imports.iter().filter(|import| !import.bundled) {
+        for capability in standard_capabilities(&import.target) {
+            if !package.profile.allows(capability) {
+                return Err(failure(
+                    &import.source,
+                    "S2032",
+                    format!(
+                        "profile `{}` forbids capability `{capability}` required by `{}` imported by `{}`",
+                        package.profile.name, import.target, import.namespace
+                    ),
+                    import.span,
+                ));
+            }
+        }
     }
     for import in &imports {
         let Some(dependency) = import
@@ -1836,6 +1853,18 @@ fn collect_declaration(
     Ok(())
 }
 
+fn standard_capabilities(namespace: &str) -> &'static [&'static str] {
+    match namespace {
+        "/standard/streams" | "/standard/process" => &["process"],
+        "/standard/filesystem" => &["filesystem"],
+        "/standard/random" | "/standard/uuid" => &["entropy"],
+        "/standard/networking" => &["networking"],
+        "/standard/tls" => &["networking", "tls"],
+        "/standard/concurrency" => &["threads"],
+        _ => &[],
+    }
+}
+
 fn imports_from_syntax(
     unit: &SemanticUnit,
     node: &SyntaxNode,
@@ -1913,6 +1942,8 @@ fn imported_object(
             | "/core/platform-system"
             | "/core/platform-data"
             | "/core/platform-capabilities"
+            | "/core/platform-concurrency"
+            | "/core/platform-adapters"
     ) && !import.bundled
     {
         let facility = match import.target.as_str() {
@@ -1923,6 +1954,8 @@ fn imported_object(
             "/core/platform-capabilities" => {
                 "`/standard/random`, `/standard/codecs`, `/standard/compression`, `/standard/uuid`, `/standard/networking`, or `/standard/tls`"
             }
+            "/core/platform-concurrency" => "`/standard/concurrency`",
+            "/core/platform-adapters" => "`/standard/process`",
             _ => "`/standard/filesystem` or `/standard/process`",
         };
         return Err(failure(
@@ -6799,7 +6832,9 @@ fn infer_value_type(
                     | "/core/platform-capabilities::cancellation-token"
                     | "/core/platform-capabilities::pseudo-random"
                     | "/core/platform-capabilities::secret-buffer"
-                    | "/core/platform-capabilities::result-capability" => {
+                    | "/core/platform-capabilities::result-capability"
+                    | "/core/platform-concurrency::platform-capability"
+                    | "/core/platform-concurrency::no-capability" => {
                         Some(ValueType::PlatformCapability)
                     }
                     "/core/platform-capabilities::result-resource"
@@ -6842,7 +6877,30 @@ fn infer_value_type(
                     | "/core/platform-capabilities::tls-write"
                     | "/core/platform-capabilities::tls-shutdown"
                     | "/core/platform-capabilities::cancel"
-                    | "/core/platform-capabilities::close" => Some(ValueType::PlatformResult),
+                    | "/core/platform-capabilities::close"
+                    | "/core/platform-concurrency::platform-result"
+                    | "/core/platform-concurrency::int-channel"
+                    | "/core/platform-concurrency::int-mutex"
+                    | "/core/platform-concurrency::int-read-write-lock"
+                    | "/core/platform-concurrency::atomic-int64"
+                    | "/core/platform-concurrency::thread-local-int"
+                    | "/core/platform-concurrency::int-channel-send"
+                    | "/core/platform-concurrency::int-channel-receive"
+                    | "/core/platform-concurrency::int-channel-try-receive"
+                    | "/core/platform-concurrency::int-mutex-load"
+                    | "/core/platform-concurrency::int-mutex-store"
+                    | "/core/platform-concurrency::int-mutex-add"
+                    | "/core/platform-concurrency::int-read-write-lock-read"
+                    | "/core/platform-concurrency::int-read-write-lock-write"
+                    | "/core/platform-concurrency::atomic-int64-load"
+                    | "/core/platform-concurrency::atomic-int64-store"
+                    | "/core/platform-concurrency::atomic-int64-add"
+                    | "/core/platform-concurrency::thread-local-int-get"
+                    | "/core/platform-concurrency::thread-local-int-set"
+                    | "/core/platform-adapters::platform-result"
+                    | "/core/platform-adapters::system-host-name" => {
+                        Some(ValueType::PlatformResult)
+                    }
                     "/core/platform-system::filesystem-exists"
                     | "/core/platform-system::filesystem-metadata"
                     | "/core/platform-system::filesystem-realpath"
@@ -6863,7 +6921,11 @@ fn infer_value_type(
                     | "/core/platform-capabilities::result-resource-limit"
                     | "/core/platform-capabilities::result-truncated"
                     | "/core/platform-capabilities::result-deadline-exceeded"
-                    | "/core/platform-capabilities::result-bool" => {
+                    | "/core/platform-capabilities::result-bool"
+                    | "/core/platform-concurrency::result-failed"
+                    | "/core/platform-concurrency::result-bool"
+                    | "/core/platform-adapters::result-failed"
+                    | "/core/platform-adapters::result-bool" => {
                         Some(ValueType::Scalar(ScalarType::Bool))
                     }
                     "/core/platform-system::result-message"
@@ -6895,7 +6957,10 @@ fn infer_value_type(
                     | "/core/platform-capabilities::base64-encode"
                     | "/core/platform-capabilities::result-message"
                     | "/core/platform-capabilities::result-text"
-                    | "/core/platform-capabilities::result-detail" => {
+                    | "/core/platform-capabilities::result-detail"
+                    | "/core/platform-concurrency::result-message"
+                    | "/core/platform-adapters::result-message"
+                    | "/core/platform-adapters::result-text" => {
                         Some(ValueType::Scalar(ScalarType::String))
                     }
                     "/core/platform-system::result-bytes"
@@ -6907,7 +6972,8 @@ fn infer_value_type(
                     | "/core/platform-data::document-exponent"
                     | "/core/platform-data::document-length"
                     | "/core/platform-data::url-query-length"
-                    | "/core/platform-capabilities::result-int" => {
+                    | "/core/platform-capabilities::result-int"
+                    | "/core/platform-concurrency::result-int" => {
                         Some(ValueType::Scalar(ScalarType::Int))
                     }
                     "/core/platform-system::process-arguments"
@@ -10673,6 +10739,55 @@ fn bootstrap_namespaces() -> BTreeMap<String, Namespace> {
                 "result-entries",
                 "result-capability",
                 "result-resource",
+            ],
+            SymbolKind::Function,
+        ),
+    );
+    namespaces.insert(
+        "/core/platform-concurrency".to_owned(),
+        namespace_with_objects(
+            "/core/platform-concurrency",
+            [
+                "platform-capability",
+                "platform-result",
+                "no-capability",
+                "int-channel",
+                "int-channel-send",
+                "int-channel-receive",
+                "int-channel-try-receive",
+                "int-mutex",
+                "int-mutex-load",
+                "int-mutex-store",
+                "int-mutex-add",
+                "int-read-write-lock",
+                "int-read-write-lock-read",
+                "int-read-write-lock-write",
+                "atomic-int64",
+                "atomic-int64-load",
+                "atomic-int64-store",
+                "atomic-int64-add",
+                "thread-local-int",
+                "thread-local-int-get",
+                "thread-local-int-set",
+                "result-failed",
+                "result-message",
+                "result-int",
+                "result-bool",
+            ],
+            SymbolKind::Function,
+        ),
+    );
+    namespaces.insert(
+        "/core/platform-adapters".to_owned(),
+        namespace_with_objects(
+            "/core/platform-adapters",
+            [
+                "platform-result",
+                "system-host-name",
+                "result-failed",
+                "result-bool",
+                "result-message",
+                "result-text",
             ],
             SymbolKind::Function,
         ),

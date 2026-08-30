@@ -41,7 +41,15 @@ pub enum PanicProfile {
     Abort,
 }
 
-const CAPABILITY_NAMES: [&str; 4] = ["build", "filesystem", "networking", "tls"];
+const CAPABILITY_NAMES: [&str; 7] = [
+    "build",
+    "entropy",
+    "filesystem",
+    "networking",
+    "process",
+    "threads",
+    "tls",
+];
 
 fn is_capability_name(name: &str) -> bool {
     CAPABILITY_NAMES.contains(&name)

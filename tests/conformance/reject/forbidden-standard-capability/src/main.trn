@@ -1,0 +1,6 @@
+namespace forbidden-standard-capability
+
+from /standard/concurrency import int-mutex
+
+function main;
+    value = int-mutex; 0

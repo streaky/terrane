@@ -1,19 +1,3 @@
-// Delivery principle 9: opaque values cross the irreducible host boundary. Accessors form one
-// shared ABI selected by several independently imported Terrane facilities.
-type TerranePlatformCapability = terrane_platform_support::Capability;
-type TerranePlatformResult = terrane_platform_support::ResultValue;
-fn terrane_platform_i128(value: &terrane_int_support::Int, label: &str) -> Result<i128, TerranePlatformResult> {
-    terrane_int_support::coerce::<i128>(value)
-        .map_err(|_| TerranePlatformResult::error(format!("{label} is outside the signed 128-bit platform range")))
-}
-macro_rules! terrane_platform_i128 {
-    ($value:expr, $label:literal) => {
-        match terrane_platform_i128(&$value, $label) {
-            Ok(value) => value,
-            Err(error) => return error,
-        }
-    };
-}
 #[allow(dead_code)] fn terrane_platform_cancellation_token() -> TerranePlatformCapability { terrane_platform_support::cancellation_token() }
 #[allow(dead_code)] fn terrane_platform_no_resource() -> TerranePlatformCapability { TerranePlatformCapability::default() }
 #[allow(dead_code)] fn terrane_platform_failed_result() -> TerranePlatformResult { TerranePlatformResult::error("uninitialized platform value") }

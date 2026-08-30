@@ -445,6 +445,7 @@ S2013 unresolved source name                 S2026 namespace-variable confinemen
 S2027 undeclared Rust dependency             S2029 projected member absent or declined
 S2028 Rust dependency projection failure     S2030 retired; do not reuse
 S2031 projected member removed by version change
+S2032 forbidden capability import
 ```
 
 Retired codes remain unavailable so a stable code never acquires a second meaning.
@@ -1557,9 +1558,9 @@ Deliver:
 - **the specification amendments this requires**, which are language changes and not editorial: making
   uppercase and underscore legal identifier characters so verbatim projected names are writable, with
   kebab-case kept mandatory for compiler-owned and standard-library names and every documentation
-  example and available as an opt-in lint elsewhere; scoping the tooling-execution prohibition to
-  foreign-runtime adapters, since for Rust inspection is compilation; removing the source-level
-  dependency declaration form; adding `dependency-panic` to the standard throwables; and confirming
+  example and available as an opt-in lint elsewhere; removing the tooling-execution prohibition from
+  Rust inspection because it is compilation; removing the source-level dependency declaration form;
+  adding `dependency-panic` to the standard throwables; and confirming
   the foreign-resource ownership rule covers Rust values;
 - **language-server integration** rendering the projector's model for completion, signature help, and
   hover, showing the verbatim Rust path and the recorded reason for declined items, advisory
@@ -1682,9 +1683,9 @@ Deliver:
   `object_method_mutates` ends in a call to it. With a qualified receiver type all three become
   unnecessary. They are removed rather than left as unreachable paths, and the milestone-25
   `S2030` receiver-mutability diagnostic added in their place is removed with them;
-- **the language-document statement of object identity.** §16 and §23.13 describe objects by declared
-  name; identity is the namespace-qualified pair, two identically named objects in two namespaces are
-  two types, and no aliasing or structural rule relates them. `docs/language-spec-concise.md` and
+- **the language-document statement of object identity.** §16 describes objects by declared name;
+  identity is the namespace-qualified pair, two identically named objects in two namespaces are two
+  types, and no aliasing or structural rule relates them. `docs/language-spec-concise.md` and
   `docs/surface-today.md` follow in the same work unit.
 
 Exit criterion: two namespaces in one package declare a class of the same name; both are usable, a
@@ -1788,7 +1789,7 @@ uses `serde_json`'s `Option<Number>`, `u128` edge coercion, data-free enum varia
 comparison; focused package, projection, semantic, generated-Rust, and rejection checks cover the
 remaining contracts.
 
-### Milestone 26 — Remaining concurrency and foreign adapters
+### Milestone 26 — Remaining concurrency and system adapters
 
 Milestone 25.2 already established the package `[profile]` model, validates declared dependency
 effects against it, and gives projected Rust crossings explicit receiver, error, and panic contracts.
@@ -1798,15 +1799,40 @@ it does not reopen the dependency-projection contracts or the explicitly deferre
 Deliver:
 
 - channels, mutexes, read/write locks, atomics, and thread-local objects as library objects over the milestone 19 core;
+  These objects synchronise tasks or host threads supplied by the milestone 19 executor/runtime
+  boundary; they do not add thread creation, joining, grouping, affinity, or system lifecycle;
 - capability enforcement for standard and system facilities under the existing package profile;
 - the remaining authored Rust and system adapters, excluding dependency-projection crossings already
-  delivered by milestone 25.2, with explicit ABI, lifetime, ownership, and error-translation contracts;
-- the first Python runtime contract if it remains in version-one scope.
+  delivered by milestone 25.2, with explicit ABI, lifetime, ownership, and error-translation contracts.
 
 Exit criterion: each new surface enters under the selected capability profile with typed objects and
 explicit operational contracts, deterministic lowering, and compiled and run evidence. A forbidden
 standard or system capability is rejected with a Terrane diagnostic. No surface is represented as an
 empty compiler-owned name to make the map look complete.
+
+Implemented evidence: `/standard/concurrency` provides zero-or-positive-capacity integer channels,
+integer mutex and read/write-lock cells, typed `atomic-int64` memory ordering, and per-existing-host-
+thread local integers over opaque shared host identities. Blocking channel send and receive carry
+explicit positive deadlines and cancellation tokens; `try-receive` is non-blocking. Generated Rust
+delegates synchronization and defensive operation-specific ordering validation to the support crate
+without exposing host handles. This is the host-synchronization ABI boundary permitted by delivery
+principle 9: `std::sync::mpsc::Receiver` is not shareable across threads, so the maintained layer
+uses `crossbeam-channel` for bounded parking sends and receives plus a genuinely non-blocking probe
+without a receiver mutex. Terrane retains the object model, deadline and cancellation policy, and
+error translation above that boundary. Explicit channel closure, arbitrary guard-scoped critical
+sections, and non-integer generic cells remain deferred rather than being implied by these names.
+
+Bundled standard imports are checked against `[profile]`; `S2032` names the profile, forbidden
+capability, imported namespace, and importing namespace, including `threads` for concurrency and
+`process` for the process/system surface. `/standard/process::host-name` demonstrates the remaining
+owned system crossing: its host ABI returns no borrowed value or handle, translates host failures,
+and preserves non-Unicode platform names in the existing `platform-string` representation. Rust's
+standard library has no portable host-name query, so its maintained layer uses the audited
+`hostname` crate only for host retrieval and non-Unicode OS-string conversion.
+Accepted canonical-Rust package cases compile and run both restricted-profile surfaces, focused
+rejected cases prove both gates and message metadata, and support tests exercise rendezvous channels
+through a Terrane task, cancellation/deadlines, cross-thread shared state, every atomic ordering
+class, and thread-local isolation plus stale-owner cleanup.
 
 ### Milestone 27 — Structured logging
 
@@ -1904,7 +1930,7 @@ The release pipeline must prove, from a clean checkout:
 - variadics, if they delay the core pipeline;
 - custom declaration modifiers and package-defined type constructors;
 - custom importers and registries beyond the locked Cargo graph version one requires;
-- C ABI export, and foreign runtimes beyond the first Python contract;
+- C ABI export and foreign-runtime adapters, including Python;
 - debugger integration, tracing, and profiling beyond the retained reflection metadata;
 - stateful hot-code replacement and time-travel or replay;
 - locale-policy-rich text APIs until deterministic policy objects are specified;

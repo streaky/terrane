@@ -129,11 +129,12 @@ Terrane package
     │   ├── filesystem-canonical / filesystem-realpath / filesystem-read-link
     │   ├── filesystem-read-bounded / filesystem-write-atomic
     │   └── filesystem-rename / filesystem-remove
-    ├── /standard/process                      bundled Terrane package over minimal host intrinsics
+    ├── /standard/process                      bundled Terrane process/system package; requires `process`
     │   ├── platform-string                    lossless text-or-raw platform value
     │   ├── arguments / environment            explicit process snapshots
     │   ├── cli-schema / parse-command-line    schema-driven options and structured diagnostics
-    │   └── exit-status / make-exit-status / exit explicit validated termination
+    │   ├── exit-status / make-exit-status / exit explicit validated termination
+    │   └── host-name-result / host-name        lossless platform host name or translated host failure
     ├── /standard/documents                    bundled Terrane document model over narrow scanner intrinsics
     │   ├── document-integer                   exact integral value; text uses canonical exact number spelling
     │   ├── document-decimal                   coefficient / exponent / canonical exact text value
@@ -185,6 +186,16 @@ Terrane package
     ├── /standard/tls                          bundled Terrane TLS policy over transferred network resources
     │   ├── tls-stream                         negotiated-version plus deadline-aware read, write, shutdown, and close
     │   └── connect-tls                        validated TLS 1.3/1.2 client connection; no insecure ordinary option
+    ├── /standard/concurrency                  bundled Terrane synchronization objects; requires `threads`
+    │   ├── operation-result / int-result      explicit failure, deadline, availability, message, and value
+    │   ├── cancellation-token                 explicit shared cancellation with a typed `cancel` operation
+    │   ├── operation-options                  positive deadline and cancellation token for blocking channel operations
+    │   ├── int-channel                        bounded integer send / receive / non-blocking try-receive; zero-capacity rendezvous
+    │   ├── int-mutex                          individually synchronized integer load / store / increase cell
+    │   ├── int-read-write-lock                integer shared read / exclusive write cell; no exposed guards
+    │   ├── memory-order / five order factories typed atomic policy with operation-specific validation
+    │   ├── atomic-int64                       load / store / increase with validated memory order
+    │   └── thread-local-int                   per-existing-host-thread get / write; shared identity, stale-owner sweep
     ├── namespace                              hierarchical object container
     │   ├── variable                           namespace-local value
     │   ├── constant                           namespace-local or program-global value

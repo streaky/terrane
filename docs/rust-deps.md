@@ -151,8 +151,8 @@ foo = await reqwest-get; >https://httpbin.org/ip
   alongside `throw`.
 - **`Option<T>` projects as `T|none`.** Terrane already has that union.
 - **Receivers project faithfully, and the existing ownership model carries them.** A projected foreign
-  value is an identity-bearing resource, not an ordinary COW value — the rule §23.13 already states
-  for foreign proxies and invariant 22 already makes normative. So:
+  value is an identity-bearing resource, not an ordinary COW value, under the foreign-resource
+  ownership rule now recorded in specification §23.8. So:
 
   | Rust receiver | Terrane contract and call |
   |---|---|
@@ -429,9 +429,10 @@ entry. §23.8 must be reconciled with §23.1.
 §23.2 and §23.8 also show `use rust serde` as a source-level dependency declaration. Section 5 above
 removes it: dependencies are declared in the project manifest only. The `use` form is redundant once
 `from /deps/...` performs the binding, and its removal makes §23.3's own distinction cleaner
-rather than weaker. Whether the same applies to the other three dependency origins in §23.2 — native
-Terrane packages, system libraries, and foreign runtimes — is a larger question this note does not
-settle, but consistency argues for one answer across all four.
+rather than weaker. Whether the same applies to the other two version-one dependency origins in
+§23.2—native Terrane packages and system libraries—is a larger question this note does not settle,
+but consistency argues for one answer across all three. Foreign-runtime adapters are explicitly
+post-version-one and are not a fourth current origin.
 
 `docs/surface-v1.md` §14.1 asserts the §23.8 position and needs the same treatment. The milestone 25
 text in `docs/compiler-plan.md` carries the wrapper sentence and inherits the foreign-adapter phrase
@@ -481,7 +482,7 @@ here is conditional or outstanding.
   optional ergonomics, not the price of entry. (§10)
 - **A3 — §23.2, §23.3.** Remove the source-level `use rust crate-name` form and its examples.
   Dependencies are declared in the project manifest only; `from /deps/...` performs the
-  binding. Decide separately whether the same applies to the other three dependency origins. (§5)
+  binding. Decide separately whether the same applies to the other two version-one origins. (§5)
 - **A4 — `docs/surface-v1.md` §14.1.** Restate to match A2; it currently asserts the §23.8 position.
   (§10)
 - **A5 — capability model.** Record that for Rust dependencies the manifest declaration is the grant,
@@ -489,9 +490,10 @@ here is conditional or outstanding.
   resolution rather than at a call site. (§8)
 - **A6 — standard throwables.** Add `dependency-panic`, carrying the panic payload, crate identity,
   and crossed member. (§6.3)
-- **A6a — §23.1 execution rule.** Scope "must not execute arbitrary package code merely to inspect it"
-  to foreign-runtime adapters, where it is correct: importing `numpy` to enumerate it is a genuine and
-  avoidable execution. For Rust it is not avoidable — inspection is compilation, since rustdoc runs the
+- **A6a — §23.1 execution rule.** Reserve "must not execute arbitrary package code merely to inspect
+  it" for a future post-version-one foreign-runtime adapter, where importing `numpy` to enumerate it
+  would be genuine and avoidable execution. For Rust it is not avoidable—inspection is compilation,
+  since rustdoc runs the
   front end and expands proc macros. State the Rust rule instead: the projection pass executes package
   code under the same explicit build capability and sandbox policy as a build script, and without that
   grant neither the editor nor the build runs it.
@@ -522,10 +524,9 @@ here is conditional or outstanding.
   mutable binding and borrowing in generated Rust. Until object identity includes its namespace,
   conflicting receiver contracts on same-named projected types are a compile-time ambiguity rather
   than being selected by projection order. (§6.2)
-- **A11a — foreign values are identity-bearing resources**, per invariant 22, so ordinary value
-  assignment does not apply to them and use-after-move is diagnosed by the existing rules. Confirm the
-  §23.13 foreign-proxy wording covers Rust values rather than only foreign-runtime proxies; extend it
-  if it does not. (§6.2)
+- **A11a — foreign values are identity-bearing resources**, so ordinary value assignment does not
+  apply to them and use-after-move is diagnosed by the existing foreign-resource ownership rule in
+  specification §23.8. (§6.2)
 - **A12 — `Result` and `Option` lowering.** `Result<T, E>` becomes a return of `T` with a `throws`
   contract naming the projected error; `Option<T>` becomes `T|none`. (§6.2)
 - **A13 — panic containment** at the crossing on unwinding profiles, converting to `dependency-panic`;

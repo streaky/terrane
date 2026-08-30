@@ -1,0 +1,9 @@
+package = "concurrency-objects"
+executor = "threaded"
+
+[profile]
+name = "concurrency"
+capabilities = ["threads"]
+
+[namespaces]
+concurrency-objects = "src"

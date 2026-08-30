@@ -1,0 +1,8 @@
+package = "system-adapter"
+
+[profile]
+name = "system-adapter"
+capabilities = ["process"]
+
+[namespaces]
+system-adapter = "src"

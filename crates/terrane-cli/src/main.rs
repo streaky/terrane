@@ -105,10 +105,7 @@ fn run(arguments: &[OsString]) -> Result<ExitCode, CliFailure> {
         return Ok(ExitCode::SUCCESS);
     }
     ensure_rust_toolchain()?;
-    let uses_platform_support = compilation
-        .rust_files
-        .iter()
-        .any(|file| file.path == "src/runtime/platform_capabilities.rs");
+    let uses_platform_support = compilation.requires_platform_support;
     let crate_dir = generated_crate_path(
         &package.root,
         &compilation.rust_files,

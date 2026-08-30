@@ -107,6 +107,16 @@ fn case_source_path(build: &ConformanceBuild, case: &Path, entrypoint: &str) -> 
     staged.join(entrypoint)
 }
 
+fn reports(
+    diagnostics: &[terrane_compiler::Diagnostic],
+    code: &str,
+    expected: Option<&str>,
+) -> bool {
+    diagnostics.iter().any(|diagnostic| {
+        diagnostic.code == code && expected.is_none_or(|text| diagnostic.message.contains(text))
+    })
+}
+
 #[test]
 fn every_manifest_drives_a_conformance_case() {
     let manifests = manifests_below(&corpus());
@@ -194,9 +204,11 @@ fn every_manifest_drives_a_conformance_case() {
                         .unwrap_err()
                         .diagnostics
                 };
+                let expected = field(&manifest, "contains");
+                let reported = reports(&diagnostics, code, expected);
                 assert!(
-                    diagnostics.iter().any(|diagnostic| diagnostic.code == code),
-                    "{} did not report {code}: {diagnostics:?}",
+                    reported,
+                    "{} did not report {code} matching {expected:?}: {diagnostics:?}",
                     case.display()
                 );
             }
