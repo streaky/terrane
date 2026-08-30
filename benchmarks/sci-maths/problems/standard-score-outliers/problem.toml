@@ -10,5 +10,5 @@ expected = 102
 
 [profiles.performance]
 arguments = ["performance"]
-size = 1000000
-expected = 102142
+size = 10000000
+expected = 1021428

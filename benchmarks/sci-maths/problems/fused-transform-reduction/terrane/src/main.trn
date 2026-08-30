@@ -7,7 +7,7 @@ function main;
   supplied = (arguments;)
   count int64 = 1000
   if supplied.length > 0 and supplied[0].text == 'performance'
-    count = 2000000
+    count = 20000000
 
   total float64 = 0
   index int64 = 0

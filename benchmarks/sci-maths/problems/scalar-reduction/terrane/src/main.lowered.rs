@@ -195,7 +195,7 @@ fn main() {
             ))
             .text == String::from("performance")
     {
-        count = 5000000;
+        count = 50000000;
     }
     let mut total: i64 = 0;
     let mut index: i64 = 0;

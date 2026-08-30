@@ -195,7 +195,7 @@ fn main() {
             ))
             .text == String::from("performance")
     {
-        limit = 100000;
+        limit = 1000000;
     }
     let mut total: i64 = 0;
     let mut start: i64 = 1;

@@ -4,7 +4,7 @@ import sys
 
 
 def main() -> None:
-    limit = 100_000 if sys.argv[1:] == ["performance"] else 1_000
+    limit = 1_000_000 if sys.argv[1:] == ["performance"] else 1_000
     total = 0
     start = 1
     while start <= limit:

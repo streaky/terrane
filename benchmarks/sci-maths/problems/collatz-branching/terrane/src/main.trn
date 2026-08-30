@@ -7,7 +7,7 @@ function main;
   supplied = (arguments;)
   limit int64 = 1000
   if supplied.length > 0 and supplied[0].text == 'performance'
-    limit = 100000
+    limit = 1000000
 
   total int64 = 0
   start int64 = 1

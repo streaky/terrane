@@ -4,7 +4,7 @@ import sys
 
 
 def main() -> None:
-    count = 1_000_000 if sys.argv[1:] == ["performance"] else 1_000
+    count = 10_000_000 if sys.argv[1:] == ["performance"] else 1_000
     values: list[float] = []
     total = 0.0
     index = 0

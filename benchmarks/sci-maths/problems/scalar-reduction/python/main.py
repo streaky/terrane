@@ -4,7 +4,7 @@ import sys
 
 
 def main() -> None:
-    count = 5_000_000 if sys.argv[1:] == ["performance"] else 1_000
+    count = 50_000_000 if sys.argv[1:] == ["performance"] else 1_000
     total = 0
     index = 0
     while index < count:

@@ -197,7 +197,7 @@ fn main() {
             ))
             .text == String::from("performance")
     {
-        count = 1000000;
+        count = 10000000;
     }
     let mut transformed: terrane_collection_support::List<f64> = terrane_collection_support::List::<
         f64,
