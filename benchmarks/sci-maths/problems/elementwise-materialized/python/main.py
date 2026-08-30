@@ -1,21 +1,24 @@
-from __future__ import annotations
-
 import sys
 
 
-def main() -> None:
-    count = 10_000_000 if sys.argv[1:] == ["performance"] else 1_000
-    transformed: list[float] = []
-    index = 0
-    while index < count:
-        x = (index % 1_000) / 100.0
-        transformed.append(x * x + 3.0 * x - 7.0)
-        index += 1
+def size_argument() -> int:
+    if len(sys.argv) != 2:
+        raise SystemExit("expected exactly one positive integer size")
+    try:
+        size = int(sys.argv[1])
+    except ValueError as error:
+        raise SystemExit("size must be a positive integer") from error
+    if size <= 0:
+        raise SystemExit("size must be a positive integer")
+    return size
 
-    total = 0.0
-    for value in transformed:
-        total += value
-    print(total)
+
+def main() -> None:
+    transformed = [
+        ((index % 1_000) / 100.0) ** 2 + 3.0 * ((index % 1_000) / 100.0) - 7.0
+        for index in range(size_argument())
+    ]
+    print(sum(transformed))
 
 
 if __name__ == "__main__":

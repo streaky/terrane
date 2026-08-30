@@ -4,11 +4,9 @@ result = "integer"
 dataset = "For every integer from 1 through the profile limit, count Collatz steps to 1 and reduce the counts."
 
 [profiles.correctness]
-arguments = ["correctness"]
 size = 1000
 expected = 59542
 
 [profiles.performance]
-arguments = ["performance"]
 size = 1000000
 expected = 131434424

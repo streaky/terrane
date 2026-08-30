@@ -1,32 +1,29 @@
-from __future__ import annotations
-
 import sys
 
 
+def size_argument() -> int:
+    if len(sys.argv) != 2:
+        raise SystemExit("expected exactly one positive integer size")
+    try:
+        size = int(sys.argv[1])
+    except ValueError as error:
+        raise SystemExit("size must be a positive integer") from error
+    if size <= 0:
+        raise SystemExit("size must be a positive integer")
+    return size
+
+
+def generated_value(index: int) -> float:
+    raw = float(index % 200 - 100)
+    return 0.01 * raw * raw + float(index % 7) - 3.0
+
+
 def main() -> None:
-    count = 10_000_000 if sys.argv[1:] == ["performance"] else 1_000
-    values: list[float] = []
-    total = 0.0
-    index = 0
-    while index < count:
-        raw = float(index % 200 - 100)
-        value = 0.01 * raw * raw + float(index % 7) - 3.0
-        values.append(value)
-        total += value
-        index += 1
-
-    mean = total / count
-    squared_total = 0.0
-    for value in values:
-        deviation = value - mean
-        squared_total += deviation * deviation
-    variance = squared_total / count
-
-    outliers = 0
-    for value in values:
-        deviation = value - mean
-        if deviation * deviation > 2.5 * variance:
-            outliers += 1
+    count = size_argument()
+    values = [generated_value(index) for index in range(count)]
+    mean = sum(values) / count
+    variance = sum((value - mean) ** 2 for value in values) / count
+    outliers = sum((value - mean) ** 2 > 2.5 * variance for value in values)
     print(outliers)
 
 

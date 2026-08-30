@@ -4,11 +4,9 @@ result = "integer"
 dataset = "For each index i, reduce ((i mod 1000) - 500)^2 without stored input."
 
 [profiles.correctness]
-arguments = ["correctness"]
 size = 1000
 expected = 83333500
 
 [profiles.performance]
-arguments = ["performance"]
 size = 50000000
 expected = 4166675000000

@@ -2,13 +2,19 @@ namespace benchmark-standard-score-outliers
 
 from /core/output import print
 from /core/collections import list
-from /standard/process import platform-string, arguments
+from /standard/process import platform-string, arguments, exit, make-exit-status
+
+function benchmark-size int64;
+  supplied = (arguments;)
+  if supplied.length != 1
+    exit; (make-exit-status; 2)
+  count int64 = (supplied[0].text.radix; 10)
+  if count <= 0
+    exit; (make-exit-status; 2)
+  return count
 
 function main;
-  supplied = (arguments;)
-  count int64 = 1000
-  if supplied.length > 0 and supplied[0].text == 'performance'
-    count = 10000000
+  count int64 = (benchmark-size;)
 
   values list of float64 = list
   total float64 = 0
