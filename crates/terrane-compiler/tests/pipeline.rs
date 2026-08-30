@@ -69,6 +69,24 @@ fn compiler_runtime_support_uses_named_generated_files() {
 }
 
 #[test]
+fn platform_support_requirement_comes_from_lowering_metadata() {
+    let literal = terrane_compiler::compile(
+        "literal.trn",
+        "namespace literal\nfunction main;\n    value = 'terrane_platform_support::'\n".to_owned(),
+    )
+    .unwrap();
+    assert!(!literal.requires_platform_support);
+
+    let process = terrane_compiler::compile(
+        "process.trn",
+        "namespace process\nfrom /standard/process import host-name\nfunction main;\n    name = host-name;\n"
+            .to_owned(),
+    )
+    .unwrap();
+    assert!(process.requires_platform_support);
+}
+
+#[test]
 fn inferred_local_reassignment_lowers_as_assignment() {
     let source = "namespace inferred\nfunction main;\n  total = 5\n  total = total + 1\n";
     let compilation = terrane_compiler::compile("inferred.trn", source.to_owned()).unwrap();

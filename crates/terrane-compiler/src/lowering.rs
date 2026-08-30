@@ -135,6 +135,14 @@ pub(crate) fn lower(package: &SemanticPackage) -> Program {
         || uses_networking
         || uses_tls
         || uses_concurrency;
+    let requires_platform_support = uses_standard_streams
+        || uses_filesystem
+        || uses_process
+        || uses_documents
+        || uses_json
+        || uses_yaml
+        || uses_urls
+        || uses_platform_capabilities;
     if uses_standard_streams || uses_filesystem {
         let mut items = vec![Item::generated(include_str!("runtime/platform_streams.rs"))];
         if uses_standard_streams {
@@ -320,6 +328,7 @@ pub(crate) fn lower(package: &SemanticPackage) -> Program {
         .collect();
     Program {
         version: crate::VERSION,
+        requires_platform_support,
         runtime,
         globals: (!globals.is_empty())
             .then(|| Item::generated(&globals))
