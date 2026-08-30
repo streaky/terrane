@@ -6,13 +6,13 @@ dataset = "For each index i, x = (i mod 1000) / 100 and y = x^2 + 3x - 7; materi
 [profiles.correctness]
 size = 1000
 expected = 41268.35
-# Forward-error bound for naive binary64 accumulation; more accurate orders also pass.
+# gamma(n) * sum(abs(terms)) is about 4.72e-9 using u = 2^-53; the tolerance keeps a 2x margin.
 absolute-tolerance = 1e-8
 relative-tolerance = 0.0
 
 [profiles.performance]
 size = 10000000
 expected = 412683500.0
-# gamma(n) * sum(abs(terms)) = 0.9432 for n = 10,000,000.
+# gamma(n) * sum(abs(terms)) is about 0.4716 using u = 2^-53; the tolerance keeps a 2x margin.
 absolute-tolerance = 0.95
 relative-tolerance = 0.0

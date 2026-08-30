@@ -25,6 +25,20 @@ from typing import Any
 
 SUITE = Path(__file__).resolve().parent
 REPO = SUITE.parents[1]
+PERFORMANCE_ENVIRONMENT_KEYS = (
+    "CARGO_BUILD_RUSTFLAGS",
+    "CARGO_ENCODED_RUSTFLAGS",
+    "CARGO_PROFILE_RELEASE_CODEGEN_UNITS",
+    "CARGO_PROFILE_RELEASE_LTO",
+    "CARGO_PROFILE_RELEASE_OPT_LEVEL",
+    "CFLAGS",
+    "CPPFLAGS",
+    "LD_PRELOAD",
+    "PYTHONDONTWRITEBYTECODE",
+    "PYTHONHASHSEED",
+    "PYTHONOPTIMIZE",
+    "RUSTFLAGS",
+)
 
 
 class BenchmarkError(RuntimeError):
@@ -164,6 +178,8 @@ def read_process_output(stdout_file: Any, stderr_file: Any) -> tuple[str, str]:
 
 def run_process(command: list[str], *, cwd: Path, timeout: float) -> ProcessResult:
     memory_group = create_memory_cgroup()
+    result: ProcessResult | None = None
+    primary_error: BaseException | None = None
     try:
         with tempfile.TemporaryFile() as stdout_file, tempfile.TemporaryFile() as stderr_file:
             started = time.perf_counter()
@@ -194,6 +210,13 @@ def run_process(command: list[str], *, cwd: Path, timeout: float) -> ProcessResu
             wall_seconds = time.perf_counter() - started
             stdout, stderr = read_process_output(stdout_file, stderr_file)
             peak_memory_bytes = memory_group.peak_bytes() if memory_group else None
+            result = ProcessResult(
+                returncode=process.returncode,
+                stdout=stdout,
+                stderr=stderr,
+                wall_seconds=wall_seconds,
+                peak_memory_bytes=peak_memory_bytes,
+            )
             if memory_group is not None and memory_group.populated():
                 memory_group.kill()
                 raise BenchmarkError(
@@ -201,21 +224,32 @@ def run_process(command: list[str], *, cwd: Path, timeout: float) -> ProcessResu
                 )
             if timed_out:
                 raise BenchmarkError(f"command timed out after {timeout:g}s: {format_command(command)}")
-            return ProcessResult(
-                returncode=process.returncode,
-                stdout=stdout,
-                stderr=stderr,
-                wall_seconds=wall_seconds,
-                peak_memory_bytes=peak_memory_bytes,
-            )
+    except BaseException as error:
+        primary_error = error
+        raise
     finally:
         if memory_group is not None:
             try:
                 memory_group.remove()
             except OSError as error:
-                raise BenchmarkError(
+                cleanup_message = (
                     f"cannot remove execution memory cgroup {memory_group.path.name}: {error}"
-                ) from error
+                )
+                if primary_error is not None:
+                    primary_error.add_note(cleanup_message)
+                elif result is not None and result.returncode != 0:
+                    separator = "" if not result.stderr or result.stderr.endswith("\n") else "\n"
+                    result = ProcessResult(
+                        returncode=result.returncode,
+                        stdout=result.stdout,
+                        stderr=f"{result.stderr}{separator}{cleanup_message}\n",
+                        wall_seconds=result.wall_seconds,
+                        peak_memory_bytes=result.peak_memory_bytes,
+                    )
+                else:
+                    raise BenchmarkError(cleanup_message) from error
+    assert result is not None
+    return result
 
 
 def load_toml(path: Path) -> dict[str, Any]:
@@ -326,10 +360,69 @@ def validate_problem(problem: dict[str, Any], problem_path: Path) -> None:
                 )
 
 
-def load_suite() -> tuple[dict[str, Any], list[dict[str, Any]], list[Lane]]:
-    suite = load_toml(SUITE / "suite.toml")
+def validate_suite(suite: dict[str, Any]) -> None:
+    allowed_top_level = {"format", "name", "measurement", "lanes", "problems"}
+    unknown = set(suite) - allowed_top_level
+    if unknown:
+        raise BenchmarkError(f"suite.toml has unknown fields: {', '.join(sorted(unknown))}")
     if suite.get("format") != 1:
         raise BenchmarkError("suite.toml must declare format = 1")
+    if not isinstance(suite.get("name"), str) or not suite["name"]:
+        raise BenchmarkError("suite.toml name must be a non-empty string")
+
+    measurement = suite.get("measurement")
+    if not isinstance(measurement, dict):
+        raise BenchmarkError("suite.toml measurement must be a table")
+    measurement_fields = {
+        "warmups",
+        "runs",
+        "setup-timeout-seconds",
+        "runtime-timeout-seconds",
+    }
+    unknown_measurement = set(measurement) - measurement_fields
+    if unknown_measurement:
+        raise BenchmarkError(
+            "suite.toml measurement has unknown fields: "
+            + ", ".join(sorted(unknown_measurement))
+        )
+    for field in ("warmups", "runs"):
+        value = measurement.get(field)
+        minimum = 0 if field == "warmups" else 1
+        if isinstance(value, bool) or not isinstance(value, int) or value < minimum:
+            qualifier = "non-negative" if minimum == 0 else "positive"
+            raise BenchmarkError(f"suite.toml measurement.{field} must be a {qualifier} integer")
+    for field in ("setup-timeout-seconds", "runtime-timeout-seconds"):
+        value = measurement.get(field)
+        if (
+            isinstance(value, bool)
+            or not isinstance(value, (int, float))
+            or not math.isfinite(float(value))
+            or value <= 0
+        ):
+            raise BenchmarkError(f"suite.toml measurement.{field} must be finite and positive")
+
+    for collection in ("lanes", "problems"):
+        entries = suite.get(collection)
+        if not isinstance(entries, list) or not entries:
+            raise BenchmarkError(f"suite.toml {collection} must be a non-empty array of tables")
+        for index, entry in enumerate(entries):
+            if (
+                not isinstance(entry, dict)
+                or set(entry) != {"path"}
+                or not isinstance(entry.get("path"), str)
+                or not entry["path"]
+            ):
+                raise BenchmarkError(
+                    f"suite.toml {collection}[{index}] must contain exactly one non-empty path"
+                )
+            resolved = (SUITE / entry["path"]).resolve()
+            if not resolved.is_relative_to(SUITE):
+                raise BenchmarkError(f"suite.toml {collection}[{index}] path is outside the suite")
+
+
+def load_suite() -> tuple[dict[str, Any], list[dict[str, Any]], list[Lane]]:
+    suite = load_toml(SUITE / "suite.toml")
+    validate_suite(suite)
 
     problems: list[dict[str, Any]] = []
     seen_problems: set[str] = set()
@@ -515,19 +608,20 @@ def execute(
         )
     return actual, result
 
-
-def selected(values: list[Any], requested: list[str], attribute: str) -> list[Any]:
+def selected(
+    values: list[Any], requested: list[str], identifiers: list[str]
+) -> list[Any]:
     if not requested:
         return values
     wanted = set(requested)
-    available = {getattr(value, attribute) if hasattr(value, attribute) else value[attribute] for value in values}
+    available = set(identifiers)
     missing = wanted - available
     if missing:
         raise BenchmarkError(f"unknown selection: {', '.join(sorted(missing))}")
     return [
         value
-        for value in values
-        if (getattr(value, attribute) if hasattr(value, attribute) else value[attribute]) in wanted
+        for value, identifier in zip(values, identifiers, strict=True)
+        if identifier in wanted
     ]
 
 
@@ -586,6 +680,7 @@ def machine_environment() -> dict[str, Any]:
     cpu_model = platform.processor()
     memory_bytes = None
     physical_cores = None
+    governor = None
     if sys.platform.startswith("linux"):
         try:
             for line in Path("/proc/cpuinfo").read_text().splitlines():
@@ -612,6 +707,21 @@ def machine_environment() -> dict[str, Any]:
             physical_cores = len(core_ids) or None
         except OSError:
             pass
+        try:
+            governor = Path(
+                "/sys/devices/system/cpu/cpu0/cpufreq/scaling_governor"
+            ).read_text().strip() or None
+        except OSError:
+            pass
+    try:
+        load_average = list(os.getloadavg())
+    except OSError:
+        load_average = None
+    inherited_environment = {
+        key: os.environ[key]
+        for key in PERFORMANCE_ENVIRONMENT_KEYS
+        if key in os.environ
+    }
     return {
         "platform": platform.platform(),
         "kernel": platform.release(),
@@ -621,8 +731,10 @@ def machine_environment() -> dict[str, Any]:
         "physical_cores": physical_cores,
         "memory_bytes": memory_bytes,
         "runner_python": platform.python_version(),
+        "cpu_frequency_governor": governor,
+        "load_average": load_average,
+        "inherited_performance_environment": inherited_environment,
     }
-
 
 def portable_command(command: list[str]) -> list[str]:
     repository = str(REPO)
@@ -673,7 +785,7 @@ def benchmark(
             "cold_builds": cold_builds,
             "setup_timeout_seconds": setup_timeout,
             "runtime_timeout_seconds": runtime_timeout,
-            "execution_timing": "program process only; setup and preparation complete before timing begins",
+            "execution_timing": "process spawn to exit, as observed by the parent; setup and preparation complete before spawning",
             "run_order": "problem-major and lane-minor within each warm-up or measured run index",
             "build_cache": (
                 "adapter-declared caches cleared before initial preparation"
@@ -686,7 +798,10 @@ def benchmark(
                 else "unavailable because delegated cgroup-v2 memory accounting is not accessible"
             ),
             "memory_limitations": (
-                "memory.peak includes anonymous memory, charged page cache, and kernel memory; shared pages are charged once. It is not an RSS measurement."
+                "memory.peak includes anonymous memory, charged page cache, and kernel memory. "
+                "Shared pages are charged once, potentially to a cgroup outside the measured "
+                "execution, so small-footprint results depend on page-cache state and are not "
+                "directly comparable across machines or reboots. It is not an RSS measurement."
                 if memory_available
                 else None
             ),
@@ -809,6 +924,17 @@ def markdown_text(value: Any) -> str:
 def render_markdown(report: dict[str, Any], raw_report_name: str) -> str:
     environment = report["environment"]
     measurement = report["measurement"]
+    load_average = environment["load_average"]
+    load_average_text = (
+        " / ".join(f"{value:.2f}" for value in load_average)
+        if load_average
+        else "not reported"
+    )
+    inherited_environment = environment["inherited_performance_environment"]
+    inherited_environment_text = (
+        "; ".join(f"{key}={value}" for key, value in inherited_environment.items())
+        or "none of the recorded variables set"
+    )
     lines = [
         f"# {report['suite']}",
         "",
@@ -823,8 +949,11 @@ def render_markdown(report: dict[str, Any], raw_report_name: str) -> str:
         f"| Machine | {markdown_text(environment['machine'])} |",
         f"| CPU model | {markdown_text(environment['cpu_model'] or 'not reported')} |",
         f"| Physical cores | {environment['physical_cores'] or 'not reported'} |",
-        f"| Logical CPUs | {environment['logical_cpus']} |",
+        f"| Logical CPUs | {environment['logical_cpus'] or 'not reported'} |",
         f"| Memory | {format_bytes(environment['memory_bytes'])} |",
+        f"| CPU frequency governor | {markdown_text(environment['cpu_frequency_governor'] or 'not reported')} |",
+        f"| Load average at start (1 / 5 / 15 min) | {markdown_text(load_average_text)} |",
+        f"| Inherited performance environment | {markdown_text(inherited_environment_text)} |",
         f"| Runner Python | {markdown_text(environment['runner_python'])} |",
         "",
         "## Measurement",
@@ -874,8 +1003,8 @@ def render_markdown(report: dict[str, Any], raw_report_name: str) -> str:
             "",
             "## Execution results",
             "",
-            "| Problem | Lane | Size | Result | Median wall time | Range | Peak memory | Warnings |",
-            "|---|---|---:|---:|---:|---:|---:|---:|",
+            "| Problem | Lane | Size | Result | Median wall time | Range | Median peak memory | Peak memory range | Warnings |",
+            "|---|---|---:|---:|---:|---:|---:|---:|---:|",
         ]
     )
     for result in report["results"]:
@@ -893,7 +1022,8 @@ def render_markdown(report: dict[str, Any], raw_report_name: str) -> str:
                     markdown_text(result["performance_result"]),
                     format_seconds(median(times)),
                     time_range,
-                    format_bytes(max(peaks) if peaks else None),
+                    format_bytes(int(median(peaks))) if peaks else "—",
+                    f"{format_bytes(min(peaks))}–{format_bytes(max(peaks))}" if peaks else "—",
                     str(sum(len(run["warning_lines"]) for run in runs)),
                 ]
             )
@@ -999,8 +1129,8 @@ def main() -> int:
     arguments = parser.parse_args()
     try:
         suite, problems, lanes = load_suite()
-        problems = selected(problems, arguments.problem, "id")
-        lanes = selected(lanes, arguments.lane, "lane_id")
+        problems = selected(problems, arguments.problem, [problem["id"] for problem in problems])
+        lanes = selected(lanes, arguments.lane, [lane.lane_id for lane in lanes])
         measurement = suite["measurement"]
         setup_timeout = (
             arguments.setup_timeout
@@ -1045,7 +1175,7 @@ def main() -> int:
         )
         rendered = json.dumps(report, indent=2) + "\n"
         if arguments.command == "report":
-            timestamp = report["created_at"].replace("-", "").replace(":", "")[:15]
+            timestamp = datetime.fromisoformat(report["created_at"]).strftime("%Y%m%dT%H%M%S")
             output = (
                 arguments.output.resolve()
                 if arguments.output

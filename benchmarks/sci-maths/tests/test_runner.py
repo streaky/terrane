@@ -1,3 +1,4 @@
+import copy
 import importlib.util
 import os
 from pathlib import Path
@@ -5,6 +6,7 @@ import sys
 import tempfile
 import time
 import unittest
+from unittest import mock
 
 
 RUNNER_PATH = Path(__file__).resolve().parents[1] / "run.py"
@@ -48,6 +50,34 @@ class RunnerContracts(unittest.TestCase):
         self.assertEqual(expanded, ["main.py", "lambda {value: 1}"])
         with self.assertRaisesRegex(runner.BenchmarkError, "unknown command placeholder"):
             runner.expand(("$missing",), {})
+
+    def test_suite_validation_reports_missing_and_malformed_contracts(self) -> None:
+        valid = {
+            "format": 1,
+            "name": "fixture",
+            "measurement": {
+                "warmups": 0,
+                "runs": 1,
+                "setup-timeout-seconds": 5,
+                "runtime-timeout-seconds": 2.5,
+            },
+            "lanes": [{"path": "lanes/fixture.toml"}],
+            "problems": [{"path": "problems/fixture"}],
+        }
+        runner.validate_suite(valid)
+
+        missing_timeout = copy.deepcopy(valid)
+        del missing_timeout["measurement"]["runtime-timeout-seconds"]
+        with self.assertRaisesRegex(
+            runner.BenchmarkError, "measurement.runtime-timeout-seconds"
+        ):
+            runner.validate_suite(missing_timeout)
+
+        malformed_path = copy.deepcopy(valid)
+        malformed_path["lanes"] = [{"path": "../outside.toml"}]
+        with self.assertRaisesRegex(runner.BenchmarkError, "path is outside"):
+            runner.validate_suite(malformed_path)
+
 
     def test_fixture_lane_exercises_setup_prepare_run_and_environment(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
@@ -106,6 +136,39 @@ class RunnerContracts(unittest.TestCase):
         record = runner.process_record(result)
         assert record is not None
         self.assertEqual(record["warning_lines"], ["warning: fixture"])
+
+    def test_cgroup_cleanup_error_does_not_mask_command_failure(self) -> None:
+        class FailingCleanupGroup:
+            path = Path("/sys/fs/cgroup/terrane-sci-fixture")
+
+            def join_from_child(self) -> None:
+                pass
+
+            def peak_bytes(self) -> int:
+                return 1024
+
+            def populated(self) -> bool:
+                return False
+
+            def kill(self) -> None:
+                pass
+
+            def remove(self) -> None:
+                raise OSError("fixture cleanup failure")
+
+        with mock.patch.object(
+            runner, "create_memory_cgroup", return_value=FailingCleanupGroup()
+        ):
+            result = runner.run_process(
+                [sys.executable, "-c", "import sys; sys.stderr.write('primary\\n'); sys.exit(7)"],
+                cwd=Path.cwd(),
+                timeout=5.0,
+            )
+        with self.assertRaisesRegex(runner.BenchmarkError, r"command failed \(7\)") as raised:
+            runner.require_success(result, [sys.executable])
+        self.assertIn("primary", str(raised.exception))
+        self.assertIn("fixture cleanup failure", str(raised.exception))
+
 
     def test_cgroup_memory_measurement_distinguishes_low_and_high_allocations(self) -> None:
         if not runner.memory_measurement_available():

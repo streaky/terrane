@@ -13,12 +13,14 @@ def size_argument() -> int:
     return size
 
 
+def transformed(index: int) -> float:
+    value = (index % 1_000) / 100.0
+    return value**2 + 3.0 * value - 7.0
+
+
 def main() -> None:
-    transformed = [
-        ((index % 1_000) / 100.0) ** 2 + 3.0 * ((index % 1_000) / 100.0) - 7.0
-        for index in range(size_argument())
-    ]
-    print(sum(transformed))
+    values = [transformed(index) for index in range(size_argument())]
+    print(sum(values))
 
 
 if __name__ == "__main__":
