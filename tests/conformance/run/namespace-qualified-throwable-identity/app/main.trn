@@ -1,0 +1,12 @@
+namespace app
+from /left import fail, shared-error as left-error
+from /right import shared-error as right-error
+
+
+function main;
+  try
+    fail;
+  catch right-error
+    print; >wrong class
+  catch left-error
+    print; >caught-left

@@ -4059,6 +4059,11 @@ fn validate_object_conformance(package: &SemanticPackage) -> Result<(), Semantic
                 .iter()
                 .find(|candidate| candidate.source.id() == object.span.file)
                 .expect("object declaration source must belong to the semantic package");
+            let object = declaration_unit
+                .objects
+                .iter()
+                .find(|candidate| candidate.identity == object.identity)
+                .expect("object identity must resolve in its declaration unit");
             for interface_identity in &object.interfaces {
                 let Some(resolved_interface) =
                     package.resolve_name(&interface_identity.namespace, &interface_identity.name)
@@ -4084,7 +4089,7 @@ fn validate_object_conformance(package: &SemanticPackage) -> Result<(), Semantic
                     });
                     if !has_message {
                         return Err(failure(
-                            &unit.source,
+                            &declaration_unit.source,
                             "T0062",
                             format!(
                                 "class `{}` must provide a `message string` field to implement `throwable`",
@@ -4093,9 +4098,9 @@ fn validate_object_conformance(package: &SemanticPackage) -> Result<(), Semantic
                             object.span,
                         ));
                     }
-                    let Some(render) = effective_method(unit, object, "render") else {
+                    let Some(render) = effective_method(declaration_unit, object, "render") else {
                         return Err(failure(
-                            &unit.source,
+                            &declaration_unit.source,
                             "T0062",
                             format!(
                                 "class `{}` does not implement interface member `throwable.render`",
@@ -4121,7 +4126,7 @@ fn validate_object_conformance(package: &SemanticPackage) -> Result<(), Semantic
                     };
                     if !same_signature(&required_render, render) {
                         return Err(failure(
-                            &unit.source,
+                            &declaration_unit.source,
                             "T0067",
                             format!(
                                 "class `{}` implements `throwable.render` with an incompatible signature",
@@ -4179,7 +4184,7 @@ fn validate_object_conformance(package: &SemanticPackage) -> Result<(), Semantic
                 }
             }
 
-            let own_methods = unit
+            let own_methods = declaration_unit
                 .functions
                 .iter()
                 .filter(|method| method.owner.as_deref() == Some(&object.name))
@@ -4192,12 +4197,12 @@ fn validate_object_conformance(package: &SemanticPackage) -> Result<(), Semantic
                 .collect::<BTreeSet<_>>();
             let mut providers = BTreeMap::<&str, Vec<&str>>::new();
             for trait_name in &object.traits {
-                let used_trait = unit
+                let used_trait = declaration_unit
                     .objects
                     .iter()
                     .find(|candidate| candidate.identity == *trait_name)
                     .expect("object-kind validation must resolve used traits");
-                for method in unit
+                for method in declaration_unit
                     .functions
                     .iter()
                     .filter(|method| method.owner.as_deref() == Some(&used_trait.name))
@@ -4220,7 +4225,7 @@ fn validate_object_conformance(package: &SemanticPackage) -> Result<(), Semantic
                     && !own_fields.contains(**member)
             }) {
                 return Err(failure(
-                    &unit.source,
+                    &declaration_unit.source,
                     "T0063",
                     format!(
                         "class `{}` inherits conflicting member `{member}` from traits {}",

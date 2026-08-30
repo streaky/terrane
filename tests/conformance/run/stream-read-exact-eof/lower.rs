@@ -1,5 +1,15 @@
 // Generated deterministically by Terrane <version>.
+type TerraneSite = u32;
+const TERRANE_NO_SITE: TerraneSite = u32::MAX;
+#[allow(dead_code, reason = "custom descriptors are absent from some lowered programs")]
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
+struct DescriptorId(u16);
+#[allow(
+    dead_code,
+    reason = "one canonical runtime enum covers every compiler-owned throwable kind"
+)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[repr(u16)]
 enum TerraneErrorKind {
     ArithmeticOverflow,
     DivisionByZero,
@@ -13,6 +23,10 @@ enum TerraneErrorKind {
     SourceError,
 }
 impl TerraneErrorKind {
+    #[allow(
+        dead_code,
+        reason = "support-error conversions are selected by each lowered program"
+    )]
     fn from_source_name(name: &str) -> Self {
         match name {
             ".arithmetic-overflow" => Self::ArithmeticOverflow,
@@ -41,37 +55,130 @@ impl TerraneErrorKind {
             Self::SourceError => ".error",
         }
     }
+    fn default_message(self) -> &'static str {
+        match self {
+            Self::ArithmeticOverflow => "fixed-width integer arithmetic overflow",
+            Self::DivisionByZero => "integer division by zero",
+            Self::IntegerConversionOverflow => "integer conversion overflow",
+            Self::NegativeShiftCount => "negative integer shift count",
+            Self::CoercionError => "coercion has no compatible result",
+            Self::DecodeError => "invalid byte sequence for selected encoding",
+            Self::IndexError => "collection index is out of range",
+            Self::MissingKey => "collection key is absent",
+            Self::ResourceError => {
+                "integer shift count cannot be represented on this target"
+            }
+            Self::SourceError => "source error",
+        }
+    }
+}
+#[derive(Clone, Debug, Eq, PartialEq)]
+struct TerraneErrorDetail {
+    message: Option<String>,
+    cause: Option<Box<TerraneError>>,
+    frames: Vec<TerraneSite>,
 }
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct TerraneError {
     kind: TerraneErrorKind,
-    message: String,
-    cause: Option<Box<TerraneError>>,
-    context: Vec<&'static str>,
+    origin: TerraneSite,
+    detail: Option<Box<TerraneErrorDetail>>,
 }
+const _: () = assert!(std::mem::size_of::< TerraneError > () == 16);
+const _: () = assert!(std::mem::size_of::< Result < i64, TerraneError >> () == 16);
+#[allow(
+    dead_code,
+    reason = "one canonical runtime implementation serves every lowered error shape"
+)]
 impl TerraneError {
-    fn new(kind: TerraneErrorKind, message: impl Into<String>) -> Self {
+    #[cold]
+    #[inline(never)]
+    fn raised(kind: TerraneErrorKind, origin: TerraneSite) -> Self {
+        Self { kind, origin, detail: None }
+    }
+    #[cold]
+    #[inline(never)]
+    fn raised_with_message(
+        kind: TerraneErrorKind,
+        message: impl Into<String>,
+        origin: TerraneSite,
+    ) -> Self {
         Self {
             kind,
-            message: message.into(),
-            cause: None,
-            context: Vec::new(),
+            origin,
+            detail: Some(
+                Box::new(TerraneErrorDetail {
+                    message: Some(message.into()),
+                    cause: None,
+                    frames: Vec::new(),
+                }),
+            ),
         }
     }
-    #[allow(dead_code)]
-    fn at(mut self, frame: &'static str) -> Self {
-        self.context.push(frame);
+    #[cold]
+    #[inline(never)]
+    fn with_cause(mut self, cause: TerraneError) -> Self {
+        self
+            .detail
+            .get_or_insert_with(|| {
+                Box::new(TerraneErrorDetail {
+                    message: None,
+                    cause: None,
+                    frames: Vec::new(),
+                })
+            })
+            .cause = Some(Box::new(cause));
         self
     }
+    #[cold]
+    #[inline(never)]
+    fn attributed(mut self, origin: TerraneSite) -> Self {
+        debug_assert_eq!(self.origin, TERRANE_NO_SITE);
+        self.origin = origin;
+        self
+    }
+    #[cold]
+    #[inline(never)]
+    fn at(mut self, frame: TerraneSite) -> Self {
+        self.detail
+            .get_or_insert_with(|| {
+                Box::new(TerraneErrorDetail {
+                    message: None,
+                    cause: None,
+                    frames: Vec::new(),
+                })
+            })
+            .frames
+            .push(frame);
+        self
+    }
+    fn message(&self) -> &str {
+        self.detail
+            .as_ref()
+            .and_then(|detail| detail.message.as_deref())
+            .unwrap_or_else(|| self.kind.default_message())
+    }
+    #[cold]
+    #[inline(never)]
     fn render(&self) -> String {
-        let mut rendered = format!("{}: {}", self.kind.source_name(), self.message);
-        if let Some(cause) = &self.cause {
+        let mut rendered = format!("{}: {}", self.kind.source_name(), self.message());
+        if let Some(cause) = self
+            .detail
+            .as_ref()
+            .and_then(|detail| detail.cause.as_ref())
+        {
             rendered.push_str("\ncaused by: ");
             rendered.push_str(&cause.render());
         }
-        for frame in &self.context {
+        if self.origin != TERRANE_NO_SITE {
             rendered.push_str("\nat ");
-            rendered.push_str(frame);
+            rendered.push_str(&__terrane_trace::render(self.origin));
+        }
+        if let Some(detail) = &self.detail {
+            for frame in &detail.frames {
+                rendered.push_str("\nat ");
+                rendered.push_str(&__terrane_trace::render(*frame));
+            }
         }
         rendered
     }
@@ -81,36 +188,139 @@ impl std::fmt::Display for TerraneError {
         formatter.write_str(&self.render())
     }
 }
-impl From<terrane_int_support::ArithmeticError> for TerraneError {
-    fn from(error: terrane_int_support::ArithmeticError) -> Self {
-        Self::new(
-            TerraneErrorKind::from_source_name(error.source_name()),
-            error.to_string(),
+#[allow(
+    dead_code,
+    reason = "fresh support failures are absent from some lowered programs"
+)]
+trait TerraneRaised {
+    fn raised(self, origin: TerraneSite) -> TerraneError;
+}
+pub struct TerraneForeignError(TerraneError);
+impl TerraneForeignError {
+    pub fn render(&self) -> String {
+        self.0.render()
+    }
+}
+impl TerraneRaised for TerraneForeignError {
+    fn raised(self, origin: TerraneSite) -> TerraneError {
+        self.0.attributed(origin)
+    }
+}
+impl TerraneRaised for terrane_int_support::ArithmeticError {
+    fn raised(self, origin: TerraneSite) -> TerraneError {
+        TerraneError::raised(
+            TerraneErrorKind::from_source_name(self.source_name()),
+            origin,
         )
     }
 }
-impl From<terrane_string_support::DecodeError> for TerraneError {
-    fn from(error: terrane_string_support::DecodeError) -> Self {
-        Self::new(
+impl TerraneRaised for terrane_string_support::DecodeError {
+    fn raised(self, origin: TerraneSite) -> TerraneError {
+        TerraneError::raised_with_message(
             TerraneErrorKind::DecodeError,
-            error.to_string().trim_start_matches(".decode-error: "),
+            self.to_string().trim_start_matches(".decode-error: "),
+            origin,
         )
     }
 }
-impl From<terrane_collection_support::IndexError> for TerraneError {
-    fn from(error: terrane_collection_support::IndexError) -> Self {
-        Self::new(TerraneErrorKind::IndexError, error.to_string())
+impl TerraneRaised for terrane_collection_support::IndexError {
+    fn raised(self, origin: TerraneSite) -> TerraneError {
+        TerraneError::raised_with_message(
+            TerraneErrorKind::IndexError,
+            self.to_string(),
+            origin,
+        )
     }
 }
-impl From<terrane_collection_support::MissingKey> for TerraneError {
-    fn from(error: terrane_collection_support::MissingKey) -> Self {
-        Self::new(TerraneErrorKind::MissingKey, error.to_string())
+impl TerraneRaised for terrane_collection_support::MissingKey {
+    fn raised(self, origin: TerraneSite) -> TerraneError {
+        TerraneError::raised_with_message(
+            TerraneErrorKind::MissingKey,
+            self.to_string(),
+            origin,
+        )
     }
 }
-impl From<terrane_collection_support::RangeStepError> for TerraneError {
-    fn from(error: terrane_collection_support::RangeStepError) -> Self {
-        Self::new(TerraneErrorKind::SourceError, error.to_string())
+impl TerraneRaised for terrane_collection_support::RangeStepError {
+    fn raised(self, origin: TerraneSite) -> TerraneError {
+        TerraneError::raised_with_message(
+            TerraneErrorKind::SourceError,
+            self.to_string(),
+            origin,
+        )
     }
+}
+#[allow(
+    dead_code,
+    reason = "terminating fresh failures are absent from some lowered programs"
+)]
+#[cold]
+#[inline(never)]
+fn __terrane_raise<E: TerraneRaised>(error: E, origin: TerraneSite) -> ! {
+    __terrane_uncaught(error.raised(origin))
+}
+#[allow(
+    dead_code,
+    reason = "propagating failures are absent from some lowered programs"
+)]
+#[cold]
+#[inline(never)]
+fn __terrane_trace_error(error: TerraneError, frame: TerraneSite) -> TerraneError {
+    error.at(frame)
+}
+#[allow(
+    dead_code,
+    reason = "terminating fresh failures are absent from some lowered programs"
+)]
+#[inline]
+fn __terrane_raised<T, E: TerraneRaised>(
+    result: Result<T, E>,
+    origin: TerraneSite,
+) -> T {
+    result.unwrap_or_else(|error| __terrane_raise(error, origin))
+}
+#[allow(
+    dead_code,
+    reason = "returning fresh failures are absent from some lowered programs"
+)]
+#[inline]
+fn __terrane_raised_err<T, E: TerraneRaised>(
+    result: Result<T, E>,
+    origin: TerraneSite,
+) -> Result<T, TerraneError> {
+    result.map_err(|error| error.raised(origin))
+}
+macro_rules! __terrane_raised_completion {
+    ($result:expr, $origin:expr) => {
+        match $result { Ok(value) => value, Err(error) => { return
+        TerraneCompletion::Error(error.raised($origin)); } }
+    };
+}
+#[allow(
+    dead_code,
+    reason = "terminating propagation is absent from some lowered programs"
+)]
+#[inline]
+fn __terrane_traced<T>(result: Result<T, TerraneError>, frame: TerraneSite) -> T {
+    result
+        .unwrap_or_else(|error| __terrane_uncaught(__terrane_trace_error(error, frame)))
+}
+#[allow(
+    dead_code,
+    reason = "returning propagation is absent from some lowered programs"
+)]
+#[inline]
+fn __terrane_traced_err<T>(
+    result: Result<T, TerraneError>,
+    frame: TerraneSite,
+) -> Result<T, TerraneError> {
+    result.map_err(|error| __terrane_trace_error(error, frame))
+}
+macro_rules! __terrane_traced_completion {
+    ($result:expr, $frame:expr) => {
+        match $result { Ok(value) => value, Err(error) => { return
+        TerraneCompletion::Error(__terrane_trace_error(error, $frame)); } }
+    };
 }
 fn __terrane_uncaught(error: TerraneError) -> ! {
     eprintln!("{}", error.render());
@@ -129,6 +339,87 @@ enum TerraneCompletion<T> {
     Error(TerraneError),
     Break,
     Continue,
+}
+mod __terrane_trace {
+    #[allow(
+        dead_code,
+        reason = "range ends are retained for diagnostics and future provenance consumers"
+    )]
+    pub struct Site {
+        pub function: u32,
+        pub file: u32,
+        pub line: u32,
+        pub column: u32,
+        pub end_line: u32,
+        pub end_column: u32,
+    }
+    pub static FILES: [&str; 2] = ["case.trn", "standard/streams.trn"];
+    pub static FUNCTIONS: [&str; 5] = [
+        "/stream-read-exact-eof::main",
+        "/standard/streams::read",
+        "/standard/streams::read-exact",
+        "/standard/streams::read-all",
+        "/standard/streams::read-async",
+    ];
+    #[allow(dead_code, reason = "custom descriptors are absent from some programs")]
+    pub static DESCRIPTORS: [&str; 0] = [];
+    pub static SITES: [Site; 5] = [
+        Site {
+            function: 
+                0 /* terrane-site: site 0: /stream-read-exact-eof::main (case.trn:6:13-6:37) */,
+            file: 0,
+            line: 6,
+            column: 13,
+            end_line: 6,
+            end_column: 37,
+        },
+        Site {
+            function: 
+                1 /* terrane-site: site 1: /standard/streams::read (standard/streams.trn:195:23-195:50) */,
+            file: 1,
+            line: 195,
+            column: 23,
+            end_line: 195,
+            end_column: 50,
+        },
+        Site {
+            function: 
+                2 /* terrane-site: site 2: /standard/streams::read-exact (standard/streams.trn:217:23-217:46) */,
+            file: 1,
+            line: 217,
+            column: 23,
+            end_line: 217,
+            end_column: 46,
+        },
+        Site {
+            function: 
+                3 /* terrane-site: site 3: /standard/streams::read-all (standard/streams.trn:236:23-236:46) */,
+            file: 1,
+            line: 236,
+            column: 23,
+            end_line: 236,
+            end_column: 46,
+        },
+        Site {
+            function: 
+                4 /* terrane-site: site 4: /standard/streams::read-async (standard/streams.trn:240:16-240:32) */,
+            file: 1,
+            line: 240,
+            column: 16,
+            end_line: 240,
+            end_column: 32,
+        },
+    ];
+    #[cold]
+    #[inline(never)]
+    pub fn render(site: u32) -> String {
+        let site = &SITES[usize::try_from(site).expect("site id must fit usize")];
+        format!(
+            "{} ({}:{}:{})", FUNCTIONS[usize::try_from(site.function)
+            .expect("function id must fit usize")], FILES[usize::try_from(site.file)
+            .expect("file id must fit usize")], site.line, site.column,
+        )
+    }
 }
 async fn __terrane_await<F: Future>(future: F) -> F::Output {
     struct YieldOnce(bool);
@@ -327,10 +618,9 @@ fn main() {
     let input: ByteReader = stdin();
     let result: ReadResult = input.read_exact(terrane_int_support::Int::from(5_i128));
     println!(
-        "{}", terrane_scalar_support::scalar_text(&terrane_string_support::decode(&result
-        .data, terrane_string_support::Encoding::Utf8).unwrap_or_else(| error |
-        __terrane_uncaught(TerraneError::from(error)
-        .at("/stream-read-exact-eof::main (case.trn:6:13)"))))
+        "{}",
+        terrane_scalar_support::scalar_text(&__terrane_raised(terrane_string_support::decode(&result
+        .data, terrane_string_support::Encoding::Utf8), 0 /* terrane-site: case.trn:6:13-6:37 */))
     );
     println!("{}", terrane_scalar_support::scalar_text(&result.completed));
     println!("{}", terrane_scalar_support::scalar_text(&result.end));
@@ -746,11 +1036,10 @@ impl TextReader {
         count: terrane_int_support::Int,
     ) -> Result<TextReadResult, TerraneError> {
         let raw: TerranePlatformReadResult = terrane_platform_read(&self.handle, count);
-        let text: String = terrane_string_support::decode(&raw.data.clone(), self.codec)
-            .map_err(|error| {
-                TerraneError::from(error)
-                    .at("/standard/streams::read (streams.trn:195:23)")
-            })?;
+        let text: String = __terrane_raised_err(
+            terrane_string_support::decode(&raw.data.clone(), self.codec),
+            1 /* terrane-site: standard/streams.trn:195:23-195:50 */,
+        )?;
         return Ok(
             TextReadResult::terrane_construct(
                 text,
@@ -797,11 +1086,10 @@ impl TextReader {
             failed = true;
             message = String::from("stream ended before exact byte count");
         }
-        let text: String = terrane_string_support::decode(&data, self.codec)
-            .map_err(|error| {
-                TerraneError::from(error)
-                    .at("/standard/streams::read-exact (streams.trn:217:23)")
-            })?;
+        let text: String = __terrane_raised_err(
+            terrane_string_support::decode(&data, self.codec),
+            2 /* terrane-site: standard/streams.trn:217:23-217:46 */,
+        )?;
         return Ok(
             TextReadResult::terrane_construct(
                 text,
@@ -844,11 +1132,10 @@ impl TextReader {
                 message = String::from("stream read made no progress");
             }
         }
-        let text: String = terrane_string_support::decode(&data, self.codec)
-            .map_err(|error| {
-                TerraneError::from(error)
-                    .at("/standard/streams::read-all (streams.trn:236:23)")
-            })?;
+        let text: String = __terrane_raised_err(
+            terrane_string_support::decode(&data, self.codec),
+            3 /* terrane-site: standard/streams.trn:236:23-236:46 */,
+        )?;
         return Ok(
             TextReadResult::terrane_construct(
                 text,
@@ -864,11 +1151,10 @@ impl TextReader {
         count: terrane_int_support::Int,
     ) -> Result<TextReadResult, TerraneError> {
         return Ok(
-            self
-                .read(count.clone())
-                .map_err(|error| {
-                    error.at("/standard/streams::read-async (streams.trn:240:16)")
-                })?,
+            __terrane_traced_err(
+                self.read(count.clone()),
+                4 /* terrane-site: standard/streams.trn:240:16-240:32 */,
+            )?,
         );
     }
     pub fn close(self) -> OperationResult {

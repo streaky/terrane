@@ -108,8 +108,40 @@ fn canonicalize_file(parsed: syn::File) -> syn::File {
 }
 
 pub(crate) fn canonicalize_rust(rust: &str) -> Result<String, syn::Error> {
-    let parsed = syn::parse_file(rust)?;
-    Ok(prettyplease::unparse(&canonicalize_file(parsed)))
+    let encoded = encode_terrane_comments(rust);
+    let parsed = syn::parse_file(&encoded)?;
+    Ok(restore_terrane_comments(&prettyplease::unparse(
+        &canonicalize_file(parsed),
+    )))
+}
+
+fn encode_terrane_comments(rendered: &str) -> String {
+    const MARKER: &str = " /* terrane-site: ";
+    let mut encoded = String::with_capacity(rendered.len());
+    let mut remaining = rendered;
+    while let Some(comment_start) = remaining.find(MARKER) {
+        let Some(comment_end) = remaining[comment_start + MARKER.len()..].find(" */") else {
+            break;
+        };
+        let comment_end = comment_start + MARKER.len() + comment_end;
+        let expression_end = remaining[..comment_start].trim_end().len();
+        let expression_start = remaining[..expression_end]
+            .rfind(|character: char| !character.is_ascii_digit())
+            .map_or(0, |index| index + 1);
+        if expression_start == expression_end {
+            encoded.push_str(&remaining[..comment_end + 3]);
+            remaining = &remaining[comment_end + 3..];
+            continue;
+        }
+        encoded.push_str(&remaining[..expression_start]);
+        let expression = &remaining[expression_start..expression_end];
+        let comment = &remaining[comment_start + MARKER.len()..comment_end];
+        write!(encoded, "__terrane_comment!({expression}, {comment:?})")
+            .expect("writing to a String cannot fail");
+        remaining = &remaining[comment_end + 3..];
+    }
+    encoded.push_str(remaining);
+    encoded
 }
 
 fn restore_terrane_comments(rendered: &str) -> String {
@@ -160,7 +192,7 @@ fn restore_terrane_comments(rendered: &str) -> String {
             continue;
         };
         let comment = comment.value().replace("*/", "* /");
-        write!(restored, "{expression} /* {comment} */")
+        write!(restored, "{expression} /* terrane-site: {comment} */")
             .expect("writing to a String cannot fail");
         remaining = &remaining[end + 1..];
     }
@@ -177,7 +209,9 @@ impl Block {
     }
 
     fn render(&self, output: &mut String) {
-        output.push_str(&restore_terrane_comments(&prettyplease::unparse(&self.parsed)));
+        output.push_str(&restore_terrane_comments(&prettyplease::unparse(
+            &self.parsed,
+        )));
     }
 }
 
@@ -303,7 +337,7 @@ impl Program {
 
 #[cfg(test)]
 mod tests {
-    use super::{Block, restore_terrane_comments};
+    use super::{Block, canonicalize_rust, restore_terrane_comments};
 
     #[test]
     fn canonicalizes_expression_list_macro_arguments() {
@@ -347,14 +381,15 @@ mod tests {
         block.render(&mut rendered);
 
         assert!(
-            rendered.contains("7 /* src/main.trn:4:9-4:15 */"),
+            rendered.contains("7 /* terrane-site: src/main.trn:4:9-4:15 */"),
             "{rendered}"
         );
         assert!(
-            rendered.contains("function: 0 /* site 7 /demo::main */,"),
+            rendered.contains("function: 0 /* terrane-site: site 7 /demo::main */,"),
             "{rendered}"
         );
         assert!(!rendered.contains("__terrane_comment"), "{rendered}");
+        assert_eq!(canonicalize_rust(&rendered).unwrap(), rendered);
     }
 
     #[test]

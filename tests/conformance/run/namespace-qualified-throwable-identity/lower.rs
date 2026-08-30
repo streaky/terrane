@@ -1,0 +1,507 @@
+// Generated deterministically by Terrane <version>.
+type TerraneSite = u32;
+const TERRANE_NO_SITE: TerraneSite = u32::MAX;
+#[allow(dead_code, reason = "custom descriptors are absent from some lowered programs")]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+struct DescriptorId(u16);
+#[allow(
+    dead_code,
+    reason = "one canonical runtime enum covers every compiler-owned throwable kind"
+)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[repr(u16)]
+enum TerraneErrorKind {
+    ArithmeticOverflow,
+    DivisionByZero,
+    IntegerConversionOverflow,
+    NegativeShiftCount,
+    CoercionError,
+    DecodeError,
+    IndexError,
+    MissingKey,
+    ResourceError,
+    SourceError,
+    Custom(DescriptorId),
+}
+impl TerraneErrorKind {
+    #[allow(
+        dead_code,
+        reason = "support-error conversions are selected by each lowered program"
+    )]
+    fn from_source_name(name: &str) -> Self {
+        match name {
+            ".arithmetic-overflow" => Self::ArithmeticOverflow,
+            ".division-by-zero" => Self::DivisionByZero,
+            ".integer-conversion-overflow" => Self::IntegerConversionOverflow,
+            ".negative-shift-count" => Self::NegativeShiftCount,
+            ".coercion-error" => Self::CoercionError,
+            ".decode-error" => Self::DecodeError,
+            ".index-error" => Self::IndexError,
+            ".missing-key" => Self::MissingKey,
+            ".resource-error" => Self::ResourceError,
+            _ => Self::SourceError,
+        }
+    }
+    fn source_name(self) -> &'static str {
+        match self {
+            Self::ArithmeticOverflow => ".arithmetic-overflow",
+            Self::DivisionByZero => ".division-by-zero",
+            Self::IntegerConversionOverflow => ".integer-conversion-overflow",
+            Self::NegativeShiftCount => ".negative-shift-count",
+            Self::CoercionError => ".coercion-error",
+            Self::DecodeError => ".decode-error",
+            Self::IndexError => ".index-error",
+            Self::MissingKey => ".missing-key",
+            Self::ResourceError => ".resource-error",
+            Self::SourceError => ".error",
+            Self::Custom(descriptor) => {
+                __terrane_trace::DESCRIPTORS[usize::from(descriptor.0)]
+            }
+        }
+    }
+    fn default_message(self) -> &'static str {
+        match self {
+            Self::ArithmeticOverflow => "fixed-width integer arithmetic overflow",
+            Self::DivisionByZero => "integer division by zero",
+            Self::IntegerConversionOverflow => "integer conversion overflow",
+            Self::NegativeShiftCount => "negative integer shift count",
+            Self::CoercionError => "coercion has no compatible result",
+            Self::DecodeError => "invalid byte sequence for selected encoding",
+            Self::IndexError => "collection index is out of range",
+            Self::MissingKey => "collection key is absent",
+            Self::ResourceError => {
+                "integer shift count cannot be represented on this target"
+            }
+            Self::SourceError => "source error",
+            Self::Custom(_) => "source error",
+        }
+    }
+}
+#[derive(Clone, Debug, Eq, PartialEq)]
+struct TerraneErrorDetail {
+    message: Option<String>,
+    cause: Option<Box<TerraneError>>,
+    frames: Vec<TerraneSite>,
+}
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct TerraneError {
+    kind: TerraneErrorKind,
+    origin: TerraneSite,
+    detail: Option<Box<TerraneErrorDetail>>,
+}
+const _: () = assert!(std::mem::size_of::< TerraneError > () == 16);
+const _: () = assert!(std::mem::size_of::< Result < i64, TerraneError >> () == 16);
+#[allow(
+    dead_code,
+    reason = "one canonical runtime implementation serves every lowered error shape"
+)]
+impl TerraneError {
+    #[cold]
+    #[inline(never)]
+    fn raised(kind: TerraneErrorKind, origin: TerraneSite) -> Self {
+        Self { kind, origin, detail: None }
+    }
+    #[cold]
+    #[inline(never)]
+    fn raised_with_message(
+        kind: TerraneErrorKind,
+        message: impl Into<String>,
+        origin: TerraneSite,
+    ) -> Self {
+        Self {
+            kind,
+            origin,
+            detail: Some(
+                Box::new(TerraneErrorDetail {
+                    message: Some(message.into()),
+                    cause: None,
+                    frames: Vec::new(),
+                }),
+            ),
+        }
+    }
+    #[cold]
+    #[inline(never)]
+    fn custom_raised(
+        descriptor: DescriptorId,
+        message: impl Into<String>,
+        origin: TerraneSite,
+    ) -> Self {
+        Self::raised_with_message(TerraneErrorKind::Custom(descriptor), message, origin)
+    }
+    #[cold]
+    #[inline(never)]
+    fn with_cause(mut self, cause: TerraneError) -> Self {
+        self
+            .detail
+            .get_or_insert_with(|| {
+                Box::new(TerraneErrorDetail {
+                    message: None,
+                    cause: None,
+                    frames: Vec::new(),
+                })
+            })
+            .cause = Some(Box::new(cause));
+        self
+    }
+    #[cold]
+    #[inline(never)]
+    fn attributed(mut self, origin: TerraneSite) -> Self {
+        debug_assert_eq!(self.origin, TERRANE_NO_SITE);
+        self.origin = origin;
+        self
+    }
+    #[cold]
+    #[inline(never)]
+    fn at(mut self, frame: TerraneSite) -> Self {
+        self.detail
+            .get_or_insert_with(|| {
+                Box::new(TerraneErrorDetail {
+                    message: None,
+                    cause: None,
+                    frames: Vec::new(),
+                })
+            })
+            .frames
+            .push(frame);
+        self
+    }
+    fn message(&self) -> &str {
+        self.detail
+            .as_ref()
+            .and_then(|detail| detail.message.as_deref())
+            .unwrap_or_else(|| self.kind.default_message())
+    }
+    #[cold]
+    #[inline(never)]
+    fn render(&self) -> String {
+        let mut rendered = format!("{}: {}", self.kind.source_name(), self.message());
+        if let Some(cause) = self
+            .detail
+            .as_ref()
+            .and_then(|detail| detail.cause.as_ref())
+        {
+            rendered.push_str("\ncaused by: ");
+            rendered.push_str(&cause.render());
+        }
+        if self.origin != TERRANE_NO_SITE {
+            rendered.push_str("\nat ");
+            rendered.push_str(&__terrane_trace::render(self.origin));
+        }
+        if let Some(detail) = &self.detail {
+            for frame in &detail.frames {
+                rendered.push_str("\nat ");
+                rendered.push_str(&__terrane_trace::render(*frame));
+            }
+        }
+        rendered
+    }
+}
+impl std::fmt::Display for TerraneError {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter.write_str(&self.render())
+    }
+}
+#[allow(
+    dead_code,
+    reason = "fresh support failures are absent from some lowered programs"
+)]
+trait TerraneRaised {
+    fn raised(self, origin: TerraneSite) -> TerraneError;
+}
+pub struct TerraneForeignError(TerraneError);
+impl TerraneForeignError {
+    pub fn render(&self) -> String {
+        self.0.render()
+    }
+}
+impl TerraneRaised for TerraneForeignError {
+    fn raised(self, origin: TerraneSite) -> TerraneError {
+        self.0.attributed(origin)
+    }
+}
+impl TerraneRaised for terrane_int_support::ArithmeticError {
+    fn raised(self, origin: TerraneSite) -> TerraneError {
+        TerraneError::raised(
+            TerraneErrorKind::from_source_name(self.source_name()),
+            origin,
+        )
+    }
+}
+impl TerraneRaised for terrane_string_support::DecodeError {
+    fn raised(self, origin: TerraneSite) -> TerraneError {
+        TerraneError::raised_with_message(
+            TerraneErrorKind::DecodeError,
+            self.to_string().trim_start_matches(".decode-error: "),
+            origin,
+        )
+    }
+}
+impl TerraneRaised for terrane_collection_support::IndexError {
+    fn raised(self, origin: TerraneSite) -> TerraneError {
+        TerraneError::raised_with_message(
+            TerraneErrorKind::IndexError,
+            self.to_string(),
+            origin,
+        )
+    }
+}
+impl TerraneRaised for terrane_collection_support::MissingKey {
+    fn raised(self, origin: TerraneSite) -> TerraneError {
+        TerraneError::raised_with_message(
+            TerraneErrorKind::MissingKey,
+            self.to_string(),
+            origin,
+        )
+    }
+}
+impl TerraneRaised for terrane_collection_support::RangeStepError {
+    fn raised(self, origin: TerraneSite) -> TerraneError {
+        TerraneError::raised_with_message(
+            TerraneErrorKind::SourceError,
+            self.to_string(),
+            origin,
+        )
+    }
+}
+#[allow(
+    dead_code,
+    reason = "terminating fresh failures are absent from some lowered programs"
+)]
+#[cold]
+#[inline(never)]
+fn __terrane_raise<E: TerraneRaised>(error: E, origin: TerraneSite) -> ! {
+    __terrane_uncaught(error.raised(origin))
+}
+#[allow(
+    dead_code,
+    reason = "propagating failures are absent from some lowered programs"
+)]
+#[cold]
+#[inline(never)]
+fn __terrane_trace_error(error: TerraneError, frame: TerraneSite) -> TerraneError {
+    error.at(frame)
+}
+#[allow(
+    dead_code,
+    reason = "terminating fresh failures are absent from some lowered programs"
+)]
+#[inline]
+fn __terrane_raised<T, E: TerraneRaised>(
+    result: Result<T, E>,
+    origin: TerraneSite,
+) -> T {
+    result.unwrap_or_else(|error| __terrane_raise(error, origin))
+}
+#[allow(
+    dead_code,
+    reason = "returning fresh failures are absent from some lowered programs"
+)]
+#[inline]
+fn __terrane_raised_err<T, E: TerraneRaised>(
+    result: Result<T, E>,
+    origin: TerraneSite,
+) -> Result<T, TerraneError> {
+    result.map_err(|error| error.raised(origin))
+}
+macro_rules! __terrane_raised_completion {
+    ($result:expr, $origin:expr) => {
+        match $result { Ok(value) => value, Err(error) => { return
+        TerraneCompletion::Error(error.raised($origin)); } }
+    };
+}
+#[allow(
+    dead_code,
+    reason = "terminating propagation is absent from some lowered programs"
+)]
+#[inline]
+fn __terrane_traced<T>(result: Result<T, TerraneError>, frame: TerraneSite) -> T {
+    result
+        .unwrap_or_else(|error| __terrane_uncaught(__terrane_trace_error(error, frame)))
+}
+#[allow(
+    dead_code,
+    reason = "returning propagation is absent from some lowered programs"
+)]
+#[inline]
+fn __terrane_traced_err<T>(
+    result: Result<T, TerraneError>,
+    frame: TerraneSite,
+) -> Result<T, TerraneError> {
+    result.map_err(|error| __terrane_trace_error(error, frame))
+}
+macro_rules! __terrane_traced_completion {
+    ($result:expr, $frame:expr) => {
+        match $result { Ok(value) => value, Err(error) => { return
+        TerraneCompletion::Error(__terrane_trace_error(error, $frame)); } }
+    };
+}
+fn __terrane_uncaught(error: TerraneError) -> ! {
+    eprintln!("{}", error.render());
+    std::process::exit(1);
+}
+fn __terrane_generated_defect(message: &str) -> ! {
+    eprintln!(
+        "internal compiler defect: generated program reached an impossible completion: {message}"
+    );
+    std::process::exit(5);
+}
+#[allow(dead_code)]
+enum TerraneCompletion<T> {
+    Normal,
+    Return(T),
+    Error(TerraneError),
+    Break,
+    Continue,
+}
+mod __terrane_trace {
+    #[allow(
+        dead_code,
+        reason = "range ends are retained for diagnostics and future provenance consumers"
+    )]
+    pub struct Site {
+        pub function: u32,
+        pub file: u32,
+        pub line: u32,
+        pub column: u32,
+        pub end_line: u32,
+        pub end_column: u32,
+    }
+    pub static FILES: [&str; 2] = ["app/main.trn", "left/error.trn"];
+    pub static FUNCTIONS: [&str; 2] = ["/app::main", "/left::fail"];
+    #[allow(dead_code, reason = "custom descriptors are absent from some programs")]
+    pub static DESCRIPTORS: [&str; 2] = ["shared-error", "shared-error"];
+    pub static SITES: [Site; 2] = [
+        Site {
+            function: 
+                0 /* terrane-site: site 0: /app::main (app/main.trn:8:5-8:10) */,
+            file: 0,
+            line: 8,
+            column: 5,
+            end_line: 8,
+            end_column: 10,
+        },
+        Site {
+            function: 
+                1 /* terrane-site: site 1: /left::fail (left/error.trn:12:3-12:36) */,
+            file: 1,
+            line: 12,
+            column: 3,
+            end_line: 12,
+            end_column: 36,
+        },
+    ];
+    #[cold]
+    #[inline(never)]
+    pub fn render(site: u32) -> String {
+        let site = &SITES[usize::try_from(site).expect("site id must fit usize")];
+        format!(
+            "{} ({}:{}:{})", FUNCTIONS[usize::try_from(site.function)
+            .expect("function id must fit usize")], FILES[usize::try_from(site.file)
+            .expect("file id must fit usize")], site.line, site.column,
+        )
+    }
+}
+// Source: app/main.trn
+// Namespace: app
+fn main() {
+    let __terrane_completion_0: TerraneCompletion<()> = (|| {
+        let __terrane_try_0: TerraneCompletion<()> = (|| {
+            __terrane_traced_completion!(
+                fail(), 0 /* terrane-site: app/main.trn:8:5-8:10 */
+            );
+            TerraneCompletion::Normal
+        })();
+        match __terrane_try_0 {
+            TerraneCompletion::Return(value) => return TerraneCompletion::Return(value),
+            TerraneCompletion::Break => return TerraneCompletion::Break,
+            TerraneCompletion::Continue => return TerraneCompletion::Continue,
+            TerraneCompletion::Normal => {}
+            TerraneCompletion::Error(__terrane_error_0) => {
+                let mut __terrane_handled_0 = false;
+                if !__terrane_handled_0
+                    && __terrane_error_0.kind
+                        == TerraneErrorKind::Custom(DescriptorId(0))
+                {
+                    __terrane_handled_0 = true;
+                    println!(
+                        "{}",
+                        terrane_scalar_support::scalar_text(&String::from("wrong class"))
+                    );
+                }
+                if !__terrane_handled_0
+                    && __terrane_error_0.kind
+                        == TerraneErrorKind::Custom(DescriptorId(1))
+                {
+                    __terrane_handled_0 = true;
+                    println!(
+                        "{}",
+                        terrane_scalar_support::scalar_text(&String::from("caught-left"))
+                    );
+                }
+                if !__terrane_handled_0 {
+                    return TerraneCompletion::Error(__terrane_error_0);
+                }
+            }
+        }
+        TerraneCompletion::Normal
+    })();
+    match __terrane_completion_0 {
+        TerraneCompletion::Normal => {}
+        TerraneCompletion::Return(value) => return value,
+        TerraneCompletion::Error(error) => __terrane_uncaught(error),
+        TerraneCompletion::Break | TerraneCompletion::Continue => {
+            __terrane_generated_defect("loop control escaped a non-loop try")
+        }
+    }
+}
+// Source: left/error.trn
+// Namespace: left
+#[derive(Clone)]
+pub struct TerraneNs4LeftSharedError {
+    pub message: String,
+}
+impl TerraneNs4LeftSharedError {
+    pub fn terrane_construct(message: String) -> Self {
+        let mut value = Self { message: String::from("") };
+        value.construct(message);
+        value
+    }
+    pub fn construct(&mut self, message: String) {
+        self.message = message;
+    }
+    pub fn render(&self) -> String {
+        return self.message.clone();
+    }
+}
+fn fail() -> Result<(), TerraneError> {
+    return Err({
+        let value = TerraneNs4LeftSharedError::terrane_construct(
+            String::from("left failure"),
+        );
+        TerraneError::raised_with_message(
+            TerraneErrorKind::Custom(DescriptorId(1)),
+            value.render(),
+            1 /* terrane-site: left/error.trn:12:3-12:36 */,
+        )
+    });
+}
+// Source: right/error.trn
+// Namespace: right
+#[derive(Clone)]
+pub struct TerraneNs5RightSharedError {
+    pub message: String,
+}
+impl TerraneNs5RightSharedError {
+    pub fn terrane_construct(message: String) -> Self {
+        let mut value = Self { message: String::from("") };
+        value.construct(message);
+        value
+    }
+    pub fn construct(&mut self, message: String) {
+        self.message = message;
+    }
+    pub fn render(&self) -> String {
+        return self.message.clone();
+    }
+}
