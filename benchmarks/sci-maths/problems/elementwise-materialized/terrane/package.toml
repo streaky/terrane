@@ -1,0 +1,8 @@
+package = "benchmark-elementwise-materialized"
+
+[profile]
+name = "benchmark"
+capabilities = ["process"]
+
+[namespaces]
+benchmark-elementwise-materialized = "src"

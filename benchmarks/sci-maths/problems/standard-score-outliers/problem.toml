@@ -1,0 +1,12 @@
+id = "standard-score-outliers"
+title = "Composed generation, moments, and outlier classification"
+result = "integer"
+dataset = "Generate x = (i mod 200) - 100 and y = 0.01x^2 + (i mod 7) - 3; materialize y, compute its population mean and variance, then count squared deviations greater than 2.5 times the variance."
+
+[profiles.correctness]
+size = 1000
+expected = 102
+
+[profiles.performance]
+size = 10000000
+expected = 1021428

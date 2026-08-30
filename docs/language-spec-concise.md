@@ -873,6 +873,7 @@ manifest/source set
 Contracts:
 
 - `check`, `rust`, `build`, `run` share pipeline.
+- `build --release` and `run --release` select Cargo's optimized release profile; development and release artifacts are cached separately.
 - Parse recovery never promotes recovered invalid nodes to lowering.
 - Diagnostic: stable code, primary source span, labels/notes/help; originating bytes including UTF-8.
 - Generated output deterministic for compiler version, target, declared inputs.

@@ -923,9 +923,11 @@ never repairs or replaces generator output. Generated projects contain stable au
 content-addressed support crates, manifests, compiler/source metadata, and a build identity covering
 compiler version, source and support content, target, profile, and command-relevant environment.
 Successful checks and native executables are retained under that identity; stale generated
-identities are bounded by last use. `check`, `build`, and `run` share captured Cargo execution when
-an artifact is absent; `rust` renders authored output plus authored-module and vendored-support path
-lists. Pipeline and CLI tests pin byte identity, generated authored and support files, artifact
+identities are bounded by last use. `build --release` and `run --release` select Cargo's optimized
+release profile, with development and release executables cached separately. `check`, `build`, and
+`run` share captured Cargo execution when an artifact is absent; `rust` renders authored output plus
+authored-module and vendored-support path lists.
+Pipeline and CLI tests pin byte identity, generated authored and support files, artifact
 reuse, eviction, generated file layout, and strict canonical-format rejection; compile/run
 conformance cases validate the generated crates with warnings denied.
 

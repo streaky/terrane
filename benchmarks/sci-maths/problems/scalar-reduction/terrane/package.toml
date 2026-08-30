@@ -1,0 +1,8 @@
+package = "benchmark-scalar-reduction"
+
+[profile]
+name = "benchmark"
+capabilities = ["process"]
+
+[namespaces]
+benchmark-scalar-reduction = "src"

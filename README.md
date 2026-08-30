@@ -56,24 +56,35 @@ The working `terrane` CLI can check, lower, build, and run manifest-backed progr
 
 ## Developing Terrane
 
-This repository uses [`sccache`](https://github.com/mozilla/sccache) as its Cargo compiler wrapper and therefore expects `sccache` on `PATH`. This requirement applies to working on the Terrane toolchain itself; it is not imposed on projects compiled with Terrane. Install a prebuilt package from your system package manager or with `cargo binstall sccache`. `cargo install sccache --locked` also works, but compiling the cache from source is slower than installing a release binary.
+Cargo works without a compiler wrapper. Developers may optionally configure
+[`sccache`](https://github.com/mozilla/sccache) in their own environment to share compiled Rust
+artifacts across target directories and branches; repository checks and benchmarks neither require
+it nor clear its cache.
 
 Projects that declare `[rust-dependencies]` additionally require the pinned Rust nightly toolchain and
 Linux [`bubblewrap`](https://github.com/containers/bubblewrap) (`bwrap`) on `PATH`. Bubblewrap contains
 Cargo and rustdoc inspection of third-party packages; dependency-free Terrane projects do not require it.
 
-Cargo already retains downloaded registry indexes and crate archives in `CARGO_HOME`, so repeated toolchain and conformance builds do not download unchanged dependencies again. The conformance runner additionally reuses one generated Cargo workspace for all accepted cases in a corpus run, while `sccache` carries reusable Rust compilation artifacts across separate runs and branches.
+Cargo retains downloaded registry indexes and crate archives in `CARGO_HOME`, so repeated toolchain and conformance builds do not download unchanged dependencies again. The conformance runner additionally reuses one generated Cargo workspace for all accepted cases in a corpus run. A developer-configured compiler cache may provide further reuse across separate runs and branches.
 
 Generated Rust is returned exactly as Terrane lowering emits it. Compiler work can pass
 `--require-canonical-rust` after any CLI command name to compare that untouched output with the
 compiler-bundled formatter. A mismatch fails as compiler defect `S9004`; the formatter never
 silently rewrites the generated artefact.
 
+`terrane build --release` and `terrane run --release` compile generated programs with Cargo's
+optimized release profile. Development and release executables are cached separately.
+
 ## Learn more
 
 The [language specification and compiler architecture draft](docs/language-spec-and-compiler-architecture-draft.md) is the main source for syntax, semantics, examples, interoperability, tooling, and other technical details.
 
 The [first-version compiler plan](docs/compiler-plan.md) describes the implementation milestones and the capabilities targeted for the first usable release.
+
+The [scientific mathematics benchmark corpus](benchmarks/sci-maths/README.md) compares clean Terrane
+and standard-library Python implementations under shared correctness, runtime, and peak-memory
+contracts. Its checked-in reports preserve the full machine, toolchain, build, and process evidence
+behind published measurements.
 
 The `demos/` directory contains exploratory design exercises. These files deliberately stress ambitious or unfinished ideas and should not be read as examples of features already supported by a compiler.
 

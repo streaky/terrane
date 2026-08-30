@@ -1,0 +1,9 @@
+id = "python"
+name = "Clean, idiomatic Python"
+implementation = "python/main.py"
+run = ["python3", "${implementation}"]
+environment = [["python3", "--version"]]
+
+[metadata]
+implementation = "system CPython using only the standard language and library"
+scientific-packages = false

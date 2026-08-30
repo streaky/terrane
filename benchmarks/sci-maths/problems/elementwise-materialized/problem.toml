@@ -1,0 +1,18 @@
+id = "elementwise-materialized"
+title = "Materialized quadratic element-wise transformation"
+result = "float"
+dataset = "For each index i, x = (i mod 1000) / 100 and y = x^2 + 3x - 7; materialize y before reduction."
+
+[profiles.correctness]
+size = 1000
+expected = 41268.35
+# gamma(n) * sum(abs(terms)) is about 4.72e-9 using u = 2^-53; the tolerance keeps a 2x margin.
+absolute-tolerance = 1e-8
+relative-tolerance = 0.0
+
+[profiles.performance]
+size = 10000000
+expected = 412683500.0
+# gamma(n) * sum(abs(terms)) is about 0.4716 using u = 2^-53; the tolerance keeps a 2x margin.
+absolute-tolerance = 0.95
+relative-tolerance = 0.0

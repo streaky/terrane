@@ -1,0 +1,31 @@
+namespace benchmark-elementwise-materialized
+
+from /core/output import print
+from /core/collections import list
+from /standard/process import platform-string, arguments, exit, make-exit-status
+
+function benchmark-size int64;
+  supplied = (arguments;)
+  if supplied.length != 1
+    exit; (make-exit-status; 2)
+  count int64 = (supplied[0].text.radix; 10)
+  if count <= 0
+    exit; (make-exit-status; 2)
+  return count
+
+function main;
+  count int64 = (benchmark-size;)
+
+  transformed list of float64 = list
+  index int64 = 0
+  while index < count
+    raw float64 = index % 1000
+    x float64 = raw / 100
+    transformed.append; x * x + 3 * x - 7
+    index++
+
+  total float64 = 0
+  for value in transformed
+    total = total + value
+
+  print; total

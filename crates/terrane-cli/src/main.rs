@@ -62,7 +62,8 @@ fn run(arguments: &[OsString]) -> Result<ExitCode, CliFailure> {
     if !matches!(command, "check" | "rust" | "build" | "run") {
         return Err(CliFailure::usage());
     }
-    let (input_path, require_canonical_rust, lint_name_style) = parse_input(arguments, command)?;
+    let (input_path, require_canonical_rust, lint_name_style, release) =
+        parse_input(arguments, command)?;
     let package = if input_path
         .extension()
         .is_some_and(|extension| extension == "trn")
@@ -130,6 +131,7 @@ fn run(arguments: &[OsString]) -> Result<ExitCode, CliFailure> {
         &package.units,
         !compilation.rust_dependencies.is_empty(),
         compilation.dependency_containment,
+        release,
     )?;
     if command == "check" {
         return Ok(ExitCode::SUCCESS);
@@ -152,17 +154,25 @@ fn run(arguments: &[OsString]) -> Result<ExitCode, CliFailure> {
     ))
 }
 
-fn parse_input(arguments: &[OsString], command: &str) -> Result<(PathBuf, bool, bool), CliFailure> {
+fn parse_input(
+    arguments: &[OsString],
+    command: &str,
+) -> Result<(PathBuf, bool, bool, bool), CliFailure> {
     let mut input_index = 1;
     let mut require_canonical_rust = false;
     let mut lint_name_style = false;
+    let mut release = false;
     while let Some(argument) = arguments.get(input_index).and_then(|value| value.to_str()) {
         match argument {
             "--require-canonical-rust" => require_canonical_rust = true,
             "--lint-name-style" => lint_name_style = true,
+            "--release" => release = true,
             _ => break,
         }
         input_index += 1;
+    }
+    if release && !matches!(command, "build" | "run") {
+        return Err(CliFailure::usage());
     }
     let has_valid_arity = if command == "run" {
         arguments.len() == input_index + 1
@@ -177,7 +187,7 @@ fn parse_input(arguments: &[OsString], command: &str) -> Result<(PathBuf, bool, 
         .get(input_index)
         .map(PathBuf::from)
         .ok_or_else(CliFailure::usage)?;
-    Ok((input_path, require_canonical_rust, lint_name_style))
+    Ok((input_path, require_canonical_rust, lint_name_style, release))
 }
 
 fn emit_warnings(compilation: &terrane_compiler::Compilation) {
@@ -203,6 +213,7 @@ fn prepare_artifact(
     units: &[terrane_compiler::SourceUnit],
     has_rust_dependencies: bool,
     containment: terrane_compiler::projection::Containment,
+    release: bool,
 ) -> Result<Option<PathBuf>, CliFailure> {
     if command == "check" {
         let stamp = crate_dir.join("artifacts/check-success");
@@ -215,6 +226,7 @@ fn prepare_artifact(
                 units,
                 has_rust_dependencies,
                 containment,
+                false,
             )?;
             fs::create_dir_all(stamp.parent().expect("artifact stamp has a parent")).map_err(
                 |error| CliFailure::backend(format!("cannot create artifact cache: {error}")),
@@ -225,7 +237,8 @@ fn prepare_artifact(
         }
         return Ok(None);
     }
-    let executable = executable_path(&crate_dir.join("artifacts"));
+    let profile = if release { "release" } else { "debug" };
+    let executable = executable_path(&crate_dir.join("artifacts").join(profile));
     if !executable.is_file() {
         run_cargo(
             "build",
@@ -235,8 +248,9 @@ fn prepare_artifact(
             units,
             has_rust_dependencies,
             containment,
+            release,
         )?;
-        let built = executable_path(&target_dir.join("debug"));
+        let built = executable_path(&target_dir.join(profile));
         fs::create_dir_all(executable.parent().expect("cached executable has a parent")).map_err(
             |error| CliFailure::backend(format!("cannot create artifact cache: {error}")),
         )?;
@@ -283,6 +297,7 @@ fn run_cargo(
     units: &[terrane_compiler::SourceUnit],
     has_rust_dependencies: bool,
     containment: terrane_compiler::projection::Containment,
+    release: bool,
 ) -> Result<(), CliFailure> {
     let mut rustflags = std::env::var_os("RUSTFLAGS").unwrap_or_default();
     if !rustflags.is_empty() {
@@ -356,6 +371,9 @@ fn run_cargo(
         "--manifest-path",
     ]);
     cargo.arg(crate_dir.join("Cargo.toml"));
+    if release {
+        cargo.arg("--release");
+    }
     if has_rust_dependencies {
         cargo.args(["--offline", "--frozen"]);
     }
@@ -730,9 +748,10 @@ fn ensure_rust_toolchain() -> Result<(), CliFailure> {
 
 fn usage() -> String {
     "usage: terrane <check|rust|build|run> [--require-canonical-rust] [--lint-name-style] \
-     <source.trn> [-- program arguments]\n\
+     [--release] <source.trn> [-- program arguments]\n\
      options:\n  --require-canonical-rust  fail unless lowering emits bundled-formatter output\n  \
-     --lint-name-style  warn when authored declarations are not kebab-case\n\
+     --lint-name-style  warn when authored declarations are not kebab-case\n  \
+     --release  use Cargo's optimized release profile for build or run\n\
      commands:\n  check  validate and compile generated Rust\n  rust   print generated Rust\n  \
      build  compile a native executable\n  run    compile and execute the program"
         .to_owned()
@@ -745,6 +764,26 @@ mod tests {
         SourceFile, SourceUnit, Span,
         rust_ir::{RenderedFile, SourceAssociation},
     };
+
+    #[test]
+    fn release_is_available_only_for_native_build_and_run() {
+        let build = [
+            OsString::from("build"),
+            OsString::from("--release"),
+            OsString::from("package.toml"),
+        ];
+        assert_eq!(
+            parse_input(&build, "build").unwrap_or_else(|_| panic!("release build should parse")),
+            (PathBuf::from("package.toml"), false, false, true)
+        );
+
+        let check = [
+            OsString::from("check"),
+            OsString::from("--release"),
+            OsString::from("package.toml"),
+        ];
+        assert!(parse_input(&check, "check").is_err());
+    }
 
     #[test]
     fn backend_error_projects_to_terrane_source_and_retains_rustc() {
@@ -784,6 +823,7 @@ mod tests {
             &units,
             false,
             terrane_compiler::projection::Containment::Unavailable,
+            false,
         )
         .unwrap_err();
         assert_eq!(failure.code, 5);

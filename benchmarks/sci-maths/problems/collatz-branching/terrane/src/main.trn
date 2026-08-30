@@ -1,0 +1,30 @@
+namespace benchmark-collatz-branching
+
+from /core/output import print
+from /standard/process import platform-string, arguments, exit, make-exit-status
+
+function benchmark-size int64;
+  supplied = (arguments;)
+  if supplied.length != 1
+    exit; (make-exit-status; 2)
+  limit int64 = (supplied[0].text.radix; 10)
+  if limit <= 0
+    exit; (make-exit-status; 2)
+  return limit
+
+function main;
+  limit int64 = (benchmark-size;)
+
+  total int64 = 0
+  start int64 = 1
+  while start <= limit
+    value int64 = start
+    while value != 1
+      if value % 2 == 0
+        value = value / 2
+      else
+        value = 3 * value + 1
+      total++
+    start++
+
+  print; total
