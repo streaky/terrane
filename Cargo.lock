@@ -1438,6 +1438,7 @@ name = "terrane-platform-support"
 version = "0.1.0"
 dependencies = [
  "base64",
+ "crossbeam-channel",
  "flate2",
  "getrandom 0.3.4",
  "hickory-resolver",

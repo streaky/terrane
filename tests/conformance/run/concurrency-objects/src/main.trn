@@ -15,7 +15,7 @@ class async-runner
         callback;
 
 function main;
-    options = operation-options; 1000, (cancellation-token;)
+    options = operation-options; 30_000, (cancellation-token;)
     messages = int-channel; 0
     counter = int-mutex; 4
     work = function none;

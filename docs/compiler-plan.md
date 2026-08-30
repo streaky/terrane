@@ -1815,8 +1815,12 @@ integer mutex and read/write-lock cells, typed `atomic-int64` memory ordering, a
 thread local integers over opaque shared host identities. Blocking channel send and receive carry
 explicit positive deadlines and cancellation tokens; `try-receive` is non-blocking. Generated Rust
 delegates synchronization and defensive operation-specific ordering validation to the support crate
-without exposing host handles. Explicit channel closure, arbitrary guard-scoped critical sections,
-and non-integer generic cells remain deferred rather than being implied by these names.
+without exposing host handles. This is the host-synchronization ABI boundary permitted by delivery
+principle 9: `std::sync::mpsc::Receiver` is not shareable across threads, so the maintained layer
+uses `crossbeam-channel` for bounded parking sends and receives plus a genuinely non-blocking probe
+without a receiver mutex. Terrane retains the object model, deadline and cancellation policy, and
+error translation above that boundary. Explicit channel closure, arbitrary guard-scoped critical
+sections, and non-integer generic cells remain deferred rather than being implied by these names.
 
 Bundled standard imports are checked against `[profile]`; `S2032` names the profile, forbidden
 capability, imported namespace, and importing namespace, including `threads` for concurrency and

@@ -538,7 +538,7 @@ impl AsyncRunner {
 }
 fn main() {
     let options: OperationOptions = OperationOptions::terrane_construct(
-        terrane_int_support::Int::from(1000_i128),
+        terrane_int_support::Int::from(30000_i128),
         CancellationToken::terrane_construct(),
     );
     let messages: IntChannel = IntChannel::terrane_construct(

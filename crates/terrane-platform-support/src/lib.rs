@@ -16,6 +16,9 @@
 // Rust owns only irreducible OS boundaries, optimiser-sensitive guarantees, and audited
 // cryptographic/compression/TLS implementations. Terrane owns the public object model and policy.
 use base64::Engine as _;
+use crossbeam_channel::{
+    Receiver, RecvTimeoutError, SendTimeoutError, Sender, TryRecvError, bounded,
+};
 use hmac::Mac as _;
 use rand_core::{RngCore as _, SeedableRng as _};
 use sha2::Digest as _;
@@ -24,9 +27,8 @@ use std::collections::HashMap;
 use std::io::{Read, Write as _};
 use std::net::{IpAddr, Shutdown, SocketAddr, TcpListener, TcpStream, UdpSocket};
 use std::sync::{
-    Arc, LazyLock, Mutex, RwLock, TryLockError, Weak,
+    Arc, LazyLock, Mutex, RwLock, Weak,
     atomic::{AtomicBool, AtomicI64, AtomicU64, Ordering},
-    mpsc::{Receiver, RecvTimeoutError, SyncSender, TryRecvError, TrySendError, sync_channel},
 };
 use std::time::{Duration, Instant};
 use subtle::ConstantTimeEq as _;
@@ -71,8 +73,8 @@ struct SecretState {
     destroyed: bool,
 }
 struct IntChannel {
-    sender: SyncSender<i128>,
-    receiver: Mutex<Receiver<i128>>,
+    sender: Sender<i128>,
+    receiver: Receiver<i128>,
 }
 struct ThreadLocalInt {
     id: u64,
@@ -182,6 +184,8 @@ fn deadline_error(message: &str) -> ResultValue {
     }
 }
 
+const CANCELLATION_QUANTUM: Duration = Duration::from_millis(10);
+
 fn operation_deadline(milliseconds: i128, label: &str) -> Result<Instant, ResultValue> {
     let duration = timeout(milliseconds)?;
     Instant::now()
@@ -195,12 +199,9 @@ pub fn int_channel(capacity: i128) -> ResultValue {
             "channel capacity must be a non-negative platform-sized integer",
         );
     };
-    let (sender, receiver) = sync_channel(capacity);
+    let (sender, receiver) = bounded(capacity);
     capability_result(Capability(Arc::new(CapabilityInner::IntChannel(
-        IntChannel {
-            sender,
-            receiver: Mutex::new(receiver),
-        },
+        IntChannel { sender, receiver },
     ))))
 }
 
@@ -222,20 +223,21 @@ pub fn int_channel_send(
     };
     let mut value = value;
     loop {
-        match channel.sender.try_send(value) {
-            Ok(()) => return ResultValue::default(),
-            Err(TrySendError::Disconnected(_)) => {
-                return ResultValue::error("channel receiver is closed");
-            }
-            Err(TrySendError::Full(returned)) => value = returned,
-        }
         if let Some(error) = cancellation_error(cancellation) {
             return error;
         }
-        if Instant::now() >= deadline {
+        let now = Instant::now();
+        if now >= deadline {
             return deadline_error("channel send deadline exceeded");
         }
-        std::thread::sleep(Duration::from_millis(1));
+        let wait = (deadline - now).min(CANCELLATION_QUANTUM);
+        match channel.sender.send_timeout(value, wait) {
+            Ok(()) => return ResultValue::default(),
+            Err(SendTimeoutError::Disconnected(_)) => {
+                return ResultValue::error("channel receiver is closed");
+            }
+            Err(SendTimeoutError::Timeout(returned)) => value = returned,
+        }
     }
 }
 
@@ -255,30 +257,27 @@ pub fn int_channel_receive(
         return capability_type_error(channel.0.as_ref(), "an int channel");
     };
     loop {
-        match channel.receiver.try_lock() {
-            Ok(receiver) => match receiver.recv_timeout(Duration::from_millis(1)) {
-                Ok(number) => {
-                    return ResultValue {
-                        number,
-                        flag: true,
-                        ..ResultValue::default()
-                    };
-                }
-                Err(RecvTimeoutError::Disconnected) => {
-                    return ResultValue::error("channel sender is closed");
-                }
-                Err(RecvTimeoutError::Timeout) => {}
-            },
-            Err(TryLockError::Poisoned(_)) => return lock_error("channel receiver"),
-            Err(TryLockError::WouldBlock) => std::thread::sleep(Duration::from_millis(1)),
-        }
         if let Some(error) = cancellation_error(cancellation) {
             return error;
         }
-        if Instant::now() >= deadline {
+        let now = Instant::now();
+        if now >= deadline {
             return deadline_error("channel receive deadline exceeded");
         }
-        std::thread::sleep(Duration::from_millis(1));
+        let wait = (deadline - now).min(CANCELLATION_QUANTUM);
+        match channel.receiver.recv_timeout(wait) {
+            Ok(number) => {
+                return ResultValue {
+                    number,
+                    flag: true,
+                    ..ResultValue::default()
+                };
+            }
+            Err(RecvTimeoutError::Disconnected) => {
+                return ResultValue::error("channel sender is closed");
+            }
+            Err(RecvTimeoutError::Timeout) => {}
+        }
     }
 }
 
@@ -286,12 +285,7 @@ pub fn int_channel_try_receive(channel: &Capability) -> ResultValue {
     let CapabilityInner::IntChannel(channel) = channel.0.as_ref() else {
         return capability_type_error(channel.0.as_ref(), "an int channel");
     };
-    let receiver = match channel.receiver.try_lock() {
-        Ok(receiver) => receiver,
-        Err(TryLockError::Poisoned(_)) => return lock_error("channel receiver"),
-        Err(TryLockError::WouldBlock) => return ResultValue::default(),
-    };
-    match receiver.try_recv() {
+    match channel.receiver.try_recv() {
         Ok(number) => ResultValue {
             number,
             flag: true,
@@ -1909,14 +1903,14 @@ mod tests {
         );
 
         let channel = result_capability(int_channel(1));
-        let CapabilityInner::IntChannel(inner) = channel.0.as_ref() else {
-            unreachable!();
-        };
-        let receiver_guard = inner.receiver.lock().unwrap();
         let probe = int_channel_try_receive(&channel);
         assert!(!probe.failed);
         assert!(!probe.flag);
-        drop(receiver_guard);
+        assert!(!int_channel_send(&channel, 7, 100, &cancellation_token()).failed);
+        let probe = int_channel_try_receive(&channel);
+        assert!(!probe.failed);
+        assert!(probe.flag);
+        assert_eq!(probe.number, 7);
 
         let cancellation = cancellation_token();
         assert!(!int_channel_send(&channel, 1, 100, &cancellation).failed);
