@@ -1,0 +1,18 @@
+id = "fused-transform-reduction"
+title = "Fused rational transformation and reduction"
+result = "float"
+dataset = "For each index i, x = (i mod 1000) / 100 and add (x^2 + 3x - 7) / (1 + x^2) directly to the reduction."
+
+[profiles.correctness]
+arguments = ["correctness"]
+size = 1000
+expected = 511.2545159753974
+absolute-tolerance = 1e-10
+relative-tolerance = 1e-12
+
+[profiles.performance]
+arguments = ["performance"]
+size = 2000000
+expected = 1022509.0319516944
+absolute-tolerance = 1e-7
+relative-tolerance = 1e-12

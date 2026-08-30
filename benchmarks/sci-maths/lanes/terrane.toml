@@ -1,0 +1,12 @@
+id = "terrane"
+name = "Clean, idiomatic Terrane"
+implementation = "terrane/package.toml"
+setup = ["cargo", "build", "--release", "--quiet", "-p", "terrane-cli"]
+prepare = ["{repo}/target/release/terrane", "build", "{implementation}"]
+prepare-output = "executable-path"
+run = ["{prepared}"]
+cache-paths = ["{implementation_dir}/.trn"]
+
+[metadata]
+implementation = "Terrane compiler-generated Rust"
+native-build-profile = "development (the current Terrane CLI build contract)"

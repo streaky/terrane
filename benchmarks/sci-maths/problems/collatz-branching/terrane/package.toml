@@ -1,0 +1,8 @@
+package = "benchmark-collatz-branching"
+
+[profile]
+name = "benchmark"
+capabilities = ["process"]
+
+[namespaces]
+benchmark-collatz-branching = "src"

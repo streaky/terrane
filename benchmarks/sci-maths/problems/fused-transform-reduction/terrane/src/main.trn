@@ -1,0 +1,21 @@
+namespace benchmark-fused-transform-reduction
+
+from /core/output import print
+from /standard/process import platform-string, arguments
+
+function main;
+  supplied = (arguments;)
+  count int64 = 1000
+  if supplied.length > 0 and supplied[0].text == 'performance'
+    count = 2000000
+
+  total float64 = 0
+  index int64 = 0
+  while index < count
+    raw float64 = index % 1000
+    x float64 = raw / 100
+    square float64 = x * x
+    total = total + (square + 3 * x - 7) / (1 + square)
+    index++
+
+  print; total

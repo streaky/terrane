@@ -1,0 +1,38 @@
+namespace benchmark-standard-score-outliers
+
+from /core/output import print
+from /core/collections import list
+from /standard/process import platform-string, arguments
+
+function main;
+  supplied = (arguments;)
+  count int64 = 1000
+  if supplied.length > 0 and supplied[0].text == 'performance'
+    count = 1000000
+
+  values list of float64 = list
+  total float64 = 0
+  index int64 = 0
+  while index < count
+    raw float64 = (index % 200) - 100
+    periodic float64 = index % 7
+    value float64 = 0.01 * raw * raw + periodic - 3
+    values.append; value
+    total = total + value
+    index++
+
+  divisor float64 = count
+  mean float64 = total / divisor
+  squared-total float64 = 0
+  for value in values
+    deviation float64 = value - mean
+    squared-total = squared-total + deviation * deviation
+
+  variance float64 = squared-total / divisor
+  outliers int64 = 0
+  for value in values
+    deviation float64 = value - mean
+    if deviation * deviation > 2.5 * variance
+      outliers++
+
+  print; outliers

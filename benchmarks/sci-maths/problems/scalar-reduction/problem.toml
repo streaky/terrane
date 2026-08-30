@@ -1,0 +1,14 @@
+id = "scalar-reduction"
+title = "Deterministic sum-of-squares reduction"
+result = "integer"
+dataset = "For each index i, reduce ((i mod 1000) - 500)^2 without stored input."
+
+[profiles.correctness]
+arguments = ["correctness"]
+size = 1000
+expected = 83333500
+
+[profiles.performance]
+arguments = ["performance"]
+size = 5000000
+expected = 416667500000

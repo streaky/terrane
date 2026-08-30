@@ -1,0 +1,8 @@
+package = "benchmark-standard-score-outliers"
+
+[profile]
+name = "benchmark"
+capabilities = ["process"]
+
+[namespaces]
+benchmark-standard-score-outliers = "src"

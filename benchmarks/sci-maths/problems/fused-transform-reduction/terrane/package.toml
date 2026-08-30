@@ -1,0 +1,8 @@
+package = "benchmark-fused-transform-reduction"
+
+[profile]
+name = "benchmark"
+capabilities = ["process"]
+
+[namespaces]
+benchmark-fused-transform-reduction = "src"

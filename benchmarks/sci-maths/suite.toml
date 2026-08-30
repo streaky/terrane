@@ -1,0 +1,27 @@
+format = 1
+name = "Terrane scientific mathematics and data workloads"
+
+[measurement]
+warmups = 2
+runs = 7
+
+[[lanes]]
+path = "lanes/terrane.toml"
+
+[[lanes]]
+path = "lanes/python.toml"
+
+[[problems]]
+path = "problems/scalar-reduction"
+
+[[problems]]
+path = "problems/elementwise-materialized"
+
+[[problems]]
+path = "problems/fused-transform-reduction"
+
+[[problems]]
+path = "problems/collatz-branching"
+
+[[problems]]
+path = "problems/standard-score-outliers"
