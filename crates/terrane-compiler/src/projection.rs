@@ -910,6 +910,72 @@ fn run_cargo(
     })
 }
 
+fn prefer_public_path(public_paths: &mut BTreeMap<String, String>, id: String, candidate: String) {
+    public_paths
+        .entry(id)
+        .and_modify(|existing| {
+            if candidate.matches("::").count() < existing.matches("::").count() {
+                existing.clone_from(&candidate);
+            }
+        })
+        .or_insert(candidate);
+}
+
+fn record_public_module_items(
+    index: &serde_json::Map<String, Value>,
+    module_id: &str,
+    module_path: &[String],
+    public_paths: &mut BTreeMap<String, String>,
+    visiting: &mut BTreeSet<String>,
+) {
+    if !visiting.insert(module_id.to_owned()) {
+        return;
+    }
+    let Some(module) = index
+        .get(module_id)
+        .and_then(|item| item["inner"]["module"].as_object())
+    else {
+        visiting.remove(module_id);
+        return;
+    };
+    for child_id in string_or_number_array(&module["items"]) {
+        let Some(item) = index
+            .get(&child_id)
+            .filter(|item| item["visibility"].as_str() == Some("public"))
+        else {
+            continue;
+        };
+        if let Some(import) = item["inner"]["use"].as_object() {
+            let Some(target_id) = value_id(&import["id"]) else {
+                continue;
+            };
+            if import["is_glob"].as_bool() == Some(true) {
+                record_public_module_items(index, &target_id, module_path, public_paths, visiting);
+            } else if let Some(name) = import["name"].as_str() {
+                let candidate = module_path
+                    .iter()
+                    .map(String::as_str)
+                    .chain(std::iter::once(name))
+                    .collect::<Vec<_>>()
+                    .join("::");
+                prefer_public_path(public_paths, target_id, candidate);
+            }
+            continue;
+        }
+        let Some(name) = item["name"].as_str() else {
+            continue;
+        };
+        let candidate = module_path
+            .iter()
+            .map(String::as_str)
+            .chain(std::iter::once(name))
+            .collect::<Vec<_>>()
+            .join("::");
+        prefer_public_path(public_paths, child_id, candidate);
+    }
+    visiting.remove(module_id);
+}
+
 #[expect(
     clippy::too_many_lines,
     reason = "one rustdoc item pass records admitted and declined public items together"
@@ -939,45 +1005,22 @@ fn project_rustdoc(
         })?;
     let mut public_paths = BTreeMap::<String, String>::new();
     for (module_id, summary) in paths {
-        if summary["crate_id"].as_u64() != Some(0) {
+        if summary["crate_id"].as_u64() != Some(0)
+            || index
+                .get(module_id)
+                .and_then(|item| item["inner"]["module"].as_object())
+                .is_none()
+        {
             continue;
         }
-        let Some(module) = index
-            .get(module_id)
-            .and_then(|item| item["inner"]["module"].as_object())
-        else {
-            continue;
-        };
         let module_path = string_array(&summary["path"]);
-        for child_id in string_or_number_array(&module["items"]) {
-            let Some(import) = index
-                .get(&child_id)
-                .filter(|item| item["visibility"].as_str() == Some("public"))
-                .and_then(|item| item["inner"]["use"].as_object())
-            else {
-                continue;
-            };
-            let Some(target_id) = value_id(&import["id"]) else {
-                continue;
-            };
-            let Some(name) = import["name"].as_str() else {
-                continue;
-            };
-            let candidate = module_path
-                .iter()
-                .map(String::as_str)
-                .chain(std::iter::once(name))
-                .collect::<Vec<_>>()
-                .join("::");
-            public_paths
-                .entry(target_id)
-                .and_modify(|existing| {
-                    if candidate.matches("::").count() < existing.matches("::").count() {
-                        existing.clone_from(&candidate);
-                    }
-                })
-                .or_insert(candidate);
-        }
+        record_public_module_items(
+            index,
+            module_id,
+            &module_path,
+            &mut public_paths,
+            &mut BTreeSet::new(),
+        );
     }
     let mut resolved_paths = paths.clone();
     for (id, public_path) in &public_paths {
@@ -995,7 +1038,7 @@ fn project_rustdoc(
     let mut declined = Vec::new();
     let mut projected_trait_items = Vec::new();
     let mut projected_associated_items = Vec::new();
-    for (id, summary) in paths {
+    for (id, summary) in &resolved_paths {
         if summary["crate_id"].as_u64() != Some(0) {
             continue;
         }
@@ -2203,6 +2246,78 @@ mod tests {
             removed: Vec::new(),
         };
         assert!(projection.is_unit_variant(&variant));
+    }
+
+    #[test]
+    fn rustdoc_glob_reexports_use_the_public_module_path() {
+        let document = json!({
+            "crate_version": "1.0.0",
+            "paths": {
+                "0": {"crate_id": 0, "path": ["witness"]},
+                "1": {"crate_id": 0, "path": ["witness", "scalar"]},
+                "3": {"crate_id": 0, "path": ["witness", "private", "special"]},
+                "4": {"crate_id": 0, "path": ["witness", "private", "special", "evaluate"]}
+            },
+            "index": {
+                "0": {
+                    "visibility": "public",
+                    "inner": {"module": {"items": [1]}}
+                },
+                "1": {
+                    "name": "scalar",
+                    "visibility": "public",
+                    "inner": {"module": {"items": [2]}}
+                },
+                "2": {
+                    "name": null,
+                    "visibility": "public",
+                    "inner": {"use": {
+                        "source": "special",
+                        "name": "special",
+                        "id": 3,
+                        "is_glob": true
+                    }}
+                },
+                "3": {
+                    "name": "special",
+                    "visibility": "crate",
+                    "inner": {"module": {"items": [4]}}
+                },
+                "4": {
+                    "name": "evaluate",
+                    "visibility": "public",
+                    "docs": null,
+                    "inner": {"function": {
+                        "header": {"is_unsafe": false, "is_async": false},
+                        "generics": {"params": []},
+                        "sig": {
+                            "inputs": [["x", {"primitive": "f64"}]],
+                            "output": {"primitive": "f64"}
+                        }
+                    }}
+                }
+            }
+        });
+        let dependency = RustDependency {
+            name: "witness".to_owned(),
+            package: "witness".to_owned(),
+            version: "=1.0.0".to_owned(),
+            features: Vec::new(),
+            default_features: true,
+            target: None,
+            effects: Vec::new(),
+        };
+
+        let projected =
+            project_rustdoc(&dependency, &serde_json::to_vec(&document).unwrap()).unwrap();
+        let function = projected
+            .items
+            .iter()
+            .find(|item| item.name == "evaluate")
+            .expect("glob-reexported function");
+
+        assert_eq!(function.namespace, "/deps/witness/scalar");
+        assert_eq!(function.rust_path, "witness::scalar::evaluate");
     }
 
     #[test]
