@@ -412,14 +412,14 @@ mod __terrane_trace {
             }
         },
         {
-            /* terrane-site-row: site 1: /uncaught-detailed-coercion::main (case.trn:10:5-10:10) */
+            /* terrane-site-row: site 1: /uncaught-detailed-coercion::main (case.trn:7:11-7:22) */
             Site {
                 function: 1,
                 file: 0,
-                line: 10,
-                column: 5,
-                end_line: 10,
-                end_column: 10,
+                line: 7,
+                column: 11,
+                end_line: 7,
+                end_column: 22,
             }
         },
     ];
@@ -437,52 +437,18 @@ mod __terrane_trace {
 }
 // Source: case.trn
 // Namespace: uncaught-detailed-coercion
-fn narrow(value: terrane_int_support::Int) -> i8 {
-    return __terrane_raised(
-        terrane_int_support::coerce::<i8>(&value),
-        0 /* terrane-site: case.trn:5:10-5:15 */,
+fn narrow(value: terrane_int_support::Int) -> Result<i8, TerraneError> {
+    return Ok(
+        __terrane_raised_err(
+            terrane_int_support::coerce::<i8>(&value),
+            0 /* terrane-site: case.trn:5:10-5:15 */,
+        )?,
     );
 }
 fn main() {
-    let __terrane_completion_0: TerraneCompletion<()> = (|| {
-        let __terrane_try_0: TerraneCompletion<()> = (|| {
-            println!(
-                "{}",
-                terrane_scalar_support::scalar_text(&narrow(terrane_int_support::Int::from(300_i128)))
-            );
-            TerraneCompletion::Normal
-        })();
-        match __terrane_try_0 {
-            TerraneCompletion::Return(value) => return TerraneCompletion::Return(value),
-            TerraneCompletion::Break => return TerraneCompletion::Break,
-            TerraneCompletion::Continue => return TerraneCompletion::Continue,
-            TerraneCompletion::Normal => {}
-            TerraneCompletion::Error(__terrane_error_0) => {
-                let mut __terrane_handled_0 = false;
-                if !__terrane_handled_0
-                    && __terrane_error_0.kind
-                        == TerraneErrorKind::IntegerConversionOverflow
-                {
-                    __terrane_handled_0 = true;
-                    return TerraneCompletion::Error(
-                        __terrane_error_0
-                            .clone()
-                            .at(1 /* terrane-site: case.trn:10:5-10:10 */),
-                    );
-                }
-                if !__terrane_handled_0 {
-                    return TerraneCompletion::Error(__terrane_error_0);
-                }
-            }
-        }
-        TerraneCompletion::Normal
-    })();
-    match __terrane_completion_0 {
-        TerraneCompletion::Normal => {}
-        TerraneCompletion::Return(value) => return value,
-        TerraneCompletion::Error(error) => __terrane_uncaught(error),
-        TerraneCompletion::Break | TerraneCompletion::Continue => {
-            __terrane_generated_defect("loop control escaped a non-loop try")
-        }
-    }
+    println!(
+        "{}",
+        terrane_scalar_support::scalar_text(&__terrane_traced(narrow(terrane_int_support::Int::from(300_i128)),
+        1 /* terrane-site: case.trn:7:11-7:22 */))
+    );
 }

@@ -1,7 +1,13 @@
-namespace uncaught-detailed-coercion
+namespace catch-propagated-coercion
 from /core/types import int, int8
 from /core/errors import integer-conversion-overflow
+
 function narrow int8 throws integer-conversion-overflow; value int
   return value.coerce; int8
+
 function main;
-  print; (narrow; 300)
+  try
+    print; (narrow; 300)
+  catch integer-conversion-overflow
+    print; >caught
+  print; >after

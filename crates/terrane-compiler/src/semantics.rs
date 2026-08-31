@@ -5310,6 +5310,46 @@ fn infer_throwing_effects(package: &mut SemanticPackage) -> Result<(), SemanticF
             .collect()
     }
 
+    fn integer_coercion_can_fail(unit: &SemanticUnit, node: &SyntaxNode) -> bool {
+        let Some(callee) = node.children.first() else {
+            return false;
+        };
+        let Some((source_node, CoercionPolicy::Default)) =
+            integer_coercion_call(&unit.source, callee)
+        else {
+            return false;
+        };
+        let Ok(Some(ValueType::Scalar(source))) =
+            infer_receiver_value_type(unit, source_node, &unit.typed_bindings)
+        else {
+            return false;
+        };
+        let Some(destination_node) = node
+            .children
+            .get(1)
+            .and_then(|arguments| arguments.children.first())
+            .and_then(|argument| argument.children.last())
+        else {
+            return false;
+        };
+        let Some(destination) = unit.descriptor_alias_at(
+            node_text(&unit.source, destination_node),
+            destination_node.span.start,
+        ) else {
+            return false;
+        };
+        if destination == ScalarType::Int {
+            return false;
+        }
+        let Some(destination_bounds) = scalar_integer_bounds(destination) else {
+            return false;
+        };
+        let Some(source_bounds) = scalar_integer_bounds(source) else {
+            return source == ScalarType::Int;
+        };
+        source_bounds.0 < destination_bounds.0 || source_bounds.1 > destination_bounds.1
+    }
+
     fn escaping_errors(
         package: &SemanticPackage,
         unit: &SemanticUnit,
@@ -5331,7 +5371,9 @@ fn infer_throwing_effects(package: &mut SemanticPackage) -> Result<(), SemanticF
             let receiver_type = infer_receiver_value_type(unit, receiver, &unit.typed_bindings)
                 .ok()
                 .flatten();
-            let mut errors = if member_name == "decode" {
+            let mut errors = if integer_coercion_can_fail(unit, node) {
+                BTreeSet::from(["/core/errors::integer-conversion-overflow".to_owned()])
+            } else if member_name == "decode" {
                 BTreeSet::from(["/core/errors::decode-error".to_owned()])
             } else if let Some(ValueType::Object(object)) = receiver_type {
                 unit.functions

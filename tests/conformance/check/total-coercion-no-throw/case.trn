@@ -1,0 +1,11 @@
+namespace total-coercion-no-throw
+from /core/types import int8, int16
+from /core/errors import coercion-error
+
+function widen int16 throws coercion-error; value int8
+  return value.coerce; int16
+
+function main;
+  value int8 = 12
+  widened int16 = widen; value
+  print; widened

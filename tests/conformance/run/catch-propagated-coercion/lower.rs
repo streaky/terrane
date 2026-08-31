@@ -396,52 +396,30 @@ mod __terrane_trace {
     }
     pub static FILES: [&str; 1] = ["case.trn"];
     pub static FUNCTIONS: [&str; 2] = [
-        "/checked-coercion::convert",
-        "/checked-coercion::main",
+        "/catch-propagated-coercion::narrow",
+        "/catch-propagated-coercion::main",
     ];
-    pub static SITES: [Site; 4] = [
+    pub static SITES: [Site; 2] = [
         {
-            /* terrane-site-row: site 0: /checked-coercion::convert (case.trn:9:14-9:18) */
+            /* terrane-site-row: site 0: /catch-propagated-coercion::narrow (case.trn:6:10-6:15) */
             Site {
                 function: 0,
                 file: 0,
-                line: 9,
-                column: 14,
-                end_line: 9,
-                end_column: 18,
+                line: 6,
+                column: 10,
+                end_line: 6,
+                end_column: 15,
             }
         },
         {
-            /* terrane-site-row: site 1: /checked-coercion::main (case.trn:19:13-19:19) */
+            /* terrane-site-row: site 1: /catch-propagated-coercion::main (case.trn:10:13-10:24) */
             Site {
                 function: 1,
                 file: 0,
-                line: 19,
+                line: 10,
                 column: 13,
-                end_line: 19,
-                end_column: 19,
-            }
-        },
-        {
-            /* terrane-site-row: site 2: /checked-coercion::main (case.trn:21:20-21:33) */
-            Site {
-                function: 1,
-                file: 0,
-                line: 21,
-                column: 20,
-                end_line: 21,
-                end_column: 33,
-            }
-        },
-        {
-            /* terrane-site-row: site 3: /checked-coercion::main (case.trn:22:23-22:38) */
-            Site {
-                function: 1,
-                file: 0,
-                line: 22,
-                column: 23,
-                end_line: 22,
-                end_column: 38,
+                end_line: 10,
+                end_column: 24,
             }
         },
     ];
@@ -458,48 +436,56 @@ mod __terrane_trace {
     }
 }
 // Source: case.trn
-// Namespace: checked-coercion
-static __TERRANE_F0_SHARED: std::sync::LazyLock<terrane_int_support::Int> = std::sync::LazyLock::new(||
-terrane_int_support::Int::from(100_i128));
-fn convert(item: terrane_int_support::Int) -> Result<i8, TerraneError> {
-    let mut result: i8 = 0;
-    if item.clone() > terrane_int_support::Int::from(0_i128) {
-        result = __terrane_raised_err(
-            terrane_int_support::coerce::<i8>(&item),
-            0 /* terrane-site: case.trn:9:14-9:18 */,
-        )?;
-    }
-    return Ok(result);
-}
-fn helper() {
-    println!("{}", terrane_scalar_support::scalar_text(&String::from("helper")));
+// Namespace: catch-propagated-coercion
+fn narrow(value: terrane_int_support::Int) -> Result<i8, TerraneError> {
+    return Ok(
+        __terrane_raised_err(
+            terrane_int_support::coerce::<i8>(&value),
+            0 /* terrane-site: case.trn:6:10-6:15 */,
+        )?,
+    );
 }
 fn main() {
-    helper();
-    let value: i64 = 300;
-    let within: i64 = 100;
-    let coerced: i8 = __terrane_raised(
-        terrane_int_support::coerce::<i8>(&within),
-        1 /* terrane-site: case.trn:19:13-19:19 */,
-    );
-    let renamed_checked: Option<i8> = terrane_int_support::checked_coerce::<i8>(&within);
-    let shared_coerced: i8 = __terrane_raised(
-        terrane_int_support::coerce::<i8>(&*__TERRANE_F0_SHARED),
-        2 /* terrane-site: case.trn:21:20-21:33 */,
-    );
-    let parameter_coerced: i8 = __terrane_traced(
-        convert(terrane_int_support::Int::from(within as i128)),
-        3 /* terrane-site: case.trn:22:23-22:38 */,
-    );
-    let checked: Option<i8> = terrane_int_support::checked_coerce::<i8>(&value);
-    let absent: bool = checked.is_none();
-    let present: bool = checked.is_some();
-    let shadow_safe: i8 = terrane_int_support::saturating_coerce::<i8>(&value);
-    println!("{}", terrane_scalar_support::scalar_text(&coerced));
-    println!("{}", terrane_scalar_support::scalar_text(&renamed_checked.is_some()));
-    println!("{}", terrane_scalar_support::scalar_text(&shared_coerced));
-    println!("{}", terrane_scalar_support::scalar_text(&parameter_coerced));
-    println!("{}", terrane_scalar_support::scalar_text(&absent));
-    println!("{}", terrane_scalar_support::scalar_text(&present));
-    println!("{}", terrane_scalar_support::scalar_text(&shadow_safe));
+    let __terrane_completion_0: TerraneCompletion<()> = (|| {
+        let __terrane_try_0: TerraneCompletion<()> = (|| {
+            println!(
+                "{}",
+                terrane_scalar_support::scalar_text(&__terrane_traced_completion!(narrow(terrane_int_support::Int::from(300_i128)),
+                1 /* terrane-site: case.trn:10:13-10:24 */))
+            );
+            TerraneCompletion::Normal
+        })();
+        match __terrane_try_0 {
+            TerraneCompletion::Return(value) => return TerraneCompletion::Return(value),
+            TerraneCompletion::Break => return TerraneCompletion::Break,
+            TerraneCompletion::Continue => return TerraneCompletion::Continue,
+            TerraneCompletion::Normal => {}
+            TerraneCompletion::Error(__terrane_error_0) => {
+                let mut __terrane_handled_0 = false;
+                if !__terrane_handled_0
+                    && __terrane_error_0.kind
+                        == TerraneErrorKind::IntegerConversionOverflow
+                {
+                    __terrane_handled_0 = true;
+                    println!(
+                        "{}",
+                        terrane_scalar_support::scalar_text(&String::from("caught"))
+                    );
+                }
+                if !__terrane_handled_0 {
+                    return TerraneCompletion::Error(__terrane_error_0);
+                }
+            }
+        }
+        TerraneCompletion::Normal
+    })();
+    match __terrane_completion_0 {
+        TerraneCompletion::Normal => {}
+        TerraneCompletion::Return(value) => return value,
+        TerraneCompletion::Error(error) => __terrane_uncaught(error),
+        TerraneCompletion::Break | TerraneCompletion::Continue => {
+            __terrane_generated_defect("loop control escaped a non-loop try")
+        }
+    }
+    println!("{}", terrane_scalar_support::scalar_text(&String::from("after")));
 }
