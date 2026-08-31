@@ -1,6 +1,7 @@
 fixed conversion caught
 float narrowing caught
 int division caught
+int remainder caught
 rounding caught
 argument conversion caught
 after

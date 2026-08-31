@@ -2028,84 +2028,82 @@ fn resolved_object_span(package: &SemanticPackage, identity: &ObjectIdentity) ->
         .map(|object| object.span)
 }
 
-    fn method_contract<'a>(
-        package: &'a SemanticPackage,
-        object_identity: &ObjectIdentity,
+fn method_contract<'a>(
+    package: &'a SemanticPackage,
+    object_identity: &ObjectIdentity,
+    method_name: &str,
+) -> Option<&'a FunctionContract> {
+    fn contract<'a>(
+        unit: &'a SemanticUnit,
+        object_name: &str,
         method_name: &str,
     ) -> Option<&'a FunctionContract> {
-        fn contract<'a>(
-            unit: &'a SemanticUnit,
-            object_name: &str,
-            method_name: &str,
-        ) -> Option<&'a FunctionContract> {
-            unit.functions
-                .iter()
-                .find(|method| {
-                    method.owner.as_deref() == Some(object_name) && method.name == method_name
-                })
-                .or_else(|| {
-                    unit.objects
-                        .iter()
-                        .find(|object| object.name == object_name)
-                        .and_then(|object| object.base.as_ref())
-                        .and_then(|base| {
-                            unit.objects.iter().find(|object| object.identity == *base)
-                        })
-                        .and_then(|base| contract(unit, &base.name, method_name))
-                })
-        }
-        let declaration = resolved_object_span(package, object_identity)?;
-        package.units.iter().find_map(|candidate| {
-            candidate
-                .objects
-                .iter()
-                .find(|object| object.span == declaration)
-                .and_then(|object| contract(candidate, &object.name, method_name))
-        })
+        unit.functions
+            .iter()
+            .find(|method| {
+                method.owner.as_deref() == Some(object_name) && method.name == method_name
+            })
+            .or_else(|| {
+                unit.objects
+                    .iter()
+                    .find(|object| object.name == object_name)
+                    .and_then(|object| object.base.as_ref())
+                    .and_then(|base| unit.objects.iter().find(|object| object.identity == *base))
+                    .and_then(|base| contract(unit, &base.name, method_name))
+            })
     }
-    fn function_parameters<'a>(
-        package: &'a SemanticPackage,
-        unit: &SemanticUnit,
-        callee: &SyntaxNode,
-    ) -> Option<&'a [ParameterContract]> {
-        if callee.kind == SyntaxKind::MemberExpression {
-            let [receiver, member] = callee.children.as_slice() else {
-                return None;
-            };
-            let ValueType::Object(object_name) = unit.inferred_value_type(receiver)? else {
-                return None;
-            };
-            return method_contract(package, &object_name, node_text(&unit.source, member))
-                .map(|method| method.parameters.as_slice());
-        }
-        if callee.kind != SyntaxKind::Name {
+    let declaration = resolved_object_span(package, object_identity)?;
+    package.units.iter().find_map(|candidate| {
+        candidate
+            .objects
+            .iter()
+            .find(|object| object.span == declaration)
+            .and_then(|object| contract(candidate, &object.name, method_name))
+    })
+}
+fn function_parameters<'a>(
+    package: &'a SemanticPackage,
+    unit: &SemanticUnit,
+    callee: &SyntaxNode,
+) -> Option<&'a [ParameterContract]> {
+    if callee.kind == SyntaxKind::MemberExpression {
+        let [receiver, member] = callee.children.as_slice() else {
             return None;
-        }
-        let symbol =
-            package.resolve_name_at(unit, callee.span.start, node_text(&unit.source, callee))?;
-        let declaration = symbol.declaration_span?;
-        if symbol.kind == SymbolKind::Class {
-            let object = package
-                .units
-                .iter()
-                .flat_map(|candidate| &candidate.objects)
-                .find(|object| object.span == declaration)?;
-            return package
-                .units
-                .iter()
-                .flat_map(|candidate| &candidate.functions)
-                .find(|function| {
-                    function.owner.as_deref() == Some(&object.name) && function.name == "construct"
-                })
-                .map(|function| function.parameters.as_slice());
-        }
-        package
+        };
+        let ValueType::Object(object_name) = unit.inferred_value_type(receiver)? else {
+            return None;
+        };
+        return method_contract(package, &object_name, node_text(&unit.source, member))
+            .map(|method| method.parameters.as_slice());
+    }
+    if callee.kind != SyntaxKind::Name {
+        return None;
+    }
+    let symbol =
+        package.resolve_name_at(unit, callee.span.start, node_text(&unit.source, callee))?;
+    let declaration = symbol.declaration_span?;
+    if symbol.kind == SymbolKind::Class {
+        let object = package
+            .units
+            .iter()
+            .flat_map(|candidate| &candidate.objects)
+            .find(|object| object.span == declaration)?;
+        return package
             .units
             .iter()
             .flat_map(|candidate| &candidate.functions)
-            .find(|function| function.span == declaration)
-            .map(|function| function.parameters.as_slice())
+            .find(|function| {
+                function.owner.as_deref() == Some(&object.name) && function.name == "construct"
+            })
+            .map(|function| function.parameters.as_slice());
     }
+    package
+        .units
+        .iter()
+        .flat_map(|candidate| &candidate.functions)
+        .find(|function| function.span == declaration)
+        .map(|function| function.parameters.as_slice())
+}
 #[expect(
     clippy::too_many_lines,
     reason = "move provenance and its control-flow join remain one auditable analysis"
@@ -5385,9 +5383,7 @@ fn infer_throwing_effects(package: &mut SemanticPackage) -> Result<(), SemanticF
         if source == ScalarType::Float32 && destination == ScalarType::Float64 {
             return false;
         }
-        if source.is_integer()
-            && matches!(destination, ScalarType::Float32 | ScalarType::Float64)
-        {
+        if source.is_integer() && matches!(destination, ScalarType::Float32 | ScalarType::Float64) {
             let exact_bits = if destination == ScalarType::Float32 {
                 16
             } else {
@@ -5404,18 +5400,88 @@ fn infer_throwing_effects(package: &mut SemanticPackage) -> Result<(), SemanticF
         expected: &ValueType,
         value: &SyntaxNode,
     ) -> bool {
-        let ValueType::Scalar(destination) = expected else {
+        if value.kind == SyntaxKind::GroupExpression
+            && let [grouped] = value.children.as_slice()
+        {
+            return destination_conversion_can_fail(unit, expected, grouped);
+        }
+        if let ValueType::Optional(inner) = expected {
+            return destination_conversion_can_fail(unit, inner, value);
+        }
+        if let ValueType::Scalar(destination) = expected {
+            if contextual_constant(&unit.source, value, *destination).is_some() {
+                return false;
+            }
+            let Ok(Some(ValueType::Scalar(source))) =
+                infer_value_type(unit, value, &unit.typed_bindings)
+            else {
+                return false;
+            };
+            return numeric_conversion_can_fail(source, *destination);
+        }
+        let [callee, arguments] = value.children.as_slice() else {
             return false;
         };
-        if contextual_constant(&unit.source, value, *destination).is_some() {
+        if value.kind != SyntaxKind::CallExpression {
             return false;
         }
-        let Ok(Some(ValueType::Scalar(source))) =
-            infer_value_type(unit, value, &unit.typed_bindings)
+        let Some(identity) = collection_constructor_identity(unit, callee, &unit.typed_bindings)
         else {
             return false;
         };
-        numeric_conversion_can_fail(source, *destination)
+        let name = identity
+            .strip_prefix("/core/collections::")
+            .unwrap_or(identity);
+        match (name, expected) {
+            (
+                "list" | "tuple" | "set" | "unordered-set",
+                ValueType::List(item)
+                | ValueType::Tuple(item, _)
+                | ValueType::Set(item)
+                | ValueType::UnorderedSet(item),
+            ) => arguments.children.iter().any(|argument| {
+                destination_conversion_can_fail(
+                    unit,
+                    &item.value_type(),
+                    argument.children.last().unwrap_or(argument),
+                )
+            }),
+            ("entry", ValueType::Entry(key, entry_value)) => {
+                let [key_argument, value_argument] = arguments.children.as_slice() else {
+                    return false;
+                };
+                destination_conversion_can_fail(
+                    unit,
+                    &key.value_type(),
+                    key_argument.children.last().unwrap_or(key_argument),
+                ) || destination_conversion_can_fail(
+                    unit,
+                    &entry_value.value_type(),
+                    value_argument.children.last().unwrap_or(value_argument),
+                )
+            }
+            (
+                "map" | "unordered-map",
+                ValueType::Map(key, map_value) | ValueType::UnorderedMap(key, map_value),
+            ) => arguments.children.iter().any(|argument| {
+                let value_node = argument.children.last().unwrap_or(argument);
+                if argument.children.len() < 2
+                    && matches!(
+                        infer_value_type(unit, value_node, &unit.typed_bindings),
+                        Ok(Some(ValueType::Entry(_, _)))
+                    )
+                {
+                    destination_conversion_can_fail(
+                        unit,
+                        &ValueType::Entry(key.clone(), map_value.clone()),
+                        value_node,
+                    )
+                } else {
+                    destination_conversion_can_fail(unit, &map_value.value_type(), value_node)
+                }
+            }),
+            _ => false,
+        }
     }
 
     fn call_argument_errors(
@@ -5429,6 +5495,37 @@ fn infer_throwing_effects(package: &mut SemanticPackage) -> Result<(), SemanticF
         };
         if node.kind != SyntaxKind::CallExpression {
             return errors;
+        }
+        if callee.kind == SyntaxKind::MemberExpression
+            && let [receiver, member] = callee.children.as_slice()
+            && let Ok(Some(receiver_type)) =
+                infer_receiver_value_type(unit, receiver, &unit.typed_bindings)
+        {
+            let argument_can_fail = |index: usize, expected: &ValueType| {
+                arguments.children.get(index).is_some_and(|argument| {
+                    destination_conversion_can_fail(
+                        unit,
+                        expected,
+                        argument.children.last().unwrap_or(argument),
+                    )
+                })
+            };
+            let conversion_can_fail = match (receiver_type, node_text(&unit.source, member)) {
+                (ValueType::List(item), "append")
+                | (
+                    ValueType::Set(item) | ValueType::UnorderedSet(item),
+                    "add" | "contains" | "remove",
+                ) => argument_can_fail(0, &item.value_type()),
+                (ValueType::List(item), "set") => argument_can_fail(1, &item.value_type()),
+                (ValueType::Map(key, value) | ValueType::UnorderedMap(key, value), "set") => {
+                    argument_can_fail(0, &key.value_type())
+                        || argument_can_fail(1, &value.value_type())
+                }
+                _ => false,
+            };
+            if conversion_can_fail {
+                errors.insert("/core/errors::integer-conversion-overflow".to_owned());
+            }
         }
         let Some(parameters) = function_parameters(package, unit, callee) else {
             return errors;
@@ -5450,9 +5547,7 @@ fn infer_throwing_effects(package: &mut SemanticPackage) -> Result<(), SemanticF
             let value = argument.children.last().unwrap_or(argument);
             if parameter
                 .and_then(|parameter| parameter.value_type.as_ref())
-                .is_some_and(|expected| {
-                    destination_conversion_can_fail(unit, expected, value)
-                })
+                .is_some_and(|expected| destination_conversion_can_fail(unit, expected, value))
             {
                 errors.insert("/core/errors::integer-conversion-overflow".to_owned());
             }

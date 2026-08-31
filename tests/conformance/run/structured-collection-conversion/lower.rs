@@ -395,146 +395,76 @@ mod __terrane_trace {
         pub end_column: u32,
     }
     pub static FILES: [&str; 1] = ["case.trn"];
-    pub static FUNCTIONS: [&str; 7] = [
-        "/structured-legacy-failures::narrow-fixed",
-        "/structured-legacy-failures::narrow-float",
-        "/structured-legacy-failures::divide",
-        "/structured-legacy-failures::remainder",
-        "/structured-legacy-failures::round-value",
-        "/structured-legacy-failures::narrow-argument",
-        "/structured-legacy-failures::main",
+    pub static FUNCTIONS: [&str; 3] = [
+        "/structured-collection-conversion::build",
+        "/structured-collection-conversion::append-value",
+        "/structured-collection-conversion::main",
     ];
-    pub static SITES: [Site; 12] = [
+    pub static SITES: [Site; 6] = [
         {
-            /* terrane-site-row: site 0: /structured-legacy-failures::narrow-fixed (case.trn:6:10-6:14) */
+            /* terrane-site-row: site 0: /structured-collection-conversion::build (case.trn:6:16-6:20) */
             Site {
                 function: 0,
                 file: 0,
                 line: 6,
-                column: 10,
+                column: 16,
                 end_line: 6,
-                end_column: 14,
+                end_column: 20,
             }
         },
         {
-            /* terrane-site-row: site 1: /structured-legacy-failures::narrow-float (case.trn:9:10-9:20) */
+            /* terrane-site-row: site 1: /structured-collection-conversion::append-value (case.trn:9:25-9:29) */
             Site {
                 function: 1,
                 file: 0,
                 line: 9,
-                column: 10,
+                column: 25,
                 end_line: 9,
-                end_column: 20,
+                end_column: 29,
             }
         },
         {
-            /* terrane-site-row: site 2: /structured-legacy-failures::divide (case.trn:13:10-13:33) */
+            /* terrane-site-row: site 2: /structured-collection-conversion::main (case.trn:13:13-13:24) */
             Site {
                 function: 2,
                 file: 0,
                 line: 13,
-                column: 10,
+                column: 13,
                 end_line: 13,
-                end_column: 33,
-            }
-        },
-        {
-            /* terrane-site-row: site 3: /structured-legacy-failures::remainder (case.trn:17:10-17:33) */
-            Site {
-                function: 3,
-                file: 0,
-                line: 17,
-                column: 10,
-                end_line: 17,
-                end_column: 33,
-            }
-        },
-        {
-            /* terrane-site-row: site 4: /structured-legacy-failures::round-value (case.trn:22:10-22:24) */
-            Site {
-                function: 4,
-                file: 0,
-                line: 22,
-                column: 10,
-                end_line: 22,
                 end_column: 24,
             }
         },
         {
-            /* terrane-site-row: site 5: /structured-legacy-failures::narrow-argument (case.trn:27:26-27:30) */
+            /* terrane-site-row: site 3: /structured-collection-conversion::main (case.trn:13:12-13:28) */
             Site {
-                function: 5,
+                function: 2,
                 file: 0,
-                line: 27,
-                column: 26,
-                end_line: 27,
-                end_column: 30,
+                line: 13,
+                column: 12,
+                end_line: 13,
+                end_column: 28,
             }
         },
         {
-            /* terrane-site-row: site 6: /structured-legacy-failures::main (case.trn:30:13-30:26) */
+            /* terrane-site-row: site 4: /structured-collection-conversion::main (case.trn:17:13-17:31) */
             Site {
-                function: 6,
+                function: 2,
                 file: 0,
-                line: 30,
+                line: 17,
                 column: 13,
-                end_line: 30,
-                end_column: 26,
+                end_line: 17,
+                end_column: 31,
             }
         },
         {
-            /* terrane-site-row: site 7: /structured-legacy-failures::main (case.trn:34:13-34:26) */
+            /* terrane-site-row: site 5: /structured-collection-conversion::main (case.trn:17:12-17:35) */
             Site {
-                function: 6,
+                function: 2,
                 file: 0,
-                line: 34,
-                column: 13,
-                end_line: 34,
-                end_column: 26,
-            }
-        },
-        {
-            /* terrane-site-row: site 8: /structured-legacy-failures::main (case.trn:38:13-38:20) */
-            Site {
-                function: 6,
-                file: 0,
-                line: 38,
-                column: 13,
-                end_line: 38,
-                end_column: 20,
-            }
-        },
-        {
-            /* terrane-site-row: site 9: /structured-legacy-failures::main (case.trn:42:13-42:23) */
-            Site {
-                function: 6,
-                file: 0,
-                line: 42,
-                column: 13,
-                end_line: 42,
-                end_column: 23,
-            }
-        },
-        {
-            /* terrane-site-row: site 10: /structured-legacy-failures::main (case.trn:46:13-46:25) */
-            Site {
-                function: 6,
-                file: 0,
-                line: 46,
-                column: 13,
-                end_line: 46,
-                end_column: 25,
-            }
-        },
-        {
-            /* terrane-site-row: site 11: /structured-legacy-failures::main (case.trn:50:13-50:29) */
-            Site {
-                function: 6,
-                file: 0,
-                line: 50,
-                column: 13,
-                end_line: 50,
-                end_column: 29,
+                line: 17,
+                column: 12,
+                end_line: 17,
+                end_column: 35,
             }
         },
     ];
@@ -551,109 +481,57 @@ mod __terrane_trace {
     }
 }
 // Source: case.trn
-// Namespace: structured-legacy-failures
-fn narrow_fixed() -> Result<i8, TerraneError> {
-    let wide: i16 = 300;
+// Namespace: structured-collection-conversion
+fn build(wide: i16) -> Result<terrane_collection_support::List<i8>, TerraneError> {
+    return Ok(
+        terrane_collection_support::List::<
+            i8,
+        >::new(
+            vec![
+                { let source_value = wide;
+                __terrane_raised_err(i8::try_from(source_value).map_err(| _ |
+                terrane_int_support::ArithmeticError::conversion_overflow(&source_value,
+                "int16", "int8", "the value is outside the destination range")),
+                0 /* terrane-site: case.trn:6:16-6:20 */) ? }
+            ],
+        ),
+    );
+}
+fn append_value(
+    wide: i16,
+) -> Result<terrane_collection_support::List<i8>, TerraneError> {
+    let mut values: terrane_collection_support::List<i8> = terrane_collection_support::List::<
+        i8,
+    >::new(vec![1]);
     return Ok({
-        let source_value = wide;
-        __terrane_raised_err(
-            i8::try_from(source_value)
-                .map_err(|_| terrane_int_support::ArithmeticError::conversion_overflow(
-                    &source_value,
-                    "int16",
-                    "int8",
-                    "the value is outside the destination range",
-                )),
-            0 /* terrane-site: case.trn:6:10-6:14 */,
-        )?
+        let collection = &mut values;
+        collection
+            .append({
+                let source_value = wide;
+                __terrane_raised_err(
+                    i8::try_from(source_value)
+                        .map_err(|_| terrane_int_support::ArithmeticError::conversion_overflow(
+                            &source_value,
+                            "int16",
+                            "int8",
+                            "the value is outside the destination range",
+                        )),
+                    1 /* terrane-site: case.trn:9:25-9:29 */,
+                )?
+            });
+        collection.clone()
     });
-}
-fn narrow_float() -> Result<f32, TerraneError> {
-    let wide_float: f64 = 340282400000000000000000000000000000000.0;
-    return Ok({
-        let source_value = wide_float;
-        let converted = source_value as f32;
-        if converted as f64 == source_value {
-            converted
-        } else {
-            __terrane_raised_err(
-                Err(
-                    terrane_int_support::ArithmeticError::conversion_overflow(
-                        &source_value,
-                        "float64",
-                        "float32",
-                        "the floating value is not exactly representable",
-                    ),
-                ),
-                1 /* terrane-site: case.trn:9:10-9:20 */,
-            )?
-        }
-    });
-}
-fn divide() -> Result<terrane_int_support::Int, TerraneError> {
-    let numerator: i64 = 1;
-    let denominator: i64 = 0;
-    return Ok(
-        __terrane_raised_err(
-            terrane_int_support::Int::from(numerator as i128)
-                .euclidean_div(&terrane_int_support::Int::from(denominator as i128)),
-            2 /* terrane-site: case.trn:13:10-13:33 */,
-        )?,
-    );
-}
-fn remainder() -> Result<terrane_int_support::Int, TerraneError> {
-    let numerator: i64 = 1;
-    let denominator: i64 = 0;
-    return Ok(
-        __terrane_raised_err(
-            terrane_int_support::Int::from(numerator as i128)
-                .modulo(&terrane_int_support::Int::from(denominator as i128)),
-            3 /* terrane-site: case.trn:17:10-17:33 */,
-        )?,
-    );
-}
-fn round_value() -> Result<terrane_int_support::Int, TerraneError> {
-    let one: f64 = 1.0;
-    let zero: f64 = 0.0;
-    let infinite: f64 = one / zero;
-    return Ok(
-        __terrane_raised_err(
-            terrane_int_support::rounded_f64(
-                infinite,
-                terrane_int_support::FloatRounding::TiesEven,
-            ),
-            4 /* terrane-site: case.trn:22:10-22:24 */,
-        )?,
-    );
-}
-fn accepts_narrow(value: i8) -> terrane_int_support::Int {
-    return terrane_int_support::Int::from(value as i128);
-}
-fn narrow_argument() -> Result<terrane_int_support::Int, TerraneError> {
-    let wide: i16 = 300;
-    return Ok(
-        accepts_narrow({
-            let source_value = wide;
-            __terrane_raised_err(
-                i8::try_from(source_value)
-                    .map_err(|_| terrane_int_support::ArithmeticError::conversion_overflow(
-                        &source_value,
-                        "int16",
-                        "int8",
-                        "the value is outside the destination range",
-                    )),
-                5 /* terrane-site: case.trn:27:26-27:30 */,
-            )?
-        }),
-    );
 }
 fn main() {
+    let wide: i16 = 300;
     let __terrane_completion_0: TerraneCompletion<()> = (|| {
         let __terrane_try_0: TerraneCompletion<()> = (|| {
             println!(
                 "{}",
-                terrane_scalar_support::scalar_text(&__terrane_traced_completion!(narrow_fixed(),
-                6 /* terrane-site: case.trn:30:13-30:26 */))
+                terrane_scalar_support::scalar_text(&__terrane_raised_completion!(__terrane_traced_completion!(build(wide),
+                2 /* terrane-site: case.trn:13:13-13:24 */)
+                .get_or_error(__terrane_raised_completion!(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
+                3 /* terrane-site: case.trn:13:12-13:28 */)), 3 /* terrane-site: case.trn:13:12-13:28 */))
             );
             TerraneCompletion::Normal
         })();
@@ -671,7 +549,7 @@ fn main() {
                     __terrane_handled_0 = true;
                     println!(
                         "{}",
-                        terrane_scalar_support::scalar_text(&String::from("fixed conversion caught"))
+                        terrane_scalar_support::scalar_text(&String::from("constructor conversion caught"))
                     );
                 }
                 if !__terrane_handled_0 {
@@ -693,8 +571,10 @@ fn main() {
         let __terrane_try_1: TerraneCompletion<()> = (|| {
             println!(
                 "{}",
-                terrane_scalar_support::scalar_text(&__terrane_traced_completion!(narrow_float(),
-                7 /* terrane-site: case.trn:34:13-34:26 */))
+                terrane_scalar_support::scalar_text(&__terrane_raised_completion!(__terrane_traced_completion!(append_value(wide),
+                4 /* terrane-site: case.trn:17:13-17:31 */)
+                .get_or_error(__terrane_raised_completion!(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
+                5 /* terrane-site: case.trn:17:12-17:35 */)), 5 /* terrane-site: case.trn:17:12-17:35 */))
             );
             TerraneCompletion::Normal
         })();
@@ -712,7 +592,7 @@ fn main() {
                     __terrane_handled_1 = true;
                     println!(
                         "{}",
-                        terrane_scalar_support::scalar_text(&String::from("float narrowing caught"))
+                        terrane_scalar_support::scalar_text(&String::from("member conversion caught"))
                     );
                 }
                 if !__terrane_handled_1 {
@@ -723,168 +603,6 @@ fn main() {
         TerraneCompletion::Normal
     })();
     match __terrane_completion_1 {
-        TerraneCompletion::Normal => {}
-        TerraneCompletion::Return(value) => return value,
-        TerraneCompletion::Error(error) => __terrane_uncaught(error),
-        TerraneCompletion::Break | TerraneCompletion::Continue => {
-            __terrane_generated_defect("loop control escaped a non-loop try")
-        }
-    }
-    let __terrane_completion_2: TerraneCompletion<()> = (|| {
-        let __terrane_try_2: TerraneCompletion<()> = (|| {
-            println!(
-                "{}",
-                terrane_scalar_support::scalar_text(&__terrane_traced_completion!(divide(),
-                8 /* terrane-site: case.trn:38:13-38:20 */))
-            );
-            TerraneCompletion::Normal
-        })();
-        match __terrane_try_2 {
-            TerraneCompletion::Return(value) => return TerraneCompletion::Return(value),
-            TerraneCompletion::Break => return TerraneCompletion::Break,
-            TerraneCompletion::Continue => return TerraneCompletion::Continue,
-            TerraneCompletion::Normal => {}
-            TerraneCompletion::Error(__terrane_error_2) => {
-                let mut __terrane_handled_2 = false;
-                if !__terrane_handled_2
-                    && __terrane_error_2.kind == TerraneErrorKind::DivisionByZero
-                {
-                    __terrane_handled_2 = true;
-                    println!(
-                        "{}",
-                        terrane_scalar_support::scalar_text(&String::from("int division caught"))
-                    );
-                }
-                if !__terrane_handled_2 {
-                    return TerraneCompletion::Error(__terrane_error_2);
-                }
-            }
-        }
-        TerraneCompletion::Normal
-    })();
-    match __terrane_completion_2 {
-        TerraneCompletion::Normal => {}
-        TerraneCompletion::Return(value) => return value,
-        TerraneCompletion::Error(error) => __terrane_uncaught(error),
-        TerraneCompletion::Break | TerraneCompletion::Continue => {
-            __terrane_generated_defect("loop control escaped a non-loop try")
-        }
-    }
-    let __terrane_completion_3: TerraneCompletion<()> = (|| {
-        let __terrane_try_3: TerraneCompletion<()> = (|| {
-            println!(
-                "{}",
-                terrane_scalar_support::scalar_text(&__terrane_traced_completion!(remainder(),
-                9 /* terrane-site: case.trn:42:13-42:23 */))
-            );
-            TerraneCompletion::Normal
-        })();
-        match __terrane_try_3 {
-            TerraneCompletion::Return(value) => return TerraneCompletion::Return(value),
-            TerraneCompletion::Break => return TerraneCompletion::Break,
-            TerraneCompletion::Continue => return TerraneCompletion::Continue,
-            TerraneCompletion::Normal => {}
-            TerraneCompletion::Error(__terrane_error_3) => {
-                let mut __terrane_handled_3 = false;
-                if !__terrane_handled_3
-                    && __terrane_error_3.kind == TerraneErrorKind::DivisionByZero
-                {
-                    __terrane_handled_3 = true;
-                    println!(
-                        "{}",
-                        terrane_scalar_support::scalar_text(&String::from("int remainder caught"))
-                    );
-                }
-                if !__terrane_handled_3 {
-                    return TerraneCompletion::Error(__terrane_error_3);
-                }
-            }
-        }
-        TerraneCompletion::Normal
-    })();
-    match __terrane_completion_3 {
-        TerraneCompletion::Normal => {}
-        TerraneCompletion::Return(value) => return value,
-        TerraneCompletion::Error(error) => __terrane_uncaught(error),
-        TerraneCompletion::Break | TerraneCompletion::Continue => {
-            __terrane_generated_defect("loop control escaped a non-loop try")
-        }
-    }
-    let __terrane_completion_4: TerraneCompletion<()> = (|| {
-        let __terrane_try_4: TerraneCompletion<()> = (|| {
-            println!(
-                "{}",
-                terrane_scalar_support::scalar_text(&__terrane_traced_completion!(round_value(),
-                10 /* terrane-site: case.trn:46:13-46:25 */))
-            );
-            TerraneCompletion::Normal
-        })();
-        match __terrane_try_4 {
-            TerraneCompletion::Return(value) => return TerraneCompletion::Return(value),
-            TerraneCompletion::Break => return TerraneCompletion::Break,
-            TerraneCompletion::Continue => return TerraneCompletion::Continue,
-            TerraneCompletion::Normal => {}
-            TerraneCompletion::Error(__terrane_error_4) => {
-                let mut __terrane_handled_4 = false;
-                if !__terrane_handled_4
-                    && __terrane_error_4.kind
-                        == TerraneErrorKind::IntegerConversionOverflow
-                {
-                    __terrane_handled_4 = true;
-                    println!(
-                        "{}",
-                        terrane_scalar_support::scalar_text(&String::from("rounding caught"))
-                    );
-                }
-                if !__terrane_handled_4 {
-                    return TerraneCompletion::Error(__terrane_error_4);
-                }
-            }
-        }
-        TerraneCompletion::Normal
-    })();
-    match __terrane_completion_4 {
-        TerraneCompletion::Normal => {}
-        TerraneCompletion::Return(value) => return value,
-        TerraneCompletion::Error(error) => __terrane_uncaught(error),
-        TerraneCompletion::Break | TerraneCompletion::Continue => {
-            __terrane_generated_defect("loop control escaped a non-loop try")
-        }
-    }
-    let __terrane_completion_5: TerraneCompletion<()> = (|| {
-        let __terrane_try_5: TerraneCompletion<()> = (|| {
-            println!(
-                "{}",
-                terrane_scalar_support::scalar_text(&__terrane_traced_completion!(narrow_argument(),
-                11 /* terrane-site: case.trn:50:13-50:29 */))
-            );
-            TerraneCompletion::Normal
-        })();
-        match __terrane_try_5 {
-            TerraneCompletion::Return(value) => return TerraneCompletion::Return(value),
-            TerraneCompletion::Break => return TerraneCompletion::Break,
-            TerraneCompletion::Continue => return TerraneCompletion::Continue,
-            TerraneCompletion::Normal => {}
-            TerraneCompletion::Error(__terrane_error_5) => {
-                let mut __terrane_handled_5 = false;
-                if !__terrane_handled_5
-                    && __terrane_error_5.kind
-                        == TerraneErrorKind::IntegerConversionOverflow
-                {
-                    __terrane_handled_5 = true;
-                    println!(
-                        "{}",
-                        terrane_scalar_support::scalar_text(&String::from("argument conversion caught"))
-                    );
-                }
-                if !__terrane_handled_5 {
-                    return TerraneCompletion::Error(__terrane_error_5);
-                }
-            }
-        }
-        TerraneCompletion::Normal
-    })();
-    match __terrane_completion_5 {
         TerraneCompletion::Normal => {}
         TerraneCompletion::Return(value) => return value,
         TerraneCompletion::Error(error) => __terrane_uncaught(error),

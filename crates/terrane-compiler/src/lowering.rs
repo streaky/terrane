@@ -5915,9 +5915,7 @@ impl Emitter<'_> {
             );
         }
         let conversion = self.fallible(
-            format!(
-                "Err(terrane_int_support::ArithmeticError::conversion_overflow(&source_value, \"float64\", \"float32\", \"the floating value is not exactly representable\"))"
-            ),
+            "Err(terrane_int_support::ArithmeticError::conversion_overflow(&source_value, \"float64\", \"float32\", \"the floating value is not exactly representable\"))",
             node,
         );
         format!(

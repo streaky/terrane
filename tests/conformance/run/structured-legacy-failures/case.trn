@@ -11,6 +11,10 @@ function divide int;
   numerator int = 1
   denominator int = 0
   return numerator / denominator
+function remainder int;
+  numerator int = 1
+  denominator int = 0
+  return numerator % denominator
 function round-value int;
   one float64 = 1.0
   zero float64 = 0.0
@@ -34,6 +38,10 @@ function main;
     print; (divide;)
   catch division-by-zero
     print; >int division caught
+  try
+    print; (remainder;)
+  catch division-by-zero
+    print; >int remainder caught
   try
     print; (round-value;)
   catch integer-conversion-overflow

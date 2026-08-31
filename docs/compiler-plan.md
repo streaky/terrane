@@ -1275,17 +1275,18 @@ reports independently meaningful contracts without claiming authority over ordin
 a minimal profile rejects an unavailable reflection request at compile time.
 
 Implemented evidence: typed escaping throwables are computed from explicit throws, propagated calls,
-and fallible explicit integer-coercion calls after catches and `finally`; checked against optional
-postfix `throws T` bounds; and exposed separately from those declared bounds. Standard and
-user-declared `throwable` implementations share the structured-error pipeline.
+fallible explicit integer-coercion calls, and fallible implicit numeric destination conversions
+after catches and `finally`; checked against optional postfix `throws T` bounds; and exposed
+separately from those declared bounds. Standard and user-declared `throwable` implementations share
+the structured-error pipeline.
 Descriptor values materialise only when observed, and minimal reflection profiles reject unavailable
 metadata access. `awaits`, `mutating`, `mutates`, and bare `foreign` have been removed as callable
 qualifiers; suspension and receiver mutation are inferred, while foreign transitions belong to
 concrete adapter or ABI constructs. Accepted and rejected conformance covers catch/finally throwable
-sets, coercion failures propagated across callable boundaries, custom throwables, incompatible
-bounds including inferred `.coerce` failures, callable-contract reflection, descriptor
-materialisation, profile denial, stripped reflection, and rejection of removed qualifiers. This
-satisfies the milestone exit criterion.
+sets, scalar and collection-contained coercion failures propagated across callable boundaries,
+custom throwables, incompatible bounds including inferred explicit and implicit coercion failures,
+callable-contract reflection, descriptor materialisation, profile denial, stripped reflection, and
+rejection of removed qualifiers. This satisfies the milestone exit criterion.
 
 ### Milestone 19 — Async core: tasks, scope, cancellation, and deadlines
 

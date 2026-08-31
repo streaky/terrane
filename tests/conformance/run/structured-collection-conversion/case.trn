@@ -1,0 +1,20 @@
+namespace structured-collection-conversion
+from /core/types import int8, int16
+from /core/collections import list
+from /core/errors import integer-conversion-overflow
+function build list of int8; wide int16
+  return list; wide
+function append-value list of int8; wide int16
+  values list of int8 = list; 1
+  return values.append; wide
+function main;
+  wide int16 = 300
+  try
+    print; (build; wide)[0]
+  catch integer-conversion-overflow
+    print; >constructor conversion caught
+  try
+    print; (append-value; wide)[0]
+  catch integer-conversion-overflow
+    print; >member conversion caught
+  print; >after
