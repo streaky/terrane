@@ -1,6 +1,6 @@
 # Scientific mathematics and data benchmarks
 
-This corpus compares clear implementations of the same scientific or data problem in two groups. `language-baseline` exercises ordinary language facilities in Terrane, Python, and a clean Rust control. `scientific-stack` exercises harder numerical workloads in Python with NumPy/SciPy and in Terrane with the pinned `numr` Rust dependency.
+This corpus compares clear implementations of the same scientific or data problem in two groups. `language-baseline` exercises ordinary language facilities in Terrane, Python, and a clean Rust control. `scientific-stack` exercises harder numerical workloads in pure Terrane, Python with NumPy/SciPy, and Terrane with the pinned `numr` Rust dependency.
 
 The corpus is design and performance evidence, not compiler conformance. Every implementation must pass its problem's correctness profile before the runner records performance measurements.
 
@@ -50,11 +50,9 @@ The Terrane adapters build both the compiler and every generated benchmark execu
 
 The `language-baseline` group retains the five original deterministic workloads. Its Python lane uses only the standard library, its Terrane lane uses only Terrane's standard surface, and its Rust lane is a direct, standalone control. The implementations preserve each problem's intended materialization or fusion boundary rather than optimizing the benchmark into a different algorithm.
 
-The `scientific-stack` group currently contains pairwise oscillatory Bessel-kernel energy and gamma survival-model calibration. These require special functions that would be unreasonable to reproduce inside a language-baseline implementation. Python uses vectorized NumPy arrays and SciPy special functions; Terrane imports `numr` 0.7.0 through `/deps/numr/algorithm/special` and performs the same deterministic formulas with numr's public scalar special-function entry points. Both lanes receive the same size, generate the same data in-process, evaluate every specified term, and return the same scalar contract. The suite does not substitute a hand-tuned foreign kernel or change a dataset to favor either environment.
+The `scientific-stack` group currently contains pairwise oscillatory Bessel-kernel energy and gamma survival-model calibration. Python uses vectorized NumPy arrays and SciPy special functions. Terrane+numr imports `numr` 0.7.0 through `/deps/numr/algorithm/special` and calls its public scalar special-function entry points. Pure Terrane implements the same contracts from arithmetic: rational Bessel approximations with source-authored square root and trigonometry, and incomplete-gamma series and continued fractions with source-authored logarithm, exponential, and log-gamma. All three lanes receive the same size, generate the same data in-process, evaluate every specified term, and return the same scalar contract. The suite does not substitute a hand-tuned foreign kernel or change a dataset to favor either environment.
 
-Python dependencies are resolved by the checked-in `scientific-python/uv.lock`; each Terrane package pins `numr = "=0.7.0"` and checks in its Terrane dependency projection lock. Setup and dependency compilation remain outside execution measurements.
-
-A scientific-stack lane implemented without `numr` is deliberately deferred. Adding it now would either duplicate substantial special-function algorithms or compare a simpler substitute rather than the same work. It should be added only when Terrane has the numerical surface needed for a clear implementation of the exact shared contracts.
+Python dependencies are resolved by the checked-in `scientific-python/uv.lock`; each Terrane+numr package pins `numr = "=0.7.0"` and checks in its Terrane dependency projection lock. Pure Terrane uses only the standard process and output surfaces. Setup and dependency compilation remain outside execution measurements.
 
 ## Published evidence
 
@@ -184,4 +182,4 @@ implementation = "Example compiler 1.x"
 
 Available placeholders are `$repo`, `$suite`, `$problem`, `$implementation`, `$implementation_dir`, and, after preparation, `$prepared`. Use `${name}` where a placeholder touches adjacent text. Commands are argument arrays, not shell strings; literal braces require no escaping. Adapters contain no problem-specific commands or expected values, and adding one does not change `run.py`.
 
-The next scientific-stack lane should be pure Terrane once it can express the exact same numerical contracts clearly without embedding substitute algorithms merely for the benchmark. C, Java, Julia, and other specialised environments can use the same group and adapter boundary when they provide a useful comparison.
+Additional scientific-stack lanes in C, Java, Julia, and other specialised environments can use the same group and adapter boundary when they provide a useful comparison.

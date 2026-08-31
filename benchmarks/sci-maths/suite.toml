@@ -45,7 +45,7 @@ path = "problems/standard-score-outliers"
 [[groups]]
 id = "scientific-stack"
 name = "Scientific stack"
-lanes = ["python-scipy", "terrane-numr"]
+lanes = ["python-scipy", "terrane", "terrane-numr"]
 
 [[groups.problems]]
 path = "problems/bessel-kernel-energy"
