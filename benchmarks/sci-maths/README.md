@@ -1,12 +1,12 @@
 # Scientific mathematics and data benchmarks
 
-This corpus compares clear implementations of the same scientific or data problem. Its first two lanes are ordinary Terrane and ordinary Python without NumPy, SciPy, native extensions, or embedded foreign-language kernels.
+This corpus compares clear implementations of the same scientific or data problem in two groups. `language-baseline` exercises ordinary language facilities in Terrane, Python, and a clean Rust control. `scientific-stack` exercises harder numerical workloads in Python with NumPy/SciPy and in Terrane with the pinned `numr` Rust dependency.
 
 The corpus is design and performance evidence, not compiler conformance. Every implementation must pass its problem's correctness profile before the runner records performance measurements.
 
 ## Run it
 
-Python 3.11 or newer is required for the standard-library TOML reader. The Terrane lane also uses the repository's Rust toolchain.
+Python 3.11 or newer is required for the runner, `uv` provisions the locked NumPy/SciPy environment, and the Terrane, Terrane+numr, and Rust lanes use the repository's Rust toolchain.
 
 ```console
 python3 benchmarks/sci-maths/run.py list
@@ -18,21 +18,32 @@ python3 benchmarks/sci-maths/run.py report
 python3 benchmarks/sci-maths/run.py report --cold-builds
 ```
 
-Global selectors go before the command and may be repeated:
+Global group, problem, and lane selectors go before the command and may be repeated:
 
 ```console
 python3 benchmarks/sci-maths/run.py \
-  --problem scalar-reduction --lane python check
+  --group language-baseline --problem scalar-reduction --lane rust check
+python3 benchmarks/sci-maths/run.py \
+  --group scientific-stack --lane terrane-numr check
 ```
 
 `check` prepares each selected implementation and runs the small correctness profile. `benchmark` and `report` preserve adapter-declared build caches by default, complete all lane setup before running a case, recheck correctness, perform warm-ups, and then record end-to-end program runs. Compilation and preparation time is never included in an execution result; a lane with no build step, such as Python, follows the same timing boundary. Cases are interleaved in suite order within each warm-up or measured run index, rather than finishing all repetitions for one lane before starting another. Pass `--cold-builds` to clear only adapter-declared caches inside this suite and record separate cold and immediately repeated incremental preparation measurements. `benchmark` emits JSON. `report` writes a timestamped Markdown report and a same-named complete JSON record under `reports/` by default; `--output path/report.md` chooses another pair of paths. Neither command removes the repository's Cargo target directory.
 
-`lower` refreshes each lane's declared inspectable lowering. The Terrane lane writes
-`main.lowered.rs` beside every `main.trn`, keeping the generated Rust receipt with the solution.
+`lower` refreshes each lane's declared inspectable lowering. The Terrane and Terrane+numr lanes write `main.lowered.rs` beside every `main.trn`, keeping the generated Rust receipt with the solution.
 
 On Linux systems with delegated cgroup-v2 memory accounting, every launched program and its descendants run in a fresh cgroup. Reports record that cgroup's `memory.peak`: total peak memory charged to the group, including anonymous memory, charged page cache, and kernel memory. Shared pages are charged once, potentially to a cgroup outside the measured execution, so small-footprint results depend on page-cache state and are not directly comparable across machines or reboots. Reports summarize the median and range across measured runs and deliberately label the metric peak memory rather than RSS. When this accounting is unavailable, memory results remain unavailable rather than falling back to a misleading process estimate.
 
-The Terrane adapter builds both the compiler and every generated benchmark executable with Cargo's optimized release profile. When `sccache` is executable on `PATH`, the runner overrides any disabled or absent inherited wrapper with its absolute path and starts the cache server before creating measured process cgroups. When it is unavailable, builds proceed without the runner adding a wrapper. This changes compilation reuse only: compilation and preparation remain outside benchmark execution measurements, which measure the compiled programs. Development and release artifacts are cached separately by the Terrane CLI. Reports capture the machine platform, kernel, CPU model, core counts, memory capacity, CPU frequency governor, start-of-run load average, runner Python version, relevant inherited Python/Rust/Cargo environment variables, and each lane's configured tool versions. The runner records relevant inherited variables rather than publishing the complete environment, which can contain secrets. Successful stderr is retained in JSON and warning-like lines are counted and surfaced in Markdown.
+The Terrane adapters build both the compiler and every generated benchmark executable with Cargo's optimized release profile. The Rust control uses `rustc` at optimization level 3 with fat LTO and one codegen unit. When `sccache` is executable on `PATH`, the runner overrides any disabled or absent inherited wrapper with its absolute path and starts the cache server before creating measured process cgroups. When it is unavailable, builds proceed without the runner adding a wrapper. This changes compilation reuse only: compilation and preparation remain outside benchmark execution measurements, which measure the compiled programs. Development and release artifacts are cached separately by the Terrane CLI. Reports capture the machine platform, kernel, CPU model, core counts, memory capacity, CPU frequency governor, start-of-run load average, runner revision, lane tool versions, every setup and preparation process, and all warm-up and measured process records.
+
+## Groups and fairness
+
+The `language-baseline` group retains the five original deterministic workloads. Its Python lane uses only the standard library, its Terrane lane uses only Terrane's standard surface, and its Rust lane is a direct, standalone control. The implementations preserve each problem's intended materialization or fusion boundary rather than optimizing the benchmark into a different algorithm.
+
+The `scientific-stack` group currently contains pairwise oscillatory Bessel-kernel energy and gamma survival-model calibration. These require special functions that would be unreasonable to reproduce inside a language-baseline implementation. Python uses vectorized NumPy arrays and SciPy special functions; Terrane imports `numr` 0.7.0 through `/deps/numr/algorithm/special` and performs the same deterministic formulas with numr's public scalar special-function entry points. Both lanes receive the same size, generate the same data in-process, evaluate every specified term, and return the same scalar contract. The suite does not substitute a hand-tuned foreign kernel or change a dataset to favor either environment.
+
+Python dependencies are resolved by the checked-in `scientific-python/uv.lock`; each Terrane package pins `numr = "=0.7.0"` and checks in its Terrane dependency projection lock. Setup and dependency compilation remain outside execution measurements.
+
+A scientific-stack lane implemented without `numr` is deliberately deferred. Adding it now would either duplicate substantial special-function algorithms or compare a simpler substitute rather than the same work. It should be added only when Terrane has the numerical surface needed for a clear implementation of the exact shared contracts.
 
 ## Published evidence
 
@@ -116,13 +127,13 @@ execution.
 
 ## Corpus shape
 
-`suite.toml` is the ordered index of lane adapters and problems. A problem owns:
+`suite.toml` is the ordered index of lane adapters and compatibility groups. Each group selects its own lanes and problems, so a lane is never required to implement unrelated workloads. A problem owns:
 
 - a declarative `problem.toml` with dataset construction, correctness results, tolerances, and correctness/performance sizes;
-- one implementation directory per participating lane;
+- one implementation directory per lane in its group;
 - no stored large dataset or language-specific correctness policy.
 
-The initial problems cover:
+The `language-baseline` problems cover:
 
 1. scalar reduction;
 2. materialized element-wise transformation;
@@ -130,13 +141,18 @@ The initial problems cover:
 4. branch-heavy irregular iteration;
 5. composed generation, moment calculation, and classification.
 
+The `scientific-stack` problems cover:
+
+1. an all-pairs oscillatory kernel using the Bessel function $J_0$;
+2. a gamma-distribution survival-probability calibration loss using the regularized upper incomplete gamma function.
+
 Inputs are generated deterministically inside each process from the formula and size in `problem.toml`. Data preparation therefore belongs to the reported end-to-end time and memory. The correctness profile is deliberately small enough to diagnose; the performance profile is reproducible without checked-in bulk data.
 
-Each implementation prints exactly one finite decimal integer or floating-point result. The runner parses it according to the problem's shared result kind and applies the shared exact or tolerance-based correctness contract. Floating expected values are mathematical references rather than fingerprints of one accumulation order. Their absolute tolerances use the standard binary64 forward-error bound with unit roundoff `u = 2^-53`, plus an explicit 2x margin for conservative decimal rounding; as in `math.isclose`, a result passes when either its absolute or relative tolerance holds. The fused performance tolerance is about 1.3e-8 relative to its expected result: wide enough for realistic accumulation-order rounding, but far too narrow to conceal an algorithmic discrepancy.
+Each implementation prints exactly one finite decimal integer or floating-point result. The runner parses it according to the problem's shared result kind and applies the shared exact or tolerance-based correctness contract. Baseline floating expected values are mathematical references rather than fingerprints of one accumulation order; their tolerances account for binary64 accumulation error. Scientific-stack references are computed by the locked SciPy environment and independently checked against numr at both profile sizes. Their tolerances admit the documented cross-library special-function approximation difference while remaining narrow enough to reject a changed formula or omitted terms. As in `math.isclose`, a result passes when either its absolute or relative tolerance holds.
 
 ## Add a language lane
 
-Add one TOML file under `lanes/` and index it from `suite.toml`. The adapter declares reusable command templates and the implementation path relative to every problem:
+Add one TOML file under `lanes/`, index it from `suite.toml`, and include its id only in groups for which it implements every problem. The adapter declares reusable command templates and the implementation path relative to each compatible problem:
 
 ```toml
 id = "example"
@@ -157,4 +173,4 @@ implementation = "Example compiler 1.x"
 
 Available placeholders are `$repo`, `$suite`, `$problem`, `$implementation`, `$implementation_dir`, and, after preparation, `$prepared`. Use `${name}` where a placeholder touches adjacent text. Commands are argument arrays, not shell strings; literal braces require no escaping. Adapters contain no problem-specific commands or expected values, and adding one does not change `run.py`.
 
-The next lanes should be Python with NumPy/SciPy or the relevant scientific package, idiomatic maintainable Rust, and Terrane using a Rust scientific crate, in that order. C, Java, Julia, and specialised environments can use the same adapter boundary when they provide a useful comparison.
+The next scientific-stack lane should be pure Terrane once it can express the exact same numerical contracts clearly without embedding substitute algorithms merely for the benchmark. C, Java, Julia, and other specialised environments can use the same group and adapter boundary when they provide a useful comparison.
