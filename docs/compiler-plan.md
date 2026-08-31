@@ -875,6 +875,12 @@ on an unresolvable right-hand name.
 
 Implemented evidence: semantic analysis now evaluates numeric constants in destination and typed-operand context, including exact integer folding, destination-precision floating folding, Euclidean division, shifts, and bitwise operators. Typed bindings, assignments, parameter defaults, declared call arguments, and declared returns share one exact-arrival validation path. Lowering materialises contextual constants directly, uses representation-only fixed-width widening, emits checked integer/floating crossings with source-oriented `integer-conversion-overflow` details, and keeps statically proven Small `int` locals as machine words. Numeric union bindings retain compiler-owned arm metadata, reject ambiguous constants independently of arm order, preserve the selected runtime arm across assignment, and answer `is a` from that arm. Focused conformance cases cover exact and inexact float narrowing, contextual floating literals, ambiguous union initialization and reassignment, conversion boundaries, operand promotion, and runtime failures.
 
+Checked fixed-width integer-to-floating crossings now stay in their native Rust representations:
+the support path decides exactness from magnitude, bit length, and discarded low bits, then performs
+one primitive cast. Boundary conformance covers signed and unsigned sources through 128 bits for
+both floating widths, including caught inexact arrivals; only adaptive `int` uses the arbitrary-
+precision conversion path.
+
 Milestone 5 must preserve the Small-tier proof for an unnecessary written `coerce; int`, so it
 lowers identically to the equivalent implicit conversion instead of materialising the erased
 adaptive-integer wrapper.

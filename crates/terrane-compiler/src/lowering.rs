@@ -5900,11 +5900,11 @@ impl Emitter<'_> {
                 return format!("(({value}) as {})", rust_type(destination));
             }
             let helper = if destination == ScalarType::Float32 {
-                "exact_f32"
+                "exact_fixed_f32"
             } else {
-                "exact_f64"
+                "exact_fixed_f64"
             };
-            return self.fallible(format!("terrane_int_support::{helper}(&({value}))"), node);
+            return self.fallible(format!("terrane_int_support::{helper}({value})"), node);
         }
         if destination.is_integer() {
             let helper = if source == ScalarType::Float32 {

@@ -722,8 +722,8 @@ fn main() {
     let mut index: i64 = 0;
     while index < count {
         let shape_part: f64 = __terrane_raised(
-            terrane_int_support::exact_f64(
-                &__terrane_raised(
+            terrane_int_support::exact_fixed_f64(
+                __terrane_raised(
                     terrane_int_support::fixed_remainder(index, 17),
                     4 /* terrane-site: src/main.trn:95:26-95:36 */,
                 ),
@@ -731,8 +731,8 @@ fn main() {
             4 /* terrane-site: src/main.trn:95:26-95:36 */,
         );
         let observation_part: f64 = __terrane_raised(
-            terrane_int_support::exact_f64(
-                &__terrane_raised(
+            terrane_int_support::exact_fixed_f64(
+                __terrane_raised(
                     terrane_int_support::fixed_remainder(index, 101),
                     5 /* terrane-site: src/main.trn:96:32-96:43 */,
                 ),
@@ -740,8 +740,8 @@ fn main() {
             5 /* terrane-site: src/main.trn:96:32-96:43 */,
         );
         let target_part: f64 = __terrane_raised(
-            terrane_int_support::exact_f64(
-                &__terrane_raised(
+            terrane_int_support::exact_fixed_f64(
+                __terrane_raised(
                     terrane_int_support::fixed_remainder(index, 7),
                     6 /* terrane-site: src/main.trn:97:27-97:36 */,
                 ),
@@ -760,7 +760,7 @@ fn main() {
         );
     }
     let divisor: f64 = __terrane_raised(
-        terrane_int_support::exact_f64(&count),
+        terrane_int_support::exact_fixed_f64(count),
         8 /* terrane-site: src/main.trn:105:21-105:26 */,
     );
     println!("{}", terrane_scalar_support::scalar_text(&(total / divisor)));

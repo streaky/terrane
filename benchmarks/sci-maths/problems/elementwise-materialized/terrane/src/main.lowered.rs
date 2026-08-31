@@ -598,8 +598,8 @@ fn main() {
     let mut index: i64 = 0;
     while index < count {
         let raw: f64 = __terrane_raised(
-            terrane_int_support::exact_f64(
-                &__terrane_raised(
+            terrane_int_support::exact_fixed_f64(
+                __terrane_raised(
                     terrane_int_support::fixed_remainder(index, 1000),
                     3 /* terrane-site: src/main.trn:22:19-22:31 */,
                 ),

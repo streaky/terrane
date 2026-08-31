@@ -877,6 +877,56 @@ macro_rules! integer_sources {
 
 integer_sources!(i8, i16, i32, i64, i128, u8, u16, u32, u64, u128);
 
+/// A fixed-width integer that can cross into a floating-point destination
+/// without materializing Terrane's adaptive `int` representation.
+pub trait FixedIntegerSource: Copy + ToString + 'static {
+    /// Returns the source integer's absolute magnitude without overflow.
+    fn unsigned_magnitude(self) -> u128;
+    /// Performs the corresponding native Rust conversion to `f32`.
+    fn to_f32(self) -> f32;
+    /// Performs the corresponding native Rust conversion to `f64`.
+    fn to_f64(self) -> f64;
+}
+
+macro_rules! signed_fixed_integer_sources {
+    ($($type:ty),+ $(,)?) => {$(
+        impl FixedIntegerSource for $type {
+            fn unsigned_magnitude(self) -> u128 {
+                self.unsigned_abs() as u128
+            }
+
+            fn to_f32(self) -> f32 {
+                self as f32
+            }
+
+            fn to_f64(self) -> f64 {
+                self as f64
+            }
+        }
+    )+};
+}
+
+macro_rules! unsigned_fixed_integer_sources {
+    ($($type:ty),+ $(,)?) => {$(
+        impl FixedIntegerSource for $type {
+            fn unsigned_magnitude(self) -> u128 {
+                self as u128
+            }
+
+            fn to_f32(self) -> f32 {
+                self as f32
+            }
+
+            fn to_f64(self) -> f64 {
+                self as f64
+            }
+        }
+    )+};
+}
+
+signed_fixed_integer_sources!(i8, i16, i32, i64, i128);
+unsigned_fixed_integer_sources!(u8, u16, u32, u64, u128);
+
 fn fixed_shift_count(value: &impl IntegerSource) -> Result<u32, ArithmeticError> {
     let value = value.integer_value();
     if value < BigInt::from(0_u8) {
@@ -1073,6 +1123,50 @@ pub fn coerce<T: IntegerDestination + 'static>(
             "the value is outside the destination range",
         )
     })
+}
+
+fn exactly_representable_as_binary_float(magnitude: u128, precision: u32) -> bool {
+    if magnitude == 0 {
+        return true;
+    }
+    let bit_length = u128::BITS - magnitude.leading_zeros();
+    bit_length <= precision || magnitude.trailing_zeros() >= bit_length - precision
+}
+
+/// Converts a fixed-width integer to `f64` without allocating, provided the
+/// destination preserves the integer exactly.
+///
+/// # Errors
+/// Returns [`ArithmeticError::IntegerConversionOverflow`] for an inexact value.
+pub fn exact_fixed_f64<T: FixedIntegerSource>(value: T) -> Result<f64, ArithmeticError> {
+    exactly_representable_as_binary_float(value.unsigned_magnitude(), f64::MANTISSA_DIGITS)
+        .then(|| value.to_f64())
+        .ok_or_else(|| {
+            conversion_overflow(
+                &value,
+                terrane_numeric_type(std::any::type_name::<T>()),
+                "float64",
+                "the integer is not exactly representable",
+            )
+        })
+}
+
+/// Converts a fixed-width integer to `f32` without allocating, provided the
+/// destination preserves the integer exactly.
+///
+/// # Errors
+/// Returns [`ArithmeticError::IntegerConversionOverflow`] for an inexact value.
+pub fn exact_fixed_f32<T: FixedIntegerSource>(value: T) -> Result<f32, ArithmeticError> {
+    exactly_representable_as_binary_float(value.unsigned_magnitude(), f32::MANTISSA_DIGITS)
+        .then(|| value.to_f32())
+        .ok_or_else(|| {
+            conversion_overflow(
+                &value,
+                terrane_numeric_type(std::any::type_name::<T>()),
+                "float32",
+                "the integer is not exactly representable",
+            )
+        })
 }
 
 /// Converts an integer to `f64` only when the floating value preserves it exactly.

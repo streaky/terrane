@@ -1,7 +1,7 @@
 use num_bigint::BigInt;
 use terrane_int_support::{
-    ArithmeticError, FixedWidthArithmetic, Int, Tier, checked_coerce, coerce, saturating_coerce,
-    wrapping_coerce,
+    ArithmeticError, FixedWidthArithmetic, Int, Tier, checked_coerce, coerce, exact_fixed_f32,
+    exact_fixed_f64, saturating_coerce, wrapping_coerce,
 };
 
 #[test]
@@ -170,4 +170,53 @@ fn integer_coercion_families_cover_signed_unsigned_and_adaptive_values() {
     let arbitrary = Int::from_big(BigInt::from(u128::MAX) + 1);
     assert_eq!(wrapping_coerce::<u8>(&arbitrary), 0);
     assert_eq!(coerce::<Int>(&arbitrary), Ok(arbitrary));
+}
+
+#[test]
+fn fixed_integer_float_conversions_preserve_exactness_without_adaptive_integers() {
+    assert_eq!(
+        exact_fixed_f64(9_007_199_254_740_992_i64),
+        Ok(9_007_199_254_740_992.0)
+    );
+    assert_eq!(exact_fixed_f64(i64::MIN), Ok(i64::MIN as f64));
+    assert_eq!(
+        exact_fixed_f64(9_007_199_254_740_993_i64),
+        Err(ArithmeticError::conversion_overflow(
+            &9_007_199_254_740_993_i64,
+            "int64",
+            "float64",
+            "the integer is not exactly representable",
+        ))
+    );
+    assert_eq!(
+        exact_fixed_f64(u64::MAX),
+        Err(ArithmeticError::conversion_overflow(
+            &u64::MAX,
+            "uint64",
+            "float64",
+            "the integer is not exactly representable",
+        ))
+    );
+
+    assert_eq!(exact_fixed_f32(16_777_216_i32), Ok(16_777_216.0));
+    assert_eq!(
+        exact_fixed_f32(16_777_217_i32),
+        Err(ArithmeticError::conversion_overflow(
+            &16_777_217_i32,
+            "int32",
+            "float32",
+            "the integer is not exactly representable",
+        ))
+    );
+    let largest_finite_f32_integer = u128::MAX - ((1_u128 << 104) - 1);
+    assert_eq!(exact_fixed_f32(largest_finite_f32_integer), Ok(f32::MAX));
+    assert_eq!(
+        exact_fixed_f32(u128::MAX),
+        Err(ArithmeticError::conversion_overflow(
+            &u128::MAX,
+            "uint128",
+            "float32",
+            "the integer is not exactly representable",
+        ))
+    );
 }

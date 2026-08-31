@@ -643,8 +643,8 @@ fn main() {
     let mut index: i64 = 0;
     while index < count {
         let raw: f64 = __terrane_raised(
-            terrane_int_support::exact_f64(
-                &__terrane_raised(
+            terrane_int_support::exact_fixed_f64(
+                __terrane_raised(
                     terrane_int_support::fixed_subtraction(
                         __terrane_raised(
                             terrane_int_support::fixed_remainder(index, 200),
@@ -658,8 +658,8 @@ fn main() {
             4 /* terrane-site: src/main.trn:23:19-23:38 */,
         );
         let periodic: f64 = __terrane_raised(
-            terrane_int_support::exact_f64(
-                &__terrane_raised(
+            terrane_int_support::exact_fixed_f64(
+                __terrane_raised(
                     terrane_int_support::fixed_remainder(index, 7),
                     5 /* terrane-site: src/main.trn:24:24-24:33 */,
                 ),
@@ -675,7 +675,7 @@ fn main() {
         );
     }
     let divisor: f64 = __terrane_raised(
-        terrane_int_support::exact_f64(&count),
+        terrane_int_support::exact_fixed_f64(count),
         7 /* terrane-site: src/main.trn:30:21-30:26 */,
     );
     let mean: f64 = total / divisor;

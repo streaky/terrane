@@ -670,8 +670,8 @@ fn bessel_j0(argument: f64) -> f64 {
 }
 fn coordinate(index: i64) -> f64 {
     let raw: f64 = __terrane_raised(
-        terrane_int_support::exact_f64(
-            &__terrane_raised(
+        terrane_int_support::exact_fixed_f64(
+            __terrane_raised(
                 terrane_int_support::fixed_remainder(
                     __terrane_raised(
                         terrane_int_support::fixed_multiplication(index, 37),
@@ -710,8 +710,8 @@ fn main() {
         );
     }
     let pair_count: f64 = __terrane_raised(
-        terrane_int_support::exact_f64(
-            &__terrane_raised(
+        terrane_int_support::exact_fixed_f64(
+            __terrane_raised(
                 terrane_int_support::fixed_multiplication(count, count),
                 7 /* terrane-site: src/main.trn:56:24-56:37 */,
             ),
