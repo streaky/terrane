@@ -53,7 +53,7 @@ class RunnerContracts(unittest.TestCase):
 
     def test_suite_validation_reports_missing_and_malformed_contracts(self) -> None:
         valid = {
-            "format": 1,
+            "format": 2,
             "name": "fixture",
             "measurement": {
                 "warmups": 0,
@@ -62,7 +62,14 @@ class RunnerContracts(unittest.TestCase):
                 "runtime-timeout-seconds": 2.5,
             },
             "lanes": [{"path": "lanes/fixture.toml"}],
-            "problems": [{"path": "problems/fixture"}],
+            "groups": [
+                {
+                    "id": "baseline",
+                    "name": "Baseline",
+                    "lanes": ["fixture"],
+                    "problems": [{"path": "problems/fixture"}],
+                }
+            ],
         }
         runner.validate_suite(valid)
 
@@ -286,13 +293,19 @@ class RunnerContracts(unittest.TestCase):
                 "title": problem_id,
                 "dataset": "fixture data",
                 "path": Path.cwd(),
+                "group": "fixture-group",
+                "group_name": "Fixture group",
+                "lane_ids": lane_ids,
                 "result": "integer",
                 "profiles": {
                     "correctness": {"size": 1, "expected": 1},
                     "performance": {"size": 1, "expected": 1},
                 },
             }
-            for problem_id in ("alpha", "beta")
+            for problem_id, lane_ids in (
+                ("alpha", ("first", "second")),
+                ("beta", ("second",)),
+            )
         ]
         calls: list[tuple[str, str, str]] = []
         original_execute = runner.execute
@@ -304,7 +317,10 @@ class RunnerContracts(unittest.TestCase):
         runner.execute = fake_execute
         try:
             runner.benchmark(
-                {"name": "fixture"},
+                {
+                    "name": "fixture",
+                    "groups": [{"id": "fixture-group", "name": "Fixture group"}],
+                },
                 problems,
                 lanes,
                 setup_timeout=5.0,
@@ -319,7 +335,6 @@ class RunnerContracts(unittest.TestCase):
         expected_order = [
             ("performance", "alpha", "first"),
             ("performance", "alpha", "second"),
-            ("performance", "beta", "first"),
             ("performance", "beta", "second"),
         ]
         performance_calls = [call for call in calls if call[0] == "performance"]

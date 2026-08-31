@@ -405,12 +405,12 @@ def validate_problem(problem: dict[str, Any], problem_path: Path) -> None:
 
 
 def validate_suite(suite: dict[str, Any]) -> None:
-    allowed_top_level = {"format", "name", "measurement", "lanes", "problems"}
+    allowed_top_level = {"format", "name", "measurement", "lanes", "groups"}
     unknown = set(suite) - allowed_top_level
     if unknown:
         raise BenchmarkError(f"suite.toml has unknown fields: {', '.join(sorted(unknown))}")
-    if suite.get("format") != 1:
-        raise BenchmarkError("suite.toml must declare format = 1")
+    if suite.get("format") != 2:
+        raise BenchmarkError("suite.toml must declare format = 2")
     if not isinstance(suite.get("name"), str) or not suite["name"]:
         raise BenchmarkError("suite.toml name must be a non-empty string")
 
@@ -445,51 +445,100 @@ def validate_suite(suite: dict[str, Any]) -> None:
         ):
             raise BenchmarkError(f"suite.toml measurement.{field} must be finite and positive")
 
-    for collection in ("lanes", "problems"):
-        entries = suite.get(collection)
-        if not isinstance(entries, list) or not entries:
-            raise BenchmarkError(f"suite.toml {collection} must be a non-empty array of tables")
-        for index, entry in enumerate(entries):
-            if (
-                not isinstance(entry, dict)
-                or set(entry) != {"path"}
-                or not isinstance(entry.get("path"), str)
-                or not entry["path"]
-            ):
-                raise BenchmarkError(
-                    f"suite.toml {collection}[{index}] must contain exactly one non-empty path"
-                )
-            resolved = (SUITE / entry["path"]).resolve()
-            if not resolved.is_relative_to(SUITE):
-                raise BenchmarkError(f"suite.toml {collection}[{index}] path is outside the suite")
+    lanes = suite.get("lanes")
+    if not isinstance(lanes, list) or not lanes:
+        raise BenchmarkError("suite.toml lanes must be a non-empty array of tables")
+    for index, entry in enumerate(lanes):
+        validate_suite_path(entry, f"lanes[{index}]")
+
+    groups = suite.get("groups")
+    if not isinstance(groups, list) or not groups:
+        raise BenchmarkError("suite.toml groups must be a non-empty array of tables")
+    for group_index, group in enumerate(groups):
+        label = f"groups[{group_index}]"
+        if not isinstance(group, dict) or set(group) != {"id", "name", "lanes", "problems"}:
+            raise BenchmarkError(
+                f"suite.toml {label} must contain exactly id, name, lanes, and problems"
+            )
+        for field in ("id", "name"):
+            if not isinstance(group[field], str) or not group[field]:
+                raise BenchmarkError(f"suite.toml {label}.{field} must be a non-empty string")
+        if (
+            not isinstance(group["lanes"], list)
+            or not group["lanes"]
+            or any(not isinstance(lane_id, str) or not lane_id for lane_id in group["lanes"])
+        ):
+            raise BenchmarkError(
+                f"suite.toml {label}.lanes must be a non-empty array of lane ids"
+            )
+        if not isinstance(group["problems"], list) or not group["problems"]:
+            raise BenchmarkError(
+                f"suite.toml {label}.problems must be a non-empty array of tables"
+            )
+        for problem_index, entry in enumerate(group["problems"]):
+            validate_suite_path(entry, f"{label}.problems[{problem_index}]")
+
+
+def validate_suite_path(entry: Any, label: str) -> None:
+    if (
+        not isinstance(entry, dict)
+        or set(entry) != {"path"}
+        or not isinstance(entry.get("path"), str)
+        or not entry["path"]
+    ):
+        raise BenchmarkError(
+            f"suite.toml {label} must contain exactly one non-empty path"
+        )
+    resolved = (SUITE / entry["path"]).resolve()
+    if not resolved.is_relative_to(SUITE):
+        raise BenchmarkError(f"suite.toml {label} path is outside the suite")
+
 
 
 def load_suite() -> tuple[dict[str, Any], list[dict[str, Any]], list[Lane]]:
     suite = load_toml(SUITE / "suite.toml")
     validate_suite(suite)
 
-    problems: list[dict[str, Any]] = []
-    seen_problems: set[str] = set()
-    for item in suite.get("problems", []):
-        problem_path = (SUITE / item["path"]).resolve()
-        problem = load_toml(problem_path / "problem.toml")
-        problem["path"] = problem_path
-        validate_problem(problem, problem_path)
-        problem_id = problem.get("id")
-        if not isinstance(problem_id, str) or problem_id in seen_problems:
-            raise BenchmarkError(f"invalid or duplicate problem id in {problem_path}")
-        seen_problems.add(problem_id)
-        problems.append(problem)
-
     lanes: list[Lane] = []
     seen_lanes: set[str] = set()
-    for item in suite.get("lanes", []):
+    for item in suite["lanes"]:
         config_path = (SUITE / item["path"]).resolve()
         lane = load_lane(config_path)
         if lane.lane_id in seen_lanes:
             raise BenchmarkError(f"duplicate lane id {lane.lane_id!r} in {config_path}")
         seen_lanes.add(lane.lane_id)
         lanes.append(lane)
+
+    problems: list[dict[str, Any]] = []
+    seen_groups: set[str] = set()
+    seen_problems: set[str] = set()
+    for group in suite["groups"]:
+        group_id = group["id"]
+        if group_id in seen_groups:
+            raise BenchmarkError(f"duplicate group id {group_id!r} in suite.toml")
+        seen_groups.add(group_id)
+        group_lane_ids = group["lanes"]
+        if len(group_lane_ids) != len(set(group_lane_ids)):
+            raise BenchmarkError(f"group {group_id!r} contains duplicate lane ids")
+        unknown_lanes = set(group_lane_ids) - seen_lanes
+        if unknown_lanes:
+            raise BenchmarkError(
+                f"group {group_id!r} references unknown lanes: "
+                + ", ".join(sorted(unknown_lanes))
+            )
+        for item in group["problems"]:
+            problem_path = (SUITE / item["path"]).resolve()
+            problem = load_toml(problem_path / "problem.toml")
+            problem["path"] = problem_path
+            problem["group"] = group_id
+            problem["group_name"] = group["name"]
+            problem["lane_ids"] = tuple(group_lane_ids)
+            validate_problem(problem, problem_path)
+            problem_id = problem.get("id")
+            if not isinstance(problem_id, str) or problem_id in seen_problems:
+                raise BenchmarkError(f"invalid or duplicate problem id in {problem_path}")
+            seen_problems.add(problem_id)
+            problems.append(problem)
     return suite, problems, lanes
 
 
@@ -667,6 +716,20 @@ def selected(
         for value, identifier in zip(values, identifiers, strict=True)
         if identifier in wanted
     ]
+def lanes_for_problem(problem: dict[str, Any], lanes: list[Lane]) -> list[Lane]:
+    allowed = set(problem["lane_ids"])
+    return [lane for lane in lanes if lane.lane_id in allowed]
+
+
+def active_lanes(problems: list[dict[str, Any]], lanes: list[Lane]) -> list[Lane]:
+    active_ids = {
+        lane.lane_id
+        for problem in problems
+        for lane in lanes_for_problem(problem, lanes)
+    }
+    return [lane for lane in lanes if lane.lane_id in active_ids]
+
+
 
 
 def process_record(result: ProcessResult | None) -> dict[str, Any] | None:
@@ -685,11 +748,13 @@ def process_record(result: ProcessResult | None) -> dict[str, Any] | None:
 def materialize_lowering(
     problems: list[dict[str, Any]], lanes: list[Lane], timeout: float
 ) -> None:
-    lowering_lanes = [lane for lane in lanes if lane.lower]
+    lowering_lanes = [
+        lane for lane in active_lanes(problems, lanes) if lane.lower
+    ]
     for lane in lowering_lanes:
         setup_lane(lane, timeout)
     for problem in problems:
-        for lane in lowering_lanes:
+        for lane in lanes_for_problem(problem, lowering_lanes):
             if lane.lower_output is None:
                 raise BenchmarkError(f"{lane.lane_id} declares lower without lower-output")
             context = command_context(problem, lane)
@@ -711,10 +776,10 @@ def check(
     setup_timeout: float,
     runtime_timeout: float,
 ) -> None:
-    for lane in lanes:
+    for lane in active_lanes(problems, lanes):
         setup_lane(lane, setup_timeout)
     for problem in problems:
-        for lane in lanes:
+        for lane in lanes_for_problem(problem, lanes):
             prepared, _ = prepare_implementation(problem, lane, setup_timeout)
             actual, _ = execute(problem, lane, prepared, "correctness", runtime_timeout)
             print(f"ok  {problem['id']:<24} {lane.lane_id:<10} {actual}")
@@ -817,9 +882,15 @@ def benchmark(
     cold_builds: bool,
 ) -> dict[str, Any]:
     memory_available = memory_measurement_available()
+    selected_groups = list(dict.fromkeys(problem["group"] for problem in problems))
     report: dict[str, Any] = {
-        "format": 2,
+        "format": 3,
         "suite": suite["name"],
+        "groups": [
+            {"id": group["id"], "name": group["name"]}
+            for group in suite["groups"]
+            if group["id"] in selected_groups
+        ],
         "created_at": datetime.now(timezone.utc).isoformat(),
         "environment": machine_environment(),
         "measurement": {
@@ -853,7 +924,7 @@ def benchmark(
         "lane_setup": {},
         "results": [],
     }
-    for lane in lanes:
+    for lane in active_lanes(problems, lanes):
         setup = setup_lane(lane, setup_timeout)
         report["lane_setup"][lane.lane_id] = {
             "name": lane.name,
@@ -864,7 +935,7 @@ def benchmark(
 
     cases: list[dict[str, Any]] = []
     for problem in problems:
-        for lane in lanes:
+        for lane in lanes_for_problem(problem, lanes):
             cache_was_present = lane_cache_exists(problem, lane)
             cold_prepare = None
             incremental_prepare = None
@@ -889,6 +960,7 @@ def benchmark(
             )
             result_record = {
                 "problem": problem["id"],
+                "group": problem["group"],
                 "title": problem["title"],
                 "dataset": problem["dataset"],
                 "correctness_profile": dict(problem["profiles"]["correctness"]),
@@ -1042,37 +1114,47 @@ def render_markdown(report: dict[str, Any], raw_report_name: str) -> str:
             + " |"
         )
 
-    lines.extend(
-        [
-            "",
-            "## Execution results",
-            "",
-            "| Problem | Lane | Size | Result | Median wall time | Range | Median peak memory | Peak memory range | Warnings |",
-            "|---|---|---:|---:|---:|---:|---:|---:|---:|",
-        ]
-    )
-    for result in report["results"]:
-        runs = result["runs"]
-        times = [run["wall_seconds"] for run in runs]
-        peaks = [run["peak_memory_bytes"] for run in runs if run["peak_memory_bytes"] is not None]
-        time_range = f"{format_seconds(min(times))}–{format_seconds(max(times))}"
-        lines.append(
-            "| "
-            + " | ".join(
-                [
-                    markdown_text(result["title"]),
-                    markdown_text(result["lane"]),
-                    str(result["performance_profile"]["size"]),
-                    markdown_text(result["performance_result"]),
-                    format_seconds(median(times)),
-                    time_range,
-                    format_bytes(int(median(peaks))) if peaks else "—",
-                    f"{format_bytes(min(peaks))}–{format_bytes(max(peaks))}" if peaks else "—",
-                    str(sum(len(run["warning_lines"]) for run in runs)),
-                ]
-            )
-            + " |"
+    lines.extend(["", "## Execution results"])
+    for group in report["groups"]:
+        lines.extend(
+            [
+                "",
+                f"### {markdown_text(group['name'])}",
+                "",
+                "| Problem | Lane | Size | Result | Median wall time | Range | Median peak memory | Peak memory range | Warnings |",
+                "|---|---|---:|---:|---:|---:|---:|---:|---:|",
+            ]
         )
+        for result in (
+            result for result in report["results"] if result["group"] == group["id"]
+        ):
+            runs = result["runs"]
+            times = [run["wall_seconds"] for run in runs]
+            peaks = [
+                run["peak_memory_bytes"]
+                for run in runs
+                if run["peak_memory_bytes"] is not None
+            ]
+            time_range = f"{format_seconds(min(times))}–{format_seconds(max(times))}"
+            lines.append(
+                "| "
+                + " | ".join(
+                    [
+                        markdown_text(result["title"]),
+                        markdown_text(result["lane"]),
+                        str(result["performance_profile"]["size"]),
+                        markdown_text(result["performance_result"]),
+                        format_seconds(median(times)),
+                        time_range,
+                        format_bytes(int(median(peaks))) if peaks else "—",
+                        f"{format_bytes(min(peaks))}–{format_bytes(max(peaks))}"
+                        if peaks
+                        else "—",
+                        str(sum(len(run["warning_lines"]) for run in runs)),
+                    ]
+                )
+                + " |"
+            )
 
     preparation_results = [
         result
@@ -1143,6 +1225,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--problem", action="append", default=[], help="problem id (repeatable)")
     parser.add_argument("--lane", action="append", default=[], help="lane id (repeatable)")
+    parser.add_argument("--group", action="append", default=[], help="group id (repeatable)")
     parser.add_argument(
         "--setup-timeout",
         type=float,
@@ -1173,6 +1256,11 @@ def main() -> int:
     arguments = parser.parse_args()
     try:
         suite, problems, lanes = load_suite()
+        groups = selected(
+            suite["groups"], arguments.group, [group["id"] for group in suite["groups"]]
+        )
+        selected_group_ids = {group["id"] for group in groups}
+        problems = [problem for problem in problems if problem["group"] in selected_group_ids]
         problems = selected(problems, arguments.problem, [problem["id"] for problem in problems])
         lanes = selected(lanes, arguments.lane, [lane.lane_id for lane in lanes])
         measurement = suite["measurement"]
@@ -1189,13 +1277,18 @@ def main() -> int:
         if setup_timeout <= 0 or runtime_timeout <= 0:
             raise BenchmarkError("setup and runtime timeouts must be positive")
         if arguments.command == "list":
+            print("Groups:")
+            for group in groups:
+                print(f"  {group['id']:<24} {group['name']}")
             print("Problems:")
             for problem in problems:
-                print(f"  {problem['id']:<24} {problem['title']}")
+                print(f"  {problem['id']:<24} {problem['title']} [{problem['group']}]")
             print("Lanes:")
             for lane in lanes:
                 print(f"  {lane.lane_id:<24} {lane.name}")
             return 0
+        if not active_lanes(problems, lanes):
+            raise BenchmarkError("selection produced no runnable problem and lane combinations")
         prepare_sccache_server()
         if arguments.command == "lower":
             materialize_lowering(problems, lanes, setup_timeout)

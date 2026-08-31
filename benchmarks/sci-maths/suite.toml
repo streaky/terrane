@@ -1,4 +1,4 @@
-format = 1
+format = 2
 name = "Terrane scientific mathematics and data workloads"
 
 [measurement]
@@ -13,17 +13,22 @@ path = "lanes/terrane.toml"
 [[lanes]]
 path = "lanes/python.toml"
 
-[[problems]]
+[[groups]]
+id = "language-baseline"
+name = "Language baseline"
+lanes = ["terrane", "python"]
+
+[[groups.problems]]
 path = "problems/scalar-reduction"
 
-[[problems]]
+[[groups.problems]]
 path = "problems/elementwise-materialized"
 
-[[problems]]
+[[groups.problems]]
 path = "problems/fused-transform-reduction"
 
-[[problems]]
+[[groups.problems]]
 path = "problems/collatz-branching"
 
-[[problems]]
+[[groups.problems]]
 path = "problems/standard-score-outliers"
