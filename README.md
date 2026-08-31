@@ -56,16 +56,18 @@ The working `terrane` CLI can check, lower, build, and run manifest-backed progr
 
 ## Developing Terrane
 
-Cargo works without a compiler wrapper. Developers may optionally configure
-[`sccache`](https://github.com/mozilla/sccache) in their own environment to share compiled Rust
-artifacts across target directories and branches; repository checks and benchmarks neither require
-it nor clear its cache.
+The Terrane compiler automatically uses
+[`sccache`](https://github.com/mozilla/sccache) for every compiler-owned Cargo invocation when an
+executable is available on `PATH`, setting an absolute `RUSTC_WRAPPER` independently of the user's
+Cargo environment. It falls back to Cargo without adding a wrapper when `sccache` is unavailable.
+The scientific benchmark runner applies the same policy while building the compiler and generated
+programs; an unavailable cache is not an error, and repository checks and benchmarks never clear it.
 
 Projects that declare `[rust-dependencies]` additionally require the pinned Rust nightly toolchain and
 Linux [`bubblewrap`](https://github.com/containers/bubblewrap) (`bwrap`) on `PATH`. Bubblewrap contains
 Cargo and rustdoc inspection of third-party packages; dependency-free Terrane projects do not require it.
 
-Cargo retains downloaded registry indexes and crate archives in `CARGO_HOME`, so repeated toolchain and conformance builds do not download unchanged dependencies again. The conformance runner additionally reuses one generated Cargo workspace for all accepted cases in a corpus run. A developer-configured compiler cache may provide further reuse across separate runs and branches.
+Cargo retains downloaded registry indexes and crate archives in `CARGO_HOME`, so repeated toolchain and conformance builds do not download unchanged dependencies again. The conformance runner additionally reuses one generated Cargo workspace for all accepted cases in a corpus run. When available, `sccache` provides further reuse across separate runs and branches.
 
 Generated Rust is returned exactly as Terrane lowering emits it. Compiler work can pass
 `--require-canonical-rust` after any CLI command name to compare that untouched output with the
