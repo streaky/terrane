@@ -367,6 +367,13 @@ floating-point value T
 │   ├── T <= T -> bool
 │   ├── T > T -> bool
 │   └── T >= T -> bool
+├── foundational mathematics properties
+│   ├── .square-root -> T
+│   ├── .sine -> T
+│   ├── .cosine -> T
+│   ├── .sine-cosine -> tuple of T, length 2
+│   ├── .natural-log -> T
+│   └── .exponential -> T
 ├── integer rounding properties
 │   ├── .round -> int          ties to even
 │   ├── .floor -> int
@@ -375,6 +382,11 @@ floating-point value T
 └── descriptor relation
     └── value is a descriptor T -> bool
 ```
+
+The foundational mathematics members are properties rather than callables and accept no arguments.
+They preserve the receiver precision, lower directly to the corresponding Rust primitive operation,
+and therefore inherit IEEE-754 NaN, infinity, signed-zero, domain, overflow, and underflow behavior.
+`sine-cosine` evaluates the receiver once and returns sine followed by cosine.
 
 No float conversion methods are implemented. Numeric destinations do implement exact integer/floating crossings and exact `float64`-to-`float32` narrowing; inexact narrowing fails with `integer-conversion-overflow`.
 

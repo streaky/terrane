@@ -4758,6 +4758,30 @@ impl Emitter<'_> {
                 format!("({receiver}).value.clone()")
             }
             "type" => "()".to_owned(),
+            operation @ ("square-root" | "sine" | "cosine" | "sine-cosine" | "natural-log"
+            | "exponential")
+                if matches!(
+                    receiver_type.clone(),
+                    Some(ValueType::Scalar(ScalarType::Float32 | ScalarType::Float64))
+                ) =>
+            {
+                if operation == "sine-cosine" {
+                    return format!(
+                        "{{ let terrane_sine_cosine = ({receiver}).sin_cos(); \
+                         terrane_collection_support::Tuple::new(vec![\
+                         terrane_sine_cosine.0, terrane_sine_cosine.1]) }}"
+                    );
+                }
+                let method = match operation {
+                    "square-root" => "sqrt",
+                    "sine" => "sin",
+                    "cosine" => "cos",
+                    "natural-log" => "ln",
+                    "exponential" => "exp",
+                    _ => unreachable!(),
+                };
+                format!("({receiver}).{method}()")
+            }
             mode @ ("round" | "floor" | "ceiling" | "truncate")
                 if matches!(
                     receiver_type.clone(),

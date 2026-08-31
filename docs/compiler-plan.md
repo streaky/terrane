@@ -1794,6 +1794,41 @@ uses `serde_json`'s `Option<Number>`, `u128` edge coercion, data-free enum varia
 comparison; focused package, projection, semantic, generated-Rust, and rejection checks cover the
 remaining contracts.
 
+### Milestone 25.3 — Complete foundational floating-point surface
+
+The first vertical slice of foundational floating-point mathematics establishes `square-root`,
+`sine`, `cosine`, `sine-cosine`, `natural-log`, and `exponential` as scalar language members.
+This milestone completes that same non-scientific surface; it does not add special functions,
+probability distributions, linear algebra, or array mathematics.
+
+Implemented foundation: both floating widths expose those six zero-argument properties, preserve
+their receiver precision, and lower to Rust primitive operations without a scientific dependency.
+`foundational-float-math` covers both widths, the two-result `sine-cosine` shape, and representative
+NaN, signed-zero, and infinity behavior; focused rejection cases cover receiver and property/call
+shape. Its reviewed lowering is canonical and executes warning-free.
+
+Deliver:
+
+- remaining roots and powers: cube root, hypotenuse, floating power, and integer-exponent power;
+- remaining exponentials and logarithms: base-two exponential, near-zero exponential-minus-one,
+  near-one natural logarithm, and base-two, base-ten, and arbitrary-base logarithms;
+- remaining trigonometry: tangent, inverse sine/cosine/tangent, and two-argument arctangent;
+- basic scalar utilities: absolute value, copied sign, sign-bit query, minimum, maximum, clamp,
+  fractional-part extraction, and fused multiply-add;
+- complete IEEE classification, including zero, normal, subnormal, finite, infinite, and NaN;
+- numerical-algorithm utilities: next representable value upward and downward, mantissa/exponent
+  decomposition, and exact scaling by an integral power of two;
+- descriptor constants for radix, significand precision, epsilon, minimum positive normal and
+  subnormal values, and finite minimum and maximum;
+- settled contracts for NaN selection, signed zero, infinity, domain behavior, overflow,
+  underflow, rounding, accuracy bounds, and target reproducibility for every delivered member.
+
+Exit criterion: accepted conformance cases exercise every member on both `float32` and `float64`,
+including representative IEEE boundary values; rejected cases prove receiver type, property/call
+shape, and argument contracts. Generated Rust uses direct target operations or compiler-owned scalar
+support, compiles warning-free, and execution matches the documented source contract without a
+scientific dependency.
+
 ### Milestone 26 — Remaining concurrency and system adapters
 
 Milestone 25.2 already established the package `[profile]` model, validates declared dependency

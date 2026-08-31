@@ -1617,7 +1617,26 @@ too-large int64 = 9223372036854775808 # compile-time range error
 
 Outside every destination and operand context, a whole-number constant expression is an `int` and a decimal constant expression is a `float`. The compiler may represent scalar objects as native Rust primitives when semantics permit.
 
-### 11.3 Dynamic bindings
+### 11.3 Foundational floating-point mathematics
+
+`float32` and `float64` provide the scalar operations needed to build ordinary numerical algorithms without importing a scientific package:
+
+| Member | Result | Contract |
+|---|---|---|
+| `value.square-root` | receiver type | IEEE square root; a negative finite operand produces NaN, either zero preserves its sign, and positive infinity remains infinite |
+| `value.sine` | receiver type | sine in radians |
+| `value.cosine` | receiver type | cosine in radians |
+| `value.sine-cosine` | tuple of receiver type | the sine followed by the cosine, computed as one combined operation when the target provides one |
+| `value.natural-log` | receiver type | natural logarithm; positive zero produces negative infinity, a negative finite operand produces NaN, and positive infinity remains infinite |
+| `value.exponential` | receiver type | base-$e$ exponential; negative infinity produces positive zero and positive infinity remains infinite |
+
+These are properties: `value.square-root`, not `value.square-root;`. Each accepts no explicit arguments, preserves `float32` or `float64`, and follows the target's IEEE-754 operation for NaN propagation, signed zero, infinity, overflow, underflow, and rounding. They do not throw for a floating-point domain or range condition. The compiler lowers them directly to the corresponding target primitive or to the smallest compiler-owned scalar support routine required to preserve this contract; they never require a scientific-stack dependency.
+
+The language specifies correctly rounded results where the target primitive provides that guarantee. Otherwise the implementation must document a bounded error and keep results deterministic for one compiler version, target, and floating-point mode. Cross-target bit identity is not required for these transcendental operations. Compile-time evaluation, when offered, must use the same observable contract as runtime evaluation and must not introduce a second approximation policy.
+
+These foundational members do not include Bessel functions, incomplete gamma functions, probability distributions, linear algebra, or array operations. Such algorithms belong in reviewed standard or scientific packages built on this scalar substrate.
+
+### 11.4 Dynamic bindings
 
 A binding without a type annotation may be rebound to another type:
 
@@ -1630,7 +1649,7 @@ This is dynamic binding, not an untyped value.
 
 The compiler may still infer a concrete representation over regions where the type is stable.
 
-### 11.4 Typed bindings and definite assignment
+### 11.5 Typed bindings and definite assignment
 
 A type expression follows the binding name. An initializer is optional:
 
@@ -1692,7 +1711,7 @@ count int = 4.2        # compile-time error: the constant is not an integer
 name string = 42       # type error: no numeric-to-string destination conversion
 ```
 
-### 11.5 Explicit coercion
+### 11.6 Explicit coercion
 
 Coercion is a callable method family on the source value:
 
@@ -1726,7 +1745,7 @@ Interpretation in a base other than ten is a distinct operation attached by rece
 
 Locale-dependent parsing belongs to an imported formatting facility, never to `coerce`.
 
-### 11.5.1 User-supplied interpretation: `parse`
+### 11.6.1 User-supplied interpretation: `parse`
 
 `coerce` covers the conversions the language defines. Interpretation the language does not define is supplied by the program through `parse`, which always takes a callback as a required argument:
 
@@ -1753,7 +1772,7 @@ d.parse.checked; to-code    # int|string|none
 
 In version one the callback must be a statically resolvable function name rather than an arbitrary expression. The compiler then resolves and inlines it exactly as it resolves a coercion destination, with no runtime callable representation and no boxed value. The restriction lifts when first-class function values arrive.
 
-### 11.6 Type objects
+### 11.7 Type objects
 
 A type is a language construct backed by a canonical object, not an independently instantiated value. An ordinary binding may not name one:
 
@@ -1793,7 +1812,7 @@ These are interface and category contracts used for member attachment, compatibi
 
 Type objects are canonical compiler-owned descriptors with stable type identity. They are semantic objects rather than ordinary values: the backing object is real — `.type` returns it, `is a` compares it, canonical identity survives rebinding under another name, and reflection exposes it — but it is never independently constructed by source and never occupies an ordinary variable slot. Source-observable behavior must remain the same as naming the descriptor directly: `.type`, identity, compatibility queries, and operations such as `coerce` all consult the same canonical descriptor. Version one does not accept an arbitrary runtime value as a type expression or coercion destination; the value must resolve to a finite, compiler-known descriptor alternative so lowering remains statically representable.
 
-### 11.7 Union and parameterised types
+### 11.8 Union and parameterised types
 
 Union types use `|`. `none` is an ordinary union member rather than a special generic wrapper:
 
@@ -1834,12 +1853,12 @@ array of function from int to boolean, 16
 `function to R` takes no arguments. In `function from A, B to R`, the comma separates parameter types and the final `to` introduces the return type. Function types associate to the right: an ungrouped nested `function` consumes its own `to` and return type before parsing resumes in the enclosing parameter list. The formatter must add grouping whenever nested `from`/`to` structure would otherwise be difficult to scan. Calling convention, variadic behaviour, and foreign ABI are type-constructor or declaration metadata; they do not alter this core grammar.
 
 Type constructors and function types remain human-facing and compositional. Compilers, formatters, documentation, and generated bindings must render these canonical forms rather than leaking Rust, C++, or adapter-specific generic notation.
-### 11.8 Source generic declarations
+### 11.9 Source generic declarations
 
 The first core language deliberately does not declare source type parameters. `list of string` applies a constructor supplied by the language or a package; it does not imply that users can declare `T`. Generic Rust APIs may be exposed only when an adapter can erase them behind a concrete object/interface contract or generate named concrete instantiations. Otherwise they require a wrapper and are not directly representable.
 
 Strict code uses concrete types, unions, interfaces, or generated concrete declarations. It must not fall back to dynamic typing merely to simulate a missing type parameter. Source-declared generics remain a future language change requiring syntax, constraint rules, inference, dispatch, reflection, and code-generation semantics; no implementation may invent private syntax meanwhile.
-### 11.9 Strict typing scopes
+### 11.10 Strict typing scopes
 
 A `strict types` directive may apply to a function, class, namespace, package, or build profile.
 
@@ -1853,7 +1872,7 @@ In strict type mode:
 
 Strictness is local and composable. A strict package may call a dynamic package through generated checked boundaries.
 
-### 11.10 Type checking time
+### 11.11 Type checking time
 
 A type violation should be reported at compile time when provable.
 
@@ -1861,7 +1880,7 @@ When a dynamic value crosses a typed boundary and its concrete type is not known
 
 Version one reaches that runtime path in no ordinary program. Because it admits a dynamic binding only when its alternatives form a finite compiler-known set, as stated in §9.6, protocol availability and typed-boundary compatibility are decided statically across every alternative and incompatibility is a compile-time error. The runtime check exists for later erased or foreign dynamic values whose complete alternatives are unavailable at compilation.
 
-### 11.11 Truth
+### 11.12 Truth
 
 Conditions use an object’s truth protocol:
 
@@ -1876,7 +1895,7 @@ Other standard objects may implement truth, but the rules are explicit and inspe
 
 Strict type mode may require a `bool` condition.
 
-### 11.12 `none`
+### 11.13 `none`
 
 There is exactly one core absence value:
 
@@ -1895,7 +1914,7 @@ list;
 
 A typed binding rejects `none` unless its type expression includes it.
 
-### 11.13 Equality, identity, and type membership
+### 11.14 Equality, identity, and type membership
 
 The language keeps three different questions separate:
 
@@ -2493,7 +2512,7 @@ The compiler may lower a generator to:
 Generator support may follow the first compiler milestone, but its semantics should be reserved early to avoid later control-flow conflicts.
 ### 13.11 Generic functions
 
-Functions cannot declare type parameters in the first core language. See §11.8. An interface-typed function is dynamically dispatched through that interface contract; it is not an implicitly monomorphised generic.
+Functions cannot declare type parameters in the first core language. See §11.9. An interface-typed function is dynamically dispatched through that interface contract; it is not an implicitly monomorphised generic.
 
 ---
 
@@ -3189,7 +3208,7 @@ The compiler classifies a source/destination pair by one mechanical test: whethe
 
 If the source type has values the destination cannot represent, the conversion remains admitted but checks the runtime value. Integer narrowing throws `integer-conversion-overflow` when out of range. Integer to floating succeeds only when that integer is exactly representable and otherwise throws `integer-conversion-overflow`: binary32 exactly covers every integer through $2^{24}$ and binary64 through $2^{53}$, but larger exactly representable multiples remain valid, so $2^{53}+1$ fails a `float64` destination while $2^{54}$ arrives. Floating narrowing likewise succeeds only when widening the narrowed result reproduces the source value; signed zero and signed infinity therefore preserve their sign and arrive, while a finite value changed by rounding and every NaN throw `integer-conversion-overflow` because narrowing cannot preserve a NaN value and payload exactly. A floating value reaches an integer destination only when finite, integral, and in range; fractional values, NaN, and infinities throw `integer-conversion-overflow`. No optimiser proof is required for acceptance, though range analysis may remove a check whose outcome is statically known.
 
-None of these conversions creates a subtype relation. A destination supplies one unambiguous target type; mixed-operand arithmetic without one follows §17.3 instead. A union destination follows §11.7.
+None of these conversions creates a subtype relation. A destination supplies one unambiguous target type; mixed-operand arithmetic without one follows §17.3 instead. A union destination follows §11.8.
 
 Written coercion remains available to request a policy different from the destination default:
 
@@ -3202,7 +3221,7 @@ value.coerce.saturate; T    # clamp to destination bounds
 
 For integer destinations, bare `coerce` has the same exact-or-throw result as an implicit destination conversion. `checked` returns `T|none`; `wrap` reduces the mathematical value modulo `2^N` and interprets the resulting bits using the destination signedness; `saturate` clamps to the destination bounds. Therefore `-1.coerce.wrap; uint8` is `255`, `255.coerce.wrap; int8` is `-1`, and `300.coerce.saturate; uint8` is `255`. Wrapping and saturation exist only for fixed-width destinations.
 
-Written integer-to-floating `coerce` deliberately requests IEEE round-to-nearest, ties-to-even, as specified in §11.5; the implicit destination form is exact-or-throw. Floating values expose `round`, `floor`, `ceiling`, and `truncate`, each yielding an integer; `round` uses ties-to-even. These members state how a fractional value should become integral before an integer destination receives it.
+Written integer-to-floating `coerce` deliberately requests IEEE round-to-nearest, ties-to-even, as specified in §11.6; the implicit destination form is exact-or-throw. Floating values expose `round`, `floor`, `ceiling`, and `truncate`, each yielding an integer; `round` uses ties-to-even. These members state how a fractional value should become integral before an integer destination receives it.
 
 Lowering materialises a contextual constant directly in the destination representation, emits an unchecked representation change for exact widening, and emits a direct narrow/widen-back comparison for a checked conversion whose source and destination are statically known. An implicit narrowing and an equivalent written `coerce` must generate equivalent checks. Exact widening from a fixed-width integer to adaptive `int` selects storage from the source range: `int8` through `int64` and `uint8` through `uint32` fit the Small tier; `uint64` through `int128` fit the Wide tier; and `uint128` uses Wide below $2^{127}$ or Big otherwise. A Big conversion may allocate, whose failure follows the ordinary allocation contract, but it cannot throw a conversion error. Flat spellings such as `checked-coerce`, `wrapping-coerce`, and `saturating-coerce` are not language syntax.
 

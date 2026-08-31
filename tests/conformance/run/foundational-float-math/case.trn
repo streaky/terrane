@@ -1,0 +1,35 @@
+namespace foundational-float-math
+from /core/collections import tuple
+from /core/types import float32, float64
+
+function main;
+  zero32 float32 = 0.0
+  one32 float32 = 1.0
+  nine32 float32 = 9.0
+  print; nine32.square-root == 3.0
+  print; zero32.sine == 0.0
+  print; zero32.cosine == 1.0
+  pair32 tuple of float32 = zero32.sine-cosine
+  print; pair32.length == 2, pair32[0] == 0.0, pair32[1] == 1.0
+  print; one32.natural-log == 0.0
+  print; zero32.exponential == 1.0
+
+  zero64 float64 = 0.0
+  one64 float64 = 1.0
+  nine64 float64 = 9.0
+  print; nine64.square-root == 3.0
+  print; zero64.sine == 0.0
+  print; zero64.cosine == 1.0
+  pair64 tuple of float64 = zero64.sine-cosine
+  print; pair64.length == 2, pair64[0] == 0.0, pair64[1] == 1.0
+  print; one64.natural-log == 0.0
+  print; zero64.exponential == 1.0
+
+  negative float64 = -1.0
+  not-a-number float64 = negative.square-root
+  print; not-a-number != not-a-number
+  negative-zero float64 = -0.0
+  reciprocal float64 = 1.0 / negative-zero.square-root
+  print; reciprocal < 0.0
+  negative-infinity float64 = zero64.natural-log
+  print; negative-infinity < 0.0

@@ -7471,13 +7471,22 @@ fn infer_value_type(
             && callee.kind == SyntaxKind::MemberExpression
             && let Some(member_type) = infer_member_value_type(unit, callee, bindings)?
         {
-            match member_type {
-                ValueType::Function(_, result) => return Ok(Some(result.value_type())),
-                ValueType::AsyncFunction(_, result) => {
-                    return Ok(Some(ValueType::Task(result)));
-                }
-                _ => {}
-            }
+            return match member_type {
+                ValueType::Function(_, result) => Ok(Some(result.value_type())),
+                ValueType::AsyncFunction(_, result) => Ok(Some(ValueType::Task(result))),
+                _ => Err(failure(
+                    &unit.source,
+                    "T0012",
+                    format!(
+                        "`.{}` is a property and cannot be invoked",
+                        node_text(
+                            &unit.source,
+                            callee.children.get(1).expect("member expression")
+                        )
+                    ),
+                    callee.span,
+                )),
+            };
         }
         if let Some(callee) = node.children.first()
             && callee.kind == SyntaxKind::Name
@@ -8384,6 +8393,26 @@ fn infer_member_value_type(
             ));
         }
         _ => {}
+    }
+    if matches!(
+        member_name,
+        "square-root" | "sine" | "cosine" | "sine-cosine" | "natural-log" | "exponential"
+    ) {
+        if let Some(ValueType::Scalar(receiver @ (ScalarType::Float32 | ScalarType::Float64))) =
+            receiver_type.clone()
+        {
+            return Ok(Some(if member_name == "sine-cosine" {
+                ValueType::Tuple(ElementType::new(ValueType::Scalar(receiver)), Some(2))
+            } else {
+                ValueType::Scalar(receiver)
+            }));
+        }
+        return Err(failure(
+            &unit.source,
+            "T0013",
+            format!("`.{member_name}` requires a floating receiver"),
+            receiver.span,
+        ));
     }
     if matches!(member_name, "round" | "floor" | "ceiling" | "truncate") {
         if matches!(

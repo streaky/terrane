@@ -388,6 +388,8 @@ negative_shift: throws negative-shift-count
 - Small multiplication computes exact `i128` intermediate; wider operations preserve exactness.
 - Division by zero throws `division-by-zero`.
 - Fixed widths require explicit `checked`/`wrap`/`saturate`/`overflowing` family children, never host build-mode behavior; fixed-width shift counts need their own source-language contract rather than inherited host behavior.
+
+
 - A constant expression is a literal, unary-negated literal, parenthesised constant, or compile-time arithmetic combination. Its whole-number/decimal spelling does not fix a type. Typed binding initialization or assignment, a parameter default, a declared argument or return, a declared element or field, and a typed numeric operand supply context.
 - Integer constant folding uses exact arithmetic with unbounded intermediates and checks only the final destination value. Floating folding performs each operation at destination precision, matching runtime arithmetic rather than rounding an exact result once; finite decimal/non-integral results may round normally, but an integral whole-number value must be exactly representable. An admitted constant materialises directly with no conversion/check. Outside context, whole-number constants are `int` and decimal constants are `float`.
 - With one typed numeric operand, a constant takes that type; shift counts are exempt. Two differently typed integer values promote to the smallest integer type containing both source ranges, or `int`. Integer/floating value mixtures remain rejected.
@@ -407,6 +409,26 @@ postfix: '++' and '--' are STATEMENTS, never expressions; they produce no value
 postfix_rationale: expression-valued increment is the source of C read-modify-write sequencing problems and buys nothing; write the two operations
 postfix_policy: they select the default add/subtract child only; other policies need explicit assignment
 ```
+## FLOATING-MATH
+
+```yaml
+receivers: float32 | float64
+shape: zero-argument properties preserving receiver type
+square-root: IEEE square root; negative finite -> NaN; signed zero preserved; +infinity -> +infinity
+sine: radians
+cosine: radians
+sine-cosine: tuple [sine, cosine], combined target operation when available
+natural-log: +0 -> -infinity; negative finite -> NaN; +infinity -> +infinity
+exponential: -infinity -> +0; +infinity -> +infinity
+errors: no throw for floating domain/range; inherit IEEE NaN, signed-zero, infinity, overflow, underflow, rounding
+accuracy: correctly rounded where target guarantees it; otherwise documented bounded error
+reproducibility: deterministic for one compiler version/target/float mode; cross-target bit identity not required
+lowering: direct target primitive or smallest compiler-owned scalar support routine; no scientific dependency
+excluded: Bessel, incomplete gamma, distributions, linear algebra, arrays
+```
+
+- Source spellings are `value.square-root`, `value.sine`, `value.cosine`, `value.sine-cosine`, `value.natural-log`, and `value.exponential`; they are properties, not calls.
+- Compile-time evaluation, if provided, must match the runtime contract and approximation policy.
 
 ## COERCION
 

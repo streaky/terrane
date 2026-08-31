@@ -355,7 +355,21 @@ integer
 
 Shifts accept a non-negative count. On a fixed-width receiver the invocation and `checked` reject counts outside the width and `wrap` reduces the count modulo the width; `saturate` is absent, because saturating a shift *count* has no coherent value contract. Adaptive `int` uses infinite two's-complement semantics, `shift-left` is unbounded and total, `shift-right` is arithmetic, and no count-policy children exist. Host debug/release shift behaviour is never inherited.
 
-### 5.4 Numeric descriptors and properties
+### 5.4 Foundational floating-point mathematics
+
+```text
+floating value                                    preserves float32 or float64
++-- square-root   -> T                            IEEE square root
++-- sine          -> T                            radians
++-- cosine        -> T                            radians
++-- sine-cosine   -> tuple of T                   sine followed by cosine
++-- natural-log   -> T                            base-e logarithm
++-- exponential   -> T                            base-e exponential
+```
+
+These zero-argument properties inherit the IEEE NaN, signed-zero, infinity, overflow, underflow, and rounding behavior specified by the language contract. They lower to target primitives or compiler-owned scalar support and do not imply a scientific library dependency. Special functions, probability distributions, linear algebra, and array operations remain package concerns.
+
+### 5.5 Numeric descriptors and properties
 
 ```text
 number value

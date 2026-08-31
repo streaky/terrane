@@ -1,0 +1,4 @@
+namespace invalid-float-math-receiver
+function main;
+  count int = 9
+  root = count.square-root
