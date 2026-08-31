@@ -166,7 +166,19 @@ class RunnerContracts(unittest.TestCase):
         assert reason is not None
         self.assertIn("writable delegated cgroup-v2 subtree", reason)
         self.assertIn(str(parent), reason)
-        self.assertIn("permission denied", reason)
+
+    def test_delegated_memory_command_preserves_runner_arguments(self) -> None:
+        with mock.patch.object(
+            runner.sys,
+            "argv",
+            ["benchmarks/sci-maths/run.py", "--group", "scientific-stack", "report"],
+        ):
+            command = runner.delegated_memory_command()
+        self.assertEqual(
+            command,
+            "systemd-run --user --scope --quiet --property=Delegate=yes --same-dir "
+            "python3 benchmarks/sci-maths/run.py --group scientific-stack report",
+        )
 
     def test_processes_force_available_sccache_when_inherited_wrapper_is_disabled(
         self,
@@ -378,10 +390,20 @@ class RunnerContracts(unittest.TestCase):
             progress_lines[0],
             "[memory unavailable] fixture cgroup delegation is missing",
         )
+        self.assertTrue(
+            progress_lines[1].startswith(
+                "[memory retry] systemd-run --user --scope --quiet "
+                "--property=Delegate=yes --same-dir python3 "
+            )
+        )
         self.assertFalse(report["measurement"]["memory_available"])
         self.assertEqual(
             report["measurement"]["memory_unavailable_reason"],
             "fixture cgroup delegation is missing",
+        )
+        self.assertEqual(
+            report["measurement"]["memory_recommendation"],
+            progress_lines[1].removeprefix("[memory retry] "),
         )
         self.assertIn("[setup 1/2] first", progress_lines)
         self.assertIn("[prepare 1/3] alpha / first", progress_lines)
@@ -392,6 +414,7 @@ class RunnerContracts(unittest.TestCase):
         self.assertIn("[complete 3/3] beta / second", progress_lines)
         markdown = runner.render_markdown(report, "fixture.json")
         self.assertIn("Memory: unavailable: fixture cgroup delegation is missing.", markdown)
+        self.assertIn("Memory retry command: `systemd-run", markdown)
         self.assertIn("### Fixture group", markdown)
         self.assertIn("| alpha | first |", markdown)
         self.assertIn("| beta | second |", markdown)

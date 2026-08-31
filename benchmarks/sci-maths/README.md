@@ -33,6 +33,17 @@ python3 benchmarks/sci-maths/run.py \
 
 On Linux systems with delegated cgroup-v2 memory accounting, every launched program and its descendants run in a fresh cgroup. Reports record that cgroup's `memory.peak`: total peak memory charged to the group, including anonymous memory, charged page cache, and kernel memory. Shared pages are charged once, potentially to a cgroup outside the measured execution, so small-footprint results depend on page-cache state and are not directly comparable across machines or reboots. Reports summarize the median and range across measured runs and deliberately label the metric peak memory rather than RSS. When this accounting is unavailable, memory results remain unavailable rather than falling back to a misleading process estimate.
 
+If delegation is unavailable, the runner prints the exact current command wrapped in a delegated
+user scope. For example:
+
+```console
+systemd-run --user --scope --quiet --property=Delegate=yes --same-dir \
+  python3 benchmarks/sci-maths/run.py report
+```
+
+Inside that scope the runner moves itself to a coordinator leaf and places each launched program
+in a fresh sibling measurement cgroup, so systemd startup is outside the measured execution.
+
 The Terrane adapters build both the compiler and every generated benchmark executable with Cargo's optimized release profile. The Rust control uses `rustc` at optimization level 3 with fat LTO and one codegen unit. When `sccache` is executable on `PATH`, the runner overrides any disabled or absent inherited wrapper with its absolute path and starts the cache server before creating measured process cgroups. When it is unavailable, builds proceed without the runner adding a wrapper. This changes compilation reuse only: compilation and preparation remain outside benchmark execution measurements, which measure the compiled programs. Development and release artifacts are cached separately by the Terrane CLI. Reports capture the machine platform, kernel, CPU model, core counts, memory capacity, CPU frequency governor, start-of-run load average, runner revision, lane tool versions, every setup and preparation process, and all warm-up and measured process records.
 
 ## Groups and fairness

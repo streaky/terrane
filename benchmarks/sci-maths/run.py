@@ -9,6 +9,7 @@ import math
 import os
 import platform
 import select
+import shlex
 import shutil
 import signal
 import subprocess
@@ -25,6 +26,7 @@ from typing import Any
 
 SUITE = Path(__file__).resolve().parent
 REPO = SUITE.parents[1]
+MEMORY_CGROUP_ROOT: Path | None = None
 PERFORMANCE_ENVIRONMENT_KEYS = (
     "CARGO_BUILD_RUSTFLAGS",
     "CARGO_ENCODED_RUSTFLAGS",
@@ -121,10 +123,13 @@ class MemoryCgroup:
 
 
 def memory_cgroup_parent() -> tuple[Path | None, str | None]:
+    global MEMORY_CGROUP_ROOT
     requirement = (
         "memory measurement requires Linux cgroup v2 with a writable delegated "
         "subtree and the memory controller enabled"
     )
+    if MEMORY_CGROUP_ROOT is not None:
+        return MEMORY_CGROUP_ROOT, None
     if not sys.platform.startswith("linux"):
         return None, f"{requirement}; this host is not running Linux"
     try:
@@ -140,13 +145,37 @@ def memory_cgroup_parent() -> tuple[Path | None, str | None]:
     relative = Path(entry[3:].lstrip("/"))
     if ".." in relative.parts:
         return None, f"{requirement}; the process cgroup path is invalid"
-    parent = (Path("/sys/fs/cgroup") / relative).parent
-    if not (parent / "cgroup.controllers").is_file():
+    root = Path("/sys/fs/cgroup") / relative
+    try:
+        controllers = (root / "cgroup.controllers").read_text().split()
+    except OSError as error:
+        return None, f"{requirement}; controllers are not accessible at {root}: {error}"
+    if "memory" not in controllers:
+        return None, f"{requirement}; the memory controller is not delegated at {root}"
+
+    runner_leaf = root / f"terrane-sci-runner-{os.getpid()}"
+    moved = False
+    try:
+        runner_leaf.mkdir()
+        (runner_leaf / "cgroup.procs").write_text(str(os.getpid()))
+        moved = True
+        (root / "cgroup.subtree_control").write_text("+memory")
+    except OSError as error:
+        if moved:
+            try:
+                (root / "cgroup.procs").write_text(str(os.getpid()))
+            except OSError:
+                pass
+        try:
+            runner_leaf.rmdir()
+        except OSError:
+            pass
         return (
             None,
-            f"{requirement}; cgroup-v2 controller metadata is not accessible at {parent}",
+            f"{requirement}; could not initialize a measurement subtree at {root}: {error}",
         )
-    return parent, None
+    MEMORY_CGROUP_ROOT = root
+    return root, None
 
 
 def create_memory_cgroup_with_reason() -> tuple[MemoryCgroup | None, str | None]:
@@ -197,6 +226,20 @@ def memory_measurement_unavailable_reason() -> str | None:
 
 def memory_measurement_available() -> bool:
     return memory_measurement_unavailable_reason() is None
+
+
+def delegated_memory_command() -> str:
+    command = [
+        "systemd-run",
+        "--user",
+        "--scope",
+        "--quiet",
+        "--property=Delegate=yes",
+        "--same-dir",
+        "python3",
+        *sys.argv,
+    ]
+    return shlex.join(command)
 
 
 def read_process_output(stdout_file: Any, stderr_file: Any) -> tuple[str, str]:
@@ -914,9 +957,17 @@ def benchmark(
 ) -> dict[str, Any]:
     memory_unavailable_reason = memory_measurement_unavailable_reason()
     memory_available = memory_unavailable_reason is None
+    memory_recommendation = (
+        None if memory_available else delegated_memory_command()
+    )
     if memory_unavailable_reason:
         print(
             f"[memory unavailable] {memory_unavailable_reason}",
+            file=sys.stderr,
+            flush=True,
+        )
+        print(
+            f"[memory retry] {memory_recommendation}",
             file=sys.stderr,
             flush=True,
         )
@@ -952,6 +1003,7 @@ def benchmark(
             ),
             "memory_available": memory_available,
             "memory_unavailable_reason": memory_unavailable_reason,
+            "memory_recommendation": memory_recommendation,
             "memory_limitations": (
                 "memory.peak includes anonymous memory, charged page cache, and kernel memory. "
                 "Shared pages are charged once, potentially to a cgroup outside the measured "
@@ -1169,6 +1221,10 @@ def render_markdown(report: dict[str, Any], raw_report_name: str) -> str:
     ]
     if measurement["memory_limitations"]:
         lines.append(f"- Memory limitations: {measurement['memory_limitations']}")
+    if measurement["memory_recommendation"]:
+        lines.append(
+            f"- Memory retry command: `{measurement['memory_recommendation']}`"
+        )
 
     lines.extend(
         [
