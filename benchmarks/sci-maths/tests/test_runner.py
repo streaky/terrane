@@ -1,5 +1,6 @@
 import copy
 import importlib.util
+import io
 import os
 from pathlib import Path
 import sys
@@ -316,19 +317,20 @@ class RunnerContracts(unittest.TestCase):
 
         runner.execute = fake_execute
         try:
-            report = runner.benchmark(
-                {
-                    "name": "fixture",
-                    "groups": [{"id": "fixture-group", "name": "Fixture group"}],
-                },
-                problems,
-                lanes,
-                setup_timeout=5.0,
-                runtime_timeout=5.0,
-                runs=2,
-                warmups=1,
-                cold_builds=False,
-            )
+            with mock.patch.object(runner.sys, "stderr", new_callable=io.StringIO) as progress:
+                report = runner.benchmark(
+                    {
+                        "name": "fixture",
+                        "groups": [{"id": "fixture-group", "name": "Fixture group"}],
+                    },
+                    problems,
+                    lanes,
+                    setup_timeout=5.0,
+                    runtime_timeout=5.0,
+                    runs=2,
+                    warmups=1,
+                    cold_builds=False,
+                )
         finally:
             runner.execute = original_execute
 
@@ -339,6 +341,14 @@ class RunnerContracts(unittest.TestCase):
         ]
         performance_calls = [call for call in calls if call[0] == "performance"]
         self.assertEqual(performance_calls, expected_order * 3)
+        progress_lines = progress.getvalue().splitlines()
+        self.assertIn("[setup 1/2] first", progress_lines)
+        self.assertIn("[prepare 1/3] alpha / first", progress_lines)
+        self.assertIn("[correctness 3/3] beta / second", progress_lines)
+        self.assertIn("[warm-up 1/1, case 1/3] alpha / first", progress_lines)
+        self.assertIn("[run 1/2, case 2/3] alpha / second", progress_lines)
+        self.assertIn("[run 2/2, case 3/3] beta / second", progress_lines)
+        self.assertIn("[complete 3/3] beta / second", progress_lines)
         markdown = runner.render_markdown(report, "fixture.json")
         self.assertIn("### Fixture group", markdown)
         self.assertIn("| alpha | first |", markdown)

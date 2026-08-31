@@ -924,7 +924,13 @@ def benchmark(
         "lane_setup": {},
         "results": [],
     }
-    for lane in active_lanes(problems, lanes):
+    setup_lanes = active_lanes(problems, lanes)
+    for setup_index, lane in enumerate(setup_lanes, start=1):
+        print(
+            f"[setup {setup_index}/{len(setup_lanes)}] {lane.lane_id}",
+            file=sys.stderr,
+            flush=True,
+        )
         setup = setup_lane(lane, setup_timeout)
         report["lane_setup"][lane.lane_id] = {
             "name": lane.name,
@@ -933,57 +939,89 @@ def benchmark(
             "measurement": process_record(setup),
         }
 
+    case_matrix = [
+        (problem, lane)
+        for problem in problems
+        for lane in lanes_for_problem(problem, lanes)
+    ]
     cases: list[dict[str, Any]] = []
-    for problem in problems:
-        for lane in lanes_for_problem(problem, lanes):
-            cache_was_present = lane_cache_exists(problem, lane)
-            cold_prepare = None
-            incremental_prepare = None
-            if cold_builds and lane.cache_paths:
-                clear_lane_cache(problem, lane)
-                prepared, cold_prepare = prepare_implementation(
-                    problem, lane, setup_timeout
-                )
-                prepared, incremental_prepare = prepare_implementation(
-                    problem, lane, setup_timeout
-                )
+    for case_index, (problem, lane) in enumerate(case_matrix, start=1):
+        case_count = len(case_matrix)
+        label = f"{problem['id']} / {lane.lane_id}"
+        cache_was_present = lane_cache_exists(problem, lane)
+        cold_prepare = None
+        incremental_prepare = None
+        if cold_builds and lane.cache_paths:
+            clear_lane_cache(problem, lane)
+            print(
+                f"[cold prepare {case_index}/{case_count}] {label}",
+                file=sys.stderr,
+                flush=True,
+            )
+            prepared, cold_prepare = prepare_implementation(
+                problem, lane, setup_timeout
+            )
+            print(
+                f"[incremental prepare {case_index}/{case_count}] {label}",
+                file=sys.stderr,
+                flush=True,
+            )
+            prepared, incremental_prepare = prepare_implementation(
+                problem, lane, setup_timeout
+            )
+        else:
+            print(
+                f"[prepare {case_index}/{case_count}] {label}",
+                file=sys.stderr,
+                flush=True,
+            )
+            prepared, preparation = prepare_implementation(
+                problem, lane, setup_timeout
+            )
+            if cache_was_present:
+                incremental_prepare = preparation
             else:
-                prepared, preparation = prepare_implementation(
-                    problem, lane, setup_timeout
-                )
-                if cache_was_present:
-                    incremental_prepare = preparation
-                else:
-                    cold_prepare = preparation
-            correctness, _ = execute(
-                problem, lane, prepared, "correctness", runtime_timeout
-            )
-            result_record = {
-                "problem": problem["id"],
-                "group": problem["group"],
-                "title": problem["title"],
-                "dataset": problem["dataset"],
-                "correctness_profile": dict(problem["profiles"]["correctness"]),
-                "performance_profile": dict(problem["profiles"]["performance"]),
-                "lane": lane.lane_id,
-                "correctness_result": correctness,
-                "performance_result": None,
-                "cold_prepare": process_record(cold_prepare),
-                "incremental_prepare": process_record(incremental_prepare),
-                "runs": [],
+                cold_prepare = preparation
+        print(
+            f"[correctness {case_index}/{case_count}] {label}",
+            file=sys.stderr,
+            flush=True,
+        )
+        correctness, _ = execute(
+            problem, lane, prepared, "correctness", runtime_timeout
+        )
+        result_record = {
+            "problem": problem["id"],
+            "group": problem["group"],
+            "title": problem["title"],
+            "dataset": problem["dataset"],
+            "correctness_profile": dict(problem["profiles"]["correctness"]),
+            "performance_profile": dict(problem["profiles"]["performance"]),
+            "lane": lane.lane_id,
+            "correctness_result": correctness,
+            "performance_result": None,
+            "cold_prepare": process_record(cold_prepare),
+            "incremental_prepare": process_record(incremental_prepare),
+            "runs": [],
+        }
+        report["results"].append(result_record)
+        cases.append(
+            {
+                "problem": problem,
+                "lane": lane,
+                "prepared": prepared,
+                "record": result_record,
             }
-            report["results"].append(result_record)
-            cases.append(
-                {
-                    "problem": problem,
-                    "lane": lane,
-                    "prepared": prepared,
-                    "record": result_record,
-                }
-            )
+        )
 
-    for _ in range(warmups):
-        for case in cases:
+    for warmup_index in range(1, warmups + 1):
+        for case_index, case in enumerate(cases, start=1):
+            print(
+                f"[warm-up {warmup_index}/{warmups}, case {case_index}/{len(cases)}] "
+                f"{case['problem']['id']} / {case['lane'].lane_id}",
+                file=sys.stderr,
+                flush=True,
+            )
             execute(
                 case["problem"],
                 case["lane"],
@@ -992,8 +1030,14 @@ def benchmark(
                 runtime_timeout,
             )
 
-    for _ in range(runs):
-        for case in cases:
+    for run_index in range(1, runs + 1):
+        for case_index, case in enumerate(cases, start=1):
+            label = f"{case['problem']['id']} / {case['lane'].lane_id}"
+            print(
+                f"[run {run_index}/{runs}, case {case_index}/{len(cases)}] {label}",
+                file=sys.stderr,
+                flush=True,
+            )
             observed, measurement = execute(
                 case["problem"],
                 case["lane"],
@@ -1003,12 +1047,12 @@ def benchmark(
             )
             case["record"]["performance_result"] = observed
             case["record"]["runs"].append(process_record(measurement))
-
-    for case in cases:
-        print(
-            f"benchmarked  {case['problem']['id']:<24} {case['lane'].lane_id}",
-            file=sys.stderr,
-        )
+            if run_index == runs:
+                print(
+                    f"[complete {case_index}/{len(cases)}] {label}",
+                    file=sys.stderr,
+                    flush=True,
+                )
     return report
 
 
