@@ -84,7 +84,9 @@ pub struct TerraneError {
     origin: TerraneSite,
     detail: Option<Box<TerraneErrorDetail>>,
 }
+#[cfg(target_pointer_width = "64")]
 const _: () = assert!(std::mem::size_of::< TerraneError > () == 16);
+#[cfg(target_pointer_width = "64")]
 const _: () = assert!(std::mem::size_of::< Result < i64, TerraneError >> () == 16);
 #[allow(
     dead_code,
@@ -208,10 +210,37 @@ impl TerraneRaised for TerraneForeignError {
 }
 impl TerraneRaised for terrane_int_support::ArithmeticError {
     fn raised(self, origin: TerraneSite) -> TerraneError {
-        TerraneError::raised(
-            TerraneErrorKind::from_source_name(self.source_name()),
-            origin,
-        )
+        use terrane_int_support::ArithmeticError;
+        match self {
+            ArithmeticError::DivisionByZero => {
+                TerraneError::raised(TerraneErrorKind::DivisionByZero, origin)
+            }
+            ArithmeticError::ArithmeticOverflow => {
+                TerraneError::raised(TerraneErrorKind::ArithmeticOverflow, origin)
+            }
+            ArithmeticError::NegativeShiftCount => {
+                TerraneError::raised(TerraneErrorKind::NegativeShiftCount, origin)
+            }
+            ArithmeticError::ShiftCountTooLarge => {
+                TerraneError::raised(TerraneErrorKind::ResourceError, origin)
+            }
+            error @ (ArithmeticError::IntegerConversionOverflow
+            | ArithmeticError::IntegerConversionOverflowDetail { .. }) => {
+                TerraneError::raised_with_message(
+                    TerraneErrorKind::IntegerConversionOverflow,
+                    error.to_string(),
+                    origin,
+                )
+            }
+            error @ (ArithmeticError::InvalidRadix
+            | ArithmeticError::InvalidRadixText) => {
+                TerraneError::raised_with_message(
+                    TerraneErrorKind::CoercionError,
+                    error.to_string(),
+                    origin,
+                )
+            }
+        }
     }
 }
 impl TerraneRaised for terrane_string_support::DecodeError {
@@ -281,6 +310,18 @@ fn __terrane_raised<T, E: TerraneRaised>(
 }
 #[allow(
     dead_code,
+    reason = "fresh failure propagation is absent from some lowered programs"
+)]
+#[cold]
+#[inline(never)]
+fn __terrane_fresh_error<E: TerraneRaised>(
+    error: E,
+    origin: TerraneSite,
+) -> TerraneError {
+    error.raised(origin)
+}
+#[allow(
+    dead_code,
     reason = "returning fresh failures are absent from some lowered programs"
 )]
 #[inline]
@@ -288,12 +329,12 @@ fn __terrane_raised_err<T, E: TerraneRaised>(
     result: Result<T, E>,
     origin: TerraneSite,
 ) -> Result<T, TerraneError> {
-    result.map_err(|error| error.raised(origin))
+    result.map_err(|error| __terrane_fresh_error(error, origin))
 }
 macro_rules! __terrane_raised_completion {
     ($result:expr, $origin:expr) => {
         match $result { Ok(value) => value, Err(error) => { return
-        TerraneCompletion::Error(error.raised($origin)); } }
+        TerraneCompletion::Error(__terrane_fresh_error(error, $origin)); } }
     };
 }
 #[allow(
@@ -340,11 +381,11 @@ enum TerraneCompletion<T> {
     Break,
     Continue,
 }
+mod __terrane_error_registry {
+    #[allow(dead_code, reason = "custom descriptors are absent from some programs")]
+    pub static DESCRIPTORS: [&str; 0] = [];
+}
 mod __terrane_trace {
-    #[allow(
-        dead_code,
-        reason = "range ends are retained for diagnostics and future provenance consumers"
-    )]
     pub struct Site {
         pub function: u32,
         pub file: u32,
@@ -355,161 +396,149 @@ mod __terrane_trace {
     }
     pub static FILES: [&str; 1] = ["case.trn"];
     pub static FUNCTIONS: [&str; 1] = ["/collections-value-semantics::main"];
-    #[allow(dead_code, reason = "custom descriptors are absent from some programs")]
-    pub static DESCRIPTORS: [&str; 0] = [];
-    pub static SITES: [Site; 17] = [
-        Site {
-            function: 
-                0 /* terrane-site: site 0: /collections-value-semantics::main (case.trn:8:3-8:21) */,
-            file: 0,
-            line: 8,
-            column: 3,
-            end_line: 8,
-            end_column: 21,
+    pub static SITES: [Site; 13] = [
+        {
+            /* terrane-site-row: site 0: /collections-value-semantics::main (case.trn:8:3-8:21) */
+            Site {
+                function: 0,
+                file: 0,
+                line: 8,
+                column: 3,
+                end_line: 8,
+                end_column: 21,
+            }
         },
-        Site {
-            function: 
-                0 /* terrane-site: site 1: /collections-value-semantics::main (case.trn:8:3-8:21) */,
-            file: 0,
-            line: 8,
-            column: 3,
-            end_line: 8,
-            end_column: 21,
+        {
+            /* terrane-site-row: site 1: /collections-value-semantics::main (case.trn:9:47-9:61) */
+            Site {
+                function: 0,
+                file: 0,
+                line: 9,
+                column: 47,
+                end_line: 9,
+                end_column: 61,
+            }
         },
-        Site {
-            function: 
-                0 /* terrane-site: site 2: /collections-value-semantics::main (case.trn:9:47-9:61) */,
-            file: 0,
-            line: 9,
-            column: 47,
-            end_line: 9,
-            end_column: 61,
+        {
+            /* terrane-site-row: site 2: /collections-value-semantics::main (case.trn:9:63-9:77) */
+            Site {
+                function: 0,
+                file: 0,
+                line: 9,
+                column: 63,
+                end_line: 9,
+                end_column: 77,
+            }
         },
-        Site {
-            function: 
-                0 /* terrane-site: site 3: /collections-value-semantics::main (case.trn:9:47-9:61) */,
-            file: 0,
-            line: 9,
-            column: 47,
-            end_line: 9,
-            end_column: 61,
+        {
+            /* terrane-site-row: site 3: /collections-value-semantics::main (case.trn:15:10-15:27) */
+            Site {
+                function: 0,
+                file: 0,
+                line: 15,
+                column: 10,
+                end_line: 15,
+                end_column: 27,
+            }
         },
-        Site {
-            function: 
-                0 /* terrane-site: site 4: /collections-value-semantics::main (case.trn:9:63-9:77) */,
-            file: 0,
-            line: 9,
-            column: 63,
-            end_line: 9,
-            end_column: 77,
+        {
+            /* terrane-site-row: site 4: /collections-value-semantics::main (case.trn:21:23-21:30) */
+            Site {
+                function: 0,
+                file: 0,
+                line: 21,
+                column: 23,
+                end_line: 21,
+                end_column: 30,
+            }
         },
-        Site {
-            function: 
-                0 /* terrane-site: site 5: /collections-value-semantics::main (case.trn:9:63-9:77) */,
-            file: 0,
-            line: 9,
-            column: 63,
-            end_line: 9,
-            end_column: 77,
+        {
+            /* terrane-site-row: site 5: /collections-value-semantics::main (case.trn:24:13-24:24) */
+            Site {
+                function: 0,
+                file: 0,
+                line: 24,
+                column: 13,
+                end_line: 24,
+                end_column: 24,
+            }
         },
-        Site {
-            function: 
-                0 /* terrane-site: site 6: /collections-value-semantics::main (case.trn:15:10-15:27) */,
-            file: 0,
-            line: 15,
-            column: 10,
-            end_line: 15,
-            end_column: 27,
+        {
+            /* terrane-site-row: site 6: /collections-value-semantics::main (case.trn:27:15-27:38) */
+            Site {
+                function: 0,
+                file: 0,
+                line: 27,
+                column: 15,
+                end_line: 27,
+                end_column: 38,
+            }
         },
-        Site {
-            function: 
-                0 /* terrane-site: site 7: /collections-value-semantics::main (case.trn:21:23-21:30) */,
-            file: 0,
-            line: 21,
-            column: 23,
-            end_line: 21,
-            end_column: 30,
+        {
+            /* terrane-site-row: site 7: /collections-value-semantics::main (case.trn:31:11-31:26) */
+            Site {
+                function: 0,
+                file: 0,
+                line: 31,
+                column: 11,
+                end_line: 31,
+                end_column: 26,
+            }
         },
-        Site {
-            function: 
-                0 /* terrane-site: site 8: /collections-value-semantics::main (case.trn:21:23-21:30) */,
-            file: 0,
-            line: 21,
-            column: 23,
-            end_line: 21,
-            end_column: 30,
+        {
+            /* terrane-site-row: site 8: /collections-value-semantics::main (case.trn:36:5-36:19) */
+            Site {
+                function: 0,
+                file: 0,
+                line: 36,
+                column: 5,
+                end_line: 36,
+                end_column: 19,
+            }
         },
-        Site {
-            function: 
-                0 /* terrane-site: site 9: /collections-value-semantics::main (case.trn:24:13-24:24) */,
-            file: 0,
-            line: 24,
-            column: 13,
-            end_line: 24,
-            end_column: 24,
+        {
+            /* terrane-site-row: site 9: /collections-value-semantics::main (case.trn:41:36-41:63) */
+            Site {
+                function: 0,
+                file: 0,
+                line: 41,
+                column: 36,
+                end_line: 41,
+                end_column: 63,
+            }
         },
-        Site {
-            function: 
-                0 /* terrane-site: site 10: /collections-value-semantics::main (case.trn:27:15-27:38) */,
-            file: 0,
-            line: 27,
-            column: 15,
-            end_line: 27,
-            end_column: 38,
+        {
+            /* terrane-site-row: site 10: /collections-value-semantics::main (case.trn:56:29-56:41) */
+            Site {
+                function: 0,
+                file: 0,
+                line: 56,
+                column: 29,
+                end_line: 56,
+                end_column: 41,
+            }
         },
-        Site {
-            function: 
-                0 /* terrane-site: site 11: /collections-value-semantics::main (case.trn:31:11-31:26) */,
-            file: 0,
-            line: 31,
-            column: 11,
-            end_line: 31,
-            end_column: 26,
+        {
+            /* terrane-site-row: site 11: /collections-value-semantics::main (case.trn:58:10-58:22) */
+            Site {
+                function: 0,
+                file: 0,
+                line: 58,
+                column: 10,
+                end_line: 58,
+                end_column: 22,
+            }
         },
-        Site {
-            function: 
-                0 /* terrane-site: site 12: /collections-value-semantics::main (case.trn:36:5-36:19) */,
-            file: 0,
-            line: 36,
-            column: 5,
-            end_line: 36,
-            end_column: 19,
-        },
-        Site {
-            function: 
-                0 /* terrane-site: site 13: /collections-value-semantics::main (case.trn:41:36-41:63) */,
-            file: 0,
-            line: 41,
-            column: 36,
-            end_line: 41,
-            end_column: 63,
-        },
-        Site {
-            function: 
-                0 /* terrane-site: site 14: /collections-value-semantics::main (case.trn:56:29-56:41) */,
-            file: 0,
-            line: 56,
-            column: 29,
-            end_line: 56,
-            end_column: 41,
-        },
-        Site {
-            function: 
-                0 /* terrane-site: site 15: /collections-value-semantics::main (case.trn:58:10-58:22) */,
-            file: 0,
-            line: 58,
-            column: 10,
-            end_line: 58,
-            end_column: 22,
-        },
-        Site {
-            function: 
-                0 /* terrane-site: site 16: /collections-value-semantics::main (case.trn:58:24-58:36) */,
-            file: 0,
-            line: 58,
-            column: 24,
-            end_line: 58,
-            end_column: 36,
+        {
+            /* terrane-site-row: site 12: /collections-value-semantics::main (case.trn:58:24-58:36) */
+            Site {
+                function: 0,
+                file: 0,
+                line: 58,
+                column: 24,
+                end_line: 58,
+                end_column: 36,
+            }
         },
     ];
     #[cold]
@@ -517,9 +546,10 @@ mod __terrane_trace {
     pub fn render(site: u32) -> String {
         let site = &SITES[usize::try_from(site).expect("site id must fit usize")];
         format!(
-            "{} ({}:{}:{})", FUNCTIONS[usize::try_from(site.function)
+            "{} ({}:{}:{}-{}:{})", FUNCTIONS[usize::try_from(site.function)
             .expect("function id must fit usize")], FILES[usize::try_from(site.file)
-            .expect("file id must fit usize")], site.line, site.column,
+            .expect("file id must fit usize")], site.line, site.column, site.end_line,
+            site.end_column,
         )
     }
 }
@@ -548,7 +578,7 @@ fn main() {
                 ),
                 terrane_int_support::Int::from(4_i128),
             ),
-        1 /* terrane-site: case.trn:8:3-8:21 */,
+        0 /* terrane-site: case.trn:8:3-8:21 */,
     );
     println!(
         "{}{}{}{}",
@@ -557,10 +587,10 @@ fn main() {
         terrane_scalar_support::scalar_text(&terrane_int_support::Int::from(independent
         .length())), terrane_scalar_support::scalar_text(&__terrane_raised(independent
         .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(2_i128)),
-        2 /* terrane-site: case.trn:9:47-9:61 */)), 3 /* terrane-site: case.trn:9:47-9:61 */)),
+        1 /* terrane-site: case.trn:9:47-9:61 */)), 1 /* terrane-site: case.trn:9:47-9:61 */)),
         terrane_scalar_support::scalar_text(&__terrane_raised(independent
         .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(1_i128)),
-        4 /* terrane-site: case.trn:9:63-9:77 */)), 5 /* terrane-site: case.trn:9:63-9:77 */))
+        2 /* terrane-site: case.trn:9:63-9:77 */)), 2 /* terrane-site: case.trn:9:63-9:77 */))
     );
     let mut ordered: terrane_collection_support::Map<String, terrane_int_support::Int> = terrane_collection_support::Map::<
         String,
@@ -590,7 +620,7 @@ fn main() {
     }
     println!(
         "{}", terrane_scalar_support::scalar_text(&__terrane_raised(ordered
-        .get_or_error(&String::from("second")), 6 /* terrane-site: case.trn:15:10-15:27 */))
+        .get_or_error(&String::from("second")), 3 /* terrane-site: case.trn:15:10-15:27 */))
     );
     let mut unique: terrane_collection_support::Set<String> = terrane_collection_support::Set::<
         String,
@@ -613,7 +643,7 @@ fn main() {
         "{}{}", terrane_scalar_support::scalar_text(&terrane_int_support::Int::from(pair
         .length())), terrane_scalar_support::scalar_text(&__terrane_raised(pair
         .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(1_i128)),
-        7 /* terrane-site: case.trn:21:23-21:30 */)), 8 /* terrane-site: case.trn:21:23-21:30 */))
+        4 /* terrane-site: case.trn:21:23-21:30 */)), 4 /* terrane-site: case.trn:21:23-21:30 */))
     );
     let explicit: terrane_collection_support::Entry<String, terrane_int_support::Int> = terrane_collection_support::Entry::<
         String,
@@ -629,7 +659,7 @@ fn main() {
             terrane_int_support::Int::from(3_i128),
             terrane_int_support::Int::from(1_i64),
         ),
-        9 /* terrane-site: case.trn:24:13-24:24 */,
+        5 /* terrane-site: case.trn:24:13-24:24 */,
     );
     let mut __terrane_iterator_2 = terrane_collection_support::Iterable::terrane_iterator(
         &numbers,
@@ -647,7 +677,7 @@ fn main() {
             terrane_int_support::Int::from(0_i128),
             terrane_int_support::Int::from(-1_i128),
         ),
-        10 /* terrane-site: case.trn:27:15-27:38 */,
+        6 /* terrane-site: case.trn:27:15-27:38 */,
     );
     let mut __terrane_iterator_3 = terrane_collection_support::Iterable::terrane_iterator(
         &inclusive,
@@ -668,7 +698,7 @@ fn main() {
             terrane_int_support::Int::from(3_i128),
             terrane_int_support::Int::from(-1_i128),
         ),
-        11 /* terrane-site: case.trn:31:11-31:26 */,
+        7 /* terrane-site: case.trn:31:11-31:26 */,
     );
     let mut __terrane_iterator_4 = terrane_collection_support::Iterable::terrane_iterator(
         &empty,
@@ -687,7 +717,7 @@ fn main() {
             __terrane_raised_completion!(
                 terrane_collection_support::Range::new(terrane_int_support::Int::from(0_i128),
                 terrane_int_support::Int::from(3_i128),
-                terrane_int_support::Int::from(0_i128)), 12 /* terrane-site: case.trn:36:5-36:19 */
+                terrane_int_support::Int::from(0_i128)), 8 /* terrane-site: case.trn:36:5-36:19 */
             );
             TerraneCompletion::Normal
         })();
@@ -742,7 +772,7 @@ fn main() {
         terrane_scalar_support::scalar_text(&terrane_int_support::Int::from(deterministic_map
         .length())),
         terrane_scalar_support::scalar_text(&__terrane_raised(deterministic_map
-        .get_or_error(&String::from("second")), 13 /* terrane-site: case.trn:41:36-41:63 */))
+        .get_or_error(&String::from("second")), 9 /* terrane-site: case.trn:41:36-41:63 */))
     );
     let mut __terrane_iterator_5 = terrane_collection_support::Iterable::terrane_iterator(
         &deterministic_map,
@@ -805,7 +835,7 @@ fn main() {
         "{}{}{}",
         terrane_scalar_support::scalar_text(&terrane_int_support::Int::from(empty_list
         .length())), terrane_scalar_support::scalar_text(&__terrane_raised(empty_map
-        .get_or_error(&terrane_int_support::Int::from(1_i128)), 14 /* terrane-site: case.trn:56:29-56:41 */)),
+        .get_or_error(&terrane_int_support::Int::from(1_i128)), 10 /* terrane-site: case.trn:56:29-56:41 */)),
         terrane_scalar_support::scalar_text(&terrane_int_support::Int::from(nested
         .length()))
     );
@@ -822,8 +852,8 @@ fn main() {
     );
     println!(
         "{}{}", terrane_scalar_support::scalar_text(&__terrane_raised(arbitrary
-        .get_or_error(&terrane_int_support::Int::from(2_i128)), 15 /* terrane-site: case.trn:58:10-58:22 */)),
+        .get_or_error(&terrane_int_support::Int::from(2_i128)), 11 /* terrane-site: case.trn:58:10-58:22 */)),
         terrane_scalar_support::scalar_text(&__terrane_raised(arbitrary
-        .get_or_error(&terrane_int_support::Int::from(3_i128)), 16 /* terrane-site: case.trn:58:24-58:36 */))
+        .get_or_error(&terrane_int_support::Int::from(3_i128)), 12 /* terrane-site: case.trn:58:24-58:36 */))
     );
 }

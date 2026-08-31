@@ -84,7 +84,9 @@ pub struct TerraneError {
     origin: TerraneSite,
     detail: Option<Box<TerraneErrorDetail>>,
 }
+#[cfg(target_pointer_width = "64")]
 const _: () = assert!(std::mem::size_of::< TerraneError > () == 16);
+#[cfg(target_pointer_width = "64")]
 const _: () = assert!(std::mem::size_of::< Result < i64, TerraneError >> () == 16);
 #[allow(
     dead_code,
@@ -208,10 +210,37 @@ impl TerraneRaised for TerraneForeignError {
 }
 impl TerraneRaised for terrane_int_support::ArithmeticError {
     fn raised(self, origin: TerraneSite) -> TerraneError {
-        TerraneError::raised(
-            TerraneErrorKind::from_source_name(self.source_name()),
-            origin,
-        )
+        use terrane_int_support::ArithmeticError;
+        match self {
+            ArithmeticError::DivisionByZero => {
+                TerraneError::raised(TerraneErrorKind::DivisionByZero, origin)
+            }
+            ArithmeticError::ArithmeticOverflow => {
+                TerraneError::raised(TerraneErrorKind::ArithmeticOverflow, origin)
+            }
+            ArithmeticError::NegativeShiftCount => {
+                TerraneError::raised(TerraneErrorKind::NegativeShiftCount, origin)
+            }
+            ArithmeticError::ShiftCountTooLarge => {
+                TerraneError::raised(TerraneErrorKind::ResourceError, origin)
+            }
+            error @ (ArithmeticError::IntegerConversionOverflow
+            | ArithmeticError::IntegerConversionOverflowDetail { .. }) => {
+                TerraneError::raised_with_message(
+                    TerraneErrorKind::IntegerConversionOverflow,
+                    error.to_string(),
+                    origin,
+                )
+            }
+            error @ (ArithmeticError::InvalidRadix
+            | ArithmeticError::InvalidRadixText) => {
+                TerraneError::raised_with_message(
+                    TerraneErrorKind::CoercionError,
+                    error.to_string(),
+                    origin,
+                )
+            }
+        }
     }
 }
 impl TerraneRaised for terrane_string_support::DecodeError {
@@ -281,6 +310,18 @@ fn __terrane_raised<T, E: TerraneRaised>(
 }
 #[allow(
     dead_code,
+    reason = "fresh failure propagation is absent from some lowered programs"
+)]
+#[cold]
+#[inline(never)]
+fn __terrane_fresh_error<E: TerraneRaised>(
+    error: E,
+    origin: TerraneSite,
+) -> TerraneError {
+    error.raised(origin)
+}
+#[allow(
+    dead_code,
     reason = "returning fresh failures are absent from some lowered programs"
 )]
 #[inline]
@@ -288,12 +329,12 @@ fn __terrane_raised_err<T, E: TerraneRaised>(
     result: Result<T, E>,
     origin: TerraneSite,
 ) -> Result<T, TerraneError> {
-    result.map_err(|error| error.raised(origin))
+    result.map_err(|error| __terrane_fresh_error(error, origin))
 }
 macro_rules! __terrane_raised_completion {
     ($result:expr, $origin:expr) => {
         match $result { Ok(value) => value, Err(error) => { return
-        TerraneCompletion::Error(error.raised($origin)); } }
+        TerraneCompletion::Error(__terrane_fresh_error(error, $origin)); } }
     };
 }
 #[allow(
@@ -340,11 +381,11 @@ enum TerraneCompletion<T> {
     Break,
     Continue,
 }
+mod __terrane_error_registry {
+    #[allow(dead_code, reason = "custom descriptors are absent from some programs")]
+    pub static DESCRIPTORS: [&str; 0] = [];
+}
 mod __terrane_trace {
-    #[allow(
-        dead_code,
-        reason = "range ends are retained for diagnostics and future provenance consumers"
-    )]
     pub struct Site {
         pub function: u32,
         pub file: u32,
@@ -355,44 +396,28 @@ mod __terrane_trace {
     }
     pub static FILES: [&str; 1] = ["case.trn"];
     pub static FUNCTIONS: [&str; 1] = ["/nested-collection-for-binding::main"];
-    #[allow(dead_code, reason = "custom descriptors are absent from some programs")]
-    pub static DESCRIPTORS: [&str; 0] = [];
-    pub static SITES: [Site; 4] = [
-        Site {
-            function: 
-                0 /* terrane-site: site 0: /nested-collection-for-binding::main (case.trn:8:24-8:30) */,
-            file: 0,
-            line: 8,
-            column: 24,
-            end_line: 8,
-            end_column: 30,
+    pub static SITES: [Site; 2] = [
+        {
+            /* terrane-site-row: site 0: /nested-collection-for-binding::main (case.trn:8:24-8:30) */
+            Site {
+                function: 0,
+                file: 0,
+                line: 8,
+                column: 24,
+                end_line: 8,
+                end_column: 30,
+            }
         },
-        Site {
-            function: 
-                0 /* terrane-site: site 1: /nested-collection-for-binding::main (case.trn:8:24-8:30) */,
-            file: 0,
-            line: 8,
-            column: 24,
-            end_line: 8,
-            end_column: 30,
-        },
-        Site {
-            function: 
-                0 /* terrane-site: site 2: /nested-collection-for-binding::main (case.trn:11:12-11:26) */,
-            file: 0,
-            line: 11,
-            column: 12,
-            end_line: 11,
-            end_column: 26,
-        },
-        Site {
-            function: 
-                0 /* terrane-site: site 3: /nested-collection-for-binding::main (case.trn:11:12-11:26) */,
-            file: 0,
-            line: 11,
-            column: 12,
-            end_line: 11,
-            end_column: 26,
+        {
+            /* terrane-site-row: site 1: /nested-collection-for-binding::main (case.trn:11:12-11:26) */
+            Site {
+                function: 0,
+                file: 0,
+                line: 11,
+                column: 12,
+                end_line: 11,
+                end_column: 26,
+            }
         },
     ];
     #[cold]
@@ -400,9 +425,10 @@ mod __terrane_trace {
     pub fn render(site: u32) -> String {
         let site = &SITES[usize::try_from(site).expect("site id must fit usize")];
         format!(
-            "{} ({}:{}:{})", FUNCTIONS[usize::try_from(site.function)
+            "{} ({}:{}:{}-{}:{})", FUNCTIONS[usize::try_from(site.function)
             .expect("function id must fit usize")], FILES[usize::try_from(site.file)
-            .expect("file id must fit usize")], site.line, site.column,
+            .expect("file id must fit usize")], site.line, site.column, site.end_line,
+            site.end_column,
         )
     }
 }
@@ -434,7 +460,7 @@ fn main() {
             terrane_scalar_support::scalar_text(&terrane_int_support::Int::from(row
             .length())), terrane_scalar_support::scalar_text(&__terrane_raised(row
             .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
-            0 /* terrane-site: case.trn:8:24-8:30 */)), 1 /* terrane-site: case.trn:8:24-8:30 */))
+            0 /* terrane-site: case.trn:8:24-8:30 */)), 0 /* terrane-site: case.trn:8:24-8:30 */))
         );
     }
     let groups: terrane_collection_support::Map<
@@ -464,7 +490,7 @@ fn main() {
             "{}", terrane_scalar_support::scalar_text(&__terrane_raised(group.value
             .clone()
             .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(1_i128)),
-            2 /* terrane-site: case.trn:11:12-11:26 */)), 3 /* terrane-site: case.trn:11:12-11:26 */))
+            1 /* terrane-site: case.trn:11:12-11:26 */)), 1 /* terrane-site: case.trn:11:12-11:26 */))
         );
     }
 }

@@ -18,7 +18,7 @@ use crate::{
     syntax::{SyntaxKind, SyntaxNode},
 };
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 struct LoweringSite {
     function: u32,
     file: u32,
@@ -59,21 +59,25 @@ impl LoweringRegistry {
         let function = Self::intern(&self.functions, function);
         let (line, column) = source.line_column(span.start);
         let (end_line, end_column) = source.line_column(span.end);
-        let mut sites = self.sites.borrow_mut();
-        let site = u32::try_from(sites.len()).expect("lowering site index must fit u32");
-        assert_ne!(
-            site,
-            u32::MAX,
-            "u32::MAX is reserved for an unattributed site"
-        );
-        sites.push(LoweringSite {
+        let candidate = LoweringSite {
             function,
             file,
             line: u32::try_from(line).expect("source line must fit u32"),
             column: u32::try_from(column).expect("source column must fit u32"),
             end_line: u32::try_from(end_line).expect("source line must fit u32"),
             end_column: u32::try_from(end_column).expect("source column must fit u32"),
-        });
+        };
+        let mut sites = self.sites.borrow_mut();
+        if let Some(site) = sites.iter().position(|existing| existing == &candidate) {
+            return u32::try_from(site).expect("lowering site index must fit u32");
+        }
+        let site = u32::try_from(sites.len()).expect("lowering site index must fit u32");
+        assert_ne!(
+            site,
+            u32::MAX,
+            "u32::MAX is reserved for an unattributed site"
+        );
+        sites.push(candidate);
         site
     }
 
@@ -834,8 +838,7 @@ fn emit_error_support(
     "#});
     if has_custom_throwable {
         output.push_str(
-            "            Self::Custom(descriptor) => \
-             __terrane_trace::DESCRIPTORS[usize::from(descriptor.0)],\n",
+            "                Self::Custom(descriptor) => __terrane_error_registry::DESCRIPTORS[usize::from(descriptor.0)],\n",
         );
     }
     output.push_str(indoc! {r#"
@@ -875,7 +878,9 @@ fn emit_error_support(
             origin: TerraneSite,
             detail: Option<Box<TerraneErrorDetail>>,
         }
+        #[cfg(target_pointer_width = "64")]
         const _: () = assert!(std::mem::size_of::<TerraneError>() == 16);
+        #[cfg(target_pointer_width = "64")]
         const _: () = assert!(std::mem::size_of::<Result<i64, TerraneError>>() == 16);
         #[allow(
             dead_code,
@@ -1015,10 +1020,36 @@ fn emit_error_support(
         }
         impl TerraneRaised for terrane_int_support::ArithmeticError {
             fn raised(self, origin: TerraneSite) -> TerraneError {
-                TerraneError::raised(
-                    TerraneErrorKind::from_source_name(self.source_name()),
-                    origin,
-                )
+                use terrane_int_support::ArithmeticError;
+                match self {
+                    ArithmeticError::DivisionByZero => {
+                        TerraneError::raised(TerraneErrorKind::DivisionByZero, origin)
+                    }
+                    ArithmeticError::ArithmeticOverflow => {
+                        TerraneError::raised(TerraneErrorKind::ArithmeticOverflow, origin)
+                    }
+                    ArithmeticError::NegativeShiftCount => {
+                        TerraneError::raised(TerraneErrorKind::NegativeShiftCount, origin)
+                    }
+                    ArithmeticError::ShiftCountTooLarge => {
+                        TerraneError::raised(TerraneErrorKind::ResourceError, origin)
+                    }
+                    error @ (ArithmeticError::IntegerConversionOverflow
+                    | ArithmeticError::IntegerConversionOverflowDetail { .. }) => {
+                        TerraneError::raised_with_message(
+                            TerraneErrorKind::IntegerConversionOverflow,
+                            error.to_string(),
+                            origin,
+                        )
+                    }
+                    error @ (ArithmeticError::InvalidRadix | ArithmeticError::InvalidRadixText) => {
+                        TerraneError::raised_with_message(
+                            TerraneErrorKind::CoercionError,
+                            error.to_string(),
+                            origin,
+                        )
+                    }
+                }
             }
         }
         impl TerraneRaised for terrane_string_support::DecodeError {
@@ -1088,6 +1119,18 @@ fn emit_error_support(
         }
         #[allow(
             dead_code,
+            reason = "fresh failure propagation is absent from some lowered programs"
+        )]
+        #[cold]
+        #[inline(never)]
+        fn __terrane_fresh_error<E: TerraneRaised>(
+            error: E,
+            origin: TerraneSite,
+        ) -> TerraneError {
+            error.raised(origin)
+        }
+        #[allow(
+            dead_code,
             reason = "returning fresh failures are absent from some lowered programs"
         )]
         #[inline]
@@ -1095,14 +1138,14 @@ fn emit_error_support(
             result: Result<T, E>,
             origin: TerraneSite,
         ) -> Result<T, TerraneError> {
-            result.map_err(|error| error.raised(origin))
+            result.map_err(|error| __terrane_fresh_error(error, origin))
         }
         macro_rules! __terrane_raised_completion {
             ($result:expr, $origin:expr) => {
                 match $result {
                     Ok(value) => value,
                     Err(error) => {
-                        return TerraneCompletion::Error(error.raised($origin));
+                        return TerraneCompletion::Error(__terrane_fresh_error(error, $origin));
                     }
                 }
             };
@@ -1200,11 +1243,21 @@ fn emit_site_tables(output: &mut String, registry: &LoweringRegistry) {
     let sites = registry.sites.borrow();
     let descriptors = registry.descriptors.borrow();
     output.push_str(indoc! {r#"
+        mod __terrane_error_registry {
+            #[allow(dead_code, reason = "custom descriptors are absent from some programs")]
+    "#});
+    writeln!(
+        output,
+        "    pub static DESCRIPTORS: [&str; {}] = [",
+        descriptors.len()
+    )
+    .expect("writing to a String cannot fail");
+    for (_, name) in descriptors.iter() {
+        writeln!(output, "        {name:?},").expect("writing to a String cannot fail");
+    }
+    output.push_str("    ];\n}\n");
+    output.push_str(indoc! {r"
         mod __terrane_trace {
-            #[allow(
-                dead_code,
-                reason = "range ends are retained for diagnostics and future provenance consumers"
-            )]
             pub struct Site {
                 pub function: u32,
                 pub file: u32,
@@ -1213,7 +1266,7 @@ fn emit_site_tables(output: &mut String, registry: &LoweringRegistry) {
                 pub end_line: u32,
                 pub end_column: u32,
             }
-    "#});
+    "});
     writeln!(output, "    pub static FILES: [&str; {}] = [", files.len())
         .expect("writing to a String cannot fail");
     for file in files.iter() {
@@ -1230,19 +1283,6 @@ fn emit_site_tables(output: &mut String, registry: &LoweringRegistry) {
         writeln!(output, "        {function:?},").expect("writing to a String cannot fail");
     }
     output.push_str("    ];\n");
-    output.push_str(
-        "    #[allow(dead_code, reason = \"custom descriptors are absent from some programs\")]\n",
-    );
-    writeln!(
-        output,
-        "    pub static DESCRIPTORS: [&str; {}] = [",
-        descriptors.len()
-    )
-    .expect("writing to a String cannot fail");
-    for (_, name) in descriptors.iter() {
-        writeln!(output, "        {name:?},").expect("writing to a String cannot fail");
-    }
-    output.push_str("    ];\n");
     writeln!(output, "    pub static SITES: [Site; {}] = [", sites.len())
         .expect("writing to a String cannot fail");
     for (id, site) in sites.iter().enumerate() {
@@ -1250,9 +1290,9 @@ fn emit_site_tables(output: &mut String, registry: &LoweringRegistry) {
         let file = &files[usize::try_from(site.file).expect("u32 must fit usize")];
         writeln!(
             output,
-            "        Site {{ function: __terrane_comment!({}, {:?}), file: {}, line: {}, column: {}, end_line: {}, end_column: {} }},",
-            site.function,
+            "        {{\n            __terrane_site_comment!({:?});\n            Site {{ function: {}, file: {}, line: {}, column: {}, end_line: {}, end_column: {} }}\n        }},",
             format!("site {id}: {function} ({file}:{}:{}-{}:{})", site.line, site.column, site.end_line, site.end_column),
+            site.function,
             site.file,
             site.line,
             site.column,
@@ -1268,11 +1308,13 @@ fn emit_site_tables(output: &mut String, registry: &LoweringRegistry) {
             pub fn render(site: u32) -> String {
                 let site = &SITES[usize::try_from(site).expect("site id must fit usize")];
                 format!(
-                    "{} ({}:{}:{})",
+                    "{} ({}:{}:{}-{}:{})",
                     FUNCTIONS[usize::try_from(site.function).expect("function id must fit usize")],
                     FILES[usize::try_from(site.file).expect("file id must fit usize")],
                     site.line,
                     site.column,
+                    site.end_line,
+                    site.end_column,
                 )
             }
         }
@@ -5739,25 +5781,25 @@ impl Emitter<'_> {
             call
         };
         if contract.is_some_and(|contract| contract.throws) || foreign_error {
-            let origin = self.error_site(node);
+            let site = self.error_site(node);
             let dependency_boundary = self
                 .package
                 .resolve_name_at(self.unit, callee.span.start, self.text(callee))
                 .is_some_and(|symbol| symbol.identity.starts_with("/deps/"));
             if foreign_error || dependency_boundary {
                 if self.try_completion {
-                    format!("__terrane_raised_completion!({call}, {origin})")
+                    format!("__terrane_raised_completion!({call}, {site})")
                 } else if self.propagate_errors {
-                    format!("__terrane_raised_err({call}, {origin})?")
+                    format!("__terrane_raised_err({call}, {site})?")
                 } else {
-                    format!("__terrane_raised({call}, {origin})")
+                    format!("__terrane_raised({call}, {site})")
                 }
             } else if self.try_completion {
-                format!("__terrane_traced_completion!({call}, {origin})")
+                format!("__terrane_traced_completion!({call}, {site})")
             } else if self.propagate_errors {
-                format!("__terrane_traced_err({call}, {origin})?")
+                format!("__terrane_traced_err({call}, {site})?")
             } else {
-                format!("__terrane_traced({call}, {origin})")
+                format!("__terrane_traced({call}, {site})")
             }
         } else {
             call
@@ -5766,13 +5808,13 @@ impl Emitter<'_> {
 
     fn fallible(&self, call: impl AsRef<str>, node: &SyntaxNode) -> String {
         let call = call.as_ref();
-        let origin = self.error_site(node);
+        let site = self.error_site(node);
         if self.try_completion {
-            format!("__terrane_raised_completion!({call}, {origin})")
+            format!("__terrane_raised_completion!({call}, {site})")
         } else if self.propagate_errors {
-            format!("__terrane_raised_err({call}, {origin})?")
+            format!("__terrane_raised_err({call}, {site})?")
         } else if package_uses_structured_errors(self.package) {
-            format!("__terrane_raised({call}, {origin})")
+            format!("__terrane_raised({call}, {site})")
         } else {
             format!("terrane_int_support::unwrap_or_fail({call})")
         }
@@ -7393,7 +7435,10 @@ fn display_path(path: &std::path::Path) -> String {
 
 #[cfg(test)]
 mod tests {
+    use std::path::PathBuf;
+
     use super::{LoweringRegistry, emit_error_support};
+    use crate::{SourceFile, Span};
 
     #[test]
     fn error_support_is_canonical_rust() {
@@ -7417,5 +7462,18 @@ mod tests {
                 canonical
             );
         }
+    }
+
+    #[test]
+    fn lowering_registry_reuses_identical_semantic_sites() {
+        let registry = LoweringRegistry::default();
+        let source = SourceFile::new(0, PathBuf::from("case.trn"), "value".to_owned());
+        let span = Span::new(0, 0, 5);
+
+        let first = registry.register_site("case.trn", "/demo::main", &source, span);
+        let second = registry.register_site("case.trn", "/demo::main", &source, span);
+
+        assert_eq!(first, second);
+        assert_eq!(registry.sites.borrow().len(), 1);
     }
 }

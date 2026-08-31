@@ -84,7 +84,9 @@ pub struct TerraneError {
     origin: TerraneSite,
     detail: Option<Box<TerraneErrorDetail>>,
 }
+#[cfg(target_pointer_width = "64")]
 const _: () = assert!(std::mem::size_of::< TerraneError > () == 16);
+#[cfg(target_pointer_width = "64")]
 const _: () = assert!(std::mem::size_of::< Result < i64, TerraneError >> () == 16);
 #[allow(
     dead_code,
@@ -208,10 +210,37 @@ impl TerraneRaised for TerraneForeignError {
 }
 impl TerraneRaised for terrane_int_support::ArithmeticError {
     fn raised(self, origin: TerraneSite) -> TerraneError {
-        TerraneError::raised(
-            TerraneErrorKind::from_source_name(self.source_name()),
-            origin,
-        )
+        use terrane_int_support::ArithmeticError;
+        match self {
+            ArithmeticError::DivisionByZero => {
+                TerraneError::raised(TerraneErrorKind::DivisionByZero, origin)
+            }
+            ArithmeticError::ArithmeticOverflow => {
+                TerraneError::raised(TerraneErrorKind::ArithmeticOverflow, origin)
+            }
+            ArithmeticError::NegativeShiftCount => {
+                TerraneError::raised(TerraneErrorKind::NegativeShiftCount, origin)
+            }
+            ArithmeticError::ShiftCountTooLarge => {
+                TerraneError::raised(TerraneErrorKind::ResourceError, origin)
+            }
+            error @ (ArithmeticError::IntegerConversionOverflow
+            | ArithmeticError::IntegerConversionOverflowDetail { .. }) => {
+                TerraneError::raised_with_message(
+                    TerraneErrorKind::IntegerConversionOverflow,
+                    error.to_string(),
+                    origin,
+                )
+            }
+            error @ (ArithmeticError::InvalidRadix
+            | ArithmeticError::InvalidRadixText) => {
+                TerraneError::raised_with_message(
+                    TerraneErrorKind::CoercionError,
+                    error.to_string(),
+                    origin,
+                )
+            }
+        }
     }
 }
 impl TerraneRaised for terrane_string_support::DecodeError {
@@ -281,6 +310,18 @@ fn __terrane_raised<T, E: TerraneRaised>(
 }
 #[allow(
     dead_code,
+    reason = "fresh failure propagation is absent from some lowered programs"
+)]
+#[cold]
+#[inline(never)]
+fn __terrane_fresh_error<E: TerraneRaised>(
+    error: E,
+    origin: TerraneSite,
+) -> TerraneError {
+    error.raised(origin)
+}
+#[allow(
+    dead_code,
     reason = "returning fresh failures are absent from some lowered programs"
 )]
 #[inline]
@@ -288,12 +329,12 @@ fn __terrane_raised_err<T, E: TerraneRaised>(
     result: Result<T, E>,
     origin: TerraneSite,
 ) -> Result<T, TerraneError> {
-    result.map_err(|error| error.raised(origin))
+    result.map_err(|error| __terrane_fresh_error(error, origin))
 }
 macro_rules! __terrane_raised_completion {
     ($result:expr, $origin:expr) => {
         match $result { Ok(value) => value, Err(error) => { return
-        TerraneCompletion::Error(error.raised($origin)); } }
+        TerraneCompletion::Error(__terrane_fresh_error(error, $origin)); } }
     };
 }
 #[allow(
@@ -340,11 +381,11 @@ enum TerraneCompletion<T> {
     Break,
     Continue,
 }
+mod __terrane_error_registry {
+    #[allow(dead_code, reason = "custom descriptors are absent from some programs")]
+    pub static DESCRIPTORS: [&str; 0] = [];
+}
 mod __terrane_trace {
-    #[allow(
-        dead_code,
-        reason = "range ends are retained for diagnostics and future provenance consumers"
-    )]
     pub struct Site {
         pub function: u32,
         pub file: u32,
@@ -355,116 +396,72 @@ mod __terrane_trace {
     }
     pub static FILES: [&str; 1] = ["case.trn"];
     pub static FUNCTIONS: [&str; 1] = ["/tuple-type-boundaries::main"];
-    #[allow(dead_code, reason = "custom descriptors are absent from some programs")]
-    pub static DESCRIPTORS: [&str; 0] = [];
-    pub static SITES: [Site; 12] = [
-        Site {
-            function: 
-                0 /* terrane-site: site 0: /tuple-type-boundaries::main (case.trn:13:27-13:38) */,
-            file: 0,
-            line: 13,
-            column: 27,
-            end_line: 13,
-            end_column: 38,
+    pub static SITES: [Site; 6] = [
+        {
+            /* terrane-site-row: site 0: /tuple-type-boundaries::main (case.trn:13:27-13:38) */
+            Site {
+                function: 0,
+                file: 0,
+                line: 13,
+                column: 27,
+                end_line: 13,
+                end_column: 38,
+            }
         },
-        Site {
-            function: 
-                0 /* terrane-site: site 1: /tuple-type-boundaries::main (case.trn:13:27-13:38) */,
-            file: 0,
-            line: 13,
-            column: 27,
-            end_line: 13,
-            end_column: 38,
+        {
+            /* terrane-site-row: site 1: /tuple-type-boundaries::main (case.trn:13:40-13:51) */
+            Site {
+                function: 0,
+                file: 0,
+                line: 13,
+                column: 40,
+                end_line: 13,
+                end_column: 51,
+            }
         },
-        Site {
-            function: 
-                0 /* terrane-site: site 2: /tuple-type-boundaries::main (case.trn:13:40-13:51) */,
-            file: 0,
-            line: 13,
-            column: 40,
-            end_line: 13,
-            end_column: 51,
+        {
+            /* terrane-site-row: site 2: /tuple-type-boundaries::main (case.trn:18:25-18:34) */
+            Site {
+                function: 0,
+                file: 0,
+                line: 18,
+                column: 25,
+                end_line: 18,
+                end_column: 34,
+            }
         },
-        Site {
-            function: 
-                0 /* terrane-site: site 3: /tuple-type-boundaries::main (case.trn:13:40-13:51) */,
-            file: 0,
-            line: 13,
-            column: 40,
-            end_line: 13,
-            end_column: 51,
+        {
+            /* terrane-site-row: site 3: /tuple-type-boundaries::main (case.trn:18:25-18:37) */
+            Site {
+                function: 0,
+                file: 0,
+                line: 18,
+                column: 25,
+                end_line: 18,
+                end_column: 37,
+            }
         },
-        Site {
-            function: 
-                0 /* terrane-site: site 4: /tuple-type-boundaries::main (case.trn:18:25-18:34) */,
-            file: 0,
-            line: 18,
-            column: 25,
-            end_line: 18,
-            end_column: 34,
+        {
+            /* terrane-site-row: site 4: /tuple-type-boundaries::main (case.trn:18:39-18:48) */
+            Site {
+                function: 0,
+                file: 0,
+                line: 18,
+                column: 39,
+                end_line: 18,
+                end_column: 48,
+            }
         },
-        Site {
-            function: 
-                0 /* terrane-site: site 5: /tuple-type-boundaries::main (case.trn:18:25-18:34) */,
-            file: 0,
-            line: 18,
-            column: 25,
-            end_line: 18,
-            end_column: 34,
-        },
-        Site {
-            function: 
-                0 /* terrane-site: site 6: /tuple-type-boundaries::main (case.trn:18:25-18:37) */,
-            file: 0,
-            line: 18,
-            column: 25,
-            end_line: 18,
-            end_column: 37,
-        },
-        Site {
-            function: 
-                0 /* terrane-site: site 7: /tuple-type-boundaries::main (case.trn:18:25-18:37) */,
-            file: 0,
-            line: 18,
-            column: 25,
-            end_line: 18,
-            end_column: 37,
-        },
-        Site {
-            function: 
-                0 /* terrane-site: site 8: /tuple-type-boundaries::main (case.trn:18:39-18:48) */,
-            file: 0,
-            line: 18,
-            column: 39,
-            end_line: 18,
-            end_column: 48,
-        },
-        Site {
-            function: 
-                0 /* terrane-site: site 9: /tuple-type-boundaries::main (case.trn:18:39-18:48) */,
-            file: 0,
-            line: 18,
-            column: 39,
-            end_line: 18,
-            end_column: 48,
-        },
-        Site {
-            function: 
-                0 /* terrane-site: site 10: /tuple-type-boundaries::main (case.trn:18:39-18:51) */,
-            file: 0,
-            line: 18,
-            column: 39,
-            end_line: 18,
-            end_column: 51,
-        },
-        Site {
-            function: 
-                0 /* terrane-site: site 11: /tuple-type-boundaries::main (case.trn:18:39-18:51) */,
-            file: 0,
-            line: 18,
-            column: 39,
-            end_line: 18,
-            end_column: 51,
+        {
+            /* terrane-site-row: site 5: /tuple-type-boundaries::main (case.trn:18:39-18:51) */
+            Site {
+                function: 0,
+                file: 0,
+                line: 18,
+                column: 39,
+                end_line: 18,
+                end_column: 51,
+            }
         },
     ];
     #[cold]
@@ -472,9 +469,10 @@ mod __terrane_trace {
     pub fn render(site: u32) -> String {
         let site = &SITES[usize::try_from(site).expect("site id must fit usize")];
         format!(
-            "{} ({}:{}:{})", FUNCTIONS[usize::try_from(site.function)
+            "{} ({}:{}:{}-{}:{})", FUNCTIONS[usize::try_from(site.function)
             .expect("function id must fit usize")], FILES[usize::try_from(site.file)
-            .expect("file id must fit usize")], site.line, site.column,
+            .expect("file id must fit usize")], site.line, site.column, site.end_line,
+            site.end_column,
         )
     }
 }
@@ -511,10 +509,10 @@ fn main() {
         terrane_scalar_support::scalar_text(&terrane_int_support::Int::from(returned
         .length())), terrane_scalar_support::scalar_text(&__terrane_raised(returned
         .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
-        0 /* terrane-site: case.trn:13:27-13:38 */)), 1 /* terrane-site: case.trn:13:27-13:38 */)),
+        0 /* terrane-site: case.trn:13:27-13:38 */)), 0 /* terrane-site: case.trn:13:27-13:38 */)),
         terrane_scalar_support::scalar_text(&__terrane_raised(returned
         .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(1_i128)),
-        2 /* terrane-site: case.trn:13:40-13:51 */)), 3 /* terrane-site: case.trn:13:40-13:51 */))
+        1 /* terrane-site: case.trn:13:40-13:51 */)), 1 /* terrane-site: case.trn:13:40-13:51 */))
     );
     let empty: terrane_collection_support::Tuple<terrane_int_support::Int> = terrane_collection_support::Tuple::<
         terrane_int_support::Int,
@@ -545,13 +543,13 @@ fn main() {
         .length())),
         terrane_scalar_support::scalar_text(&__terrane_raised(__terrane_raised(echoed
         .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
-        4 /* terrane-site: case.trn:18:25-18:34 */)), 5 /* terrane-site: case.trn:18:25-18:34 */)
+        2 /* terrane-site: case.trn:18:25-18:34 */)), 2 /* terrane-site: case.trn:18:25-18:34 */)
         .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(1_i128)),
-        6 /* terrane-site: case.trn:18:25-18:37 */)), 7 /* terrane-site: case.trn:18:25-18:37 */)),
+        3 /* terrane-site: case.trn:18:25-18:37 */)), 3 /* terrane-site: case.trn:18:25-18:37 */)),
         terrane_scalar_support::scalar_text(&__terrane_raised(__terrane_raised(echoed
         .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(1_i128)),
-        8 /* terrane-site: case.trn:18:39-18:48 */)), 9 /* terrane-site: case.trn:18:39-18:48 */)
+        4 /* terrane-site: case.trn:18:39-18:48 */)), 4 /* terrane-site: case.trn:18:39-18:48 */)
         .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
-        10 /* terrane-site: case.trn:18:39-18:51 */)), 11 /* terrane-site: case.trn:18:39-18:51 */))
+        5 /* terrane-site: case.trn:18:39-18:51 */)), 5 /* terrane-site: case.trn:18:39-18:51 */))
     );
 }

@@ -84,7 +84,9 @@ pub struct TerraneError {
     origin: TerraneSite,
     detail: Option<Box<TerraneErrorDetail>>,
 }
+#[cfg(target_pointer_width = "64")]
 const _: () = assert!(std::mem::size_of::< TerraneError > () == 16);
+#[cfg(target_pointer_width = "64")]
 const _: () = assert!(std::mem::size_of::< Result < i64, TerraneError >> () == 16);
 #[allow(
     dead_code,
@@ -208,10 +210,37 @@ impl TerraneRaised for TerraneForeignError {
 }
 impl TerraneRaised for terrane_int_support::ArithmeticError {
     fn raised(self, origin: TerraneSite) -> TerraneError {
-        TerraneError::raised(
-            TerraneErrorKind::from_source_name(self.source_name()),
-            origin,
-        )
+        use terrane_int_support::ArithmeticError;
+        match self {
+            ArithmeticError::DivisionByZero => {
+                TerraneError::raised(TerraneErrorKind::DivisionByZero, origin)
+            }
+            ArithmeticError::ArithmeticOverflow => {
+                TerraneError::raised(TerraneErrorKind::ArithmeticOverflow, origin)
+            }
+            ArithmeticError::NegativeShiftCount => {
+                TerraneError::raised(TerraneErrorKind::NegativeShiftCount, origin)
+            }
+            ArithmeticError::ShiftCountTooLarge => {
+                TerraneError::raised(TerraneErrorKind::ResourceError, origin)
+            }
+            error @ (ArithmeticError::IntegerConversionOverflow
+            | ArithmeticError::IntegerConversionOverflowDetail { .. }) => {
+                TerraneError::raised_with_message(
+                    TerraneErrorKind::IntegerConversionOverflow,
+                    error.to_string(),
+                    origin,
+                )
+            }
+            error @ (ArithmeticError::InvalidRadix
+            | ArithmeticError::InvalidRadixText) => {
+                TerraneError::raised_with_message(
+                    TerraneErrorKind::CoercionError,
+                    error.to_string(),
+                    origin,
+                )
+            }
+        }
     }
 }
 impl TerraneRaised for terrane_string_support::DecodeError {
@@ -281,6 +310,18 @@ fn __terrane_raised<T, E: TerraneRaised>(
 }
 #[allow(
     dead_code,
+    reason = "fresh failure propagation is absent from some lowered programs"
+)]
+#[cold]
+#[inline(never)]
+fn __terrane_fresh_error<E: TerraneRaised>(
+    error: E,
+    origin: TerraneSite,
+) -> TerraneError {
+    error.raised(origin)
+}
+#[allow(
+    dead_code,
     reason = "returning fresh failures are absent from some lowered programs"
 )]
 #[inline]
@@ -288,12 +329,12 @@ fn __terrane_raised_err<T, E: TerraneRaised>(
     result: Result<T, E>,
     origin: TerraneSite,
 ) -> Result<T, TerraneError> {
-    result.map_err(|error| error.raised(origin))
+    result.map_err(|error| __terrane_fresh_error(error, origin))
 }
 macro_rules! __terrane_raised_completion {
     ($result:expr, $origin:expr) => {
         match $result { Ok(value) => value, Err(error) => { return
-        TerraneCompletion::Error(error.raised($origin)); } }
+        TerraneCompletion::Error(__terrane_fresh_error(error, $origin)); } }
     };
 }
 #[allow(
@@ -340,11 +381,11 @@ enum TerraneCompletion<T> {
     Break,
     Continue,
 }
+mod __terrane_error_registry {
+    #[allow(dead_code, reason = "custom descriptors are absent from some programs")]
+    pub static DESCRIPTORS: [&str; 0] = [];
+}
 mod __terrane_trace {
-    #[allow(
-        dead_code,
-        reason = "range ends are retained for diagnostics and future provenance consumers"
-    )]
     pub struct Site {
         pub function: u32,
         pub file: u32,
@@ -362,170 +403,149 @@ mod __terrane_trace {
         "/collection-boundary-contextual-typing::take-map-list",
         "/collection-boundary-contextual-typing::main",
     ];
-    #[allow(dead_code, reason = "custom descriptors are absent from some programs")]
-    pub static DESCRIPTORS: [&str; 0] = [];
-    pub static SITES: [Site; 18] = [
-        Site {
-            function: 
-                0 /* terrane-site: site 0: /collection-boundary-contextual-typing::take (case.trn:5:10-5:19) */,
-            file: 0,
-            line: 5,
-            column: 10,
-            end_line: 5,
-            end_column: 19,
+    pub static SITES: [Site; 13] = [
+        {
+            /* terrane-site-row: site 0: /collection-boundary-contextual-typing::take (case.trn:5:10-5:19) */
+            Site {
+                function: 0,
+                file: 0,
+                line: 5,
+                column: 10,
+                end_line: 5,
+                end_column: 19,
+            }
         },
-        Site {
-            function: 
-                0 /* terrane-site: site 1: /collection-boundary-contextual-typing::take (case.trn:5:10-5:19) */,
-            file: 0,
-            line: 5,
-            column: 10,
-            end_line: 5,
-            end_column: 19,
+        {
+            /* terrane-site-row: site 1: /collection-boundary-contextual-typing::take-entry-map (case.trn:9:10-9:21) */
+            Site {
+                function: 1,
+                file: 0,
+                line: 9,
+                column: 10,
+                end_line: 9,
+                end_column: 21,
+            }
         },
-        Site {
-            function: 
-                1 /* terrane-site: site 2: /collection-boundary-contextual-typing::take-entry-map (case.trn:9:10-9:21) */,
-            file: 0,
-            line: 9,
-            column: 10,
-            end_line: 9,
-            end_column: 21,
+        {
+            /* terrane-site-row: site 2: /collection-boundary-contextual-typing::take-entry-map (case.trn:9:27-9:38) */
+            Site {
+                function: 1,
+                file: 0,
+                line: 9,
+                column: 27,
+                end_line: 9,
+                end_column: 38,
+            }
         },
-        Site {
-            function: 
-                1 /* terrane-site: site 3: /collection-boundary-contextual-typing::take-entry-map (case.trn:9:27-9:38) */,
-            file: 0,
-            line: 9,
-            column: 27,
-            end_line: 9,
-            end_column: 38,
+        {
+            /* terrane-site-row: site 3: /collection-boundary-contextual-typing::take-nested-map (case.trn:13:10-13:21) */
+            Site {
+                function: 2,
+                file: 0,
+                line: 13,
+                column: 10,
+                end_line: 13,
+                end_column: 21,
+            }
         },
-        Site {
-            function: 
-                2 /* terrane-site: site 4: /collection-boundary-contextual-typing::take-nested-map (case.trn:13:10-13:21) */,
-            file: 0,
-            line: 13,
-            column: 10,
-            end_line: 13,
-            end_column: 21,
+        {
+            /* terrane-site-row: site 4: /collection-boundary-contextual-typing::take-nested-map (case.trn:13:10-13:26) */
+            Site {
+                function: 2,
+                file: 0,
+                line: 13,
+                column: 10,
+                end_line: 13,
+                end_column: 26,
+            }
         },
-        Site {
-            function: 
-                2 /* terrane-site: site 5: /collection-boundary-contextual-typing::take-nested-map (case.trn:13:10-13:26) */,
-            file: 0,
-            line: 13,
-            column: 10,
-            end_line: 13,
-            end_column: 26,
+        {
+            /* terrane-site-row: site 5: /collection-boundary-contextual-typing::take-nested-list (case.trn:15:10-15:19) */
+            Site {
+                function: 3,
+                file: 0,
+                line: 15,
+                column: 10,
+                end_line: 15,
+                end_column: 19,
+            }
         },
-        Site {
-            function: 
-                3 /* terrane-site: site 6: /collection-boundary-contextual-typing::take-nested-list (case.trn:15:10-15:19) */,
-            file: 0,
-            line: 15,
-            column: 10,
-            end_line: 15,
-            end_column: 19,
+        {
+            /* terrane-site-row: site 6: /collection-boundary-contextual-typing::take-nested-list (case.trn:15:10-15:22) */
+            Site {
+                function: 3,
+                file: 0,
+                line: 15,
+                column: 10,
+                end_line: 15,
+                end_column: 22,
+            }
         },
-        Site {
-            function: 
-                3 /* terrane-site: site 7: /collection-boundary-contextual-typing::take-nested-list (case.trn:15:10-15:19) */,
-            file: 0,
-            line: 15,
-            column: 10,
-            end_line: 15,
-            end_column: 19,
+        {
+            /* terrane-site-row: site 7: /collection-boundary-contextual-typing::take-map-list (case.trn:17:10-17:21) */
+            Site {
+                function: 4,
+                file: 0,
+                line: 17,
+                column: 10,
+                end_line: 17,
+                end_column: 21,
+            }
         },
-        Site {
-            function: 
-                3 /* terrane-site: site 8: /collection-boundary-contextual-typing::take-nested-list (case.trn:15:10-15:22) */,
-            file: 0,
-            line: 15,
-            column: 10,
-            end_line: 15,
-            end_column: 22,
+        {
+            /* terrane-site-row: site 8: /collection-boundary-contextual-typing::take-map-list (case.trn:17:10-17:24) */
+            Site {
+                function: 4,
+                file: 0,
+                line: 17,
+                column: 10,
+                end_line: 17,
+                end_column: 24,
+            }
         },
-        Site {
-            function: 
-                3 /* terrane-site: site 9: /collection-boundary-contextual-typing::take-nested-list (case.trn:15:10-15:22) */,
-            file: 0,
-            line: 15,
-            column: 10,
-            end_line: 15,
-            end_column: 22,
+        {
+            /* terrane-site-row: site 9: /collection-boundary-contextual-typing::main (case.trn:28:22-28:30) */
+            Site {
+                function: 5,
+                file: 0,
+                line: 28,
+                column: 22,
+                end_line: 28,
+                end_column: 30,
+            }
         },
-        Site {
-            function: 
-                4 /* terrane-site: site 10: /collection-boundary-contextual-typing::take-map-list (case.trn:17:10-17:21) */,
-            file: 0,
-            line: 17,
-            column: 10,
-            end_line: 17,
-            end_column: 21,
+        {
+            /* terrane-site-row: site 10: /collection-boundary-contextual-typing::main (case.trn:28:32-28:39) */
+            Site {
+                function: 5,
+                file: 0,
+                line: 28,
+                column: 32,
+                end_line: 28,
+                end_column: 39,
+            }
         },
-        Site {
-            function: 
-                4 /* terrane-site: site 11: /collection-boundary-contextual-typing::take-map-list (case.trn:17:10-17:24) */,
-            file: 0,
-            line: 17,
-            column: 10,
-            end_line: 17,
-            end_column: 24,
+        {
+            /* terrane-site-row: site 11: /collection-boundary-contextual-typing::main (case.trn:28:41-28:58) */
+            Site {
+                function: 5,
+                file: 0,
+                line: 28,
+                column: 41,
+                end_line: 28,
+                end_column: 58,
+            }
         },
-        Site {
-            function: 
-                4 /* terrane-site: site 12: /collection-boundary-contextual-typing::take-map-list (case.trn:17:10-17:24) */,
-            file: 0,
-            line: 17,
-            column: 10,
-            end_line: 17,
-            end_column: 24,
-        },
-        Site {
-            function: 
-                5 /* terrane-site: site 13: /collection-boundary-contextual-typing::main (case.trn:28:22-28:30) */,
-            file: 0,
-            line: 28,
-            column: 22,
-            end_line: 28,
-            end_column: 30,
-        },
-        Site {
-            function: 
-                5 /* terrane-site: site 14: /collection-boundary-contextual-typing::main (case.trn:28:32-28:39) */,
-            file: 0,
-            line: 28,
-            column: 32,
-            end_line: 28,
-            end_column: 39,
-        },
-        Site {
-            function: 
-                5 /* terrane-site: site 15: /collection-boundary-contextual-typing::main (case.trn:28:32-28:39) */,
-            file: 0,
-            line: 28,
-            column: 32,
-            end_line: 28,
-            end_column: 39,
-        },
-        Site {
-            function: 
-                5 /* terrane-site: site 16: /collection-boundary-contextual-typing::main (case.trn:28:41-28:58) */,
-            file: 0,
-            line: 28,
-            column: 41,
-            end_line: 28,
-            end_column: 58,
-        },
-        Site {
-            function: 
-                5 /* terrane-site: site 17: /collection-boundary-contextual-typing::main (case.trn:28:64-28:81) */,
-            file: 0,
-            line: 28,
-            column: 64,
-            end_line: 28,
-            end_column: 81,
+        {
+            /* terrane-site-row: site 12: /collection-boundary-contextual-typing::main (case.trn:28:64-28:81) */
+            Site {
+                function: 5,
+                file: 0,
+                line: 28,
+                column: 64,
+                end_line: 28,
+                end_column: 81,
+            }
         },
     ];
     #[cold]
@@ -533,9 +553,10 @@ mod __terrane_trace {
     pub fn render(site: u32) -> String {
         let site = &SITES[usize::try_from(site).expect("site id must fit usize")];
         format!(
-            "{} ({}:{}:{})", FUNCTIONS[usize::try_from(site.function)
+            "{} ({}:{}:{}-{}:{})", FUNCTIONS[usize::try_from(site.function)
             .expect("function id must fit usize")], FILES[usize::try_from(site.file)
-            .expect("file id must fit usize")], site.line, site.column,
+            .expect("file id must fit usize")], site.line, site.column, site.end_line,
+            site.end_column,
         )
     }
 }
@@ -545,7 +566,7 @@ fn take(values: terrane_collection_support::List<i8>) {
     println!(
         "{}", terrane_scalar_support::scalar_text(&__terrane_raised(values
         .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(1_i128)),
-        0 /* terrane-site: case.trn:5:10-5:19 */)), 1 /* terrane-site: case.trn:5:10-5:19 */))
+        0 /* terrane-site: case.trn:5:10-5:19 */)), 0 /* terrane-site: case.trn:5:10-5:19 */))
     );
 }
 fn make() -> terrane_collection_support::List<i8> {
@@ -559,9 +580,9 @@ fn take_entry_map(
 ) {
     println!(
         "{}{}", terrane_scalar_support::scalar_text(&__terrane_raised(values
-        .get_or_error(&String::from("a")), 2 /* terrane-site: case.trn:9:10-9:21 */)
+        .get_or_error(&String::from("a")), 1 /* terrane-site: case.trn:9:10-9:21 */)
         .key), terrane_scalar_support::scalar_text(&__terrane_raised(values
-        .get_or_error(&String::from("a")), 3 /* terrane-site: case.trn:9:27-9:38 */)
+        .get_or_error(&String::from("a")), 2 /* terrane-site: case.trn:9:27-9:38 */)
         .value)
     );
 }
@@ -588,8 +609,8 @@ fn take_nested_map(
     println!(
         "{}",
         terrane_scalar_support::scalar_text(&__terrane_raised(__terrane_raised(values
-        .get_or_error(&String::from("a")), 4 /* terrane-site: case.trn:13:10-13:21 */)
-        .get_or_error(&String::from("b")), 5 /* terrane-site: case.trn:13:10-13:26 */))
+        .get_or_error(&String::from("a")), 3 /* terrane-site: case.trn:13:10-13:21 */)
+        .get_or_error(&String::from("b")), 4 /* terrane-site: case.trn:13:10-13:26 */))
     );
 }
 fn take_nested_list(
@@ -599,9 +620,9 @@ fn take_nested_list(
         "{}",
         terrane_scalar_support::scalar_text(&__terrane_raised(__terrane_raised(values
         .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
-        6 /* terrane-site: case.trn:15:10-15:19 */)), 7 /* terrane-site: case.trn:15:10-15:19 */)
+        5 /* terrane-site: case.trn:15:10-15:19 */)), 5 /* terrane-site: case.trn:15:10-15:19 */)
         .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(1_i128)),
-        8 /* terrane-site: case.trn:15:10-15:22 */)), 9 /* terrane-site: case.trn:15:10-15:22 */))
+        6 /* terrane-site: case.trn:15:10-15:22 */)), 6 /* terrane-site: case.trn:15:10-15:22 */))
     );
 }
 fn take_map_list(
@@ -610,9 +631,9 @@ fn take_map_list(
     println!(
         "{}",
         terrane_scalar_support::scalar_text(&__terrane_raised(__terrane_raised(values
-        .get_or_error(&String::from("a")), 10 /* terrane-site: case.trn:17:10-17:21 */)
+        .get_or_error(&String::from("a")), 7 /* terrane-site: case.trn:17:10-17:21 */)
         .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
-        11 /* terrane-site: case.trn:17:10-17:24 */)), 12 /* terrane-site: case.trn:17:10-17:24 */))
+        8 /* terrane-site: case.trn:17:10-17:24 */)), 8 /* terrane-site: case.trn:17:10-17:24 */))
     );
 }
 fn main() {
@@ -678,13 +699,13 @@ fn main() {
     println!(
         "{}{}{}{}{}", terrane_scalar_support::scalar_text(&pair.value),
         terrane_scalar_support::scalar_text(&__terrane_raised(keyed.get_or_error(&5),
-        13 /* terrane-site: case.trn:28:22-28:30 */)),
+        9 /* terrane-site: case.trn:28:22-28:30 */)),
         terrane_scalar_support::scalar_text(&__terrane_raised(made
         .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
-        14 /* terrane-site: case.trn:28:32-28:39 */)), 15 /* terrane-site: case.trn:28:32-28:39 */)),
+        10 /* terrane-site: case.trn:28:32-28:39 */)), 10 /* terrane-site: case.trn:28:32-28:39 */)),
         terrane_scalar_support::scalar_text(&__terrane_raised(made_entries
-        .get_or_error(&String::from("a")), 16 /* terrane-site: case.trn:28:41-28:58 */).key),
+        .get_or_error(&String::from("a")), 11 /* terrane-site: case.trn:28:41-28:58 */).key),
         terrane_scalar_support::scalar_text(&__terrane_raised(made_entries
-        .get_or_error(&String::from("a")), 17 /* terrane-site: case.trn:28:64-28:81 */).value)
+        .get_or_error(&String::from("a")), 12 /* terrane-site: case.trn:28:64-28:81 */).value)
     );
 }

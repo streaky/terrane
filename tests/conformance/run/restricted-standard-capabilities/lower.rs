@@ -84,7 +84,9 @@ pub struct TerraneError {
     origin: TerraneSite,
     detail: Option<Box<TerraneErrorDetail>>,
 }
+#[cfg(target_pointer_width = "64")]
 const _: () = assert!(std::mem::size_of::< TerraneError > () == 16);
+#[cfg(target_pointer_width = "64")]
 const _: () = assert!(std::mem::size_of::< Result < i64, TerraneError >> () == 16);
 #[allow(
     dead_code,
@@ -208,10 +210,37 @@ impl TerraneRaised for TerraneForeignError {
 }
 impl TerraneRaised for terrane_int_support::ArithmeticError {
     fn raised(self, origin: TerraneSite) -> TerraneError {
-        TerraneError::raised(
-            TerraneErrorKind::from_source_name(self.source_name()),
-            origin,
-        )
+        use terrane_int_support::ArithmeticError;
+        match self {
+            ArithmeticError::DivisionByZero => {
+                TerraneError::raised(TerraneErrorKind::DivisionByZero, origin)
+            }
+            ArithmeticError::ArithmeticOverflow => {
+                TerraneError::raised(TerraneErrorKind::ArithmeticOverflow, origin)
+            }
+            ArithmeticError::NegativeShiftCount => {
+                TerraneError::raised(TerraneErrorKind::NegativeShiftCount, origin)
+            }
+            ArithmeticError::ShiftCountTooLarge => {
+                TerraneError::raised(TerraneErrorKind::ResourceError, origin)
+            }
+            error @ (ArithmeticError::IntegerConversionOverflow
+            | ArithmeticError::IntegerConversionOverflowDetail { .. }) => {
+                TerraneError::raised_with_message(
+                    TerraneErrorKind::IntegerConversionOverflow,
+                    error.to_string(),
+                    origin,
+                )
+            }
+            error @ (ArithmeticError::InvalidRadix
+            | ArithmeticError::InvalidRadixText) => {
+                TerraneError::raised_with_message(
+                    TerraneErrorKind::CoercionError,
+                    error.to_string(),
+                    origin,
+                )
+            }
+        }
     }
 }
 impl TerraneRaised for terrane_string_support::DecodeError {
@@ -281,6 +310,18 @@ fn __terrane_raised<T, E: TerraneRaised>(
 }
 #[allow(
     dead_code,
+    reason = "fresh failure propagation is absent from some lowered programs"
+)]
+#[cold]
+#[inline(never)]
+fn __terrane_fresh_error<E: TerraneRaised>(
+    error: E,
+    origin: TerraneSite,
+) -> TerraneError {
+    error.raised(origin)
+}
+#[allow(
+    dead_code,
     reason = "returning fresh failures are absent from some lowered programs"
 )]
 #[inline]
@@ -288,12 +329,12 @@ fn __terrane_raised_err<T, E: TerraneRaised>(
     result: Result<T, E>,
     origin: TerraneSite,
 ) -> Result<T, TerraneError> {
-    result.map_err(|error| error.raised(origin))
+    result.map_err(|error| __terrane_fresh_error(error, origin))
 }
 macro_rules! __terrane_raised_completion {
     ($result:expr, $origin:expr) => {
         match $result { Ok(value) => value, Err(error) => { return
-        TerraneCompletion::Error(error.raised($origin)); } }
+        TerraneCompletion::Error(__terrane_fresh_error(error, $origin)); } }
     };
 }
 #[allow(
@@ -340,11 +381,11 @@ enum TerraneCompletion<T> {
     Break,
     Continue,
 }
+mod __terrane_error_registry {
+    #[allow(dead_code, reason = "custom descriptors are absent from some programs")]
+    pub static DESCRIPTORS: [&str; 0] = [];
+}
 mod __terrane_trace {
-    #[allow(
-        dead_code,
-        reason = "range ends are retained for diagnostics and future provenance consumers"
-    )]
     pub struct Site {
         pub function: u32,
         pub file: u32,
@@ -359,98 +400,61 @@ mod __terrane_trace {
         "/standard/process::environment",
         "/standard/process::parse-command-line",
     ];
-    #[allow(dead_code, reason = "custom descriptors are absent from some programs")]
-    pub static DESCRIPTORS: [&str; 0] = [];
-    pub static SITES: [Site; 10] = [
-        Site {
-            function: 
-                0 /* terrane-site: site 0: /standard/process::arguments (standard/process.trn:51:42-51:56) */,
-            file: 0,
-            line: 51,
-            column: 42,
-            end_line: 51,
-            end_column: 56,
+    pub static SITES: [Site; 5] = [
+        {
+            /* terrane-site-row: site 0: /standard/process::arguments (standard/process.trn:51:42-51:56) */
+            Site {
+                function: 0,
+                file: 0,
+                line: 51,
+                column: 42,
+                end_line: 51,
+                end_column: 56,
+            }
         },
-        Site {
-            function: 
-                0 /* terrane-site: site 1: /standard/process::arguments (standard/process.trn:51:42-51:56) */,
-            file: 0,
-            line: 51,
-            column: 42,
-            end_line: 51,
-            end_column: 56,
+        {
+            /* terrane-site-row: site 1: /standard/process::environment (standard/process.trn:60:33-60:47) */
+            Site {
+                function: 1,
+                file: 0,
+                line: 60,
+                column: 33,
+                end_line: 60,
+                end_column: 47,
+            }
         },
-        Site {
-            function: 
-                1 /* terrane-site: site 2: /standard/process::environment (standard/process.trn:60:33-60:47) */,
-            file: 0,
-            line: 60,
-            column: 33,
-            end_line: 60,
-            end_column: 47,
+        {
+            /* terrane-site-row: site 2: /standard/process::environment (standard/process.trn:61:34-61:52) */
+            Site {
+                function: 1,
+                file: 0,
+                line: 61,
+                column: 34,
+                end_line: 61,
+                end_column: 52,
+            }
         },
-        Site {
-            function: 
-                1 /* terrane-site: site 3: /standard/process::environment (standard/process.trn:60:33-60:47) */,
-            file: 0,
-            line: 60,
-            column: 33,
-            end_line: 60,
-            end_column: 47,
+        {
+            /* terrane-site-row: site 3: /standard/process::parse-command-line (standard/process.trn:96:20-96:35) */
+            Site {
+                function: 2,
+                file: 0,
+                line: 96,
+                column: 20,
+                end_line: 96,
+                end_column: 35,
+            }
         },
-        Site {
-            function: 
-                1 /* terrane-site: site 4: /standard/process::environment (standard/process.trn:61:34-61:52) */,
-            file: 0,
-            line: 61,
-            column: 34,
-            end_line: 61,
-            end_column: 52,
-        },
-        Site {
-            function: 
-                1 /* terrane-site: site 5: /standard/process::environment (standard/process.trn:61:34-61:52) */,
-            file: 0,
-            line: 61,
-            column: 34,
-            end_line: 61,
-            end_column: 52,
-        },
-        Site {
-            function: 
-                2 /* terrane-site: site 6: /standard/process::parse-command-line (standard/process.trn:96:20-96:35) */,
-            file: 0,
-            line: 96,
-            column: 20,
-            end_line: 96,
-            end_column: 35,
-        },
-        Site {
-            function: 
-                2 /* terrane-site: site 7: /standard/process::parse-command-line (standard/process.trn:96:20-96:35) */,
-            file: 0,
-            line: 96,
-            column: 20,
-            end_line: 96,
-            end_column: 35,
-        },
-        Site {
-            function: 
-                2 /* terrane-site: site 8: /standard/process::parse-command-line (standard/process.trn:111:43-111:62) */,
-            file: 0,
-            line: 111,
-            column: 43,
-            end_line: 111,
-            end_column: 62,
-        },
-        Site {
-            function: 
-                2 /* terrane-site: site 9: /standard/process::parse-command-line (standard/process.trn:111:43-111:62) */,
-            file: 0,
-            line: 111,
-            column: 43,
-            end_line: 111,
-            end_column: 62,
+        {
+            /* terrane-site-row: site 4: /standard/process::parse-command-line (standard/process.trn:111:43-111:62) */
+            Site {
+                function: 2,
+                file: 0,
+                line: 111,
+                column: 43,
+                end_line: 111,
+                end_column: 62,
+            }
         },
     ];
     #[cold]
@@ -458,9 +462,10 @@ mod __terrane_trace {
     pub fn render(site: u32) -> String {
         let site = &SITES[usize::try_from(site).expect("site id must fit usize")];
         format!(
-            "{} ({}:{}:{})", FUNCTIONS[usize::try_from(site.function)
+            "{} ({}:{}:{}-{}:{})", FUNCTIONS[usize::try_from(site.function)
             .expect("function id must fit usize")], FILES[usize::try_from(site.file)
-            .expect("file id must fit usize")], site.line, site.column,
+            .expect("file id must fit usize")], site.line, site.column, site.end_line,
+            site.end_column,
         )
     }
 }
@@ -1283,7 +1288,7 @@ pub fn arguments() -> terrane_collection_support::List<PlatformString> {
                                     0 /* terrane-site: standard/process.trn:51:42-51:56 */,
                                 ),
                             }),
-                        1 /* terrane-site: standard/process.trn:51:42-51:56 */,
+                        0 /* terrane-site: standard/process.trn:51:42-51:56 */,
                     ),
                 ),
             );
@@ -1306,17 +1311,17 @@ pub fn environment() -> terrane_collection_support::List<EnvironmentEntry> {
                     .get(
                         __terrane_raised(
                             terrane_collection_support::index_from_int(&index.clone()),
-                            2 /* terrane-site: standard/process.trn:60:33-60:47 */,
+                            1 /* terrane-site: standard/process.trn:60:33-60:47 */,
                         ),
                     )
                     .cloned()
                     .ok_or(terrane_collection_support::IndexError {
                         index: __terrane_raised(
                             terrane_collection_support::index_from_int(&index.clone()),
-                            2 /* terrane-site: standard/process.trn:60:33-60:47 */,
+                            1 /* terrane-site: standard/process.trn:60:33-60:47 */,
                         ),
                     }),
-                3 /* terrane-site: standard/process.trn:60:33-60:47 */,
+                1 /* terrane-site: standard/process.trn:60:33-60:47 */,
             ),
         );
         let value: PlatformString = PlatformString::terrane_construct(
@@ -1327,7 +1332,7 @@ pub fn environment() -> terrane_collection_support::List<EnvironmentEntry> {
                             terrane_collection_support::index_from_int(
                                 &(index.clone() + terrane_int_support::Int::from(1_i128)),
                             ),
-                            4 /* terrane-site: standard/process.trn:61:34-61:52 */,
+                            2 /* terrane-site: standard/process.trn:61:34-61:52 */,
                         ),
                     )
                     .cloned()
@@ -1336,10 +1341,10 @@ pub fn environment() -> terrane_collection_support::List<EnvironmentEntry> {
                             terrane_collection_support::index_from_int(
                                 &(index.clone() + terrane_int_support::Int::from(1_i128)),
                             ),
-                            4 /* terrane-site: standard/process.trn:61:34-61:52 */,
+                            2 /* terrane-site: standard/process.trn:61:34-61:52 */,
                         ),
                     }),
-                5 /* terrane-site: standard/process.trn:61:34-61:52 */,
+                2 /* terrane-site: standard/process.trn:61:34-61:52 */,
             ),
         );
         values.append(EnvironmentEntry::terrane_construct(name, value));
@@ -1442,10 +1447,10 @@ pub fn parse_command_line(
                 .get_or_error(
                     __terrane_raised(
                         terrane_collection_support::index_from_int(&index.clone()),
-                        6 /* terrane-site: standard/process.trn:96:20-96:35 */,
+                        3 /* terrane-site: standard/process.trn:96:20-96:35 */,
                     ),
                 ),
-            7 /* terrane-site: standard/process.trn:96:20-96:35 */,
+            3 /* terrane-site: standard/process.trn:96:20-96:35 */,
         );
         if !argument.is_text {
             diagnostic_arguments.append(index.clone());
@@ -1481,10 +1486,10 @@ pub fn parse_command_line(
                                             terrane_collection_support::index_from_int(
                                                 &(index.clone() + terrane_int_support::Int::from(1_i128)),
                                             ),
-                                            8 /* terrane-site: standard/process.trn:111:43-111:62 */,
+                                            4 /* terrane-site: standard/process.trn:111:43-111:62 */,
                                         ),
                                     ),
-                                9 /* terrane-site: standard/process.trn:111:43-111:62 */,
+                                4 /* terrane-site: standard/process.trn:111:43-111:62 */,
                             ),
                         );
                     index = index.clone() + terrane_int_support::Int::from(1_i128);
