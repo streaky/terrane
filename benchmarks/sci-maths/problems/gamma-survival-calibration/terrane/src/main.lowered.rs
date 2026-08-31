@@ -377,16 +377,15 @@ mod __terrane_trace {
         pub end_column: u32,
     }
     pub static FILES: [&str; 2] = ["src/main.trn", "standard/process.trn"];
-    pub static FUNCTIONS: [&str; 7] = [
+    pub static FUNCTIONS: [&str; 6] = [
         "/benchmark-gamma-survival-calibration::benchmark-size",
         "/benchmark-gamma-survival-calibration::lower-gamma-ratio",
-        "/benchmark-gamma-survival-calibration::upper-gamma-ratio",
         "/benchmark-gamma-survival-calibration::main",
         "/standard/process::arguments",
         "/standard/process::environment",
         "/standard/process::parse-command-line",
     ];
-    pub static SITES: [Site; 16] = [
+    pub static SITES: [Site; 14] = [
         {
             /* terrane-site-row: site 0: /benchmark-gamma-survival-calibration::benchmark-size (src/main.trn:10:18-10:29) */
             Site {
@@ -432,86 +431,64 @@ mod __terrane_trace {
             }
         },
         {
-            /* terrane-site-row: site 4: /benchmark-gamma-survival-calibration::upper-gamma-ratio (src/main.trn:66:21-66:30) */
+            /* terrane-site-row: site 4: /benchmark-gamma-survival-calibration::main (src/main.trn:95:26-95:36) */
             Site {
                 function: 2,
                 file: 0,
-                line: 66,
-                column: 21,
-                end_line: 66,
-                end_column: 30,
-            }
-        },
-        {
-            /* terrane-site-row: site 5: /benchmark-gamma-survival-calibration::upper-gamma-ratio (src/main.trn:80:5-80:16) */
-            Site {
-                function: 2,
-                file: 0,
-                line: 80,
-                column: 5,
-                end_line: 80,
-                end_column: 16,
-            }
-        },
-        {
-            /* terrane-site-row: site 6: /benchmark-gamma-survival-calibration::main (src/main.trn:96:26-96:36) */
-            Site {
-                function: 3,
-                file: 0,
-                line: 96,
+                line: 95,
                 column: 26,
-                end_line: 96,
+                end_line: 95,
                 end_column: 36,
             }
         },
         {
-            /* terrane-site-row: site 7: /benchmark-gamma-survival-calibration::main (src/main.trn:97:32-97:43) */
+            /* terrane-site-row: site 5: /benchmark-gamma-survival-calibration::main (src/main.trn:96:32-96:43) */
             Site {
-                function: 3,
+                function: 2,
                 file: 0,
-                line: 97,
+                line: 96,
                 column: 32,
-                end_line: 97,
+                end_line: 96,
                 end_column: 43,
             }
         },
         {
-            /* terrane-site-row: site 8: /benchmark-gamma-survival-calibration::main (src/main.trn:98:27-98:36) */
+            /* terrane-site-row: site 6: /benchmark-gamma-survival-calibration::main (src/main.trn:97:27-97:36) */
             Site {
-                function: 3,
+                function: 2,
                 file: 0,
-                line: 98,
+                line: 97,
                 column: 27,
-                end_line: 98,
+                end_line: 97,
                 end_column: 36,
             }
         },
         {
-            /* terrane-site-row: site 9: /benchmark-gamma-survival-calibration::main (src/main.trn:105:5-105:12) */
+            /* terrane-site-row: site 7: /benchmark-gamma-survival-calibration::main (src/main.trn:104:5-104:12) */
             Site {
-                function: 3,
+                function: 2,
                 file: 0,
-                line: 105,
+                line: 104,
                 column: 5,
-                end_line: 105,
+                end_line: 104,
                 end_column: 12,
             }
         },
         {
-            /* terrane-site-row: site 10: /benchmark-gamma-survival-calibration::main (src/main.trn:106:21-106:26) */
+            /* terrane-site-row: site 8: /benchmark-gamma-survival-calibration::main (src/main.trn:105:21-105:26) */
             Site {
-                function: 3,
+                function: 2,
                 file: 0,
-                line: 106,
+                line: 105,
                 column: 21,
-                end_line: 106,
+                end_line: 105,
                 end_column: 26,
             }
         },
         {
-            /* terrane-site-row: site 11: /standard/process::arguments (standard/process.trn:51:42-51:56) */
+            /* terrane-site-row: site 9: /standard/process::arguments (standard/process.trn:51:42-51:56) */
             Site {
-                function: 4,
+                function: 3,
                 file: 1,
                 line: 51,
                 column: 42,
@@ -520,9 +497,9 @@ mod __terrane_trace {
             }
         },
         {
-            /* terrane-site-row: site 12: /standard/process::environment (standard/process.trn:60:33-60:47) */
+            /* terrane-site-row: site 10: /standard/process::environment (standard/process.trn:60:33-60:47) */
             Site {
-                function: 5,
+                function: 4,
                 file: 1,
                 line: 60,
                 column: 33,
@@ -531,9 +508,9 @@ mod __terrane_trace {
             }
         },
         {
-            /* terrane-site-row: site 13: /standard/process::environment (standard/process.trn:61:34-61:52) */
+            /* terrane-site-row: site 11: /standard/process::environment (standard/process.trn:61:34-61:52) */
             Site {
-                function: 5,
+                function: 4,
                 file: 1,
                 line: 61,
                 column: 34,
@@ -542,9 +519,9 @@ mod __terrane_trace {
             }
         },
         {
-            /* terrane-site-row: site 14: /standard/process::parse-command-line (standard/process.trn:96:20-96:35) */
+            /* terrane-site-row: site 12: /standard/process::parse-command-line (standard/process.trn:96:20-96:35) */
             Site {
-                function: 6,
+                function: 5,
                 file: 1,
                 line: 96,
                 column: 20,
@@ -553,9 +530,9 @@ mod __terrane_trace {
             }
         },
         {
-            /* terrane-site-row: site 15: /standard/process::parse-command-line (standard/process.trn:111:43-111:62) */
+            /* terrane-site-row: site 13: /standard/process::parse-command-line (standard/process.trn:111:43-111:62) */
             Site {
-                function: 6,
+                function: 5,
                 file: 1,
                 line: 111,
                 column: 43,
@@ -709,13 +686,9 @@ fn upper_gamma_ratio(shape: f64, observation: f64, gamma_log: f64) -> f64 {
     let mut reciprocal_floor: f64 = 1.0_f64 / floor;
     let mut denominator: f64 = 1.0_f64 / offset;
     let mut product: f64 = denominator;
-    let mut iteration: i64 = 1;
-    while iteration <= 100 {
-        let index: f64 = __terrane_raised(
-            terrane_int_support::exact_f64(&iteration),
-            4 /* terrane-site: src/main.trn:66:21-66:30 */,
-        );
-        let numerator: f64 = (0.0 - index) * (index - shape);
+    let mut iteration: f64 = 1.0_f64;
+    while iteration <= 100.0_f64 {
+        let numerator: f64 = (0.0 - iteration) * (iteration - shape);
         offset = offset + 2.0_f64;
         denominator = numerator * denominator + offset;
         if absolute(denominator) < floor {
@@ -731,10 +704,7 @@ fn upper_gamma_ratio(shape: f64, observation: f64, gamma_log: f64) -> f64 {
         if absolute(correction - 1.0_f64) < 0.00000000000003 {
             break;
         }
-        iteration = __terrane_raised(
-            terrane_int_support::fixed_addition(iteration, 1),
-            5 /* terrane-site: src/main.trn:80:5-80:16 */,
-        );
+        iteration = iteration + 1.0_f64;
     }
     let scale: f64 = (0.0 - observation + shape * observation.ln() - gamma_log).exp();
     return scale * product;
@@ -755,28 +725,28 @@ fn main() {
             terrane_int_support::exact_f64(
                 &__terrane_raised(
                     terrane_int_support::fixed_remainder(index, 17),
-                    6 /* terrane-site: src/main.trn:96:26-96:36 */,
+                    4 /* terrane-site: src/main.trn:95:26-95:36 */,
                 ),
             ),
-            6 /* terrane-site: src/main.trn:96:26-96:36 */,
+            4 /* terrane-site: src/main.trn:95:26-95:36 */,
         );
         let observation_part: f64 = __terrane_raised(
             terrane_int_support::exact_f64(
                 &__terrane_raised(
                     terrane_int_support::fixed_remainder(index, 101),
-                    7 /* terrane-site: src/main.trn:97:32-97:43 */,
+                    5 /* terrane-site: src/main.trn:96:32-96:43 */,
                 ),
             ),
-            7 /* terrane-site: src/main.trn:97:32-97:43 */,
+            5 /* terrane-site: src/main.trn:96:32-96:43 */,
         );
         let target_part: f64 = __terrane_raised(
             terrane_int_support::exact_f64(
                 &__terrane_raised(
                     terrane_int_support::fixed_remainder(index, 7),
-                    8 /* terrane-site: src/main.trn:98:27-98:36 */,
+                    6 /* terrane-site: src/main.trn:97:27-97:36 */,
                 ),
             ),
-            8 /* terrane-site: src/main.trn:98:27-98:36 */,
+            6 /* terrane-site: src/main.trn:97:27-97:36 */,
         );
         let shape: f64 = 1.25 + shape_part * 0.125;
         let observation: f64 = 0.5 + observation_part * 0.05;
@@ -786,12 +756,12 @@ fn main() {
         total = total + residual * residual;
         index = __terrane_raised(
             terrane_int_support::fixed_addition(index, 1),
-            9 /* terrane-site: src/main.trn:105:5-105:12 */,
+            7 /* terrane-site: src/main.trn:104:5-104:12 */,
         );
     }
     let divisor: f64 = __terrane_raised(
         terrane_int_support::exact_f64(&count),
-        10 /* terrane-site: src/main.trn:106:21-106:26 */,
+        8 /* terrane-site: src/main.trn:105:21-105:26 */,
     );
     println!("{}", terrane_scalar_support::scalar_text(&(total / divisor)));
 }
@@ -898,17 +868,17 @@ pub fn arguments() -> terrane_collection_support::List<PlatformString> {
                             .get(
                                 __terrane_raised(
                                     terrane_collection_support::index_from_int(&index.clone()),
-                                    11 /* terrane-site: standard/process.trn:51:42-51:56 */,
+                                    9 /* terrane-site: standard/process.trn:51:42-51:56 */,
                                 ),
                             )
                             .cloned()
                             .ok_or(terrane_collection_support::IndexError {
                                 index: __terrane_raised(
                                     terrane_collection_support::index_from_int(&index.clone()),
-                                    11 /* terrane-site: standard/process.trn:51:42-51:56 */,
+                                    9 /* terrane-site: standard/process.trn:51:42-51:56 */,
                                 ),
                             }),
-                        11 /* terrane-site: standard/process.trn:51:42-51:56 */,
+                        9 /* terrane-site: standard/process.trn:51:42-51:56 */,
                     ),
                 ),
             );
@@ -931,17 +901,17 @@ pub fn environment() -> terrane_collection_support::List<EnvironmentEntry> {
                     .get(
                         __terrane_raised(
                             terrane_collection_support::index_from_int(&index.clone()),
-                            12 /* terrane-site: standard/process.trn:60:33-60:47 */,
+                            10 /* terrane-site: standard/process.trn:60:33-60:47 */,
                         ),
                     )
                     .cloned()
                     .ok_or(terrane_collection_support::IndexError {
                         index: __terrane_raised(
                             terrane_collection_support::index_from_int(&index.clone()),
-                            12 /* terrane-site: standard/process.trn:60:33-60:47 */,
+                            10 /* terrane-site: standard/process.trn:60:33-60:47 */,
                         ),
                     }),
-                12 /* terrane-site: standard/process.trn:60:33-60:47 */,
+                10 /* terrane-site: standard/process.trn:60:33-60:47 */,
             ),
         );
         let value: PlatformString = PlatformString::terrane_construct(
@@ -952,7 +922,7 @@ pub fn environment() -> terrane_collection_support::List<EnvironmentEntry> {
                             terrane_collection_support::index_from_int(
                                 &(index.clone() + terrane_int_support::Int::from(1_i128)),
                             ),
-                            13 /* terrane-site: standard/process.trn:61:34-61:52 */,
+                            11 /* terrane-site: standard/process.trn:61:34-61:52 */,
                         ),
                     )
                     .cloned()
@@ -961,10 +931,10 @@ pub fn environment() -> terrane_collection_support::List<EnvironmentEntry> {
                             terrane_collection_support::index_from_int(
                                 &(index.clone() + terrane_int_support::Int::from(1_i128)),
                             ),
-                            13 /* terrane-site: standard/process.trn:61:34-61:52 */,
+                            11 /* terrane-site: standard/process.trn:61:34-61:52 */,
                         ),
                     }),
-                13 /* terrane-site: standard/process.trn:61:34-61:52 */,
+                11 /* terrane-site: standard/process.trn:61:34-61:52 */,
             ),
         );
         values.append(EnvironmentEntry::terrane_construct(name, value));
@@ -1067,10 +1037,10 @@ pub fn parse_command_line(
                 .get_or_error(
                     __terrane_raised(
                         terrane_collection_support::index_from_int(&index.clone()),
-                        14 /* terrane-site: standard/process.trn:96:20-96:35 */,
+                        12 /* terrane-site: standard/process.trn:96:20-96:35 */,
                     ),
                 ),
-            14 /* terrane-site: standard/process.trn:96:20-96:35 */,
+            12 /* terrane-site: standard/process.trn:96:20-96:35 */,
         );
         if !argument.is_text {
             diagnostic_arguments.append(index.clone());
@@ -1106,10 +1076,10 @@ pub fn parse_command_line(
                                             terrane_collection_support::index_from_int(
                                                 &(index.clone() + terrane_int_support::Int::from(1_i128)),
                                             ),
-                                            15 /* terrane-site: standard/process.trn:111:43-111:62 */,
+                                            13 /* terrane-site: standard/process.trn:111:43-111:62 */,
                                         ),
                                     ),
-                                15 /* terrane-site: standard/process.trn:111:43-111:62 */,
+                                13 /* terrane-site: standard/process.trn:111:43-111:62 */,
                             ),
                         );
                     index = index.clone() + terrane_int_support::Int::from(1_i128);
