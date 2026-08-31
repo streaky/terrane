@@ -172,12 +172,12 @@ fn uncaught_source_errors_render_causes_and_terrane_frames() {
 
     let stderr = String::from_utf8(output.stderr).unwrap();
     assert_eq!(output.status.code(), Some(1), "{stderr}");
-    assert!(stderr.starts_with(".coercion-error: coercion has no compatible result\n"));
-    assert!(stderr.contains("caused by: .arithmetic-overflow"));
-    assert!(stderr.contains("at /runtime-error::inner (case.trn:4:3)"));
-    assert!(stderr.contains("at /runtime-error::outer (case.trn:7:12)"));
-    assert!(stderr.contains("at /runtime-error::outer (case.trn:9:5)"));
-    assert!(stderr.contains("at /runtime-error::main (case.trn:11:3)"));
+    assert!(stderr.starts_with("coercion-error: coercion has no compatible result\n"));
+    assert!(stderr.contains("caused by: arithmetic-overflow"));
+    assert!(stderr.contains("at /runtime-error::inner (case.trn:4:3-4:28)"));
+    assert!(stderr.contains("at /runtime-error::outer (case.trn:7:12-7:18)"));
+    assert!(stderr.contains("at /runtime-error::outer (case.trn:9:5-9:25)"));
+    assert!(stderr.contains("at /runtime-error::main (case.trn:11:3-11:9)"));
     assert!(!stderr.contains("panicked"));
     assert!(!stderr.contains("src/authored"));
 }

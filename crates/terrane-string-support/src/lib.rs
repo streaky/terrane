@@ -57,7 +57,7 @@ impl std::fmt::Display for DecodeError {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
             formatter,
-            ".decode-error: invalid {} sequence at byte offset {}",
+            "invalid {} sequence at byte offset {}",
             self.encoding.source_name(),
             self.byte_offset
         )
@@ -65,6 +65,20 @@ impl std::fmt::Display for DecodeError {
 }
 
 impl std::error::Error for DecodeError {}
+
+#[cfg(test)]
+mod tests {
+    use super::{DecodeError, Encoding};
+
+    #[test]
+    fn decode_error_display_is_message_only() {
+        let error = DecodeError {
+            encoding: Encoding::Utf8,
+            byte_offset: 3,
+        };
+        assert_eq!(error.to_string(), "invalid utf8 sequence at byte offset 3");
+    }
+}
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct TextRange {

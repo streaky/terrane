@@ -1,0 +1,9 @@
+namespace right
+from /core/errors import throwable
+
+class shared-error implements throwable
+  message string = ''
+  function construct; message string
+    this.message = message
+  function render string;
+    return this.message

@@ -1,1 +1,2 @@
-.integer-conversion-overflow: value 4.2 of type float64 cannot arrive exactly as int: the value must be finite and integral
+integer-conversion-overflow: value 4.2 of type float64 cannot arrive exactly as int: the value must be finite and integral
+at /fractional-numeric-destination::main (case.trn:4:15-4:20)

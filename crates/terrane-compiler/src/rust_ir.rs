@@ -108,8 +108,169 @@ fn canonicalize_file(parsed: syn::File) -> syn::File {
 }
 
 pub(crate) fn canonicalize_rust(rust: &str) -> Result<String, syn::Error> {
-    let parsed = syn::parse_file(rust)?;
-    Ok(prettyplease::unparse(&canonicalize_file(parsed)))
+    let encoded = encode_terrane_site_rows(&encode_terrane_comments(rust));
+    let parsed = syn::parse_file(&encoded)?;
+    Ok(restore_terrane_metadata(&prettyplease::unparse(
+        &canonicalize_file(parsed),
+    )))
+}
+
+fn encode_terrane_comments(rendered: &str) -> String {
+    const MARKER: &str = " /* terrane-site: ";
+    let mut encoded = String::with_capacity(rendered.len());
+    let mut remaining = rendered;
+    while let Some(comment_start) = remaining.find(MARKER) {
+        let Some(comment_end) = remaining[comment_start + MARKER.len()..].find(" */") else {
+            break;
+        };
+        let comment_end = comment_start + MARKER.len() + comment_end;
+        let expression_end = remaining[..comment_start].trim_end().len();
+        let expression_start = remaining[..expression_end]
+            .char_indices()
+            .rev()
+            .find(|(_, character)| !character.is_ascii_digit())
+            .map_or(0, |(index, character)| index + character.len_utf8());
+        if expression_start == expression_end {
+            encoded.push_str(&remaining[..comment_end + 3]);
+            remaining = &remaining[comment_end + 3..];
+            continue;
+        }
+        encoded.push_str(&remaining[..expression_start]);
+        let expression = &remaining[expression_start..expression_end];
+        let comment = &remaining[comment_start + MARKER.len()..comment_end];
+        write!(encoded, "__terrane_comment!({expression}, {comment:?})")
+            .expect("writing to a String cannot fail");
+        remaining = &remaining[comment_end + 3..];
+    }
+    encoded.push_str(remaining);
+    encoded
+}
+
+fn encode_terrane_site_rows(rendered: &str) -> String {
+    const MARKER: &str = "/* terrane-site-row: ";
+    let mut encoded = String::with_capacity(rendered.len());
+    let mut remaining = rendered;
+    while let Some(comment_start) = remaining.find(MARKER) {
+        let Some(comment_end) = remaining[comment_start + MARKER.len()..].find(" */") else {
+            break;
+        };
+        let comment_end = comment_start + MARKER.len() + comment_end;
+        encoded.push_str(&remaining[..comment_start]);
+        let comment = &remaining[comment_start + MARKER.len()..comment_end];
+        write!(encoded, "__terrane_site_comment!({comment:?});")
+            .expect("writing to a String cannot fail");
+        remaining = &remaining[comment_end + 3..];
+    }
+    encoded.push_str(remaining);
+    encoded
+}
+
+fn restore_terrane_comments(rendered: &str) -> String {
+    const MARKER: &str = "__terrane_comment!(";
+    let mut restored = String::with_capacity(rendered.len());
+    let mut remaining = rendered;
+    while let Some(start) = remaining.find(MARKER) {
+        restored.push_str(&remaining[..start]);
+        let arguments_start = start + MARKER.len();
+        let bytes = remaining.as_bytes();
+        let mut depth = 1_usize;
+        let mut in_string = false;
+        let mut escaped = false;
+        let mut separator = None;
+        let mut end = None;
+        for (offset, byte) in bytes[arguments_start..].iter().copied().enumerate() {
+            if in_string {
+                if escaped {
+                    escaped = false;
+                } else if byte == b'\\' {
+                    escaped = true;
+                } else if byte == b'"' {
+                    in_string = false;
+                }
+                continue;
+            }
+            match byte {
+                b'"' => in_string = true,
+                b'(' | b'[' | b'{' => depth += 1,
+                b')' if depth == 1 => {
+                    end = Some(arguments_start + offset);
+                    break;
+                }
+                b')' | b']' | b'}' => depth -= 1,
+                b',' if depth == 1 && separator.is_none() => {
+                    separator = Some(arguments_start + offset);
+                }
+                _ => {}
+            }
+        }
+        let (Some(separator), Some(end)) = (separator, end) else {
+            restored.push_str(&remaining[start..]);
+            return restored;
+        };
+        let expression = remaining[arguments_start..separator].trim_end();
+        let encoded_comment = remaining[separator + 1..end]
+            .trim()
+            .strip_suffix(',')
+            .unwrap_or_else(|| remaining[separator + 1..end].trim())
+            .trim_end();
+        let Ok(comment) = syn::parse_str::<syn::LitStr>(encoded_comment) else {
+            restored.push_str(&remaining[start..=end]);
+            remaining = &remaining[end + 1..];
+            continue;
+        };
+        let comment = comment.value().replace("*/", "* /");
+        write!(restored, "{expression} /* terrane-site: {comment} */")
+            .expect("writing to a String cannot fail");
+        remaining = &remaining[end + 1..];
+    }
+    restored.push_str(remaining);
+    restored
+}
+
+fn restore_terrane_site_rows(rendered: &str) -> String {
+    const MARKER: &str = "__terrane_site_comment!(";
+    let mut restored = String::with_capacity(rendered.len());
+    let mut remaining = rendered;
+    while let Some(start) = remaining.find(MARKER) {
+        restored.push_str(&remaining[..start]);
+        let argument_start = start + MARKER.len();
+        let Some(end) = remaining[argument_start..].find(");") else {
+            restored.push_str(&remaining[start..]);
+            return restored;
+        };
+        let end = argument_start + end;
+        let Ok(comment) = syn::parse_str::<syn::LitStr>(remaining[argument_start..end].trim())
+        else {
+            restored.push_str(&remaining[start..end + 2]);
+            remaining = &remaining[end + 2..];
+            continue;
+        };
+        write!(
+            restored,
+            "/* terrane-site-row: {} */",
+            comment.value().replace("*/", "* /")
+        )
+        .expect("writing to a String cannot fail");
+        remaining = &remaining[end + 2..];
+    }
+    restored.push_str(remaining);
+    restored
+}
+
+fn restore_terrane_metadata(rendered: &str) -> String {
+    let restored = restore_terrane_site_rows(&restore_terrane_comments(rendered));
+    let mut normalized = String::with_capacity(restored.len());
+    for line in restored.split_inclusive('\n') {
+        let content = line.strip_suffix('\n').unwrap_or(line);
+        if content.trim().is_empty() {
+            if line.ends_with('\n') {
+                normalized.push('\n');
+            }
+        } else {
+            normalized.push_str(line);
+        }
+    }
+    normalized
 }
 
 impl Block {
@@ -121,7 +282,9 @@ impl Block {
     }
 
     fn render(&self, output: &mut String) {
-        output.push_str(&prettyplease::unparse(&self.parsed));
+        output.push_str(&restore_terrane_metadata(&prettyplease::unparse(
+            &self.parsed,
+        )));
     }
 }
 
@@ -247,7 +410,10 @@ impl Program {
 
 #[cfg(test)]
 mod tests {
-    use super::Block;
+    use super::{
+        Block, canonicalize_rust, encode_terrane_comments, restore_terrane_comments,
+        restore_terrane_metadata,
+    };
 
     #[test]
     fn canonicalizes_expression_list_macro_arguments() {
@@ -272,5 +438,62 @@ mod tests {
             "{rendered}"
         );
         assert!(!rendered.contains("&(("), "{rendered}");
+    }
+
+    #[test]
+    fn restores_generated_site_comments_after_canonicalization() {
+        let block = Block::from_rendered(
+            r#"fn main() {
+                let value = raised(call(), __terrane_comment!(7, "src/main.trn:4:9-4:15"));
+                let sites = [{
+                    __terrane_site_comment!("site 7 /demo::main");
+                    Site {
+                        function: 0,
+                        file: 0,
+                        line: 4,
+                        column: 9,
+                        end_line: 4,
+                        end_column: 15,
+                    }
+                }];
+            }"#,
+        );
+        let mut rendered = String::new();
+        block.render(&mut rendered);
+
+        assert!(
+            rendered.contains("7 /* terrane-site: src/main.trn:4:9-4:15 */"),
+            "{rendered}"
+        );
+        assert!(
+            rendered.contains("/* terrane-site-row: site 7 /demo::main */\n            Site {\n"),
+            "{rendered}"
+        );
+        assert!(!rendered.contains("__terrane_comment"), "{rendered}");
+        assert_eq!(canonicalize_rust(&rendered).unwrap(), rendered);
+    }
+
+    #[test]
+    fn clears_whitespace_from_otherwise_blank_restored_lines() {
+        assert_eq!(
+            restore_terrane_metadata("first\n    \n\t\nlast\n   "),
+            "first\n\n\nlast\n"
+        );
+    }
+
+    #[test]
+    fn encodes_site_comments_after_unicode_without_slicing_mid_character() {
+        assert_eq!(
+            encode_terrane_comments("é7 /* terrane-site: source */"),
+            "é__terrane_comment!(7, \"source\")"
+        );
+    }
+
+    #[test]
+    fn leaves_unclosed_comment_marker_unchanged() {
+        assert_eq!(
+            restore_terrane_comments("__terrane_comment!(7, \"site\""),
+            "__terrane_comment!(7, \"site\""
+        );
     }
 }

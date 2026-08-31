@@ -1274,16 +1274,19 @@ Exit criterion: exact escaping throwable contracts survive catch and `finally`, 
 reports independently meaningful contracts without claiming authority over ordinary operations, and
 a minimal profile rejects an unavailable reflection request at compile time.
 
-Implemented evidence: typed escaping throwables are computed after catches and `finally`, checked
-against optional postfix `throws T` bounds, and exposed separately from those declared bounds.
-Standard and user-declared `throwable` implementations share the structured-error pipeline.
+Implemented evidence: typed escaping throwables are computed from explicit throws, propagated calls,
+fallible explicit integer-coercion calls, and fallible implicit numeric destination conversions
+after catches and `finally`; checked against optional postfix `throws T` bounds; and exposed
+separately from those declared bounds. Standard and user-declared `throwable` implementations share
+the structured-error pipeline.
 Descriptor values materialise only when observed, and minimal reflection profiles reject unavailable
 metadata access. `awaits`, `mutating`, `mutates`, and bare `foreign` have been removed as callable
 qualifiers; suspension and receiver mutation are inferred, while foreign transitions belong to
 concrete adapter or ABI constructs. Accepted and rejected conformance covers catch/finally throwable
-sets, custom throwables, incompatible bounds, callable-contract reflection, descriptor
-materialisation, profile denial, stripped reflection, and rejection of removed qualifiers. This
-satisfies the milestone exit criterion.
+sets, scalar and collection-contained coercion failures propagated across callable boundaries,
+custom throwables, incompatible bounds including inferred explicit and implicit coercion failures,
+callable-contract reflection, descriptor materialisation, profile denial, stripped reflection, and
+rejection of removed qualifiers. This satisfies the milestone exit criterion.
 
 ### Milestone 19 — Async core: tasks, scope, cancellation, and deadlines
 
@@ -1835,6 +1838,49 @@ Accepted canonical-Rust package cases compile and run both restricted-profile su
 rejected cases prove both gates and message metadata, and support tests exercise rendezvous channels
 through a Terrane task, cancellation/deadlines, cross-thread shared state, every atomic ordering
 class, and thread-local isolation plus stale-owner cleanup.
+
+### Milestone 26.1 — Structured error sites and compact values
+
+Deliver:
+
+- compiler-owned, deterministic per-program `TerraneSite` allocation with logical-file,
+  enclosing-callable, and exact source-range tables;
+- readable generated-Rust comments at every site use and table row, preserved by canonical-Rust
+  formatting;
+- a 16-byte error header containing kind, immutable origin, and optional boxed detail, with lazy
+  built-in messages and detail allocation only for message, cause, or propagation frames;
+- type-distinct helpers for fresh failure attribution and existing-error propagation;
+- namespace-qualified descriptor identity for user throwables and dependency failures;
+- accepted runtime coverage for origin/frame ordering and same-name cross-namespace catch identity,
+  plus existing rejected throwable-contract coverage and compile-time representation assertions;
+- rejection of tagged-pointer packing until binary size is a hard target constraint or profiling
+  shows that its changed calling convention matters.
+
+Exit criterion: every accepted throwing program compiles with warnings denied; fresh built-in
+failures resolve to the exact raising range without allocating frame storage; propagation retains
+that origin and appends caller frames in order; custom catches match semantic descriptor identity;
+and an alignment-controlled before/after sci-maths run shows no unexplained runtime change.
+
+Implemented evidence: generated Rust carries dense site tables with logical paths and range ends,
+uses site comments that survive canonical formatting, and compile-time asserts both
+`TerraneError` and `Result<i64, TerraneError>` at 16 bytes on the supported x86-64 target. The
+`structured-error-origin-and-frames`, `uncaught-detailed-coercion`, and
+`namespace-qualified-throwable-identity` exercise table-based rendering, preservation of structured
+built-in detail, propagation order, and distinct same-name throwable descriptors.
+The follow-up `structured-legacy-failures` case closes the remaining legacy failure path: implicit
+fixed-width and float narrowing, including conversion at callable arguments, unbounded-integer
+division, and float-to-integer rounding are catchable at their raising callable and propagate
+through the same structured site helpers. Effect inference derives failures from destination
+contexts rather than only explicit `.coerce` syntax. Generated run fixtures contain no
+`unwrap_or_fail` emissions; uncaught legacy cases now render their exact raising range.
+Tier 3 remains deliberately unimplemented: its generated `unsafe`, manual ownership, and custom
+trait implementations are not justified by the measured code-size benefit alone.
+The required sci-maths validation used
+`-C llvm-args=-align-all-nofallthru-blocks=6` for both compilers, two warmups, and seven measured
+runs. A first baseline-then-implementation sequence showed an apparent 6.2–12.5% improvement;
+repeating the baseline after the implementation reduced the comparison to -3.7–+1.0%, with every
+before/after range overlapping. The reversed control therefore identifies the first result as
+ordering/environment noise, not a performance benefit of this work.
 
 ### Milestone 27 — Structured logging
 

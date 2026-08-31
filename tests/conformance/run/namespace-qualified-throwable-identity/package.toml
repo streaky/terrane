@@ -1,0 +1,7 @@
+package = "namespace-qualified-throwable-identity"
+prelude = true
+
+[namespaces]
+app = "app"
+left = "left"
+right = "right"

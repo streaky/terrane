@@ -1,0 +1,11 @@
+namespace structured-error-origin-and-frames
+from /core/errors import division-by-zero
+
+function leaf throws division-by-zero;
+  throw division-by-zero
+
+function middle throws division-by-zero;
+  leaf;
+
+function main;
+  middle;

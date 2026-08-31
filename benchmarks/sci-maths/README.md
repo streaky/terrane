@@ -42,6 +42,78 @@ records and frozen workload profiles in the adjacent
 [JSON report](reports/initial-two-lane-baseline.json). It was produced with the suite's default two
 warm-ups and seven measured executions per problem and lane.
 
+## What currently limits the Terrane lane
+
+The Terrane lane's results are bounded by generated-code characteristics rather than by the CPU
+being idle. Every measurement below is `perf stat` against the release binary each problem already
+builds, at its `problem.toml` performance size.
+
+| Problem | Work unit | Instructions | Per unit | IPC |
+|---|---|---|---|---|
+| scalar reduction | 50,000,000 elements | 2.850 G | 57 | 5.15 |
+| branch-heavy Collatz | 131,434,424 loop iterations | 10.050 G | 76 | 4.16 |
+| fused transform and reduction | 20,000,000 elements | 8.376 G | 419 | 3.04 |
+| materialized element-wise | 10,000,000 elements | 4.506 G | 451 | 2.44 |
+| composed moments and classification | 10,000,000 elements | 8.430 G | 843 | 2.32 |
+
+The last row makes several passes over its data, so its per-element figure is not comparable with
+the others.
+
+Two observations frame the rest. The processor is saturated: the Collatz binary reports 99.2% CPU
+and a 0.84% branch-miss rate, and instructions-per-cycle across the corpus ranges from 2.3 to 5.15,
+which is a large fraction of the machine's issue width. And the work being retired is far larger
+than the arithmetic requires — a Collatz step is roughly ten machine instructions written directly
+in Rust, and the lane executes about 76. The lane is therefore not slow because the generated code
+stalls; it is slow because it executes several times more instructions than the equivalent
+hand-written Rust would.
+
+Three mechanisms are visible in the disassembly of the built binaries.
+
+**Fixed-width arithmetic helpers are not inlined.** `terrane_int_support::fixed_remainder`,
+`fixed_division`, and their siblings carry no `#[inline]` attribute, and each appears in the hot
+loop as an out-of-line call. In the Collatz inner loop:
+
+```text
+mov  $0x2,%edx            ; divisor
+lea  0x90(%rsp),%rdi      ; return buffer
+mov  %r12,%rsi            ; value
+call *0x64eae(%rip)       ; fixed_remainder
+mov  0x90(%rsp),%rcx      ; read the result back
+mov  0x98(%rsp),%rax
+mov  0xa0(%rsp),%rbx
+```
+
+Written directly in Rust, `value % 2` against a constant divisor is a single instruction.
+
+**The support crates' arithmetic error type is large, so every checked operation returns through
+memory.** `ArithmeticError` is 72 bytes, because its `IntegerConversionOverflowDetail` variant
+carries an owned `String` and three `&'static str`. `Result<i64, ArithmeticError>` is therefore also
+72 bytes and cannot be returned in registers, which is the return buffer visible above. The
+cheapest and most frequent operation in the language pays the representation cost of its rarest
+error variant. The size also enlarges each helper's body, which is part of why the inliner declines
+them across the crate boundary.
+
+**Integer-to-float conversion routes through the adaptive integer type.** In the fused problem,
+`(index % 1000)` reaching a `float64` binding lowers to a call to
+`terrane_int_support::exact_f64` taking a pointer to an adaptive `Int`, rather than the single
+`cvtsi2sd` a direct `i64` to `f64` conversion compiles to. The surrounding floating-point
+arithmetic is clean and inline; the conversion at the edge is not.
+
+None of these is a property of the language's semantics. Checked fixed-width arithmetic is a
+deliberate guarantee, and honouring it costs an add and a not-taken branch — in the Collatz loop
+that check compiles to `imul`/`jo` and `inc`/`jo`, which the branch predictor handles essentially
+for free. What the measurements show is the cost of how the guarantee is currently *packaged*: an
+out-of-line call, a 72-byte memory round trip, and a conversion through a wider representation than
+the operands need.
+
+These limits have not been addressed, and no work in the corpus depends on them being addressed.
+They are recorded here so that lane results are read as a measurement of the current lowering and
+support crates rather than as a bound on the approach. Anyone re-measuring after changing them
+should control code alignment: layout luck alone has produced reproducible 19% swings between
+binaries whose hot loops were instruction-for-instruction identical, in both directions, and
+repeating a run cannot detect it because alignment is a property of the binary rather than of the
+execution.
+
 ## Corpus shape
 
 `suite.toml` is the ordered index of lane adapters and problems. A problem owns:

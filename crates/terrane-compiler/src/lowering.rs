@@ -1,4 +1,5 @@
-use std::collections::BTreeSet;
+use std::cell::RefCell;
+use std::collections::{BTreeMap, BTreeSet};
 use std::fmt::Write as _;
 
 use indoc::indoc;
@@ -17,6 +18,83 @@ use crate::{
     syntax::{SyntaxKind, SyntaxNode},
 };
 
+#[derive(Clone, Debug, Eq, PartialEq)]
+struct LoweringSite {
+    function: u32,
+    file: u32,
+    line: u32,
+    column: u32,
+    end_line: u32,
+    end_column: u32,
+}
+
+#[derive(Default)]
+struct LoweringRegistry {
+    files: RefCell<Vec<String>>,
+    functions: RefCell<Vec<String>>,
+    sites: RefCell<Vec<LoweringSite>>,
+    descriptors: RefCell<Vec<(String, String)>>,
+    descriptor_ids: RefCell<BTreeMap<String, u32>>,
+}
+
+impl LoweringRegistry {
+    fn intern(values: &RefCell<Vec<String>>, value: &str) -> u32 {
+        let mut values = values.borrow_mut();
+        if let Some(index) = values.iter().position(|candidate| candidate == value) {
+            return u32::try_from(index).expect("lowering registry index must fit u32");
+        }
+        let index = u32::try_from(values.len()).expect("lowering registry index must fit u32");
+        values.push(value.to_owned());
+        index
+    }
+
+    fn register_site(
+        &self,
+        source_path: &str,
+        function: &str,
+        source: &SourceFile,
+        span: crate::Span,
+    ) -> u32 {
+        let file = Self::intern(&self.files, source_path);
+        let function = Self::intern(&self.functions, function);
+        let (line, column) = source.line_column(span.start);
+        let (end_line, end_column) = source.line_column(span.end);
+        let candidate = LoweringSite {
+            function,
+            file,
+            line: u32::try_from(line).expect("source line must fit u32"),
+            column: u32::try_from(column).expect("source column must fit u32"),
+            end_line: u32::try_from(end_line).expect("source line must fit u32"),
+            end_column: u32::try_from(end_column).expect("source column must fit u32"),
+        };
+        let mut sites = self.sites.borrow_mut();
+        if let Some(site) = sites.iter().position(|existing| existing == &candidate) {
+            return u32::try_from(site).expect("lowering site index must fit u32");
+        }
+        let site = u32::try_from(sites.len()).expect("lowering site index must fit u32");
+        assert_ne!(
+            site,
+            u32::MAX,
+            "u32::MAX is reserved for an unattributed site"
+        );
+        sites.push(candidate);
+        site
+    }
+
+    fn register_descriptor(&self, identity: &str, source_name: &str) -> u32 {
+        if let Some(id) = self.descriptor_ids.borrow().get(identity).copied() {
+            return id;
+        }
+        let mut descriptors = self.descriptors.borrow_mut();
+        let id = u32::try_from(descriptors.len()).expect("descriptor index must fit u32");
+        descriptors.push((identity.to_owned(), source_name.to_owned()));
+        self.descriptor_ids
+            .borrow_mut()
+            .insert(identity.to_owned(), id);
+        id
+    }
+}
+
 #[expect(
     clippy::too_many_lines,
     reason = "package lowering assembles one deterministic generated-crate prelude and unit set"
@@ -24,25 +102,23 @@ use crate::{
 pub(crate) fn lower(package: &SemanticPackage) -> Program {
     let mut runtime = Vec::new();
     let mut globals = String::new();
-    if package_uses_structured_errors(package) || package_uses_task_scope(package) {
-        let has_dependency = package
-            .units
-            .iter()
-            .any(|unit| unit.namespace.starts_with("/deps/") && !unit.functions.is_empty());
-        let has_custom_throwable = has_dependency
-            || package.units.iter().any(|unit| {
-                unit.objects.iter().any(|object| {
-                    object.interfaces.iter().any(|interface| {
-                        interface.namespace == "/core/errors" && interface.name == "throwable"
-                    })
+    let registry = LoweringRegistry::default();
+    let uses_errors = package_uses_structured_errors(package) || package_uses_task_scope(package);
+    let has_dependency = package
+        .units
+        .iter()
+        .any(|unit| unit.namespace.starts_with("/deps/") && !unit.functions.is_empty());
+    let has_custom_throwable = has_dependency
+        || package.units.iter().any(|unit| {
+            unit.objects.iter().any(|object| {
+                object.interfaces.iter().any(|interface| {
+                    interface.namespace == "/core/errors" && interface.name == "throwable"
                 })
-            });
-        let mut support = String::new();
-        emit_error_support(&mut support, has_custom_throwable, has_dependency);
-        runtime.push(GeneratedModule {
-            name: "errors",
-            items: vec![Item::generated(&support)],
+            })
         });
+    if has_dependency {
+        registry.register_descriptor("/core/errors::dependency-error", "dependency-error");
+        registry.register_descriptor("/core/errors::dependency-panic", "dependency-panic");
     }
     if package
         .units
@@ -262,7 +338,7 @@ pub(crate) fn lower(package: &SemanticPackage) -> Program {
             )],
         });
     }
-    emit_global_storage(package, &mut globals);
+    emit_global_storage(package, &registry, &mut globals);
     let modules = package
         .units
         .iter()
@@ -276,6 +352,7 @@ pub(crate) fn lower(package: &SemanticPackage) -> Program {
                 };
             }
             let mut emitter = Emitter {
+                registry: &registry,
                 package,
                 unit,
                 source: &unit.source,
@@ -326,6 +403,22 @@ pub(crate) fn lower(package: &SemanticPackage) -> Program {
             }
         })
         .collect();
+    if uses_errors || !registry.sites.borrow().is_empty() {
+        let mut support = String::new();
+        emit_error_support(
+            &mut support,
+            has_custom_throwable,
+            has_dependency,
+            &registry,
+        );
+        runtime.insert(
+            0,
+            GeneratedModule {
+                name: "errors",
+                items: vec![Item::generated(&support)],
+            },
+        );
+    }
     Program {
         version: crate::VERSION,
         requires_platform_support,
@@ -375,17 +468,17 @@ fn write_foreign_import(output: &mut String, path: &str, rust_name: &str) {
 fn projected_argument_expression(name: &str, ty: &crate::projection::ProjectedType) -> String {
     match ty {
         crate::projection::ProjectedType::RustInt(rust_type) => format!(
-            "terrane_int_support::coerce::<{rust_type}>(&{name}).map_err(crate::TerraneError::from)?"
+            "terrane_int_support::coerce::<{rust_type}>(&{name}).map_err(|error| crate::TerraneForeignError(crate::TerraneRaised::raised(error, crate::TERRANE_NO_SITE)))?"
         ),
         crate::projection::ProjectedType::Char => format!(
-            "{name}.parse::<char>().map_err(|_| crate::TerraneError::new(crate::TerraneErrorKind::CoercionError, \"projected `char` requires exactly one Unicode scalar\"))?"
+            "{name}.parse::<char>().map_err(|_| crate::TerraneForeignError(crate::TerraneError::raised_with_message(crate::TerraneErrorKind::CoercionError, \"projected `char` requires exactly one Unicode scalar\", crate::TERRANE_NO_SITE)))?"
         ),
         crate::projection::ProjectedType::Optional(inner) => match inner.as_ref() {
             crate::projection::ProjectedType::RustInt(rust_type) => format!(
-                "{name}.map(|value| terrane_int_support::coerce::<{rust_type}>(&value)).transpose().map_err(crate::TerraneError::from)?"
+                "{name}.map(|value| terrane_int_support::coerce::<{rust_type}>(&value)).transpose().map_err(|error| crate::TerraneForeignError(crate::TerraneRaised::raised(error, crate::TERRANE_NO_SITE)))?"
             ),
             crate::projection::ProjectedType::Char => format!(
-                "{name}.map(|value| value.parse::<char>().map_err(|_| crate::TerraneError::new(crate::TerraneErrorKind::CoercionError, \"projected `char` requires exactly one Unicode scalar\"))).transpose()?"
+                "{name}.map(|value| value.parse::<char>().map_err(|_| crate::TerraneForeignError(crate::TerraneError::raised_with_message(crate::TerraneErrorKind::CoercionError, \"projected `char` requires exactly one Unicode scalar\", crate::TERRANE_NO_SITE)))).transpose()?"
             ),
             _ => name.to_owned(),
         },
@@ -496,7 +589,7 @@ fn emit_dependency_unit(package: &SemanticPackage, unit: &SemanticUnit) -> Strin
             || "()".to_owned(),
             |value_type| rust_value_type(package, value_type),
         );
-        let result = format!("Result<{value}, crate::TerraneError>");
+        let result = format!("Result<{value}, crate::TerraneForeignError>");
         let converted_value = projected_result_expression("value", &projected.result);
         let unit_variant = package.projection.is_unit_variant(item);
         if unit_variant {
@@ -535,7 +628,7 @@ fn emit_dependency_unit(package: &SemanticPackage, unit: &SemanticUnit) -> Strin
             if projected.error.is_some() {
                 writeln!(
                     output,
-                    "    match {call} {{\n        Ok(value) => Ok({converted_value}),\n        Err(error) => Err(crate::TerraneError::new(crate::TerraneErrorKind::Custom(\"dependency-error\"), format!(\"Rust dependency `{dependency_name}` member `{}` failed: {{error}}\"))),\n    }}",
+                    "    match {call} {{\n        Ok(value) => Ok({converted_value}),\n        Err(error) => Err(crate::TerraneForeignError(crate::TerraneError::custom_raised(crate::TERRANE_DEPENDENCY_ERROR, format!(\"Rust dependency `{dependency_name}` member `{}` failed: {{error}}\"), crate::TERRANE_NO_SITE))),\n    }}",
                     item.rust_path,
                 )
                 .expect("writing to a string cannot fail");
@@ -546,7 +639,7 @@ fn emit_dependency_unit(package: &SemanticPackage, unit: &SemanticUnit) -> Strin
         } else if projected.error.is_some() {
             writeln!(
                 output,
-                "    match {caught} {{\n        Ok(Ok(value)) => Ok({converted_value}),\n        Ok(Err(error)) => Err(crate::TerraneError::new(crate::TerraneErrorKind::Custom(\"dependency-error\"), format!(\"Rust dependency `{}` member `{}` failed: {{error}}\"))),\n        Err(payload) => Err(crate::__terrane_dependency_panic(payload, {:?}, {:?})),\n    }}",
+                "    match {caught} {{\n        Ok(Ok(value)) => Ok({converted_value}),\n        Ok(Err(error)) => Err(crate::TerraneForeignError(crate::TerraneError::custom_raised(crate::TERRANE_DEPENDENCY_ERROR, format!(\"Rust dependency `{}` member `{}` failed: {{error}}\"), crate::TERRANE_NO_SITE))),\n        Err(payload) => Err(crate::__terrane_dependency_panic(payload, {:?}, {:?})),\n    }}",
                 dependency_name,
                 item.rust_path,
                 dependency_name,
@@ -572,6 +665,7 @@ fn emit_dependency_unit(package: &SemanticPackage, unit: &SemanticUnit) -> Strin
     reason = "these independent lexical control contexts are saved and restored separately"
 )]
 struct Emitter<'a> {
+    registry: &'a LoweringRegistry,
     package: &'a SemanticPackage,
     unit: &'a SemanticUnit,
     source: &'a SourceFile,
@@ -672,9 +766,27 @@ fn package_uses_structured_errors(package: &SemanticPackage) -> bool {
     clippy::too_many_lines,
     reason = "the generated error runtime remains directly reviewable as one canonical Rust template"
 )]
-fn emit_error_support(output: &mut String, has_custom_throwable: bool, has_dependency: bool) {
-    output.push_str(indoc! {r"
+fn emit_error_support(
+    output: &mut String,
+    has_custom_throwable: bool,
+    has_dependency: bool,
+    registry: &LoweringRegistry,
+) {
+    output.push_str(indoc! {r#"
+        type TerraneSite = u32;
+        const TERRANE_NO_SITE: TerraneSite = u32::MAX;
+        #[allow(
+            dead_code,
+            reason = "custom descriptors are absent from some lowered programs"
+        )]
         #[derive(Clone, Copy, Debug, Eq, PartialEq)]
+        struct DescriptorId(u16);
+        #[allow(
+            dead_code,
+            reason = "one canonical runtime enum covers every compiler-owned throwable kind"
+        )]
+        #[derive(Clone, Copy, Debug, Eq, PartialEq)]
+        #[repr(u16)]
         enum TerraneErrorKind {
             ArithmeticOverflow,
             DivisionByZero,
@@ -686,77 +798,181 @@ fn emit_error_support(output: &mut String, has_custom_throwable: bool, has_depen
             MissingKey,
             ResourceError,
             SourceError,
-    "});
+    "#});
     if has_custom_throwable {
-        output.push_str("    Custom(&'static str),\n");
+        output.push_str("    Custom(DescriptorId),\n");
     }
     output.push_str(indoc! {r#"
         }
         impl TerraneErrorKind {
-            fn from_source_name(name: &str) -> Self {
-                match name {
-                    ".arithmetic-overflow" => Self::ArithmeticOverflow,
-                    ".division-by-zero" => Self::DivisionByZero,
-                    ".integer-conversion-overflow" => Self::IntegerConversionOverflow,
-                    ".negative-shift-count" => Self::NegativeShiftCount,
-                    ".coercion-error" => Self::CoercionError,
-                    ".decode-error" => Self::DecodeError,
-                    ".index-error" => Self::IndexError,
-                    ".missing-key" => Self::MissingKey,
-                    ".resource-error" => Self::ResourceError,
-                    _ => Self::SourceError,
-                }
-            }
-            fn source_name(self) -> &'static str {
+            fn display_name(self) -> &'static str {
                 match self {
-                    Self::ArithmeticOverflow => ".arithmetic-overflow",
-                    Self::DivisionByZero => ".division-by-zero",
-                    Self::IntegerConversionOverflow => ".integer-conversion-overflow",
-                    Self::NegativeShiftCount => ".negative-shift-count",
-                    Self::CoercionError => ".coercion-error",
-                    Self::DecodeError => ".decode-error",
-                    Self::IndexError => ".index-error",
-                    Self::MissingKey => ".missing-key",
-                    Self::ResourceError => ".resource-error",
-                    Self::SourceError => ".error",
+                    Self::ArithmeticOverflow => "arithmetic-overflow",
+                    Self::DivisionByZero => "division-by-zero",
+                    Self::IntegerConversionOverflow => "integer-conversion-overflow",
+                    Self::NegativeShiftCount => "negative-shift-count",
+                    Self::CoercionError => "coercion-error",
+                    Self::DecodeError => "decode-error",
+                    Self::IndexError => "index-error",
+                    Self::MissingKey => "missing-key",
+                    Self::ResourceError => "resource-error",
+                    Self::SourceError => "error",
     "#});
     if has_custom_throwable {
-        output.push_str("            Self::Custom(name) => name,\n");
+        output.push_str(
+            "                Self::Custom(descriptor) => __terrane_error_registry::DESCRIPTORS[usize::from(descriptor.0)],\n",
+        );
+    }
+    output.push_str(indoc! {r#"
+                }
+            }
+            fn default_message(self) -> &'static str {
+                match self {
+                    Self::ArithmeticOverflow => "fixed-width integer arithmetic overflow",
+                    Self::DivisionByZero => "integer division by zero",
+                    Self::IntegerConversionOverflow => "integer conversion overflow",
+                    Self::NegativeShiftCount => "negative integer shift count",
+                    Self::CoercionError => "coercion has no compatible result",
+                    Self::DecodeError => "invalid byte sequence for selected encoding",
+                    Self::IndexError => "collection index is out of range",
+                    Self::MissingKey => "collection key is absent",
+                    Self::ResourceError => {
+                        "integer shift count cannot be represented on this target"
+                    }
+                    Self::SourceError => "source error",
+    "#});
+    if has_custom_throwable {
+        output.push_str("            Self::Custom(_) => \"source error\",\n");
     }
     output.push_str(indoc! {r#"
                 }
             }
         }
         #[derive(Clone, Debug, Eq, PartialEq)]
+        struct TerraneErrorDetail {
+            message: Option<String>,
+            cause: Option<Box<TerraneError>>,
+            frames: Vec<TerraneSite>,
+        }
+        #[derive(Clone, Debug, Eq, PartialEq)]
         pub struct TerraneError {
             kind: TerraneErrorKind,
-            message: String,
-            cause: Option<Box<TerraneError>>,
-            context: Vec<&'static str>,
+            origin: TerraneSite,
+            detail: Option<Box<TerraneErrorDetail>>,
         }
+        #[cfg(target_pointer_width = "64")]
+        const _: () = assert!(std::mem::size_of::<TerraneError>() == 16);
+        #[cfg(target_pointer_width = "64")]
+        const _: () = assert!(std::mem::size_of::<Result<i64, TerraneError>>() == 16);
+        #[allow(
+            dead_code,
+            reason = "one canonical runtime implementation serves every lowered error shape"
+        )]
         impl TerraneError {
-            fn new(kind: TerraneErrorKind, message: impl Into<String>) -> Self {
+            #[cold]
+            #[inline(never)]
+            fn raised(kind: TerraneErrorKind, origin: TerraneSite) -> Self {
                 Self {
                     kind,
-                    message: message.into(),
-                    cause: None,
-                    context: Vec::new(),
+                    origin,
+                    detail: None,
                 }
             }
-            #[allow(dead_code)]
-            fn at(mut self, frame: &'static str) -> Self {
-                self.context.push(frame);
+            #[cold]
+            #[inline(never)]
+            fn raised_with_message(
+                kind: TerraneErrorKind,
+                message: impl Into<String>,
+                origin: TerraneSite,
+            ) -> Self {
+                Self {
+                    kind,
+                    origin,
+                    detail: Some(Box::new(TerraneErrorDetail {
+                        message: Some(message.into()),
+                        cause: None,
+                        frames: Vec::new(),
+                    })),
+                }
+            }
+    "#});
+    if has_custom_throwable {
+        output.push_str(indoc! {r"
+            #[cold]
+            #[inline(never)]
+            fn custom_raised(
+                descriptor: DescriptorId,
+                message: impl Into<String>,
+                origin: TerraneSite,
+            ) -> Self {
+                Self::raised_with_message(TerraneErrorKind::Custom(descriptor), message, origin)
+            }
+        "});
+    }
+    output.push_str(indoc! {r#"
+            #[cold]
+            #[inline(never)]
+            fn with_cause(mut self, cause: TerraneError) -> Self {
+                self.detail
+                    .get_or_insert_with(|| {
+                        Box::new(TerraneErrorDetail {
+                            message: None,
+                            cause: None,
+                            frames: Vec::new(),
+                        })
+                    })
+                    .cause = Some(Box::new(cause));
                 self
             }
+            #[cold]
+            #[inline(never)]
+            fn attributed(mut self, origin: TerraneSite) -> Self {
+                debug_assert_eq!(self.origin, TERRANE_NO_SITE);
+                self.origin = origin;
+                self
+            }
+            #[cold]
+            #[inline(never)]
+            fn at(mut self, frame: TerraneSite) -> Self {
+                self.detail
+                    .get_or_insert_with(|| {
+                        Box::new(TerraneErrorDetail {
+                            message: None,
+                            cause: None,
+                            frames: Vec::new(),
+                        })
+                    })
+                    .frames
+                    .push(frame);
+                self
+            }
+            fn message(&self) -> &str {
+                self.detail
+                    .as_ref()
+                    .and_then(|detail| detail.message.as_deref())
+                    .unwrap_or_else(|| self.kind.default_message())
+            }
+            #[cold]
+            #[inline(never)]
             fn render(&self) -> String {
-                let mut rendered = format!("{}: {}", self.kind.source_name(), self.message);
-                if let Some(cause) = &self.cause {
+                let mut rendered = format!("{}: {}", self.kind.display_name(), self.message());
+                if let Some(cause) = self
+                    .detail
+                    .as_ref()
+                    .and_then(|detail| detail.cause.as_ref())
+                {
                     rendered.push_str("\ncaused by: ");
                     rendered.push_str(&cause.render());
                 }
-                for frame in &self.context {
+                if self.origin != TERRANE_NO_SITE {
                     rendered.push_str("\nat ");
-                    rendered.push_str(frame);
+                    rendered.push_str(&__terrane_trace::render(self.origin));
+                }
+                if let Some(detail) = &self.detail {
+                    for frame in &detail.frames {
+                        rendered.push_str("\nat ");
+                        rendered.push_str(&__terrane_trace::render(*frame));
+                    }
                 }
                 rendered
             }
@@ -766,36 +982,187 @@ fn emit_error_support(output: &mut String, has_custom_throwable: bool, has_depen
                 formatter.write_str(&self.render())
             }
         }
-        impl From<terrane_int_support::ArithmeticError> for TerraneError {
-            fn from(error: terrane_int_support::ArithmeticError) -> Self {
-                Self::new(
-                    TerraneErrorKind::from_source_name(error.source_name()),
-                    error.to_string(),
-                )
+        #[allow(
+            dead_code,
+            reason = "fresh support failures are absent from some lowered programs"
+        )]
+        trait TerraneRaised {
+            fn raised(self, origin: TerraneSite) -> TerraneError;
+        }
+        pub struct TerraneForeignError(TerraneError);
+        impl TerraneForeignError {
+            pub fn render(&self) -> String {
+                self.0.render()
             }
         }
-        impl From<terrane_string_support::DecodeError> for TerraneError {
-            fn from(error: terrane_string_support::DecodeError) -> Self {
-                Self::new(
+        impl TerraneRaised for TerraneForeignError {
+            fn raised(self, origin: TerraneSite) -> TerraneError {
+                self.0.attributed(origin)
+            }
+        }
+        impl TerraneRaised for terrane_int_support::ArithmeticError {
+            fn raised(self, origin: TerraneSite) -> TerraneError {
+                use terrane_int_support::ArithmeticError;
+                match self {
+                    ArithmeticError::DivisionByZero => {
+                        TerraneError::raised(TerraneErrorKind::DivisionByZero, origin)
+                    }
+                    ArithmeticError::ArithmeticOverflow => {
+                        TerraneError::raised(TerraneErrorKind::ArithmeticOverflow, origin)
+                    }
+                    ArithmeticError::NegativeShiftCount => {
+                        TerraneError::raised(TerraneErrorKind::NegativeShiftCount, origin)
+                    }
+                    ArithmeticError::ShiftCountTooLarge => {
+                        TerraneError::raised(TerraneErrorKind::ResourceError, origin)
+                    }
+                    error @ (ArithmeticError::IntegerConversionOverflow
+                    | ArithmeticError::IntegerConversionOverflowDetail { .. }) => {
+                        TerraneError::raised_with_message(
+                            TerraneErrorKind::IntegerConversionOverflow,
+                            error.to_string(),
+                            origin,
+                        )
+                    }
+                    error @ (ArithmeticError::InvalidRadix | ArithmeticError::InvalidRadixText) => {
+                        TerraneError::raised_with_message(
+                            TerraneErrorKind::CoercionError,
+                            error.to_string(),
+                            origin,
+                        )
+                    }
+                }
+            }
+        }
+        impl TerraneRaised for terrane_string_support::DecodeError {
+            fn raised(self, origin: TerraneSite) -> TerraneError {
+                TerraneError::raised_with_message(
                     TerraneErrorKind::DecodeError,
-                    error.to_string().trim_start_matches(".decode-error: "),
+                    self.to_string(),
+                    origin,
                 )
             }
         }
-        impl From<terrane_collection_support::IndexError> for TerraneError {
-            fn from(error: terrane_collection_support::IndexError) -> Self {
-                Self::new(TerraneErrorKind::IndexError, error.to_string())
+        impl TerraneRaised for terrane_collection_support::IndexError {
+            fn raised(self, origin: TerraneSite) -> TerraneError {
+                TerraneError::raised_with_message(
+                    TerraneErrorKind::IndexError,
+                    self.to_string(),
+                    origin,
+                )
             }
         }
-        impl From<terrane_collection_support::MissingKey> for TerraneError {
-            fn from(error: terrane_collection_support::MissingKey) -> Self {
-                Self::new(TerraneErrorKind::MissingKey, error.to_string())
+        impl TerraneRaised for terrane_collection_support::MissingKey {
+            fn raised(self, origin: TerraneSite) -> TerraneError {
+                TerraneError::raised_with_message(
+                    TerraneErrorKind::MissingKey,
+                    self.to_string(),
+                    origin,
+                )
             }
         }
-        impl From<terrane_collection_support::RangeStepError> for TerraneError {
-            fn from(error: terrane_collection_support::RangeStepError) -> Self {
-                Self::new(TerraneErrorKind::SourceError, error.to_string())
+        impl TerraneRaised for terrane_collection_support::RangeStepError {
+            fn raised(self, origin: TerraneSite) -> TerraneError {
+                TerraneError::raised_with_message(
+                    TerraneErrorKind::SourceError,
+                    self.to_string(),
+                    origin,
+                )
             }
+        }
+        #[allow(
+            dead_code,
+            reason = "terminating fresh failures are absent from some lowered programs"
+        )]
+        #[cold]
+        #[inline(never)]
+        fn __terrane_raise<E: TerraneRaised>(error: E, origin: TerraneSite) -> ! {
+            __terrane_uncaught(error.raised(origin))
+        }
+        #[allow(
+            dead_code,
+            reason = "propagating failures are absent from some lowered programs"
+        )]
+        #[cold]
+        #[inline(never)]
+        fn __terrane_trace_error(error: TerraneError, frame: TerraneSite) -> TerraneError {
+            error.at(frame)
+        }
+        #[allow(
+            dead_code,
+            reason = "terminating fresh failures are absent from some lowered programs"
+        )]
+        #[inline]
+        fn __terrane_raised<T, E: TerraneRaised>(
+            result: Result<T, E>,
+            origin: TerraneSite,
+        ) -> T {
+            result.unwrap_or_else(|error| __terrane_raise(error, origin))
+        }
+        #[allow(
+            dead_code,
+            reason = "fresh failure propagation is absent from some lowered programs"
+        )]
+        #[cold]
+        #[inline(never)]
+        fn __terrane_fresh_error<E: TerraneRaised>(
+            error: E,
+            origin: TerraneSite,
+        ) -> TerraneError {
+            error.raised(origin)
+        }
+        #[allow(
+            dead_code,
+            reason = "returning fresh failures are absent from some lowered programs"
+        )]
+        #[inline]
+        fn __terrane_raised_err<T, E: TerraneRaised>(
+            result: Result<T, E>,
+            origin: TerraneSite,
+        ) -> Result<T, TerraneError> {
+            result.map_err(|error| __terrane_fresh_error(error, origin))
+        }
+        macro_rules! __terrane_raised_completion {
+            ($result:expr, $origin:expr) => {
+                match $result {
+                    Ok(value) => value,
+                    Err(error) => {
+                        return TerraneCompletion::Error(__terrane_fresh_error(error, $origin));
+                    }
+                }
+            };
+        }
+        #[allow(
+            dead_code,
+            reason = "terminating propagation is absent from some lowered programs"
+        )]
+        #[inline]
+        fn __terrane_traced<T>(
+            result: Result<T, TerraneError>,
+            frame: TerraneSite,
+        ) -> T {
+            result.unwrap_or_else(|error| __terrane_uncaught(__terrane_trace_error(error, frame)))
+        }
+        #[allow(
+            dead_code,
+            reason = "returning propagation is absent from some lowered programs"
+        )]
+        #[inline]
+        fn __terrane_traced_err<T>(
+            result: Result<T, TerraneError>,
+            frame: TerraneSite,
+        ) -> Result<T, TerraneError> {
+            result.map_err(|error| __terrane_trace_error(error, frame))
+        }
+        macro_rules! __terrane_traced_completion {
+            ($result:expr, $frame:expr) => {
+                match $result {
+                    Ok(value) => value,
+                    Err(error) => {
+                        return TerraneCompletion::Error(__terrane_trace_error(error, $frame));
+                    }
+                }
+            };
         }
         fn __terrane_uncaught(error: TerraneError) -> ! {
             eprintln!("{}", error.render());
@@ -817,6 +1184,15 @@ fn emit_error_support(output: &mut String, has_custom_throwable: bool, has_depen
         }
     "#});
     if has_dependency {
+        let error_descriptor =
+            registry.register_descriptor("/core/errors::dependency-error", "dependency-error");
+        let panic_descriptor =
+            registry.register_descriptor("/core/errors::dependency-panic", "dependency-panic");
+        writeln!(
+            output,
+            "#[allow(dead_code, reason = \"a projected dependency may expose no Result members\")]\nconst TERRANE_DEPENDENCY_ERROR: DescriptorId = DescriptorId({error_descriptor});\n#[allow(dead_code, reason = \"panic catching may be disabled or not crossed\")]\nconst TERRANE_DEPENDENCY_PANIC: DescriptorId = DescriptorId({panic_descriptor});"
+        )
+        .expect("writing to a String cannot fail");
         output.push_str(indoc! {r#"
             #[allow(
                 dead_code,
@@ -826,26 +1202,116 @@ fn emit_error_support(output: &mut String, has_custom_throwable: bool, has_depen
                 payload: Box<dyn std::any::Any + Send>,
                 crate_name: &'static str,
                 member: &'static str,
-            ) -> TerraneError {
+            ) -> TerraneForeignError {
                 let detail = payload
                     .downcast_ref::<&str>()
                     .copied()
                     .or_else(|| payload.downcast_ref::<String>().map(String::as_str))
                     .unwrap_or("non-string panic payload");
-                TerraneError::new(
-                    TerraneErrorKind::Custom("dependency-panic"),
+                TerraneForeignError(TerraneError::custom_raised(
+                    TERRANE_DEPENDENCY_PANIC,
                     format!("Rust dependency `{crate_name}` member `{member}` panicked: {detail}"),
-                )
+                    TERRANE_NO_SITE,
+                ))
             }
         "#});
     }
+    emit_site_tables(output, registry);
+}
+
+fn emit_site_tables(output: &mut String, registry: &LoweringRegistry) {
+    let files = registry.files.borrow();
+    let functions = registry.functions.borrow();
+    let sites = registry.sites.borrow();
+    let descriptors = registry.descriptors.borrow();
+    output.push_str(indoc! {r#"
+        mod __terrane_error_registry {
+            #[allow(dead_code, reason = "custom descriptors are absent from some programs")]
+    "#});
+    writeln!(
+        output,
+        "    pub static DESCRIPTORS: [&str; {}] = [",
+        descriptors.len()
+    )
+    .expect("writing to a String cannot fail");
+    for (_, name) in descriptors.iter() {
+        writeln!(output, "        {name:?},").expect("writing to a String cannot fail");
+    }
+    output.push_str("    ];\n}\n");
+    output.push_str(indoc! {r"
+        mod __terrane_trace {
+            pub struct Site {
+                pub function: u32,
+                pub file: u32,
+                pub line: u32,
+                pub column: u32,
+                pub end_line: u32,
+                pub end_column: u32,
+            }
+    "});
+    writeln!(output, "    pub static FILES: [&str; {}] = [", files.len())
+        .expect("writing to a String cannot fail");
+    for file in files.iter() {
+        writeln!(output, "        {file:?},").expect("writing to a String cannot fail");
+    }
+    output.push_str("    ];\n");
+    writeln!(
+        output,
+        "    pub static FUNCTIONS: [&str; {}] = [",
+        functions.len()
+    )
+    .expect("writing to a String cannot fail");
+    for function in functions.iter() {
+        writeln!(output, "        {function:?},").expect("writing to a String cannot fail");
+    }
+    output.push_str("    ];\n");
+    writeln!(output, "    pub static SITES: [Site; {}] = [", sites.len())
+        .expect("writing to a String cannot fail");
+    for (id, site) in sites.iter().enumerate() {
+        let function = &functions[usize::try_from(site.function).expect("u32 must fit usize")];
+        let file = &files[usize::try_from(site.file).expect("u32 must fit usize")];
+        writeln!(
+            output,
+            "        {{\n            __terrane_site_comment!({:?});\n            Site {{ function: {}, file: {}, line: {}, column: {}, end_line: {}, end_column: {} }}\n        }},",
+            format!("site {id}: {function} ({file}:{}:{}-{}:{})", site.line, site.column, site.end_line, site.end_column),
+            site.function,
+            site.file,
+            site.line,
+            site.column,
+            site.end_line,
+            site.end_column,
+        )
+        .expect("writing to a String cannot fail");
+    }
+    output.push_str(indoc! {r#"
+            ];
+            #[cold]
+            #[inline(never)]
+            pub fn render(site: u32) -> String {
+                let site = &SITES[usize::try_from(site).expect("site id must fit usize")];
+                format!(
+                    "{} ({}:{}:{}-{}:{})",
+                    FUNCTIONS[usize::try_from(site.function).expect("function id must fit usize")],
+                    FILES[usize::try_from(site.file).expect("file id must fit usize")],
+                    site.line,
+                    site.column,
+                    site.end_line,
+                    site.end_column,
+                )
+            }
+        }
+    "#});
 }
 
 #[expect(
     clippy::too_many_lines,
     reason = "program-global declarations and their initialization policy remain auditable together"
 )]
-fn emit_global_storage(package: &SemanticPackage, output: &mut String) {
+fn emit_global_storage(
+    package: &SemanticPackage,
+    registry: &LoweringRegistry,
+    output: &mut String,
+) {
     for (name, symbol) in &package.globals {
         if symbol.kind != SymbolKind::Binding {
             continue;
@@ -871,6 +1337,7 @@ fn emit_global_storage(package: &SemanticPackage, output: &mut String) {
             continue;
         };
         let emitter = Emitter {
+            registry,
             package,
             unit,
             source: &unit.source,
@@ -932,6 +1399,7 @@ fn emit_global_storage(package: &SemanticPackage, output: &mut String) {
                 .position(|child| child.span == initial_name.span)?;
             let initializer = binding_initializer(initial_node, name_index)?;
             let mut initial_emitter = Emitter {
+                registry,
                 package,
                 unit: initial_unit,
                 source: &initial_unit.source,
@@ -2348,57 +2816,75 @@ impl Emitter<'_> {
         };
         self.package
             .resolve_name_at(self.unit, descriptor.span.start, self.text(descriptor))
-            .and_then(|symbol| {
-                symbol
-                    .identity
-                    .strip_prefix("/core/errors::")
-                    .map(str::to_owned)
-                    .or_else(|| Some(symbol.name.clone()))
-            })
-            .unwrap_or_else(|| {
-                self.text(descriptor)
-                    .trim()
-                    .trim_start_matches('.')
-                    .to_owned()
-            })
+            .map_or_else(
+                || {
+                    self.text(descriptor)
+                        .trim()
+                        .trim_start_matches('.')
+                        .to_owned()
+                },
+                |symbol| symbol.name.clone(),
+            )
+    }
+
+    fn rust_error_kind(&self, node: &SyntaxNode) -> String {
+        let descriptor = if node.kind == SyntaxKind::CallExpression {
+            node.children.first().unwrap_or(node)
+        } else {
+            node
+        };
+        if let Some(symbol) =
+            self.package
+                .resolve_name_at(self.unit, descriptor.span.start, self.text(descriptor))
+        {
+            if let Some(kind) = rust_builtin_error_kind(&symbol.name) {
+                return kind.to_owned();
+            }
+            let descriptor = self
+                .registry
+                .register_descriptor(&symbol.identity, &symbol.name);
+            return format!("Custom(DescriptorId({descriptor}))");
+        }
+        let name = self.error_kind(node);
+        if let Some(kind) = rust_builtin_error_kind(&name) {
+            kind.to_owned()
+        } else {
+            let identity = format!("{}::{name}", self.unit.namespace.trim_end_matches('/'));
+            let descriptor = self.registry.register_descriptor(&identity, &name);
+            format!("Custom(DescriptorId({descriptor}))")
+        }
     }
 
     fn throw_statement(&mut self, node: &SyntaxNode) {
         if let Some(current_error) = &self.current_error
             && node.children.is_empty()
         {
+            let frame = self.error_site(node);
+            let error = format!("{current_error}.clone().at({frame})");
             if self.try_completion {
-                self.line(&format!(
-                    "return TerraneCompletion::Error({current_error}.clone());"
-                ));
+                self.line(&format!("return TerraneCompletion::Error({error});"));
             } else if self.propagate_errors {
-                self.line(&format!("return Err({current_error}.clone());"));
+                self.line(&format!("return Err({error});"));
             } else {
-                self.line(&format!("__terrane_uncaught({current_error}.clone());"));
+                self.line(&format!("__terrane_uncaught({error});"));
             }
             return;
         }
         let Some(error_node) = node.children.first() else {
             return;
         };
-        let name = self.error_kind(error_node);
-        let context = self.error_context(node);
-        let kind = rust_error_kind(&name);
+        let kind = self.rust_error_kind(error_node);
+        let origin = self.error_site(node);
         let mut error = if kind.starts_with("Custom(") {
             let value = self.expression(error_node);
             format!(
-                "{{ let value = {value}; TerraneError::new(TerraneErrorKind::{kind}, value.render()).at(\"{context}\") }}"
+                "{{ let value = {value}; TerraneError::raised_with_message(TerraneErrorKind::{kind}, value.render(), {origin}) }}"
             )
         } else {
-            format!(
-                "TerraneError::new(TerraneErrorKind::{kind}, \"{}\").at(\"{context}\")",
-                error_message(&name),
-            )
+            format!("TerraneError::raised(TerraneErrorKind::{kind}, {origin})")
         };
         if let Some(current_error) = &self.current_error {
-            error = format!(
-                "{{ let mut error = {error}; error.cause = Some(Box::new({current_error}.clone())); error }}"
-            );
+            error = format!("{error}.with_cause({current_error}.clone())");
         }
         if self.try_completion {
             self.line(&format!("return TerraneCompletion::Error({error});"));
@@ -2474,13 +2960,13 @@ impl Emitter<'_> {
             let condition = descriptor.map_or_else(
                 || format!("!__terrane_handled_{index}"),
                 |descriptor| {
-                    let kind = self.error_kind(descriptor);
-                    if kind == "error" {
+                    let name = self.error_kind(descriptor);
+                    if name == "error" {
                         format!("!__terrane_handled_{index}")
                     } else {
                         format!(
                             "!__terrane_handled_{index} && __terrane_error_{index}.kind == TerraneErrorKind::{}",
-                            rust_error_kind(&kind)
+                            self.rust_error_kind(descriptor)
                         )
                     }
                 },
@@ -3502,10 +3988,8 @@ impl Emitter<'_> {
         let left = self.adaptive_expression(left);
         let right = self.adaptive_expression(right);
         match operator {
-            "/" => {
-                format!("terrane_int_support::unwrap_or_fail(({left}).euclidean_div(&({right})))")
-            }
-            "%" => format!("terrane_int_support::unwrap_or_fail(({left}).modulo(&({right})))"),
+            "/" => self.fallible(format!("({left}).euclidean_div(&({right}))"), node),
+            "%" => self.fallible(format!("({left}).modulo(&({right}))"), node),
             _ => format!("({left} {operator} {right})"),
         }
     }
@@ -3518,10 +4002,8 @@ impl Emitter<'_> {
         let left = self.expression_as(left, ValueType::Scalar(ScalarType::Int));
         let right = self.expression_as(right, ValueType::Scalar(ScalarType::Int));
         match operator {
-            "/" => {
-                format!("terrane_int_support::unwrap_or_fail(({left}).euclidean_div(&({right})))")
-            }
-            "%" => format!("terrane_int_support::unwrap_or_fail(({left}).modulo(&({right})))"),
+            "/" => self.fallible(format!("({left}).euclidean_div(&({right}))"), node),
+            "%" => self.fallible(format!("({left}).modulo(&({right}))"), node),
             _ => format!("({left} {operator} {right})"),
         }
     }
@@ -4294,8 +4776,11 @@ impl Emitter<'_> {
                     "truncate" => "Truncate",
                     _ => unreachable!(),
                 };
-                format!(
-                    "terrane_int_support::unwrap_or_fail(terrane_int_support::{helper}({receiver}, terrane_int_support::FloatRounding::{mode}))"
+                self.fallible(
+                    format!(
+                        "terrane_int_support::{helper}({receiver}, terrane_int_support::FloatRounding::{mode})"
+                    ),
+                    node,
                 )
             }
             name if wrapped_field => {
@@ -4534,21 +5019,6 @@ impl Emitter<'_> {
                 }
             } else if method.child == "checked" {
                 format!("({call}).ok()")
-            } else if method.family == MemberFamily::Parse {
-                let context = self.error_context(node);
-                if self.try_completion {
-                    format!(
-                        "match {call} {{ Ok(value) => value, Err(error) => return TerraneCompletion::Error(TerraneError::from(error).at(\"{context}\")) }}"
-                    )
-                } else if self.propagate_errors {
-                    format!(
-                        "({call}).map_err(|error| TerraneError::from(error).at(\"{context}\"))?"
-                    )
-                } else {
-                    format!(
-                        "({call}).unwrap_or_else(|error| __terrane_uncaught(TerraneError::from(error).at(\"{context}\")))"
-                    )
-                }
             } else {
                 self.fallible(call, node)
             };
@@ -5258,7 +5728,7 @@ impl Emitter<'_> {
             if self.package.profile.panic == crate::package::PanicProfile::Abort {
                 if method.error.is_some() {
                     format!(
-                        "match {call} {{ Ok(value) => Ok(value), Err(error) => Err(crate::TerraneError::new(crate::TerraneErrorKind::Custom(\"dependency-error\"), format!(\"Rust dependency `{dependency}` member `{member}` failed: {{error}}\"))) }}"
+                        "match {call} {{ Ok(value) => Ok(value), Err(error) => Err(crate::TerraneForeignError(crate::TerraneError::custom_raised(crate::TERRANE_DEPENDENCY_ERROR, format!(\"Rust dependency `{dependency}` member `{member}` failed: {{error}}\"), crate::TERRANE_NO_SITE))) }}"
                     )
                 } else if self.discarded_call == Some(node.span) {
                     format!("{{ {call}; Ok(()) }}")
@@ -5268,7 +5738,7 @@ impl Emitter<'_> {
             } else if method.error.is_some() {
                 let caught = catch_unwind(&call);
                 format!(
-                    "match {caught} {{ Ok(Ok(value)) => Ok(value), Ok(Err(error)) => Err(crate::TerraneError::new(crate::TerraneErrorKind::Custom(\"dependency-error\"), format!(\"Rust dependency `{dependency}` member `{member}` failed: {{error}}\"))), Err(payload) => Err(crate::__terrane_dependency_panic(payload, {dependency:?}, {member:?})) }}"
+                    "match {caught} {{ Ok(Ok(value)) => Ok(value), Ok(Err(error)) => Err(crate::TerraneForeignError(crate::TerraneError::custom_raised(crate::TERRANE_DEPENDENCY_ERROR, format!(\"Rust dependency `{dependency}` member `{member}` failed: {{error}}\"), crate::TERRANE_NO_SITE))), Err(payload) => Err(crate::__terrane_dependency_panic(payload, {dependency:?}, {member:?})) }}"
                 )
             } else {
                 let unwind_body = if self.discarded_call == Some(node.span) {
@@ -5292,17 +5762,25 @@ impl Emitter<'_> {
             call
         };
         if contract.is_some_and(|contract| contract.throws) || foreign_error {
-            let context = self.error_context(node);
-            if self.try_completion {
-                format!(
-                    "match {call} {{ Ok(value) => value, Err(error) => return TerraneCompletion::Error(error.at(\"{context}\")) }}"
-                )
+            let site = self.error_site(node);
+            let dependency_boundary = self
+                .package
+                .resolve_name_at(self.unit, callee.span.start, self.text(callee))
+                .is_some_and(|symbol| symbol.identity.starts_with("/deps/"));
+            if foreign_error || dependency_boundary {
+                if self.try_completion {
+                    format!("__terrane_raised_completion!({call}, {site})")
+                } else if self.propagate_errors {
+                    format!("__terrane_raised_err({call}, {site})?")
+                } else {
+                    format!("__terrane_raised({call}, {site})")
+                }
+            } else if self.try_completion {
+                format!("__terrane_traced_completion!({call}, {site})")
             } else if self.propagate_errors {
-                format!("({call}).map_err(|error| error.at(\"{context}\"))?")
+                format!("__terrane_traced_err({call}, {site})?")
             } else {
-                format!(
-                    "({call}).unwrap_or_else(|error| __terrane_uncaught(error.at(\"{context}\")))"
-                )
+                format!("__terrane_traced({call}, {site})")
             }
         } else {
             call
@@ -5311,30 +5789,31 @@ impl Emitter<'_> {
 
     fn fallible(&self, call: impl AsRef<str>, node: &SyntaxNode) -> String {
         let call = call.as_ref();
-        let context = self.error_context(node);
+        let site = self.error_site(node);
         if self.try_completion {
-            format!(
-                "match {call} {{ Ok(value) => value, Err(error) => return TerraneCompletion::Error(TerraneError::from(error).at(\"{context}\")) }}"
-            )
+            format!("__terrane_raised_completion!({call}, {site})")
         } else if self.propagate_errors {
-            format!("({call}).map_err(|error| TerraneError::from(error).at(\"{context}\"))?")
-        } else if package_uses_structured_errors(self.package) {
-            format!(
-                "({call}).unwrap_or_else(|error| __terrane_uncaught(TerraneError::from(error).at(\"{context}\")))"
-            )
+            format!("__terrane_raised_err({call}, {site})?")
         } else {
-            format!("terrane_int_support::unwrap_or_fail({call})")
+            format!("__terrane_raised({call}, {site})")
         }
     }
 
-    fn error_context(&self, node: &SyntaxNode) -> String {
+    fn error_site(&self, node: &SyntaxNode) -> String {
+        let function = self
+            .current_function
+            .as_deref()
+            .unwrap_or(self.unit.namespace.as_str());
+        let site =
+            self.registry
+                .register_site(&self.unit.source_path, function, self.source, node.span);
         let (line, column) = self.source.line_column(node.span.start);
-        let location = format!("{}:{line}:{column}", display_path(self.source.path()));
-        self.current_function
-            .as_ref()
-            .map_or(location.clone(), |function| {
-                format!("{function} ({location})")
-            })
+        let (end_line, end_column) = self.source.line_column(node.span.end);
+        let comment = format!(
+            "{}:{line}:{column}-{end_line}:{end_column}",
+            self.unit.source_path
+        );
+        format!("__terrane_comment!({site}, {comment:?})")
     }
 
     fn numeric_destination(
@@ -5380,10 +5859,14 @@ impl Emitter<'_> {
             if integer_range_contains(destination, source) {
                 return format!("(({value}) as {})", rust_type(destination));
             }
-            return format!(
-                "{{ let source_value = {value}; terrane_int_support::unwrap_or_fail({}::try_from(source_value).map_err(|_| terrane_int_support::ArithmeticError::conversion_overflow(&source_value, \"{source}\", \"{destination}\", \"the value is outside the destination range\"))) }}",
-                rust_type(destination)
+            let conversion = self.fallible(
+                format!(
+                    "{}::try_from(source_value).map_err(|_| terrane_int_support::ArithmeticError::conversion_overflow(&source_value, \"{source}\", \"{destination}\", \"the value is outside the destination range\"))",
+                    rust_type(destination)
+                ),
+                node,
             );
+            return format!("{{ let source_value = {value}; {conversion} }}");
         }
         if source == ScalarType::Float32 && destination == ScalarType::Float64 {
             return format!("(({value}) as f64)");
@@ -5413,8 +5896,12 @@ impl Emitter<'_> {
                 node,
             );
         }
+        let conversion = self.fallible(
+            "Err(terrane_int_support::ArithmeticError::conversion_overflow(&source_value, \"float64\", \"float32\", \"the floating value is not exactly representable\"))",
+            node,
+        );
         format!(
-            "{{ let source_value = {value}; let converted = source_value as f32; if (converted as f64) == source_value {{ converted }} else {{ terrane_int_support::unwrap_or_fail(Err(terrane_int_support::ArithmeticError::conversion_overflow(&source_value, \"float64\", \"float32\", \"the floating value is not exactly representable\"))) }} }}"
+            "{{ let source_value = {value}; let converted = source_value as f32; if (converted as f64) == source_value {{ converted }} else {{ {conversion} }} }}"
         )
     }
 
@@ -6797,38 +7284,19 @@ fn statement_may_fall_through(statement: &SyntaxNode) -> bool {
     }
 }
 
-fn rust_error_kind(kind: &str) -> String {
+fn rust_builtin_error_kind(kind: &str) -> Option<&'static str> {
     match kind {
-        "arithmetic-overflow" => "ArithmeticOverflow".to_owned(),
-        "division-by-zero" => "DivisionByZero".to_owned(),
-        "integer-conversion-overflow" => "IntegerConversionOverflow".to_owned(),
-        "negative-shift-count" => "NegativeShiftCount".to_owned(),
-        "coercion-error" => "CoercionError".to_owned(),
-        "decode-error" => "DecodeError".to_owned(),
-        "index-error" => "IndexError".to_owned(),
-        "missing-key" => "MissingKey".to_owned(),
-        "dependency-error" => "Custom(\"dependency-error\")".to_owned(),
-        "dependency-panic" => "Custom(\"dependency-panic\")".to_owned(),
-        "resource-error" => "ResourceError".to_owned(),
-        "error" | "throwable" => "SourceError".to_owned(),
-        custom => format!("Custom({custom:?})"),
-    }
-}
-
-fn error_message(kind: &str) -> &'static str {
-    match kind {
-        "arithmetic-overflow" => "fixed-width integer arithmetic overflow",
-        "division-by-zero" => "integer division by zero",
-        "integer-conversion-overflow" => "integer conversion overflow",
-        "negative-shift-count" => "negative integer shift count",
-        "coercion-error" => "coercion has no compatible result",
-        "decode-error" => "invalid byte sequence for selected encoding",
-        "index-error" => "collection index is out of range",
-        "missing-key" => "collection key is absent",
-        "dependency-error" => "Rust dependency returned an error",
-        "dependency-panic" => "Rust dependency panicked",
-        "resource-error" => "integer shift count cannot be represented on this target",
-        _ => "source error",
+        "arithmetic-overflow" => Some("ArithmeticOverflow"),
+        "division-by-zero" => Some("DivisionByZero"),
+        "integer-conversion-overflow" => Some("IntegerConversionOverflow"),
+        "negative-shift-count" => Some("NegativeShiftCount"),
+        "coercion-error" => Some("CoercionError"),
+        "decode-error" => Some("DecodeError"),
+        "index-error" => Some("IndexError"),
+        "missing-key" => Some("MissingKey"),
+        "resource-error" => Some("ResourceError"),
+        "error" | "throwable" => Some("SourceError"),
+        _ => None,
     }
 }
 
@@ -6954,17 +7422,45 @@ fn display_path(path: &std::path::Path) -> String {
 
 #[cfg(test)]
 mod tests {
-    use super::emit_error_support;
+    use std::path::PathBuf;
+
+    use super::{LoweringRegistry, emit_error_support};
+    use crate::{SourceFile, Span};
 
     #[test]
     fn error_support_is_canonical_rust() {
         for (has_custom_throwable, has_dependency) in [(false, false), (true, false), (true, true)]
         {
             let mut emitted = String::new();
-            emit_error_support(&mut emitted, has_custom_throwable, has_dependency);
-            let parsed = syn::parse_file(&emitted).unwrap();
-
-            assert_eq!(prettyplease::unparse(&parsed), emitted);
+            let registry = LoweringRegistry::default();
+            if has_dependency {
+                registry.register_descriptor("/core/errors::dependency-error", "dependency-error");
+                registry.register_descriptor("/core/errors::dependency-panic", "dependency-panic");
+            }
+            emit_error_support(
+                &mut emitted,
+                has_custom_throwable,
+                has_dependency,
+                &registry,
+            );
+            let canonical = crate::rust_ir::canonicalize_rust(&emitted).unwrap();
+            assert_eq!(
+                crate::rust_ir::canonicalize_rust(&canonical).unwrap(),
+                canonical
+            );
         }
+    }
+
+    #[test]
+    fn lowering_registry_reuses_identical_semantic_sites() {
+        let registry = LoweringRegistry::default();
+        let source = SourceFile::new(0, PathBuf::from("case.trn"), "value".to_owned());
+        let span = Span::new(0, 0, 5);
+
+        let first = registry.register_site("case.trn", "/demo::main", &source, span);
+        let second = registry.register_site("case.trn", "/demo::main", &source, span);
+
+        assert_eq!(first, second);
+        assert_eq!(registry.sites.borrow().len(), 1);
     }
 }

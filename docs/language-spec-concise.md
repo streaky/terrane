@@ -576,6 +576,15 @@ coercion-error               coercion has no compatible result outside the overf
   other throwable classes are declared by packages/adapters, never implicitly synthesized.
 - Recoverable throws lower through compiler-owned Rust `Result`-like flow; panic is separate and
   fatal.
+- Generated errors use a 16-byte `kind + origin TerraneSite + optional boxed detail` header.
+  Built-in messages derivable from `kind` stay lazy; message/cause/propagation frames allocate detail
+  only when present. Fresh failures set origin once; propagation only appends frames, through
+  type-distinct lowering helpers.
+- `TerraneSite` is a compiler-owned, dense, deterministic per-program semantic-site ID. Emitted
+  tables map it to file, enclosing callable, and exact source range; comments preserve local
+  generated-Rust readability. Numeric IDs are golden-level lowering details, not cross-build keys.
+- Tagged-pointer error packing is rejected absent a hard binary-size or measured calling-convention
+  requirement: it trades derived safe ownership for generated `unsafe` without a throughput gain.
 - Compiler infers the exact escaping throwable set transitively for every callable, public or
   private, after catches and `finally` replacement.
 - Optional postfix `function name Return throws T; parameters` is an upper-bound contract, NOT
