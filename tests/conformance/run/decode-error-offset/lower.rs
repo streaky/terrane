@@ -23,24 +23,6 @@ enum TerraneErrorKind {
     SourceError,
 }
 impl TerraneErrorKind {
-    #[allow(
-        dead_code,
-        reason = "support-error conversions are selected by each lowered program"
-    )]
-    fn from_source_name(name: &str) -> Self {
-        match name {
-            "arithmetic-overflow" => Self::ArithmeticOverflow,
-            "division-by-zero" => Self::DivisionByZero,
-            "integer-conversion-overflow" => Self::IntegerConversionOverflow,
-            "negative-shift-count" => Self::NegativeShiftCount,
-            "coercion-error" => Self::CoercionError,
-            "decode-error" => Self::DecodeError,
-            "index-error" => Self::IndexError,
-            "missing-key" => Self::MissingKey,
-            "resource-error" => Self::ResourceError,
-            _ => Self::SourceError,
-        }
-    }
     fn display_name(self) -> &'static str {
         match self {
             Self::ArithmeticOverflow => "arithmetic-overflow",

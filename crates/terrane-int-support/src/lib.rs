@@ -83,21 +83,6 @@ impl fmt::Display for ArithmeticError {
 impl std::error::Error for ArithmeticError {}
 
 impl ArithmeticError {
-    /// Stable Terrane object-form name used by generated failure paths.
-    #[must_use]
-    pub const fn source_name(&self) -> &'static str {
-        match self {
-            Self::DivisionByZero => "division-by-zero",
-            Self::ArithmeticOverflow => "arithmetic-overflow",
-            Self::IntegerConversionOverflow | Self::IntegerConversionOverflowDetail { .. } => {
-                "integer-conversion-overflow"
-            }
-            Self::NegativeShiftCount => "negative-shift-count",
-            Self::InvalidRadix | Self::InvalidRadixText => "coercion-error",
-            Self::ShiftCountTooLarge => "resource-error",
-        }
-    }
-
     #[must_use]
     pub fn conversion_overflow(
         source_value: &impl ToString,

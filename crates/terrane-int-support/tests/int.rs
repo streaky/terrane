@@ -171,20 +171,3 @@ fn integer_coercion_families_cover_signed_unsigned_and_adaptive_values() {
     assert_eq!(wrapping_coerce::<u8>(&arbitrary), 0);
     assert_eq!(coerce::<Int>(&arbitrary), Ok(arbitrary));
 }
-
-#[test]
-fn runtime_arithmetic_failures_expose_canonical_source_names() {
-    let cases = [
-        (ArithmeticError::DivisionByZero, "division-by-zero"),
-        (ArithmeticError::ArithmeticOverflow, "arithmetic-overflow"),
-        (
-            ArithmeticError::IntegerConversionOverflow,
-            "integer-conversion-overflow",
-        ),
-        (ArithmeticError::NegativeShiftCount, "negative-shift-count"),
-        (ArithmeticError::ShiftCountTooLarge, "resource-error"),
-    ];
-    for (failure, expected) in cases {
-        assert_eq!(failure.source_name(), expected);
-    }
-}
