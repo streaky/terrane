@@ -137,6 +137,43 @@ class RunnerContracts(unittest.TestCase):
         assert record is not None
         self.assertEqual(record["warning_lines"], ["warning: fixture"])
 
+    def test_processes_force_available_sccache_when_inherited_wrapper_is_disabled(
+        self,
+    ) -> None:
+        with (
+            mock.patch.dict(os.environ, {"RUSTC_WRAPPER": ""}),
+            mock.patch.object(runner, "available_sccache", return_value="/opt/cache/sccache"),
+        ):
+            result = runner.run_process(
+                [
+                    sys.executable,
+                    "-c",
+                    "import os; print(os.environ.get('RUSTC_WRAPPER', 'missing'))",
+                ],
+                cwd=Path.cwd(),
+                timeout=5.0,
+            )
+        self.assertEqual(result.stdout.strip(), "/opt/cache/sccache")
+
+    def test_process_environment_does_not_require_unavailable_sccache(self) -> None:
+        with (
+            mock.patch.dict(os.environ, {}, clear=True),
+            mock.patch.object(runner, "available_sccache", return_value=None),
+        ):
+            environment = runner.process_environment()
+        self.assertNotIn("RUSTC_WRAPPER", environment)
+
+    def test_sccache_server_starts_before_measured_process_groups(self) -> None:
+        probe = runner.subprocess.CompletedProcess([], 1, "", "not running")
+        started = runner.subprocess.CompletedProcess([], 0, "", "")
+        with (
+            mock.patch.object(runner, "available_sccache", return_value="/opt/cache/sccache"),
+            mock.patch.object(runner.subprocess, "run", side_effect=[probe, started]) as run,
+        ):
+            runner.prepare_sccache_server()
+        self.assertEqual(run.call_args_list[0].args[0], ["/opt/cache/sccache", "--show-stats"])
+        self.assertEqual(run.call_args_list[1].args[0], ["/opt/cache/sccache", "--start-server"])
+
     def test_cgroup_cleanup_error_does_not_mask_command_failure(self) -> None:
         class FailingCleanupGroup:
             path = Path("/sys/fs/cgroup/terrane-sci-fixture")

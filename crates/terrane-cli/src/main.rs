@@ -205,6 +205,10 @@ fn emit_warnings(compilation: &terrane_compiler::Compilation) {
     }
 }
 
+#[expect(
+    clippy::too_many_arguments,
+    reason = "artifact preparation forwards one complete Cargo build context without hidden state"
+)]
 fn prepare_artifact(
     command: &str,
     crate_dir: &Path,
@@ -286,6 +290,7 @@ fn print_rust(compilation: &terrane_compiler::Compilation) {
 }
 
 #[expect(
+    clippy::too_many_arguments,
     clippy::too_many_lines,
     reason = "Cargo process policy, containment, diagnostics, and artifact caching form one operation"
 )]
@@ -307,7 +312,9 @@ fn run_cargo(
     let contained =
         has_rust_dependencies && containment == terrane_compiler::projection::Containment::Enforced;
     if has_rust_dependencies {
-        let fetch = Command::new("cargo")
+        let mut fetch = Command::new("cargo");
+        terrane_compiler::cargo_toolchain::configure_cargo_command(&mut fetch);
+        let fetch = fetch
             .args(["fetch", "--manifest-path"])
             .arg(crate_dir.join("Cargo.toml"))
             .output()
@@ -364,6 +371,7 @@ fn run_cargo(
     } else {
         Command::new("cargo")
     };
+    terrane_compiler::cargo_toolchain::configure_cargo_command(&mut cargo);
     cargo.args([
         command,
         "--quiet",

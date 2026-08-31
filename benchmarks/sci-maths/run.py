@@ -38,6 +38,7 @@ PERFORMANCE_ENVIRONMENT_KEYS = (
     "PYTHONHASHSEED",
     "PYTHONOPTIMIZE",
     "RUSTFLAGS",
+    "RUSTC_WRAPPER",
 )
 
 
@@ -175,6 +176,47 @@ def read_process_output(stdout_file: Any, stderr_file: Any) -> tuple[str, str]:
         stderr_file.read().decode("utf-8", errors="replace"),
     )
 
+def available_sccache(environment: dict[str, str]) -> str | None:
+    sccache = shutil.which("sccache", path=environment.get("PATH"))
+    return None if sccache is None else str(Path(sccache).resolve())
+
+
+def process_environment() -> dict[str, str]:
+    environment = os.environ.copy()
+    if sccache := available_sccache(environment):
+        environment["RUSTC_WRAPPER"] = sccache
+    return environment
+
+
+def prepare_sccache_server() -> None:
+    environment = os.environ.copy()
+    sccache = available_sccache(environment)
+    if sccache is None:
+        return
+    environment["RUSTC_WRAPPER"] = sccache
+    probe = subprocess.run(
+        [sccache, "--show-stats"],
+        cwd=REPO,
+        env=environment,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if probe.returncode == 0:
+        return
+    start = subprocess.run(
+        [sccache, "--start-server"],
+        cwd=REPO,
+        env=environment,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if start.returncode != 0:
+        detail = (start.stderr or start.stdout).strip()
+        raise BenchmarkError(f"cannot start available sccache: {detail}")
+
+
 
 def run_process(command: list[str], *, cwd: Path, timeout: float) -> ProcessResult:
     memory_group = create_memory_cgroup()
@@ -190,6 +232,7 @@ def run_process(command: list[str], *, cwd: Path, timeout: float) -> ProcessResu
                 stderr=stderr_file,
                 start_new_session=True,
                 preexec_fn=memory_group.join_from_child if memory_group else None,
+                env=process_environment(),
             )
             waited = wait_for_child(process.pid, timeout)
             timed_out = waited is None
@@ -1153,6 +1196,7 @@ def main() -> int:
             for lane in lanes:
                 print(f"  {lane.lane_id:<24} {lane.name}")
             return 0
+        prepare_sccache_server()
         if arguments.command == "lower":
             materialize_lowering(problems, lanes, setup_timeout)
             return 0
