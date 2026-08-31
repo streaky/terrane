@@ -173,30 +173,18 @@ fn integer_coercion_families_cover_signed_unsigned_and_adaptive_values() {
 }
 
 #[test]
-fn runtime_arithmetic_failures_render_in_source_terms() {
+fn runtime_arithmetic_failures_expose_canonical_source_names() {
     let cases = [
-        (
-            ArithmeticError::DivisionByZero,
-            "division-by-zero: integer division by zero",
-        ),
-        (
-            ArithmeticError::ArithmeticOverflow,
-            "arithmetic-overflow: fixed-width integer arithmetic overflow",
-        ),
+        (ArithmeticError::DivisionByZero, "division-by-zero"),
+        (ArithmeticError::ArithmeticOverflow, "arithmetic-overflow"),
         (
             ArithmeticError::IntegerConversionOverflow,
-            "integer-conversion-overflow: integer conversion result is outside the destination type",
+            "integer-conversion-overflow",
         ),
-        (
-            ArithmeticError::NegativeShiftCount,
-            "negative-shift-count: negative integer shift count",
-        ),
-        (
-            ArithmeticError::ShiftCountTooLarge,
-            "resource-error: integer shift count cannot be represented on this target",
-        ),
+        (ArithmeticError::NegativeShiftCount, "negative-shift-count"),
+        (ArithmeticError::ShiftCountTooLarge, "resource-error"),
     ];
     for (failure, expected) in cases {
-        assert_eq!(failure.render(), expected);
+        assert_eq!(failure.source_name(), expected);
     }
 }

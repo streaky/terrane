@@ -98,12 +98,6 @@ impl ArithmeticError {
         }
     }
 
-    /// Deterministic source-oriented text suitable for an uncaught failure.
-    #[must_use]
-    pub fn render(&self) -> String {
-        format!("{}: {self}", self.source_name())
-    }
-
     #[must_use]
     pub fn conversion_overflow(
         source_value: &impl ToString,
@@ -116,17 +110,6 @@ impl ArithmeticError {
             source_type,
             destination_type,
             condition,
-        }
-    }
-}
-
-/// Unwraps a runtime arithmetic result or terminates with stable source-oriented output.
-pub fn unwrap_or_fail<T>(result: Result<T, ArithmeticError>) -> T {
-    match result {
-        Ok(value) => value,
-        Err(error) => {
-            eprintln!("{}", error.render());
-            std::process::exit(1);
         }
     }
 }
