@@ -435,7 +435,7 @@ none value
 
 `bytes` is an implemented sequence value with `b'...'` literals and `.length`. It has no
 blanket scalar-display implementation, so raw bytes cannot reach `print`. `.decode;
-encoding` validates input and reports `.decode-error` with its canonical encoding and byte
+encoding` validates input and reports `decode-error` with its canonical encoding and byte
 offset. The canonical `utf8`, `utf16-le`, `utf16-be`, `utf32-le`, and `utf32-be` encoding
 objects are compiler-owned values; string `.encode` is total for each one. Built-in `for`
 iteration yields `uint8` values. General bytes indexing and slicing remain deferred until

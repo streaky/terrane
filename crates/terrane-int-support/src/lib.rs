@@ -87,14 +87,14 @@ impl ArithmeticError {
     #[must_use]
     pub const fn source_name(&self) -> &'static str {
         match self {
-            Self::DivisionByZero => ".division-by-zero",
-            Self::ArithmeticOverflow => ".arithmetic-overflow",
+            Self::DivisionByZero => "division-by-zero",
+            Self::ArithmeticOverflow => "arithmetic-overflow",
             Self::IntegerConversionOverflow | Self::IntegerConversionOverflowDetail { .. } => {
-                ".integer-conversion-overflow"
+                "integer-conversion-overflow"
             }
-            Self::NegativeShiftCount => ".negative-shift-count",
-            Self::InvalidRadix | Self::InvalidRadixText => ".coercion-error",
-            Self::ShiftCountTooLarge => ".resource-error",
+            Self::NegativeShiftCount => "negative-shift-count",
+            Self::InvalidRadix | Self::InvalidRadixText => "coercion-error",
+            Self::ShiftCountTooLarge => "resource-error",
         }
     }
 

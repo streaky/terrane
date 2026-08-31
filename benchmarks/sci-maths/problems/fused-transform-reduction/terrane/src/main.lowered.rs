@@ -13,17 +13,17 @@ enum TerraneErrorKind {
     SourceError,
 }
 impl TerraneErrorKind {
-    fn from_support_source_name(name: &str) -> Self {
+    fn from_source_name(name: &str) -> Self {
         match name {
-            ".arithmetic-overflow" => Self::ArithmeticOverflow,
-            ".division-by-zero" => Self::DivisionByZero,
-            ".integer-conversion-overflow" => Self::IntegerConversionOverflow,
-            ".negative-shift-count" => Self::NegativeShiftCount,
-            ".coercion-error" => Self::CoercionError,
-            ".decode-error" => Self::DecodeError,
-            ".index-error" => Self::IndexError,
-            ".missing-key" => Self::MissingKey,
-            ".resource-error" => Self::ResourceError,
+            "arithmetic-overflow" => Self::ArithmeticOverflow,
+            "division-by-zero" => Self::DivisionByZero,
+            "integer-conversion-overflow" => Self::IntegerConversionOverflow,
+            "negative-shift-count" => Self::NegativeShiftCount,
+            "coercion-error" => Self::CoercionError,
+            "decode-error" => Self::DecodeError,
+            "index-error" => Self::IndexError,
+            "missing-key" => Self::MissingKey,
+            "resource-error" => Self::ResourceError,
             _ => Self::SourceError,
         }
     }
@@ -84,7 +84,7 @@ impl std::fmt::Display for TerraneError {
 impl From<terrane_int_support::ArithmeticError> for TerraneError {
     fn from(error: terrane_int_support::ArithmeticError) -> Self {
         Self::new(
-            TerraneErrorKind::from_support_source_name(error.source_name()),
+            TerraneErrorKind::from_source_name(error.source_name()),
             error.to_string(),
         )
     }
@@ -93,7 +93,7 @@ impl From<terrane_string_support::DecodeError> for TerraneError {
     fn from(error: terrane_string_support::DecodeError) -> Self {
         Self::new(
             TerraneErrorKind::DecodeError,
-            error.to_string().trim_start_matches(".decode-error: "),
+            error.to_string(),
         )
     }
 }
