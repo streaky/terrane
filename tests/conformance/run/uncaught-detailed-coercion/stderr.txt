@@ -1,0 +1,2 @@
+.integer-conversion-overflow: value 300 of type int cannot arrive exactly as int8: the value is outside the destination range
+at /uncaught-detailed-coercion::narrow (case.trn:5:10-5:15)

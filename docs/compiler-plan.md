@@ -1861,8 +1861,9 @@ and an alignment-controlled before/after sci-maths run shows no unexplained runt
 Implemented evidence: generated Rust carries dense site tables with logical paths and range ends,
 uses site comments that survive canonical formatting, and compile-time asserts both
 `TerraneError` and `Result<i64, TerraneError>` at 16 bytes on the supported x86-64 target. The
-`structured-error-origin-and-frames` and `namespace-qualified-throwable-identity` package cases
-exercise table-based rendering, propagation order, and distinct same-name throwable descriptors.
+`structured-error-origin-and-frames`, `uncaught-detailed-coercion`, and
+`namespace-qualified-throwable-identity` exercise table-based rendering, preservation of structured
+built-in detail, propagation order, and distinct same-name throwable descriptors.
 Tier 3 remains deliberately unimplemented: its generated `unsafe`, manual ownership, and custom
 trait implementations are not justified by the measured code-size benefit alone.
 The required sci-maths validation used
