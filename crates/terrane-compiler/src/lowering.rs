@@ -910,7 +910,7 @@ fn emit_error_support(
             }
     "#});
     if has_custom_throwable {
-        output.push_str(indoc! {r#"
+        output.push_str(indoc! {r"
             #[cold]
             #[inline(never)]
             fn custom_raised(
@@ -920,7 +920,7 @@ fn emit_error_support(
             ) -> Self {
                 Self::raised_with_message(TerraneErrorKind::Custom(descriptor), message, origin)
             }
-        "#});
+        "});
     }
     output.push_str(indoc! {r#"
             #[cold]
@@ -4996,8 +4996,6 @@ impl Emitter<'_> {
                 }
             } else if method.child == "checked" {
                 format!("({call}).ok()")
-            } else if method.family == MemberFamily::Parse {
-                self.fallible(call, node)
             } else {
                 self.fallible(call, node)
             };
