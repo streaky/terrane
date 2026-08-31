@@ -1,0 +1,159 @@
+namespace benchmark-gamma-survival-calibration
+
+from /core/output import print
+from /standard/process import platform-string, arguments, exit, make-exit-status
+
+function benchmark-size int64;
+  supplied = (arguments;)
+  if supplied.length != 1
+    exit; (make-exit-status; 2)
+  count int64 = (supplied[0].text.radix; 10)
+  if count <= 0
+    exit; (make-exit-status; 2)
+  return count
+
+function absolute float64; value float64
+  if value < 0
+    return 0.0 - value
+  return value
+
+function natural-log float64; value float64
+  normalized float64 = value
+  exponent int64 = 0
+  while normalized > 1.4142135623730951
+    normalized = normalized * 0.5
+    exponent++
+  while normalized < 0.7071067811865476
+    normalized = normalized * 2
+    exponent--
+
+  ratio float64 = (normalized - 1) / (normalized + 1)
+  ratio-square float64 = ratio * ratio
+  term float64 = ratio
+  total float64 = ratio
+  denominator float64 = 3
+  iteration int64 = 1
+  while iteration < 20
+    term = term * ratio-square
+    total = total + term / denominator
+    denominator = denominator + 2
+    iteration++
+  exponent-value float64 = exponent
+  return 2 * total + exponent-value * 0.69314718055994530942
+
+function exponential float64; value float64
+  reduced float64 = value
+  exponent int64 = 0
+  half-ln-two float64 = 0.34657359027997265471
+  ln-two float64 = 0.69314718055994530942
+  while reduced > half-ln-two
+    reduced = reduced - ln-two
+    exponent++
+  while reduced < 0.0 - half-ln-two
+    reduced = reduced + ln-two
+    exponent--
+
+  term float64 = 1
+  total float64 = 1
+  iteration int64 = 1
+  while iteration < 24
+    divisor float64 = iteration
+    term = term * reduced / divisor
+    total = total + term
+    iteration++
+
+  while exponent > 0
+    total = total * 2
+    exponent--
+  while exponent < 0
+    total = total * 0.5
+    exponent++
+  return total
+
+function log-gamma float64; value float64
+  y float64 = value
+  shifted float64 = value + 5.5
+  adjusted float64 = shifted - (value + 0.5) * (natural-log; shifted)
+  series float64 = 1.000000000190015
+
+  y = y + 1
+  series = series + 76.18009172947146 / y
+  y = y + 1
+  series = series + (0.0 - 86.50532032941677) / y
+  y = y + 1
+  series = series + 24.01409824083091 / y
+  y = y + 1
+  series = series + (0.0 - 1.231739572450155) / y
+  y = y + 1
+  series = series + 0.001208650973866179 / y
+  y = y + 1
+  series = series + (0.0 - 0.000005395239384953) / y
+
+  return 0.0 - adjusted + (natural-log; 2.5066282746310005 * series / value)
+
+function lower-gamma-ratio float64; shape float64, observation float64, gamma-log float64
+  current-shape float64 = shape
+  term float64 = 1 / shape
+  total float64 = term
+  iteration int64 = 1
+  while iteration <= 100
+    current-shape = current-shape + 1
+    term = term * observation / current-shape
+    total = total + term
+    if (absolute; term) < (absolute; total) * 0.00000000000003
+      break
+    iteration++
+  scale float64 = (exponential; 0.0 - observation + shape * (natural-log; observation) - gamma-log)
+  return total * scale
+
+function upper-gamma-ratio float64; shape float64, observation float64, gamma-log float64
+  floor float64 = 0.000000000000000000000000000001
+  offset float64 = observation + 1 - shape
+  reciprocal-floor float64 = 1 / floor
+  denominator float64 = 1 / offset
+  product float64 = denominator
+  iteration int64 = 1
+
+  while iteration <= 100
+    index float64 = iteration
+    numerator float64 = (0.0 - index) * (index - shape)
+    offset = offset + 2
+    denominator = numerator * denominator + offset
+    if (absolute; denominator) < floor
+      denominator = floor
+    reciprocal-floor = offset + numerator / reciprocal-floor
+    if (absolute; reciprocal-floor) < floor
+      reciprocal-floor = floor
+    denominator = 1 / denominator
+    correction float64 = denominator * reciprocal-floor
+    product = product * correction
+    if (absolute; correction - 1) < 0.00000000000003
+      break
+    iteration++
+
+  scale float64 = (exponential; 0.0 - observation + shape * (natural-log; observation) - gamma-log)
+  return scale * product
+
+function gamma-survival float64; shape float64, observation float64
+  gamma-log float64 = (log-gamma; shape)
+  if observation < shape + 1
+    return 1 - (lower-gamma-ratio; shape, observation, gamma-log)
+  return (upper-gamma-ratio; shape, observation, gamma-log)
+
+function main;
+  count int64 = (benchmark-size;)
+  total float64 = 0
+  index int64 = 0
+  while index < count
+    shape-part float64 = index % 17
+    observation-part float64 = index % 101
+    target-part float64 = index % 7
+    shape float64 = 1.25 + shape-part * 0.125
+    observation float64 = 0.5 + observation-part * 0.05
+    target float64 = 0.2 + target-part * 0.1
+    survival float64 = (gamma-survival; shape, observation)
+    residual float64 = survival - target
+    total = total + residual * residual
+    index++
+  divisor float64 = count
+  print; total / divisor

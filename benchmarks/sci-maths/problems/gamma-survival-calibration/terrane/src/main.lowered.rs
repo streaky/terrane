@@ -1,0 +1,1368 @@
+// Generated deterministically by Terrane 0.1.0.
+type TerraneSite = u32;
+const TERRANE_NO_SITE: TerraneSite = u32::MAX;
+#[allow(dead_code, reason = "custom descriptors are absent from some lowered programs")]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+struct DescriptorId(u16);
+#[allow(
+    dead_code,
+    reason = "one canonical runtime enum covers every compiler-owned throwable kind"
+)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[repr(u16)]
+enum TerraneErrorKind {
+    ArithmeticOverflow,
+    DivisionByZero,
+    IntegerConversionOverflow,
+    NegativeShiftCount,
+    CoercionError,
+    DecodeError,
+    IndexError,
+    MissingKey,
+    ResourceError,
+    SourceError,
+}
+impl TerraneErrorKind {
+    fn display_name(self) -> &'static str {
+        match self {
+            Self::ArithmeticOverflow => "arithmetic-overflow",
+            Self::DivisionByZero => "division-by-zero",
+            Self::IntegerConversionOverflow => "integer-conversion-overflow",
+            Self::NegativeShiftCount => "negative-shift-count",
+            Self::CoercionError => "coercion-error",
+            Self::DecodeError => "decode-error",
+            Self::IndexError => "index-error",
+            Self::MissingKey => "missing-key",
+            Self::ResourceError => "resource-error",
+            Self::SourceError => "error",
+        }
+    }
+    fn default_message(self) -> &'static str {
+        match self {
+            Self::ArithmeticOverflow => "fixed-width integer arithmetic overflow",
+            Self::DivisionByZero => "integer division by zero",
+            Self::IntegerConversionOverflow => "integer conversion overflow",
+            Self::NegativeShiftCount => "negative integer shift count",
+            Self::CoercionError => "coercion has no compatible result",
+            Self::DecodeError => "invalid byte sequence for selected encoding",
+            Self::IndexError => "collection index is out of range",
+            Self::MissingKey => "collection key is absent",
+            Self::ResourceError => {
+                "integer shift count cannot be represented on this target"
+            }
+            Self::SourceError => "source error",
+        }
+    }
+}
+#[derive(Clone, Debug, Eq, PartialEq)]
+struct TerraneErrorDetail {
+    message: Option<String>,
+    cause: Option<Box<TerraneError>>,
+    frames: Vec<TerraneSite>,
+}
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct TerraneError {
+    kind: TerraneErrorKind,
+    origin: TerraneSite,
+    detail: Option<Box<TerraneErrorDetail>>,
+}
+#[cfg(target_pointer_width = "64")]
+const _: () = assert!(std::mem::size_of::< TerraneError > () == 16);
+#[cfg(target_pointer_width = "64")]
+const _: () = assert!(std::mem::size_of::< Result < i64, TerraneError >> () == 16);
+#[allow(
+    dead_code,
+    reason = "one canonical runtime implementation serves every lowered error shape"
+)]
+impl TerraneError {
+    #[cold]
+    #[inline(never)]
+    fn raised(kind: TerraneErrorKind, origin: TerraneSite) -> Self {
+        Self { kind, origin, detail: None }
+    }
+    #[cold]
+    #[inline(never)]
+    fn raised_with_message(
+        kind: TerraneErrorKind,
+        message: impl Into<String>,
+        origin: TerraneSite,
+    ) -> Self {
+        Self {
+            kind,
+            origin,
+            detail: Some(
+                Box::new(TerraneErrorDetail {
+                    message: Some(message.into()),
+                    cause: None,
+                    frames: Vec::new(),
+                }),
+            ),
+        }
+    }
+    #[cold]
+    #[inline(never)]
+    fn with_cause(mut self, cause: TerraneError) -> Self {
+        self
+            .detail
+            .get_or_insert_with(|| {
+                Box::new(TerraneErrorDetail {
+                    message: None,
+                    cause: None,
+                    frames: Vec::new(),
+                })
+            })
+            .cause = Some(Box::new(cause));
+        self
+    }
+    #[cold]
+    #[inline(never)]
+    fn attributed(mut self, origin: TerraneSite) -> Self {
+        debug_assert_eq!(self.origin, TERRANE_NO_SITE);
+        self.origin = origin;
+        self
+    }
+    #[cold]
+    #[inline(never)]
+    fn at(mut self, frame: TerraneSite) -> Self {
+        self.detail
+            .get_or_insert_with(|| {
+                Box::new(TerraneErrorDetail {
+                    message: None,
+                    cause: None,
+                    frames: Vec::new(),
+                })
+            })
+            .frames
+            .push(frame);
+        self
+    }
+    fn message(&self) -> &str {
+        self.detail
+            .as_ref()
+            .and_then(|detail| detail.message.as_deref())
+            .unwrap_or_else(|| self.kind.default_message())
+    }
+    #[cold]
+    #[inline(never)]
+    fn render(&self) -> String {
+        let mut rendered = format!("{}: {}", self.kind.display_name(), self.message());
+        if let Some(cause) = self
+            .detail
+            .as_ref()
+            .and_then(|detail| detail.cause.as_ref())
+        {
+            rendered.push_str("\ncaused by: ");
+            rendered.push_str(&cause.render());
+        }
+        if self.origin != TERRANE_NO_SITE {
+            rendered.push_str("\nat ");
+            rendered.push_str(&__terrane_trace::render(self.origin));
+        }
+        if let Some(detail) = &self.detail {
+            for frame in &detail.frames {
+                rendered.push_str("\nat ");
+                rendered.push_str(&__terrane_trace::render(*frame));
+            }
+        }
+        rendered
+    }
+}
+impl std::fmt::Display for TerraneError {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter.write_str(&self.render())
+    }
+}
+#[allow(
+    dead_code,
+    reason = "fresh support failures are absent from some lowered programs"
+)]
+trait TerraneRaised {
+    fn raised(self, origin: TerraneSite) -> TerraneError;
+}
+pub struct TerraneForeignError(TerraneError);
+impl TerraneForeignError {
+    pub fn render(&self) -> String {
+        self.0.render()
+    }
+}
+impl TerraneRaised for TerraneForeignError {
+    fn raised(self, origin: TerraneSite) -> TerraneError {
+        self.0.attributed(origin)
+    }
+}
+impl TerraneRaised for terrane_int_support::ArithmeticError {
+    fn raised(self, origin: TerraneSite) -> TerraneError {
+        use terrane_int_support::ArithmeticError;
+        match self {
+            ArithmeticError::DivisionByZero => {
+                TerraneError::raised(TerraneErrorKind::DivisionByZero, origin)
+            }
+            ArithmeticError::ArithmeticOverflow => {
+                TerraneError::raised(TerraneErrorKind::ArithmeticOverflow, origin)
+            }
+            ArithmeticError::NegativeShiftCount => {
+                TerraneError::raised(TerraneErrorKind::NegativeShiftCount, origin)
+            }
+            ArithmeticError::ShiftCountTooLarge => {
+                TerraneError::raised(TerraneErrorKind::ResourceError, origin)
+            }
+            error @ (ArithmeticError::IntegerConversionOverflow
+            | ArithmeticError::IntegerConversionOverflowDetail { .. }) => {
+                TerraneError::raised_with_message(
+                    TerraneErrorKind::IntegerConversionOverflow,
+                    error.to_string(),
+                    origin,
+                )
+            }
+            error @ (ArithmeticError::InvalidRadix
+            | ArithmeticError::InvalidRadixText) => {
+                TerraneError::raised_with_message(
+                    TerraneErrorKind::CoercionError,
+                    error.to_string(),
+                    origin,
+                )
+            }
+        }
+    }
+}
+impl TerraneRaised for terrane_string_support::DecodeError {
+    fn raised(self, origin: TerraneSite) -> TerraneError {
+        TerraneError::raised_with_message(
+            TerraneErrorKind::DecodeError,
+            self.to_string(),
+            origin,
+        )
+    }
+}
+impl TerraneRaised for terrane_collection_support::IndexError {
+    fn raised(self, origin: TerraneSite) -> TerraneError {
+        TerraneError::raised_with_message(
+            TerraneErrorKind::IndexError,
+            self.to_string(),
+            origin,
+        )
+    }
+}
+impl TerraneRaised for terrane_collection_support::MissingKey {
+    fn raised(self, origin: TerraneSite) -> TerraneError {
+        TerraneError::raised_with_message(
+            TerraneErrorKind::MissingKey,
+            self.to_string(),
+            origin,
+        )
+    }
+}
+impl TerraneRaised for terrane_collection_support::RangeStepError {
+    fn raised(self, origin: TerraneSite) -> TerraneError {
+        TerraneError::raised_with_message(
+            TerraneErrorKind::SourceError,
+            self.to_string(),
+            origin,
+        )
+    }
+}
+#[allow(
+    dead_code,
+    reason = "terminating fresh failures are absent from some lowered programs"
+)]
+#[cold]
+#[inline(never)]
+fn __terrane_raise<E: TerraneRaised>(error: E, origin: TerraneSite) -> ! {
+    __terrane_uncaught(error.raised(origin))
+}
+#[allow(
+    dead_code,
+    reason = "propagating failures are absent from some lowered programs"
+)]
+#[cold]
+#[inline(never)]
+fn __terrane_trace_error(error: TerraneError, frame: TerraneSite) -> TerraneError {
+    error.at(frame)
+}
+#[allow(
+    dead_code,
+    reason = "terminating fresh failures are absent from some lowered programs"
+)]
+#[inline]
+fn __terrane_raised<T, E: TerraneRaised>(
+    result: Result<T, E>,
+    origin: TerraneSite,
+) -> T {
+    result.unwrap_or_else(|error| __terrane_raise(error, origin))
+}
+#[allow(
+    dead_code,
+    reason = "fresh failure propagation is absent from some lowered programs"
+)]
+#[cold]
+#[inline(never)]
+fn __terrane_fresh_error<E: TerraneRaised>(
+    error: E,
+    origin: TerraneSite,
+) -> TerraneError {
+    error.raised(origin)
+}
+#[allow(
+    dead_code,
+    reason = "returning fresh failures are absent from some lowered programs"
+)]
+#[inline]
+fn __terrane_raised_err<T, E: TerraneRaised>(
+    result: Result<T, E>,
+    origin: TerraneSite,
+) -> Result<T, TerraneError> {
+    result.map_err(|error| __terrane_fresh_error(error, origin))
+}
+macro_rules! __terrane_raised_completion {
+    ($result:expr, $origin:expr) => {
+        match $result { Ok(value) => value, Err(error) => { return
+        TerraneCompletion::Error(__terrane_fresh_error(error, $origin)); } }
+    };
+}
+#[allow(
+    dead_code,
+    reason = "terminating propagation is absent from some lowered programs"
+)]
+#[inline]
+fn __terrane_traced<T>(result: Result<T, TerraneError>, frame: TerraneSite) -> T {
+    result
+        .unwrap_or_else(|error| __terrane_uncaught(__terrane_trace_error(error, frame)))
+}
+#[allow(
+    dead_code,
+    reason = "returning propagation is absent from some lowered programs"
+)]
+#[inline]
+fn __terrane_traced_err<T>(
+    result: Result<T, TerraneError>,
+    frame: TerraneSite,
+) -> Result<T, TerraneError> {
+    result.map_err(|error| __terrane_trace_error(error, frame))
+}
+macro_rules! __terrane_traced_completion {
+    ($result:expr, $frame:expr) => {
+        match $result { Ok(value) => value, Err(error) => { return
+        TerraneCompletion::Error(__terrane_trace_error(error, $frame)); } }
+    };
+}
+fn __terrane_uncaught(error: TerraneError) -> ! {
+    eprintln!("{}", error.render());
+    std::process::exit(1);
+}
+fn __terrane_generated_defect(message: &str) -> ! {
+    eprintln!(
+        "internal compiler defect: generated program reached an impossible completion: {message}"
+    );
+    std::process::exit(5);
+}
+#[allow(dead_code)]
+enum TerraneCompletion<T> {
+    Normal,
+    Return(T),
+    Error(TerraneError),
+    Break,
+    Continue,
+}
+mod __terrane_error_registry {
+    #[allow(dead_code, reason = "custom descriptors are absent from some programs")]
+    pub static DESCRIPTORS: [&str; 0] = [];
+}
+mod __terrane_trace {
+    pub struct Site {
+        pub function: u32,
+        pub file: u32,
+        pub line: u32,
+        pub column: u32,
+        pub end_line: u32,
+        pub end_column: u32,
+    }
+    pub static FILES: [&str; 2] = ["src/main.trn", "standard/process.trn"];
+    pub static FUNCTIONS: [&str; 9] = [
+        "/benchmark-gamma-survival-calibration::benchmark-size",
+        "/benchmark-gamma-survival-calibration::natural-log",
+        "/benchmark-gamma-survival-calibration::exponential",
+        "/benchmark-gamma-survival-calibration::lower-gamma-ratio",
+        "/benchmark-gamma-survival-calibration::upper-gamma-ratio",
+        "/benchmark-gamma-survival-calibration::main",
+        "/standard/process::arguments",
+        "/standard/process::environment",
+        "/standard/process::parse-command-line",
+    ];
+    pub static SITES: [Site; 26] = [
+        {
+            /* terrane-site-row: site 0: /benchmark-gamma-survival-calibration::benchmark-size (src/main.trn:10:18-10:29) */
+            Site {
+                function: 0,
+                file: 0,
+                line: 10,
+                column: 18,
+                end_line: 10,
+                end_column: 29,
+            }
+        },
+        {
+            /* terrane-site-row: site 1: /benchmark-gamma-survival-calibration::benchmark-size (src/main.trn:10:18-10:44) */
+            Site {
+                function: 0,
+                file: 0,
+                line: 10,
+                column: 18,
+                end_line: 10,
+                end_column: 44,
+            }
+        },
+        {
+            /* terrane-site-row: site 2: /benchmark-gamma-survival-calibration::benchmark-size (src/main.trn:10:17-10:45) */
+            Site {
+                function: 0,
+                file: 0,
+                line: 10,
+                column: 17,
+                end_line: 10,
+                end_column: 45,
+            }
+        },
+        {
+            /* terrane-site-row: site 3: /benchmark-gamma-survival-calibration::natural-log (src/main.trn:25:5-25:15) */
+            Site {
+                function: 1,
+                file: 0,
+                line: 25,
+                column: 5,
+                end_line: 25,
+                end_column: 15,
+            }
+        },
+        {
+            /* terrane-site-row: site 4: /benchmark-gamma-survival-calibration::natural-log (src/main.trn:28:5-28:15) */
+            Site {
+                function: 1,
+                file: 0,
+                line: 28,
+                column: 5,
+                end_line: 28,
+                end_column: 15,
+            }
+        },
+        {
+            /* terrane-site-row: site 5: /benchmark-gamma-survival-calibration::natural-log (src/main.trn:40:5-40:16) */
+            Site {
+                function: 1,
+                file: 0,
+                line: 40,
+                column: 5,
+                end_line: 40,
+                end_column: 16,
+            }
+        },
+        {
+            /* terrane-site-row: site 6: /benchmark-gamma-survival-calibration::natural-log (src/main.trn:41:28-41:36) */
+            Site {
+                function: 1,
+                file: 0,
+                line: 41,
+                column: 28,
+                end_line: 41,
+                end_column: 36,
+            }
+        },
+        {
+            /* terrane-site-row: site 7: /benchmark-gamma-survival-calibration::exponential (src/main.trn:51:5-51:15) */
+            Site {
+                function: 2,
+                file: 0,
+                line: 51,
+                column: 5,
+                end_line: 51,
+                end_column: 15,
+            }
+        },
+        {
+            /* terrane-site-row: site 8: /benchmark-gamma-survival-calibration::exponential (src/main.trn:54:5-54:15) */
+            Site {
+                function: 2,
+                file: 0,
+                line: 54,
+                column: 5,
+                end_line: 54,
+                end_column: 15,
+            }
+        },
+        {
+            /* terrane-site-row: site 9: /benchmark-gamma-survival-calibration::exponential (src/main.trn:60:23-60:32) */
+            Site {
+                function: 2,
+                file: 0,
+                line: 60,
+                column: 23,
+                end_line: 60,
+                end_column: 32,
+            }
+        },
+        {
+            /* terrane-site-row: site 10: /benchmark-gamma-survival-calibration::exponential (src/main.trn:63:5-63:16) */
+            Site {
+                function: 2,
+                file: 0,
+                line: 63,
+                column: 5,
+                end_line: 63,
+                end_column: 16,
+            }
+        },
+        {
+            /* terrane-site-row: site 11: /benchmark-gamma-survival-calibration::exponential (src/main.trn:67:5-67:15) */
+            Site {
+                function: 2,
+                file: 0,
+                line: 67,
+                column: 5,
+                end_line: 67,
+                end_column: 15,
+            }
+        },
+        {
+            /* terrane-site-row: site 12: /benchmark-gamma-survival-calibration::exponential (src/main.trn:70:5-70:15) */
+            Site {
+                function: 2,
+                file: 0,
+                line: 70,
+                column: 5,
+                end_line: 70,
+                end_column: 15,
+            }
+        },
+        {
+            /* terrane-site-row: site 13: /benchmark-gamma-survival-calibration::lower-gamma-ratio (src/main.trn:105:5-105:16) */
+            Site {
+                function: 3,
+                file: 0,
+                line: 105,
+                column: 5,
+                end_line: 105,
+                end_column: 16,
+            }
+        },
+        {
+            /* terrane-site-row: site 14: /benchmark-gamma-survival-calibration::upper-gamma-ratio (src/main.trn:118:21-118:30) */
+            Site {
+                function: 4,
+                file: 0,
+                line: 118,
+                column: 21,
+                end_line: 118,
+                end_column: 30,
+            }
+        },
+        {
+            /* terrane-site-row: site 15: /benchmark-gamma-survival-calibration::upper-gamma-ratio (src/main.trn:132:5-132:16) */
+            Site {
+                function: 4,
+                file: 0,
+                line: 132,
+                column: 5,
+                end_line: 132,
+                end_column: 16,
+            }
+        },
+        {
+            /* terrane-site-row: site 16: /benchmark-gamma-survival-calibration::main (src/main.trn:148:26-148:36) */
+            Site {
+                function: 5,
+                file: 0,
+                line: 148,
+                column: 26,
+                end_line: 148,
+                end_column: 36,
+            }
+        },
+        {
+            /* terrane-site-row: site 17: /benchmark-gamma-survival-calibration::main (src/main.trn:149:32-149:43) */
+            Site {
+                function: 5,
+                file: 0,
+                line: 149,
+                column: 32,
+                end_line: 149,
+                end_column: 43,
+            }
+        },
+        {
+            /* terrane-site-row: site 18: /benchmark-gamma-survival-calibration::main (src/main.trn:150:27-150:36) */
+            Site {
+                function: 5,
+                file: 0,
+                line: 150,
+                column: 27,
+                end_line: 150,
+                end_column: 36,
+            }
+        },
+        {
+            /* terrane-site-row: site 19: /benchmark-gamma-survival-calibration::main (src/main.trn:157:5-157:12) */
+            Site {
+                function: 5,
+                file: 0,
+                line: 157,
+                column: 5,
+                end_line: 157,
+                end_column: 12,
+            }
+        },
+        {
+            /* terrane-site-row: site 20: /benchmark-gamma-survival-calibration::main (src/main.trn:158:21-158:26) */
+            Site {
+                function: 5,
+                file: 0,
+                line: 158,
+                column: 21,
+                end_line: 158,
+                end_column: 26,
+            }
+        },
+        {
+            /* terrane-site-row: site 21: /standard/process::arguments (standard/process.trn:51:42-51:56) */
+            Site {
+                function: 6,
+                file: 1,
+                line: 51,
+                column: 42,
+                end_line: 51,
+                end_column: 56,
+            }
+        },
+        {
+            /* terrane-site-row: site 22: /standard/process::environment (standard/process.trn:60:33-60:47) */
+            Site {
+                function: 7,
+                file: 1,
+                line: 60,
+                column: 33,
+                end_line: 60,
+                end_column: 47,
+            }
+        },
+        {
+            /* terrane-site-row: site 23: /standard/process::environment (standard/process.trn:61:34-61:52) */
+            Site {
+                function: 7,
+                file: 1,
+                line: 61,
+                column: 34,
+                end_line: 61,
+                end_column: 52,
+            }
+        },
+        {
+            /* terrane-site-row: site 24: /standard/process::parse-command-line (standard/process.trn:96:20-96:35) */
+            Site {
+                function: 8,
+                file: 1,
+                line: 96,
+                column: 20,
+                end_line: 96,
+                end_column: 35,
+            }
+        },
+        {
+            /* terrane-site-row: site 25: /standard/process::parse-command-line (standard/process.trn:111:43-111:62) */
+            Site {
+                function: 8,
+                file: 1,
+                line: 111,
+                column: 43,
+                end_line: 111,
+                end_column: 62,
+            }
+        },
+    ];
+    #[cold]
+    #[inline(never)]
+    pub fn render(site: u32) -> String {
+        let site = &SITES[usize::try_from(site).expect("site id must fit usize")];
+        format!(
+            "{} ({}:{}:{}-{}:{})", FUNCTIONS[usize::try_from(site.function)
+            .expect("function id must fit usize")], FILES[usize::try_from(site.file)
+            .expect("file id must fit usize")], site.line, site.column, site.end_line,
+            site.end_column,
+        )
+    }
+}
+type TerranePlatformResult = terrane_platform_support::ResultValue;
+fn terrane_unhex(text: &str) -> Vec<u8> {
+    fn digit(byte: u8) -> Option<u8> {
+        match byte {
+            b'0'..=b'9' => Some(byte - b'0'),
+            b'a'..=b'f' => Some(byte - b'a' + 10),
+            b'A'..=b'F' => Some(byte - b'A' + 10),
+            _ => None,
+        }
+    }
+    text.as_bytes()
+        .chunks_exact(2)
+        .filter_map(|pair| Some(digit(pair[0])? << 4 | digit(pair[1])?))
+        .collect()
+}
+fn terrane_platform_value(value: std::ffi::OsString) -> String {
+    terrane_platform_support::platform_value(value)
+}
+fn terrane_platform_value_is_text(value: &str) -> bool {
+    value.starts_with("text:")
+}
+fn terrane_platform_value_text(value: &str) -> String {
+    value.strip_prefix("text:").unwrap_or("").to_owned()
+}
+fn terrane_platform_value_bytes(value: &str) -> Vec<u8> {
+    value.strip_prefix("raw:").map(terrane_unhex).unwrap_or_default()
+}
+fn terrane_process_arguments() -> Vec<String> {
+    std::env::args_os().skip(1).map(terrane_platform_value).collect()
+}
+fn terrane_environment_entries() -> Vec<String> {
+    std::env::vars_os()
+        .flat_map(|(name, value)| [
+            terrane_platform_value(name),
+            terrane_platform_value(value),
+        ])
+        .collect()
+}
+fn terrane_process_exit(code: terrane_int_support::Int) {
+    let code = terrane_int_support::checked_coerce::<i32>(&code).unwrap_or(255);
+    std::process::exit(code)
+}
+// Source: src/main.trn
+// Namespace: benchmark-gamma-survival-calibration
+fn benchmark_size() -> i64 {
+    let supplied: terrane_collection_support::List<PlatformString> = arguments();
+    if terrane_int_support::Int::from(terrane_int_support::Int::from(supplied.length()))
+        != terrane_int_support::Int::from(1_i128)
+    {
+        exit(make_exit_status(terrane_int_support::Int::from(2_i128)));
+    }
+    let count: i64 = __terrane_raised(
+        terrane_int_support::coerce::<
+            i64,
+        >(
+            &__terrane_raised(
+                terrane_int_support::parse_radix(
+                    &__terrane_raised(
+                            supplied
+                                .get_or_error(
+                                    __terrane_raised(
+                                        terrane_collection_support::index_from_int(
+                                            &terrane_int_support::Int::from(0_i128),
+                                        ),
+                                        0 /* terrane-site: src/main.trn:10:18-10:29 */,
+                                    ),
+                                ),
+                            0 /* terrane-site: src/main.trn:10:18-10:29 */,
+                        )
+                        .text,
+                    &10,
+                ),
+                1 /* terrane-site: src/main.trn:10:18-10:44 */,
+            ),
+        ),
+        2 /* terrane-site: src/main.trn:10:17-10:45 */,
+    );
+    if count <= 0 {
+        exit(make_exit_status(terrane_int_support::Int::from(2_i128)));
+    }
+    return count;
+}
+fn absolute(value: f64) -> f64 {
+    if value < 0.0_f64 {
+        return 0.0 - value;
+    }
+    return value;
+}
+fn natural_log(value: f64) -> f64 {
+    let mut normalized: f64 = value;
+    let mut exponent: i64 = 0;
+    while normalized > 1.4142135623730951 {
+        normalized = normalized * 0.5;
+        exponent = __terrane_raised(
+            terrane_int_support::fixed_addition(exponent, 1),
+            3 /* terrane-site: src/main.trn:25:5-25:15 */,
+        );
+    }
+    while normalized < 0.7071067811865476 {
+        normalized = normalized * 2.0_f64;
+        exponent = __terrane_raised(
+            terrane_int_support::fixed_subtraction(exponent, 1),
+            4 /* terrane-site: src/main.trn:28:5-28:15 */,
+        );
+    }
+    let ratio: f64 = (normalized - 1.0_f64) / (normalized + 1.0_f64);
+    let ratio_square: f64 = ratio * ratio;
+    let mut term: f64 = ratio;
+    let mut total: f64 = ratio;
+    let mut denominator: f64 = 3.0_f64;
+    let mut iteration: i64 = 1;
+    while iteration < 20 {
+        term = term * ratio_square;
+        total = total + term / denominator;
+        denominator = denominator + 2.0_f64;
+        iteration = __terrane_raised(
+            terrane_int_support::fixed_addition(iteration, 1),
+            5 /* terrane-site: src/main.trn:40:5-40:16 */,
+        );
+    }
+    let exponent_value: f64 = __terrane_raised(
+        terrane_int_support::exact_f64(&exponent),
+        6 /* terrane-site: src/main.trn:41:28-41:36 */,
+    );
+    return 2.0_f64 * total + exponent_value * 0.69314718055994530942;
+}
+fn exponential(value: f64) -> f64 {
+    let mut reduced: f64 = value;
+    let mut exponent: i64 = 0;
+    let half_ln_two: f64 = 0.34657359027997265471;
+    let ln_two: f64 = 0.69314718055994530942;
+    while reduced > half_ln_two {
+        reduced = reduced - ln_two;
+        exponent = __terrane_raised(
+            terrane_int_support::fixed_addition(exponent, 1),
+            7 /* terrane-site: src/main.trn:51:5-51:15 */,
+        );
+    }
+    while reduced < 0.0 - half_ln_two {
+        reduced = reduced + ln_two;
+        exponent = __terrane_raised(
+            terrane_int_support::fixed_subtraction(exponent, 1),
+            8 /* terrane-site: src/main.trn:54:5-54:15 */,
+        );
+    }
+    let mut term: f64 = 1.0_f64;
+    let mut total: f64 = 1.0_f64;
+    let mut iteration: i64 = 1;
+    while iteration < 24 {
+        let divisor: f64 = __terrane_raised(
+            terrane_int_support::exact_f64(&iteration),
+            9 /* terrane-site: src/main.trn:60:23-60:32 */,
+        );
+        term = term * reduced / divisor;
+        total = total + term;
+        iteration = __terrane_raised(
+            terrane_int_support::fixed_addition(iteration, 1),
+            10 /* terrane-site: src/main.trn:63:5-63:16 */,
+        );
+    }
+    while exponent > 0 {
+        total = total * 2.0_f64;
+        exponent = __terrane_raised(
+            terrane_int_support::fixed_subtraction(exponent, 1),
+            11 /* terrane-site: src/main.trn:67:5-67:15 */,
+        );
+    }
+    while exponent < 0 {
+        total = total * 0.5;
+        exponent = __terrane_raised(
+            terrane_int_support::fixed_addition(exponent, 1),
+            12 /* terrane-site: src/main.trn:70:5-70:15 */,
+        );
+    }
+    return total;
+}
+fn log_gamma(value: f64) -> f64 {
+    let mut y: f64 = value;
+    let shifted: f64 = value + 5.5;
+    let adjusted: f64 = shifted - (value + 0.5) * natural_log(shifted);
+    let mut series: f64 = 1.000000000190015;
+    y = y + 1.0_f64;
+    series = series + 76.18009172947146 / y;
+    y = y + 1.0_f64;
+    series = series + -86.50532032941678_f64 / y;
+    y = y + 1.0_f64;
+    series = series + 24.01409824083091 / y;
+    y = y + 1.0_f64;
+    series = series + -1.231739572450155_f64 / y;
+    y = y + 1.0_f64;
+    series = series + 0.001208650973866179 / y;
+    y = y + 1.0_f64;
+    series = series + -5.395239384953e-6_f64 / y;
+    return 0.0 - adjusted + natural_log(2.5066282746310005 * series / value);
+}
+fn lower_gamma_ratio(shape: f64, observation: f64, gamma_log: f64) -> f64 {
+    let mut current_shape: f64 = shape;
+    let mut term: f64 = 1.0_f64 / shape;
+    let mut total: f64 = term;
+    let mut iteration: i64 = 1;
+    while iteration <= 100 {
+        current_shape = current_shape + 1.0_f64;
+        term = term * observation / current_shape;
+        total = total + term;
+        if absolute(term) < absolute(total) * 0.00000000000003 {
+            break;
+        }
+        iteration = __terrane_raised(
+            terrane_int_support::fixed_addition(iteration, 1),
+            13 /* terrane-site: src/main.trn:105:5-105:16 */,
+        );
+    }
+    let scale: f64 = exponential(
+        0.0 - observation + shape * natural_log(observation) - gamma_log,
+    );
+    return total * scale;
+}
+fn upper_gamma_ratio(shape: f64, observation: f64, gamma_log: f64) -> f64 {
+    let floor: f64 = 0.000000000000000000000000000001;
+    let mut offset: f64 = observation + 1.0_f64 - shape;
+    let mut reciprocal_floor: f64 = 1.0_f64 / floor;
+    let mut denominator: f64 = 1.0_f64 / offset;
+    let mut product: f64 = denominator;
+    let mut iteration: i64 = 1;
+    while iteration <= 100 {
+        let index: f64 = __terrane_raised(
+            terrane_int_support::exact_f64(&iteration),
+            14 /* terrane-site: src/main.trn:118:21-118:30 */,
+        );
+        let numerator: f64 = (0.0 - index) * (index - shape);
+        offset = offset + 2.0_f64;
+        denominator = numerator * denominator + offset;
+        if absolute(denominator) < floor {
+            denominator = floor;
+        }
+        reciprocal_floor = offset + numerator / reciprocal_floor;
+        if absolute(reciprocal_floor) < floor {
+            reciprocal_floor = floor;
+        }
+        denominator = 1.0_f64 / denominator;
+        let correction: f64 = denominator * reciprocal_floor;
+        product = product * correction;
+        if absolute(correction - 1.0_f64) < 0.00000000000003 {
+            break;
+        }
+        iteration = __terrane_raised(
+            terrane_int_support::fixed_addition(iteration, 1),
+            15 /* terrane-site: src/main.trn:132:5-132:16 */,
+        );
+    }
+    let scale: f64 = exponential(
+        0.0 - observation + shape * natural_log(observation) - gamma_log,
+    );
+    return scale * product;
+}
+fn gamma_survival(shape: f64, observation: f64) -> f64 {
+    let gamma_log: f64 = log_gamma(shape);
+    if observation < shape + 1.0_f64 {
+        return 1.0_f64 - lower_gamma_ratio(shape, observation, gamma_log);
+    }
+    return upper_gamma_ratio(shape, observation, gamma_log);
+}
+fn main() {
+    let count: i64 = benchmark_size();
+    let mut total: f64 = 0.0_f64;
+    let mut index: i64 = 0;
+    while index < count {
+        let shape_part: f64 = __terrane_raised(
+            terrane_int_support::exact_f64(
+                &__terrane_raised(
+                    terrane_int_support::fixed_remainder(index, 17),
+                    16 /* terrane-site: src/main.trn:148:26-148:36 */,
+                ),
+            ),
+            16 /* terrane-site: src/main.trn:148:26-148:36 */,
+        );
+        let observation_part: f64 = __terrane_raised(
+            terrane_int_support::exact_f64(
+                &__terrane_raised(
+                    terrane_int_support::fixed_remainder(index, 101),
+                    17 /* terrane-site: src/main.trn:149:32-149:43 */,
+                ),
+            ),
+            17 /* terrane-site: src/main.trn:149:32-149:43 */,
+        );
+        let target_part: f64 = __terrane_raised(
+            terrane_int_support::exact_f64(
+                &__terrane_raised(
+                    terrane_int_support::fixed_remainder(index, 7),
+                    18 /* terrane-site: src/main.trn:150:27-150:36 */,
+                ),
+            ),
+            18 /* terrane-site: src/main.trn:150:27-150:36 */,
+        );
+        let shape: f64 = 1.25 + shape_part * 0.125;
+        let observation: f64 = 0.5 + observation_part * 0.05;
+        let target: f64 = 0.2 + target_part * 0.1;
+        let survival: f64 = gamma_survival(shape, observation);
+        let residual: f64 = survival - target;
+        total = total + residual * residual;
+        index = __terrane_raised(
+            terrane_int_support::fixed_addition(index, 1),
+            19 /* terrane-site: src/main.trn:157:5-157:12 */,
+        );
+    }
+    let divisor: f64 = __terrane_raised(
+        terrane_int_support::exact_f64(&count),
+        20 /* terrane-site: src/main.trn:158:21-158:26 */,
+    );
+    println!("{}", terrane_scalar_support::scalar_text(&(total / divisor)));
+}
+// Source: standard/process.trn
+// Namespace: standard/process
+#[derive(Clone)]
+pub struct PlatformString {
+    pub is_text: bool,
+    pub text: String,
+    pub raw: Vec<u8>,
+}
+impl PlatformString {
+    pub fn terrane_construct(encoded: String) -> Self {
+        let mut value = Self {
+            is_text: true,
+            text: String::from(""),
+            raw: Vec::from([]),
+        };
+        value.construct(encoded);
+        value
+    }
+    pub fn construct(&mut self, encoded: String) {
+        self.is_text = terrane_platform_value_is_text(&encoded);
+        self.text = terrane_platform_value_text(&encoded);
+        self.raw = terrane_platform_value_bytes(&encoded);
+    }
+}
+#[derive(Clone)]
+pub struct EnvironmentEntry {
+    pub name: PlatformString,
+    pub value: PlatformString,
+}
+impl EnvironmentEntry {
+    pub fn terrane_construct(name: PlatformString, entry_value: PlatformString) -> Self {
+        let mut value = Self {
+            name: PlatformString::terrane_construct(String::from("text:")),
+            value: PlatformString::terrane_construct(String::from("text:")),
+        };
+        value.construct(name, entry_value);
+        value
+    }
+    pub fn construct(&mut self, name: PlatformString, entry_value: PlatformString) {
+        self.name = name.clone();
+        self.value = entry_value.clone();
+    }
+}
+#[derive(Clone)]
+pub struct HostNameResult {
+    pub failed: bool,
+    pub available: bool,
+    pub message: String,
+    pub value: PlatformString,
+}
+impl HostNameResult {
+    pub fn terrane_construct(
+        did_fail: bool,
+        is_available: bool,
+        detail: String,
+        result_value: PlatformString,
+    ) -> Self {
+        let mut value = Self {
+            failed: false,
+            available: false,
+            message: String::from(""),
+            value: PlatformString::terrane_construct(String::from("text:")),
+        };
+        value.construct(did_fail, is_available, detail, result_value);
+        value
+    }
+    pub fn construct(
+        &mut self,
+        did_fail: bool,
+        is_available: bool,
+        detail: String,
+        result_value: PlatformString,
+    ) {
+        self.failed = did_fail;
+        self.available = is_available;
+        self.message = detail;
+        self.value = result_value.clone();
+    }
+}
+pub fn host_name() -> HostNameResult {
+    let raw: TerranePlatformResult = terrane_platform_support::system_host_name();
+    return HostNameResult::terrane_construct(
+        raw.failed,
+        raw.flag,
+        raw.message.clone(),
+        PlatformString::terrane_construct(raw.text.clone()),
+    );
+}
+pub fn arguments() -> terrane_collection_support::List<PlatformString> {
+    let encoded: Vec<String> = terrane_process_arguments();
+    let mut values: terrane_collection_support::List<PlatformString> = terrane_collection_support::List::<
+        PlatformString,
+    >::new(Vec::new());
+    let mut index: terrane_int_support::Int = terrane_int_support::Int::from(0_i128);
+    while index.clone() < terrane_int_support::Int::from(encoded.len() as i128) {
+        values
+            .append(
+                PlatformString::terrane_construct(
+                    __terrane_raised(
+                        encoded
+                            .get(
+                                __terrane_raised(
+                                    terrane_collection_support::index_from_int(&index.clone()),
+                                    21 /* terrane-site: standard/process.trn:51:42-51:56 */,
+                                ),
+                            )
+                            .cloned()
+                            .ok_or(terrane_collection_support::IndexError {
+                                index: __terrane_raised(
+                                    terrane_collection_support::index_from_int(&index.clone()),
+                                    21 /* terrane-site: standard/process.trn:51:42-51:56 */,
+                                ),
+                            }),
+                        21 /* terrane-site: standard/process.trn:51:42-51:56 */,
+                    ),
+                ),
+            );
+        index = index.clone() + terrane_int_support::Int::from(1_i128);
+    }
+    return values.clone();
+}
+pub fn environment() -> terrane_collection_support::List<EnvironmentEntry> {
+    let encoded: Vec<String> = terrane_environment_entries();
+    let mut values: terrane_collection_support::List<EnvironmentEntry> = terrane_collection_support::List::<
+        EnvironmentEntry,
+    >::new(Vec::new());
+    let mut index: terrane_int_support::Int = terrane_int_support::Int::from(0_i128);
+    while index.clone() + terrane_int_support::Int::from(1_i128)
+        < terrane_int_support::Int::from(encoded.len() as i128)
+    {
+        let name: PlatformString = PlatformString::terrane_construct(
+            __terrane_raised(
+                encoded
+                    .get(
+                        __terrane_raised(
+                            terrane_collection_support::index_from_int(&index.clone()),
+                            22 /* terrane-site: standard/process.trn:60:33-60:47 */,
+                        ),
+                    )
+                    .cloned()
+                    .ok_or(terrane_collection_support::IndexError {
+                        index: __terrane_raised(
+                            terrane_collection_support::index_from_int(&index.clone()),
+                            22 /* terrane-site: standard/process.trn:60:33-60:47 */,
+                        ),
+                    }),
+                22 /* terrane-site: standard/process.trn:60:33-60:47 */,
+            ),
+        );
+        let value: PlatformString = PlatformString::terrane_construct(
+            __terrane_raised(
+                encoded
+                    .get(
+                        __terrane_raised(
+                            terrane_collection_support::index_from_int(
+                                &(index.clone() + terrane_int_support::Int::from(1_i128)),
+                            ),
+                            23 /* terrane-site: standard/process.trn:61:34-61:52 */,
+                        ),
+                    )
+                    .cloned()
+                    .ok_or(terrane_collection_support::IndexError {
+                        index: __terrane_raised(
+                            terrane_collection_support::index_from_int(
+                                &(index.clone() + terrane_int_support::Int::from(1_i128)),
+                            ),
+                            23 /* terrane-site: standard/process.trn:61:34-61:52 */,
+                        ),
+                    }),
+                23 /* terrane-site: standard/process.trn:61:34-61:52 */,
+            ),
+        );
+        values.append(EnvironmentEntry::terrane_construct(name, value));
+        index = index.clone() + terrane_int_support::Int::from(2_i128);
+    }
+    return values.clone();
+}
+#[derive(Clone)]
+pub struct CliSchema {
+    pub entries: terrane_collection_support::List<String>,
+}
+impl CliSchema {
+    pub fn terrane_construct(
+        declared: terrane_collection_support::List<String>,
+    ) -> Self {
+        let mut value = Self {
+            entries: terrane_collection_support::List::<String>::new(Vec::new()),
+        };
+        value.construct(declared);
+        value
+    }
+    pub fn construct(&mut self, declared: terrane_collection_support::List<String>) {
+        self.entries = declared.clone();
+    }
+}
+#[derive(Clone)]
+pub struct CommandLine {
+    pub flags: terrane_collection_support::List<String>,
+    pub option_names: terrane_collection_support::List<String>,
+    pub option_values: terrane_collection_support::List<PlatformString>,
+    pub positionals: terrane_collection_support::List<PlatformString>,
+    pub diagnostic_arguments: terrane_collection_support::List<terrane_int_support::Int>,
+    pub diagnostic_messages: terrane_collection_support::List<String>,
+}
+impl CommandLine {
+    pub fn terrane_construct() -> Self {
+        Self {
+            flags: terrane_collection_support::List::<String>::new(Vec::new()),
+            option_names: terrane_collection_support::List::<String>::new(Vec::new()),
+            option_values: terrane_collection_support::List::<
+                PlatformString,
+            >::new(Vec::new()),
+            positionals: terrane_collection_support::List::<
+                PlatformString,
+            >::new(Vec::new()),
+            diagnostic_arguments: terrane_collection_support::List::<
+                terrane_int_support::Int,
+            >::new(Vec::new()),
+            diagnostic_messages: terrane_collection_support::List::<
+                String,
+            >::new(Vec::new()),
+        }
+    }
+}
+pub fn schema_has(schema: CliSchema, sought: String) -> bool {
+    let mut __terrane_iterator_0 = terrane_collection_support::Iterable::terrane_iterator(
+        &schema.entries,
+    );
+    loop {
+        let entry = match __terrane_iterator_0.next() {
+            terrane_collection_support::IterationStep::Item(item) => item,
+            terrane_collection_support::IterationStep::End => break,
+        };
+        if entry == sought {
+            return true;
+        }
+    }
+    return false;
+}
+pub fn parse_command_line(
+    schema: CliSchema,
+    supplied: terrane_collection_support::List<PlatformString>,
+) -> CommandLine {
+    let mut flags: terrane_collection_support::List<String> = terrane_collection_support::List::<
+        String,
+    >::new(Vec::new());
+    let mut option_names: terrane_collection_support::List<String> = terrane_collection_support::List::<
+        String,
+    >::new(Vec::new());
+    let mut option_values: terrane_collection_support::List<PlatformString> = terrane_collection_support::List::<
+        PlatformString,
+    >::new(Vec::new());
+    let mut positionals: terrane_collection_support::List<PlatformString> = terrane_collection_support::List::<
+        PlatformString,
+    >::new(Vec::new());
+    let mut diagnostic_arguments: terrane_collection_support::List<
+        terrane_int_support::Int,
+    > = terrane_collection_support::List::<terrane_int_support::Int>::new(Vec::new());
+    let mut diagnostic_messages: terrane_collection_support::List<String> = terrane_collection_support::List::<
+        String,
+    >::new(Vec::new());
+    let mut index: terrane_int_support::Int = terrane_int_support::Int::from(0_i128);
+    while index.clone()
+        < terrane_int_support::Int::from(
+            terrane_int_support::Int::from(supplied.length()),
+        )
+    {
+        let argument: PlatformString = __terrane_raised(
+            supplied
+                .get_or_error(
+                    __terrane_raised(
+                        terrane_collection_support::index_from_int(&index.clone()),
+                        24 /* terrane-site: standard/process.trn:96:20-96:35 */,
+                    ),
+                ),
+            24 /* terrane-site: standard/process.trn:96:20-96:35 */,
+        );
+        if !argument.is_text {
+            diagnostic_arguments.append(index.clone());
+            diagnostic_messages
+                .append(String::from("command-line option is not Unicode text"));
+        } else {
+            let flag_entry: String = format!(
+                "{}{}", terrane_scalar_support::scalar_text(&String::from("flag:")),
+                terrane_scalar_support::scalar_text(&argument.text)
+            );
+            let value_entry: String = format!(
+                "{}{}", terrane_scalar_support::scalar_text(&String::from("value:")),
+                terrane_scalar_support::scalar_text(&argument.text)
+            );
+            if schema_has(schema.clone(), flag_entry) {
+                flags.append(argument.text.clone());
+            } else if schema_has(schema.clone(), value_entry) {
+                if index.clone() + terrane_int_support::Int::from(1_i128)
+                    >= terrane_int_support::Int::from(
+                        terrane_int_support::Int::from(supplied.length()),
+                    )
+                {
+                    diagnostic_arguments.append(index.clone());
+                    diagnostic_messages.append(String::from("option requires a value"));
+                } else {
+                    option_names.append(argument.text.clone());
+                    option_values
+                        .append(
+                            __terrane_raised(
+                                supplied
+                                    .get_or_error(
+                                        __terrane_raised(
+                                            terrane_collection_support::index_from_int(
+                                                &(index.clone() + terrane_int_support::Int::from(1_i128)),
+                                            ),
+                                            25 /* terrane-site: standard/process.trn:111:43-111:62 */,
+                                        ),
+                                    ),
+                                25 /* terrane-site: standard/process.trn:111:43-111:62 */,
+                            ),
+                        );
+                    index = index.clone() + terrane_int_support::Int::from(1_i128);
+                }
+            } else if argument.text.starts_with(&String::from("--")) {
+                diagnostic_arguments.append(index.clone());
+                diagnostic_messages.append(String::from("unknown option"));
+            } else {
+                positionals.append(argument.clone());
+            }
+        }
+        index = index.clone() + terrane_int_support::Int::from(1_i128);
+    }
+    let mut result: CommandLine = CommandLine::terrane_construct();
+    result.flags = flags.clone();
+    result.option_names = option_names.clone();
+    result.option_values = option_values.clone();
+    result.positionals = positionals.clone();
+    result.diagnostic_arguments = diagnostic_arguments.clone();
+    result.diagnostic_messages = diagnostic_messages.clone();
+    return result.clone();
+}
+#[derive(Clone)]
+pub struct ExitStatus {
+    pub code: terrane_int_support::Int,
+    pub valid: bool,
+}
+impl ExitStatus {
+    pub fn terrane_construct() -> Self {
+        Self {
+            code: terrane_int_support::Int::from(0_i128),
+            valid: true,
+        }
+    }
+}
+pub fn make_exit_status(requested: terrane_int_support::Int) -> ExitStatus {
+    let mut result: ExitStatus = ExitStatus::terrane_construct();
+    if requested.clone() < terrane_int_support::Int::from(0_i128)
+        || requested.clone() > terrane_int_support::Int::from(255_i128)
+    {
+        result.code = terrane_int_support::Int::from(255_i128);
+        result.valid = false;
+    } else {
+        result.code = requested.clone();
+    }
+    return result.clone();
+}
+pub fn exit(status: ExitStatus) {
+    terrane_process_exit(status.code.clone());
+}
+// Generated Rust files: src/runtime/errors.rs, src/runtime/platform_system.rs, src/authored/src/main.trn.rs, src/authored/standard/process.trn.rs, src/main.rs
+// Vendored support crates: terrane-int-support, terrane-scalar-support, terrane-string-support, terrane-stream-abi
