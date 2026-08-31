@@ -155,6 +155,12 @@ The `scientific-stack` problems cover:
 1. an all-pairs oscillatory kernel using the Bessel function $J_0$;
 2. a gamma-distribution survival-probability calibration loss using the regularized upper incomplete gamma function.
 
+The performance profiles intentionally perform about ten times the work of the suite's initial
+scientific profiles. Bessel uses 4,744 coordinates, or 22,505,536 ordered kernel evaluations,
+versus the initial 1,500-coordinate profile's 2,250,000 evaluations. Gamma evaluates 10,000,000
+observations versus the initial 1,000,000-observation profile. Correctness profiles remain small so
+failures stay quick to diagnose.
+
 Inputs are generated deterministically inside each process from the formula and size in `problem.toml`. Data preparation therefore belongs to the reported end-to-end time and memory. The correctness profile is deliberately small enough to diagnose; the performance profile is reproducible without checked-in bulk data.
 
 Each implementation prints exactly one finite decimal integer or floating-point result. The runner parses it according to the problem's shared result kind and applies the shared exact or tolerance-based correctness contract. Baseline floating expected values are mathematical references rather than fingerprints of one accumulation order; their tolerances account for binary64 accumulation error. Scientific-stack references are computed by the locked SciPy environment and independently checked against numr at both profile sizes. Their tolerances admit the documented cross-library special-function approximation difference while remaining narrow enough to reject a changed formula or omitted terms. As in `math.isclose`, a result passes when either its absolute or relative tolerance holds.
