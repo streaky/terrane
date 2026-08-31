@@ -1,2 +1,2 @@
-.arithmetic-overflow: fixed-width integer arithmetic overflow
+arithmetic-overflow: fixed-width integer arithmetic overflow
 at /uncaught-finally::main (case.trn:5:5-5:30)

@@ -13,7 +13,7 @@ enum TerraneErrorKind {
     SourceError,
 }
 impl TerraneErrorKind {
-    fn from_source_name(name: &str) -> Self {
+    fn from_support_source_name(name: &str) -> Self {
         match name {
             ".arithmetic-overflow" => Self::ArithmeticOverflow,
             ".division-by-zero" => Self::DivisionByZero,
@@ -27,18 +27,18 @@ impl TerraneErrorKind {
             _ => Self::SourceError,
         }
     }
-    fn source_name(self) -> &'static str {
+    fn display_name(self) -> &'static str {
         match self {
-            Self::ArithmeticOverflow => ".arithmetic-overflow",
-            Self::DivisionByZero => ".division-by-zero",
-            Self::IntegerConversionOverflow => ".integer-conversion-overflow",
-            Self::NegativeShiftCount => ".negative-shift-count",
-            Self::CoercionError => ".coercion-error",
-            Self::DecodeError => ".decode-error",
-            Self::IndexError => ".index-error",
-            Self::MissingKey => ".missing-key",
-            Self::ResourceError => ".resource-error",
-            Self::SourceError => ".error",
+            Self::ArithmeticOverflow => "arithmetic-overflow",
+            Self::DivisionByZero => "division-by-zero",
+            Self::IntegerConversionOverflow => "integer-conversion-overflow",
+            Self::NegativeShiftCount => "negative-shift-count",
+            Self::CoercionError => "coercion-error",
+            Self::DecodeError => "decode-error",
+            Self::IndexError => "index-error",
+            Self::MissingKey => "missing-key",
+            Self::ResourceError => "resource-error",
+            Self::SourceError => "error",
         }
     }
 }
@@ -64,7 +64,7 @@ impl TerraneError {
         self
     }
     fn render(&self) -> String {
-        let mut rendered = format!("{}: {}", self.kind.source_name(), self.message);
+        let mut rendered = format!("{}: {}", self.kind.display_name(), self.message);
         if let Some(cause) = &self.cause {
             rendered.push_str("\ncaused by: ");
             rendered.push_str(&cause.render());
@@ -84,7 +84,7 @@ impl std::fmt::Display for TerraneError {
 impl From<terrane_int_support::ArithmeticError> for TerraneError {
     fn from(error: terrane_int_support::ArithmeticError) -> Self {
         Self::new(
-            TerraneErrorKind::from_source_name(error.source_name()),
+            TerraneErrorKind::from_support_source_name(error.source_name()),
             error.to_string(),
         )
     }

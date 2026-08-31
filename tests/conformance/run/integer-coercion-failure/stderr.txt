@@ -1,2 +1,2 @@
-.integer-conversion-overflow: value 128 of type int64 cannot arrive exactly as int8: the value is outside the destination range
+integer-conversion-overflow: value 128 of type int64 cannot arrive exactly as int8: the value is outside the destination range
 at /integer-coercion-failure::main (case.trn:6:17-6:22)
