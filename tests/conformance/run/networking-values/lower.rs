@@ -1559,7 +1559,7 @@ pub fn lookup_dns(
                         .get(
                             __terrane_raised(
                                 terrane_collection_support::index_from_int(&index.clone()),
-                                
+
                                     0 /* terrane-site: standard/networking.trn:326:28-326:49 */,
                             ),
                         )
@@ -1567,7 +1567,7 @@ pub fn lookup_dns(
                         .ok_or(terrane_collection_support::IndexError {
                             index: __terrane_raised(
                                 terrane_collection_support::index_from_int(&index.clone()),
-                                
+
                                     0 /* terrane-site: standard/networking.trn:326:28-326:49 */,
                             ),
                         }),

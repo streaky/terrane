@@ -110,8 +110,8 @@ fn canonicalize_file(parsed: syn::File) -> syn::File {
 pub(crate) fn canonicalize_rust(rust: &str) -> Result<String, syn::Error> {
     let encoded = encode_terrane_site_rows(&encode_terrane_comments(rust));
     let parsed = syn::parse_file(&encoded)?;
-    Ok(restore_terrane_site_rows(&restore_terrane_comments(
-        &prettyplease::unparse(&canonicalize_file(parsed)),
+    Ok(restore_terrane_metadata(&prettyplease::unparse(
+        &canonicalize_file(parsed),
     )))
 }
 
@@ -257,6 +257,22 @@ fn restore_terrane_site_rows(rendered: &str) -> String {
     restored
 }
 
+fn restore_terrane_metadata(rendered: &str) -> String {
+    let restored = restore_terrane_site_rows(&restore_terrane_comments(rendered));
+    let mut normalized = String::with_capacity(restored.len());
+    for line in restored.split_inclusive('\n') {
+        let content = line.strip_suffix('\n').unwrap_or(line);
+        if content.trim().is_empty() {
+            if line.ends_with('\n') {
+                normalized.push('\n');
+            }
+        } else {
+            normalized.push_str(line);
+        }
+    }
+    normalized
+}
+
 impl Block {
     fn from_rendered(rust: &str) -> Self {
         let parsed = syn::parse_file(rust).expect("lowered Rust item must parse");
@@ -266,8 +282,8 @@ impl Block {
     }
 
     fn render(&self, output: &mut String) {
-        output.push_str(&restore_terrane_site_rows(&restore_terrane_comments(
-            &prettyplease::unparse(&self.parsed),
+        output.push_str(&restore_terrane_metadata(&prettyplease::unparse(
+            &self.parsed,
         )));
     }
 }
@@ -394,7 +410,10 @@ impl Program {
 
 #[cfg(test)]
 mod tests {
-    use super::{Block, canonicalize_rust, encode_terrane_comments, restore_terrane_comments};
+    use super::{
+        Block, canonicalize_rust, encode_terrane_comments, restore_terrane_comments,
+        restore_terrane_metadata,
+    };
 
     #[test]
     fn canonicalizes_expression_list_macro_arguments() {
@@ -452,6 +471,14 @@ mod tests {
         );
         assert!(!rendered.contains("__terrane_comment"), "{rendered}");
         assert_eq!(canonicalize_rust(&rendered).unwrap(), rendered);
+    }
+
+    #[test]
+    fn clears_whitespace_from_otherwise_blank_restored_lines() {
+        assert_eq!(
+            restore_terrane_metadata("first\n    \n\t\nlast\n   "),
+            "first\n\n\nlast\n"
+        );
     }
 
     #[test]

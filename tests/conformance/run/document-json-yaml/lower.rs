@@ -1389,7 +1389,7 @@ pub fn make_document_list(
                         .get_or_error(
                             __terrane_raised(
                                 terrane_collection_support::index_from_int(&index.clone()),
-                                
+
                                     0 /* terrane-site: standard/documents.trn:149:42-149:55 */,
                             ),
                         ),
@@ -1530,7 +1530,7 @@ pub fn decode_document(
                                     terrane_collection_support::index_from_int(
                                         &field_index.clone(),
                                     ),
-                                    
+
                                         5 /* terrane-site: standard/documents.trn:186:37-186:69 */,
                                 ),
                             ),
@@ -1582,7 +1582,7 @@ pub fn decode_document(
                                     terrane_collection_support::index_from_int(
                                         &default_index.clone(),
                                     ),
-                                    
+
                                         7 /* terrane-site: standard/documents.trn:193:36-193:73 */,
                                 ),
                             ),
@@ -1599,7 +1599,7 @@ pub fn decode_document(
                                     terrane_collection_support::index_from_int(
                                         &default_index.clone(),
                                     ),
-                                    
+
                                         8 /* terrane-site: standard/documents.trn:194:36-194:73 */,
                                 ),
                             ),
