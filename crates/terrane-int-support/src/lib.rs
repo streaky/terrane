@@ -880,7 +880,10 @@ integer_sources!(i8, i16, i32, i64, i128, u8, u16, u32, u64, u128);
 /// A fixed-width integer that can cross into a floating-point destination
 /// without materializing Terrane's adaptive `int` representation.
 pub trait FixedIntegerSource: Copy + ToString + 'static {
-    /// Returns the source integer's absolute magnitude without overflow.
+    /// Returns the mathematical absolute magnitude used to test representability.
+    ///
+    /// This is deliberately not the integer's two's-complement bit pattern: floating-point
+    /// exactness is sign-independent, and the original signed value is retained for the cast.
     fn unsigned_magnitude(self) -> u128;
     /// Performs the corresponding native Rust conversion to `f32`.
     fn to_f32(self) -> f32;

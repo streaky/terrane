@@ -189,6 +189,15 @@ fn fixed_integer_float_conversions_preserve_exactness_without_adaptive_integers(
         ))
     );
     assert_eq!(
+        exact_fixed_f64(-9_007_199_254_740_993_i64),
+        Err(ArithmeticError::conversion_overflow(
+            &-9_007_199_254_740_993_i64,
+            "int64",
+            "float64",
+            "the integer is not exactly representable",
+        ))
+    );
+    assert_eq!(
         exact_fixed_f64(u64::MAX),
         Err(ArithmeticError::conversion_overflow(
             &u64::MAX,
