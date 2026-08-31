@@ -17,54 +17,6 @@ function absolute float64; value float64
     return 0.0 - value
   return value
 
-function square-root float64; value float64
-  if value == 0
-    return 0
-  estimate float64 = value
-  if estimate < 1
-    estimate = 1
-  iteration int64 = 0
-  while iteration < 12
-    estimate = 0.5 * (estimate + value / estimate)
-    iteration++
-  return estimate
-
-function reduced-angle float64; angle float64
-  pi float64 = 3.14159265358979323846
-  tau float64 = 6.28318530717958647692
-  while angle > pi
-    angle = angle - tau
-  while angle < 0.0 - pi
-    angle = angle + tau
-  return angle
-
-function sine float64; angle float64
-  x float64 = (reduced-angle; angle)
-  square float64 = x * x
-  term float64 = x
-  total float64 = x
-  index int64 = 1
-  while index < 14
-    left float64 = 2 * index
-    right float64 = left + 1
-    term = (0.0 - term) * square / (left * right)
-    total = total + term
-    index++
-  return total
-
-function cosine float64; angle float64
-  x float64 = (reduced-angle; angle)
-  square float64 = x * x
-  term float64 = 1
-  total float64 = 1
-  index int64 = 1
-  while index < 14
-    left float64 = 2 * index - 1
-    right float64 = 2 * index
-    term = (0.0 - term) * square / (left * right)
-    total = total + term
-    index++
-  return total
 
 function bessel-j0 float64; argument float64
   x float64 = (absolute; argument)
@@ -79,8 +31,8 @@ function bessel-j0 float64; argument float64
   phase float64 = x - 0.785398164
   numerator float64 = 1 + square * (0.0 - 0.001098628627 + square * (0.00002734510407 + square * (0.0 - 0.000002073370639 + square * 0.0000002093887211)))
   denominator float64 = 0.0 - 0.01562499995 + square * (0.0001430488765 + square * (0.0 - 0.000006911147651 + square * (0.0000007621095161 - square * 0.0000000934935152)))
-  amplitude float64 = (square-root; 0.636619772 / x)
-  return amplitude * ((cosine; phase) * numerator - scale * (sine; phase) * denominator)
+  amplitude float64 = (0.636619772 / x).square-root
+  return amplitude * (phase.cosine * numerator - scale * phase.sine * denominator)
 
 function coordinate float64; index int64
   raw float64 = (index * 37) % 1009
