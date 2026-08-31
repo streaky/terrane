@@ -1,0 +1,8 @@
+package = "benchmark-bessel-kernel-energy"
+
+[profile]
+name = "benchmark"
+capabilities = ["process"]
+
+[namespaces]
+benchmark-bessel-kernel-energy = "src"
