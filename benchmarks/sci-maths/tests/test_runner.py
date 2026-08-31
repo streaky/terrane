@@ -316,7 +316,7 @@ class RunnerContracts(unittest.TestCase):
 
         runner.execute = fake_execute
         try:
-            runner.benchmark(
+            report = runner.benchmark(
                 {
                     "name": "fixture",
                     "groups": [{"id": "fixture-group", "name": "Fixture group"}],
@@ -339,6 +339,11 @@ class RunnerContracts(unittest.TestCase):
         ]
         performance_calls = [call for call in calls if call[0] == "performance"]
         self.assertEqual(performance_calls, expected_order * 3)
+        markdown = runner.render_markdown(report, "fixture.json")
+        self.assertIn("### Fixture group", markdown)
+        self.assertIn("| alpha | first |", markdown)
+        self.assertIn("| beta | second |", markdown)
+        self.assertNotIn("| beta | first |", markdown)
 
 
 if __name__ == "__main__":
