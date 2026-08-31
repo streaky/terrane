@@ -1,0 +1,20 @@
+id = "terrane-numr"
+name = "Terrane with numr"
+implementation = "terrane-numr/package.toml"
+setup = ["cargo", "build", "--release", "--quiet", "-p", "terrane-cli"]
+prepare = ["${repo}/target/release/terrane", "build", "--release", "${implementation}"]
+lower = ["${repo}/target/release/terrane", "rust", "${implementation}"]
+lower-output = "${implementation_dir}/src/main.lowered.rs"
+prepare-output = "executable-path"
+run = ["${prepared}"]
+cache-paths = ["${implementation_dir}/.trn"]
+environment = [
+  ["${repo}/target/release/terrane", "--version"],
+  ["rustc", "--version"],
+  ["cargo", "--version"],
+]
+
+[metadata]
+implementation = "Terrane using numr 0.7.0 through /deps"
+scientific-packages = true
+native-build-profile = "Cargo release"

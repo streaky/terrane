@@ -1,0 +1,12 @@
+package = "benchmark-gamma-survival-calibration"
+
+[profile]
+name = "benchmark"
+capabilities = ["process", "build"]
+
+[namespaces]
+benchmark-gamma-survival-calibration = "src"
+
+[rust-dependencies.numr]
+version = "=0.7.0"
+default-features = true

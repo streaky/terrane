@@ -16,6 +16,12 @@ path = "lanes/python.toml"
 [[lanes]]
 path = "lanes/rust.toml"
 
+[[lanes]]
+path = "lanes/python-scipy.toml"
+
+[[lanes]]
+path = "lanes/terrane-numr.toml"
+
 [[groups]]
 id = "language-baseline"
 name = "Language baseline"
@@ -35,3 +41,14 @@ path = "problems/collatz-branching"
 
 [[groups.problems]]
 path = "problems/standard-score-outliers"
+
+[[groups]]
+id = "scientific-stack"
+name = "Scientific stack"
+lanes = ["python-scipy", "terrane-numr"]
+
+[[groups.problems]]
+path = "problems/bessel-kernel-energy"
+
+[[groups.problems]]
+path = "problems/gamma-survival-calibration"

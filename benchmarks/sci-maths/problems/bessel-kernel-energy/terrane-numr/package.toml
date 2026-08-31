@@ -1,0 +1,12 @@
+package = "benchmark-bessel-kernel-energy"
+
+[profile]
+name = "benchmark"
+capabilities = ["process", "build"]
+
+[namespaces]
+benchmark-bessel-kernel-energy = "src"
+
+[rust-dependencies.numr]
+version = "=0.7.0"
+default-features = true

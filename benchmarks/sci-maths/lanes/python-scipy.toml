@@ -1,0 +1,14 @@
+id = "python-scipy"
+name = "Python scientific stack"
+implementation = "python-scipy/main.py"
+setup = ["uv", "sync", "--project", "${suite}/scientific-python", "--locked", "--quiet"]
+run = ["${suite}/scientific-python/.venv/bin/python", "${implementation}"]
+environment = [
+  ["${suite}/scientific-python/.venv/bin/python", "--version"],
+  ["${suite}/scientific-python/.venv/bin/python", "-c", "import numpy, scipy; print(f'numpy {numpy.__version__}; scipy {scipy.__version__}')"],
+]
+
+[metadata]
+implementation = "CPython with vectorized NumPy and SciPy special functions"
+scientific-packages = true
+native-build-profile = "official binary wheels from the locked uv environment"
