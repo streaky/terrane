@@ -13,10 +13,13 @@ path = "lanes/terrane.toml"
 [[lanes]]
 path = "lanes/python.toml"
 
+[[lanes]]
+path = "lanes/rust.toml"
+
 [[groups]]
 id = "language-baseline"
 name = "Language baseline"
-lanes = ["terrane", "python"]
+lanes = ["terrane", "python", "rust"]
 
 [[groups.problems]]
 path = "problems/scalar-reduction"
