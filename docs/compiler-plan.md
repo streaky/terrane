@@ -1866,6 +1866,12 @@ uses site comments that survive canonical formatting, and compile-time asserts b
 `structured-error-origin-and-frames`, `uncaught-detailed-coercion`, and
 `namespace-qualified-throwable-identity` exercise table-based rendering, preservation of structured
 built-in detail, propagation order, and distinct same-name throwable descriptors.
+The follow-up `structured-legacy-failures` case closes the remaining legacy failure path: implicit
+fixed-width and float narrowing, including conversion at callable arguments, unbounded-integer
+division, and float-to-integer rounding are catchable at their raising callable and propagate
+through the same structured site helpers. Effect inference derives failures from destination
+contexts rather than only explicit `.coerce` syntax. Generated run fixtures contain no
+`unwrap_or_fail` emissions; uncaught legacy cases now render their exact raising range.
 Tier 3 remains deliberately unimplemented: its generated `unsafe`, manual ownership, and custom
 trait implementations are not justified by the measured code-size benefit alone.
 The required sci-maths validation used

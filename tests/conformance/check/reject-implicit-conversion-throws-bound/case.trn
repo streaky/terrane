@@ -1,0 +1,6 @@
+namespace reject-implicit-conversion-throws-bound
+from /core/types import int8, int16
+from /core/errors import coercion-error
+
+function narrow int8 throws coercion-error; value int16
+  return value

@@ -2028,35 +2028,6 @@ fn resolved_object_span(package: &SemanticPackage, identity: &ObjectIdentity) ->
         .map(|object| object.span)
 }
 
-#[expect(
-    clippy::too_many_lines,
-    reason = "move provenance and its control-flow join remain one auditable analysis"
-)]
-fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFailure> {
-    fn binding_at(unit: &SemanticUnit, name: &str, position: usize) -> Option<usize> {
-        unit.typed_bindings
-            .iter()
-            .enumerate()
-            .rev()
-            .find(|(_, binding)| {
-                binding.name == name && binding.is_visible_at(unit.source.id(), position)
-            })
-            .map(|(index, _)| index)
-    }
-
-    fn resource_binding(
-        package: &SemanticPackage,
-        unit: &SemanticUnit,
-        binding: usize,
-        resource_objects: &BTreeSet<(u32, usize, usize)>,
-    ) -> bool {
-        match &unit.typed_bindings[binding].value_type {
-            ValueType::PlatformStreamHandle | ValueType::PlatformResourceHandle => true,
-            ValueType::Object(name) => resolved_object_span(package, name)
-                .is_some_and(|span| resource_objects.contains(&span_key(span))),
-            _ => false,
-        }
-    }
     fn method_contract<'a>(
         package: &'a SemanticPackage,
         object_identity: &ObjectIdentity,
@@ -2091,15 +2062,6 @@ fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFailure> {
                 .find(|object| object.span == declaration)
                 .and_then(|object| contract(candidate, &object.name, method_name))
         })
-    }
-
-    fn method_consumes_receiver(
-        package: &SemanticPackage,
-        object_identity: &ObjectIdentity,
-        method_name: &str,
-    ) -> bool {
-        method_contract(package, object_identity, method_name)
-            .is_some_and(|method| method.consumes_receiver)
     }
     fn function_parameters<'a>(
         package: &'a SemanticPackage,
@@ -2143,6 +2105,44 @@ fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFailure> {
             .flat_map(|candidate| &candidate.functions)
             .find(|function| function.span == declaration)
             .map(|function| function.parameters.as_slice())
+    }
+#[expect(
+    clippy::too_many_lines,
+    reason = "move provenance and its control-flow join remain one auditable analysis"
+)]
+fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFailure> {
+    fn binding_at(unit: &SemanticUnit, name: &str, position: usize) -> Option<usize> {
+        unit.typed_bindings
+            .iter()
+            .enumerate()
+            .rev()
+            .find(|(_, binding)| {
+                binding.name == name && binding.is_visible_at(unit.source.id(), position)
+            })
+            .map(|(index, _)| index)
+    }
+
+    fn resource_binding(
+        package: &SemanticPackage,
+        unit: &SemanticUnit,
+        binding: usize,
+        resource_objects: &BTreeSet<(u32, usize, usize)>,
+    ) -> bool {
+        match &unit.typed_bindings[binding].value_type {
+            ValueType::PlatformStreamHandle | ValueType::PlatformResourceHandle => true,
+            ValueType::Object(name) => resolved_object_span(package, name)
+                .is_some_and(|span| resource_objects.contains(&span_key(span))),
+            _ => false,
+        }
+    }
+
+    fn method_consumes_receiver(
+        package: &SemanticPackage,
+        object_identity: &ObjectIdentity,
+        method_name: &str,
+    ) -> bool {
+        method_contract(package, object_identity, method_name)
+            .is_some_and(|method| method.consumes_receiver)
     }
 
     #[expect(
@@ -5350,6 +5350,203 @@ fn infer_throwing_effects(package: &mut SemanticPackage) -> Result<(), SemanticF
         source_bounds.0 < destination_bounds.0 || source_bounds.1 > destination_bounds.1
     }
 
+    fn fixed_integer_bits(ty: ScalarType) -> Option<u16> {
+        match ty {
+            ScalarType::Int8 | ScalarType::Uint8 => Some(8),
+            ScalarType::Int16 | ScalarType::Uint16 => Some(16),
+            ScalarType::Int32 | ScalarType::Uint32 => Some(32),
+            ScalarType::Int64 | ScalarType::Uint64 => Some(64),
+            ScalarType::Int128 | ScalarType::Uint128 => Some(128),
+            _ => None,
+        }
+    }
+
+    fn numeric_conversion_can_fail(source: ScalarType, destination: ScalarType) -> bool {
+        if source == destination {
+            return false;
+        }
+        if destination == ScalarType::Int {
+            return matches!(source, ScalarType::Float32 | ScalarType::Float64);
+        }
+        if source == ScalarType::Int {
+            return destination.is_integer()
+                || matches!(destination, ScalarType::Float32 | ScalarType::Float64);
+        }
+        if source.is_integer() && destination.is_integer() {
+            let Some(source_bounds) = scalar_integer_bounds(source) else {
+                return false;
+            };
+            let Some(destination_bounds) = scalar_integer_bounds(destination) else {
+                return false;
+            };
+            return source_bounds.0 < destination_bounds.0
+                || source_bounds.1 > destination_bounds.1;
+        }
+        if source == ScalarType::Float32 && destination == ScalarType::Float64 {
+            return false;
+        }
+        if source.is_integer()
+            && matches!(destination, ScalarType::Float32 | ScalarType::Float64)
+        {
+            let exact_bits = if destination == ScalarType::Float32 {
+                16
+            } else {
+                32
+            };
+            return fixed_integer_bits(source).is_some_and(|bits| bits > exact_bits);
+        }
+        matches!(source, ScalarType::Float32 | ScalarType::Float64)
+            && (destination.is_integer() || destination == ScalarType::Float32)
+    }
+
+    fn destination_conversion_can_fail(
+        unit: &SemanticUnit,
+        expected: &ValueType,
+        value: &SyntaxNode,
+    ) -> bool {
+        let ValueType::Scalar(destination) = expected else {
+            return false;
+        };
+        if contextual_constant(&unit.source, value, *destination).is_some() {
+            return false;
+        }
+        let Ok(Some(ValueType::Scalar(source))) =
+            infer_value_type(unit, value, &unit.typed_bindings)
+        else {
+            return false;
+        };
+        numeric_conversion_can_fail(source, *destination)
+    }
+
+    fn call_argument_errors(
+        package: &SemanticPackage,
+        unit: &SemanticUnit,
+        node: &SyntaxNode,
+    ) -> BTreeSet<String> {
+        let mut errors = BTreeSet::new();
+        let [callee, arguments] = node.children.as_slice() else {
+            return errors;
+        };
+        if node.kind != SyntaxKind::CallExpression {
+            return errors;
+        }
+        let Some(parameters) = function_parameters(package, unit, callee) else {
+            return errors;
+        };
+        let mut positional = 0;
+        for argument in &arguments.children {
+            let name = argument
+                .children
+                .first()
+                .filter(|child| child.kind == SyntaxKind::Name && argument.children.len() > 1)
+                .map(|name| node_text(&unit.source, name));
+            let parameter = if let Some(name) = name {
+                parameters.iter().find(|parameter| parameter.name == name)
+            } else {
+                let parameter = parameters.get(positional);
+                positional += 1;
+                parameter
+            };
+            let value = argument.children.last().unwrap_or(argument);
+            if parameter
+                .and_then(|parameter| parameter.value_type.as_ref())
+                .is_some_and(|expected| {
+                    destination_conversion_can_fail(unit, expected, value)
+                })
+            {
+                errors.insert("/core/errors::integer-conversion-overflow".to_owned());
+            }
+        }
+        errors
+    }
+
+    fn local_builtin_errors(
+        package: &SemanticPackage,
+        unit: &SemanticUnit,
+        node: &SyntaxNode,
+    ) -> BTreeSet<String> {
+        let mut errors = call_argument_errors(package, unit, node);
+        if node.kind == SyntaxKind::BinaryExpression
+            && let [left, right] = node.children.as_slice()
+            && matches!(
+                unit.inferred_value_type(node),
+                Some(ValueType::Scalar(ScalarType::Int))
+            )
+            && matches!(
+                unit.source.text()[left.span.end..right.span.start].trim(),
+                "/" | "%"
+            )
+        {
+            errors.insert("/core/errors::division-by-zero".to_owned());
+        }
+        if node.kind == SyntaxKind::MemberExpression
+            && let [receiver, member] = node.children.as_slice()
+            && matches!(
+                node_text(&unit.source, member),
+                "round" | "floor" | "ceiling" | "truncate"
+            )
+            && matches!(
+                infer_receiver_value_type(unit, receiver, &unit.typed_bindings),
+                Ok(Some(ValueType::Scalar(
+                    ScalarType::Float32 | ScalarType::Float64
+                )))
+            )
+        {
+            errors.insert("/core/errors::integer-conversion-overflow".to_owned());
+        }
+        let destination = if node.kind == SyntaxKind::Binding {
+            node.children
+                .iter()
+                .find(|child| child.kind == SyntaxKind::Name)
+                .and_then(|name| {
+                    unit.typed_bindings
+                        .iter()
+                        .find(|binding| binding.span == name.span)
+                        .map(|binding| binding.value_type.clone())
+                })
+                .zip(node.children.iter().find(|child| {
+                    !matches!(
+                        child.kind,
+                        SyntaxKind::Name
+                            | SyntaxKind::Visibility
+                            | SyntaxKind::DeclarationQualifier
+                            | SyntaxKind::TypeExpression
+                    )
+                }))
+        } else if node.kind == SyntaxKind::Assignment {
+            let [target, value] = node.children.as_slice() else {
+                return errors;
+            };
+            infer_value_type(unit, target, &unit.typed_bindings)
+                .ok()
+                .flatten()
+                .map(|expected| (expected, value))
+        } else {
+            None
+        };
+        if destination.is_some_and(|(expected, value)| {
+            destination_conversion_can_fail(unit, &expected, value)
+        }) {
+            errors.insert("/core/errors::integer-conversion-overflow".to_owned());
+        }
+        if node.kind == SyntaxKind::ReturnStatement
+            && let Some(value) = node.children.first()
+            && let Some(function_span) = unit
+                .enclosing_function_spans
+                .get(&node.span.start)
+                .copied()
+                .flatten()
+            && let Some(expected) = unit
+                .functions
+                .iter()
+                .find(|contract| contract.span == function_span)
+                .and_then(|contract| contract.return_type.as_ref())
+            && destination_conversion_can_fail(unit, expected, value)
+        {
+            errors.insert("/core/errors::integer-conversion-overflow".to_owned());
+        }
+        errors
+    }
     fn escaping_errors(
         package: &SemanticPackage,
         unit: &SemanticUnit,
@@ -5362,6 +5559,7 @@ fn infer_throwing_effects(package: &mut SemanticPackage) -> Result<(), SemanticF
         if node.kind == SyntaxKind::ThrowStatement {
             return direct_errors(package, unit, node);
         }
+        let local_errors = local_builtin_errors(package, unit, node);
         if node.kind == SyntaxKind::CallExpression
             && let Some(callee) = node.children.first()
             && callee.kind == SyntaxKind::MemberExpression
@@ -5388,6 +5586,7 @@ fn infer_throwing_effects(package: &mut SemanticPackage) -> Result<(), SemanticF
             } else {
                 BTreeSet::new()
             };
+            errors.extend(local_errors);
             errors.extend(
                 node.children
                     .iter()
@@ -5404,6 +5603,7 @@ fn infer_throwing_effects(package: &mut SemanticPackage) -> Result<(), SemanticF
             && let Some(span) = symbol.declaration_span
         {
             let mut errors = inferred.get(&key(span)).cloned().unwrap_or_default();
+            errors.extend(local_errors);
             errors.extend(
                 node.children
                     .iter()
@@ -5452,10 +5652,13 @@ fn infer_throwing_effects(package: &mut SemanticPackage) -> Result<(), SemanticF
             }
             return errors;
         }
-        node.children
-            .iter()
-            .flat_map(|child| escaping_errors(package, unit, child, inferred))
-            .collect()
+        let mut errors = local_errors;
+        errors.extend(
+            node.children
+                .iter()
+                .flat_map(|child| escaping_errors(package, unit, child, inferred)),
+        );
+        errors
     }
 
     let mut inferred_throwables = BTreeMap::<FunctionKey, BTreeSet<String>>::new();

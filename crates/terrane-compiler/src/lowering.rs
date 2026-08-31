@@ -403,7 +403,7 @@ pub(crate) fn lower(package: &SemanticPackage) -> Program {
             }
         })
         .collect();
-    if uses_errors {
+    if uses_errors || !registry.sites.borrow().is_empty() {
         let mut support = String::new();
         emit_error_support(
             &mut support,
@@ -4006,10 +4006,8 @@ impl Emitter<'_> {
         let left = self.adaptive_expression(left);
         let right = self.adaptive_expression(right);
         match operator {
-            "/" => {
-                format!("terrane_int_support::unwrap_or_fail(({left}).euclidean_div(&({right})))")
-            }
-            "%" => format!("terrane_int_support::unwrap_or_fail(({left}).modulo(&({right})))"),
+            "/" => self.fallible(format!("({left}).euclidean_div(&({right}))"), node),
+            "%" => self.fallible(format!("({left}).modulo(&({right}))"), node),
             _ => format!("({left} {operator} {right})"),
         }
     }
@@ -4022,10 +4020,8 @@ impl Emitter<'_> {
         let left = self.expression_as(left, ValueType::Scalar(ScalarType::Int));
         let right = self.expression_as(right, ValueType::Scalar(ScalarType::Int));
         match operator {
-            "/" => {
-                format!("terrane_int_support::unwrap_or_fail(({left}).euclidean_div(&({right})))")
-            }
-            "%" => format!("terrane_int_support::unwrap_or_fail(({left}).modulo(&({right})))"),
+            "/" => self.fallible(format!("({left}).euclidean_div(&({right}))"), node),
+            "%" => self.fallible(format!("({left}).modulo(&({right}))"), node),
             _ => format!("({left} {operator} {right})"),
         }
     }
@@ -4798,8 +4794,11 @@ impl Emitter<'_> {
                     "truncate" => "Truncate",
                     _ => unreachable!(),
                 };
-                format!(
-                    "terrane_int_support::unwrap_or_fail(terrane_int_support::{helper}({receiver}, terrane_int_support::FloatRounding::{mode}))"
+                self.fallible(
+                    format!(
+                        "terrane_int_support::{helper}({receiver}, terrane_int_support::FloatRounding::{mode})"
+                    ),
+                    node,
                 )
             }
             name if wrapped_field => {
@@ -5813,10 +5812,8 @@ impl Emitter<'_> {
             format!("__terrane_raised_completion!({call}, {site})")
         } else if self.propagate_errors {
             format!("__terrane_raised_err({call}, {site})?")
-        } else if package_uses_structured_errors(self.package) {
-            format!("__terrane_raised({call}, {site})")
         } else {
-            format!("terrane_int_support::unwrap_or_fail({call})")
+            format!("__terrane_raised({call}, {site})")
         }
     }
 
@@ -5880,10 +5877,14 @@ impl Emitter<'_> {
             if integer_range_contains(destination, source) {
                 return format!("(({value}) as {})", rust_type(destination));
             }
-            return format!(
-                "{{ let source_value = {value}; terrane_int_support::unwrap_or_fail({}::try_from(source_value).map_err(|_| terrane_int_support::ArithmeticError::conversion_overflow(&source_value, \"{source}\", \"{destination}\", \"the value is outside the destination range\"))) }}",
-                rust_type(destination)
+            let conversion = self.fallible(
+                format!(
+                    "{}::try_from(source_value).map_err(|_| terrane_int_support::ArithmeticError::conversion_overflow(&source_value, \"{source}\", \"{destination}\", \"the value is outside the destination range\"))",
+                    rust_type(destination)
+                ),
+                node,
             );
+            return format!("{{ let source_value = {value}; {conversion} }}");
         }
         if source == ScalarType::Float32 && destination == ScalarType::Float64 {
             return format!("(({value}) as f64)");
@@ -5913,8 +5914,14 @@ impl Emitter<'_> {
                 node,
             );
         }
+        let conversion = self.fallible(
+            format!(
+                "Err(terrane_int_support::ArithmeticError::conversion_overflow(&source_value, \"float64\", \"float32\", \"the floating value is not exactly representable\"))"
+            ),
+            node,
+        );
         format!(
-            "{{ let source_value = {value}; let converted = source_value as f32; if (converted as f64) == source_value {{ converted }} else {{ terrane_int_support::unwrap_or_fail(Err(terrane_int_support::ArithmeticError::conversion_overflow(&source_value, \"float64\", \"float32\", \"the floating value is not exactly representable\"))) }} }}"
+            "{{ let source_value = {value}; let converted = source_value as f32; if (converted as f64) == source_value {{ converted }} else {{ {conversion} }} }}"
         )
     }
 

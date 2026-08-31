@@ -1,0 +1,6 @@
+fixed conversion caught
+float narrowing caught
+int division caught
+rounding caught
+argument conversion caught
+after
