@@ -155,11 +155,11 @@ The `scientific-stack` problems cover:
 1. an all-pairs oscillatory kernel using the Bessel function $J_0$;
 2. a gamma-distribution survival-probability calibration loss using the regularized upper incomplete gamma function.
 
-The performance profiles intentionally perform about ten times the work of the suite's initial
-scientific profiles. Bessel uses 4,744 coordinates, or 22,505,536 ordered kernel evaluations,
-versus the initial 1,500-coordinate profile's 2,250,000 evaluations. Gamma evaluates 10,000,000
-observations versus the initial 1,000,000-observation profile. Correctness profiles remain small so
-failures stay quick to diagnose.
+The performance profiles intentionally perform about twenty times the work of the suite's initial
+scientific profiles and about twice the work of the preceding profiles. Bessel uses 6,709
+coordinates, or 45,010,681 ordered kernel evaluations, versus the initial 1,500-coordinate
+profile's 2,250,000 evaluations. Gamma evaluates 20,000,000 observations versus the initial
+1,000,000-observation profile. Correctness profiles remain small so failures stay quick to diagnose.
 
 Inputs are generated deterministically inside each process from the formula and size in `problem.toml`. Data preparation therefore belongs to the reported end-to-end time and memory. The correctness profile is deliberately small enough to diagnose; the performance profile is reproducible without checked-in bulk data.
 
