@@ -120,52 +120,83 @@ class MemoryCgroup:
         self.path.rmdir()
 
 
-def memory_cgroup_parent() -> Path | None:
+def memory_cgroup_parent() -> tuple[Path | None, str | None]:
+    requirement = (
+        "memory measurement requires Linux cgroup v2 with a writable delegated "
+        "subtree and the memory controller enabled"
+    )
     if not sys.platform.startswith("linux"):
-        return None
+        return None, f"{requirement}; this host is not running Linux"
     try:
         entry = next(
             line
             for line in Path("/proc/self/cgroup").read_text().splitlines()
             if line.startswith("0::")
         )
-    except (OSError, StopIteration):
-        return None
+    except OSError as error:
+        return None, f"{requirement}; /proc/self/cgroup could not be read: {error}"
+    except StopIteration:
+        return None, f"{requirement}; no unified cgroup-v2 membership was found"
     relative = Path(entry[3:].lstrip("/"))
     if ".." in relative.parts:
-        return None
+        return None, f"{requirement}; the process cgroup path is invalid"
     parent = (Path("/sys/fs/cgroup") / relative).parent
     if not (parent / "cgroup.controllers").is_file():
-        return None
-    return parent
+        return (
+            None,
+            f"{requirement}; cgroup-v2 controller metadata is not accessible at {parent}",
+        )
+    return parent, None
 
 
-def create_memory_cgroup() -> MemoryCgroup | None:
-    parent = memory_cgroup_parent()
+def create_memory_cgroup_with_reason() -> tuple[MemoryCgroup | None, str | None]:
+    parent, reason = memory_cgroup_parent()
     if parent is None:
-        return None
+        return None, reason
     path: Path | None = None
     try:
-        path = Path(tempfile.mkdtemp(prefix=f"terrane-sci-{os.getpid()}-", dir=parent))
+        path = Path(
+            tempfile.mkdtemp(prefix=f"terrane-sci-{os.getpid()}-", dir=parent)
+        )
         if not (path / "memory.peak").is_file():
             path.rmdir()
-            return None
-        return MemoryCgroup(path)
-    except OSError:
+            return (
+                None,
+                "memory measurement requires the cgroup-v2 memory controller, "
+                f"but a delegated child under {parent} has no memory.peak",
+            )
+        return MemoryCgroup(path), None
+    except OSError as error:
         if path is not None:
             try:
                 path.rmdir()
             except OSError:
                 pass
-        return None
+        return (
+            None,
+            "memory measurement requires a writable delegated cgroup-v2 subtree; "
+            f"could not create a child under {parent}: {error}",
+        )
+
+
+def create_memory_cgroup() -> MemoryCgroup | None:
+    group, _ = create_memory_cgroup_with_reason()
+    return group
+
+
+def memory_measurement_unavailable_reason() -> str | None:
+    group, reason = create_memory_cgroup_with_reason()
+    if group is None:
+        return reason or "memory measurement capability probing failed"
+    try:
+        group.remove()
+    except OSError as error:
+        return f"memory measurement probe cgroup could not be removed: {error}"
+    return None
 
 
 def memory_measurement_available() -> bool:
-    group = create_memory_cgroup()
-    if group is None:
-        return False
-    group.remove()
-    return True
+    return memory_measurement_unavailable_reason() is None
 
 
 def read_process_output(stdout_file: Any, stderr_file: Any) -> tuple[str, str]:
@@ -881,7 +912,14 @@ def benchmark(
     warmups: int,
     cold_builds: bool,
 ) -> dict[str, Any]:
-    memory_available = memory_measurement_available()
+    memory_unavailable_reason = memory_measurement_unavailable_reason()
+    memory_available = memory_unavailable_reason is None
+    if memory_unavailable_reason:
+        print(
+            f"[memory unavailable] {memory_unavailable_reason}",
+            file=sys.stderr,
+            flush=True,
+        )
     selected_groups = list(dict.fromkeys(problem["group"] for problem in problems))
     report: dict[str, Any] = {
         "format": 3,
@@ -910,8 +948,10 @@ def benchmark(
             "memory": (
                 "peak cgroup-v2 memory charged to a fresh cgroup containing the launched process and all descendants"
                 if memory_available
-                else "unavailable because delegated cgroup-v2 memory accounting is not accessible"
+                else f"unavailable: {memory_unavailable_reason}"
             ),
+            "memory_available": memory_available,
+            "memory_unavailable_reason": memory_unavailable_reason,
             "memory_limitations": (
                 "memory.peak includes anonymous memory, charged page cache, and kernel memory. "
                 "Shared pages are charged once, potentially to a cgroup outside the measured "

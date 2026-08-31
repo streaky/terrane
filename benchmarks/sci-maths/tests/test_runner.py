@@ -145,6 +145,29 @@ class RunnerContracts(unittest.TestCase):
         assert record is not None
         self.assertEqual(record["warning_lines"], ["warning: fixture"])
 
+    def test_memory_probe_explains_missing_platform_capability(self) -> None:
+        with mock.patch.object(runner.sys, "platform", "darwin"):
+            reason = runner.memory_measurement_unavailable_reason()
+        assert reason is not None
+        self.assertIn("requires Linux cgroup v2", reason)
+        self.assertIn("not running Linux", reason)
+
+    def test_memory_probe_explains_missing_cgroup_delegation(self) -> None:
+        parent = Path("/sys/fs/cgroup/fixture")
+        with (
+            mock.patch.object(runner, "memory_cgroup_parent", return_value=(parent, None)),
+            mock.patch.object(
+                runner.tempfile,
+                "mkdtemp",
+                side_effect=PermissionError("permission denied"),
+            ),
+        ):
+            reason = runner.memory_measurement_unavailable_reason()
+        assert reason is not None
+        self.assertIn("writable delegated cgroup-v2 subtree", reason)
+        self.assertIn(str(parent), reason)
+        self.assertIn("permission denied", reason)
+
     def test_processes_force_available_sccache_when_inherited_wrapper_is_disabled(
         self,
     ) -> None:
@@ -317,7 +340,16 @@ class RunnerContracts(unittest.TestCase):
 
         runner.execute = fake_execute
         try:
-            with mock.patch.object(runner.sys, "stderr", new_callable=io.StringIO) as progress:
+            with (
+                mock.patch.object(
+                    runner,
+                    "memory_measurement_unavailable_reason",
+                    return_value="fixture cgroup delegation is missing",
+                ),
+                mock.patch.object(
+                    runner.sys, "stderr", new_callable=io.StringIO
+                ) as progress,
+            ):
                 report = runner.benchmark(
                     {
                         "name": "fixture",
@@ -342,6 +374,15 @@ class RunnerContracts(unittest.TestCase):
         performance_calls = [call for call in calls if call[0] == "performance"]
         self.assertEqual(performance_calls, expected_order * 3)
         progress_lines = progress.getvalue().splitlines()
+        self.assertEqual(
+            progress_lines[0],
+            "[memory unavailable] fixture cgroup delegation is missing",
+        )
+        self.assertFalse(report["measurement"]["memory_available"])
+        self.assertEqual(
+            report["measurement"]["memory_unavailable_reason"],
+            "fixture cgroup delegation is missing",
+        )
         self.assertIn("[setup 1/2] first", progress_lines)
         self.assertIn("[prepare 1/3] alpha / first", progress_lines)
         self.assertIn("[correctness 3/3] beta / second", progress_lines)
@@ -350,6 +391,7 @@ class RunnerContracts(unittest.TestCase):
         self.assertIn("[run 2/2, case 3/3] beta / second", progress_lines)
         self.assertIn("[complete 3/3] beta / second", progress_lines)
         markdown = runner.render_markdown(report, "fixture.json")
+        self.assertIn("Memory: unavailable: fixture cgroup delegation is missing.", markdown)
         self.assertIn("### Fixture group", markdown)
         self.assertIn("| alpha | first |", markdown)
         self.assertIn("| beta | second |", markdown)
