@@ -386,79 +386,79 @@ mod __terrane_trace {
     ];
     pub static SITES: [Site; 12] = [
         {
-            /* terrane-site-row: site 0: /benchmark-scalar-reduction::benchmark-size (src/main.trn:10:18-10:29) */
+            /* terrane-site-row: site 0: /benchmark-scalar-reduction::benchmark-size (src/main.trn:9:18-9:29) */
             Site {
                 function: 0,
                 file: 0,
-                line: 10,
+                line: 9,
                 column: 18,
-                end_line: 10,
+                end_line: 9,
                 end_column: 29,
             }
         },
         {
-            /* terrane-site-row: site 1: /benchmark-scalar-reduction::benchmark-size (src/main.trn:10:18-10:44) */
+            /* terrane-site-row: site 1: /benchmark-scalar-reduction::benchmark-size (src/main.trn:9:18-9:44) */
             Site {
                 function: 0,
                 file: 0,
-                line: 10,
+                line: 9,
                 column: 18,
-                end_line: 10,
+                end_line: 9,
                 end_column: 44,
             }
         },
         {
-            /* terrane-site-row: site 2: /benchmark-scalar-reduction::benchmark-size (src/main.trn:10:17-10:45) */
+            /* terrane-site-row: site 2: /benchmark-scalar-reduction::benchmark-size (src/main.trn:9:17-9:45) */
             Site {
                 function: 0,
                 file: 0,
-                line: 10,
+                line: 9,
                 column: 17,
-                end_line: 10,
+                end_line: 9,
                 end_column: 45,
             }
         },
         {
-            /* terrane-site-row: site 3: /benchmark-scalar-reduction::main (src/main.trn:21:19-21:39) */
+            /* terrane-site-row: site 3: /benchmark-scalar-reduction::main (src/main.trn:20:19-20:39) */
             Site {
                 function: 1,
                 file: 0,
-                line: 21,
+                line: 20,
                 column: 19,
-                end_line: 21,
+                end_line: 20,
                 end_column: 39,
             }
         },
         {
-            /* terrane-site-row: site 4: /benchmark-scalar-reduction::main (src/main.trn:22:21-22:34) */
+            /* terrane-site-row: site 4: /benchmark-scalar-reduction::main (src/main.trn:21:21-21:34) */
             Site {
                 function: 1,
                 file: 0,
-                line: 22,
+                line: 21,
                 column: 21,
-                end_line: 22,
+                end_line: 21,
                 end_column: 34,
             }
         },
         {
-            /* terrane-site-row: site 5: /benchmark-scalar-reduction::main (src/main.trn:22:13-22:34) */
+            /* terrane-site-row: site 5: /benchmark-scalar-reduction::main (src/main.trn:21:13-21:34) */
+            Site {
+                function: 1,
+                file: 0,
+                line: 21,
+                column: 13,
+                end_line: 21,
+                end_column: 34,
+            }
+        },
+        {
+            /* terrane-site-row: site 6: /benchmark-scalar-reduction::main (src/main.trn:22:5-22:12) */
             Site {
                 function: 1,
                 file: 0,
                 line: 22,
-                column: 13,
-                end_line: 22,
-                end_column: 34,
-            }
-        },
-        {
-            /* terrane-site-row: site 6: /benchmark-scalar-reduction::main (src/main.trn:23:5-23:12) */
-            Site {
-                function: 1,
-                file: 0,
-                line: 23,
                 column: 5,
-                end_line: 23,
+                end_line: 22,
                 end_column: 12,
             }
         },
@@ -594,18 +594,18 @@ fn benchmark_size() -> i64 {
                                         terrane_collection_support::index_from_int(
                                             &terrane_int_support::Int::from(0_i128),
                                         ),
-                                        0 /* terrane-site: src/main.trn:10:18-10:29 */,
+                                        0 /* terrane-site: src/main.trn:9:18-9:29 */,
                                     ),
                                 ),
-                            0 /* terrane-site: src/main.trn:10:18-10:29 */,
+                            0 /* terrane-site: src/main.trn:9:18-9:29 */,
                         )
                         .text,
                     &10,
                 ),
-                1 /* terrane-site: src/main.trn:10:18-10:44 */,
+                1 /* terrane-site: src/main.trn:9:18-9:44 */,
             ),
         ),
-        2 /* terrane-site: src/main.trn:10:17-10:45 */,
+        2 /* terrane-site: src/main.trn:9:17-9:45 */,
     );
     if count <= 0 {
         exit(make_exit_status(terrane_int_support::Int::from(2_i128)));
@@ -619,21 +619,21 @@ fn main() {
     while index < count {
         let value: i64 = __terrane_raised(
             terrane_int_support::fixed_subtraction(index.rem_euclid(1000), 500),
-            3 /* terrane-site: src/main.trn:21:19-21:39 */,
+            3 /* terrane-site: src/main.trn:20:19-20:39 */,
         );
         total = __terrane_raised(
             terrane_int_support::fixed_addition(
                 total,
                 __terrane_raised(
                     terrane_int_support::fixed_multiplication(value, value),
-                    4 /* terrane-site: src/main.trn:22:21-22:34 */,
+                    4 /* terrane-site: src/main.trn:21:21-21:34 */,
                 ),
             ),
-            5 /* terrane-site: src/main.trn:22:13-22:34 */,
+            5 /* terrane-site: src/main.trn:21:13-21:34 */,
         );
         index = __terrane_raised(
             terrane_int_support::fixed_addition(index, 1),
-            6 /* terrane-site: src/main.trn:23:5-23:12 */,
+            6 /* terrane-site: src/main.trn:22:5-22:12 */,
         );
     }
     println!("{}", terrane_scalar_support::scalar_text(&total));

@@ -386,90 +386,90 @@ mod __terrane_trace {
     ];
     pub static SITES: [Site; 13] = [
         {
-            /* terrane-site-row: site 0: /benchmark-collatz-branching::benchmark-size (src/main.trn:10:18-10:29) */
+            /* terrane-site-row: site 0: /benchmark-collatz-branching::benchmark-size (src/main.trn:9:18-9:29) */
             Site {
                 function: 0,
                 file: 0,
-                line: 10,
+                line: 9,
                 column: 18,
-                end_line: 10,
+                end_line: 9,
                 end_column: 29,
             }
         },
         {
-            /* terrane-site-row: site 1: /benchmark-collatz-branching::benchmark-size (src/main.trn:10:18-10:44) */
+            /* terrane-site-row: site 1: /benchmark-collatz-branching::benchmark-size (src/main.trn:9:18-9:44) */
             Site {
                 function: 0,
                 file: 0,
-                line: 10,
+                line: 9,
                 column: 18,
-                end_line: 10,
+                end_line: 9,
                 end_column: 44,
             }
         },
         {
-            /* terrane-site-row: site 2: /benchmark-collatz-branching::benchmark-size (src/main.trn:10:17-10:45) */
+            /* terrane-site-row: site 2: /benchmark-collatz-branching::benchmark-size (src/main.trn:9:17-9:45) */
             Site {
                 function: 0,
                 file: 0,
-                line: 10,
+                line: 9,
                 column: 17,
-                end_line: 10,
+                end_line: 9,
                 end_column: 45,
             }
         },
         {
-            /* terrane-site-row: site 3: /benchmark-collatz-branching::main (src/main.trn:24:17-24:26) */
+            /* terrane-site-row: site 3: /benchmark-collatz-branching::main (src/main.trn:23:17-23:26) */
             Site {
                 function: 1,
                 file: 0,
-                line: 24,
+                line: 23,
                 column: 17,
-                end_line: 24,
+                end_line: 23,
                 end_column: 26,
             }
         },
         {
-            /* terrane-site-row: site 4: /benchmark-collatz-branching::main (src/main.trn:26:17-26:26) */
+            /* terrane-site-row: site 4: /benchmark-collatz-branching::main (src/main.trn:25:17-25:26) */
             Site {
                 function: 1,
                 file: 0,
-                line: 26,
+                line: 25,
                 column: 17,
-                end_line: 26,
+                end_line: 25,
                 end_column: 26,
             }
         },
         {
-            /* terrane-site-row: site 5: /benchmark-collatz-branching::main (src/main.trn:26:17-26:30) */
+            /* terrane-site-row: site 5: /benchmark-collatz-branching::main (src/main.trn:25:17-25:30) */
             Site {
                 function: 1,
                 file: 0,
-                line: 26,
+                line: 25,
                 column: 17,
-                end_line: 26,
+                end_line: 25,
                 end_column: 30,
             }
         },
         {
-            /* terrane-site-row: site 6: /benchmark-collatz-branching::main (src/main.trn:27:7-27:14) */
+            /* terrane-site-row: site 6: /benchmark-collatz-branching::main (src/main.trn:26:7-26:14) */
             Site {
                 function: 1,
                 file: 0,
-                line: 27,
+                line: 26,
                 column: 7,
-                end_line: 27,
+                end_line: 26,
                 end_column: 14,
             }
         },
         {
-            /* terrane-site-row: site 7: /benchmark-collatz-branching::main (src/main.trn:28:5-28:12) */
+            /* terrane-site-row: site 7: /benchmark-collatz-branching::main (src/main.trn:27:5-27:12) */
             Site {
                 function: 1,
                 file: 0,
-                line: 28,
+                line: 27,
                 column: 5,
-                end_line: 28,
+                end_line: 27,
                 end_column: 12,
             }
         },
@@ -605,18 +605,18 @@ fn benchmark_size() -> i64 {
                                         terrane_collection_support::index_from_int(
                                             &terrane_int_support::Int::from(0_i128),
                                         ),
-                                        0 /* terrane-site: src/main.trn:10:18-10:29 */,
+                                        0 /* terrane-site: src/main.trn:9:18-9:29 */,
                                     ),
                                 ),
-                            0 /* terrane-site: src/main.trn:10:18-10:29 */,
+                            0 /* terrane-site: src/main.trn:9:18-9:29 */,
                         )
                         .text,
                     &10,
                 ),
-                1 /* terrane-site: src/main.trn:10:18-10:44 */,
+                1 /* terrane-site: src/main.trn:9:18-9:44 */,
             ),
         ),
-        2 /* terrane-site: src/main.trn:10:17-10:45 */,
+        2 /* terrane-site: src/main.trn:9:17-9:45 */,
     );
     if limit <= 0 {
         exit(make_exit_status(terrane_int_support::Int::from(2_i128)));
@@ -633,28 +633,28 @@ fn main() {
             if value.rem_euclid(2) == 0 {
                 value = __terrane_raised(
                     terrane_int_support::fixed_division(value, 2),
-                    3 /* terrane-site: src/main.trn:24:17-24:26 */,
+                    3 /* terrane-site: src/main.trn:23:17-23:26 */,
                 );
             } else {
                 value = __terrane_raised(
                     terrane_int_support::fixed_addition(
                         __terrane_raised(
                             terrane_int_support::fixed_multiplication(3, value),
-                            4 /* terrane-site: src/main.trn:26:17-26:26 */,
+                            4 /* terrane-site: src/main.trn:25:17-25:26 */,
                         ),
                         1,
                     ),
-                    5 /* terrane-site: src/main.trn:26:17-26:30 */,
+                    5 /* terrane-site: src/main.trn:25:17-25:30 */,
                 );
             }
             total = __terrane_raised(
                 terrane_int_support::fixed_addition(total, 1),
-                6 /* terrane-site: src/main.trn:27:7-27:14 */,
+                6 /* terrane-site: src/main.trn:26:7-26:14 */,
             );
         }
         start = __terrane_raised(
             terrane_int_support::fixed_addition(start, 1),
-            7 /* terrane-site: src/main.trn:28:5-28:12 */,
+            7 /* terrane-site: src/main.trn:27:5-27:12 */,
         );
     }
     println!("{}", terrane_scalar_support::scalar_text(&total));

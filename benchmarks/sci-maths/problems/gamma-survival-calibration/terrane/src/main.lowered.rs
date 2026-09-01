@@ -387,101 +387,101 @@ mod __terrane_trace {
     ];
     pub static SITES: [Site; 14] = [
         {
-            /* terrane-site-row: site 0: /benchmark-gamma-survival-calibration::benchmark-size (src/main.trn:10:18-10:29) */
+            /* terrane-site-row: site 0: /benchmark-gamma-survival-calibration::benchmark-size (src/main.trn:9:18-9:29) */
             Site {
                 function: 0,
                 file: 0,
-                line: 10,
+                line: 9,
                 column: 18,
-                end_line: 10,
+                end_line: 9,
                 end_column: 29,
             }
         },
         {
-            /* terrane-site-row: site 1: /benchmark-gamma-survival-calibration::benchmark-size (src/main.trn:10:18-10:44) */
+            /* terrane-site-row: site 1: /benchmark-gamma-survival-calibration::benchmark-size (src/main.trn:9:18-9:44) */
             Site {
                 function: 0,
                 file: 0,
-                line: 10,
+                line: 9,
                 column: 18,
-                end_line: 10,
+                end_line: 9,
                 end_column: 44,
             }
         },
         {
-            /* terrane-site-row: site 2: /benchmark-gamma-survival-calibration::benchmark-size (src/main.trn:10:17-10:45) */
+            /* terrane-site-row: site 2: /benchmark-gamma-survival-calibration::benchmark-size (src/main.trn:9:17-9:45) */
             Site {
                 function: 0,
                 file: 0,
-                line: 10,
+                line: 9,
                 column: 17,
-                end_line: 10,
+                end_line: 9,
                 end_column: 45,
             }
         },
         {
-            /* terrane-site-row: site 3: /benchmark-gamma-survival-calibration::lower-gamma-ratio (src/main.trn:48:5-48:16) */
+            /* terrane-site-row: site 3: /benchmark-gamma-survival-calibration::lower-gamma-ratio (src/main.trn:47:5-47:16) */
             Site {
                 function: 1,
                 file: 0,
-                line: 48,
+                line: 47,
                 column: 5,
-                end_line: 48,
+                end_line: 47,
                 end_column: 16,
             }
         },
         {
-            /* terrane-site-row: site 4: /benchmark-gamma-survival-calibration::main (src/main.trn:92:26-92:36) */
+            /* terrane-site-row: site 4: /benchmark-gamma-survival-calibration::main (src/main.trn:91:26-91:36) */
+            Site {
+                function: 2,
+                file: 0,
+                line: 91,
+                column: 26,
+                end_line: 91,
+                end_column: 36,
+            }
+        },
+        {
+            /* terrane-site-row: site 5: /benchmark-gamma-survival-calibration::main (src/main.trn:92:32-92:43) */
             Site {
                 function: 2,
                 file: 0,
                 line: 92,
-                column: 26,
-                end_line: 92,
-                end_column: 36,
-            }
-        },
-        {
-            /* terrane-site-row: site 5: /benchmark-gamma-survival-calibration::main (src/main.trn:93:32-93:43) */
-            Site {
-                function: 2,
-                file: 0,
-                line: 93,
                 column: 32,
-                end_line: 93,
+                end_line: 92,
                 end_column: 43,
             }
         },
         {
-            /* terrane-site-row: site 6: /benchmark-gamma-survival-calibration::main (src/main.trn:94:27-94:36) */
+            /* terrane-site-row: site 6: /benchmark-gamma-survival-calibration::main (src/main.trn:93:27-93:36) */
             Site {
                 function: 2,
                 file: 0,
-                line: 94,
+                line: 93,
                 column: 27,
-                end_line: 94,
+                end_line: 93,
                 end_column: 36,
             }
         },
         {
-            /* terrane-site-row: site 7: /benchmark-gamma-survival-calibration::main (src/main.trn:101:5-101:12) */
+            /* terrane-site-row: site 7: /benchmark-gamma-survival-calibration::main (src/main.trn:100:5-100:12) */
             Site {
                 function: 2,
                 file: 0,
-                line: 101,
+                line: 100,
                 column: 5,
-                end_line: 101,
+                end_line: 100,
                 end_column: 12,
             }
         },
         {
-            /* terrane-site-row: site 8: /benchmark-gamma-survival-calibration::main (src/main.trn:102:21-102:26) */
+            /* terrane-site-row: site 8: /benchmark-gamma-survival-calibration::main (src/main.trn:101:21-101:26) */
             Site {
                 function: 2,
                 file: 0,
-                line: 102,
+                line: 101,
                 column: 21,
-                end_line: 102,
+                end_line: 101,
                 end_column: 26,
             }
         },
@@ -617,18 +617,18 @@ fn benchmark_size() -> i64 {
                                         terrane_collection_support::index_from_int(
                                             &terrane_int_support::Int::from(0_i128),
                                         ),
-                                        0 /* terrane-site: src/main.trn:10:18-10:29 */,
+                                        0 /* terrane-site: src/main.trn:9:18-9:29 */,
                                     ),
                                 ),
-                            0 /* terrane-site: src/main.trn:10:18-10:29 */,
+                            0 /* terrane-site: src/main.trn:9:18-9:29 */,
                         )
                         .text,
                     &10,
                 ),
-                1 /* terrane-site: src/main.trn:10:18-10:44 */,
+                1 /* terrane-site: src/main.trn:9:18-9:44 */,
             ),
         ),
-        2 /* terrane-site: src/main.trn:10:17-10:45 */,
+        2 /* terrane-site: src/main.trn:9:17-9:45 */,
     );
     if count <= 0 {
         exit(make_exit_status(terrane_int_support::Int::from(2_i128)));
@@ -668,7 +668,7 @@ fn lower_gamma_ratio(shape: f64, observation: f64, gamma_log: f64) -> f64 {
         }
         iteration = __terrane_raised(
             terrane_int_support::fixed_addition(iteration, 1),
-            3 /* terrane-site: src/main.trn:48:5-48:16 */,
+            3 /* terrane-site: src/main.trn:47:5-47:16 */,
         );
     }
     let exponent: f64 = shape.mul_add(observation.ln(), 0.0 - observation - gamma_log);
@@ -719,15 +719,15 @@ fn main() {
     while index < count {
         let shape_part: f64 = __terrane_raised(
             terrane_int_support::exact_fixed_f64(index.rem_euclid(17)),
-            4 /* terrane-site: src/main.trn:92:26-92:36 */,
+            4 /* terrane-site: src/main.trn:91:26-91:36 */,
         );
         let observation_part: f64 = __terrane_raised(
             terrane_int_support::exact_fixed_f64(index.rem_euclid(101)),
-            5 /* terrane-site: src/main.trn:93:32-93:43 */,
+            5 /* terrane-site: src/main.trn:92:32-92:43 */,
         );
         let target_part: f64 = __terrane_raised(
             terrane_int_support::exact_fixed_f64(index.rem_euclid(7)),
-            6 /* terrane-site: src/main.trn:94:27-94:36 */,
+            6 /* terrane-site: src/main.trn:93:27-93:36 */,
         );
         let shape: f64 = 1.25 + shape_part * 0.125;
         let observation: f64 = 0.5 + observation_part * 0.05;
@@ -737,12 +737,12 @@ fn main() {
         total = residual.mul_add(residual, total);
         index = __terrane_raised(
             terrane_int_support::fixed_addition(index, 1),
-            7 /* terrane-site: src/main.trn:101:5-101:12 */,
+            7 /* terrane-site: src/main.trn:100:5-100:12 */,
         );
     }
     let divisor: f64 = __terrane_raised(
         terrane_int_support::exact_fixed_f64(count),
-        8 /* terrane-site: src/main.trn:102:21-102:26 */,
+        8 /* terrane-site: src/main.trn:101:21-101:26 */,
     );
     println!("{}", terrane_scalar_support::scalar_text(&(total / divisor)));
 }

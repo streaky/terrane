@@ -1,6 +1,5 @@
 namespace benchmark-fused-transform-reduction
 
-from /core/output import print
 from /standard/process import platform-string, arguments, exit, make-exit-status
 
 function benchmark-size int64;
