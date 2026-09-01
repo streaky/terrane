@@ -372,6 +372,7 @@ pub(crate) fn lower(package: &SemanticPackage) -> Program {
                 current_object: None,
                 try_completion: false,
                 in_loop: false,
+                bounded_integer_ranges: Vec::new(),
                 closure_depth: 0,
             };
             emitter.emit_union_types();
@@ -660,6 +661,13 @@ fn emit_dependency_unit(package: &SemanticPackage, unit: &SemanticUnit) -> Strin
     output
 }
 
+#[derive(Clone, Debug)]
+struct BoundedIntegerRange {
+    binding: crate::Span,
+    lower: BigInt,
+    upper: BigInt,
+}
+
 #[expect(
     clippy::struct_excessive_bools,
     reason = "these independent lexical control contexts are saved and restored separately"
@@ -686,6 +694,7 @@ struct Emitter<'a> {
     try_completion: bool,
     in_loop: bool,
     closure_depth: usize,
+    bounded_integer_ranges: Vec<BoundedIntegerRange>,
 }
 
 fn package_uses_task_scope(package: &SemanticPackage) -> bool {
@@ -1357,6 +1366,7 @@ fn emit_global_storage(
             current_object: None,
             try_completion: false,
             in_loop: false,
+            bounded_integer_ranges: Vec::new(),
             closure_depth: 0,
         };
         let value_type = unit
@@ -1419,6 +1429,7 @@ fn emit_global_storage(
                 current_object: None,
                 try_completion: false,
                 in_loop: false,
+                bounded_integer_ranges: Vec::new(),
                 closure_depth: 0,
             };
             Some(initial_emitter.expression_as(initializer, ValueType::Scalar(scalar)))
@@ -3198,6 +3209,14 @@ impl Emitter<'_> {
             return format!("{value}.clone() {operator} terrane_int_support::Int::from(1_i128)");
         }
         if matches!(value_type, Some(ValueType::Scalar(ty)) if ty.is_integer()) {
+            if addition
+                && node
+                    .children
+                    .first()
+                    .is_some_and(|target| self.binding_has_bounded_integer_range(target))
+            {
+                return format!("{value} + 1");
+            }
             let helper = if addition {
                 "fixed_addition"
             } else {
@@ -3237,17 +3256,24 @@ impl Emitter<'_> {
         }
         self.line("}");
     }
-
     fn while_statement(&mut self, node: &SyntaxNode) {
         let [condition, block] = node.children.as_slice() else {
             return;
         };
+        let bounded_range = self.bounded_integer_range(condition, block);
+        let has_bounded_range = bounded_range.is_some();
         let condition = self.control_condition(condition);
         self.line(&format!("while {condition} {{"));
         self.indent += 1;
         let outer_continue = self.continue_label.take();
         let outer_loop = std::mem::replace(&mut self.in_loop, true);
+        if let Some(range) = bounded_range {
+            self.bounded_integer_ranges.push(range);
+        }
         self.block(block);
+        if has_bounded_range {
+            self.bounded_integer_ranges.pop();
+        }
         self.in_loop = outer_loop;
         self.continue_label = outer_continue;
         self.indent -= 1;
@@ -4149,6 +4175,11 @@ impl Emitter<'_> {
                 _ => None,
             }
         {
+            let positive_literal_remainder = source_operator == "%"
+                && matches!(
+                    contextual_constant(self.source, right, operation_type),
+                    Some(Ok(ContextualConstant::Integer(value))) if value > BigInt::from(0_u8)
+                );
             let operation_type = ValueType::Scalar(operation_type);
             let left = Self::unwrapped_expression(self.expression_as(left, operation_type.clone()));
             let right = if matches!(source_operator, "<<" | ">>") {
@@ -4161,6 +4192,9 @@ impl Emitter<'_> {
             } else {
                 right
             };
+            if positive_literal_remainder {
+                return format!("({left}).rem_euclid({right})");
+            }
             let call = format!("terrane_int_support::fixed_{operation}({left}, {right})");
             return self.fallible(call, node);
         }
@@ -5896,7 +5930,9 @@ impl Emitter<'_> {
             return format!("(({value}) as f64)");
         }
         if source.is_integer() {
-            if exact_integer_float_widening(source, destination) {
+            if exact_integer_float_widening(source, destination)
+                || self.bounded_float_conversion_is_exact(node, destination)
+            {
                 return format!("(({value}) as {})", rust_type(destination));
             }
             let helper = if destination == ScalarType::Float32 {
@@ -6413,6 +6449,123 @@ impl Emitter<'_> {
                     .map(|span| namespace_binding_name(span.file, &symbol.name))
             })
             .unwrap_or_else(|| rust_name(self.text(node)))
+    }
+
+    fn local_typed_binding(&self, node: &SyntaxNode) -> Option<&TypedBinding> {
+        (node.kind == SyntaxKind::Name)
+            .then(|| {
+                self.unit.typed_bindings.iter().rev().find(|binding| {
+                    binding.name == self.text(node)
+                        && binding.is_visible_at(self.source.id(), node.span.start)
+                        && !self.is_namespace_binding_span(binding.span)
+                })
+            })
+            .flatten()
+    }
+
+    fn binding_has_bounded_integer_range(&self, node: &SyntaxNode) -> bool {
+        self.local_typed_binding(node).is_some_and(|binding| {
+            self.bounded_integer_ranges
+                .iter()
+                .rev()
+                .any(|range| range.binding == binding.span)
+        })
+    }
+
+    fn bounded_integer_range(
+        &self,
+        condition: &SyntaxNode,
+        block: &SyntaxNode,
+    ) -> Option<BoundedIntegerRange> {
+        let [left, right] = condition.children.as_slice() else {
+            return None;
+        };
+        (self.source.text()[left.span.end..right.span.start].trim() == "<").then_some(())?;
+        let binding = self.local_typed_binding(left)?;
+        let ValueType::Scalar(storage) = binding.value_type else {
+            return None;
+        };
+        fixed_integer_shape(storage)?;
+        let ContextualConstant::Integer(upper) =
+            contextual_constant(self.source, right, storage)?.ok()?
+        else {
+            return None;
+        };
+        let declaration = find_node_by_span(&self.unit.tree.root, binding.span)?;
+        let name_index = declaration
+            .children
+            .iter()
+            .position(|child| child.kind == SyntaxKind::Name)?;
+        let initializer = binding_initializer(declaration, name_index)?;
+        let ContextualConstant::Integer(lower) =
+            contextual_constant(self.source, initializer, storage)?.ok()?
+        else {
+            return None;
+        };
+        (lower <= upper).then_some(())?;
+
+        let direct_increment_count = block
+            .children
+            .iter()
+            .filter(|statement| {
+                statement.kind == SyntaxKind::PostfixExpression
+                    && statement.children.first().is_some_and(|target| {
+                        self.local_typed_binding(target)
+                            .is_some_and(|target_binding| target_binding.span == binding.span)
+                    })
+                    && self.source.text()[statement.span.start..statement.span.end]
+                        .trim_end()
+                        .ends_with("++")
+            })
+            .count();
+        (direct_increment_count == 1).then_some(())?;
+
+        fn mutation_count(
+            emitter: &Emitter<'_>,
+            node: &SyntaxNode,
+            binding: &TypedBinding,
+        ) -> usize {
+            let own = usize::from(
+                matches!(
+                    node.kind,
+                    SyntaxKind::Assignment | SyntaxKind::PostfixExpression
+                ) && node.children.first().is_some_and(|target| {
+                    emitter
+                        .local_typed_binding(target)
+                        .is_some_and(|target_binding| target_binding.span == binding.span)
+                }),
+            );
+            own + node
+                .children
+                .iter()
+                .map(|child| mutation_count(emitter, child, binding))
+                .sum::<usize>()
+        }
+        (mutation_count(self, block, binding) == 1).then_some(())?;
+        Some(BoundedIntegerRange {
+            binding: binding.span,
+            lower,
+            upper,
+        })
+    }
+
+    fn bounded_float_conversion_is_exact(
+        &self,
+        node: &SyntaxNode,
+        destination: ScalarType,
+    ) -> bool {
+        let Some(binding) = self.local_typed_binding(node) else {
+            return false;
+        };
+        let precision = match destination {
+            ScalarType::Float32 => 24,
+            ScalarType::Float64 => 53,
+            _ => return false,
+        };
+        let limit = BigInt::from(1_u8) << precision;
+        self.bounded_integer_ranges.iter().rev().any(|range| {
+            range.binding == binding.span && range.lower >= -&limit && range.upper <= limit
+        })
     }
 
     fn small_int_binding(&self, node: &SyntaxNode) -> Option<ScalarType> {
