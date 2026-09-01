@@ -930,9 +930,11 @@ content-addressed support crates, manifests, compiler/source metadata, and a bui
 compiler version, source and support content, target, profile, and command-relevant environment.
 Successful checks and native executables are retained under that identity; stale generated
 identities are bounded by last use. `build --release` and `run --release` select Cargo's optimized
-release profile, with development and release executables cached separately. `check`, `build`, and
-`run` share captured Cargo execution when an artifact is absent; `rust` renders authored output plus
-authored-module and vendored-support path lists.
+release profile, with development and release executables cached separately. Generated release
+manifests explicitly enable ThinLTO with Cargo's default codegen-unit count; this is a toolchain
+policy for every generated crate rather than benchmark-specific source tuning. `check`, `build`,
+and `run` share captured Cargo execution when an artifact is absent; `rust` renders authored output
+plus authored-module and vendored-support path lists.
 Pipeline and CLI tests pin byte identity, generated authored and support files, artifact
 reuse, eviction, generated file layout, and strict canonical-format rejection; compile/run
 conformance cases validate the generated crates with warnings denied.
@@ -1816,11 +1818,13 @@ canonical and executes warning-free.
 
 Implemented increment: both widths additionally expose the `absolute` zero-argument method,
 `finite`, `infinite`, and `not-a-number` classification properties, plus same-width `minimum`,
-`maximum`, and fused `multiply-add`
-operations. Their generated Rust is direct primitive scalar code. The foundational conformance case
-covers both widths and distinguishes fused from unfused rounding; focused rejection cases cover
-operation arity and argument type. The pure-Terrane gamma benchmark uses the native absolute value
-and fused operation in its hot numerical path.
+`maximum`, and fused `multiply-add` operations. Their generated Rust is direct primitive scalar
+code. The foundational conformance case covers both widths, bound member values, IEEE edge cases,
+and fused-versus-unfused rounding; focused rejection cases cover operation arity, argument type,
+and attempted invocation of a non-callable property. Its generated crate is canonical,
+warning-free, and executable. The pure-Terrane gamma scientific benchmark uses `absolute` and
+`multiply-add` in its hot numerical path; the paired Bessel and gamma workloads pass the shared
+scientific-stack correctness contracts without importing a scientific mathematics package.
 
 Deliver:
 
@@ -1828,9 +1832,8 @@ Deliver:
 - remaining exponentials and logarithms: base-two exponential, near-zero exponential-minus-one,
   near-one natural logarithm, and base-two, base-ten, and arbitrary-base logarithms;
 - remaining trigonometry: tangent, inverse sine/cosine/tangent, and two-argument arctangent;
-- basic scalar utilities: absolute value, copied sign, sign-bit query, minimum, maximum, clamp,
-  fractional-part extraction, and fused multiply-add;
-- complete IEEE classification, including zero, normal, subnormal, finite, infinite, and NaN;
+- remaining scalar utilities: copied sign, sign-bit query, clamp, and fractional-part extraction;
+- remaining IEEE classification: zero, normal, and subnormal;
 - numerical-algorithm utilities: next representable value upward and downward, mantissa/exponent
   decomposition, and exact scaling by an integral power of two;
 - descriptor constants for radix, significand precision, epsilon, minimum positive normal and
