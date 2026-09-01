@@ -12,11 +12,6 @@ function benchmark-size int64;
     exit; (make-exit-status; 2)
   return count
 
-function absolute float64; value float64
-  if value < 0
-    return 0.0 - value
-  return value
-
 
 function log-gamma float64; value float64
   y float64 = value
@@ -48,10 +43,11 @@ function lower-gamma-ratio float64; shape float64, observation float64, gamma-lo
     current-shape = current-shape + 1
     term = term * observation / current-shape
     total = total + term
-    if (absolute; term) < (absolute; total) * 0.00000000000003
+    if term.absolute < total.absolute * 0.00000000000003
       break
     iteration++
-  scale float64 = (0.0 - observation + shape * observation.natural-log - gamma-log).exponential
+  exponent float64 = (shape.multiply-add; observation.natural-log, 0.0 - observation - gamma-log)
+  scale float64 = exponent.exponential
   return total * scale
 
 function upper-gamma-ratio float64; shape float64, observation float64, gamma-log float64
@@ -65,20 +61,21 @@ function upper-gamma-ratio float64; shape float64, observation float64, gamma-lo
   while iteration <= 100
     numerator float64 = (0.0 - iteration) * (iteration - shape)
     offset = offset + 2
-    denominator = numerator * denominator + offset
-    if (absolute; denominator) < floor
+    denominator = (numerator.multiply-add; denominator, offset)
+    if denominator.absolute < floor
       denominator = floor
     reciprocal-floor = offset + numerator / reciprocal-floor
-    if (absolute; reciprocal-floor) < floor
+    if reciprocal-floor.absolute < floor
       reciprocal-floor = floor
     denominator = 1 / denominator
     correction float64 = denominator * reciprocal-floor
     product = product * correction
-    if (absolute; correction - 1) < 0.00000000000003
+    if (correction - 1).absolute < 0.00000000000003
       break
     iteration = iteration + 1
 
-  scale float64 = (0.0 - observation + shape * observation.natural-log - gamma-log).exponential
+  exponent float64 = (shape.multiply-add; observation.natural-log, 0.0 - observation - gamma-log)
+  scale float64 = exponent.exponential
   return scale * product
 
 function gamma-survival float64; shape float64, observation float64
@@ -100,7 +97,7 @@ function main;
     target float64 = 0.2 + target-part * 0.1
     survival float64 = (gamma-survival; shape, observation)
     residual float64 = survival - target
-    total = total + residual * residual
+    total = (residual.multiply-add; residual, total)
     index++
   divisor float64 = count
   print; total / divisor

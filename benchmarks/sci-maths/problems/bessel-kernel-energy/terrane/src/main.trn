@@ -12,14 +12,9 @@ function benchmark-size int64;
     exit; (make-exit-status; 2)
   return count
 
-function absolute float64; value float64
-  if value < 0
-    return 0.0 - value
-  return value
-
 
 function bessel-j0 float64; argument float64
-  x float64 = (absolute; argument)
+  x float64 = argument.absolute
   if x < 8
     square float64 = x * x
     numerator float64 = 57568490574 + square * (0 - 13362590354 + square * (651619640.7 + square * (0.0 - 11214424.18 + square * (77392.33017 + square * (0.0 - 184.9052456)))))
@@ -47,7 +42,7 @@ function main;
     right-index int64 = 0
     while right-index < count
       right float64 = (coordinate; right-index)
-      distance float64 = (absolute; left - right)
+      distance float64 = (left - right).absolute
       argument float64 = 18 * distance
       value float64 = (bessel-j0; argument)
       total = total + value / (1 + 4 * distance * distance)

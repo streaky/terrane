@@ -420,68 +420,68 @@ mod __terrane_trace {
             }
         },
         {
-            /* terrane-site-row: site 3: /benchmark-gamma-survival-calibration::lower-gamma-ratio (src/main.trn:53:5-53:16) */
+            /* terrane-site-row: site 3: /benchmark-gamma-survival-calibration::lower-gamma-ratio (src/main.trn:48:5-48:16) */
             Site {
                 function: 1,
                 file: 0,
-                line: 53,
+                line: 48,
                 column: 5,
-                end_line: 53,
+                end_line: 48,
                 end_column: 16,
             }
         },
         {
-            /* terrane-site-row: site 4: /benchmark-gamma-survival-calibration::main (src/main.trn:95:26-95:36) */
+            /* terrane-site-row: site 4: /benchmark-gamma-survival-calibration::main (src/main.trn:92:26-92:36) */
             Site {
                 function: 2,
                 file: 0,
-                line: 95,
+                line: 92,
                 column: 26,
-                end_line: 95,
+                end_line: 92,
                 end_column: 36,
             }
         },
         {
-            /* terrane-site-row: site 5: /benchmark-gamma-survival-calibration::main (src/main.trn:96:32-96:43) */
+            /* terrane-site-row: site 5: /benchmark-gamma-survival-calibration::main (src/main.trn:93:32-93:43) */
             Site {
                 function: 2,
                 file: 0,
-                line: 96,
+                line: 93,
                 column: 32,
-                end_line: 96,
+                end_line: 93,
                 end_column: 43,
             }
         },
         {
-            /* terrane-site-row: site 6: /benchmark-gamma-survival-calibration::main (src/main.trn:97:27-97:36) */
+            /* terrane-site-row: site 6: /benchmark-gamma-survival-calibration::main (src/main.trn:94:27-94:36) */
             Site {
                 function: 2,
                 file: 0,
-                line: 97,
+                line: 94,
                 column: 27,
-                end_line: 97,
+                end_line: 94,
                 end_column: 36,
             }
         },
         {
-            /* terrane-site-row: site 7: /benchmark-gamma-survival-calibration::main (src/main.trn:104:5-104:12) */
+            /* terrane-site-row: site 7: /benchmark-gamma-survival-calibration::main (src/main.trn:101:5-101:12) */
             Site {
                 function: 2,
                 file: 0,
-                line: 104,
+                line: 101,
                 column: 5,
-                end_line: 104,
+                end_line: 101,
                 end_column: 12,
             }
         },
         {
-            /* terrane-site-row: site 8: /benchmark-gamma-survival-calibration::main (src/main.trn:105:21-105:26) */
+            /* terrane-site-row: site 8: /benchmark-gamma-survival-calibration::main (src/main.trn:102:21-102:26) */
             Site {
                 function: 2,
                 file: 0,
-                line: 105,
+                line: 102,
                 column: 21,
-                end_line: 105,
+                end_line: 102,
                 end_column: 26,
             }
         },
@@ -635,12 +635,6 @@ fn benchmark_size() -> i64 {
     }
     return count;
 }
-fn absolute(value: f64) -> f64 {
-    if value < 0.0_f64 {
-        return 0.0 - value;
-    }
-    return value;
-}
 fn log_gamma(value: f64) -> f64 {
     let mut y: f64 = value;
     let shifted: f64 = value + 5.5;
@@ -669,15 +663,16 @@ fn lower_gamma_ratio(shape: f64, observation: f64, gamma_log: f64) -> f64 {
         current_shape = current_shape + 1.0_f64;
         term = term * observation / current_shape;
         total = total + term;
-        if absolute(term) < absolute(total) * 0.00000000000003 {
+        if term.abs() < total.abs() * 0.00000000000003 {
             break;
         }
         iteration = __terrane_raised(
             terrane_int_support::fixed_addition(iteration, 1),
-            3 /* terrane-site: src/main.trn:53:5-53:16 */,
+            3 /* terrane-site: src/main.trn:48:5-48:16 */,
         );
     }
-    let scale: f64 = (0.0 - observation + shape * observation.ln() - gamma_log).exp();
+    let exponent: f64 = shape.mul_add(observation.ln(), 0.0 - observation - gamma_log);
+    let scale: f64 = exponent.exp();
     return total * scale;
 }
 fn upper_gamma_ratio(shape: f64, observation: f64, gamma_log: f64) -> f64 {
@@ -690,23 +685,24 @@ fn upper_gamma_ratio(shape: f64, observation: f64, gamma_log: f64) -> f64 {
     while iteration <= 100.0_f64 {
         let numerator: f64 = (0.0 - iteration) * (iteration - shape);
         offset = offset + 2.0_f64;
-        denominator = numerator * denominator + offset;
-        if absolute(denominator) < floor {
+        denominator = numerator.mul_add(denominator, offset);
+        if denominator.abs() < floor {
             denominator = floor;
         }
         reciprocal_floor = offset + numerator / reciprocal_floor;
-        if absolute(reciprocal_floor) < floor {
+        if reciprocal_floor.abs() < floor {
             reciprocal_floor = floor;
         }
         denominator = 1.0_f64 / denominator;
         let correction: f64 = denominator * reciprocal_floor;
         product = product * correction;
-        if absolute(correction - 1.0_f64) < 0.00000000000003 {
+        if (correction - 1.0_f64).abs() < 0.00000000000003 {
             break;
         }
         iteration = iteration + 1.0_f64;
     }
-    let scale: f64 = (0.0 - observation + shape * observation.ln() - gamma_log).exp();
+    let exponent: f64 = shape.mul_add(observation.ln(), 0.0 - observation - gamma_log);
+    let scale: f64 = exponent.exp();
     return scale * product;
 }
 fn gamma_survival(shape: f64, observation: f64) -> f64 {
@@ -722,46 +718,31 @@ fn main() {
     let mut index: i64 = 0;
     while index < count {
         let shape_part: f64 = __terrane_raised(
-            terrane_int_support::exact_fixed_f64(
-                __terrane_raised(
-                    terrane_int_support::fixed_remainder(index, 17),
-                    4 /* terrane-site: src/main.trn:95:26-95:36 */,
-                ),
-            ),
-            4 /* terrane-site: src/main.trn:95:26-95:36 */,
+            terrane_int_support::exact_fixed_f64(index.rem_euclid(17)),
+            4 /* terrane-site: src/main.trn:92:26-92:36 */,
         );
         let observation_part: f64 = __terrane_raised(
-            terrane_int_support::exact_fixed_f64(
-                __terrane_raised(
-                    terrane_int_support::fixed_remainder(index, 101),
-                    5 /* terrane-site: src/main.trn:96:32-96:43 */,
-                ),
-            ),
-            5 /* terrane-site: src/main.trn:96:32-96:43 */,
+            terrane_int_support::exact_fixed_f64(index.rem_euclid(101)),
+            5 /* terrane-site: src/main.trn:93:32-93:43 */,
         );
         let target_part: f64 = __terrane_raised(
-            terrane_int_support::exact_fixed_f64(
-                __terrane_raised(
-                    terrane_int_support::fixed_remainder(index, 7),
-                    6 /* terrane-site: src/main.trn:97:27-97:36 */,
-                ),
-            ),
-            6 /* terrane-site: src/main.trn:97:27-97:36 */,
+            terrane_int_support::exact_fixed_f64(index.rem_euclid(7)),
+            6 /* terrane-site: src/main.trn:94:27-94:36 */,
         );
         let shape: f64 = 1.25 + shape_part * 0.125;
         let observation: f64 = 0.5 + observation_part * 0.05;
         let target: f64 = 0.2 + target_part * 0.1;
         let survival: f64 = gamma_survival(shape, observation);
         let residual: f64 = survival - target;
-        total = total + residual * residual;
+        total = residual.mul_add(residual, total);
         index = __terrane_raised(
             terrane_int_support::fixed_addition(index, 1),
-            7 /* terrane-site: src/main.trn:104:5-104:12 */,
+            7 /* terrane-site: src/main.trn:101:5-101:12 */,
         );
     }
     let divisor: f64 = __terrane_raised(
         terrane_int_support::exact_fixed_f64(count),
-        8 /* terrane-site: src/main.trn:105:21-105:26 */,
+        8 /* terrane-site: src/main.trn:102:21-102:26 */,
     );
     println!("{}", terrane_scalar_support::scalar_text(&(total / divisor)));
 }

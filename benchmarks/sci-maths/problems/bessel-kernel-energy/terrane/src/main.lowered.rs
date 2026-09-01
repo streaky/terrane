@@ -420,57 +420,57 @@ mod __terrane_trace {
             }
         },
         {
-            /* terrane-site-row: site 3: /benchmark-bessel-kernel-energy::coordinate (src/main.trn:38:18-38:28) */
+            /* terrane-site-row: site 3: /benchmark-bessel-kernel-energy::coordinate (src/main.trn:33:18-33:28) */
             Site {
                 function: 1,
                 file: 0,
-                line: 38,
+                line: 33,
                 column: 18,
-                end_line: 38,
+                end_line: 33,
                 end_column: 28,
             }
         },
         {
-            /* terrane-site-row: site 4: /benchmark-bessel-kernel-energy::coordinate (src/main.trn:38:17-38:36) */
+            /* terrane-site-row: site 4: /benchmark-bessel-kernel-energy::coordinate (src/main.trn:33:17-33:36) */
             Site {
                 function: 1,
                 file: 0,
-                line: 38,
+                line: 33,
                 column: 17,
-                end_line: 38,
+                end_line: 33,
                 end_column: 36,
             }
         },
         {
-            /* terrane-site-row: site 5: /benchmark-bessel-kernel-energy::main (src/main.trn:54:7-54:20) */
+            /* terrane-site-row: site 5: /benchmark-bessel-kernel-energy::main (src/main.trn:49:7-49:20) */
             Site {
                 function: 2,
                 file: 0,
-                line: 54,
+                line: 49,
                 column: 7,
-                end_line: 54,
+                end_line: 49,
                 end_column: 20,
             }
         },
         {
-            /* terrane-site-row: site 6: /benchmark-bessel-kernel-energy::main (src/main.trn:55:5-55:17) */
+            /* terrane-site-row: site 6: /benchmark-bessel-kernel-energy::main (src/main.trn:50:5-50:17) */
             Site {
                 function: 2,
                 file: 0,
-                line: 55,
+                line: 50,
                 column: 5,
-                end_line: 55,
+                end_line: 50,
                 end_column: 17,
             }
         },
         {
-            /* terrane-site-row: site 7: /benchmark-bessel-kernel-energy::main (src/main.trn:56:24-56:37) */
+            /* terrane-site-row: site 7: /benchmark-bessel-kernel-energy::main (src/main.trn:51:24-51:37) */
             Site {
                 function: 2,
                 file: 0,
-                line: 56,
+                line: 51,
                 column: 24,
-                end_line: 56,
+                end_line: 51,
                 end_column: 37,
             }
         },
@@ -624,14 +624,8 @@ fn benchmark_size() -> i64 {
     }
     return count;
 }
-fn absolute(value: f64) -> f64 {
-    if value < 0.0_f64 {
-        return 0.0 - value;
-    }
-    return value;
-}
 fn bessel_j0(argument: f64) -> f64 {
-    let x: f64 = absolute(argument);
+    let x: f64 = argument.abs();
     if x < 8.0_f64 {
         let square: f64 = x * x;
         let numerator: f64 = 57568490574.0_f64
@@ -672,17 +666,12 @@ fn coordinate(index: i64) -> f64 {
     let raw: f64 = __terrane_raised(
         terrane_int_support::exact_fixed_f64(
             __terrane_raised(
-                terrane_int_support::fixed_remainder(
-                    __terrane_raised(
-                        terrane_int_support::fixed_multiplication(index, 37),
-                        3 /* terrane-site: src/main.trn:38:18-38:28 */,
-                    ),
-                    1009,
-                ),
-                4 /* terrane-site: src/main.trn:38:17-38:36 */,
-            ),
+                    terrane_int_support::fixed_multiplication(index, 37),
+                    3 /* terrane-site: src/main.trn:33:18-33:28 */,
+                )
+                .rem_euclid(1009),
         ),
-        4 /* terrane-site: src/main.trn:38:17-38:36 */,
+        4 /* terrane-site: src/main.trn:33:17-33:36 */,
     );
     return raw / 1009.0_f64;
 }
@@ -695,28 +684,28 @@ fn main() {
         let mut right_index: i64 = 0;
         while right_index < count {
             let right: f64 = coordinate(right_index);
-            let distance: f64 = absolute(left - right);
+            let distance: f64 = (left - right).abs();
             let argument: f64 = 18.0_f64 * distance;
             let value: f64 = bessel_j0(argument);
             total = total + value / (1.0_f64 + 4.0_f64 * distance * distance);
             right_index = __terrane_raised(
                 terrane_int_support::fixed_addition(right_index, 1),
-                5 /* terrane-site: src/main.trn:54:7-54:20 */,
+                5 /* terrane-site: src/main.trn:49:7-49:20 */,
             );
         }
         left_index = __terrane_raised(
             terrane_int_support::fixed_addition(left_index, 1),
-            6 /* terrane-site: src/main.trn:55:5-55:17 */,
+            6 /* terrane-site: src/main.trn:50:5-50:17 */,
         );
     }
     let pair_count: f64 = __terrane_raised(
         terrane_int_support::exact_fixed_f64(
             __terrane_raised(
                 terrane_int_support::fixed_multiplication(count, count),
-                7 /* terrane-site: src/main.trn:56:24-56:37 */,
+                7 /* terrane-site: src/main.trn:51:24-51:37 */,
             ),
         ),
-        7 /* terrane-site: src/main.trn:56:24-56:37 */,
+        7 /* terrane-site: src/main.trn:51:24-51:37 */,
     );
     println!("{}", terrane_scalar_support::scalar_text(&(total / pair_count)));
 }
