@@ -1,6 +1,5 @@
 namespace benchmark-standard-score-outliers
 
-from /core/output import print
 from /core/collections import list
 from /standard/process import platform-string, arguments, exit, make-exit-status
 

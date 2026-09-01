@@ -1,0 +1,1642 @@
+{
+  "format": 3,
+  "suite": "Terrane scientific mathematics and data workloads",
+  "groups": [
+    {
+      "id": "language-baseline",
+      "name": "Language baseline"
+    },
+    {
+      "id": "scientific-stack",
+      "name": "Scientific stack"
+    }
+  ],
+  "created_at": "2026-09-01T08:48:19.513502+00:00",
+  "environment": {
+    "platform": "Linux-6.18.42-1-cachyos-lts-x86_64-with-glibc2.44",
+    "kernel": "6.18.42-1-cachyos-lts",
+    "machine": "x86_64",
+    "cpu_model": "AMD Ryzen 9 3900XT 12-Core Processor",
+    "logical_cpus": 24,
+    "physical_cores": 12,
+    "memory_bytes": 101155639296,
+    "runner_python": "3.14.7",
+    "cpu_frequency_governor": "powersave",
+    "load_average": [
+      1.03466796875,
+      2.78857421875,
+      3.10302734375
+    ],
+    "inherited_performance_environment": {}
+  },
+  "measurement": {
+    "clock": "time.perf_counter",
+    "runs": 7,
+    "warmups": 2,
+    "cold_builds": false,
+    "setup_timeout_seconds": 300.0,
+    "runtime_timeout_seconds": 60.0,
+    "execution_timing": "process spawn to exit, as observed by the parent; setup and preparation complete before spawning",
+    "run_order": "problem-major and lane-minor within each warm-up or measured run index",
+    "build_cache": "existing adapter-declared caches preserved",
+    "memory": "peak cgroup-v2 memory charged to a fresh cgroup containing the launched process and all descendants",
+    "memory_available": true,
+    "memory_unavailable_reason": null,
+    "memory_recommendation": null,
+    "memory_limitations": "memory.peak includes anonymous memory, charged page cache, and kernel memory. Shared pages are charged once, potentially to a cgroup outside the measured execution, so small-footprint results depend on page-cache state and are not directly comparable across machines or reboots. It is not an RSS measurement."
+  },
+  "lane_setup": {
+    "terrane": {
+      "name": "Clean, idiomatic Terrane",
+      "metadata": {
+        "implementation": "Terrane compiler-generated Rust",
+        "native-build-profile": "Cargo release"
+      },
+      "environment": [
+        {
+          "command": [
+            "$repo/target/release/terrane",
+            "--version"
+          ],
+          "stdout": "terrane 0.1.0\n",
+          "stderr": ""
+        },
+        {
+          "command": [
+            "rustc",
+            "--version"
+          ],
+          "stdout": "rustc 1.93.0 (254b59607 2026-01-19)\n",
+          "stderr": ""
+        },
+        {
+          "command": [
+            "cargo",
+            "--version"
+          ],
+          "stdout": "cargo 1.93.0 (083ac5135 2025-12-15)\n",
+          "stderr": ""
+        }
+      ],
+      "measurement": {
+        "wall_seconds": 0.11754893500619801,
+        "peak_memory_bytes": 42651648,
+        "stderr": "",
+        "warning_lines": []
+      }
+    },
+    "python": {
+      "name": "Clean, idiomatic Python",
+      "metadata": {
+        "implementation": "system CPython using only the standard language and library",
+        "scientific-packages": false
+      },
+      "environment": [
+        {
+          "command": [
+            "python3",
+            "--version"
+          ],
+          "stdout": "Python 3.14.7\n",
+          "stderr": ""
+        }
+      ],
+      "measurement": null
+    },
+    "rust": {
+      "name": "Clean, idiomatic Rust control",
+      "metadata": {
+        "implementation": "standalone Rust compiled directly with rustc",
+        "native-build-profile": "opt-level=3, fat LTO, one codegen unit",
+        "scientific-packages": false
+      },
+      "environment": [
+        {
+          "command": [
+            "rustc",
+            "--version"
+          ],
+          "stdout": "rustc 1.93.0 (254b59607 2026-01-19)\n",
+          "stderr": ""
+        }
+      ],
+      "measurement": null
+    },
+    "python-scipy": {
+      "name": "Python scientific stack",
+      "metadata": {
+        "implementation": "CPython with vectorized NumPy and SciPy special functions",
+        "scientific-packages": true,
+        "native-build-profile": "official binary wheels from the locked uv environment"
+      },
+      "environment": [
+        {
+          "command": [
+            "$repo/benchmarks/sci-maths/scientific-python/.venv/bin/python",
+            "--version"
+          ],
+          "stdout": "Python 3.14.7\n",
+          "stderr": ""
+        },
+        {
+          "command": [
+            "$repo/benchmarks/sci-maths/scientific-python/.venv/bin/python",
+            "-c",
+            "import numpy, scipy; print(f'numpy {numpy.__version__}; scipy {scipy.__version__}')"
+          ],
+          "stdout": "numpy 2.5.2; scipy 1.18.1\n",
+          "stderr": ""
+        }
+      ],
+      "measurement": {
+        "wall_seconds": 0.010861196999030653,
+        "peak_memory_bytes": 20443136,
+        "stderr": "",
+        "warning_lines": []
+      }
+    },
+    "terrane-numr": {
+      "name": "Terrane with numr",
+      "metadata": {
+        "implementation": "Terrane using numr 0.7.0 through /deps",
+        "scientific-packages": true,
+        "native-build-profile": "Cargo release"
+      },
+      "environment": [
+        {
+          "command": [
+            "$repo/target/release/terrane",
+            "--version"
+          ],
+          "stdout": "terrane 0.1.0\n",
+          "stderr": ""
+        },
+        {
+          "command": [
+            "rustc",
+            "--version"
+          ],
+          "stdout": "rustc 1.93.0 (254b59607 2026-01-19)\n",
+          "stderr": ""
+        },
+        {
+          "command": [
+            "cargo",
+            "--version"
+          ],
+          "stdout": "cargo 1.93.0 (083ac5135 2025-12-15)\n",
+          "stderr": ""
+        }
+      ],
+      "measurement": {
+        "wall_seconds": 0.06548306799959391,
+        "peak_memory_bytes": 24772608,
+        "stderr": "",
+        "warning_lines": []
+      }
+    }
+  },
+  "results": [
+    {
+      "problem": "scalar-reduction",
+      "group": "language-baseline",
+      "title": "Deterministic sum-of-squares reduction",
+      "dataset": "For each index i, reduce ((i mod 1000) - 500)^2 without stored input.",
+      "correctness_profile": {
+        "size": 1000,
+        "expected": 83333500
+      },
+      "performance_profile": {
+        "size": 50000000,
+        "expected": 4166675000000
+      },
+      "lane": "terrane",
+      "correctness_result": 83333500,
+      "performance_result": 4166675000000,
+      "cold_prepare": null,
+      "incremental_prepare": {
+        "wall_seconds": 0.03996133100008592,
+        "peak_memory_bytes": 9175040,
+        "stderr": "",
+        "warning_lines": []
+      },
+      "runs": [
+        {
+          "wall_seconds": 0.0642500999965705,
+          "peak_memory_bytes": 815104,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.06603805300255772,
+          "peak_memory_bytes": 716800,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.0678080859943293,
+          "peak_memory_bytes": 790528,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.06381601399334613,
+          "peak_memory_bytes": 524288,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.0664434499994968,
+          "peak_memory_bytes": 786432,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.07030595299875131,
+          "peak_memory_bytes": 786432,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.06524042999808444,
+          "peak_memory_bytes": 786432,
+          "stderr": "",
+          "warning_lines": []
+        }
+      ]
+    },
+    {
+      "problem": "scalar-reduction",
+      "group": "language-baseline",
+      "title": "Deterministic sum-of-squares reduction",
+      "dataset": "For each index i, reduce ((i mod 1000) - 500)^2 without stored input.",
+      "correctness_profile": {
+        "size": 1000,
+        "expected": 83333500
+      },
+      "performance_profile": {
+        "size": 50000000,
+        "expected": 4166675000000
+      },
+      "lane": "python",
+      "correctness_result": 83333500,
+      "performance_result": 4166675000000,
+      "cold_prepare": null,
+      "incremental_prepare": null,
+      "runs": [
+        {
+          "wall_seconds": 4.594512943003792,
+          "peak_memory_bytes": 3928064,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 4.607350641002995,
+          "peak_memory_bytes": 4214784,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 4.574438613002712,
+          "peak_memory_bytes": 3960832,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 4.58448648799822,
+          "peak_memory_bytes": 4112384,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 4.578107989000273,
+          "peak_memory_bytes": 3735552,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 4.686257972003659,
+          "peak_memory_bytes": 3928064,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 4.690804728998046,
+          "peak_memory_bytes": 3735552,
+          "stderr": "",
+          "warning_lines": []
+        }
+      ]
+    },
+    {
+      "problem": "scalar-reduction",
+      "group": "language-baseline",
+      "title": "Deterministic sum-of-squares reduction",
+      "dataset": "For each index i, reduce ((i mod 1000) - 500)^2 without stored input.",
+      "correctness_profile": {
+        "size": 1000,
+        "expected": 83333500
+      },
+      "performance_profile": {
+        "size": 50000000,
+        "expected": 4166675000000
+      },
+      "lane": "rust",
+      "correctness_result": 83333500,
+      "performance_result": 4166675000000,
+      "cold_prepare": null,
+      "incremental_prepare": {
+        "wall_seconds": 2.1099423699997715,
+        "peak_memory_bytes": 147480576,
+        "stderr": "",
+        "warning_lines": []
+      },
+      "runs": [
+        {
+          "wall_seconds": 0.04846072999498574,
+          "peak_memory_bytes": 786432,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.04621971100277733,
+          "peak_memory_bytes": 786432,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.0468785150005715,
+          "peak_memory_bytes": 1048576,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.04741979999380419,
+          "peak_memory_bytes": 786432,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.03971450300014112,
+          "peak_memory_bytes": 524288,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.05341251299978467,
+          "peak_memory_bytes": 786432,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.038371565999113955,
+          "peak_memory_bytes": 524288,
+          "stderr": "",
+          "warning_lines": []
+        }
+      ]
+    },
+    {
+      "problem": "elementwise-materialized",
+      "group": "language-baseline",
+      "title": "Materialized quadratic element-wise transformation",
+      "dataset": "For each index i, x = (i mod 1000) / 100 and y = x^2 + 3x - 7; materialize y before reduction.",
+      "correctness_profile": {
+        "size": 1000,
+        "expected": 41268.35,
+        "absolute-tolerance": 1e-08,
+        "relative-tolerance": 0.0
+      },
+      "performance_profile": {
+        "size": 10000000,
+        "expected": 412683500.0,
+        "absolute-tolerance": 0.95,
+        "relative-tolerance": 0.0
+      },
+      "lane": "terrane",
+      "correctness_result": 41268.35000000002,
+      "performance_result": 412683499.9998618,
+      "cold_prepare": null,
+      "incremental_prepare": {
+        "wall_seconds": 0.03986179099592846,
+        "peak_memory_bytes": 9871360,
+        "stderr": "",
+        "warning_lines": []
+      },
+      "runs": [
+        {
+          "wall_seconds": 0.0996653529946343,
+          "peak_memory_bytes": 81805312,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.10799621399928583,
+          "peak_memory_bytes": 82313216,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.10021445900201797,
+          "peak_memory_bytes": 82309120,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.10620540200034156,
+          "peak_memory_bytes": 81784832,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.09198707600444322,
+          "peak_memory_bytes": 81809408,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.10574954700132366,
+          "peak_memory_bytes": 82845696,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.10077165300026536,
+          "peak_memory_bytes": 82317312,
+          "stderr": "",
+          "warning_lines": []
+        }
+      ]
+    },
+    {
+      "problem": "elementwise-materialized",
+      "group": "language-baseline",
+      "title": "Materialized quadratic element-wise transformation",
+      "dataset": "For each index i, x = (i mod 1000) / 100 and y = x^2 + 3x - 7; materialize y before reduction.",
+      "correctness_profile": {
+        "size": 1000,
+        "expected": 41268.35,
+        "absolute-tolerance": 1e-08,
+        "relative-tolerance": 0.0
+      },
+      "performance_profile": {
+        "size": 10000000,
+        "expected": 412683500.0,
+        "absolute-tolerance": 0.95,
+        "relative-tolerance": 0.0
+      },
+      "lane": "python",
+      "correctness_result": 41268.35,
+      "performance_result": 412683500.0,
+      "cold_prepare": null,
+      "incremental_prepare": null,
+      "runs": [
+        {
+          "wall_seconds": 1.8980236420029541,
+          "peak_memory_bytes": 407298048,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 1.8905289929971332,
+          "peak_memory_bytes": 406618112,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 1.8510043669957668,
+          "peak_memory_bytes": 406183936,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 1.852111608000996,
+          "peak_memory_bytes": 406532096,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 1.852022498002043,
+          "peak_memory_bytes": 407355392,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 1.9901583370010485,
+          "peak_memory_bytes": 406609920,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 1.8427331970015075,
+          "peak_memory_bytes": 406192128,
+          "stderr": "",
+          "warning_lines": []
+        }
+      ]
+    },
+    {
+      "problem": "elementwise-materialized",
+      "group": "language-baseline",
+      "title": "Materialized quadratic element-wise transformation",
+      "dataset": "For each index i, x = (i mod 1000) / 100 and y = x^2 + 3x - 7; materialize y before reduction.",
+      "correctness_profile": {
+        "size": 1000,
+        "expected": 41268.35,
+        "absolute-tolerance": 1e-08,
+        "relative-tolerance": 0.0
+      },
+      "performance_profile": {
+        "size": 10000000,
+        "expected": 412683500.0,
+        "absolute-tolerance": 0.95,
+        "relative-tolerance": 0.0
+      },
+      "lane": "rust",
+      "correctness_result": 41268.35000000002,
+      "performance_result": 412683499.9998618,
+      "cold_prepare": null,
+      "incremental_prepare": {
+        "wall_seconds": 2.2677046219978365,
+        "peak_memory_bytes": 158527488,
+        "stderr": "",
+        "warning_lines": []
+      },
+      "runs": [
+        {
+          "wall_seconds": 0.04095990100177005,
+          "peak_memory_bytes": 81526784,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.045460209003067575,
+          "peak_memory_bytes": 81506304,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.046425788998021744,
+          "peak_memory_bytes": 81264640,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.04403163099777885,
+          "peak_memory_bytes": 80502784,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.03508971800329164,
+          "peak_memory_bytes": 80502784,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.039174097997602075,
+          "peak_memory_bytes": 80506880,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.036903410000377335,
+          "peak_memory_bytes": 81264640,
+          "stderr": "",
+          "warning_lines": []
+        }
+      ]
+    },
+    {
+      "problem": "fused-transform-reduction",
+      "group": "language-baseline",
+      "title": "Fused rational transformation and reduction",
+      "dataset": "For each index i, x = (i mod 1000) / 100 and add (x^2 + 3x - 7) / (1 + x^2) directly to the reduction.",
+      "correctness_profile": {
+        "size": 1000,
+        "expected": 511.25451597539745,
+        "absolute-tolerance": 3.2e-10,
+        "relative-tolerance": 0.0
+      },
+      "performance_profile": {
+        "size": 20000000,
+        "expected": 10225090.319507949,
+        "absolute-tolerance": 0.13,
+        "relative-tolerance": 0.0
+      },
+      "lane": "terrane",
+      "correctness_result": 511.2545159753974,
+      "performance_result": 10225090.319585808,
+      "cold_prepare": null,
+      "incremental_prepare": {
+        "wall_seconds": 0.04928850199939916,
+        "peak_memory_bytes": 9699328,
+        "stderr": "",
+        "warning_lines": []
+      },
+      "runs": [
+        {
+          "wall_seconds": 0.06403404199954821,
+          "peak_memory_bytes": 921600,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.06676675599737791,
+          "peak_memory_bytes": 1097728,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.06869836800615303,
+          "peak_memory_bytes": 811008,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.05876080199959688,
+          "peak_memory_bytes": 524288,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.06400137300079223,
+          "peak_memory_bytes": 1048576,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.06978777699987404,
+          "peak_memory_bytes": 1048576,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.07045498200022848,
+          "peak_memory_bytes": 811008,
+          "stderr": "",
+          "warning_lines": []
+        }
+      ]
+    },
+    {
+      "problem": "fused-transform-reduction",
+      "group": "language-baseline",
+      "title": "Fused rational transformation and reduction",
+      "dataset": "For each index i, x = (i mod 1000) / 100 and add (x^2 + 3x - 7) / (1 + x^2) directly to the reduction.",
+      "correctness_profile": {
+        "size": 1000,
+        "expected": 511.25451597539745,
+        "absolute-tolerance": 3.2e-10,
+        "relative-tolerance": 0.0
+      },
+      "performance_profile": {
+        "size": 20000000,
+        "expected": 10225090.319507949,
+        "absolute-tolerance": 0.13,
+        "relative-tolerance": 0.0
+      },
+      "lane": "python",
+      "correctness_result": 511.25451597539745,
+      "performance_result": 10225090.319507949,
+      "cold_prepare": null,
+      "incremental_prepare": null,
+      "runs": [
+        {
+          "wall_seconds": 3.837804905997473,
+          "peak_memory_bytes": 3928064,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 3.8540491919993656,
+          "peak_memory_bytes": 4218880,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 3.749110347998794,
+          "peak_memory_bytes": 3952640,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 3.8743898589964374,
+          "peak_memory_bytes": 4190208,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 4.012356408995402,
+          "peak_memory_bytes": 3952640,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 3.8332233799956157,
+          "peak_memory_bytes": 3977216,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 4.007867681997595,
+          "peak_memory_bytes": 3739648,
+          "stderr": "",
+          "warning_lines": []
+        }
+      ]
+    },
+    {
+      "problem": "fused-transform-reduction",
+      "group": "language-baseline",
+      "title": "Fused rational transformation and reduction",
+      "dataset": "For each index i, x = (i mod 1000) / 100 and add (x^2 + 3x - 7) / (1 + x^2) directly to the reduction.",
+      "correctness_profile": {
+        "size": 1000,
+        "expected": 511.25451597539745,
+        "absolute-tolerance": 3.2e-10,
+        "relative-tolerance": 0.0
+      },
+      "performance_profile": {
+        "size": 20000000,
+        "expected": 10225090.319507949,
+        "absolute-tolerance": 0.13,
+        "relative-tolerance": 0.0
+      },
+      "lane": "rust",
+      "correctness_result": 511.2545159753974,
+      "performance_result": 10225090.319585808,
+      "cold_prepare": null,
+      "incremental_prepare": {
+        "wall_seconds": 2.297329241002444,
+        "peak_memory_bytes": 152653824,
+        "stderr": "",
+        "warning_lines": []
+      },
+      "runs": [
+        {
+          "wall_seconds": 0.06964075900032185,
+          "peak_memory_bytes": 786432,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.06450280800345354,
+          "peak_memory_bytes": 786432,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.06341786800476257,
+          "peak_memory_bytes": 786432,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.07354244199814275,
+          "peak_memory_bytes": 786432,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.06636982999771135,
+          "peak_memory_bytes": 1048576,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.06766982800036203,
+          "peak_memory_bytes": 786432,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.06486511399998562,
+          "peak_memory_bytes": 786432,
+          "stderr": "",
+          "warning_lines": []
+        }
+      ]
+    },
+    {
+      "problem": "collatz-branching",
+      "group": "language-baseline",
+      "title": "Branch-heavy Collatz stopping-time total",
+      "dataset": "For every integer from 1 through the profile limit, count Collatz steps to 1 and reduce the counts.",
+      "correctness_profile": {
+        "size": 1000,
+        "expected": 59542
+      },
+      "performance_profile": {
+        "size": 1000000,
+        "expected": 131434424
+      },
+      "lane": "terrane",
+      "correctness_result": 59542,
+      "performance_result": 131434424,
+      "cold_prepare": null,
+      "incremental_prepare": {
+        "wall_seconds": 0.0484461200030637,
+        "peak_memory_bytes": 9945088,
+        "stderr": "",
+        "warning_lines": []
+      },
+      "runs": [
+        {
+          "wall_seconds": 0.23146708200511057,
+          "peak_memory_bytes": 548864,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.21543454399943585,
+          "peak_memory_bytes": 786432,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.21510887800104683,
+          "peak_memory_bytes": 524288,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.25325625499681337,
+          "peak_memory_bytes": 548864,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.21975533399381675,
+          "peak_memory_bytes": 942080,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.24188315399806015,
+          "peak_memory_bytes": 1048576,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.22639611100021284,
+          "peak_memory_bytes": 712704,
+          "stderr": "",
+          "warning_lines": []
+        }
+      ]
+    },
+    {
+      "problem": "collatz-branching",
+      "group": "language-baseline",
+      "title": "Branch-heavy Collatz stopping-time total",
+      "dataset": "For every integer from 1 through the profile limit, count Collatz steps to 1 and reduce the counts.",
+      "correctness_profile": {
+        "size": 1000,
+        "expected": 59542
+      },
+      "performance_profile": {
+        "size": 1000000,
+        "expected": 131434424
+      },
+      "lane": "python",
+      "correctness_result": 59542,
+      "performance_result": 131434424,
+      "cold_prepare": null,
+      "incremental_prepare": null,
+      "runs": [
+        {
+          "wall_seconds": 9.198556365001423,
+          "peak_memory_bytes": 4452352,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 8.971932107000612,
+          "peak_memory_bytes": 3928064,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 9.068463370997051,
+          "peak_memory_bytes": 3928064,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 9.039286947998335,
+          "peak_memory_bytes": 4190208,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 8.991594740000437,
+          "peak_memory_bytes": 3928064,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 8.950439290994836,
+          "peak_memory_bytes": 3928064,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 9.36300936400221,
+          "peak_memory_bytes": 3805184,
+          "stderr": "",
+          "warning_lines": []
+        }
+      ]
+    },
+    {
+      "problem": "collatz-branching",
+      "group": "language-baseline",
+      "title": "Branch-heavy Collatz stopping-time total",
+      "dataset": "For every integer from 1 through the profile limit, count Collatz steps to 1 and reduce the counts.",
+      "correctness_profile": {
+        "size": 1000,
+        "expected": 59542
+      },
+      "performance_profile": {
+        "size": 1000000,
+        "expected": 131434424
+      },
+      "lane": "rust",
+      "correctness_result": 59542,
+      "performance_result": 131434424,
+      "cold_prepare": null,
+      "incremental_prepare": {
+        "wall_seconds": 2.1209212860048865,
+        "peak_memory_bytes": 150544384,
+        "stderr": "",
+        "warning_lines": []
+      },
+      "runs": [
+        {
+          "wall_seconds": 0.15820637800061377,
+          "peak_memory_bytes": 704512,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.13434360500104958,
+          "peak_memory_bytes": 786432,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.1421789300002274,
+          "peak_memory_bytes": 786432,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.14561490799678722,
+          "peak_memory_bytes": 786432,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.14827185200556414,
+          "peak_memory_bytes": 786432,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.1524098630034132,
+          "peak_memory_bytes": 786432,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.14335482999740634,
+          "peak_memory_bytes": 524288,
+          "stderr": "",
+          "warning_lines": []
+        }
+      ]
+    },
+    {
+      "problem": "standard-score-outliers",
+      "group": "language-baseline",
+      "title": "Composed generation, moments, and outlier classification",
+      "dataset": "Generate x = (i mod 200) - 100 and y = 0.01x^2 + (i mod 7) - 3; materialize y, compute its population mean and variance, then count squared deviations greater than 2.5 times the variance.",
+      "correctness_profile": {
+        "size": 1000,
+        "expected": 102
+      },
+      "performance_profile": {
+        "size": 10000000,
+        "expected": 1021428
+      },
+      "lane": "terrane",
+      "correctness_result": 102,
+      "performance_result": 1021428,
+      "cold_prepare": null,
+      "incremental_prepare": {
+        "wall_seconds": 0.046678846003487706,
+        "peak_memory_bytes": 9891840,
+        "stderr": "",
+        "warning_lines": []
+      },
+      "runs": [
+        {
+          "wall_seconds": 0.11804633000429021,
+          "peak_memory_bytes": 82255872,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.11464528099895688,
+          "peak_memory_bytes": 83095552,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.11604726900259266,
+          "peak_memory_bytes": 82038784,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.12113694000436226,
+          "peak_memory_bytes": 83095552,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.11294402700150385,
+          "peak_memory_bytes": 82571264,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.1068417960050283,
+          "peak_memory_bytes": 82063360,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.11157692100096028,
+          "peak_memory_bytes": 81780736,
+          "stderr": "",
+          "warning_lines": []
+        }
+      ]
+    },
+    {
+      "problem": "standard-score-outliers",
+      "group": "language-baseline",
+      "title": "Composed generation, moments, and outlier classification",
+      "dataset": "Generate x = (i mod 200) - 100 and y = 0.01x^2 + (i mod 7) - 3; materialize y, compute its population mean and variance, then count squared deviations greater than 2.5 times the variance.",
+      "correctness_profile": {
+        "size": 1000,
+        "expected": 102
+      },
+      "performance_profile": {
+        "size": 10000000,
+        "expected": 1021428
+      },
+      "lane": "python",
+      "correctness_result": 102,
+      "performance_result": 1021428,
+      "cold_prepare": null,
+      "incremental_prepare": null,
+      "runs": [
+        {
+          "wall_seconds": 3.923418452999613,
+          "peak_memory_bytes": 406319104,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 3.7170686530007515,
+          "peak_memory_bytes": 406757376,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 3.700174473997322,
+          "peak_memory_bytes": 406130688,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 3.8166649470003904,
+          "peak_memory_bytes": 406241280,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 3.9430725280035404,
+          "peak_memory_bytes": 406683648,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 3.71353606699995,
+          "peak_memory_bytes": 406589440,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 3.942665221002244,
+          "peak_memory_bytes": 406245376,
+          "stderr": "",
+          "warning_lines": []
+        }
+      ]
+    },
+    {
+      "problem": "standard-score-outliers",
+      "group": "language-baseline",
+      "title": "Composed generation, moments, and outlier classification",
+      "dataset": "Generate x = (i mod 200) - 100 and y = 0.01x^2 + (i mod 7) - 3; materialize y, compute its population mean and variance, then count squared deviations greater than 2.5 times the variance.",
+      "correctness_profile": {
+        "size": 1000,
+        "expected": 102
+      },
+      "performance_profile": {
+        "size": 10000000,
+        "expected": 1021428
+      },
+      "lane": "rust",
+      "correctness_result": 102,
+      "performance_result": 1021428,
+      "cold_prepare": null,
+      "incremental_prepare": {
+        "wall_seconds": 2.095851063997543,
+        "peak_memory_bytes": 148791296,
+        "stderr": "",
+        "warning_lines": []
+      },
+      "runs": [
+        {
+          "wall_seconds": 0.06355371700192336,
+          "peak_memory_bytes": 81002496,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.05453516300622141,
+          "peak_memory_bytes": 80764928,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.06000923999818042,
+          "peak_memory_bytes": 81002496,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.05803183899843134,
+          "peak_memory_bytes": 81002496,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.06407485199451912,
+          "peak_memory_bytes": 81264640,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.05430477499612607,
+          "peak_memory_bytes": 81002496,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.05865837300370913,
+          "peak_memory_bytes": 81264640,
+          "stderr": "",
+          "warning_lines": []
+        }
+      ]
+    },
+    {
+      "problem": "bessel-kernel-energy",
+      "group": "scientific-stack",
+      "title": "Pairwise oscillatory Bessel-kernel energy",
+      "dataset": "Generate deterministic coordinates x_i = ((37i) mod 1009) / 1009, evaluate J0(18|x_i-x_j|) / (1 + 4|x_i-x_j|^2) for every ordered pair, and return the mean kernel value.",
+      "correctness_profile": {
+        "size": 32,
+        "expected": 0.12246207359176442,
+        "absolute-tolerance": 1e-08,
+        "relative-tolerance": 1e-07
+      },
+      "performance_profile": {
+        "size": 6709,
+        "expected": 0.11273859023654974,
+        "absolute-tolerance": 1e-08,
+        "relative-tolerance": 1e-07
+      },
+      "lane": "terrane",
+      "correctness_result": 0.12246207375340833,
+      "performance_result": 0.11273859033211667,
+      "cold_prepare": null,
+      "incremental_prepare": {
+        "wall_seconds": 0.0426727249941905,
+        "peak_memory_bytes": 9752576,
+        "stderr": "",
+        "warning_lines": []
+      },
+      "runs": [
+        {
+          "wall_seconds": 0.7993699920043582,
+          "peak_memory_bytes": 786432,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.7342596590024186,
+          "peak_memory_bytes": 831488,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.7209661759989103,
+          "peak_memory_bytes": 786432,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.7790516439999919,
+          "peak_memory_bytes": 1048576,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.8182632719981484,
+          "peak_memory_bytes": 548864,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.7221214640012477,
+          "peak_memory_bytes": 524288,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.7870096190017648,
+          "peak_memory_bytes": 548864,
+          "stderr": "",
+          "warning_lines": []
+        }
+      ]
+    },
+    {
+      "problem": "bessel-kernel-energy",
+      "group": "scientific-stack",
+      "title": "Pairwise oscillatory Bessel-kernel energy",
+      "dataset": "Generate deterministic coordinates x_i = ((37i) mod 1009) / 1009, evaluate J0(18|x_i-x_j|) / (1 + 4|x_i-x_j|^2) for every ordered pair, and return the mean kernel value.",
+      "correctness_profile": {
+        "size": 32,
+        "expected": 0.12246207359176442,
+        "absolute-tolerance": 1e-08,
+        "relative-tolerance": 1e-07
+      },
+      "performance_profile": {
+        "size": 6709,
+        "expected": 0.11273859023654974,
+        "absolute-tolerance": 1e-08,
+        "relative-tolerance": 1e-07
+      },
+      "lane": "python-scipy",
+      "correctness_result": 0.12246207359176442,
+      "performance_result": 0.11273859023654974,
+      "cold_prepare": null,
+      "incremental_prepare": null,
+      "runs": [
+        {
+          "wall_seconds": 1.3060798310034443,
+          "peak_memory_bytes": 1483063296,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 1.2507063070006552,
+          "peak_memory_bytes": 1481871360,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 1.2791506860012305,
+          "peak_memory_bytes": 1482194944,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 1.2866033159953076,
+          "peak_memory_bytes": 1482182656,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 1.2540885749986046,
+          "peak_memory_bytes": 1483083776,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 1.407678367002518,
+          "peak_memory_bytes": 1481863168,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 1.2959550070008845,
+          "peak_memory_bytes": 1481621504,
+          "stderr": "",
+          "warning_lines": []
+        }
+      ]
+    },
+    {
+      "problem": "bessel-kernel-energy",
+      "group": "scientific-stack",
+      "title": "Pairwise oscillatory Bessel-kernel energy",
+      "dataset": "Generate deterministic coordinates x_i = ((37i) mod 1009) / 1009, evaluate J0(18|x_i-x_j|) / (1 + 4|x_i-x_j|^2) for every ordered pair, and return the mean kernel value.",
+      "correctness_profile": {
+        "size": 32,
+        "expected": 0.12246207359176442,
+        "absolute-tolerance": 1e-08,
+        "relative-tolerance": 1e-07
+      },
+      "performance_profile": {
+        "size": 6709,
+        "expected": 0.11273859023654974,
+        "absolute-tolerance": 1e-08,
+        "relative-tolerance": 1e-07
+      },
+      "lane": "terrane-numr",
+      "correctness_result": 0.12246207374772747,
+      "performance_result": 0.11273859032554075,
+      "cold_prepare": null,
+      "incremental_prepare": {
+        "wall_seconds": 0.13101551599538652,
+        "peak_memory_bytes": 21581824,
+        "stderr": "",
+        "warning_lines": []
+      },
+      "runs": [
+        {
+          "wall_seconds": 0.5717915319983149,
+          "peak_memory_bytes": 524288,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.5624722210050095,
+          "peak_memory_bytes": 712704,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.5210314230062068,
+          "peak_memory_bytes": 524288,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.5355924359973869,
+          "peak_memory_bytes": 700416,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.5633988119952846,
+          "peak_memory_bytes": 524288,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.5631052640019334,
+          "peak_memory_bytes": 786432,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 0.5380537929959246,
+          "peak_memory_bytes": 524288,
+          "stderr": "",
+          "warning_lines": []
+        }
+      ]
+    },
+    {
+      "problem": "gamma-survival-calibration",
+      "group": "scientific-stack",
+      "title": "Gamma survival-model calibration loss",
+      "dataset": "Generate deterministic gamma shapes, observations, and calibration targets; evaluate the regularized upper incomplete gamma survival probability for every observation; and return mean squared calibration error.",
+      "correctness_profile": {
+        "size": 64,
+        "expected": 0.11423642603119355,
+        "absolute-tolerance": 1e-12,
+        "relative-tolerance": 1e-10
+      },
+      "performance_profile": {
+        "size": 20000000,
+        "expected": 0.14715086979516895,
+        "absolute-tolerance": 1e-12,
+        "relative-tolerance": 1e-10
+      },
+      "lane": "terrane",
+      "correctness_result": 0.11423642603119359,
+      "performance_result": 0.14715086979582306,
+      "cold_prepare": null,
+      "incremental_prepare": {
+        "wall_seconds": 0.047248752001905814,
+        "peak_memory_bytes": 9052160,
+        "stderr": "",
+        "warning_lines": []
+      },
+      "runs": [
+        {
+          "wall_seconds": 2.655740698995942,
+          "peak_memory_bytes": 786432,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 2.558191654003167,
+          "peak_memory_bytes": 790528,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 2.5305531060002977,
+          "peak_memory_bytes": 524288,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 2.840104638002231,
+          "peak_memory_bytes": 561152,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 2.5592215249998844,
+          "peak_memory_bytes": 897024,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 2.616832236999471,
+          "peak_memory_bytes": 716800,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 2.469167319999542,
+          "peak_memory_bytes": 712704,
+          "stderr": "",
+          "warning_lines": []
+        }
+      ]
+    },
+    {
+      "problem": "gamma-survival-calibration",
+      "group": "scientific-stack",
+      "title": "Gamma survival-model calibration loss",
+      "dataset": "Generate deterministic gamma shapes, observations, and calibration targets; evaluate the regularized upper incomplete gamma survival probability for every observation; and return mean squared calibration error.",
+      "correctness_profile": {
+        "size": 64,
+        "expected": 0.11423642603119355,
+        "absolute-tolerance": 1e-12,
+        "relative-tolerance": 1e-10
+      },
+      "performance_profile": {
+        "size": 20000000,
+        "expected": 0.14715086979516895,
+        "absolute-tolerance": 1e-12,
+        "relative-tolerance": 1e-10
+      },
+      "lane": "python-scipy",
+      "correctness_result": 0.11423642603119355,
+      "performance_result": 0.14715086979516895,
+      "cold_prepare": null,
+      "incremental_prepare": null,
+      "runs": [
+        {
+          "wall_seconds": 2.783542214994668,
+          "peak_memory_bytes": 999936000,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 2.7129605049995007,
+          "peak_memory_bytes": 999452672,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 2.705149198998697,
+          "peak_memory_bytes": 1000747008,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 2.8191438369976822,
+          "peak_memory_bytes": 999374848,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 2.744479525994393,
+          "peak_memory_bytes": 999686144,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 3.006829326004663,
+          "peak_memory_bytes": 999387136,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 2.846706885997264,
+          "peak_memory_bytes": 999030784,
+          "stderr": "",
+          "warning_lines": []
+        }
+      ]
+    },
+    {
+      "problem": "gamma-survival-calibration",
+      "group": "scientific-stack",
+      "title": "Gamma survival-model calibration loss",
+      "dataset": "Generate deterministic gamma shapes, observations, and calibration targets; evaluate the regularized upper incomplete gamma survival probability for every observation; and return mean squared calibration error.",
+      "correctness_profile": {
+        "size": 64,
+        "expected": 0.11423642603119355,
+        "absolute-tolerance": 1e-12,
+        "relative-tolerance": 1e-10
+      },
+      "performance_profile": {
+        "size": 20000000,
+        "expected": 0.14715086979516895,
+        "absolute-tolerance": 1e-12,
+        "relative-tolerance": 1e-10
+      },
+      "lane": "terrane-numr",
+      "correctness_result": 0.1142364260311935,
+      "performance_result": 0.14715086979581601,
+      "cold_prepare": null,
+      "incremental_prepare": {
+        "wall_seconds": 0.12032223799906205,
+        "peak_memory_bytes": 20504576,
+        "stderr": "",
+        "warning_lines": []
+      },
+      "runs": [
+        {
+          "wall_seconds": 1.8407179749992792,
+          "peak_memory_bytes": 524288,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 1.950909869003226,
+          "peak_memory_bytes": 524288,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 1.857699225001852,
+          "peak_memory_bytes": 524288,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 1.9681819149991497,
+          "peak_memory_bytes": 524288,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 1.9896193419990595,
+          "peak_memory_bytes": 524288,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 1.9972470100037754,
+          "peak_memory_bytes": 524288,
+          "stderr": "",
+          "warning_lines": []
+        },
+        {
+          "wall_seconds": 1.9922653670000727,
+          "peak_memory_bytes": 524288,
+          "stderr": "",
+          "warning_lines": []
+        }
+      ]
+    }
+  ]
+}

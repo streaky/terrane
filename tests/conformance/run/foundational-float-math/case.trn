@@ -1,0 +1,85 @@
+namespace foundational-float-math
+from /core/collections import tuple
+from /core/types import float32, float64
+
+function main;
+  zero32 float32 = 0.0
+  one32 float32 = 1.0
+  nine32 float32 = 9.0
+  root32 = nine32.square-root
+  print; (root32;) == 3.0
+  print; (zero32.sine;) == 0.0
+  print; (zero32.cosine;) == 1.0
+  pair32 tuple of float32 = zero32.sine-cosine;
+  print; pair32.length == 2, pair32[0] == 0.0, pair32[1] == 1.0
+  print; (one32.natural-log;) == 0.0
+  print; (zero32.exponential;) == 1.0
+
+  zero64 float64 = 0.0
+  one64 float64 = 1.0
+  nine64 float64 = 9.0
+  print; (nine64.square-root;) == 3.0
+  print; (zero64.sine;) == 0.0
+  print; (zero64.cosine;) == 1.0
+  pair64 tuple of float64 = zero64.sine-cosine;
+  print; pair64.length == 2, pair64[0] == 0.0, pair64[1] == 1.0
+  print; (one64.natural-log;) == 0.0
+  print; (zero64.exponential;) == 1.0
+
+  negative float64 = -1.0
+  not-a-number float64 = negative.square-root;
+  print; not-a-number != not-a-number
+  negative-zero float64 = -0.0
+  reciprocal float64 = 1.0 / (negative-zero.square-root;)
+  print; reciprocal < 0.0
+  negative-infinity float64 = zero64.natural-log;
+  print; negative-infinity < 0.0
+
+  negative32 float32 = -3.0
+  low32 float32 = 2.0
+  high32 float32 = 5.0
+  print; (negative32.absolute;) == 3.0
+  print; (low32.minimum; high32) == 2.0
+  print; (low32.maximum; high32) == 5.0
+  print; (low32.multiply-add; high32, 1.0) == 11.0
+  print; low32.finite
+  not-a-number32 float32 = negative32.square-root;
+  infinity32 float32 = 1.0 / zero32
+  print; not-a-number32.not-a-number
+  print; infinity32.infinite
+
+  low64 float64 = 2.0
+  high64 float64 = 5.0
+  print; (negative.absolute;) == 1.0
+  print; (low64.minimum; high64) == 2.0
+  print; (low64.maximum; high64) == 5.0
+  print; (low64.multiply-add; high64, 1.0) == 11.0
+  minimum64 = low64.minimum
+  maximum64 = low64.maximum
+  multiply-add64 = low64.multiply-add
+  print; (minimum64; high64) == 2.0, (maximum64; high64) == 5.0, (multiply-add64; high64, 1.0) == 11.0
+  print; low64.finite
+  print; not-a-number.not-a-number
+  print; negative-infinity.infinite
+  print; (not-a-number.minimum; low64) == low64
+  print; (not-a-number.maximum; high64) == high64
+  minimum-zero float64 = (negative-zero.minimum; zero64)
+  maximum-zero float64 = (negative-zero.maximum; zero64)
+  print; 1.0 / minimum-zero < 0.0
+  print; 1.0 / maximum-zero > 0.0
+
+  multiplicand float64 = 1.0000000000000002
+  multiplier float64 = 1.0000000000000002
+  addend float64 = -1.0000000000000004
+  fused float64 = (multiplicand.multiply-add; multiplier, addend)
+  unfused float64 = multiplicand * multiplier + addend
+  print; fused == 0.00000000000000000000000000000004930380657631323784
+  print; unfused == 0.0
+
+  multiplicand32 float32 = 1.0000001
+  multiplier32 float32 = 1.0000001
+  addend32 float32 = -1.0000002
+  fused32 float32 = (multiplicand32.multiply-add; multiplier32, addend32)
+  unfused32 float32 = multiplicand32 * multiplier32 + addend32
+  print; fused32 == 0.000000000000014210855
+  print; unfused32 == 0.0

@@ -1,0 +1,16 @@
+id = "bessel-kernel-energy"
+title = "Pairwise oscillatory Bessel-kernel energy"
+result = "float"
+dataset = "Generate deterministic coordinates x_i = ((37i) mod 1009) / 1009, evaluate J0(18|x_i-x_j|) / (1 + 4|x_i-x_j|^2) for every ordered pair, and return the mean kernel value."
+
+[profiles.correctness]
+size = 32
+expected = 0.12246207359176442
+absolute-tolerance = 1.0e-8
+relative-tolerance = 1.0e-7
+
+[profiles.performance]
+size = 6709
+expected = 0.11273859023654974
+absolute-tolerance = 1.0e-8
+relative-tolerance = 1.0e-7

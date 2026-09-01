@@ -519,8 +519,8 @@ fn main() {
     println!("{}", terrane_scalar_support::scalar_text(&candidate.is_some()));
     println!("{}", terrane_scalar_support::scalar_text(&(data != io)));
 }
-// Source: <terrane>/projected/deps/bytes/bufmut.trn
-// Namespace: deps/bytes/bufmut
+// Source: <terrane>/projected/deps/bytes/buf/buf-mut/bufmut.trn
+// Namespace: deps/bytes/buf/buf-mut/bufmut
 pub fn remaining_mut(
     receiver: &BytesMut,
 ) -> Result<terrane_int_support::Int, crate::TerraneForeignError> {

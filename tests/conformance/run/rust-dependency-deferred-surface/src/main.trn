@@ -1,6 +1,6 @@
 namespace app
 from /deps/bytes/bytes-mut import BytesMut, with_capacity
-from /deps/bytes/bufmut import remaining_mut
+from /deps/bytes/buf/buf-mut/bufmut import remaining_mut
 from /deps/serde-json/number import Number, from_u128
 from /deps/serde-json/error import Category
 from /deps/serde-json/error/category import Data, Io

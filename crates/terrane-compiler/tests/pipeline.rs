@@ -333,6 +333,85 @@ fn lowers_collection_and_three_clause_for_loops_without_losing_continue_updates(
 }
 
 #[test]
+fn eliminates_only_statically_impossible_fixed_integer_failures() {
+    let proven = terrane_compiler::compile(
+        "numeric-proofs.trn",
+        concat!(
+            "namespace numeric-proofs\n",
+            "from /core/types import int64, float64\n",
+            "function main;\n",
+            "  index int64 = 0\n",
+            "  while index < 100\n",
+            "    arrival float64 = index\n",
+            "    remainder int64 = index % 17\n",
+            "    index++\n",
+        )
+        .to_owned(),
+    )
+    .unwrap();
+    let proven = normalized_rust(&proven.rust);
+    assert!(proven.contains("let arrival: f64 = index as f64;"));
+    assert!(proven.contains("let remainder: i64 = index.rem_euclid(17);"));
+    assert!(proven.contains("index = index + 1;"));
+    assert!(!proven.contains("terrane_int_support::exact_fixed_f64(index)"));
+    assert!(!proven.contains("terrane_int_support::fixed_remainder(index, 17)"));
+    assert!(!proven.contains("terrane_int_support::fixed_addition(index, 1)"));
+
+    let unproven = terrane_compiler::compile(
+        "numeric-checks.trn",
+        concat!(
+            "namespace numeric-checks\n",
+            "from /core/types import int64, float64\n",
+            "function main;\n",
+            "  index int64 = 0\n",
+            "  divisor int64 = 17\n",
+            "  while index <= 100\n",
+            "    arrival float64 = index\n",
+            "    remainder int64 = index % divisor\n",
+            "    index++\n",
+        )
+        .to_owned(),
+    )
+    .unwrap();
+    assert!(
+        unproven
+            .rust
+            .contains("terrane_int_support::exact_fixed_f64(index)")
+    );
+    assert!(
+        unproven
+            .rust
+            .contains("terrane_int_support::fixed_remainder(index, divisor)")
+    );
+    assert!(
+        unproven
+            .rust
+            .contains("terrane_int_support::fixed_addition(index, 1)")
+    );
+
+    let mutated_before_loop = terrane_compiler::compile(
+        "mutated-before-loop.trn",
+        concat!(
+            "namespace mutated-before-loop\n",
+            "from /core/types import int64, float64\n",
+            "function main;\n",
+            "  index int64 = 0\n",
+            "  index = 9007199254740993\n",
+            "  while index < 100\n",
+            "    arrival float64 = index\n",
+            "    index++\n",
+        )
+        .to_owned(),
+    )
+    .unwrap();
+    assert!(
+        mutated_before_loop
+            .rust
+            .contains("terrane_int_support::exact_fixed_f64(index)")
+    );
+}
+
+#[test]
 fn lowers_scalar_membership_and_descriptor_identity_statically() {
     let source = concat!(
         "namespace descriptors\n",

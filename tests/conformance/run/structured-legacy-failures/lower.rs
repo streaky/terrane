@@ -432,14 +432,14 @@ mod __terrane_trace {
             }
         },
         {
-            /* terrane-site-row: site 4: /structured-legacy-failures::round-value (case.trn:22:10-22:24) */
+            /* terrane-site-row: site 4: /structured-legacy-failures::round-value (case.trn:22:10-22:25) */
             Site {
                 function: 4,
                 file: 0,
                 line: 22,
                 column: 10,
                 end_line: 22,
-                end_column: 24,
+                end_column: 25,
             }
         },
         {
@@ -604,7 +604,7 @@ fn round_value() -> Result<terrane_int_support::Int, TerraneError> {
                 infinite,
                 terrane_int_support::FloatRounding::TiesEven,
             ),
-            4 /* terrane-site: case.trn:22:10-22:24 */,
+            4 /* terrane-site: case.trn:22:10-22:25 */,
         )?,
     );
 }

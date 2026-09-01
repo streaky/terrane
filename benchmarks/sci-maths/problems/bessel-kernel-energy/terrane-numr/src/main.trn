@@ -1,0 +1,37 @@
+namespace benchmark-bessel-kernel-energy
+
+from /standard/process import platform-string, arguments, exit, make-exit-status
+from /deps/numr/algorithm/special import bessel_j0_scalar
+
+function benchmark-size int64;
+  supplied = (arguments;)
+  if supplied.length != 1
+    exit; (make-exit-status; 2)
+  count int64 = (supplied[0].text.radix; 10)
+  if count <= 0
+    exit; (make-exit-status; 2)
+  return count
+
+function coordinate float64; index int64
+  raw float64 = (index * 37) % 1009
+  return raw / 1009
+
+function main;
+  count int64 = (benchmark-size;)
+  total float64 = 0
+  left-index int64 = 0
+  while left-index < count
+    left float64 = (coordinate; left-index)
+    right-index int64 = 0
+    while right-index < count
+      right float64 = (coordinate; right-index)
+      distance float64 = left - right
+      if distance < 0
+        distance = 0 - distance
+      argument float64 = 18 * distance
+      value float64 = (bessel_j0_scalar; argument)
+      total = total + value / (1 + 4 * distance * distance)
+      right-index++
+    left-index++
+  pair-count float64 = count * count
+  print; total / pair-count

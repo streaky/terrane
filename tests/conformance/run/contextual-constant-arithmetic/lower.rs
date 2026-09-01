@@ -380,14 +380,14 @@ mod __terrane_trace {
     pub static FUNCTIONS: [&str; 1] = ["/contextual-constant-arithmetic::main"];
     pub static SITES: [Site; 2] = [
         {
-            /* terrane-site-row: site 0: /contextual-constant-arithmetic::main (case.trn:15:17-15:28) */
+            /* terrane-site-row: site 0: /contextual-constant-arithmetic::main (case.trn:15:17-15:29) */
             Site {
                 function: 0,
                 file: 0,
                 line: 15,
                 column: 17,
                 end_line: 15,
-                end_column: 28,
+                end_column: 29,
             }
         },
         {
@@ -432,7 +432,7 @@ fn main() {
             ratio,
             terrane_int_support::FloatRounding::TiesEven,
         ),
-        0 /* terrane-site: case.trn:15:17-15:28 */,
+        0 /* terrane-site: case.trn:15:17-15:29 */,
     );
     println!("{}", terrane_scalar_support::scalar_text(&reduced));
     println!("{}", terrane_scalar_support::scalar_text(&integral));

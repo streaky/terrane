@@ -186,11 +186,17 @@ impl Projection {
             }
             let foreign = collect_source_foreign(&all_items, &selected);
             let mut aliases = foreign_aliases(&foreign);
+            let distinct_aliases = aliases.clone();
             for (rust_path, alias) in &mut aliases {
-                if projected_item_for_foreign(&all_items, rust_path, &foreign[rust_path])
-                    .is_some_and(|item| item.namespace == *namespace)
-                {
+                let Some(item) =
+                    projected_item_for_foreign(&all_items, rust_path, &foreign[rust_path])
+                else {
+                    continue;
+                };
+                if item.namespace == *namespace {
                     alias.clone_from(&foreign[rust_path]);
+                } else if let Some(distinct_alias) = distinct_aliases.get(&item.rust_path) {
+                    alias.clone_from(distinct_alias);
                 }
             }
             let mut ordered_foreign = foreign.iter().collect::<Vec<_>>();
@@ -212,11 +218,17 @@ impl Projection {
                 (dependency_count, aliases.get(*rust_path))
             });
             let mut text = format!("namespace {}\n\n", namespace.trim_start_matches('/'));
+            let mut rendered_foreign = BTreeSet::new();
             for (rust_path, _) in ordered_foreign {
                 let name = &aliases[rust_path];
-                if let Some(item) =
-                    projected_item_for_foreign(&all_items, rust_path, &foreign[rust_path])
-                {
+                let projected_item =
+                    projected_item_for_foreign(&all_items, rust_path, &foreign[rust_path]);
+                let declaration_path =
+                    projected_item.map_or(rust_path.as_str(), |item| item.rust_path.as_str());
+                if !rendered_foreign.insert(declaration_path) {
+                    continue;
+                }
+                if let Some(item) = projected_item {
                     if item.namespace != *namespace {
                         write!(text, "from {} import {}", item.namespace, item.name)
                             .expect("writing to a string cannot fail");
@@ -231,7 +243,7 @@ impl Projection {
                 if let Some(ProjectedItem {
                     kind: ProjectedKind::ForeignType { methods },
                     ..
-                }) = projected_item_for_foreign(&all_items, rust_path, &foreign[rust_path])
+                }) = projected_item
                 {
                     for method in methods {
                         render_function(&mut text, method, false, 4, &aliases);
@@ -910,6 +922,72 @@ fn run_cargo(
     })
 }
 
+fn prefer_public_path(public_paths: &mut BTreeMap<String, String>, id: String, candidate: String) {
+    public_paths
+        .entry(id)
+        .and_modify(|existing| {
+            if candidate.matches("::").count() < existing.matches("::").count() {
+                existing.clone_from(&candidate);
+            }
+        })
+        .or_insert(candidate);
+}
+
+fn record_public_module_items(
+    index: &serde_json::Map<String, Value>,
+    module_id: &str,
+    module_path: &[String],
+    public_paths: &mut BTreeMap<String, String>,
+    visiting: &mut BTreeSet<String>,
+) {
+    if !visiting.insert(module_id.to_owned()) {
+        return;
+    }
+    let Some(module) = index
+        .get(module_id)
+        .and_then(|item| item["inner"]["module"].as_object())
+    else {
+        visiting.remove(module_id);
+        return;
+    };
+    for child_id in string_or_number_array(&module["items"]) {
+        let Some(item) = index
+            .get(&child_id)
+            .filter(|item| item["visibility"].as_str() == Some("public"))
+        else {
+            continue;
+        };
+        if let Some(import) = item["inner"]["use"].as_object() {
+            let Some(target_id) = value_id(&import["id"]) else {
+                continue;
+            };
+            if import["is_glob"].as_bool() == Some(true) {
+                record_public_module_items(index, &target_id, module_path, public_paths, visiting);
+            } else if let Some(name) = import["name"].as_str() {
+                let candidate = module_path
+                    .iter()
+                    .map(String::as_str)
+                    .chain(std::iter::once(name))
+                    .collect::<Vec<_>>()
+                    .join("::");
+                prefer_public_path(public_paths, target_id, candidate);
+            }
+            continue;
+        }
+        let Some(name) = item["name"].as_str() else {
+            continue;
+        };
+        let candidate = module_path
+            .iter()
+            .map(String::as_str)
+            .chain(std::iter::once(name))
+            .collect::<Vec<_>>()
+            .join("::");
+        prefer_public_path(public_paths, child_id, candidate);
+    }
+    visiting.remove(module_id);
+}
+
 #[expect(
     clippy::too_many_lines,
     reason = "one rustdoc item pass records admitted and declined public items together"
@@ -939,54 +1017,32 @@ fn project_rustdoc(
         })?;
     let mut public_paths = BTreeMap::<String, String>::new();
     for (module_id, summary) in paths {
-        if summary["crate_id"].as_u64() != Some(0) {
+        if summary["crate_id"].as_u64() != Some(0)
+            || index
+                .get(module_id)
+                .and_then(|item| item["inner"]["module"].as_object())
+                .is_none()
+        {
             continue;
         }
-        let Some(module) = index
-            .get(module_id)
-            .and_then(|item| item["inner"]["module"].as_object())
-        else {
-            continue;
-        };
         let module_path = string_array(&summary["path"]);
-        for child_id in string_or_number_array(&module["items"]) {
-            let Some(import) = index
-                .get(&child_id)
-                .filter(|item| item["visibility"].as_str() == Some("public"))
-                .and_then(|item| item["inner"]["use"].as_object())
-            else {
-                continue;
-            };
-            let Some(target_id) = value_id(&import["id"]) else {
-                continue;
-            };
-            let Some(name) = import["name"].as_str() else {
-                continue;
-            };
-            let candidate = module_path
-                .iter()
-                .map(String::as_str)
-                .chain(std::iter::once(name))
-                .collect::<Vec<_>>()
-                .join("::");
-            public_paths
-                .entry(target_id)
-                .and_modify(|existing| {
-                    if candidate.matches("::").count() < existing.matches("::").count() {
-                        existing.clone_from(&candidate);
-                    }
-                })
-                .or_insert(candidate);
-        }
+        record_public_module_items(
+            index,
+            module_id,
+            &module_path,
+            &mut public_paths,
+            &mut BTreeSet::new(),
+        );
     }
     let mut resolved_paths = paths.clone();
     for (id, public_path) in &public_paths {
-        if let Some(summary) = resolved_paths.get_mut(id) {
-            summary["path"] = Value::Array(
-                public_path
-                    .split("::")
-                    .map(|segment| Value::String(segment.to_owned()))
-                    .collect(),
+        if !resolved_paths.contains_key(id) {
+            resolved_paths.insert(
+                id.clone(),
+                serde_json::json!({
+                    "crate_id": 0,
+                    "path": public_path.split("::").collect::<Vec<_>>(),
+                }),
             );
         }
     }
@@ -995,7 +1051,7 @@ fn project_rustdoc(
     let mut declined = Vec::new();
     let mut projected_trait_items = Vec::new();
     let mut projected_associated_items = Vec::new();
-    for (id, summary) in paths {
+    for (id, summary) in &resolved_paths {
         if summary["crate_id"].as_u64() != Some(0) {
             continue;
         }
@@ -1025,7 +1081,7 @@ fn project_rustdoc(
                 Err("type has generic or lifetime parameters".to_owned())
             } else {
                 let (methods, trait_methods, method_declines) =
-                    project_methods(structure, index, &resolved_paths, &rust_path);
+                    project_methods(structure, index, &resolved_paths, &public_paths, &rust_path);
                 for method in methods.iter().filter(|method| method.receiver.is_none()) {
                     projected_associated_items.push(ProjectedItem {
                         namespace: namespace.clone(),
@@ -1035,13 +1091,13 @@ fn project_rustdoc(
                         kind: ProjectedKind::Function(method.clone()),
                     });
                 }
-                for (trait_path, method) in trait_methods {
+                for (trait_path, public_trait_path, method) in trait_methods {
                     let trait_segments = trait_path
                         .split("::")
                         .map(str::to_owned)
                         .collect::<Vec<_>>();
                     let trait_namespace = dependency_namespace(dependency, &trait_segments);
-                    let trait_rust_path = extern_rust_path(dependency, &trait_path);
+                    let trait_rust_path = extern_rust_path(dependency, &public_trait_path);
                     projected_trait_items.push(ProjectedItem {
                         namespace: trait_namespace,
                         name: method.name.clone(),
@@ -1235,7 +1291,7 @@ fn extern_rust_path(dependency: &RustDependency, path: &str) -> String {
 
 type ProjectedMethods = (
     Vec<ProjectedFunction>,
-    Vec<(String, ProjectedFunction)>,
+    Vec<(String, String, ProjectedFunction)>,
     Vec<(String, String)>,
 );
 
@@ -1247,6 +1303,7 @@ fn project_methods(
     structure: &Value,
     index: &serde_json::Map<String, Value>,
     paths: &serde_json::Map<String, Value>,
+    public_paths: &BTreeMap<String, String>,
     owner_rust_path: &str,
 ) -> ProjectedMethods {
     let mut candidates = Vec::new();
@@ -1295,6 +1352,12 @@ fn project_methods(
                     ));
                     continue;
                 };
+                let public_trait_path = implementation["trait"]["id"]
+                    .as_u64()
+                    .map(|id| id.to_string())
+                    .and_then(|id| public_paths.get(&id))
+                    .cloned()
+                    .unwrap_or_else(|| trait_path.clone());
                 match project_function(function, index, paths, Some(name)) {
                     Ok(mut method) => {
                         let Some(receiver) = method.receiver.take() else {
@@ -1318,7 +1381,7 @@ fn project_methods(
                                 mutable_borrow: receiver == Receiver::MutableBorrow,
                             },
                         );
-                        trait_methods.push((trait_path, method));
+                        trait_methods.push((trait_path, public_trait_path, method));
                     }
                     Err(reason) => declined.push((name.to_owned(), reason)),
                 }
@@ -2203,6 +2266,77 @@ mod tests {
             removed: Vec::new(),
         };
         assert!(projection.is_unit_variant(&variant));
+    }
+
+    #[test]
+    fn rustdoc_glob_reexports_use_the_public_module_path() {
+        let document = json!({
+            "crate_version": "1.0.0",
+            "paths": {
+                "0": {"crate_id": 0, "path": ["witness"]},
+                "1": {"crate_id": 0, "path": ["witness", "scalar"]},
+                "3": {"crate_id": 0, "path": ["witness", "private", "special"]}
+            },
+            "index": {
+                "0": {
+                    "visibility": "public",
+                    "inner": {"module": {"items": [1]}}
+                },
+                "1": {
+                    "name": "scalar",
+                    "visibility": "public",
+                    "inner": {"module": {"items": [2]}}
+                },
+                "2": {
+                    "name": null,
+                    "visibility": "public",
+                    "inner": {"use": {
+                        "source": "special",
+                        "name": "special",
+                        "id": 3,
+                        "is_glob": true
+                    }}
+                },
+                "3": {
+                    "name": "special",
+                    "visibility": "crate",
+                    "inner": {"module": {"items": [4]}}
+                },
+                "4": {
+                    "name": "evaluate",
+                    "visibility": "public",
+                    "docs": null,
+                    "inner": {"function": {
+                        "header": {"is_unsafe": false, "is_async": false},
+                        "generics": {"params": []},
+                        "sig": {
+                            "inputs": [["x", {"primitive": "f64"}]],
+                            "output": {"primitive": "f64"}
+                        }
+                    }}
+                }
+            }
+        });
+        let dependency = RustDependency {
+            name: "witness".to_owned(),
+            package: "witness".to_owned(),
+            version: "=1.0.0".to_owned(),
+            features: Vec::new(),
+            default_features: true,
+            target: None,
+            effects: Vec::new(),
+        };
+
+        let projected =
+            project_rustdoc(&dependency, &serde_json::to_vec(&document).unwrap()).unwrap();
+        let function = projected
+            .items
+            .iter()
+            .find(|item| item.name == "evaluate")
+            .expect("glob-reexported function");
+
+        assert_eq!(function.namespace, "/deps/witness/scalar");
+        assert_eq!(function.rust_path, "witness::scalar::evaluate");
     }
 
     #[test]

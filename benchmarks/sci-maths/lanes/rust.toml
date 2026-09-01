@@ -1,0 +1,12 @@
+id = "rust"
+name = "Clean, idiomatic Rust control"
+implementation = "rust/main.rs"
+prepare = ["rustc", "--edition=2024", "-C", "opt-level=3", "-C", "codegen-units=1", "-C", "lto=fat", "-D", "warnings", "${implementation}", "-o", "${implementation_dir}/benchmark"]
+run = ["${implementation_dir}/benchmark"]
+cache-paths = ["${implementation_dir}/benchmark"]
+environment = [["rustc", "--version"]]
+
+[metadata]
+implementation = "standalone Rust compiled directly with rustc"
+native-build-profile = "opt-level=3, fat LTO, one codegen unit"
+scientific-packages = false

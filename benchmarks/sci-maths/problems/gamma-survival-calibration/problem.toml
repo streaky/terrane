@@ -1,0 +1,16 @@
+id = "gamma-survival-calibration"
+title = "Gamma survival-model calibration loss"
+result = "float"
+dataset = "Generate deterministic gamma shapes, observations, and calibration targets; evaluate the regularized upper incomplete gamma survival probability for every observation; and return mean squared calibration error."
+
+[profiles.correctness]
+size = 64
+expected = 0.11423642603119355
+absolute-tolerance = 1.0e-12
+relative-tolerance = 1.0e-10
+
+[profiles.performance]
+size = 20000000
+expected = 0.14715086979516895
+absolute-tolerance = 1.0e-12
+relative-tolerance = 1.0e-10

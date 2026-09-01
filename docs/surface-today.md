@@ -340,6 +340,10 @@ and `--` remain statement-only spellings of the default add/subtract policy.
 
 Declared numeric binding, assignment, parameter-default, argument, and return destinations admit numeric values exactly or fail with `integer-conversion-overflow`. Range-contained fixed-width widening emits only a representation change; other typed numeric pairs retain a runtime representability check. Integer values of different concrete types promote to the smallest implemented integer type containing both source ranges, or to `int`. Local adaptive-`int` bindings proven to remain in `int64` range lower directly to `i64`; conversion to the erased adaptive ABI occurs only where an operation or call requires it.
 
+Checked fixed-width integer-to-floating arrivals use allocation-free native magnitude and bit
+checks before the primitive conversion. Only adaptive `int` enters the arbitrary-precision
+conversion path.
+
 Numeric union bindings retain their declared arms in the semantic model and lower to compiler-owned tagged Rust enums. An exact typed arm wins; otherwise the value must be admitted by exactly one arm. Ambiguous constants are rejected, later assignments are checked against the original arm set, and `is a` inspects the current runtime arm rather than the initializer's selected type. Union destinations are currently implemented only for bindings and their later assignments; parameter and return annotations remain unsupported.
 
 Numeric constant expressions are evaluated in their destination context. Integer destinations use exact unbounded intermediates and check only the final result; floating destinations evaluate at destination precision. This applies to typed bindings and assignments, parameter defaults, declared arguments, and declared returns. A constant used with a typed numeric operand takes that operand's type, except for shift counts.
@@ -367,14 +371,33 @@ floating-point value T
 │   ├── T <= T -> bool
 │   ├── T > T -> bool
 │   └── T >= T -> bool
-├── integer rounding properties
-│   ├── .round -> int          ties to even
-│   ├── .floor -> int
-│   ├── .ceiling -> int
-│   └── .truncate -> int
+├── foundational mathematics
+│   ├── zero-argument methods
+│   │   ├── .square-root; -> T
+│   │   ├── .sine; -> T
+│   │   ├── .cosine; -> T
+│   │   ├── .sine-cosine; -> tuple of T, length 2
+│   │   ├── .natural-log; -> T
+│   │   ├── .exponential; -> T
+│   │   └── .absolute; -> T
+│   ├── classification properties
+│   │   ├── .finite -> bool
+│   │   ├── .infinite -> bool
+│   │   └── .not-a-number -> bool
+│   └── argument-taking methods
+│       ├── .minimum; T -> T
+│       ├── .maximum; T -> T
+│       └── .multiply-add; T, T -> T
+├── integer rounding methods
+│   ├── .round; -> int          ties to even
+│   ├── .floor; -> int
+│   ├── .ceiling; -> int
+│   └── .truncate; -> int
 └── descriptor relation
     └── value is a descriptor T -> bool
 ```
+
+The foundational computational methods lower directly to the corresponding Rust primitive operation, so they require no scientific library; their zero-argument arity does not make them properties. The three classification members remain properties because they observe receiver state. Floating results preserve the receiver precision. The mathematical members inherit IEEE-754 NaN, infinity, signed-zero, domain, overflow, and underflow behavior except for the explicit `minimum`, `maximum`, and fused-rounding contracts in the specification. `sine-cosine` evaluates the receiver once and returns sine followed by cosine.
 
 No float conversion methods are implemented. Numeric destinations do implement exact integer/floating crossings and exact `float64`-to-`float32` narrowing; inexact narrowing fails with `integer-conversion-overflow`.
 

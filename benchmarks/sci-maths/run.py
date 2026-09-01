@@ -4,11 +4,13 @@
 from __future__ import annotations
 
 import argparse
+import atexit
 import json
 import math
 import os
 import platform
 import select
+import shlex
 import shutil
 import signal
 import subprocess
@@ -25,6 +27,10 @@ from typing import Any
 
 SUITE = Path(__file__).resolve().parent
 REPO = SUITE.parents[1]
+MEMORY_CGROUP_ROOT: Path | None = None
+MEMORY_CGROUP_RUNNER_LEAF: Path | None = None
+MEMORY_CGROUP_ENABLED_MEMORY = False
+MEMORY_CGROUP_SIGNAL_HANDLERS: dict[int, Any] = {}
 PERFORMANCE_ENVIRONMENT_KEYS = (
     "CARGO_BUILD_RUSTFLAGS",
     "CARGO_ENCODED_RUSTFLAGS",
@@ -120,52 +126,171 @@ class MemoryCgroup:
         self.path.rmdir()
 
 
-def memory_cgroup_parent() -> Path | None:
+def cleanup_memory_cgroup_parent() -> None:
+    global MEMORY_CGROUP_ENABLED_MEMORY, MEMORY_CGROUP_ROOT, MEMORY_CGROUP_RUNNER_LEAF
+    root = MEMORY_CGROUP_ROOT
+    runner_leaf = MEMORY_CGROUP_RUNNER_LEAF
+    MEMORY_CGROUP_ROOT = None
+    MEMORY_CGROUP_RUNNER_LEAF = None
+    enabled_memory = MEMORY_CGROUP_ENABLED_MEMORY
+    MEMORY_CGROUP_ENABLED_MEMORY = False
+    for signum, handler in MEMORY_CGROUP_SIGNAL_HANDLERS.items():
+        signal.signal(signum, handler)
+    MEMORY_CGROUP_SIGNAL_HANDLERS.clear()
+    if root is None or runner_leaf is None:
+        return
+    try:
+        (root / "cgroup.procs").write_text(str(os.getpid()))
+    except OSError:
+        return
+    try:
+        runner_leaf.rmdir()
+    except OSError:
+        pass
+    if enabled_memory:
+        try:
+            (root / "cgroup.subtree_control").write_text("-memory")
+        except OSError:
+            pass
+
+
+def cleanup_memory_cgroup_on_signal(signum: int, frame: Any) -> None:
+    previous = MEMORY_CGROUP_SIGNAL_HANDLERS.get(signum, signal.SIG_DFL)
+    cleanup_memory_cgroup_parent()
+    if callable(previous):
+        previous(signum, frame)
+    elif previous != signal.SIG_IGN:
+        signal.raise_signal(signum)
+
+
+def memory_cgroup_parent() -> tuple[Path | None, str | None]:
+    global MEMORY_CGROUP_ENABLED_MEMORY, MEMORY_CGROUP_ROOT, MEMORY_CGROUP_RUNNER_LEAF
+    requirement = (
+        "memory measurement requires Linux cgroup v2 with a writable delegated "
+        "subtree and the memory controller enabled"
+    )
+    if MEMORY_CGROUP_ROOT is not None:
+        return MEMORY_CGROUP_ROOT, None
     if not sys.platform.startswith("linux"):
-        return None
+        return None, f"{requirement}; this host is not running Linux"
     try:
         entry = next(
             line
             for line in Path("/proc/self/cgroup").read_text().splitlines()
             if line.startswith("0::")
         )
-    except (OSError, StopIteration):
-        return None
+    except OSError as error:
+        return None, f"{requirement}; /proc/self/cgroup could not be read: {error}"
+    except StopIteration:
+        return None, f"{requirement}; no unified cgroup-v2 membership was found"
     relative = Path(entry[3:].lstrip("/"))
     if ".." in relative.parts:
-        return None
-    parent = (Path("/sys/fs/cgroup") / relative).parent
-    if not (parent / "cgroup.controllers").is_file():
-        return None
-    return parent
+        return None, f"{requirement}; the process cgroup path is invalid"
+    root = Path("/sys/fs/cgroup") / relative
+    try:
+        controllers = (root / "cgroup.controllers").read_text().split()
+    except OSError as error:
+        return None, f"{requirement}; controllers are not accessible at {root}: {error}"
+    if "memory" not in controllers:
+        return None, f"{requirement}; the memory controller is not delegated at {root}"
+
+    runner_leaf = root / f"terrane-sci-runner-{os.getpid()}"
+    moved = False
+    enabled_memory = False
+    try:
+        subtree_control = (root / "cgroup.subtree_control").read_text().split()
+        runner_leaf.mkdir()
+        (runner_leaf / "cgroup.procs").write_text(str(os.getpid()))
+        moved = True
+        if "memory" not in subtree_control:
+            (root / "cgroup.subtree_control").write_text("+memory")
+            enabled_memory = True
+    except OSError as error:
+        if moved:
+            try:
+                (root / "cgroup.procs").write_text(str(os.getpid()))
+            except OSError:
+                pass
+        try:
+            runner_leaf.rmdir()
+        except OSError:
+            pass
+        return (
+            None,
+            f"{requirement}; could not initialize a measurement subtree at {root}: {error}",
+        )
+    MEMORY_CGROUP_ROOT = root
+    MEMORY_CGROUP_RUNNER_LEAF = runner_leaf
+    MEMORY_CGROUP_ENABLED_MEMORY = enabled_memory
+    atexit.register(cleanup_memory_cgroup_parent)
+    for signum in (signal.SIGHUP, signal.SIGTERM):
+        MEMORY_CGROUP_SIGNAL_HANDLERS[signum] = signal.getsignal(signum)
+        signal.signal(signum, cleanup_memory_cgroup_on_signal)
+    return root, None
 
 
-def create_memory_cgroup() -> MemoryCgroup | None:
-    parent = memory_cgroup_parent()
+def create_memory_cgroup_with_reason() -> tuple[MemoryCgroup | None, str | None]:
+    parent, reason = memory_cgroup_parent()
     if parent is None:
-        return None
+        return None, reason
     path: Path | None = None
     try:
-        path = Path(tempfile.mkdtemp(prefix=f"terrane-sci-{os.getpid()}-", dir=parent))
+        path = Path(
+            tempfile.mkdtemp(prefix=f"terrane-sci-{os.getpid()}-", dir=parent)
+        )
         if not (path / "memory.peak").is_file():
             path.rmdir()
-            return None
-        return MemoryCgroup(path)
-    except OSError:
+            return (
+                None,
+                "memory measurement requires the cgroup-v2 memory controller, "
+                f"but a delegated child under {parent} has no memory.peak",
+            )
+        return MemoryCgroup(path), None
+    except OSError as error:
         if path is not None:
             try:
                 path.rmdir()
             except OSError:
                 pass
-        return None
+        return (
+            None,
+            "memory measurement requires a writable delegated cgroup-v2 subtree; "
+            f"could not create a child under {parent}: {error}",
+        )
+
+
+def create_memory_cgroup() -> MemoryCgroup | None:
+    group, _ = create_memory_cgroup_with_reason()
+    return group
+
+
+def memory_measurement_unavailable_reason() -> str | None:
+    group, reason = create_memory_cgroup_with_reason()
+    if group is None:
+        return reason or "memory measurement capability probing failed"
+    try:
+        group.remove()
+    except OSError as error:
+        return f"memory measurement probe cgroup could not be removed: {error}"
+    return None
 
 
 def memory_measurement_available() -> bool:
-    group = create_memory_cgroup()
-    if group is None:
-        return False
-    group.remove()
-    return True
+    return memory_measurement_unavailable_reason() is None
+
+
+def delegated_memory_command() -> str:
+    command = [
+        "systemd-run",
+        "--user",
+        "--scope",
+        "--quiet",
+        "--property=Delegate=yes",
+        "--same-dir",
+        "python3",
+        *sys.argv,
+    ]
+    return shlex.join(command)
 
 
 def read_process_output(stdout_file: Any, stderr_file: Any) -> tuple[str, str]:
@@ -405,12 +530,12 @@ def validate_problem(problem: dict[str, Any], problem_path: Path) -> None:
 
 
 def validate_suite(suite: dict[str, Any]) -> None:
-    allowed_top_level = {"format", "name", "measurement", "lanes", "problems"}
+    allowed_top_level = {"format", "name", "measurement", "lanes", "groups"}
     unknown = set(suite) - allowed_top_level
     if unknown:
         raise BenchmarkError(f"suite.toml has unknown fields: {', '.join(sorted(unknown))}")
-    if suite.get("format") != 1:
-        raise BenchmarkError("suite.toml must declare format = 1")
+    if suite.get("format") != 2:
+        raise BenchmarkError("suite.toml must declare format = 2")
     if not isinstance(suite.get("name"), str) or not suite["name"]:
         raise BenchmarkError("suite.toml name must be a non-empty string")
 
@@ -445,51 +570,100 @@ def validate_suite(suite: dict[str, Any]) -> None:
         ):
             raise BenchmarkError(f"suite.toml measurement.{field} must be finite and positive")
 
-    for collection in ("lanes", "problems"):
-        entries = suite.get(collection)
-        if not isinstance(entries, list) or not entries:
-            raise BenchmarkError(f"suite.toml {collection} must be a non-empty array of tables")
-        for index, entry in enumerate(entries):
-            if (
-                not isinstance(entry, dict)
-                or set(entry) != {"path"}
-                or not isinstance(entry.get("path"), str)
-                or not entry["path"]
-            ):
-                raise BenchmarkError(
-                    f"suite.toml {collection}[{index}] must contain exactly one non-empty path"
-                )
-            resolved = (SUITE / entry["path"]).resolve()
-            if not resolved.is_relative_to(SUITE):
-                raise BenchmarkError(f"suite.toml {collection}[{index}] path is outside the suite")
+    lanes = suite.get("lanes")
+    if not isinstance(lanes, list) or not lanes:
+        raise BenchmarkError("suite.toml lanes must be a non-empty array of tables")
+    for index, entry in enumerate(lanes):
+        validate_suite_path(entry, f"lanes[{index}]")
+
+    groups = suite.get("groups")
+    if not isinstance(groups, list) or not groups:
+        raise BenchmarkError("suite.toml groups must be a non-empty array of tables")
+    for group_index, group in enumerate(groups):
+        label = f"groups[{group_index}]"
+        if not isinstance(group, dict) or set(group) != {"id", "name", "lanes", "problems"}:
+            raise BenchmarkError(
+                f"suite.toml {label} must contain exactly id, name, lanes, and problems"
+            )
+        for field in ("id", "name"):
+            if not isinstance(group[field], str) or not group[field]:
+                raise BenchmarkError(f"suite.toml {label}.{field} must be a non-empty string")
+        if (
+            not isinstance(group["lanes"], list)
+            or not group["lanes"]
+            or any(not isinstance(lane_id, str) or not lane_id for lane_id in group["lanes"])
+        ):
+            raise BenchmarkError(
+                f"suite.toml {label}.lanes must be a non-empty array of lane ids"
+            )
+        if not isinstance(group["problems"], list) or not group["problems"]:
+            raise BenchmarkError(
+                f"suite.toml {label}.problems must be a non-empty array of tables"
+            )
+        for problem_index, entry in enumerate(group["problems"]):
+            validate_suite_path(entry, f"{label}.problems[{problem_index}]")
+
+
+def validate_suite_path(entry: Any, label: str) -> None:
+    if (
+        not isinstance(entry, dict)
+        or set(entry) != {"path"}
+        or not isinstance(entry.get("path"), str)
+        or not entry["path"]
+    ):
+        raise BenchmarkError(
+            f"suite.toml {label} must contain exactly one non-empty path"
+        )
+    resolved = (SUITE / entry["path"]).resolve()
+    if not resolved.is_relative_to(SUITE):
+        raise BenchmarkError(f"suite.toml {label} path is outside the suite")
+
 
 
 def load_suite() -> tuple[dict[str, Any], list[dict[str, Any]], list[Lane]]:
     suite = load_toml(SUITE / "suite.toml")
     validate_suite(suite)
 
-    problems: list[dict[str, Any]] = []
-    seen_problems: set[str] = set()
-    for item in suite.get("problems", []):
-        problem_path = (SUITE / item["path"]).resolve()
-        problem = load_toml(problem_path / "problem.toml")
-        problem["path"] = problem_path
-        validate_problem(problem, problem_path)
-        problem_id = problem.get("id")
-        if not isinstance(problem_id, str) or problem_id in seen_problems:
-            raise BenchmarkError(f"invalid or duplicate problem id in {problem_path}")
-        seen_problems.add(problem_id)
-        problems.append(problem)
-
     lanes: list[Lane] = []
     seen_lanes: set[str] = set()
-    for item in suite.get("lanes", []):
+    for item in suite["lanes"]:
         config_path = (SUITE / item["path"]).resolve()
         lane = load_lane(config_path)
         if lane.lane_id in seen_lanes:
             raise BenchmarkError(f"duplicate lane id {lane.lane_id!r} in {config_path}")
         seen_lanes.add(lane.lane_id)
         lanes.append(lane)
+
+    problems: list[dict[str, Any]] = []
+    seen_groups: set[str] = set()
+    seen_problems: set[str] = set()
+    for group in suite["groups"]:
+        group_id = group["id"]
+        if group_id in seen_groups:
+            raise BenchmarkError(f"duplicate group id {group_id!r} in suite.toml")
+        seen_groups.add(group_id)
+        group_lane_ids = group["lanes"]
+        if len(group_lane_ids) != len(set(group_lane_ids)):
+            raise BenchmarkError(f"group {group_id!r} contains duplicate lane ids")
+        unknown_lanes = set(group_lane_ids) - seen_lanes
+        if unknown_lanes:
+            raise BenchmarkError(
+                f"group {group_id!r} references unknown lanes: "
+                + ", ".join(sorted(unknown_lanes))
+            )
+        for item in group["problems"]:
+            problem_path = (SUITE / item["path"]).resolve()
+            problem = load_toml(problem_path / "problem.toml")
+            problem["path"] = problem_path
+            problem["group"] = group_id
+            problem["group_name"] = group["name"]
+            problem["lane_ids"] = tuple(group_lane_ids)
+            validate_problem(problem, problem_path)
+            problem_id = problem.get("id")
+            if not isinstance(problem_id, str) or problem_id in seen_problems:
+                raise BenchmarkError(f"invalid or duplicate problem id in {problem_path}")
+            seen_problems.add(problem_id)
+            problems.append(problem)
     return suite, problems, lanes
 
 
@@ -669,6 +843,42 @@ def selected(
     ]
 
 
+def select_group_problems(
+    problems: list[dict[str, Any]],
+    selected_group_ids: set[str],
+    requested: list[str],
+) -> list[dict[str, Any]]:
+    grouped = [problem for problem in problems if problem["group"] in selected_group_ids]
+    if requested:
+        requested_ids = set(requested)
+        known_ids = {problem["id"] for problem in problems}
+        unknown = requested_ids - known_ids
+        if unknown:
+            raise BenchmarkError(f"unknown selection: {', '.join(sorted(unknown))}")
+        outside = requested_ids - {problem["id"] for problem in grouped}
+        if outside:
+            groups = ", ".join(sorted(selected_group_ids))
+            raise BenchmarkError(
+                f"problem selection is outside selected groups ({groups}): "
+                f"{', '.join(sorted(outside))}"
+            )
+    return selected(grouped, requested, [problem["id"] for problem in grouped])
+
+
+def lanes_for_problem(problem: dict[str, Any], lanes: list[Lane]) -> list[Lane]:
+    allowed = set(problem["lane_ids"])
+    return [lane for lane in lanes if lane.lane_id in allowed]
+
+
+def active_lanes(problems: list[dict[str, Any]], lanes: list[Lane]) -> list[Lane]:
+    active_ids = {
+        lane.lane_id
+        for problem in problems
+        for lane in lanes_for_problem(problem, lanes)
+    }
+    return [lane for lane in lanes if lane.lane_id in active_ids]
+
+
 def process_record(result: ProcessResult | None) -> dict[str, Any] | None:
     if result is None:
         return None
@@ -685,11 +895,13 @@ def process_record(result: ProcessResult | None) -> dict[str, Any] | None:
 def materialize_lowering(
     problems: list[dict[str, Any]], lanes: list[Lane], timeout: float
 ) -> None:
-    lowering_lanes = [lane for lane in lanes if lane.lower]
+    lowering_lanes = [
+        lane for lane in active_lanes(problems, lanes) if lane.lower
+    ]
     for lane in lowering_lanes:
         setup_lane(lane, timeout)
     for problem in problems:
-        for lane in lowering_lanes:
+        for lane in lanes_for_problem(problem, lowering_lanes):
             if lane.lower_output is None:
                 raise BenchmarkError(f"{lane.lane_id} declares lower without lower-output")
             context = command_context(problem, lane)
@@ -711,10 +923,10 @@ def check(
     setup_timeout: float,
     runtime_timeout: float,
 ) -> None:
-    for lane in lanes:
+    for lane in active_lanes(problems, lanes):
         setup_lane(lane, setup_timeout)
     for problem in problems:
-        for lane in lanes:
+        for lane in lanes_for_problem(problem, lanes):
             prepared, _ = prepare_implementation(problem, lane, setup_timeout)
             actual, _ = execute(problem, lane, prepared, "correctness", runtime_timeout)
             print(f"ok  {problem['id']:<24} {lane.lane_id:<10} {actual}")
@@ -816,10 +1028,31 @@ def benchmark(
     warmups: int,
     cold_builds: bool,
 ) -> dict[str, Any]:
-    memory_available = memory_measurement_available()
+    memory_unavailable_reason = memory_measurement_unavailable_reason()
+    memory_available = memory_unavailable_reason is None
+    memory_recommendation = (
+        None if memory_available else delegated_memory_command()
+    )
+    if memory_unavailable_reason:
+        print(
+            f"[memory unavailable] {memory_unavailable_reason}",
+            file=sys.stderr,
+            flush=True,
+        )
+        print(
+            f"[memory retry] {memory_recommendation}",
+            file=sys.stderr,
+            flush=True,
+        )
+    selected_groups = list(dict.fromkeys(problem["group"] for problem in problems))
     report: dict[str, Any] = {
-        "format": 2,
+        "format": 3,
         "suite": suite["name"],
+        "groups": [
+            {"id": group["id"], "name": group["name"]}
+            for group in suite["groups"]
+            if group["id"] in selected_groups
+        ],
         "created_at": datetime.now(timezone.utc).isoformat(),
         "environment": machine_environment(),
         "measurement": {
@@ -839,8 +1072,11 @@ def benchmark(
             "memory": (
                 "peak cgroup-v2 memory charged to a fresh cgroup containing the launched process and all descendants"
                 if memory_available
-                else "unavailable because delegated cgroup-v2 memory accounting is not accessible"
+                else f"unavailable: {memory_unavailable_reason}"
             ),
+            "memory_available": memory_available,
+            "memory_unavailable_reason": memory_unavailable_reason,
+            "memory_recommendation": memory_recommendation,
             "memory_limitations": (
                 "memory.peak includes anonymous memory, charged page cache, and kernel memory. "
                 "Shared pages are charged once, potentially to a cgroup outside the measured "
@@ -853,7 +1089,13 @@ def benchmark(
         "lane_setup": {},
         "results": [],
     }
-    for lane in lanes:
+    setup_lanes = active_lanes(problems, lanes)
+    for setup_index, lane in enumerate(setup_lanes, start=1):
+        print(
+            f"[setup {setup_index}/{len(setup_lanes)}] {lane.lane_id}",
+            file=sys.stderr,
+            flush=True,
+        )
         setup = setup_lane(lane, setup_timeout)
         report["lane_setup"][lane.lane_id] = {
             "name": lane.name,
@@ -862,56 +1104,89 @@ def benchmark(
             "measurement": process_record(setup),
         }
 
+    case_matrix = [
+        (problem, lane)
+        for problem in problems
+        for lane in lanes_for_problem(problem, lanes)
+    ]
     cases: list[dict[str, Any]] = []
-    for problem in problems:
-        for lane in lanes:
-            cache_was_present = lane_cache_exists(problem, lane)
-            cold_prepare = None
-            incremental_prepare = None
-            if cold_builds and lane.cache_paths:
-                clear_lane_cache(problem, lane)
-                prepared, cold_prepare = prepare_implementation(
-                    problem, lane, setup_timeout
-                )
-                prepared, incremental_prepare = prepare_implementation(
-                    problem, lane, setup_timeout
-                )
+    for case_index, (problem, lane) in enumerate(case_matrix, start=1):
+        case_count = len(case_matrix)
+        label = f"{problem['id']} / {lane.lane_id}"
+        cache_was_present = lane_cache_exists(problem, lane)
+        cold_prepare = None
+        incremental_prepare = None
+        if cold_builds and lane.cache_paths:
+            clear_lane_cache(problem, lane)
+            print(
+                f"[cold prepare {case_index}/{case_count}] {label}",
+                file=sys.stderr,
+                flush=True,
+            )
+            prepared, cold_prepare = prepare_implementation(
+                problem, lane, setup_timeout
+            )
+            print(
+                f"[incremental prepare {case_index}/{case_count}] {label}",
+                file=sys.stderr,
+                flush=True,
+            )
+            prepared, incremental_prepare = prepare_implementation(
+                problem, lane, setup_timeout
+            )
+        else:
+            print(
+                f"[prepare {case_index}/{case_count}] {label}",
+                file=sys.stderr,
+                flush=True,
+            )
+            prepared, preparation = prepare_implementation(
+                problem, lane, setup_timeout
+            )
+            if cache_was_present:
+                incremental_prepare = preparation
             else:
-                prepared, preparation = prepare_implementation(
-                    problem, lane, setup_timeout
-                )
-                if cache_was_present:
-                    incremental_prepare = preparation
-                else:
-                    cold_prepare = preparation
-            correctness, _ = execute(
-                problem, lane, prepared, "correctness", runtime_timeout
-            )
-            result_record = {
-                "problem": problem["id"],
-                "title": problem["title"],
-                "dataset": problem["dataset"],
-                "correctness_profile": dict(problem["profiles"]["correctness"]),
-                "performance_profile": dict(problem["profiles"]["performance"]),
-                "lane": lane.lane_id,
-                "correctness_result": correctness,
-                "performance_result": None,
-                "cold_prepare": process_record(cold_prepare),
-                "incremental_prepare": process_record(incremental_prepare),
-                "runs": [],
+                cold_prepare = preparation
+        print(
+            f"[correctness {case_index}/{case_count}] {label}",
+            file=sys.stderr,
+            flush=True,
+        )
+        correctness, _ = execute(
+            problem, lane, prepared, "correctness", runtime_timeout
+        )
+        result_record = {
+            "problem": problem["id"],
+            "group": problem["group"],
+            "title": problem["title"],
+            "dataset": problem["dataset"],
+            "correctness_profile": dict(problem["profiles"]["correctness"]),
+            "performance_profile": dict(problem["profiles"]["performance"]),
+            "lane": lane.lane_id,
+            "correctness_result": correctness,
+            "performance_result": None,
+            "cold_prepare": process_record(cold_prepare),
+            "incremental_prepare": process_record(incremental_prepare),
+            "runs": [],
+        }
+        report["results"].append(result_record)
+        cases.append(
+            {
+                "problem": problem,
+                "lane": lane,
+                "prepared": prepared,
+                "record": result_record,
             }
-            report["results"].append(result_record)
-            cases.append(
-                {
-                    "problem": problem,
-                    "lane": lane,
-                    "prepared": prepared,
-                    "record": result_record,
-                }
-            )
+        )
 
-    for _ in range(warmups):
-        for case in cases:
+    for warmup_index in range(1, warmups + 1):
+        for case_index, case in enumerate(cases, start=1):
+            print(
+                f"[warm-up {warmup_index}/{warmups}, case {case_index}/{len(cases)}] "
+                f"{case['problem']['id']} / {case['lane'].lane_id}",
+                file=sys.stderr,
+                flush=True,
+            )
             execute(
                 case["problem"],
                 case["lane"],
@@ -920,8 +1195,14 @@ def benchmark(
                 runtime_timeout,
             )
 
-    for _ in range(runs):
-        for case in cases:
+    for run_index in range(1, runs + 1):
+        for case_index, case in enumerate(cases, start=1):
+            label = f"{case['problem']['id']} / {case['lane'].lane_id}"
+            print(
+                f"[run {run_index}/{runs}, case {case_index}/{len(cases)}] {label}",
+                file=sys.stderr,
+                flush=True,
+            )
             observed, measurement = execute(
                 case["problem"],
                 case["lane"],
@@ -931,12 +1212,12 @@ def benchmark(
             )
             case["record"]["performance_result"] = observed
             case["record"]["runs"].append(process_record(measurement))
-
-    for case in cases:
-        print(
-            f"benchmarked  {case['problem']['id']:<24} {case['lane'].lane_id}",
-            file=sys.stderr,
-        )
+            if run_index == runs:
+                print(
+                    f"[complete {case_index}/{len(cases)}] {label}",
+                    file=sys.stderr,
+                    flush=True,
+                )
     return report
 
 
@@ -1013,6 +1294,10 @@ def render_markdown(report: dict[str, Any], raw_report_name: str) -> str:
     ]
     if measurement["memory_limitations"]:
         lines.append(f"- Memory limitations: {measurement['memory_limitations']}")
+    if measurement["memory_recommendation"]:
+        lines.append(
+            f"- Memory retry command: `{measurement['memory_recommendation']}`"
+        )
 
     lines.extend(
         [
@@ -1042,37 +1327,47 @@ def render_markdown(report: dict[str, Any], raw_report_name: str) -> str:
             + " |"
         )
 
-    lines.extend(
-        [
-            "",
-            "## Execution results",
-            "",
-            "| Problem | Lane | Size | Result | Median wall time | Range | Median peak memory | Peak memory range | Warnings |",
-            "|---|---|---:|---:|---:|---:|---:|---:|---:|",
-        ]
-    )
-    for result in report["results"]:
-        runs = result["runs"]
-        times = [run["wall_seconds"] for run in runs]
-        peaks = [run["peak_memory_bytes"] for run in runs if run["peak_memory_bytes"] is not None]
-        time_range = f"{format_seconds(min(times))}–{format_seconds(max(times))}"
-        lines.append(
-            "| "
-            + " | ".join(
-                [
-                    markdown_text(result["title"]),
-                    markdown_text(result["lane"]),
-                    str(result["performance_profile"]["size"]),
-                    markdown_text(result["performance_result"]),
-                    format_seconds(median(times)),
-                    time_range,
-                    format_bytes(int(median(peaks))) if peaks else "—",
-                    f"{format_bytes(min(peaks))}–{format_bytes(max(peaks))}" if peaks else "—",
-                    str(sum(len(run["warning_lines"]) for run in runs)),
-                ]
-            )
-            + " |"
+    lines.extend(["", "## Execution results"])
+    for group in report["groups"]:
+        lines.extend(
+            [
+                "",
+                f"### {markdown_text(group['name'])}",
+                "",
+                "| Problem | Lane | Size | Result | Median wall time | Range | Median peak memory | Peak memory range | Warnings |",
+                "|---|---|---:|---:|---:|---:|---:|---:|---:|",
+            ]
         )
+        for result in (
+            result for result in report["results"] if result["group"] == group["id"]
+        ):
+            runs = result["runs"]
+            times = [run["wall_seconds"] for run in runs]
+            peaks = [
+                run["peak_memory_bytes"]
+                for run in runs
+                if run["peak_memory_bytes"] is not None
+            ]
+            time_range = f"{format_seconds(min(times))}–{format_seconds(max(times))}"
+            lines.append(
+                "| "
+                + " | ".join(
+                    [
+                        markdown_text(result["title"]),
+                        markdown_text(result["lane"]),
+                        str(result["performance_profile"]["size"]),
+                        markdown_text(result["performance_result"]),
+                        format_seconds(median(times)),
+                        time_range,
+                        format_bytes(int(median(peaks))) if peaks else "—",
+                        f"{format_bytes(min(peaks))}–{format_bytes(max(peaks))}"
+                        if peaks
+                        else "—",
+                        str(sum(len(run["warning_lines"]) for run in runs)),
+                    ]
+                )
+                + " |"
+            )
 
     preparation_results = [
         result
@@ -1143,6 +1438,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--problem", action="append", default=[], help="problem id (repeatable)")
     parser.add_argument("--lane", action="append", default=[], help="lane id (repeatable)")
+    parser.add_argument("--group", action="append", default=[], help="group id (repeatable)")
     parser.add_argument(
         "--setup-timeout",
         type=float,
@@ -1173,7 +1469,13 @@ def main() -> int:
     arguments = parser.parse_args()
     try:
         suite, problems, lanes = load_suite()
-        problems = selected(problems, arguments.problem, [problem["id"] for problem in problems])
+        groups = selected(
+            suite["groups"], arguments.group, [group["id"] for group in suite["groups"]]
+        )
+        selected_group_ids = {group["id"] for group in groups}
+        problems = select_group_problems(
+            problems, selected_group_ids, arguments.problem
+        )
         lanes = selected(lanes, arguments.lane, [lane.lane_id for lane in lanes])
         measurement = suite["measurement"]
         setup_timeout = (
@@ -1189,13 +1491,18 @@ def main() -> int:
         if setup_timeout <= 0 or runtime_timeout <= 0:
             raise BenchmarkError("setup and runtime timeouts must be positive")
         if arguments.command == "list":
+            print("Groups:")
+            for group in groups:
+                print(f"  {group['id']:<24} {group['name']}")
             print("Problems:")
             for problem in problems:
-                print(f"  {problem['id']:<24} {problem['title']}")
+                print(f"  {problem['id']:<24} {problem['title']} [{problem['group']}]")
             print("Lanes:")
             for lane in lanes:
                 print(f"  {lane.lane_id:<24} {lane.name}")
             return 0
+        if not active_lanes(problems, lanes):
+            raise BenchmarkError("selection produced no runnable problem and lane combinations")
         prepare_sccache_server()
         if arguments.command == "lower":
             materialize_lowering(problems, lanes, setup_timeout)

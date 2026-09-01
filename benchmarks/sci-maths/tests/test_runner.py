@@ -1,5 +1,6 @@
 import copy
 import importlib.util
+import io
 import os
 from pathlib import Path
 import sys
@@ -53,7 +54,7 @@ class RunnerContracts(unittest.TestCase):
 
     def test_suite_validation_reports_missing_and_malformed_contracts(self) -> None:
         valid = {
-            "format": 1,
+            "format": 2,
             "name": "fixture",
             "measurement": {
                 "warmups": 0,
@@ -62,7 +63,14 @@ class RunnerContracts(unittest.TestCase):
                 "runtime-timeout-seconds": 2.5,
             },
             "lanes": [{"path": "lanes/fixture.toml"}],
-            "problems": [{"path": "problems/fixture"}],
+            "groups": [
+                {
+                    "id": "baseline",
+                    "name": "Baseline",
+                    "lanes": ["fixture"],
+                    "problems": [{"path": "problems/fixture"}],
+                }
+            ],
         }
         runner.validate_suite(valid)
 
@@ -77,6 +85,20 @@ class RunnerContracts(unittest.TestCase):
         malformed_path["lanes"] = [{"path": "../outside.toml"}]
         with self.assertRaisesRegex(runner.BenchmarkError, "path is outside"):
             runner.validate_suite(malformed_path)
+
+    def test_problem_selection_explains_group_mismatch(self) -> None:
+        problems = [
+            {"id": "baseline-problem", "group": "baseline"},
+            {"id": "scientific-problem", "group": "scientific"},
+        ]
+        with self.assertRaisesRegex(
+            runner.BenchmarkError,
+            r"problem selection is outside selected groups \(baseline\): scientific-problem",
+        ):
+            runner.select_group_problems(
+                problems, {"baseline"}, ["scientific-problem"]
+            )
+
 
 
     def test_fixture_lane_exercises_setup_prepare_run_and_environment(self) -> None:
@@ -136,6 +158,61 @@ class RunnerContracts(unittest.TestCase):
         record = runner.process_record(result)
         assert record is not None
         self.assertEqual(record["warning_lines"], ["warning: fixture"])
+
+    def test_memory_probe_explains_missing_platform_capability(self) -> None:
+        with mock.patch.object(runner.sys, "platform", "darwin"):
+            reason = runner.memory_measurement_unavailable_reason()
+        assert reason is not None
+        self.assertIn("requires Linux cgroup v2", reason)
+        self.assertIn("not running Linux", reason)
+
+    def test_memory_probe_explains_missing_cgroup_delegation(self) -> None:
+        parent = Path("/sys/fs/cgroup/fixture")
+        with (
+            mock.patch.object(runner, "memory_cgroup_parent", return_value=(parent, None)),
+            mock.patch.object(
+                runner.tempfile,
+                "mkdtemp",
+                side_effect=PermissionError("permission denied"),
+            ),
+        ):
+            reason = runner.memory_measurement_unavailable_reason()
+        assert reason is not None
+        self.assertIn("writable delegated cgroup-v2 subtree", reason)
+        self.assertIn(str(parent), reason)
+
+    def test_memory_parent_cleanup_restores_original_cgroup_state(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            runner_leaf = root / "terrane-sci-runner-fixture"
+            runner_leaf.mkdir()
+            (root / "cgroup.procs").write_text("")
+            (root / "cgroup.subtree_control").write_text("memory")
+            runner.MEMORY_CGROUP_ROOT = root
+            runner.MEMORY_CGROUP_RUNNER_LEAF = runner_leaf
+            runner.MEMORY_CGROUP_ENABLED_MEMORY = True
+
+            runner.cleanup_memory_cgroup_parent()
+
+            self.assertFalse(runner_leaf.exists())
+            self.assertEqual((root / "cgroup.procs").read_text(), str(os.getpid()))
+            self.assertEqual((root / "cgroup.subtree_control").read_text(), "-memory")
+            self.assertIsNone(runner.MEMORY_CGROUP_ROOT)
+            self.assertIsNone(runner.MEMORY_CGROUP_RUNNER_LEAF)
+            self.assertFalse(runner.MEMORY_CGROUP_ENABLED_MEMORY)
+
+    def test_delegated_memory_command_preserves_runner_arguments(self) -> None:
+        with mock.patch.object(
+            runner.sys,
+            "argv",
+            ["benchmarks/sci-maths/run.py", "--group", "scientific-stack", "report"],
+        ):
+            command = runner.delegated_memory_command()
+        self.assertEqual(
+            command,
+            "systemd-run --user --scope --quiet --property=Delegate=yes --same-dir "
+            "python3 benchmarks/sci-maths/run.py --group scientific-stack report",
+        )
 
     def test_processes_force_available_sccache_when_inherited_wrapper_is_disabled(
         self,
@@ -286,13 +363,19 @@ class RunnerContracts(unittest.TestCase):
                 "title": problem_id,
                 "dataset": "fixture data",
                 "path": Path.cwd(),
+                "group": "fixture-group",
+                "group_name": "Fixture group",
+                "lane_ids": lane_ids,
                 "result": "integer",
                 "profiles": {
                     "correctness": {"size": 1, "expected": 1},
                     "performance": {"size": 1, "expected": 1},
                 },
             }
-            for problem_id in ("alpha", "beta")
+            for problem_id, lane_ids in (
+                ("alpha", ("first", "second")),
+                ("beta", ("second",)),
+            )
         ]
         calls: list[tuple[str, str, str]] = []
         original_execute = runner.execute
@@ -303,27 +386,73 @@ class RunnerContracts(unittest.TestCase):
 
         runner.execute = fake_execute
         try:
-            runner.benchmark(
-                {"name": "fixture"},
-                problems,
-                lanes,
-                setup_timeout=5.0,
-                runtime_timeout=5.0,
-                runs=2,
-                warmups=1,
-                cold_builds=False,
-            )
+            with (
+                mock.patch.object(
+                    runner,
+                    "memory_measurement_unavailable_reason",
+                    return_value="fixture cgroup delegation is missing",
+                ),
+                mock.patch.object(
+                    runner.sys, "stderr", new_callable=io.StringIO
+                ) as progress,
+            ):
+                report = runner.benchmark(
+                    {
+                        "name": "fixture",
+                        "groups": [{"id": "fixture-group", "name": "Fixture group"}],
+                    },
+                    problems,
+                    lanes,
+                    setup_timeout=5.0,
+                    runtime_timeout=5.0,
+                    runs=2,
+                    warmups=1,
+                    cold_builds=False,
+                )
         finally:
             runner.execute = original_execute
 
         expected_order = [
             ("performance", "alpha", "first"),
             ("performance", "alpha", "second"),
-            ("performance", "beta", "first"),
             ("performance", "beta", "second"),
         ]
         performance_calls = [call for call in calls if call[0] == "performance"]
         self.assertEqual(performance_calls, expected_order * 3)
+        progress_lines = progress.getvalue().splitlines()
+        self.assertEqual(
+            progress_lines[0],
+            "[memory unavailable] fixture cgroup delegation is missing",
+        )
+        self.assertTrue(
+            progress_lines[1].startswith(
+                "[memory retry] systemd-run --user --scope --quiet "
+                "--property=Delegate=yes --same-dir python3 "
+            )
+        )
+        self.assertFalse(report["measurement"]["memory_available"])
+        self.assertEqual(
+            report["measurement"]["memory_unavailable_reason"],
+            "fixture cgroup delegation is missing",
+        )
+        self.assertEqual(
+            report["measurement"]["memory_recommendation"],
+            progress_lines[1].removeprefix("[memory retry] "),
+        )
+        self.assertIn("[setup 1/2] first", progress_lines)
+        self.assertIn("[prepare 1/3] alpha / first", progress_lines)
+        self.assertIn("[correctness 3/3] beta / second", progress_lines)
+        self.assertIn("[warm-up 1/1, case 1/3] alpha / first", progress_lines)
+        self.assertIn("[run 1/2, case 2/3] alpha / second", progress_lines)
+        self.assertIn("[run 2/2, case 3/3] beta / second", progress_lines)
+        self.assertIn("[complete 3/3] beta / second", progress_lines)
+        markdown = runner.render_markdown(report, "fixture.json")
+        self.assertIn("Memory: unavailable: fixture cgroup delegation is missing.", markdown)
+        self.assertIn("Memory retry command: `systemd-run", markdown)
+        self.assertIn("### Fixture group", markdown)
+        self.assertIn("| alpha | first |", markdown)
+        self.assertIn("| beta | second |", markdown)
+        self.assertNotIn("| beta | first |", markdown)
 
 
 if __name__ == "__main__":

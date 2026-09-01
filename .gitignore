@@ -8,6 +8,7 @@ AGENTS.md
 # Rust and Terrane build artifacts
 /target/
 **/.trn/
+benchmarks/sci-maths/problems/*/rust/benchmark
 
 # VS Code extension dependencies and packaged artifacts
 /editors/vscode/node_modules/

@@ -454,6 +454,113 @@ pub enum MemberFamily {
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) enum FloatMemberOperation {
+    Finite,
+    Infinite,
+    NotANumber,
+    SquareRoot,
+    Sine,
+    Cosine,
+    SineCosine,
+    NaturalLog,
+    Exponential,
+    Absolute,
+    Round,
+    Floor,
+    Ceiling,
+    Truncate,
+    Minimum,
+    Maximum,
+    MultiplyAdd,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) enum FloatMemberResult {
+    Receiver,
+    Integer,
+    Boolean,
+    ReceiverPair,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) struct FloatMemberContract {
+    pub operation: FloatMemberOperation,
+    pub arity: Option<usize>,
+    pub result: FloatMemberResult,
+}
+
+pub(crate) fn float_member_contract(name: &str) -> Option<FloatMemberContract> {
+    let operation = match name {
+        "finite" => FloatMemberOperation::Finite,
+        "infinite" => FloatMemberOperation::Infinite,
+        "not-a-number" => FloatMemberOperation::NotANumber,
+        "square-root" => FloatMemberOperation::SquareRoot,
+        "sine" => FloatMemberOperation::Sine,
+        "cosine" => FloatMemberOperation::Cosine,
+        "sine-cosine" => FloatMemberOperation::SineCosine,
+        "natural-log" => FloatMemberOperation::NaturalLog,
+        "exponential" => FloatMemberOperation::Exponential,
+        "absolute" => FloatMemberOperation::Absolute,
+        "round" => FloatMemberOperation::Round,
+        "floor" => FloatMemberOperation::Floor,
+        "ceiling" => FloatMemberOperation::Ceiling,
+        "truncate" => FloatMemberOperation::Truncate,
+        "minimum" => FloatMemberOperation::Minimum,
+        "maximum" => FloatMemberOperation::Maximum,
+        "multiply-add" => FloatMemberOperation::MultiplyAdd,
+        _ => return None,
+    };
+    let (arity, result) = match operation {
+        FloatMemberOperation::Finite
+        | FloatMemberOperation::Infinite
+        | FloatMemberOperation::NotANumber => (None, FloatMemberResult::Boolean),
+        FloatMemberOperation::SineCosine => (Some(0), FloatMemberResult::ReceiverPair),
+        FloatMemberOperation::Round
+        | FloatMemberOperation::Floor
+        | FloatMemberOperation::Ceiling
+        | FloatMemberOperation::Truncate => (Some(0), FloatMemberResult::Integer),
+        FloatMemberOperation::Minimum | FloatMemberOperation::Maximum => {
+            (Some(1), FloatMemberResult::Receiver)
+        }
+        FloatMemberOperation::MultiplyAdd => (Some(2), FloatMemberResult::Receiver),
+        FloatMemberOperation::SquareRoot
+        | FloatMemberOperation::Sine
+        | FloatMemberOperation::Cosine
+        | FloatMemberOperation::NaturalLog
+        | FloatMemberOperation::Exponential
+        | FloatMemberOperation::Absolute => (Some(0), FloatMemberResult::Receiver),
+    };
+    Some(FloatMemberContract {
+        operation,
+        arity,
+        result,
+    })
+}
+
+impl FloatMemberContract {
+    fn result_type(self, receiver: ScalarType) -> ValueType {
+        match self.result {
+            FloatMemberResult::Receiver => ValueType::Scalar(receiver),
+            FloatMemberResult::Integer => ValueType::Scalar(ScalarType::Int),
+            FloatMemberResult::Boolean => ValueType::Scalar(ScalarType::Bool),
+            FloatMemberResult::ReceiverPair => {
+                ValueType::Tuple(ElementType::new(ValueType::Scalar(receiver)), Some(2))
+            }
+        }
+    }
+
+    fn member_type(self, receiver: ScalarType) -> ValueType {
+        let result = self.result_type(receiver);
+        self.arity.map_or(result.clone(), |arity| {
+            ValueType::Function(
+                vec![ElementType::new(ValueType::Scalar(receiver)); arity],
+                ElementType::new(result),
+            )
+        })
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct BoundMethod {
     pub receiver: Span,
     pub family: MemberFamily,
@@ -7427,6 +7534,9 @@ fn infer_value_type(
         if let Some(value_type) = infer_string_call_type(unit, node, bindings)? {
             return Ok(Some(value_type));
         }
+        if let Some(value_type) = infer_float_call_type(unit, node, bindings)? {
+            return Ok(Some(value_type));
+        }
         if let Some(value_type) = infer_arithmetic_family_type(unit, node, bindings)? {
             return Ok(Some(value_type));
         }
@@ -7471,13 +7581,22 @@ fn infer_value_type(
             && callee.kind == SyntaxKind::MemberExpression
             && let Some(member_type) = infer_member_value_type(unit, callee, bindings)?
         {
-            match member_type {
-                ValueType::Function(_, result) => return Ok(Some(result.value_type())),
-                ValueType::AsyncFunction(_, result) => {
-                    return Ok(Some(ValueType::Task(result)));
-                }
-                _ => {}
-            }
+            return match member_type {
+                ValueType::Function(_, result) => Ok(Some(result.value_type())),
+                ValueType::AsyncFunction(_, result) => Ok(Some(ValueType::Task(result))),
+                _ => Err(failure(
+                    &unit.source,
+                    "T0039",
+                    format!(
+                        "`.{}` is a property and cannot be invoked",
+                        node_text(
+                            &unit.source,
+                            callee.children.get(1).expect("member expression")
+                        )
+                    ),
+                    callee.span,
+                )),
+            };
         }
         if let Some(callee) = node.children.first()
             && callee.kind == SyntaxKind::Name
@@ -8385,12 +8504,11 @@ fn infer_member_value_type(
         }
         _ => {}
     }
-    if matches!(member_name, "round" | "floor" | "ceiling" | "truncate") {
-        if matches!(
-            receiver_type.clone(),
-            Some(ValueType::Scalar(ScalarType::Float32 | ScalarType::Float64))
-        ) {
-            return Ok(Some(ValueType::Scalar(ScalarType::Int)));
+    if let Some(contract) = float_member_contract(member_name) {
+        if let Some(ValueType::Scalar(receiver @ (ScalarType::Float32 | ScalarType::Float64))) =
+            receiver_type.clone()
+        {
+            return Ok(Some(contract.member_type(receiver)));
         }
         return Err(failure(
             &unit.source,
@@ -8430,6 +8548,68 @@ fn infer_member_value_type(
         },
     );
     Err(failure(&unit.source, "T0013", message, receiver.span))
+}
+
+fn infer_float_call_type(
+    unit: &SemanticUnit,
+    node: &SyntaxNode,
+    bindings: &[TypedBinding],
+) -> Result<Option<ValueType>, SemanticFailure> {
+    let Some(callee) = node.children.first() else {
+        return Ok(None);
+    };
+    let Some([receiver, member]) = (callee.kind == SyntaxKind::MemberExpression)
+        .then_some(callee.children.as_slice())
+        .and_then(|children| <&[SyntaxNode; 2]>::try_from(children).ok())
+    else {
+        return Ok(None);
+    };
+    let member_name = node_text(&unit.source, member);
+    let Some(contract) = float_member_contract(member_name) else {
+        return Ok(None);
+    };
+    let Some(expected) = contract.arity else {
+        return Ok(None);
+    };
+    let receiver_type = infer_receiver_value_type(unit, receiver, bindings)?;
+    let Some(ValueType::Scalar(receiver @ (ScalarType::Float32 | ScalarType::Float64))) =
+        receiver_type
+    else {
+        return Err(failure(
+            &unit.source,
+            "T0013",
+            format!("`.{member_name}` requires a floating receiver"),
+            receiver.span,
+        ));
+    };
+    let arguments = node.children.get(1);
+    let arguments = arguments.map_or(&[][..], |arguments| arguments.children.as_slice());
+    if arguments.len() != expected {
+        return Err(failure(
+            &unit.source,
+            "T0023",
+            format!(
+                "`.{member_name}` requires exactly {expected} argument{}",
+                if expected == 1 { "" } else { "s" }
+            ),
+            node.span,
+        ));
+    }
+    for argument in arguments {
+        let value = argument.children.last().unwrap_or(argument);
+        if let Some(actual) = infer_value_type(unit, value, bindings)? {
+            validate_value_destination(
+                &unit.source,
+                &unit.objects,
+                "floating operation argument",
+                ValueType::Scalar(receiver),
+                actual,
+                value,
+                "T0013",
+            )?;
+        }
+    }
+    Ok(Some(contract.result_type(receiver)))
 }
 
 pub(crate) fn string_call_selection(
