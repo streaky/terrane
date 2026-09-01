@@ -473,6 +473,7 @@ pub trait FixedWidthArithmetic: Sized + Copy {
 macro_rules! fixed_width_arithmetic {
     ($($type:ty),+ $(,)?) => {$(
         impl FixedWidthArithmetic for $type {
+            #[inline]
             fn checked_addition(self, rhs: Self) -> Option<Self> { self.checked_add(rhs) }
             fn wrapping_addition(self, rhs: Self) -> Self { self.wrapping_add(rhs) }
             fn saturating_addition(self, rhs: Self) -> Self { self.saturating_add(rhs) }
@@ -481,6 +482,7 @@ macro_rules! fixed_width_arithmetic {
             fn wrapping_subtraction(self, rhs: Self) -> Self { self.wrapping_sub(rhs) }
             fn saturating_subtraction(self, rhs: Self) -> Self { self.saturating_sub(rhs) }
             fn overflowing_subtraction(self, rhs: Self) -> (Self, bool) { self.overflowing_sub(rhs) }
+            #[inline]
             fn checked_multiplication(self, rhs: Self) -> Option<Self> { self.checked_mul(rhs) }
             fn wrapping_multiplication(self, rhs: Self) -> Self { self.wrapping_mul(rhs) }
             fn saturating_multiplication(self, rhs: Self) -> Self { self.saturating_mul(rhs) }
@@ -521,6 +523,7 @@ macro_rules! fixed_width_arithmetic {
                 let remainder = self.wrapping_sub(quotient.wrapping_mul(rhs));
                 Ok(Some((quotient, remainder)))
             }
+            #[inline]
             fn checked_remainder(self, rhs: Self) -> Result<Option<Self>, ArithmeticError> {
                 if rhs == 0 { Err(ArithmeticError::DivisionByZero) } else { Ok(self.checked_rem_euclid(rhs)) }
             }
@@ -551,6 +554,7 @@ fixed_width_arithmetic!(i8, i16, i32, i64, i128, u8, u16, u32, u64, u128);
 /// # Errors
 ///
 /// Returns arithmetic overflow when the exact sum is outside the destination range.
+#[inline]
 pub fn fixed_addition<T: FixedWidthArithmetic>(left: T, right: T) -> Result<T, ArithmeticError> {
     left.checked_addition(right)
         .ok_or(ArithmeticError::ArithmeticOverflow)
@@ -571,6 +575,7 @@ pub fn fixed_subtraction<T: FixedWidthArithmetic>(left: T, right: T) -> Result<T
 /// # Errors
 ///
 /// Returns arithmetic overflow when the exact product is outside the destination range.
+#[inline]
 pub fn fixed_multiplication<T: FixedWidthArithmetic>(
     left: T,
     right: T,
@@ -594,6 +599,7 @@ pub fn fixed_division<T: FixedWidthArithmetic>(left: T, right: T) -> Result<T, A
 /// # Errors
 ///
 /// Returns division by zero or arithmetic overflow.
+#[inline]
 pub fn fixed_remainder<T: FixedWidthArithmetic>(left: T, right: T) -> Result<T, ArithmeticError> {
     left.checked_remainder(right)?
         .ok_or(ArithmeticError::ArithmeticOverflow)
@@ -894,14 +900,17 @@ pub trait FixedIntegerSource: Copy + ToString + 'static {
 macro_rules! signed_fixed_integer_sources {
     ($($type:ty),+ $(,)?) => {$(
         impl FixedIntegerSource for $type {
+            #[inline]
             fn unsigned_magnitude(self) -> u128 {
                 self.unsigned_abs() as u128
             }
 
+            #[inline]
             fn to_f32(self) -> f32 {
                 self as f32
             }
 
+            #[inline]
             fn to_f64(self) -> f64 {
                 self as f64
             }
@@ -912,14 +921,17 @@ macro_rules! signed_fixed_integer_sources {
 macro_rules! unsigned_fixed_integer_sources {
     ($($type:ty),+ $(,)?) => {$(
         impl FixedIntegerSource for $type {
+            #[inline]
             fn unsigned_magnitude(self) -> u128 {
                 self as u128
             }
 
+            #[inline]
             fn to_f32(self) -> f32 {
                 self as f32
             }
 
+            #[inline]
             fn to_f64(self) -> f64 {
                 self as f64
             }
@@ -1099,6 +1111,7 @@ fn terrane_numeric_type(rust_type: &str) -> &'static str {
     }
 }
 
+#[cold]
 fn conversion_overflow(
     source_value: &impl ToString,
     source_type: &'static str,
@@ -1128,6 +1141,7 @@ pub fn coerce<T: IntegerDestination + 'static>(
     })
 }
 
+#[inline]
 fn exactly_representable_as_binary_float(magnitude: u128, precision: u32) -> bool {
     if magnitude == 0 {
         return true;
@@ -1141,6 +1155,7 @@ fn exactly_representable_as_binary_float(magnitude: u128, precision: u32) -> boo
 ///
 /// # Errors
 /// Returns [`ArithmeticError::IntegerConversionOverflow`] for an inexact value.
+#[inline]
 pub fn exact_fixed_f64<T: FixedIntegerSource>(value: T) -> Result<f64, ArithmeticError> {
     exactly_representable_as_binary_float(value.unsigned_magnitude(), f64::MANTISSA_DIGITS)
         .then(|| value.to_f64())
@@ -1159,6 +1174,7 @@ pub fn exact_fixed_f64<T: FixedIntegerSource>(value: T) -> Result<f64, Arithmeti
 ///
 /// # Errors
 /// Returns [`ArithmeticError::IntegerConversionOverflow`] for an inexact value.
+#[inline]
 pub fn exact_fixed_f32<T: FixedIntegerSource>(value: T) -> Result<f32, ArithmeticError> {
     exactly_representable_as_binary_float(value.unsigned_magnitude(), f32::MANTISSA_DIGITS)
         .then(|| value.to_f32())
