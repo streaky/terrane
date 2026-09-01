@@ -497,6 +497,119 @@ fn main() {
     println!("{}", terrane_scalar_support::scalar_text(&(reciprocal < 0.0)));
     let negative_infinity: f64 = zero64.ln();
     println!("{}", terrane_scalar_support::scalar_text(&(negative_infinity < 0.0)));
+    let negative32: f32 = -3.0_f32;
+    let low32: f32 = 2.0_f32;
+    let high32: f32 = 5.0_f32;
+    println!("{}", terrane_scalar_support::scalar_text(&(negative32.abs() == 3.0_f32)));
+    println!(
+        "{}", terrane_scalar_support::scalar_text(&({ let terrane_receiver = low32; let
+        terrane_argument = high32; if terrane_receiver == 0.0_f32 &&terrane_argument ==
+        0.0_f32 { if terrane_receiver.is_sign_negative() || terrane_argument
+        .is_sign_negative() { - 0.0_f32 } else { 0.0_f32 } } else { terrane_receiver
+        .min(terrane_argument) } } == 2.0_f32))
+    );
+    println!(
+        "{}", terrane_scalar_support::scalar_text(&({ let terrane_receiver = low32; let
+        terrane_argument = high32; if terrane_receiver == 0.0_f32 &&terrane_argument ==
+        0.0_f32 { if terrane_receiver.is_sign_negative() &&terrane_argument
+        .is_sign_negative() { - 0.0_f32 } else { 0.0_f32 } } else { terrane_receiver
+        .max(terrane_argument) } } == 5.0_f32))
+    );
+    println!(
+        "{}", terrane_scalar_support::scalar_text(&(low32.mul_add(high32, 1.0_f32) ==
+        11.0_f32))
+    );
+    println!("{}", terrane_scalar_support::scalar_text(&low32.is_finite()));
+    let not_a_number32: f32 = negative32.sqrt();
+    let infinity32: f32 = 1.0_f32 / zero32;
+    println!("{}", terrane_scalar_support::scalar_text(&not_a_number32.is_nan()));
+    println!("{}", terrane_scalar_support::scalar_text(&infinity32.is_infinite()));
+    let low64: f64 = 2.0;
+    let high64: f64 = 5.0;
+    println!("{}", terrane_scalar_support::scalar_text(&(negative.abs() == 1.0)));
+    println!(
+        "{}", terrane_scalar_support::scalar_text(&({ let terrane_receiver = low64; let
+        terrane_argument = high64; if terrane_receiver == 0.0_f64 &&terrane_argument ==
+        0.0_f64 { if terrane_receiver.is_sign_negative() || terrane_argument
+        .is_sign_negative() { - 0.0_f64 } else { 0.0_f64 } } else { terrane_receiver
+        .min(terrane_argument) } } == 2.0))
+    );
+    println!(
+        "{}", terrane_scalar_support::scalar_text(&({ let terrane_receiver = low64; let
+        terrane_argument = high64; if terrane_receiver == 0.0_f64 &&terrane_argument ==
+        0.0_f64 { if terrane_receiver.is_sign_negative() &&terrane_argument
+        .is_sign_negative() { - 0.0_f64 } else { 0.0_f64 } } else { terrane_receiver
+        .max(terrane_argument) } } == 5.0))
+    );
+    println!(
+        "{}", terrane_scalar_support::scalar_text(&(low64.mul_add(high64, 1.0) == 11.0))
+    );
+    println!("{}", terrane_scalar_support::scalar_text(&low64.is_finite()));
+    println!("{}", terrane_scalar_support::scalar_text(&not_a_number.is_nan()));
+    println!(
+        "{}", terrane_scalar_support::scalar_text(&negative_infinity.is_infinite())
+    );
+    println!(
+        "{}", terrane_scalar_support::scalar_text(&({ let terrane_receiver =
+        not_a_number; let terrane_argument = low64; if terrane_receiver == 0.0_f64
+        &&terrane_argument == 0.0_f64 { if terrane_receiver.is_sign_negative() ||
+        terrane_argument.is_sign_negative() { - 0.0_f64 } else { 0.0_f64 } } else {
+        terrane_receiver.min(terrane_argument) } } == low64))
+    );
+    println!(
+        "{}", terrane_scalar_support::scalar_text(&({ let terrane_receiver =
+        not_a_number; let terrane_argument = high64; if terrane_receiver == 0.0_f64
+        &&terrane_argument == 0.0_f64 { if terrane_receiver.is_sign_negative()
+        &&terrane_argument.is_sign_negative() { - 0.0_f64 } else { 0.0_f64 } } else {
+        terrane_receiver.max(terrane_argument) } } == high64))
+    );
+    let minimum_zero: f64 = {
+        let terrane_receiver = negative_zero;
+        let terrane_argument = zero64;
+        if terrane_receiver == 0.0_f64 && terrane_argument == 0.0_f64 {
+            if terrane_receiver.is_sign_negative() || terrane_argument.is_sign_negative()
+            {
+                -0.0_f64
+            } else {
+                0.0_f64
+            }
+        } else {
+            terrane_receiver.min(terrane_argument)
+        }
+    };
+    let maximum_zero: f64 = {
+        let terrane_receiver = negative_zero;
+        let terrane_argument = zero64;
+        if terrane_receiver == 0.0_f64 && terrane_argument == 0.0_f64 {
+            if terrane_receiver.is_sign_negative() && terrane_argument.is_sign_negative()
+            {
+                -0.0_f64
+            } else {
+                0.0_f64
+            }
+        } else {
+            terrane_receiver.max(terrane_argument)
+        }
+    };
+    println!("{}", terrane_scalar_support::scalar_text(&(1.0 / minimum_zero < 0.0)));
+    println!("{}", terrane_scalar_support::scalar_text(&(1.0 / maximum_zero > 0.0)));
+    let multiplicand: f64 = 1.0000000000000002;
+    let multiplier: f64 = 1.0000000000000002;
+    let addend: f64 = -1.0000000000000004_f64;
+    let fused: f64 = multiplicand.mul_add(multiplier, addend);
+    let unfused: f64 = multiplicand * multiplier + addend;
+    println!(
+        "{}", terrane_scalar_support::scalar_text(&(fused ==
+        0.00000000000000000000000000000004930380657631323784))
+    );
+    println!("{}", terrane_scalar_support::scalar_text(&(unfused == 0.0)));
+    let multiplicand32: f32 = 1.0000001_f32;
+    let multiplier32: f32 = 1.0000001_f32;
+    let addend32: f32 = -1.0000002_f32;
+    let fused32: f32 = multiplicand32.mul_add(multiplier32, addend32);
+    let unfused32: f32 = multiplicand32 * multiplier32 + addend32;
+    println!("{}", terrane_scalar_support::scalar_text(&(fused32 == 1.4210855e-14_f32)));
+    println!("{}", terrane_scalar_support::scalar_text(&(unfused32 == 0.0_f32)));
 }
 // Generated Rust files: src/runtime/errors.rs, src/authored/case.trn.rs, src/main.rs
 // Vendored support crates: terrane-int-support, terrane-scalar-support, terrane-string-support, terrane-stream-abi

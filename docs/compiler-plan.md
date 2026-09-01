@@ -1813,6 +1813,13 @@ their receiver precision, and lower to Rust primitive operations without a scien
 NaN, signed-zero, and infinity behavior; focused rejection cases cover receiver and property/call
 shape. Its reviewed lowering is canonical and executes warning-free.
 
+Implemented increment: both widths additionally expose `absolute`, `finite`, `infinite`, and
+`not-a-number` properties plus same-width `minimum`, `maximum`, and fused `multiply-add`
+operations. Their generated Rust is direct primitive scalar code. The foundational conformance case
+covers both widths and distinguishes fused from unfused rounding; focused rejection cases cover
+operation arity and argument type. The pure-Terrane gamma benchmark uses the native absolute value
+and fused operation in its hot numerical path.
+
 Deliver:
 
 - remaining roots and powers: cube root, hypotenuse, floating power, and integer-exponent power;

@@ -4793,7 +4793,7 @@ impl Emitter<'_> {
             }
             "type" => "()".to_owned(),
             operation @ ("square-root" | "sine" | "cosine" | "sine-cosine" | "natural-log"
-            | "exponential")
+            | "exponential" | "absolute" | "finite" | "infinite" | "not-a-number")
                 if matches!(
                     receiver_type.clone(),
                     Some(ValueType::Scalar(ScalarType::Float32 | ScalarType::Float64))
@@ -4812,6 +4812,10 @@ impl Emitter<'_> {
                     "cosine" => "cos",
                     "natural-log" => "ln",
                     "exponential" => "exp",
+                    "absolute" => "abs",
+                    "finite" => "is_finite",
+                    "infinite" => "is_infinite",
+                    "not-a-number" => "is_nan",
                     _ => unreachable!(),
                 };
                 format!("({receiver}).{method}()")
@@ -4974,6 +4978,44 @@ impl Emitter<'_> {
                 .map(|argument| argument.children.last().unwrap_or(argument))
                 .collect::<Vec<_>>();
             let call = match (receiver_type, member_name.as_str()) {
+                (
+                    ValueType::Scalar(receiver_type @ (ScalarType::Float32 | ScalarType::Float64)),
+                    operation @ ("minimum" | "maximum" | "multiply-add"),
+                ) => {
+                    let arguments = values
+                        .iter()
+                        .map(|value| self.expression_as(value, ValueType::Scalar(receiver_type)))
+                        .collect::<Vec<_>>();
+                    Some(if operation == "multiply-add" {
+                        format!("({receiver_value}).mul_add({})", arguments.join(", "))
+                    } else {
+                        let method = if operation == "minimum" { "min" } else { "max" };
+                        let zero = if receiver_type == ScalarType::Float32 {
+                            "0.0_f32"
+                        } else {
+                            "0.0_f64"
+                        };
+                        let zero_selection = if operation == "minimum" {
+                            format!(
+                                "if terrane_receiver.is_sign_negative() || \
+                                 terrane_argument.is_sign_negative() {{ -{zero} }} else {{ {zero} }}"
+                            )
+                        } else {
+                            format!(
+                                "if terrane_receiver.is_sign_negative() && \
+                                 terrane_argument.is_sign_negative() {{ -{zero} }} else {{ {zero} }}"
+                            )
+                        };
+                        format!(
+                            "{{ let terrane_receiver = {receiver_value}; \
+                             let terrane_argument = {}; \
+                             if terrane_receiver == {zero} && terrane_argument == {zero} \
+                             {{ {zero_selection} }} else \
+                             {{ terrane_receiver.{method}(terrane_argument) }} }}",
+                            arguments[0]
+                        )
+                    })
+                }
                 (ValueType::List(item), "append") => Some(format!(
                     "({{ let collection = &mut ({receiver_value}); collection.append({}); collection.clone() }})",
                     self.expression_as(values[0], item.value_type())

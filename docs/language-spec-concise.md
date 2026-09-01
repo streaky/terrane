@@ -413,13 +413,20 @@ postfix_policy: they select the default add/subtract child only; other policies 
 
 ```yaml
 receivers: float32 | float64
-shape: zero-argument properties preserving receiver type
+property_shape: zero-argument properties; floating results preserve receiver type
 square-root: IEEE square root; negative finite -> NaN; signed zero preserved; +infinity -> +infinity
 sine: radians
 cosine: radians
 sine-cosine: tuple [sine, cosine], combined target operation when available
 natural-log: +0 -> -infinity; negative finite -> NaN; +infinity -> +infinity
 exponential: -infinity -> +0; +infinity -> +infinity
+absolute: IEEE absolute value; -0 -> +0
+finite: bool; neither infinity nor NaN
+infinite: bool; either infinity
+not-a-number: bool; NaN
+minimum: one same-type argument -> receiver type; numeric operand wins over one NaN; -0 is less than +0
+maximum: one same-type argument -> receiver type; numeric operand wins over one NaN; +0 is greater than -0
+multiply-add: two same-type arguments -> receiver type; receiver * multiplier + addend fused with one final rounding
 errors: no throw for floating domain/range; inherit IEEE NaN, signed-zero, infinity, overflow, underflow, rounding
 accuracy: correctly rounded where target guarantees it; otherwise documented bounded error
 reproducibility: deterministic for one compiler version/target/float mode; cross-target bit identity not required
@@ -427,7 +434,9 @@ lowering: direct target primitive or smallest compiler-owned scalar support rout
 excluded: Bessel, incomplete gamma, distributions, linear algebra, arrays
 ```
 
-- Source spellings are `value.square-root`, `value.sine`, `value.cosine`, `value.sine-cosine`, `value.natural-log`, and `value.exponential`; they are properties, not calls.
+- Property spellings are `value.square-root`, `value.sine`, `value.cosine`, `value.sine-cosine`, `value.natural-log`, `value.exponential`, `value.absolute`, `value.finite`, `value.infinite`, and `value.not-a-number`; they are not calls.
+- Operation spellings are `value.minimum; other`, `value.maximum; other`, and `value.multiply-add; multiplier, addend`. In larger expressions, use the ordinary parenthesized member-call form.
+- `minimum` and `maximum` return NaN when both operands are NaN. All operation arguments must have the receiver's floating type.
 - Compile-time evaluation, if provided, must match the runtime contract and approximation policy.
 
 ## COERCION
