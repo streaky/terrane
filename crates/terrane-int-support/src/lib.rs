@@ -478,6 +478,7 @@ macro_rules! fixed_width_arithmetic {
             fn wrapping_addition(self, rhs: Self) -> Self { self.wrapping_add(rhs) }
             fn saturating_addition(self, rhs: Self) -> Self { self.saturating_add(rhs) }
             fn overflowing_addition(self, rhs: Self) -> (Self, bool) { self.overflowing_add(rhs) }
+            #[inline]
             fn checked_subtraction(self, rhs: Self) -> Option<Self> { self.checked_sub(rhs) }
             fn wrapping_subtraction(self, rhs: Self) -> Self { self.wrapping_sub(rhs) }
             fn saturating_subtraction(self, rhs: Self) -> Self { self.saturating_sub(rhs) }
@@ -497,6 +498,7 @@ macro_rules! fixed_width_arithmetic {
                 })
             }
             fn overflowing_negation(self) -> (Self, bool) { self.overflowing_neg() }
+            #[inline]
             fn checked_division(self, rhs: Self) -> Result<Option<Self>, ArithmeticError> {
                 if rhs == 0 { Err(ArithmeticError::DivisionByZero) } else { Ok(self.checked_div_euclid(rhs)) }
             }
@@ -565,6 +567,7 @@ pub fn fixed_addition<T: FixedWidthArithmetic>(left: T, right: T) -> Result<T, A
 /// # Errors
 ///
 /// Returns arithmetic overflow when the exact difference is outside the destination range.
+#[inline]
 pub fn fixed_subtraction<T: FixedWidthArithmetic>(left: T, right: T) -> Result<T, ArithmeticError> {
     left.checked_subtraction(right)
         .ok_or(ArithmeticError::ArithmeticOverflow)
@@ -589,6 +592,7 @@ pub fn fixed_multiplication<T: FixedWidthArithmetic>(
 /// # Errors
 ///
 /// Returns division by zero or arithmetic overflow.
+#[inline]
 pub fn fixed_division<T: FixedWidthArithmetic>(left: T, right: T) -> Result<T, ArithmeticError> {
     left.checked_division(right)?
         .ok_or(ArithmeticError::ArithmeticOverflow)

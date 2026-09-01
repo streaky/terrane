@@ -602,5 +602,3 @@ fn main() {
         }
     }
 }
-// Generated Rust files: src/runtime/errors.rs, src/authored/case.trn.rs, src/main.rs
-// Vendored support crates: terrane-int-support, terrane-scalar-support, terrane-string-support, terrane-stream-abi

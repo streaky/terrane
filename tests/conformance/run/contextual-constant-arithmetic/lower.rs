@@ -1,4 +1,4 @@
-// Generated deterministically by Terrane 0.1.0.
+// Generated deterministically by Terrane <version>.
 type TerraneSite = u32;
 const TERRANE_NO_SITE: TerraneSite = u32::MAX;
 #[allow(dead_code, reason = "custom descriptors are absent from some lowered programs")]
@@ -447,5 +447,3 @@ fn main() {
         1 /* terrane-site: case.trn:24:11-24:17 */))
     );
 }
-// Generated Rust files: src/runtime/errors.rs, src/authored/case.trn.rs, src/main.rs
-// Vendored support crates: terrane-int-support, terrane-scalar-support, terrane-string-support, terrane-stream-abi

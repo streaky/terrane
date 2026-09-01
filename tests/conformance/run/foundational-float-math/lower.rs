@@ -1,4 +1,4 @@
-// Generated deterministically by Terrane 0.1.0.
+// Generated deterministically by Terrane <version>.
 type TerraneSite = u32;
 const TERRANE_NO_SITE: TerraneSite = u32::MAX;
 #[allow(dead_code, reason = "custom descriptors are absent from some lowered programs")]
@@ -507,17 +507,17 @@ fn main() {
     println!("{}", terrane_scalar_support::scalar_text(&(negative32.abs() == 3.0_f32)));
     println!(
         "{}", terrane_scalar_support::scalar_text(&({ let terrane_receiver = low32; let
-        terrane_argument = high32; if terrane_receiver == 0.0_f32 &&terrane_argument ==
-        0.0_f32 { if terrane_receiver.is_sign_negative() || terrane_argument
-        .is_sign_negative() { - 0.0_f32 } else { 0.0_f32 } } else { terrane_receiver
-        .min(terrane_argument) } } == 2.0_f32))
+        terrane_argument = high32; if terrane_receiver == 0.0 &&terrane_argument == 0.0 {
+        if terrane_receiver.is_sign_negative() || terrane_argument.is_sign_negative() { -
+        0.0 } else { 0.0 } } else { terrane_receiver.min(terrane_argument) } } ==
+        2.0_f32))
     );
     println!(
         "{}", terrane_scalar_support::scalar_text(&({ let terrane_receiver = low32; let
-        terrane_argument = high32; if terrane_receiver == 0.0_f32 &&terrane_argument ==
-        0.0_f32 { if terrane_receiver.is_sign_negative() &&terrane_argument
-        .is_sign_negative() { - 0.0_f32 } else { 0.0_f32 } } else { terrane_receiver
-        .max(terrane_argument) } } == 5.0_f32))
+        terrane_argument = high32; if terrane_receiver == 0.0 &&terrane_argument == 0.0 {
+        if terrane_receiver.is_sign_positive() || terrane_argument.is_sign_positive() {
+        0.0 } else { - 0.0 } } else { terrane_receiver.max(terrane_argument) } } ==
+        5.0_f32))
     );
     println!(
         "{}", terrane_scalar_support::scalar_text(&(low32.mul_add(high32, 1.0_f32) ==
@@ -533,20 +533,65 @@ fn main() {
     println!("{}", terrane_scalar_support::scalar_text(&(negative.abs() == 1.0)));
     println!(
         "{}", terrane_scalar_support::scalar_text(&({ let terrane_receiver = low64; let
-        terrane_argument = high64; if terrane_receiver == 0.0_f64 &&terrane_argument ==
-        0.0_f64 { if terrane_receiver.is_sign_negative() || terrane_argument
-        .is_sign_negative() { - 0.0_f64 } else { 0.0_f64 } } else { terrane_receiver
-        .min(terrane_argument) } } == 2.0))
+        terrane_argument = high64; if terrane_receiver == 0.0 &&terrane_argument == 0.0 {
+        if terrane_receiver.is_sign_negative() || terrane_argument.is_sign_negative() { -
+        0.0 } else { 0.0 } } else { terrane_receiver.min(terrane_argument) } } == 2.0))
     );
     println!(
         "{}", terrane_scalar_support::scalar_text(&({ let terrane_receiver = low64; let
-        terrane_argument = high64; if terrane_receiver == 0.0_f64 &&terrane_argument ==
-        0.0_f64 { if terrane_receiver.is_sign_negative() &&terrane_argument
-        .is_sign_negative() { - 0.0_f64 } else { 0.0_f64 } } else { terrane_receiver
-        .max(terrane_argument) } } == 5.0))
+        terrane_argument = high64; if terrane_receiver == 0.0 &&terrane_argument == 0.0 {
+        if terrane_receiver.is_sign_positive() || terrane_argument.is_sign_positive() {
+        0.0 } else { - 0.0 } } else { terrane_receiver.max(terrane_argument) } } == 5.0))
     );
     println!(
         "{}", terrane_scalar_support::scalar_text(&(low64.mul_add(high64, 1.0) == 11.0))
+    );
+    let minimum64: std::sync::Arc<dyn Fn(f64) -> f64 + Send + Sync> = {
+        let receiver = low64;
+        std::sync::Arc::new(move |argument_0: f64| {
+            let terrane_receiver = receiver;
+            let terrane_argument = argument_0;
+            if terrane_receiver == 0.0 && terrane_argument == 0.0 {
+                if terrane_receiver.is_sign_negative()
+                    || terrane_argument.is_sign_negative()
+                {
+                    -0.0
+                } else {
+                    0.0
+                }
+            } else {
+                terrane_receiver.min(terrane_argument)
+            }
+        })
+    };
+    let maximum64: std::sync::Arc<dyn Fn(f64) -> f64 + Send + Sync> = {
+        let receiver = low64;
+        std::sync::Arc::new(move |argument_0: f64| {
+            let terrane_receiver = receiver;
+            let terrane_argument = argument_0;
+            if terrane_receiver == 0.0 && terrane_argument == 0.0 {
+                if terrane_receiver.is_sign_positive()
+                    || terrane_argument.is_sign_positive()
+                {
+                    0.0
+                } else {
+                    -0.0
+                }
+            } else {
+                terrane_receiver.max(terrane_argument)
+            }
+        })
+    };
+    let multiply_add64: std::sync::Arc<dyn Fn(f64, f64) -> f64 + Send + Sync> = {
+        let receiver = low64;
+        std::sync::Arc::new(move |argument_0: f64, argument_1: f64| {
+            receiver.mul_add(argument_0, argument_1)
+        })
+    };
+    println!(
+        "{}{}{}", terrane_scalar_support::scalar_text(&(minimum64(high64) == 2.0)),
+        terrane_scalar_support::scalar_text(&(maximum64(high64) == 5.0)),
+        terrane_scalar_support::scalar_text(&(multiply_add64(high64, 1.0) == 11.0))
     );
     println!("{}", terrane_scalar_support::scalar_text(&low64.is_finite()));
     println!("{}", terrane_scalar_support::scalar_text(&not_a_number.is_nan()));
@@ -555,27 +600,27 @@ fn main() {
     );
     println!(
         "{}", terrane_scalar_support::scalar_text(&({ let terrane_receiver =
-        not_a_number; let terrane_argument = low64; if terrane_receiver == 0.0_f64
-        &&terrane_argument == 0.0_f64 { if terrane_receiver.is_sign_negative() ||
-        terrane_argument.is_sign_negative() { - 0.0_f64 } else { 0.0_f64 } } else {
+        not_a_number; let terrane_argument = low64; if terrane_receiver == 0.0
+        &&terrane_argument == 0.0 { if terrane_receiver.is_sign_negative() ||
+        terrane_argument.is_sign_negative() { - 0.0 } else { 0.0 } } else {
         terrane_receiver.min(terrane_argument) } } == low64))
     );
     println!(
         "{}", terrane_scalar_support::scalar_text(&({ let terrane_receiver =
-        not_a_number; let terrane_argument = high64; if terrane_receiver == 0.0_f64
-        &&terrane_argument == 0.0_f64 { if terrane_receiver.is_sign_negative()
-        &&terrane_argument.is_sign_negative() { - 0.0_f64 } else { 0.0_f64 } } else {
+        not_a_number; let terrane_argument = high64; if terrane_receiver == 0.0
+        &&terrane_argument == 0.0 { if terrane_receiver.is_sign_positive() ||
+        terrane_argument.is_sign_positive() { 0.0 } else { - 0.0 } } else {
         terrane_receiver.max(terrane_argument) } } == high64))
     );
     let minimum_zero: f64 = {
         let terrane_receiver = negative_zero;
         let terrane_argument = zero64;
-        if terrane_receiver == 0.0_f64 && terrane_argument == 0.0_f64 {
+        if terrane_receiver == 0.0 && terrane_argument == 0.0 {
             if terrane_receiver.is_sign_negative() || terrane_argument.is_sign_negative()
             {
-                -0.0_f64
+                -0.0
             } else {
-                0.0_f64
+                0.0
             }
         } else {
             terrane_receiver.min(terrane_argument)
@@ -584,12 +629,12 @@ fn main() {
     let maximum_zero: f64 = {
         let terrane_receiver = negative_zero;
         let terrane_argument = zero64;
-        if terrane_receiver == 0.0_f64 && terrane_argument == 0.0_f64 {
-            if terrane_receiver.is_sign_negative() && terrane_argument.is_sign_negative()
+        if terrane_receiver == 0.0 && terrane_argument == 0.0 {
+            if terrane_receiver.is_sign_positive() || terrane_argument.is_sign_positive()
             {
-                -0.0_f64
+                0.0
             } else {
-                0.0_f64
+                -0.0
             }
         } else {
             terrane_receiver.max(terrane_argument)
@@ -615,5 +660,3 @@ fn main() {
     println!("{}", terrane_scalar_support::scalar_text(&(fused32 == 1.4210855e-14_f32)));
     println!("{}", terrane_scalar_support::scalar_text(&(unfused32 == 0.0_f32)));
 }
-// Generated Rust files: src/runtime/errors.rs, src/authored/case.trn.rs, src/main.rs
-// Vendored support crates: terrane-int-support, terrane-scalar-support, terrane-string-support, terrane-stream-abi

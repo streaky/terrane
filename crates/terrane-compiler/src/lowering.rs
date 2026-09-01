@@ -9,11 +9,12 @@ use crate::{
     ScalarType, SourceFile, TypeCategory,
     rust_ir::{GeneratedModule, Item, Module, Program},
     semantics::{
-        ArithmeticFamily, CoercionPolicy, ContextualConstant, ElementType, FunctionContract,
-        MemberFamily, ObjectContract, ObjectField, ObjectIdentity, ObjectKind, SemanticPackage,
-        SemanticUnit, StringFamily, SymbolKind, TypedBinding, ValueType, binding_span_is_mutated,
-        binding_store_value_is_read, bound_method, contextual_constant, narrowed_optional_type,
-        narrowed_value_type, promoted_integer_type, string_call_selection,
+        ArithmeticFamily, CoercionPolicy, ContextualConstant, ElementType, FloatMemberOperation,
+        FunctionContract, MemberFamily, ObjectContract, ObjectField, ObjectIdentity, ObjectKind,
+        SemanticPackage, SemanticUnit, StringFamily, SymbolKind, TypedBinding, ValueType,
+        binding_span_is_mutated, binding_store_value_is_read, bound_method, contextual_constant,
+        float_member_contract, narrowed_optional_type, narrowed_value_type, promoted_integer_type,
+        string_call_selection,
     },
     syntax::{SyntaxKind, SyntaxNode},
 };
@@ -3872,18 +3873,6 @@ impl Emitter<'_> {
                     .value_type(receiver)
                     .expect("bound object method receiver must have a static type");
                 let receiver = self.expression_as(receiver, receiver_type.clone());
-                if parameters.is_empty()
-                    && let Some(body) = self.float_zero_argument_call(
-                        receiver_type.clone(),
-                        self.text(member),
-                        "receiver",
-                        node,
-                    )
-                {
-                    return format!(
-                        "{{ let receiver = {receiver}; std::sync::Arc::new(move || {body}) }}"
-                    );
-                }
                 let declarations = parameters
                     .iter()
                     .enumerate()
@@ -3895,10 +3884,24 @@ impl Emitter<'_> {
                     })
                     .collect::<Vec<_>>()
                     .join(", ");
-                let arguments = (0..parameters.len())
+                let argument_values = (0..parameters.len())
                     .map(|index| format!("argument_{index}"))
-                    .collect::<Vec<_>>()
-                    .join(", ");
+                    .collect::<Vec<_>>();
+                let arguments = argument_values.join(", ");
+                if let ValueType::Scalar(float_type @ (ScalarType::Float32 | ScalarType::Float64)) =
+                    receiver_type
+                    && let Some(body) = self.float_call(
+                        float_type,
+                        self.text(member),
+                        "receiver",
+                        &argument_values,
+                        node,
+                    )
+                {
+                    return format!(
+                        "{{ let receiver = {receiver}; std::sync::Arc::new(move |{declarations}| {body}) }}"
+                    );
+                }
                 if callable_field {
                     format!(
                         "{{ let receiver = {receiver}; std::sync::Arc::new(move |{declarations}| (receiver.{})({arguments})) }}",
@@ -4804,17 +4807,20 @@ impl Emitter<'_> {
                 format!("({receiver}).value.clone()")
             }
             "type" => "()".to_owned(),
-            operation @ ("finite" | "infinite" | "not-a-number")
-                if matches!(
-                    receiver_type,
-                    Some(ValueType::Scalar(ScalarType::Float32 | ScalarType::Float64))
-                ) =>
+            name if matches!(
+                receiver_type,
+                Some(ValueType::Scalar(ScalarType::Float32 | ScalarType::Float64))
+            ) && float_member_contract(name)
+                .is_some_and(|contract| contract.arity.is_none()) =>
             {
+                let operation = float_member_contract(name)
+                    .expect("validated floating property")
+                    .operation;
                 let method = match operation {
-                    "finite" => "is_finite",
-                    "infinite" => "is_infinite",
-                    "not-a-number" => "is_nan",
-                    _ => unreachable!(),
+                    FloatMemberOperation::Finite => "is_finite",
+                    FloatMemberOperation::Infinite => "is_infinite",
+                    FloatMemberOperation::NotANumber => "is_nan",
+                    _ => unreachable!("callable floating member used as a property"),
                 };
                 format!("({receiver}).{method}()")
             }
@@ -4825,35 +4831,36 @@ impl Emitter<'_> {
         }
     }
 
-    fn float_zero_argument_call(
+    fn float_call(
         &self,
-        receiver_type: ValueType,
+        float_type: ScalarType,
         operation: &str,
         receiver: &str,
+        arguments: &[String],
         node: &SyntaxNode,
     ) -> Option<String> {
-        let ValueType::Scalar(float_type @ (ScalarType::Float32 | ScalarType::Float64)) =
-            receiver_type
-        else {
-            return None;
-        };
-        let call = match operation {
-            "sine-cosine" => format!(
+        let contract = float_member_contract(operation)?;
+        (contract.arity == Some(arguments.len())).then_some(())?;
+        let call = match contract.operation {
+            FloatMemberOperation::SineCosine => format!(
                 "{{ let terrane_sine_cosine = ({receiver}).sin_cos(); \
                  terrane_collection_support::Tuple::new(vec![\
                  terrane_sine_cosine.0, terrane_sine_cosine.1]) }}"
             ),
-            "round" | "floor" | "ceiling" | "truncate" => {
+            operation @ (FloatMemberOperation::Round
+            | FloatMemberOperation::Floor
+            | FloatMemberOperation::Ceiling
+            | FloatMemberOperation::Truncate) => {
                 let helper = if float_type == ScalarType::Float32 {
                     "rounded_f32"
                 } else {
                     "rounded_f64"
                 };
                 let mode = match operation {
-                    "round" => "TiesEven",
-                    "floor" => "Floor",
-                    "ceiling" => "Ceiling",
-                    "truncate" => "Truncate",
+                    FloatMemberOperation::Round => "TiesEven",
+                    FloatMemberOperation::Floor => "Floor",
+                    FloatMemberOperation::Ceiling => "Ceiling",
+                    FloatMemberOperation::Truncate => "Truncate",
                     _ => unreachable!(),
                 };
                 self.fallible(
@@ -4864,20 +4871,49 @@ impl Emitter<'_> {
                     node,
                 )
             }
-            operation @ ("square-root" | "sine" | "cosine" | "natural-log" | "exponential"
-            | "absolute") => {
+            operation @ (FloatMemberOperation::SquareRoot
+            | FloatMemberOperation::Sine
+            | FloatMemberOperation::Cosine
+            | FloatMemberOperation::NaturalLog
+            | FloatMemberOperation::Exponential
+            | FloatMemberOperation::Absolute) => {
                 let method = match operation {
-                    "square-root" => "sqrt",
-                    "sine" => "sin",
-                    "cosine" => "cos",
-                    "natural-log" => "ln",
-                    "exponential" => "exp",
-                    "absolute" => "abs",
+                    FloatMemberOperation::SquareRoot => "sqrt",
+                    FloatMemberOperation::Sine => "sin",
+                    FloatMemberOperation::Cosine => "cos",
+                    FloatMemberOperation::NaturalLog => "ln",
+                    FloatMemberOperation::Exponential => "exp",
+                    FloatMemberOperation::Absolute => "abs",
                     _ => unreachable!(),
                 };
                 format!("({receiver}).{method}()")
             }
-            _ => return None,
+            operation @ (FloatMemberOperation::Minimum | FloatMemberOperation::Maximum) => {
+                let other = &arguments[0];
+                let zero_selection = if operation == FloatMemberOperation::Minimum {
+                    "if terrane_receiver.is_sign_negative() || \
+                     terrane_argument.is_sign_negative() { -0.0 } else { 0.0 }"
+                } else {
+                    "if terrane_receiver.is_sign_positive() || \
+                     terrane_argument.is_sign_positive() { 0.0 } else { -0.0 }"
+                };
+                let method = if operation == FloatMemberOperation::Minimum {
+                    "min"
+                } else {
+                    "max"
+                };
+                format!(
+                    "{{ let terrane_receiver = {receiver}; let terrane_argument = {other}; \
+                     if terrane_receiver == 0.0 && terrane_argument == 0.0 {{ \
+                     {zero_selection} }} else {{ terrane_receiver.{method}(terrane_argument) }} }}"
+                )
+            }
+            FloatMemberOperation::MultiplyAdd => {
+                format!("({receiver}).mul_add({}, {})", arguments[0], arguments[1])
+            }
+            FloatMemberOperation::Finite
+            | FloatMemberOperation::Infinite
+            | FloatMemberOperation::NotANumber => return None,
         };
         Some(call)
     }
@@ -5009,48 +5045,16 @@ impl Emitter<'_> {
                 .collect::<Vec<_>>();
             let call = match (receiver_type, member_name.as_str()) {
                 (
-                    receiver_type @ ValueType::Scalar(ScalarType::Float32 | ScalarType::Float64),
-                    operation @ ("square-root" | "sine" | "cosine" | "sine-cosine" | "natural-log"
-                    | "exponential" | "absolute" | "round" | "floor" | "ceiling"
-                    | "truncate"),
-                ) => self.float_zero_argument_call(receiver_type, operation, &receiver_value, node),
-                (
                     ValueType::Scalar(receiver_type @ (ScalarType::Float32 | ScalarType::Float64)),
-                    operation @ ("minimum" | "maximum" | "multiply-add"),
-                ) => {
+                    operation,
+                ) if float_member_contract(operation)
+                    .is_some_and(|contract| contract.arity.is_some()) =>
+                {
                     let arguments = values
                         .iter()
                         .map(|value| self.expression_as(value, ValueType::Scalar(receiver_type)))
                         .collect::<Vec<_>>();
-                    Some(if operation == "multiply-add" {
-                        format!("({receiver_value}).mul_add({})", arguments.join(", "))
-                    } else {
-                        let method = if operation == "minimum" { "min" } else { "max" };
-                        let zero = if receiver_type == ScalarType::Float32 {
-                            "0.0_f32"
-                        } else {
-                            "0.0_f64"
-                        };
-                        let zero_selection = if operation == "minimum" {
-                            format!(
-                                "if terrane_receiver.is_sign_negative() || \
-                                 terrane_argument.is_sign_negative() {{ -{zero} }} else {{ {zero} }}"
-                            )
-                        } else {
-                            format!(
-                                "if terrane_receiver.is_sign_negative() && \
-                                 terrane_argument.is_sign_negative() {{ -{zero} }} else {{ {zero} }}"
-                            )
-                        };
-                        format!(
-                            "{{ let terrane_receiver = {receiver_value}; \
-                             let terrane_argument = {}; \
-                             if terrane_receiver == {zero} && terrane_argument == {zero} \
-                             {{ {zero_selection} }} else \
-                             {{ terrane_receiver.{method}(terrane_argument) }} }}",
-                            arguments[0]
-                        )
-                    })
+                    self.float_call(receiver_type, operation, &receiver_value, &arguments, node)
                 }
                 (ValueType::List(item), "append") => Some(format!(
                     "({{ let collection = &mut ({receiver_value}); collection.append({}); collection.clone() }})",
@@ -6619,7 +6623,7 @@ impl Emitter<'_> {
                 .map(|child| mutation_count(emitter, child, binding))
                 .sum::<usize>()
         }
-        (mutation_count(self, block, binding) == 1).then_some(())?;
+        (mutation_count(self, &self.unit.tree.root, binding) == 1).then_some(())?;
         Some(BoundedIntegerRange {
             binding: binding.span,
             lower,

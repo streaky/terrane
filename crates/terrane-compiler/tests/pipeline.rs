@@ -388,6 +388,27 @@ fn eliminates_only_statically_impossible_fixed_integer_failures() {
             .rust
             .contains("terrane_int_support::fixed_addition(index, 1)")
     );
+
+    let mutated_before_loop = terrane_compiler::compile(
+        "mutated-before-loop.trn",
+        concat!(
+            "namespace mutated-before-loop\n",
+            "from /core/types import int64, float64\n",
+            "function main;\n",
+            "  index int64 = 0\n",
+            "  index = 9007199254740993\n",
+            "  while index < 100\n",
+            "    arrival float64 = index\n",
+            "    index++\n",
+        )
+        .to_owned(),
+    )
+    .unwrap();
+    assert!(
+        mutated_before_loop
+            .rust
+            .contains("terrane_int_support::exact_fixed_f64(index)")
+    );
 }
 
 #[test]

@@ -54,6 +54,10 @@ function main;
   print; (low64.minimum; high64) == 2.0
   print; (low64.maximum; high64) == 5.0
   print; (low64.multiply-add; high64, 1.0) == 11.0
+  minimum64 = low64.minimum
+  maximum64 = low64.maximum
+  multiply-add64 = low64.multiply-add
+  print; (minimum64; high64) == 2.0, (maximum64; high64) == 5.0, (multiply-add64; high64, 1.0) == 11.0
   print; low64.finite
   print; not-a-number.not-a-number
   print; negative-infinity.infinite
