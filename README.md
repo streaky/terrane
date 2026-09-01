@@ -74,6 +74,14 @@ Generated Rust is returned exactly as Terrane lowering emits it. Compiler work c
 compiler-bundled formatter. A mismatch fails as compiler defect `S9004`; the formatter never
 silently rewrites the generated artefact.
 
+`terrane rust <source>` writes one complete standalone Rust translation unit to stdout. For a
+cleaner inspectable file, `terrane rust --output lowered.rs <source>` (or `-o lowered.rs`) writes the
+authored application lowering to `lowered.rs` and compiler-owned prelude, runtime, error and source
+site infrastructure, plus selectively bundled `/core` and `/standard` implementation code, to the
+sibling `lowered.support.rs`. The entrypoint imports that sidecar with
+one relative `include!`; `check`, `build`, and `run` explicitly request `src/main.rs` as the
+generated Cargo entrypoint through the same path-parameterized renderer.
+
 `terrane build --release` and `terrane run --release` compile generated programs with Cargo's
 optimized release profile. Development and release executables are cached separately.
 

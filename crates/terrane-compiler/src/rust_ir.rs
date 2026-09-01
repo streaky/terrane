@@ -21,6 +21,20 @@ pub struct RenderedFile {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) struct RenderedProgram {
+    version: &'static str,
+    support: RenderedFragment,
+    standalone: String,
+    application: RenderedFragment,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+struct RenderedFragment {
+    contents: String,
+    associations: Vec<SourceAssociation>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct GeneratedModule {
     pub name: &'static str,
     pub items: Vec<Item>,
@@ -37,6 +51,7 @@ pub struct SourceAssociation {
 pub struct Module {
     pub source_path: String,
     pub namespace: String,
+    pub support: bool,
     pub items: Vec<Item>,
 }
 
@@ -108,7 +123,8 @@ fn canonicalize_file(parsed: syn::File) -> syn::File {
 }
 
 pub(crate) fn canonicalize_rust(rust: &str) -> Result<String, syn::Error> {
-    let encoded = encode_terrane_site_rows(&encode_terrane_comments(rust));
+    let encoded =
+        encode_terrane_module_comments(&encode_terrane_site_rows(&encode_terrane_comments(rust)));
     let parsed = syn::parse_file(&encoded)?;
     Ok(restore_terrane_metadata(&prettyplease::unparse(
         &canonicalize_file(parsed),
@@ -162,6 +178,20 @@ fn encode_terrane_site_rows(rendered: &str) -> String {
         remaining = &remaining[comment_end + 3..];
     }
     encoded.push_str(remaining);
+    encoded
+}
+
+fn encode_terrane_module_comments(rendered: &str) -> String {
+    let mut encoded = String::with_capacity(rendered.len());
+    for line in rendered.split_inclusive('\n') {
+        let content = line.strip_suffix('\n').unwrap_or(line);
+        if content.starts_with("// Source: ") || content.starts_with("// Namespace: ") {
+            writeln!(encoded, "__terrane_module_comment!({content:?});")
+                .expect("writing to a String cannot fail");
+        } else {
+            encoded.push_str(line);
+        }
+    }
     encoded
 }
 
@@ -257,8 +287,35 @@ fn restore_terrane_site_rows(rendered: &str) -> String {
     restored
 }
 
+fn restore_terrane_module_comments(rendered: &str) -> String {
+    const MARKER: &str = "__terrane_module_comment!(";
+    let mut restored = String::with_capacity(rendered.len());
+    let mut remaining = rendered;
+    while let Some(start) = remaining.find(MARKER) {
+        restored.push_str(&remaining[..start]);
+        let argument_start = start + MARKER.len();
+        let Some(end) = remaining[argument_start..].find(");") else {
+            restored.push_str(&remaining[start..]);
+            return restored;
+        };
+        let end = argument_start + end;
+        let Ok(comment) = syn::parse_str::<syn::LitStr>(remaining[argument_start..end].trim())
+        else {
+            restored.push_str(&remaining[start..end + 2]);
+            remaining = &remaining[end + 2..];
+            continue;
+        };
+        restored.push_str(&comment.value());
+        remaining = &remaining[end + 2..];
+    }
+    restored.push_str(remaining);
+    restored
+}
+
 fn restore_terrane_metadata(rendered: &str) -> String {
-    let restored = restore_terrane_site_rows(&restore_terrane_comments(rendered));
+    let restored = restore_terrane_module_comments(&restore_terrane_site_rows(
+        &restore_terrane_comments(rendered),
+    ));
     let mut normalized = String::with_capacity(restored.len());
     for line in restored.split_inclusive('\n') {
         let content = line.strip_suffix('\n').unwrap_or(line);
@@ -322,89 +379,141 @@ impl Item {
     }
 }
 
-impl Program {
+impl RenderedProgram {
     #[must_use]
-    pub fn render(&self) -> String {
-        let files = self.render_files();
+    pub(crate) fn standalone(&self) -> String {
         let mut output = format!(
             "// Generated deterministically by Terrane {}.\n",
             self.version
         );
-        for file in files.iter().filter(|file| file.path != "src/main.rs") {
-            output.push_str(&file.contents);
-        }
+        output.push_str(&self.standalone);
         output
     }
-    #[must_use]
-    pub fn render_files(&self) -> Vec<RenderedFile> {
-        let mut files = Vec::new();
-        let mut entrypoint = format!(
-            "// Generated deterministically by Terrane {}.\n",
+
+    pub(crate) fn files(&self, entrypoint: &str) -> Result<Vec<RenderedFile>, String> {
+        let entrypoint_path = std::path::Path::new(entrypoint);
+        let Some(stem) = entrypoint_path
+            .file_stem()
+            .and_then(std::ffi::OsStr::to_str)
+        else {
+            return Err("generated Rust output path must have a UTF-8 file name".to_owned());
+        };
+        let support_name = format!("{stem}.support.rs");
+        let support_path = entrypoint_path.with_file_name(&support_name);
+        let Some(support_path) = support_path.to_str() else {
+            return Err("generated Rust output path must be valid UTF-8".to_owned());
+        };
+        Ok(self.files_with_paths(entrypoint, support_path, &support_name))
+    }
+
+    fn files_with_paths(
+        &self,
+        entrypoint: &str,
+        support_path: &str,
+        support_name: &str,
+    ) -> Vec<RenderedFile> {
+        let mut application = format!(
+            "// Generated deterministically by Terrane {}.\ninclude!(\"{support_name}\");\n",
             self.version
         );
-        for module in &self.runtime {
-            if module.items.is_empty() {
-                continue;
-            }
-            let mut contents = String::new();
-            let mut associations = Vec::new();
-            for item in &module.items {
-                item.render_associated(&mut contents, &mut associations);
-            }
-            let path = format!("src/runtime/{}.rs", module.name);
-            writeln!(entrypoint, "include!(\"runtime/{}.rs\");", module.name)
+        let application_offset = application.len();
+        application.push_str(&self.application.contents);
+        let application_associations = self
+            .application
+            .associations
+            .iter()
+            .map(|association| SourceAssociation {
+                generated_start: association.generated_start + application_offset,
+                generated_end: association.generated_end + application_offset,
+                source: association.source,
+            })
+            .collect();
+        vec![
+            RenderedFile {
+                path: support_path.to_owned(),
+                contents: self.support.contents.clone(),
+                associations: self.support.associations.clone(),
+            },
+            RenderedFile {
+                path: entrypoint.to_owned(),
+                contents: application,
+                associations: application_associations,
+            },
+        ]
+    }
+}
+
+impl Program {
+    #[must_use]
+    pub(crate) fn rendered(&self) -> RenderedProgram {
+        fn render_modules(
+            modules: &[Module],
+            output: &mut String,
+            associations: &mut Vec<SourceAssociation>,
+        ) {
+            for module in modules {
+                if module.items.is_empty() {
+                    continue;
+                }
+                write!(
+                    output,
+                    "// Source: {}\n// Namespace: {}\n",
+                    module.source_path,
+                    module.namespace.trim_start_matches('/')
+                )
                 .expect("writing to a String cannot fail");
-            files.push(RenderedFile {
-                path,
-                contents,
-                associations,
-            });
-        }
-        if !self.globals.is_empty() {
-            let mut contents = String::new();
-            let mut associations = Vec::new();
-            for item in &self.globals {
-                item.render_associated(&mut contents, &mut associations);
+                for item in &module.items {
+                    item.render_associated(output, associations);
+                }
             }
-            files.push(RenderedFile {
-                path: "src/authored/globals.rs".to_owned(),
-                contents,
-                associations,
-            });
-            entrypoint.push_str("include!(\"authored/globals.rs\");\n");
         }
-        for module in &self.modules {
-            if module.items.is_empty() {
-                continue;
-            }
-            let mut contents = format!(
-                "// Source: {}\n// Namespace: {}\n",
-                module.source_path,
-                module.namespace.trim_start_matches('/')
-            );
-            let mut associations = Vec::new();
+
+        let mut support = String::new();
+        let mut support_associations = Vec::new();
+        for module in &self.runtime {
             for item in &module.items {
-                item.render_associated(&mut contents, &mut associations);
+                item.render_associated(&mut support, &mut support_associations);
             }
-            let path = format!("src/authored/{}.rs", module.source_path);
-            writeln!(
-                entrypoint,
-                "include!(\"authored/{}.rs\");",
-                module.source_path
-            )
-            .expect("writing to a String cannot fail");
-            files.push(RenderedFile {
-                path,
-                contents,
-                associations,
-            });
         }
-        files.push(RenderedFile {
-            path: "src/main.rs".to_owned(),
-            contents: entrypoint,
-            associations: Vec::new(),
-        });
-        files
+        for item in &self.globals {
+            item.render_associated(&mut support, &mut support_associations);
+        }
+        let mut standalone = support.clone();
+        let mut standalone_associations = support_associations.clone();
+        render_modules(&self.modules, &mut standalone, &mut standalone_associations);
+
+        let mut application = String::new();
+        let mut application_associations = Vec::new();
+        let support_modules = self
+            .modules
+            .iter()
+            .filter(|module| module.support)
+            .cloned()
+            .collect::<Vec<_>>();
+        render_modules(&support_modules, &mut support, &mut support_associations);
+        let application_modules = self
+            .modules
+            .iter()
+            .filter(|module| !module.support)
+            .cloned()
+            .collect::<Vec<_>>();
+        render_modules(
+            &application_modules,
+            &mut application,
+            &mut application_associations,
+        );
+        RenderedProgram {
+            version: self.version,
+            standalone,
+            support: RenderedFragment {
+                contents: support,
+                associations: support_associations,
+            },
+            application: RenderedFragment {
+                contents: application,
+                associations: application_associations,
+            },
+        }
     }
 }
 
@@ -495,5 +604,14 @@ mod tests {
             restore_terrane_comments("__terrane_comment!(7, \"site\""),
             "__terrane_comment!(7, \"site\""
         );
+    }
+
+    #[test]
+    fn split_entrypoint_import_canonicalizes_without_moving_authored_comments() {
+        let rendered = "include!(\"main.support.rs\");\n\
+                        // Source: case.trn\n\
+                        // Namespace: hello\n\
+                        fn main() {}\n";
+        assert_eq!(canonicalize_rust(rendered).unwrap(), rendered);
     }
 }

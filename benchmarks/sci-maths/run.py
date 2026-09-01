@@ -905,14 +905,19 @@ def materialize_lowering(
             if lane.lower_output is None:
                 raise BenchmarkError(f"{lane.lane_id} declares lower without lower-output")
             context = command_context(problem, lane)
-            command = expand(lane.lower, context)
-            result = run_process(command, cwd=problem["path"], timeout=timeout)
-            require_success(result, command)
             output = Path(substitute(lane.lower_output, context)).resolve()
             if not output.is_relative_to(problem["path"]):
                 raise BenchmarkError(f"refusing to write lowering outside problem: {output}")
             output.parent.mkdir(parents=True, exist_ok=True)
-            output.write_text(result.stdout)
+            output.unlink(missing_ok=True)
+            context["lowered"] = str(output)
+            command = expand(lane.lower, context)
+            result = run_process(command, cwd=problem["path"], timeout=timeout)
+            require_success(result, command)
+            if not output.is_file():
+                raise BenchmarkError(
+                    f"{lane.lane_id} lowering command did not write {output}"
+                )
             print(f"lowered  {problem['id']:<24} {lane.lane_id:<10} {output.relative_to(SUITE)}")
 
 

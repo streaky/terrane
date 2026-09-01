@@ -333,6 +333,17 @@ It should be:
 - optionally accessible through runtime reflection;
 - never the only place a source-language error is reported.
 
+The inspectable form separates authored lowering from compiler infrastructure. When generated Rust
+is written to a named entrypoint, that file contains the lowered application, source and namespace
+associations, and only the import ceremony required to include a deterministic sibling support
+file. The sibling contains compiler-owned prelude, runtime, structured-error representation, source
+site tables, other support definitions, and the selectively included implementations of bundled
+`/core` and `/standard` modules. User-authored package modules remain in the entrypoint. Cargo
+compilation uses the same split renderer rather
+than a second lowering path. When generated Rust is streamed instead of written as files, tooling
+emits one complete standalone Rust translation unit by placing the same support definitions before
+the authored lowering.
+
 Generated Rust should normally not be edited in place. A module may instead be deliberately “ejected” into a maintained native Rust source file.
 
 ---

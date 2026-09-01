@@ -6,6 +6,11 @@ fn hello() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).join("../../tests/conformance/run/hello/case.trn")
 }
 
+fn structured_error() -> PathBuf {
+    Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../../tests/conformance/run/structured-error-origin-and-frames/case.trn")
+}
+
 #[test]
 fn all_commands_share_the_hello_pipeline() {
     let binary = env!("CARGO_BIN_EXE_terrane");
@@ -25,9 +30,7 @@ fn all_commands_share_the_hello_pipeline() {
         .replace(terrane_compiler::VERSION, "<version>");
     let authored_rust = fs::read_to_string(hello().parent().unwrap().join("lower.rs")).unwrap();
     assert!(displayed_rust.starts_with(&authored_rust));
-    assert!(
-        displayed_rust.contains("// Generated Rust files: src/authored/case.trn.rs, src/main.rs")
-    );
+    assert!(displayed_rust.contains("// Generated Rust form: standalone"));
     assert!(displayed_rust.contains("// Vendored support crates: terrane-int-support"));
 
     let check = Command::new(binary)
@@ -55,6 +58,39 @@ fn all_commands_share_the_hello_pipeline() {
         run.stdout,
         fs::read(hello().parent().unwrap().join("stdout.txt")).unwrap()
     );
+}
+
+#[test]
+fn rust_output_writes_clean_authored_lowering_and_support_sidecar() {
+    let binary = env!("CARGO_BIN_EXE_terrane");
+    let directory =
+        std::env::temp_dir().join(format!("terrane-rust-output-{}", std::process::id()));
+    if directory.exists() {
+        fs::remove_dir_all(&directory).unwrap();
+    }
+    let output = directory.join("nested/application.rs");
+    let lowered = Command::new(binary)
+        .args([
+            "rust",
+            "--output",
+            output.to_str().unwrap(),
+            structured_error().to_str().unwrap(),
+        ])
+        .output()
+        .unwrap();
+
+    assert!(lowered.status.success(), "{lowered:?}");
+    assert!(lowered.stdout.is_empty());
+    let entrypoint = fs::read_to_string(&output).unwrap();
+    let support = fs::read_to_string(output.with_file_name("application.support.rs")).unwrap();
+    assert!(entrypoint.contains("include!(\"application.support.rs\");"));
+    assert!(entrypoint.contains("// Namespace: structured-error-origin-and-frames"));
+    assert!(entrypoint.contains("fn main()"));
+    assert!(!entrypoint.contains("struct TerraneError"));
+    assert!(support.contains("struct TerraneError"));
+    assert!(support.contains("static SITES:"));
+
+    fs::remove_dir_all(directory).unwrap();
 }
 
 #[test]

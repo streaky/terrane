@@ -17,11 +17,27 @@ pub struct Compilation {
     pub source: SourceFile,
     pub sources: Vec<SourceFile>,
     pub rust: String,
-    pub rust_files: Vec<RenderedFile>,
+    rendered_rust: crate::rust_ir::RenderedProgram,
     pub requires_platform_support: bool,
     pub warnings: Vec<Diagnostic>,
     pub rust_dependencies: Vec<RustDependency>,
     pub dependency_containment: crate::projection::Containment,
+}
+
+impl Compilation {
+    /// Render the generated program as an entrypoint and sibling support file.
+    ///
+    /// The entrypoint contains the authored lowering and one relative `include!`;
+    /// compiler-owned runtime and error infrastructure is written to
+    /// `<entrypoint-stem>.support.rs`.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when `entrypoint` has no UTF-8 file stem or when its derived support-file
+    /// path is not valid UTF-8.
+    pub fn rust_files_for(&self, entrypoint: &str) -> Result<Vec<RenderedFile>, String> {
+        self.rendered_rust.files(entrypoint)
+    }
 }
 
 #[derive(Clone, Debug)]
@@ -140,8 +156,13 @@ pub fn compile_package_with_options(
         .collect();
     let warnings = semantics::warnings(&semantic, options.lint_name_style);
     let rust_ir = crate::lowering::lower(&semantic);
-    let rust = rust_ir.render();
-    let rust_files = rust_ir.render_files();
+    let rendered_rust = rust_ir.rendered();
+    let rust = rendered_rust.standalone();
+    let standalone_file = RenderedFile {
+        path: "<stdout>".to_owned(),
+        contents: rust.clone(),
+        associations: Vec::new(),
+    };
     let rust_dependencies = package
         .rust_dependencies
         .iter()
@@ -159,13 +180,13 @@ pub fn compile_package_with_options(
         })
         .collect();
     if options.require_canonical_rust {
-        validate_canonical_rust(&rust_files, &semantic.units, source, entry_span)?;
+        validate_canonical_rust(&[standalone_file], &semantic.units, source, entry_span)?;
     }
     Ok(Compilation {
         source: (*source).clone(),
         sources,
         rust,
-        rust_files,
+        rendered_rust,
         requires_platform_support: rust_ir.requires_platform_support,
         warnings,
         rust_dependencies,

@@ -141,6 +141,44 @@ class RunnerContracts(unittest.TestCase):
             self.assertEqual(execution.returncode, 0)
             self.assertIn("Python", environment[0]["stdout"])
 
+    def test_lowering_command_receives_and_writes_declared_output(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            problem_path = Path(directory)
+            implementation = problem_path / "implementation.fixture"
+            implementation.write_text("fixture")
+            output = problem_path / "generated/main.lowered.rs"
+            fixture_lane = runner.Lane(
+                lane_id="fixture",
+                name="fixture",
+                config_path=problem_path / "lane.toml",
+                implementation=implementation.name,
+                setup=(),
+                prepare=(),
+                lower=(
+                    sys.executable,
+                    "-c",
+                    "from pathlib import Path; import sys; "
+                    "Path(sys.argv[1]).write_text('lowered'); print('not source')",
+                    "$lowered",
+                ),
+                lower_output=str(output),
+                run=(),
+                prepare_output="none",
+                cache_paths=(),
+                metadata={},
+                environment_commands=(),
+            )
+            problem = {
+                "id": "fixture",
+                "path": problem_path,
+                "lane_ids": ("fixture",),
+            }
+
+            with mock.patch.object(runner, "SUITE", problem_path):
+                runner.materialize_lowering([problem], [fixture_lane], 5.0)
+
+            self.assertEqual(output.read_text(), "lowered")
+
     def test_process_result_retains_stderr_and_records_peak_memory_when_available(self) -> None:
         result = runner.run_process(
             [sys.executable, "-c", "import sys; print('warning: fixture', file=sys.stderr); print(7)"],

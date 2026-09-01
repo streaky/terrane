@@ -62,7 +62,7 @@ fn run(arguments: &[OsString]) -> Result<ExitCode, CliFailure> {
     if !matches!(command, "check" | "rust" | "build" | "run") {
         return Err(CliFailure::usage());
     }
-    let (input_path, require_canonical_rust, lint_name_style, release) =
+    let (input_path, output_path, require_canonical_rust, lint_name_style, release) =
         parse_input(arguments, command)?;
     let package = if input_path
         .extension()
@@ -101,21 +101,34 @@ fn run(arguments: &[OsString]) -> Result<ExitCode, CliFailure> {
         }
     };
     emit_warnings(&compilation);
-    if command == "rust" {
+    if command == "rust" && output_path.is_none() {
         print_rust(&compilation);
+        return Ok(ExitCode::SUCCESS);
+    }
+    let rust_entrypoint = output_path
+        .as_deref()
+        .unwrap_or_else(|| Path::new("src/main.rs"));
+    let rust_entrypoint = rust_entrypoint.to_str().ok_or_else(|| {
+        CliFailure::backend("generated Rust output path must be valid UTF-8".to_owned())
+    })?;
+    let rust_files = compilation
+        .rust_files_for(rust_entrypoint)
+        .map_err(CliFailure::backend)?;
+    if command == "rust" {
+        write_rust(&rust_files)?;
         return Ok(ExitCode::SUCCESS);
     }
     ensure_rust_toolchain()?;
     let uses_platform_support = compilation.requires_platform_support;
     let crate_dir = generated_crate_path(
         &package.root,
-        &compilation.rust_files,
+        &rust_files,
         uses_platform_support,
         &compilation.rust_dependencies,
     )?;
     write_generated_crate(
         &crate_dir,
-        &compilation.rust_files,
+        &rust_files,
         &package.units,
         &compilation.rust_dependencies,
         package.profile.panic,
@@ -127,7 +140,7 @@ fn run(arguments: &[OsString]) -> Result<ExitCode, CliFailure> {
         command,
         &crate_dir,
         &target_dir,
-        &compilation.rust_files,
+        &rust_files,
         &package.units,
         !compilation.rust_dependencies.is_empty(),
         compilation.dependency_containment,
@@ -157,8 +170,9 @@ fn run(arguments: &[OsString]) -> Result<ExitCode, CliFailure> {
 fn parse_input(
     arguments: &[OsString],
     command: &str,
-) -> Result<(PathBuf, bool, bool, bool), CliFailure> {
+) -> Result<(PathBuf, Option<PathBuf>, bool, bool, bool), CliFailure> {
     let mut input_index = 1;
+    let mut output_path = None;
     let mut require_canonical_rust = false;
     let mut lint_name_style = false;
     let mut release = false;
@@ -167,6 +181,15 @@ fn parse_input(
             "--require-canonical-rust" => require_canonical_rust = true,
             "--lint-name-style" => lint_name_style = true,
             "--release" => release = true,
+            "-o" | "--output" if command == "rust" && output_path.is_none() => {
+                input_index += 1;
+                output_path = Some(
+                    arguments
+                        .get(input_index)
+                        .map(PathBuf::from)
+                        .ok_or_else(CliFailure::usage)?,
+                );
+            }
             _ => break,
         }
         input_index += 1;
@@ -187,7 +210,13 @@ fn parse_input(
         .get(input_index)
         .map(PathBuf::from)
         .ok_or_else(CliFailure::usage)?;
-    Ok((input_path, require_canonical_rust, lint_name_style, release))
+    Ok((
+        input_path,
+        output_path,
+        require_canonical_rust,
+        lint_name_style,
+        release,
+    ))
 }
 
 fn emit_warnings(compilation: &terrane_compiler::Compilation) {
@@ -275,18 +304,34 @@ fn executable_path(directory: &Path) -> PathBuf {
 
 fn print_rust(compilation: &terrane_compiler::Compilation) {
     print!("{}", compilation.rust);
-    println!(
-        "// Generated Rust files: {}",
-        compilation
-            .rust_files
-            .iter()
-            .map(|file| file.path.as_str())
-            .collect::<Vec<_>>()
-            .join(", ")
-    );
+    println!("// Generated Rust form: standalone");
     println!(
         "// Vendored support crates: terrane-int-support, terrane-scalar-support, terrane-string-support, terrane-stream-abi"
     );
+}
+
+fn write_rust(files: &[terrane_compiler::rust_ir::RenderedFile]) -> Result<(), CliFailure> {
+    for file in files {
+        let path = Path::new(&file.path);
+        if let Some(parent) = path
+            .parent()
+            .filter(|parent| !parent.as_os_str().is_empty())
+        {
+            fs::create_dir_all(parent).map_err(|error| {
+                CliFailure::backend(format!(
+                    "cannot create generated Rust output directory {}: {error}",
+                    parent.display()
+                ))
+            })?;
+        }
+        fs::write(path, &file.contents).map_err(|error| {
+            CliFailure::backend(format!(
+                "cannot write generated Rust output {}: {error}",
+                path.display()
+            ))
+        })?;
+    }
+    Ok(())
 }
 
 #[expect(
@@ -757,11 +802,12 @@ fn ensure_rust_toolchain() -> Result<(), CliFailure> {
 
 fn usage() -> String {
     "usage: terrane <check|rust|build|run> [--require-canonical-rust] [--lint-name-style] \
-     [--release] <source.trn> [-- program arguments]\n\
+     [--release] [--output <file>] <source.trn> [-- program arguments]\n\
      options:\n  --require-canonical-rust  fail unless lowering emits bundled-formatter output\n  \
      --lint-name-style  warn when authored declarations are not kebab-case\n  \
-     --release  use Cargo's optimized release profile for build or run\n\
-     commands:\n  check  validate and compile generated Rust\n  rust   print generated Rust\n  \
+     --release  use Cargo's optimized release profile for build or run\n  \
+     -o, --output <file>  write rust output and its support sidecar (rust only)\n\
+     commands:\n  check  validate and compile generated Rust\n  rust   print generated Rust or write split files\n  \
      build  compile a native executable\n  run    compile and execute the program"
         .to_owned()
 }
@@ -783,7 +829,7 @@ mod tests {
         ];
         assert_eq!(
             parse_input(&build, "build").unwrap_or_else(|_| panic!("release build should parse")),
-            (PathBuf::from("package.toml"), false, false, true)
+            (PathBuf::from("package.toml"), None, false, false, true)
         );
 
         let check = [

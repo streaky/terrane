@@ -349,6 +349,7 @@ pub(crate) fn lower(package: &SemanticPackage) -> Program {
                 return Module {
                     source_path: unit.source_path.clone(),
                     namespace: unit.namespace.clone(),
+                    support: unit.bundled,
                     items: vec![Item::generated(&rust)],
                 };
             }
@@ -401,6 +402,7 @@ pub(crate) fn lower(package: &SemanticPackage) -> Program {
             Module {
                 source_path: unit.source_path.clone(),
                 namespace: unit.namespace.clone(),
+                support: unit.bundled,
                 items,
             }
         })

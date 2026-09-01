@@ -102,16 +102,11 @@ fn manifest_file_and_package_directory_use_the_shared_cli_pipeline() {
     let metadata = fs::read_to_string(generated_project.join("terrane-build.toml")).unwrap();
     assert!(metadata.contains("path = \"app/main.trn\""));
     assert!(metadata.contains("path = \"support/support.trn\""));
-    assert!(
-        generated_project
-            .join("src/authored/app/main.trn.rs")
-            .is_file()
-    );
-    assert!(
-        generated_project
-            .join("src/authored/support/support.trn.rs")
-            .is_file()
-    );
+    let entrypoint = fs::read_to_string(generated_project.join("src/main.rs")).unwrap();
+    assert!(generated_project.join("src/main.support.rs").is_file());
+    assert!(entrypoint.contains("include!(\"main.support.rs\");"));
+    assert!(entrypoint.contains("// Source: app/main.trn"));
+    assert!(entrypoint.contains("// Source: support/support.trn"));
     assert_eq!(
         fs::read(generated_project.join("support/terrane-int-support/src/lib.rs")).unwrap(),
         fs::read(

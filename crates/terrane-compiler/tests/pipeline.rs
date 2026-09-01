@@ -2,6 +2,8 @@ use std::path::PathBuf;
 
 const HELLO: &str = include_str!("../../../tests/conformance/run/hello/case.trn");
 const ASYNC_AWAIT: &str = include_str!("../../../tests/conformance/run/async-await/case.trn");
+const STRUCTURED_ERROR: &str =
+    include_str!("../../../tests/conformance/run/structured-error-origin-and-frames/case.trn");
 
 fn normalized_rust(rust: &str) -> String {
     rust.split_whitespace().collect::<Vec<_>>().join(" ")
@@ -12,14 +14,15 @@ fn hello_lowers_deterministically() {
     let first = terrane_compiler::compile(PathBuf::from("case.trn"), HELLO.to_owned()).unwrap();
     let second = terrane_compiler::compile(PathBuf::from("case.trn"), HELLO.to_owned()).unwrap();
     assert_eq!(first.rust, second.rust);
-    assert_eq!(first.rust_files, second.rust_files);
+    let first_files = first.rust_files_for("generated/app.rs").unwrap();
+    let second_files = second.rust_files_for("generated/app.rs").unwrap();
+    assert_eq!(first_files, second_files);
     assert_eq!(
-        first
-            .rust_files
+        first_files
             .iter()
             .map(|file| file.path.as_str())
             .collect::<Vec<_>>(),
-        ["src/authored/case.trn.rs", "src/main.rs"]
+        ["generated/app.support.rs", "generated/app.rs"]
     );
     assert!(
         first
@@ -40,7 +43,7 @@ fn canonical_rust_requirement_accepts_formatted_lowering() {
     )
     .unwrap();
 
-    assert_eq!(compilation.rust_files.len(), 2);
+    assert!(!compilation.rust.is_empty());
 }
 
 #[test]
@@ -48,24 +51,92 @@ fn compiler_runtime_support_uses_named_generated_files() {
     let compilation =
         terrane_compiler::compile(PathBuf::from("async-await.trn"), ASYNC_AWAIT.to_owned())
             .unwrap();
+    let files = compilation.rust_files_for("src/main.rs").unwrap();
     assert_eq!(
-        compilation
-            .rust_files
+        files
+            .iter()
+            .map(|file| file.path.as_str())
+            .collect::<Vec<_>>(),
+        ["src/main.support.rs", "src/main.rs"]
+    );
+    let support = &files[0].contents;
+    let entrypoint = &files[1].contents;
+    assert!(support.contains("async fn __terrane_await"));
+    assert!(!entrypoint.contains("async fn __terrane_await"));
+    assert!(entrypoint.starts_with(
+        "// Generated deterministically by Terrane 0.1.0.\n\
+         include!(\"main.support.rs\");\n\
+         // Source: async-await.trn\n\
+         // Namespace: async-await\n"
+    ));
+}
+
+#[test]
+fn structured_error_infrastructure_is_separate_from_authored_lowering() {
+    let compilation = terrane_compiler::compile(
+        "structured-error-origin-and-frames.trn",
+        STRUCTURED_ERROR.to_owned(),
+    )
+    .unwrap();
+    let files = compilation.rust_files_for("src/main.rs").unwrap();
+    let support = &files[0].contents;
+    let entrypoint = &files[1].contents;
+
+    assert!(support.contains("struct TerraneError"));
+    assert!(support.contains("static SITES:"));
+    assert!(!entrypoint.contains("struct TerraneError"));
+    assert!(!entrypoint.contains("static SITES:"));
+    assert!(entrypoint.contains("fn main()"));
+    assert!(compilation.rust.contains("struct TerraneError"));
+    assert!(compilation.rust.contains("fn main()"));
+}
+
+#[test]
+fn bundled_standard_lowering_is_part_of_the_support_sidecar() {
+    let compilation = terrane_compiler::compile(
+        "process-user.trn",
+        "namespace process-user\n\
+         from /core/output import print\n\
+         from /standard/process import host-name\n\
+         function main;\n\
+             name = host-name;\n\
+             print; name.failed\n"
+            .to_owned(),
+    )
+    .unwrap();
+    let files = compilation.rust_files_for("src/main.rs").unwrap();
+    let support = &files[0].contents;
+    let entrypoint = &files[1].contents;
+
+    assert!(support.contains("// Source: standard/process.trn"));
+    assert!(support.contains("// Namespace: standard/process"));
+    assert!(!entrypoint.contains("// Source: standard/process.trn"));
+    assert!(entrypoint.contains("// Source: process-user.trn"));
+}
+
+#[test]
+fn split_lowering_uses_the_requested_entrypoint_name() {
+    let compilation =
+        terrane_compiler::compile(PathBuf::from("case.trn"), HELLO.to_owned()).unwrap();
+    let files = compilation
+        .rust_files_for("generated/inspectable.rs")
+        .unwrap();
+    assert_eq!(
+        files
             .iter()
             .map(|file| file.path.as_str())
             .collect::<Vec<_>>(),
         [
-            "src/runtime/async.rs",
-            "src/authored/async-await.trn.rs",
-            "src/main.rs",
+            "generated/inspectable.support.rs",
+            "generated/inspectable.rs"
         ]
     );
-    assert_eq!(
-        compilation.rust_files.last().unwrap().contents,
+    assert!(files[0].contents.is_empty());
+    assert!(files[1].contents.starts_with(
         "// Generated deterministically by Terrane 0.1.0.\n\
-         include!(\"runtime/async.rs\");\n\
-         include!(\"authored/async-await.trn.rs\");\n"
-    );
+         include!(\"inspectable.support.rs\");\n\
+         // Source: case.trn\n"
+    ));
 }
 
 #[test]
