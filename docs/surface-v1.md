@@ -286,10 +286,10 @@ Written integer-to-floating `coerce` deliberately selects IEEE round-to-nearest,
 
 ```text
 floating
-+-- round    -> int    nearest, ties to even
-+-- floor    -> int    toward negative infinity
-+-- ceiling  -> int    toward positive infinity
-+-- truncate -> int    toward zero
++-- round;    -> int    nearest, ties to even
++-- floor;    -> int    toward negative infinity
++-- ceiling;  -> int    toward positive infinity
++-- truncate; -> int    toward zero
 ```
 
 Integer to `bool` is *not* a conversion: it is a predicate choice and must be written as a comparison. Number to `string` uses the canonical text/display operation that `print` consumes, not `coerce`. No conversion substitutes a default value for a failure; a total substitute-on-failure conversion is permitted only as a separately named child.
@@ -355,7 +355,28 @@ integer
 
 Shifts accept a non-negative count. On a fixed-width receiver the invocation and `checked` reject counts outside the width and `wrap` reduces the count modulo the width; `saturate` is absent, because saturating a shift *count* has no coherent value contract. Adaptive `int` uses infinite two's-complement semantics, `shift-left` is unbounded and total, `shift-right` is arithmetic, and no count-policy children exist. Host debug/release shift behaviour is never inherited.
 
-### 5.4 Numeric descriptors and properties
+### 5.4 Foundational floating-point mathematics
+
+```text
+floating value                                    preserves float32 or float64
++-- square-root;  -> T                            IEEE square root
++-- sine;         -> T                            radians
++-- cosine;       -> T                            radians
++-- sine-cosine;  -> tuple of T                   sine followed by cosine
++-- natural-log;  -> T                            base-e logarithm
++-- exponential;  -> T                            base-e exponential
++-- absolute;     -> T                            IEEE absolute value
++-- finite        -> bool                         finite classification property
++-- infinite      -> bool                         infinity classification property
++-- not-a-number  -> bool                         NaN classification property
++-- minimum; T    -> T                            number-preferring minimum
++-- maximum; T    -> T                            number-preferring maximum
++-- multiply-add; T, T -> T                       fused multiply-add
+```
+
+The seven transforming zero-argument members and the three argument-taking members are methods; the three classification members are properties. Member kind follows semantic role rather than arity: selecting a method yields a callable operation, so even a zero-argument method requires `;`. These members inherit the IEEE NaN, signed-zero, infinity, overflow, underflow, and rounding behavior specified by the language contract, including the stronger selection and fused-rounding rules stated there. They lower to target primitives or compiler-owned scalar support and do not imply a scientific library dependency. Special functions, probability distributions, linear algebra, and array operations remain package concerns.
+
+### 5.5 Numeric descriptors and properties
 
 ```text
 number value
@@ -369,10 +390,8 @@ fixed-integer value/type descriptor
 
 floating value/type descriptor                     float32 and float64; `float` spells float64
 +-- bits
-+-- finite / infinite / nan classification
-```
 
-These descriptor/property names are proposals for exposing already-contractual facts; their exact reflection spelling must be settled before code depends on them.
+These descriptor/property names are proposals for exposing already-contractual facts; their exact reflection spelling must be settled before code depends on them. Value-level finite, infinite, and NaN classification is part of the foundational floating-point surface above and is not deferred reflection.
 
 ## 6. String and bytes method attachment map
 

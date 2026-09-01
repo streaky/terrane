@@ -19,7 +19,7 @@ function round-value int;
   one float64 = 1.0
   zero float64 = 0.0
   infinite float64 = one / zero
-  return infinite.round
+  return infinite.round;
 function accepts-narrow int; value int8
   return value
 function narrow-argument int;

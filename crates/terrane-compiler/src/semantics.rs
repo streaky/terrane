@@ -7427,6 +7427,9 @@ fn infer_value_type(
         if let Some(value_type) = infer_string_call_type(unit, node, bindings)? {
             return Ok(Some(value_type));
         }
+        if let Some(value_type) = infer_float_call_type(unit, node, bindings)? {
+            return Ok(Some(value_type));
+        }
         if let Some(value_type) = infer_arithmetic_family_type(unit, node, bindings)? {
             return Ok(Some(value_type));
         }
@@ -7471,13 +7474,22 @@ fn infer_value_type(
             && callee.kind == SyntaxKind::MemberExpression
             && let Some(member_type) = infer_member_value_type(unit, callee, bindings)?
         {
-            match member_type {
-                ValueType::Function(_, result) => return Ok(Some(result.value_type())),
-                ValueType::AsyncFunction(_, result) => {
-                    return Ok(Some(ValueType::Task(result)));
-                }
-                _ => {}
-            }
+            return match member_type {
+                ValueType::Function(_, result) => Ok(Some(result.value_type())),
+                ValueType::AsyncFunction(_, result) => Ok(Some(ValueType::Task(result))),
+                _ => Err(failure(
+                    &unit.source,
+                    "T0012",
+                    format!(
+                        "`.{}` is a property and cannot be invoked",
+                        node_text(
+                            &unit.source,
+                            callee.children.get(1).expect("member expression")
+                        )
+                    ),
+                    callee.span,
+                )),
+            };
         }
         if let Some(callee) = node.children.first()
             && callee.kind == SyntaxKind::Name
@@ -8385,12 +8397,67 @@ fn infer_member_value_type(
         }
         _ => {}
     }
+    if matches!(
+        member_name,
+        "square-root"
+            | "sine"
+            | "cosine"
+            | "sine-cosine"
+            | "natural-log"
+            | "exponential"
+            | "absolute"
+            | "finite"
+            | "infinite"
+            | "not-a-number"
+            | "minimum"
+            | "maximum"
+            | "multiply-add"
+    ) {
+        if let Some(ValueType::Scalar(receiver @ (ScalarType::Float32 | ScalarType::Float64))) =
+            receiver_type.clone()
+        {
+            return Ok(Some(match member_name {
+                "finite" | "infinite" | "not-a-number" => ValueType::Scalar(ScalarType::Bool),
+                "square-root" | "sine" | "cosine" | "natural-log" | "exponential" | "absolute" => {
+                    ValueType::Function(Vec::new(), ElementType::new(ValueType::Scalar(receiver)))
+                }
+                "sine-cosine" => ValueType::Function(
+                    Vec::new(),
+                    ElementType::new(ValueType::Tuple(
+                        ElementType::new(ValueType::Scalar(receiver)),
+                        Some(2),
+                    )),
+                ),
+                "minimum" | "maximum" => ValueType::Function(
+                    vec![ElementType::new(ValueType::Scalar(receiver))],
+                    ElementType::new(ValueType::Scalar(receiver)),
+                ),
+                "multiply-add" => ValueType::Function(
+                    vec![
+                        ElementType::new(ValueType::Scalar(receiver)),
+                        ElementType::new(ValueType::Scalar(receiver)),
+                    ],
+                    ElementType::new(ValueType::Scalar(receiver)),
+                ),
+                _ => unreachable!(),
+            }));
+        }
+        return Err(failure(
+            &unit.source,
+            "T0013",
+            format!("`.{member_name}` requires a floating receiver"),
+            receiver.span,
+        ));
+    }
     if matches!(member_name, "round" | "floor" | "ceiling" | "truncate") {
         if matches!(
             receiver_type.clone(),
             Some(ValueType::Scalar(ScalarType::Float32 | ScalarType::Float64))
         ) {
-            return Ok(Some(ValueType::Scalar(ScalarType::Int)));
+            return Ok(Some(ValueType::Function(
+                Vec::new(),
+                ElementType::new(ValueType::Scalar(ScalarType::Int)),
+            )));
         }
         return Err(failure(
             &unit.source,
@@ -8430,6 +8497,73 @@ fn infer_member_value_type(
         },
     );
     Err(failure(&unit.source, "T0013", message, receiver.span))
+}
+
+fn infer_float_call_type(
+    unit: &SemanticUnit,
+    node: &SyntaxNode,
+    bindings: &[TypedBinding],
+) -> Result<Option<ValueType>, SemanticFailure> {
+    let Some(callee) = node.children.first() else {
+        return Ok(None);
+    };
+    let Some([receiver, member]) = (callee.kind == SyntaxKind::MemberExpression)
+        .then_some(callee.children.as_slice())
+        .and_then(|children| <&[SyntaxNode; 2]>::try_from(children).ok())
+    else {
+        return Ok(None);
+    };
+    let member_name = node_text(&unit.source, member);
+    let expected = match member_name {
+        "square-root" | "sine" | "cosine" | "sine-cosine" | "natural-log" | "exponential"
+        | "absolute" | "round" | "floor" | "ceiling" | "truncate" => 0,
+        "minimum" | "maximum" => 1,
+        "multiply-add" => 2,
+        _ => return Ok(None),
+    };
+    let receiver_type = infer_receiver_value_type(unit, receiver, bindings)?;
+    let Some(ValueType::Scalar(receiver @ (ScalarType::Float32 | ScalarType::Float64))) =
+        receiver_type
+    else {
+        return Err(failure(
+            &unit.source,
+            "T0013",
+            format!("`.{member_name}` requires a floating receiver"),
+            receiver.span,
+        ));
+    };
+    let arguments = node.children.get(1);
+    let arguments = arguments.map_or(&[][..], |arguments| arguments.children.as_slice());
+    if arguments.len() != expected {
+        return Err(failure(
+            &unit.source,
+            "T0023",
+            format!(
+                "`.{member_name}` requires exactly {expected} argument{}",
+                if expected == 1 { "" } else { "s" }
+            ),
+            node.span,
+        ));
+    }
+    for argument in arguments {
+        let value = argument.children.last().unwrap_or(argument);
+        if let Some(actual) = infer_value_type(unit, value, bindings)? {
+            validate_value_destination(
+                &unit.source,
+                &unit.objects,
+                "floating operation argument",
+                ValueType::Scalar(receiver),
+                actual,
+                value,
+                "T0013",
+            )?;
+        }
+    }
+    Ok(Some(match member_name {
+        "sine-cosine" => ValueType::Tuple(ElementType::new(ValueType::Scalar(receiver)), Some(2)),
+        "round" | "floor" | "ceiling" | "truncate" => ValueType::Scalar(ScalarType::Int),
+        _ => ValueType::Scalar(receiver),
+    }))
 }
 
 pub(crate) fn string_call_selection(

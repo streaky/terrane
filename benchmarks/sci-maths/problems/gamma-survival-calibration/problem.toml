@@ -10,7 +10,7 @@ absolute-tolerance = 1.0e-12
 relative-tolerance = 1.0e-10
 
 [profiles.performance]
-size = 1000000
-expected = 0.14715003262066875
+size = 20000000
+expected = 0.14715086979516895
 absolute-tolerance = 1.0e-12
 relative-tolerance = 1.0e-10

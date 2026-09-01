@@ -609,6 +609,7 @@ fn write_generated_crate(
     if panic == terrane_compiler::PanicProfile::Abort {
         manifest.push_str("\n[profile.dev]\npanic = \"abort\"\n");
     }
+    manifest.push_str("\n[profile.release]\nlto = \"thin\"\n");
     manifest.push_str("\n[workspace]\n");
     write_if_changed(&directory.join("Cargo.toml"), manifest.as_bytes()).map_err(|error| {
         CliFailure::backend(format!("cannot write generated manifest: {error}"))
@@ -860,9 +861,9 @@ mod tests {
         fs::remove_dir_all(directory).unwrap();
     }
     #[test]
-    fn abort_profile_configures_generated_cargo_manifest() {
+    fn generated_cargo_manifest_configures_build_profiles() {
         let directory =
-            std::env::temp_dir().join(format!("terrane-abort-profile-{}", std::process::id()));
+            std::env::temp_dir().join(format!("terrane-build-profiles-{}", std::process::id()));
         if directory.exists() {
             fs::remove_dir_all(&directory).unwrap();
         }
@@ -881,6 +882,7 @@ mod tests {
 
         let manifest = fs::read_to_string(directory.join("Cargo.toml")).unwrap();
         assert!(manifest.contains("[profile.dev]\npanic = \"abort\"\n"));
+        assert!(manifest.contains("[profile.release]\nlto = \"thin\"\n"));
         fs::remove_dir_all(directory).unwrap();
     }
 }

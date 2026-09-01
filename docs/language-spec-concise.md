@@ -197,6 +197,7 @@ Rules:
 call_marker: semicolon
 zero_arg: semicolon required
 member: receiver.member (no whitespace before dot)
+member_kind: semantic, never inferred from arity; property selection yields receiver state/classification, method selection yields a callable object and requires ';' even with zero parameters
 adjacency: 'receiver object' invalid; NEVER invocation
 call_extent: unwrapped call owns remainder of containing logical expression
 arguments: one comma-separated list; optional '(' immediately after ';' delimits wrapping
@@ -388,6 +389,8 @@ negative_shift: throws negative-shift-count
 - Small multiplication computes exact `i128` intermediate; wider operations preserve exactness.
 - Division by zero throws `division-by-zero`.
 - Fixed widths require explicit `checked`/`wrap`/`saturate`/`overflowing` family children, never host build-mode behavior; fixed-width shift counts need their own source-language contract rather than inherited host behavior.
+
+
 - A constant expression is a literal, unary-negated literal, parenthesised constant, or compile-time arithmetic combination. Its whole-number/decimal spelling does not fix a type. Typed binding initialization or assignment, a parameter default, a declared argument or return, a declared element or field, and a typed numeric operand supply context.
 - Integer constant folding uses exact arithmetic with unbounded intermediates and checks only the final destination value. Floating folding performs each operation at destination precision, matching runtime arithmetic rather than rounding an exact result once; finite decimal/non-integral results may round normally, but an integral whole-number value must be exactly representable. An admitted constant materialises directly with no conversion/check. Outside context, whole-number constants are `int` and decimal constants are `float`.
 - With one typed numeric operand, a constant takes that type; shift counts are exempt. Two differently typed integer values promote to the smallest integer type containing both source ranges, or `int`. Integer/floating value mixtures remain rejected.
@@ -407,6 +410,35 @@ postfix: '++' and '--' are STATEMENTS, never expressions; they produce no value
 postfix_rationale: expression-valued increment is the source of C read-modify-write sequencing problems and buys nothing; write the two operations
 postfix_policy: they select the default add/subtract child only; other policies need explicit assignment
 ```
+## FLOATING-MATH
+
+```yaml
+receivers: float32 | float64
+method_shape: zero-argument computational methods; floating results preserve receiver type
+square-root: 'value.square-root;' -> IEEE square root; negative finite -> NaN; signed zero preserved; +infinity -> +infinity
+sine: 'value.sine;' -> radians
+cosine: 'value.cosine;' -> radians
+sine-cosine: 'value.sine-cosine;' -> tuple [sine, cosine], combined target operation when available
+natural-log: 'value.natural-log;' -> +0 -> -infinity; negative finite -> NaN; +infinity -> +infinity
+exponential: 'value.exponential;' -> -infinity -> +0; +infinity -> +infinity
+absolute: 'value.absolute;' -> IEEE absolute value; -0 -> +0
+finite: property -> bool; neither infinity nor NaN
+infinite: property -> bool; either infinity
+not-a-number: property -> bool; NaN
+minimum: one same-type argument -> receiver type; numeric operand wins over one NaN; -0 is less than +0
+maximum: one same-type argument -> receiver type; numeric operand wins over one NaN; +0 is greater than -0
+multiply-add: two same-type arguments -> receiver type; receiver * multiplier + addend fused with one final rounding
+errors: no throw for floating domain/range; inherit IEEE NaN, signed-zero, infinity, overflow, underflow, rounding
+accuracy: correctly rounded where target guarantees it; otherwise documented bounded error
+reproducibility: deterministic for one compiler version/target/float mode; cross-target bit identity not required
+lowering: direct target primitive or smallest compiler-owned scalar support routine; no scientific dependency
+excluded: Bessel, incomplete gamma, distributions, linear algebra, arrays
+```
+
+- Property spellings are the classification observations `value.finite`, `value.infinite`, and `value.not-a-number`.
+- Zero-argument computational method spellings are `value.square-root;`, `value.sine;`, `value.cosine;`, `value.sine-cosine;`, `value.natural-log;`, `value.exponential;`, and `value.absolute;`. Selection without `;` yields the bound operation rather than its result. Argument-taking operation spellings are `value.minimum; other`, `value.maximum; other`, and `value.multiply-add; multiplier, addend`. In larger expressions, use the ordinary parenthesized member-call form.
+- `minimum` and `maximum` return NaN when both operands are NaN. All operation arguments must have the receiver's floating type.
+- Compile-time evaluation, if provided, must match the runtime contract and approximation policy.
 
 ## COERCION
 
@@ -423,7 +455,7 @@ integer_to_float_written: 'value.coerce; float-type' requests IEEE round-to-near
 float_narrowing: exact finite values, signed zero, and signed infinity arrive with sign preserved; rounded finite values and every NaN throw integer-conversion-overflow
 fixed_to_int: exact; int8..int64 and uint8..uint32 fit Small, uint64..int128 fit Wide, uint128 uses Wide below 2^127 or Big otherwise; Big may have an ordinary allocation failure but no conversion error
 float_to_integer_written: NO declared coerce pair - choosing an integer for a fractional value needs a rounding mode and coerce never takes one; 'ratio.coerce; int' is absent while 'count int = ratio' is admitted
-float_rounding_members: round (ties-to-even) | floor | ceiling | truncate; each yields an integer before destination conversion
+float_rounding_methods: round (ties-to-even) | floor | ceiling | truncate; each is invoked with ';' and yields an integer before destination conversion
 float_out_of_range: written coerce throws coercion-error; never yields an infinity
 string_parse: accepts exactly the destination's canonical text-display spelling
 coerce_options: NONE - coerce takes only its destination; it must never grow radix or format arguments

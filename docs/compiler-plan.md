@@ -864,7 +864,7 @@ and the written form still compiles; `wide int32 = small` emits no check while `
 an `int8` contract throws `integer-conversion-overflow` naming the value and destination;
 `total float = count` runs for an `int32` count with no check, and throws at `2^53 + 1` while
 succeeding at `2^54`; `count int = ratio` yields `4` from `4.0` and throws from `4.2`, `nan`, and
-both infinities, while `ratio.round` yields `4` from `4.2`; `count int = (1 / 3)` and
+both infinities, while `ratio.round;` yields `4` from `4.2`; `count int = (1 / 3)` and
 `ratio float = (1 / 3)` print `0` and the floating quotient in one program; `limit int8 = (1000 -
 900)` compiles; a constant out of range reports `T0003` at the constant's span in argument, return,
 and operand position; `flags int8 = 1` with `flags << 200` reports an out-of-width shift count rather
@@ -874,6 +874,12 @@ widens while the constant `5` in `int8|int32` is rejected as ambiguous; and `is 
 on an unresolvable right-hand name.
 
 Implemented evidence: semantic analysis now evaluates numeric constants in destination and typed-operand context, including exact integer folding, destination-precision floating folding, Euclidean division, shifts, and bitwise operators. Typed bindings, assignments, parameter defaults, declared call arguments, and declared returns share one exact-arrival validation path. Lowering materialises contextual constants directly, uses representation-only fixed-width widening, emits checked integer/floating crossings with source-oriented `integer-conversion-overflow` details, and keeps statically proven Small `int` locals as machine words. Numeric union bindings retain compiler-owned arm metadata, reject ambiguous constants independently of arm order, preserve the selected runtime arm across assignment, and answer `is a` from that arm. Focused conformance cases cover exact and inexact float narrowing, contextual floating literals, ambiguous union initialization and reassignment, conversion boundaries, operand promotion, and runtime failures.
+
+Checked fixed-width integer-to-floating crossings now stay in their native Rust representations:
+the support path decides exactness from magnitude, bit length, and discarded low bits, then performs
+one primitive cast. Boundary conformance covers signed and unsigned sources through 128 bits for
+both floating widths, including caught inexact arrivals; only adaptive `int` uses the arbitrary-
+precision conversion path.
 
 Milestone 5 must preserve the Small-tier proof for an unnecessary written `coerce; int`, so it
 lowers identically to the equivalent implicit conversion instead of materialising the erased
@@ -1793,6 +1799,50 @@ removed member and its resolved version transition. The accepted
 uses `serde_json`'s `Option<Number>`, `u128` edge coercion, data-free enum variants, and enum
 comparison; focused package, projection, semantic, generated-Rust, and rejection checks cover the
 remaining contracts.
+
+### Milestone 25.3 — Complete foundational floating-point surface
+
+The first vertical slice of foundational floating-point mathematics establishes `square-root`,
+`sine`, `cosine`, `sine-cosine`, `natural-log`, and `exponential` as scalar language members.
+This milestone completes that same non-scientific surface; it does not add special functions,
+probability distributions, linear algebra, or array mathematics.
+
+Implemented foundation: both floating widths expose those six zero-argument methods, preserve
+their receiver precision, and lower to Rust primitive operations without a scientific dependency.
+`foundational-float-math` covers both widths, bound-method selection, explicit zero-argument
+invocation, the two-result `sine-cosine` shape, and representative NaN, signed-zero, and infinity
+behavior; focused rejection cases cover receiver and method arity. Its reviewed lowering is
+canonical and executes warning-free.
+
+Implemented increment: both widths additionally expose the `absolute` zero-argument method,
+`finite`, `infinite`, and `not-a-number` classification properties, plus same-width `minimum`,
+`maximum`, and fused `multiply-add`
+operations. Their generated Rust is direct primitive scalar code. The foundational conformance case
+covers both widths and distinguishes fused from unfused rounding; focused rejection cases cover
+operation arity and argument type. The pure-Terrane gamma benchmark uses the native absolute value
+and fused operation in its hot numerical path.
+
+Deliver:
+
+- remaining roots and powers: cube root, hypotenuse, floating power, and integer-exponent power;
+- remaining exponentials and logarithms: base-two exponential, near-zero exponential-minus-one,
+  near-one natural logarithm, and base-two, base-ten, and arbitrary-base logarithms;
+- remaining trigonometry: tangent, inverse sine/cosine/tangent, and two-argument arctangent;
+- basic scalar utilities: absolute value, copied sign, sign-bit query, minimum, maximum, clamp,
+  fractional-part extraction, and fused multiply-add;
+- complete IEEE classification, including zero, normal, subnormal, finite, infinite, and NaN;
+- numerical-algorithm utilities: next representable value upward and downward, mantissa/exponent
+  decomposition, and exact scaling by an integral power of two;
+- descriptor constants for radix, significand precision, epsilon, minimum positive normal and
+  subnormal values, and finite minimum and maximum;
+- settled contracts for NaN selection, signed zero, infinity, domain behavior, overflow,
+  underflow, rounding, accuracy bounds, and target reproducibility for every delivered member.
+
+Exit criterion: accepted conformance cases exercise every member on both `float32` and `float64`,
+including representative IEEE boundary values; rejected cases prove receiver type, method/property
+selection, zero-argument invocation, arity, and argument contracts. Generated Rust uses direct target operations or compiler-owned scalar
+support, compiles warning-free, and execution matches the documented source contract without a
+scientific dependency.
 
 ### Milestone 26 — Remaining concurrency and system adapters
 

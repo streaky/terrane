@@ -386,57 +386,57 @@ mod __terrane_trace {
     ];
     pub static SITES: [Site; 10] = [
         {
-            /* terrane-site-row: site 0: /benchmark-elementwise-materialized::benchmark-size (src/main.trn:11:18-11:29) */
+            /* terrane-site-row: site 0: /benchmark-elementwise-materialized::benchmark-size (src/main.trn:10:18-10:29) */
             Site {
                 function: 0,
                 file: 0,
-                line: 11,
+                line: 10,
                 column: 18,
-                end_line: 11,
+                end_line: 10,
                 end_column: 29,
             }
         },
         {
-            /* terrane-site-row: site 1: /benchmark-elementwise-materialized::benchmark-size (src/main.trn:11:18-11:44) */
+            /* terrane-site-row: site 1: /benchmark-elementwise-materialized::benchmark-size (src/main.trn:10:18-10:44) */
             Site {
                 function: 0,
                 file: 0,
-                line: 11,
+                line: 10,
                 column: 18,
-                end_line: 11,
+                end_line: 10,
                 end_column: 44,
             }
         },
         {
-            /* terrane-site-row: site 2: /benchmark-elementwise-materialized::benchmark-size (src/main.trn:11:17-11:45) */
+            /* terrane-site-row: site 2: /benchmark-elementwise-materialized::benchmark-size (src/main.trn:10:17-10:45) */
             Site {
                 function: 0,
                 file: 0,
-                line: 11,
+                line: 10,
                 column: 17,
-                end_line: 11,
+                end_line: 10,
                 end_column: 45,
             }
         },
         {
-            /* terrane-site-row: site 3: /benchmark-elementwise-materialized::main (src/main.trn:22:19-22:31) */
+            /* terrane-site-row: site 3: /benchmark-elementwise-materialized::main (src/main.trn:21:19-21:31) */
             Site {
                 function: 1,
                 file: 0,
-                line: 22,
+                line: 21,
                 column: 19,
-                end_line: 22,
+                end_line: 21,
                 end_column: 31,
             }
         },
         {
-            /* terrane-site-row: site 4: /benchmark-elementwise-materialized::main (src/main.trn:25:5-25:12) */
+            /* terrane-site-row: site 4: /benchmark-elementwise-materialized::main (src/main.trn:24:5-24:12) */
             Site {
                 function: 1,
                 file: 0,
-                line: 25,
+                line: 24,
                 column: 5,
-                end_line: 25,
+                end_line: 24,
                 end_column: 12,
             }
         },
@@ -572,18 +572,18 @@ fn benchmark_size() -> i64 {
                                         terrane_collection_support::index_from_int(
                                             &terrane_int_support::Int::from(0_i128),
                                         ),
-                                        0 /* terrane-site: src/main.trn:11:18-11:29 */,
+                                        0 /* terrane-site: src/main.trn:10:18-10:29 */,
                                     ),
                                 ),
-                            0 /* terrane-site: src/main.trn:11:18-11:29 */,
+                            0 /* terrane-site: src/main.trn:10:18-10:29 */,
                         )
                         .text,
                     &10,
                 ),
-                1 /* terrane-site: src/main.trn:11:18-11:44 */,
+                1 /* terrane-site: src/main.trn:10:18-10:44 */,
             ),
         ),
-        2 /* terrane-site: src/main.trn:11:17-11:45 */,
+        2 /* terrane-site: src/main.trn:10:17-10:45 */,
     );
     if count <= 0 {
         exit(make_exit_status(terrane_int_support::Int::from(2_i128)));
@@ -598,19 +598,14 @@ fn main() {
     let mut index: i64 = 0;
     while index < count {
         let raw: f64 = __terrane_raised(
-            terrane_int_support::exact_f64(
-                &__terrane_raised(
-                    terrane_int_support::fixed_remainder(index, 1000),
-                    3 /* terrane-site: src/main.trn:22:19-22:31 */,
-                ),
-            ),
-            3 /* terrane-site: src/main.trn:22:19-22:31 */,
+            terrane_int_support::exact_fixed_f64(index.rem_euclid(1000)),
+            3 /* terrane-site: src/main.trn:21:19-21:31 */,
         );
         let x: f64 = raw / 100.0_f64;
         transformed.append(x * x + 3.0_f64 * x - 7.0_f64);
         index = __terrane_raised(
             terrane_int_support::fixed_addition(index, 1),
-            4 /* terrane-site: src/main.trn:25:5-25:12 */,
+            4 /* terrane-site: src/main.trn:24:5-24:12 */,
         );
     }
     let mut total: f64 = 0.0_f64;

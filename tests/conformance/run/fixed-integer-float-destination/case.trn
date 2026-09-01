@@ -1,0 +1,38 @@
+namespace fixed-integer-float-destination
+from /core/types import int32, int64, int128, uint64, uint128, float32, float64
+from /core/errors import integer-conversion-overflow
+
+function main;
+  signed64 int64 = 9_007_199_254_740_992
+  signed64-float float64 = signed64
+  unsigned64 uint64 = 9_223_372_036_854_775_808
+  unsigned64-float float64 = unsigned64
+  signed128 int128 = -170_141_183_460_469_231_731_687_303_715_884_105_728
+  signed128-float float64 = signed128
+  unsigned128 uint128 = 170_141_183_460_469_231_731_687_303_715_884_105_728
+  unsigned128-float float64 = unsigned128
+  signed32 int32 = 16_777_216
+  signed32-float float32 = signed32
+  largest-float32-integer uint128 = 340_282_346_638_528_859_811_704_183_484_516_925_440
+  largest-float32 float32 = largest-float32-integer
+
+  print; signed64-float
+  print; unsigned64-float
+  print; signed128-float
+  print; unsigned128-float
+  print; signed32-float
+  print; largest-float32
+
+  try
+    inexact64 uint64 = 18_446_744_073_709_551_615
+    rejected64 float64 = inexact64
+    print; rejected64
+  catch integer-conversion-overflow
+    print; >inexact float64 caught
+
+  try
+    inexact32 uint128 = 340_282_366_920_938_463_463_374_607_431_768_211_455
+    rejected32 float32 = inexact32
+    print; rejected32
+  catch integer-conversion-overflow
+    print; >inexact float32 caught

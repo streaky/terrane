@@ -1,4 +1,4 @@
-// Generated deterministically by Terrane 0.1.0.
+// Generated deterministically by Terrane <version>.
 type TerraneSite = u32;
 const TERRANE_NO_SITE: TerraneSite = u32::MAX;
 #[allow(dead_code, reason = "custom descriptors are absent from some lowered programs")]
@@ -377,146 +377,94 @@ mod __terrane_trace {
         pub end_column: u32,
     }
     pub static FILES: [&str; 1] = ["case.trn"];
-    pub static FUNCTIONS: [&str; 7] = [
-        "/structured-legacy-failures::narrow-fixed",
-        "/structured-legacy-failures::narrow-float",
-        "/structured-legacy-failures::divide",
-        "/structured-legacy-failures::remainder",
-        "/structured-legacy-failures::round-value",
-        "/structured-legacy-failures::narrow-argument",
-        "/structured-legacy-failures::main",
-    ];
-    pub static SITES: [Site; 12] = [
+    pub static FUNCTIONS: [&str; 1] = ["/fixed-integer-float-destination::main"];
+    pub static SITES: [Site; 8] = [
         {
-            /* terrane-site-row: site 0: /structured-legacy-failures::narrow-fixed (case.trn:6:10-6:14) */
+            /* terrane-site-row: site 0: /fixed-integer-float-destination::main (case.trn:7:28-7:36) */
             Site {
                 function: 0,
                 file: 0,
-                line: 6,
-                column: 10,
-                end_line: 6,
-                end_column: 14,
+                line: 7,
+                column: 28,
+                end_line: 7,
+                end_column: 36,
             }
         },
         {
-            /* terrane-site-row: site 1: /structured-legacy-failures::narrow-float (case.trn:9:10-9:20) */
+            /* terrane-site-row: site 1: /fixed-integer-float-destination::main (case.trn:9:30-9:40) */
             Site {
-                function: 1,
+                function: 0,
                 file: 0,
                 line: 9,
-                column: 10,
+                column: 30,
                 end_line: 9,
-                end_column: 20,
+                end_column: 40,
             }
         },
         {
-            /* terrane-site-row: site 2: /structured-legacy-failures::divide (case.trn:13:10-13:33) */
+            /* terrane-site-row: site 2: /fixed-integer-float-destination::main (case.trn:11:29-11:38) */
             Site {
-                function: 2,
+                function: 0,
+                file: 0,
+                line: 11,
+                column: 29,
+                end_line: 11,
+                end_column: 38,
+            }
+        },
+        {
+            /* terrane-site-row: site 3: /fixed-integer-float-destination::main (case.trn:13:31-13:42) */
+            Site {
+                function: 0,
                 file: 0,
                 line: 13,
-                column: 10,
+                column: 31,
                 end_line: 13,
-                end_column: 33,
+                end_column: 42,
             }
         },
         {
-            /* terrane-site-row: site 3: /structured-legacy-failures::remainder (case.trn:17:10-17:33) */
+            /* terrane-site-row: site 4: /fixed-integer-float-destination::main (case.trn:15:28-15:36) */
             Site {
-                function: 3,
+                function: 0,
+                file: 0,
+                line: 15,
+                column: 28,
+                end_line: 15,
+                end_column: 36,
+            }
+        },
+        {
+            /* terrane-site-row: site 5: /fixed-integer-float-destination::main (case.trn:17:29-17:52) */
+            Site {
+                function: 0,
                 file: 0,
                 line: 17,
-                column: 10,
+                column: 29,
                 end_line: 17,
-                end_column: 33,
+                end_column: 52,
             }
         },
         {
-            /* terrane-site-row: site 4: /structured-legacy-failures::round-value (case.trn:22:10-22:25) */
+            /* terrane-site-row: site 6: /fixed-integer-float-destination::main (case.trn:28:26-28:35) */
             Site {
-                function: 4,
+                function: 0,
                 file: 0,
-                line: 22,
-                column: 10,
-                end_line: 22,
-                end_column: 25,
-            }
-        },
-        {
-            /* terrane-site-row: site 5: /structured-legacy-failures::narrow-argument (case.trn:27:26-27:30) */
-            Site {
-                function: 5,
-                file: 0,
-                line: 27,
+                line: 28,
                 column: 26,
-                end_line: 27,
-                end_column: 30,
+                end_line: 28,
+                end_column: 35,
             }
         },
         {
-            /* terrane-site-row: site 6: /structured-legacy-failures::main (case.trn:30:13-30:26) */
+            /* terrane-site-row: site 7: /fixed-integer-float-destination::main (case.trn:35:26-35:35) */
             Site {
-                function: 6,
+                function: 0,
                 file: 0,
-                line: 30,
-                column: 13,
-                end_line: 30,
-                end_column: 26,
-            }
-        },
-        {
-            /* terrane-site-row: site 7: /structured-legacy-failures::main (case.trn:34:13-34:26) */
-            Site {
-                function: 6,
-                file: 0,
-                line: 34,
-                column: 13,
-                end_line: 34,
-                end_column: 26,
-            }
-        },
-        {
-            /* terrane-site-row: site 8: /structured-legacy-failures::main (case.trn:38:13-38:20) */
-            Site {
-                function: 6,
-                file: 0,
-                line: 38,
-                column: 13,
-                end_line: 38,
-                end_column: 20,
-            }
-        },
-        {
-            /* terrane-site-row: site 9: /structured-legacy-failures::main (case.trn:42:13-42:23) */
-            Site {
-                function: 6,
-                file: 0,
-                line: 42,
-                column: 13,
-                end_line: 42,
-                end_column: 23,
-            }
-        },
-        {
-            /* terrane-site-row: site 10: /structured-legacy-failures::main (case.trn:46:13-46:25) */
-            Site {
-                function: 6,
-                file: 0,
-                line: 46,
-                column: 13,
-                end_line: 46,
-                end_column: 25,
-            }
-        },
-        {
-            /* terrane-site-row: site 11: /structured-legacy-failures::main (case.trn:50:13-50:29) */
-            Site {
-                function: 6,
-                file: 0,
-                line: 50,
-                column: 13,
-                end_line: 50,
-                end_column: 29,
+                line: 35,
+                column: 26,
+                end_line: 35,
+                end_column: 35,
             }
         },
     ];
@@ -533,110 +481,51 @@ mod __terrane_trace {
     }
 }
 // Source: case.trn
-// Namespace: structured-legacy-failures
-fn narrow_fixed() -> Result<i8, TerraneError> {
-    let wide: i16 = 300;
-    return Ok({
-        let source_value = wide;
-        __terrane_raised_err(
-            i8::try_from(source_value)
-                .map_err(|_| terrane_int_support::ArithmeticError::conversion_overflow(
-                    &source_value,
-                    "int16",
-                    "int8",
-                    "the value is outside the destination range",
-                )),
-            0 /* terrane-site: case.trn:6:10-6:14 */,
-        )?
-    });
-}
-fn narrow_float() -> Result<f32, TerraneError> {
-    let wide_float: f64 = 340282400000000000000000000000000000000.0;
-    return Ok({
-        let source_value = wide_float;
-        let converted = source_value as f32;
-        if converted as f64 == source_value {
-            converted
-        } else {
-            __terrane_raised_err(
-                Err(
-                    terrane_int_support::ArithmeticError::conversion_overflow(
-                        &source_value,
-                        "float64",
-                        "float32",
-                        "the floating value is not exactly representable",
-                    ),
-                ),
-                1 /* terrane-site: case.trn:9:10-9:20 */,
-            )?
-        }
-    });
-}
-fn divide() -> Result<terrane_int_support::Int, TerraneError> {
-    let numerator: i64 = 1;
-    let denominator: i64 = 0;
-    return Ok(
-        __terrane_raised_err(
-            terrane_int_support::Int::from(numerator as i128)
-                .euclidean_div(&terrane_int_support::Int::from(denominator as i128)),
-            2 /* terrane-site: case.trn:13:10-13:33 */,
-        )?,
-    );
-}
-fn remainder() -> Result<terrane_int_support::Int, TerraneError> {
-    let numerator: i64 = 1;
-    let denominator: i64 = 0;
-    return Ok(
-        __terrane_raised_err(
-            terrane_int_support::Int::from(numerator as i128)
-                .modulo(&terrane_int_support::Int::from(denominator as i128)),
-            3 /* terrane-site: case.trn:17:10-17:33 */,
-        )?,
-    );
-}
-fn round_value() -> Result<terrane_int_support::Int, TerraneError> {
-    let one: f64 = 1.0;
-    let zero: f64 = 0.0;
-    let infinite: f64 = one / zero;
-    return Ok(
-        __terrane_raised_err(
-            terrane_int_support::rounded_f64(
-                infinite,
-                terrane_int_support::FloatRounding::TiesEven,
-            ),
-            4 /* terrane-site: case.trn:22:10-22:25 */,
-        )?,
-    );
-}
-fn accepts_narrow(value: i8) -> terrane_int_support::Int {
-    return terrane_int_support::Int::from(value as i128);
-}
-fn narrow_argument() -> Result<terrane_int_support::Int, TerraneError> {
-    let wide: i16 = 300;
-    return Ok(
-        accepts_narrow({
-            let source_value = wide;
-            __terrane_raised_err(
-                i8::try_from(source_value)
-                    .map_err(|_| terrane_int_support::ArithmeticError::conversion_overflow(
-                        &source_value,
-                        "int16",
-                        "int8",
-                        "the value is outside the destination range",
-                    )),
-                5 /* terrane-site: case.trn:27:26-27:30 */,
-            )?
-        }),
-    );
-}
+// Namespace: fixed-integer-float-destination
 fn main() {
+    let signed64: i64 = 9007199254740992;
+    let signed64_float: f64 = __terrane_raised(
+        terrane_int_support::exact_fixed_f64(signed64),
+        0 /* terrane-site: case.trn:7:28-7:36 */,
+    );
+    let unsigned64: u64 = 9223372036854775808;
+    let unsigned64_float: f64 = __terrane_raised(
+        terrane_int_support::exact_fixed_f64(unsigned64),
+        1 /* terrane-site: case.trn:9:30-9:40 */,
+    );
+    let signed128: i128 = -170141183460469231731687303715884105728;
+    let signed128_float: f64 = __terrane_raised(
+        terrane_int_support::exact_fixed_f64(signed128),
+        2 /* terrane-site: case.trn:11:29-11:38 */,
+    );
+    let unsigned128: u128 = 170141183460469231731687303715884105728;
+    let unsigned128_float: f64 = __terrane_raised(
+        terrane_int_support::exact_fixed_f64(unsigned128),
+        3 /* terrane-site: case.trn:13:31-13:42 */,
+    );
+    let signed32: i32 = 16777216;
+    let signed32_float: f32 = __terrane_raised(
+        terrane_int_support::exact_fixed_f32(signed32),
+        4 /* terrane-site: case.trn:15:28-15:36 */,
+    );
+    let largest_float32_integer: u128 = 340282346638528859811704183484516925440;
+    let largest_float32: f32 = __terrane_raised(
+        terrane_int_support::exact_fixed_f32(largest_float32_integer),
+        5 /* terrane-site: case.trn:17:29-17:52 */,
+    );
+    println!("{}", terrane_scalar_support::scalar_text(&signed64_float));
+    println!("{}", terrane_scalar_support::scalar_text(&unsigned64_float));
+    println!("{}", terrane_scalar_support::scalar_text(&signed128_float));
+    println!("{}", terrane_scalar_support::scalar_text(&unsigned128_float));
+    println!("{}", terrane_scalar_support::scalar_text(&signed32_float));
+    println!("{}", terrane_scalar_support::scalar_text(&largest_float32));
     let __terrane_completion_0: TerraneCompletion<()> = (|| {
         let __terrane_try_0: TerraneCompletion<()> = (|| {
-            println!(
-                "{}",
-                terrane_scalar_support::scalar_text(&__terrane_traced_completion!(narrow_fixed(),
-                6 /* terrane-site: case.trn:30:13-30:26 */))
+            let inexact64: u64 = 18446744073709551615;
+            let rejected64: f64 = __terrane_raised_completion!(
+                terrane_int_support::exact_fixed_f64(inexact64), 6 /* terrane-site: case.trn:28:26-28:35 */
             );
+            println!("{}", terrane_scalar_support::scalar_text(&rejected64));
             TerraneCompletion::Normal
         })();
         match __terrane_try_0 {
@@ -653,7 +542,7 @@ fn main() {
                     __terrane_handled_0 = true;
                     println!(
                         "{}",
-                        terrane_scalar_support::scalar_text(&String::from("fixed conversion caught"))
+                        terrane_scalar_support::scalar_text(&String::from("inexact float64 caught"))
                     );
                 }
                 if !__terrane_handled_0 {
@@ -673,11 +562,11 @@ fn main() {
     }
     let __terrane_completion_1: TerraneCompletion<()> = (|| {
         let __terrane_try_1: TerraneCompletion<()> = (|| {
-            println!(
-                "{}",
-                terrane_scalar_support::scalar_text(&__terrane_traced_completion!(narrow_float(),
-                7 /* terrane-site: case.trn:34:13-34:26 */))
+            let inexact32: u128 = 340282366920938463463374607431768211455;
+            let rejected32: f32 = __terrane_raised_completion!(
+                terrane_int_support::exact_fixed_f32(inexact32), 7 /* terrane-site: case.trn:35:26-35:35 */
             );
+            println!("{}", terrane_scalar_support::scalar_text(&rejected32));
             TerraneCompletion::Normal
         })();
         match __terrane_try_1 {
@@ -694,7 +583,7 @@ fn main() {
                     __terrane_handled_1 = true;
                     println!(
                         "{}",
-                        terrane_scalar_support::scalar_text(&String::from("float narrowing caught"))
+                        terrane_scalar_support::scalar_text(&String::from("inexact float32 caught"))
                     );
                 }
                 if !__terrane_handled_1 {
@@ -712,169 +601,6 @@ fn main() {
             __terrane_generated_defect("loop control escaped a non-loop try")
         }
     }
-    let __terrane_completion_2: TerraneCompletion<()> = (|| {
-        let __terrane_try_2: TerraneCompletion<()> = (|| {
-            println!(
-                "{}",
-                terrane_scalar_support::scalar_text(&__terrane_traced_completion!(divide(),
-                8 /* terrane-site: case.trn:38:13-38:20 */))
-            );
-            TerraneCompletion::Normal
-        })();
-        match __terrane_try_2 {
-            TerraneCompletion::Return(value) => return TerraneCompletion::Return(value),
-            TerraneCompletion::Break => return TerraneCompletion::Break,
-            TerraneCompletion::Continue => return TerraneCompletion::Continue,
-            TerraneCompletion::Normal => {}
-            TerraneCompletion::Error(__terrane_error_2) => {
-                let mut __terrane_handled_2 = false;
-                if !__terrane_handled_2
-                    && __terrane_error_2.kind == TerraneErrorKind::DivisionByZero
-                {
-                    __terrane_handled_2 = true;
-                    println!(
-                        "{}",
-                        terrane_scalar_support::scalar_text(&String::from("int division caught"))
-                    );
-                }
-                if !__terrane_handled_2 {
-                    return TerraneCompletion::Error(__terrane_error_2);
-                }
-            }
-        }
-        TerraneCompletion::Normal
-    })();
-    match __terrane_completion_2 {
-        TerraneCompletion::Normal => {}
-        TerraneCompletion::Return(value) => return value,
-        TerraneCompletion::Error(error) => __terrane_uncaught(error),
-        TerraneCompletion::Break | TerraneCompletion::Continue => {
-            __terrane_generated_defect("loop control escaped a non-loop try")
-        }
-    }
-    let __terrane_completion_3: TerraneCompletion<()> = (|| {
-        let __terrane_try_3: TerraneCompletion<()> = (|| {
-            println!(
-                "{}",
-                terrane_scalar_support::scalar_text(&__terrane_traced_completion!(remainder(),
-                9 /* terrane-site: case.trn:42:13-42:23 */))
-            );
-            TerraneCompletion::Normal
-        })();
-        match __terrane_try_3 {
-            TerraneCompletion::Return(value) => return TerraneCompletion::Return(value),
-            TerraneCompletion::Break => return TerraneCompletion::Break,
-            TerraneCompletion::Continue => return TerraneCompletion::Continue,
-            TerraneCompletion::Normal => {}
-            TerraneCompletion::Error(__terrane_error_3) => {
-                let mut __terrane_handled_3 = false;
-                if !__terrane_handled_3
-                    && __terrane_error_3.kind == TerraneErrorKind::DivisionByZero
-                {
-                    __terrane_handled_3 = true;
-                    println!(
-                        "{}",
-                        terrane_scalar_support::scalar_text(&String::from("int remainder caught"))
-                    );
-                }
-                if !__terrane_handled_3 {
-                    return TerraneCompletion::Error(__terrane_error_3);
-                }
-            }
-        }
-        TerraneCompletion::Normal
-    })();
-    match __terrane_completion_3 {
-        TerraneCompletion::Normal => {}
-        TerraneCompletion::Return(value) => return value,
-        TerraneCompletion::Error(error) => __terrane_uncaught(error),
-        TerraneCompletion::Break | TerraneCompletion::Continue => {
-            __terrane_generated_defect("loop control escaped a non-loop try")
-        }
-    }
-    let __terrane_completion_4: TerraneCompletion<()> = (|| {
-        let __terrane_try_4: TerraneCompletion<()> = (|| {
-            println!(
-                "{}",
-                terrane_scalar_support::scalar_text(&__terrane_traced_completion!(round_value(),
-                10 /* terrane-site: case.trn:46:13-46:25 */))
-            );
-            TerraneCompletion::Normal
-        })();
-        match __terrane_try_4 {
-            TerraneCompletion::Return(value) => return TerraneCompletion::Return(value),
-            TerraneCompletion::Break => return TerraneCompletion::Break,
-            TerraneCompletion::Continue => return TerraneCompletion::Continue,
-            TerraneCompletion::Normal => {}
-            TerraneCompletion::Error(__terrane_error_4) => {
-                let mut __terrane_handled_4 = false;
-                if !__terrane_handled_4
-                    && __terrane_error_4.kind
-                        == TerraneErrorKind::IntegerConversionOverflow
-                {
-                    __terrane_handled_4 = true;
-                    println!(
-                        "{}",
-                        terrane_scalar_support::scalar_text(&String::from("rounding caught"))
-                    );
-                }
-                if !__terrane_handled_4 {
-                    return TerraneCompletion::Error(__terrane_error_4);
-                }
-            }
-        }
-        TerraneCompletion::Normal
-    })();
-    match __terrane_completion_4 {
-        TerraneCompletion::Normal => {}
-        TerraneCompletion::Return(value) => return value,
-        TerraneCompletion::Error(error) => __terrane_uncaught(error),
-        TerraneCompletion::Break | TerraneCompletion::Continue => {
-            __terrane_generated_defect("loop control escaped a non-loop try")
-        }
-    }
-    let __terrane_completion_5: TerraneCompletion<()> = (|| {
-        let __terrane_try_5: TerraneCompletion<()> = (|| {
-            println!(
-                "{}",
-                terrane_scalar_support::scalar_text(&__terrane_traced_completion!(narrow_argument(),
-                11 /* terrane-site: case.trn:50:13-50:29 */))
-            );
-            TerraneCompletion::Normal
-        })();
-        match __terrane_try_5 {
-            TerraneCompletion::Return(value) => return TerraneCompletion::Return(value),
-            TerraneCompletion::Break => return TerraneCompletion::Break,
-            TerraneCompletion::Continue => return TerraneCompletion::Continue,
-            TerraneCompletion::Normal => {}
-            TerraneCompletion::Error(__terrane_error_5) => {
-                let mut __terrane_handled_5 = false;
-                if !__terrane_handled_5
-                    && __terrane_error_5.kind
-                        == TerraneErrorKind::IntegerConversionOverflow
-                {
-                    __terrane_handled_5 = true;
-                    println!(
-                        "{}",
-                        terrane_scalar_support::scalar_text(&String::from("argument conversion caught"))
-                    );
-                }
-                if !__terrane_handled_5 {
-                    return TerraneCompletion::Error(__terrane_error_5);
-                }
-            }
-        }
-        TerraneCompletion::Normal
-    })();
-    match __terrane_completion_5 {
-        TerraneCompletion::Normal => {}
-        TerraneCompletion::Return(value) => return value,
-        TerraneCompletion::Error(error) => __terrane_uncaught(error),
-        TerraneCompletion::Break | TerraneCompletion::Continue => {
-            __terrane_generated_defect("loop control escaped a non-loop try")
-        }
-    }
-    println!("{}", terrane_scalar_support::scalar_text(&String::from("after")));
 }
 // Generated Rust files: src/runtime/errors.rs, src/authored/case.trn.rs, src/main.rs
 // Vendored support crates: terrane-int-support, terrane-scalar-support, terrane-string-support, terrane-stream-abi
