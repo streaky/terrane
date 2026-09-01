@@ -86,6 +86,20 @@ class RunnerContracts(unittest.TestCase):
         with self.assertRaisesRegex(runner.BenchmarkError, "path is outside"):
             runner.validate_suite(malformed_path)
 
+    def test_problem_selection_explains_group_mismatch(self) -> None:
+        problems = [
+            {"id": "baseline-problem", "group": "baseline"},
+            {"id": "scientific-problem", "group": "scientific"},
+        ]
+        with self.assertRaisesRegex(
+            runner.BenchmarkError,
+            r"problem selection is outside selected groups \(baseline\): scientific-problem",
+        ):
+            runner.select_group_problems(
+                problems, {"baseline"}, ["scientific-problem"]
+            )
+
+
 
     def test_fixture_lane_exercises_setup_prepare_run_and_environment(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
@@ -166,6 +180,26 @@ class RunnerContracts(unittest.TestCase):
         assert reason is not None
         self.assertIn("writable delegated cgroup-v2 subtree", reason)
         self.assertIn(str(parent), reason)
+
+    def test_memory_parent_cleanup_restores_original_cgroup_state(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            runner_leaf = root / "terrane-sci-runner-fixture"
+            runner_leaf.mkdir()
+            (root / "cgroup.procs").write_text("")
+            (root / "cgroup.subtree_control").write_text("memory")
+            runner.MEMORY_CGROUP_ROOT = root
+            runner.MEMORY_CGROUP_RUNNER_LEAF = runner_leaf
+            runner.MEMORY_CGROUP_ENABLED_MEMORY = True
+
+            runner.cleanup_memory_cgroup_parent()
+
+            self.assertFalse(runner_leaf.exists())
+            self.assertEqual((root / "cgroup.procs").read_text(), str(os.getpid()))
+            self.assertEqual((root / "cgroup.subtree_control").read_text(), "-memory")
+            self.assertIsNone(runner.MEMORY_CGROUP_ROOT)
+            self.assertIsNone(runner.MEMORY_CGROUP_RUNNER_LEAF)
+            self.assertFalse(runner.MEMORY_CGROUP_ENABLED_MEMORY)
 
     def test_delegated_memory_command_preserves_runner_arguments(self) -> None:
         with mock.patch.object(

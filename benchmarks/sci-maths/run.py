@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import atexit
 import json
 import math
 import os
@@ -27,6 +28,9 @@ from typing import Any
 SUITE = Path(__file__).resolve().parent
 REPO = SUITE.parents[1]
 MEMORY_CGROUP_ROOT: Path | None = None
+MEMORY_CGROUP_RUNNER_LEAF: Path | None = None
+MEMORY_CGROUP_ENABLED_MEMORY = False
+MEMORY_CGROUP_SIGNAL_HANDLERS: dict[int, Any] = {}
 PERFORMANCE_ENVIRONMENT_KEYS = (
     "CARGO_BUILD_RUSTFLAGS",
     "CARGO_ENCODED_RUSTFLAGS",
@@ -122,8 +126,45 @@ class MemoryCgroup:
         self.path.rmdir()
 
 
+def cleanup_memory_cgroup_parent() -> None:
+    global MEMORY_CGROUP_ENABLED_MEMORY, MEMORY_CGROUP_ROOT, MEMORY_CGROUP_RUNNER_LEAF
+    root = MEMORY_CGROUP_ROOT
+    runner_leaf = MEMORY_CGROUP_RUNNER_LEAF
+    MEMORY_CGROUP_ROOT = None
+    MEMORY_CGROUP_RUNNER_LEAF = None
+    enabled_memory = MEMORY_CGROUP_ENABLED_MEMORY
+    MEMORY_CGROUP_ENABLED_MEMORY = False
+    for signum, handler in MEMORY_CGROUP_SIGNAL_HANDLERS.items():
+        signal.signal(signum, handler)
+    MEMORY_CGROUP_SIGNAL_HANDLERS.clear()
+    if root is None or runner_leaf is None:
+        return
+    try:
+        (root / "cgroup.procs").write_text(str(os.getpid()))
+    except OSError:
+        return
+    try:
+        runner_leaf.rmdir()
+    except OSError:
+        pass
+    if enabled_memory:
+        try:
+            (root / "cgroup.subtree_control").write_text("-memory")
+        except OSError:
+            pass
+
+
+def cleanup_memory_cgroup_on_signal(signum: int, frame: Any) -> None:
+    previous = MEMORY_CGROUP_SIGNAL_HANDLERS.get(signum, signal.SIG_DFL)
+    cleanup_memory_cgroup_parent()
+    if callable(previous):
+        previous(signum, frame)
+    elif previous != signal.SIG_IGN:
+        signal.raise_signal(signum)
+
+
 def memory_cgroup_parent() -> tuple[Path | None, str | None]:
-    global MEMORY_CGROUP_ROOT
+    global MEMORY_CGROUP_ENABLED_MEMORY, MEMORY_CGROUP_ROOT, MEMORY_CGROUP_RUNNER_LEAF
     requirement = (
         "memory measurement requires Linux cgroup v2 with a writable delegated "
         "subtree and the memory controller enabled"
@@ -155,11 +196,15 @@ def memory_cgroup_parent() -> tuple[Path | None, str | None]:
 
     runner_leaf = root / f"terrane-sci-runner-{os.getpid()}"
     moved = False
+    enabled_memory = False
     try:
+        subtree_control = (root / "cgroup.subtree_control").read_text().split()
         runner_leaf.mkdir()
         (runner_leaf / "cgroup.procs").write_text(str(os.getpid()))
         moved = True
-        (root / "cgroup.subtree_control").write_text("+memory")
+        if "memory" not in subtree_control:
+            (root / "cgroup.subtree_control").write_text("+memory")
+            enabled_memory = True
     except OSError as error:
         if moved:
             try:
@@ -175,6 +220,12 @@ def memory_cgroup_parent() -> tuple[Path | None, str | None]:
             f"{requirement}; could not initialize a measurement subtree at {root}: {error}",
         )
     MEMORY_CGROUP_ROOT = root
+    MEMORY_CGROUP_RUNNER_LEAF = runner_leaf
+    MEMORY_CGROUP_ENABLED_MEMORY = enabled_memory
+    atexit.register(cleanup_memory_cgroup_parent)
+    for signum in (signal.SIGHUP, signal.SIGTERM):
+        MEMORY_CGROUP_SIGNAL_HANDLERS[signum] = signal.getsignal(signum)
+        signal.signal(signum, cleanup_memory_cgroup_on_signal)
     return root, None
 
 
@@ -790,6 +841,30 @@ def selected(
         for value, identifier in zip(values, identifiers, strict=True)
         if identifier in wanted
     ]
+
+
+def select_group_problems(
+    problems: list[dict[str, Any]],
+    selected_group_ids: set[str],
+    requested: list[str],
+) -> list[dict[str, Any]]:
+    grouped = [problem for problem in problems if problem["group"] in selected_group_ids]
+    if requested:
+        requested_ids = set(requested)
+        known_ids = {problem["id"] for problem in problems}
+        unknown = requested_ids - known_ids
+        if unknown:
+            raise BenchmarkError(f"unknown selection: {', '.join(sorted(unknown))}")
+        outside = requested_ids - {problem["id"] for problem in grouped}
+        if outside:
+            groups = ", ".join(sorted(selected_group_ids))
+            raise BenchmarkError(
+                f"problem selection is outside selected groups ({groups}): "
+                f"{', '.join(sorted(outside))}"
+            )
+    return selected(grouped, requested, [problem["id"] for problem in grouped])
+
+
 def lanes_for_problem(problem: dict[str, Any], lanes: list[Lane]) -> list[Lane]:
     allowed = set(problem["lane_ids"])
     return [lane for lane in lanes if lane.lane_id in allowed]
@@ -802,8 +877,6 @@ def active_lanes(problems: list[dict[str, Any]], lanes: list[Lane]) -> list[Lane
         for lane in lanes_for_problem(problem, lanes)
     }
     return [lane for lane in lanes if lane.lane_id in active_ids]
-
-
 
 
 def process_record(result: ProcessResult | None) -> dict[str, Any] | None:
@@ -1400,8 +1473,9 @@ def main() -> int:
             suite["groups"], arguments.group, [group["id"] for group in suite["groups"]]
         )
         selected_group_ids = {group["id"] for group in groups}
-        problems = [problem for problem in problems if problem["group"] in selected_group_ids]
-        problems = selected(problems, arguments.problem, [problem["id"] for problem in problems])
+        problems = select_group_problems(
+            problems, selected_group_ids, arguments.problem
+        )
         lanes = selected(lanes, arguments.lane, [lane.lane_id for lane in lanes])
         measurement = suite["measurement"]
         setup_timeout = (
