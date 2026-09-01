@@ -10,24 +10,24 @@
           "TryGetError"
         ],
         [
-          "/deps/bytes/buf",
+          "/deps/bytes/buf/buf-impl/buf",
           "copy_to_bytes"
+        ],
+        [
+          "/deps/bytes/buf/buf-mut/bufmut",
+          "chunk_mut"
+        ],
+        [
+          "/deps/bytes/buf/buf-mut/bufmut",
+          "put_bytes"
+        ],
+        [
+          "/deps/bytes/buf/buf-mut/bufmut",
+          "remaining_mut"
         ],
         [
           "/deps/bytes/buf/uninit-slice",
           "UninitSlice"
-        ],
-        [
-          "/deps/bytes/bufmut",
-          "chunk_mut"
-        ],
-        [
-          "/deps/bytes/bufmut",
-          "put_bytes"
-        ],
-        [
-          "/deps/bytes/bufmut",
-          "remaining_mut"
         ],
         [
           "/deps/bytes/bytes",

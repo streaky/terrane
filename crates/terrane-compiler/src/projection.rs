@@ -186,11 +186,17 @@ impl Projection {
             }
             let foreign = collect_source_foreign(&all_items, &selected);
             let mut aliases = foreign_aliases(&foreign);
+            let distinct_aliases = aliases.clone();
             for (rust_path, alias) in &mut aliases {
-                if projected_item_for_foreign(&all_items, rust_path, &foreign[rust_path])
-                    .is_some_and(|item| item.namespace == *namespace)
-                {
+                let Some(item) =
+                    projected_item_for_foreign(&all_items, rust_path, &foreign[rust_path])
+                else {
+                    continue;
+                };
+                if item.namespace == *namespace {
                     alias.clone_from(&foreign[rust_path]);
+                } else if let Some(distinct_alias) = distinct_aliases.get(&item.rust_path) {
+                    alias.clone_from(distinct_alias);
                 }
             }
             let mut ordered_foreign = foreign.iter().collect::<Vec<_>>();
@@ -212,11 +218,17 @@ impl Projection {
                 (dependency_count, aliases.get(*rust_path))
             });
             let mut text = format!("namespace {}\n\n", namespace.trim_start_matches('/'));
+            let mut rendered_foreign = BTreeSet::new();
             for (rust_path, _) in ordered_foreign {
                 let name = &aliases[rust_path];
-                if let Some(item) =
-                    projected_item_for_foreign(&all_items, rust_path, &foreign[rust_path])
-                {
+                let projected_item =
+                    projected_item_for_foreign(&all_items, rust_path, &foreign[rust_path]);
+                let declaration_path =
+                    projected_item.map_or(rust_path.as_str(), |item| item.rust_path.as_str());
+                if !rendered_foreign.insert(declaration_path) {
+                    continue;
+                }
+                if let Some(item) = projected_item {
                     if item.namespace != *namespace {
                         write!(text, "from {} import {}", item.namespace, item.name)
                             .expect("writing to a string cannot fail");
@@ -231,7 +243,7 @@ impl Projection {
                 if let Some(ProjectedItem {
                     kind: ProjectedKind::ForeignType { methods },
                     ..
-                }) = projected_item_for_foreign(&all_items, rust_path, &foreign[rust_path])
+                }) = projected_item
                 {
                     for method in methods {
                         render_function(&mut text, method, false, 4, &aliases);
@@ -1024,12 +1036,13 @@ fn project_rustdoc(
     }
     let mut resolved_paths = paths.clone();
     for (id, public_path) in &public_paths {
-        if let Some(summary) = resolved_paths.get_mut(id) {
-            summary["path"] = Value::Array(
-                public_path
-                    .split("::")
-                    .map(|segment| Value::String(segment.to_owned()))
-                    .collect(),
+        if !resolved_paths.contains_key(id) {
+            resolved_paths.insert(
+                id.clone(),
+                serde_json::json!({
+                    "crate_id": 0,
+                    "path": public_path.split("::").collect::<Vec<_>>(),
+                }),
             );
         }
     }
@@ -1068,7 +1081,7 @@ fn project_rustdoc(
                 Err("type has generic or lifetime parameters".to_owned())
             } else {
                 let (methods, trait_methods, method_declines) =
-                    project_methods(structure, index, &resolved_paths, &rust_path);
+                    project_methods(structure, index, &resolved_paths, &public_paths, &rust_path);
                 for method in methods.iter().filter(|method| method.receiver.is_none()) {
                     projected_associated_items.push(ProjectedItem {
                         namespace: namespace.clone(),
@@ -1078,13 +1091,13 @@ fn project_rustdoc(
                         kind: ProjectedKind::Function(method.clone()),
                     });
                 }
-                for (trait_path, method) in trait_methods {
+                for (trait_path, public_trait_path, method) in trait_methods {
                     let trait_segments = trait_path
                         .split("::")
                         .map(str::to_owned)
                         .collect::<Vec<_>>();
                     let trait_namespace = dependency_namespace(dependency, &trait_segments);
-                    let trait_rust_path = extern_rust_path(dependency, &trait_path);
+                    let trait_rust_path = extern_rust_path(dependency, &public_trait_path);
                     projected_trait_items.push(ProjectedItem {
                         namespace: trait_namespace,
                         name: method.name.clone(),
@@ -1278,7 +1291,7 @@ fn extern_rust_path(dependency: &RustDependency, path: &str) -> String {
 
 type ProjectedMethods = (
     Vec<ProjectedFunction>,
-    Vec<(String, ProjectedFunction)>,
+    Vec<(String, String, ProjectedFunction)>,
     Vec<(String, String)>,
 );
 
@@ -1290,6 +1303,7 @@ fn project_methods(
     structure: &Value,
     index: &serde_json::Map<String, Value>,
     paths: &serde_json::Map<String, Value>,
+    public_paths: &BTreeMap<String, String>,
     owner_rust_path: &str,
 ) -> ProjectedMethods {
     let mut candidates = Vec::new();
@@ -1338,6 +1352,12 @@ fn project_methods(
                     ));
                     continue;
                 };
+                let public_trait_path = implementation["trait"]["id"]
+                    .as_u64()
+                    .map(|id| id.to_string())
+                    .and_then(|id| public_paths.get(&id))
+                    .cloned()
+                    .unwrap_or_else(|| trait_path.clone());
                 match project_function(function, index, paths, Some(name)) {
                     Ok(mut method) => {
                         let Some(receiver) = method.receiver.take() else {
@@ -1361,7 +1381,7 @@ fn project_methods(
                                 mutable_borrow: receiver == Receiver::MutableBorrow,
                             },
                         );
-                        trait_methods.push((trait_path, method));
+                        trait_methods.push((trait_path, public_trait_path, method));
                     }
                     Err(reason) => declined.push((name.to_owned(), reason)),
                 }
@@ -2255,8 +2275,7 @@ mod tests {
             "paths": {
                 "0": {"crate_id": 0, "path": ["witness"]},
                 "1": {"crate_id": 0, "path": ["witness", "scalar"]},
-                "3": {"crate_id": 0, "path": ["witness", "private", "special"]},
-                "4": {"crate_id": 0, "path": ["witness", "private", "special", "evaluate"]}
+                "3": {"crate_id": 0, "path": ["witness", "private", "special"]}
             },
             "index": {
                 "0": {
