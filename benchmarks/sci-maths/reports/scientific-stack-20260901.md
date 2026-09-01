@@ -75,4 +75,4 @@ Generated at `2026-09-01T06:24:06.797419+00:00`.
 
 Every recorded execution passed its problem's shared correctness contract. Successful process stderr is retained in the raw data; **0 warning line(s)** were detected.
 
-Complete measurements: [report-sci-tweaked.json](report-sci-tweaked.json)
+Complete measurements: [scientific-stack-20260901.json](scientific-stack-20260901.json)

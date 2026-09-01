@@ -42,9 +42,11 @@ systemd-run --user --scope --quiet --property=Delegate=yes --same-dir \
 ```
 
 Inside that scope the runner moves itself to a coordinator leaf and places each launched program
-in a fresh sibling measurement cgroup, so systemd startup is outside the measured execution.
+in a fresh sibling measurement cgroup, so systemd startup is outside the measured execution. At
+normal interpreter exit or a termination signal it moves back to the delegated parent, removes the
+coordinator leaf, and restores the parent's memory-controller state when the runner enabled it.
 
-The Terrane adapters build both the compiler and every generated benchmark executable with Cargo's optimized release profile. The Rust control uses `rustc` at optimization level 3 with fat LTO and one codegen unit. When `sccache` is executable on `PATH`, the runner overrides any disabled or absent inherited wrapper with its absolute path and starts the cache server before creating measured process cgroups. When it is unavailable, builds proceed without the runner adding a wrapper. This changes compilation reuse only: compilation and preparation remain outside benchmark execution measurements, which measure the compiled programs. Development and release artifacts are cached separately by the Terrane CLI. Reports capture the machine platform, kernel, CPU model, core counts, memory capacity, CPU frequency governor, start-of-run load average, runner revision, lane tool versions, every setup and preparation process, and all warm-up and measured process records.
+The Terrane adapters build both the compiler and every generated benchmark executable with Cargo's optimized release profile; generated release crates explicitly enable ThinLTO with Cargo's default codegen-unit count. The Rust control uses `rustc` at optimization level 3 with fat LTO and one codegen unit, so it is a native-code reference rather than a build-profile-identical control. When `sccache` is executable on `PATH`, the runner overrides any disabled or absent inherited wrapper with its absolute path and starts the cache server before creating measured process cgroups. When it is unavailable, builds proceed without the runner adding a wrapper. This changes compilation reuse only: compilation and preparation remain outside benchmark execution measurements, which measure the compiled programs. Development and release artifacts are cached separately by the Terrane CLI. Reports capture the machine platform, kernel, CPU model, core counts, memory, frequency governor, load average, selected performance-related environment variables, tool versions, warnings, and exact commands.
 
 ## Groups and fairness
 
@@ -62,11 +64,20 @@ records and frozen workload profiles in the adjacent
 [JSON report](reports/initial-two-lane-baseline.json). It was produced with the suite's default two
 warm-ups and seven measured executions per problem and lane.
 
-## What currently limits the Terrane lane
+The expanded three-lane and scientific-stack measurement is
+[`scientific-stack-20260901.md`](reports/scientific-stack-20260901.md), with its
+[complete JSON process records](reports/scientific-stack-20260901.json). It was measured under a
+delegated cgroup with memory accounting available. The recorded one-minute load average was 6.86
+on this 12-core host, so treat small timing differences as provisional rather than idle-host
+evidence.
 
-The Terrane lane's results are bounded by generated-code characteristics rather than by the CPU
-being idle. Every measurement below is `perf stat` against the release binary each problem already
-builds, at its `problem.toml` performance size.
+## Historical pre-optimization diagnostics
+
+The measurements and disassembly in this section are a frozen snapshot from 2026-08-31, before
+this branch added fixed-width helper inlining, direct fixed-width integer-to-float lowering, and
+bounded loop conversion proofs. They describe the pipeline that produced the initial two-lane
+baseline above, not the current compiler. Every measurement was `perf stat` against the release
+binary each problem built at its `problem.toml` performance size.
 
 | Problem | Work unit | Instructions | Per unit | IPC |
 |---|---|---|---|---|
@@ -126,13 +137,13 @@ for free. What the measurements show is the cost of how the guarantee is current
 out-of-line call, a 72-byte memory round trip, and a conversion through a wider representation than
 the operands need.
 
-These limits have not been addressed, and no work in the corpus depends on them being addressed.
-They are recorded here so that lane results are read as a measurement of the current lowering and
-support crates rather than as a bound on the approach. Anyone re-measuring after changing them
-should control code alignment: layout luck alone has produced reproducible 19% swings between
-binaries whose hot loops were instruction-for-instruction identical, in both directions, and
-repeating a run cannot detect it because alignment is a property of the binary rather than of the
-execution.
+These limits had not been addressed in that historical snapshot. They remain recorded so the
+initial lane results can be interpreted against the lowering and support crates that produced
+them, rather than as a bound on the approach. Current measurements must not be explained from this
+table without fresh counters and disassembly. Anyone re-measuring after a code-generation change
+should also control code alignment: layout luck produced reproducible 19% swings between binaries
+whose hot loops were instruction-for-instruction identical, in both directions, and repeating a
+run cannot detect it because alignment is a property of the binary rather than of the execution.
 
 ## Corpus shape
 
