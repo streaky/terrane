@@ -1,4 +1,4 @@
-// Generated deterministically by Terrane <version>.
+// Generated deterministically by Terrane 0.1.0.
 type TerraneSite = u32;
 const TERRANE_NO_SITE: TerraneSite = u32::MAX;
 #[allow(dead_code, reason = "custom descriptors are absent from some lowered programs")]
@@ -432,14 +432,14 @@ mod __terrane_trace {
             }
         },
         {
-            /* terrane-site-row: site 4: /structured-legacy-failures::round-value (case.trn:22:10-22:24) */
+            /* terrane-site-row: site 4: /structured-legacy-failures::round-value (case.trn:22:10-22:25) */
             Site {
                 function: 4,
                 file: 0,
                 line: 22,
                 column: 10,
                 end_line: 22,
-                end_column: 24,
+                end_column: 25,
             }
         },
         {
@@ -604,7 +604,7 @@ fn round_value() -> Result<terrane_int_support::Int, TerraneError> {
                 infinite,
                 terrane_int_support::FloatRounding::TiesEven,
             ),
-            4 /* terrane-site: case.trn:22:10-22:24 */,
+            4 /* terrane-site: case.trn:22:10-22:25 */,
         )?,
     );
 }
@@ -876,3 +876,5 @@ fn main() {
     }
     println!("{}", terrane_scalar_support::scalar_text(&String::from("after")));
 }
+// Generated Rust files: src/runtime/errors.rs, src/authored/case.trn.rs, src/main.rs
+// Vendored support crates: terrane-int-support, terrane-scalar-support, terrane-string-support, terrane-stream-abi

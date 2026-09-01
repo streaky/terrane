@@ -197,6 +197,7 @@ Rules:
 call_marker: semicolon
 zero_arg: semicolon required
 member: receiver.member (no whitespace before dot)
+member_kind: semantic, never inferred from arity; property selection yields receiver state/classification, method selection yields a callable object and requires ';' even with zero parameters
 adjacency: 'receiver object' invalid; NEVER invocation
 call_extent: unwrapped call owns remainder of containing logical expression
 arguments: one comma-separated list; optional '(' immediately after ';' delimits wrapping
@@ -413,17 +414,17 @@ postfix_policy: they select the default add/subtract child only; other policies 
 
 ```yaml
 receivers: float32 | float64
-property_shape: zero-argument properties; floating results preserve receiver type
-square-root: IEEE square root; negative finite -> NaN; signed zero preserved; +infinity -> +infinity
-sine: radians
-cosine: radians
-sine-cosine: tuple [sine, cosine], combined target operation when available
-natural-log: +0 -> -infinity; negative finite -> NaN; +infinity -> +infinity
-exponential: -infinity -> +0; +infinity -> +infinity
-absolute: IEEE absolute value; -0 -> +0
-finite: bool; neither infinity nor NaN
-infinite: bool; either infinity
-not-a-number: bool; NaN
+method_shape: zero-argument computational methods; floating results preserve receiver type
+square-root: 'value.square-root;' -> IEEE square root; negative finite -> NaN; signed zero preserved; +infinity -> +infinity
+sine: 'value.sine;' -> radians
+cosine: 'value.cosine;' -> radians
+sine-cosine: 'value.sine-cosine;' -> tuple [sine, cosine], combined target operation when available
+natural-log: 'value.natural-log;' -> +0 -> -infinity; negative finite -> NaN; +infinity -> +infinity
+exponential: 'value.exponential;' -> -infinity -> +0; +infinity -> +infinity
+absolute: 'value.absolute;' -> IEEE absolute value; -0 -> +0
+finite: property -> bool; neither infinity nor NaN
+infinite: property -> bool; either infinity
+not-a-number: property -> bool; NaN
 minimum: one same-type argument -> receiver type; numeric operand wins over one NaN; -0 is less than +0
 maximum: one same-type argument -> receiver type; numeric operand wins over one NaN; +0 is greater than -0
 multiply-add: two same-type arguments -> receiver type; receiver * multiplier + addend fused with one final rounding
@@ -434,8 +435,8 @@ lowering: direct target primitive or smallest compiler-owned scalar support rout
 excluded: Bessel, incomplete gamma, distributions, linear algebra, arrays
 ```
 
-- Property spellings are `value.square-root`, `value.sine`, `value.cosine`, `value.sine-cosine`, `value.natural-log`, `value.exponential`, `value.absolute`, `value.finite`, `value.infinite`, and `value.not-a-number`; they are not calls.
-- Operation spellings are `value.minimum; other`, `value.maximum; other`, and `value.multiply-add; multiplier, addend`. In larger expressions, use the ordinary parenthesized member-call form.
+- Property spellings are the classification observations `value.finite`, `value.infinite`, and `value.not-a-number`.
+- Zero-argument computational method spellings are `value.square-root;`, `value.sine;`, `value.cosine;`, `value.sine-cosine;`, `value.natural-log;`, `value.exponential;`, and `value.absolute;`. Selection without `;` yields the bound operation rather than its result. Argument-taking operation spellings are `value.minimum; other`, `value.maximum; other`, and `value.multiply-add; multiplier, addend`. In larger expressions, use the ordinary parenthesized member-call form.
 - `minimum` and `maximum` return NaN when both operands are NaN. All operation arguments must have the receiver's floating type.
 - Compile-time evaluation, if provided, must match the runtime contract and approximation policy.
 
@@ -454,7 +455,7 @@ integer_to_float_written: 'value.coerce; float-type' requests IEEE round-to-near
 float_narrowing: exact finite values, signed zero, and signed infinity arrive with sign preserved; rounded finite values and every NaN throw integer-conversion-overflow
 fixed_to_int: exact; int8..int64 and uint8..uint32 fit Small, uint64..int128 fit Wide, uint128 uses Wide below 2^127 or Big otherwise; Big may have an ordinary allocation failure but no conversion error
 float_to_integer_written: NO declared coerce pair - choosing an integer for a fractional value needs a rounding mode and coerce never takes one; 'ratio.coerce; int' is absent while 'count int = ratio' is admitted
-float_rounding_members: round (ties-to-even) | floor | ceiling | truncate; each yields an integer before destination conversion
+float_rounding_methods: round (ties-to-even) | floor | ceiling | truncate; each is invoked with ';' and yields an integer before destination conversion
 float_out_of_range: written coerce throws coercion-error; never yields an infinity
 string_parse: accepts exactly the destination's canonical text-display spelling
 coerce_options: NONE - coerce takes only its destination; it must never grow radix or format arguments

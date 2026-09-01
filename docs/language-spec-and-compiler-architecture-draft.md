@@ -1067,6 +1067,8 @@ database
 
 The result is an object value: perhaps a function object, class object, singleton, prototype, namespace adapter, importer, or another callable object. A name alone never invokes — invocation always requires its own semicolon — so a bare name in argument position passes the object itself.
 
+Member kind is semantic, not inferred from arity. A property exposes receiver state, identity, metadata, or classification, and selecting it produces that value. A method represents an operation or transformation, and selecting it produces a callable object even when its parameter list is empty. Consequently a zero-argument method still requires `;`; omitting it selects the bound operation rather than computing its result.
+
 Class, interface, and trait types are nominal. Their identity is the pair of their declaring namespace and declared name; an import alias changes only the local spelling. Two declarations with the same name in different namespaces are distinct types, with no structural compatibility or aliasing rule between them. Diagnostics use the local or short name when it is unambiguous and qualify identities when equal short names would otherwise make the message ambiguous.
 
 A dot lookup alone does not imply invocation:
@@ -1623,13 +1625,13 @@ Outside every destination and operand context, a whole-number constant expressio
 
 | Member | Result | Contract |
 |---|---|---|
-| `value.square-root` | receiver type | IEEE square root; a negative finite operand produces NaN, either zero preserves its sign, and positive infinity remains infinite |
-| `value.sine` | receiver type | sine in radians |
-| `value.cosine` | receiver type | cosine in radians |
-| `value.sine-cosine` | tuple of receiver type | the sine followed by the cosine, computed as one combined operation when the target provides one |
-| `value.natural-log` | receiver type | natural logarithm; positive zero produces negative infinity, a negative finite operand produces NaN, and positive infinity remains infinite |
-| `value.exponential` | receiver type | base-$e$ exponential; negative infinity produces positive zero and positive infinity remains infinite |
-| `value.absolute` | receiver type | IEEE absolute value; negative zero becomes positive zero and infinity remains infinite |
+| `value.square-root;` | receiver type | IEEE square root; a negative finite operand produces NaN, either zero preserves its sign, and positive infinity remains infinite |
+| `value.sine;` | receiver type | sine in radians |
+| `value.cosine;` | receiver type | cosine in radians |
+| `value.sine-cosine;` | tuple of receiver type | the sine followed by the cosine, computed as one combined operation when the target provides one |
+| `value.natural-log;` | receiver type | natural logarithm; positive zero produces negative infinity, a negative finite operand produces NaN, and positive infinity remains infinite |
+| `value.exponential;` | receiver type | base-$e$ exponential; negative infinity produces positive zero and positive infinity remains infinite |
+| `value.absolute;` | receiver type | IEEE absolute value; negative zero becomes positive zero and infinity remains infinite |
 | `value.finite` | `bool` | true exactly when the receiver is neither infinite nor NaN |
 | `value.infinite` | `bool` | true exactly for positive or negative infinity |
 | `value.not-a-number` | `bool` | true exactly when the receiver is NaN |
@@ -1637,7 +1639,7 @@ Outside every destination and operand context, a whole-number constant expressio
 | `value.maximum; other` | receiver type | the greater operand; if exactly one operand is NaN, return the numeric operand; positive zero is greater than negative zero |
 | `value.multiply-add; multiplier, addend` | receiver type | compute `value * multiplier + addend` as one fused operation with a single final rounding |
 
-`square-root`, `sine`, `cosine`, `sine-cosine`, `natural-log`, `exponential`, `absolute`, `finite`, `infinite`, and `not-a-number` are properties: `value.square-root`, not `value.square-root;`. Each accepts no explicit arguments. `minimum` and `maximum` take exactly one argument of the receiver type, and `multiply-add` takes exactly two; these operations use the parenthesized member-call form when embedded in a larger expression. All members preserve `float32` or `float64` where they return a floating value. The mathematical operations follow the target's IEEE-754 behavior for NaN, infinity, signed zero, domain, overflow, underflow, and rounding except where the table states a stronger selection or rounding contract. They do not throw for a floating-point domain or range condition. The compiler lowers them directly to the corresponding target primitive or to the smallest compiler-owned scalar support routine required to preserve this contract; they never require a scientific-stack dependency. If both operands to `minimum` or `maximum` are NaN, the result is NaN.
+`finite`, `infinite`, and `not-a-number` are classification properties: selecting one immediately observes receiver state. `square-root`, `sine`, `cosine`, `sine-cosine`, `natural-log`, `exponential`, and `absolute` are zero-argument methods because they compute or transform a value; selecting one produces a bound callable and `;` invokes it. This distinction follows the object model rather than parameter count. `minimum` and `maximum` take exactly one argument of the receiver type, and `multiply-add` takes exactly two; calls use the parenthesized member-call form when embedded in a larger expression. All members preserve `float32` or `float64` where they return a floating value. The mathematical operations follow the target's IEEE-754 behavior for NaN, infinity, signed zero, domain, overflow, underflow, and rounding except where the table states a stronger selection or rounding contract. They do not throw for a floating-point domain or range condition.
 
 The language specifies correctly rounded results where the target primitive provides that guarantee. Otherwise the implementation must document a bounded error and keep results deterministic for one compiler version, target, and floating-point mode. Cross-target bit identity is not required for these transcendental operations. Compile-time evaluation, when offered, must use the same observable contract as runtime evaluation and must not introduce a second approximation policy.
 
@@ -1736,9 +1738,9 @@ There is no universal guarantee that every type can coerce to every other type. 
 
 Coercion among integer types follows §17.7 exactly. Written coercion to a floating-point destination rounds to the nearest representable value using the IEEE 754 default round-to-nearest, ties-to-even rule; because that rounding is defined for every finite source magnitude, an inexact numeric-to-float coercion is a normal result rather than a failure, and precision loss is visible through the destination type rather than through an error. This differs deliberately from an implicit numeric destination, which accepts the value exactly or throws. A source magnitude beyond the destination's finite range throws `coercion-error`; it never yields an infinity, because a silent infinity is a lost error rather than a result. `checked` returns absence for exactly that overflow case.
 
-Floating values expose the zero-argument members `round`, `floor`, `ceiling`, and `truncate`, each producing an integer before any later destination conversion. `round` uses round-to-nearest with ties to even; the other names state their direction. These members are how an author selects a policy for a fractional floating value before an integer destination applies §17.7's exact-or-throw rule.
+Floating values expose the zero-argument methods `round`, `floor`, `ceiling`, and `truncate`, each producing an integer before any later destination conversion. `round` uses round-to-nearest with ties to even; the other names state their direction. These methods are how an author selects and invokes a policy for a fractional floating value before an integer destination applies §17.7's exact-or-throw rule.
 
-No floating-to-integer pair is declared on `coerce`, because choosing an integer for a fractional value requires a rounding mode and `coerce` never takes one. `ratio.coerce; int` is therefore absent from the type, while `count int = ratio` is admitted under §17.7 and `ratio.round` states the policy. This is the one place where a destination admits a conversion the written family does not offer, and it is deliberate: the destination rule is exact-or-throw and needs no mode, whereas any written alternative would have to name one.
+No floating-to-integer pair is declared on `coerce`, because choosing an integer for a fractional value requires a rounding mode and `coerce` never takes one. `ratio.coerce; int` is therefore absent from the type, while `count int = ratio` is admitted under §17.7 and `ratio.round;` invokes the chosen policy. This is the one place where a destination admits a conversion the written family does not offer, and it is deliberate: the destination rule is exact-or-throw and needs no mode, whereas any written alternative would have to name one.
 
 Conversions are declared rather than universal. A descriptor declares the source/destination pairs it supports, and `coerce` attaches exactly where a declaration exists, so an undeclared pair is absent from the type rather than a runtime failure. Declaration coherence — what happens when two protocols declare the same pair, and whether a declaration may be added for a type the author does not own — is part of the conversion-protocol contract. A caller-supplied conversion callback is admitted for pairs no descriptor declares, and therefore cannot precede first-class function values.
 
@@ -3228,7 +3230,7 @@ value.coerce.saturate; T    # clamp to destination bounds
 
 For integer destinations, bare `coerce` has the same exact-or-throw result as an implicit destination conversion. `checked` returns `T|none`; `wrap` reduces the mathematical value modulo `2^N` and interprets the resulting bits using the destination signedness; `saturate` clamps to the destination bounds. Therefore `-1.coerce.wrap; uint8` is `255`, `255.coerce.wrap; int8` is `-1`, and `300.coerce.saturate; uint8` is `255`. Wrapping and saturation exist only for fixed-width destinations.
 
-Written integer-to-floating `coerce` deliberately requests IEEE round-to-nearest, ties-to-even, as specified in §11.6; the implicit destination form is exact-or-throw. Floating values expose `round`, `floor`, `ceiling`, and `truncate`, each yielding an integer; `round` uses ties-to-even. These members state how a fractional value should become integral before an integer destination receives it.
+Written integer-to-floating `coerce` deliberately requests IEEE round-to-nearest, ties-to-even, as specified in §11.6; the implicit destination form is exact-or-throw. Floating values expose the zero-argument methods `round`, `floor`, `ceiling`, and `truncate`, each yielding an integer; `round` uses ties-to-even. These methods state how a fractional value should become integral before an integer destination receives it.
 
 Lowering materialises a contextual constant directly in the destination representation, emits an unchecked representation change for exact widening, and emits a direct narrow/widen-back comparison for a checked conversion whose source and destination are statically known. An implicit narrowing and an equivalent written `coerce` must generate equivalent checks. Exact widening from a fixed-width integer to adaptive `int` selects storage from the source range: `int8` through `int64` and `uint8` through `uint32` fit the Small tier; `uint64` through `int128` fit the Wide tier; and `uint128` uses Wide below $2^{127}$ or Big otherwise. A Big conversion may allocate, whose failure follows the ordinary allocation contract, but it cannot throw a conversion error. Flat spellings such as `checked-coerce`, `wrapping-coerce`, and `saturating-coerce` are not language syntax.
 
@@ -5630,7 +5632,7 @@ function read-count int; ratio float
   return count
 ```
 
-An integral finite value arrives exactly; a fractional, infinite, or NaN value throws `integer-conversion-overflow`. Writing `ratio.round` states a rounding policy instead.
+An integral finite value arrives exactly; a fractional, infinite, or NaN value throws `integer-conversion-overflow`. Writing `ratio.round;` states and invokes a rounding policy instead.
 
 ### 35.5 Value, ref, and move
 

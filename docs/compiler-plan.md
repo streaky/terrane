@@ -864,7 +864,7 @@ and the written form still compiles; `wide int32 = small` emits no check while `
 an `int8` contract throws `integer-conversion-overflow` naming the value and destination;
 `total float = count` runs for an `int32` count with no check, and throws at `2^53 + 1` while
 succeeding at `2^54`; `count int = ratio` yields `4` from `4.0` and throws from `4.2`, `nan`, and
-both infinities, while `ratio.round` yields `4` from `4.2`; `count int = (1 / 3)` and
+both infinities, while `ratio.round;` yields `4` from `4.2`; `count int = (1 / 3)` and
 `ratio float = (1 / 3)` print `0` and the floating quotient in one program; `limit int8 = (1000 -
 900)` compiles; a constant out of range reports `T0003` at the constant's span in argument, return,
 and operand position; `flags int8 = 1` with `flags << 200` reports an out-of-width shift count rather
@@ -1807,14 +1807,16 @@ The first vertical slice of foundational floating-point mathematics establishes 
 This milestone completes that same non-scientific surface; it does not add special functions,
 probability distributions, linear algebra, or array mathematics.
 
-Implemented foundation: both floating widths expose those six zero-argument properties, preserve
+Implemented foundation: both floating widths expose those six zero-argument methods, preserve
 their receiver precision, and lower to Rust primitive operations without a scientific dependency.
-`foundational-float-math` covers both widths, the two-result `sine-cosine` shape, and representative
-NaN, signed-zero, and infinity behavior; focused rejection cases cover receiver and property/call
-shape. Its reviewed lowering is canonical and executes warning-free.
+`foundational-float-math` covers both widths, bound-method selection, explicit zero-argument
+invocation, the two-result `sine-cosine` shape, and representative NaN, signed-zero, and infinity
+behavior; focused rejection cases cover receiver and method arity. Its reviewed lowering is
+canonical and executes warning-free.
 
-Implemented increment: both widths additionally expose `absolute`, `finite`, `infinite`, and
-`not-a-number` properties plus same-width `minimum`, `maximum`, and fused `multiply-add`
+Implemented increment: both widths additionally expose the `absolute` zero-argument method,
+`finite`, `infinite`, and `not-a-number` classification properties, plus same-width `minimum`,
+`maximum`, and fused `multiply-add`
 operations. Their generated Rust is direct primitive scalar code. The foundational conformance case
 covers both widths and distinguishes fused from unfused rounding; focused rejection cases cover
 operation arity and argument type. The pure-Terrane gamma benchmark uses the native absolute value
@@ -1837,8 +1839,8 @@ Deliver:
   underflow, rounding, accuracy bounds, and target reproducibility for every delivered member.
 
 Exit criterion: accepted conformance cases exercise every member on both `float32` and `float64`,
-including representative IEEE boundary values; rejected cases prove receiver type, property/call
-shape, and argument contracts. Generated Rust uses direct target operations or compiler-owned scalar
+including representative IEEE boundary values; rejected cases prove receiver type, method/property
+selection, zero-argument invocation, arity, and argument contracts. Generated Rust uses direct target operations or compiler-owned scalar
 support, compiles warning-free, and execution matches the documented source contract without a
 scientific dependency.
 

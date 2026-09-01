@@ -16,7 +16,7 @@ function benchmark-size int64;
 function log-gamma float64; value float64
   y float64 = value
   shifted float64 = value + 5.5
-  adjusted float64 = shifted - (value + 0.5) * shifted.natural-log
+  adjusted float64 = shifted - (value + 0.5) * (shifted.natural-log;)
   series float64 = 1.000000000190015
 
   y = y + 1
@@ -32,7 +32,7 @@ function log-gamma float64; value float64
   y = y + 1
   series = series + (0.0 - 0.000005395239384953) / y
 
-  return 0.0 - adjusted + (2.5066282746310005 * series / value).natural-log
+  return 0.0 - adjusted + ((2.5066282746310005 * series / value).natural-log;)
 
 function lower-gamma-ratio float64; shape float64, observation float64, gamma-log float64
   current-shape float64 = shape
@@ -43,11 +43,11 @@ function lower-gamma-ratio float64; shape float64, observation float64, gamma-lo
     current-shape = current-shape + 1
     term = term * observation / current-shape
     total = total + term
-    if term.absolute < total.absolute * 0.00000000000003
+    if (term.absolute;) < (total.absolute;) * 0.00000000000003
       break
     iteration++
-  exponent float64 = (shape.multiply-add; observation.natural-log, 0.0 - observation - gamma-log)
-  scale float64 = exponent.exponential
+  exponent float64 = (shape.multiply-add; (observation.natural-log;), 0.0 - observation - gamma-log)
+  scale float64 = exponent.exponential;
   return total * scale
 
 function upper-gamma-ratio float64; shape float64, observation float64, gamma-log float64
@@ -62,20 +62,20 @@ function upper-gamma-ratio float64; shape float64, observation float64, gamma-lo
     numerator float64 = (0.0 - iteration) * (iteration - shape)
     offset = offset + 2
     denominator = (numerator.multiply-add; denominator, offset)
-    if denominator.absolute < floor
+    if (denominator.absolute;) < floor
       denominator = floor
     reciprocal-floor = offset + numerator / reciprocal-floor
-    if reciprocal-floor.absolute < floor
+    if (reciprocal-floor.absolute;) < floor
       reciprocal-floor = floor
     denominator = 1 / denominator
     correction float64 = denominator * reciprocal-floor
     product = product * correction
-    if (correction - 1).absolute < 0.00000000000003
+    if ((correction - 1).absolute;) < 0.00000000000003
       break
     iteration = iteration + 1
 
-  exponent float64 = (shape.multiply-add; observation.natural-log, 0.0 - observation - gamma-log)
-  scale float64 = exponent.exponential
+  exponent float64 = (shape.multiply-add; (observation.natural-log;), 0.0 - observation - gamma-log)
+  scale float64 = exponent.exponential;
   return scale * product
 
 function gamma-survival float64; shape float64, observation float64

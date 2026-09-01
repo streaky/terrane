@@ -1,4 +1,4 @@
-// Generated deterministically by Terrane <version>.
+// Generated deterministically by Terrane 0.1.0.
 type TerraneSite = u32;
 const TERRANE_NO_SITE: TerraneSite = u32::MAX;
 #[allow(dead_code, reason = "custom descriptors are absent from some lowered programs")]
@@ -380,14 +380,14 @@ mod __terrane_trace {
     pub static FUNCTIONS: [&str; 1] = ["/contextual-constant-arithmetic::main"];
     pub static SITES: [Site; 2] = [
         {
-            /* terrane-site-row: site 0: /contextual-constant-arithmetic::main (case.trn:15:17-15:28) */
+            /* terrane-site-row: site 0: /contextual-constant-arithmetic::main (case.trn:15:17-15:29) */
             Site {
                 function: 0,
                 file: 0,
                 line: 15,
                 column: 17,
                 end_line: 15,
-                end_column: 28,
+                end_column: 29,
             }
         },
         {
@@ -432,7 +432,7 @@ fn main() {
             ratio,
             terrane_int_support::FloatRounding::TiesEven,
         ),
-        0 /* terrane-site: case.trn:15:17-15:28 */,
+        0 /* terrane-site: case.trn:15:17-15:29 */,
     );
     println!("{}", terrane_scalar_support::scalar_text(&reduced));
     println!("{}", terrane_scalar_support::scalar_text(&integral));
@@ -447,3 +447,5 @@ fn main() {
         1 /* terrane-site: case.trn:24:11-24:17 */))
     );
 }
+// Generated Rust files: src/runtime/errors.rs, src/authored/case.trn.rs, src/main.rs
+// Vendored support crates: terrane-int-support, terrane-scalar-support, terrane-string-support, terrane-stream-abi

@@ -8417,10 +8417,17 @@ fn infer_member_value_type(
             receiver_type.clone()
         {
             return Ok(Some(match member_name {
-                "sine-cosine" => {
-                    ValueType::Tuple(ElementType::new(ValueType::Scalar(receiver)), Some(2))
-                }
                 "finite" | "infinite" | "not-a-number" => ValueType::Scalar(ScalarType::Bool),
+                "square-root" | "sine" | "cosine" | "natural-log" | "exponential" | "absolute" => {
+                    ValueType::Function(Vec::new(), ElementType::new(ValueType::Scalar(receiver)))
+                }
+                "sine-cosine" => ValueType::Function(
+                    Vec::new(),
+                    ElementType::new(ValueType::Tuple(
+                        ElementType::new(ValueType::Scalar(receiver)),
+                        Some(2),
+                    )),
+                ),
                 "minimum" | "maximum" => ValueType::Function(
                     vec![ElementType::new(ValueType::Scalar(receiver))],
                     ElementType::new(ValueType::Scalar(receiver)),
@@ -8432,7 +8439,7 @@ fn infer_member_value_type(
                     ],
                     ElementType::new(ValueType::Scalar(receiver)),
                 ),
-                _ => ValueType::Scalar(receiver),
+                _ => unreachable!(),
             }));
         }
         return Err(failure(
@@ -8447,7 +8454,10 @@ fn infer_member_value_type(
             receiver_type.clone(),
             Some(ValueType::Scalar(ScalarType::Float32 | ScalarType::Float64))
         ) {
-            return Ok(Some(ValueType::Scalar(ScalarType::Int)));
+            return Ok(Some(ValueType::Function(
+                Vec::new(),
+                ElementType::new(ValueType::Scalar(ScalarType::Int)),
+            )));
         }
         return Err(failure(
             &unit.source,
@@ -8505,6 +8515,8 @@ fn infer_float_call_type(
     };
     let member_name = node_text(&unit.source, member);
     let expected = match member_name {
+        "square-root" | "sine" | "cosine" | "sine-cosine" | "natural-log" | "exponential"
+        | "absolute" | "round" | "floor" | "ceiling" | "truncate" => 0,
         "minimum" | "maximum" => 1,
         "multiply-add" => 2,
         _ => return Ok(None),
@@ -8547,7 +8559,11 @@ fn infer_float_call_type(
             )?;
         }
     }
-    Ok(Some(ValueType::Scalar(receiver)))
+    Ok(Some(match member_name {
+        "sine-cosine" => ValueType::Tuple(ElementType::new(ValueType::Scalar(receiver)), Some(2)),
+        "round" | "floor" | "ceiling" | "truncate" => ValueType::Scalar(ScalarType::Int),
+        _ => ValueType::Scalar(receiver),
+    }))
 }
 
 pub(crate) fn string_call_selection(

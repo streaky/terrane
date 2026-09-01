@@ -681,15 +681,10 @@ fn coordinate(index: i64) -> f64 {
     let raw: f64 = __terrane_raised(
         terrane_int_support::exact_fixed_f64(
             __terrane_raised(
-                terrane_int_support::fixed_remainder(
-                    __terrane_raised(
-                        terrane_int_support::fixed_multiplication(index, 37),
-                        3 /* terrane-site: src/main.trn:17:18-17:28 */,
-                    ),
-                    1009,
-                ),
-                4 /* terrane-site: src/main.trn:17:17-17:36 */,
-            ),
+                    terrane_int_support::fixed_multiplication(index, 37),
+                    3 /* terrane-site: src/main.trn:17:18-17:28 */,
+                )
+                .rem_euclid(1009),
         ),
         4 /* terrane-site: src/main.trn:17:17-17:36 */,
     );

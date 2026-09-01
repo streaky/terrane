@@ -14,7 +14,7 @@ function benchmark-size int64;
 
 
 function bessel-j0 float64; argument float64
-  x float64 = argument.absolute
+  x float64 = argument.absolute;
   if x < 8
     square float64 = x * x
     numerator float64 = 57568490574 + square * (0 - 13362590354 + square * (651619640.7 + square * (0.0 - 11214424.18 + square * (77392.33017 + square * (0.0 - 184.9052456)))))
@@ -26,8 +26,8 @@ function bessel-j0 float64; argument float64
   phase float64 = x - 0.785398164
   numerator float64 = 1 + square * (0.0 - 0.001098628627 + square * (0.00002734510407 + square * (0.0 - 0.000002073370639 + square * 0.0000002093887211)))
   denominator float64 = 0.0 - 0.01562499995 + square * (0.0001430488765 + square * (0.0 - 0.000006911147651 + square * (0.0000007621095161 - square * 0.0000000934935152)))
-  amplitude float64 = (0.636619772 / x).square-root
-  return amplitude * (phase.cosine * numerator - scale * phase.sine * denominator)
+  amplitude float64 = (0.636619772 / x).square-root;
+  return amplitude * ((phase.cosine;) * numerator - scale * (phase.sine;) * denominator)
 
 function coordinate float64; index int64
   raw float64 = (index * 37) % 1009
@@ -42,7 +42,7 @@ function main;
     right-index int64 = 0
     while right-index < count
       right float64 = (coordinate; right-index)
-      distance float64 = (left - right).absolute
+      distance float64 = (left - right).absolute;
       argument float64 = 18 * distance
       value float64 = (bessel-j0; argument)
       total = total + value / (1 + 4 * distance * distance)

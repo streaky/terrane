@@ -3871,7 +3871,19 @@ impl Emitter<'_> {
                 let receiver_type = self
                     .value_type(receiver)
                     .expect("bound object method receiver must have a static type");
-                let receiver = self.expression_as(receiver, receiver_type);
+                let receiver = self.expression_as(receiver, receiver_type.clone());
+                if parameters.is_empty()
+                    && let Some(body) = self.float_zero_argument_call(
+                        receiver_type.clone(),
+                        self.text(member),
+                        "receiver",
+                        node,
+                    )
+                {
+                    return format!(
+                        "{{ let receiver = {receiver}; std::sync::Arc::new(move || {body}) }}"
+                    );
+                }
                 let declarations = parameters
                     .iter()
                     .enumerate()
@@ -4792,27 +4804,13 @@ impl Emitter<'_> {
                 format!("({receiver}).value.clone()")
             }
             "type" => "()".to_owned(),
-            operation @ ("square-root" | "sine" | "cosine" | "sine-cosine" | "natural-log"
-            | "exponential" | "absolute" | "finite" | "infinite" | "not-a-number")
+            operation @ ("finite" | "infinite" | "not-a-number")
                 if matches!(
-                    receiver_type.clone(),
+                    receiver_type,
                     Some(ValueType::Scalar(ScalarType::Float32 | ScalarType::Float64))
                 ) =>
             {
-                if operation == "sine-cosine" {
-                    return format!(
-                        "{{ let terrane_sine_cosine = ({receiver}).sin_cos(); \
-                         terrane_collection_support::Tuple::new(vec![\
-                         terrane_sine_cosine.0, terrane_sine_cosine.1]) }}"
-                    );
-                }
                 let method = match operation {
-                    "square-root" => "sqrt",
-                    "sine" => "sin",
-                    "cosine" => "cos",
-                    "natural-log" => "ln",
-                    "exponential" => "exp",
-                    "absolute" => "abs",
                     "finite" => "is_finite",
                     "infinite" => "is_infinite",
                     "not-a-number" => "is_nan",
@@ -4820,18 +4818,38 @@ impl Emitter<'_> {
                 };
                 format!("({receiver}).{method}()")
             }
-            mode @ ("round" | "floor" | "ceiling" | "truncate")
-                if matches!(
-                    receiver_type.clone(),
-                    Some(ValueType::Scalar(ScalarType::Float32 | ScalarType::Float64))
-                ) =>
-            {
-                let helper = if receiver_type == Some(ValueType::Scalar(ScalarType::Float32)) {
+            name if wrapped_field => {
+                format!("({receiver}).terrane_field_{}().clone()", rust_name(name))
+            }
+            name => format!("{receiver}.{}", rust_name(name)),
+        }
+    }
+
+    fn float_zero_argument_call(
+        &self,
+        receiver_type: ValueType,
+        operation: &str,
+        receiver: &str,
+        node: &SyntaxNode,
+    ) -> Option<String> {
+        let ValueType::Scalar(float_type @ (ScalarType::Float32 | ScalarType::Float64)) =
+            receiver_type
+        else {
+            return None;
+        };
+        let call = match operation {
+            "sine-cosine" => format!(
+                "{{ let terrane_sine_cosine = ({receiver}).sin_cos(); \
+                 terrane_collection_support::Tuple::new(vec![\
+                 terrane_sine_cosine.0, terrane_sine_cosine.1]) }}"
+            ),
+            "round" | "floor" | "ceiling" | "truncate" => {
+                let helper = if float_type == ScalarType::Float32 {
                     "rounded_f32"
                 } else {
                     "rounded_f64"
                 };
-                let mode = match mode {
+                let mode = match operation {
                     "round" => "TiesEven",
                     "floor" => "Floor",
                     "ceiling" => "Ceiling",
@@ -4840,16 +4858,28 @@ impl Emitter<'_> {
                 };
                 self.fallible(
                     format!(
-                        "terrane_int_support::{helper}({receiver}, terrane_int_support::FloatRounding::{mode})"
+                        "terrane_int_support::{helper}({receiver}, \
+                         terrane_int_support::FloatRounding::{mode})"
                     ),
                     node,
                 )
             }
-            name if wrapped_field => {
-                format!("({receiver}).terrane_field_{}().clone()", rust_name(name))
+            operation @ ("square-root" | "sine" | "cosine" | "natural-log" | "exponential"
+            | "absolute") => {
+                let method = match operation {
+                    "square-root" => "sqrt",
+                    "sine" => "sin",
+                    "cosine" => "cos",
+                    "natural-log" => "ln",
+                    "exponential" => "exp",
+                    "absolute" => "abs",
+                    _ => unreachable!(),
+                };
+                format!("({receiver}).{method}()")
             }
-            name => format!("{receiver}.{}", rust_name(name)),
-        }
+            _ => return None,
+        };
+        Some(call)
     }
 
     #[expect(
@@ -4978,6 +5008,12 @@ impl Emitter<'_> {
                 .map(|argument| argument.children.last().unwrap_or(argument))
                 .collect::<Vec<_>>();
             let call = match (receiver_type, member_name.as_str()) {
+                (
+                    receiver_type @ ValueType::Scalar(ScalarType::Float32 | ScalarType::Float64),
+                    operation @ ("square-root" | "sine" | "cosine" | "sine-cosine" | "natural-log"
+                    | "exponential" | "absolute" | "round" | "floor" | "ceiling"
+                    | "truncate"),
+                ) => self.float_zero_argument_call(receiver_type, operation, &receiver_value, node),
                 (
                     ValueType::Scalar(receiver_type @ (ScalarType::Float32 | ScalarType::Float64)),
                     operation @ ("minimum" | "maximum" | "multiply-add"),

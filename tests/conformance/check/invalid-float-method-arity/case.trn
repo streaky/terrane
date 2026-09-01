@@ -1,5 +1,6 @@
-namespace invoked-float-math-property
+namespace invalid-float-method-arity
 from /core/types import float64
+
 function main;
   value float64 = 0.0
   result float64 = (value.sine; 1.0)

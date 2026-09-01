@@ -682,30 +682,15 @@ fn main() {
     let mut index: i64 = 0;
     while index < count {
         let shape_part: f64 = __terrane_raised(
-            terrane_int_support::exact_fixed_f64(
-                __terrane_raised(
-                    terrane_int_support::fixed_remainder(index, 17),
-                    3 /* terrane-site: src/main.trn:21:26-21:36 */,
-                ),
-            ),
+            terrane_int_support::exact_fixed_f64(index.rem_euclid(17)),
             3 /* terrane-site: src/main.trn:21:26-21:36 */,
         );
         let observation_part: f64 = __terrane_raised(
-            terrane_int_support::exact_fixed_f64(
-                __terrane_raised(
-                    terrane_int_support::fixed_remainder(index, 101),
-                    4 /* terrane-site: src/main.trn:22:32-22:43 */,
-                ),
-            ),
+            terrane_int_support::exact_fixed_f64(index.rem_euclid(101)),
             4 /* terrane-site: src/main.trn:22:32-22:43 */,
         );
         let target_part: f64 = __terrane_raised(
-            terrane_int_support::exact_fixed_f64(
-                __terrane_raised(
-                    terrane_int_support::fixed_remainder(index, 7),
-                    5 /* terrane-site: src/main.trn:23:27-23:36 */,
-                ),
-            ),
+            terrane_int_support::exact_fixed_f64(index.rem_euclid(7)),
             5 /* terrane-site: src/main.trn:23:27-23:36 */,
         );
         let shape: f64 = 1.25 + shape_part * 0.125;
