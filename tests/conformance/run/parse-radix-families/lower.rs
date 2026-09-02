@@ -384,35 +384,35 @@ mod __terrane_trace {
     ];
     pub static SITES: [Site; 3] = [
         {
-            /* terrane-site-row: site 0: /parse-radix-families::from-hex (case.trn:5:10-5:26) */
+            /* terrane-site-row: site 0: /parse-radix-families::from-hex (case.trn:4:10-4:26) */
             Site {
                 function: 0,
                 file: 0,
-                line: 5,
+                line: 4,
                 column: 10,
-                end_line: 5,
+                end_line: 4,
                 end_column: 26,
             }
         },
         {
-            /* terrane-site-row: site 1: /parse-radix-families::fail (case.trn:8:3-8:23) */
+            /* terrane-site-row: site 1: /parse-radix-families::fail (case.trn:7:3-7:23) */
             Site {
                 function: 1,
                 file: 0,
-                line: 8,
+                line: 7,
                 column: 3,
-                end_line: 8,
+                end_line: 7,
                 end_column: 23,
             }
         },
         {
-            /* terrane-site-row: site 2: /parse-radix-families::main (case.trn:14:11-14:26) */
+            /* terrane-site-row: site 2: /parse-radix-families::main (case.trn:13:11-13:26) */
             Site {
                 function: 2,
                 file: 0,
-                line: 14,
+                line: 13,
                 column: 11,
-                end_line: 14,
+                end_line: 13,
                 end_column: 26,
             }
         },
@@ -434,7 +434,7 @@ mod __terrane_trace {
 fn from_hex(source: String) -> terrane_int_support::Int {
     return __terrane_raised(
         terrane_int_support::parse_radix(&source, &16),
-        0 /* terrane-site: case.trn:5:10-5:26 */,
+        0 /* terrane-site: case.trn:4:10-4:26 */,
     );
 }
 fn fail(source: String) -> Result<terrane_int_support::Int, TerraneError> {
@@ -442,7 +442,7 @@ fn fail(source: String) -> Result<terrane_int_support::Int, TerraneError> {
     return Err(
         TerraneError::raised(
             TerraneErrorKind::CoercionError,
-            1 /* terrane-site: case.trn:8:3-8:23 */,
+            1 /* terrane-site: case.trn:7:3-7:23 */,
         ),
     );
 }
@@ -454,7 +454,7 @@ fn main() {
     println!(
         "{}",
         terrane_scalar_support::scalar_text(&__terrane_raised(terrane_int_support::format_radix(&value,
-        &16), 2 /* terrane-site: case.trn:14:11-14:26 */))
+        &16), 2 /* terrane-site: case.trn:13:11-13:26 */))
     );
     let bad: String = String::from("x");
     fail(bad).ok();

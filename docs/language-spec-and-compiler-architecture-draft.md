@@ -68,7 +68,7 @@ function main;
 Conceptually:
 
 1. `namespace my-app` declares this unit's namespace. Nested namespaces separate segments with `/`, as in `my-app/http/handlers`.
-2. No import appears because none is needed: `print` is one of the thirteen default prelude bindings, and every type descriptor is a construct available without import.
+2. No import appears because none is needed: `print` is one of the seven default prelude bindings, and every type descriptor is a construct available without import.
 3. `': '.join` looks up the `join` member on the `': '` text object.
 4. Invoking that member joins its arguments using the receiver as the separator, accepting any number of arguments. This is the shape of Python's `str.join` and PHP's `implode`: the separator supplies the member rather than being passed to it. `join` is distinct from `concat`, which appends its arguments to the receiver without a separator — `'a'.concat; 'b', 'c'` is `abc`.
 5. `print; message` invokes `print`’s default behaviour with `message` as its argument.
@@ -354,20 +354,20 @@ Generated Rust should normally not be edited in place. A module may instead be d
 
 The Rust core is deliberately minimal. Standard facilities — document formats, networking protocols, compression framing, date and time arithmetic, path handling, command-line parsing, logging, package machinery — are written in Terrane over that core rather than implemented as Rust support crates.
 
-The namespace roots make that layering visible without exposing the implementation mechanism of
-each object. `/core` is the public foundational language surface supplied by the compiler:
-descriptors, errors, collections, output, encodings, and structured task scope. `/standard` is the
-public set of compiler-shipped Terrane packages built over that foundation. A public object beneath
-`/core` need not have a Terrane source file; the public `/standard` object model is authored there.
+The namespace roots make that layering visible. `/core` is the public compiler-supplied language
+surface: implicit descriptor constructs plus explicitly imported operational tooling. Every
+descriptor under `/core/types` resolves as language vocabulary without an import. Operations such
+as codecs, filesystem access, document parsing, networking, and concurrency remain unavailable
+until their owning namespace or an individual object is imported. `/standard` is the public set of
+compiler-shipped Terrane packages built over those core operations.
 
-Irreducible host operations do not occupy an addressable “internal” namespace. Before analysing a
-compiler-bundled standard package, the compiler may seed that package's own namespace with private
-intrinsic bindings. Bundled source resolves those bindings as unqualified same-namespace names;
-another namespace cannot import them because ordinary private visibility applies. Their compiler
-identities are lowering keys, not Terrane namespace paths. If a compiler-supplied type or operation
-is a normative building block that programs may use directly, it belongs in the appropriate public
-`/core` namespace instead of being disguised as an internal intrinsic. There is no `/internal`
-language root and no `/core/platform-*` compatibility surface.
+Bundled standard source obeys the same rule as authored source. For example,
+`import /core/filesystem` makes every public importable object in that namespace available to the
+package; it does not rely on compiler-seeded local names or a hidden internal namespace. Each core
+tool keeps its `/core/<facility>::<name>` semantic identity and may carry a separate compiler-only
+lowering key selecting its Rust shim. Because the shim is callable from separately emitted generated
+Rust, that support item and the ABI types in its public signature have corresponding public Rust
+visibility. There is no `/internal` language root and no `/core/platform-*` compatibility surface.
 
 The decisive reason is that a Rust support crate is permanently opaque to the Terrane compiler. It is a call boundary the optimiser can never see through, so implementing a facility in Rust does not merely forgo optimisation today, it forecloses inlining, specialisation, and whole-program analysis for that facility permanently. A Terrane implementation stays visible to the entire pipeline.
 
@@ -947,11 +947,15 @@ That creates a namespace-local `print` even though the default prelude already s
 The version-one default ordinary bindings are:
 
 - `print`, sourced from `/core/output`'s `print`;
-- `task-scope`, sourced from `/core/concurrency`'s `task-scope`;
-- scalar type objects `int`, `float`, `bool`, `string`, `bytes`, and `none`, sourced from `/core/types`;
-- encoding objects `utf8`, `utf16-le`, `utf16-be`, `utf32-le`, and `utf32-be`, sourced from `/core/text`.
+- `task-scope`, sourced from `/core/async`'s `task-scope`;
+- encoding objects `utf8`, `utf16-le`, `utf16-be`, `utf32-le`, and `utf32-be`, sourced from `/core/encodings`.
 
-This is the complete default list. In particular, collections, filesystem access, concurrency facilities other than `task-scope`, formatting helpers, and reflection helpers require imports. `import` remains structural syntax whose behaviour is supplied by the active importer object; it is not an ordinary prelude binding.
+This is the complete default list. Every descriptor in `/core/types` instead belongs to the
+language's construct vocabulary and resolves even when the prelude is disabled; importing a
+descriptor is useful only for aliasing or deliberate rebinding. Collections, filesystem access,
+other concurrency facilities, formatting helpers, and reflection helpers require imports. `import`
+remains structural syntax whose behaviour is supplied by the active importer object; it is not an
+ordinary prelude binding.
 
 Prelude bindings are defaults, not reserved names. Explicit program composition may replace any of them:
 
@@ -964,7 +968,7 @@ After this declaration, ordinary lookup of `print` through the program-global ti
 
 A project may replace, extend, or disable the selected prelude through its build manifest. Packages cannot do so merely by being installed or imported; program-global composition remains an entry-project decision.
 
-Documentation fragments may omit imports when the import itself is not under discussion. Such omissions are editorial only: the fragment's fixture supplies the explicit imports. In this document `list`, `map`, `set`, `tuple`, `range`, and `entry` come from `/core/collections`; `file` comes from `/system/files`; `shared-map` comes from `/concurrency`; fixed-width numeric descriptors `int8`, `int16`, `int32`, `int64`, `int128`, `uint8`, `uint16`, `uint32`, `uint64`, `uint128`, `float32`, and `float64` come from `/core/types`; and example-only objects such as `device-handle` come from the named example fixture. A complete source unit must write those imports. None of these objects belongs to the default prelude.
+Documentation fragments may omit imports when the import itself is not under discussion. Such omissions are editorial only: the fragment's fixture supplies the explicit imports. In this document operational collection objects such as `list`, `map`, `set`, `tuple`, `range`, and `entry` come from `/core/collections` and require imports, while every scalar descriptor — including fixed-width `int8` through `uint128` and `float32`/`float64` — is construct vocabulary requiring none. Example-only objects such as `device-handle` come from the named example fixture.
 
 ---
 
@@ -977,6 +981,18 @@ from /image/codec import jpeg
 ```
 
 imports an exported object from a namespace and binds it in the current scope.
+
+The namespace-wide form imports every public object that may participate in a function body:
+
+```terrane
+import /core/filesystem
+```
+
+Imported objects retain their declaring identities and bind under their declared names. The form
+never imports private objects and has no alias clause. A collision with an existing or separately
+imported binding is an error independent of source order; use selective `from ... import ... as ...`
+when both objects are required. Namespace-wide dependency projection is deferred, so `/deps/*`
+continues to require selective object imports.
 
 Multiple objects may be imported:
 
@@ -999,6 +1015,7 @@ The parser recognises the structural form:
 
 ```terrane
 from path import objects
+import path
 ```
 
 Its behaviour is supplied by the importer selected for the current compile-time construct scope. The standard importer is a precompiled `/core` host extension implementing the versioned compiler importer protocol; it is not an ordinary prelude object or runtime binding.
@@ -1567,7 +1584,7 @@ These descriptors are exported from `/core/types` and are constructs available w
 count int64 = 42
 ```
 
-The default prelude's ordinary bindings remain exactly `print`, `task-scope`, `int`, `float`, `bool`, `string`, `bytes`, `none`, `utf8`, `utf16-le`, `utf16-be`, `utf32-le`, and `utf32-be`; descriptor constructs are a separate category rather than additions to that list. Explicit import is still available where a different name is wanted:
+The default prelude's ordinary bindings remain exactly `print`, `task-scope`, `utf8`, `utf16-le`, `utf16-be`, `utf32-le`, and `utf32-be`; every `/core/types` descriptor is a separate construct available independently of prelude selection. Explicit import is still available where a different name is wanted:
 
 ```terrane
 from /core/types import int64 as word
@@ -6047,6 +6064,7 @@ Unless a snippet explicitly tests unresolved lookup, the conformance harness sup
 7. `../foo` resolves one tier upward.
 8. importing `print` binds `print` in the scope containing the import, and `as` binds it under a different name.
 9. `from /core/output import print as emit` binds `emit` namespace-locally.
+9a. `import /core/filesystem` binds every public importable object under its declared name, excludes private objects, and rejects collisions; every `/core/types` descriptor still resolves with the prelude disabled and without either import form.
 10. `global print = my-print` replaces the program-global binding.
 11. `import with custom-import` changes subsequent import resolution in its namespace, `global import with custom-import` selects the program fallback, and an ordinary binding named `import` changes neither.
 12. `#`, `//`, and `/* ... */` comments lex and format without changing indentation structure.
@@ -6080,7 +6098,7 @@ Unless a snippet explicitly tests unresolved lookup, the conformance harness sup
 40. lexical ownership and acyclic shared ownership destroy deterministically, while a provable `shared ref` cycle is rejected and an uncollectable runtime cycle is diagnosed or documented as a leak rather than promised deterministic reclamation.
 41. imports obey lexical and namespace scope, nearer imports shadow farther ones, same-scope collisions are rejected, and `as` retains both objects when two exports collide.
 42. plain top-level assignment remains namespace-local even in the root namespace; creating or replacing a program-global binding without `global` is rejected.
-43. the default prelude contains exactly `print`, `task-scope`, `int`, `float`, `bool`, `string`, `bytes`, `none`, `utf8`, `utf16-le`, `utf16-be`, `utf32-le`, and `utf32-be`; disabling it removes those defaults while explicit `/core` imports still work.
+43. the default prelude contains exactly `print`, `task-scope`, `utf8`, `utf16-le`, `utf16-be`, `utf32-le`, and `utf32-be`; disabling it removes those defaults while `/core/types` descriptors remain implicit constructs and explicit `/core` imports still work.
 44. a call owns its remaining logical expression, nested calls require grouping, zero-argument calls require `;`, and three-clause `for` semicolons cannot be consumed as call delimiters.
 45. source type parameters are rejected; strict code uses concrete types, unions, interfaces, or generated concrete declarations rather than silently becoming dynamic.
 46. `c is a` parses as identity against the binding `a`, `c is a widget` parses as type membership, ordinary identity-less values compare false even to themselves, explicit refs alias one identity, and linear resources preserve identity across moves.
@@ -6108,7 +6126,7 @@ Unless a snippet explicitly tests unresolved lookup, the conformance harness sup
 68. `coerce`, `coerce.checked`, `coerce.wrap`, and `coerce.saturate` handle signedness and every `int`/fixed-width boundary exactly; written integer-to-float `coerce` rounds ties-to-even while an implicit float destination is exact-or-throw; flat spellings such as `checked-coerce` are rejected.
 69. `int` bitwise operations behave as infinite two's-complement arithmetic across positive and negative operands and every representation tier; `~x == -x - 1`, left shift is exact, right shift is arithmetic/flooring, negative counts throw `negative-shift-count`, and very large right shifts produce `0` or `-1` without count wrapping or proportional allocation.
 70. contextual signed fixed-width destinations accept each type's syntactically negated minimum literal, including `-128` as `int8` and `-2^127` as `int128`, reject the next lower value, and do not first reject the unsigned positive magnitude.
-71. fixed-width numeric descriptors are constructs available without import, distinct from the thirteen prelude ordinary bindings; explicit import remains available for aliasing and shadowing, and they are not reserved type words.
+71. every `/core/types` descriptor is construct vocabulary available without import and distinct from the seven ordinary prelude bindings; explicit import remains available for aliasing and shadowing, and descriptors are not reserved type words.
 72. canonical type descriptors are semantic objects with stable identity rather than ordinary values, requiring no runtime storage when statically resolved and materialising only where reflection or dynamic descriptor use demands it, while a first-version type expression or coercion destination must resolve to a finite compiler-known descriptor alternative.
 73. numeric-to-float coercion rounds to nearest with ties to even and reports precision loss through the destination type rather than an error, unrepresentable float destinations and unparseable text throw `coercion-error`, and parsing coercion accepts exactly the destination's canonical text-display spelling.
 

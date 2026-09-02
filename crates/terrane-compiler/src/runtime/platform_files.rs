@@ -1,10 +1,10 @@
 #[derive(Clone)]
-struct TerranePlatformOpenResult {
-    handle: TerranePlatformStreamHandle,
-    failed: bool,
-    message: String,
+pub struct TerranePlatformOpenResult {
+    pub handle: TerranePlatformStreamHandle,
+    pub failed: bool,
+    pub message: String,
 }
-fn terrane_file_open_options(
+pub fn terrane_file_open_options(
     readable: bool,
     writable: bool,
     create: bool,
@@ -27,7 +27,7 @@ fn terrane_file_open_options(
     Ok(terrane_stream_abi::FileOpenOptions { access, creation })
 }
 
-fn terrane_platform_open_result(
+pub fn terrane_platform_open_result(
     result: std::io::Result<terrane_stream_abi::StreamHandle>,
 ) -> TerranePlatformOpenResult {
     match result {
@@ -44,7 +44,7 @@ fn terrane_platform_open_result(
     }
 }
 
-fn terrane_platform_open_file(
+pub fn terrane_platform_open_file(
     path: String,
     readable: bool,
     writable: bool,
@@ -64,7 +64,7 @@ fn terrane_platform_open_file(
     terrane_platform_open_result(terrane_stream_abi::open_file(&path, request))
 }
 
-fn terrane_platform_open_directory_beneath(
+pub fn terrane_platform_open_directory_beneath(
     base: String,
     child: String,
     cross_filesystem: bool,
@@ -76,7 +76,7 @@ fn terrane_platform_open_directory_beneath(
     ))
 }
 
-fn terrane_platform_open_file_beneath(
+pub fn terrane_platform_open_file_beneath(
     directory: &TerranePlatformStreamHandle,
     child: String,
     readable: bool,

@@ -380,13 +380,13 @@ mod __terrane_trace {
     pub static FUNCTIONS: [&str; 1] = ["/catch-arithmetic-overflow::main"];
     pub static SITES: [Site; 1] = [
         {
-            /* terrane-site-row: site 0: /catch-arithmetic-overflow::main (case.trn:7:13-7:22) */
+            /* terrane-site-row: site 0: /catch-arithmetic-overflow::main (case.trn:6:13-6:22) */
             Site {
                 function: 0,
                 file: 0,
-                line: 7,
+                line: 6,
                 column: 13,
-                end_line: 7,
+                end_line: 6,
                 end_column: 22,
             }
         },
@@ -410,7 +410,7 @@ fn main() {
         let __terrane_try_0: TerraneCompletion<()> = (|| {
             let mut value: i8 = 127;
             value = __terrane_raised_completion!(
-                terrane_int_support::fixed_addition(value, 1), 0 /* terrane-site: case.trn:7:13-7:22 */
+                terrane_int_support::fixed_addition(value, 1), 0 /* terrane-site: case.trn:6:13-6:22 */
             );
             println!("{}", terrane_scalar_support::scalar_text(&value));
             TerraneCompletion::Normal

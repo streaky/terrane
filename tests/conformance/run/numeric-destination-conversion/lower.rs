@@ -380,35 +380,35 @@ mod __terrane_trace {
     pub static FUNCTIONS: [&str; 1] = ["/numeric-destination-conversion::main"];
     pub static SITES: [Site; 3] = [
         {
-            /* terrane-site-row: site 0: /numeric-destination-conversion::main (case.trn:12:23-12:28) */
+            /* terrane-site-row: site 0: /numeric-destination-conversion::main (case.trn:11:23-11:28) */
             Site {
                 function: 0,
                 file: 0,
-                line: 12,
+                line: 11,
                 column: 23,
-                end_line: 12,
+                end_line: 11,
                 end_column: 28,
             }
         },
         {
-            /* terrane-site-row: site 1: /numeric-destination-conversion::main (case.trn:14:19-14:24) */
+            /* terrane-site-row: site 1: /numeric-destination-conversion::main (case.trn:13:19-13:24) */
             Site {
                 function: 0,
                 file: 0,
-                line: 14,
+                line: 13,
                 column: 19,
-                end_line: 14,
+                end_line: 13,
                 end_column: 24,
             }
         },
         {
-            /* terrane-site-row: site 2: /numeric-destination-conversion::main (case.trn:28:10-28:19) */
+            /* terrane-site-row: site 2: /numeric-destination-conversion::main (case.trn:27:10-27:19) */
             Site {
                 function: 0,
                 file: 0,
-                line: 28,
+                line: 27,
                 column: 10,
-                end_line: 28,
+                end_line: 27,
                 end_column: 19,
             }
         },
@@ -429,11 +429,11 @@ mod __terrane_trace {
 // Namespace: numeric-destination-conversion
 #[allow(dead_code)]
 #[derive(Clone)]
-enum TerraneUnionF0S177 {
+enum TerraneUnionF0S121 {
     Arm0(i8),
     Arm1(i32),
 }
-impl terrane_scalar_support::ScalarDisplay for TerraneUnionF0S177 {
+impl terrane_scalar_support::ScalarDisplay for TerraneUnionF0S121 {
     fn write_scalar(&self, output: &mut String) {
         match self {
             Self::Arm0(value) => {
@@ -449,32 +449,32 @@ fn main() {
     let small: i8 = 12;
     let adaptive: i64 = small as i64;
     let wide: i32 = small as i32;
-    let mut selected: TerraneUnionF0S177 = TerraneUnionF0S177::Arm0(small);
+    let mut selected: TerraneUnionF0S121 = TerraneUnionF0S121::Arm0(small);
     let count: i32 = 16777216;
     let total: f64 = count as f64;
     let exact: i64 = 18014398509481984;
     let exact_float: f64 = __terrane_raised(
         terrane_int_support::exact_f64(&exact),
-        0 /* terrane-site: case.trn:12:23-12:28 */,
+        0 /* terrane-site: case.trn:11:23-11:28 */,
     );
     let whole: f64 = 4.0;
     let converted: terrane_int_support::Int = __terrane_raised(
         terrane_int_support::exact_int_f64(whole),
-        1 /* terrane-site: case.trn:14:19-14:24 */,
+        1 /* terrane-site: case.trn:13:19-13:24 */,
     );
     println!("{}", terrane_scalar_support::scalar_text(&adaptive));
     println!("{}", terrane_scalar_support::scalar_text(&wide));
     println!("{}", terrane_scalar_support::scalar_text(&selected));
     let other: i32 = 13;
-    selected = TerraneUnionF0S177::Arm1(other);
+    selected = TerraneUnionF0S121::Arm1(other);
     println!(
         "{}", terrane_scalar_support::scalar_text(&matches!(&selected,
-        TerraneUnionF0S177::Arm1(_)))
+        TerraneUnionF0S121::Arm1(_)))
     );
-    selected = TerraneUnionF0S177::Arm0(small);
+    selected = TerraneUnionF0S121::Arm0(small);
     println!(
         "{}", terrane_scalar_support::scalar_text(&matches!(&selected,
-        TerraneUnionF0S177::Arm0(_)))
+        TerraneUnionF0S121::Arm0(_)))
     );
     println!("{}", terrane_scalar_support::scalar_text(&total));
     println!("{}", terrane_scalar_support::scalar_text(&exact_float));
@@ -484,7 +484,7 @@ fn main() {
     slop = {
         let source_value = __terrane_raised(
             terrane_int_support::fixed_addition(myvar, 1),
-            2 /* terrane-site: case.trn:28:10-28:19 */,
+            2 /* terrane-site: case.trn:27:10-27:19 */,
         );
         __terrane_raised(
             i8::try_from(source_value)
@@ -494,7 +494,7 @@ fn main() {
                     "int8",
                     "the value is outside the destination range",
                 )),
-            2 /* terrane-site: case.trn:28:10-28:19 */,
+            2 /* terrane-site: case.trn:27:10-27:19 */,
         )
     };
     println!("{}", terrane_scalar_support::scalar_text(&slop));

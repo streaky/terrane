@@ -1,6 +1,6 @@
 namespace standard/uuid
+import /core/uuid
 
-from /core/types import bool, string, bytes, int
 from /standard/random import secure-random
 
 class uuid

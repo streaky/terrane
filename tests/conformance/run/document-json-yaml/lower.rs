@@ -495,81 +495,87 @@ mod __terrane_trace {
         )
     }
 }
-fn terrane_limit(value: &terrane_int_support::Int) -> usize {
+pub fn terrane_limit(value: &terrane_int_support::Int) -> usize {
     value.as_usize().unwrap_or(0)
 }
-fn terrane_index(value: &terrane_int_support::Int) -> Option<usize> {
+pub fn terrane_index(value: &terrane_int_support::Int) -> Option<usize> {
     value.as_usize()
 }
-fn terrane_empty_document() -> terrane_document_support::DataResult {
+pub fn terrane_empty_document() -> terrane_document_support::DataResult {
     terrane_document_support::parse_json("null", 0, 4)
 }
-fn terrane_make_document_none() -> terrane_document_support::DataResult {
+pub fn terrane_make_document_none() -> terrane_document_support::DataResult {
     terrane_document_support::document_none()
 }
-fn terrane_make_document_bool(value: bool) -> terrane_document_support::DataResult {
+pub fn terrane_make_document_bool(value: bool) -> terrane_document_support::DataResult {
     terrane_document_support::document_bool(value)
 }
-fn terrane_make_document_string(value: String) -> terrane_document_support::DataResult {
+pub fn terrane_make_document_string(
+    value: String,
+) -> terrane_document_support::DataResult {
     terrane_document_support::document_string(value)
 }
-fn terrane_make_document_integer(value: String) -> terrane_document_support::DataResult {
+pub fn terrane_make_document_integer(
+    value: String,
+) -> terrane_document_support::DataResult {
     terrane_document_support::document_integer(&value)
 }
-fn terrane_make_document_decimal(value: String) -> terrane_document_support::DataResult {
+pub fn terrane_make_document_decimal(
+    value: String,
+) -> terrane_document_support::DataResult {
     terrane_document_support::document_decimal(&value)
 }
-fn terrane_make_document_list() -> terrane_document_support::DataResult {
+pub fn terrane_make_document_list() -> terrane_document_support::DataResult {
     terrane_document_support::document_list()
 }
-fn terrane_document_list_append(
+pub fn terrane_document_list_append(
     list: &terrane_document_support::DataResult,
     value: &terrane_document_support::DataResult,
 ) -> terrane_document_support::DataResult {
     terrane_document_support::document_list_append(list, value)
 }
-fn terrane_make_document_map() -> terrane_document_support::DataResult {
+pub fn terrane_make_document_map() -> terrane_document_support::DataResult {
     terrane_document_support::document_map()
 }
-fn terrane_document_map_insert(
+pub fn terrane_document_map_insert(
     map: &terrane_document_support::DataResult,
     key: String,
     value: &terrane_document_support::DataResult,
 ) -> terrane_document_support::DataResult {
     terrane_document_support::document_map_insert(map, key, value)
 }
-fn terrane_data_failed(result: &terrane_document_support::DataResult) -> bool {
+pub fn terrane_data_failed(result: &terrane_document_support::DataResult) -> bool {
     result.failed
 }
-fn terrane_data_message(result: &terrane_document_support::DataResult) -> String {
+pub fn terrane_data_message(result: &terrane_document_support::DataResult) -> String {
     result.message.clone()
 }
-fn terrane_data_path(result: &terrane_document_support::DataResult) -> String {
+pub fn terrane_data_path(result: &terrane_document_support::DataResult) -> String {
     result.path.clone()
 }
-fn terrane_data_expected(result: &terrane_document_support::DataResult) -> String {
+pub fn terrane_data_expected(result: &terrane_document_support::DataResult) -> String {
     result.expected.clone()
 }
-fn terrane_data_encoded(result: &terrane_document_support::DataResult) -> String {
+pub fn terrane_data_encoded(result: &terrane_document_support::DataResult) -> String {
     result.encoded.clone()
 }
-fn terrane_document_kind(result: &terrane_document_support::DataResult) -> String {
+pub fn terrane_document_kind(result: &terrane_document_support::DataResult) -> String {
     terrane_document_support::document_kind(result)
 }
-fn terrane_document_text(result: &terrane_document_support::DataResult) -> String {
+pub fn terrane_document_text(result: &terrane_document_support::DataResult) -> String {
     terrane_document_support::document_text(result)
 }
-fn terrane_document_coefficient(
+pub fn terrane_document_coefficient(
     result: &terrane_document_support::DataResult,
 ) -> String {
     terrane_document_support::document_coefficient(result)
 }
-fn terrane_document_exponent(
+pub fn terrane_document_exponent(
     result: &terrane_document_support::DataResult,
 ) -> terrane_int_support::Int {
     terrane_int_support::Int::from(terrane_document_support::document_exponent(result))
 }
-fn terrane_document_length(
+pub fn terrane_document_length(
     result: &terrane_document_support::DataResult,
 ) -> terrane_int_support::Int {
     terrane_int_support::Int::from(
@@ -577,7 +583,7 @@ fn terrane_document_length(
             .expect("document length fits in i128"),
     )
 }
-fn terrane_document_item(
+pub fn terrane_document_item(
     result: &terrane_document_support::DataResult,
     index: terrane_int_support::Int,
 ) -> terrane_document_support::DataResult {
@@ -587,7 +593,7 @@ fn terrane_document_item(
             |index| terrane_document_support::document_item(result, index),
         )
 }
-fn terrane_document_key(
+pub fn terrane_document_key(
     result: &terrane_document_support::DataResult,
     index: terrane_int_support::Int,
 ) -> String {
@@ -597,16 +603,18 @@ fn terrane_document_key(
             |index| terrane_document_support::document_key(result, index),
         )
 }
-fn terrane_document_field(
+pub fn terrane_document_field(
     result: &terrane_document_support::DataResult,
     key: String,
 ) -> terrane_document_support::DataResult {
     terrane_document_support::document_field(result, &key)
 }
-fn terrane_string_list(value: terrane_collection_support::List<String>) -> Vec<String> {
+pub fn terrane_string_list(
+    value: terrane_collection_support::List<String>,
+) -> Vec<String> {
     value.into_iter().collect()
 }
-fn terrane_validate_mapping(
+pub fn terrane_validate_mapping(
     result: &terrane_document_support::DataResult,
     expected_kind: String,
     required_fields: terrane_collection_support::List<String>,
@@ -629,7 +637,7 @@ fn terrane_validate_mapping(
         allow_unknown,
     )
 }
-fn terrane_json_parse(
+pub fn terrane_json_parse(
     input: String,
     max_depth: terrane_int_support::Int,
     max_bytes: terrane_int_support::Int,
@@ -640,12 +648,12 @@ fn terrane_json_parse(
         terrane_limit(&max_bytes),
     )
 }
-fn terrane_json_canonical(
+pub fn terrane_json_canonical(
     value: &terrane_document_support::DataResult,
 ) -> terrane_document_support::DataResult {
     terrane_document_support::canonical_json(value)
 }
-fn terrane_yaml_parse(
+pub fn terrane_yaml_parse(
     input: String,
     max_depth: terrane_int_support::Int,
     max_bytes: terrane_int_support::Int,

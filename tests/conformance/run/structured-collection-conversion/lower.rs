@@ -384,68 +384,68 @@ mod __terrane_trace {
     ];
     pub static SITES: [Site; 6] = [
         {
-            /* terrane-site-row: site 0: /structured-collection-conversion::build (case.trn:6:16-6:20) */
+            /* terrane-site-row: site 0: /structured-collection-conversion::build (case.trn:5:16-5:20) */
             Site {
                 function: 0,
                 file: 0,
-                line: 6,
+                line: 5,
                 column: 16,
-                end_line: 6,
+                end_line: 5,
                 end_column: 20,
             }
         },
         {
-            /* terrane-site-row: site 1: /structured-collection-conversion::append-value (case.trn:9:25-9:29) */
+            /* terrane-site-row: site 1: /structured-collection-conversion::append-value (case.trn:8:25-8:29) */
             Site {
                 function: 1,
                 file: 0,
-                line: 9,
+                line: 8,
                 column: 25,
-                end_line: 9,
+                end_line: 8,
                 end_column: 29,
             }
         },
         {
-            /* terrane-site-row: site 2: /structured-collection-conversion::main (case.trn:13:13-13:24) */
+            /* terrane-site-row: site 2: /structured-collection-conversion::main (case.trn:12:13-12:24) */
             Site {
                 function: 2,
                 file: 0,
-                line: 13,
+                line: 12,
                 column: 13,
-                end_line: 13,
+                end_line: 12,
                 end_column: 24,
             }
         },
         {
-            /* terrane-site-row: site 3: /structured-collection-conversion::main (case.trn:13:12-13:28) */
+            /* terrane-site-row: site 3: /structured-collection-conversion::main (case.trn:12:12-12:28) */
             Site {
                 function: 2,
                 file: 0,
-                line: 13,
+                line: 12,
                 column: 12,
-                end_line: 13,
+                end_line: 12,
                 end_column: 28,
             }
         },
         {
-            /* terrane-site-row: site 4: /structured-collection-conversion::main (case.trn:17:13-17:31) */
+            /* terrane-site-row: site 4: /structured-collection-conversion::main (case.trn:16:13-16:31) */
             Site {
                 function: 2,
                 file: 0,
-                line: 17,
+                line: 16,
                 column: 13,
-                end_line: 17,
+                end_line: 16,
                 end_column: 31,
             }
         },
         {
-            /* terrane-site-row: site 5: /structured-collection-conversion::main (case.trn:17:12-17:35) */
+            /* terrane-site-row: site 5: /structured-collection-conversion::main (case.trn:16:12-16:35) */
             Site {
                 function: 2,
                 file: 0,
-                line: 17,
+                line: 16,
                 column: 12,
-                end_line: 17,
+                end_line: 16,
                 end_column: 35,
             }
         },
@@ -474,7 +474,7 @@ fn build(wide: i16) -> Result<terrane_collection_support::List<i8>, TerraneError
                 __terrane_raised_err(i8::try_from(source_value).map_err(| _ |
                 terrane_int_support::ArithmeticError::conversion_overflow(&source_value,
                 "int16", "int8", "the value is outside the destination range")),
-                0 /* terrane-site: case.trn:6:16-6:20 */) ? }
+                0 /* terrane-site: case.trn:5:16-5:20 */) ? }
             ],
         ),
     );
@@ -498,7 +498,7 @@ fn append_value(
                             "int8",
                             "the value is outside the destination range",
                         )),
-                    1 /* terrane-site: case.trn:9:25-9:29 */,
+                    1 /* terrane-site: case.trn:8:25-8:29 */,
                 )?
             });
         collection.clone()
@@ -511,9 +511,9 @@ fn main() {
             println!(
                 "{}",
                 terrane_scalar_support::scalar_text(&__terrane_raised_completion!(__terrane_traced_completion!(build(wide),
-                2 /* terrane-site: case.trn:13:13-13:24 */)
+                2 /* terrane-site: case.trn:12:13-12:24 */)
                 .get_or_error(__terrane_raised_completion!(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
-                3 /* terrane-site: case.trn:13:12-13:28 */)), 3 /* terrane-site: case.trn:13:12-13:28 */))
+                3 /* terrane-site: case.trn:12:12-12:28 */)), 3 /* terrane-site: case.trn:12:12-12:28 */))
             );
             TerraneCompletion::Normal
         })();
@@ -554,9 +554,9 @@ fn main() {
             println!(
                 "{}",
                 terrane_scalar_support::scalar_text(&__terrane_raised_completion!(__terrane_traced_completion!(append_value(wide),
-                4 /* terrane-site: case.trn:17:13-17:31 */)
+                4 /* terrane-site: case.trn:16:13-16:31 */)
                 .get_or_error(__terrane_raised_completion!(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
-                5 /* terrane-site: case.trn:17:12-17:35 */)), 5 /* terrane-site: case.trn:17:12-17:35 */))
+                5 /* terrane-site: case.trn:16:12-16:35 */)), 5 /* terrane-site: case.trn:16:12-16:35 */))
             );
             TerraneCompletion::Normal
         })();

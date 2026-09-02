@@ -159,59 +159,73 @@ pub(crate) fn lower(package: &SemanticPackage) -> Program {
     let uses_standard_streams = package
         .units
         .iter()
-        .any(|unit| unit.namespace == "/standard/streams");
+        .any(|unit| unit.namespace == "/standard/streams")
+        || package_uses_namespace(package, "/core/streams");
     let uses_filesystem = package
         .units
         .iter()
-        .any(|unit| unit.namespace == "/standard/filesystem");
+        .any(|unit| unit.namespace == "/standard/filesystem")
+        || package_uses_namespace(package, "/core/filesystem");
     let uses_process = package
         .units
         .iter()
-        .any(|unit| unit.namespace == "/standard/process");
+        .any(|unit| unit.namespace == "/standard/process")
+        || package_uses_namespace(package, "/core/process");
     let uses_documents = package
         .units
         .iter()
-        .any(|unit| unit.namespace == "/standard/documents");
+        .any(|unit| unit.namespace == "/standard/documents")
+        || package_uses_namespace(package, "/core/documents");
     let uses_json = package
         .units
         .iter()
-        .any(|unit| unit.namespace == "/standard/json");
+        .any(|unit| unit.namespace == "/standard/json")
+        || package_uses_namespace(package, "/core/json");
     let uses_yaml = package
         .units
         .iter()
-        .any(|unit| unit.namespace == "/standard/yaml");
+        .any(|unit| unit.namespace == "/standard/yaml")
+        || package_uses_namespace(package, "/core/yaml");
     let uses_urls = package
         .units
         .iter()
-        .any(|unit| unit.namespace == "/standard/urls");
+        .any(|unit| unit.namespace == "/standard/urls")
+        || package_uses_namespace(package, "/core/urls");
     let uses_random = package
         .units
         .iter()
-        .any(|unit| unit.namespace == "/standard/random");
+        .any(|unit| unit.namespace == "/standard/random")
+        || package_uses_namespace(package, "/core/random");
     let uses_codecs = package
         .units
         .iter()
-        .any(|unit| unit.namespace == "/standard/codecs");
+        .any(|unit| unit.namespace == "/standard/codecs")
+        || package_uses_namespace(package, "/core/codecs");
     let uses_compression = package
         .units
         .iter()
-        .any(|unit| unit.namespace == "/standard/compression");
+        .any(|unit| unit.namespace == "/standard/compression")
+        || package_uses_namespace(package, "/core/compression");
     let uses_uuid = package
         .units
         .iter()
-        .any(|unit| unit.namespace == "/standard/uuid");
+        .any(|unit| unit.namespace == "/standard/uuid")
+        || package_uses_namespace(package, "/core/uuid");
     let uses_networking = package
         .units
         .iter()
-        .any(|unit| unit.namespace == "/standard/networking");
+        .any(|unit| unit.namespace == "/standard/networking")
+        || package_uses_namespace(package, "/core/networking");
     let uses_tls = package
         .units
         .iter()
-        .any(|unit| unit.namespace == "/standard/tls");
+        .any(|unit| unit.namespace == "/standard/tls")
+        || package_uses_namespace(package, "/core/tls");
     let uses_concurrency = package
         .units
         .iter()
-        .any(|unit| unit.namespace == "/standard/concurrency");
+        .any(|unit| unit.namespace == "/standard/concurrency")
+        || package_uses_namespace(package, "/core/concurrency");
     let uses_platform_capabilities = uses_random
         || uses_codecs
         || uses_compression
@@ -260,8 +274,13 @@ pub(crate) fn lower(package: &SemanticPackage) -> Program {
             items,
         });
     }
-    if uses_documents || uses_urls {
+    if uses_documents || uses_json || uses_yaml || uses_urls {
         let mut items = Vec::new();
+        if uses_documents || uses_json || uses_yaml {
+            items.push(Item::generated(include_str!(
+                "runtime/platform_data_base.rs"
+            )));
+        }
         if uses_documents {
             items.push(Item::generated(include_str!(
                 "runtime/platform_documents.rs"
@@ -731,6 +750,35 @@ fn package_uses_task_scope(package: &SemanticPackage) -> bool {
         .units
         .iter()
         .any(|unit| contains(package, unit, &unit.tree.root))
+}
+
+fn package_uses_namespace(package: &SemanticPackage, target: &str) -> bool {
+    fn contains(
+        package: &SemanticPackage,
+        unit: &SemanticUnit,
+        node: &SyntaxNode,
+        target: &str,
+    ) -> bool {
+        if node.kind == SyntaxKind::Name
+            && package
+                .resolve_name_at(
+                    unit,
+                    node.span.start,
+                    &unit.source.text()[node.span.start..node.span.end],
+                )
+                .is_some_and(|symbol| symbol.namespace == target)
+        {
+            return true;
+        }
+        node.children
+            .iter()
+            .any(|child| contains(package, unit, child, target))
+    }
+
+    package
+        .units
+        .iter()
+        .any(|unit| contains(package, unit, &unit.tree.root, target))
 }
 
 fn package_uses_structured_errors(package: &SemanticPackage) -> bool {
@@ -6775,7 +6823,7 @@ impl Emitter<'_> {
         };
         self.package
             .resolve_name_at(self.unit, node.span.start, self.text(node))
-            .is_some_and(|symbol| symbol.identity == identity)
+            .is_some_and(|symbol| symbol.compiler_identity() == identity)
     }
 
     fn unary_operator(&self, node: &SyntaxNode) -> Option<String> {

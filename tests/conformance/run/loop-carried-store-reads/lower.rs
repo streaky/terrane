@@ -380,13 +380,13 @@ mod __terrane_trace {
     pub static FUNCTIONS: [&str; 1] = ["/loop-carried-store-reads::main"];
     pub static SITES: [Site; 1] = [
         {
-            /* terrane-site-row: site 0: /loop-carried-store-reads::main (case.trn:9:13-9:22) */
+            /* terrane-site-row: site 0: /loop-carried-store-reads::main (case.trn:8:13-8:22) */
             Site {
                 function: 0,
                 file: 0,
-                line: 9,
+                line: 8,
                 column: 13,
-                end_line: 9,
+                end_line: 8,
                 end_column: 22,
             }
         },
@@ -413,7 +413,7 @@ fn main() {
         while_value = 5;
         limit = __terrane_raised(
             terrane_int_support::fixed_addition(limit, 1),
-            0 /* terrane-site: case.trn:9:13-9:22 */,
+            0 /* terrane-site: case.trn:8:13-8:22 */,
         );
     }
     let mut for_value: i8 = 0;

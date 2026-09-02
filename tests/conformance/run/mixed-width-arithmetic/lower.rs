@@ -380,24 +380,24 @@ mod __terrane_trace {
     pub static FUNCTIONS: [&str; 1] = ["/mixed-width-arithmetic::main"];
     pub static SITES: [Site; 2] = [
         {
-            /* terrane-site-row: site 0: /mixed-width-arithmetic::main (case.trn:8:17-8:29) */
+            /* terrane-site-row: site 0: /mixed-width-arithmetic::main (case.trn:7:17-7:29) */
             Site {
                 function: 0,
                 file: 0,
-                line: 8,
+                line: 7,
                 column: 17,
-                end_line: 8,
+                end_line: 7,
                 end_column: 29,
             }
         },
         {
-            /* terrane-site-row: site 1: /mixed-width-arithmetic::main (case.trn:9:20-9:35) */
+            /* terrane-site-row: site 1: /mixed-width-arithmetic::main (case.trn:8:20-8:35) */
             Site {
                 function: 0,
                 file: 0,
-                line: 9,
+                line: 8,
                 column: 20,
-                end_line: 9,
+                end_line: 8,
                 end_column: 35,
             }
         },
@@ -422,11 +422,11 @@ fn main() {
     let unsigned: u8 = 120;
     let total: i32 = __terrane_raised(
         terrane_int_support::fixed_addition(left as i32, right),
-        0 /* terrane-site: case.trn:8:17-8:29 */,
+        0 /* terrane-site: case.trn:7:17-7:29 */,
     );
     let combined: i16 = __terrane_raised(
         terrane_int_support::fixed_addition(left as i16, unsigned as i16),
-        1 /* terrane-site: case.trn:9:20-9:35 */,
+        1 /* terrane-site: case.trn:8:20-8:35 */,
     );
     println!("{}", terrane_scalar_support::scalar_text(&total));
     println!("{}", terrane_scalar_support::scalar_text(&combined));

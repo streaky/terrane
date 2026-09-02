@@ -6,7 +6,7 @@ use num_traits::{FromPrimitive, ToPrimitive};
 use crate::syntax::{SyntaxKind, SyntaxNode, SyntaxTree};
 use crate::{Diagnostic, Package, ScalarType, SourceFile, Span, TypeCategory, lexer, parser};
 
-pub const BOOTSTRAP_VERSION: &str = "1";
+pub const BOOTSTRAP_VERSION: &str = "2";
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum Visibility {
@@ -28,6 +28,7 @@ pub enum SymbolKind {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Symbol {
     pub identity: String,
+    pub(crate) lowering_identity: Option<String>,
     pub name: String,
     pub namespace: String,
     pub visibility: Visibility,
@@ -38,6 +39,11 @@ pub struct Symbol {
 }
 
 impl Symbol {
+    #[must_use]
+    pub(crate) fn compiler_identity(&self) -> &str {
+        self.lowering_identity.as_deref().unwrap_or(&self.identity)
+    }
+
     /// Returns the compiler-owned scalar represented by this canonical type descriptor.
     #[must_use]
     pub fn descriptor_type(&self) -> Option<ScalarType> {
@@ -796,6 +802,7 @@ struct Import {
     bundled: bool,
     namespace: String,
     target: String,
+    namespace_wide: bool,
     object: String,
     alias: String,
     span: Span,
@@ -1092,15 +1099,9 @@ pub fn analyze(package: &Package) -> Result<SemanticPackage, SemanticFailure> {
     let mut namespaces = bootstrap_namespaces();
     for unit in &units {
         let bundled = unit.bundled;
-        if matches!(
-            unit.namespace.as_str(),
-            "/core/output"
-                | "/core/types"
-                | "/core/errors"
-                | "/core/encodings"
-                | "/core/collections"
-                | "/core/async"
-        ) || ((unit.namespace == "/deps" || unit.namespace.starts_with("/deps/")) && !bundled)
+        if unit.namespace == "/core"
+            || unit.namespace.starts_with("/core/")
+            || ((unit.namespace == "/deps" || unit.namespace.starts_with("/deps/")) && !bundled)
             || (crate::bundled::source(&unit.namespace).is_some() && !bundled)
         {
             let span = unit
@@ -1129,7 +1130,7 @@ pub fn analyze(package: &Package) -> Result<SemanticPackage, SemanticFailure> {
         collect_unit(unit, &mut namespaces, &mut globals, &mut imports)?;
     }
     for import in imports.iter().filter(|import| !import.bundled) {
-        for capability in standard_capabilities(&import.target) {
+        for capability in namespace_capabilities(&import.target) {
             if !package.profile.allows(capability) {
                 return Err(failure(
                     &import.source,
@@ -1638,6 +1639,7 @@ impl SemanticPackage {
                     .get(name)
                     .filter(|symbol| visible_from(symbol, namespace))
             })
+            .or_else(|| self.symbol("/core/types", name))
             .or_else(|| self.prelude_bindings.get(name))
     }
 
@@ -1919,6 +1921,7 @@ fn collect_declaration(
     };
     let symbol = Symbol {
         identity,
+        lowering_identity: None,
         name: declaration.name.clone(),
         namespace: unit.namespace.clone(),
         visibility: declaration.visibility,
@@ -1956,14 +1959,16 @@ fn collect_declaration(
     Ok(())
 }
 
-fn standard_capabilities(namespace: &str) -> &'static [&'static str] {
+fn namespace_capabilities(namespace: &str) -> &'static [&'static str] {
     match namespace {
-        "/standard/streams" | "/standard/process" => &["process"],
-        "/standard/filesystem" => &["filesystem"],
-        "/standard/random" | "/standard/uuid" => &["entropy"],
-        "/standard/networking" => &["networking"],
-        "/standard/tls" => &["networking", "tls"],
-        "/standard/concurrency" => &["threads"],
+        "/core/streams" | "/core/process" | "/standard/streams" | "/standard/process" => {
+            &["process"]
+        }
+        "/core/filesystem" | "/standard/filesystem" => &["filesystem"],
+        "/core/random" | "/core/uuid" | "/standard/random" | "/standard/uuid" => &["entropy"],
+        "/core/networking" | "/standard/networking" => &["networking"],
+        "/core/tls" | "/standard/tls" => &["networking", "tls"],
+        "/core/concurrency" | "/standard/concurrency" => &["threads"],
         _ => &[],
     }
 }
@@ -2028,9 +2033,30 @@ fn imports_from_syntax(
             bundled: unit.bundled,
             namespace: unit.namespace.clone(),
             target: target.clone(),
+            namespace_wide: false,
             object: imported.to_owned(),
             alias: alias.to_owned(),
             span: import_node.span,
+        });
+    }
+    if result.is_empty() {
+        if target == "/deps" || target.starts_with("/deps/") {
+            return Err(failure(
+                &unit.source,
+                "S2033",
+                "namespace-wide dependency imports are not implemented; import dependency objects explicitly",
+                node.span,
+            ));
+        }
+        result.push(Import {
+            source: unit.source.clone(),
+            bundled: unit.bundled,
+            namespace: unit.namespace.clone(),
+            target,
+            namespace_wide: true,
+            object: String::new(),
+            alias: String::new(),
+            span: node.span,
         });
     }
     Ok(result)
@@ -2067,28 +2093,57 @@ fn imported_object(
     }
     Ok(export.clone())
 }
+fn imported_objects(
+    import: &Import,
+    namespaces: &BTreeMap<String, Namespace>,
+) -> Result<Vec<(String, Symbol)>, SemanticFailure> {
+    if !import.namespace_wide {
+        return Ok(vec![(
+            import.alias.clone(),
+            imported_object(import, namespaces)?,
+        )]);
+    }
+    let namespace = namespaces.get(&import.target).ok_or_else(|| {
+        failure(
+            &import.source,
+            "S2009",
+            format!("unknown namespace `{}`", import.target),
+            import.span,
+        )
+    })?;
+    Ok(namespace
+        .symbols
+        .values()
+        .filter(|symbol| {
+            symbol.visibility == Visibility::Public && symbol.available_in_function_body()
+        })
+        .map(|symbol| (symbol.name.clone(), symbol.clone()))
+        .collect())
+}
 
 fn resolve_imports(
     imports: Vec<Import>,
     namespaces: &mut BTreeMap<String, Namespace>,
 ) -> Result<(), SemanticFailure> {
     for import in imports {
-        let export = imported_object(&import, namespaces)?;
-        let destination = namespaces
-            .get_mut(&import.namespace)
-            .expect("every import destination is a preassembled source-unit namespace");
-        if let Some(existing) = destination.symbols.get(&import.alias) {
-            if existing.identity == export.identity {
-                continue;
+        let exports = imported_objects(&import, namespaces)?;
+        for (name, export) in exports {
+            let destination = namespaces
+                .get_mut(&import.namespace)
+                .expect("every import destination is a preassembled source-unit namespace");
+            if let Some(existing) = destination.symbols.get(&name) {
+                if existing.identity == export.identity {
+                    continue;
+                }
+                return Err(failure(
+                    &import.source,
+                    "S2011",
+                    format!("namespace import collides on `{name}`; use an explicit object import"),
+                    import.span,
+                ));
             }
-            return Err(failure(
-                &import.source,
-                "S2011",
-                format!("import `{}` collides; use an alias", import.alias),
-                import.span,
-            ));
+            destination.symbols.insert(name, export);
         }
-        destination.symbols.insert(import.alias, export);
     }
     Ok(())
 }
@@ -4533,7 +4588,7 @@ fn infer_receiver_consumption(package: &mut SemanticPackage) {
             if callee.kind == SyntaxKind::Name {
                 let identity = package
                     .resolve_name_at(unit, callee.span.start, node_text(&unit.source, callee))
-                    .map(|symbol| symbol.identity.as_str());
+                    .map(Symbol::compiler_identity);
                 if matches!(
                     identity,
                     Some("intrinsic:streams::close" | "intrinsic:streams::release")
@@ -7199,13 +7254,13 @@ fn infer_value_type(
     if node.kind == SyntaxKind::CallExpression {
         if let [callee, arguments] = node.children.as_slice() {
             if callee.kind == SyntaxKind::Name
-                && resolved_name_identity(unit, callee)
+                && resolved_compiler_identity(unit, callee)
                     .is_some_and(|identity| identity == "/core/async::task-scope")
             {
                 return Ok(Some(ValueType::TaskScope));
             }
             if callee.kind == SyntaxKind::Name
-                && let Some(identity) = resolved_name_identity(unit, callee)
+                && let Some(identity) = resolved_compiler_identity(unit, callee)
             {
                 let platform_result = match identity {
                     "intrinsic:streams::acquire-stdin"
@@ -10735,23 +10790,24 @@ fn populate_imports(
     node: &SyntaxNode,
 ) -> Result<(), SemanticFailure> {
     for import in imports_from_syntax(unit, node)? {
-        let export = imported_object(&import, namespaces)?;
-        if let Some(existing) = scopes[index]
-            .symbols
-            .get(&import.alias)
-            .and_then(|symbols| symbols.last())
-        {
-            if existing.identity == export.identity {
-                continue;
+        for (name, export) in imported_objects(&import, namespaces)? {
+            if let Some(existing) = scopes[index]
+                .symbols
+                .get(&name)
+                .and_then(|symbols| symbols.last())
+            {
+                if existing.identity == export.identity {
+                    continue;
+                }
+                return Err(failure(
+                    &unit.source,
+                    "S2011",
+                    format!("namespace import collides on `{name}`; use an explicit object import"),
+                    import.span,
+                ));
             }
-            return Err(failure(
-                &unit.source,
-                "S2011",
-                format!("import `{}` collides; use an alias", import.alias),
-                import.span,
-            ));
+            scopes[index].symbols.insert(name, vec![export]);
         }
-        scopes[index].symbols.insert(import.alias, vec![export]);
     }
     Ok(())
 }
@@ -10802,6 +10858,7 @@ fn insert_local_replacement(
         .or_default()
         .push(Symbol {
             identity: format!("{}::scope{index}::{name}@{}", unit.namespace, span.start),
+            lowering_identity: None,
             name,
             namespace: unit.namespace.clone(),
             visibility: Visibility::Private,
@@ -10840,8 +10897,10 @@ fn namespace_chain(namespace: &str) -> impl Iterator<Item = String> {
         let result = current.clone();
         if current == "/" {
             current.clear();
+        } else if let Some(separator) = current.rfind('/') {
+            current.truncate(separator.max(1));
         } else {
-            current.truncate(current.rfind('/').unwrap_or(0).max(1));
+            current.clear();
         }
         Some(result)
     })
@@ -10859,7 +10918,7 @@ fn visible_from(symbol: &Symbol, namespace: &str) -> bool {
         }
     }
 }
-fn resolved_name_identity<'a>(unit: &'a SemanticUnit, node: &SyntaxNode) -> Option<&'a str> {
+fn resolved_compiler_identity<'a>(unit: &'a SemanticUnit, node: &SyntaxNode) -> Option<&'a str> {
     let name = node_text(&unit.source, node);
     lexical_scope_chain(unit, node.span.start)
         .find_map(|scope| {
@@ -10869,7 +10928,7 @@ fn resolved_name_identity<'a>(unit: &'a SemanticUnit, node: &SyntaxNode) -> Opti
                     .is_none_or(|span| span.end <= node.span.start)
             })
         })
-        .map(|symbol| symbol.identity.as_str())
+        .map(Symbol::compiler_identity)
         .or_else(|| (unit.prelude && name == "task-scope").then_some("/core/async::task-scope"))
 }
 
@@ -10941,7 +11000,7 @@ fn task_scope_deadline_ms(
         return None;
     };
     if callee.kind == SyntaxKind::Name
-        && resolved_name_identity(unit, callee)
+        && resolved_compiler_identity(unit, callee)
             .is_some_and(|identity| identity == "/core/async::task-scope")
     {
         return arguments
@@ -10967,15 +11026,9 @@ fn task_scope_deadline_ms(
 }
 
 fn bootstrap_prelude() -> BTreeMap<String, Symbol> {
-    const PRELUDE: [(&str, &str, &str); 13] = [
+    const PRELUDE: [(&str, &str, &str); 7] = [
         ("print", "/core/output::print", "/core/output"),
         ("task-scope", "/core/async::task-scope", "/core/async"),
-        ("int", "/core/types::int", "/core/types"),
-        ("float", "/core/types::float", "/core/types"),
-        ("bool", "/core/types::bool", "/core/types"),
-        ("string", "/core/types::string", "/core/types"),
-        ("bytes", "/core/types::bytes", "/core/types"),
-        ("none", "/core/types::none", "/core/types"),
         ("utf8", "/core/encodings::utf8", "/core/encodings"),
         ("utf16-le", "/core/encodings::utf16-le", "/core/encodings"),
         ("utf16-be", "/core/encodings::utf16-be", "/core/encodings"),
@@ -10989,6 +11042,7 @@ fn bootstrap_prelude() -> BTreeMap<String, Symbol> {
                 name.to_owned(),
                 Symbol {
                     identity: identity.to_owned(),
+                    lowering_identity: None,
                     name: name.to_owned(),
                     namespace: namespace.to_owned(),
                     visibility: Visibility::Public,
@@ -10996,10 +11050,8 @@ fn bootstrap_prelude() -> BTreeMap<String, Symbol> {
                     constant: !matches!(name, "print" | "task-scope"),
                     kind: if matches!(name, "print" | "task-scope") {
                         SymbolKind::Function
-                    } else if identity.starts_with("/core/encodings::") {
-                        SymbolKind::Binding
                     } else {
-                        SymbolKind::TypeDescriptor
+                        SymbolKind::Binding
                     },
                     declaration_span: None,
                 },
@@ -11017,6 +11069,7 @@ fn bootstrap_descriptor_constructs() -> BTreeMap<String, Symbol> {
                 name.clone(),
                 Symbol {
                     identity: format!("/core/types::{}", ty.source_name()),
+                    lowering_identity: None,
                     name,
                     namespace: "/core/types".to_owned(),
                     visibility: Visibility::Public,
@@ -11044,9 +11097,9 @@ fn bootstrap_namespaces() -> BTreeMap<String, Namespace> {
         "/core/async".to_owned(),
         namespace_with_objects("/core/async", ["task-scope"], SymbolKind::Function),
     );
-    add_private_intrinsics(
+    add_core_tools(
         &mut namespaces,
-        "/standard/codecs",
+        "/core/codecs",
         "capabilities",
         [
             ("hex-encode", "hex-encode"),
@@ -11058,9 +11111,9 @@ fn bootstrap_namespaces() -> BTreeMap<String, Namespace> {
             ("result-bytes", "result-bytes"),
         ],
     );
-    add_private_intrinsics(
+    add_core_tools(
         &mut namespaces,
-        "/standard/compression",
+        "/core/compression",
         "capabilities",
         [
             ("compress", "platform-compress"),
@@ -11071,9 +11124,9 @@ fn bootstrap_namespaces() -> BTreeMap<String, Namespace> {
             ("result-bytes", "result-bytes"),
         ],
     );
-    add_private_intrinsics(
+    add_core_tools(
         &mut namespaces,
-        "/standard/concurrency",
+        "/core/concurrency",
         "concurrency",
         [
             ("platform-capability", "platform-capability"),
@@ -11106,9 +11159,9 @@ fn bootstrap_namespaces() -> BTreeMap<String, Namespace> {
             ("result-bool", "result-bool"),
         ],
     );
-    add_private_intrinsics(
+    add_core_tools(
         &mut namespaces,
-        "/standard/concurrency",
+        "/core/concurrency",
         "capabilities",
         [
             ("cancellation-token", "platform-cancellation-token"),
@@ -11117,9 +11170,9 @@ fn bootstrap_namespaces() -> BTreeMap<String, Namespace> {
             ("result-capability", "result-capability"),
         ],
     );
-    add_private_intrinsics(
+    add_core_tools(
         &mut namespaces,
-        "/standard/documents",
+        "/core/documents",
         "data",
         [
             ("platform-data-result", "platform-data-result"),
@@ -11149,9 +11202,9 @@ fn bootstrap_namespaces() -> BTreeMap<String, Namespace> {
             ("validate-mapping", "validate-mapping"),
         ],
     );
-    add_private_intrinsics(
+    add_core_tools(
         &mut namespaces,
-        "/standard/filesystem",
+        "/core/filesystem",
         "system",
         [
             ("filesystem-exists", "platform-filesystem-exists"),
@@ -11182,9 +11235,9 @@ fn bootstrap_namespaces() -> BTreeMap<String, Namespace> {
             ),
         ],
     );
-    add_private_intrinsics(
+    add_core_tools(
         &mut namespaces,
-        "/standard/filesystem",
+        "/core/filesystem",
         "streams",
         [
             ("resource-handle", "resource-handle"),
@@ -11200,18 +11253,18 @@ fn bootstrap_namespaces() -> BTreeMap<String, Namespace> {
             ("release", "platform-release"),
         ],
     );
-    add_private_intrinsics(
+    add_core_tools(
         &mut namespaces,
-        "/standard/json",
+        "/core/json",
         "data",
         [
             ("json-parse", "platform-parse"),
             ("json-canonical", "platform-canonical"),
         ],
     );
-    add_private_intrinsics(
+    add_core_tools(
         &mut namespaces,
-        "/standard/networking",
+        "/core/networking",
         "capabilities",
         [
             ("platform-resource-handle", "platform-resource-handle"),
@@ -11252,9 +11305,9 @@ fn bootstrap_namespaces() -> BTreeMap<String, Namespace> {
             ("result-resource", "result-resource"),
         ],
     );
-    add_private_intrinsics(
+    add_core_tools(
         &mut namespaces,
-        "/standard/process",
+        "/core/process",
         "system",
         [
             ("process-arguments", "platform-arguments"),
@@ -11265,9 +11318,9 @@ fn bootstrap_namespaces() -> BTreeMap<String, Namespace> {
             ("platform-value-bytes", "platform-value-bytes"),
         ],
     );
-    add_private_intrinsics(
+    add_core_tools(
         &mut namespaces,
-        "/standard/process",
+        "/core/process",
         "adapters",
         [
             ("platform-result", "platform-result"),
@@ -11278,9 +11331,9 @@ fn bootstrap_namespaces() -> BTreeMap<String, Namespace> {
             ("result-bool", "result-bool"),
         ],
     );
-    add_private_intrinsics(
+    add_core_tools(
         &mut namespaces,
-        "/standard/random",
+        "/core/random",
         "capabilities",
         [
             ("platform-capability", "platform-capability"),
@@ -11301,9 +11354,9 @@ fn bootstrap_namespaces() -> BTreeMap<String, Namespace> {
             ("result-capability", "result-capability"),
         ],
     );
-    add_private_intrinsics(
+    add_core_tools(
         &mut namespaces,
-        "/standard/streams",
+        "/core/streams",
         "streams",
         [
             ("resource-handle", "resource-handle"),
@@ -11319,9 +11372,9 @@ fn bootstrap_namespaces() -> BTreeMap<String, Namespace> {
             ("release", "platform-release"),
         ],
     );
-    add_private_intrinsics(
+    add_core_tools(
         &mut namespaces,
-        "/standard/tls",
+        "/core/tls",
         "capabilities",
         [
             ("platform-resource-handle", "platform-resource-handle"),
@@ -11341,9 +11394,9 @@ fn bootstrap_namespaces() -> BTreeMap<String, Namespace> {
             ("result-resource", "result-resource"),
         ],
     );
-    add_private_intrinsics(
+    add_core_tools(
         &mut namespaces,
-        "/standard/urls",
+        "/core/urls",
         "data",
         [
             ("platform-url-result", "platform-url-result"),
@@ -11365,9 +11418,9 @@ fn bootstrap_namespaces() -> BTreeMap<String, Namespace> {
             ("url-query-value", "url-query-value"),
         ],
     );
-    add_private_intrinsics(
+    add_core_tools(
         &mut namespaces,
-        "/standard/uuid",
+        "/core/uuid",
         "capabilities",
         [
             ("platform-capability", "platform-capability"),
@@ -11380,9 +11433,9 @@ fn bootstrap_namespaces() -> BTreeMap<String, Namespace> {
             ("result-bytes", "result-bytes"),
         ],
     );
-    add_private_intrinsics(
+    add_core_tools(
         &mut namespaces,
-        "/standard/yaml",
+        "/core/yaml",
         "data",
         [
             ("yaml-parse", "platform-parse"),
@@ -12730,21 +12783,22 @@ pub(crate) fn binding_span_is_mutated(
     ) > usize::from(!initially_assigned)
 }
 
-fn add_private_intrinsics<'a>(
+fn add_core_tools<'a>(
     namespaces: &mut BTreeMap<String, Namespace>,
     path: &str,
     group: &str,
     bindings: impl IntoIterator<Item = (&'a str, &'a str)>,
 ) {
     let namespace = namespaces.entry(path.to_owned()).or_default();
-    for (intrinsic, local_name) in bindings {
+    for (intrinsic, public_name) in bindings {
         let previous = namespace.symbols.insert(
-            local_name.to_owned(),
+            public_name.to_owned(),
             Symbol {
-                identity: format!("intrinsic:{group}::{intrinsic}"),
-                name: local_name.to_owned(),
+                identity: format!("{path}::{public_name}"),
+                lowering_identity: Some(format!("intrinsic:{group}::{intrinsic}")),
+                name: public_name.to_owned(),
                 namespace: path.to_owned(),
-                visibility: Visibility::Private,
+                visibility: Visibility::Public,
                 global: false,
                 constant: false,
                 kind: SymbolKind::Function,
@@ -12753,7 +12807,7 @@ fn add_private_intrinsics<'a>(
         );
         assert!(
             previous.is_none(),
-            "duplicate private intrinsic binding `{path}::{local_name}`"
+            "duplicate core tool binding `{path}::{public_name}`"
         );
     }
 }
@@ -12773,6 +12827,7 @@ fn namespace_with_objects<'a>(
 fn compiler_owned_object(path: &str, name: &str, kind: SymbolKind) -> Symbol {
     Symbol {
         identity: format!("{path}::{name}"),
+        lowering_identity: None,
         name: name.to_owned(),
         namespace: path.to_owned(),
         visibility: Visibility::Public,

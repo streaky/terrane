@@ -546,9 +546,9 @@ pub struct TerraneTaskOutcome<T> {
     pub value: Option<T>,
     pub error: Option<TerraneError>,
 }
-type TerranePlatformCapability = terrane_platform_support::Capability;
-type TerranePlatformResult = terrane_platform_support::ResultValue;
-fn terrane_platform_i128(
+pub type TerranePlatformCapability = terrane_platform_support::Capability;
+pub type TerranePlatformResult = terrane_platform_support::ResultValue;
+pub fn terrane_platform_i128(
     value: &terrane_int_support::Int,
     label: &str,
 ) -> Result<i128, TerranePlatformResult> {

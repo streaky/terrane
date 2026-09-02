@@ -380,24 +380,24 @@ mod __terrane_trace {
     pub static FUNCTIONS: [&str; 1] = ["/contextual-constant-arithmetic::main"];
     pub static SITES: [Site; 2] = [
         {
-            /* terrane-site-row: site 0: /contextual-constant-arithmetic::main (case.trn:15:17-15:29) */
+            /* terrane-site-row: site 0: /contextual-constant-arithmetic::main (case.trn:14:17-14:29) */
             Site {
                 function: 0,
                 file: 0,
-                line: 15,
+                line: 14,
                 column: 17,
-                end_line: 15,
+                end_line: 14,
                 end_column: 29,
             }
         },
         {
-            /* terrane-site-row: site 1: /contextual-constant-arithmetic::main (case.trn:24:11-24:17) */
+            /* terrane-site-row: site 1: /contextual-constant-arithmetic::main (case.trn:23:11-23:17) */
             Site {
                 function: 0,
                 file: 0,
-                line: 24,
+                line: 23,
                 column: 11,
-                end_line: 24,
+                end_line: 23,
                 end_column: 17,
             }
         },
@@ -432,7 +432,7 @@ fn main() {
             ratio,
             terrane_int_support::FloatRounding::TiesEven,
         ),
-        0 /* terrane-site: case.trn:15:17-15:29 */,
+        0 /* terrane-site: case.trn:14:17-14:29 */,
     );
     println!("{}", terrane_scalar_support::scalar_text(&reduced));
     println!("{}", terrane_scalar_support::scalar_text(&integral));
@@ -444,6 +444,6 @@ fn main() {
     println!("{}", terrane_scalar_support::scalar_text(&bounded()));
     println!(
         "{}", terrane_scalar_support::scalar_text(&__terrane_traced(third(),
-        1 /* terrane-site: case.trn:24:11-24:17 */))
+        1 /* terrane-site: case.trn:23:11-23:17 */))
     );
 }

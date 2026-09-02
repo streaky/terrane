@@ -1,5 +1,4 @@
 namespace app
-from /core/types import int
 
 function main;
   descriptor = int

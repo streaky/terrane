@@ -1,6 +1,6 @@
 namespace standard/codecs
+import /core/codecs
 
-from /core/types import bool, string, bytes
 
 class decode-result
     failed bool = false

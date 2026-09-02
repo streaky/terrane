@@ -37,17 +37,17 @@ to Terrane source:
 
 1. **Support crate.** `crates/terrane-document-support/src/lib.rs` exposes flat free functions over
    `serde_json`/`yaml-rust2`/`url`, hiding those crates' types behind `DataResult` and `UrlResult`.
-2. **Private package bindings.** The compiler seeds `/standard/documents`, `/standard/json`,
-   `/standard/yaml`, and `/standard/urls` with their precise private intrinsic bindings; these are
-   lowering identities rather than importable namespace objects.
+2. **Public core tools.** The compiler registers the document operations in `/core/documents`,
+   `/core/json`, `/core/yaml`, and `/core/urls`; each public semantic identity carries a separate
+   compiler-only lowering key.
 3. **Generated shims.** `crates/terrane-compiler/src/runtime/platform_urls.rs` and its siblings emit
-   one thin Rust function per crossed member into the generated crate.
-4. **Authored Terrane wrapper.** The bundled packages resolve those unqualified private bindings in
-   their own namespace and present an ordinary public Terrane API.
+   one public Rust function per crossed core member into the generated support artifact.
+4. **Authored Terrane wrapper.** The bundled packages explicitly `import /core/<facility>` and
+   present the higher-level `/standard` object model over those operations.
 
-Milestone 25 generalises layers 2, 3 and 4: `/deps/<crate>` supplies importable projected package
-objects instead of hard-coded private bindings, the shims are generated from a projection instead
-of being written by hand, and layer 4 becomes optional rather than mandatory.
+Milestone 25 generalises layers 2, 3 and 4: `/deps/<crate>` supplies projected package objects
+instead of compiler-registered core tools, the shims are generated from a projection instead of
+being written by hand, and layer 4 becomes optional rather than mandatory.
 
 ### 2.1 The shape the existing boundary already has
 
@@ -573,6 +573,6 @@ the lexical change, the lint demotion, and A21 as explicit deliverables. Not app
 
 ### 11.6 Deferred
 
-Migrating the standard packages' private intrinsic bindings and the `platform_*.rs` shims onto this
-machinery. The general path does by hand what they do by hand today, so they could move onto it once
-it exists. Not part of this work, and the design should not make it impossible.
+Migrating the compiler-registered core tool objects and the `platform_*.rs` shims onto this
+machinery. The general path does by projection what they do by hand today, so they could move onto
+it once it exists. Not part of this work, and the design should not make it impossible.

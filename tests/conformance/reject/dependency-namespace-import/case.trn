@@ -1,0 +1,6 @@
+namespace dependency-namespace-import
+
+import /deps/example
+
+function main;
+    return

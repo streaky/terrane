@@ -22,30 +22,30 @@ impl TerranePlatformStreamHandle {
 
 
 #[derive(Clone)]
-struct TerranePlatformReadResult {
-    data: Vec<u8>,
-    completed: terrane_int_support::Int,
-    end: bool,
-    failed: bool,
-    message: String,
+pub struct TerranePlatformReadResult {
+    pub data: Vec<u8>,
+    pub completed: terrane_int_support::Int,
+    pub end: bool,
+    pub failed: bool,
+    pub message: String,
 }
 
 #[derive(Clone)]
-struct TerranePlatformWriteResult {
-    completed: terrane_int_support::Int,
-    failed: bool,
-    message: String,
+pub struct TerranePlatformWriteResult {
+    pub completed: terrane_int_support::Int,
+    pub failed: bool,
+    pub message: String,
 }
 
 #[derive(Clone)]
-struct TerranePlatformUnitResult {
-    failed: bool,
-    message: String,
+pub struct TerranePlatformUnitResult {
+    pub failed: bool,
+    pub message: String,
 }
 
 
 
-fn terrane_platform_read(
+pub fn terrane_platform_read(
     handle: &TerranePlatformStreamHandle,
     limit: terrane_int_support::Int,
 ) -> TerranePlatformReadResult {
@@ -76,7 +76,7 @@ fn terrane_platform_read(
     }
 }
 
-fn terrane_platform_write(
+pub fn terrane_platform_write(
     handle: &TerranePlatformStreamHandle,
     data: &[u8],
     offset: terrane_int_support::Int,
@@ -102,26 +102,26 @@ fn terrane_platform_write(
     }
 }
 
-fn terrane_platform_flush(handle: &TerranePlatformStreamHandle) -> TerranePlatformUnitResult {
+pub fn terrane_platform_flush(handle: &TerranePlatformStreamHandle) -> TerranePlatformUnitResult {
     terrane_platform_unit(terrane_stream_abi::flush(handle.abi_handle()))
 }
 
-fn terrane_platform_sync_data(handle: &TerranePlatformStreamHandle) -> TerranePlatformUnitResult {
+pub fn terrane_platform_sync_data(handle: &TerranePlatformStreamHandle) -> TerranePlatformUnitResult {
     terrane_platform_unit(terrane_stream_abi::sync_data(handle.abi_handle()))
 }
 
-fn terrane_platform_sync_all(handle: &TerranePlatformStreamHandle) -> TerranePlatformUnitResult {
+pub fn terrane_platform_sync_all(handle: &TerranePlatformStreamHandle) -> TerranePlatformUnitResult {
     terrane_platform_unit(terrane_stream_abi::sync_all(handle.abi_handle()))
 }
 
-fn terrane_platform_close(handle: &TerranePlatformStreamHandle) -> TerranePlatformUnitResult {
+pub fn terrane_platform_close(handle: &TerranePlatformStreamHandle) -> TerranePlatformUnitResult {
     terrane_platform_unit(terrane_stream_abi::close(handle.abi_handle()))
 }
 
 // Resource ownership is compiler-inferred in Terrane. The final generated wrapper releases the
 // process handle. The Arc count only distinguishes an in-progress adapter transfer; it does not
 // make the handle copyable or observable as shared ownership in Terrane.
-fn terrane_platform_release(handle: &TerranePlatformStreamHandle) -> TerranePlatformUnitResult {
+pub fn terrane_platform_release(handle: &TerranePlatformStreamHandle) -> TerranePlatformUnitResult {
     if std::sync::Arc::strong_count(&handle.0) == 1 {
         terrane_platform_unit(terrane_stream_abi::release(handle.abi_handle()))
     } else {
@@ -132,7 +132,7 @@ fn terrane_platform_release(handle: &TerranePlatformStreamHandle) -> TerranePlat
     }
 }
 
-fn terrane_platform_unit(result: std::io::Result<()>) -> TerranePlatformUnitResult {
+pub fn terrane_platform_unit(result: std::io::Result<()>) -> TerranePlatformUnitResult {
     match result {
         Ok(()) => TerranePlatformUnitResult {
             failed: false,

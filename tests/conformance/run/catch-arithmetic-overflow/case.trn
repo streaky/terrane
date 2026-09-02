@@ -1,5 +1,4 @@
 namespace catch-arithmetic-overflow
-from /core/types import int8
 from /core/errors import arithmetic-overflow
 function main;
   try

@@ -1,6 +1,6 @@
 namespace standard/filesystem
+import /core/filesystem
 
-from /core/types import int, bool, string, bytes
 from /standard/paths import path
 
 class operation-result

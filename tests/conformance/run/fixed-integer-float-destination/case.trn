@@ -1,5 +1,4 @@
 namespace fixed-integer-float-destination
-from /core/types import int32, int64, int128, uint64, uint128, float32, float64
 from /core/errors import integer-conversion-overflow
 
 function main;

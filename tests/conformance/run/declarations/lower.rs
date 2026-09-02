@@ -23,7 +23,7 @@ fn main() {
     println!(
         "{}", terrane_scalar_support::scalar_text(&__TERRANE_GLOBAL_NAMESPACE_VALUE
         .lock().expect("program-global lock poisoned").clone().unwrap_or_else(| |
-        __terrane_uninitialized_global("namespace-value", "case.trn", 7, 10)))
+        __terrane_uninitialized_global("namespace-value", "case.trn", 6, 10)))
     );
     println!("{}", terrane_scalar_support::scalar_text(&local_value));
     if true {

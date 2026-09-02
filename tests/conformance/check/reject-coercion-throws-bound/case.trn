@@ -1,5 +1,4 @@
 namespace reject-coercion-throws-bound
-from /core/types import int, int8
 from /core/errors import coercion-error
 
 function narrow int8 throws coercion-error; value int

@@ -383,24 +383,24 @@ mod __terrane_trace {
     ];
     pub static SITES: [Site; 2] = [
         {
-            /* terrane-site-row: site 0: /uncaught-detailed-coercion::narrow (case.trn:5:10-5:15) */
+            /* terrane-site-row: site 0: /uncaught-detailed-coercion::narrow (case.trn:4:10-4:15) */
             Site {
                 function: 0,
                 file: 0,
-                line: 5,
+                line: 4,
                 column: 10,
-                end_line: 5,
+                end_line: 4,
                 end_column: 15,
             }
         },
         {
-            /* terrane-site-row: site 1: /uncaught-detailed-coercion::main (case.trn:7:11-7:22) */
+            /* terrane-site-row: site 1: /uncaught-detailed-coercion::main (case.trn:6:11-6:22) */
             Site {
                 function: 1,
                 file: 0,
-                line: 7,
+                line: 6,
                 column: 11,
-                end_line: 7,
+                end_line: 6,
                 end_column: 22,
             }
         },
@@ -423,7 +423,7 @@ fn narrow(value: terrane_int_support::Int) -> Result<i8, TerraneError> {
     return Ok(
         __terrane_raised_err(
             terrane_int_support::coerce::<i8>(&value),
-            0 /* terrane-site: case.trn:5:10-5:15 */,
+            0 /* terrane-site: case.trn:4:10-4:15 */,
         )?,
     );
 }
@@ -431,6 +431,6 @@ fn main() {
     println!(
         "{}",
         terrane_scalar_support::scalar_text(&__terrane_traced(narrow(terrane_int_support::Int::from(300_i128)),
-        1 /* terrane-site: case.trn:7:11-7:22 */))
+        1 /* terrane-site: case.trn:6:11-6:22 */))
     );
 }

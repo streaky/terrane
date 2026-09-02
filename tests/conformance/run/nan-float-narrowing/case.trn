@@ -1,5 +1,4 @@
 namespace nan-float-narrowing
-from /core/types import float32, float64
 function main;
   zero float64 = 0.0
   source float64 = zero / zero

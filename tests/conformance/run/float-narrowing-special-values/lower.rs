@@ -380,18 +380,29 @@ mod __terrane_trace {
     pub static FUNCTIONS: [&str; 1] = ["/float-narrowing-special-values::main"];
     pub static SITES: [Site; 4] = [
         {
-            /* terrane-site-row: site 0: /float-narrowing-special-values::main (case.trn:11:27-11:40) */
+            /* terrane-site-row: site 0: /float-narrowing-special-values::main (case.trn:10:27-10:40) */
             Site {
                 function: 0,
                 file: 0,
-                line: 11,
+                line: 10,
                 column: 27,
-                end_line: 11,
+                end_line: 10,
                 end_column: 40,
             }
         },
         {
-            /* terrane-site-row: site 1: /float-narrowing-special-values::main (case.trn:12:31-12:48) */
+            /* terrane-site-row: site 1: /float-narrowing-special-values::main (case.trn:11:31-11:48) */
+            Site {
+                function: 0,
+                file: 0,
+                line: 11,
+                column: 31,
+                end_line: 11,
+                end_column: 48,
+            }
+        },
+        {
+            /* terrane-site-row: site 2: /float-narrowing-special-values::main (case.trn:12:31-12:48) */
             Site {
                 function: 0,
                 file: 0,
@@ -402,24 +413,13 @@ mod __terrane_trace {
             }
         },
         {
-            /* terrane-site-row: site 2: /float-narrowing-special-values::main (case.trn:13:31-13:48) */
+            /* terrane-site-row: site 3: /float-narrowing-special-values::main (case.trn:13:30-13:37) */
             Site {
                 function: 0,
                 file: 0,
                 line: 13,
-                column: 31,
-                end_line: 13,
-                end_column: 48,
-            }
-        },
-        {
-            /* terrane-site-row: site 3: /float-narrowing-special-values::main (case.trn:14:30-14:37) */
-            Site {
-                function: 0,
-                file: 0,
-                line: 14,
                 column: 30,
-                end_line: 14,
+                end_line: 13,
                 end_column: 37,
             }
         },
@@ -461,7 +461,7 @@ fn main() {
                         "the floating value is not exactly representable",
                     ),
                 ),
-                0 /* terrane-site: case.trn:11:27-11:40 */,
+                0 /* terrane-site: case.trn:10:27-10:40 */,
             )
         }
     };
@@ -480,7 +480,7 @@ fn main() {
                         "the floating value is not exactly representable",
                     ),
                 ),
-                1 /* terrane-site: case.trn:12:31-12:48 */,
+                1 /* terrane-site: case.trn:11:31-11:48 */,
             )
         }
     };
@@ -499,7 +499,7 @@ fn main() {
                         "the floating value is not exactly representable",
                     ),
                 ),
-                2 /* terrane-site: case.trn:13:31-13:48 */,
+                2 /* terrane-site: case.trn:12:31-12:48 */,
             )
         }
     };
@@ -518,7 +518,7 @@ fn main() {
                         "the floating value is not exactly representable",
                     ),
                 ),
-                3 /* terrane-site: case.trn:14:30-14:37 */,
+                3 /* terrane-site: case.trn:13:30-13:37 */,
             )
         }
     };

@@ -1,6 +1,6 @@
 namespace standard/tls
+import /core/tls
 
-from /core/types import int, bool, string, bytes
 from /standard/networking import tcp-stream, operation-options, operation-result, io-result, host-name, operation-cancellation
 
 class tls-stream

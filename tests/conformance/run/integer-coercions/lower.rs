@@ -380,13 +380,13 @@ mod __terrane_trace {
     pub static FUNCTIONS: [&str; 1] = ["/integer-coercions::main"];
     pub static SITES: [Site; 1] = [
         {
-            /* terrane-site-row: site 0: /integer-coercions::main (case.trn:7:11-7:14) */
+            /* terrane-site-row: site 0: /integer-coercions::main (case.trn:6:11-6:14) */
             Site {
                 function: 0,
                 file: 0,
-                line: 7,
+                line: 6,
                 column: 11,
-                end_line: 7,
+                end_line: 6,
                 end_column: 14,
             }
         },
@@ -410,7 +410,7 @@ fn main() {
     let same: terrane_int_support::Int = terrane_int_support::Int::from(value as i128);
     let exact: i8 = __terrane_raised(
         terrane_int_support::coerce::<i8>(&120),
-        0 /* terrane-site: case.trn:7:11-7:14 */,
+        0 /* terrane-site: case.trn:6:11-6:14 */,
     );
     let wrapped: u8 = terrane_int_support::wrapping_coerce::<
         u8,

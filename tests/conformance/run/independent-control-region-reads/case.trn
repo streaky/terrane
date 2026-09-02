@@ -1,5 +1,4 @@
 namespace independent-control-region-reads
-from /core/types import int8
 from /core/errors import arithmetic-overflow
 function main;
   across-if int8 = 0

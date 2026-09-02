@@ -10,11 +10,10 @@ Status labels:
 
 Source-declared and projected class, interface, and trait types have namespace-qualified nominal identity. Import aliases preserve that identity; same-named types from different namespaces remain distinct.
 
-Each bundled `/standard` package is seeded with only the private compiler intrinsic bindings needed
-by its Terrane implementation. Those bindings resolve as unqualified same-namespace names, use
-ordinary private visibility, and are therefore neither importable objects nor entries in this
-public surface map. They have compiler lowering identities rather than Terrane namespace paths;
-there is no `/internal` root or `/core/platform-*` surface.
+Every `/core/types` descriptor is available as an implicit language construct. Operational core
+tooling is not implicit: authored and bundled source must import an individual object or use
+`import /core/<facility>` to bind every public importable object in that namespace. Core tool
+symbols retain their `/core` identities; compiler-only lowering keys are not namespace objects.
 
 ## Tree
 
@@ -84,16 +83,24 @@ Terrane package
 │   │   │   ├── entry                          key/value pair constructor
 │   │   │   ├── unordered-map                  deterministic unordered map constructor
 │   │   │   └── unordered-set                  deterministic unordered set constructor
+│   │   ├── /core/codecs                       implemented compiler-backed tool namespace
+│   │   ├── /core/compression                  implemented compiler-backed tool namespace
+│   │   ├── /core/concurrency                  implemented compiler-backed tool namespace
+│   │   ├── /core/documents                    implemented compiler-backed tool namespace
+│   │   ├── /core/filesystem                   implemented compiler-backed tool namespace
+│   │   ├── /core/json                         implemented compiler-backed tool namespace
+│   │   ├── /core/networking                   implemented compiler-backed tool namespace
+│   │   ├── /core/process                      implemented compiler-backed tool namespace
+│   │   ├── /core/random                       implemented compiler-backed tool namespace
+│   │   ├── /core/streams                      implemented compiler-backed tool namespace
+│   │   ├── /core/tls                          implemented compiler-backed tool namespace
+│   │   ├── /core/urls                         implemented compiler-backed tool namespace
+│   │   ├── /core/uuid                         implemented compiler-backed tool namespace
+│   │   ├── /core/yaml                         implemented compiler-backed tool namespace
 │   │   └── /core/async
 │   │       └── task-scope                     structured task-scope constructor
 ├── default prelude
 │   ├── print                                  binding to /core/output::print
-│   ├── bool                                   type name for /core/types::bool
-│   ├── int                                    type name for /core/types::int
-│   ├── float                                  type spelling for /core/types::float64
-│   ├── string                                 type name for /core/types::string
-│   ├── bytes                                  type name for /core/types::bytes
-│   ├── none                                   type name for /core/types::none
 │   ├── utf8                                   encoding name for /core/encodings::utf8
 │   ├── utf16-le                               encoding name for /core/encodings::utf16-le
 │   ├── utf16-be                               encoding name for /core/encodings::utf16-be
@@ -223,6 +230,28 @@ Terrane package
     └── lexical block
         └── binding                            local typed value, ref, or shared ref
 ```
+
+## Compiler-backed core tooling
+
+`import /core/<facility>` binds every name in the corresponding row. These are public
+Terrane objects even when their implementation lowers through generated Rust support.
+
+|Namespace|Implemented public objects|
+|---|---|
+|`/core/codecs`|`hex-encode`, `hex-decode`, `base64-encode`, `base64-decode`, `result-failed`, `result-message`, `result-bytes`|
+|`/core/compression`|`platform-compress`, `platform-decompress`, `result-failed`, `result-resource-limit`, `result-message`, `result-bytes`|
+|`/core/concurrency`|`platform-capability`, `platform-result`, `no-capability`, `platform-int-channel`, `platform-channel-send`, `platform-channel-receive`, `platform-channel-try-receive`, `platform-int-mutex`, `platform-mutex-load`, `platform-mutex-store`, `platform-mutex-add`, `platform-int-read-write-lock`, `platform-read-write-lock-read`, `platform-read-write-lock-write`, `platform-atomic-int64`, `platform-atomic-load`, `platform-atomic-store`, `platform-atomic-add`, `platform-thread-local-int`, `platform-thread-local-get`, `platform-thread-local-set`, `result-failed`, `result-message`, `result-int`, `result-bool`, `platform-cancellation-token`, `platform-cancel`, `result-deadline-exceeded`, `result-capability`|
+|`/core/documents`|`platform-data-result`, `platform-make-none`, `platform-make-bool`, `platform-make-string`, `platform-make-integer`, `platform-make-decimal`, `platform-make-list`, `platform-list-append`, `platform-make-map`, `platform-map-insert`, `empty-document`, `data-failed`, `data-message`, `data-path`, `data-expected`, `data-encoded`, `platform-kind`, `platform-text`, `platform-coefficient`, `platform-exponent`, `platform-length`, `platform-item`, `platform-key`, `platform-field`, `validate-mapping`|
+|`/core/filesystem`|`platform-filesystem-exists`, `platform-filesystem-metadata`, `platform-filesystem-realpath`, `platform-filesystem-read-link`, `platform-filesystem-read-bounded`, `platform-filesystem-write-atomic`, `platform-filesystem-rename`, `platform-filesystem-remove`, `result-failed`, `result-message`, `result-text`, `result-detail`, `result-bytes`, `result-int`, `result-bool`, `filesystem-authority`, `acquire-filesystem-authority`, `resource-handle`, `platform-open-file`, `platform-open-directory-beneath`, `platform-open-file-beneath`, `platform-read`, `platform-write`, `platform-flush`, `platform-sync-data`, `platform-sync-all`, `platform-close`, `platform-release`|
+|`/core/json`|`platform-parse`, `platform-canonical`|
+|`/core/networking`|`platform-resource-handle`, `platform-capability`, `platform-result`, `no-resource`, `failed-result`, `parse-ip`, `platform-parse-host-name`, `parse-socket`, `parse-socket-text`, `tcp-bind`, `tcp-connect`, `tcp-connect-host`, `tcp-accept`, `tcp-read`, `tcp-write`, `tcp-shutdown`, `tcp-configure`, `udp-bind`, `udp-send-to`, `udp-receive-from`, `udp-configure`, `platform-cancellation-token`, `platform-cancel`, `dns-lookup`, `platform-close`, `result-failed`, `result-truncated`, `result-deadline-exceeded`, `result-message`, `result-text`, `result-detail`, `result-bytes`, `result-int`, `result-bool`, `result-entries`, `result-resource`|
+|`/core/process`|`platform-arguments`, `platform-environment`, `platform-exit`, `platform-value-is-text`, `platform-value-text`, `platform-value-bytes`, `platform-result`, `platform-system-host-name`, `result-failed`, `result-message`, `result-text`, `result-bool`|
+|`/core/random`|`platform-capability`, `platform-secure`, `platform-pseudo`, `random-bytes`, `random-bounded`, `random-split`, `platform-secret`, `platform-destroy-secret`, `platform-digest`, `platform-hmac`, `constant-time-equal`, `result-failed`, `result-message`, `result-bytes`, `result-int`, `result-capability`|
+|`/core/streams`|`resource-handle`, `acquire-stdin`, `acquire-stdout`, `acquire-stderr`, `platform-read`, `platform-write`, `platform-flush`, `platform-sync-data`, `platform-sync-all`, `platform-close`, `platform-release`|
+|`/core/tls`|`platform-resource-handle`, `no-resource`, `platform-client`, `tls-read`, `tls-write`, `tls-shutdown`, `platform-close`, `result-failed`, `result-deadline-exceeded`, `result-message`, `result-text`, `result-bytes`, `result-int`, `result-bool`, `result-resource`|
+|`/core/urls`|`platform-url-result`, `platform-parse`, `url-failed`, `url-message`, `url-serialized`, `url-display`, `url-scheme`, `url-username`, `url-password`, `url-host`, `url-port`, `url-path`, `url-fragment`, `url-origin`, `url-query-length`, `url-query-key`, `url-query-value`|
+|`/core/uuid`|`platform-capability`, `uuid-parse`, `uuid-v4`, `uuid-v7`, `result-failed`, `result-message`, `result-text`, `result-bytes`|
+|`/core/yaml`|`platform-parse`, `platform-canonical`|
 
 ## Implemented value types
 

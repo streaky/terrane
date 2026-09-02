@@ -1,5 +1,4 @@
 namespace negative-wrapped-shift
-from /core/types import int8
 from /core/errors import negative-shift-count
 function main;
   value int8 = 1

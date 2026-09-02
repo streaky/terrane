@@ -1,6 +1,6 @@
 namespace standard/documents
+import /core/documents
 
-from /core/types import int, bool, string
 from /core/collections import list
 
 class document-integer

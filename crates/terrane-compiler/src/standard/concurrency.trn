@@ -1,6 +1,6 @@
 namespace standard/concurrency
+import /core/concurrency
 
-from /core/types import int, int64, bool, string
 
 class operation-result
     failed bool = false

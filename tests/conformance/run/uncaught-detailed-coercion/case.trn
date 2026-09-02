@@ -1,5 +1,4 @@
 namespace uncaught-detailed-coercion
-from /core/types import int, int8
 from /core/errors import integer-conversion-overflow
 function narrow int8 throws integer-conversion-overflow; value int
   return value.coerce; int8

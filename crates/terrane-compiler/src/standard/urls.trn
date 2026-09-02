@@ -1,6 +1,6 @@
 namespace standard/urls
+import /core/urls
 
-from /core/types import int, bool, string
 from /core/collections import list
 
 class url-query

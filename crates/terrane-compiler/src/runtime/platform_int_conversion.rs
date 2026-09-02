@@ -1,4 +1,4 @@
-fn terrane_platform_i128(
+pub fn terrane_platform_i128(
     value: &terrane_int_support::Int,
     label: &str,
 ) -> Result<i128, TerranePlatformResult> {

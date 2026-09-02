@@ -98,7 +98,8 @@ impl Parser<'_> {
             {
                 self.parse_binding()
             }
-            "import" => self.parse_import_selection(),
+            "import" if self.peek_text(1) == Some("with") => self.parse_import_selection(),
+            "import" => self.parse_namespace_import(),
             "linear"
                 if matches!(
                     self.peek_text(1),
@@ -212,6 +213,18 @@ impl Parser<'_> {
         }
         children.push(self.parse_block());
         self.node(kind, start, self.position, children)
+    }
+
+    fn parse_namespace_import(&mut self) -> SyntaxNode {
+        let start = self.position;
+        self.bump();
+        let path = self.parse_namespace_path();
+        self.node(
+            SyntaxKind::ImportDeclaration,
+            start,
+            self.position,
+            vec![path],
+        )
     }
 
     fn parse_import_declaration(&mut self) -> SyntaxNode {

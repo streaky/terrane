@@ -1,0 +1,10 @@
+namespace core-tool-type-import
+
+import /core/filesystem
+
+function preserve filesystem-authority; authority filesystem-authority
+    return authority
+
+function main;
+    authority = acquire-filesystem-authority;
+    preserve; authority

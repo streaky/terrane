@@ -1,6 +1,5 @@
 namespace conformance/filesystem-durability-exports
 
-from /core/types import bool
 from /standard/paths import path
 from /standard/filesystem import filesystem, file-handle, filesystem-capability, open-file, file-sync-data, file-sync-all
 

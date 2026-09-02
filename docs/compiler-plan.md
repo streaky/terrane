@@ -404,7 +404,7 @@ Deliver:
 - duplicate, shadowing, visibility/inaccessibility, unresolved-name, and same-scope object-form collision diagnostics;
 - idempotent reimport of the same object-form export, with aliases required for distinct colliding exports;
 - fixed bootstrap importer whose milestone-3 module table registers versioned `/core/output`, `/core/types`, `/core/errors`, and `/core/collections` namespaces as structural compiler-owned modules rather than runtime calls; milestone 3 populates the first three, including all fixed-width numeric descriptor objects under `/core/types`, while `/core/collections` remains an empty reserved namespace until the iterator protocol and collections ship in milestones 13 and 14;
-- the exact default prelude bindings `print`, `int`, `float`, `bool`, `string`, `bytes`, and `none`, requiring no import at any use site;
+- the initial milestone default bindings, superseded by the current contract in which every `/core/types` descriptor is implicit construct vocabulary and the seven ordinary prelude bindings are `print`, `task-scope`, and the five encoding objects;
 - import resolution that does not create an ordinary binding automatically, and proof that an ordinary binding named `import` cannot alter structural import syntax or importer selection.
 
 Defer custom importer execution and package acquisition. The initial bootstrap environment may resolve compiler-owned modules from a fixed, versioned table.
@@ -415,9 +415,12 @@ Implemented evidence: package input now uses the authored `package.toml` contrac
 deterministically loads its complete enumerated source set before analysis. The shared
 semantic pass assembles symmetric namespace declarations, resolves exact root and parent
 imports, keeps ordinary and object-form namespaces separate, and records lexical scopes
-for parameters, local bindings, assignments, and block-local object imports. Its fixed
-bootstrap table and exact default prelude are versioned compiler-owned data. Focused
-accepted and rejected cases cover explicit object-to-ordinary binding, visibility,
+for parameters, local bindings, assignments, and block-local imports. Its fixed bootstrap
+table and exact default prelude are versioned compiler-owned data. Every `/core/types`
+descriptor also resolves as an implicit construct independently of prelude selection.
+`import /namespace` binds all public importable objects, diagnoses collisions deterministically,
+and keeps `/deps/*` selective until dependency projection supports namespace-wide imports.
+Focused accepted and rejected cases cover explicit and namespace-wide binding, visibility,
 duplicate and collision rules, idempotent reimports, `global` assignment, legal
 namespace-local shadowing of program globals, unresolved references, and ordinary
 bindings named `import`; a manifest-driven multi-source contract test exercises package
@@ -446,6 +449,7 @@ S2027 undeclared Rust dependency             S2029 projected member absent or de
 S2028 Rust dependency projection failure     S2030 retired; do not reuse
 S2031 projected member removed by version change
 S2032 forbidden capability import
+S2033 unsupported namespace-wide dependency import
 ```
 
 Retired codes remain unavailable so a stable code never acquires a second meaning.
@@ -1385,8 +1389,8 @@ typed standard error, malformed decode failure, distinct flush and sync operatio
 adapters, observable idempotent close, and both outcomes of cancellation racing an async stream
 operation. Rejected conformance covers resource transfer through assignment, ordinary calls, and
 method arguments followed by use, use after close, double close, resource-owning inheritance,
-attempted imports of the bundled package's private compiler bindings, and the removed `linear
-class` declaration qualifier. Accepted cases compile their generated
+the removed `/core/platform-streams` spelling, and the removed `linear class` declaration
+qualifier. Accepted cases compile their generated
 crates with warnings denied; canonical-Rust validation is enabled for
 the accepted cases that pass untouched structural validation. Milestone evidence:
 `cargo test -p terrane-compiler --tests` with `RUSTFLAGS=-D warnings`, plus piped executions of the
@@ -1426,9 +1430,9 @@ conformance distinguishes lexical resolution from canonicalization, rejects a tr
 and executes flush, sync-data, and sync-all against a real file descriptor alongside atomic
 replacement and rename; passes text and non-Unicode process arguments; checks parser diagnostics
 and invalid exit-status construction; and observes process exit status 7. Compiler-supplied host
-operations are private same-namespace bindings of their bundled package and cannot be imported.
-Runtime templates are split by selected standard facility so stream-only, filesystem-only, and
-process-only programs emit no unrelated host intrinsics or corresponding dead-code allowances.
+operations are public objects in purpose-named `/core` namespaces; bundled packages import those
+namespaces explicitly. Runtime templates are split by selected core or standard facility so
+stream-only, filesystem-only, and process-only programs emit no unrelated host shims.
 Resource-owning collection types are rejected before lowering, and stream operations release the
 global registry lock before per-handle blocking I/O. Untouched generated Rust passes
 warnings-denied compilation and canonical-Rust validation. Milestone evidence:
@@ -1469,8 +1473,8 @@ kind-stable JSON/YAML numbers, unconditional duplicate-key rejection, determinis
 ordering with exact number serialization, serializing and deserializing descriptor interfaces,
 document paths and unknown fields, JSON/YAML depth and size limits, YAML alias-node limits and safe
 scalar behavior, URL credential-safe display, duplicate ordered query entries, relative resolution,
-and generated-Rust compilation and execution with warnings denied. A rejection case proves that the
-private JSON parser binding in `/standard/json` cannot be imported by another namespace.
+and generated-Rust compilation and execution with warnings denied. Rejection cases prove that the
+old `/standard/json::platform-parse` implementation spelling is not exported.
 
 ### Milestone 23 — Randomness, codecs, digests, and compression
 
@@ -1497,8 +1501,8 @@ execution covers deterministic ChaCha20 generation and splitting, secure and bou
 SHA-256 and SHA-512 digests and HMAC, destroyed-key and unsupported-algorithm failures, strict codec
 padding policies, UUID parsing and v4/v7 generation, all four compression formats, explicit
 single-layer decompression, and distinct limit refusal. Rejected cases prove that pseudo-random
-values cannot satisfy secure-random parameters and that private compiler bindings in bundled
-standard packages cannot be imported directly.
+values cannot satisfy secure-random parameters and that core tools remain unavailable until their
+owning namespace or object is imported.
 
 
 ### Milestone 24 — Networking and TLS

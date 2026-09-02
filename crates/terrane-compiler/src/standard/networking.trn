@@ -1,6 +1,6 @@
 namespace standard/networking
+import /core/networking
 
-from /core/types import int, bool, string, bytes
 from /core/collections import list
 
 class operation-result

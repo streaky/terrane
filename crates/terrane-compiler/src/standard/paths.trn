@@ -1,6 +1,5 @@
 namespace standard/paths
 
-from /core/types import int, bool, string
 from /core/collections import list
 
 class path

@@ -403,9 +403,9 @@ mod __terrane_trace {
         )
     }
 }
-type TerranePlatformCapability = terrane_platform_support::Capability;
-type TerranePlatformResult = terrane_platform_support::ResultValue;
-fn terrane_platform_i128(
+pub type TerranePlatformCapability = terrane_platform_support::Capability;
+pub type TerranePlatformResult = terrane_platform_support::ResultValue;
+pub fn terrane_platform_i128(
     value: &terrane_int_support::Int,
     label: &str,
 ) -> Result<i128, TerranePlatformResult> {
@@ -488,13 +488,13 @@ fn terrane_platform_result_capability(
 ) -> TerranePlatformCapability {
     result.capability.clone().unwrap_or_default()
 }
-fn terrane_platform_parse_ip(text: String) -> TerranePlatformResult {
+pub fn terrane_platform_parse_ip(text: String) -> TerranePlatformResult {
     terrane_platform_support::parse_ip(&text)
 }
-fn terrane_platform_parse_host_name(text: String) -> TerranePlatformResult {
+pub fn terrane_platform_parse_host_name(text: String) -> TerranePlatformResult {
     terrane_platform_support::parse_host_name(&text)
 }
-fn terrane_platform_parse_socket(
+pub fn terrane_platform_parse_socket(
     ip: &String,
     port: &terrane_int_support::Int,
 ) -> TerranePlatformResult {
@@ -503,13 +503,13 @@ fn terrane_platform_parse_socket(
         terrane_platform_i128!(port, "socket port"),
     )
 }
-fn terrane_platform_parse_socket_text(text: String) -> TerranePlatformResult {
+pub fn terrane_platform_parse_socket_text(text: String) -> TerranePlatformResult {
     terrane_platform_support::parse_socket_text(&text)
 }
-fn terrane_platform_tcp_bind(address: String) -> TerranePlatformResult {
+pub fn terrane_platform_tcp_bind(address: String) -> TerranePlatformResult {
     terrane_platform_support::tcp_bind(&address)
 }
-fn terrane_platform_tcp_connect(
+pub fn terrane_platform_tcp_connect(
     address: String,
     deadline: terrane_int_support::Int,
     cancellation: &TerranePlatformCapability,
@@ -520,7 +520,7 @@ fn terrane_platform_tcp_connect(
         cancellation,
     )
 }
-fn terrane_platform_tcp_connect_host(
+pub fn terrane_platform_tcp_connect_host(
     host: String,
     port: terrane_int_support::Int,
     deadline: terrane_int_support::Int,
@@ -533,7 +533,7 @@ fn terrane_platform_tcp_connect_host(
         cancellation,
     )
 }
-fn terrane_platform_tcp_accept(
+pub fn terrane_platform_tcp_accept(
     listener: &TerranePlatformCapability,
     deadline: terrane_int_support::Int,
     cancellation: &TerranePlatformCapability,
@@ -544,7 +544,7 @@ fn terrane_platform_tcp_accept(
         cancellation,
     )
 }
-fn terrane_platform_tcp_read(
+pub fn terrane_platform_tcp_read(
     stream: &TerranePlatformCapability,
     limit: terrane_int_support::Int,
     deadline: terrane_int_support::Int,
@@ -557,7 +557,7 @@ fn terrane_platform_tcp_read(
         cancellation,
     )
 }
-fn terrane_platform_tcp_write(
+pub fn terrane_platform_tcp_write(
     stream: &TerranePlatformCapability,
     data: Vec<u8>,
     deadline: terrane_int_support::Int,
@@ -570,13 +570,13 @@ fn terrane_platform_tcp_write(
         cancellation,
     )
 }
-fn terrane_platform_tcp_shutdown(
+pub fn terrane_platform_tcp_shutdown(
     stream: &TerranePlatformCapability,
     direction: String,
 ) -> TerranePlatformResult {
     terrane_platform_support::tcp_shutdown(stream, &direction)
 }
-fn terrane_platform_tcp_configure(
+pub fn terrane_platform_tcp_configure(
     stream: &TerranePlatformCapability,
     no_delay: bool,
     ttl: terrane_int_support::Int,
@@ -587,10 +587,10 @@ fn terrane_platform_tcp_configure(
         terrane_platform_i128!(ttl, "TCP TTL"),
     )
 }
-fn terrane_platform_udp_bind(address: String) -> TerranePlatformResult {
+pub fn terrane_platform_udp_bind(address: String) -> TerranePlatformResult {
     terrane_platform_support::udp_bind(&address)
 }
-fn terrane_platform_udp_configure(
+pub fn terrane_platform_udp_configure(
     socket: &TerranePlatformCapability,
     broadcast: bool,
     ttl: terrane_int_support::Int,
@@ -601,7 +601,7 @@ fn terrane_platform_udp_configure(
         terrane_platform_i128!(ttl, "UDP TTL"),
     )
 }
-fn terrane_platform_udp_send_to(
+pub fn terrane_platform_udp_send_to(
     socket: &TerranePlatformCapability,
     data: Vec<u8>,
     address: String,
@@ -616,7 +616,7 @@ fn terrane_platform_udp_send_to(
         cancellation,
     )
 }
-fn terrane_platform_udp_receive_from(
+pub fn terrane_platform_udp_receive_from(
     socket: &TerranePlatformCapability,
     limit: terrane_int_support::Int,
     deadline: terrane_int_support::Int,
@@ -629,7 +629,7 @@ fn terrane_platform_udp_receive_from(
         cancellation,
     )
 }
-fn terrane_platform_dns_lookup(
+pub fn terrane_platform_dns_lookup(
     host: String,
     port: terrane_int_support::Int,
     deadline: terrane_int_support::Int,
@@ -642,7 +642,7 @@ fn terrane_platform_dns_lookup(
         cancellation,
     )
 }
-fn terrane_platform_close(
+pub fn terrane_platform_close(
     capability: &TerranePlatformCapability,
 ) -> TerranePlatformResult {
     terrane_platform_support::close(capability)

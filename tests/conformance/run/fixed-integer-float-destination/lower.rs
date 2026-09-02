@@ -380,90 +380,90 @@ mod __terrane_trace {
     pub static FUNCTIONS: [&str; 1] = ["/fixed-integer-float-destination::main"];
     pub static SITES: [Site; 8] = [
         {
-            /* terrane-site-row: site 0: /fixed-integer-float-destination::main (case.trn:7:28-7:36) */
+            /* terrane-site-row: site 0: /fixed-integer-float-destination::main (case.trn:6:28-6:36) */
             Site {
                 function: 0,
                 file: 0,
-                line: 7,
+                line: 6,
                 column: 28,
-                end_line: 7,
+                end_line: 6,
                 end_column: 36,
             }
         },
         {
-            /* terrane-site-row: site 1: /fixed-integer-float-destination::main (case.trn:9:30-9:40) */
+            /* terrane-site-row: site 1: /fixed-integer-float-destination::main (case.trn:8:30-8:40) */
             Site {
                 function: 0,
                 file: 0,
-                line: 9,
+                line: 8,
                 column: 30,
-                end_line: 9,
+                end_line: 8,
                 end_column: 40,
             }
         },
         {
-            /* terrane-site-row: site 2: /fixed-integer-float-destination::main (case.trn:11:29-11:38) */
+            /* terrane-site-row: site 2: /fixed-integer-float-destination::main (case.trn:10:29-10:38) */
             Site {
                 function: 0,
                 file: 0,
-                line: 11,
+                line: 10,
                 column: 29,
-                end_line: 11,
+                end_line: 10,
                 end_column: 38,
             }
         },
         {
-            /* terrane-site-row: site 3: /fixed-integer-float-destination::main (case.trn:13:31-13:42) */
+            /* terrane-site-row: site 3: /fixed-integer-float-destination::main (case.trn:12:31-12:42) */
             Site {
                 function: 0,
                 file: 0,
-                line: 13,
+                line: 12,
                 column: 31,
-                end_line: 13,
+                end_line: 12,
                 end_column: 42,
             }
         },
         {
-            /* terrane-site-row: site 4: /fixed-integer-float-destination::main (case.trn:15:28-15:36) */
+            /* terrane-site-row: site 4: /fixed-integer-float-destination::main (case.trn:14:28-14:36) */
             Site {
                 function: 0,
                 file: 0,
-                line: 15,
+                line: 14,
                 column: 28,
-                end_line: 15,
+                end_line: 14,
                 end_column: 36,
             }
         },
         {
-            /* terrane-site-row: site 5: /fixed-integer-float-destination::main (case.trn:17:29-17:52) */
+            /* terrane-site-row: site 5: /fixed-integer-float-destination::main (case.trn:16:29-16:52) */
             Site {
                 function: 0,
                 file: 0,
-                line: 17,
+                line: 16,
                 column: 29,
-                end_line: 17,
+                end_line: 16,
                 end_column: 52,
             }
         },
         {
-            /* terrane-site-row: site 6: /fixed-integer-float-destination::main (case.trn:28:26-28:35) */
+            /* terrane-site-row: site 6: /fixed-integer-float-destination::main (case.trn:27:26-27:35) */
             Site {
                 function: 0,
                 file: 0,
-                line: 28,
+                line: 27,
                 column: 26,
-                end_line: 28,
+                end_line: 27,
                 end_column: 35,
             }
         },
         {
-            /* terrane-site-row: site 7: /fixed-integer-float-destination::main (case.trn:35:26-35:35) */
+            /* terrane-site-row: site 7: /fixed-integer-float-destination::main (case.trn:34:26-34:35) */
             Site {
                 function: 0,
                 file: 0,
-                line: 35,
+                line: 34,
                 column: 26,
-                end_line: 35,
+                end_line: 34,
                 end_column: 35,
             }
         },
@@ -486,32 +486,32 @@ fn main() {
     let signed64: i64 = 9007199254740992;
     let signed64_float: f64 = __terrane_raised(
         terrane_int_support::exact_fixed_f64(signed64),
-        0 /* terrane-site: case.trn:7:28-7:36 */,
+        0 /* terrane-site: case.trn:6:28-6:36 */,
     );
     let unsigned64: u64 = 9223372036854775808;
     let unsigned64_float: f64 = __terrane_raised(
         terrane_int_support::exact_fixed_f64(unsigned64),
-        1 /* terrane-site: case.trn:9:30-9:40 */,
+        1 /* terrane-site: case.trn:8:30-8:40 */,
     );
     let signed128: i128 = -170141183460469231731687303715884105728;
     let signed128_float: f64 = __terrane_raised(
         terrane_int_support::exact_fixed_f64(signed128),
-        2 /* terrane-site: case.trn:11:29-11:38 */,
+        2 /* terrane-site: case.trn:10:29-10:38 */,
     );
     let unsigned128: u128 = 170141183460469231731687303715884105728;
     let unsigned128_float: f64 = __terrane_raised(
         terrane_int_support::exact_fixed_f64(unsigned128),
-        3 /* terrane-site: case.trn:13:31-13:42 */,
+        3 /* terrane-site: case.trn:12:31-12:42 */,
     );
     let signed32: i32 = 16777216;
     let signed32_float: f32 = __terrane_raised(
         terrane_int_support::exact_fixed_f32(signed32),
-        4 /* terrane-site: case.trn:15:28-15:36 */,
+        4 /* terrane-site: case.trn:14:28-14:36 */,
     );
     let largest_float32_integer: u128 = 340282346638528859811704183484516925440;
     let largest_float32: f32 = __terrane_raised(
         terrane_int_support::exact_fixed_f32(largest_float32_integer),
-        5 /* terrane-site: case.trn:17:29-17:52 */,
+        5 /* terrane-site: case.trn:16:29-16:52 */,
     );
     println!("{}", terrane_scalar_support::scalar_text(&signed64_float));
     println!("{}", terrane_scalar_support::scalar_text(&unsigned64_float));
@@ -523,7 +523,7 @@ fn main() {
         let __terrane_try_0: TerraneCompletion<()> = (|| {
             let inexact64: u64 = 18446744073709551615;
             let rejected64: f64 = __terrane_raised_completion!(
-                terrane_int_support::exact_fixed_f64(inexact64), 6 /* terrane-site: case.trn:28:26-28:35 */
+                terrane_int_support::exact_fixed_f64(inexact64), 6 /* terrane-site: case.trn:27:26-27:35 */
             );
             println!("{}", terrane_scalar_support::scalar_text(&rejected64));
             TerraneCompletion::Normal
@@ -564,7 +564,7 @@ fn main() {
         let __terrane_try_1: TerraneCompletion<()> = (|| {
             let inexact32: u128 = 340282366920938463463374607431768211455;
             let rejected32: f32 = __terrane_raised_completion!(
-                terrane_int_support::exact_fixed_f32(inexact32), 7 /* terrane-site: case.trn:35:26-35:35 */
+                terrane_int_support::exact_fixed_f32(inexact32), 7 /* terrane-site: case.trn:34:26-34:35 */
             );
             println!("{}", terrane_scalar_support::scalar_text(&rejected32));
             TerraneCompletion::Normal

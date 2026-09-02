@@ -1,6 +1,6 @@
 namespace standard/process
+import /core/process
 
-from /core/types import int, bool, string, bytes, none
 from /core/collections import list
 
 class platform-string

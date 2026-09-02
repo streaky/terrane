@@ -1,6 +1,6 @@
 namespace standard/yaml
+import /core/yaml
 
-from /core/types import int, string
 from /standard/documents import document-value, document-result, make-document-result
 from /standard/documents import document-mapping, decode-document
 from /standard/documents import serializable, deserializable, serialize-document, deserialize-document

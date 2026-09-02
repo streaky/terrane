@@ -1,5 +1,4 @@
 namespace declarations
-from /core/types import int8
 global namespace-value int = 12
 function main;
   local-value int8

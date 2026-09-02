@@ -380,13 +380,13 @@ mod __terrane_trace {
     pub static FUNCTIONS: [&str; 1] = ["/exact-float-narrowing::main"];
     pub static SITES: [Site; 1] = [
         {
-            /* terrane-site-row: site 0: /exact-float-narrowing::main (case.trn:5:20-5:26) */
+            /* terrane-site-row: site 0: /exact-float-narrowing::main (case.trn:4:20-4:26) */
             Site {
                 function: 0,
                 file: 0,
-                line: 5,
+                line: 4,
                 column: 20,
-                end_line: 5,
+                end_line: 4,
                 end_column: 26,
             }
         },
@@ -422,7 +422,7 @@ fn main() {
                         "the floating value is not exactly representable",
                     ),
                 ),
-                0 /* terrane-site: case.trn:5:20-5:26 */,
+                0 /* terrane-site: case.trn:4:20-4:26 */,
             )
         }
     };

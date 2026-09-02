@@ -1,6 +1,6 @@
 namespace standard/streams
+import /core/streams
 
-from /core/types import int, bool, string, bytes, encoding
 from /core/encodings import utf8
 from /core/errors import decode-error
 

@@ -3,65 +3,65 @@ pub struct TerraneFilesystemAuthority {
     _private: (),
 }
 
-fn terrane_acquire_filesystem_authority() -> TerraneFilesystemAuthority {
+pub fn terrane_acquire_filesystem_authority() -> TerraneFilesystemAuthority {
     TerraneFilesystemAuthority { _private: () }
 }
 
 
 #[derive(Clone, Default)]
 pub struct TerraneFilesystemResult {
-    failed: bool,
-    message: String,
-    text: String,
-    detail: String,
-    data: Vec<u8>,
-    number: i128,
-    flag: bool,
+    pub failed: bool,
+    pub message: String,
+    pub text: String,
+    pub detail: String,
+    pub data: Vec<u8>,
+    pub number: i128,
+    pub flag: bool,
 }
 
 
 
-fn terrane_io_error(error: std::io::Error) -> TerraneFilesystemResult {
+pub fn terrane_io_error(error: std::io::Error) -> TerraneFilesystemResult {
     TerraneFilesystemResult {
         failed: true,
         message: error.to_string(),
         ..TerraneFilesystemResult::default()
     }
 }
-fn terrane_filesystem_result_failed(result: &TerraneFilesystemResult) -> bool {
+pub fn terrane_filesystem_result_failed(result: &TerraneFilesystemResult) -> bool {
     result.failed
 }
-fn terrane_filesystem_result_message(result: &TerraneFilesystemResult) -> String {
+pub fn terrane_filesystem_result_message(result: &TerraneFilesystemResult) -> String {
     result.message.clone()
 }
-fn terrane_filesystem_result_text(result: &TerraneFilesystemResult) -> String {
+pub fn terrane_filesystem_result_text(result: &TerraneFilesystemResult) -> String {
     result.text.clone()
 }
-fn terrane_filesystem_result_detail(result: &TerraneFilesystemResult) -> String {
+pub fn terrane_filesystem_result_detail(result: &TerraneFilesystemResult) -> String {
     result.detail.clone()
 }
-fn terrane_filesystem_result_bytes(result: &TerraneFilesystemResult) -> Vec<u8> {
+pub fn terrane_filesystem_result_bytes(result: &TerraneFilesystemResult) -> Vec<u8> {
     result.data.clone()
 }
-fn terrane_filesystem_result_int(result: &TerraneFilesystemResult) -> terrane_int_support::Int {
+pub fn terrane_filesystem_result_int(result: &TerraneFilesystemResult) -> terrane_int_support::Int {
     terrane_int_support::Int::from(result.number)
 }
-fn terrane_filesystem_result_bool(result: &TerraneFilesystemResult) -> bool {
+pub fn terrane_filesystem_result_bool(result: &TerraneFilesystemResult) -> bool {
     result.flag
 }
 
 #[cfg(unix)]
-fn terrane_permission_detail(metadata: &std::fs::Metadata) -> String {
+pub fn terrane_permission_detail(metadata: &std::fs::Metadata) -> String {
     use std::os::unix::fs::PermissionsExt as _;
     format!("unix-mode:{:04o}", metadata.permissions().mode() & 0o7777)
 }
 
 #[cfg(not(unix))]
-fn terrane_permission_detail(metadata: &std::fs::Metadata) -> String {
+pub fn terrane_permission_detail(metadata: &std::fs::Metadata) -> String {
     format!("readonly:{}", metadata.permissions().readonly())
 }
 
-fn terrane_metadata(path: &std::path::Path, follow: bool) -> TerraneFilesystemResult {
+pub fn terrane_metadata(path: &std::path::Path, follow: bool) -> TerraneFilesystemResult {
     let metadata = if follow {
         std::fs::metadata(path)
     } else {
@@ -97,7 +97,7 @@ fn terrane_metadata(path: &std::path::Path, follow: bool) -> TerraneFilesystemRe
     }
 }
 
-fn terrane_atomic_replace(path: &std::path::Path, data: &[u8]) -> std::io::Result<()> {
+pub fn terrane_atomic_replace(path: &std::path::Path, data: &[u8]) -> std::io::Result<()> {
     use std::io::Write as _;
     let parent = path
         .parent()
@@ -141,7 +141,7 @@ fn terrane_atomic_replace(path: &std::path::Path, data: &[u8]) -> std::io::Resul
 }
 
 
-fn terrane_filesystem_exists(path: String) -> TerraneFilesystemResult {
+pub fn terrane_filesystem_exists(path: String) -> TerraneFilesystemResult {
     match std::path::Path::new(&path).try_exists() {
         Ok(exists) => TerraneFilesystemResult {
             flag: exists,
@@ -151,11 +151,11 @@ fn terrane_filesystem_exists(path: String) -> TerraneFilesystemResult {
     }
 }
 
-fn terrane_filesystem_metadata(path: String, follow: bool) -> TerraneFilesystemResult {
+pub fn terrane_filesystem_metadata(path: String, follow: bool) -> TerraneFilesystemResult {
     terrane_metadata(std::path::Path::new(&path), follow)
 }
 
-fn terrane_filesystem_realpath(path: String) -> TerraneFilesystemResult {
+pub fn terrane_filesystem_realpath(path: String) -> TerraneFilesystemResult {
     match std::fs::canonicalize(path).and_then(terrane_path_text) {
         Ok(value) => TerraneFilesystemResult {
             text: value,
@@ -165,7 +165,7 @@ fn terrane_filesystem_realpath(path: String) -> TerraneFilesystemResult {
     }
 }
 
-fn terrane_filesystem_read_link(path: String) -> TerraneFilesystemResult {
+pub fn terrane_filesystem_read_link(path: String) -> TerraneFilesystemResult {
     match std::fs::read_link(path).and_then(terrane_path_text) {
         Ok(value) => TerraneFilesystemResult {
             text: value,
@@ -175,7 +175,7 @@ fn terrane_filesystem_read_link(path: String) -> TerraneFilesystemResult {
     }
 }
 
-fn terrane_filesystem_read_bounded(
+pub fn terrane_filesystem_read_bounded(
     path: String,
     limit: impl Into<terrane_int_support::Int>,
 ) -> TerraneFilesystemResult {
@@ -203,28 +203,28 @@ fn terrane_filesystem_read_bounded(
     }
 }
 
-fn terrane_filesystem_write_atomic(path: String, data: Vec<u8>) -> TerraneFilesystemResult {
+pub fn terrane_filesystem_write_atomic(path: String, data: Vec<u8>) -> TerraneFilesystemResult {
     match terrane_atomic_replace(std::path::Path::new(&path), &data) {
         Ok(()) => TerraneFilesystemResult::default(),
         Err(error) => terrane_io_error(error),
     }
 }
 
-fn terrane_filesystem_remove(path: String) -> TerraneFilesystemResult {
+pub fn terrane_filesystem_remove(path: String) -> TerraneFilesystemResult {
     match std::fs::remove_file(path) {
         Ok(()) => TerraneFilesystemResult::default(),
         Err(error) => terrane_io_error(error),
     }
 }
 
-fn terrane_filesystem_rename(source: String, destination: String) -> TerraneFilesystemResult {
+pub fn terrane_filesystem_rename(source: String, destination: String) -> TerraneFilesystemResult {
     match std::fs::rename(source, destination) {
         Ok(()) => TerraneFilesystemResult::default(),
         Err(error) => terrane_io_error(error),
     }
 }
 
-fn terrane_path_text(path: std::path::PathBuf) -> std::io::Result<String> {
+pub fn terrane_path_text(path: std::path::PathBuf) -> std::io::Result<String> {
     path.into_os_string().into_string().map_err(|_| {
         std::io::Error::new(
             std::io::ErrorKind::InvalidData,

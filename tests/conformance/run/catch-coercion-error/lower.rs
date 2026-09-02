@@ -380,13 +380,13 @@ mod __terrane_trace {
     pub static FUNCTIONS: [&str; 1] = ["/catch-coercion-error::main"];
     pub static SITES: [Site; 1] = [
         {
-            /* terrane-site-row: site 0: /catch-coercion-error::main (case.trn:7:19-7:24) */
+            /* terrane-site-row: site 0: /catch-coercion-error::main (case.trn:6:19-6:24) */
             Site {
                 function: 0,
                 file: 0,
-                line: 7,
+                line: 6,
                 column: 19,
-                end_line: 7,
+                end_line: 6,
                 end_column: 24,
             }
         },
@@ -410,7 +410,7 @@ fn main() {
     let __terrane_completion_0: TerraneCompletion<()> = (|| {
         let __terrane_try_0: TerraneCompletion<()> = (|| {
             let narrow: i8 = __terrane_raised_completion!(
-                terrane_int_support::coerce:: < i8 > (&value), 0 /* terrane-site: case.trn:7:19-7:24 */
+                terrane_int_support::coerce:: < i8 > (&value), 0 /* terrane-site: case.trn:6:19-6:24 */
             );
             println!("{}", terrane_scalar_support::scalar_text(&narrow));
             TerraneCompletion::Normal

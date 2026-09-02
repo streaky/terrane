@@ -380,13 +380,13 @@ mod __terrane_trace {
     pub static FUNCTIONS: [&str; 1] = ["/negative-wrapped-shift::main"];
     pub static SITES: [Site; 1] = [
         {
-            /* terrane-site-row: site 0: /negative-wrapped-shift::main (case.trn:7:13-7:38) */
+            /* terrane-site-row: site 0: /negative-wrapped-shift::main (case.trn:6:13-6:38) */
             Site {
                 function: 0,
                 file: 0,
-                line: 7,
+                line: 6,
                 column: 13,
-                end_line: 7,
+                end_line: 6,
                 end_column: 38,
             }
         },
@@ -412,7 +412,7 @@ fn main() {
             println!(
                 "{}",
                 terrane_scalar_support::scalar_text(&__terrane_raised_completion!(terrane_int_support::fixed_shift_left_wrap(value,
-                &- terrane_int_support::Int::from(1_i128)), 0 /* terrane-site: case.trn:7:13-7:38 */))
+                &- terrane_int_support::Int::from(1_i128)), 0 /* terrane-site: case.trn:6:13-6:38 */))
             );
             TerraneCompletion::Normal
         })();

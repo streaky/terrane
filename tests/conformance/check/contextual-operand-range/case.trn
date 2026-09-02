@@ -1,5 +1,4 @@
 namespace contextual-operand-range
-from /core/types import int8
 function main;
   gauge int8 = 0
   print; gauge + 200

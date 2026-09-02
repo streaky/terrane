@@ -1,5 +1,4 @@
 namespace numeric-destination-conversion
-from /core/types import int8, int32, int64, float, none
 
 function main;
   small int8 = 12

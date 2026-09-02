@@ -1,6 +1,6 @@
 namespace standard/random
+import /core/random
 
-from /core/types import int, bool, string, bytes
 
 class byte-result
     failed bool = false

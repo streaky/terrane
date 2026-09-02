@@ -141,6 +141,7 @@ global shared-limit int = 10
 use (system) sqlite
 from /image/codec import resize
 from /core/collections import map as ordered-map
+import /core/filesystem
 from ../shared/config import settings
 import with custom-import
 ```
@@ -149,6 +150,8 @@ Rules:
 
 - `use` declares a build dependency; it does not automatically bind supplied names.
 - `from ... import x` binds ordinary `x` in the scope containing the import; `as` renames it. No declare-then-bind step.
+- `import /namespace` binds every public function-body object under its declared name; identities stay in the source namespace, private objects remain hidden, and any collision is `S2011`.
+- Namespace-wide imports have no alias clause; resolve collisions with selective `from ... import ... as ...`. `/deps/*` remains selective-only until dependency projection supports namespace-wide imports.
 - Prelude names and descriptor constructs need NO import: `print; value` and `value int8 = 42` are complete programs. Importing `print` or `int8` is redundant, not required, and should not appear in examples or fixtures unless the case is specifically about importing.
 
 - Imports are structural compile-time slots, never ordinary calls/bindings.
@@ -163,18 +166,18 @@ Rules:
 Version-one default ordinary program-global bindings EXACTLY:
 
 ```text
-print task-scope int float bool string bytes none utf8 utf16-le utf16-be utf32-le utf32-be
+print task-scope utf8 utf16-le utf16-be utf32-le utf32-be
 ```
 
-- These need no import. `print; value` is a complete statement and `scope = task-scope;` creates a structured-concurrency scope in a program with no import lines at all.
+- These seven need no import. `print; value` is a complete statement and `scope = task-scope;` creates a structured-concurrency scope in a program with no import lines at all.
 - Prelude may be disabled.
 - Explicit `/core` object imports still work and may shadow/replace defaults deliberately.
-- Library facilities such as `map`, `list`, `range`, `file` are NOT implicit prelude bindings; import them.
-- Fixed-width numeric descriptors are NOT prelude bindings and NOT reserved words. They are descriptor constructs available without import, a separate category from the thirteen ordinary bindings above.
+- Library facilities such as `map`, `list`, `range`, and filesystem tools are NOT implicit prelude bindings; import them.
+- Every `/core/types` descriptor — scalar, fixed-width, abstract category, `string`, `bytes`, and `none` — is construct vocabulary available without import independently of prelude selection.
 
 ```yaml
-prelude_bindings: the thirteen ordinary program-globals listed above; unchanged
-descriptor_constructs: int8.int128, uint8.uint128, float32, float64, and the abstract category descriptors
+prelude_bindings: the seven ordinary program-globals listed above
+descriptor_constructs: every descriptor registered under /core/types
 construct_availability: usable in construct position without import ('value int8 = 42')
 construct_value_use: still rejected in value position; a construct is not a runtime value
 explicit_import: remains available for rebinding, aliasing, and shadowing ('from /core/types import int64 as word')
@@ -836,11 +839,11 @@ prelude = true            # optional; defaults true
 ```yaml
 rule: standard facilities are written in TERRANE over a deliberately minimal Rust core
 namespace_layers:
-  /core: public normative language objects supplied by compiler bootstrap; a name here need not have Terrane source
+  /core: public normative compiler-supplied surface; /core/types descriptors are implicit constructs, operational namespaces require explicit object or namespace-wide import
   /standard: public compiler-shipped Terrane packages built over /core and included through ordinary bundled-source compilation
-private_host_abi: compiler seeds each bundled /standard namespace with only its required private intrinsic bindings; bundled source uses unqualified same-namespace names, other namespaces cannot import them
-intrinsic_identity: compiler lowering key, NEVER a Terrane namespace path
-placement_rule: reusable normative compiler-supplied type/operation belongs under its public /core parent; only irreducible package implementation machinery is private
+standard_source_rule: bundled source uses the same explicit `import /core/<facility>` form as authored source; no seeded local names
+identity_rule: public tools retain /core/<facility>::<name> semantic identities and carry separate compiler-only lowering keys
+rust_visibility: generated Rust shims and ABI types named by public core tools are public so split support artifacts remain callable
 no_internal_root: /internal does not exist as a language-owned namespace; /core/platform-* aliases do not exist
 why_decisive: a Rust support crate is permanently opaque to the compiler - implementing a facility in Rust forecloses inlining, specialisation, and whole-program analysis for it forever
 why_also: exercises lowering against real code; builds a corpus before a public one exists; failures surface as readable Terrane frames, which a Rust crate can never give
