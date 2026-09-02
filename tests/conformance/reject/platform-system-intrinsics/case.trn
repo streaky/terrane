@@ -1,5 +1,5 @@
 namespace platform-system-intrinsics
-from /core/platform-system import process-exit
+from /standard/process import platform-exit
 
 function main;
-    process-exit; 0
+    platform-exit; 0

@@ -2,19 +2,6 @@ namespace standard/documents
 
 from /core/types import int, bool, string
 from /core/collections import list
-from /core/platform-data import platform-data-result
-from /core/platform-data import make-document-none as platform-make-none, make-document-bool as platform-make-bool
-from /core/platform-data import make-document-string as platform-make-string, make-document-integer as platform-make-integer
-from /core/platform-data import make-document-decimal as platform-make-decimal, make-document-list as platform-make-list
-from /core/platform-data import document-list-append as platform-list-append, make-document-map as platform-make-map
-from /core/platform-data import document-map-insert as platform-map-insert
-from /core/platform-data import empty-document
-from /core/platform-data import data-failed, data-message, data-path, data-expected, data-encoded
-from /core/platform-data import document-kind as platform-kind, document-text as platform-text
-from /core/platform-data import document-coefficient as platform-coefficient, document-exponent as platform-exponent
-from /core/platform-data import document-length as platform-length, document-item as platform-item
-from /core/platform-data import document-key as platform-key, document-field as platform-field
-from /core/platform-data import validate-mapping
 
 class document-integer
     text string = '0'

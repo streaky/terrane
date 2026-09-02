@@ -380,13 +380,13 @@ mod __terrane_trace {
     pub static FUNCTIONS: [&str; 1] = ["/standard/networking::lookup-dns"];
     pub static SITES: [Site; 1] = [
         {
-            /* terrane-site-row: site 0: /standard/networking::lookup-dns (standard/networking.trn:326:28-326:49) */
+            /* terrane-site-row: site 0: /standard/networking::lookup-dns (standard/networking.trn:320:28-320:49) */
             Site {
                 function: 0,
                 file: 0,
-                line: 326,
+                line: 320,
                 column: 28,
-                end_line: 326,
+                end_line: 320,
                 end_column: 49,
             }
         },
@@ -1718,7 +1718,7 @@ pub fn lookup_dns(
                             __terrane_raised(
                                 terrane_collection_support::index_from_int(&index.clone()),
 
-                                    0 /* terrane-site: standard/networking.trn:326:28-326:49 */,
+                                    0 /* terrane-site: standard/networking.trn:320:28-320:49 */,
                             ),
                         )
                         .cloned()
@@ -1726,10 +1726,10 @@ pub fn lookup_dns(
                             index: __terrane_raised(
                                 terrane_collection_support::index_from_int(&index.clone()),
 
-                                    0 /* terrane-site: standard/networking.trn:326:28-326:49 */,
+                                    0 /* terrane-site: standard/networking.trn:320:28-320:49 */,
                             ),
                         }),
-                    0 /* terrane-site: standard/networking.trn:326:28-326:49 */,
+                    0 /* terrane-site: standard/networking.trn:320:28-320:49 */,
                 ),
             );
         index = index.clone() + terrane_int_support::Int::from(1_i128);

@@ -3,13 +3,6 @@ namespace standard/streams
 from /core/types import int, bool, string, bytes, encoding
 from /core/encodings import utf8
 from /core/errors import decode-error
-from /core/platform-streams import resource-handle, acquire-stdin, acquire-stdout, acquire-stderr
-from /core/platform-streams import read as platform-read, write as platform-write
-from /core/platform-streams import flush as platform-flush
-from /core/platform-streams import sync-data as platform-sync-data
-from /core/platform-streams import sync-all as platform-sync-all
-from /core/platform-streams import close as platform-close
-from /core/platform-streams import release as platform-release
 
 class operation-result
     failed bool = false

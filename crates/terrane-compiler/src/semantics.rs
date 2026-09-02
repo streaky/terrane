@@ -1097,13 +1097,9 @@ pub fn analyze(package: &Package) -> Result<SemanticPackage, SemanticFailure> {
             "/core/output"
                 | "/core/types"
                 | "/core/errors"
+                | "/core/encodings"
                 | "/core/collections"
-                | "/core/platform-streams"
-                | "/core/platform-system"
-                | "/core/platform-data"
-                | "/core/platform-capabilities"
-                | "/core/platform-concurrency"
-                | "/core/platform-adapters"
+                | "/core/async"
         ) || ((unit.namespace == "/deps" || unit.namespace.starts_with("/deps/")) && !bundled)
             || (crate::bundled::source(&unit.namespace).is_some() && !bundled)
         {
@@ -2043,35 +2039,6 @@ fn imported_object(
     import: &Import,
     namespaces: &BTreeMap<String, Namespace>,
 ) -> Result<Symbol, SemanticFailure> {
-    if matches!(
-        import.target.as_str(),
-        "/core/platform-streams"
-            | "/core/platform-system"
-            | "/core/platform-data"
-            | "/core/platform-capabilities"
-            | "/core/platform-concurrency"
-            | "/core/platform-adapters"
-    ) && !import.bundled
-    {
-        let facility = match import.target.as_str() {
-            "/core/platform-streams" => "`/standard/streams`",
-            "/core/platform-data" => {
-                "`/standard/documents`, `/standard/json`, `/standard/yaml`, or `/standard/urls`"
-            }
-            "/core/platform-capabilities" => {
-                "`/standard/random`, `/standard/codecs`, `/standard/compression`, `/standard/uuid`, `/standard/networking`, or `/standard/tls`"
-            }
-            "/core/platform-concurrency" => "`/standard/concurrency`",
-            "/core/platform-adapters" => "`/standard/process`",
-            _ => "`/standard/filesystem` or `/standard/process`",
-        };
-        return Err(failure(
-            &import.source,
-            "T0100",
-            format!("host intrinsics are private to the bundled {facility} package"),
-            import.span,
-        ));
-    }
     let export = namespaces
         .get(&import.target)
         .and_then(|namespace| namespace.symbols.get(&import.object))
@@ -4569,7 +4536,7 @@ fn infer_receiver_consumption(package: &mut SemanticPackage) {
                     .map(|symbol| symbol.identity.as_str());
                 if matches!(
                     identity,
-                    Some("/core/platform-streams::close" | "/core/platform-streams::release")
+                    Some("intrinsic:streams::close" | "intrinsic:streams::release")
                 ) && arguments
                     .first()
                     .and_then(|argument| argument.children.last())
@@ -7241,199 +7208,187 @@ fn infer_value_type(
                 && let Some(identity) = resolved_name_identity(unit, callee)
             {
                 let platform_result = match identity {
-                    "/core/platform-streams::acquire-stdin"
-                    | "/core/platform-streams::acquire-stdout"
-                    | "/core/platform-streams::acquire-stderr" => {
-                        Some(ValueType::PlatformStreamHandle)
-                    }
-                    "/core/platform-system::acquire-filesystem-authority" => {
+                    "intrinsic:streams::acquire-stdin"
+                    | "intrinsic:streams::acquire-stdout"
+                    | "intrinsic:streams::acquire-stderr" => Some(ValueType::PlatformStreamHandle),
+                    "intrinsic:system::acquire-filesystem-authority" => {
                         Some(ValueType::FilesystemAuthority)
                     }
-                    "/core/platform-streams::open-file"
-                    | "/core/platform-streams::open-directory-beneath"
-                    | "/core/platform-streams::open-file-beneath" => {
-                        Some(ValueType::PlatformOpenResult)
-                    }
-                    "/core/platform-streams::read" => Some(ValueType::PlatformReadResult),
-                    "/core/platform-streams::write" => Some(ValueType::PlatformWriteResult),
-                    "/core/platform-streams::flush"
-                    | "/core/platform-streams::sync-data"
-                    | "/core/platform-streams::sync-all"
-                    | "/core/platform-streams::close"
-                    | "/core/platform-streams::release" => Some(ValueType::PlatformUnitResult),
-                    "/core/platform-data::empty-document"
-                    | "/core/platform-data::make-document-none"
-                    | "/core/platform-data::make-document-bool"
-                    | "/core/platform-data::make-document-string"
-                    | "/core/platform-data::make-document-integer"
-                    | "/core/platform-data::make-document-decimal"
-                    | "/core/platform-data::make-document-list"
-                    | "/core/platform-data::make-document-map"
-                    | "/core/platform-data::document-list-append"
-                    | "/core/platform-data::document-map-insert"
-                    | "/core/platform-data::json-parse"
-                    | "/core/platform-data::json-canonical"
-                    | "/core/platform-data::yaml-parse"
-                    | "/core/platform-data::document-item"
-                    | "/core/platform-data::document-field"
-                    | "/core/platform-data::validate-mapping" => {
-                        Some(ValueType::PlatformDataResult)
-                    }
-                    "/core/platform-data::url-parse" => Some(ValueType::PlatformUrlResult),
-                    "/core/platform-capabilities::secure-random"
-                    | "/core/platform-capabilities::cancellation-token"
-                    | "/core/platform-capabilities::pseudo-random"
-                    | "/core/platform-capabilities::secret-buffer"
-                    | "/core/platform-capabilities::result-capability"
-                    | "/core/platform-concurrency::platform-capability"
-                    | "/core/platform-concurrency::no-capability" => {
-                        Some(ValueType::PlatformCapability)
-                    }
-                    "/core/platform-capabilities::result-resource"
-                    | "/core/platform-capabilities::no-resource" => {
+                    "intrinsic:streams::open-file"
+                    | "intrinsic:streams::open-directory-beneath"
+                    | "intrinsic:streams::open-file-beneath" => Some(ValueType::PlatformOpenResult),
+                    "intrinsic:streams::read" => Some(ValueType::PlatformReadResult),
+                    "intrinsic:streams::write" => Some(ValueType::PlatformWriteResult),
+                    "intrinsic:streams::flush"
+                    | "intrinsic:streams::sync-data"
+                    | "intrinsic:streams::sync-all"
+                    | "intrinsic:streams::close"
+                    | "intrinsic:streams::release" => Some(ValueType::PlatformUnitResult),
+                    "intrinsic:data::empty-document"
+                    | "intrinsic:data::make-document-none"
+                    | "intrinsic:data::make-document-bool"
+                    | "intrinsic:data::make-document-string"
+                    | "intrinsic:data::make-document-integer"
+                    | "intrinsic:data::make-document-decimal"
+                    | "intrinsic:data::make-document-list"
+                    | "intrinsic:data::make-document-map"
+                    | "intrinsic:data::document-list-append"
+                    | "intrinsic:data::document-map-insert"
+                    | "intrinsic:data::json-parse"
+                    | "intrinsic:data::json-canonical"
+                    | "intrinsic:data::yaml-parse"
+                    | "intrinsic:data::document-item"
+                    | "intrinsic:data::document-field"
+                    | "intrinsic:data::validate-mapping" => Some(ValueType::PlatformDataResult),
+                    "intrinsic:data::url-parse" => Some(ValueType::PlatformUrlResult),
+                    "intrinsic:capabilities::secure-random"
+                    | "intrinsic:capabilities::cancellation-token"
+                    | "intrinsic:capabilities::pseudo-random"
+                    | "intrinsic:capabilities::secret-buffer"
+                    | "intrinsic:capabilities::result-capability"
+                    | "intrinsic:concurrency::platform-capability"
+                    | "intrinsic:concurrency::no-capability" => Some(ValueType::PlatformCapability),
+                    "intrinsic:capabilities::result-resource"
+                    | "intrinsic:capabilities::no-resource" => {
                         Some(ValueType::PlatformResourceHandle)
                     }
-                    "/core/platform-capabilities::failed-result"
-                    | "/core/platform-capabilities::random-bytes"
-                    | "/core/platform-capabilities::random-bounded"
-                    | "/core/platform-capabilities::random-split"
-                    | "/core/platform-capabilities::digest"
-                    | "/core/platform-capabilities::hmac"
-                    | "/core/platform-capabilities::destroy-secret"
-                    | "/core/platform-capabilities::hex-decode"
-                    | "/core/platform-capabilities::base64-decode"
-                    | "/core/platform-capabilities::uuid-parse"
-                    | "/core/platform-capabilities::uuid-v4"
-                    | "/core/platform-capabilities::uuid-v7"
-                    | "/core/platform-capabilities::compress"
-                    | "/core/platform-capabilities::decompress"
-                    | "/core/platform-capabilities::parse-ip"
-                    | "/core/platform-capabilities::parse-host-name"
-                    | "/core/platform-capabilities::parse-socket"
-                    | "/core/platform-capabilities::parse-socket-text"
-                    | "/core/platform-capabilities::tcp-bind"
-                    | "/core/platform-capabilities::tcp-connect"
-                    | "/core/platform-capabilities::tcp-connect-host"
-                    | "/core/platform-capabilities::tcp-accept"
-                    | "/core/platform-capabilities::tcp-read"
-                    | "/core/platform-capabilities::tcp-write"
-                    | "/core/platform-capabilities::tcp-shutdown"
-                    | "/core/platform-capabilities::tcp-configure"
-                    | "/core/platform-capabilities::udp-bind"
-                    | "/core/platform-capabilities::udp-configure"
-                    | "/core/platform-capabilities::udp-send-to"
-                    | "/core/platform-capabilities::udp-receive-from"
-                    | "/core/platform-capabilities::dns-lookup"
-                    | "/core/platform-capabilities::tls-client"
-                    | "/core/platform-capabilities::tls-read"
-                    | "/core/platform-capabilities::tls-write"
-                    | "/core/platform-capabilities::tls-shutdown"
-                    | "/core/platform-capabilities::cancel"
-                    | "/core/platform-capabilities::close"
-                    | "/core/platform-concurrency::platform-result"
-                    | "/core/platform-concurrency::int-channel"
-                    | "/core/platform-concurrency::int-mutex"
-                    | "/core/platform-concurrency::int-read-write-lock"
-                    | "/core/platform-concurrency::atomic-int64"
-                    | "/core/platform-concurrency::thread-local-int"
-                    | "/core/platform-concurrency::int-channel-send"
-                    | "/core/platform-concurrency::int-channel-receive"
-                    | "/core/platform-concurrency::int-channel-try-receive"
-                    | "/core/platform-concurrency::int-mutex-load"
-                    | "/core/platform-concurrency::int-mutex-store"
-                    | "/core/platform-concurrency::int-mutex-add"
-                    | "/core/platform-concurrency::int-read-write-lock-read"
-                    | "/core/platform-concurrency::int-read-write-lock-write"
-                    | "/core/platform-concurrency::atomic-int64-load"
-                    | "/core/platform-concurrency::atomic-int64-store"
-                    | "/core/platform-concurrency::atomic-int64-add"
-                    | "/core/platform-concurrency::thread-local-int-get"
-                    | "/core/platform-concurrency::thread-local-int-set"
-                    | "/core/platform-adapters::platform-result"
-                    | "/core/platform-adapters::system-host-name" => {
-                        Some(ValueType::PlatformResult)
-                    }
-                    "/core/platform-system::filesystem-exists"
-                    | "/core/platform-system::filesystem-metadata"
-                    | "/core/platform-system::filesystem-realpath"
-                    | "/core/platform-system::filesystem-read-link"
-                    | "/core/platform-system::filesystem-read-bounded"
-                    | "/core/platform-system::filesystem-write-atomic"
-                    | "/core/platform-system::filesystem-rename"
-                    | "/core/platform-system::filesystem-remove" => {
+                    "intrinsic:capabilities::failed-result"
+                    | "intrinsic:capabilities::random-bytes"
+                    | "intrinsic:capabilities::random-bounded"
+                    | "intrinsic:capabilities::random-split"
+                    | "intrinsic:capabilities::digest"
+                    | "intrinsic:capabilities::hmac"
+                    | "intrinsic:capabilities::destroy-secret"
+                    | "intrinsic:capabilities::hex-decode"
+                    | "intrinsic:capabilities::base64-decode"
+                    | "intrinsic:capabilities::uuid-parse"
+                    | "intrinsic:capabilities::uuid-v4"
+                    | "intrinsic:capabilities::uuid-v7"
+                    | "intrinsic:capabilities::compress"
+                    | "intrinsic:capabilities::decompress"
+                    | "intrinsic:capabilities::parse-ip"
+                    | "intrinsic:capabilities::parse-host-name"
+                    | "intrinsic:capabilities::parse-socket"
+                    | "intrinsic:capabilities::parse-socket-text"
+                    | "intrinsic:capabilities::tcp-bind"
+                    | "intrinsic:capabilities::tcp-connect"
+                    | "intrinsic:capabilities::tcp-connect-host"
+                    | "intrinsic:capabilities::tcp-accept"
+                    | "intrinsic:capabilities::tcp-read"
+                    | "intrinsic:capabilities::tcp-write"
+                    | "intrinsic:capabilities::tcp-shutdown"
+                    | "intrinsic:capabilities::tcp-configure"
+                    | "intrinsic:capabilities::udp-bind"
+                    | "intrinsic:capabilities::udp-configure"
+                    | "intrinsic:capabilities::udp-send-to"
+                    | "intrinsic:capabilities::udp-receive-from"
+                    | "intrinsic:capabilities::dns-lookup"
+                    | "intrinsic:capabilities::tls-client"
+                    | "intrinsic:capabilities::tls-read"
+                    | "intrinsic:capabilities::tls-write"
+                    | "intrinsic:capabilities::tls-shutdown"
+                    | "intrinsic:capabilities::cancel"
+                    | "intrinsic:capabilities::close"
+                    | "intrinsic:concurrency::platform-result"
+                    | "intrinsic:concurrency::int-channel"
+                    | "intrinsic:concurrency::int-mutex"
+                    | "intrinsic:concurrency::int-read-write-lock"
+                    | "intrinsic:concurrency::atomic-int64"
+                    | "intrinsic:concurrency::thread-local-int"
+                    | "intrinsic:concurrency::int-channel-send"
+                    | "intrinsic:concurrency::int-channel-receive"
+                    | "intrinsic:concurrency::int-channel-try-receive"
+                    | "intrinsic:concurrency::int-mutex-load"
+                    | "intrinsic:concurrency::int-mutex-store"
+                    | "intrinsic:concurrency::int-mutex-add"
+                    | "intrinsic:concurrency::int-read-write-lock-read"
+                    | "intrinsic:concurrency::int-read-write-lock-write"
+                    | "intrinsic:concurrency::atomic-int64-load"
+                    | "intrinsic:concurrency::atomic-int64-store"
+                    | "intrinsic:concurrency::atomic-int64-add"
+                    | "intrinsic:concurrency::thread-local-int-get"
+                    | "intrinsic:concurrency::thread-local-int-set"
+                    | "intrinsic:adapters::platform-result"
+                    | "intrinsic:adapters::system-host-name" => Some(ValueType::PlatformResult),
+                    "intrinsic:system::filesystem-exists"
+                    | "intrinsic:system::filesystem-metadata"
+                    | "intrinsic:system::filesystem-realpath"
+                    | "intrinsic:system::filesystem-read-link"
+                    | "intrinsic:system::filesystem-read-bounded"
+                    | "intrinsic:system::filesystem-write-atomic"
+                    | "intrinsic:system::filesystem-rename"
+                    | "intrinsic:system::filesystem-remove" => {
                         Some(ValueType::PlatformFilesystemResult)
                     }
-                    "/core/platform-system::result-failed"
-                    | "/core/platform-system::result-bool"
-                    | "/core/platform-system::platform-value-is-text"
-                    | "/core/platform-data::data-failed"
-                    | "/core/platform-data::url-failed"
-                    | "/core/platform-capabilities::constant-time-equal"
-                    | "/core/platform-capabilities::result-failed"
-                    | "/core/platform-capabilities::result-resource-limit"
-                    | "/core/platform-capabilities::result-truncated"
-                    | "/core/platform-capabilities::result-deadline-exceeded"
-                    | "/core/platform-capabilities::result-bool"
-                    | "/core/platform-concurrency::result-failed"
-                    | "/core/platform-concurrency::result-bool"
-                    | "/core/platform-adapters::result-failed"
-                    | "/core/platform-adapters::result-bool" => {
+                    "intrinsic:system::result-failed"
+                    | "intrinsic:system::result-bool"
+                    | "intrinsic:system::platform-value-is-text"
+                    | "intrinsic:data::data-failed"
+                    | "intrinsic:data::url-failed"
+                    | "intrinsic:capabilities::constant-time-equal"
+                    | "intrinsic:capabilities::result-failed"
+                    | "intrinsic:capabilities::result-resource-limit"
+                    | "intrinsic:capabilities::result-truncated"
+                    | "intrinsic:capabilities::result-deadline-exceeded"
+                    | "intrinsic:capabilities::result-bool"
+                    | "intrinsic:concurrency::result-failed"
+                    | "intrinsic:concurrency::result-bool"
+                    | "intrinsic:adapters::result-failed"
+                    | "intrinsic:adapters::result-bool" => {
                         Some(ValueType::Scalar(ScalarType::Bool))
                     }
-                    "/core/platform-system::result-message"
-                    | "/core/platform-system::result-text"
-                    | "/core/platform-system::result-detail"
-                    | "/core/platform-system::platform-value-text"
-                    | "/core/platform-data::data-message"
-                    | "/core/platform-data::data-path"
-                    | "/core/platform-data::data-expected"
-                    | "/core/platform-data::data-encoded"
-                    | "/core/platform-data::document-kind"
-                    | "/core/platform-data::document-text"
-                    | "/core/platform-data::document-coefficient"
-                    | "/core/platform-data::document-key"
-                    | "/core/platform-data::url-message"
-                    | "/core/platform-data::url-serialized"
-                    | "/core/platform-data::url-display"
-                    | "/core/platform-data::url-scheme"
-                    | "/core/platform-data::url-username"
-                    | "/core/platform-data::url-password"
-                    | "/core/platform-data::url-host"
-                    | "/core/platform-data::url-port"
-                    | "/core/platform-data::url-path"
-                    | "/core/platform-data::url-query-key"
-                    | "/core/platform-data::url-query-value"
-                    | "/core/platform-data::url-fragment"
-                    | "/core/platform-data::url-origin"
-                    | "/core/platform-capabilities::hex-encode"
-                    | "/core/platform-capabilities::base64-encode"
-                    | "/core/platform-capabilities::result-message"
-                    | "/core/platform-capabilities::result-text"
-                    | "/core/platform-capabilities::result-detail"
-                    | "/core/platform-concurrency::result-message"
-                    | "/core/platform-adapters::result-message"
-                    | "/core/platform-adapters::result-text" => {
+                    "intrinsic:system::result-message"
+                    | "intrinsic:system::result-text"
+                    | "intrinsic:system::result-detail"
+                    | "intrinsic:system::platform-value-text"
+                    | "intrinsic:data::data-message"
+                    | "intrinsic:data::data-path"
+                    | "intrinsic:data::data-expected"
+                    | "intrinsic:data::data-encoded"
+                    | "intrinsic:data::document-kind"
+                    | "intrinsic:data::document-text"
+                    | "intrinsic:data::document-coefficient"
+                    | "intrinsic:data::document-key"
+                    | "intrinsic:data::url-message"
+                    | "intrinsic:data::url-serialized"
+                    | "intrinsic:data::url-display"
+                    | "intrinsic:data::url-scheme"
+                    | "intrinsic:data::url-username"
+                    | "intrinsic:data::url-password"
+                    | "intrinsic:data::url-host"
+                    | "intrinsic:data::url-port"
+                    | "intrinsic:data::url-path"
+                    | "intrinsic:data::url-query-key"
+                    | "intrinsic:data::url-query-value"
+                    | "intrinsic:data::url-fragment"
+                    | "intrinsic:data::url-origin"
+                    | "intrinsic:capabilities::hex-encode"
+                    | "intrinsic:capabilities::base64-encode"
+                    | "intrinsic:capabilities::result-message"
+                    | "intrinsic:capabilities::result-text"
+                    | "intrinsic:capabilities::result-detail"
+                    | "intrinsic:concurrency::result-message"
+                    | "intrinsic:adapters::result-message"
+                    | "intrinsic:adapters::result-text" => {
                         Some(ValueType::Scalar(ScalarType::String))
                     }
-                    "/core/platform-system::result-bytes"
-                    | "/core/platform-system::platform-value-bytes"
-                    | "/core/platform-capabilities::result-bytes" => {
+                    "intrinsic:system::result-bytes"
+                    | "intrinsic:system::platform-value-bytes"
+                    | "intrinsic:capabilities::result-bytes" => {
                         Some(ValueType::Scalar(ScalarType::Bytes))
                     }
-                    "/core/platform-system::result-int"
-                    | "/core/platform-data::document-exponent"
-                    | "/core/platform-data::document-length"
-                    | "/core/platform-data::url-query-length"
-                    | "/core/platform-capabilities::result-int"
-                    | "/core/platform-concurrency::result-int" => {
+                    "intrinsic:system::result-int"
+                    | "intrinsic:data::document-exponent"
+                    | "intrinsic:data::document-length"
+                    | "intrinsic:data::url-query-length"
+                    | "intrinsic:capabilities::result-int"
+                    | "intrinsic:concurrency::result-int" => {
                         Some(ValueType::Scalar(ScalarType::Int))
                     }
-                    "/core/platform-system::process-arguments"
-                    | "/core/platform-system::environment-entries"
-                    | "/core/platform-capabilities::result-entries" => Some(ValueType::StringList),
-                    "/core/platform-system::process-exit" => {
-                        Some(ValueType::Scalar(ScalarType::None))
-                    }
+                    "intrinsic:system::process-arguments"
+                    | "intrinsic:system::environment-entries"
+                    | "intrinsic:capabilities::result-entries" => Some(ValueType::StringList),
+                    "intrinsic:system::process-exit" => Some(ValueType::Scalar(ScalarType::None)),
                     _ => None,
                 };
                 if platform_result.is_some() {
@@ -11089,233 +11044,350 @@ fn bootstrap_namespaces() -> BTreeMap<String, Namespace> {
         "/core/async".to_owned(),
         namespace_with_objects("/core/async", ["task-scope"], SymbolKind::Function),
     );
-    namespaces.insert(
-        "/core/platform-streams".to_owned(),
-        namespace_with_objects(
-            "/core/platform-streams",
-            [
-                "acquire-stdin",
-                "acquire-stdout",
-                "acquire-stderr",
-                "open-file",
-                "open-directory-beneath",
-                "open-file-beneath",
-                "resource-handle",
-                "read",
-                "write",
-                "flush",
-                "sync-data",
-                "sync-all",
-                "close",
-                "release",
-            ],
-            SymbolKind::Function,
-        ),
+    add_private_intrinsics(
+        &mut namespaces,
+        "/standard/codecs",
+        "capabilities",
+        [
+            ("hex-encode", "hex-encode"),
+            ("hex-decode", "hex-decode"),
+            ("base64-encode", "base64-encode"),
+            ("base64-decode", "base64-decode"),
+            ("result-failed", "result-failed"),
+            ("result-message", "result-message"),
+            ("result-bytes", "result-bytes"),
+        ],
     );
-    namespaces.insert(
-        "/core/platform-system".to_owned(),
-        namespace_with_objects(
-            "/core/platform-system",
-            [
-                "filesystem-authority",
-                "acquire-filesystem-authority",
-                "filesystem-exists",
-                "filesystem-metadata",
-                "filesystem-realpath",
-                "filesystem-read-link",
-                "filesystem-read-bounded",
-                "filesystem-write-atomic",
-                "filesystem-rename",
-                "filesystem-remove",
-                "result-failed",
-                "result-message",
-                "result-text",
-                "result-detail",
-                "result-bytes",
-                "result-int",
-                "result-bool",
-                "platform-value-is-text",
-                "platform-value-text",
-                "platform-value-bytes",
-                "process-arguments",
-                "environment-entries",
-                "process-exit",
-            ],
-            SymbolKind::Function,
-        ),
+    add_private_intrinsics(
+        &mut namespaces,
+        "/standard/compression",
+        "capabilities",
+        [
+            ("compress", "platform-compress"),
+            ("decompress", "platform-decompress"),
+            ("result-failed", "result-failed"),
+            ("result-resource-limit", "result-resource-limit"),
+            ("result-message", "result-message"),
+            ("result-bytes", "result-bytes"),
+        ],
     );
-    namespaces.insert(
-        "/core/platform-data".to_owned(),
-        namespace_with_objects(
-            "/core/platform-data",
-            [
-                "platform-data-result",
-                "platform-url-result",
-                "empty-document",
-                "make-document-none",
-                "make-document-bool",
-                "make-document-string",
-                "make-document-integer",
-                "make-document-decimal",
-                "make-document-list",
-                "make-document-map",
-                "document-list-append",
-                "document-map-insert",
-                "json-parse",
-                "json-canonical",
-                "yaml-parse",
-                "data-failed",
-                "data-message",
-                "data-path",
-                "data-expected",
-                "data-encoded",
-                "document-kind",
-                "document-text",
-                "document-length",
-                "document-coefficient",
-                "document-exponent",
-                "document-item",
-                "document-key",
-                "document-field",
-                "validate-mapping",
-                "url-parse",
-                "url-failed",
-                "url-message",
-                "url-serialized",
-                "url-display",
-                "url-scheme",
-                "url-username",
-                "url-password",
-                "url-host",
-                "url-port",
-                "url-path",
-                "url-query-length",
-                "url-query-key",
-                "url-query-value",
-                "url-fragment",
-                "url-origin",
-            ],
-            SymbolKind::Function,
-        ),
-    );
-    namespaces.insert(
-        "/core/platform-capabilities".to_owned(),
-        namespace_with_objects(
-            "/core/platform-capabilities",
-            [
-                "platform-capability",
-                "platform-resource-handle",
-                "platform-result",
-                "secure-random",
-                "pseudo-random",
-                "secret-buffer",
-                "random-bytes",
-                "random-bounded",
-                "random-split",
-                "digest",
-                "destroy-secret",
-                "hmac",
-                "cancellation-token",
-                "no-resource",
-                "failed-result",
-                "cancel",
-                "constant-time-equal",
-                "hex-encode",
-                "hex-decode",
-                "base64-encode",
-                "base64-decode",
-                "uuid-parse",
-                "uuid-v4",
-                "uuid-v7",
-                "compress",
-                "decompress",
-                "parse-host-name",
-                "parse-ip",
-                "parse-socket",
-                "parse-socket-text",
-                "tcp-bind",
-                "tcp-connect",
-                "tcp-connect-host",
-                "tcp-accept",
-                "tcp-read",
-                "tcp-write",
-                "tcp-configure",
-                "tcp-shutdown",
-                "udp-bind",
-                "udp-configure",
-                "udp-send-to",
-                "udp-receive-from",
-                "dns-lookup",
-                "tls-client",
-                "tls-read",
-                "tls-write",
-                "tls-shutdown",
-                "close",
-                "result-failed",
-                "result-resource-limit",
-                "result-truncated",
-                "result-deadline-exceeded",
-                "result-message",
-                "result-text",
-                "result-detail",
-                "result-bytes",
-                "result-int",
-                "result-bool",
-                "result-entries",
-                "result-capability",
-                "result-resource",
-            ],
-            SymbolKind::Function,
-        ),
-    );
-    namespaces.insert(
-        "/core/platform-concurrency".to_owned(),
-        namespace_with_objects(
-            "/core/platform-concurrency",
-            [
-                "platform-capability",
-                "platform-result",
-                "no-capability",
-                "int-channel",
-                "int-channel-send",
-                "int-channel-receive",
-                "int-channel-try-receive",
-                "int-mutex",
-                "int-mutex-load",
-                "int-mutex-store",
-                "int-mutex-add",
-                "int-read-write-lock",
-                "int-read-write-lock-read",
+    add_private_intrinsics(
+        &mut namespaces,
+        "/standard/concurrency",
+        "concurrency",
+        [
+            ("platform-capability", "platform-capability"),
+            ("platform-result", "platform-result"),
+            ("no-capability", "no-capability"),
+            ("int-channel", "platform-int-channel"),
+            ("int-channel-send", "platform-channel-send"),
+            ("int-channel-receive", "platform-channel-receive"),
+            ("int-channel-try-receive", "platform-channel-try-receive"),
+            ("int-mutex", "platform-int-mutex"),
+            ("int-mutex-load", "platform-mutex-load"),
+            ("int-mutex-store", "platform-mutex-store"),
+            ("int-mutex-add", "platform-mutex-add"),
+            ("int-read-write-lock", "platform-int-read-write-lock"),
+            ("int-read-write-lock-read", "platform-read-write-lock-read"),
+            (
                 "int-read-write-lock-write",
-                "atomic-int64",
-                "atomic-int64-load",
-                "atomic-int64-store",
-                "atomic-int64-add",
-                "thread-local-int",
-                "thread-local-int-get",
-                "thread-local-int-set",
-                "result-failed",
-                "result-message",
-                "result-int",
-                "result-bool",
-            ],
-            SymbolKind::Function,
-        ),
+                "platform-read-write-lock-write",
+            ),
+            ("atomic-int64", "platform-atomic-int64"),
+            ("atomic-int64-load", "platform-atomic-load"),
+            ("atomic-int64-store", "platform-atomic-store"),
+            ("atomic-int64-add", "platform-atomic-add"),
+            ("thread-local-int", "platform-thread-local-int"),
+            ("thread-local-int-get", "platform-thread-local-get"),
+            ("thread-local-int-set", "platform-thread-local-set"),
+            ("result-failed", "result-failed"),
+            ("result-message", "result-message"),
+            ("result-int", "result-int"),
+            ("result-bool", "result-bool"),
+        ],
     );
-    namespaces.insert(
-        "/core/platform-adapters".to_owned(),
-        namespace_with_objects(
-            "/core/platform-adapters",
-            [
-                "platform-result",
-                "system-host-name",
-                "result-failed",
-                "result-bool",
-                "result-message",
-                "result-text",
-            ],
-            SymbolKind::Function,
-        ),
+    add_private_intrinsics(
+        &mut namespaces,
+        "/standard/concurrency",
+        "capabilities",
+        [
+            ("cancellation-token", "platform-cancellation-token"),
+            ("cancel", "platform-cancel"),
+            ("result-deadline-exceeded", "result-deadline-exceeded"),
+            ("result-capability", "result-capability"),
+        ],
+    );
+    add_private_intrinsics(
+        &mut namespaces,
+        "/standard/documents",
+        "data",
+        [
+            ("platform-data-result", "platform-data-result"),
+            ("make-document-none", "platform-make-none"),
+            ("make-document-bool", "platform-make-bool"),
+            ("make-document-string", "platform-make-string"),
+            ("make-document-integer", "platform-make-integer"),
+            ("make-document-decimal", "platform-make-decimal"),
+            ("make-document-list", "platform-make-list"),
+            ("document-list-append", "platform-list-append"),
+            ("make-document-map", "platform-make-map"),
+            ("document-map-insert", "platform-map-insert"),
+            ("empty-document", "empty-document"),
+            ("data-failed", "data-failed"),
+            ("data-message", "data-message"),
+            ("data-path", "data-path"),
+            ("data-expected", "data-expected"),
+            ("data-encoded", "data-encoded"),
+            ("document-kind", "platform-kind"),
+            ("document-text", "platform-text"),
+            ("document-coefficient", "platform-coefficient"),
+            ("document-exponent", "platform-exponent"),
+            ("document-length", "platform-length"),
+            ("document-item", "platform-item"),
+            ("document-key", "platform-key"),
+            ("document-field", "platform-field"),
+            ("validate-mapping", "validate-mapping"),
+        ],
+    );
+    add_private_intrinsics(
+        &mut namespaces,
+        "/standard/filesystem",
+        "system",
+        [
+            ("filesystem-exists", "platform-filesystem-exists"),
+            ("filesystem-metadata", "platform-filesystem-metadata"),
+            ("filesystem-realpath", "platform-filesystem-realpath"),
+            ("filesystem-read-link", "platform-filesystem-read-link"),
+            (
+                "filesystem-read-bounded",
+                "platform-filesystem-read-bounded",
+            ),
+            (
+                "filesystem-write-atomic",
+                "platform-filesystem-write-atomic",
+            ),
+            ("filesystem-rename", "platform-filesystem-rename"),
+            ("filesystem-remove", "platform-filesystem-remove"),
+            ("result-failed", "result-failed"),
+            ("result-message", "result-message"),
+            ("result-text", "result-text"),
+            ("result-detail", "result-detail"),
+            ("result-bytes", "result-bytes"),
+            ("result-int", "result-int"),
+            ("result-bool", "result-bool"),
+            ("filesystem-authority", "filesystem-authority"),
+            (
+                "acquire-filesystem-authority",
+                "acquire-filesystem-authority",
+            ),
+        ],
+    );
+    add_private_intrinsics(
+        &mut namespaces,
+        "/standard/filesystem",
+        "streams",
+        [
+            ("resource-handle", "resource-handle"),
+            ("open-file", "platform-open-file"),
+            ("open-directory-beneath", "platform-open-directory-beneath"),
+            ("open-file-beneath", "platform-open-file-beneath"),
+            ("read", "platform-read"),
+            ("write", "platform-write"),
+            ("flush", "platform-flush"),
+            ("sync-data", "platform-sync-data"),
+            ("sync-all", "platform-sync-all"),
+            ("close", "platform-close"),
+            ("release", "platform-release"),
+        ],
+    );
+    add_private_intrinsics(
+        &mut namespaces,
+        "/standard/json",
+        "data",
+        [
+            ("json-parse", "platform-parse"),
+            ("json-canonical", "platform-canonical"),
+        ],
+    );
+    add_private_intrinsics(
+        &mut namespaces,
+        "/standard/networking",
+        "capabilities",
+        [
+            ("platform-resource-handle", "platform-resource-handle"),
+            ("platform-capability", "platform-capability"),
+            ("platform-result", "platform-result"),
+            ("no-resource", "no-resource"),
+            ("failed-result", "failed-result"),
+            ("parse-ip", "parse-ip"),
+            ("parse-host-name", "platform-parse-host-name"),
+            ("parse-socket", "parse-socket"),
+            ("parse-socket-text", "parse-socket-text"),
+            ("tcp-bind", "tcp-bind"),
+            ("tcp-connect", "tcp-connect"),
+            ("tcp-connect-host", "tcp-connect-host"),
+            ("tcp-accept", "tcp-accept"),
+            ("tcp-read", "tcp-read"),
+            ("tcp-write", "tcp-write"),
+            ("tcp-shutdown", "tcp-shutdown"),
+            ("tcp-configure", "tcp-configure"),
+            ("udp-bind", "udp-bind"),
+            ("udp-send-to", "udp-send-to"),
+            ("udp-receive-from", "udp-receive-from"),
+            ("udp-configure", "udp-configure"),
+            ("cancellation-token", "platform-cancellation-token"),
+            ("cancel", "platform-cancel"),
+            ("dns-lookup", "dns-lookup"),
+            ("close", "platform-close"),
+            ("result-failed", "result-failed"),
+            ("result-truncated", "result-truncated"),
+            ("result-deadline-exceeded", "result-deadline-exceeded"),
+            ("result-message", "result-message"),
+            ("result-text", "result-text"),
+            ("result-detail", "result-detail"),
+            ("result-bytes", "result-bytes"),
+            ("result-int", "result-int"),
+            ("result-bool", "result-bool"),
+            ("result-entries", "result-entries"),
+            ("result-resource", "result-resource"),
+        ],
+    );
+    add_private_intrinsics(
+        &mut namespaces,
+        "/standard/process",
+        "system",
+        [
+            ("process-arguments", "platform-arguments"),
+            ("environment-entries", "platform-environment"),
+            ("process-exit", "platform-exit"),
+            ("platform-value-is-text", "platform-value-is-text"),
+            ("platform-value-text", "platform-value-text"),
+            ("platform-value-bytes", "platform-value-bytes"),
+        ],
+    );
+    add_private_intrinsics(
+        &mut namespaces,
+        "/standard/process",
+        "adapters",
+        [
+            ("platform-result", "platform-result"),
+            ("system-host-name", "platform-system-host-name"),
+            ("result-failed", "result-failed"),
+            ("result-message", "result-message"),
+            ("result-text", "result-text"),
+            ("result-bool", "result-bool"),
+        ],
+    );
+    add_private_intrinsics(
+        &mut namespaces,
+        "/standard/random",
+        "capabilities",
+        [
+            ("platform-capability", "platform-capability"),
+            ("secure-random", "platform-secure"),
+            ("pseudo-random", "platform-pseudo"),
+            ("random-bytes", "random-bytes"),
+            ("random-bounded", "random-bounded"),
+            ("random-split", "random-split"),
+            ("secret-buffer", "platform-secret"),
+            ("destroy-secret", "platform-destroy-secret"),
+            ("digest", "platform-digest"),
+            ("hmac", "platform-hmac"),
+            ("constant-time-equal", "constant-time-equal"),
+            ("result-failed", "result-failed"),
+            ("result-message", "result-message"),
+            ("result-bytes", "result-bytes"),
+            ("result-int", "result-int"),
+            ("result-capability", "result-capability"),
+        ],
+    );
+    add_private_intrinsics(
+        &mut namespaces,
+        "/standard/streams",
+        "streams",
+        [
+            ("resource-handle", "resource-handle"),
+            ("acquire-stdin", "acquire-stdin"),
+            ("acquire-stdout", "acquire-stdout"),
+            ("acquire-stderr", "acquire-stderr"),
+            ("read", "platform-read"),
+            ("write", "platform-write"),
+            ("flush", "platform-flush"),
+            ("sync-data", "platform-sync-data"),
+            ("sync-all", "platform-sync-all"),
+            ("close", "platform-close"),
+            ("release", "platform-release"),
+        ],
+    );
+    add_private_intrinsics(
+        &mut namespaces,
+        "/standard/tls",
+        "capabilities",
+        [
+            ("platform-resource-handle", "platform-resource-handle"),
+            ("no-resource", "no-resource"),
+            ("tls-client", "platform-client"),
+            ("tls-read", "tls-read"),
+            ("tls-write", "tls-write"),
+            ("tls-shutdown", "tls-shutdown"),
+            ("close", "platform-close"),
+            ("result-failed", "result-failed"),
+            ("result-deadline-exceeded", "result-deadline-exceeded"),
+            ("result-message", "result-message"),
+            ("result-text", "result-text"),
+            ("result-bytes", "result-bytes"),
+            ("result-int", "result-int"),
+            ("result-bool", "result-bool"),
+            ("result-resource", "result-resource"),
+        ],
+    );
+    add_private_intrinsics(
+        &mut namespaces,
+        "/standard/urls",
+        "data",
+        [
+            ("platform-url-result", "platform-url-result"),
+            ("url-parse", "platform-parse"),
+            ("url-failed", "url-failed"),
+            ("url-message", "url-message"),
+            ("url-serialized", "url-serialized"),
+            ("url-display", "url-display"),
+            ("url-scheme", "url-scheme"),
+            ("url-username", "url-username"),
+            ("url-password", "url-password"),
+            ("url-host", "url-host"),
+            ("url-port", "url-port"),
+            ("url-path", "url-path"),
+            ("url-fragment", "url-fragment"),
+            ("url-origin", "url-origin"),
+            ("url-query-length", "url-query-length"),
+            ("url-query-key", "url-query-key"),
+            ("url-query-value", "url-query-value"),
+        ],
+    );
+    add_private_intrinsics(
+        &mut namespaces,
+        "/standard/uuid",
+        "capabilities",
+        [
+            ("platform-capability", "platform-capability"),
+            ("uuid-parse", "uuid-parse"),
+            ("uuid-v4", "uuid-v4"),
+            ("uuid-v7", "uuid-v7"),
+            ("result-failed", "result-failed"),
+            ("result-message", "result-message"),
+            ("result-text", "result-text"),
+            ("result-bytes", "result-bytes"),
+        ],
+    );
+    add_private_intrinsics(
+        &mut namespaces,
+        "/standard/yaml",
+        "data",
+        [
+            ("yaml-parse", "platform-parse"),
+            ("json-canonical", "platform-canonical"),
+        ],
     );
     let mut types = vec![
         "int".to_owned(),
@@ -12656,6 +12728,34 @@ pub(crate) fn binding_span_is_mutated(
         iterator_binding,
         &unit.tree.root,
     ) > usize::from(!initially_assigned)
+}
+
+fn add_private_intrinsics<'a>(
+    namespaces: &mut BTreeMap<String, Namespace>,
+    path: &str,
+    group: &str,
+    bindings: impl IntoIterator<Item = (&'a str, &'a str)>,
+) {
+    let namespace = namespaces.entry(path.to_owned()).or_default();
+    for (intrinsic, local_name) in bindings {
+        let previous = namespace.symbols.insert(
+            local_name.to_owned(),
+            Symbol {
+                identity: format!("intrinsic:{group}::{intrinsic}"),
+                name: local_name.to_owned(),
+                namespace: path.to_owned(),
+                visibility: Visibility::Private,
+                global: false,
+                constant: false,
+                kind: SymbolKind::Function,
+                declaration_span: None,
+            },
+        );
+        assert!(
+            previous.is_none(),
+            "duplicate private intrinsic binding `{path}::{local_name}`"
+        );
+    }
 }
 
 fn namespace_with_objects<'a>(

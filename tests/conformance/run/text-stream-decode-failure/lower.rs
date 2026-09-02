@@ -409,46 +409,46 @@ mod __terrane_trace {
             }
         },
         {
-            /* terrane-site-row: site 2: /standard/streams::read (standard/streams.trn:195:23-195:50) */
+            /* terrane-site-row: site 2: /standard/streams::read (standard/streams.trn:188:23-188:50) */
             Site {
                 function: 2,
                 file: 1,
-                line: 195,
+                line: 188,
                 column: 23,
-                end_line: 195,
+                end_line: 188,
                 end_column: 50,
             }
         },
         {
-            /* terrane-site-row: site 3: /standard/streams::read-exact (standard/streams.trn:217:23-217:46) */
+            /* terrane-site-row: site 3: /standard/streams::read-exact (standard/streams.trn:210:23-210:46) */
             Site {
                 function: 3,
                 file: 1,
-                line: 217,
+                line: 210,
                 column: 23,
-                end_line: 217,
+                end_line: 210,
                 end_column: 46,
             }
         },
         {
-            /* terrane-site-row: site 4: /standard/streams::read-all (standard/streams.trn:236:23-236:46) */
+            /* terrane-site-row: site 4: /standard/streams::read-all (standard/streams.trn:229:23-229:46) */
             Site {
                 function: 4,
                 file: 1,
-                line: 236,
+                line: 229,
                 column: 23,
-                end_line: 236,
+                end_line: 229,
                 end_column: 46,
             }
         },
         {
-            /* terrane-site-row: site 5: /standard/streams::read-async (standard/streams.trn:240:16-240:32) */
+            /* terrane-site-row: site 5: /standard/streams::read-async (standard/streams.trn:233:16-233:32) */
             Site {
                 function: 5,
                 file: 1,
-                line: 240,
+                line: 233,
                 column: 16,
-                end_line: 240,
+                end_line: 233,
                 end_column: 32,
             }
         },
@@ -1122,7 +1122,7 @@ impl TextReader {
         let raw: TerranePlatformReadResult = terrane_platform_read(&self.handle, count);
         let text: String = __terrane_raised_err(
             terrane_string_support::decode(&raw.data.clone(), self.codec),
-            2 /* terrane-site: standard/streams.trn:195:23-195:50 */,
+            2 /* terrane-site: standard/streams.trn:188:23-188:50 */,
         )?;
         return Ok(
             TextReadResult::terrane_construct(
@@ -1172,7 +1172,7 @@ impl TextReader {
         }
         let text: String = __terrane_raised_err(
             terrane_string_support::decode(&data, self.codec),
-            3 /* terrane-site: standard/streams.trn:217:23-217:46 */,
+            3 /* terrane-site: standard/streams.trn:210:23-210:46 */,
         )?;
         return Ok(
             TextReadResult::terrane_construct(
@@ -1218,7 +1218,7 @@ impl TextReader {
         }
         let text: String = __terrane_raised_err(
             terrane_string_support::decode(&data, self.codec),
-            4 /* terrane-site: standard/streams.trn:236:23-236:46 */,
+            4 /* terrane-site: standard/streams.trn:229:23-229:46 */,
         )?;
         return Ok(
             TextReadResult::terrane_construct(
@@ -1237,7 +1237,7 @@ impl TextReader {
         return Ok(
             __terrane_traced_err(
                 self.read(count.clone()),
-                5 /* terrane-site: standard/streams.trn:240:16-240:32 */,
+                5 /* terrane-site: standard/streams.trn:233:16-233:32 */,
             )?,
         );
     }

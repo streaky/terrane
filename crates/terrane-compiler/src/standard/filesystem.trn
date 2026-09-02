@@ -2,24 +2,6 @@ namespace standard/filesystem
 
 from /core/types import int, bool, string, bytes
 from /standard/paths import path
-from /core/platform-system import filesystem-exists as platform-filesystem-exists
-from /core/platform-system import filesystem-metadata as platform-filesystem-metadata
-from /core/platform-system import filesystem-realpath as platform-filesystem-realpath
-from /core/platform-system import filesystem-read-link as platform-filesystem-read-link
-from /core/platform-system import filesystem-read-bounded as platform-filesystem-read-bounded
-from /core/platform-system import filesystem-write-atomic as platform-filesystem-write-atomic
-from /core/platform-system import filesystem-rename as platform-filesystem-rename
-from /core/platform-system import filesystem-remove as platform-filesystem-remove
-from /core/platform-system import result-failed, result-message
-from /core/platform-system import result-text, result-detail, result-bytes, result-int, result-bool
-from /core/platform-system import filesystem-authority, acquire-filesystem-authority
-from /core/platform-streams import resource-handle, open-file as platform-open-file
-from /core/platform-streams import open-directory-beneath as platform-open-directory-beneath
-from /core/platform-streams import open-file-beneath as platform-open-file-beneath
-from /core/platform-streams import read as platform-read, write as platform-write
-from /core/platform-streams import flush as platform-flush, sync-data as platform-sync-data
-from /core/platform-streams import sync-all as platform-sync-all, close as platform-close
-from /core/platform-streams import release as platform-release
 
 class operation-result
     failed bool = false

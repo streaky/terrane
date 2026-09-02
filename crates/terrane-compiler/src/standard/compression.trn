@@ -1,8 +1,6 @@
 namespace standard/compression
 
 from /core/types import int, bool, string, bytes
-from /core/platform-capabilities import compress as platform-compress, decompress as platform-decompress
-from /core/platform-capabilities import result-failed, result-resource-limit, result-message, result-bytes
 
 class compression-options
     level int = 6

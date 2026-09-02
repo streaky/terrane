@@ -10,6 +10,12 @@ Status labels:
 
 Source-declared and projected class, interface, and trait types have namespace-qualified nominal identity. Import aliases preserve that identity; same-named types from different namespaces remain distinct.
 
+Each bundled `/standard` package is seeded with only the private compiler intrinsic bindings needed
+by its Terrane implementation. Those bindings resolve as unqualified same-namespace names, use
+ordinary private visibility, and are therefore neither importable objects nor entries in this
+public surface map. They have compiler lowering identities rather than Terrane namespace paths;
+there is no `/internal` root or `/core/platform-*` surface.
+
 ## Tree
 
 ```text

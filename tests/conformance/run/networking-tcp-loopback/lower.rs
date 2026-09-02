@@ -391,13 +391,13 @@ mod __terrane_trace {
             }
         },
         {
-            /* terrane-site-row: site 1: /standard/networking::lookup-dns (standard/networking.trn:326:28-326:49) */
+            /* terrane-site-row: site 1: /standard/networking::lookup-dns (standard/networking.trn:320:28-320:49) */
             Site {
                 function: 1,
                 file: 1,
-                line: 326,
+                line: 320,
                 column: 28,
-                end_line: 326,
+                end_line: 320,
                 end_column: 49,
             }
         },
@@ -1773,7 +1773,7 @@ pub fn lookup_dns(
                             __terrane_raised(
                                 terrane_collection_support::index_from_int(&index.clone()),
 
-                                    1 /* terrane-site: standard/networking.trn:326:28-326:49 */,
+                                    1 /* terrane-site: standard/networking.trn:320:28-320:49 */,
                             ),
                         )
                         .cloned()
@@ -1781,10 +1781,10 @@ pub fn lookup_dns(
                             index: __terrane_raised(
                                 terrane_collection_support::index_from_int(&index.clone()),
 
-                                    1 /* terrane-site: standard/networking.trn:326:28-326:49 */,
+                                    1 /* terrane-site: standard/networking.trn:320:28-320:49 */,
                             ),
                         }),
-                    1 /* terrane-site: standard/networking.trn:326:28-326:49 */,
+                    1 /* terrane-site: standard/networking.trn:320:28-320:49 */,
                 ),
             );
         index = index.clone() + terrane_int_support::Int::from(1_i128);

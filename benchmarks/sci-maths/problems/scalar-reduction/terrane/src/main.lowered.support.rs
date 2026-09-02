@@ -462,57 +462,57 @@ mod __terrane_trace {
             }
         },
         {
-            /* terrane-site-row: site 7: /standard/process::arguments (standard/process.trn:51:42-51:56) */
+            /* terrane-site-row: site 7: /standard/process::arguments (standard/process.trn:45:42-45:56) */
             Site {
                 function: 2,
                 file: 1,
-                line: 51,
+                line: 45,
                 column: 42,
-                end_line: 51,
+                end_line: 45,
                 end_column: 56,
             }
         },
         {
-            /* terrane-site-row: site 8: /standard/process::environment (standard/process.trn:60:33-60:47) */
+            /* terrane-site-row: site 8: /standard/process::environment (standard/process.trn:54:33-54:47) */
             Site {
                 function: 3,
                 file: 1,
-                line: 60,
+                line: 54,
                 column: 33,
-                end_line: 60,
+                end_line: 54,
                 end_column: 47,
             }
         },
         {
-            /* terrane-site-row: site 9: /standard/process::environment (standard/process.trn:61:34-61:52) */
+            /* terrane-site-row: site 9: /standard/process::environment (standard/process.trn:55:34-55:52) */
             Site {
                 function: 3,
                 file: 1,
-                line: 61,
+                line: 55,
                 column: 34,
-                end_line: 61,
+                end_line: 55,
                 end_column: 52,
             }
         },
         {
-            /* terrane-site-row: site 10: /standard/process::parse-command-line (standard/process.trn:96:20-96:35) */
+            /* terrane-site-row: site 10: /standard/process::parse-command-line (standard/process.trn:90:20-90:35) */
             Site {
                 function: 4,
                 file: 1,
-                line: 96,
+                line: 90,
                 column: 20,
-                end_line: 96,
+                end_line: 90,
                 end_column: 35,
             }
         },
         {
-            /* terrane-site-row: site 11: /standard/process::parse-command-line (standard/process.trn:111:43-111:62) */
+            /* terrane-site-row: site 11: /standard/process::parse-command-line (standard/process.trn:105:43-105:62) */
             Site {
                 function: 4,
                 file: 1,
-                line: 111,
+                line: 105,
                 column: 43,
-                end_line: 111,
+                end_line: 105,
                 end_column: 62,
             }
         },
@@ -674,17 +674,17 @@ pub fn arguments() -> terrane_collection_support::List<PlatformString> {
                             .get(
                                 __terrane_raised(
                                     terrane_collection_support::index_from_int(&index.clone()),
-                                    7 /* terrane-site: standard/process.trn:51:42-51:56 */,
+                                    7 /* terrane-site: standard/process.trn:45:42-45:56 */,
                                 ),
                             )
                             .cloned()
                             .ok_or(terrane_collection_support::IndexError {
                                 index: __terrane_raised(
                                     terrane_collection_support::index_from_int(&index.clone()),
-                                    7 /* terrane-site: standard/process.trn:51:42-51:56 */,
+                                    7 /* terrane-site: standard/process.trn:45:42-45:56 */,
                                 ),
                             }),
-                        7 /* terrane-site: standard/process.trn:51:42-51:56 */,
+                        7 /* terrane-site: standard/process.trn:45:42-45:56 */,
                     ),
                 ),
             );
@@ -707,17 +707,17 @@ pub fn environment() -> terrane_collection_support::List<EnvironmentEntry> {
                     .get(
                         __terrane_raised(
                             terrane_collection_support::index_from_int(&index.clone()),
-                            8 /* terrane-site: standard/process.trn:60:33-60:47 */,
+                            8 /* terrane-site: standard/process.trn:54:33-54:47 */,
                         ),
                     )
                     .cloned()
                     .ok_or(terrane_collection_support::IndexError {
                         index: __terrane_raised(
                             terrane_collection_support::index_from_int(&index.clone()),
-                            8 /* terrane-site: standard/process.trn:60:33-60:47 */,
+                            8 /* terrane-site: standard/process.trn:54:33-54:47 */,
                         ),
                     }),
-                8 /* terrane-site: standard/process.trn:60:33-60:47 */,
+                8 /* terrane-site: standard/process.trn:54:33-54:47 */,
             ),
         );
         let value: PlatformString = PlatformString::terrane_construct(
@@ -728,7 +728,7 @@ pub fn environment() -> terrane_collection_support::List<EnvironmentEntry> {
                             terrane_collection_support::index_from_int(
                                 &(index.clone() + terrane_int_support::Int::from(1_i128)),
                             ),
-                            9 /* terrane-site: standard/process.trn:61:34-61:52 */,
+                            9 /* terrane-site: standard/process.trn:55:34-55:52 */,
                         ),
                     )
                     .cloned()
@@ -737,10 +737,10 @@ pub fn environment() -> terrane_collection_support::List<EnvironmentEntry> {
                             terrane_collection_support::index_from_int(
                                 &(index.clone() + terrane_int_support::Int::from(1_i128)),
                             ),
-                            9 /* terrane-site: standard/process.trn:61:34-61:52 */,
+                            9 /* terrane-site: standard/process.trn:55:34-55:52 */,
                         ),
                     }),
-                9 /* terrane-site: standard/process.trn:61:34-61:52 */,
+                9 /* terrane-site: standard/process.trn:55:34-55:52 */,
             ),
         );
         values.append(EnvironmentEntry::terrane_construct(name, value));
@@ -843,10 +843,10 @@ pub fn parse_command_line(
                 .get_or_error(
                     __terrane_raised(
                         terrane_collection_support::index_from_int(&index.clone()),
-                        10 /* terrane-site: standard/process.trn:96:20-96:35 */,
+                        10 /* terrane-site: standard/process.trn:90:20-90:35 */,
                     ),
                 ),
-            10 /* terrane-site: standard/process.trn:96:20-96:35 */,
+            10 /* terrane-site: standard/process.trn:90:20-90:35 */,
         );
         if !argument.is_text {
             diagnostic_arguments.append(index.clone());
@@ -882,10 +882,10 @@ pub fn parse_command_line(
                                             terrane_collection_support::index_from_int(
                                                 &(index.clone() + terrane_int_support::Int::from(1_i128)),
                                             ),
-                                            11 /* terrane-site: standard/process.trn:111:43-111:62 */,
+                                            11 /* terrane-site: standard/process.trn:105:43-105:62 */,
                                         ),
                                     ),
-                                11 /* terrane-site: standard/process.trn:111:43-111:62 */,
+                                11 /* terrane-site: standard/process.trn:105:43-105:62 */,
                             ),
                         );
                     index = index.clone() + terrane_int_support::Int::from(1_i128);

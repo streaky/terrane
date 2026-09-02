@@ -2,12 +2,6 @@ namespace standard/networking
 
 from /core/types import int, bool, string, bytes
 from /core/collections import list
-from /core/platform-capabilities import platform-resource-handle, platform-capability, platform-result, no-resource, failed-result
-from /core/platform-capabilities import parse-ip, parse-host-name as platform-parse-host-name, parse-socket, parse-socket-text, tcp-bind, tcp-connect, tcp-connect-host, tcp-accept
-from /core/platform-capabilities import tcp-read, tcp-write, tcp-shutdown, tcp-configure, udp-bind, udp-send-to, udp-receive-from, udp-configure
-from /core/platform-capabilities import cancellation-token as platform-cancellation-token, cancel as platform-cancel, dns-lookup, close as platform-close
-from /core/platform-capabilities import result-failed, result-truncated, result-deadline-exceeded, result-message, result-text, result-detail
-from /core/platform-capabilities import result-bytes, result-int, result-bool, result-entries, result-resource
 
 class operation-result
     failed bool = false

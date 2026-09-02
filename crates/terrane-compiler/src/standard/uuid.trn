@@ -1,9 +1,6 @@
 namespace standard/uuid
 
 from /core/types import bool, string, bytes, int
-from /core/platform-capabilities import platform-capability
-from /core/platform-capabilities import uuid-parse, uuid-v4, uuid-v7
-from /core/platform-capabilities import result-failed, result-message, result-text, result-bytes
 from /standard/random import secure-random
 
 class uuid

@@ -4,6 +4,11 @@ This document maps the proposed **version-one language contract**, not the compi
 
 The map is deliberately opinionated in one important respect: a member may be both a callable object and a namespace of related callable modes. Selecting `value.coerce` produces a method object; invoking that object selects its default behaviour, while selecting `value.coerce.checked` selects a child method object.
 
+Compiler-backed does not mean internal. A normative compiler-supplied object that source may use
+belongs under its public `/core` parent. Irreducible host machinery used only to implement a bundled
+`/standard` package is a private binding in that package's own namespace and is omitted from this
+map; it does not create an addressable `/internal` or `/core/platform-*` surface.
+
 ## Reading the map
 
 ```text

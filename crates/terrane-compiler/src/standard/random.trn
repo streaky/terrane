@@ -1,11 +1,6 @@
 namespace standard/random
 
 from /core/types import int, bool, string, bytes
-from /core/platform-capabilities import platform-capability
-from /core/platform-capabilities import secure-random as platform-secure, pseudo-random as platform-pseudo
-from /core/platform-capabilities import random-bytes, random-bounded, random-split, secret-buffer as platform-secret, destroy-secret as platform-destroy-secret
-from /core/platform-capabilities import digest as platform-digest, hmac as platform-hmac, constant-time-equal
-from /core/platform-capabilities import result-failed, result-message, result-bytes, result-int, result-capability
 
 class byte-result
     failed bool = false

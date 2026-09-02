@@ -2,12 +2,6 @@ namespace standard/process
 
 from /core/types import int, bool, string, bytes, none
 from /core/collections import list
-from /core/platform-system import process-arguments as platform-arguments
-from /core/platform-system import environment-entries as platform-environment
-from /core/platform-system import process-exit as platform-exit
-from /core/platform-system import platform-value-is-text, platform-value-text, platform-value-bytes
-from /core/platform-adapters import platform-result, system-host-name as platform-system-host-name
-from /core/platform-adapters import result-failed, result-message, result-text, result-bool
 
 class platform-string
     is-text bool = true

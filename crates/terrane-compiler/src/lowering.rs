@@ -5349,7 +5349,7 @@ impl Emitter<'_> {
         ]
         .into_iter()
         .find_map(|(terrane, rust)| {
-            self.is_builtin(callee, &format!("/core/platform-data::{terrane}"))
+            self.is_builtin(callee, &format!("intrinsic:data::{terrane}"))
                 .then_some(rust)
         });
         if let Some(function) = data_call {
@@ -5459,7 +5459,7 @@ impl Emitter<'_> {
         ]
         .into_iter()
         .find_map(|(terrane, rust)| {
-            self.is_builtin(callee, &format!("/core/platform-capabilities::{terrane}"))
+            self.is_builtin(callee, &format!("intrinsic:capabilities::{terrane}"))
                 .then_some(rust)
         });
         if let Some(function) = capability_call {
@@ -5555,7 +5555,7 @@ impl Emitter<'_> {
         ]
         .into_iter()
         .find_map(|(terrane, rust)| {
-            self.is_builtin(callee, &format!("/core/platform-concurrency::{terrane}"))
+            self.is_builtin(callee, &format!("intrinsic:concurrency::{terrane}"))
                 .then_some(rust)
         });
         if let Some(function) = concurrency_call {
@@ -5586,7 +5586,7 @@ impl Emitter<'_> {
                 .join(", ");
             return format!("terrane_{function}({values})");
         }
-        if self.is_builtin(callee, "/core/platform-adapters::system-host-name") {
+        if self.is_builtin(callee, "intrinsic:adapters::system-host-name") {
             return "terrane_platform_support::system_host_name()".to_owned();
         }
         let adapter_result_field = [
@@ -5597,7 +5597,7 @@ impl Emitter<'_> {
         ]
         .into_iter()
         .find_map(|(terrane, field, cloned)| {
-            self.is_builtin(callee, &format!("/core/platform-adapters::{terrane}"))
+            self.is_builtin(callee, &format!("intrinsic:adapters::{terrane}"))
                 .then_some((field, cloned))
         });
         if let Some((field, cloned)) = adapter_result_field {
@@ -5636,7 +5636,7 @@ impl Emitter<'_> {
         ]
         .into_iter()
         .find_map(|(terrane, rust)| {
-            self.is_builtin(callee, &format!("/core/platform-system::{terrane}"))
+            self.is_builtin(callee, &format!("intrinsic:system::{terrane}"))
                 .then_some(rust)
         });
         if let Some(function) = system_call {
@@ -5675,7 +5675,7 @@ impl Emitter<'_> {
         ]
         .into_iter()
         .find_map(|(terrane, rust)| {
-            self.is_builtin(callee, &format!("/core/platform-streams::{terrane}"))
+            self.is_builtin(callee, &format!("intrinsic:streams::{terrane}"))
                 .then_some(rust)
         });
         if let Some(function) = platform_call {

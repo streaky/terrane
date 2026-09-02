@@ -354,6 +354,21 @@ Generated Rust should normally not be edited in place. A module may instead be d
 
 The Rust core is deliberately minimal. Standard facilities — document formats, networking protocols, compression framing, date and time arithmetic, path handling, command-line parsing, logging, package machinery — are written in Terrane over that core rather than implemented as Rust support crates.
 
+The namespace roots make that layering visible without exposing the implementation mechanism of
+each object. `/core` is the public foundational language surface supplied by the compiler:
+descriptors, errors, collections, output, encodings, and structured task scope. `/standard` is the
+public set of compiler-shipped Terrane packages built over that foundation. A public object beneath
+`/core` need not have a Terrane source file; the public `/standard` object model is authored there.
+
+Irreducible host operations do not occupy an addressable “internal” namespace. Before analysing a
+compiler-bundled standard package, the compiler may seed that package's own namespace with private
+intrinsic bindings. Bundled source resolves those bindings as unqualified same-namespace names;
+another namespace cannot import them because ordinary private visibility applies. Their compiler
+identities are lowering keys, not Terrane namespace paths. If a compiler-supplied type or operation
+is a normative building block that programs may use directly, it belongs in the appropriate public
+`/core` namespace instead of being disguised as an internal intrinsic. There is no `/internal`
+language root and no `/core/platform-*` compatibility surface.
+
 The decisive reason is that a Rust support crate is permanently opaque to the Terrane compiler. It is a call boundary the optimiser can never see through, so implementing a facility in Rust does not merely forgo optimisation today, it forecloses inlining, specialisation, and whole-program analysis for that facility permanently. A Terrane implementation stays visible to the entire pipeline.
 
 Three further consequences follow. Writing the libraries in Terrane exercises the lowering against real code rather than minimal fixtures, so gaps in the language surface immediately. The libraries become a substantial corpus before a public one exists. And a failure inside a standard facility surfaces as readable Terrane frames, which the diagnostics contract already requires and a Rust support crate can never provide.
@@ -369,7 +384,7 @@ Rust is the correct choice for a layer when one of the following holds, and a la
 
 Everything else is Terrane.
 
-A standard facility that depends on a Rust crate uses the ordinary dependency mechanism of §23: a declaration plus a deliberately authored wrapper, with the wrapper being exactly the boundary machinery that section describes. Core libraries receive no privileged path, which means they also serve as worked examples of dependency use. They declare their Rust dependencies explicitly so that a profile may exclude them.
+A standard facility that depends on a Rust crate uses the ordinary dependency mechanism of §23: a declaration plus a deliberately authored wrapper, with the wrapper being exactly the boundary machinery that section describes. Standard facilities receive no privileged path, which means they also serve as worked examples of dependency use. They declare their Rust dependencies explicitly so that a profile may exclude them.
 
 Two consequences shape the implementation rather than the language. Package-level artifact caching becomes load-bearing rather than an optimisation, because a source-form standard library would otherwise be recompiled by every build. And capability profiles become a question of which Terrane packages are present rather than which support crates were compiled in, which is the simpler story.
 ## 6. Lexical structure

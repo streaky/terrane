@@ -1,7 +1,6 @@
 namespace standard/json
 
 from /core/types import int, bool, string
-from /core/platform-data import json-parse as platform-parse, json-canonical as platform-canonical
 from /standard/documents import document-value, document-result, make-document-result
 from /standard/documents import document-mapping, decode-document
 from /standard/documents import serializable, deserializable, serialize-document, deserialize-document

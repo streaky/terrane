@@ -1,9 +1,6 @@
 namespace standard/tls
 
 from /core/types import int, bool, string, bytes
-from /core/platform-capabilities import platform-resource-handle, no-resource
-from /core/platform-capabilities import tls-client as platform-client, tls-read, tls-write, tls-shutdown, close as platform-close
-from /core/platform-capabilities import result-failed, result-deadline-exceeded, result-message, result-text, result-bytes, result-int, result-bool, result-resource
 from /standard/networking import tcp-stream, operation-options, operation-result, io-result, host-name, operation-cancellation
 
 class tls-stream

@@ -37,16 +37,17 @@ to Terrane source:
 
 1. **Support crate.** `crates/terrane-document-support/src/lib.rs` exposes flat free functions over
    `serde_json`/`yaml-rust2`/`url`, hiding those crates' types behind `DataResult` and `UrlResult`.
-2. **Platform namespace.** `/core/platform-data` names the primitives the compiler recognises
-   (`crates/terrane-compiler/src/semantics.rs`, the name list and the call-to-type mapping).
+2. **Private package bindings.** The compiler seeds `/standard/documents`, `/standard/json`,
+   `/standard/yaml`, and `/standard/urls` with their precise private intrinsic bindings; these are
+   lowering identities rather than importable namespace objects.
 3. **Generated shims.** `crates/terrane-compiler/src/runtime/platform_urls.rs` and its siblings emit
    one thin Rust function per crossed member into the generated crate.
-4. **Authored Terrane wrapper.** `crates/terrane-compiler/src/standard/urls.trn` imports the platform
-   primitives and presents an ordinary Terrane API.
+4. **Authored Terrane wrapper.** The bundled packages resolve those unqualified private bindings in
+   their own namespace and present an ordinary public Terrane API.
 
-Milestone 25 generalises layers 2, 3 and 4: `/deps/<crate>` replaces the hard-coded platform
-namespace, the shims are generated from a projection instead of being written by hand, and layer 4
-becomes optional rather than mandatory.
+Milestone 25 generalises layers 2, 3 and 4: `/deps/<crate>` supplies importable projected package
+objects instead of hard-coded private bindings, the shims are generated from a projection instead
+of being written by hand, and layer 4 becomes optional rather than mandatory.
 
 ### 2.1 The shape the existing boundary already has
 
@@ -572,6 +573,6 @@ the lexical change, the lint demotion, and A21 as explicit deliverables. Not app
 
 ### 11.6 Deferred
 
-Migrating `/core/platform-data` and the `platform_*.rs` shims onto this machinery. The general path
-does by hand what they do by hand today, so they could move onto it once it exists. Not part of this
-work, and the design should not make it impossible.
+Migrating the standard packages' private intrinsic bindings and the `platform_*.rs` shims onto this
+machinery. The general path does by hand what they do by hand today, so they could move onto it once
+it exists. Not part of this work, and the design should not make it impossible.

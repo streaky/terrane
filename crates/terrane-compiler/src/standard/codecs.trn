@@ -1,8 +1,6 @@
 namespace standard/codecs
 
 from /core/types import bool, string, bytes
-from /core/platform-capabilities import hex-encode, hex-decode, base64-encode, base64-decode
-from /core/platform-capabilities import result-failed, result-message, result-bytes
 
 class decode-result
     failed bool = false

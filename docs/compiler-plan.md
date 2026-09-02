@@ -1385,8 +1385,8 @@ typed standard error, malformed decode failure, distinct flush and sync operatio
 adapters, observable idempotent close, and both outcomes of cancellation racing an async stream
 operation. Rejected conformance covers resource transfer through assignment, ordinary calls, and
 method arguments followed by use, use after close, double close, resource-owning inheritance,
-direct imports of private host intrinsics, and the removed
-`linear class` declaration qualifier. Accepted cases compile their generated
+attempted imports of the bundled package's private compiler bindings, and the removed `linear
+class` declaration qualifier. Accepted cases compile their generated
 crates with warnings denied; canonical-Rust validation is enabled for
 the accepted cases that pass untouched structural validation. Milestone evidence:
 `cargo test -p terrane-compiler --tests` with `RUSTFLAGS=-D warnings`, plus piped executions of the
@@ -1425,8 +1425,8 @@ diagnostics without terminating, and validated `exit-status` values in `0..=255`
 conformance distinguishes lexical resolution from canonicalization, rejects a traversal escape,
 and executes flush, sync-data, and sync-all against a real file descriptor alongside atomic
 replacement and rename; passes text and non-Unicode process arguments; checks parser diagnostics
-and invalid exit-status construction; and observes process exit status 7. Direct imports of
-compiler-owned platform intrinsics are rejected.
+and invalid exit-status construction; and observes process exit status 7. Compiler-supplied host
+operations are private same-namespace bindings of their bundled package and cannot be imported.
 Runtime templates are split by selected standard facility so stream-only, filesystem-only, and
 process-only programs emit no unrelated host intrinsics or corresponding dead-code allowances.
 Resource-owning collection types are rejected before lowering, and stream operations release the
@@ -1469,8 +1469,8 @@ kind-stable JSON/YAML numbers, unconditional duplicate-key rejection, determinis
 ordering with exact number serialization, serializing and deserializing descriptor interfaces,
 document paths and unknown fields, JSON/YAML depth and size limits, YAML alias-node limits and safe
 scalar behavior, URL credential-safe display, duplicate ordered query entries, relative resolution,
-and generated-Rust compilation and execution with warnings denied. A rejection case keeps host
-intrinsics private.
+and generated-Rust compilation and execution with warnings denied. A rejection case proves that the
+private JSON parser binding in `/standard/json` cannot be imported by another namespace.
 
 ### Milestone 23 — Randomness, codecs, digests, and compression
 
@@ -1496,9 +1496,9 @@ constant-time/zeroising primitives, and audited codec/compression implementation
 execution covers deterministic ChaCha20 generation and splitting, secure and bounded generation,
 SHA-256 and SHA-512 digests and HMAC, destroyed-key and unsupported-algorithm failures, strict codec
 padding policies, UUID parsing and v4/v7 generation, all four compression formats, explicit
-single-layer decompression, and distinct limit refusal. Rejected cases prove that pseudo-random values cannot
-satisfy secure-random parameters and that the private host intrinsic namespace cannot be imported
-directly.
+single-layer decompression, and distinct limit refusal. Rejected cases prove that pseudo-random
+values cannot satisfy secure-random parameters and that private compiler bindings in bundled
+standard packages cannot be imported directly.
 
 
 ### Milestone 24 — Networking and TLS

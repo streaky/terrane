@@ -1,28 +1,6 @@
 namespace standard/concurrency
 
 from /core/types import int, int64, bool, string
-from /core/platform-concurrency import platform-capability, platform-result, no-capability
-from /core/platform-concurrency import int-channel as platform-int-channel
-from /core/platform-concurrency import int-channel-send as platform-channel-send
-from /core/platform-concurrency import int-channel-receive as platform-channel-receive
-from /core/platform-concurrency import int-channel-try-receive as platform-channel-try-receive
-from /core/platform-concurrency import int-mutex as platform-int-mutex
-from /core/platform-concurrency import int-mutex-load as platform-mutex-load
-from /core/platform-concurrency import int-mutex-store as platform-mutex-store
-from /core/platform-concurrency import int-mutex-add as platform-mutex-add
-from /core/platform-concurrency import int-read-write-lock as platform-int-read-write-lock
-from /core/platform-concurrency import int-read-write-lock-read as platform-read-write-lock-read
-from /core/platform-concurrency import int-read-write-lock-write as platform-read-write-lock-write
-from /core/platform-concurrency import atomic-int64 as platform-atomic-int64
-from /core/platform-concurrency import atomic-int64-load as platform-atomic-load
-from /core/platform-concurrency import atomic-int64-store as platform-atomic-store
-from /core/platform-concurrency import atomic-int64-add as platform-atomic-add
-from /core/platform-concurrency import thread-local-int as platform-thread-local-int
-from /core/platform-concurrency import thread-local-int-get as platform-thread-local-get
-from /core/platform-concurrency import thread-local-int-set as platform-thread-local-set
-from /core/platform-concurrency import result-failed, result-message, result-int, result-bool
-from /core/platform-capabilities import cancellation-token as platform-cancellation-token, cancel as platform-cancel
-from /core/platform-capabilities import result-deadline-exceeded, result-capability
 
 class operation-result
     failed bool = false

@@ -644,7 +644,7 @@ purity: no `pure` qualifier; a future contract requires independently defined ob
 
 ## COLLECTION / TEXT
 
-Core environment should provide object protocols/facilities for list, map, set, tuple, range, entry; import them explicitly from standard namespaces unless prelude changes normatively.
+Core environment provides object protocols/facilities for list, map, set, tuple, range, and entry; import them explicitly from `/core/collections` unless prelude changes normatively.
 
 - List construction uses ordinary invocation; maps use named construction arguments; sets/tuples likewise object facilities.
 - Tuple type application is `tuple of Item`; tuples are homogeneous and fixed-length after construction, but runtime length is not part of the type.
@@ -835,6 +835,13 @@ prelude = true            # optional; defaults true
 
 ```yaml
 rule: standard facilities are written in TERRANE over a deliberately minimal Rust core
+namespace_layers:
+  /core: public normative language objects supplied by compiler bootstrap; a name here need not have Terrane source
+  /standard: public compiler-shipped Terrane packages built over /core and included through ordinary bundled-source compilation
+private_host_abi: compiler seeds each bundled /standard namespace with only its required private intrinsic bindings; bundled source uses unqualified same-namespace names, other namespaces cannot import them
+intrinsic_identity: compiler lowering key, NEVER a Terrane namespace path
+placement_rule: reusable normative compiler-supplied type/operation belongs under its public /core parent; only irreducible package implementation machinery is private
+no_internal_root: /internal does not exist as a language-owned namespace; /core/platform-* aliases do not exist
 why_decisive: a Rust support crate is permanently opaque to the compiler - implementing a facility in Rust forecloses inlining, specialisation, and whole-program analysis for it forever
 why_also: exercises lowering against real code; builds a corpus before a public one exists; failures surface as readable Terrane frames, which a Rust crate can never give
 boundary: PER LAYER, not per facility - Rust owns the irreducible or audited layer, Terrane owns object model, policy, diagnostics, integration
@@ -846,8 +853,8 @@ rust_justified_only_if:
   - large externally-audited security-critical implementation
   - data rather than code (Unicode tables, tz database), generated
 rust_layer_rule: a layer claiming to be Rust states WHICH of the four applies
-dependency_path: core libraries use the ordinary §23 manifest declaration and generated crossed-member projection; no privileged path
-profiles: core libraries declare Rust dependencies explicitly so a profile may exclude them
+dependency_path: standard facilities use the ordinary §23 manifest declaration and generated crossed-member projection; no privileged path
+profiles: standard facilities declare Rust dependencies explicitly so a profile may exclude them
 consequence_build: package-level artifact caching becomes load-bearing, not an optimisation
 consequence_profile: capabilities become which Terrane packages are present, not which support crates were compiled in
 ```

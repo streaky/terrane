@@ -2,11 +2,6 @@ namespace standard/urls
 
 from /core/types import int, bool, string
 from /core/collections import list
-from /core/platform-data import platform-url-result
-from /core/platform-data import url-parse as platform-parse, url-failed, url-message
-from /core/platform-data import url-serialized, url-display, url-scheme, url-username, url-password
-from /core/platform-data import url-host, url-port, url-path, url-fragment, url-origin
-from /core/platform-data import url-query-length, url-query-key, url-query-value
 
 class url-query
     keys list of string = list; ''
