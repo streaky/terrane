@@ -304,6 +304,7 @@ fn encoded_literal_macro(
                 let consumed = end + 1 + usize::from(bytes.get(end + 1) == Some(&b';'));
                 return Some((consumed, literal));
             }
+            b']' | b'}' if depth == 1 => return None,
             b')' | b']' | b'}' => depth -= 1,
             _ => {}
         }
@@ -446,11 +447,11 @@ impl RenderedProgram {
 
     pub(crate) fn files(&self, entrypoint: &str) -> Result<Vec<RenderedFile>, String> {
         let entrypoint_path = std::path::Path::new(entrypoint);
-        let Some(stem) = entrypoint_path
-            .file_stem()
-            .and_then(std::ffi::OsStr::to_str)
-        else {
-            return Err("generated Rust output path must have a UTF-8 file name".to_owned());
+        let Some(file_stem) = entrypoint_path.file_stem() else {
+            return Err("generated Rust output path has no file name".to_owned());
+        };
+        let Some(stem) = file_stem.to_str() else {
+            return Err("generated Rust output file name must be valid UTF-8".to_owned());
         };
         let support_name = format!("{stem}.support.rs");
         let support_path = entrypoint_path.with_file_name(&support_name);
@@ -685,6 +686,12 @@ mod tests {
             restore_terrane_site_rows("__terrane_site_comment!(\"odd);site\");\n"),
             "/* terrane-site-row: odd);site */\n"
         );
+    }
+
+    #[test]
+    fn malformed_metadata_macro_delimiters_are_left_unchanged() {
+        let rendered = "__terrane_site_comment!(]);\n";
+        assert_eq!(restore_terrane_site_rows(rendered), rendered);
     }
 
     #[test]

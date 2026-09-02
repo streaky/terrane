@@ -129,7 +129,7 @@ fn invalid_rust_output_path_is_not_reported_as_a_canonical_compiler_defect() {
     assert_eq!(output.status.code(), Some(5));
     assert!(stderr.contains("error[S9002]"));
     assert!(!stderr.contains("error[S9004]"));
-    assert!(stderr.contains("generated Rust output path must have a UTF-8 file name"));
+    assert!(stderr.contains("generated Rust output path has no file name"));
 }
 
 #[test]
