@@ -28,6 +28,10 @@ impl CliFailure {
         }
     }
 
+    #[expect(
+        clippy::needless_pass_by_value,
+        reason = "map_err transfers ownership of the compiler failure directly into this renderer"
+    )]
     fn compilation(failure: terrane_compiler::CompilationFailure) -> Self {
         Self {
             code: 3,
@@ -36,6 +40,15 @@ impl CliFailure {
                 .iter()
                 .map(|diagnostic| diagnostic.render(&failure.source))
                 .collect(),
+        }
+    }
+
+    fn rust_artifact(error: terrane_compiler::RustArtifactError) -> Self {
+        match error {
+            terrane_compiler::RustArtifactError::InvalidOutputPath(message) => {
+                Self::backend(message)
+            }
+            terrane_compiler::RustArtifactError::Compilation(failure) => Self::compilation(failure),
         }
     }
 
@@ -115,7 +128,7 @@ fn run(arguments: &[OsString]) -> Result<ExitCode, CliFailure> {
     })?;
     let rust_files = compilation
         .rust_files_for(rust_entrypoint)
-        .map_err(CliFailure::compilation)?;
+        .map_err(CliFailure::rust_artifact)?;
     if command == "rust" {
         write_rust(&rust_files)?;
         return Ok(ExitCode::SUCCESS);

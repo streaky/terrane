@@ -274,23 +274,52 @@ fn restore_terrane_comments(rendered: &str) -> String {
     restored
 }
 
+fn encoded_literal_macro(
+    rendered: &str,
+    start: usize,
+    marker: &str,
+) -> Option<(usize, syn::LitStr)> {
+    let argument_start = start + marker.len();
+    let bytes = rendered.as_bytes();
+    let mut depth = 1_usize;
+    let mut in_string = false;
+    let mut escaped = false;
+    for (offset, byte) in bytes[argument_start..].iter().copied().enumerate() {
+        if in_string {
+            if escaped {
+                escaped = false;
+            } else if byte == b'\\' {
+                escaped = true;
+            } else if byte == b'"' {
+                in_string = false;
+            }
+            continue;
+        }
+        match byte {
+            b'"' => in_string = true,
+            b'(' | b'[' | b'{' => depth += 1,
+            b')' if depth == 1 => {
+                let end = argument_start + offset;
+                let literal = syn::parse_str(rendered[argument_start..end].trim()).ok()?;
+                let consumed = end + 1 + usize::from(bytes.get(end + 1) == Some(&b';'));
+                return Some((consumed, literal));
+            }
+            b')' | b']' | b'}' => depth -= 1,
+            _ => {}
+        }
+    }
+    None
+}
+
 fn restore_terrane_site_rows(rendered: &str) -> String {
     const MARKER: &str = "__terrane_site_comment!(";
     let mut restored = String::with_capacity(rendered.len());
     let mut remaining = rendered;
     while let Some(start) = remaining.find(MARKER) {
         restored.push_str(&remaining[..start]);
-        let argument_start = start + MARKER.len();
-        let Some(end) = remaining[argument_start..].find(");") else {
+        let Some((end, comment)) = encoded_literal_macro(remaining, start, MARKER) else {
             restored.push_str(&remaining[start..]);
             return restored;
-        };
-        let end = argument_start + end;
-        let Ok(comment) = syn::parse_str::<syn::LitStr>(remaining[argument_start..end].trim())
-        else {
-            restored.push_str(&remaining[start..end + 2]);
-            remaining = &remaining[end + 2..];
-            continue;
         };
         write!(
             restored,
@@ -298,7 +327,7 @@ fn restore_terrane_site_rows(rendered: &str) -> String {
             comment.value().replace("*/", "* /")
         )
         .expect("writing to a String cannot fail");
-        remaining = &remaining[end + 2..];
+        remaining = &remaining[end..];
     }
     restored.push_str(remaining);
     restored
@@ -310,20 +339,12 @@ fn restore_terrane_module_comments(rendered: &str, marker: &str) -> String {
     let mut remaining = rendered;
     while let Some(start) = remaining.find(&marker) {
         restored.push_str(&remaining[..start]);
-        let argument_start = start + marker.len();
-        let Some(end) = remaining[argument_start..].find(");") else {
+        let Some((end, comment)) = encoded_literal_macro(remaining, start, &marker) else {
             restored.push_str(&remaining[start..]);
             return restored;
         };
-        let end = argument_start + end;
-        let Ok(comment) = syn::parse_str::<syn::LitStr>(remaining[argument_start..end].trim())
-        else {
-            restored.push_str(&remaining[start..end + 2]);
-            remaining = &remaining[end + 2..];
-            continue;
-        };
         restored.push_str(&comment.value());
-        remaining = &remaining[end + 2..];
+        remaining = &remaining[end..];
     }
     restored.push_str(remaining);
     restored
@@ -331,9 +352,10 @@ fn restore_terrane_module_comments(rendered: &str, marker: &str) -> String {
 
 fn restore_terrane_metadata(rendered: &str, module_comment_marker: Option<&str>) -> String {
     let restored = restore_terrane_site_rows(&restore_terrane_comments(rendered));
-    let restored = module_comment_marker.map_or(restored.clone(), |marker| {
-        restore_terrane_module_comments(&restored, marker)
-    });
+    let restored = match module_comment_marker {
+        Some(marker) => restore_terrane_module_comments(&restored, marker),
+        None => restored,
+    };
     let mut normalized = String::with_capacity(restored.len());
     for line in restored.split_inclusive('\n') {
         let content = line.strip_suffix('\n').unwrap_or(line);
@@ -552,7 +574,7 @@ impl Program {
 mod tests {
     use super::{
         Block, canonicalize_rust, encode_terrane_comments, restore_terrane_comments,
-        restore_terrane_metadata,
+        restore_terrane_metadata, restore_terrane_module_comments, restore_terrane_site_rows,
     };
 
     #[test]
@@ -647,6 +669,21 @@ mod tests {
         assert_eq!(
             restore_terrane_comments("__terrane_comment!(7, \"site\""),
             "__terrane_comment!(7, \"site\""
+        );
+    }
+
+    #[test]
+    fn metadata_codecs_accept_delimiter_text_inside_encoded_literals() {
+        assert_eq!(
+            restore_terrane_module_comments(
+                "__terrane_generated_module_comment!(\"// Source: odd);name.trn\");\n",
+                "__terrane_generated_module_comment",
+            ),
+            "// Source: odd);name.trn\n"
+        );
+        assert_eq!(
+            restore_terrane_site_rows("__terrane_site_comment!(\"odd);site\");\n"),
+            "/* terrane-site-row: odd);site */\n"
         );
     }
 

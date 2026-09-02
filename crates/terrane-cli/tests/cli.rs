@@ -119,6 +119,20 @@ fn rust_output_writes_clean_authored_lowering_and_support_sidecar() {
 }
 
 #[test]
+fn invalid_rust_output_path_is_not_reported_as_a_canonical_compiler_defect() {
+    let output = Command::new(env!("CARGO_BIN_EXE_terrane"))
+        .args(["rust", "--output", "", hello().to_str().unwrap()])
+        .output()
+        .unwrap();
+    let stderr = String::from_utf8(output.stderr).unwrap();
+
+    assert_eq!(output.status.code(), Some(5));
+    assert!(stderr.contains("error[S9002]"));
+    assert!(!stderr.contains("error[S9004]"));
+    assert!(stderr.contains("generated Rust output path must have a UTF-8 file name"));
+}
+
+#[test]
 fn output_options_are_rejected_outside_rust_and_when_repeated() {
     let binary = env!("CARGO_BIN_EXE_terrane");
     for command in ["check", "build", "run"] {

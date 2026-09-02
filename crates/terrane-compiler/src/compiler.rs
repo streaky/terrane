@@ -35,21 +35,17 @@ impl Compilation {
     ///
     /// # Errors
     ///
-    /// Returns a compiler diagnostic when `entrypoint` cannot derive a UTF-8 support-file path, or
-    /// when canonical Rust validation was requested and either rendered file is not canonical.
-    pub fn rust_files_for(
-        &self,
-        entrypoint: &str,
-    ) -> Result<Vec<RenderedFile>, CompilationFailure> {
+    /// Returns [`RustArtifactError::InvalidOutputPath`] when `entrypoint` cannot derive a UTF-8
+    /// support-file path, or [`RustArtifactError::Compilation`] when requested canonical Rust
+    /// validation rejects either rendered file.
+    pub fn rust_files_for(&self, entrypoint: &str) -> Result<Vec<RenderedFile>, RustArtifactError> {
         let files = self
             .rendered_rust
             .files(entrypoint)
-            .map_err(|message| CompilationFailure {
-                source: self.source.clone(),
-                diagnostics: vec![Diagnostic::error("S9004", message, self.entry_span)],
-            })?;
+            .map_err(RustArtifactError::InvalidOutputPath)?;
         if self.require_canonical_rust {
-            validate_canonical_rust(&files, &self.sources, &self.source, self.entry_span)?;
+            validate_canonical_rust(&files, &self.sources, &self.source, self.entry_span)
+                .map_err(RustArtifactError::Compilation)?;
         }
         Ok(files)
     }
@@ -59,6 +55,12 @@ impl Compilation {
 pub struct CompilationFailure {
     pub source: SourceFile,
     pub diagnostics: Vec<Diagnostic>,
+}
+
+#[derive(Clone, Debug)]
+pub enum RustArtifactError {
+    InvalidOutputPath(String),
+    Compilation(CompilationFailure),
 }
 
 impl std::ops::Deref for CompilationFailure {
