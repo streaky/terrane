@@ -376,18 +376,18 @@ mod __terrane_trace {
         pub end_line: u32,
         pub end_column: u32,
     }
-    pub static FILES: [&str; 1] = ["standard/paths.trn"];
+    pub static FILES: [&str; 1] = ["core/paths.trn"];
     pub static FUNCTIONS: [&str; 6] = [
-        "/standard/paths::path-components",
-        "/standard/paths::normalise-path",
-        "/standard/paths::path-name",
-        "/standard/paths::path-parent",
-        "/standard/paths::path-stem",
-        "/standard/paths::path-extension",
+        "/core/filesystem/paths::path-components",
+        "/core/filesystem/paths::normalise-path",
+        "/core/filesystem/paths::path-name",
+        "/core/filesystem/paths::path-parent",
+        "/core/filesystem/paths::path-stem",
+        "/core/filesystem/paths::path-extension",
     ];
     pub static SITES: [Site; 12] = [
         {
-            /* terrane-site-row: site 0: /standard/paths::path-components (standard/paths.trn:16:16-16:28) */
+            /* terrane-site-row: site 0: /core/filesystem/paths::path-components (core/paths.trn:16:16-16:28) */
             Site {
                 function: 0,
                 file: 0,
@@ -398,7 +398,7 @@ mod __terrane_trace {
             }
         },
         {
-            /* terrane-site-row: site 1: /standard/paths::normalise-path (standard/paths.trn:32:16-32:33) */
+            /* terrane-site-row: site 1: /core/filesystem/paths::normalise-path (core/paths.trn:32:16-32:33) */
             Site {
                 function: 1,
                 file: 0,
@@ -409,7 +409,7 @@ mod __terrane_trace {
             }
         },
         {
-            /* terrane-site-row: site 2: /standard/paths::normalise-path (standard/paths.trn:35:34-35:49) */
+            /* terrane-site-row: site 2: /core/filesystem/paths::normalise-path (core/paths.trn:35:34-35:49) */
             Site {
                 function: 1,
                 file: 0,
@@ -420,7 +420,7 @@ mod __terrane_trace {
             }
         },
         {
-            /* terrane-site-row: site 3: /standard/paths::normalise-path (standard/paths.trn:40:29-40:50) */
+            /* terrane-site-row: site 3: /core/filesystem/paths::normalise-path (core/paths.trn:40:29-40:50) */
             Site {
                 function: 1,
                 file: 0,
@@ -431,7 +431,7 @@ mod __terrane_trace {
             }
         },
         {
-            /* terrane-site-row: site 4: /standard/paths::normalise-path (standard/paths.trn:46:21-46:42) */
+            /* terrane-site-row: site 4: /core/filesystem/paths::normalise-path (core/paths.trn:46:21-46:42) */
             Site {
                 function: 1,
                 file: 0,
@@ -442,7 +442,7 @@ mod __terrane_trace {
             }
         },
         {
-            /* terrane-site-row: site 5: /standard/paths::normalise-path (standard/paths.trn:56:33-56:44) */
+            /* terrane-site-row: site 5: /core/filesystem/paths::normalise-path (core/paths.trn:56:33-56:44) */
             Site {
                 function: 1,
                 file: 0,
@@ -453,7 +453,7 @@ mod __terrane_trace {
             }
         },
         {
-            /* terrane-site-row: site 6: /standard/paths::path-name (standard/paths.trn:69:12-69:35) */
+            /* terrane-site-row: site 6: /core/filesystem/paths::path-name (core/paths.trn:69:12-69:35) */
             Site {
                 function: 2,
                 file: 0,
@@ -464,7 +464,7 @@ mod __terrane_trace {
             }
         },
         {
-            /* terrane-site-row: site 7: /standard/paths::path-parent (standard/paths.trn:83:33-83:45) */
+            /* terrane-site-row: site 7: /core/filesystem/paths::path-parent (core/paths.trn:83:33-83:45) */
             Site {
                 function: 3,
                 file: 0,
@@ -475,7 +475,7 @@ mod __terrane_trace {
             }
         },
         {
-            /* terrane-site-row: site 8: /standard/paths::path-stem (standard/paths.trn:95:31-95:40) */
+            /* terrane-site-row: site 8: /core/filesystem/paths::path-stem (core/paths.trn:95:31-95:40) */
             Site {
                 function: 4,
                 file: 0,
@@ -486,7 +486,7 @@ mod __terrane_trace {
             }
         },
         {
-            /* terrane-site-row: site 9: /standard/paths::path-stem (standard/paths.trn:102:33-102:46) */
+            /* terrane-site-row: site 9: /core/filesystem/paths::path-stem (core/paths.trn:102:33-102:46) */
             Site {
                 function: 4,
                 file: 0,
@@ -497,7 +497,7 @@ mod __terrane_trace {
             }
         },
         {
-            /* terrane-site-row: site 10: /standard/paths::path-extension (standard/paths.trn:111:31-111:40) */
+            /* terrane-site-row: site 10: /core/filesystem/paths::path-extension (core/paths.trn:111:31-111:40) */
             Site {
                 function: 5,
                 file: 0,
@@ -508,7 +508,7 @@ mod __terrane_trace {
             }
         },
         {
-            /* terrane-site-row: site 11: /standard/paths::path-extension (standard/paths.trn:113:12-113:37) */
+            /* terrane-site-row: site 11: /core/filesystem/paths::path-extension (core/paths.trn:113:12-113:37) */
             Site {
                 function: 5,
                 file: 0,
@@ -579,8 +579,8 @@ fn main() {
         .text)
     );
 }
-// Source: standard/paths.trn
-// Namespace: standard/paths
+// Source: core/paths.trn
+// Namespace: core/filesystem/paths
 #[derive(Clone)]
 pub struct Path {
     pub text: String,
@@ -610,17 +610,17 @@ pub fn path_components(subject: Path) -> terrane_collection_support::List<String
                 .get(
                     __terrane_raised(
                         terrane_collection_support::index_from_int(&index.clone()),
-                        0 /* terrane-site: standard/paths.trn:16:16-16:28 */,
+                        0 /* terrane-site: core/paths.trn:16:16-16:28 */,
                     ),
                 )
                 .cloned()
                 .ok_or(terrane_collection_support::IndexError {
                     index: __terrane_raised(
                         terrane_collection_support::index_from_int(&index.clone()),
-                        0 /* terrane-site: standard/paths.trn:16:16-16:28 */,
+                        0 /* terrane-site: core/paths.trn:16:16-16:28 */,
                     ),
                 }),
-            0 /* terrane-site: standard/paths.trn:16:16-16:28 */,
+            0 /* terrane-site: core/paths.trn:16:16-16:28 */,
         );
         if part != String::from("") {
             result.append(part);
@@ -651,17 +651,17 @@ pub fn normalise_path(subject: Path) -> Path {
                 .get(
                     __terrane_raised(
                         terrane_collection_support::index_from_int(&part_index.clone()),
-                        1 /* terrane-site: standard/paths.trn:32:16-32:33 */,
+                        1 /* terrane-site: core/paths.trn:32:16-32:33 */,
                     ),
                 )
                 .cloned()
                 .ok_or(terrane_collection_support::IndexError {
                     index: __terrane_raised(
                         terrane_collection_support::index_from_int(&part_index.clone()),
-                        1 /* terrane-site: standard/paths.trn:32:16-32:33 */,
+                        1 /* terrane-site: core/paths.trn:32:16-32:33 */,
                     ),
                 }),
-            1 /* terrane-site: standard/paths.trn:32:16-32:33 */,
+            1 /* terrane-site: core/paths.trn:32:16-32:33 */,
         );
         if part != String::from("") && part != String::from(".") {
             if part == String::from("..") {
@@ -673,10 +673,10 @@ pub fn normalise_path(subject: Path) -> Path {
                                     terrane_collection_support::index_from_int(
                                         &(count.clone() - terrane_int_support::Int::from(1_i128)),
                                     ),
-                                    2 /* terrane-site: standard/paths.trn:35:34-35:49 */,
+                                    2 /* terrane-site: core/paths.trn:35:34-35:49 */,
                                 ),
                             ),
-                        2 /* terrane-site: standard/paths.trn:35:34-35:49 */,
+                        2 /* terrane-site: core/paths.trn:35:34-35:49 */,
                     ) != String::from("..")
                 {
                     count = count.clone() - terrane_int_support::Int::from(1_i128);
@@ -692,11 +692,11 @@ pub fn normalise_path(subject: Path) -> Path {
                                     .set(
                                         __terrane_raised(
                                             terrane_collection_support::index_from_int(&count.clone()),
-                                            3 /* terrane-site: standard/paths.trn:40:29-40:50 */,
+                                            3 /* terrane-site: core/paths.trn:40:29-40:50 */,
                                         ),
                                         part,
                                     ),
-                                3 /* terrane-site: standard/paths.trn:40:29-40:50 */,
+                                3 /* terrane-site: core/paths.trn:40:29-40:50 */,
                             );
                         } else {
                             kept.append(part);
@@ -715,11 +715,11 @@ pub fn normalise_path(subject: Path) -> Path {
                             .set(
                                 __terrane_raised(
                                     terrane_collection_support::index_from_int(&count.clone()),
-                                    4 /* terrane-site: standard/paths.trn:46:21-46:42 */,
+                                    4 /* terrane-site: core/paths.trn:46:21-46:42 */,
                                 ),
                                 part,
                             ),
-                        4 /* terrane-site: standard/paths.trn:46:21-46:42 */,
+                        4 /* terrane-site: core/paths.trn:46:21-46:42 */,
                     );
                 } else {
                     kept.append(part);
@@ -742,8 +742,8 @@ pub fn normalise_path(subject: Path) -> Path {
             "{}{}", terrane_scalar_support::scalar_text(&result),
             terrane_scalar_support::scalar_text(&__terrane_raised(kept
             .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&index
-            .clone()), 5 /* terrane-site: standard/paths.trn:56:33-56:44 */)),
-            5 /* terrane-site: standard/paths.trn:56:33-56:44 */))
+            .clone()), 5 /* terrane-site: core/paths.trn:56:33-56:44 */)),
+            5 /* terrane-site: core/paths.trn:56:33-56:44 */))
         );
         index = index.clone() + terrane_int_support::Int::from(1_i128);
     }
@@ -775,10 +775,10 @@ pub fn path_name(subject: Path) -> String {
                             terrane_int_support::Int::from(parts.length()),
                         ) - terrane_int_support::Int::from(1_i128)),
                     ),
-                    6 /* terrane-site: standard/paths.trn:69:12-69:35 */,
+                    6 /* terrane-site: core/paths.trn:69:12-69:35 */,
                 ),
             ),
-        6 /* terrane-site: standard/paths.trn:69:12-69:35 */,
+        6 /* terrane-site: core/paths.trn:69:12-69:35 */,
     );
 }
 pub fn path_parent(subject: Path) -> Path {
@@ -812,8 +812,8 @@ pub fn path_parent(subject: Path) -> Path {
             "{}{}", terrane_scalar_support::scalar_text(&result),
             terrane_scalar_support::scalar_text(&__terrane_raised(parts
             .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&index
-            .clone()), 7 /* terrane-site: standard/paths.trn:83:33-83:45 */)),
-            7 /* terrane-site: standard/paths.trn:83:33-83:45 */))
+            .clone()), 7 /* terrane-site: core/paths.trn:83:33-83:45 */)),
+            7 /* terrane-site: core/paths.trn:83:33-83:45 */))
         );
         index = index.clone() + terrane_int_support::Int::from(1_i128);
     }
@@ -846,7 +846,7 @@ pub fn path_stem(subject: Path) -> String {
                         terrane_collection_support::index_from_int(
                             &terrane_int_support::Int::from(0_i128),
                         ),
-                        8 /* terrane-site: standard/paths.trn:95:31-95:40 */,
+                        8 /* terrane-site: core/paths.trn:95:31-95:40 */,
                     ),
                 )
                 .cloned()
@@ -855,10 +855,10 @@ pub fn path_stem(subject: Path) -> String {
                         terrane_collection_support::index_from_int(
                             &terrane_int_support::Int::from(0_i128),
                         ),
-                        8 /* terrane-site: standard/paths.trn:95:31-95:40 */,
+                        8 /* terrane-site: core/paths.trn:95:31-95:40 */,
                     ),
                 }),
-            8 /* terrane-site: standard/paths.trn:95:31-95:40 */,
+            8 /* terrane-site: core/paths.trn:95:31-95:40 */,
         ) == String::from("")
     {
         return current;
@@ -879,11 +879,11 @@ pub fn path_stem(subject: Path) -> String {
             "{}{}", terrane_scalar_support::scalar_text(&result),
             terrane_scalar_support::scalar_text(&__terrane_raised(pieces
             .get(__terrane_raised(terrane_collection_support::index_from_int(&index
-            .clone()), 9 /* terrane-site: standard/paths.trn:102:33-102:46 */))
-            .cloned().ok_or(terrane_collection_support::IndexError { index :
+            .clone()), 9 /* terrane-site: core/paths.trn:102:33-102:46 */)).cloned()
+            .ok_or(terrane_collection_support::IndexError { index :
             __terrane_raised(terrane_collection_support::index_from_int(&index.clone()),
-            9 /* terrane-site: standard/paths.trn:102:33-102:46 */) }),
-            9 /* terrane-site: standard/paths.trn:102:33-102:46 */))
+            9 /* terrane-site: core/paths.trn:102:33-102:46 */) }),
+            9 /* terrane-site: core/paths.trn:102:33-102:46 */))
         );
         index = index.clone() + terrane_int_support::Int::from(1_i128);
     }
@@ -909,7 +909,7 @@ pub fn path_extension(subject: Path) -> String {
                         terrane_collection_support::index_from_int(
                             &terrane_int_support::Int::from(0_i128),
                         ),
-                        10 /* terrane-site: standard/paths.trn:111:31-111:40 */,
+                        10 /* terrane-site: core/paths.trn:111:31-111:40 */,
                     ),
                 )
                 .cloned()
@@ -918,10 +918,10 @@ pub fn path_extension(subject: Path) -> String {
                         terrane_collection_support::index_from_int(
                             &terrane_int_support::Int::from(0_i128),
                         ),
-                        10 /* terrane-site: standard/paths.trn:111:31-111:40 */,
+                        10 /* terrane-site: core/paths.trn:111:31-111:40 */,
                     ),
                 }),
-            10 /* terrane-site: standard/paths.trn:111:31-111:40 */,
+            10 /* terrane-site: core/paths.trn:111:31-111:40 */,
         ) == String::from("")
     {
         return String::from("");
@@ -934,7 +934,7 @@ pub fn path_extension(subject: Path) -> String {
                         &(terrane_int_support::Int::from(pieces.len() as i128)
                             - terrane_int_support::Int::from(1_i128)),
                     ),
-                    11 /* terrane-site: standard/paths.trn:113:12-113:37 */,
+                    11 /* terrane-site: core/paths.trn:113:12-113:37 */,
                 ),
             )
             .cloned()
@@ -944,10 +944,10 @@ pub fn path_extension(subject: Path) -> String {
                         &(terrane_int_support::Int::from(pieces.len() as i128)
                             - terrane_int_support::Int::from(1_i128)),
                     ),
-                    11 /* terrane-site: standard/paths.trn:113:12-113:37 */,
+                    11 /* terrane-site: core/paths.trn:113:12-113:37 */,
                 ),
             }),
-        11 /* terrane-site: standard/paths.trn:113:12-113:37 */,
+        11 /* terrane-site: core/paths.trn:113:12-113:37 */,
     );
 }
 pub fn join_path(base: Path, child: Path) -> Path {

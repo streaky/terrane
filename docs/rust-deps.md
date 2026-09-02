@@ -37,17 +37,19 @@ to Terrane source:
 
 1. **Support crate.** `crates/terrane-document-support/src/lib.rs` exposes flat free functions over
    `serde_json`/`yaml-rust2`/`url`, hiding those crates' types behind `DataResult` and `UrlResult`.
-2. **Public core tools.** The compiler registers the document operations in `/core/documents`,
-   `/core/json`, `/core/yaml`, and `/core/urls`; each public semantic identity carries a separate
-   compiler-only lowering key.
+2. **Private package bindings.** Before analysing `/core/documents`, `/core/documents/json`,
+   `/core/documents/yaml`, or `/core/urls`, the compiler seeds that exact namespace with only the
+   private host bindings its bundled Terrane implementation needs. Each binding carries a
+   compiler-only lowering identity.
 3. **Generated shims.** `crates/terrane-compiler/src/runtime/platform_urls.rs` and its siblings emit
-   one public Rust function per crossed core member into the generated support artifact.
-4. **Authored Terrane wrapper.** The bundled packages explicitly `import /core/<facility>` and
-   present the higher-level `/standard` object model over those operations.
+   one public Rust function per crossed private binding into the generated support artifact.
+4. **Bundled Terrane core wrapper.** The owning package presents the typed public `/core/*` object
+   model over those private bindings. Rust visibility needed between generated modules does not
+   make a host binding importable in Terrane.
 
-Milestone 25 generalises layers 2, 3 and 4: `/deps/<crate>` supplies projected package objects
-instead of compiler-registered core tools, the shims are generated from a projection instead of
-being written by hand, and layer 4 becomes optional rather than mandatory.
+Milestone 25 generalises layers 1 through 3: `/deps/<crate>` supplies projected package objects
+instead of compiler-seeded private bindings, the shims are generated from a projection instead of
+being written by hand, and the authored wrapper layer becomes optional rather than mandatory.
 
 ### 2.1 The shape the existing boundary already has
 

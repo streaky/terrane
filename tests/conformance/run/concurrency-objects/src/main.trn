@@ -1,7 +1,7 @@
 namespace concurrency-objects
 
 from /core/output import print
-from /standard/concurrency import operation-options, cancellation-token, int-channel, int-mutex, int-read-write-lock, atomic-int64, acquire-order, release-order, acquire-release-order, thread-local-int
+from /core/concurrency import operation-options, cancellation-token, int-channel, int-mutex, int-read-write-lock, atomic-int64, acquire-order, release-order, acquire-release-order, thread-local-int
 
 class async-runner
     callback function to none = function none;

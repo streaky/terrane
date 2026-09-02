@@ -376,8 +376,8 @@ mod __terrane_trace {
         pub end_line: u32,
         pub end_column: u32,
     }
-    pub static FILES: [&str; 2] = ["case.trn", "standard/networking.trn"];
-    pub static FUNCTIONS: [&str; 2] = ["/app::main", "/standard/networking::lookup-dns"];
+    pub static FILES: [&str; 2] = ["case.trn", "core/networking.trn"];
+    pub static FUNCTIONS: [&str; 2] = ["/app::main", "/core/networking::lookup-dns"];
     pub static SITES: [Site; 2] = [
         {
             /* terrane-site-row: site 0: /app::main (case.trn:20:13-20:39) */
@@ -391,13 +391,13 @@ mod __terrane_trace {
             }
         },
         {
-            /* terrane-site-row: site 1: /standard/networking::lookup-dns (standard/networking.trn:320:28-320:49) */
+            /* terrane-site-row: site 1: /core/networking::lookup-dns (core/networking.trn:319:28-319:49) */
             Site {
                 function: 1,
                 file: 1,
-                line: 320,
+                line: 319,
                 column: 28,
-                end_line: 320,
+                end_line: 319,
                 end_column: 49,
             }
         },
@@ -698,8 +698,8 @@ fn main() {
     println!("{}", terrane_scalar_support::scalar_text(&! received.truncated));
     socket.close();
 }
-// Source: standard/networking.trn
-// Namespace: standard/networking
+// Source: core/networking.trn
+// Namespace: core/networking
 #[derive(Clone)]
 pub struct OperationResult {
     pub failed: bool,
@@ -1555,19 +1555,17 @@ pub fn lookup_dns(
                         .get(
                             __terrane_raised(
                                 terrane_collection_support::index_from_int(&index.clone()),
-
-                                    1 /* terrane-site: standard/networking.trn:320:28-320:49 */,
+                                1 /* terrane-site: core/networking.trn:319:28-319:49 */,
                             ),
                         )
                         .cloned()
                         .ok_or(terrane_collection_support::IndexError {
                             index: __terrane_raised(
                                 terrane_collection_support::index_from_int(&index.clone()),
-
-                                    1 /* terrane-site: standard/networking.trn:320:28-320:49 */,
+                                1 /* terrane-site: core/networking.trn:319:28-319:49 */,
                             ),
                         }),
-                    1 /* terrane-site: standard/networking.trn:320:28-320:49 */,
+                    1 /* terrane-site: core/networking.trn:319:28-319:49 */,
                 ),
             );
         index = index.clone() + terrane_int_support::Int::from(1_i128);

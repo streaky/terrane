@@ -338,8 +338,8 @@ is written to a named entrypoint, that file contains the lowered application, so
 associations, and only the import ceremony required to include a deterministic sibling support
 file. The sibling contains compiler-owned prelude, runtime, structured-error representation, source
 site tables, other support definitions, the selectively included implementations of bundled
-`/core` and `/standard` modules, and projected `/deps` lowering. User-authored package modules remain
-in the entrypoint. Named lowering emits the support sidecar even when it is empty, preserving one
+`/core` modules, and projected `/deps` lowering. User-authored package modules remain in the
+entrypoint. Named lowering emits the support sidecar even when it is empty, preserving one
 uniform two-file artifact contract. Cargo compilation uses the same split renderer rather than a
 second lowering path. When generated Rust is streamed instead of written as files, tooling
 emits one complete standalone Rust translation unit by placing the same support definitions before
@@ -350,28 +350,32 @@ Generated Rust should normally not be edited in place. A module may instead be d
 ---
 
 
-### 5.7 Standard facilities are written in Terrane
+### 5.7 Core facilities are written in Terrane
 
-The Rust core is deliberately minimal. Standard facilities — document formats, networking protocols, compression framing, date and time arithmetic, path handling, command-line parsing, logging, package machinery — are written in Terrane over that core rather than implemented as Rust support crates.
+The Rust core is deliberately minimal. Public core facilities — document formats, networking
+protocols, compression framing, date and time arithmetic, path handling, command-line parsing,
+logging, and package machinery — are written in Terrane over that substrate rather than implemented
+as Rust support crates.
 
-The namespace roots make that layering visible. `/core` is the public compiler-supplied language
-surface: implicit descriptor constructs plus explicitly imported operational tooling. Every
-descriptor under `/core/types` resolves as language vocabulary without an import. Operations such
-as codecs, filesystem access, document parsing, networking, and concurrency remain unavailable
-until their owning namespace or an individual object is imported. `/standard` is the public set of
-compiler-shipped Terrane packages built over those core operations.
+`/core` is the one public compiler-supplied language surface: implicit descriptor constructs plus
+explicitly imported operational tooling. Every descriptor under `/core/types` resolves as language
+vocabulary without an import. Operations such as codecs, filesystem access, document parsing,
+networking, and concurrency remain unavailable until their owning namespace or an individual
+object is imported.
 
-Bundled standard source obeys the same rule as authored source. For example,
-`import /core/filesystem` makes every public importable object in that namespace available to the
-package; it does not rely on compiler-seeded local names or a hidden internal namespace. Each core
-tool keeps its `/core/<facility>::<name>` semantic identity and may carry a separate compiler-only
-lowering key selecting its Rust shim. Because the shim is callable from separately emitted generated
-Rust, that support item and the ABI types in its public signature have corresponding public Rust
-visibility. There is no `/internal` language root and no `/core/platform-*` compatibility surface.
+Implementation language does not create a second public layer. Before analysing a bundled core
+package, the compiler seeds that package's own namespace with only the private host bindings its
+Terrane implementation needs. Those bindings use ordinary private visibility and compiler-only
+lowering identities; another package cannot import them. Protected declarations provide the few
+deliberate parent-to-child bridges, such as `/core/documents` to `/core/documents/json`.
+The public wrappers retain `/core/<facility>::<name>` semantic identities. Generated Rust shims and
+ABI types may require public Rust visibility because separately emitted generated modules call
+them, but that Rust visibility does not publish Terrane objects. There is no `/internal` language
+root and no `/core/platform-*` compatibility surface.
 
 The decisive reason is that a Rust support crate is permanently opaque to the Terrane compiler. It is a call boundary the optimiser can never see through, so implementing a facility in Rust does not merely forgo optimisation today, it forecloses inlining, specialisation, and whole-program analysis for that facility permanently. A Terrane implementation stays visible to the entire pipeline.
 
-Three further consequences follow. Writing the libraries in Terrane exercises the lowering against real code rather than minimal fixtures, so gaps in the language surface immediately. The libraries become a substantial corpus before a public one exists. And a failure inside a standard facility surfaces as readable Terrane frames, which the diagnostics contract already requires and a Rust support crate can never provide.
+Three further consequences follow. Writing the libraries in Terrane exercises the lowering against real code rather than minimal fixtures, so gaps in the language surface immediately. The libraries become a substantial corpus before a public one exists. And a failure inside a core facility surfaces as readable Terrane frames, which the diagnostics contract already requires and a Rust support crate can never provide.
 
 **The boundary is per layer, not per facility.** Rust owns the layer that is irreducible or externally audited; Terrane owns the object model, policy, diagnostics, and integration above it. A JSON facility may have a Rust byte-level scanner beneath a Terrane document model, descriptor-driven mapping, data-path diagnostics, and canonical output. A TLS facility uses an audited protocol implementation beneath Terrane stream integration, trust-store and ALPN objects, connector policy, and capability gating. Reimplementing TLS in Terrane is not dogfooding; it is a security liability.
 
@@ -384,9 +388,9 @@ Rust is the correct choice for a layer when one of the following holds, and a la
 
 Everything else is Terrane.
 
-A standard facility that depends on a Rust crate uses the ordinary dependency mechanism of §23: a declaration plus a deliberately authored wrapper, with the wrapper being exactly the boundary machinery that section describes. Standard facilities receive no privileged path, which means they also serve as worked examples of dependency use. They declare their Rust dependencies explicitly so that a profile may exclude them.
+A core facility that depends on a Rust crate uses the ordinary dependency mechanism of §23: a declaration plus a deliberately authored wrapper, with the wrapper being exactly the boundary machinery that section describes. Core facilities receive no privileged path, which means they also serve as worked examples of dependency use. They declare their Rust dependencies explicitly so that a profile may exclude them.
 
-Two consequences shape the implementation rather than the language. Package-level artifact caching becomes load-bearing rather than an optimisation, because a source-form standard library would otherwise be recompiled by every build. And capability profiles become a question of which Terrane packages are present rather than which support crates were compiled in, which is the simpler story.
+Two consequences shape the implementation rather than the language. Package-level artifact caching becomes load-bearing rather than an optimisation, because source-form core facilities would otherwise be recompiled by every build. And capability profiles become a question of which Terrane packages are present rather than which support crates were compiled in, which is the simpler story.
 ## 6. Lexical structure
 
 ### 6.1 Encoding
@@ -993,6 +997,11 @@ never imports private objects and has no alias clause. A collision with an exist
 imported binding is an error independent of source order; use selective `from ... import ... as ...`
 when both objects are required. Namespace-wide dependency projection is deferred, so `/deps/*`
 continues to require selective object imports.
+
+Imports are discovered throughout the complete syntax tree. A block-local selective or
+namespace-wide import therefore loads its bundled core package and contributes that package's
+capability requirements exactly as a root import does. Discovery does not widen lexical scope:
+the imported names remain bound only in the scope containing the declaration.
 
 Multiple objects may be imported:
 
@@ -3585,7 +3594,7 @@ They do not expose thread creation, joining, grouping, affinity, or system-level
 They synchronise tasks or host threads supplied by the profile-selected executor/runtime boundary;
 the thread-local facility observes those existing host threads but cannot create or manage them.
 
-The version-one `/standard/concurrency` surface contains integer-specialised synchronization cells:
+The version-one `/core/concurrency` surface contains integer-specialised synchronization cells:
 `int-channel`, `int-mutex`, `int-read-write-lock`, `atomic-int64`, and `thread-local-int`. An
 assignment or argument passage of one of these objects aliases the same opaque synchronized host
 identity; it does not copy the protected value into an independent object. This is the authored
@@ -3604,7 +3613,7 @@ boundary may report a disconnected peer as failure, but version one exposes no e
 close operation or closed-state descriptor; those remain deferred until the object surface defines
 which endpoint ownership transition closes the channel.
 
-Atomic operations take a `memory-order` object rather than a raw string. The standard package
+Atomic operations take a `memory-order` object rather than a raw string. `/core/concurrency`
 supplies `relaxed-order`, `acquire-order`, `release-order`, `acquire-release-order`, and
 `sequentially-consistent-order`. Loads admit relaxed, acquire, or sequentially consistent order;
 stores admit relaxed, release, or sequentially consistent order; read-modify-write increase admits
@@ -3861,10 +3870,13 @@ default) or `abort`. Each Rust dependency may declare an `effects` string array;
 rejects an effect absent from the selected profile before projection or generated compilation:
 
 The version-one capability vocabulary is `build`, `entropy`, `filesystem`, `networking`, `process`,
-`threads`, and `tls`. The allowlist governs both declared dependency effects and bundled standard
+`threads`, and `tls`. The allowlist governs both declared dependency effects and bundled core
 imports. Importing a gated bundled namespace without its capability is rejected at the import with
 `S2032`, which names the profile, capability, imported namespace, and importing namespace.
-`/standard/concurrency` requires `threads`; `/standard/process` requires `process`.
+`/core/streams` and `/core/process` require `process`; `/core/filesystem` requires `filesystem`;
+`/core/random` and `/core/random/uuid` require `entropy`; `/core/networking` requires `networking`;
+`/core/networking/tls` requires both `networking` and `tls`; and `/core/concurrency` requires
+`threads`.
 
 
 ```toml
@@ -5921,7 +5933,7 @@ produce a structured operation failure rather than selecting a fallback algorith
 
 ### 37.2 Byte and text streams
 
-`/standard/streams` is an ordinary Terrane package. Importing one of its exports includes that
+`/core/streams` is an ordinary Terrane package. Importing one of its exports includes that
 Terrane source, and its recursively imported bundled dependencies, in the same semantic and
 lowering pipeline as the importing program. Standard-library source remains visible to
 whole-program analysis and produces ordinary Terrane source associations in generated Rust.
@@ -5978,7 +5990,7 @@ change without changing their semantics.
 
 ### 37.3 Paths, filesystem, and process facilities
 
-`/standard/paths`, `/standard/filesystem`, and `/standard/process` are ordinary Terrane packages
+`/core/filesystem/paths`, `/core/filesystem`, and `/core/process` are ordinary Terrane packages
 included through the same import-driven source pipeline described in §37.2. Their object models,
 policy, validation, structured results, and command-line parsing remain Terrane. Rust is limited
 to host filesystem calls, descriptor ownership, lossless operating-system argument and
@@ -6013,13 +6025,13 @@ explicit through the shared stream release contract, and ordinary destruction us
 idempotent host release path. A partial file write exposes its completed offset so callers can
 resume without duplicating the written prefix.
 
-A `platform-string` represents exactly one host argument or environment component. `is-text`
+A `native-string` represents exactly one host argument or environment component. `is-text`
 selects either lossless Unicode `text` or lossless `raw` bytes; invalid host Unicode is never
 silently replaced. Argument and environment access return explicit snapshots. Environment entries
-pair platform-string names and values.
-The system host name is part of `/standard/process` rather than a parallel system namespace. Its
+pair native-string names and values.
+The system host name is part of `/core/process` rather than a parallel system namespace. Its
 `host-name-result` reports `failed`, `available`, and a translated host error message, and carries
-the value as a `platform-string`; invalid host Unicode is therefore preserved rather than replaced.
+the value as a `native-string`; invalid host Unicode is therefore preserved rather than replaced.
 Importing this process/system surface requires the package profile's `process` capability.
 The maintained Rust function used here is justified by the syscall/ABI-boundary rule: Rust's
 standard library has no portable host-name query, so the audited `hostname` crate owns that

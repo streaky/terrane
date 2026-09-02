@@ -1,5 +1,5 @@
 namespace stream-zero-length-read
-from /standard/streams import stdin
+from /core/streams import stdin
 function main;
     input = stdin;
     zero = input.read; 0

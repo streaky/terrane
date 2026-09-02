@@ -947,16 +947,8 @@ fn parse_units(
         .saturating_add(1);
     let mut dependency_imports = BTreeMap::<String, BTreeSet<String>>::new();
     for unit in &units {
-        for import in unit
-            .tree
-            .root
-            .children
-            .iter()
-            .filter(|node| node.kind == SyntaxKind::ImportDeclaration)
-            .map(|node| imports_from_syntax(unit, node))
-            .collect::<Result<Vec<_>, _>>()?
+        for import in imports_in_tree(unit)?
             .into_iter()
-            .flatten()
             .filter(|import| import.target.starts_with("/deps/"))
         {
             dependency_imports
@@ -985,16 +977,8 @@ fn parse_units(
     }
     let mut index = 0;
     while index < units.len() {
-        let targets = units[index]
-            .tree
-            .root
-            .children
-            .iter()
-            .filter(|node| node.kind == SyntaxKind::ImportDeclaration)
-            .map(|node| imports_from_syntax(&units[index], node))
-            .collect::<Result<Vec<_>, _>>()?
+        let targets = imports_in_tree(&units[index])?
             .into_iter()
-            .flatten()
             .map(|import| import.target)
             .collect::<BTreeSet<_>>();
         for target in targets {
@@ -1099,10 +1083,12 @@ pub fn analyze(package: &Package) -> Result<SemanticPackage, SemanticFailure> {
     let mut namespaces = bootstrap_namespaces();
     for unit in &units {
         let bundled = unit.bundled;
-        if unit.namespace == "/core"
-            || unit.namespace.starts_with("/core/")
-            || ((unit.namespace == "/deps" || unit.namespace.starts_with("/deps/")) && !bundled)
-            || (crate::bundled::source(&unit.namespace).is_some() && !bundled)
+        if !bundled
+            && (unit.namespace == "/core"
+                || unit.namespace.starts_with("/core/")
+                || unit.namespace == "/deps"
+                || unit.namespace.starts_with("/deps/")
+                || crate::bundled::source(&unit.namespace).is_some())
         {
             let span = unit
                 .tree
@@ -1129,7 +1115,14 @@ pub fn analyze(package: &Package) -> Result<SemanticPackage, SemanticFailure> {
     for unit in &units {
         collect_unit(unit, &mut namespaces, &mut globals, &mut imports)?;
     }
-    for import in imports.iter().filter(|import| !import.bundled) {
+    let discovered_imports = units
+        .iter()
+        .map(imports_in_tree)
+        .collect::<Result<Vec<_>, _>>()?
+        .into_iter()
+        .flatten()
+        .collect::<Vec<_>>();
+    for import in discovered_imports.iter().filter(|import| !import.bundled) {
         for capability in namespace_capabilities(&import.target) {
             if !package.profile.allows(capability) {
                 return Err(failure(
@@ -1144,7 +1137,7 @@ pub fn analyze(package: &Package) -> Result<SemanticPackage, SemanticFailure> {
             }
         }
     }
-    for import in &imports {
+    for import in &discovered_imports {
         let Some(dependency) = import
             .target
             .strip_prefix("/deps/")
@@ -1961,14 +1954,12 @@ fn collect_declaration(
 
 fn namespace_capabilities(namespace: &str) -> &'static [&'static str] {
     match namespace {
-        "/core/streams" | "/core/process" | "/standard/streams" | "/standard/process" => {
-            &["process"]
-        }
-        "/core/filesystem" | "/standard/filesystem" => &["filesystem"],
-        "/core/random" | "/core/uuid" | "/standard/random" | "/standard/uuid" => &["entropy"],
-        "/core/networking" | "/standard/networking" => &["networking"],
-        "/core/tls" | "/standard/tls" => &["networking", "tls"],
-        "/core/concurrency" | "/standard/concurrency" => &["threads"],
+        "/core/streams" | "/core/process" => &["process"],
+        "/core/filesystem" => &["filesystem"],
+        "/core/random" | "/core/random/uuid" => &["entropy"],
+        "/core/networking" => &["networking"],
+        "/core/networking/tls" => &["networking", "tls"],
+        "/core/concurrency" => &["threads"],
         _ => &[],
     }
 }
@@ -2061,6 +2052,25 @@ fn imports_from_syntax(
     }
     Ok(result)
 }
+fn imports_in_tree(unit: &SemanticUnit) -> Result<Vec<Import>, SemanticFailure> {
+    fn collect(
+        unit: &SemanticUnit,
+        node: &SyntaxNode,
+        imports: &mut Vec<Import>,
+    ) -> Result<(), SemanticFailure> {
+        if node.kind == SyntaxKind::ImportDeclaration {
+            imports.extend(imports_from_syntax(unit, node)?);
+        }
+        for child in &node.children {
+            collect(unit, child, imports)?;
+        }
+        Ok(())
+    }
+
+    let mut imports = Vec::new();
+    collect(unit, &unit.tree.root, &mut imports)?;
+    Ok(imports)
+}
 fn imported_object(
     import: &Import,
     namespaces: &BTreeMap<String, Namespace>,
@@ -2111,6 +2121,15 @@ fn imported_objects(
             import.span,
         )
     })?;
+    if let Some(symbol) = namespace.symbols.values().find(|symbol| {
+        symbol.visibility == Visibility::Public && !symbol.available_in_function_body()
+    }) {
+        return Err(namespace_variable_import_failure(
+            &import.source,
+            &symbol.name,
+            import.span,
+        ));
+    }
     Ok(namespace
         .symbols
         .values()
@@ -6386,26 +6405,15 @@ fn declared_value_type_with_visible_objects(
             }
         }
     }
-    if type_name == "resource-handle" {
-        return Ok(ValueType::PlatformStreamHandle);
-    }
-    if type_name == "filesystem-authority" {
-        return Ok(ValueType::FilesystemAuthority);
-    }
-    if type_name == "platform-data-result" {
-        return Ok(ValueType::PlatformDataResult);
-    }
-    if type_name == "platform-url-result" {
-        return Ok(ValueType::PlatformUrlResult);
-    }
-    if type_name == "platform-capability" {
-        return Ok(ValueType::PlatformCapability);
-    }
-    if type_name == "platform-resource-handle" {
-        return Ok(ValueType::PlatformResourceHandle);
-    }
-    if type_name == "platform-result" {
-        return Ok(ValueType::PlatformResult);
+    match type_name {
+        "host-resource-handle" => return Ok(ValueType::PlatformStreamHandle),
+        "host-filesystem-authority" => return Ok(ValueType::FilesystemAuthority),
+        "host-platform-data-result" => return Ok(ValueType::PlatformDataResult),
+        "host-platform-url-result" => return Ok(ValueType::PlatformUrlResult),
+        "host-platform-capability" => return Ok(ValueType::PlatformCapability),
+        "host-platform-resource-handle" => return Ok(ValueType::PlatformResourceHandle),
+        "host-platform-result" => return Ok(ValueType::PlatformResult),
+        _ => {}
     }
     if type_name == "encoding" {
         return Ok(ValueType::Encoding);
@@ -10790,7 +10798,7 @@ fn populate_imports(
     node: &SyntaxNode,
 ) -> Result<(), SemanticFailure> {
     for import in imports_from_syntax(unit, node)? {
-        for (name, export) in imported_objects(&import, namespaces)? {
+        for (name, mut export) in imported_objects(&import, namespaces)? {
             if let Some(existing) = scopes[index]
                 .symbols
                 .get(&name)
@@ -10806,6 +10814,7 @@ fn populate_imports(
                     import.span,
                 ));
             }
+            export.declaration_span = Some(import.span);
             scopes[index].symbols.insert(name, vec![export]);
         }
     }
@@ -11097,7 +11106,7 @@ fn bootstrap_namespaces() -> BTreeMap<String, Namespace> {
         "/core/async".to_owned(),
         namespace_with_objects("/core/async", ["task-scope"], SymbolKind::Function),
     );
-    add_core_tools(
+    add_private_host_bindings(
         &mut namespaces,
         "/core/codecs",
         "capabilities",
@@ -11111,7 +11120,7 @@ fn bootstrap_namespaces() -> BTreeMap<String, Namespace> {
             ("result-bytes", "result-bytes"),
         ],
     );
-    add_core_tools(
+    add_private_host_bindings(
         &mut namespaces,
         "/core/compression",
         "capabilities",
@@ -11124,7 +11133,7 @@ fn bootstrap_namespaces() -> BTreeMap<String, Namespace> {
             ("result-bytes", "result-bytes"),
         ],
     );
-    add_core_tools(
+    add_private_host_bindings(
         &mut namespaces,
         "/core/concurrency",
         "concurrency",
@@ -11159,7 +11168,7 @@ fn bootstrap_namespaces() -> BTreeMap<String, Namespace> {
             ("result-bool", "result-bool"),
         ],
     );
-    add_core_tools(
+    add_private_host_bindings(
         &mut namespaces,
         "/core/concurrency",
         "capabilities",
@@ -11170,7 +11179,7 @@ fn bootstrap_namespaces() -> BTreeMap<String, Namespace> {
             ("result-capability", "result-capability"),
         ],
     );
-    add_core_tools(
+    add_private_host_bindings(
         &mut namespaces,
         "/core/documents",
         "data",
@@ -11202,7 +11211,7 @@ fn bootstrap_namespaces() -> BTreeMap<String, Namespace> {
             ("validate-mapping", "validate-mapping"),
         ],
     );
-    add_core_tools(
+    add_private_host_bindings(
         &mut namespaces,
         "/core/filesystem",
         "system",
@@ -11235,7 +11244,7 @@ fn bootstrap_namespaces() -> BTreeMap<String, Namespace> {
             ),
         ],
     );
-    add_core_tools(
+    add_private_host_bindings(
         &mut namespaces,
         "/core/filesystem",
         "streams",
@@ -11253,16 +11262,16 @@ fn bootstrap_namespaces() -> BTreeMap<String, Namespace> {
             ("release", "platform-release"),
         ],
     );
-    add_core_tools(
+    add_private_host_bindings(
         &mut namespaces,
-        "/core/json",
+        "/core/documents/json",
         "data",
         [
             ("json-parse", "platform-parse"),
             ("json-canonical", "platform-canonical"),
         ],
     );
-    add_core_tools(
+    add_private_host_bindings(
         &mut namespaces,
         "/core/networking",
         "capabilities",
@@ -11305,7 +11314,7 @@ fn bootstrap_namespaces() -> BTreeMap<String, Namespace> {
             ("result-resource", "result-resource"),
         ],
     );
-    add_core_tools(
+    add_private_host_bindings(
         &mut namespaces,
         "/core/process",
         "system",
@@ -11318,7 +11327,7 @@ fn bootstrap_namespaces() -> BTreeMap<String, Namespace> {
             ("platform-value-bytes", "platform-value-bytes"),
         ],
     );
-    add_core_tools(
+    add_private_host_bindings(
         &mut namespaces,
         "/core/process",
         "adapters",
@@ -11331,7 +11340,7 @@ fn bootstrap_namespaces() -> BTreeMap<String, Namespace> {
             ("result-bool", "result-bool"),
         ],
     );
-    add_core_tools(
+    add_private_host_bindings(
         &mut namespaces,
         "/core/random",
         "capabilities",
@@ -11354,7 +11363,7 @@ fn bootstrap_namespaces() -> BTreeMap<String, Namespace> {
             ("result-capability", "result-capability"),
         ],
     );
-    add_core_tools(
+    add_private_host_bindings(
         &mut namespaces,
         "/core/streams",
         "streams",
@@ -11372,9 +11381,9 @@ fn bootstrap_namespaces() -> BTreeMap<String, Namespace> {
             ("release", "platform-release"),
         ],
     );
-    add_core_tools(
+    add_private_host_bindings(
         &mut namespaces,
-        "/core/tls",
+        "/core/networking/tls",
         "capabilities",
         [
             ("platform-resource-handle", "platform-resource-handle"),
@@ -11394,7 +11403,7 @@ fn bootstrap_namespaces() -> BTreeMap<String, Namespace> {
             ("result-resource", "result-resource"),
         ],
     );
-    add_core_tools(
+    add_private_host_bindings(
         &mut namespaces,
         "/core/urls",
         "data",
@@ -11418,9 +11427,9 @@ fn bootstrap_namespaces() -> BTreeMap<String, Namespace> {
             ("url-query-value", "url-query-value"),
         ],
     );
-    add_core_tools(
+    add_private_host_bindings(
         &mut namespaces,
-        "/core/uuid",
+        "/core/random/uuid",
         "capabilities",
         [
             ("platform-capability", "platform-capability"),
@@ -11433,9 +11442,9 @@ fn bootstrap_namespaces() -> BTreeMap<String, Namespace> {
             ("result-bytes", "result-bytes"),
         ],
     );
-    add_core_tools(
+    add_private_host_bindings(
         &mut namespaces,
-        "/core/yaml",
+        "/core/documents/yaml",
         "data",
         [
             ("yaml-parse", "platform-parse"),
@@ -12783,22 +12792,23 @@ pub(crate) fn binding_span_is_mutated(
     ) > usize::from(!initially_assigned)
 }
 
-fn add_core_tools<'a>(
+fn add_private_host_bindings<'a>(
     namespaces: &mut BTreeMap<String, Namespace>,
     path: &str,
     group: &str,
     bindings: impl IntoIterator<Item = (&'a str, &'a str)>,
 ) {
     let namespace = namespaces.entry(path.to_owned()).or_default();
-    for (intrinsic, public_name) in bindings {
+    for (intrinsic, _) in bindings {
+        let local_name = format!("host-{intrinsic}");
         let previous = namespace.symbols.insert(
-            public_name.to_owned(),
+            local_name.clone(),
             Symbol {
-                identity: format!("{path}::{public_name}"),
+                identity: format!("{path}::{local_name}"),
                 lowering_identity: Some(format!("intrinsic:{group}::{intrinsic}")),
-                name: public_name.to_owned(),
+                name: local_name.clone(),
                 namespace: path.to_owned(),
-                visibility: Visibility::Public,
+                visibility: Visibility::Private,
                 global: false,
                 constant: false,
                 kind: SymbolKind::Function,
@@ -12807,7 +12817,7 @@ fn add_core_tools<'a>(
         );
         assert!(
             previous.is_none(),
-            "duplicate core tool binding `{path}::{public_name}`"
+            "duplicate private host binding `{path}::{local_name}`"
         );
     }
 }

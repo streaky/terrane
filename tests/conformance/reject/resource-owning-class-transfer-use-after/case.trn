@@ -1,5 +1,5 @@
 namespace resource-owning-class-transfer-use-after
-from /standard/streams import byte-reader, stdin
+from /core/streams import byte-reader, stdin
 
 class stream-owner
     input byte-reader = stdin;

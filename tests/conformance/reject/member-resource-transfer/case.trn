@@ -1,5 +1,5 @@
 namespace member-resource-transfer
-from /standard/streams import byte-writer, stdout
+from /core/streams import byte-writer, stdout
 
 class holder
     output byte-writer = stdout;

@@ -83,12 +83,12 @@ fn compiler_owned_namespaces_cannot_be_extended() {
 }
 
 #[test]
-fn bundled_standard_namespaces_cannot_be_extended() {
+fn bundled_core_namespaces_cannot_be_extended() {
     let failure = analyze(&package(
         false,
         &[(
             "main.trn",
-            "namespace standard/streams\npublic constant injected = 1\n",
+            "namespace core/streams\npublic constant injected = 1\n",
         )],
     ))
     .unwrap_err();
@@ -96,7 +96,7 @@ fn bundled_standard_namespaces_cannot_be_extended() {
     assert_eq!(failure.diagnostics[0].code, "S2017");
     assert_eq!(
         failure.diagnostics[0].message,
-        "cannot declare into compiler-owned namespace `/standard/streams`"
+        "cannot declare into compiler-owned namespace `/core/streams`"
     );
 }
 #[test]

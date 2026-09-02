@@ -1,6 +1,6 @@
 namespace app
 
-from /standard/random import platform-secure
+from /core/random import host-secure-random
 
 function main;
-    platform-secure;
+    host-secure-random;

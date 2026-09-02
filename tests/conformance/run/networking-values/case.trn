@@ -1,7 +1,7 @@
 namespace app
 
 from /core/output import print
-from /standard/networking import ip-address-from-string, parse-host-name, cancellation-token, cancel-operation, operation-options, lookup-dns
+from /core/networking import ip-address-from-string, parse-host-name, cancellation-token, cancel-operation, operation-options, lookup-dns
 
 function main;
     parsed = ip-address-from-string; '2001:0db8:0:0:0:0:0:1'

@@ -1,0 +1,6 @@
+namespace body-selective-import-capability
+
+function main;
+    from /core/filesystem import filesystem-capability
+    capability = filesystem-capability;
+    return

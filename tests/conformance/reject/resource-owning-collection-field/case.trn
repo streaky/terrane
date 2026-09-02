@@ -1,6 +1,6 @@
 namespace resource-owning-collection-field
 from /core/collections import list
-from /standard/streams import byte-writer, stdout
+from /core/streams import byte-writer, stdout
 
 class outputs
     values list of byte-writer = list; (stdout;)

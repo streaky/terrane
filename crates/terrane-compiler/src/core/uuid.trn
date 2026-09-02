@@ -1,0 +1,33 @@
+namespace core/random/uuid
+
+from /core/random import secure-random
+
+class uuid
+    string string = ''
+    bytes bytes = b''
+
+    function construct; text string, data bytes
+        this.string = text
+        this.bytes = data
+
+class uuid-result
+    failed bool = false
+    message string = ''
+    value uuid = uuid; '', b''
+
+    function construct; failed bool, message string, identifier uuid
+        this.failed = failed
+        this.message = message
+        this.value = identifier
+
+function parse-uuid uuid-result; text string
+    raw = host-uuid-parse; text
+    return uuid-result; (host-result-failed; raw), (host-result-message; raw), (uuid; (host-result-text; raw), (host-result-bytes; raw))
+
+function random-uuid uuid-result; source secure-random
+    raw = host-uuid-v4; source.handle
+    return uuid-result; (host-result-failed; raw), (host-result-message; raw), (uuid; (host-result-text; raw), (host-result-bytes; raw))
+
+function time-uuid uuid-result; source secure-random, unix-milliseconds int
+    raw = host-uuid-v7; source.handle, unix-milliseconds
+    return uuid-result; (host-result-failed; raw), (host-result-message; raw), (uuid; (host-result-text; raw), (host-result-bytes; raw))

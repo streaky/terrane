@@ -1,5 +1,5 @@
 // Delivery principle 9: synchronization primitives require optimiser-visible ordering and host
-// thread integration. Public object policy remains in `/standard/concurrency`.
+// thread integration. Public object policy remains in `/core/concurrency`.
 #[allow(dead_code)] fn terrane_platform_int_channel(capacity: terrane_int_support::Int) -> TerranePlatformResult {
     let capacity = terrane_platform_i128!(capacity, "channel capacity");
     terrane_platform_support::int_channel(capacity)

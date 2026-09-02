@@ -1,5 +1,5 @@
 namespace stream-argument-transfer-use-after
-from /standard/streams import byte-reader, stdin
+from /core/streams import byte-reader, stdin
 
 function consume; input byte-reader
     input.read; 1

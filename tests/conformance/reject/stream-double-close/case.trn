@@ -1,5 +1,5 @@
 namespace stream-double-close
-from /standard/streams import stdout
+from /core/streams import stdout
 function main;
     output = stdout;
     output.close;

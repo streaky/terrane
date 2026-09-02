@@ -1,6 +1,6 @@
 namespace system-adapter
 from /core/output import print
-from /standard/process import host-name
+from /core/process import host-name
 
 function main;
     name = host-name;

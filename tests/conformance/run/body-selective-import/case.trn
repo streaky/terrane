@@ -1,0 +1,6 @@
+namespace body-selective-import
+
+function main;
+    from /core/codecs import encode-base64
+    encoded string = encode-base64; b'abc', false, true
+    print; encoded

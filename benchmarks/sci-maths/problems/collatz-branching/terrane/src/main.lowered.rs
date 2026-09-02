@@ -3,7 +3,7 @@ include!("main.lowered.support.rs");
 // Source: src/main.trn
 // Namespace: benchmark-collatz-branching
 fn benchmark_size() -> i64 {
-    let supplied: terrane_collection_support::List<PlatformString> = arguments();
+    let supplied: terrane_collection_support::List<NativeString> = arguments();
     if terrane_int_support::Int::from(terrane_int_support::Int::from(supplied.length()))
         != terrane_int_support::Int::from(1_i128)
     {

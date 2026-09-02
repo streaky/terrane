@@ -1,4 +1,4 @@
 namespace platform-stream-intrinsics
-from /core/platform-streams import acquire-stdin
+from /core/streams import host-acquire-stdin
 function main;
-    acquire-stdin;
+    host-acquire-stdin;

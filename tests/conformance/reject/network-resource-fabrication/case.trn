@@ -1,6 +1,6 @@
 namespace app
 
-from /standard/networking import tcp-stream
+from /core/networking import tcp-stream
 
 function main;
     stream = tcp-stream;

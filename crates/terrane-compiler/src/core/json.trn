@@ -1,9 +1,8 @@
-namespace standard/json
-import /core/json
+namespace core/documents/json
 
-from /standard/documents import document-value, document-result, make-document-result
-from /standard/documents import document-mapping, decode-document
-from /standard/documents import serializable, deserializable, serialize-document, deserialize-document
+from /core/documents import document-value, document-result, make-document-result
+from /core/documents import document-mapping, decode-document
+from /core/documents import serializable, deserializable, serialize-document, deserialize-document
 
 class json-options
     max-depth int = 256
@@ -17,15 +16,15 @@ function default-json-options json-options;
     return json-options; 256, 16777216
 
 function parse-json document-result; input string, options json-options
-    raw = platform-parse; input, options.max-depth, options.max-bytes
+    raw = host-json-parse; input, options.max-depth, options.max-bytes
     return make-document-result; raw
 
 function stringify-json document-result; value document-value, options json-options
-    raw = platform-canonical; value.raw
+    raw = host-json-canonical; value.raw
     return make-document-result; raw
 
 function canonical-json document-result; value document-value
-    raw = platform-canonical; value.raw
+    raw = host-json-canonical; value.raw
     return make-document-result; raw
 
 function decode-json document-result; input string, mapping deserializable, options json-options

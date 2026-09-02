@@ -1,5 +1,4 @@
-namespace standard/urls
-import /core/urls
+namespace core/urls
 
 from /core/collections import list
 
@@ -84,26 +83,26 @@ class url-result
         this.message = message
         this.value = parsed-url
 
-function url-from-platform url-result; raw platform-url-result
-    failed = url-failed; raw
+private function url-from-platform url-result; raw host-platform-url-result
+    failed = host-url-failed; raw
     if failed
         empty-query = url-query;
         empty-url = url; '', '', '', '', '', '', '', '', empty-query, '', ''
-        return url-result; true, (url-message; raw), empty-url
+        return url-result; true, (host-url-message; raw), empty-url
     query = url-query;
-    count = url-query-length; raw
+    count = host-url-query-length; raw
     index int = 0
     while index < count
-        query = append-query-entry; query, (url-query-key; raw, index), (url-query-value; raw, index)
+        query = append-query-entry; query, (host-url-query-key; raw, index), (host-url-query-value; raw, index)
         index = index + 1
-    value = url; (url-serialized; raw), (url-display; raw), (url-scheme; raw), (url-username; raw), (url-password; raw), (url-host; raw), (url-port; raw), (url-path; raw), query, (url-fragment; raw), (url-origin; raw)
+    value = url; (host-url-serialized; raw), (host-url-display; raw), (host-url-scheme; raw), (host-url-username; raw), (host-url-password; raw), (host-url-host; raw), (host-url-port; raw), (host-url-path; raw), query, (host-url-fragment; raw), (host-url-origin; raw)
     return url-result; false, '', value
 
 function parse-url url-result; input string
-    raw = platform-parse; input, ''
+    raw = host-url-parse; input, ''
     return url-from-platform; raw
 
 function parse-url-relative url-result; input string, base url
-    raw = platform-parse; input, base.serialized
+    raw = host-url-parse; input, base.serialized
     return url-from-platform; raw
 

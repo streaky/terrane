@@ -1,7 +1,6 @@
-namespace standard/filesystem
-import /core/filesystem
+namespace core/filesystem
 
-from /standard/paths import path
+from /core/filesystem/paths import path
 
 class operation-result
     failed bool = false
@@ -62,123 +61,123 @@ class file-data
         this.message = detail
 
 class file-handle
-    handle resource-handle
+    private handle host-resource-handle
     failed bool = false
     message string = ''
 
-    function construct; raw resource-handle, failure bool, detail string
+    private function construct; raw host-resource-handle, failure bool, detail string
         this.handle = raw
         this.failed = failure
         this.message = detail
 
     function destruct;
-        platform-release; this.handle
+        host-release; this.handle
 
 class directory-handle
-    handle resource-handle
+    private handle host-resource-handle
     failed bool = false
     message string = ''
 
-    function construct; raw resource-handle, failure bool, detail string
+    private function construct; raw host-resource-handle, failure bool, detail string
         this.handle = raw
         this.failed = failure
         this.message = detail
 
     function destruct;
-        platform-release; this.handle
+        host-release; this.handle
 
 function open-file file-handle; capability filesystem, target path, readable bool, writable bool, create bool = false, truncate bool = false
-    raw = platform-open-file; target.text, readable, writable, create, truncate
+    raw = host-open-file; target.text, readable, writable, create, truncate
     failure = raw.failed
     detail = raw.message
-    acquired resource-handle = raw.handle
+    acquired host-resource-handle = raw.handle
     return file-handle; acquired, failure, detail
 
 function file-read file-data; capability filesystem, file ref file-handle, limit int
-    raw = platform-read; file.handle, limit
+    raw = host-read; file.handle, limit
     return file-data; raw.data, raw.completed, raw.end, raw.failed, raw.message
 
 function file-write file-data; capability filesystem, file ref file-handle, data bytes, offset int = 0
-    raw = platform-write; file.handle, data, offset
+    raw = host-write; file.handle, data, offset
     return file-data; data, raw.completed, false, raw.failed, raw.message
 
 function file-flush operation-result; capability filesystem, file ref file-handle
-    raw = platform-flush; file.handle
+    raw = host-flush; file.handle
     return operation-result; raw.failed, raw.message
 
 function file-sync-data operation-result; capability filesystem, file ref file-handle
-    raw = platform-sync-data; file.handle
+    raw = host-sync-data; file.handle
     return operation-result; raw.failed, raw.message
 
 function file-sync-all operation-result; capability filesystem, file ref file-handle
-    raw = platform-sync-all; file.handle
+    raw = host-sync-all; file.handle
     return operation-result; raw.failed, raw.message
 
 function file-close operation-result; capability filesystem, file file-handle
-    raw = platform-close; file.handle
+    raw = host-close; file.handle
     return operation-result; raw.failed, raw.message
 
 class filesystem
-    authority filesystem-authority
+    private authority host-filesystem-authority
 
-    function construct; authority filesystem-authority
+    private function construct; authority host-filesystem-authority
         this.authority = authority
 
 function filesystem-capability filesystem;
-    authority = acquire-filesystem-authority;
+    authority = host-acquire-filesystem-authority;
     return filesystem; authority
 
 function filesystem-exists existence-result; capability filesystem, target path
-    record = platform-filesystem-exists; target.text
-    return existence-result; (result-bool; record), (result-failed; record), (result-message; record)
+    record = host-filesystem-exists; target.text
+    return existence-result; (host-result-bool; record), (host-result-failed; record), (host-result-message; record)
 
 function filesystem-metadata file-metadata; capability filesystem, target path
-    record = platform-filesystem-metadata; target.text, true
-    return file-metadata; (result-text; record), (result-int; record), (result-bool; record), (result-detail; record), (result-failed; record), (result-message; record)
+    record = host-filesystem-metadata; target.text, true
+    return file-metadata; (host-result-text; record), (host-result-int; record), (host-result-bool; record), (host-result-detail; record), (host-result-failed; record), (host-result-message; record)
 
 function filesystem-symlink-metadata file-metadata; capability filesystem, target path
-    record = platform-filesystem-metadata; target.text, false
-    return file-metadata; (result-text; record), (result-int; record), (result-bool; record), (result-detail; record), (result-failed; record), (result-message; record)
+    record = host-filesystem-metadata; target.text, false
+    return file-metadata; (host-result-text; record), (host-result-int; record), (host-result-bool; record), (host-result-detail; record), (host-result-failed; record), (host-result-message; record)
 
 function filesystem-canonical path-result; capability filesystem, target path
-    record = platform-filesystem-realpath; target.text
-    resolved = path; (result-text; record)
-    return path-result; resolved, (result-failed; record), (result-message; record)
+    record = host-filesystem-realpath; target.text
+    resolved = path; (host-result-text; record)
+    return path-result; resolved, (host-result-failed; record), (host-result-message; record)
 
 function filesystem-realpath path-result; capability filesystem, target path
     return filesystem-canonical; capability, target
 
 function filesystem-read-link path-result; capability filesystem, target path
-    record = platform-filesystem-read-link; target.text
-    linked = path; (result-text; record)
-    return path-result; linked, (result-failed; record), (result-message; record)
+    record = host-filesystem-read-link; target.text
+    linked = path; (host-result-text; record)
+    return path-result; linked, (host-result-failed; record), (host-result-message; record)
 
 function filesystem-open-beneath directory-handle; capability filesystem, directory path, relative path, cross-filesystem bool = false
-    raw = platform-open-directory-beneath; directory.text, relative.text, cross-filesystem
+    raw = host-open-directory-beneath; directory.text, relative.text, cross-filesystem
     failure = raw.failed
     detail = raw.message
-    acquired resource-handle = raw.handle
+    acquired host-resource-handle = raw.handle
     return directory-handle; acquired, failure, detail
 
 function open-file-beneath file-handle; capability filesystem, directory ref directory-handle, relative path, readable bool, writable bool, create bool = false, truncate bool = false
-    raw = platform-open-file-beneath; directory.handle, relative.text, readable, writable, create, truncate
+    raw = host-open-file-beneath; directory.handle, relative.text, readable, writable, create, truncate
     failure = raw.failed
     detail = raw.message
-    acquired resource-handle = raw.handle
+    acquired host-resource-handle = raw.handle
     return file-handle; acquired, failure, detail
 
 function filesystem-read-bounded file-data; capability filesystem, target path, limit int
-    record = platform-filesystem-read-bounded; target.text, limit
-    return file-data; (result-bytes; record), (result-int; record), true, (result-failed; record), (result-message; record)
+    record = host-filesystem-read-bounded; target.text, limit
+    return file-data; (host-result-bytes; record), (host-result-int; record), true, (host-result-failed; record), (host-result-message; record)
 
 function filesystem-write-atomic operation-result; capability filesystem, target path, data bytes
-    record = platform-filesystem-write-atomic; target.text, data
-    return operation-result; (result-failed; record), (result-message; record)
+    record = host-filesystem-write-atomic; target.text, data
+    return operation-result; (host-result-failed; record), (host-result-message; record)
 
 function filesystem-rename operation-result; capability filesystem, source path, destination path
-    record = platform-filesystem-rename; source.text, destination.text
-    return operation-result; (result-failed; record), (result-message; record)
+    record = host-filesystem-rename; source.text, destination.text
+    return operation-result; (host-result-failed; record), (host-result-message; record)
 
 function filesystem-remove operation-result; capability filesystem, target path
-    record = platform-filesystem-remove; target.text
-    return operation-result; (result-failed; record), (result-message; record)
+    record = host-filesystem-remove; target.text
+    return operation-result; (host-result-failed; record), (host-result-message; record)

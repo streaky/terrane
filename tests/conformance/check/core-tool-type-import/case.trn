@@ -1,10 +1,12 @@
 namespace core-tool-type-import
 
 import /core/filesystem
+from /core/filesystem/paths import path
 
-function preserve filesystem-authority; authority filesystem-authority
-    return authority
+function preserve existence-result; result existence-result
+    return result
 
 function main;
-    authority = acquire-filesystem-authority;
-    preserve; authority
+    capability = filesystem-capability;
+    result = filesystem-exists; capability, (path; '.')
+    preserve; result

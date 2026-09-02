@@ -3,7 +3,7 @@ namespace core-tool-imports
 import /core/codecs
 
 function describe string; enabled bool, payload bytes, small int8
-    base64-encode; payload, enabled, enabled
+    encode-base64; payload, enabled, enabled
     return 'core tools are explicit'
 
 function main;

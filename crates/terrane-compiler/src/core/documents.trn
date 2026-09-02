@@ -1,5 +1,4 @@
-namespace standard/documents
-import /core/documents
+namespace core/documents
 
 from /core/collections import list
 
@@ -26,38 +25,38 @@ interface deserializable
     function from-document document-result; value document-value
 
 class document-value implements serializable
-    raw platform-data-result = empty-document;
+    protected raw host-platform-data-result = host-empty-document;
     encoded string = ''
     kind string = 'invalid'
     scalar string = ''
     integer document-integer = document-integer; '0'
     decimal document-decimal = document-decimal; '0', 0, '0'
 
-    function construct; raw platform-data-result
-        this.kind = platform-kind; raw
-        this.scalar = platform-text; raw
-        this.encoded = data-encoded; raw
+    private function construct; raw host-platform-data-result
+        this.kind = host-document-kind; raw
+        this.scalar = host-document-text; raw
+        this.encoded = host-data-encoded; raw
         if this.kind == 'integer'
             this.integer = document-integer; this.scalar
         if this.kind == 'decimal'
-            this.decimal = document-decimal; (platform-coefficient; raw), (platform-exponent; raw), this.scalar
+            this.decimal = document-decimal; (host-document-coefficient; raw), (host-document-exponent; raw), this.scalar
         this.raw = raw
 
     function length int;
-        return platform-length; this.raw
+        return host-document-length; this.raw
 
     function to-document document-value;
         return this
 
     function item document-result; index int
-        raw = platform-item; this.raw, index
+        raw = host-document-item; this.raw, index
         return make-document-result; raw
 
     function key string; index int
-        return platform-key; this.raw, index
+        return host-document-key; this.raw, index
 
     function field document-result; name string
-        raw = platform-field; this.raw, name
+        raw = host-document-field; this.raw, name
         return make-document-result; raw
 
 class document-result
@@ -65,9 +64,9 @@ class document-result
     message string = ''
     path string = '$'
     expected string = ''
-    value document-value = document-value; (empty-document;)
+    value document-value = document-value; (host-empty-document;)
 
-    function construct; failed bool, message string, path string, expected string, raw platform-data-result
+    private function construct; failed bool, message string, path string, expected string, raw host-platform-data-result
         this.failed = failed
         this.message = message
         this.path = path
@@ -98,42 +97,42 @@ function serialize-document document-value; value serializable
 function deserialize-document document-result; value document-value, destination deserializable
     return destination.from-document; value
 
-function make-document-result document-result; raw platform-data-result
-    return document-result; (data-failed; raw), (data-message; raw), (data-path; raw), (data-expected; raw), raw
+protected function make-document-result document-result; raw host-platform-data-result
+    return document-result; (host-data-failed; raw), (host-data-message; raw), (host-data-path; raw), (host-data-expected; raw), raw
 
 
 function make-document-none document-value;
-    return document-value; (platform-make-none;)
+    return document-value; (host-make-document-none;)
 
 function make-document-bool document-value; value bool
-    return document-value; (platform-make-bool; value)
+    return document-value; (host-make-document-bool; value)
 
 function make-document-string document-value; value string
-    return document-value; (platform-make-string; value)
+    return document-value; (host-make-document-string; value)
 
 function make-document-integer document-result; value string
-    return make-document-result; (platform-make-integer; value)
+    return make-document-result; (host-make-document-integer; value)
 
 function make-document-decimal document-result; value string
-    return make-document-result; (platform-make-decimal; value)
+    return make-document-result; (host-make-document-decimal; value)
 class document-map-entries
-    raw platform-data-result = platform-make-map;
+    private raw host-platform-data-result = host-make-document-map;
 
     function construct;
-        this.raw = platform-make-map;
+        this.raw = host-make-document-map;
 
     function append; key string, value document-value
-        this.raw = platform-map-insert; this.raw, key, value.raw
+        this.raw = host-document-map-insert; this.raw, key, value.raw
 
 function append-document-map-entry document-map-entries; entries document-map-entries, key string, value document-value
     entries.append; key, value
     return entries
 
 function make-document-list document-result; values list of document-value
-    raw = platform-make-list;
+    raw = host-make-document-list;
     index int = 0
     while index < values.length
-        raw = platform-list-append; raw, values[index].raw
+        raw = host-document-list-append; raw, values[index].raw
         index = index + 1
     return make-document-result; raw
 
@@ -180,7 +179,7 @@ function decode-document document-result; value document-value, mapping document
             default-fields.append; mapping.default-fields[default-index]
             default-values.append; mapping.default-values[default-index]
         default-index = default-index + 1
-    raw = validate-mapping; value.raw, mapping.expected-kind, required, declared-fields, default-fields, default-values, mapping.allow-unknown
+    raw = host-validate-mapping; value.raw, mapping.expected-kind, required, declared-fields, default-fields, default-values, mapping.allow-unknown
     result = make-document-result; raw
     if result.failed
         result.expected = mapping.descriptor-name

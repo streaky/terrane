@@ -2,13 +2,13 @@ namespace conformance/document-json-yaml
 # Exact numeric and safety contracts share the same Terrane document model.
 
 from /core/output import print
-from /standard/documents import document-mapping, decode-document, serializable
-from /standard/documents import document-value, document-map-entries
-from /standard/documents import make-document-none, make-document-string, make-document-integer, make-document-decimal
-from /standard/documents import make-document-list, make-document-map, append-document-map-entry
+from /core/documents import document-mapping, decode-document, serializable
+from /core/documents import document-value, document-map-entries
+from /core/documents import make-document-none, make-document-string, make-document-integer, make-document-decimal
+from /core/documents import make-document-list, make-document-map, append-document-map-entry
 from /core/collections import list
-from /standard/json import json-options, default-json-options, parse-json, stringify-json, canonical-json, encode-json, decode-json
-from /standard/yaml import make-yaml-options, parse-yaml, stringify-yaml, encode-yaml, decode-yaml
+from /core/documents/json import json-options, default-json-options, parse-json, stringify-json, canonical-json, encode-json, decode-json
+from /core/documents/yaml import make-yaml-options, parse-yaml, stringify-yaml, encode-yaml, decode-yaml
 
 class note implements serializable
     text string = ''

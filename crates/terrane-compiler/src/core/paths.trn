@@ -1,4 +1,4 @@
-namespace standard/paths
+namespace core/filesystem/paths
 
 from /core/collections import list
 

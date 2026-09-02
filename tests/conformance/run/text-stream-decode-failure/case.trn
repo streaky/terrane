@@ -1,6 +1,6 @@
 namespace text-stream-decode-failure
 from /core/errors import decode-error
-from /standard/streams import stdin, text-reader
+from /core/streams import stdin, text-reader
 
 function read-all string throws decode-error; input text-reader
     decoded = input.read-all; 10

@@ -926,8 +926,8 @@ fn main() {
     );
     println!("{}", terrane_scalar_support::scalar_text(&invalid_time.failed));
 }
-// Source: standard/codecs.trn
-// Namespace: standard/codecs
+// Source: core/codecs.trn
+// Namespace: core/codecs
 #[derive(Clone)]
 pub struct DecodeResult {
     pub failed: bool,
@@ -1032,8 +1032,8 @@ pub fn decode_base64(text: String, url_safe: bool, padded: bool) -> DecodeResult
         terrane_platform_result_bytes(&raw),
     );
 }
-// Source: standard/compression.trn
-// Namespace: standard/compression
+// Source: core/compression.trn
+// Namespace: core/compression
 #[derive(Clone)]
 pub struct CompressionOptions {
     pub level: terrane_int_support::Int,
@@ -1188,8 +1188,8 @@ pub fn deflate_raw() -> CompressionCodec {
 pub fn zstd() -> CompressionCodec {
     return CompressionCodec::terrane_construct(String::from("zstd"));
 }
-// Source: standard/random.trn
-// Namespace: standard/random
+// Source: core/random.trn
+// Namespace: core/random
 #[derive(Clone)]
 pub struct ByteResult {
     pub failed: bool,
@@ -1622,8 +1622,8 @@ pub fn digest_equals(left: DigestValue, right: DigestValue) -> bool {
 pub fn signature_equals(left: SignatureValue, right: SignatureValue) -> bool {
     return left.constant_time_equals(right.clone());
 }
-// Source: standard/uuid.trn
-// Namespace: standard/uuid
+// Source: core/uuid.trn
+// Namespace: core/random/uuid
 #[derive(Clone)]
 pub struct Uuid {
     pub string: String,

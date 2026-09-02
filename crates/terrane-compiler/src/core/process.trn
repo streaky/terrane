@@ -1,58 +1,57 @@
-namespace standard/process
-import /core/process
+namespace core/process
 
 from /core/collections import list
 
-class platform-string
+class native-string
     is-text bool = true
     text string = ''
     raw bytes = b''
 
     function construct; encoded string
-        this.is-text = platform-value-is-text; encoded
-        this.text = platform-value-text; encoded
-        this.raw = platform-value-bytes; encoded
+        this.is-text = host-platform-value-is-text; encoded
+        this.text = host-platform-value-text; encoded
+        this.raw = host-platform-value-bytes; encoded
 
 class environment-entry
-    name platform-string = platform-string; 'text:'
-    value platform-string = platform-string; 'text:'
+    name native-string = native-string; 'text:'
+    value native-string = native-string; 'text:'
 
-    function construct; name platform-string, entry-value platform-string
+    function construct; name native-string, entry-value native-string
         this.name = name
         this.value = entry-value
 class host-name-result
     failed bool = false
     available bool = false
     message string = ''
-    value platform-string = platform-string; 'text:'
+    value native-string = native-string; 'text:'
 
-    function construct; did-fail bool, is-available bool, detail string, result-value platform-string
+    function construct; did-fail bool, is-available bool, detail string, result-value native-string
         this.failed = did-fail
         this.available = is-available
         this.message = detail
         this.value = result-value
 
 function host-name host-name-result;
-    raw = platform-system-host-name;
-    return host-name-result; (result-failed; raw), (result-bool; raw), (result-message; raw), (platform-string; (result-text; raw))
+    raw = host-system-host-name;
+    return host-name-result; (host-result-failed; raw), (host-result-bool; raw), (host-result-message; raw), (native-string; (host-result-text; raw))
 
 
-function arguments list of platform-string;
-    encoded = (platform-arguments;)
-    values list of platform-string = list
+function arguments list of native-string;
+    encoded = (host-process-arguments;)
+    values list of native-string = list
     index int = 0
     while index < encoded.length
-        values.append; (platform-string; encoded[index])
+        values.append; (native-string; encoded[index])
         index = index + 1
     return values
 
 function environment list of environment-entry;
-    encoded = (platform-environment;)
+    encoded = (host-environment-entries;)
     values list of environment-entry = list
     index int = 0
     while index + 1 < encoded.length
-        name = platform-string; encoded[index]
-        value = platform-string; encoded[index + 1]
+        name = native-string; encoded[index]
+        value = native-string; encoded[index + 1]
         values.append; (environment-entry; name, value)
         index = index + 2
     return values
@@ -66,8 +65,8 @@ class cli-schema
 class command-line
     flags list of string = list
     option-names list of string = list
-    option-values list of platform-string = list
-    positionals list of platform-string = list
+    option-values list of native-string = list
+    positionals list of native-string = list
     diagnostic-arguments list of int = list
     diagnostic-messages list of string = list
 
@@ -78,11 +77,11 @@ function schema-has bool; schema cli-schema, sought string
             return true
     return false
 
-function parse-command-line command-line; schema cli-schema, supplied list of platform-string
+function parse-command-line command-line; schema cli-schema, supplied list of native-string
     flags list of string = list
     option-names list of string = list
-    option-values list of platform-string = list
-    positionals list of platform-string = list
+    option-values list of native-string = list
+    positionals list of native-string = list
     diagnostic-arguments list of int = list
     diagnostic-messages list of string = list
     index int = 0
@@ -134,4 +133,4 @@ function make-exit-status exit-status; requested int
     return result
 
 function exit; status exit-status
-    platform-exit; status.code
+    host-process-exit; status.code

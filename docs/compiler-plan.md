@@ -415,13 +415,17 @@ Implemented evidence: package input now uses the authored `package.toml` contrac
 deterministically loads its complete enumerated source set before analysis. The shared
 semantic pass assembles symmetric namespace declarations, resolves exact root and parent
 imports, keeps ordinary and object-form namespaces separate, and records lexical scopes
-for parameters, local bindings, assignments, and block-local imports. Its fixed bootstrap
-table and exact default prelude are versioned compiler-owned data. Every `/core/types`
-descriptor also resolves as an implicit construct independently of prelude selection.
-`import /namespace` binds all public importable objects, diagnoses collisions deterministically,
-and keeps `/deps/*` selective until dependency projection supports namespace-wide imports.
-Focused accepted and rejected cases cover explicit and namespace-wide binding, visibility,
-duplicate and collision rules, idempotent reimports, `global` assignment, legal
+for parameters, local bindings, assignments, and block-local imports. Import discovery walks the
+complete syntax tree, so selective and namespace-wide imports at every lexical depth load bundled
+core packages and contribute their capability requirements without widening lexical scope. Its
+fixed bootstrap table and exact default prelude are versioned compiler-owned data. Every
+`/core/types` descriptor also resolves as an implicit construct independently of prelude selection.
+`import /namespace` binds all public function-body objects, diagnoses collisions and unsupported
+public namespace variables deterministically, and keeps `/deps/*` selective until dependency
+projection supports namespace-wide imports.
+Focused accepted and rejected cases cover explicit and namespace-wide binding, nested import
+loading and capability enforcement, visibility, duplicate and collision rules, idempotent
+reimports, `global` assignment, legal
 namespace-local shadowing of program globals, unresolved references, and ordinary
 bindings named `import`; a manifest-driven multi-source contract test exercises package
 assembly and cross-unit resolution. Semantic phases report the first failure in
@@ -932,8 +936,8 @@ renders either a complete standalone translation unit or a caller-named split en
 output derives one sibling `<entrypoint-stem>.support.rs`; the entrypoint contains a relative
 `include!`, source and namespace associations, and user-authored package lowering, while
 compiler-owned prelude, runtime, structured-error and source-site infrastructure, selectively
-included bundled `/core` and `/standard` implementations, and projected `/deps` lowering stay in the
-support file. The sidecar is emitted even when empty so every named lowering has one stable two-file
+included bundled `/core` implementations, and projected `/deps` lowering stay in the support file.
+The sidecar is emitted even when empty so every named lowering has one stable two-file
 shape. The compiler does not invent a named output path: `check`, `build`, and `run` explicitly
 request `src/main.rs`, which derives `src/main.support.rs`, through the same renderer. `terrane rust`
 streams the complete
@@ -1375,7 +1379,7 @@ Exit criterion: partial reads and writes, EOF, and use-after-close each have cas
 Implemented on `byte-text-streams`. Import-driven bundled source infrastructure recursively includes
 registered Terrane namespaces only when selected by an ordinary import, preserves every included
 source for diagnostics and generated-source associations, and lowers the bundled source beside the
-application rather than pre-lowering it. `/standard/streams` uses that path for result objects,
+application rather than pre-lowering it. `/core/streams` uses that path for result objects,
 inferred resource-owning stream classes, partial/exact/all loops, explicit encoding adapters,
 process factories, newline policy, and async wrappers. Rust is limited to the process-I/O
 syscall/ABI layer: an
@@ -1407,12 +1411,12 @@ Deliver:
 - the capability-gated `filesystem` object with metadata, symlink metadata, canonicalization, and permissions as a portable subset plus profile detail;
 - race-resistant directory-handle-relative traversal with no-follow by default and explicit beneath and cross-filesystem policies;
 - file handles as linear resources, bounded whole-file operations, and atomic replacement that renames without following links;
-- environment and argument access over a lossless platform-string type, the schema-driven CLI parser, and `exit-status` with the `0..=255` code range.
+- environment and argument access over a lossless native-string type, the schema-driven CLI parser, and `exit-status` with the `0..=255` code range.
 
 Exit criterion: lexical resolution and filesystem canonicalization are separately observable, a traversal escape attempt is refused, and the CLI parser returns structured diagnostics without calling process exit itself.
 
 Implemented on `filesystem-process-facilities`. Import-driven bundled Terrane packages keep
-`/standard/paths`, `/standard/filesystem`, and `/standard/process` visible through semantic
+`/core/filesystem/paths`, `/core/filesystem`, and `/core/process` visible through semantic
 analysis and lowering. Rust is limited to host filesystem, descriptor, environment, argument, and
 process-exit boundaries. Paths normalize and resolve lexically in Terrane;
 `filesystem-canonical` is the distinct native host-resolution operation, with
@@ -1474,7 +1478,7 @@ ordering with exact number serialization, serializing and deserializing descript
 document paths and unknown fields, JSON/YAML depth and size limits, YAML alias-node limits and safe
 scalar behavior, URL credential-safe display, duplicate ordered query entries, relative resolution,
 and generated-Rust compilation and execution with warnings denied. Rejection cases prove that the
-old `/standard/json::platform-parse` implementation spelling is not exported.
+old `/core/documents/json::platform-parse` implementation spelling is not exported.
 
 ### Milestone 23 — Randomness, codecs, digests, and compression
 
@@ -1888,7 +1892,7 @@ explicit operational contracts, deterministic lowering, and compiled and run evi
 standard or system capability is rejected with a Terrane diagnostic. No surface is represented as an
 empty compiler-owned name to make the map look complete.
 
-Implemented evidence: `/standard/concurrency` provides zero-or-positive-capacity integer channels,
+Implemented evidence: `/core/concurrency` provides zero-or-positive-capacity integer channels,
 integer mutex and read/write-lock cells, typed `atomic-int64` memory ordering, and per-existing-host-
 thread local integers over opaque shared host identities. Blocking channel send and receive carry
 explicit positive deadlines and cancellation tokens; `try-receive` is non-blocking. Generated Rust
@@ -1900,11 +1904,11 @@ without a receiver mutex. Terrane retains the object model, deadline and cancell
 error translation above that boundary. Explicit channel closure, arbitrary guard-scoped critical
 sections, and non-integer generic cells remain deferred rather than being implied by these names.
 
-Bundled standard imports are checked against `[profile]`; `S2032` names the profile, forbidden
-capability, imported namespace, and importing namespace, including `threads` for concurrency and
-`process` for the process/system surface. `/standard/process::host-name` demonstrates the remaining
+Bundled core imports are checked against `[profile]`; `S2032` names the profile, forbidden
+capability, imported namespace, and importing namespace. The complete gate map is recorded in the
+language specification and concise reference. `/core/process::host-name` demonstrates the remaining
 owned system crossing: its host ABI returns no borrowed value or handle, translates host failures,
-and preserves non-Unicode platform names in the existing `platform-string` representation. Rust's
+and preserves non-Unicode platform names in the existing `native-string` representation. Rust's
 standard library has no portable host-name query, so its maintained layer uses the audited
 `hostname` crate only for host retrieval and non-Unicode OS-string conversion.
 Accepted canonical-Rust package cases compile and run both restricted-profile surfaces, focused

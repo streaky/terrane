@@ -1,7 +1,7 @@
 namespace benchmark-elementwise-materialized
 
 from /core/collections import list
-from /standard/process import platform-string, arguments, exit, make-exit-status
+from /core/process import native-string, arguments, exit, make-exit-status
 
 function benchmark-size int64;
   supplied = (arguments;)

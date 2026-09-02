@@ -1,5 +1,5 @@
 namespace resource-owning-class-inference
-from /standard/streams import byte-reader, stdin
+from /core/streams import byte-reader, stdin
 from /core/output import print
 
 class stream-owner

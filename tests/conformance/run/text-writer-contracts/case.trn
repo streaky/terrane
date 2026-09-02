@@ -1,5 +1,5 @@
 namespace text-writer-contracts
-from /standard/streams import stdout, write-result
+from /core/streams import stdout, write-result
 from /core/encodings import utf8
 function main;
     output = stdout;

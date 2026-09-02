@@ -156,76 +156,39 @@ pub(crate) fn lower(package: &SemanticPackage) -> Program {
             items: vec![Item::generated(support)],
         });
     }
-    let uses_standard_streams = package
-        .units
-        .iter()
-        .any(|unit| unit.namespace == "/standard/streams")
-        || package_uses_namespace(package, "/core/streams");
-    let uses_filesystem = package
-        .units
-        .iter()
-        .any(|unit| unit.namespace == "/standard/filesystem")
-        || package_uses_namespace(package, "/core/filesystem");
-    let uses_process = package
-        .units
-        .iter()
-        .any(|unit| unit.namespace == "/standard/process")
-        || package_uses_namespace(package, "/core/process");
-    let uses_documents = package
-        .units
-        .iter()
-        .any(|unit| unit.namespace == "/standard/documents")
-        || package_uses_namespace(package, "/core/documents");
-    let uses_json = package
-        .units
-        .iter()
-        .any(|unit| unit.namespace == "/standard/json")
-        || package_uses_namespace(package, "/core/json");
-    let uses_yaml = package
-        .units
-        .iter()
-        .any(|unit| unit.namespace == "/standard/yaml")
-        || package_uses_namespace(package, "/core/yaml");
-    let uses_urls = package
-        .units
-        .iter()
-        .any(|unit| unit.namespace == "/standard/urls")
-        || package_uses_namespace(package, "/core/urls");
-    let uses_random = package
-        .units
-        .iter()
-        .any(|unit| unit.namespace == "/standard/random")
-        || package_uses_namespace(package, "/core/random");
-    let uses_codecs = package
-        .units
-        .iter()
-        .any(|unit| unit.namespace == "/standard/codecs")
-        || package_uses_namespace(package, "/core/codecs");
-    let uses_compression = package
-        .units
-        .iter()
-        .any(|unit| unit.namespace == "/standard/compression")
-        || package_uses_namespace(package, "/core/compression");
-    let uses_uuid = package
-        .units
-        .iter()
-        .any(|unit| unit.namespace == "/standard/uuid")
-        || package_uses_namespace(package, "/core/uuid");
-    let uses_networking = package
-        .units
-        .iter()
-        .any(|unit| unit.namespace == "/standard/networking")
-        || package_uses_namespace(package, "/core/networking");
-    let uses_tls = package
-        .units
-        .iter()
-        .any(|unit| unit.namespace == "/standard/tls")
-        || package_uses_namespace(package, "/core/tls");
-    let uses_concurrency = package
-        .units
-        .iter()
-        .any(|unit| unit.namespace == "/standard/concurrency")
-        || package_uses_namespace(package, "/core/concurrency");
+    let mut uses_streams = false;
+    let mut uses_filesystem = false;
+    let mut uses_process = false;
+    let mut uses_documents = false;
+    let mut uses_json = false;
+    let mut uses_yaml = false;
+    let mut uses_urls = false;
+    let mut uses_random = false;
+    let mut uses_codecs = false;
+    let mut uses_compression = false;
+    let mut uses_uuid = false;
+    let mut uses_networking = false;
+    let mut uses_tls = false;
+    let mut uses_concurrency = false;
+    for unit in &package.units {
+        match unit.namespace.as_str() {
+            "/core/streams" => uses_streams = true,
+            "/core/filesystem" => uses_filesystem = true,
+            "/core/process" => uses_process = true,
+            "/core/documents" => uses_documents = true,
+            "/core/documents/json" => uses_json = true,
+            "/core/documents/yaml" => uses_yaml = true,
+            "/core/urls" => uses_urls = true,
+            "/core/random" => uses_random = true,
+            "/core/codecs" => uses_codecs = true,
+            "/core/compression" => uses_compression = true,
+            "/core/random/uuid" => uses_uuid = true,
+            "/core/networking" => uses_networking = true,
+            "/core/networking/tls" => uses_tls = true,
+            "/core/concurrency" => uses_concurrency = true,
+            _ => {}
+        }
+    }
     let uses_platform_capabilities = uses_random
         || uses_codecs
         || uses_compression
@@ -233,7 +196,7 @@ pub(crate) fn lower(package: &SemanticPackage) -> Program {
         || uses_networking
         || uses_tls
         || uses_concurrency;
-    let requires_platform_support = uses_standard_streams
+    let requires_platform_support = uses_streams
         || uses_filesystem
         || uses_process
         || uses_documents
@@ -241,9 +204,9 @@ pub(crate) fn lower(package: &SemanticPackage) -> Program {
         || uses_yaml
         || uses_urls
         || uses_platform_capabilities;
-    if uses_standard_streams || uses_filesystem {
+    if uses_streams || uses_filesystem {
         let mut items = vec![Item::generated(include_str!("runtime/platform_streams.rs"))];
-        if uses_standard_streams {
+        if uses_streams {
             items.push(Item::generated(include_str!(
                 "runtime/platform_standard_streams.rs"
             )));
@@ -750,35 +713,6 @@ fn package_uses_task_scope(package: &SemanticPackage) -> bool {
         .units
         .iter()
         .any(|unit| contains(package, unit, &unit.tree.root))
-}
-
-fn package_uses_namespace(package: &SemanticPackage, target: &str) -> bool {
-    fn contains(
-        package: &SemanticPackage,
-        unit: &SemanticUnit,
-        node: &SyntaxNode,
-        target: &str,
-    ) -> bool {
-        if node.kind == SyntaxKind::Name
-            && package
-                .resolve_name_at(
-                    unit,
-                    node.span.start,
-                    &unit.source.text()[node.span.start..node.span.end],
-                )
-                .is_some_and(|symbol| symbol.namespace == target)
-        {
-            return true;
-        }
-        node.children
-            .iter()
-            .any(|child| contains(package, unit, child, target))
-    }
-
-    package
-        .units
-        .iter()
-        .any(|unit| contains(package, unit, &unit.tree.root, target))
 }
 
 fn package_uses_structured_errors(package: &SemanticPackage) -> bool {

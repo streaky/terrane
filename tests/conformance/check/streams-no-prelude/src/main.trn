@@ -1,5 +1,5 @@
 namespace streams-no-prelude
-from /standard/streams import stdin, stdout, stderr
+from /core/streams import stdin, stdout, stderr
 function main;
     input = stdin;
     input.close;

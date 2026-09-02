@@ -1,0 +1,179 @@
+namespace core/concurrency
+
+
+class operation-result
+    failed bool = false
+    deadline-exceeded bool = false
+    message string = ''
+
+    function construct; did-fail bool, exceeded-deadline bool, detail string
+        this.failed = did-fail
+        this.deadline-exceeded = exceeded-deadline
+        this.message = detail
+
+class cancellation-token
+    private handle host-platform-capability = host-cancellation-token;
+
+    function cancel operation-result;
+        raw = host-cancel; this.handle
+        return operation-result; (host-result-failed; raw), (host-result-deadline-exceeded; raw), (host-result-message; raw)
+
+class operation-options
+    deadline-ms int = 30000
+    cancellation cancellation-token = cancellation-token;
+
+    function construct; deadline-ms int, cancellation cancellation-token
+        this.deadline-ms = deadline-ms
+        this.cancellation = cancellation
+
+function cancel-operation operation-result; cancellation cancellation-token
+    raw = host-cancel; cancellation.handle
+    return operation-result; (host-result-failed; raw), (host-result-deadline-exceeded; raw), (host-result-message; raw)
+
+class int-result
+    failed bool = false
+    deadline-exceeded bool = false
+    available bool = false
+    message string = ''
+    value int = 0
+
+    function construct; did-fail bool, exceeded-deadline bool, has-value bool, detail string, result-value int
+        this.failed = did-fail
+        this.deadline-exceeded = exceeded-deadline
+        this.available = has-value
+        this.message = detail
+        this.value = result-value
+
+class int-channel
+    failed bool = false
+    message string = ''
+    private handle host-platform-capability = host-no-capability;
+
+    function construct; capacity int
+        raw = host-int-channel; capacity
+        this.failed = host-result-failed; raw
+        this.message = host-result-message; raw
+        this.handle = host-result-capability; raw
+
+    function send operation-result; value int, options operation-options
+        raw = host-int-channel-send; this.handle, value, options.deadline-ms, options.cancellation.handle
+        return operation-result; (host-result-failed; raw), (host-result-deadline-exceeded; raw), (host-result-message; raw)
+
+    function receive int-result; options operation-options
+        raw = host-int-channel-receive; this.handle, options.deadline-ms, options.cancellation.handle
+        return int-result; (host-result-failed; raw), (host-result-deadline-exceeded; raw), (host-result-bool; raw), (host-result-message; raw), (host-result-int; raw)
+
+    function try-receive int-result;
+        raw = host-int-channel-try-receive; this.handle
+        return int-result; (host-result-failed; raw), (host-result-deadline-exceeded; raw), (host-result-bool; raw), (host-result-message; raw), (host-result-int; raw)
+
+class int-mutex
+    failed bool = false
+    message string = ''
+    private handle host-platform-capability = host-no-capability;
+
+    function construct; initial int
+        raw = host-int-mutex; initial
+        this.failed = host-result-failed; raw
+        this.message = host-result-message; raw
+        this.handle = host-result-capability; raw
+
+    function load int-result;
+        raw = host-int-mutex-load; this.handle
+        return int-result; (host-result-failed; raw), (host-result-deadline-exceeded; raw), (host-result-bool; raw), (host-result-message; raw), (host-result-int; raw)
+
+    function store operation-result; value int
+        raw = host-int-mutex-store; this.handle, value
+        return operation-result; (host-result-failed; raw), (host-result-deadline-exceeded; raw), (host-result-message; raw)
+
+    function increase int-result; amount int
+        raw = host-int-mutex-add; this.handle, amount
+        return int-result; (host-result-failed; raw), (host-result-deadline-exceeded; raw), (host-result-bool; raw), (host-result-message; raw), (host-result-int; raw)
+
+class int-read-write-lock
+    failed bool = false
+    message string = ''
+    private handle host-platform-capability = host-no-capability;
+
+    function construct; initial int
+        raw = host-int-read-write-lock; initial
+        this.failed = host-result-failed; raw
+        this.message = host-result-message; raw
+        this.handle = host-result-capability; raw
+
+    function read int-result;
+        raw = host-int-read-write-lock-read; this.handle
+        return int-result; (host-result-failed; raw), (host-result-deadline-exceeded; raw), (host-result-bool; raw), (host-result-message; raw), (host-result-int; raw)
+
+    function write operation-result; value int
+        raw = host-int-read-write-lock-write; this.handle, value
+        return operation-result; (host-result-failed; raw), (host-result-deadline-exceeded; raw), (host-result-message; raw)
+
+class memory-order
+    name string = 'sequentially-consistent'
+
+    function construct; ordering-name string
+        this.name = ordering-name
+
+
+function relaxed-order memory-order;
+    return memory-order; 'relaxed'
+
+
+function acquire-order memory-order;
+    return memory-order; 'acquire'
+
+
+function release-order memory-order;
+    return memory-order; 'release'
+
+
+function acquire-release-order memory-order;
+    return memory-order; 'acquire-release'
+
+
+function sequentially-consistent-order memory-order;
+    return memory-order; 'sequentially-consistent'
+
+
+class atomic-int64
+    failed bool = false
+    message string = ''
+    private handle host-platform-capability = host-no-capability;
+
+    function construct; initial int64
+        raw = host-atomic-int64; initial
+        this.failed = host-result-failed; raw
+        this.message = host-result-message; raw
+        this.handle = host-result-capability; raw
+
+    function load int-result; ordering memory-order
+        raw = host-atomic-int64-load; this.handle, ordering.name
+        return int-result; (host-result-failed; raw), (host-result-deadline-exceeded; raw), (host-result-bool; raw), (host-result-message; raw), (host-result-int; raw)
+
+    function store operation-result; value int64, ordering memory-order
+        raw = host-atomic-int64-store; this.handle, value, ordering.name
+        return operation-result; (host-result-failed; raw), (host-result-deadline-exceeded; raw), (host-result-message; raw)
+
+    function increase int-result; amount int64, ordering memory-order
+        raw = host-atomic-int64-add; this.handle, amount, ordering.name
+        return int-result; (host-result-failed; raw), (host-result-deadline-exceeded; raw), (host-result-bool; raw), (host-result-message; raw), (host-result-int; raw)
+
+class thread-local-int
+    failed bool = false
+    message string = ''
+    private handle host-platform-capability = host-no-capability;
+
+    function construct; initial int
+        raw = host-thread-local-int; initial
+        this.failed = host-result-failed; raw
+        this.message = host-result-message; raw
+        this.handle = host-result-capability; raw
+
+    function get int-result;
+        raw = host-thread-local-int-get; this.handle
+        return int-result; (host-result-failed; raw), (host-result-deadline-exceeded; raw), (host-result-bool; raw), (host-result-message; raw), (host-result-int; raw)
+
+    function write operation-result; value int
+        raw = host-thread-local-int-set; this.handle, value
+        return operation-result; (host-result-failed; raw), (host-result-deadline-exceeded; raw), (host-result-message; raw)

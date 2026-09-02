@@ -2,7 +2,7 @@ namespace app
 
 from /core/output import print
 from /core/encodings import utf8
-from /standard/networking import ip-address-from-string, socket-address-from-ip, socket-address-from-string, cancellation-token, operation-options, tcp-listener, listener-result, stream-result, bind-tcp, connect-tcp
+from /core/networking import ip-address-from-string, socket-address-from-ip, socket-address-from-string, cancellation-token, operation-options, tcp-listener, listener-result, stream-result, bind-tcp, connect-tcp
 
 class async-runner
     callback function to none = function none;

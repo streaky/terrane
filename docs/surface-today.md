@@ -2,6 +2,9 @@
 
 This map describes the language surface implemented by the compiler today. It is not a map of every object proposed by the language draft.
 
+Compiler-only host bindings and generated Rust ABI details are documented separately in
+[`internal-surface.md`](internal-surface.md); they are not part of this public map.
+
 Status labels:
 
 - **implemented** — checked and lowered by the current compiler pipeline.
@@ -19,7 +22,7 @@ symbols retain their `/core` identities; compiler-only lowering keys are not nam
 
 ```text
 Terrane package
-├── compiler-owned namespaces
+├── public compiler-shipped core surface
 │   ├── /core
 │   │   ├── /core/output
 │   │   │   └── print                          function
@@ -83,20 +86,20 @@ Terrane package
 │   │   │   ├── entry                          key/value pair constructor
 │   │   │   ├── unordered-map                  deterministic unordered map constructor
 │   │   │   └── unordered-set                  deterministic unordered set constructor
-│   │   ├── /core/codecs                       implemented compiler-backed tool namespace
-│   │   ├── /core/compression                  implemented compiler-backed tool namespace
-│   │   ├── /core/concurrency                  implemented compiler-backed tool namespace
-│   │   ├── /core/documents                    implemented compiler-backed tool namespace
-│   │   ├── /core/filesystem                   implemented compiler-backed tool namespace
-│   │   ├── /core/json                         implemented compiler-backed tool namespace
-│   │   ├── /core/networking                   implemented compiler-backed tool namespace
-│   │   ├── /core/process                      implemented compiler-backed tool namespace
-│   │   ├── /core/random                       implemented compiler-backed tool namespace
-│   │   ├── /core/streams                      implemented compiler-backed tool namespace
-│   │   ├── /core/tls                          implemented compiler-backed tool namespace
-│   │   ├── /core/urls                         implemented compiler-backed tool namespace
-│   │   ├── /core/uuid                         implemented compiler-backed tool namespace
-│   │   ├── /core/yaml                         implemented compiler-backed tool namespace
+│   │   ├── /core/codecs                       public facility namespace
+│   │   ├── /core/compression                  public facility namespace
+│   │   ├── /core/concurrency                  public facility namespace
+│   │   ├── /core/documents                    public facility namespace
+│   │   ├── /core/filesystem                   public facility namespace
+│   │   ├── /core/documents/json               public facility namespace
+│   │   ├── /core/networking                   public facility namespace
+│   │   ├── /core/process                      public facility namespace
+│   │   ├── /core/random                       public facility namespace
+│   │   ├── /core/streams                      public facility namespace
+│   │   ├── /core/networking/tls               public facility namespace
+│   │   ├── /core/urls                         public facility namespace
+│   │   ├── /core/random/uuid                  public facility namespace
+│   │   ├── /core/documents/yaml               public facility namespace
 │   │   └── /core/async
 │   │       └── task-scope                     structured task-scope constructor
 ├── default prelude
@@ -107,8 +110,8 @@ Terrane package
 │   ├── utf32-le                               encoding name for /core/encodings::utf32-le
 │   ├── utf32-be                               encoding name for /core/encodings::utf32-be
 │   └── task-scope                             binding to /core/async::task-scope
-└── source-declared package surface
-    ├── /standard/streams                      bundled Terrane package, included when imported
+└── public core facility details
+    ├── /core/streams                          standard streams; requires `process`
     │   ├── operation-result                   failed / message
     │   ├── read-result                        bytes / completed / end / failed / message
     │   ├── text-read-result                   text / completed / end / failed / message
@@ -120,13 +123,13 @@ Terrane package
     │   ├── stdin                              byte-reader factory
     │   ├── stdout                             byte-writer factory
     │   └── stderr                             byte-writer factory
-    ├── /standard/paths                        bundled Terrane package, included when imported
+    ├── /core/filesystem/paths                 lexical filesystem paths
     │   ├── path                               platform-neutral lexical component value
     │   ├── normalise-path                     lexical `.` / `..` resolution, root-bounded
     │   ├── join-path                          lexical base/child resolution
     │   ├── path-components / path-is-absolute
     │   └── path-name / path-parent / path-stem / path-extension
-    ├── /standard/filesystem                   bundled Terrane package over minimal host intrinsics
+    ├── /core/filesystem                       filesystem operations; requires `filesystem`
     │   ├── filesystem                         unforgeable capability, acquired via filesystem-capability
     │   ├── filesystem-capability() -> filesystem
     │   ├── existence-result                   exists / failed / message result object
@@ -142,13 +145,13 @@ Terrane package
     │   ├── filesystem-canonical / filesystem-realpath / filesystem-read-link
     │   ├── filesystem-read-bounded / filesystem-write-atomic
     │   └── filesystem-rename / filesystem-remove
-    ├── /standard/process                      bundled Terrane process/system package; requires `process`
-    │   ├── platform-string                    lossless text-or-raw platform value
+    ├── /core/process                          process and host environment; requires `process`
+    │   ├── native-string                    lossless text-or-raw platform value
     │   ├── arguments / environment            explicit process snapshots
     │   ├── cli-schema / parse-command-line    schema-driven options and structured diagnostics
     │   ├── exit-status / make-exit-status / exit explicit validated termination
     │   └── host-name-result / host-name        lossless platform host name or translated host failure
-    ├── /standard/documents                    bundled Terrane document model over narrow scanner intrinsics
+    ├── /core/documents                        structured document values and mappings
     │   ├── document-integer                   exact integral value; text uses canonical exact number spelling
     │   ├── document-decimal                   coefficient / exponent / canonical exact text value
     │   ├── document-value                     none / bool / integer / decimal / string / list / map
@@ -157,49 +160,49 @@ Terrane package
     │   ├── serializable / deserializable      explicit typed conversion interfaces
     │   ├── exact scalar/list/map constructors programmatic document construction with duplicate rejection
     │   └── decode-document                    descriptor-driven validation with document-path diagnostics
-    ├── /standard/json                         bundled Terrane policy and document integration
+    ├── /core/documents/json                   JSON policy and document integration
     │   ├── json-options / default-json-options depth and byte limits; duplicates always rejected
     │   ├── parse-json / stringify-json / canonical-json
     │   │                                       JCS key ordering/escaping with exact, ECMAScript-shaped numbers
     │   └── decode-json / encode-json
-    ├── /standard/yaml                         bundled Terrane policy and document integration
+    ├── /core/documents/yaml                   YAML policy and document integration
     │   ├── yaml-options / default-yaml-options / make-yaml-options
     │   │                                       depth (capped at 255), byte, and alias-expanded-node limits
     │   ├── parse-yaml                         JSON-shaped safe scalars; tags and duplicate keys rejected
     │   ├── stringify-yaml                     emits canonical JSON, a valid YAML 1.2 document
     │   └── decode-yaml / encode-yaml
-    ├── /standard/urls                         bundled Terrane URL and ordered-query model
+    ├── /core/urls                             URL and ordered-query model
     │   ├── url                                serialized / display / components / query / origin
     │   ├── url-query                          ordered duplicate-preserving query entries (read-only after parsing)
     │   ├── url-result                         value or failed / message result
     │   └── parse-url / parse-url-relative
-    ├── /standard/random                       bundled Terrane random, digest, and secret-value policy
+    ├── /core/random                           random and digest policy; requires `entropy`
     │   ├── secure-random / pseudo-random      incompatible source types; ChaCha20 is selected explicitly
     │   ├── pseudo-bytes / pseudo-bounded-int / split-pseudo
     │   ├── secure-bytes / secure-bounded-int
     │   ├── secret-buffer / destroy-secret     opaque key material with explicit best-effort zeroisation
     │   ├── sha256 / sha512                    distinct digest algorithms
     │   └── digest-bytes / sign-hmac / digest-equals / signature-equals
-    ├── /standard/codecs                       bundled Terrane strict codec policy
+    ├── /core/codecs                           strict codec policy
     │   ├── encode-hex / decode-hex
     │   └── encode-base64 / decode-base64      standard or URL-safe alphabet with explicit padding
-    ├── /standard/compression                  bundled Terrane bounded compression policy
+    ├── /core/compression                      bounded compression policy
     │   ├── gzip / zlib / deflate-raw / zstd   explicit codecs; no auto-detection
     │   ├── compression-options                level and deterministic-output policy
     │   └── decompression-limits               mandatory output, ratio, and work limits
-    ├── /standard/uuid                         bundled Terrane UUID values
+    ├── /core/random/uuid                      UUID values; requires `entropy`
     │   └── parse-uuid / random-uuid / time-uuid strict canonical parsing plus v4 and v7 generation
-    ├── /standard/networking                   bundled Terrane sockets and name-resolution policy
+    ├── /core/networking                       sockets and DNS; requires `networking`
     │   ├── ip-address / socket-address / host-name validated value objects with structured parse results
     │   ├── cancellation-token / operation-options shared observable cancellation and positive deadlines
     │   ├── tcp-stream / tcp-listener / udp-socket
     │   ├── ip-address-from-string / socket-address-from-ip / socket-address-from-string / parse-host-name
     │   ├── connect-tcp / connect-host / bind-tcp / bind-udp
     │   └── lookup-dns                         ordered candidates with TTL and explicit failure results
-    ├── /standard/tls                          bundled Terrane TLS policy over transferred network resources
+    ├── /core/networking/tls                   TLS; requires `networking` and `tls`
     │   ├── tls-stream                         negotiated-version plus deadline-aware read, write, shutdown, and close
     │   └── connect-tls                        validated TLS 1.3/1.2 client connection; no insecure ordinary option
-    ├── /standard/concurrency                  bundled Terrane synchronization objects; requires `threads`
+    ├── /core/concurrency                      synchronization objects; requires `threads`
     │   ├── operation-result / int-result      explicit failure, deadline, availability, message, and value
     │   ├── cancellation-token                 explicit shared cancellation with a typed `cancel` operation
     │   ├── operation-options                  positive deadline and cancellation token for blocking channel operations
@@ -231,27 +234,6 @@ Terrane package
         └── binding                            local typed value, ref, or shared ref
 ```
 
-## Compiler-backed core tooling
-
-`import /core/<facility>` binds every name in the corresponding row. These are public
-Terrane objects even when their implementation lowers through generated Rust support.
-
-|Namespace|Implemented public objects|
-|---|---|
-|`/core/codecs`|`hex-encode`, `hex-decode`, `base64-encode`, `base64-decode`, `result-failed`, `result-message`, `result-bytes`|
-|`/core/compression`|`platform-compress`, `platform-decompress`, `result-failed`, `result-resource-limit`, `result-message`, `result-bytes`|
-|`/core/concurrency`|`platform-capability`, `platform-result`, `no-capability`, `platform-int-channel`, `platform-channel-send`, `platform-channel-receive`, `platform-channel-try-receive`, `platform-int-mutex`, `platform-mutex-load`, `platform-mutex-store`, `platform-mutex-add`, `platform-int-read-write-lock`, `platform-read-write-lock-read`, `platform-read-write-lock-write`, `platform-atomic-int64`, `platform-atomic-load`, `platform-atomic-store`, `platform-atomic-add`, `platform-thread-local-int`, `platform-thread-local-get`, `platform-thread-local-set`, `result-failed`, `result-message`, `result-int`, `result-bool`, `platform-cancellation-token`, `platform-cancel`, `result-deadline-exceeded`, `result-capability`|
-|`/core/documents`|`platform-data-result`, `platform-make-none`, `platform-make-bool`, `platform-make-string`, `platform-make-integer`, `platform-make-decimal`, `platform-make-list`, `platform-list-append`, `platform-make-map`, `platform-map-insert`, `empty-document`, `data-failed`, `data-message`, `data-path`, `data-expected`, `data-encoded`, `platform-kind`, `platform-text`, `platform-coefficient`, `platform-exponent`, `platform-length`, `platform-item`, `platform-key`, `platform-field`, `validate-mapping`|
-|`/core/filesystem`|`platform-filesystem-exists`, `platform-filesystem-metadata`, `platform-filesystem-realpath`, `platform-filesystem-read-link`, `platform-filesystem-read-bounded`, `platform-filesystem-write-atomic`, `platform-filesystem-rename`, `platform-filesystem-remove`, `result-failed`, `result-message`, `result-text`, `result-detail`, `result-bytes`, `result-int`, `result-bool`, `filesystem-authority`, `acquire-filesystem-authority`, `resource-handle`, `platform-open-file`, `platform-open-directory-beneath`, `platform-open-file-beneath`, `platform-read`, `platform-write`, `platform-flush`, `platform-sync-data`, `platform-sync-all`, `platform-close`, `platform-release`|
-|`/core/json`|`platform-parse`, `platform-canonical`|
-|`/core/networking`|`platform-resource-handle`, `platform-capability`, `platform-result`, `no-resource`, `failed-result`, `parse-ip`, `platform-parse-host-name`, `parse-socket`, `parse-socket-text`, `tcp-bind`, `tcp-connect`, `tcp-connect-host`, `tcp-accept`, `tcp-read`, `tcp-write`, `tcp-shutdown`, `tcp-configure`, `udp-bind`, `udp-send-to`, `udp-receive-from`, `udp-configure`, `platform-cancellation-token`, `platform-cancel`, `dns-lookup`, `platform-close`, `result-failed`, `result-truncated`, `result-deadline-exceeded`, `result-message`, `result-text`, `result-detail`, `result-bytes`, `result-int`, `result-bool`, `result-entries`, `result-resource`|
-|`/core/process`|`platform-arguments`, `platform-environment`, `platform-exit`, `platform-value-is-text`, `platform-value-text`, `platform-value-bytes`, `platform-result`, `platform-system-host-name`, `result-failed`, `result-message`, `result-text`, `result-bool`|
-|`/core/random`|`platform-capability`, `platform-secure`, `platform-pseudo`, `random-bytes`, `random-bounded`, `random-split`, `platform-secret`, `platform-destroy-secret`, `platform-digest`, `platform-hmac`, `constant-time-equal`, `result-failed`, `result-message`, `result-bytes`, `result-int`, `result-capability`|
-|`/core/streams`|`resource-handle`, `acquire-stdin`, `acquire-stdout`, `acquire-stderr`, `platform-read`, `platform-write`, `platform-flush`, `platform-sync-data`, `platform-sync-all`, `platform-close`, `platform-release`|
-|`/core/tls`|`platform-resource-handle`, `no-resource`, `platform-client`, `tls-read`, `tls-write`, `tls-shutdown`, `platform-close`, `result-failed`, `result-deadline-exceeded`, `result-message`, `result-text`, `result-bytes`, `result-int`, `result-bool`, `result-resource`|
-|`/core/urls`|`platform-url-result`, `platform-parse`, `url-failed`, `url-message`, `url-serialized`, `url-display`, `url-scheme`, `url-username`, `url-password`, `url-host`, `url-port`, `url-path`, `url-fragment`, `url-origin`, `url-query-length`, `url-query-key`, `url-query-value`|
-|`/core/uuid`|`platform-capability`, `uuid-parse`, `uuid-v4`, `uuid-v7`, `result-failed`, `result-message`, `result-text`, `result-bytes`|
-|`/core/yaml`|`platform-parse`, `platform-canonical`|
 
 ## Implemented value types
 

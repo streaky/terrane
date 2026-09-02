@@ -1,4 +1,4 @@
 phase = "check"
 status = "reject"
-code = "S2009"
-contains = "unresolved name `acquire-stdin` in `/core/platform-streams`"
+code = "S2010"
+contains = "name `host-acquire-stdin` is inaccessible"

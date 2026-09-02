@@ -1,5 +1,5 @@
 namespace standard-stderr-stream
-from /standard/streams import stderr
+from /core/streams import stderr
 function main;
     error = stderr;
     written = error.write-all; b'typed stderr\n'

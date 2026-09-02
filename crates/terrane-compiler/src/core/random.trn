@@ -1,5 +1,4 @@
-namespace standard/random
-import /core/random
+namespace core/random
 
 
 class byte-result
@@ -31,14 +30,14 @@ class secret-operation-result
         this.message = message
 
 class secret-buffer
-    handle platform-capability = platform-secret; b''
+    private handle host-platform-capability = host-secret-buffer; b''
 
     function construct; data bytes
-        this.handle = platform-secret; data
+        this.handle = host-secret-buffer; data
 
 function destroy-secret secret-operation-result; secret secret-buffer
-    raw = platform-destroy-secret; secret.handle
-    return secret-operation-result; (result-failed; raw), (result-message; raw)
+    raw = host-destroy-secret; secret.handle
+    return secret-operation-result; (host-result-failed; raw), (host-result-message; raw)
 
 class digest-value
     algorithm string = ''
@@ -52,7 +51,7 @@ class digest-value
         if this.algorithm != other.algorithm
             return false
         left = this.value
-        return constant-time-equal; left, other.value
+        return host-constant-time-equal; left, other.value
 
 class digest-result
     failed bool = false
@@ -76,7 +75,7 @@ class signature-value
         if this.algorithm != other.algorithm
             return false
         left = this.value
-        return constant-time-equal; left, other.value
+        return host-constant-time-equal; left, other.value
 
 class signature-result
     failed bool = false
@@ -89,18 +88,18 @@ class signature-result
         this.value = signature
 
 class secure-random
-    handle platform-capability = platform-secure;
+    protected handle host-platform-capability = host-secure-random;
 
     function construct;
-        this.handle = platform-secure;
+        this.handle = host-secure-random;
 
     function generate-bytes byte-result; count int
-        raw = random-bytes; this.handle, count
-        return byte-result; (result-failed; raw), (result-message; raw), (result-bytes; raw)
+        raw = host-random-bytes; this.handle, count
+        return byte-result; (host-result-failed; raw), (host-result-message; raw), (host-result-bytes; raw)
 
     function bounded-int int-result; upper-exclusive int
-        raw = random-bounded; this.handle, upper-exclusive
-        return int-result; (result-failed; raw), (result-message; raw), (result-int; raw)
+        raw = host-random-bounded; this.handle, upper-exclusive
+        return int-result; (host-result-failed; raw), (host-result-message; raw), (host-result-int; raw)
 
 class pseudo-random-algorithm
     name string = ''
@@ -112,45 +111,45 @@ function chacha20 pseudo-random-algorithm;
     return pseudo-random-algorithm; 'chacha20'
 
 class pseudo-random
-    handle platform-capability = platform-pseudo; 'chacha20', b''
+    private handle host-platform-capability = host-pseudo-random; 'chacha20', b''
 
     function construct; algorithm pseudo-random-algorithm, seed bytes
-        this.handle = platform-pseudo; algorithm.name, seed
+        this.handle = host-pseudo-random; algorithm.name, seed
 
     function generate-bytes byte-result; count int
-        raw = random-bytes; this.handle, count
-        return byte-result; (result-failed; raw), (result-message; raw), (result-bytes; raw)
+        raw = host-random-bytes; this.handle, count
+        return byte-result; (host-result-failed; raw), (host-result-message; raw), (host-result-bytes; raw)
 
     function bounded-int int-result; upper-exclusive int
-        raw = random-bounded; this.handle, upper-exclusive
-        return int-result; (result-failed; raw), (result-message; raw), (result-int; raw)
+        raw = host-random-bounded; this.handle, upper-exclusive
+        return int-result; (host-result-failed; raw), (host-result-message; raw), (host-result-int; raw)
 
     function split pseudo-random;
-        raw = random-split; this.handle
+        raw = host-random-split; this.handle
         child = pseudo-random; (chacha20;), b''
-        child.handle = result-capability; raw
+        child.handle = host-result-capability; raw
         return child
 
 function split-pseudo pseudo-random; source pseudo-random
-    raw = random-split; source.handle
+    raw = host-random-split; source.handle
     child = pseudo-random; (chacha20;), b''
-    child.handle = result-capability; raw
+    child.handle = host-result-capability; raw
     return child
 function secure-bytes byte-result; source secure-random, count int
-    raw = random-bytes; source.handle, count
-    return byte-result; (result-failed; raw), (result-message; raw), (result-bytes; raw)
+    raw = host-random-bytes; source.handle, count
+    return byte-result; (host-result-failed; raw), (host-result-message; raw), (host-result-bytes; raw)
 
 function pseudo-bytes byte-result; source pseudo-random, count int
-    raw = random-bytes; source.handle, count
-    return byte-result; (result-failed; raw), (result-message; raw), (result-bytes; raw)
+    raw = host-random-bytes; source.handle, count
+    return byte-result; (host-result-failed; raw), (host-result-message; raw), (host-result-bytes; raw)
 
 function secure-bounded-int int-result; source secure-random, upper-exclusive int
-    raw = random-bounded; source.handle, upper-exclusive
-    return int-result; (result-failed; raw), (result-message; raw), (result-int; raw)
+    raw = host-random-bounded; source.handle, upper-exclusive
+    return int-result; (host-result-failed; raw), (host-result-message; raw), (host-result-int; raw)
 
 function pseudo-bounded-int int-result; source pseudo-random, upper-exclusive int
-    raw = random-bounded; source.handle, upper-exclusive
-    return int-result; (result-failed; raw), (result-message; raw), (result-int; raw)
+    raw = host-random-bounded; source.handle, upper-exclusive
+    return int-result; (host-result-failed; raw), (host-result-message; raw), (host-result-int; raw)
 
 class hash-algorithm
     name string = ''
@@ -166,14 +165,14 @@ function sha512 hash-algorithm;
     return hash-algorithm; 'sha-512'
 
 function digest-bytes digest-result; algorithm hash-algorithm, data bytes
-    raw = platform-digest; algorithm.name, data
-    value = digest-value; algorithm.name, (result-bytes; raw)
-    return digest-result; (result-failed; raw), (result-message; raw), value
+    raw = host-digest; algorithm.name, data
+    value = digest-value; algorithm.name, (host-result-bytes; raw)
+    return digest-result; (host-result-failed; raw), (host-result-message; raw), value
 
 function sign-hmac signature-result; algorithm hash-algorithm, key secret-buffer, data bytes
-    raw = platform-hmac; algorithm.name, key.handle, data
-    value = signature-value; algorithm.name, (result-bytes; raw)
-    return signature-result; (result-failed; raw), (result-message; raw), value
+    raw = host-hmac; algorithm.name, key.handle, data
+    value = signature-value; algorithm.name, (host-result-bytes; raw)
+    return signature-result; (host-result-failed; raw), (host-result-message; raw), value
 
 function digest-equals bool; left digest-value, right digest-value
     return left.constant-time-equals; right

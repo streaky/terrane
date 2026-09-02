@@ -4,11 +4,12 @@ This document maps the proposed **version-one language contract**, not the compi
 
 The map is deliberately opinionated in one important respect: a member may be both a callable object and a namespace of related callable modes. Selecting `value.coerce` produces a method object; invoking that object selects its default behaviour, while selecting `value.coerce.checked` selects a child method object.
 
-Compiler-backed does not mean implicit. Every `/core/types` descriptor is language vocabulary
-available without import; operational compiler-supplied objects belong under purpose-named public
-`/core` parents and require an explicit object or namespace-wide import. Bundled `/standard`
-packages use those same imports. Compiler lowering keys and Rust shims are implementation details,
-not `/internal` or `/core/platform-*` language namespaces.
+Compiler-backed does not mean implicit or internal. Every `/core/types` descriptor is language
+vocabulary available without import; operational compiler-supplied objects belong under
+purpose-named public `/core` parents and require an explicit object or namespace-wide import.
+Whether a public core object is implemented in Terrane or Rust is not reflected in its namespace.
+Compiler lowering keys and Rust shims are implementation details, not `/internal` or
+`/core/platform-*` language namespaces.
 
 ## Reading the map
 
@@ -846,7 +847,7 @@ structured task scope                              v1 language-level object, not
 +-- deadline inheritance: a child may shorten but never extend its parent's
 +-- failure observation for a child that throws while siblings run
 
-profile library objects                              /standard/concurrency; requires threads
+profile library objects                              /core/concurrency; requires threads
 +-- int-channel                                      bounded, zero-capacity rendezvous; cancellable/deadline blocking operations
 +-- int-mutex                                        individually synchronized integer load/store/increase cell
 +-- int-read-write-lock                              integer shared-read/exclusive-write cell; no exposed guard
@@ -1098,7 +1099,7 @@ process arguments
 
 host identity
 +-- host-name -> host-name-result
-+-- result -> failed / available / message / platform-string value
++-- result -> failed / available / message / native-string value
 
 
 argument parser

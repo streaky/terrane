@@ -1,5 +1,5 @@
 namespace standard-text-streams
-from /standard/streams import stdin, stdout
+from /core/streams import stdin, stdout
 
 function main;
     bytes-input = stdin;

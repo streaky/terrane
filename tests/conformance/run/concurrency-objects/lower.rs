@@ -891,8 +891,8 @@ fn main() {
     local.write(terrane_int_support::Int::from(21_i128));
     println!("{}", terrane_scalar_support::scalar_text(&local.get().value));
 }
-// Source: standard/concurrency.trn
-// Namespace: standard/concurrency
+// Source: core/concurrency.trn
+// Namespace: core/concurrency
 #[derive(Clone)]
 pub struct OperationResult {
     pub failed: bool,

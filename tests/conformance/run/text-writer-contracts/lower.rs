@@ -376,55 +376,55 @@ mod __terrane_trace {
         pub end_line: u32,
         pub end_column: u32,
     }
-    pub static FILES: [&str; 1] = ["standard/streams.trn"];
+    pub static FILES: [&str; 1] = ["core/streams.trn"];
     pub static FUNCTIONS: [&str; 4] = [
-        "/standard/streams::read",
-        "/standard/streams::read-exact",
-        "/standard/streams::read-all",
-        "/standard/streams::read-async",
+        "/core/streams::read",
+        "/core/streams::read-exact",
+        "/core/streams::read-all",
+        "/core/streams::read-async",
     ];
     pub static SITES: [Site; 4] = [
         {
-            /* terrane-site-row: site 0: /standard/streams::read (standard/streams.trn:188:23-188:50) */
+            /* terrane-site-row: site 0: /core/streams::read (core/streams.trn:187:23-187:50) */
             Site {
                 function: 0,
                 file: 0,
-                line: 188,
+                line: 187,
                 column: 23,
-                end_line: 188,
+                end_line: 187,
                 end_column: 50,
             }
         },
         {
-            /* terrane-site-row: site 1: /standard/streams::read-exact (standard/streams.trn:210:23-210:46) */
+            /* terrane-site-row: site 1: /core/streams::read-exact (core/streams.trn:209:23-209:46) */
             Site {
                 function: 1,
                 file: 0,
-                line: 210,
+                line: 209,
                 column: 23,
-                end_line: 210,
+                end_line: 209,
                 end_column: 46,
             }
         },
         {
-            /* terrane-site-row: site 2: /standard/streams::read-all (standard/streams.trn:229:23-229:46) */
+            /* terrane-site-row: site 2: /core/streams::read-all (core/streams.trn:228:23-228:46) */
             Site {
                 function: 2,
                 file: 0,
-                line: 229,
+                line: 228,
                 column: 23,
-                end_line: 229,
+                end_line: 228,
                 end_column: 46,
             }
         },
         {
-            /* terrane-site-row: site 3: /standard/streams::read-async (standard/streams.trn:233:16-233:32) */
+            /* terrane-site-row: site 3: /core/streams::read-async (core/streams.trn:232:16-232:32) */
             Site {
                 function: 3,
                 file: 0,
-                line: 233,
+                line: 232,
                 column: 16,
-                end_line: 233,
+                end_line: 232,
                 end_column: 32,
             }
         },
@@ -655,8 +655,8 @@ fn main() {
     println!("{}", terrane_scalar_support::scalar_text(&all_sync.failed));
     writer.close();
 }
-// Source: standard/streams.trn
-// Namespace: standard/streams
+// Source: core/streams.trn
+// Namespace: core/streams
 #[derive(Clone)]
 pub struct OperationResult {
     pub failed: bool,
@@ -1066,7 +1066,7 @@ impl TextReader {
         let raw: TerranePlatformReadResult = terrane_platform_read(&self.handle, count);
         let text: String = __terrane_raised_err(
             terrane_string_support::decode(&raw.data.clone(), self.codec),
-            0 /* terrane-site: standard/streams.trn:188:23-188:50 */,
+            0 /* terrane-site: core/streams.trn:187:23-187:50 */,
         )?;
         return Ok(
             TextReadResult::terrane_construct(
@@ -1116,7 +1116,7 @@ impl TextReader {
         }
         let text: String = __terrane_raised_err(
             terrane_string_support::decode(&data, self.codec),
-            1 /* terrane-site: standard/streams.trn:210:23-210:46 */,
+            1 /* terrane-site: core/streams.trn:209:23-209:46 */,
         )?;
         return Ok(
             TextReadResult::terrane_construct(
@@ -1162,7 +1162,7 @@ impl TextReader {
         }
         let text: String = __terrane_raised_err(
             terrane_string_support::decode(&data, self.codec),
-            2 /* terrane-site: standard/streams.trn:229:23-229:46 */,
+            2 /* terrane-site: core/streams.trn:228:23-228:46 */,
         )?;
         return Ok(
             TextReadResult::terrane_construct(
@@ -1181,7 +1181,7 @@ impl TextReader {
         return Ok(
             __terrane_traced_err(
                 self.read(count.clone()),
-                3 /* terrane-site: standard/streams.trn:233:16-233:32 */,
+                3 /* terrane-site: core/streams.trn:232:16-232:32 */,
             )?,
         );
     }

@@ -152,6 +152,7 @@ Rules:
 - `from ... import x` binds ordinary `x` in the scope containing the import; `as` renames it. No declare-then-bind step.
 - `import /namespace` binds every public function-body object under its declared name; identities stay in the source namespace, private objects remain hidden, and any collision is `S2011`.
 - Namespace-wide imports have no alias clause; resolve collisions with selective `from ... import ... as ...`. `/deps/*` remains selective-only until dependency projection supports namespace-wide imports.
+- Imports at every lexical depth load their bundled core package and contribute its capability requirements; discovery never leaks their names out of the declaring scope.
 - Prelude names and descriptor constructs need NO import: `print; value` and `value int8 = 42` are complete programs. Importing `print` or `int8` is redundant, not required, and should not appear in examples or fixtures unless the case is specifically about importing.
 
 - Imports are structural compile-time slots, never ordinary calls/bindings.
@@ -733,7 +734,7 @@ encoding: explicit utf8/utf16-le/utf16-be/utf32-le/utf32-be; encode total; decod
 - Deadlines are explicit, never ambient. Child effective deadline is `min(parent, requested)`; a statically provable extension is diagnosed and dynamic inputs clamp to the earlier instant.
 - No borrow crosses suspension unless its owner lifetime and executor transfer requirements are proven.
 - Runtime remains profile-selected; concurrency objects synchronize existing executor/runtime host threads and expose no thread lifecycle.
-- `/standard/concurrency` requires `threads`. Its opaque capability-bearing objects share synchronized identity on assignment/argument passage; this is explicit object semantics, not a mutex silently added to ordinary values.
+- `/core/concurrency` requires `threads`. Its opaque capability-bearing objects share synchronized identity on assignment/argument passage; this is explicit object semantics, not a mutex silently added to ordinary values.
 - `int-channel`: bounded; capacity 0 is rendezvous; send/receive take explicit positive deadline + cancellation token; try-receive is non-blocking; disconnection is failure; explicit close/closed descriptor deferred.
 - `int-mutex` and `int-read-write-lock`: integer-specialized, individually synchronized load/store/update cells; no guard-scoped arbitrary critical section or generic element promise.
 - `atomic-int64`: typed `memory-order`; load allows relaxed/acquire/seq-cst, store relaxed/release/seq-cst, increase all five; host validates mutable authored order objects defensively.
@@ -743,7 +744,7 @@ encoding: explicit utf8/utf16-le/utf16-be/utf32-le/utf32-be; encode total; decod
 ## STREAMS
 
 ```yaml
-package: /standard/streams; ordinary bundled Terrane source included recursively only when imported
+package: /core/streams; ordinary bundled Terrane source included recursively only when imported
 resource_objects: byte-reader | byte-writer | text-reader | text-writer; inferred from stored process handle; no copy, use after transfer/consume, or double release
 process_factories: stdin -> byte-reader; stdout/stderr -> byte-writer
 text_adapter: 'byte-endpoint.text; encoding' transfers endpoint; adapter carries explicit encoding
@@ -774,7 +775,7 @@ unsupported: structured operation failure; never fallback substitution
 ## PATHS_FILESYSTEM_PROCESS
 
 ```yaml
-packages: /standard/paths | /standard/filesystem | /standard/process; ordinary import-driven Terrane source
+packages: /core/filesystem/paths | /core/filesystem | /core/process; ordinary import-driven Terrane source
 path: platform-neutral lexical value with canonical '/' separator; no host lookup or existence implication
 path_normalise: discard empty/'.'; resolve '..' lexically; rooted paths never cross root; unrooted unresolved leading parents remain
 path_join: absolute child replaces base; otherwise concatenate then normalise
@@ -786,13 +787,13 @@ atomic_replace: sibling temporary then rename over destination without following
 directory_relative: resource-owning directory handle; final anchor component and all beneath operations are no-follow; intermediate components of the caller-supplied anchor path use ordinary host resolution; beneath rejects escape; cross-filesystem requires explicit permission
 handles: linear resource transfer and idempotent host release shared with streams; partial file write exposes completed offset for resume
 platform_string: exactly one host component; is-text selects lossless Unicode text or lossless raw bytes; NEVER replacement decoding
-snapshots: arguments and environment are explicit; environment returns paired platform-string names/values
-host_name: /standard/process host-name returns failed/available/message plus a lossless platform-string value; requires process capability; Rust std has no portable host-name query, so audited hostname crate owns host ABI retrieval and non-Unicode conversion; boundary returns owned data and exposes no host handle
+snapshots: arguments and environment are explicit; environment returns paired native-string names/values
+host_name: /core/process host-name returns failed/available/message plus a lossless native-string value; requires process capability; Rust std has no portable host-name query, so audited hostname crate owns host ABI retrieval and non-Unicode conversion; boundary returns owned data and exposes no host handle
 cli_schema: exact flag:/value: long-option spellings; parser returns flags/options/positionals plus diagnostic argument indices/messages; NEVER exits
 cli_v1_limits: no --option=value, -- separator, or short clustering; undeclared short spellings remain positional
 exit_status: exact int 0..=255 valid; invalid construction yields valid=false and sentinel 255 without terminating; exit alone terminates
 rust_boundary: filesystem/descriptor syscalls, lossless OS argument/environment access, process exit
-terrane_layers: paths, filesystem objects/policy/results, platform-string model, CLI parser, exit validation
+terrane_layers: paths, filesystem objects/policy/results, native-string model, CLI parser, exit validation
 ```
 
 ## TARGET
@@ -823,7 +824,7 @@ prelude = true            # optional; defaults true
 "example/tools" = "src"
 "example/generated" = "generated"
 ```
-- Optional `[profile]`: `name` defaults to `default`; `capabilities` is an effect allowlist drawn from `build | entropy | filesystem | networking | process | threads | tls`; `panic` is `unwind` (default) or `abort`. Rust dependency effects and gated bundled imports must be allowed. Missing bundled capability is source diagnostic S2032 naming profile, capability, imported namespace, and importer; `/standard/concurrency` requires `threads`, `/standard/process` requires `process`.
+- Optional `[profile]`: `name` defaults to `default`; `capabilities` is an effect allowlist drawn from `build | entropy | filesystem | networking | process | threads | tls`; `panic` is `unwind` (default) or `abort`. Rust dependency effects and gated bundled core imports must be allowed. Missing capability is source diagnostic S2032 naming profile, capability, imported namespace, and importer. Gates: `/core/streams` + `/core/process` -> `process`; `/core/filesystem` -> `filesystem`; `/core/random` + `/core/random/uuid` -> `entropy`; `/core/networking` -> `networking`; `/core/networking/tls` -> `networking` + `tls`; `/core/concurrency` -> `threads`.
 - Authored manifest filename: `package.toml`; syntax is TOML; unknown fields rejected.
 - `namespaces`: canonical namespace-root keys mapped to distinct, relative directory roots; no absolute/parent paths. Source discovery recursively includes `.trn` files only, resolves overlapping mappings by longest namespace prefix, and assigns stable file IDs in sorted package-relative path order.
 - Every discovered declaration must equal the namespace derived from its mapping and relative parent directory. Duplicate mapped directories and mapped roots containing no `.trn` files are manifest-load errors.
@@ -837,13 +838,14 @@ prelude = true            # optional; defaults true
 ## CORE LIBRARY PRINCIPLE
 
 ```yaml
-rule: standard facilities are written in TERRANE over a deliberately minimal Rust core
+rule: public core facilities are written in TERRANE over a deliberately minimal Rust substrate
 namespace_layers:
-  /core: public normative compiler-supplied surface; /core/types descriptors are implicit constructs, operational namespaces require explicit object or namespace-wide import
-  /standard: public compiler-shipped Terrane packages built over /core and included through ordinary bundled-source compilation
-standard_source_rule: bundled source uses the same explicit `import /core/<facility>` form as authored source; no seeded local names
-identity_rule: public tools retain /core/<facility>::<name> semantic identities and carry separate compiler-only lowering keys
-rust_visibility: generated Rust shims and ABI types named by public core tools are public so split support artifacts remain callable
+  /core: one public normative compiler-supplied surface; /core/types descriptors are implicit constructs, operational namespaces require explicit object or namespace-wide import
+implementation_boundary: implementation language creates no public namespace layer
+host_binding_rule: compiler seeds each bundled core package with only its own private host-* bindings; other packages cannot import them
+protected_bridge_rule: protected declarations permit deliberate parent-to-child core package composition and remain absent from authored and namespace-wide imports
+identity_rule: public wrappers retain /core/<facility>::<name> semantic identities; private host bindings carry separate compiler-only lowering keys
+rust_visibility: generated Rust shims and ABI types may be public for split-module calls without publishing Terrane objects
 no_internal_root: /internal does not exist as a language-owned namespace; /core/platform-* aliases do not exist
 why_decisive: a Rust support crate is permanently opaque to the compiler - implementing a facility in Rust forecloses inlining, specialisation, and whole-program analysis for it forever
 why_also: exercises lowering against real code; builds a corpus before a public one exists; failures surface as readable Terrane frames, which a Rust crate can never give
@@ -856,10 +858,10 @@ rust_justified_only_if:
   - large externally-audited security-critical implementation
   - data rather than code (Unicode tables, tz database), generated
 rust_layer_rule: a layer claiming to be Rust states WHICH of the four applies
-dependency_path: standard facilities use the ordinary §23 manifest declaration and generated crossed-member projection; no privileged path
-profiles: standard facilities declare Rust dependencies explicitly so a profile may exclude them
+dependency_path: core facilities use the ordinary §23 manifest declaration and generated crossed-member projection; no privileged path
+profiles: core facilities declare Rust dependencies explicitly so a profile may exclude them
 consequence_build: package-level artifact caching becomes load-bearing, not an optimisation
-consequence_profile: capabilities become which Terrane packages are present, not which support crates were compiled in
+consequence_profile: capabilities become which bundled core packages are present, not which support crates were compiled in
 ```
 
 ## DEPENDENCY PRINCIPLE
@@ -896,9 +898,9 @@ lock_change_diagnostic: machine-independent terrane-projection.lock history dist
 - Artifact layout: streamed Rust is one complete standalone unit; named-file output and Cargo builds
   share a split renderer in which the requested entrypoint contains authored lowering plus one
   relative include, while `<entrypoint-stem>.support.rs` contains compiler prelude, runtime,
-  structured-error and source-site infrastructure, selectively included bundled `/core` and
-  `/standard` implementation code, and projected `/deps` lowering; user-authored package modules
-  remain in the entrypoint. The support sidecar is emitted even when empty, preserving a uniform
+  structured-error and source-site infrastructure, selectively included bundled `/core`
+  implementation code, and projected `/deps` lowering; user-authored package modules remain in the
+  entrypoint. The support sidecar is emitted even when empty, preserving a uniform
   two-file artifact contract.
 
 ## NATIVE INTEROP

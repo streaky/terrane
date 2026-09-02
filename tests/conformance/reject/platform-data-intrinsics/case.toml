@@ -1,4 +1,4 @@
 phase = "check"
 status = "reject"
-code = "S2009"
-contains = "unresolved name `platform-parse` in `/standard/json`"
+code = "S2010"
+contains = "name `host-json-parse` is inaccessible"

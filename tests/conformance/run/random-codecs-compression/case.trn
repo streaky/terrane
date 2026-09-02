@@ -2,10 +2,10 @@ namespace app
 
 from /core/output import print
 from /core/encodings import utf8
-from /standard/random import secure-random, secure-bytes, secure-bounded-int, pseudo-random, chacha20, pseudo-bytes, pseudo-bounded-int, split-pseudo, secret-buffer, destroy-secret, hash-algorithm, sha256, sha512, digest-bytes, sign-hmac, signature-equals
-from /standard/codecs import encode-hex, decode-hex, encode-base64, decode-base64
-from /standard/compression import gzip, zlib, deflate-raw, zstd, compression-options, decompression-limits
-from /standard/uuid import parse-uuid, random-uuid, time-uuid
+from /core/random import secure-random, secure-bytes, secure-bounded-int, pseudo-random, chacha20, pseudo-bytes, pseudo-bounded-int, split-pseudo, secret-buffer, destroy-secret, hash-algorithm, sha256, sha512, digest-bytes, sign-hmac, signature-equals
+from /core/codecs import encode-hex, decode-hex, encode-base64, decode-base64
+from /core/compression import gzip, zlib, deflate-raw, zstd, compression-options, decompression-limits
+from /core/random/uuid import parse-uuid, random-uuid, time-uuid
 
 function main;
     first pseudo-random = pseudo-random; (chacha20;), b'seed'

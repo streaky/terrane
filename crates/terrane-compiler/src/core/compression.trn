@@ -1,5 +1,4 @@
-namespace standard/compression
-import /core/compression
+namespace core/compression
 
 
 class compression-options
@@ -40,13 +39,13 @@ class compression-codec
 
     function compress compression-result; data bytes, options compression-options
         format = this.format
-        raw = platform-compress; format, data, options.level, options.deterministic
-        return compression-result; (result-failed; raw), (result-resource-limit; raw), (result-message; raw), (result-bytes; raw)
+        raw = host-compress; format, data, options.level, options.deterministic
+        return compression-result; (host-result-failed; raw), (host-result-resource-limit; raw), (host-result-message; raw), (host-result-bytes; raw)
 
     function decompress compression-result; data bytes, limits decompression-limits
         format = this.format
-        raw = platform-decompress; format, data, limits.max-output, limits.max-ratio, limits.max-work
-        return compression-result; (result-failed; raw), (result-resource-limit; raw), (result-message; raw), (result-bytes; raw)
+        raw = host-decompress; format, data, limits.max-output, limits.max-ratio, limits.max-work
+        return compression-result; (host-result-failed; raw), (host-result-resource-limit; raw), (host-result-message; raw), (host-result-bytes; raw)
 
 function gzip compression-codec;
     return compression-codec; 'gzip'
