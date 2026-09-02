@@ -914,30 +914,46 @@ Deliver:
 
 Generated artifacts should be organized under a project-local ignored directory or a user cache, never mixed with authored source. A `--keep-generated` or stable development path may expose them intentionally.
 
-Exit criterion: identical inputs produce byte-identical generated files; all accepted compile cases pass Cargo; the generated Rust for representative fixtures is readable and has reviewed goldens. Goldens pin canonical float display at both `float32` and `float64` width for `nan`, `inf`, `-inf`, negative zero, and shortest round-trippable finite values; they pin one multi-argument `print` call proving that arguments render adjacently with no inserted separator and exactly one trailing newline, alongside adjacent `print` calls proving record separation; and generated-project goldens include both authored lowered modules and the vendored support copy.
+Exit criterion: identical inputs produce byte-identical generated files; all accepted compile cases
+pass Cargo; the generated Rust for representative fixtures is readable and has reviewed goldens.
+Goldens pin canonical float display at both `float32` and `float64` width for `nan`, `inf`, `-inf`,
+negative zero, and shortest round-trippable finite values; they pin one multi-argument `print` call
+proving that arguments render adjacently with no inserted separator and exactly one trailing
+newline, alongside adjacent `print` calls proving record separation; and generated-project coverage
+pins the authored entrypoint, its compiler-support sidecar, and the vendored support copies.
 
-Implemented evidence: lowering now produces a deterministic compiler-owned program/file model whose
-renderer splits authored units from the entrypoint, uses injective source-name encoding, and exposes
-the complete rendered file set to the CLI. Every item is parsed into a compiler-owned `syn` syntax
-tree before entering that model. A structural normalization pass removes redundant expression
-parentheses both from ordinary Rust syntax and from macro bodies that parse as comma-separated
-expression lists; `prettyplease` reconstructs only parentheses required by Rust precedence, while
-normalized borrow tokens retain conventional compact spelling inside otherwise opaque macro input.
+Implemented evidence: lowering now produces one deterministic rendered-program artifact with
+separate compiler-support and authored-application bodies, uses injective source-name encoding, and
+renders either a complete standalone translation unit or a caller-named split entrypoint. Named
+output derives one sibling `<entrypoint-stem>.support.rs`; the entrypoint contains a relative
+`include!`, source and namespace associations, and user-authored package lowering, while
+compiler-owned prelude, runtime, structured-error and source-site infrastructure, selectively
+included bundled `/core` and `/standard` implementations, and projected `/deps` lowering stay in the
+support file. The sidecar is emitted even when empty so every named lowering has one stable two-file
+shape. The compiler does not invent a named output path: `check`, `build`, and `run` explicitly
+request `src/main.rs`, which derives `src/main.support.rs`, through the same renderer. `terrane rust`
+streams the complete
+standalone form by default and accepts `--output`/`-o` to write the split form.
+Every lowered item is parsed into a compiler-owned `syn` syntax tree before entering the rendered
+model. A structural normalization pass removes redundant expression parentheses both from ordinary
+Rust syntax and from macro bodies that parse as comma-separated expression lists; `prettyplease`
+reconstructs only parentheses required by Rust precedence, while normalized borrow tokens retain
+conventional compact spelling inside otherwise opaque macro input. Generated module-association
+comments survive that canonicalization wherever they occur in the combined entrypoint.
 The renderer and the default-off `--require-canonical-rust` development check share that exact
 normalization and pinned formatting path. The check reports mismatch as compiler defect `S9004` and
-never repairs or replaces generator output. Generated projects contain stable authored paths, copied
-content-addressed support crates, manifests, compiler/source metadata, and a build identity covering
-compiler version, source and support content, target, profile, and command-relevant environment.
-Successful checks and native executables are retained under that identity; stale generated
-identities are bounded by last use. `build --release` and `run --release` select Cargo's optimized
-release profile, with development and release executables cached separately. Generated release
-manifests explicitly enable ThinLTO with Cargo's default codegen-unit count; this is a toolchain
-policy for every generated crate rather than benchmark-specific source tuning. `check`, `build`,
-and `run` share captured Cargo execution when an artifact is absent; `rust` renders authored output
-plus authored-module and vendored-support path lists.
-Pipeline and CLI tests pin byte identity, generated authored and support files, artifact
-reuse, eviction, generated file layout, and strict canonical-format rejection; compile/run
-conformance cases validate the generated crates with warnings denied.
+never repairs or replaces generator output. Generated projects contain copied content-addressed
+support crates, manifests, compiler/source metadata, and a build identity covering compiler version,
+source and support content, target, profile, and command-relevant environment. Successful checks
+and native executables are retained under that identity; stale generated identities are bounded by
+last use. `build --release` and `run --release` select Cargo's optimized release profile, with
+development and release executables cached separately. Generated release manifests explicitly
+enable ThinLTO with Cargo's default codegen-unit count; this is a toolchain policy for every
+generated crate rather than benchmark-specific source tuning. `check`, `build`, and `run` share
+captured Cargo execution when an artifact is absent. Pipeline and CLI tests pin standalone byte
+identity, custom output naming and disk writes, support/error separation, source associations,
+generated-crate compilation, artifact reuse and eviction, and strict canonical-format rejection;
+compile/run conformance cases validate the generated crates with warnings denied.
 
 Remaining milestone-5 work: lowering still initially constructs item bodies as Rust text before the
 mandatory parse and structural normalization boundary. A fully structural expression/statement

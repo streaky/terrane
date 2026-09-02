@@ -16,7 +16,7 @@ pub mod tokens;
 pub mod types;
 
 pub use compiler::{
-    Compilation, CompilationFailure, CompilerOptions, compile, compile_package,
+    Compilation, CompilationFailure, CompilerOptions, RustArtifactError, compile, compile_package,
     compile_package_with_options, compile_with_options,
 };
 pub use diagnostic::{Diagnostic, Severity};

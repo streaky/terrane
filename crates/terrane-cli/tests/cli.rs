@@ -1,9 +1,45 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
+use std::sync::atomic::{AtomicUsize, Ordering};
+
+static NEXT_TEMPORARY_DIRECTORY: AtomicUsize = AtomicUsize::new(0);
+
+struct TemporaryDirectory(PathBuf);
+
+impl TemporaryDirectory {
+    fn new(label: &str) -> Self {
+        let path = std::env::temp_dir().join(format!(
+            "terrane-{label}-{}-{}",
+            std::process::id(),
+            NEXT_TEMPORARY_DIRECTORY.fetch_add(1, Ordering::Relaxed)
+        ));
+        if path.exists() {
+            fs::remove_dir_all(&path).unwrap();
+        }
+        Self(path)
+    }
+
+    fn path(&self) -> &Path {
+        &self.0
+    }
+}
+
+impl Drop for TemporaryDirectory {
+    fn drop(&mut self) {
+        if self.0.exists() {
+            fs::remove_dir_all(&self.0).unwrap();
+        }
+    }
+}
 
 fn hello() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).join("../../tests/conformance/run/hello/case.trn")
+}
+
+fn structured_error() -> PathBuf {
+    Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../../tests/conformance/run/structured-error-origin-and-frames/case.trn")
 }
 
 #[test]
@@ -25,9 +61,7 @@ fn all_commands_share_the_hello_pipeline() {
         .replace(terrane_compiler::VERSION, "<version>");
     let authored_rust = fs::read_to_string(hello().parent().unwrap().join("lower.rs")).unwrap();
     assert!(displayed_rust.starts_with(&authored_rust));
-    assert!(
-        displayed_rust.contains("// Generated Rust files: src/authored/case.trn.rs, src/main.rs")
-    );
+    assert!(displayed_rust.contains("// Generated Rust form: standalone"));
     assert!(displayed_rust.contains("// Vendored support crates: terrane-int-support"));
 
     let check = Command::new(binary)
@@ -54,6 +88,79 @@ fn all_commands_share_the_hello_pipeline() {
     assert_eq!(
         run.stdout,
         fs::read(hello().parent().unwrap().join("stdout.txt")).unwrap()
+    );
+}
+
+#[test]
+fn rust_output_writes_clean_authored_lowering_and_support_sidecar() {
+    let binary = env!("CARGO_BIN_EXE_terrane");
+    let directory = TemporaryDirectory::new("rust-output");
+    let output = directory.path().join("nested/application.rs");
+    let lowered = Command::new(binary)
+        .args([
+            "rust",
+            "--output",
+            output.to_str().unwrap(),
+            structured_error().to_str().unwrap(),
+        ])
+        .output()
+        .unwrap();
+
+    assert!(lowered.status.success(), "{lowered:?}");
+    assert!(lowered.stdout.is_empty());
+    let entrypoint = fs::read_to_string(&output).unwrap();
+    let support = fs::read_to_string(output.with_file_name("application.support.rs")).unwrap();
+    assert!(entrypoint.contains("include!(\"application.support.rs\");"));
+    assert!(entrypoint.contains("// Namespace: structured-error-origin-and-frames"));
+    assert!(entrypoint.contains("fn main()"));
+    assert!(!entrypoint.contains("struct TerraneError"));
+    assert!(support.contains("struct TerraneError"));
+    assert!(support.contains("static SITES:"));
+}
+
+#[test]
+fn invalid_rust_output_path_is_not_reported_as_a_canonical_compiler_defect() {
+    let output = Command::new(env!("CARGO_BIN_EXE_terrane"))
+        .args(["rust", "--output", "", hello().to_str().unwrap()])
+        .output()
+        .unwrap();
+    let stderr = String::from_utf8(output.stderr).unwrap();
+
+    assert_eq!(output.status.code(), Some(5));
+    assert!(stderr.contains("error[S9002]"));
+    assert!(!stderr.contains("error[S9004]"));
+    assert!(stderr.contains("generated Rust output path has no file name"));
+}
+
+#[test]
+fn output_options_are_rejected_outside_rust_and_when_repeated() {
+    let binary = env!("CARGO_BIN_EXE_terrane");
+    for command in ["check", "build", "run"] {
+        for flag in ["-o", "--output"] {
+            let output = Command::new(binary)
+                .args([command, flag, "generated.rs", hello().to_str().unwrap()])
+                .output()
+                .unwrap();
+            assert_eq!(output.status.code(), Some(2), "{command} {flag}");
+            assert!(String::from_utf8(output.stderr).unwrap().contains("usage:"));
+        }
+    }
+    let repeated = Command::new(binary)
+        .args([
+            "rust",
+            "-o",
+            "first.rs",
+            "--output",
+            "second.rs",
+            hello().to_str().unwrap(),
+        ])
+        .output()
+        .unwrap();
+    assert_eq!(repeated.status.code(), Some(2));
+    assert!(
+        String::from_utf8(repeated.stderr)
+            .unwrap()
+            .contains("usage:")
     );
 }
 

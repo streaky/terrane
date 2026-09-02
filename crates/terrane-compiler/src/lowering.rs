@@ -7,7 +7,7 @@ use num_bigint::BigInt;
 
 use crate::{
     ScalarType, SourceFile, TypeCategory,
-    rust_ir::{GeneratedModule, Item, Module, Program},
+    rust_ir::{GeneratedModule, Item, Module, ModuleDestination, Program},
     semantics::{
         ArithmeticFamily, CoercionPolicy, ContextualConstant, ElementType, FloatMemberOperation,
         FunctionContract, MemberFamily, ObjectContract, ObjectField, ObjectIdentity, ObjectKind,
@@ -96,6 +96,13 @@ impl LoweringRegistry {
     }
 }
 
+fn module_destination(unit: &SemanticUnit) -> ModuleDestination {
+    if unit.bundled || unit.namespace == "/deps" || unit.namespace.starts_with("/deps/") {
+        ModuleDestination::Support
+    } else {
+        ModuleDestination::Application
+    }
+}
 #[expect(
     clippy::too_many_lines,
     reason = "package lowering assembles one deterministic generated-crate prelude and unit set"
@@ -349,6 +356,7 @@ pub(crate) fn lower(package: &SemanticPackage) -> Program {
                 return Module {
                     source_path: unit.source_path.clone(),
                     namespace: unit.namespace.clone(),
+                    destination: module_destination(unit),
                     items: vec![Item::generated(&rust)],
                 };
             }
@@ -401,6 +409,7 @@ pub(crate) fn lower(package: &SemanticPackage) -> Program {
             Module {
                 source_path: unit.source_path.clone(),
                 namespace: unit.namespace.clone(),
+                destination: module_destination(unit),
                 items,
             }
         })

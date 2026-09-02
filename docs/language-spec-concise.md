@@ -883,6 +883,13 @@ lock_change_diagnostic: machine-independent terrane-projection.lock history dist
 - Lowering itself emits canonical Rust. A bundled pinned formatter may validate an untouched
   generated artefact, but its formatted copy is discarded; mismatch is a compiler defect, never a
   silent rewrite.
+- Artifact layout: streamed Rust is one complete standalone unit; named-file output and Cargo builds
+  share a split renderer in which the requested entrypoint contains authored lowering plus one
+  relative include, while `<entrypoint-stem>.support.rs` contains compiler prelude, runtime,
+  structured-error and source-site infrastructure, selectively included bundled `/core` and
+  `/standard` implementation code, and projected `/deps` lowering; user-authored package modules
+  remain in the entrypoint. The support sidecar is emitted even when empty, preserving a uniform
+  two-file artifact contract.
 
 ## NATIVE INTEROP
 

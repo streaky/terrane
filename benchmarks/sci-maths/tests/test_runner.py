@@ -31,7 +31,7 @@ def lane(
         setup=(),
         prepare=(),
         lower=(),
-        lower_output=None,
+        lower_outputs=(),
         run=command,
         prepare_output="none",
         cache_paths=(),
@@ -140,6 +140,50 @@ class RunnerContracts(unittest.TestCase):
             self.assertEqual(actual, 41)
             self.assertEqual(execution.returncode, 0)
             self.assertIn("Python", environment[0]["stdout"])
+
+    def test_lowering_command_receives_and_writes_declared_output(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            problem_path = Path(directory)
+            implementation = problem_path / "implementation.fixture"
+            implementation.write_text("fixture")
+            output = problem_path / "generated/main.lowered.rs"
+            support_output = problem_path / "generated/main.lowered.support.rs"
+            support_output.parent.mkdir(parents=True)
+            support_output.write_text("stale support")
+            fixture_lane = runner.Lane(
+                lane_id="fixture",
+                name="fixture",
+                config_path=problem_path / "lane.toml",
+                implementation=implementation.name,
+                setup=(),
+                prepare=(),
+                lower=(
+                    sys.executable,
+                    "-c",
+                    "from pathlib import Path; import sys; "
+                    "Path(sys.argv[1]).write_text('lowered'); "
+                    "Path(sys.argv[2]).write_text('support'); print('not source')",
+                    "$lowered",
+                    str(support_output),
+                ),
+                lower_outputs=(str(output), str(support_output)),
+                run=(),
+                prepare_output="none",
+                cache_paths=(),
+                metadata={},
+                environment_commands=(),
+            )
+            problem = {
+                "id": "fixture",
+                "path": problem_path,
+                "lane_ids": ("fixture",),
+            }
+
+            with mock.patch.object(runner, "SUITE", problem_path):
+                runner.materialize_lowering([problem], [fixture_lane], 5.0)
+
+            self.assertEqual(output.read_text(), "lowered")
+            self.assertEqual(support_output.read_text(), "support")
 
     def test_process_result_retains_stderr_and_records_peak_memory_when_available(self) -> None:
         result = runner.run_process(

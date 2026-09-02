@@ -29,7 +29,11 @@ python3 benchmarks/sci-maths/run.py \
 
 `check` prepares each selected implementation and runs the small correctness profile. `benchmark` and `report` preserve adapter-declared build caches by default, complete all lane setup before running a case, recheck correctness, perform warm-ups, and then record end-to-end program runs. Compilation and preparation time is never included in an execution result; a lane with no build step, such as Python, follows the same timing boundary. Cases are interleaved in suite order within each warm-up or measured run index, rather than finishing all repetitions for one lane before starting another. Pass `--cold-builds` to clear only adapter-declared caches inside this suite and record separate cold and immediately repeated incremental preparation measurements. `benchmark` emits JSON. `report` writes a timestamped Markdown report and a same-named complete JSON record under `reports/` by default; `--output path/report.md` chooses another pair of paths. Neither command removes the repository's Cargo target directory.
 
-`lower` refreshes each lane's declared inspectable lowering. The Terrane and Terrane+numr lanes write `main.lowered.rs` beside every `main.trn`, keeping the generated Rust receipt with the solution.
+`lower` refreshes each lane's declared inspectable lowering by passing the first resolved
+`lower-outputs` path as `$lowered` and requiring every declared output to be rewritten. The Terrane
+and Terrane+numr lanes write clean application lowering to `main.lowered.rs` and compiler
+infrastructure to `main.lowered.support.rs` beside every `main.trn`, keeping both generated Rust
+receipts with the solution.
 
 On Linux systems with delegated cgroup-v2 memory accounting, every launched program and its descendants run in a fresh cgroup. Reports record that cgroup's `memory.peak`: total peak memory charged to the group, including anonymous memory, charged page cache, and kernel memory. Shared pages are charged once, potentially to a cgroup outside the measured execution, so small-footprint results depend on page-cache state and are not directly comparable across machines or reboots. Reports summarize the median and range across measured runs and deliberately label the metric peak memory rather than RSS. When this accounting is unavailable, memory results remain unavailable rather than falling back to a misleading process estimate.
 
@@ -186,8 +190,11 @@ name = "Example language"
 implementation = "example/main.ext"
 setup = ["examplec", "--version"]                  # optional, once per report
 prepare = ["examplec", "$implementation", "-o", "$implementation_dir/program"]
-lower = ["examplec", "--emit-readable", "$implementation"] # optional inspectable lowering
-lower-output = "$implementation_dir/main.lowered.ext"
+lower = ["examplec", "--emit-readable", "--output", "$lowered", "$implementation"] # optional
+lower-outputs = [                                      # every generated receipt, first is $lowered
+  "$implementation_dir/main.lowered.ext",
+  "$implementation_dir/main.lowered.support.ext",
+]
 prepare-output = "none"                            # or "executable-path"
 run = ["$implementation_dir/program"]
 cache-paths = ["$implementation_dir/cache"]        # optional, suite-local only
@@ -197,6 +204,12 @@ environment = [["examplec", "--version"]]          # optional report metadata
 implementation = "Example compiler 1.x"
 ```
 
-Available placeholders are `$repo`, `$suite`, `$problem`, `$implementation`, `$implementation_dir`, and, after preparation, `$prepared`. Use `${name}` where a placeholder touches adjacent text. Commands are argument arrays, not shell strings; literal braces require no escaping. Adapters contain no problem-specific commands or expected values, and adding one does not change `run.py`.
+Available placeholders are `$repo`, `$suite`, `$problem`, `$implementation`,
+`$implementation_dir`, `$lowered` for the first declared lowering destination, and, after
+preparation, `$prepared`. Use `${name}` where a placeholder touches adjacent text. Before lowering,
+the runner removes every declared output; the command must recreate all of them. The runner does
+not reinterpret stdout as generated source. Commands are argument arrays, not shell strings;
+literal braces require no escaping. Adapters contain no problem-specific commands or expected
+values, and adding one does not change `run.py`.
 
 Additional scientific-stack lanes in C, Java, Julia, and other specialised environments can use the same group and adapter boundary when they provide a useful comparison.
