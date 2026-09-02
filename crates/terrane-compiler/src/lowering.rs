@@ -6043,6 +6043,9 @@ impl Emitter<'_> {
         let selection = string_call_selection(self.source, node)?;
         let subject = find_node_by_span(&self.unit.tree.root, selection.receiver)
             .expect("selected string receiver belongs to this syntax tree");
+        if matches!(self.value_type(subject), Some(ValueType::Object(_))) {
+            return None;
+        }
         let family = selection.family.source_name();
         let child = selection.child.as_str();
         let receiver = self.receiver_expression(subject);

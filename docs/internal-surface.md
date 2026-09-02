@@ -18,7 +18,7 @@ The authoritative inventory is `bootstrap_namespaces` in `crates/terrane-compile
 |---|---|---|
 |`/core/streams`|`streams`|standard stream acquisition and byte-stream operations|
 |`/core/filesystem`|`system`, `streams`|filesystem authority, path operations, and resource-backed file I/O|
-|`/core/process`|`system`|arguments, environment, host name, and process exit|
+|`/core/process`|`system`, `adapters`|arguments, environment, host name, and process exit|
 |`/core/documents`|`data`|opaque document values, construction, traversal, and validation|
 |`/core/documents/json`|`data`|JSON parsing and canonical writing|
 |`/core/documents/yaml`|`data`|YAML parsing and safe writing support|

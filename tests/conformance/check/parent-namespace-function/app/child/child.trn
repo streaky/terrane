@@ -1,0 +1,4 @@
+namespace app/child
+
+public function use-double int; value int
+    return double; value

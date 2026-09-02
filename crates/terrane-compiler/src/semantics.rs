@@ -1503,20 +1503,26 @@ fn populate_function_aliases(package: &mut SemanticPackage) {
         })
         .collect::<BTreeMap<_, _>>();
     for unit in &mut package.units {
-        unit.function_aliases = package
-            .namespaces
-            .get(&unit.namespace)
-            .into_iter()
-            .flat_map(|namespace| &namespace.symbols)
-            .filter_map(|(visible_name, symbol)| {
-                let span = symbol.declaration_span?;
-                (symbol.kind == SymbolKind::Function)
-                    .then(|| contracts.get(&(span.file, span.start, span.end)))
-                    .flatten()
-                    .cloned()
-                    .map(|contract| (visible_name.clone(), contract))
-            })
-            .collect();
+        let mut aliases = BTreeMap::new();
+        for namespace_name in namespace_chain(&unit.namespace) {
+            let Some(namespace) = package.namespaces.get(&namespace_name) else {
+                continue;
+            };
+            for (visible_name, symbol) in &namespace.symbols {
+                let Some(span) = symbol.declaration_span else {
+                    continue;
+                };
+                if symbol.kind != SymbolKind::Function || !visible_from(symbol, &unit.namespace) {
+                    continue;
+                }
+                if let Some(contract) = contracts.get(&(span.file, span.start, span.end)) {
+                    aliases
+                        .entry(visible_name.clone())
+                        .or_insert_with(|| contract.clone());
+                }
+            }
+        }
+        unit.function_aliases = aliases;
     }
 }
 
@@ -5814,8 +5820,6 @@ fn infer_throwing_effects(package: &mut SemanticPackage) -> Result<(), SemanticF
                 .flatten();
             let mut errors = if integer_coercion_can_fail(unit, node) {
                 BTreeSet::from(["/core/errors::integer-conversion-overflow".to_owned()])
-            } else if member_name == "decode" {
-                BTreeSet::from(["/core/errors::decode-error".to_owned()])
             } else if let Some(ValueType::Object(object)) = receiver_type {
                 unit.functions
                     .iter()
@@ -5826,6 +5830,8 @@ fn infer_throwing_effects(package: &mut SemanticPackage) -> Result<(), SemanticF
                     .and_then(|contract| inferred.get(&key(contract.span)))
                     .cloned()
                     .unwrap_or_default()
+            } else if member_name == "decode" {
+                BTreeSet::from(["/core/errors::decode-error".to_owned()])
             } else {
                 BTreeSet::new()
             };
@@ -8679,6 +8685,9 @@ fn infer_string_call_type(
     let family = selection.family.source_name();
     let child = selection.child.as_str();
     let subject_type = transparent_value_type(infer_value_type(unit, subject, bindings)?);
+    if matches!(subject_type, Some(ValueType::Object(_))) {
+        return Ok(None);
+    }
     let receiver_valid = match family {
         "decode" => subject_type == Some(ValueType::Scalar(ScalarType::Bytes)),
         _ => subject_type == Some(ValueType::Scalar(ScalarType::String)),

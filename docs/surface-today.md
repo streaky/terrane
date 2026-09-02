@@ -184,8 +184,11 @@ Terrane package
     │   ├── sha256 / sha512                    distinct digest algorithms
     │   └── digest-bytes / sign-hmac / digest-equals / signature-equals
     ├── /core/codecs                           strict codec policy
+    │   ├── decode-result                       failed / message plus decoded bytes
+    │   ├── hex / hex-codec                     reusable hexadecimal codec with encode / decode
+    │   ├── base64 / base64-url / base64-codec reusable alphabet policy with encode / decode
     │   ├── encode-hex / decode-hex
-    │   └── encode-base64 / decode-base64      standard or URL-safe alphabet with explicit padding
+    │   └── encode-base64 / decode-base64      direct standard or URL-safe operations with explicit padding
     ├── /core/compression                      bounded compression policy
     │   ├── gzip / zlib / deflate-raw / zstd   explicit codecs; no auto-detection
     │   ├── compression-options                level and deterministic-output policy

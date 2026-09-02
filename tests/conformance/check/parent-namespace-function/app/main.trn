@@ -1,0 +1,9 @@
+namespace app
+from /core/output import print
+from /app/child import use-double
+
+public function double int; value int
+    return value * 2
+
+function main;
+    print; (use-double; 2)
