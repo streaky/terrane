@@ -927,10 +927,12 @@ separate compiler-support and authored-application bodies, uses injective source
 renders either a complete standalone translation unit or a caller-named split entrypoint. Named
 output derives one sibling `<entrypoint-stem>.support.rs`; the entrypoint contains a relative
 `include!`, source and namespace associations, and user-authored package lowering, while
-compiler-owned prelude, runtime, structured-error and source-site infrastructure, plus selectively
-included bundled `/core` and `/standard` implementations, stay in the support file. The compiler
-does not invent a named output path: `check`, `build`, and `run` explicitly request `src/main.rs`,
-which derives `src/main.support.rs`, through the same renderer. `terrane rust` streams the complete
+compiler-owned prelude, runtime, structured-error and source-site infrastructure, selectively
+included bundled `/core` and `/standard` implementations, and projected `/deps` lowering stay in the
+support file. The sidecar is emitted even when empty so every named lowering has one stable two-file
+shape. The compiler does not invent a named output path: `check`, `build`, and `run` explicitly
+request `src/main.rs`, which derives `src/main.support.rs`, through the same renderer. `terrane rust`
+streams the complete
 standalone form by default and accepts `--output`/`-o` to write the split form.
 Every lowered item is parsed into a compiler-owned `syn` syntax tree before entering the rendered
 model. A structural normalization pass removes redundant expression parentheses both from ordinary

@@ -1,6 +1,37 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
+use std::sync::atomic::{AtomicUsize, Ordering};
+
+static NEXT_TEMPORARY_DIRECTORY: AtomicUsize = AtomicUsize::new(0);
+
+struct TemporaryDirectory(PathBuf);
+
+impl TemporaryDirectory {
+    fn new(label: &str) -> Self {
+        let path = std::env::temp_dir().join(format!(
+            "terrane-{label}-{}-{}",
+            std::process::id(),
+            NEXT_TEMPORARY_DIRECTORY.fetch_add(1, Ordering::Relaxed)
+        ));
+        if path.exists() {
+            fs::remove_dir_all(&path).unwrap();
+        }
+        Self(path)
+    }
+
+    fn path(&self) -> &Path {
+        &self.0
+    }
+}
+
+impl Drop for TemporaryDirectory {
+    fn drop(&mut self) {
+        if self.0.exists() {
+            fs::remove_dir_all(&self.0).unwrap();
+        }
+    }
+}
 
 fn hello() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).join("../../tests/conformance/run/hello/case.trn")
@@ -63,12 +94,8 @@ fn all_commands_share_the_hello_pipeline() {
 #[test]
 fn rust_output_writes_clean_authored_lowering_and_support_sidecar() {
     let binary = env!("CARGO_BIN_EXE_terrane");
-    let directory =
-        std::env::temp_dir().join(format!("terrane-rust-output-{}", std::process::id()));
-    if directory.exists() {
-        fs::remove_dir_all(&directory).unwrap();
-    }
-    let output = directory.join("nested/application.rs");
+    let directory = TemporaryDirectory::new("rust-output");
+    let output = directory.path().join("nested/application.rs");
     let lowered = Command::new(binary)
         .args([
             "rust",
@@ -89,8 +116,38 @@ fn rust_output_writes_clean_authored_lowering_and_support_sidecar() {
     assert!(!entrypoint.contains("struct TerraneError"));
     assert!(support.contains("struct TerraneError"));
     assert!(support.contains("static SITES:"));
+}
 
-    fs::remove_dir_all(directory).unwrap();
+#[test]
+fn output_options_are_rejected_outside_rust_and_when_repeated() {
+    let binary = env!("CARGO_BIN_EXE_terrane");
+    for command in ["check", "build", "run"] {
+        for flag in ["-o", "--output"] {
+            let output = Command::new(binary)
+                .args([command, flag, "generated.rs", hello().to_str().unwrap()])
+                .output()
+                .unwrap();
+            assert_eq!(output.status.code(), Some(2), "{command} {flag}");
+            assert!(String::from_utf8(output.stderr).unwrap().contains("usage:"));
+        }
+    }
+    let repeated = Command::new(binary)
+        .args([
+            "rust",
+            "-o",
+            "first.rs",
+            "--output",
+            "second.rs",
+            hello().to_str().unwrap(),
+        ])
+        .output()
+        .unwrap();
+    assert_eq!(repeated.status.code(), Some(2));
+    assert!(
+        String::from_utf8(repeated.stderr)
+            .unwrap()
+            .contains("usage:")
+    );
 }
 
 #[test]

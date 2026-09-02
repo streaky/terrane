@@ -337,10 +337,11 @@ The inspectable form separates authored lowering from compiler infrastructure. W
 is written to a named entrypoint, that file contains the lowered application, source and namespace
 associations, and only the import ceremony required to include a deterministic sibling support
 file. The sibling contains compiler-owned prelude, runtime, structured-error representation, source
-site tables, other support definitions, and the selectively included implementations of bundled
-`/core` and `/standard` modules. User-authored package modules remain in the entrypoint. Cargo
-compilation uses the same split renderer rather
-than a second lowering path. When generated Rust is streamed instead of written as files, tooling
+site tables, other support definitions, the selectively included implementations of bundled
+`/core` and `/standard` modules, and projected `/deps` lowering. User-authored package modules remain
+in the entrypoint. Named lowering emits the support sidecar even when it is empty, preserving one
+uniform two-file artifact contract. Cargo compilation uses the same split renderer rather than a
+second lowering path. When generated Rust is streamed instead of written as files, tooling
 emits one complete standalone Rust translation unit by placing the same support definitions before
 the authored lowering.
 

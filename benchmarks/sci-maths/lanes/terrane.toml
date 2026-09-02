@@ -4,7 +4,10 @@ implementation = "terrane/package.toml"
 setup = ["cargo", "build", "--release", "--quiet", "-p", "terrane-cli"]
 prepare = ["${repo}/target/release/terrane", "build", "--release", "${implementation}"]
 lower = ["${repo}/target/release/terrane", "rust", "--output", "${lowered}", "${implementation}"]
-lower-output = "${implementation_dir}/src/main.lowered.rs"
+lower-outputs = [
+  "${implementation_dir}/src/main.lowered.rs",
+  "${implementation_dir}/src/main.lowered.support.rs",
+]
 prepare-output = "executable-path"
 run = ["${prepared}"]
 cache-paths = ["${implementation_dir}/.trn"]

@@ -24,7 +24,7 @@ pub struct RenderedFile {
 pub(crate) struct RenderedProgram {
     version: &'static str,
     support: RenderedFragment,
-    standalone: String,
+    standalone: RenderedFragment,
     application: RenderedFragment,
 }
 
@@ -47,11 +47,17 @@ pub struct SourceAssociation {
     pub source: Span,
 }
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum ModuleDestination {
+    Support,
+    Application,
+}
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Module {
     pub source_path: String,
     pub namespace: String,
-    pub support: bool,
+    pub destination: ModuleDestination,
     pub items: Vec<Item>,
 }
 
@@ -123,12 +129,16 @@ fn canonicalize_file(parsed: syn::File) -> syn::File {
 }
 
 pub(crate) fn canonicalize_rust(rust: &str) -> Result<String, syn::Error> {
-    let encoded =
-        encode_terrane_module_comments(&encode_terrane_site_rows(&encode_terrane_comments(rust)));
+    let module_comment_marker = module_comment_marker(rust);
+    let encoded = encode_terrane_module_comments(
+        &encode_terrane_site_rows(&encode_terrane_comments(rust)),
+        &module_comment_marker,
+    );
     let parsed = syn::parse_file(&encoded)?;
-    Ok(restore_terrane_metadata(&prettyplease::unparse(
-        &canonicalize_file(parsed),
-    )))
+    Ok(restore_terrane_metadata(
+        &prettyplease::unparse(&canonicalize_file(parsed)),
+        Some(&module_comment_marker),
+    ))
 }
 
 fn encode_terrane_comments(rendered: &str) -> String {
@@ -181,13 +191,20 @@ fn encode_terrane_site_rows(rendered: &str) -> String {
     encoded
 }
 
-fn encode_terrane_module_comments(rendered: &str) -> String {
+fn module_comment_marker(rendered: &str) -> String {
+    let mut marker = "__terrane_generated_module_comment".to_owned();
+    while rendered.contains(&marker) {
+        marker.push('_');
+    }
+    marker
+}
+
+fn encode_terrane_module_comments(rendered: &str, marker: &str) -> String {
     let mut encoded = String::with_capacity(rendered.len());
     for line in rendered.split_inclusive('\n') {
         let content = line.strip_suffix('\n').unwrap_or(line);
         if content.starts_with("// Source: ") || content.starts_with("// Namespace: ") {
-            writeln!(encoded, "__terrane_module_comment!({content:?});")
-                .expect("writing to a String cannot fail");
+            writeln!(encoded, "{marker}!({content:?});").expect("writing to a String cannot fail");
         } else {
             encoded.push_str(line);
         }
@@ -287,13 +304,13 @@ fn restore_terrane_site_rows(rendered: &str) -> String {
     restored
 }
 
-fn restore_terrane_module_comments(rendered: &str) -> String {
-    const MARKER: &str = "__terrane_module_comment!(";
+fn restore_terrane_module_comments(rendered: &str, marker: &str) -> String {
+    let marker = format!("{marker}!(");
     let mut restored = String::with_capacity(rendered.len());
     let mut remaining = rendered;
-    while let Some(start) = remaining.find(MARKER) {
+    while let Some(start) = remaining.find(&marker) {
         restored.push_str(&remaining[..start]);
-        let argument_start = start + MARKER.len();
+        let argument_start = start + marker.len();
         let Some(end) = remaining[argument_start..].find(");") else {
             restored.push_str(&remaining[start..]);
             return restored;
@@ -312,10 +329,11 @@ fn restore_terrane_module_comments(rendered: &str) -> String {
     restored
 }
 
-fn restore_terrane_metadata(rendered: &str) -> String {
-    let restored = restore_terrane_module_comments(&restore_terrane_site_rows(
-        &restore_terrane_comments(rendered),
-    ));
+fn restore_terrane_metadata(rendered: &str, module_comment_marker: Option<&str>) -> String {
+    let restored = restore_terrane_site_rows(&restore_terrane_comments(rendered));
+    let restored = module_comment_marker.map_or(restored.clone(), |marker| {
+        restore_terrane_module_comments(&restored, marker)
+    });
     let mut normalized = String::with_capacity(restored.len());
     for line in restored.split_inclusive('\n') {
         let content = line.strip_suffix('\n').unwrap_or(line);
@@ -339,9 +357,10 @@ impl Block {
     }
 
     fn render(&self, output: &mut String) {
-        output.push_str(&restore_terrane_metadata(&prettyplease::unparse(
-            &self.parsed,
-        )));
+        output.push_str(&restore_terrane_metadata(
+            &prettyplease::unparse(&self.parsed),
+            None,
+        ));
     }
 }
 
@@ -380,14 +399,27 @@ impl Item {
 }
 
 impl RenderedProgram {
-    #[must_use]
-    pub(crate) fn standalone(&self) -> String {
-        let mut output = format!(
+    pub(crate) fn standalone_file(&self, path: &str) -> RenderedFile {
+        let mut contents = format!(
             "// Generated deterministically by Terrane {}.\n",
             self.version
         );
-        output.push_str(&self.standalone);
-        output
+        let offset = contents.len();
+        contents.push_str(&self.standalone.contents);
+        RenderedFile {
+            path: path.to_owned(),
+            contents,
+            associations: self
+                .standalone
+                .associations
+                .iter()
+                .map(|association| SourceAssociation {
+                    generated_start: association.generated_start + offset,
+                    generated_end: association.generated_end + offset,
+                    source: association.source,
+                })
+                .collect(),
+        }
     }
 
     pub(crate) fn files(&self, entrypoint: &str) -> Result<Vec<RenderedFile>, String> {
@@ -446,8 +478,8 @@ impl RenderedProgram {
 impl Program {
     #[must_use]
     pub(crate) fn rendered(&self) -> RenderedProgram {
-        fn render_modules(
-            modules: &[Module],
+        fn render_modules<'a>(
+            modules: impl IntoIterator<Item = &'a Module>,
             output: &mut String,
             associations: &mut Vec<SourceAssociation>,
         ) {
@@ -484,27 +516,26 @@ impl Program {
 
         let mut application = String::new();
         let mut application_associations = Vec::new();
-        let support_modules = self
-            .modules
-            .iter()
-            .filter(|module| module.support)
-            .cloned()
-            .collect::<Vec<_>>();
-        render_modules(&support_modules, &mut support, &mut support_associations);
-        let application_modules = self
-            .modules
-            .iter()
-            .filter(|module| !module.support)
-            .cloned()
-            .collect::<Vec<_>>();
         render_modules(
-            &application_modules,
+            self.modules
+                .iter()
+                .filter(|module| module.destination == ModuleDestination::Support),
+            &mut support,
+            &mut support_associations,
+        );
+        render_modules(
+            self.modules
+                .iter()
+                .filter(|module| module.destination == ModuleDestination::Application),
             &mut application,
             &mut application_associations,
         );
         RenderedProgram {
             version: self.version,
-            standalone,
+            standalone: RenderedFragment {
+                contents: standalone,
+                associations: standalone_associations,
+            },
             support: RenderedFragment {
                 contents: support,
                 associations: support_associations,
@@ -585,7 +616,7 @@ mod tests {
     #[test]
     fn clears_whitespace_from_otherwise_blank_restored_lines() {
         assert_eq!(
-            restore_terrane_metadata("first\n    \n\t\nlast\n   "),
+            restore_terrane_metadata("first\n    \n\t\nlast\n   ", None),
             "first\n\n\nlast\n"
         );
     }
@@ -596,6 +627,19 @@ mod tests {
             encode_terrane_comments("é7 /* terrane-site: source */"),
             "é__terrane_comment!(7, \"source\")"
         );
+    }
+
+    #[test]
+    fn module_comment_codec_does_not_capture_authored_marker_like_macros() {
+        let rendered = "__terrane_generated_module_comment!(\"authored\");\n\
+                        // Source: case.trn\n\
+                        // Namespace: hello\n\
+                        fn main() {}\n";
+        let canonical = canonicalize_rust(rendered).unwrap();
+
+        assert!(canonical.contains("__terrane_generated_module_comment!(\"authored\");"));
+        assert!(canonical.contains("// Source: case.trn"));
+        assert!(canonical.contains("// Namespace: hello"));
     }
 
     #[test]

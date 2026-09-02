@@ -31,7 +31,7 @@ def lane(
         setup=(),
         prepare=(),
         lower=(),
-        lower_output=None,
+        lower_outputs=(),
         run=command,
         prepare_output="none",
         cache_paths=(),
@@ -147,6 +147,9 @@ class RunnerContracts(unittest.TestCase):
             implementation = problem_path / "implementation.fixture"
             implementation.write_text("fixture")
             output = problem_path / "generated/main.lowered.rs"
+            support_output = problem_path / "generated/main.lowered.support.rs"
+            support_output.parent.mkdir(parents=True)
+            support_output.write_text("stale support")
             fixture_lane = runner.Lane(
                 lane_id="fixture",
                 name="fixture",
@@ -158,10 +161,12 @@ class RunnerContracts(unittest.TestCase):
                     sys.executable,
                     "-c",
                     "from pathlib import Path; import sys; "
-                    "Path(sys.argv[1]).write_text('lowered'); print('not source')",
+                    "Path(sys.argv[1]).write_text('lowered'); "
+                    "Path(sys.argv[2]).write_text('support'); print('not source')",
                     "$lowered",
+                    str(support_output),
                 ),
-                lower_output=str(output),
+                lower_outputs=(str(output), str(support_output)),
                 run=(),
                 prepare_output="none",
                 cache_paths=(),
@@ -178,6 +183,7 @@ class RunnerContracts(unittest.TestCase):
                 runner.materialize_lowering([problem], [fixture_lane], 5.0)
 
             self.assertEqual(output.read_text(), "lowered")
+            self.assertEqual(support_output.read_text(), "support")
 
     def test_process_result_retains_stderr_and_records_peak_memory_when_available(self) -> None:
         result = runner.run_process(

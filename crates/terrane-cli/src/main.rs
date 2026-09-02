@@ -28,6 +28,17 @@ impl CliFailure {
         }
     }
 
+    fn compilation(failure: terrane_compiler::CompilationFailure) -> Self {
+        Self {
+            code: 3,
+            message: failure
+                .diagnostics
+                .iter()
+                .map(|diagnostic| diagnostic.render(&failure.source))
+                .collect(),
+        }
+    }
+
     fn backend(message: String) -> Self {
         Self::diagnostic(PathBuf::from("<generated Rust>"), "S9002", message, 5)
     }
@@ -89,16 +100,7 @@ fn run(arguments: &[OsString]) -> Result<ExitCode, CliFailure> {
         },
     ) {
         Ok(compilation) => compilation,
-        Err(failure) => {
-            return Err(CliFailure {
-                code: 3,
-                message: failure
-                    .diagnostics
-                    .iter()
-                    .map(|diagnostic| diagnostic.render(&failure.source))
-                    .collect(),
-            });
-        }
+        Err(failure) => return Err(CliFailure::compilation(failure)),
     };
     emit_warnings(&compilation);
     if command == "rust" && output_path.is_none() {
@@ -113,7 +115,7 @@ fn run(arguments: &[OsString]) -> Result<ExitCode, CliFailure> {
     })?;
     let rust_files = compilation
         .rust_files_for(rust_entrypoint)
-        .map_err(CliFailure::backend)?;
+        .map_err(CliFailure::compilation)?;
     if command == "rust" {
         write_rust(&rust_files)?;
         return Ok(ExitCode::SUCCESS);
@@ -841,7 +843,7 @@ mod tests {
     }
 
     #[test]
-    fn backend_error_projects_to_terrane_source_and_retains_rustc() {
+    fn backend_error_in_support_sidecar_projects_to_terrane_source() {
         let directory =
             std::env::temp_dir().join(format!("terrane-backend-diagnostic-{}", std::process::id()));
         if directory.exists() {
@@ -853,17 +855,26 @@ mod tests {
             "[package]\nname = \"broken\"\nversion = \"0.0.0\"\nedition = \"2024\"\n[workspace]\n",
         )
         .unwrap();
-        let generated = "fn main() { missing_backend_name(); }\n";
-        fs::write(directory.join("src/main.rs"), generated).unwrap();
-        let rust_files = vec![RenderedFile {
-            path: "src/main.rs".to_owned(),
-            contents: generated.to_owned(),
-            associations: vec![SourceAssociation {
-                generated_start: 0,
-                generated_end: generated.len(),
-                source: Span::new(0, 0, 14),
-            }],
-        }];
+        let entrypoint = "include!(\"main.support.rs\");\nfn main() {}\n";
+        let support = "fn broken() { missing_backend_name(); }\n";
+        fs::write(directory.join("src/main.rs"), entrypoint).unwrap();
+        fs::write(directory.join("src/main.support.rs"), support).unwrap();
+        let rust_files = vec![
+            RenderedFile {
+                path: "src/main.support.rs".to_owned(),
+                contents: support.to_owned(),
+                associations: vec![SourceAssociation {
+                    generated_start: 0,
+                    generated_end: support.len(),
+                    source: Span::new(0, 0, 14),
+                }],
+            },
+            RenderedFile {
+                path: "src/main.rs".to_owned(),
+                contents: entrypoint.to_owned(),
+                associations: Vec::new(),
+            },
+        ];
         let units = vec![SourceUnit {
             relative_path: PathBuf::from("case.trn"),
             source: SourceFile::new(0, PathBuf::from("case.trn"), "function main;\n".to_owned()),

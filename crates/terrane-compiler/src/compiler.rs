@@ -18,6 +18,8 @@ pub struct Compilation {
     pub sources: Vec<SourceFile>,
     pub rust: String,
     rendered_rust: crate::rust_ir::RenderedProgram,
+    require_canonical_rust: bool,
+    entry_span: Span,
     pub requires_platform_support: bool,
     pub warnings: Vec<Diagnostic>,
     pub rust_dependencies: Vec<RustDependency>,
@@ -33,10 +35,23 @@ impl Compilation {
     ///
     /// # Errors
     ///
-    /// Returns an error when `entrypoint` has no UTF-8 file stem or when its derived support-file
-    /// path is not valid UTF-8.
-    pub fn rust_files_for(&self, entrypoint: &str) -> Result<Vec<RenderedFile>, String> {
-        self.rendered_rust.files(entrypoint)
+    /// Returns a compiler diagnostic when `entrypoint` cannot derive a UTF-8 support-file path, or
+    /// when canonical Rust validation was requested and either rendered file is not canonical.
+    pub fn rust_files_for(
+        &self,
+        entrypoint: &str,
+    ) -> Result<Vec<RenderedFile>, CompilationFailure> {
+        let files = self
+            .rendered_rust
+            .files(entrypoint)
+            .map_err(|message| CompilationFailure {
+                source: self.source.clone(),
+                diagnostics: vec![Diagnostic::error("S9004", message, self.entry_span)],
+            })?;
+        if self.require_canonical_rust {
+            validate_canonical_rust(&files, &self.sources, &self.source, self.entry_span)?;
+        }
+        Ok(files)
     }
 }
 
@@ -149,7 +164,7 @@ pub fn compile_package_with_options(
         .find(|unit| unit.source.id() == entry_span.file)
         .unwrap_or(&semantic.units[0]);
     let source = &unit.source;
-    let sources = semantic
+    let sources: Vec<SourceFile> = semantic
         .units
         .iter()
         .map(|unit| unit.source.clone())
@@ -157,12 +172,8 @@ pub fn compile_package_with_options(
     let warnings = semantics::warnings(&semantic, options.lint_name_style);
     let rust_ir = crate::lowering::lower(&semantic);
     let rendered_rust = rust_ir.rendered();
-    let rust = rendered_rust.standalone();
-    let standalone_file = RenderedFile {
-        path: "<stdout>".to_owned(),
-        contents: rust.clone(),
-        associations: Vec::new(),
-    };
+    let standalone_file = rendered_rust.standalone_file("<stdout>");
+    let rust = standalone_file.contents.clone();
     let rust_dependencies = package
         .rust_dependencies
         .iter()
@@ -180,13 +191,15 @@ pub fn compile_package_with_options(
         })
         .collect();
     if options.require_canonical_rust {
-        validate_canonical_rust(&[standalone_file], &semantic.units, source, entry_span)?;
+        validate_canonical_rust(&[standalone_file], &sources, source, entry_span)?;
     }
     Ok(Compilation {
         source: (*source).clone(),
         sources,
         rust,
         rendered_rust,
+        require_canonical_rust: options.require_canonical_rust,
+        entry_span,
         requires_platform_support: rust_ir.requires_platform_support,
         warnings,
         rust_dependencies,
@@ -196,7 +209,7 @@ pub fn compile_package_with_options(
 
 fn validate_canonical_rust(
     files: &[RenderedFile],
-    units: &[crate::SemanticUnit],
+    sources: &[SourceFile],
     fallback_source: &SourceFile,
     fallback_span: Span,
 ) -> Result<(), CompilationFailure> {
@@ -225,10 +238,10 @@ fn validate_canonical_rust(
                         && difference < association.generated_end
                 })
                 .map_or(fallback_span, |association| association.source);
-            let source = units
+            let source = sources
                 .iter()
-                .find(|unit| unit.source.id() == span.file)
-                .map_or(fallback_source, |unit| &unit.source);
+                .find(|source| source.id() == span.file)
+                .unwrap_or(fallback_source);
             return Err(CompilationFailure {
                 source: source.clone(),
                 diagnostics: vec![
@@ -269,7 +282,13 @@ fn first_difference(left: &str, right: &str) -> usize {
 
 #[cfg(test)]
 mod tests {
-    use super::{canonical_rust, first_difference};
+    use std::path::PathBuf;
+
+    use super::{canonical_rust, first_difference, validate_canonical_rust};
+    use crate::{
+        SourceFile, Span,
+        rust_ir::{RenderedFile, SourceAssociation},
+    };
 
     #[test]
     fn canonical_formatter_preserves_generated_metadata() {
@@ -281,5 +300,37 @@ mod tests {
     fn first_difference_handles_changed_and_appended_text() {
         assert_eq!(first_difference("abc", "axc"), 1);
         assert_eq!(first_difference("abc", "abcd"), 3);
+    }
+
+    #[test]
+    fn canonical_failure_uses_the_associated_authored_source() {
+        let fallback =
+            SourceFile::new(0, PathBuf::from("entry.trn"), "function main;\n".to_owned());
+        let authored = SourceFile::new(
+            1,
+            PathBuf::from("authored.trn"),
+            "function affected;\n".to_owned(),
+        );
+        let source_span = Span::new(1, 0, 17);
+        let rust = "fn affected(){ }\n";
+        let failure = validate_canonical_rust(
+            &[RenderedFile {
+                path: "src/main.rs".to_owned(),
+                contents: rust.to_owned(),
+                associations: vec![SourceAssociation {
+                    generated_start: 0,
+                    generated_end: rust.len(),
+                    source: source_span,
+                }],
+            }],
+            &[fallback.clone(), authored],
+            &fallback,
+            Span::new(0, 0, 13),
+        )
+        .unwrap_err();
+
+        assert_eq!(failure.source.id(), 1);
+        assert_eq!(failure.diagnostics[0].code, "S9004");
+        assert_eq!(failure.diagnostics[0].primary, Some(source_span));
     }
 }

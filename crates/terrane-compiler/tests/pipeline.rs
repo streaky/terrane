@@ -43,7 +43,14 @@ fn canonical_rust_requirement_accepts_formatted_lowering() {
     )
     .unwrap();
 
-    assert!(!compilation.rust.is_empty());
+    let files = compilation.rust_files_for("src/main.rs").unwrap();
+    assert_eq!(
+        files
+            .iter()
+            .map(|file| file.path.as_str())
+            .collect::<Vec<_>>(),
+        ["src/main.support.rs", "src/main.rs"]
+    );
 }
 
 #[test]
@@ -114,6 +121,20 @@ fn bundled_standard_lowering_is_part_of_the_support_sidecar() {
     assert!(entrypoint.contains("// Source: process-user.trn"));
 }
 
+#[test]
+fn projected_dependency_lowering_is_part_of_the_support_sidecar() {
+    let manifest = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("../../tests/conformance/run/rust-dependency-deferred-surface/package.toml");
+    let package = terrane_compiler::Package::load(&manifest).unwrap();
+    let compilation = terrane_compiler::compile_package(&package).unwrap();
+    let files = compilation.rust_files_for("src/main.rs").unwrap();
+    let support = &files[0].contents;
+    let entrypoint = &files[1].contents;
+
+    assert!(support.contains("// Namespace: deps/bytes/bytes-mut"));
+    assert!(!entrypoint.contains("// Namespace: deps/"));
+    assert!(entrypoint.contains("// Namespace: app"));
+}
 #[test]
 fn split_lowering_uses_the_requested_entrypoint_name() {
     let compilation =

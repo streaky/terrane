@@ -69,7 +69,7 @@ class Lane:
     setup: tuple[str, ...]
     prepare: tuple[str, ...]
     lower: tuple[str, ...]
-    lower_output: str | None
+    lower_outputs: tuple[str, ...]
     run: tuple[str, ...]
     prepare_output: str
     cache_paths: tuple[str, ...]
@@ -465,11 +465,13 @@ def load_lane(config_path: Path) -> Lane:
         for command in environment
     )
     lower = string_list(config.get("lower", []), f"{config_path}: lower")
-    lower_output = config.get("lower-output")
-    if lower and (not isinstance(lower_output, str) or not lower_output):
-        raise BenchmarkError(f"{config_path}: lower requires a non-empty lower-output")
-    if lower_output is not None and not isinstance(lower_output, str):
-        raise BenchmarkError(f"{config_path}: lower-output must be a string")
+    lower_outputs = string_list(
+        config.get("lower-outputs", []), f"{config_path}: lower-outputs"
+    )
+    if lower and not lower_outputs:
+        raise BenchmarkError(f"{config_path}: lower requires at least one lower-output")
+    if lower_outputs and not lower:
+        raise BenchmarkError(f"{config_path}: lower-outputs requires lower")
     return Lane(
         lane_id=lane_id,
         name=name,
@@ -478,7 +480,7 @@ def load_lane(config_path: Path) -> Lane:
         setup=string_list(config.get("setup", []), f"{config_path}: setup"),
         prepare=string_list(config.get("prepare", []), f"{config_path}: prepare"),
         lower=lower,
-        lower_output=lower_output,
+        lower_outputs=lower_outputs,
         run=string_list(config.get("run"), f"{config_path}: run", required=True),
         prepare_output=prepare_output,
         cache_paths=string_list(config.get("cache-paths", []), f"{config_path}: cache-paths"),
@@ -902,22 +904,29 @@ def materialize_lowering(
         setup_lane(lane, timeout)
     for problem in problems:
         for lane in lanes_for_problem(problem, lowering_lanes):
-            if lane.lower_output is None:
-                raise BenchmarkError(f"{lane.lane_id} declares lower without lower-output")
+            if not lane.lower_outputs:
+                raise BenchmarkError(f"{lane.lane_id} declares lower without lower-outputs")
             context = command_context(problem, lane)
-            output = Path(substitute(lane.lower_output, context)).resolve()
-            if not output.is_relative_to(problem["path"]):
-                raise BenchmarkError(f"refusing to write lowering outside problem: {output}")
-            output.parent.mkdir(parents=True, exist_ok=True)
-            output.unlink(missing_ok=True)
-            context["lowered"] = str(output)
+            outputs = [
+                Path(substitute(output, context)).resolve()
+                for output in lane.lower_outputs
+            ]
+            for output in outputs:
+                if not output.is_relative_to(problem["path"]):
+                    raise BenchmarkError(f"refusing to write lowering outside problem: {output}")
+                output.parent.mkdir(parents=True, exist_ok=True)
+                output.unlink(missing_ok=True)
+            context["lowered"] = str(outputs[0])
             command = expand(lane.lower, context)
             result = run_process(command, cwd=problem["path"], timeout=timeout)
             require_success(result, command)
-            if not output.is_file():
+            missing = [output for output in outputs if not output.is_file()]
+            if missing:
+                formatted = ", ".join(str(output) for output in missing)
                 raise BenchmarkError(
-                    f"{lane.lane_id} lowering command did not write {output}"
+                    f"{lane.lane_id} lowering command did not write: {formatted}"
                 )
+            output = outputs[0]
             print(f"lowered  {problem['id']:<24} {lane.lane_id:<10} {output.relative_to(SUITE)}")
 
 
