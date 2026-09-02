@@ -1,4 +1,4 @@
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use crate::{
     Diagnostic, Package, RustDependency, SourceFile, Span,
@@ -38,7 +38,10 @@ impl Compilation {
     /// Returns [`RustArtifactError::InvalidOutputPath`] when `entrypoint` cannot derive a UTF-8
     /// support-file path, or [`RustArtifactError::Compilation`] when requested canonical Rust
     /// validation rejects either rendered file.
-    pub fn rust_files_for(&self, entrypoint: &str) -> Result<Vec<RenderedFile>, RustArtifactError> {
+    pub fn rust_files_for(
+        &self,
+        entrypoint: &Path,
+    ) -> Result<Vec<RenderedFile>, RustArtifactError> {
         let files = self
             .rendered_rust
             .files(entrypoint)

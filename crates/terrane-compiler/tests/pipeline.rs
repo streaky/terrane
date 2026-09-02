@@ -14,8 +14,12 @@ fn hello_lowers_deterministically() {
     let first = terrane_compiler::compile(PathBuf::from("case.trn"), HELLO.to_owned()).unwrap();
     let second = terrane_compiler::compile(PathBuf::from("case.trn"), HELLO.to_owned()).unwrap();
     assert_eq!(first.rust, second.rust);
-    let first_files = first.rust_files_for("generated/app.rs").unwrap();
-    let second_files = second.rust_files_for("generated/app.rs").unwrap();
+    let first_files = first
+        .rust_files_for(std::path::Path::new("generated/app.rs"))
+        .unwrap();
+    let second_files = second
+        .rust_files_for(std::path::Path::new("generated/app.rs"))
+        .unwrap();
     assert_eq!(first_files, second_files);
     assert_eq!(
         first_files
@@ -31,6 +35,23 @@ fn hello_lowers_deterministically() {
     );
 }
 
+#[cfg(unix)]
+#[test]
+fn generated_rust_paths_report_non_utf8_file_names() {
+    use std::{ffi::OsString, os::unix::ffi::OsStringExt};
+
+    let compilation =
+        terrane_compiler::compile(PathBuf::from("case.trn"), HELLO.to_owned()).unwrap();
+    let path = PathBuf::from(OsString::from_vec(b"generated/\xff.rs".to_vec()));
+    let error = compilation.rust_files_for(&path).unwrap_err();
+
+    assert!(matches!(
+        error,
+        terrane_compiler::RustArtifactError::InvalidOutputPath(message)
+            if message == "generated Rust output file name must be valid UTF-8"
+    ));
+}
+
 #[test]
 fn canonical_rust_requirement_accepts_formatted_lowering() {
     let compilation = terrane_compiler::compile_with_options(
@@ -43,7 +64,9 @@ fn canonical_rust_requirement_accepts_formatted_lowering() {
     )
     .unwrap();
 
-    let files = compilation.rust_files_for("src/main.rs").unwrap();
+    let files = compilation
+        .rust_files_for(std::path::Path::new("src/main.rs"))
+        .unwrap();
     assert_eq!(
         files
             .iter()
@@ -58,7 +81,9 @@ fn compiler_runtime_support_uses_named_generated_files() {
     let compilation =
         terrane_compiler::compile(PathBuf::from("async-await.trn"), ASYNC_AWAIT.to_owned())
             .unwrap();
-    let files = compilation.rust_files_for("src/main.rs").unwrap();
+    let files = compilation
+        .rust_files_for(std::path::Path::new("src/main.rs"))
+        .unwrap();
     assert_eq!(
         files
             .iter()
@@ -85,7 +110,9 @@ fn structured_error_infrastructure_is_separate_from_authored_lowering() {
         STRUCTURED_ERROR.to_owned(),
     )
     .unwrap();
-    let files = compilation.rust_files_for("src/main.rs").unwrap();
+    let files = compilation
+        .rust_files_for(std::path::Path::new("src/main.rs"))
+        .unwrap();
     let support = &files[0].contents;
     let entrypoint = &files[1].contents;
 
@@ -111,7 +138,9 @@ fn bundled_standard_lowering_is_part_of_the_support_sidecar() {
             .to_owned(),
     )
     .unwrap();
-    let files = compilation.rust_files_for("src/main.rs").unwrap();
+    let files = compilation
+        .rust_files_for(std::path::Path::new("src/main.rs"))
+        .unwrap();
     let support = &files[0].contents;
     let entrypoint = &files[1].contents;
 
@@ -127,7 +156,9 @@ fn projected_dependency_lowering_is_part_of_the_support_sidecar() {
         .join("../../tests/conformance/run/rust-dependency-deferred-surface/package.toml");
     let package = terrane_compiler::Package::load(&manifest).unwrap();
     let compilation = terrane_compiler::compile_package(&package).unwrap();
-    let files = compilation.rust_files_for("src/main.rs").unwrap();
+    let files = compilation
+        .rust_files_for(std::path::Path::new("src/main.rs"))
+        .unwrap();
     let support = &files[0].contents;
     let entrypoint = &files[1].contents;
 
@@ -140,7 +171,7 @@ fn split_lowering_uses_the_requested_entrypoint_name() {
     let compilation =
         terrane_compiler::compile(PathBuf::from("case.trn"), HELLO.to_owned()).unwrap();
     let files = compilation
-        .rust_files_for("generated/inspectable.rs")
+        .rust_files_for(std::path::Path::new("generated/inspectable.rs"))
         .unwrap();
     assert_eq!(
         files

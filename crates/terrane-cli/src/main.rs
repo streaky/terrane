@@ -123,9 +123,6 @@ fn run(arguments: &[OsString]) -> Result<ExitCode, CliFailure> {
     let rust_entrypoint = output_path
         .as_deref()
         .unwrap_or_else(|| Path::new("src/main.rs"));
-    let rust_entrypoint = rust_entrypoint.to_str().ok_or_else(|| {
-        CliFailure::backend("generated Rust output path must be valid UTF-8".to_owned())
-    })?;
     let rust_files = compilation
         .rust_files_for(rust_entrypoint)
         .map_err(CliFailure::rust_artifact)?;

@@ -445,17 +445,19 @@ impl RenderedProgram {
         }
     }
 
-    pub(crate) fn files(&self, entrypoint: &str) -> Result<Vec<RenderedFile>, String> {
-        let entrypoint_path = std::path::Path::new(entrypoint);
-        let Some(file_stem) = entrypoint_path.file_stem() else {
+    pub(crate) fn files(&self, entrypoint: &std::path::Path) -> Result<Vec<RenderedFile>, String> {
+        let Some(file_stem) = entrypoint.file_stem() else {
             return Err("generated Rust output path has no file name".to_owned());
         };
         let Some(stem) = file_stem.to_str() else {
             return Err("generated Rust output file name must be valid UTF-8".to_owned());
         };
         let support_name = format!("{stem}.support.rs");
-        let support_path = entrypoint_path.with_file_name(&support_name);
+        let support_path = entrypoint.with_file_name(&support_name);
         let Some(support_path) = support_path.to_str() else {
+            return Err("generated Rust output path must be valid UTF-8".to_owned());
+        };
+        let Some(entrypoint) = entrypoint.to_str() else {
             return Err("generated Rust output path must be valid UTF-8".to_owned());
         };
         Ok(self.files_with_paths(entrypoint, support_path, &support_name))
