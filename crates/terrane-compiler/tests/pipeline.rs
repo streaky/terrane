@@ -1,4 +1,4 @@
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 const HELLO: &str = include_str!("../../../tests/conformance/run/hello/case.trn");
 const ASYNC_AWAIT: &str = include_str!("../../../tests/conformance/run/async-await/case.trn");
@@ -14,11 +14,9 @@ fn hello_lowers_deterministically() {
     let first = terrane_compiler::compile(PathBuf::from("case.trn"), HELLO.to_owned()).unwrap();
     let second = terrane_compiler::compile(PathBuf::from("case.trn"), HELLO.to_owned()).unwrap();
     assert_eq!(first.rust, second.rust);
-    let first_files = first
-        .rust_files_for(std::path::Path::new("generated/app.rs"))
-        .unwrap();
+    let first_files = first.rust_files_for(Path::new("generated/app.rs")).unwrap();
     let second_files = second
-        .rust_files_for(std::path::Path::new("generated/app.rs"))
+        .rust_files_for(Path::new("generated/app.rs"))
         .unwrap();
     assert_eq!(first_files, second_files);
     assert_eq!(
@@ -65,7 +63,7 @@ fn canonical_rust_requirement_accepts_formatted_lowering() {
     .unwrap();
 
     let files = compilation
-        .rust_files_for(std::path::Path::new("src/main.rs"))
+        .rust_files_for(Path::new("src/main.rs"))
         .unwrap();
     assert_eq!(
         files
@@ -82,7 +80,7 @@ fn compiler_runtime_support_uses_named_generated_files() {
         terrane_compiler::compile(PathBuf::from("async-await.trn"), ASYNC_AWAIT.to_owned())
             .unwrap();
     let files = compilation
-        .rust_files_for(std::path::Path::new("src/main.rs"))
+        .rust_files_for(Path::new("src/main.rs"))
         .unwrap();
     assert_eq!(
         files
@@ -111,7 +109,7 @@ fn structured_error_infrastructure_is_separate_from_authored_lowering() {
     )
     .unwrap();
     let files = compilation
-        .rust_files_for(std::path::Path::new("src/main.rs"))
+        .rust_files_for(Path::new("src/main.rs"))
         .unwrap();
     let support = &files[0].contents;
     let entrypoint = &files[1].contents;
@@ -139,7 +137,7 @@ fn bundled_standard_lowering_is_part_of_the_support_sidecar() {
     )
     .unwrap();
     let files = compilation
-        .rust_files_for(std::path::Path::new("src/main.rs"))
+        .rust_files_for(Path::new("src/main.rs"))
         .unwrap();
     let support = &files[0].contents;
     let entrypoint = &files[1].contents;
@@ -157,7 +155,7 @@ fn projected_dependency_lowering_is_part_of_the_support_sidecar() {
     let package = terrane_compiler::Package::load(&manifest).unwrap();
     let compilation = terrane_compiler::compile_package(&package).unwrap();
     let files = compilation
-        .rust_files_for(std::path::Path::new("src/main.rs"))
+        .rust_files_for(Path::new("src/main.rs"))
         .unwrap();
     let support = &files[0].contents;
     let entrypoint = &files[1].contents;
@@ -171,7 +169,7 @@ fn split_lowering_uses_the_requested_entrypoint_name() {
     let compilation =
         terrane_compiler::compile(PathBuf::from("case.trn"), HELLO.to_owned()).unwrap();
     let files = compilation
-        .rust_files_for(std::path::Path::new("generated/inspectable.rs"))
+        .rust_files_for(Path::new("generated/inspectable.rs"))
         .unwrap();
     assert_eq!(
         files
