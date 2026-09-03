@@ -715,7 +715,8 @@ encoding: explicit utf8/utf16-le/utf16-be/utf32-le/utf32-be; encode total; decod
 
 - Objects expose protocols rather than compiler-special-cased runtime species.
 - `name` resolves through one lookup view; `value.name` selects an instance member; `class::name`
-  selects a static/class member; calls are explicit with `;`.
+  selects a static/class member; calls are explicit with `;`. The `class` designator is a simple
+  visible name (including an imported local name), or late-bound `self` inside a class method.
 - `instance class; arguments` is the only class-construction form. `instance` means semantic
   instantiation, not allocation; bare class invocation never constructs.
 - `this` is the current instance and exists only in instance methods. `self` is the effective,
@@ -729,6 +730,10 @@ encoding: explicit utf8/utf16-le/utf16-be/utf32-le/utf32-be; encode total; decod
 - Class: single inheritance initially; subclass-to-base assignment preserves dynamic value (no slicing).
 - Overloading by implicit same-name signature dispatch is not initial behavior.
 - Mutation visible by default; immutable behavior explicit via `constant`/contracts.
+- Mutable static fields share storage per effective class. The Rust backend uses the same
+  compiler-owned, per-operation `LazyLock<Mutex<...>>` strategy as mutable globals: reads copy the
+  Terrane value, poisoning is an internal runtime failure, and this implementation detail neither
+  makes source operation sequences atomic nor replaces explicit concurrency objects.
 
 ## GLOBAL / BUILD
 

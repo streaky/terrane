@@ -1200,19 +1200,19 @@ widget::current
 widget::from-config; config
 ```
 
-The left operand names the class, `::` marks static/class selection, and the right operand names
-the member. Selection and invocation remain distinct: a static field needs no semicolon, while a
-zero-argument static method call does:
+The left operand is a simple class name visible in the current scope, or `self` inside a class
+method; imported classes are selected through their imported local name. `::` marks static/class
+selection, and the right operand names the member. Selection and invocation remain distinct: a
+static field needs no semicolon, while a zero-argument static method call does:
 
 ```terrane
 widget::default;
 ```
 
 `.` never selects a static member and `::` never selects an instance member. This distinction is
-present in the syntax tree before either name is resolved. The shifted punctuation is justified
-here because it exposes the boundary between a possibly qualified class path and its member more
-clearly than a word-oriented form; ordinary high-frequency syntax continues to prefer unshifted
-punctuation where it is equally clear.
+present in the syntax tree before either name is resolved. The shifted punctuation keeps the class
+designator/member boundary visually distinct from ordinary instance selection; ordinary
+high-frequency syntax continues to prefer unshifted punctuation where it is equally clear.
 
 ### 9.4 Objects as arguments
 
@@ -1483,9 +1483,15 @@ constructs `dog`. Source names the declaring class explicitly when lexical-class
 required; Terrane does not split lexical and late-bound class context into separate implicit
 bindings.
 
-Static state is state on a class object and follows the same visibility and concurrency rules as
-other globals and shared objects. Instance storage is independent between constructed values;
-static storage is shared by selections whose effective class receiver is the same class.
+Static state is state on a class object and follows the same authored visibility and concurrency
+rules as other globals. Instance storage is independent between constructed values; static storage
+is shared by selections whose effective class receiver is the same class. The Rust backend
+currently represents each mutable static field, like mutable program-global storage, with
+`LazyLock<Mutex<T>>`: initialization occurs once, each read copies the stored Terrane value, and
+each individual read or write holds the compiler-owned lock only for that operation. A poisoned
+lock terminates execution as an internal runtime failure. This representation prevents host data
+races but does not make a sequence of source operations atomic and does not satisfy the authored
+shared-thread-safe protocol; cross-task invariants still require an explicit concurrency object.
 
 ### 9.10 Construction and destruction
 

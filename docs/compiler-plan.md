@@ -1213,25 +1213,32 @@ Implemented evidence (partial; the exit criterion remains open): source classes 
 and static fields and methods; construction is explicit through `instance class; arguments`, with
 bare class invocation rejected; `.` and `::` are distinct syntax and semantic paths that reject the
 opposite member kind; `this` is instance-only; and late-bound `self` supports inherited static
-factories and per-effective-class static state. Custom `construct`, one-lineage-per-independent-value
-`destruct`, mutating receivers inferred transitively from effective method contracts, immutable
-methods, and separated value state are implemented. Ordinary assignment, by-value closure capture,
-and interface-typed copies create fresh lifecycle lineages, while compiler-only Rust clones remain
+factories and independently stored state for each effective class. Static fields use the same
+compiler-owned per-operation synchronization strategy as mutable globals, including nested member
+mutation without copy-out. Custom `construct`, one-lineage-per-independent-value `destruct`,
+mutating receivers inferred transitively from effective method contracts, immutable methods, and
+separated value state are implemented. Ordinary assignment, by-value closure capture, and
+interface-typed copies create fresh lifecycle lineages, while compiler-only Rust clones remain
 within their originating lineage. Single inheritance of arbitrary depth retains base and subclass
-fields, lets methods access flattened storage directly, recursively forwards base-typed field reads
+fields, lets methods access flattened storage directly, recursively forwards instance field reads
 and writes through generated wrappers, dispatches overridden methods, inherits base interface
-conformance, safely widens inherited `this` and static `self` factory returns, and composes overridden
-destruction hooks from the most-derived class toward the root base. Declared, nominal interface
-conformance lowers through typed protocol wrappers and preserves mutating receiver requirements
-inferred from implementations, while traits reuse fields and methods. Executable cases cover
-explicit construction, static state and dispatch, inherited `self` construction, separated state
-and destruction, inheritance, inherited fields including ten-level read/write forwarding,
-interface conformance across inheritance, self-typed returns, immutable and mutating interface
-dispatch, trait reuse, and combined inheritance/interface/lifecycle behavior; rejected cases cover
-implicit class invocation, cross-kind member selection, `this` in static methods, missing
-construction punctuation, uninitialized fields, missing interface methods, incompatible signatures,
-and unresolved trait conflicts. Structural conformance and integration with the descriptor model
-remain outstanding; object analysis currently uses a compiler-owned parallel contract table.
+conformance, safely widens inherited `this` and static `self` factory returns, and composes
+overridden destruction hooks from the most-derived class toward the root base. Declared, nominal
+interface conformance lowers through typed protocol wrappers and preserves mutating receiver
+requirements inferred from implementations, while traits reuse fields and methods. Executable
+cases isolate direct construction and member dispatch, independent instance state, singleton
+state, inherited `self` construction, inherited per-effective-class static state, nested static
+field mutation, separated state and destruction, inheritance, inherited fields including
+ten-level read/write forwarding, interface conformance across inheritance, self-typed returns,
+immutable and mutating interface dispatch, trait reuse, and combined
+inheritance/interface/lifecycle behavior. Rejected cases cover implicit class invocation,
+construction postfixes before the required call marker, missing/non-class construction
+designators, non-class static selectors, static-selector whitespace, duplicate or out-of-class
+static qualifiers, contextual-name declarations, class-designator shadowing, cross-kind member
+selection, `this` in static methods, missing construction punctuation, uninitialized fields,
+missing interface methods, incompatible signatures, and unresolved trait conflicts. Structural
+conformance and integration with the descriptor model remain outstanding; object analysis
+currently uses a compiler-owned parallel contract table.
 
 Construct/destruct contract:
 
