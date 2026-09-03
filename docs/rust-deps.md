@@ -76,7 +76,8 @@ Terrane lowers to Rust. Generated code calling `reqwest` is Rust calling Rust in
 `reqwest::Response` held by a Terrane binding is a Rust local with a Rust type — no box, no proxy, no
 marshalling, no conversion. Terrane's type system only has to carry an opaque node it never inspects,
 which `ValueType::PlatformUrlResult` already demonstrates: the entire representation is a string
-naming a Rust path (`crates/terrane-compiler/src/lowering.rs`).
+naming a Rust path, rendered by `rust_value_type` in
+[`lowering/helpers.rs`](../crates/terrane-compiler/src/lowering/helpers.rs).
 
 The boundary is therefore not a data bridge. It is exactly the set of places where a guarantee
 Terrane makes does not automatically hold on the crate's side.
