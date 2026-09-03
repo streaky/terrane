@@ -1974,7 +1974,6 @@ fn collect_declaration(
         constant: declaration.constant,
         kind: declaration.kind,
         declaration_span: Some(node.span),
-
         binding_span: Some(node.span),
     };
     if declaration.global {
@@ -10929,7 +10928,6 @@ fn insert_local_replacement(
             constant: false,
             kind: SymbolKind::Binding,
             declaration_span: Some(span),
-
             binding_span: Some(span),
         });
 }

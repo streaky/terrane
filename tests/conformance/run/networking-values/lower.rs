@@ -642,7 +642,7 @@ pub fn terrane_platform_dns_lookup(
         cancellation,
     )
 }
-pub fn terrane_platform_close(
+pub fn terrane_platform_capability_close(
     capability: &TerranePlatformCapability,
 ) -> TerranePlatformResult {
     terrane_platform_support::close(capability)
@@ -1096,7 +1096,7 @@ impl TcpStream {
         );
     }
     pub fn close(&self) -> NetworkOperationResult {
-        let raw: TerranePlatformResult = terrane_platform_close(&self.handle);
+        let raw: TerranePlatformResult = terrane_platform_capability_close(&self.handle);
         return NetworkOperationResult::terrane_construct(
             terrane_platform_result_failed(&raw),
             terrane_platform_result_deadline_exceeded(&raw),
@@ -1104,7 +1104,7 @@ impl TcpStream {
         );
     }
     pub fn destruct(&self) {
-        terrane_platform_close(&self.handle);
+        terrane_platform_capability_close(&self.handle);
     }
 }
 impl Drop for TcpStream {
@@ -1228,7 +1228,7 @@ impl TcpListener {
         );
     }
     pub fn close(&self) -> NetworkOperationResult {
-        let raw: TerranePlatformResult = terrane_platform_close(&self.handle);
+        let raw: TerranePlatformResult = terrane_platform_capability_close(&self.handle);
         return NetworkOperationResult::terrane_construct(
             terrane_platform_result_failed(&raw),
             terrane_platform_result_deadline_exceeded(&raw),
@@ -1236,7 +1236,7 @@ impl TcpListener {
         );
     }
     pub fn destruct(&self) {
-        terrane_platform_close(&self.handle);
+        terrane_platform_capability_close(&self.handle);
     }
 }
 impl Drop for TcpListener {
@@ -1369,7 +1369,7 @@ impl UdpSocket {
         );
     }
     pub fn close(&self) -> NetworkOperationResult {
-        let raw: TerranePlatformResult = terrane_platform_close(&self.handle);
+        let raw: TerranePlatformResult = terrane_platform_capability_close(&self.handle);
         return NetworkOperationResult::terrane_construct(
             terrane_platform_result_failed(&raw),
             terrane_platform_result_deadline_exceeded(&raw),
@@ -1377,7 +1377,7 @@ impl UdpSocket {
         );
     }
     pub fn destruct(&self) {
-        terrane_platform_close(&self.handle);
+        terrane_platform_capability_close(&self.handle);
     }
 }
 impl Drop for UdpSocket {

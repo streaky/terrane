@@ -5420,7 +5420,7 @@ impl Emitter<'_> {
             ("tls-read", "platform_tls_read"),
             ("tls-write", "platform_tls_write"),
             ("tls-shutdown", "platform_tls_shutdown"),
-            ("close", "platform_close"),
+            ("close", "platform_capability_close"),
             ("result-failed", "platform_result_failed"),
             ("result-resource-limit", "platform_result_resource_limit"),
             ("result-truncated", "platform_result_truncated"),
@@ -5469,7 +5469,7 @@ impl Emitter<'_> {
                                 | "platform_tls_read"
                                 | "platform_tls_write"
                                 | "platform_tls_shutdown"
-                                | "platform_close"
+                                | "platform_capability_close"
                                 | "platform_digest"
                                 | "platform_hmac"
                                 | "platform_parse_socket"
@@ -7564,11 +7564,18 @@ fn function_name(package: &SemanticPackage, contract: &FunctionContract) -> Stri
                     && candidate.span != contract.span
             });
     if duplicate {
-        format!(
-            "{}_terrane_f{}",
-            rust_name(&contract.name),
-            contract.span.file
-        )
+        let namespace = package
+            .units
+            .iter()
+            .find(|unit| unit.source.id() == contract.span.file)
+            .expect("function contract source must belong to a semantic unit")
+            .namespace
+            .trim_start_matches('/')
+            .split('/')
+            .map(rust_name)
+            .collect::<Vec<_>>()
+            .join("_");
+        format!("{}_terrane_{namespace}", rust_name(&contract.name))
     } else if contract.name == "main" {
         "main".to_owned()
     } else {

@@ -7,20 +7,20 @@ fn apply(callback: std::sync::Arc<dyn Fn() -> String + Send + Sync>) -> String {
 fn main() {
     println!(
         "{}",
-        terrane_scalar_support::scalar_text(&apply(std::sync::Arc::new(render_terrane_f1)))
+        terrane_scalar_support::scalar_text(&apply(std::sync::Arc::new(render_terrane_left)))
     );
     println!(
         "{}",
-        terrane_scalar_support::scalar_text(&apply(std::sync::Arc::new(render_terrane_f2)))
+        terrane_scalar_support::scalar_text(&apply(std::sync::Arc::new(render_terrane_right)))
     );
 }
 // Source: left/value.trn
 // Namespace: left
-fn render_terrane_f1() -> String {
+fn render_terrane_left() -> String {
     return String::from("left");
 }
 // Source: right/value.trn
 // Namespace: right
-fn render_terrane_f2() -> String {
+fn render_terrane_right() -> String {
     return String::from("right");
 }
