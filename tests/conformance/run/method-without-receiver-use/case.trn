@@ -6,5 +6,5 @@ class answerer
   return 42
 
 function main;
- value answerer = answerer;
+ value answerer = instance answerer;
  print; (value.answer;)

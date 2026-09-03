@@ -8,4 +8,4 @@ class report implements printable
     return 1
 
 function main;
-  value report = report;
+  value report = instance report;

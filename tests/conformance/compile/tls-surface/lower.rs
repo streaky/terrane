@@ -697,6 +697,13 @@ pub fn terrane_platform_tls_shutdown(
         cancellation,
     )
 }
+#[allow(dead_code)]
+#[derive(Clone, Copy)]
+struct TerraneDescriptor {
+    identity: &'static str,
+    name: &'static str,
+    kind: &'static str,
+}
 // Source: case.trn
 // Namespace: app
 fn main() {

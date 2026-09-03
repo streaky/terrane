@@ -13,7 +13,7 @@ class counter implements readable
         print; 'destruct'
 
 function main;
-    original readable = counter;
+    original readable = instance counter;
     copied readable = original
     print; (original.read;)
     print; (copied.read;)

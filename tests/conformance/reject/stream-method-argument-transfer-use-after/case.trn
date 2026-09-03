@@ -7,6 +7,6 @@ class sink
 
 function main;
     input = stdin;
-    target sink = sink;
+    target sink = instance sink;
     target.take; input
     input.read; 1

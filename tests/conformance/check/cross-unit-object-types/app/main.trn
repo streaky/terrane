@@ -5,5 +5,5 @@ function identity item; value item
     return value
 
 function main;
-    original item = item;
+    original item = instance item;
     copied item = identity; original

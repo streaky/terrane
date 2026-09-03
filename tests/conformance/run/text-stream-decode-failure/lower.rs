@@ -656,6 +656,13 @@ pub fn terrane_platform_acquire_stdout() -> TerranePlatformStreamHandle {
 pub fn terrane_platform_acquire_stderr() -> TerranePlatformStreamHandle {
     TerranePlatformStreamHandle::new(terrane_stream_abi::acquire_stderr())
 }
+#[allow(dead_code)]
+#[derive(Clone, Copy)]
+struct TerraneDescriptor {
+    identity: &'static str,
+    name: &'static str,
+    kind: &'static str,
+}
 // Source: case.trn
 // Namespace: text-stream-decode-failure
 fn read_all(input: TextReader) -> Result<String, TerraneError> {
@@ -959,7 +966,7 @@ impl ByteReader {
     pub async fn read_async(&self, count: terrane_int_support::Int) -> ReadResult {
         return self.read(count.clone());
     }
-    pub fn text(self, codec: terrane_string_support::Encoding) -> TextReader {
+    pub fn text(&self, codec: terrane_string_support::Encoding) -> TextReader {
         return TextReader::terrane_construct(self.handle.clone(), codec);
     }
     pub fn close(self) -> StreamOperationResult {
@@ -1051,7 +1058,7 @@ impl ByteWriter {
     pub async fn write_async(&self, data: Vec<u8>) -> WriteResult {
         return self.write(data);
     }
-    pub fn text(self, codec: terrane_string_support::Encoding) -> TextWriter {
+    pub fn text(&self, codec: terrane_string_support::Encoding) -> TextWriter {
         return TextWriter::terrane_construct(self.handle.clone(), codec);
     }
     pub fn flush(&self) -> StreamOperationResult {

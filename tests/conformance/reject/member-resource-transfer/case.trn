@@ -7,5 +7,5 @@ class holder
 function consume; writer byte-writer
 
 function main;
-    value holder = holder;
+    value holder = instance holder;
     consume; value.output

@@ -666,6 +666,13 @@ pub fn terrane_yaml_parse(
         terrane_limit(&max_aliases),
     )
 }
+#[allow(dead_code)]
+#[derive(Clone, Copy)]
+struct TerraneDescriptor {
+    identity: &'static str,
+    name: &'static str,
+    kind: &'static str,
+}
 // Source: case.trn
 // Namespace: conformance/document-json-yaml
 #[derive(Clone)]

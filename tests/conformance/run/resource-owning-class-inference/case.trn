@@ -6,7 +6,7 @@ class stream-owner
     input byte-reader = stdin;
 
 function main;
-    source stream-owner = stream-owner;
+    source stream-owner = instance stream-owner;
     destination stream-owner = source
     result = destination.input.read; 1
     print; result.completed

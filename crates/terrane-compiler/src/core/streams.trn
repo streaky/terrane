@@ -62,7 +62,7 @@ class byte-reader
 
     function read read-result; count int
         raw = host-read; this.handle, count
-        return read-result; raw.data, raw.completed, raw.end, raw.failed, raw.message
+        return instance read-result; raw.data, raw.completed, raw.end, raw.failed, raw.message
 
     function read-exact read-result; count int
         data bytes = b''
@@ -83,7 +83,7 @@ class byte-reader
         if end and completed < count and not failed
             failed = true
             message = 'stream ended before exact byte count'
-        return read-result; data, completed, end, failed, message
+        return instance read-result; data, completed, end, failed, message
 
     function read-all read-result; limit int
         data bytes = b''
@@ -101,17 +101,17 @@ class byte-reader
             if part.completed == 0 and not part.end and not part.failed
                 failed = true
                 message = 'stream read made no progress'
-        return read-result; data, completed, end, failed, message
+        return instance read-result; data, completed, end, failed, message
 
     async function read-async read-result; count int
         return this.read; count
 
     function text text-reader; codec encoding
-        return text-reader; this.handle, codec
+        return instance text-reader; this.handle, codec
 
     function close stream-operation-result;
         raw = host-close; this.handle
-        return stream-operation-result; raw.failed, raw.message
+        return instance stream-operation-result; raw.failed, raw.message
 
     function destruct;
         # Destruction cannot report failure; explicit close is the observable failure path.
@@ -126,7 +126,7 @@ class byte-writer
     function write write-result; data bytes
         offset int = 0
         raw = host-write; this.handle, data, offset
-        return write-result; data, raw.completed, raw.failed, raw.message
+        return instance write-result; data, raw.completed, raw.failed, raw.message
 
     function write-all write-result; data bytes
         completed int = 0
@@ -140,35 +140,35 @@ class byte-writer
             if part.completed == 0 and not part.failed
                 failed = true
                 message = 'stream write made no progress'
-        return write-result; data, completed, failed, message
+        return instance write-result; data, completed, failed, message
 
     function resume write-result; prior write-result
         if prior.data.length == 0
             return prior
         raw = host-write; this.handle, prior.data, prior.completed
-        return write-result; prior.data, prior.completed + raw.completed, raw.failed, raw.message
+        return instance write-result; prior.data, prior.completed + raw.completed, raw.failed, raw.message
 
     async function write-async write-result; data bytes
         return this.write; data
 
     function text text-writer; codec encoding
-        return text-writer; this.handle, codec
+        return instance text-writer; this.handle, codec
 
     function flush stream-operation-result;
         raw = host-flush; this.handle
-        return stream-operation-result; raw.failed, raw.message
+        return instance stream-operation-result; raw.failed, raw.message
 
     function sync-data stream-operation-result;
         raw = host-sync-data; this.handle
-        return stream-operation-result; raw.failed, raw.message
+        return instance stream-operation-result; raw.failed, raw.message
 
     function sync-all stream-operation-result;
         raw = host-sync-all; this.handle
-        return stream-operation-result; raw.failed, raw.message
+        return instance stream-operation-result; raw.failed, raw.message
 
     function close stream-operation-result;
         raw = host-close; this.handle
-        return stream-operation-result; raw.failed, raw.message
+        return instance stream-operation-result; raw.failed, raw.message
 
     function destruct;
         # Destruction cannot report failure; explicit close is the observable failure path.
@@ -185,7 +185,7 @@ class text-reader
     function read text-read-result throws decode-error; count int
         raw = host-read; this.handle, count
         text string = raw.data.decode; this.codec
-        return text-read-result; text, raw.completed, raw.end, raw.failed, raw.message
+        return instance text-read-result; text, raw.completed, raw.end, raw.failed, raw.message
 
     function read-exact text-read-result throws decode-error; count int
         data bytes = b''
@@ -207,7 +207,7 @@ class text-reader
             failed = true
             message = 'stream ended before exact byte count'
         text string = data.decode; this.codec
-        return text-read-result; text, completed, end, failed, message
+        return instance text-read-result; text, completed, end, failed, message
 
     function read-all text-read-result throws decode-error; limit int
         data bytes = b''
@@ -226,14 +226,14 @@ class text-reader
                 failed = true
                 message = 'stream read made no progress'
         text string = data.decode; this.codec
-        return text-read-result; text, completed, end, failed, message
+        return instance text-read-result; text, completed, end, failed, message
 
     async function read-async text-read-result throws decode-error; count int
         return this.read; count
 
     function close stream-operation-result;
         raw = host-close; this.handle
-        return stream-operation-result; raw.failed, raw.message
+        return instance stream-operation-result; raw.failed, raw.message
 
     function destruct;
         # Destruction cannot report failure; explicit close is the observable failure path.
@@ -251,7 +251,7 @@ class text-writer
         data bytes = text.encode; this.codec
         offset int = 0
         raw = host-write; this.handle, data, offset
-        return write-result; data, raw.completed, raw.failed, raw.message
+        return instance write-result; data, raw.completed, raw.failed, raw.message
     function write-all write-result; text string
         data bytes = text.encode; this.codec
         completed int = 0
@@ -265,13 +265,13 @@ class text-writer
             if part.completed == 0 and not part.failed
                 failed = true
                 message = 'stream write made no progress'
-        return write-result; data, completed, failed, message
+        return instance write-result; data, completed, failed, message
 
     function resume write-result; prior write-result
         if prior.data.length == 0
             return prior
         raw = host-write; this.handle, prior.data, prior.completed
-        return write-result; prior.data, prior.completed + raw.completed, raw.failed, raw.message
+        return instance write-result; prior.data, prior.completed + raw.completed, raw.failed, raw.message
 
     function line write-result; text string
         return this.write-all; (text.concat; '\n')
@@ -281,29 +281,29 @@ class text-writer
 
     function flush stream-operation-result;
         raw = host-flush; this.handle
-        return stream-operation-result; raw.failed, raw.message
+        return instance stream-operation-result; raw.failed, raw.message
 
     function sync-data stream-operation-result;
         raw = host-sync-data; this.handle
-        return stream-operation-result; raw.failed, raw.message
+        return instance stream-operation-result; raw.failed, raw.message
 
     function sync-all stream-operation-result;
         raw = host-sync-all; this.handle
-        return stream-operation-result; raw.failed, raw.message
+        return instance stream-operation-result; raw.failed, raw.message
 
     function close stream-operation-result;
         raw = host-close; this.handle
-        return stream-operation-result; raw.failed, raw.message
+        return instance stream-operation-result; raw.failed, raw.message
 
     function destruct;
         # Destruction cannot report failure; explicit close is the observable failure path.
         host-release; this.handle
 
 function stdin byte-reader;
-    return byte-reader; (host-acquire-stdin;)
+    return instance byte-reader; (host-acquire-stdin;)
 
 function stdout byte-writer;
-    return byte-writer; (host-acquire-stdout;)
+    return instance byte-writer; (host-acquire-stdout;)
 
 function stderr byte-writer;
-    return byte-writer; (host-acquire-stderr;)
+    return instance byte-writer; (host-acquire-stderr;)

@@ -21,7 +21,7 @@ function main;
     bound listener-result = bind-tcp; bind-address.value
     listener = move bound.value
     endpoint-text string = listener.local-address
-    server-options = network-operation-options; 1000, (network-cancellation-token;)
+    server-options = instance network-operation-options; 1000, (instance network-cancellation-token;)
     serve = function none;
         accepted stream-result = listener.accept; server-options
         stream = move accepted.value
@@ -31,11 +31,11 @@ function main;
         stream.write; b'reply', server-options
         stream.shutdown; 'both'
         stream.close;
-    server = async-runner; serve
+    server = instance async-runner; serve
     scope = task-scope;
     child = scope.spawn; server.run
     destination = socket-address-from-string; endpoint-text
-    client-options = network-operation-options; 1000, (network-cancellation-token;)
+    client-options = instance network-operation-options; 1000, (instance network-cancellation-token;)
     connected stream-result = connect-tcp; destination.value, client-options
     client = move connected.value
     sent = client.write; b'terrane', client-options

@@ -8,5 +8,5 @@ function preserve existence-result; result existence-result
 
 function main;
     capability = filesystem-capability;
-    result = filesystem-exists; capability, (path; '.')
+    result = filesystem-exists; capability, (instance path; '.')
     preserve; result

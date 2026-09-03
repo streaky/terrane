@@ -8,8 +8,8 @@ from /core/compression import gzip, zlib, deflate-raw, zstd, compression-options
 from /core/random/uuid import parse-uuid, random-uuid, time-uuid
 
 function main;
-    first pseudo-random = pseudo-random; (chacha20;), b'seed'
-    second pseudo-random = pseudo-random; (chacha20;), b'seed'
+    first pseudo-random = instance pseudo-random; (chacha20;), b'seed'
+    second pseudo-random = instance pseudo-random; (chacha20;), b'seed'
     hash = sha256;
     gzip-codec = gzip;
     left = pseudo-bytes; first, 32
@@ -20,7 +20,7 @@ function main;
     print; (pseudo-bytes; first-child, 16).value == (pseudo-bytes; second-child, 16).value
     bounded = pseudo-bounded-int; first, 17
     print; bounded.value >= 0 and bounded.value < 17
-    secure = secure-random;
+    secure = instance secure-random;
     secure-data = secure-bytes; secure, 16
     print; not secure-data.failed and secure-data.value.length == 16
     secure-number = secure-bounded-int; secure, 17
@@ -30,8 +30,8 @@ function main;
     wide-hash = sha512;
     wide-digest = digest-bytes; wide-hash, b'abc'
     print; (encode-hex; wide-digest.value.value)
-    key = secret-buffer; b'key'
-    same-key = secret-buffer; b'key'
+    key = instance secret-buffer; b'key'
+    same-key = instance secret-buffer; b'key'
     mac = sign-hmac; hash, key, b'data'
     same-mac = sign-hmac; hash, same-key, b'data'
     print; (signature-equals; mac.value, same-mac.value)
@@ -41,7 +41,7 @@ function main;
     destroy-secret; same-key
     destroyed = sign-hmac; hash, same-key, b'data'
     print; destroyed.failed
-    unsupported = hash-algorithm; 'unsupported'
+    unsupported = instance hash-algorithm; 'unsupported'
     failed-digest = digest-bytes; unsupported, b'data'
     print; failed-digest.failed
     failed-mac = sign-hmac; unsupported, key, b'data'
@@ -58,9 +58,9 @@ function main;
     print; wrong-alphabet.failed
     malformed = decode-hex; 'abc'
     print; malformed.failed
-    options = compression-options; 6, true
+    options = instance compression-options; 6, true
     packed = gzip-codec.compress; b'compress me', options
-    limits = decompression-limits; 1024, 100, 4096
+    limits = instance decompression-limits; 1024, 100, 4096
     unpacked = gzip-codec.decompress; packed.value, limits
     print; (unpacked.value.decode; utf8)
     zlib-codec = zlib;
@@ -73,10 +73,10 @@ function main;
     print; (raw-unpacked.value.decode; utf8)
     zstd-codec = zstd;
     zstd-packed = zstd-codec.compress; b'compress me', options
-    zstd-limits = decompression-limits; 1073741824, 100, 1073741824
+    zstd-limits = instance decompression-limits; 1073741824, 100, 1073741824
     zstd-unpacked = zstd-codec.decompress; zstd-packed.value, zstd-limits
     print; (zstd-unpacked.value.decode; utf8)
-    bomb-limits = decompression-limits; 4, 2, 8
+    bomb-limits = instance decompression-limits; 4, 2, 8
     refused = gzip-codec.decompress; packed.value, bomb-limits
     print; refused.resource-limit
     parsed = parse-uuid; '01890f3e-7b4d-7cc0-98c8-77e22c318a14'

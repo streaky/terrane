@@ -13,8 +13,8 @@ class native-string
         this.raw = host-platform-value-bytes; encoded
 
 class environment-entry
-    name native-string = native-string; 'text:'
-    value native-string = native-string; 'text:'
+    name native-string = instance native-string; 'text:'
+    value native-string = instance native-string; 'text:'
 
     function construct; name native-string, entry-value native-string
         this.name = name
@@ -23,7 +23,7 @@ class process-host-name-result
     failed bool = false
     available bool = false
     message string = ''
-    value native-string = native-string; 'text:'
+    value native-string = instance native-string; 'text:'
 
     function construct; did-fail bool, is-available bool, detail string, result-value native-string
         this.failed = did-fail
@@ -33,7 +33,7 @@ class process-host-name-result
 
 function process-host-name process-host-name-result;
     raw = host-system-host-name;
-    return process-host-name-result; (host-result-failed; raw), (host-result-bool; raw), (host-result-message; raw), (native-string; (host-result-text; raw))
+    return instance process-host-name-result; (host-result-failed; raw), (host-result-bool; raw), (host-result-message; raw), (instance native-string; (host-result-text; raw))
 
 
 function arguments list of native-string;
@@ -41,7 +41,7 @@ function arguments list of native-string;
     values list of native-string = list
     index int = 0
     while index < encoded.length
-        values.append; (native-string; encoded[index])
+        values.append; (instance native-string; encoded[index])
         index = index + 1
     return values
 
@@ -50,9 +50,9 @@ function environment list of environment-entry;
     values list of environment-entry = list
     index int = 0
     while index + 1 < encoded.length
-        name = native-string; encoded[index]
-        value = native-string; encoded[index + 1]
-        values.append; (environment-entry; name, value)
+        name = instance native-string; encoded[index]
+        value = instance native-string; encoded[index + 1]
+        values.append; (instance environment-entry; name, value)
         index = index + 2
     return values
 
@@ -109,7 +109,7 @@ function parse-command-line command-line; schema cli-schema, supplied list of na
             else
                 positionals.append; argument
         index = index + 1
-    result = (command-line;)
+    result = (instance command-line;)
     result.flags = flags
     result.option-names = option-names
     result.option-values = option-values
@@ -124,7 +124,7 @@ class exit-status
 
 
 function make-exit-status exit-status; requested int
-    result = (exit-status;)
+    result = (instance exit-status;)
     if requested < 0 or requested > 255
         result.code = 255
         result.valid = false

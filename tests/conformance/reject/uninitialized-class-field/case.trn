@@ -4,4 +4,4 @@ class counter
     value int
 
 function main;
-    value counter = counter;
+    value counter = instance counter;

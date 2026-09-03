@@ -397,14 +397,14 @@ mod __terrane_trace {
     ];
     pub static SITES: [Site; 2] = [
         {
-            /* terrane-site-row: site 0: /custom-throwable::load (case.trn:14:3-14:54) */
+            /* terrane-site-row: site 0: /custom-throwable::load (case.trn:14:3-14:63) */
             Site {
                 function: 0,
                 file: 0,
                 line: 14,
                 column: 3,
                 end_line: 14,
-                end_column: 54,
+                end_column: 63,
             }
         },
         {
@@ -430,6 +430,13 @@ mod __terrane_trace {
             site.end_column,
         )
     }
+}
+#[allow(dead_code)]
+#[derive(Clone, Copy)]
+struct TerraneDescriptor {
+    identity: &'static str,
+    name: &'static str,
+    kind: &'static str,
 }
 // Source: case.trn
 // Namespace: custom-throwable
@@ -464,7 +471,7 @@ fn load(path: String) -> Result<String, TerraneError> {
         TerraneError::raised_with_message(
             TerraneErrorKind::Custom(DescriptorId(0)),
             value.render(),
-            0 /* terrane-site: case.trn:14:3-14:54 */,
+            0 /* terrane-site: case.trn:14:3-14:63 */,
         )
     });
 }

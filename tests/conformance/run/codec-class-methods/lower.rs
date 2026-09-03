@@ -504,6 +504,13 @@ pub fn terrane_platform_base64_decode(
 ) -> TerranePlatformResult {
     terrane_platform_support::base64_decode(&text, url_safe, padded)
 }
+#[allow(dead_code)]
+#[derive(Clone, Copy)]
+struct TerraneDescriptor {
+    identity: &'static str,
+    name: &'static str,
+    kind: &'static str,
+}
 // Source: case.trn
 // Namespace: codec-class-methods
 fn main() {

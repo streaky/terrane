@@ -11,7 +11,7 @@ class config-error implements throwable
     return this.message
 
 function load string throws config-error; path string
-  throw config-error; path, >configuration is invalid
+  throw instance config-error; path, >configuration is invalid
 
 function main;
   try

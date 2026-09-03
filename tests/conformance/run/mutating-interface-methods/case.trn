@@ -15,6 +15,6 @@ class counter implements adjustable
         return this.value
 
 function main;
-    value adjustable = counter;
+    value adjustable = instance counter;
     print; (value.increase; 4)
     print; (value.read;)

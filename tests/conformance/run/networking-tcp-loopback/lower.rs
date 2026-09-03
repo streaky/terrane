@@ -813,6 +813,13 @@ pub fn terrane_platform_capability_close(
 ) -> TerranePlatformResult {
     terrane_platform_support::close(capability)
 }
+#[allow(dead_code)]
+#[derive(Clone, Copy)]
+struct TerraneDescriptor {
+    identity: &'static str,
+    name: &'static str,
+    kind: &'static str,
+}
 // Source: case.trn
 // Namespace: app
 #[derive(Clone)]

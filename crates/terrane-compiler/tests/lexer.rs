@@ -58,6 +58,19 @@ fn slash_is_a_namespace_separator_or_a_spaced_operator() {
 }
 
 #[test]
+fn double_colon_is_one_static_selection_token() {
+    assert_eq!(
+        significant("widget::shared;"),
+        vec![
+            (TokenKind::Identifier, "widget".into(), Attachment::Right),
+            (TokenKind::DoubleColon, "::".into(), Attachment::Both),
+            (TokenKind::Identifier, "shared".into(), Attachment::Both),
+            (TokenKind::Semicolon, ";".into(), Attachment::Left),
+        ]
+    );
+}
+
+#[test]
 fn namespace_path_lexical_failures_have_distinct_codes() {
     let whitespace = SourceFile::new(0, "case.trn".into(), "namespace app /http".to_owned());
     assert!(

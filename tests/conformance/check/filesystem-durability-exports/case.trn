@@ -10,5 +10,5 @@ function exercise bool; capability filesystem, output ref file-handle
 
 function main;
     capability = filesystem-capability;
-    output file-handle = open-file; capability, (path; 'durability-check.tmp'), false, true, true, true
+    output file-handle = open-file; capability, (instance path; 'durability-check.tmp'), false, true, true, true
     exercise; capability, ref output

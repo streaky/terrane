@@ -11,9 +11,9 @@ function main;
     bound udp-result = bind-udp; address.value
     socket = move bound.value
     destination = socket-address-from-string; socket.local-address
-    configured = socket.configure; (udp-options; false, 32)
-    cancellation = network-cancellation-token;
-    options = network-operation-options; 1000, cancellation
+    configured = socket.configure; (instance udp-options; false, 32)
+    cancellation = instance network-cancellation-token;
+    options = instance network-operation-options; 1000, cancellation
     sent = socket.send-to; b'terrane', destination.value, options
     received = socket.receive-from; 32, options
     print; not configured.failed

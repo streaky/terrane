@@ -405,14 +405,14 @@ mod __terrane_trace {
             }
         },
         {
-            /* terrane-site-row: site 1: /left::fail (left/error.trn:12:3-12:36) */
+            /* terrane-site-row: site 1: /left::fail (left/error.trn:12:3-12:45) */
             Site {
                 function: 1,
                 file: 1,
                 line: 12,
                 column: 3,
                 end_line: 12,
-                end_column: 36,
+                end_column: 45,
             }
         },
     ];
@@ -427,6 +427,13 @@ mod __terrane_trace {
             site.end_column,
         )
     }
+}
+#[allow(dead_code)]
+#[derive(Clone, Copy)]
+struct TerraneDescriptor {
+    identity: &'static str,
+    name: &'static str,
+    kind: &'static str,
 }
 // Source: app/main.trn
 // Namespace: app
@@ -508,7 +515,7 @@ fn fail() -> Result<(), TerraneError> {
         TerraneError::raised_with_message(
             TerraneErrorKind::Custom(DescriptorId(1)),
             value.render(),
-            1 /* terrane-site: left/error.trn:12:3-12:36 */,
+            1 /* terrane-site: left/error.trn:12:3-12:45 */,
         )
     });
 }

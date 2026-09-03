@@ -40,21 +40,21 @@ class compression-codec
     function compress compression-result; data bytes, options compression-options
         format = this.format
         raw = host-compress; format, data, options.level, options.deterministic
-        return compression-result; (host-result-failed; raw), (host-result-resource-limit; raw), (host-result-message; raw), (host-result-bytes; raw)
+        return instance compression-result; (host-result-failed; raw), (host-result-resource-limit; raw), (host-result-message; raw), (host-result-bytes; raw)
 
     function decompress compression-result; data bytes, limits decompression-limits
         format = this.format
         raw = host-decompress; format, data, limits.max-output, limits.max-ratio, limits.max-work
-        return compression-result; (host-result-failed; raw), (host-result-resource-limit; raw), (host-result-message; raw), (host-result-bytes; raw)
+        return instance compression-result; (host-result-failed; raw), (host-result-resource-limit; raw), (host-result-message; raw), (host-result-bytes; raw)
 
 function gzip compression-codec;
-    return compression-codec; 'gzip'
+    return instance compression-codec; 'gzip'
 
 function zlib compression-codec;
-    return compression-codec; 'zlib'
+    return instance compression-codec; 'zlib'
 
 function deflate-raw compression-codec;
-    return compression-codec; 'deflate-raw'
+    return instance compression-codec; 'deflate-raw'
 
 function zstd compression-codec;
-    return compression-codec; 'zstd'
+    return instance compression-codec; 'zstd'

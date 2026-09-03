@@ -15,10 +15,10 @@ class yaml-options
         this.max-alias-nodes = max-alias-nodes
 
 function default-yaml-options yaml-options;
-    return yaml-options; 128, 16777216, 65536
+    return instance yaml-options; 128, 16777216, 65536
 
 function make-yaml-options yaml-options; max-depth int, max-bytes int, max-alias-nodes int
-    return yaml-options; max-depth, max-bytes, max-alias-nodes
+    return instance yaml-options; max-depth, max-bytes, max-alias-nodes
 
 function parse-yaml document-result; input string, options yaml-options
     raw = host-yaml-parse; input, options.max-depth, options.max-bytes, options.max-alias-nodes
