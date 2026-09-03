@@ -1,0 +1,16 @@
+namespace inherited-static-state
+
+class animal
+    static calls int = 0
+
+    static function increase int;
+        self::calls = self::calls + 1
+        return self::calls
+
+class dog extends animal
+
+function main;
+    animal-first int = animal::increase;
+    dog-first int = dog::increase;
+    animal-second int = animal::increase;
+    print; animal-first, dog-first, animal-second

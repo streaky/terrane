@@ -19,6 +19,8 @@ pub fn parse(source: &SourceFile, lexed: LexedSource) -> ParseOutput {
         source,
         tokens: &lexed.tokens,
         position: 0,
+        block_depth: 0,
+        class_body_depth: usize::MAX,
         semicolon_boundary: false,
         diagnostics: Vec::new(),
     };
@@ -34,6 +36,8 @@ struct Parser<'source> {
     source: &'source SourceFile,
     tokens: &'source [Token],
     position: usize,
+    block_depth: usize,
+    class_body_depth: usize,
     semicolon_boundary: bool,
     diagnostics: Vec<Diagnostic>,
 }
@@ -183,6 +187,7 @@ impl Parser<'_> {
         self.parse_visibility(&mut children);
         self.bump();
         if self.at(TokenKind::Identifier) {
+            self.reject_contextual_declaration_name();
             children.push(self.leaf(SyntaxKind::Name));
         } else {
             self.error_here("S1034", "object declaration requires a name");
@@ -221,7 +226,12 @@ impl Parser<'_> {
             }
             children.push(self.node(clause_kind, clause_start, self.position, names));
         }
+        let previous_class_body_depth = self.class_body_depth;
+        if kind == SyntaxKind::ClassDeclaration {
+            self.class_body_depth = self.block_depth + 1;
+        }
         children.push(self.parse_block());
+        self.class_body_depth = previous_class_body_depth;
         self.node(kind, start, self.position, children)
     }
 
@@ -369,10 +379,18 @@ impl Parser<'_> {
         let mut qualifiers = std::collections::BTreeSet::new();
         while matches!(self.text(), "global" | "constant" | "static") {
             let qualifier = self.text().to_owned();
-            if !qualifiers.insert(qualifier) {
+            if !qualifiers.insert(qualifier.clone()) {
                 self.error_here("S1029", "duplicate binding qualifier");
             }
-            if qualifiers.contains("global") && qualifiers.contains("constant") {
+            if qualifier == "static" && self.block_depth != self.class_body_depth {
+                self.error_here("S1029", "`static` bindings are only valid in class bodies");
+            }
+            if qualifiers.len() > 1 && qualifiers.contains("static") {
+                self.error_here(
+                    "S1029",
+                    "`static` cannot be combined with `global` or `constant`",
+                );
+            } else if qualifiers.contains("global") && qualifiers.contains("constant") {
                 self.error_here(
                     "S1029",
                     "a binding may have only one of `global` or `constant`",
@@ -385,6 +403,7 @@ impl Parser<'_> {
             children.push(self.leaf(SyntaxKind::Visibility));
         }
         if self.at(TokenKind::Identifier) {
+            self.reject_contextual_declaration_name();
             children.push(self.leaf(SyntaxKind::Name));
         } else if self.at(TokenKind::Dot) && self.peek_kind(1) == Some(TokenKind::Identifier) {
             self.error_here_with_help(
@@ -414,6 +433,9 @@ impl Parser<'_> {
         let start = self.position;
         let mut children = Vec::new();
         self.parse_visibility(&mut children);
+        if self.text() == "static" && self.block_depth != self.class_body_depth {
+            self.error_here("S1029", "`static` functions are only valid in class bodies");
+        }
         let mut qualifiers = std::collections::BTreeSet::new();
         while matches!(self.text(), "static" | "async") {
             let qualifier_start = self.position;
@@ -431,6 +453,7 @@ impl Parser<'_> {
         }
         self.expect_text("function", "S1005", "expected `function`");
         if self.at(TokenKind::Identifier) && !self.at_text("from") && !self.at_text("to") {
+            self.reject_contextual_declaration_name();
             children.push(self.leaf(SyntaxKind::Name));
             if self.at_text("of") {
                 self.error_here(
@@ -510,6 +533,7 @@ impl Parser<'_> {
         while !(self.at_line_end() || grouped && self.at(TokenKind::CloseParen)) {
             let parameter_start = self.position;
             if self.at(TokenKind::Identifier) {
+                self.reject_contextual_declaration_name();
                 let mut parts = vec![self.leaf(SyntaxKind::Name)];
                 if !(self.at(TokenKind::Assign)
                     || self.at(TokenKind::Comma)
@@ -890,7 +914,7 @@ impl Parser<'_> {
     fn parse_postfix(&mut self, allow_call: bool) -> SyntaxNode {
         let start = self.position;
         let mut value = self.parse_primary();
-        loop {
+        while value.kind != SyntaxKind::ConstructionExpression {
             if self.at(TokenKind::Dot) {
                 if self.current().attachment != Attachment::Both {
                     self.error_here(
@@ -1170,6 +1194,7 @@ impl Parser<'_> {
         self.skip_newlines();
         let mut children = Vec::new();
         if self.eat(TokenKind::Indent) {
+            self.block_depth += 1;
             self.skip_newlines();
             while !self.at(TokenKind::Dedent) && !self.at(TokenKind::Eof) {
                 if self.at(TokenKind::Indent) {
@@ -1182,6 +1207,7 @@ impl Parser<'_> {
                 }
                 self.skip_newlines();
             }
+            self.block_depth -= 1;
             self.expect(
                 TokenKind::Dedent,
                 "S1024",
@@ -1246,6 +1272,15 @@ impl Parser<'_> {
                 "use `==` for equality",
             );
             self.recover_line();
+        }
+    }
+
+    fn reject_contextual_declaration_name(&mut self) {
+        if matches!(self.text(), "instance" | "self") {
+            self.error_here(
+                "S1095",
+                format!("`{}` is reserved and cannot be declared", self.text()),
+            );
         }
     }
 

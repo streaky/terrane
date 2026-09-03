@@ -1,0 +1,14 @@
+namespace static-field-member-assignment
+
+class inner
+    value int = 0
+
+class holder
+    static slot inner = instance inner;
+
+    static function update;
+        holder::slot.value = 5
+
+function main;
+    holder::update;
+    print; holder::slot.value

@@ -12,9 +12,9 @@ use crate::{
         ArithmeticFamily, CoercionPolicy, ContextualConstant, ElementType, FloatMemberOperation,
         FunctionContract, MemberFamily, ObjectContract, ObjectField, ObjectIdentity, ObjectKind,
         SemanticPackage, SemanticUnit, StringFamily, SymbolKind, TypedBinding, ValueType,
-        binding_span_is_mutated, binding_store_value_is_read, bound_method, contextual_constant,
-        float_member_contract, narrowed_optional_type, narrowed_value_type, promoted_integer_type,
-        string_call_selection,
+        binding_is_read, binding_span_is_mutated, binding_store_value_is_read, bound_method,
+        contextual_constant, float_member_contract, narrowed_optional_type, narrowed_value_type,
+        promoted_integer_type, string_call_selection,
     },
     syntax::{SyntaxKind, SyntaxNode},
 };
@@ -315,9 +315,10 @@ pub(crate) fn lower(package: &SemanticPackage) -> Program {
         });
     }
     if package.units.iter().any(|unit| {
-        unit.typed_bindings
-            .iter()
-            .any(|binding| matches!(binding.value_type, ValueType::Descriptor(_)))
+        unit.typed_bindings.iter().any(|binding| {
+            matches!(binding.value_type, ValueType::Descriptor(_))
+                && binding_is_read(package, binding.span)
+        })
     }) {
         runtime.push(GeneratedModule {
             name: "reflection",
@@ -365,6 +366,7 @@ pub(crate) fn lower(package: &SemanticPackage) -> Program {
                 in_loop: false,
                 bounded_integer_ranges: Vec::new(),
                 closure_depth: 0,
+                assignment_target: false,
             };
             emitter.emit_union_types();
             let mut items = Vec::new();
@@ -686,6 +688,7 @@ struct Emitter<'a> {
     try_completion: bool,
     in_loop: bool,
     closure_depth: usize,
+    assignment_target: bool,
     bounded_integer_ranges: Vec<BoundedIntegerRange>,
 }
 
@@ -1360,6 +1363,7 @@ fn emit_global_storage(
             in_loop: false,
             bounded_integer_ranges: Vec::new(),
             closure_depth: 0,
+            assignment_target: false,
         };
         let value_type = unit
             .typed_bindings
@@ -1423,6 +1427,7 @@ fn emit_global_storage(
                 in_loop: false,
                 bounded_integer_ranges: Vec::new(),
                 closure_depth: 0,
+                assignment_target: false,
             };
             Some(initial_emitter.expression_as(initializer, ValueType::Scalar(scalar)))
         });
@@ -1894,14 +1899,16 @@ impl Emitter<'_> {
                     .expect("object method contract must retain its syntax");
                     self.object_method(method_node);
                 }
-                for method in &static_methods {
-                    let method_node = find_node(
-                        &self.unit.tree.root,
-                        SyntaxKind::FunctionDeclaration,
-                        method.span,
-                    )
-                    .expect("static object method must have a syntax node");
-                    self.object_static_method(method_node);
+                if descendants.is_empty() {
+                    for method in &static_methods {
+                        let method_node = find_node(
+                            &self.unit.tree.root,
+                            SyntaxKind::FunctionDeclaration,
+                            method.span,
+                        )
+                        .expect("static object method must have a syntax node");
+                        self.object_static_method(method_node);
+                    }
                 }
                 let destructors = object_destructor_chain(self.unit, object);
                 for (index, destructor) in destructors
@@ -1969,6 +1976,17 @@ impl Emitter<'_> {
                             "pub fn terrane_construct() -> Self {{ Self::Own({storage_type}::terrane_construct()) }}"
                         ));
                     }
+                    let previous_object = self.current_object.replace(object.identity.clone());
+                    for method in &static_methods {
+                        let method_node = find_node(
+                            &self.unit.tree.root,
+                            SyntaxKind::FunctionDeclaration,
+                            method.span,
+                        )
+                        .expect("static object method must have a syntax node");
+                        self.object_static_method(method_node);
+                    }
+                    self.current_object = previous_object;
                     let hierarchy_has_destructor = has_destructor
                         || descendants.iter().any(|descendant| {
                             effective_object_methods(self.unit, descendant)
@@ -2072,7 +2090,7 @@ impl Emitter<'_> {
                         self.indent -= 1;
                         self.line("}");
                     }
-                    for field in &fields {
+                    for field in &instance_fields {
                         let field_name = rust_name(&field.name);
                         let field_type = rust_value_type(self.package, field.value_type.clone());
                         self.line(&format!(
@@ -2805,6 +2823,52 @@ impl Emitter<'_> {
             .cloned()
     }
 
+    fn nested_static_assignment_target(&self, node: &SyntaxNode) -> Option<String> {
+        let [receiver, member] = node.children.as_slice() else {
+            return None;
+        };
+        if node.kind != SyntaxKind::MemberExpression {
+            return None;
+        }
+        let mut target = if receiver.kind == SyntaxKind::StaticMemberExpression {
+            let [class, field] = receiver.children.as_slice() else {
+                return None;
+            };
+            let object = self.class_designator(class)?;
+            let field_name = self.text(field);
+            effective_object_fields(self.unit, object)
+                .iter()
+                .any(|candidate| candidate.is_static && candidate.name == field_name)
+                .then(|| {
+                    format!(
+                        "{}.lock().expect(\"static field lock poisoned\")",
+                        rust_static_field_name(self.package, &object.identity, field_name)
+                    )
+                })?
+        } else {
+            self.nested_static_assignment_target(receiver)?
+        };
+        write!(target, ".{}", rust_name(self.text(member))).unwrap();
+        Some(target)
+    }
+
+    fn assign_static_field(&mut self, left: &SyntaxNode, value: &str) -> bool {
+        let [receiver, member] = left.children.as_slice() else {
+            return false;
+        };
+        if left.kind != SyntaxKind::StaticMemberExpression {
+            return false;
+        }
+        let Some(object) = self.class_designator(receiver) else {
+            return false;
+        };
+        self.line(&format!(
+            "{{ let __terrane_static_value = {value}; *{}.lock().expect(\"static field lock poisoned\") = __terrane_static_value; }}",
+            rust_static_field_name(self.package, &object.identity, self.text(member))
+        ));
+        true
+    }
+
     fn assignment(&mut self, node: &SyntaxNode) {
         if self.global_assignment(node) {
             return;
@@ -2865,26 +2929,21 @@ impl Emitter<'_> {
             self.expression(right)
         };
         let value = Self::unwrapped_expression(value);
-        if let [receiver, member] = left.children.as_slice()
-            && left.kind == SyntaxKind::StaticMemberExpression
-            && let Some(object) = self.class_designator(receiver)
-        {
-            self.line(&format!(
-                "{{ let __terrane_static_value = {value}; *{}.lock().expect(\"static field lock poisoned\") = __terrane_static_value; }}",
-                rust_static_field_name(self.package, &object.identity, self.text(member))
-            ));
+        if self.assign_static_field(left, &value) {
             return;
         }
         let reference_backed = assigned_binding
             .as_ref()
             .is_some_and(|binding| self.reference_backed(binding));
+        let previous_assignment_target = self.assignment_target;
+        self.assignment_target = true;
         let target = if reference_backed {
             format!(
                 "*{}.lock().expect(\"reference lock poisoned\")",
                 rust_name(self.text(left))
             )
-        } else if left.kind == SyntaxKind::Name {
-            rust_name(self.text(left))
+        } else if let Some(target) = self.nested_static_assignment_target(left) {
+            target
         } else if let [receiver, member] = left.children.as_slice()
             && left.kind == SyntaxKind::MemberExpression
             && self.wrapped_object_field(receiver, self.text(member))
@@ -2897,6 +2956,7 @@ impl Emitter<'_> {
         } else {
             self.expression(left)
         };
+        self.assignment_target = previous_assignment_target;
         self.line(&format!("{target} = {value};"));
         if let Some(binding) = &assigned_binding
             && !reference_backed
@@ -3581,7 +3641,10 @@ impl Emitter<'_> {
             SyntaxKind::TypeMembershipExpression => self.type_membership(node),
             SyntaxKind::MemberExpression => self.member(node),
             SyntaxKind::StaticMemberExpression => self.static_member(node),
-            SyntaxKind::ConstructionExpression => String::new(),
+            SyntaxKind::ConstructionExpression => unreachable!(
+                "construction expression at {}..{} escaped call lowering",
+                node.span.start, node.span.end
+            ),
             SyntaxKind::IndexExpression => self.index(node),
             SyntaxKind::CallExpression => self.call(node),
             SyntaxKind::PostfixExpression => node
@@ -3611,15 +3674,16 @@ impl Emitter<'_> {
         {
             return self.expression_as(grouped, value_type);
         }
-        if let Some(actual) = self.value_type(node)
+        if !self.assignment_target
+            && let Some(actual) = self.value_type(node)
             && let ValueType::Reference(item) | ValueType::SharedReference(item) = actual
             && item.value_type() == value_type
         {
             return self.receiver_expression(node);
         }
-        if let Some(ValueType::Optional(inner)) = self.value_type(node)
+        if !self.assignment_target
+            && let Some(ValueType::Optional(inner)) = self.value_type(node)
             && *inner == value_type
-            && node.kind == SyntaxKind::StaticMemberExpression
         {
             return format!(
                 "({}).expect(\"semantic optional narrowing\")",
@@ -3841,6 +3905,9 @@ impl Emitter<'_> {
                 &value_type,
                 ValueType::Scalar(ScalarType::String | ScalarType::Bytes)
             )
+            && node.children.first().is_none_or(|receiver| {
+                !matches!(self.value_type(receiver), Some(ValueType::Descriptor(_)))
+            })
         {
             return format!("({}).clone()", self.expression(node));
         }
@@ -4733,7 +4800,8 @@ impl Emitter<'_> {
     }
 
     fn class_designator(&self, node: &SyntaxNode) -> Option<&ObjectContract> {
-        if self.text(node) == "self" {
+        let name = self.text(node);
+        if name == "self" {
             let identity = self.current_object.as_ref()?;
             return self
                 .unit
@@ -4741,10 +4809,15 @@ impl Emitter<'_> {
                 .iter()
                 .find(|object| object.identity == *identity && object.kind == ObjectKind::Class);
         }
+        if self.unit.typed_bindings.iter().rev().any(|binding| {
+            binding.name == name && binding.is_visible_at(self.unit.source.id(), node.span.start)
+        }) {
+            return None;
+        }
         self.unit
             .objects
             .iter()
-            .find(|object| object.name == self.text(node) && object.kind == ObjectKind::Class)
+            .find(|object| object.name == name && object.kind == ObjectKind::Class)
     }
 
     fn static_member(&mut self, node: &SyntaxNode) -> String {
@@ -6587,16 +6660,19 @@ impl Emitter<'_> {
             }
             .to_owned();
         }
-        let narrowed =
-            narrowed_value_type(self.unit, node, &self.unit.typed_bindings).or_else(|| {
-                self.parameter_types
-                    .iter()
-                    .rev()
-                    .find(|(name, _)| name == source_name)
-                    .and_then(|(_, value_type)| {
-                        narrowed_optional_type(self.unit, node, value_type.clone())
-                    })
-            });
+        let narrowed = (!self.assignment_target)
+            .then(|| {
+                narrowed_value_type(self.unit, node, &self.unit.typed_bindings).or_else(|| {
+                    self.parameter_types
+                        .iter()
+                        .rev()
+                        .find(|(name, _)| name == source_name)
+                        .and_then(|(_, value_type)| {
+                            narrowed_optional_type(self.unit, node, value_type.clone())
+                        })
+                })
+            })
+            .flatten();
         if let Some(narrowed) = narrowed {
             let access = format!(
                 "{}.as_ref().expect(\"semantic optional narrowing\")",

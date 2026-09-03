@@ -1,0 +1,4 @@
+namespace construction-missing-class
+
+function main;
+    value int = instance ;

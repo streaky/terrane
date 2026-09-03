@@ -470,13 +470,6 @@ fn __terrane_block_on<F: Future>(future: F) -> F::Output {
         }
     }
 }
-#[allow(dead_code)]
-#[derive(Clone, Copy)]
-struct TerraneDescriptor {
-    identity: &'static str,
-    name: &'static str,
-    kind: &'static str,
-}
 // Source: src/main.trn
 // Namespace: app
 fn cross_async(value: TerraneNs4Deps7Reqwest10AsyncImpl8ResponseResponse) {

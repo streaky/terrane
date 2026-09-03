@@ -1,0 +1,9 @@
+namespace static-class-name-shadowed
+
+class widget
+    static function create widget;
+        return instance self;
+
+function main;
+    widget int = 1
+    value widget = widget::create;

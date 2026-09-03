@@ -1,0 +1,4 @@
+namespace static-binding-outside-class
+
+function main;
+    static count int = 0

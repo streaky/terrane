@@ -1,0 +1,5 @@
+namespace static-selection-non-class
+
+function main;
+    count int = 1
+    count::value;

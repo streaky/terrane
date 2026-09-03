@@ -1,0 +1,17 @@
+namespace static-class-singleton
+
+class widget
+    private static current widget|none = none
+
+    static function shared widget;
+        if self::current == none
+            self::current = instance self;
+        return self::current
+
+    function class-name string;
+        return self.name
+
+function main;
+    first widget = widget::shared;
+    second widget = widget::shared;
+    print; (first.class-name;), (second.class-name;)

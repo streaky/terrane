@@ -1,0 +1,8 @@
+namespace static-selection-whitespace
+
+class widget
+    static function create widget;
+        return instance self;
+
+function main;
+    value widget = widget ::create;

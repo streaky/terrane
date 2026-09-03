@@ -1,0 +1,5 @@
+namespace construction-non-class
+
+function main;
+    count int = 1
+    value int = instance count;

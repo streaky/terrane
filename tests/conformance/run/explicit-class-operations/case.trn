@@ -1,37 +1,15 @@
 namespace explicit-class-operations
 
-class animal
+class widget
+    value int = 1
 
-    static function create animal;
+    static function create widget;
         return instance self;
 
-    function class-name string;
-        return self.name
-
-
-class dog extends animal
-
-
-class widget
-
-    private static current widget|none = none
-    private static calls int = 0
-
-    static function shared widget;
-        if self::current == none
-            self::current = instance self;
-        self::calls = self::calls + 1
-        return self::current
-
-    static function call-count int;
-        return self::calls
-
-    function class-name string;
-        return self.name
-
+    function read int;
+        return this.value
 
 function main;
-    pet dog = dog::create;
-    first widget = widget::shared;
-    second widget = widget::shared;
-    print; (pet.class-name;), (widget::call-count;), (first.class-name;), (second.class-name;)
+    direct widget = instance widget;
+    factory widget = widget::create;
+    print; (direct.read;), (factory.read;)

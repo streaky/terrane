@@ -1,0 +1,4 @@
+namespace contextual-class-name-binding
+
+function main;
+    instance int = 1

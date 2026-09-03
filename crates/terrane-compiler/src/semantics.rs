@@ -2387,6 +2387,13 @@ fn class_designator_identity(
         return None;
     }
     let name = node_text(&unit.source, designator);
+    if name != "self"
+        && unit.typed_bindings.iter().rev().any(|binding| {
+            binding.name == name && binding.is_visible_at(unit.source.id(), designator.span.start)
+        })
+    {
+        return None;
+    }
     if name == "self" {
         let owner = enclosing_function_contract(unit, designator.span.start)?
             .owner
@@ -2435,14 +2442,25 @@ fn method_contract<'a>(
         .units
         .iter()
         .flat_map(|candidate| &candidate.objects)
-        .find(|object| {
-            object.identity == *object_identity && object.name == object_identity.name
-        })?;
+        .find(|object| object.identity == *object_identity)?;
     package
         .units
         .iter()
         .find(|candidate| candidate.source.id() == object.span.file)
         .and_then(|candidate| contract(candidate, &object.name, method_name, is_static))
+}
+
+fn construction_contract<'a>(
+    package: &'a SemanticPackage,
+    unit: &'a SemanticUnit,
+    callee: &SyntaxNode,
+) -> Option<&'a FunctionContract> {
+    let class = callee
+        .children
+        .first()
+        .filter(|_| callee.kind == SyntaxKind::ConstructionExpression)?;
+    let identity = class_designator_identity(unit, class)?;
+    method_contract(package, &identity, "construct", false)
 }
 
 fn function_parameters<'a>(
@@ -2474,31 +2492,7 @@ fn function_parameters<'a>(
         .map(|method| method.parameters.as_slice());
     }
     if callee.kind == SyntaxKind::ConstructionExpression {
-        let class = callee.children.first()?;
-        let class_name = node_text(&unit.source, class);
-        if class_name != "self"
-            && let Some(symbol) = package.resolve_name_at(unit, class.span.start, class_name)
-            && symbol.kind == SymbolKind::Class
-            && let Some(declaration) = symbol.declaration_span
-            && let Some(object) = package
-                .units
-                .iter()
-                .flat_map(|candidate| &candidate.objects)
-                .find(|object| object.span == declaration)
-            && let Some(function) = package
-                .units
-                .iter()
-                .flat_map(|candidate| &candidate.functions)
-                .find(|function| {
-                    function.owner.as_deref() == Some(&object.name)
-                        && function.name == "construct"
-                        && !function.is_static
-                })
-        {
-            return Some(function.parameters.as_slice());
-        }
-        let object_identity = class_designator_identity(unit, class)?;
-        return method_contract(package, &object_identity, "construct", false)
+        return construction_contract(package, unit, callee)
             .map(|function| function.parameters.as_slice());
     }
     if callee.kind != SyntaxKind::Name {
@@ -3654,60 +3648,27 @@ fn validate_call_nodes<'a>(
                         ))
                         .copied()
                 }),
-            SyntaxKind::MemberExpression => {
-                let [receiver, member] = callee.children.as_slice() else {
-                    return Ok(());
-                };
-                let object = infer_value_type(unit, receiver, scoped_bindings)
+            SyntaxKind::MemberExpression => match callee.children.as_slice() {
+                [receiver, member] => infer_value_type(unit, receiver, scoped_bindings)
                     .ok()
                     .flatten()
                     .and_then(|value_type| {
                         let ValueType::Object(identity) = value_type else {
                             return None;
                         };
-                        Some(identity)
-                    });
-                object.as_ref().and_then(|identity| {
-                    method_contract(package, identity, node_text(&unit.source, member), false)
-                })
-            }
-            SyntaxKind::StaticMemberExpression => {
-                let [receiver, member] = callee.children.as_slice() else {
-                    return Ok(());
-                };
-                class_designator_identity(unit, receiver).and_then(|identity| {
-                    method_contract(package, &identity, node_text(&unit.source, member), true)
-                })
-            }
-            SyntaxKind::ConstructionExpression => callee.children.first().and_then(|class| {
-                let name = node_text(&unit.source, class);
-                if name == "self" {
-                    return class_designator_identity(unit, class).and_then(|identity| {
-                        method_contract(package, &identity, "construct", false)
-                    });
+                        method_contract(package, &identity, node_text(&unit.source, member), false)
+                    }),
+                _ => None,
+            },
+            SyntaxKind::StaticMemberExpression => match callee.children.as_slice() {
+                [receiver, member] => {
+                    class_designator_identity(unit, receiver).and_then(|identity| {
+                        method_contract(package, &identity, node_text(&unit.source, member), true)
+                    })
                 }
-                package
-                    .resolve_name_at(unit, class.span.start, name)
-                    .and_then(|symbol| symbol.declaration_span)
-                    .and_then(|declaration_span| {
-                        package
-                            .units
-                            .iter()
-                            .flat_map(|candidate| &candidate.objects)
-                            .find(|object| object.span == declaration_span)
-                    })
-                    .and_then(|object| {
-                        package
-                            .units
-                            .iter()
-                            .flat_map(|candidate| &candidate.functions)
-                            .find(|function| {
-                                function.owner.as_deref() == Some(&object.name)
-                                    && function.name == "construct"
-                                    && !function.is_static
-                            })
-                    })
-            }),
+                _ => None,
+            },
+            SyntaxKind::ConstructionExpression => construction_contract(package, unit, callee),
             _ => None,
         };
         if let Some(contract) = contract {
@@ -12905,6 +12866,17 @@ fn validate_task_consumption(package: &SemanticPackage) -> Result<(), SemanticFa
         }
     }
     Ok(())
+}
+
+pub(crate) fn binding_is_read(package: &SemanticPackage, declaration_span: Span) -> bool {
+    package
+        .binding_events
+        .get(&span_key(declaration_span))
+        .is_some_and(|events| {
+            events
+                .iter()
+                .any(|event| matches!(event, BindingEvent::Read { .. }))
+        })
 }
 
 pub(crate) fn binding_store_value_is_read(
