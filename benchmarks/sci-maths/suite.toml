@@ -17,6 +17,9 @@ path = "lanes/python.toml"
 path = "lanes/rust.toml"
 
 [[lanes]]
+path = "lanes/go.toml"
+
+[[lanes]]
 path = "lanes/python-scipy.toml"
 
 [[lanes]]
@@ -25,7 +28,7 @@ path = "lanes/terrane-numr.toml"
 [[groups]]
 id = "language-baseline"
 name = "Language baseline"
-lanes = ["terrane", "python", "rust"]
+lanes = ["terrane", "python", "rust", "go"]
 
 [[groups.problems]]
 path = "problems/scalar-reduction"

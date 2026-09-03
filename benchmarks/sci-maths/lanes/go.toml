@@ -1,0 +1,12 @@
+id = "go"
+name = "Clean, idiomatic Go control"
+implementation = "go/main.go"
+prepare = ["go", "build", "-trimpath", "-o", "${implementation_dir}/benchmark", "${implementation}"]
+run = ["${implementation_dir}/benchmark"]
+cache-paths = ["${implementation_dir}/benchmark"]
+environment = [["go", "version"]]
+
+[metadata]
+implementation = "standalone Go compiled directly with go build"
+native-build-profile = "default optimized Go build with trimmed paths"
+scientific-packages = false

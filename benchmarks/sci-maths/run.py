@@ -1260,6 +1260,10 @@ def markdown_text(value: Any) -> str:
     return str(value).replace("|", "\\|").replace("\n", " ")
 
 
+def format_slowdown(wall_seconds: float, fastest_wall_seconds: float) -> str:
+    return f"{(wall_seconds / fastest_wall_seconds - 1.0) * 100.0:.1f}%"
+
+
 def render_markdown(report: dict[str, Any], raw_report_name: str) -> str:
     environment = report["environment"]
     measurement = report["measurement"]
@@ -1341,47 +1345,74 @@ def render_markdown(report: dict[str, Any], raw_report_name: str) -> str:
             + " |"
         )
 
-    lines.extend(["", "## Execution results"])
+    lines.extend(
+        [
+            "",
+            "## Execution results",
+            "",
+            "Each problem uses its fastest median wall time as the baseline.",
+        ]
+    )
     for group in report["groups"]:
-        lines.extend(
-            [
-                "",
-                f"### {markdown_text(group['name'])}",
-                "",
-                "| Problem | Lane | Size | Result | Median wall time | Range | Median peak memory | Peak memory range | Warnings |",
-                "|---|---|---:|---:|---:|---:|---:|---:|---:|",
+        lines.extend(["", f"### {markdown_text(group['name'])}"])
+        group_results = [
+            result
+            for result in report["results"]
+            if result["group"] == group["id"]
+        ]
+        for problem_id in dict.fromkeys(result["problem"] for result in group_results):
+            problem_results = [
+                result for result in group_results if result["problem"] == problem_id
             ]
-        )
-        for result in (
-            result for result in report["results"] if result["group"] == group["id"]
-        ):
-            runs = result["runs"]
-            times = [run["wall_seconds"] for run in runs]
-            peaks = [
-                run["peak_memory_bytes"]
-                for run in runs
-                if run["peak_memory_bytes"] is not None
-            ]
-            time_range = f"{format_seconds(min(times))}–{format_seconds(max(times))}"
-            lines.append(
-                "| "
-                + " | ".join(
-                    [
-                        markdown_text(result["title"]),
-                        markdown_text(result["lane"]),
-                        str(result["performance_profile"]["size"]),
-                        markdown_text(result["performance_result"]),
-                        format_seconds(median(times)),
-                        time_range,
-                        format_bytes(int(median(peaks))) if peaks else "—",
-                        f"{format_bytes(min(peaks))}–{format_bytes(max(peaks))}"
-                        if peaks
-                        else "—",
-                        str(sum(len(run["warning_lines"]) for run in runs)),
-                    ]
-                )
-                + " |"
+            ranked_results = sorted(
+                (
+                    (median(run["wall_seconds"] for run in result["runs"]), result)
+                    for result in problem_results
+                ),
+                key=lambda ranked: (ranked[0], ranked[1]["lane"]),
             )
+            fastest_wall_seconds = ranked_results[0][0]
+            lines.extend(
+                [
+                    "",
+                    f"#### {markdown_text(problem_results[0]['title'])}",
+                    "",
+                    "| Lane | Size | Result | Median wall time | Longer than fastest | Range | Median peak memory | Peak memory range | Warnings |",
+                    "|---|---:|---:|---:|---:|---:|---:|---:|---:|",
+                ]
+            )
+            for median_wall_seconds, result in ranked_results:
+                runs = result["runs"]
+                times = [run["wall_seconds"] for run in runs]
+                peaks = [
+                    run["peak_memory_bytes"]
+                    for run in runs
+                    if run["peak_memory_bytes"] is not None
+                ]
+                time_range = (
+                    f"{format_seconds(min(times))}–{format_seconds(max(times))}"
+                )
+                lines.append(
+                    "| "
+                    + " | ".join(
+                        [
+                            markdown_text(result["lane"]),
+                            str(result["performance_profile"]["size"]),
+                            markdown_text(result["performance_result"]),
+                            format_seconds(median_wall_seconds),
+                            format_slowdown(
+                                median_wall_seconds, fastest_wall_seconds
+                            ),
+                            time_range,
+                            format_bytes(int(median(peaks))) if peaks else "—",
+                            f"{format_bytes(min(peaks))}–{format_bytes(max(peaks))}"
+                            if peaks
+                            else "—",
+                            str(sum(len(run["warning_lines"]) for run in runs)),
+                        ]
+                    )
+                    + " |"
+                )
 
     preparation_results = [
         result

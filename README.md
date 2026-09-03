@@ -92,10 +92,10 @@ The [language specification and compiler architecture draft](docs/language-spec-
 
 The [first-version compiler plan](docs/compiler-plan.md) describes the implementation milestones and the capabilities targeted for the first usable release.
 
-The [scientific mathematics benchmark corpus](benchmarks/sci-maths/README.md) compares clean Terrane
-and standard-library Python implementations under shared correctness, runtime, and peak-memory
-contracts. Its checked-in reports preserve the full machine, toolchain, build, and process evidence
-behind published measurements.
+The [scientific mathematics benchmark corpus](benchmarks/sci-maths/README.md) compares clean
+Terrane, standard-library Python, Rust, and Go implementations under shared correctness, runtime,
+and peak-memory contracts. Its checked-in reports preserve the full machine, toolchain, build, and
+process evidence behind published measurements.
 
 The `demos/` directory contains exploratory design exercises. These files deliberately stress ambitious or unfinished ideas and should not be read as examples of features already supported by a compiler.
 

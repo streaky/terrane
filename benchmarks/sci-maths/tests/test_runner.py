@@ -426,7 +426,8 @@ class RunnerContracts(unittest.TestCase):
 
         def fake_execute(problem, selected_lane, prepared, profile_name, timeout):
             calls.append((profile_name, problem["id"], selected_lane.lane_id))
-            return 1, runner.ProcessResult(0, "1\n", "", 0.01, 1024)
+            wall_seconds = 0.02 if selected_lane.lane_id == "first" else 0.01
+            return 1, runner.ProcessResult(0, "1\n", "", wall_seconds, 1024)
 
         runner.execute = fake_execute
         try:
@@ -494,9 +495,15 @@ class RunnerContracts(unittest.TestCase):
         self.assertIn("Memory: unavailable: fixture cgroup delegation is missing.", markdown)
         self.assertIn("Memory retry command: `systemd-run", markdown)
         self.assertIn("### Fixture group", markdown)
-        self.assertIn("| alpha | first |", markdown)
-        self.assertIn("| beta | second |", markdown)
-        self.assertNotIn("| beta | first |", markdown)
+        self.assertIn("#### alpha", markdown)
+        self.assertIn("#### beta", markdown)
+        alpha_results = markdown.split("#### alpha", 1)[1].split("#### beta", 1)[0]
+        self.assertLess(alpha_results.index("| second |"), alpha_results.index("| first |"))
+        self.assertIn("| second | 1 | 1 | 10.00 ms | 0.0% |", alpha_results)
+        self.assertIn("| first | 1 | 1 | 20.00 ms | 100.0% |", alpha_results)
+        beta_results = markdown.split("#### beta", 1)[1]
+        self.assertIn("| second |", beta_results)
+        self.assertNotIn("| first |", beta_results)
 
 
 if __name__ == "__main__":
