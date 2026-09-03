@@ -480,10 +480,6 @@ pub(super) fn rust_value_type(package: &SemanticPackage, ty: ValueType) -> Strin
     }
 }
 
-pub(super) const fn is_numeric(ty: ScalarType) -> bool {
-    ty.is_integer() || matches!(ty, ScalarType::Float32 | ScalarType::Float64)
-}
-
 pub(super) fn integer_range_contains(destination: ScalarType, source: ScalarType) -> bool {
     let Some((destination_signed, destination_bits)) = fixed_integer_shape(destination) else {
         return false;

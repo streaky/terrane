@@ -25,6 +25,8 @@ mod ownership;
 #[cfg(test)]
 mod tests;
 
+// This prelude preserves the monolith's shared private namespace during the mechanical split.
+// New cross-module dependencies should use explicit imports; narrow these globs as modules change.
 mod prelude {
     pub(super) use std::collections::{BTreeMap, BTreeSet};
 
@@ -69,4 +71,4 @@ pub(crate) use model::{
     CoercionPolicy, ContextualConstant, FloatMemberOperation, StringFamily, float_member_contract,
 };
 pub(crate) use numeric::{bound_method, contextual_constant, promoted_integer_type};
-pub(crate) use types::{narrowed_optional_type, narrowed_value_type};
+pub(crate) use types::{is_numeric, narrowed_optional_type, narrowed_value_type};

@@ -1,4 +1,4 @@
-use super::prelude::*;
+use super::super::prelude::*;
 
 impl Emitter<'_> {
     pub(super) fn name(&self, node: &SyntaxNode) -> String {

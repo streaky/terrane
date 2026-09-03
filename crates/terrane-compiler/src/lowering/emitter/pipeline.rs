@@ -1,4 +1,4 @@
-use super::prelude::*;
+use super::super::prelude::*;
 
 pub(super) fn module_destination(unit: &SemanticUnit) -> ModuleDestination {
     if unit.bundled || unit.namespace == "/deps" || unit.namespace.starts_with("/deps/") {
@@ -37,9 +37,9 @@ pub(crate) fn lower(package: &SemanticPackage) -> Program {
         .iter()
         .any(|unit| unit.functions.iter().any(|function| function.is_async))
     {
-        let mut support = include_str!("../runtime/async.rs").to_owned();
+        let mut support = include_str!("../../runtime/async.rs").to_owned();
         if package_uses_task_scope(package) {
-            support.push_str(include_str!("../runtime/async_cancellable.rs"));
+            support.push_str(include_str!("../../runtime/async_cancellable.rs"));
         }
         runtime.push(GeneratedModule {
             name: "async",
@@ -49,10 +49,10 @@ pub(crate) fn lower(package: &SemanticPackage) -> Program {
     if package_uses_task_scope(package) {
         let support = match package.executor {
             crate::package::ExecutorProfile::Cooperative => {
-                include_str!("../runtime/tasks_cooperative.rs")
+                include_str!("../../runtime/tasks_cooperative.rs")
             }
             crate::package::ExecutorProfile::Threaded => {
-                include_str!("../runtime/tasks_threaded.rs")
+                include_str!("../../runtime/tasks_threaded.rs")
             }
         };
         runtime.push(GeneratedModule {
@@ -110,16 +110,16 @@ pub(crate) fn lower(package: &SemanticPackage) -> Program {
         || uses_platform_capabilities;
     if uses_streams || uses_filesystem {
         let mut items = vec![Item::generated(include_str!(
-            "../runtime/platform_streams.rs"
+            "../../runtime/platform_streams.rs"
         ))];
         if uses_streams {
             items.push(Item::generated(include_str!(
-                "../runtime/platform_standard_streams.rs"
+                "../../runtime/platform_standard_streams.rs"
             )));
         }
         if uses_filesystem {
             items.push(Item::generated(include_str!(
-                "../runtime/platform_files.rs"
+                "../../runtime/platform_files.rs"
             )));
         }
         runtime.push(GeneratedModule {
@@ -131,17 +131,17 @@ pub(crate) fn lower(package: &SemanticPackage) -> Program {
         let mut items = Vec::new();
         if uses_filesystem {
             items.push(Item::generated(include_str!(
-                "../runtime/platform_system.rs"
+                "../../runtime/platform_system.rs"
             )));
         }
         if uses_process {
             if !uses_platform_capabilities {
                 items.push(Item::generated(include_str!(
-                    "../runtime/platform_result_type.rs"
+                    "../../runtime/platform_result_type.rs"
                 )));
             }
             items.push(Item::generated(include_str!(
-                "../runtime/platform_process.rs"
+                "../../runtime/platform_process.rs"
             )));
         }
         runtime.push(GeneratedModule {
@@ -153,22 +153,28 @@ pub(crate) fn lower(package: &SemanticPackage) -> Program {
         let mut items = Vec::new();
         if uses_documents || uses_json || uses_yaml {
             items.push(Item::generated(include_str!(
-                "../runtime/platform_data_base.rs"
+                "../../runtime/platform_data_base.rs"
             )));
         }
         if uses_documents {
             items.push(Item::generated(include_str!(
-                "../runtime/platform_documents.rs"
+                "../../runtime/platform_documents.rs"
             )));
         }
         if uses_json {
-            items.push(Item::generated(include_str!("../runtime/platform_json.rs")));
+            items.push(Item::generated(include_str!(
+                "../../runtime/platform_json.rs"
+            )));
         }
         if uses_yaml {
-            items.push(Item::generated(include_str!("../runtime/platform_yaml.rs")));
+            items.push(Item::generated(include_str!(
+                "../../runtime/platform_yaml.rs"
+            )));
         }
         if uses_urls {
-            items.push(Item::generated(include_str!("../runtime/platform_urls.rs")));
+            items.push(Item::generated(include_str!(
+                "../../runtime/platform_urls.rs"
+            )));
         }
         runtime.push(GeneratedModule {
             name: "platform_data",
@@ -177,8 +183,8 @@ pub(crate) fn lower(package: &SemanticPackage) -> Program {
     }
     if uses_platform_capabilities {
         let mut items = vec![
-            Item::generated(include_str!("../runtime/platform_capability_types.rs")),
-            Item::generated(include_str!("../runtime/platform_result_type.rs")),
+            Item::generated(include_str!("../../runtime/platform_capability_types.rs")),
+            Item::generated(include_str!("../../runtime/platform_result_type.rs")),
         ];
         if uses_random
             || uses_compression
@@ -188,41 +194,45 @@ pub(crate) fn lower(package: &SemanticPackage) -> Program {
             || uses_concurrency
         {
             items.push(Item::generated(include_str!(
-                "../runtime/platform_int_conversion.rs"
+                "../../runtime/platform_int_conversion.rs"
             )));
         }
         items.push(Item::generated(include_str!(
-            "../runtime/platform_capability_base.rs"
+            "../../runtime/platform_capability_base.rs"
         )));
         if uses_random {
             items.push(Item::generated(include_str!(
-                "../runtime/platform_random.rs"
+                "../../runtime/platform_random.rs"
             )));
         }
         if uses_codecs {
             items.push(Item::generated(include_str!(
-                "../runtime/platform_codecs.rs"
+                "../../runtime/platform_codecs.rs"
             )));
         }
         if uses_compression {
             items.push(Item::generated(include_str!(
-                "../runtime/platform_compression.rs"
+                "../../runtime/platform_compression.rs"
             )));
         }
         if uses_uuid {
-            items.push(Item::generated(include_str!("../runtime/platform_uuid.rs")));
+            items.push(Item::generated(include_str!(
+                "../../runtime/platform_uuid.rs"
+            )));
         }
         if uses_networking {
             items.push(Item::generated(include_str!(
-                "../runtime/platform_networking.rs"
+                "../../runtime/platform_networking.rs"
             )));
         }
         if uses_tls {
-            items.push(Item::generated(include_str!("../runtime/platform_tls.rs")));
+            items.push(Item::generated(include_str!(
+                "../../runtime/platform_tls.rs"
+            )));
         }
         if uses_concurrency {
             items.push(Item::generated(include_str!(
-                "../runtime/platform_concurrency.rs"
+                "../../runtime/platform_concurrency.rs"
             )));
         }
         runtime.push(GeneratedModule {
@@ -236,14 +246,7 @@ pub(crate) fn lower(package: &SemanticPackage) -> Program {
                 && descriptor_binding_is_materialized(package, unit, binding.span)
         })
     }) {
-        runtime.push(GeneratedModule {
-            name: "reflection",
-            items: vec![Item::generated(
-                "#[allow(dead_code)]\n\
-                 #[derive(Clone, Copy)]\n\
-                 struct TerraneDescriptor { identity: &'static str, name: &'static str, kind: &'static str }\n",
-            )],
-        });
+        runtime.push(descriptor_runtime_module());
     }
     emit_global_storage(package, &registry, &mut globals);
     let modules = package
@@ -259,31 +262,7 @@ pub(crate) fn lower(package: &SemanticPackage) -> Program {
                     items: vec![Item::generated(&rust)],
                 };
             }
-            let mut emitter = Emitter {
-                registry: &registry,
-                package,
-                unit,
-                source: &unit.source,
-                output: String::new(),
-                indent: 0,
-                continue_label: None,
-                loop_counter: 0,
-                return_type: None,
-                parameter_types: Vec::new(),
-                namespace_initializer: None,
-                propagate_errors: false,
-                discarded_call: None,
-                function_errors: false,
-                try_counter: 0,
-                current_error: None,
-                current_function: None,
-                current_object: None,
-                try_completion: false,
-                in_loop: false,
-                bounded_integer_ranges: Vec::new(),
-                closure_depth: 0,
-                assignment_target: false,
-            };
+            let mut emitter = Emitter::new(&registry, package, unit);
             emitter.emit_union_types();
             let mut items = Vec::new();
             if !emitter.output.is_empty() {

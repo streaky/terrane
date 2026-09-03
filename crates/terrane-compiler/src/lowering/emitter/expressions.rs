@@ -1,4 +1,4 @@
-use super::prelude::*;
+use super::super::prelude::*;
 
 impl Emitter<'_> {
     pub(super) fn expression(&mut self, node: &SyntaxNode) -> String {
@@ -106,7 +106,11 @@ impl Emitter<'_> {
         clippy::too_many_lines,
         reason = "destination-directed lowering keeps every recursive value form in one auditable dispatch"
     )]
-    pub(super) fn expression_as(&mut self, node: &SyntaxNode, value_type: ValueType) -> String {
+    pub(in crate::lowering) fn expression_as(
+        &mut self,
+        node: &SyntaxNode,
+        value_type: ValueType,
+    ) -> String {
         if matches!(
             &value_type,
             ValueType::List(_)
@@ -1064,7 +1068,7 @@ impl Emitter<'_> {
         count_references(self, &self.unit.tree.root, binding.span, name) == 1
     }
 
-    pub(super) fn value_type(&self, node: &SyntaxNode) -> Option<ValueType> {
+    pub(in crate::lowering) fn value_type(&self, node: &SyntaxNode) -> Option<ValueType> {
         if let Some(value_type) = self.unit.inferred_value_type(node) {
             return Some(value_type);
         }

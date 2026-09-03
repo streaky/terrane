@@ -923,7 +923,7 @@ pub(super) fn destination_mismatch_message(
     }
 }
 
-pub(super) const fn is_numeric(ty: ScalarType) -> bool {
+pub(crate) const fn is_numeric(ty: ScalarType) -> bool {
     ty.is_integer() || matches!(ty, ScalarType::Float32 | ScalarType::Float64)
 }
 

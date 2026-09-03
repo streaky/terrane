@@ -1,4 +1,20 @@
-use super::prelude::*;
+mod call_support;
+mod calls;
+mod context;
+mod expressions;
+mod items;
+mod members;
+pub(super) mod pipeline;
+mod statements;
+
+use std::{cell::RefCell, collections::BTreeMap};
+
+use num_bigint::BigInt;
+
+use crate::{
+    SourceFile,
+    semantics::{ObjectIdentity, SemanticPackage, SemanticUnit, ValueType},
+};
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(super) struct LoweringSite {
@@ -89,27 +105,61 @@ pub(super) struct BoundedIntegerRange {
     reason = "these independent lexical control contexts are saved and restored separately"
 )]
 pub(super) struct Emitter<'a> {
-    pub(super) registry: &'a LoweringRegistry,
-    pub(super) package: &'a SemanticPackage,
-    pub(super) unit: &'a SemanticUnit,
-    pub(super) source: &'a SourceFile,
-    pub(super) output: String,
-    pub(super) indent: usize,
-    pub(super) continue_label: Option<String>,
-    pub(super) loop_counter: usize,
-    pub(super) return_type: Option<ValueType>,
-    pub(super) parameter_types: Vec<(String, ValueType)>,
-    pub(super) namespace_initializer: Option<(String, String)>,
-    pub(super) propagate_errors: bool,
-    pub(super) discarded_call: Option<crate::Span>,
-    pub(super) function_errors: bool,
-    pub(super) try_counter: usize,
-    pub(super) current_error: Option<String>,
-    pub(super) current_function: Option<String>,
-    pub(super) current_object: Option<ObjectIdentity>,
-    pub(super) try_completion: bool,
-    pub(super) in_loop: bool,
-    pub(super) closure_depth: usize,
-    pub(super) assignment_target: bool,
-    pub(super) bounded_integer_ranges: Vec<BoundedIntegerRange>,
+    registry: &'a LoweringRegistry,
+    package: &'a SemanticPackage,
+    unit: &'a SemanticUnit,
+    source: &'a SourceFile,
+    output: String,
+    indent: usize,
+    continue_label: Option<String>,
+    loop_counter: usize,
+    return_type: Option<ValueType>,
+    parameter_types: Vec<(String, ValueType)>,
+    namespace_initializer: Option<(String, String)>,
+    propagate_errors: bool,
+    discarded_call: Option<crate::Span>,
+    function_errors: bool,
+    try_counter: usize,
+    current_error: Option<String>,
+    current_function: Option<String>,
+    current_object: Option<ObjectIdentity>,
+    try_completion: bool,
+    in_loop: bool,
+    closure_depth: usize,
+    assignment_target: bool,
+    bounded_integer_ranges: Vec<BoundedIntegerRange>,
+}
+
+impl<'a> Emitter<'a> {
+    pub(in crate::lowering) fn new(
+        registry: &'a LoweringRegistry,
+        package: &'a SemanticPackage,
+        unit: &'a SemanticUnit,
+    ) -> Self {
+        Self {
+            registry,
+            package,
+            unit,
+            source: &unit.source,
+            output: String::new(),
+            indent: 0,
+            continue_label: None,
+            loop_counter: 0,
+            return_type: None,
+            parameter_types: Vec::new(),
+            namespace_initializer: None,
+            propagate_errors: false,
+            discarded_call: None,
+            function_errors: false,
+            try_counter: 0,
+            current_error: None,
+            current_function: None,
+            current_object: None,
+            try_completion: false,
+            in_loop: false,
+            closure_depth: 0,
+            assignment_target: false,
+            bounded_integer_ranges: Vec::new(),
+        }
+    }
 }

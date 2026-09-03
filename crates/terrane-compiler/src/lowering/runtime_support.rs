@@ -1,4 +1,14 @@
 use super::prelude::*;
+pub(super) fn descriptor_runtime_module() -> GeneratedModule {
+    GeneratedModule {
+        name: "reflection",
+        items: vec![Item::generated(
+            "#[allow(dead_code)]\n\
+             #[derive(Clone, Copy)]\n\
+             struct TerraneDescriptor { identity: &'static str, name: &'static str, kind: &'static str }\n",
+        )],
+    }
+}
 
 pub(super) fn package_uses_task_scope(package: &SemanticPackage) -> bool {
     fn contains(package: &SemanticPackage, unit: &SemanticUnit, node: &SyntaxNode) -> bool {
@@ -615,10 +625,6 @@ pub(super) fn emit_site_tables(output: &mut String, registry: &LoweringRegistry)
     "#});
 }
 
-#[expect(
-    clippy::too_many_lines,
-    reason = "program-global declarations and their initialization policy remain auditable together"
-)]
 pub(super) fn emit_global_storage(
     package: &SemanticPackage,
     registry: &LoweringRegistry,
@@ -648,31 +654,7 @@ pub(super) fn emit_global_storage(
         else {
             continue;
         };
-        let emitter = Emitter {
-            registry,
-            package,
-            unit,
-            source: &unit.source,
-            output: String::new(),
-            indent: 0,
-            continue_label: None,
-            loop_counter: 0,
-            return_type: None,
-            parameter_types: Vec::new(),
-            namespace_initializer: None,
-            propagate_errors: false,
-            discarded_call: None,
-            function_errors: false,
-            try_counter: 0,
-            current_error: None,
-            current_function: None,
-            current_object: None,
-            try_completion: false,
-            in_loop: false,
-            bounded_integer_ranges: Vec::new(),
-            closure_depth: 0,
-            assignment_target: false,
-        };
+        let emitter = Emitter::new(registry, package, unit);
         let value_type = unit
             .typed_bindings
             .iter()
@@ -712,31 +694,7 @@ pub(super) fn emit_global_storage(
                 .iter()
                 .position(|child| child.span == initial_name.span)?;
             let initializer = binding_initializer(initial_node, name_index)?;
-            let mut initial_emitter = Emitter {
-                registry,
-                package,
-                unit: initial_unit,
-                source: &initial_unit.source,
-                output: String::new(),
-                indent: 0,
-                continue_label: None,
-                loop_counter: 0,
-                return_type: None,
-                parameter_types: Vec::new(),
-                namespace_initializer: None,
-                propagate_errors: false,
-                discarded_call: None,
-                function_errors: false,
-                try_counter: 0,
-                current_error: None,
-                current_function: None,
-                current_object: None,
-                try_completion: false,
-                in_loop: false,
-                bounded_integer_ranges: Vec::new(),
-                closure_depth: 0,
-                assignment_target: false,
-            };
+            let mut initial_emitter = Emitter::new(registry, package, initial_unit);
             Some(initial_emitter.expression_as(initializer, ValueType::Scalar(scalar)))
         });
         let initial = initial.map_or_else(|| "None".to_owned(), |value| format!("Some({value})"));

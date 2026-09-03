@@ -1,4 +1,4 @@
-use super::prelude::*;
+use super::super::prelude::*;
 
 impl Emitter<'_> {
     pub(super) fn global_storage(&self, node: &SyntaxNode) -> Option<String> {

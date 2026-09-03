@@ -1,4 +1,4 @@
-use super::prelude::*;
+use super::super::prelude::*;
 
 impl Emitter<'_> {
     pub(super) fn fallible(&self, call: impl AsRef<str>, node: &SyntaxNode) -> String {

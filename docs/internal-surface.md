@@ -12,7 +12,7 @@ Terrane has no importable `/internal` namespace and no `/core/platform-*` compat
 
 Each bundled `/core/*` package is compiled from Terrane source. Before semantic analysis, the compiler seeds that package's own namespace with only the private host bindings needed by its implementation. Their local names begin with `host-`; their lowering identities use `intrinsic:<group>::<operation>`.
 
-The authoritative inventory is `bootstrap_namespaces` in `crates/terrane-compiler/src/semantics.rs`. It groups bindings by their owning package:
+The authoritative inventory is `bootstrap_namespaces` in `crates/terrane-compiler/src/semantics/bootstrap.rs`. It groups bindings by their owning package:
 
 |Owning package|Host groups|Purpose|
 |---|---|---|
