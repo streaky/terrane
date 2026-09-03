@@ -92,8 +92,10 @@ pub fn terrane_platform_base64_decode(
 // Source: case.trn
 // Namespace: body-core-import
 fn main() {
-    let encoded: String = encode_base64(Vec::from([97, 98, 99]), false, true);
-    println!("{}", terrane_scalar_support::scalar_text(&encoded));
+    println!(
+        "{}", terrane_scalar_support::scalar_text(&encode_base64(Vec::from([97, 98, 99]),
+        false, true))
+    );
 }
 // Source: core/codecs.trn
 // Namespace: core/codecs

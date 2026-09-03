@@ -1,6 +1,8 @@
 namespace body-selective-import
 
-function main;
+function encoded string;
     from /core/codecs import encode-base64
-    encoded string = encode-base64; b'abc', false, true
-    print; encoded
+    return encode-base64; b'abc', false, true
+
+function main;
+    print; (encoded;)

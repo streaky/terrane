@@ -1,0 +1,11 @@
+namespace app
+from /core/output import print
+from /left import render as render-left
+from /right import render as render-right
+
+function apply string; callback function to string
+    return callback;
+
+function main;
+    print; (apply; render-left)
+    print; (apply; render-right)

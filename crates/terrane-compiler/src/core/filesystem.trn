@@ -2,7 +2,7 @@ namespace core/filesystem
 
 from /core/filesystem/paths import path
 
-class operation-result
+class filesystem-operation-result
     failed bool = false
     message string = ''
 
@@ -101,21 +101,21 @@ function file-write file-data; capability filesystem, file ref file-handle, data
     raw = host-write; file.handle, data, offset
     return file-data; data, raw.completed, false, raw.failed, raw.message
 
-function file-flush operation-result; capability filesystem, file ref file-handle
+function file-flush filesystem-operation-result; capability filesystem, file ref file-handle
     raw = host-flush; file.handle
-    return operation-result; raw.failed, raw.message
+    return filesystem-operation-result; raw.failed, raw.message
 
-function file-sync-data operation-result; capability filesystem, file ref file-handle
+function file-sync-data filesystem-operation-result; capability filesystem, file ref file-handle
     raw = host-sync-data; file.handle
-    return operation-result; raw.failed, raw.message
+    return filesystem-operation-result; raw.failed, raw.message
 
-function file-sync-all operation-result; capability filesystem, file ref file-handle
+function file-sync-all filesystem-operation-result; capability filesystem, file ref file-handle
     raw = host-sync-all; file.handle
-    return operation-result; raw.failed, raw.message
+    return filesystem-operation-result; raw.failed, raw.message
 
-function file-close operation-result; capability filesystem, file file-handle
+function file-close filesystem-operation-result; capability filesystem, file file-handle
     raw = host-close; file.handle
-    return operation-result; raw.failed, raw.message
+    return filesystem-operation-result; raw.failed, raw.message
 
 class filesystem
     private authority host-filesystem-authority
@@ -170,14 +170,14 @@ function filesystem-read-bounded file-data; capability filesystem, target path, 
     record = host-filesystem-read-bounded; target.text, limit
     return file-data; (host-result-bytes; record), (host-result-int; record), true, (host-result-failed; record), (host-result-message; record)
 
-function filesystem-write-atomic operation-result; capability filesystem, target path, data bytes
+function filesystem-write-atomic filesystem-operation-result; capability filesystem, target path, data bytes
     record = host-filesystem-write-atomic; target.text, data
-    return operation-result; (host-result-failed; record), (host-result-message; record)
+    return filesystem-operation-result; (host-result-failed; record), (host-result-message; record)
 
-function filesystem-rename operation-result; capability filesystem, source path, destination path
+function filesystem-rename filesystem-operation-result; capability filesystem, source path, destination path
     record = host-filesystem-rename; source.text, destination.text
-    return operation-result; (host-result-failed; record), (host-result-message; record)
+    return filesystem-operation-result; (host-result-failed; record), (host-result-message; record)
 
-function filesystem-remove operation-result; capability filesystem, target path
+function filesystem-remove filesystem-operation-result; capability filesystem, target path
     record = host-filesystem-remove; target.text
-    return operation-result; (host-result-failed; record), (host-result-message; record)
+    return filesystem-operation-result; (host-result-failed; record), (host-result-message; record)

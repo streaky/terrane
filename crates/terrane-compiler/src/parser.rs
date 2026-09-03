@@ -66,6 +66,15 @@ impl Parser<'_> {
             "class" => self.parse_object_declaration(SyntaxKind::ClassDeclaration),
             "interface" => self.parse_object_declaration(SyntaxKind::InterfaceDeclaration),
             "trait" => self.parse_object_declaration(SyntaxKind::TraitDeclaration),
+            "public" | "private" | "protected" if self.peek_text(1) == Some("class") => {
+                self.parse_object_declaration(SyntaxKind::ClassDeclaration)
+            }
+            "public" | "private" | "protected" if self.peek_text(1) == Some("interface") => {
+                self.parse_object_declaration(SyntaxKind::InterfaceDeclaration)
+            }
+            "public" | "private" | "protected" if self.peek_text(1) == Some("trait") => {
+                self.parse_object_declaration(SyntaxKind::TraitDeclaration)
+            }
             "global" | "constant" | "pure" | "io" | "blocks" | "mutating" | "mutates"
             | "awaits" | "foreign"
                 if self.peek_text(1) == Some("function") =>
@@ -171,6 +180,7 @@ impl Parser<'_> {
     fn parse_object_declaration(&mut self, kind: SyntaxKind) -> SyntaxNode {
         let start = self.position;
         let mut children = Vec::new();
+        self.parse_visibility(&mut children);
         self.bump();
         if self.at(TokenKind::Identifier) {
             children.push(self.leaf(SyntaxKind::Name));

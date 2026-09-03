@@ -2259,7 +2259,8 @@ impl Emitter<'_> {
             .find(|item| item.span == node.span)
             .expect("analyzed function declaration must have a semantic contract");
         self.line_start();
-        let name = name_override.map_or_else(|| function_name(contract), str::to_owned);
+        let name =
+            name_override.map_or_else(|| function_name(self.package, contract), str::to_owned);
         let async_main = contract.is_async && contract.name == "main" && receiver.is_none();
         write!(
             self.output,
@@ -3906,13 +3907,11 @@ impl Emitter<'_> {
                 }
             }
             ValueType::Function(_, _) if node.kind == SyntaxKind::Name => {
-                if let Some(contract) = self
-                    .unit
-                    .functions
-                    .iter()
-                    .find(|contract| contract.name == self.text(node))
-                {
-                    format!("std::sync::Arc::new({})", function_name(contract))
+                if let Some(contract) = self.contract_for_call(node) {
+                    format!(
+                        "std::sync::Arc::new({})",
+                        function_name(self.package, contract)
+                    )
                 } else {
                     format!("({}).clone()", self.expression(node))
                 }
@@ -5799,7 +5798,7 @@ impl Emitter<'_> {
         let name = if let Some(contract) = &contract
             && contract.owner.is_none()
         {
-            function_name(contract)
+            function_name(self.package, contract)
         } else if contract
             .as_ref()
             .is_some_and(|contract| contract.owner.is_some())
@@ -7553,8 +7552,24 @@ fn rust_builtin_error_kind(kind: &str) -> Option<&'static str> {
     }
 }
 
-fn function_name(contract: &FunctionContract) -> String {
-    if contract.name == "main" {
+fn function_name(package: &SemanticPackage, contract: &FunctionContract) -> String {
+    let duplicate = contract.owner.is_none()
+        && package
+            .units
+            .iter()
+            .flat_map(|unit| &unit.functions)
+            .any(|candidate| {
+                candidate.owner.is_none()
+                    && candidate.name == contract.name
+                    && candidate.span != contract.span
+            });
+    if duplicate {
+        format!(
+            "{}_terrane_f{}",
+            rust_name(&contract.name),
+            contract.span.file
+        )
+    } else if contract.name == "main" {
         "main".to_owned()
     } else {
         rust_name(&contract.name)

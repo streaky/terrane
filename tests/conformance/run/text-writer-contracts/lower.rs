@@ -646,8 +646,8 @@ fn main() {
     );
     let resumed: WriteResult = writer.resume(partial);
     let line: WriteResult = writer.line(String::from("x"));
-    let data_sync: OperationResult = writer.sync_data();
-    let all_sync: OperationResult = writer.sync_all();
+    let data_sync: StreamOperationResult = writer.sync_data();
+    let all_sync: StreamOperationResult = writer.sync_all();
     println!("{}", terrane_scalar_support::scalar_text(&prefix.completed));
     println!("{}", terrane_scalar_support::scalar_text(&resumed.completed));
     println!("{}", terrane_scalar_support::scalar_text(&line.completed));
@@ -658,11 +658,11 @@ fn main() {
 // Source: core/streams.trn
 // Namespace: core/streams
 #[derive(Clone)]
-pub struct OperationResult {
+pub struct StreamOperationResult {
     pub failed: bool,
     pub message: String,
 }
-impl OperationResult {
+impl StreamOperationResult {
     pub fn terrane_construct(failed: bool, message: String) -> Self {
         let mut value = Self {
             failed: false,
@@ -906,9 +906,9 @@ impl ByteReader {
     pub fn text(self, codec: terrane_string_support::Encoding) -> TextReader {
         return TextReader::terrane_construct(self.handle.clone(), codec);
     }
-    pub fn close(self) -> OperationResult {
+    pub fn close(self) -> StreamOperationResult {
         let raw: TerranePlatformUnitResult = terrane_platform_close(&self.handle);
-        return OperationResult::terrane_construct(
+        return StreamOperationResult::terrane_construct(
             raw.failed,
             raw.message.clone().clone(),
         );
@@ -998,30 +998,30 @@ impl ByteWriter {
     pub fn text(self, codec: terrane_string_support::Encoding) -> TextWriter {
         return TextWriter::terrane_construct(self.handle.clone(), codec);
     }
-    pub fn flush(&self) -> OperationResult {
+    pub fn flush(&self) -> StreamOperationResult {
         let raw: TerranePlatformUnitResult = terrane_platform_flush(&self.handle);
-        return OperationResult::terrane_construct(
+        return StreamOperationResult::terrane_construct(
             raw.failed,
             raw.message.clone().clone(),
         );
     }
-    pub fn sync_data(&self) -> OperationResult {
+    pub fn sync_data(&self) -> StreamOperationResult {
         let raw: TerranePlatformUnitResult = terrane_platform_sync_data(&self.handle);
-        return OperationResult::terrane_construct(
+        return StreamOperationResult::terrane_construct(
             raw.failed,
             raw.message.clone().clone(),
         );
     }
-    pub fn sync_all(&self) -> OperationResult {
+    pub fn sync_all(&self) -> StreamOperationResult {
         let raw: TerranePlatformUnitResult = terrane_platform_sync_all(&self.handle);
-        return OperationResult::terrane_construct(
+        return StreamOperationResult::terrane_construct(
             raw.failed,
             raw.message.clone().clone(),
         );
     }
-    pub fn close(self) -> OperationResult {
+    pub fn close(self) -> StreamOperationResult {
         let raw: TerranePlatformUnitResult = terrane_platform_close(&self.handle);
-        return OperationResult::terrane_construct(
+        return StreamOperationResult::terrane_construct(
             raw.failed,
             raw.message.clone().clone(),
         );
@@ -1185,9 +1185,9 @@ impl TextReader {
             )?,
         );
     }
-    pub fn close(self) -> OperationResult {
+    pub fn close(self) -> StreamOperationResult {
         let raw: TerranePlatformUnitResult = terrane_platform_close(&self.handle);
-        return OperationResult::terrane_construct(
+        return StreamOperationResult::terrane_construct(
             raw.failed,
             raw.message.clone().clone(),
         );
@@ -1297,30 +1297,30 @@ impl TextWriter {
     pub async fn write_async(&self, text: String) -> WriteResult {
         return self.write(text);
     }
-    pub fn flush(&self) -> OperationResult {
+    pub fn flush(&self) -> StreamOperationResult {
         let raw: TerranePlatformUnitResult = terrane_platform_flush(&self.handle);
-        return OperationResult::terrane_construct(
+        return StreamOperationResult::terrane_construct(
             raw.failed,
             raw.message.clone().clone(),
         );
     }
-    pub fn sync_data(&self) -> OperationResult {
+    pub fn sync_data(&self) -> StreamOperationResult {
         let raw: TerranePlatformUnitResult = terrane_platform_sync_data(&self.handle);
-        return OperationResult::terrane_construct(
+        return StreamOperationResult::terrane_construct(
             raw.failed,
             raw.message.clone().clone(),
         );
     }
-    pub fn sync_all(&self) -> OperationResult {
+    pub fn sync_all(&self) -> StreamOperationResult {
         let raw: TerranePlatformUnitResult = terrane_platform_sync_all(&self.handle);
-        return OperationResult::terrane_construct(
+        return StreamOperationResult::terrane_construct(
             raw.failed,
             raw.message.clone().clone(),
         );
     }
-    pub fn close(self) -> OperationResult {
+    pub fn close(self) -> StreamOperationResult {
         let raw: TerranePlatformUnitResult = terrane_platform_close(&self.handle);
-        return OperationResult::terrane_construct(
+        return StreamOperationResult::terrane_construct(
             raw.failed,
             raw.message.clone().clone(),
         );

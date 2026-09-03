@@ -661,21 +661,23 @@ fn main() {
     println!("{}", terrane_scalar_support::scalar_text(&invalid_ip.failed));
     let scoped_ip: IpResult = ip_address_from_string(String::from("fe80::1%eth0"));
     println!("{}", terrane_scalar_support::scalar_text(&scoped_ip.failed));
-    let international: HostNameResult = parse_host_name(String::from("bücher.example"));
+    let international: NetworkHostNameResult = parse_host_name(
+        String::from("bücher.example"),
+    );
     println!("{}", terrane_scalar_support::scalar_text(&international.value.value));
-    let invalid_host: HostNameResult = parse_host_name(
+    let invalid_host: NetworkHostNameResult = parse_host_name(
         String::from("contains space.example"),
     );
     println!("{}", terrane_scalar_support::scalar_text(&invalid_host.failed));
     let port: i64 = 443;
     let deadline: i64 = 1000;
-    let cancellation: CancellationToken = CancellationToken::terrane_construct();
-    cancel_operation(cancellation.clone());
-    let cancelled: OperationOptions = OperationOptions::terrane_construct(
+    let cancellation: NetworkCancellationToken = NetworkCancellationToken::terrane_construct();
+    network_cancel_operation(cancellation.clone());
+    let cancelled: NetworkOperationOptions = NetworkOperationOptions::terrane_construct(
         terrane_int_support::Int::from(deadline as i128),
         cancellation.clone(),
     );
-    let host: HostNameResult = parse_host_name(String::from("localhost"));
+    let host: NetworkHostNameResult = parse_host_name(String::from("localhost"));
     let lookup: DnsResult = lookup_dns(
         host.value,
         terrane_int_support::Int::from(port as i128),
@@ -687,12 +689,12 @@ fn main() {
 // Source: core/networking.trn
 // Namespace: core/networking
 #[derive(Clone)]
-pub struct OperationResult {
+pub struct NetworkOperationResult {
     pub failed: bool,
     pub deadline_exceeded: bool,
     pub message: String,
 }
-impl OperationResult {
+impl NetworkOperationResult {
     pub fn terrane_construct(
         failed: bool,
         deadline_exceeded: bool,
@@ -713,37 +715,39 @@ impl OperationResult {
     }
 }
 #[derive(Clone)]
-pub struct CancellationToken {
+pub struct NetworkCancellationToken {
     pub handle: TerranePlatformCapability,
 }
-impl CancellationToken {
+impl NetworkCancellationToken {
     pub fn terrane_construct() -> Self {
         Self {
             handle: terrane_platform_cancellation_token(),
         }
     }
 }
-pub fn cancel_operation(cancellation: CancellationToken) -> OperationResult {
+pub fn network_cancel_operation(
+    cancellation: NetworkCancellationToken,
+) -> NetworkOperationResult {
     let raw: TerranePlatformResult = terrane_platform_cancel(&cancellation.handle);
-    return OperationResult::terrane_construct(
+    return NetworkOperationResult::terrane_construct(
         terrane_platform_result_failed(&raw),
         terrane_platform_result_deadline_exceeded(&raw),
         terrane_platform_result_message(&raw),
     );
 }
 #[derive(Clone)]
-pub struct OperationOptions {
+pub struct NetworkOperationOptions {
     pub deadline_ms: terrane_int_support::Int,
-    pub cancellation: CancellationToken,
+    pub cancellation: NetworkCancellationToken,
 }
-impl OperationOptions {
+impl NetworkOperationOptions {
     pub fn terrane_construct(
         deadline_ms: terrane_int_support::Int,
-        cancellation: CancellationToken,
+        cancellation: NetworkCancellationToken,
     ) -> Self {
         let mut value = Self {
             deadline_ms: terrane_int_support::Int::from(30000_i128),
-            cancellation: CancellationToken::terrane_construct(),
+            cancellation: NetworkCancellationToken::terrane_construct(),
         };
         value.construct(deadline_ms, cancellation);
         value
@@ -751,13 +755,15 @@ impl OperationOptions {
     pub fn construct(
         &mut self,
         deadline_ms: terrane_int_support::Int,
-        cancellation: CancellationToken,
+        cancellation: NetworkCancellationToken,
     ) {
         self.deadline_ms = deadline_ms.clone();
         self.cancellation = cancellation.clone();
     }
 }
-pub fn operation_cancellation(options: OperationOptions) -> TerranePlatformCapability {
+pub fn operation_cancellation(
+    options: NetworkOperationOptions,
+) -> TerranePlatformCapability {
     return options.cancellation.handle;
 }
 #[derive(Clone)]
@@ -1029,7 +1035,7 @@ impl TcpStream {
     pub fn read(
         &self,
         limit: terrane_int_support::Int,
-        options: OperationOptions,
+        options: NetworkOperationOptions,
     ) -> IoResult {
         let raw: TerranePlatformResult = terrane_platform_tcp_read(
             &self.handle,
@@ -1048,7 +1054,7 @@ impl TcpStream {
             terrane_platform_result_bool(&raw),
         );
     }
-    pub fn write(&self, data: Vec<u8>, options: OperationOptions) -> IoResult {
+    pub fn write(&self, data: Vec<u8>, options: NetworkOperationOptions) -> IoResult {
         let raw: TerranePlatformResult = terrane_platform_tcp_write(
             &self.handle,
             data,
@@ -1066,32 +1072,32 @@ impl TcpStream {
             false,
         );
     }
-    pub fn configure(&self, options: TcpOptions) -> OperationResult {
+    pub fn configure(&self, options: TcpOptions) -> NetworkOperationResult {
         let raw: TerranePlatformResult = terrane_platform_tcp_configure(
             &self.handle,
             options.no_delay,
             options.ttl,
         );
-        return OperationResult::terrane_construct(
+        return NetworkOperationResult::terrane_construct(
             terrane_platform_result_failed(&raw),
             terrane_platform_result_deadline_exceeded(&raw),
             terrane_platform_result_message(&raw),
         );
     }
-    pub fn shutdown(&self, direction: String) -> OperationResult {
+    pub fn shutdown(&self, direction: String) -> NetworkOperationResult {
         let raw: TerranePlatformResult = terrane_platform_tcp_shutdown(
             &self.handle,
             direction,
         );
-        return OperationResult::terrane_construct(
+        return NetworkOperationResult::terrane_construct(
             terrane_platform_result_failed(&raw),
             terrane_platform_result_deadline_exceeded(&raw),
             terrane_platform_result_message(&raw),
         );
     }
-    pub fn close(&self) -> OperationResult {
+    pub fn close(&self) -> NetworkOperationResult {
         let raw: TerranePlatformResult = terrane_platform_close(&self.handle);
-        return OperationResult::terrane_construct(
+        return NetworkOperationResult::terrane_construct(
             terrane_platform_result_failed(&raw),
             terrane_platform_result_deadline_exceeded(&raw),
             terrane_platform_result_message(&raw),
@@ -1146,7 +1152,10 @@ impl StreamResult {
         self.value = stream;
     }
 }
-pub fn connect_tcp(address: SocketAddress, options: OperationOptions) -> StreamResult {
+pub fn connect_tcp(
+    address: SocketAddress,
+    options: NetworkOperationOptions,
+) -> StreamResult {
     let raw: TerranePlatformResult = terrane_platform_tcp_connect(
         address.value,
         options.deadline_ms,
@@ -1164,9 +1173,9 @@ pub fn connect_tcp(address: SocketAddress, options: OperationOptions) -> StreamR
     );
 }
 pub fn connect_host(
-    host: HostName,
+    host: NetworkHostName,
     port: terrane_int_support::Int,
-    options: OperationOptions,
+    options: NetworkOperationOptions,
 ) -> StreamResult {
     let raw: TerranePlatformResult = terrane_platform_tcp_connect_host(
         host.value,
@@ -1201,7 +1210,7 @@ impl TcpListener {
     pub fn construct(&mut self, resource: TerranePlatformCapability) {
         self.handle = resource;
     }
-    pub fn accept(&self, options: OperationOptions) -> StreamResult {
+    pub fn accept(&self, options: NetworkOperationOptions) -> StreamResult {
         let raw: TerranePlatformResult = terrane_platform_tcp_accept(
             &self.handle,
             options.deadline_ms,
@@ -1218,9 +1227,9 @@ impl TcpListener {
             stream,
         );
     }
-    pub fn close(&self) -> OperationResult {
+    pub fn close(&self) -> NetworkOperationResult {
         let raw: TerranePlatformResult = terrane_platform_close(&self.handle);
-        return OperationResult::terrane_construct(
+        return NetworkOperationResult::terrane_construct(
             terrane_platform_result_failed(&raw),
             terrane_platform_result_deadline_exceeded(&raw),
             terrane_platform_result_message(&raw),
@@ -1305,7 +1314,7 @@ impl UdpSocket {
         &self,
         data: Vec<u8>,
         address: SocketAddress,
-        options: OperationOptions,
+        options: NetworkOperationOptions,
     ) -> IoResult {
         let raw: TerranePlatformResult = terrane_platform_udp_send_to(
             &self.handle,
@@ -1328,7 +1337,7 @@ impl UdpSocket {
     pub fn receive_from(
         &self,
         limit: terrane_int_support::Int,
-        options: OperationOptions,
+        options: NetworkOperationOptions,
     ) -> IoResult {
         let raw: TerranePlatformResult = terrane_platform_udp_receive_from(
             &self.handle,
@@ -1347,21 +1356,21 @@ impl UdpSocket {
             false,
         );
     }
-    pub fn configure(&self, options: UdpOptions) -> OperationResult {
+    pub fn configure(&self, options: UdpOptions) -> NetworkOperationResult {
         let raw: TerranePlatformResult = terrane_platform_udp_configure(
             &self.handle,
             options.broadcast,
             options.ttl,
         );
-        return OperationResult::terrane_construct(
+        return NetworkOperationResult::terrane_construct(
             terrane_platform_result_failed(&raw),
             terrane_platform_result_deadline_exceeded(&raw),
             terrane_platform_result_message(&raw),
         );
     }
-    pub fn close(&self) -> OperationResult {
+    pub fn close(&self) -> NetworkOperationResult {
         let raw: TerranePlatformResult = terrane_platform_close(&self.handle);
-        return OperationResult::terrane_construct(
+        return NetworkOperationResult::terrane_construct(
             terrane_platform_result_failed(&raw),
             terrane_platform_result_deadline_exceeded(&raw),
             terrane_platform_result_message(&raw),
@@ -1475,10 +1484,10 @@ impl DnsResult {
     }
 }
 #[derive(Clone)]
-pub struct HostName {
+pub struct NetworkHostName {
     pub value: String,
 }
-impl HostName {
+impl NetworkHostName {
     pub fn terrane_construct(raw: TerranePlatformResult) -> Self {
         let mut value = Self { value: String::from("") };
         value.construct(raw);
@@ -1489,38 +1498,42 @@ impl HostName {
     }
 }
 #[derive(Clone)]
-pub struct HostNameResult {
+pub struct NetworkHostNameResult {
     pub failed: bool,
     pub message: String,
-    pub value: HostName,
+    pub value: NetworkHostName,
 }
-impl HostNameResult {
-    pub fn terrane_construct(failed: bool, message: String, host: HostName) -> Self {
+impl NetworkHostNameResult {
+    pub fn terrane_construct(
+        failed: bool,
+        message: String,
+        host: NetworkHostName,
+    ) -> Self {
         let mut value = Self {
             failed: false,
             message: String::from(""),
-            value: HostName::terrane_construct(terrane_platform_failed_result()),
+            value: NetworkHostName::terrane_construct(terrane_platform_failed_result()),
         };
         value.construct(failed, message, host);
         value
     }
-    pub fn construct(&mut self, failed: bool, message: String, host: HostName) {
+    pub fn construct(&mut self, failed: bool, message: String, host: NetworkHostName) {
         self.failed = failed;
         self.message = message;
         self.value = host.clone();
     }
 }
-pub fn parse_host_name(text: String) -> HostNameResult {
+pub fn parse_host_name(text: String) -> NetworkHostNameResult {
     let raw: TerranePlatformResult = terrane_platform_parse_host_name(text);
     let failed: bool = terrane_platform_result_failed(&raw);
     let message: String = terrane_platform_result_message(&raw);
-    let host: HostName = HostName::terrane_construct(raw);
-    return HostNameResult::terrane_construct(failed, message, host);
+    let host: NetworkHostName = NetworkHostName::terrane_construct(raw);
+    return NetworkHostNameResult::terrane_construct(failed, message, host);
 }
 pub fn lookup_dns(
-    host: HostName,
+    host: NetworkHostName,
     port: terrane_int_support::Int,
-    options: OperationOptions,
+    options: NetworkOperationOptions,
 ) -> DnsResult {
     let raw: TerranePlatformResult = terrane_platform_dns_lookup(
         host.value,

@@ -129,9 +129,9 @@ fn bundled_core_lowering_is_part_of_the_support_sidecar() {
         "process-user.trn",
         "namespace process-user\n\
          from /core/output import print\n\
-         from /core/process import host-name\n\
+         from /core/process import process-host-name\n\
          function main;\n\
-             name = host-name;\n\
+             name = process-host-name;\n\
              print; name.failed\n"
             .to_owned(),
     )
@@ -200,7 +200,7 @@ fn platform_support_requirement_comes_from_lowering_metadata() {
 
     let process = terrane_compiler::compile(
         "process.trn",
-        "namespace process\nfrom /core/process import host-name\nfunction main;\n    name = host-name;\n"
+        "namespace process\nfrom /core/process import process-host-name\nfunction main;\n    name = process-host-name;\n"
             .to_owned(),
     )
     .unwrap();

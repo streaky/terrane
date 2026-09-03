@@ -1044,11 +1044,11 @@ fn main() {
 // Source: core/filesystem.trn
 // Namespace: core/filesystem
 #[derive(Clone)]
-pub struct OperationResult {
+pub struct FilesystemOperationResult {
     pub failed: bool,
     pub message: String,
 }
-impl OperationResult {
+impl FilesystemOperationResult {
     pub fn terrane_construct(failure: bool, detail: String) -> Self {
         let mut value = Self {
             failed: false,
@@ -1337,7 +1337,7 @@ pub fn file_write(
 pub fn file_flush(
     capability: Filesystem,
     file: std::sync::Weak<std::sync::Mutex<FileHandle>>,
-) -> OperationResult {
+) -> FilesystemOperationResult {
     let _ = &capability;
     let raw: TerranePlatformUnitResult = terrane_platform_flush(
         &{
@@ -1345,12 +1345,15 @@ pub fn file_flush(
             __terrane_owner.lock().expect("reference lock poisoned").handle.clone()
         },
     );
-    return OperationResult::terrane_construct(raw.failed, raw.message.clone().clone());
+    return FilesystemOperationResult::terrane_construct(
+        raw.failed,
+        raw.message.clone().clone(),
+    );
 }
 pub fn file_sync_data(
     capability: Filesystem,
     file: std::sync::Weak<std::sync::Mutex<FileHandle>>,
-) -> OperationResult {
+) -> FilesystemOperationResult {
     let _ = &capability;
     let raw: TerranePlatformUnitResult = terrane_platform_sync_data(
         &{
@@ -1358,12 +1361,15 @@ pub fn file_sync_data(
             __terrane_owner.lock().expect("reference lock poisoned").handle.clone()
         },
     );
-    return OperationResult::terrane_construct(raw.failed, raw.message.clone().clone());
+    return FilesystemOperationResult::terrane_construct(
+        raw.failed,
+        raw.message.clone().clone(),
+    );
 }
 pub fn file_sync_all(
     capability: Filesystem,
     file: std::sync::Weak<std::sync::Mutex<FileHandle>>,
-) -> OperationResult {
+) -> FilesystemOperationResult {
     let _ = &capability;
     let raw: TerranePlatformUnitResult = terrane_platform_sync_all(
         &{
@@ -1371,12 +1377,21 @@ pub fn file_sync_all(
             __terrane_owner.lock().expect("reference lock poisoned").handle.clone()
         },
     );
-    return OperationResult::terrane_construct(raw.failed, raw.message.clone().clone());
+    return FilesystemOperationResult::terrane_construct(
+        raw.failed,
+        raw.message.clone().clone(),
+    );
 }
-pub fn file_close(capability: Filesystem, file: FileHandle) -> OperationResult {
+pub fn file_close(
+    capability: Filesystem,
+    file: FileHandle,
+) -> FilesystemOperationResult {
     let _ = &capability;
     let raw: TerranePlatformUnitResult = terrane_platform_close(&file.handle);
-    return OperationResult::terrane_construct(raw.failed, raw.message.clone().clone());
+    return FilesystemOperationResult::terrane_construct(
+        raw.failed,
+        raw.message.clone().clone(),
+    );
 }
 #[derive(Clone)]
 pub struct Filesystem {
@@ -1527,13 +1542,13 @@ pub fn filesystem_write_atomic(
     capability: Filesystem,
     target: Path,
     data: Vec<u8>,
-) -> OperationResult {
+) -> FilesystemOperationResult {
     let _ = &capability;
     let record: TerraneFilesystemResult = terrane_filesystem_write_atomic(
         target.text,
         data,
     );
-    return OperationResult::terrane_construct(
+    return FilesystemOperationResult::terrane_construct(
         terrane_filesystem_result_failed(&record),
         terrane_filesystem_result_message(&record),
     );
@@ -1542,21 +1557,24 @@ pub fn filesystem_rename(
     capability: Filesystem,
     source: Path,
     destination: Path,
-) -> OperationResult {
+) -> FilesystemOperationResult {
     let _ = &capability;
     let record: TerraneFilesystemResult = terrane_filesystem_rename(
         source.text,
         destination.text,
     );
-    return OperationResult::terrane_construct(
+    return FilesystemOperationResult::terrane_construct(
         terrane_filesystem_result_failed(&record),
         terrane_filesystem_result_message(&record),
     );
 }
-pub fn filesystem_remove(capability: Filesystem, target: Path) -> OperationResult {
+pub fn filesystem_remove(
+    capability: Filesystem,
+    target: Path,
+) -> FilesystemOperationResult {
     let _ = &capability;
     let record: TerraneFilesystemResult = terrane_filesystem_remove(target.text);
-    return OperationResult::terrane_construct(
+    return FilesystemOperationResult::terrane_construct(
         terrane_filesystem_result_failed(&record),
         terrane_filesystem_result_message(&record),
     );

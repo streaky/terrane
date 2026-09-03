@@ -744,13 +744,13 @@ impl EnvironmentEntry {
     }
 }
 #[derive(Clone)]
-pub struct HostNameResult {
+pub struct ProcessHostNameResult {
     pub failed: bool,
     pub available: bool,
     pub message: String,
     pub value: NativeString,
 }
-impl HostNameResult {
+impl ProcessHostNameResult {
     pub fn terrane_construct(
         did_fail: bool,
         is_available: bool,
@@ -779,9 +779,9 @@ impl HostNameResult {
         self.value = result_value.clone();
     }
 }
-pub fn host_name() -> HostNameResult {
+pub fn process_host_name() -> ProcessHostNameResult {
     let raw: TerranePlatformResult = terrane_platform_support::system_host_name();
-    return HostNameResult::terrane_construct(
+    return ProcessHostNameResult::terrane_construct(
         raw.failed,
         raw.flag,
         raw.message.clone(),

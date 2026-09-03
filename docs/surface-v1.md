@@ -1098,7 +1098,7 @@ process arguments
 +-- raw values -> platform argument values        profile-specific
 
 host identity
-+-- host-name -> host-name-result
++-- process-host-name -> process-host-name-result
 +-- result -> failed / available / message / native-string value
 
 

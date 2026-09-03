@@ -3606,8 +3606,8 @@ must not be read as promising non-integer generic storage. Guard lifetimes and a
 element types remain deferred until they can be represented without a universal boxed value or a
 second ownership model.
 
-Channel `send` and blocking `receive` take an explicit operation-options object containing a
-positive deadline and cancellation token. `try-receive` is genuinely non-blocking and reports
+Channel `send` and blocking `receive` take an explicit `concurrency-operation-options` object
+containing a positive deadline and `concurrency-cancellation-token`. `try-receive` is genuinely non-blocking and reports
 availability separately from failure. A zero-capacity channel is a rendezvous channel. The host
 boundary may report a disconnected peer as failure, but version one exposes no explicit channel
 close operation or closed-state descriptor; those remain deferred until the object surface defines
@@ -6030,13 +6030,13 @@ selects either lossless Unicode `text` or lossless `raw` bytes; invalid host Uni
 silently replaced. Argument and environment access return explicit snapshots. Environment entries
 pair native-string names and values.
 The system host name is part of `/core/process` rather than a parallel system namespace. Its
-`host-name-result` reports `failed`, `available`, and a translated host error message, and carries
-the value as a `native-string`; invalid host Unicode is therefore preserved rather than replaced.
+`process-host-name-result` reports `failed`, `available`, and a translated host error message, and
+carries the value as a `native-string`; invalid host Unicode is therefore preserved rather than replaced.
 Importing this process/system surface requires the package profile's `process` capability.
 The maintained Rust function used here is justified by the syscall/ABI-boundary rule: Rust's
 standard library has no portable host-name query, so the audited `hostname` crate owns that
 platform-specific retrieval. The host name may be a non-Unicode operating-system string; Rust owns
-only its conversion into the owned `text:`/`raw:` host envelope. Terrane owns `host-name-result`,
+only its conversion into the owned `text:`/`raw:` host envelope. Terrane owns `process-host-name-result`,
 policy, availability, and translated diagnostics. No borrowed host string or host handle crosses
 the boundary.
 

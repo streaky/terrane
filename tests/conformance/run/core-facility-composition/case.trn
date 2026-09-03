@@ -1,0 +1,9 @@
+namespace core-facility-composition
+
+import /core/filesystem
+import /core/streams
+
+function main;
+    filesystem-result = filesystem-operation-result; false, ''
+    stream-result = stream-operation-result; false, ''
+    print; not filesystem-result.failed and not stream-result.failed

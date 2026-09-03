@@ -1,0 +1,31 @@
+namespace visibility-object-declarations
+
+public class public-class
+    value int = 1
+
+private class private-class
+    value int = 2
+
+protected class protected-class
+    value int = 3
+
+public interface public-interface
+    function value int;
+
+private interface private-interface
+    function value int;
+
+protected interface protected-interface
+    function value int;
+
+public trait public-trait
+    value int = 4
+
+private trait private-trait
+    value int = 5
+
+protected trait protected-trait
+    value int = 6
+
+function main;
+    return

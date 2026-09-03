@@ -788,7 +788,7 @@ directory_relative: resource-owning directory handle; final anchor component and
 handles: linear resource transfer and idempotent host release shared with streams; partial file write exposes completed offset for resume
 platform_string: exactly one host component; is-text selects lossless Unicode text or lossless raw bytes; NEVER replacement decoding
 snapshots: arguments and environment are explicit; environment returns paired native-string names/values
-host_name: /core/process host-name returns failed/available/message plus a lossless native-string value; requires process capability; Rust std has no portable host-name query, so audited hostname crate owns host ABI retrieval and non-Unicode conversion; boundary returns owned data and exposes no host handle
+host_name: /core/process process-host-name returns process-host-name-result with failed/available/message plus a lossless native-string value; requires process capability; Rust std has no portable host-name query, so audited hostname crate owns host ABI retrieval and non-Unicode conversion; boundary returns owned data and exposes no host handle
 cli_schema: exact flag:/value: long-option spellings; parser returns flags/options/positionals plus diagnostic argument indices/messages; NEVER exits
 cli_v1_limits: no --option=value, -- separator, or short clustering; undeclared short spellings remain positional
 exit_status: exact int 0..=255 valid; invalid construction yields valid=false and sentinel 255 without terminating; exit alone terminates

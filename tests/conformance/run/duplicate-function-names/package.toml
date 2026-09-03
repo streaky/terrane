@@ -1,0 +1,6 @@
+package = "duplicate-function-names"
+prelude = true
+[namespaces]
+app = "app"
+left = "left"
+right = "right"

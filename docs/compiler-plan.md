@@ -1516,7 +1516,7 @@ Written in Terrane over the minimal Rust core, per delivery principle 9. Each la
 
 Deliver:
 
-- parsed `ip-address`, `socket-address`, and a distinct `host-name` type, serialising IPv6 per RFC 5952;
+- parsed `ip-address`, `socket-address`, and a distinct `network-host-name` type, serialising IPv6 per RFC 5952;
 - `tcp-listener`, `tcp-stream`, and `udp-socket` type objects owning their factories and returning distinct linear resource instances;
 - explicit `dns` lookup returning ordered candidates with TTL, leaving caching to an explicit resolver and connection racing to `connect`;
 - deadline and cancellation on every blocking operation, typed socket options, and explicit UDP truncation reporting;
@@ -1906,8 +1906,8 @@ sections, and non-integer generic cells remain deferred rather than being implie
 
 Bundled core imports are checked against `[profile]`; `S2032` names the profile, forbidden
 capability, imported namespace, and importing namespace. The complete gate map is recorded in the
-language specification and concise reference. `/core/process::host-name` demonstrates the remaining
-owned system crossing: its host ABI returns no borrowed value or handle, translates host failures,
+language specification and concise reference. `/core/process::process-host-name` demonstrates the
+remaining owned system crossing: its host ABI returns no borrowed value or handle, translates host failures,
 and preserves non-Unicode platform names in the existing `native-string` representation. Rust's
 standard library has no portable host-name query, so its maintained layer uses the audited
 `hostname` crate only for host retrieval and non-Unicode OS-string conversion.

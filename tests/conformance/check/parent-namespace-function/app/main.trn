@@ -1,9 +1,12 @@
 namespace app
 from /core/output import print
-from /app/child import use-double
+from /app/child import use-parent-functions
 
 public function double int; value int
     return value * 2
 
+protected function triple int; value int
+    return value * 3
+
 function main;
-    print; (use-double; 2)
+    print; (use-parent-functions; 2)

@@ -36,6 +36,7 @@ pub struct Symbol {
     pub constant: bool,
     pub kind: SymbolKind,
     pub declaration_span: Option<Span>,
+    pub binding_span: Option<Span>,
 }
 
 impl Symbol {
@@ -738,6 +739,7 @@ pub struct SemanticUnit {
     pub objects: Vec<ObjectContract>,
     comparable_foreign_objects: BTreeSet<ObjectIdentity>,
     function_aliases: BTreeMap<String, FunctionContract>,
+    function_contracts_by_span: BTreeMap<(u32, usize, usize), FunctionContract>,
     enclosing_function_spans: BTreeMap<usize, Option<Span>>,
     descriptor_aliases: BTreeMap<String, Vec<DescriptorAlias>>,
     pub unreachable_spans: Vec<Span>,
@@ -911,6 +913,7 @@ fn parse_unit(
         objects: Vec::new(),
         comparable_foreign_objects: BTreeSet::new(),
         function_aliases: BTreeMap::new(),
+        function_contracts_by_span: BTreeMap::new(),
         descriptor_aliases: BTreeMap::new(),
         enclosing_function_spans,
         unreachable_spans: Vec::new(),
@@ -1504,6 +1507,7 @@ fn populate_function_aliases(package: &mut SemanticPackage) {
         .collect::<BTreeMap<_, _>>();
     for unit in &mut package.units {
         let mut aliases = BTreeMap::new();
+        let mut contracts_by_span = BTreeMap::new();
         for namespace_name in namespace_chain(&unit.namespace) {
             let Some(namespace) = package.namespaces.get(&namespace_name) else {
                 continue;
@@ -1515,15 +1519,55 @@ fn populate_function_aliases(package: &mut SemanticPackage) {
                 if symbol.kind != SymbolKind::Function || !visible_from(symbol, &unit.namespace) {
                     continue;
                 }
-                if let Some(contract) = contracts.get(&(span.file, span.start, span.end)) {
+                let key = (span.file, span.start, span.end);
+                if let Some(contract) = contracts.get(&key) {
                     aliases
                         .entry(visible_name.clone())
+                        .or_insert_with(|| contract.clone());
+                    contracts_by_span
+                        .entry(key)
                         .or_insert_with(|| contract.clone());
                 }
             }
         }
+        for symbol in unit
+            .scopes
+            .iter()
+            .flat_map(|scope| scope.symbols.values())
+            .flatten()
+            .filter(|symbol| symbol.kind == SymbolKind::Function)
+        {
+            let Some(span) = symbol.declaration_span else {
+                continue;
+            };
+            let key = (span.file, span.start, span.end);
+            if let Some(contract) = contracts.get(&key) {
+                contracts_by_span
+                    .entry(key)
+                    .or_insert_with(|| contract.clone());
+            }
+        }
         unit.function_aliases = aliases;
+        unit.function_contracts_by_span = contracts_by_span;
     }
+}
+
+fn resolved_function_contract<'a>(
+    unit: &'a SemanticUnit,
+    name: &str,
+    offset: usize,
+) -> Option<&'a FunctionContract> {
+    lexical_scope_chain(unit, offset)
+        .find_map(|scope| {
+            let symbol = scope.symbols.get(name)?.iter().rev().find(|symbol| {
+                symbol.kind == SymbolKind::Function
+                    && symbol.binding_span.is_none_or(|span| span.end <= offset)
+            })?;
+            let span = symbol.declaration_span?;
+            unit.function_contracts_by_span
+                .get(&(span.file, span.start, span.end))
+        })
+        .or_else(|| unit.function_aliases.get(name))
 }
 
 fn populate_function_type_dependencies(package: &mut SemanticPackage) {
@@ -1554,6 +1598,7 @@ fn populate_function_type_dependencies(package: &mut SemanticPackage) {
         let mut queue = unit
             .function_aliases
             .values()
+            .chain(unit.function_contracts_by_span.values())
             .filter_map(|contract| match &contract.return_type {
                 Some(ValueType::Object(identity)) => Some(identity.clone()),
                 _ => None,
@@ -1653,11 +1698,12 @@ impl SemanticPackage {
         let inside_lexical_scope = scopes.peek().is_some();
         scopes
             .find_map(|scope| {
-                scope.symbols.get(name)?.iter().rev().find(|symbol| {
-                    symbol
-                        .declaration_span
-                        .is_none_or(|span| span.end <= offset)
-                })
+                scope
+                    .symbols
+                    .get(name)?
+                    .iter()
+                    .rev()
+                    .find(|symbol| symbol.binding_span.is_none_or(|span| span.end <= offset))
             })
             .or_else(|| {
                 self.resolve_name(&unit.namespace, name)
@@ -1928,6 +1974,8 @@ fn collect_declaration(
         constant: declaration.constant,
         kind: declaration.kind,
         declaration_span: Some(node.span),
+
+        binding_span: Some(node.span),
     };
     if declaration.global {
         globals.insert(declaration.name, symbol);
@@ -7633,11 +7681,7 @@ fn infer_value_type(
             {
                 return Ok(Some(ValueType::Object(object.identity.clone())));
             }
-            if let Some(contract) = unit.function_aliases.get(name).or_else(|| {
-                unit.functions
-                    .iter()
-                    .find(|contract| contract.owner.is_none() && contract.name == name)
-            }) {
+            if let Some(contract) = resolved_function_contract(unit, name, callee.span.start) {
                 let result = ElementType::new(
                     contract
                         .return_type
@@ -8919,7 +8963,8 @@ fn infer_parse_or_radix_type(
         ));
     }
     let callback_name = node_text(&unit.source, callback);
-    let Some(contract) = unit.function_aliases.get(callback_name) else {
+    let Some(contract) = resolved_function_contract(unit, callback_name, callback.span.start)
+    else {
         return Err(failure(
             &unit.source,
             "T0025",
@@ -10823,7 +10868,7 @@ fn populate_imports(
                     import.span,
                 ));
             }
-            export.declaration_span = Some(import.span);
+            export.binding_span = Some(import.span);
             scopes[index].symbols.insert(name, vec![export]);
         }
     }
@@ -10884,6 +10929,8 @@ fn insert_local_replacement(
             constant: false,
             kind: SymbolKind::Binding,
             declaration_span: Some(span),
+
+            binding_span: Some(span),
         });
 }
 
@@ -11072,6 +11119,8 @@ fn bootstrap_prelude() -> BTreeMap<String, Symbol> {
                         SymbolKind::Binding
                     },
                     declaration_span: None,
+
+                    binding_span: None,
                 },
             )
         })
@@ -11095,6 +11144,8 @@ fn bootstrap_descriptor_constructs() -> BTreeMap<String, Symbol> {
                     constant: false,
                     kind: SymbolKind::TypeDescriptor,
                     declaration_span: None,
+
+                    binding_span: None,
                 },
             )
         })
@@ -11120,13 +11171,13 @@ fn bootstrap_namespaces() -> BTreeMap<String, Namespace> {
         "/core/codecs",
         "capabilities",
         [
-            ("hex-encode", "hex-encode"),
-            ("hex-decode", "hex-decode"),
-            ("base64-encode", "base64-encode"),
-            ("base64-decode", "base64-decode"),
-            ("result-failed", "result-failed"),
-            ("result-message", "result-message"),
-            ("result-bytes", "result-bytes"),
+            "hex-encode",
+            "hex-decode",
+            "base64-encode",
+            "base64-decode",
+            "result-failed",
+            "result-message",
+            "result-bytes",
         ],
     );
     add_private_host_bindings(
@@ -11134,12 +11185,12 @@ fn bootstrap_namespaces() -> BTreeMap<String, Namespace> {
         "/core/compression",
         "capabilities",
         [
-            ("compress", "platform-compress"),
-            ("decompress", "platform-decompress"),
-            ("result-failed", "result-failed"),
-            ("result-resource-limit", "result-resource-limit"),
-            ("result-message", "result-message"),
-            ("result-bytes", "result-bytes"),
+            "compress",
+            "decompress",
+            "result-failed",
+            "result-resource-limit",
+            "result-message",
+            "result-bytes",
         ],
     );
     add_private_host_bindings(
@@ -11147,34 +11198,31 @@ fn bootstrap_namespaces() -> BTreeMap<String, Namespace> {
         "/core/concurrency",
         "concurrency",
         [
-            ("platform-capability", "platform-capability"),
-            ("platform-result", "platform-result"),
-            ("no-capability", "no-capability"),
-            ("int-channel", "platform-int-channel"),
-            ("int-channel-send", "platform-channel-send"),
-            ("int-channel-receive", "platform-channel-receive"),
-            ("int-channel-try-receive", "platform-channel-try-receive"),
-            ("int-mutex", "platform-int-mutex"),
-            ("int-mutex-load", "platform-mutex-load"),
-            ("int-mutex-store", "platform-mutex-store"),
-            ("int-mutex-add", "platform-mutex-add"),
-            ("int-read-write-lock", "platform-int-read-write-lock"),
-            ("int-read-write-lock-read", "platform-read-write-lock-read"),
-            (
-                "int-read-write-lock-write",
-                "platform-read-write-lock-write",
-            ),
-            ("atomic-int64", "platform-atomic-int64"),
-            ("atomic-int64-load", "platform-atomic-load"),
-            ("atomic-int64-store", "platform-atomic-store"),
-            ("atomic-int64-add", "platform-atomic-add"),
-            ("thread-local-int", "platform-thread-local-int"),
-            ("thread-local-int-get", "platform-thread-local-get"),
-            ("thread-local-int-set", "platform-thread-local-set"),
-            ("result-failed", "result-failed"),
-            ("result-message", "result-message"),
-            ("result-int", "result-int"),
-            ("result-bool", "result-bool"),
+            "platform-capability",
+            "platform-result",
+            "no-capability",
+            "int-channel",
+            "int-channel-send",
+            "int-channel-receive",
+            "int-channel-try-receive",
+            "int-mutex",
+            "int-mutex-load",
+            "int-mutex-store",
+            "int-mutex-add",
+            "int-read-write-lock",
+            "int-read-write-lock-read",
+            "int-read-write-lock-write",
+            "atomic-int64",
+            "atomic-int64-load",
+            "atomic-int64-store",
+            "atomic-int64-add",
+            "thread-local-int",
+            "thread-local-int-get",
+            "thread-local-int-set",
+            "result-failed",
+            "result-message",
+            "result-int",
+            "result-bool",
         ],
     );
     add_private_host_bindings(
@@ -11182,10 +11230,10 @@ fn bootstrap_namespaces() -> BTreeMap<String, Namespace> {
         "/core/concurrency",
         "capabilities",
         [
-            ("cancellation-token", "platform-cancellation-token"),
-            ("cancel", "platform-cancel"),
-            ("result-deadline-exceeded", "result-deadline-exceeded"),
-            ("result-capability", "result-capability"),
+            "cancellation-token",
+            "cancel",
+            "result-deadline-exceeded",
+            "result-capability",
         ],
     );
     add_private_host_bindings(
@@ -11193,31 +11241,31 @@ fn bootstrap_namespaces() -> BTreeMap<String, Namespace> {
         "/core/documents",
         "data",
         [
-            ("platform-data-result", "platform-data-result"),
-            ("make-document-none", "platform-make-none"),
-            ("make-document-bool", "platform-make-bool"),
-            ("make-document-string", "platform-make-string"),
-            ("make-document-integer", "platform-make-integer"),
-            ("make-document-decimal", "platform-make-decimal"),
-            ("make-document-list", "platform-make-list"),
-            ("document-list-append", "platform-list-append"),
-            ("make-document-map", "platform-make-map"),
-            ("document-map-insert", "platform-map-insert"),
-            ("empty-document", "empty-document"),
-            ("data-failed", "data-failed"),
-            ("data-message", "data-message"),
-            ("data-path", "data-path"),
-            ("data-expected", "data-expected"),
-            ("data-encoded", "data-encoded"),
-            ("document-kind", "platform-kind"),
-            ("document-text", "platform-text"),
-            ("document-coefficient", "platform-coefficient"),
-            ("document-exponent", "platform-exponent"),
-            ("document-length", "platform-length"),
-            ("document-item", "platform-item"),
-            ("document-key", "platform-key"),
-            ("document-field", "platform-field"),
-            ("validate-mapping", "validate-mapping"),
+            "platform-data-result",
+            "make-document-none",
+            "make-document-bool",
+            "make-document-string",
+            "make-document-integer",
+            "make-document-decimal",
+            "make-document-list",
+            "document-list-append",
+            "make-document-map",
+            "document-map-insert",
+            "empty-document",
+            "data-failed",
+            "data-message",
+            "data-path",
+            "data-expected",
+            "data-encoded",
+            "document-kind",
+            "document-text",
+            "document-coefficient",
+            "document-exponent",
+            "document-length",
+            "document-item",
+            "document-key",
+            "document-field",
+            "validate-mapping",
         ],
     );
     add_private_host_bindings(
@@ -11225,32 +11273,23 @@ fn bootstrap_namespaces() -> BTreeMap<String, Namespace> {
         "/core/filesystem",
         "system",
         [
-            ("filesystem-exists", "platform-filesystem-exists"),
-            ("filesystem-metadata", "platform-filesystem-metadata"),
-            ("filesystem-realpath", "platform-filesystem-realpath"),
-            ("filesystem-read-link", "platform-filesystem-read-link"),
-            (
-                "filesystem-read-bounded",
-                "platform-filesystem-read-bounded",
-            ),
-            (
-                "filesystem-write-atomic",
-                "platform-filesystem-write-atomic",
-            ),
-            ("filesystem-rename", "platform-filesystem-rename"),
-            ("filesystem-remove", "platform-filesystem-remove"),
-            ("result-failed", "result-failed"),
-            ("result-message", "result-message"),
-            ("result-text", "result-text"),
-            ("result-detail", "result-detail"),
-            ("result-bytes", "result-bytes"),
-            ("result-int", "result-int"),
-            ("result-bool", "result-bool"),
-            ("filesystem-authority", "filesystem-authority"),
-            (
-                "acquire-filesystem-authority",
-                "acquire-filesystem-authority",
-            ),
+            "filesystem-exists",
+            "filesystem-metadata",
+            "filesystem-realpath",
+            "filesystem-read-link",
+            "filesystem-read-bounded",
+            "filesystem-write-atomic",
+            "filesystem-rename",
+            "filesystem-remove",
+            "result-failed",
+            "result-message",
+            "result-text",
+            "result-detail",
+            "result-bytes",
+            "result-int",
+            "result-bool",
+            "filesystem-authority",
+            "acquire-filesystem-authority",
         ],
     );
     add_private_host_bindings(
@@ -11258,69 +11297,66 @@ fn bootstrap_namespaces() -> BTreeMap<String, Namespace> {
         "/core/filesystem",
         "streams",
         [
-            ("resource-handle", "resource-handle"),
-            ("open-file", "platform-open-file"),
-            ("open-directory-beneath", "platform-open-directory-beneath"),
-            ("open-file-beneath", "platform-open-file-beneath"),
-            ("read", "platform-read"),
-            ("write", "platform-write"),
-            ("flush", "platform-flush"),
-            ("sync-data", "platform-sync-data"),
-            ("sync-all", "platform-sync-all"),
-            ("close", "platform-close"),
-            ("release", "platform-release"),
+            "resource-handle",
+            "open-file",
+            "open-directory-beneath",
+            "open-file-beneath",
+            "read",
+            "write",
+            "flush",
+            "sync-data",
+            "sync-all",
+            "close",
+            "release",
         ],
     );
     add_private_host_bindings(
         &mut namespaces,
         "/core/documents/json",
         "data",
-        [
-            ("json-parse", "platform-parse"),
-            ("json-canonical", "platform-canonical"),
-        ],
+        ["json-parse", "json-canonical"],
     );
     add_private_host_bindings(
         &mut namespaces,
         "/core/networking",
         "capabilities",
         [
-            ("platform-resource-handle", "platform-resource-handle"),
-            ("platform-capability", "platform-capability"),
-            ("platform-result", "platform-result"),
-            ("no-resource", "no-resource"),
-            ("failed-result", "failed-result"),
-            ("parse-ip", "parse-ip"),
-            ("parse-host-name", "platform-parse-host-name"),
-            ("parse-socket", "parse-socket"),
-            ("parse-socket-text", "parse-socket-text"),
-            ("tcp-bind", "tcp-bind"),
-            ("tcp-connect", "tcp-connect"),
-            ("tcp-connect-host", "tcp-connect-host"),
-            ("tcp-accept", "tcp-accept"),
-            ("tcp-read", "tcp-read"),
-            ("tcp-write", "tcp-write"),
-            ("tcp-shutdown", "tcp-shutdown"),
-            ("tcp-configure", "tcp-configure"),
-            ("udp-bind", "udp-bind"),
-            ("udp-send-to", "udp-send-to"),
-            ("udp-receive-from", "udp-receive-from"),
-            ("udp-configure", "udp-configure"),
-            ("cancellation-token", "platform-cancellation-token"),
-            ("cancel", "platform-cancel"),
-            ("dns-lookup", "dns-lookup"),
-            ("close", "platform-close"),
-            ("result-failed", "result-failed"),
-            ("result-truncated", "result-truncated"),
-            ("result-deadline-exceeded", "result-deadline-exceeded"),
-            ("result-message", "result-message"),
-            ("result-text", "result-text"),
-            ("result-detail", "result-detail"),
-            ("result-bytes", "result-bytes"),
-            ("result-int", "result-int"),
-            ("result-bool", "result-bool"),
-            ("result-entries", "result-entries"),
-            ("result-resource", "result-resource"),
+            "platform-resource-handle",
+            "platform-capability",
+            "platform-result",
+            "no-resource",
+            "failed-result",
+            "parse-ip",
+            "parse-host-name",
+            "parse-socket",
+            "parse-socket-text",
+            "tcp-bind",
+            "tcp-connect",
+            "tcp-connect-host",
+            "tcp-accept",
+            "tcp-read",
+            "tcp-write",
+            "tcp-shutdown",
+            "tcp-configure",
+            "udp-bind",
+            "udp-send-to",
+            "udp-receive-from",
+            "udp-configure",
+            "cancellation-token",
+            "cancel",
+            "dns-lookup",
+            "close",
+            "result-failed",
+            "result-truncated",
+            "result-deadline-exceeded",
+            "result-message",
+            "result-text",
+            "result-detail",
+            "result-bytes",
+            "result-int",
+            "result-bool",
+            "result-entries",
+            "result-resource",
         ],
     );
     add_private_host_bindings(
@@ -11328,12 +11364,12 @@ fn bootstrap_namespaces() -> BTreeMap<String, Namespace> {
         "/core/process",
         "system",
         [
-            ("process-arguments", "platform-arguments"),
-            ("environment-entries", "platform-environment"),
-            ("process-exit", "platform-exit"),
-            ("platform-value-is-text", "platform-value-is-text"),
-            ("platform-value-text", "platform-value-text"),
-            ("platform-value-bytes", "platform-value-bytes"),
+            "process-arguments",
+            "environment-entries",
+            "process-exit",
+            "platform-value-is-text",
+            "platform-value-text",
+            "platform-value-bytes",
         ],
     );
     add_private_host_bindings(
@@ -11341,12 +11377,12 @@ fn bootstrap_namespaces() -> BTreeMap<String, Namespace> {
         "/core/process",
         "adapters",
         [
-            ("platform-result", "platform-result"),
-            ("system-host-name", "platform-system-host-name"),
-            ("result-failed", "result-failed"),
-            ("result-message", "result-message"),
-            ("result-text", "result-text"),
-            ("result-bool", "result-bool"),
+            "platform-result",
+            "system-host-name",
+            "result-failed",
+            "result-message",
+            "result-text",
+            "result-bool",
         ],
     );
     add_private_host_bindings(
@@ -11354,22 +11390,22 @@ fn bootstrap_namespaces() -> BTreeMap<String, Namespace> {
         "/core/random",
         "capabilities",
         [
-            ("platform-capability", "platform-capability"),
-            ("secure-random", "platform-secure"),
-            ("pseudo-random", "platform-pseudo"),
-            ("random-bytes", "random-bytes"),
-            ("random-bounded", "random-bounded"),
-            ("random-split", "random-split"),
-            ("secret-buffer", "platform-secret"),
-            ("destroy-secret", "platform-destroy-secret"),
-            ("digest", "platform-digest"),
-            ("hmac", "platform-hmac"),
-            ("constant-time-equal", "constant-time-equal"),
-            ("result-failed", "result-failed"),
-            ("result-message", "result-message"),
-            ("result-bytes", "result-bytes"),
-            ("result-int", "result-int"),
-            ("result-capability", "result-capability"),
+            "platform-capability",
+            "secure-random",
+            "pseudo-random",
+            "random-bytes",
+            "random-bounded",
+            "random-split",
+            "secret-buffer",
+            "destroy-secret",
+            "digest",
+            "hmac",
+            "constant-time-equal",
+            "result-failed",
+            "result-message",
+            "result-bytes",
+            "result-int",
+            "result-capability",
         ],
     );
     add_private_host_bindings(
@@ -11377,17 +11413,17 @@ fn bootstrap_namespaces() -> BTreeMap<String, Namespace> {
         "/core/streams",
         "streams",
         [
-            ("resource-handle", "resource-handle"),
-            ("acquire-stdin", "acquire-stdin"),
-            ("acquire-stdout", "acquire-stdout"),
-            ("acquire-stderr", "acquire-stderr"),
-            ("read", "platform-read"),
-            ("write", "platform-write"),
-            ("flush", "platform-flush"),
-            ("sync-data", "platform-sync-data"),
-            ("sync-all", "platform-sync-all"),
-            ("close", "platform-close"),
-            ("release", "platform-release"),
+            "resource-handle",
+            "acquire-stdin",
+            "acquire-stdout",
+            "acquire-stderr",
+            "read",
+            "write",
+            "flush",
+            "sync-data",
+            "sync-all",
+            "close",
+            "release",
         ],
     );
     add_private_host_bindings(
@@ -11395,21 +11431,21 @@ fn bootstrap_namespaces() -> BTreeMap<String, Namespace> {
         "/core/networking/tls",
         "capabilities",
         [
-            ("platform-resource-handle", "platform-resource-handle"),
-            ("no-resource", "no-resource"),
-            ("tls-client", "platform-client"),
-            ("tls-read", "tls-read"),
-            ("tls-write", "tls-write"),
-            ("tls-shutdown", "tls-shutdown"),
-            ("close", "platform-close"),
-            ("result-failed", "result-failed"),
-            ("result-deadline-exceeded", "result-deadline-exceeded"),
-            ("result-message", "result-message"),
-            ("result-text", "result-text"),
-            ("result-bytes", "result-bytes"),
-            ("result-int", "result-int"),
-            ("result-bool", "result-bool"),
-            ("result-resource", "result-resource"),
+            "platform-resource-handle",
+            "no-resource",
+            "tls-client",
+            "tls-read",
+            "tls-write",
+            "tls-shutdown",
+            "close",
+            "result-failed",
+            "result-deadline-exceeded",
+            "result-message",
+            "result-text",
+            "result-bytes",
+            "result-int",
+            "result-bool",
+            "result-resource",
         ],
     );
     add_private_host_bindings(
@@ -11417,23 +11453,23 @@ fn bootstrap_namespaces() -> BTreeMap<String, Namespace> {
         "/core/urls",
         "data",
         [
-            ("platform-url-result", "platform-url-result"),
-            ("url-parse", "platform-parse"),
-            ("url-failed", "url-failed"),
-            ("url-message", "url-message"),
-            ("url-serialized", "url-serialized"),
-            ("url-display", "url-display"),
-            ("url-scheme", "url-scheme"),
-            ("url-username", "url-username"),
-            ("url-password", "url-password"),
-            ("url-host", "url-host"),
-            ("url-port", "url-port"),
-            ("url-path", "url-path"),
-            ("url-fragment", "url-fragment"),
-            ("url-origin", "url-origin"),
-            ("url-query-length", "url-query-length"),
-            ("url-query-key", "url-query-key"),
-            ("url-query-value", "url-query-value"),
+            "platform-url-result",
+            "url-parse",
+            "url-failed",
+            "url-message",
+            "url-serialized",
+            "url-display",
+            "url-scheme",
+            "url-username",
+            "url-password",
+            "url-host",
+            "url-port",
+            "url-path",
+            "url-fragment",
+            "url-origin",
+            "url-query-length",
+            "url-query-key",
+            "url-query-value",
         ],
     );
     add_private_host_bindings(
@@ -11441,24 +11477,21 @@ fn bootstrap_namespaces() -> BTreeMap<String, Namespace> {
         "/core/random/uuid",
         "capabilities",
         [
-            ("platform-capability", "platform-capability"),
-            ("uuid-parse", "uuid-parse"),
-            ("uuid-v4", "uuid-v4"),
-            ("uuid-v7", "uuid-v7"),
-            ("result-failed", "result-failed"),
-            ("result-message", "result-message"),
-            ("result-text", "result-text"),
-            ("result-bytes", "result-bytes"),
+            "platform-capability",
+            "uuid-parse",
+            "uuid-v4",
+            "uuid-v7",
+            "result-failed",
+            "result-message",
+            "result-text",
+            "result-bytes",
         ],
     );
     add_private_host_bindings(
         &mut namespaces,
         "/core/documents/yaml",
         "data",
-        [
-            ("yaml-parse", "platform-parse"),
-            ("json-canonical", "platform-canonical"),
-        ],
+        ["yaml-parse", "json-canonical"],
     );
     let mut types = vec![
         "int".to_owned(),
@@ -12805,10 +12838,10 @@ fn add_private_host_bindings<'a>(
     namespaces: &mut BTreeMap<String, Namespace>,
     path: &str,
     group: &str,
-    bindings: impl IntoIterator<Item = (&'a str, &'a str)>,
+    bindings: impl IntoIterator<Item = &'a str>,
 ) {
     let namespace = namespaces.entry(path.to_owned()).or_default();
-    for (intrinsic, _) in bindings {
+    for intrinsic in bindings {
         let local_name = format!("host-{intrinsic}");
         let previous = namespace.symbols.insert(
             local_name.clone(),
@@ -12822,6 +12855,8 @@ fn add_private_host_bindings<'a>(
                 constant: false,
                 kind: SymbolKind::Function,
                 declaration_span: None,
+
+                binding_span: None,
             },
         );
         assert!(
@@ -12854,6 +12889,8 @@ fn compiler_owned_object(path: &str, name: &str, kind: SymbolKind) -> Symbol {
         constant: false,
         kind,
         declaration_span: None,
+
+        binding_span: None,
     }
 }
 

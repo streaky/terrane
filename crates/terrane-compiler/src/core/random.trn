@@ -11,7 +11,7 @@ class byte-result
         this.message = message
         this.value = data
 
-class int-result
+class random-int-result
     failed bool = false
     message string = ''
     value int = 0
@@ -97,9 +97,9 @@ class secure-random
         raw = host-random-bytes; this.handle, count
         return byte-result; (host-result-failed; raw), (host-result-message; raw), (host-result-bytes; raw)
 
-    function bounded-int int-result; upper-exclusive int
+    function bounded-int random-int-result; upper-exclusive int
         raw = host-random-bounded; this.handle, upper-exclusive
-        return int-result; (host-result-failed; raw), (host-result-message; raw), (host-result-int; raw)
+        return random-int-result; (host-result-failed; raw), (host-result-message; raw), (host-result-int; raw)
 
 class pseudo-random-algorithm
     name string = ''
@@ -120,9 +120,9 @@ class pseudo-random
         raw = host-random-bytes; this.handle, count
         return byte-result; (host-result-failed; raw), (host-result-message; raw), (host-result-bytes; raw)
 
-    function bounded-int int-result; upper-exclusive int
+    function bounded-int random-int-result; upper-exclusive int
         raw = host-random-bounded; this.handle, upper-exclusive
-        return int-result; (host-result-failed; raw), (host-result-message; raw), (host-result-int; raw)
+        return random-int-result; (host-result-failed; raw), (host-result-message; raw), (host-result-int; raw)
 
     function split pseudo-random;
         raw = host-random-split; this.handle
@@ -143,13 +143,13 @@ function pseudo-bytes byte-result; source pseudo-random, count int
     raw = host-random-bytes; source.handle, count
     return byte-result; (host-result-failed; raw), (host-result-message; raw), (host-result-bytes; raw)
 
-function secure-bounded-int int-result; source secure-random, upper-exclusive int
+function secure-bounded-int random-int-result; source secure-random, upper-exclusive int
     raw = host-random-bounded; source.handle, upper-exclusive
-    return int-result; (host-result-failed; raw), (host-result-message; raw), (host-result-int; raw)
+    return random-int-result; (host-result-failed; raw), (host-result-message; raw), (host-result-int; raw)
 
-function pseudo-bounded-int int-result; source pseudo-random, upper-exclusive int
+function pseudo-bounded-int random-int-result; source pseudo-random, upper-exclusive int
     raw = host-random-bounded; source.handle, upper-exclusive
-    return int-result; (host-result-failed; raw), (host-result-message; raw), (host-result-int; raw)
+    return random-int-result; (host-result-failed; raw), (host-result-message; raw), (host-result-int; raw)
 
 class hash-algorithm
     name string = ''

@@ -1,4 +1,4 @@
 phase = "check"
 status = "reject"
 code = "S2013"
-contains = "unresolved name `base64-encode`"
+contains = "unresolved name `encode-base64`"

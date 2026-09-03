@@ -112,7 +112,7 @@ Terrane package
 │   └── task-scope                             binding to /core/async::task-scope
 └── public core facility details
     ├── /core/streams                          standard streams; requires `process`
-    │   ├── operation-result                   failed / message
+    │   ├── stream-operation-result            failed / message
     │   ├── read-result                        bytes / completed / end / failed / message
     │   ├── text-read-result                   text / completed / end / failed / message
     │   ├── write-result                       encoded bytes / completed / failed / message
@@ -132,6 +132,7 @@ Terrane package
     ├── /core/filesystem                       filesystem operations; requires `filesystem`
     │   ├── filesystem                         unforgeable capability, acquired via filesystem-capability
     │   ├── filesystem-capability() -> filesystem
+    │   ├── filesystem-operation-result        failed / message
     │   ├── existence-result                   exists / failed / message result object
     │   ├── file-handle                        inferred resource-owning file stream
     │   ├── directory-handle                   inferred resource-owning directory anchor
@@ -150,7 +151,7 @@ Terrane package
     │   ├── arguments / environment            explicit process snapshots
     │   ├── cli-schema / parse-command-line    schema-driven options and structured diagnostics
     │   ├── exit-status / make-exit-status / exit explicit validated termination
-    │   └── host-name-result / host-name        lossless platform host name or translated host failure
+    │   └── process-host-name-result / process-host-name lossless platform host name or translated host failure
     ├── /core/documents                        structured document values and mappings
     │   ├── document-integer                   exact integral value; text uses canonical exact number spelling
     │   ├── document-decimal                   coefficient / exponent / canonical exact text value
@@ -178,6 +179,7 @@ Terrane package
     │   └── parse-url / parse-url-relative
     ├── /core/random                           random and digest policy; requires `entropy`
     │   ├── secure-random / pseudo-random      incompatible source types; ChaCha20 is selected explicitly
+    │   ├── random-int-result                  failed / message plus bounded integer value
     │   ├── pseudo-bytes / pseudo-bounded-int / split-pseudo
     │   ├── secure-bytes / secure-bounded-int
     │   ├── secret-buffer / destroy-secret     opaque key material with explicit best-effort zeroisation
@@ -196,8 +198,9 @@ Terrane package
     ├── /core/random/uuid                      UUID values; requires `entropy`
     │   └── parse-uuid / random-uuid / time-uuid strict canonical parsing plus v4 and v7 generation
     ├── /core/networking                       sockets and DNS; requires `networking`
-    │   ├── ip-address / socket-address / host-name validated value objects with structured parse results
-    │   ├── cancellation-token / operation-options shared observable cancellation and positive deadlines
+    │   ├── ip-address / socket-address / network-host-name validated value objects with structured parse results
+    │   ├── network-operation-result           explicit failure / deadline / message
+    │   ├── network-cancellation-token / network-operation-options shared observable cancellation and positive deadlines
     │   ├── tcp-stream / tcp-listener / udp-socket
     │   ├── ip-address-from-string / socket-address-from-ip / socket-address-from-string / parse-host-name
     │   ├── connect-tcp / connect-host / bind-tcp / bind-udp
@@ -206,9 +209,9 @@ Terrane package
     │   ├── tls-stream                         negotiated-version plus deadline-aware read, write, shutdown, and close
     │   └── connect-tls                        validated TLS 1.3/1.2 client connection; no insecure ordinary option
     ├── /core/concurrency                      synchronization objects; requires `threads`
-    │   ├── operation-result / int-result      explicit failure, deadline, availability, message, and value
-    │   ├── cancellation-token                 explicit shared cancellation with a typed `cancel` operation
-    │   ├── operation-options                  positive deadline and cancellation token for blocking channel operations
+    │   ├── concurrency-operation-result / concurrency-int-result explicit failure, deadline, availability, message, and value
+    │   ├── concurrency-cancellation-token     explicit shared cancellation with `concurrency-cancel-operation`
+    │   ├── concurrency-operation-options      positive deadline and cancellation token for blocking channel operations
     │   ├── int-channel                        bounded integer send / receive / non-blocking try-receive; zero-capacity rendezvous
     │   ├── int-mutex                          individually synchronized integer load / store / increase cell
     │   ├── int-read-write-lock                integer shared read / exclusive write cell; no exposed guards

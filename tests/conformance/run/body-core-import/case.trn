@@ -2,5 +2,4 @@ namespace body-core-import
 
 function main;
     import /core/codecs
-    encoded string = encode-base64; b'abc', false, true
-    print; encoded
+    print; (encode-base64; b'abc', false, true)

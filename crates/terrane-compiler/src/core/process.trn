@@ -19,7 +19,7 @@ class environment-entry
     function construct; name native-string, entry-value native-string
         this.name = name
         this.value = entry-value
-class host-name-result
+class process-host-name-result
     failed bool = false
     available bool = false
     message string = ''
@@ -31,9 +31,9 @@ class host-name-result
         this.message = detail
         this.value = result-value
 
-function host-name host-name-result;
+function process-host-name process-host-name-result;
     raw = host-system-host-name;
-    return host-name-result; (host-result-failed; raw), (host-result-bool; raw), (host-result-message; raw), (native-string; (host-result-text; raw))
+    return process-host-name-result; (host-result-failed; raw), (host-result-bool; raw), (host-result-message; raw), (native-string; (host-result-text; raw))
 
 
 function arguments list of native-string;

@@ -693,7 +693,7 @@ fn main() {
         terrane_int_support::Int::from(16_i128)).value == pseudo_bytes(second_child,
         terrane_int_support::Int::from(16_i128)).value))
     );
-    let bounded: IntResult = pseudo_bounded_int(
+    let bounded: RandomIntResult = pseudo_bounded_int(
         first.clone(),
         terrane_int_support::Int::from(17_i128),
     );
@@ -712,7 +712,7 @@ fn main() {
         &&terrane_int_support::Int::from(secure_data.value.len() as i128) ==
         terrane_int_support::Int::from(16_i128)))
     );
-    let secure_number: IntResult = secure_bounded_int(
+    let secure_number: RandomIntResult = secure_bounded_int(
         secure.clone(),
         terrane_int_support::Int::from(17_i128),
     );
@@ -1213,12 +1213,12 @@ impl ByteResult {
     }
 }
 #[derive(Clone)]
-pub struct IntResult {
+pub struct RandomIntResult {
     pub failed: bool,
     pub message: String,
     pub value: terrane_int_support::Int,
 }
-impl IntResult {
+impl RandomIntResult {
     pub fn terrane_construct(
         failed: bool,
         message: String,
@@ -1420,12 +1420,15 @@ impl SecureRandom {
             terrane_platform_result_bytes(&raw),
         );
     }
-    pub fn bounded_int(&self, upper_exclusive: terrane_int_support::Int) -> IntResult {
+    pub fn bounded_int(
+        &self,
+        upper_exclusive: terrane_int_support::Int,
+    ) -> RandomIntResult {
         let raw: TerranePlatformResult = terrane_platform_random_bounded(
             &self.handle,
             upper_exclusive,
         );
-        return IntResult::terrane_construct(
+        return RandomIntResult::terrane_construct(
             terrane_platform_result_failed(&raw),
             terrane_platform_result_message(&raw),
             terrane_platform_result_int(&raw),
@@ -1478,12 +1481,15 @@ impl PseudoRandom {
             terrane_platform_result_bytes(&raw),
         );
     }
-    pub fn bounded_int(&self, upper_exclusive: terrane_int_support::Int) -> IntResult {
+    pub fn bounded_int(
+        &self,
+        upper_exclusive: terrane_int_support::Int,
+    ) -> RandomIntResult {
         let raw: TerranePlatformResult = terrane_platform_random_bounded(
             &self.handle,
             upper_exclusive,
         );
-        return IntResult::terrane_construct(
+        return RandomIntResult::terrane_construct(
             terrane_platform_result_failed(&raw),
             terrane_platform_result_message(&raw),
             terrane_platform_result_int(&raw),
@@ -1539,12 +1545,12 @@ pub fn pseudo_bytes(
 pub fn secure_bounded_int(
     source: SecureRandom,
     upper_exclusive: terrane_int_support::Int,
-) -> IntResult {
+) -> RandomIntResult {
     let raw: TerranePlatformResult = terrane_platform_random_bounded(
         &source.handle,
         upper_exclusive,
     );
-    return IntResult::terrane_construct(
+    return RandomIntResult::terrane_construct(
         terrane_platform_result_failed(&raw),
         terrane_platform_result_message(&raw),
         terrane_platform_result_int(&raw),
@@ -1553,12 +1559,12 @@ pub fn secure_bounded_int(
 pub fn pseudo_bounded_int(
     source: PseudoRandom,
     upper_exclusive: terrane_int_support::Int,
-) -> IntResult {
+) -> RandomIntResult {
     let raw: TerranePlatformResult = terrane_platform_random_bounded(
         &source.handle,
         upper_exclusive,
     );
-    return IntResult::terrane_construct(
+    return RandomIntResult::terrane_construct(
         terrane_platform_result_failed(&raw),
         terrane_platform_result_message(&raw),
         terrane_platform_result_int(&raw),

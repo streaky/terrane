@@ -1,6 +1,6 @@
 namespace core/networking/tls
 
-from /core/networking import tcp-stream, operation-options, operation-result, io-result, host-name, operation-cancellation
+from /core/networking import tcp-stream, network-operation-options, network-operation-result, io-result, network-host-name, operation-cancellation
 
 class tls-stream
     private handle host-platform-resource-handle
@@ -9,24 +9,24 @@ class tls-stream
     private function construct; resource host-platform-resource-handle
         this.handle = resource
 
-    function read io-result; limit int, options operation-options
+    function read io-result; limit int, options network-operation-options
         cancellation = operation-cancellation; options
         raw = host-tls-read; this.handle, limit, options.deadline-ms, cancellation
         return io-result; (host-result-failed; raw), false, (host-result-deadline-exceeded; raw), (host-result-message; raw), (host-result-bytes; raw), (host-result-int; raw), '', (host-result-bool; raw)
 
-    function write io-result; data bytes, options operation-options
+    function write io-result; data bytes, options network-operation-options
         cancellation = operation-cancellation; options
         raw = host-tls-write; this.handle, data, options.deadline-ms, cancellation
         return io-result; (host-result-failed; raw), false, (host-result-deadline-exceeded; raw), (host-result-message; raw), b'', (host-result-int; raw), '', false
 
-    function close operation-result;
+    function close network-operation-result;
         raw = host-close; this.handle
-        return operation-result; (host-result-failed; raw), (host-result-deadline-exceeded; raw), (host-result-message; raw)
+        return network-operation-result; (host-result-failed; raw), (host-result-deadline-exceeded; raw), (host-result-message; raw)
 
-    function shutdown operation-result; options operation-options
+    function shutdown network-operation-result; options network-operation-options
         cancellation = operation-cancellation; options
         raw = host-tls-shutdown; this.handle, options.deadline-ms, cancellation
-        return operation-result; (host-result-failed; raw), (host-result-deadline-exceeded; raw), (host-result-message; raw)
+        return network-operation-result; (host-result-failed; raw), (host-result-deadline-exceeded; raw), (host-result-message; raw)
 
     function destruct;
         host-close; this.handle
@@ -45,7 +45,7 @@ class tls-result
 
 # Certificate-chain and hostname validation are unconditional on this ordinary connector.
 # An insecure connector is intentionally absent; it can only live in a separately imported unsafe package.
-function connect-tls tls-result; stream tcp-stream, server-name host-name, options operation-options
+function connect-tls tls-result; stream tcp-stream, server-name network-host-name, options network-operation-options
     cancellation = operation-cancellation; options
     raw = host-tls-client; stream.handle, server-name.value, options.deadline-ms, cancellation
     value = tls-stream; (host-result-resource; raw)

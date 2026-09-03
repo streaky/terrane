@@ -3,7 +3,7 @@ namespace core/streams
 from /core/encodings import utf8
 from /core/errors import decode-error
 
-class operation-result
+class stream-operation-result
     failed bool = false
     message string = ''
 
@@ -109,9 +109,9 @@ class byte-reader
     function text text-reader; codec encoding
         return text-reader; this.handle, codec
 
-    function close operation-result;
+    function close stream-operation-result;
         raw = host-close; this.handle
-        return operation-result; raw.failed, raw.message
+        return stream-operation-result; raw.failed, raw.message
 
     function destruct;
         # Destruction cannot report failure; explicit close is the observable failure path.
@@ -154,21 +154,21 @@ class byte-writer
     function text text-writer; codec encoding
         return text-writer; this.handle, codec
 
-    function flush operation-result;
+    function flush stream-operation-result;
         raw = host-flush; this.handle
-        return operation-result; raw.failed, raw.message
+        return stream-operation-result; raw.failed, raw.message
 
-    function sync-data operation-result;
+    function sync-data stream-operation-result;
         raw = host-sync-data; this.handle
-        return operation-result; raw.failed, raw.message
+        return stream-operation-result; raw.failed, raw.message
 
-    function sync-all operation-result;
+    function sync-all stream-operation-result;
         raw = host-sync-all; this.handle
-        return operation-result; raw.failed, raw.message
+        return stream-operation-result; raw.failed, raw.message
 
-    function close operation-result;
+    function close stream-operation-result;
         raw = host-close; this.handle
-        return operation-result; raw.failed, raw.message
+        return stream-operation-result; raw.failed, raw.message
 
     function destruct;
         # Destruction cannot report failure; explicit close is the observable failure path.
@@ -231,9 +231,9 @@ class text-reader
     async function read-async text-read-result throws decode-error; count int
         return this.read; count
 
-    function close operation-result;
+    function close stream-operation-result;
         raw = host-close; this.handle
-        return operation-result; raw.failed, raw.message
+        return stream-operation-result; raw.failed, raw.message
 
     function destruct;
         # Destruction cannot report failure; explicit close is the observable failure path.
@@ -279,21 +279,21 @@ class text-writer
     async function write-async write-result; text string
         return this.write; text
 
-    function flush operation-result;
+    function flush stream-operation-result;
         raw = host-flush; this.handle
-        return operation-result; raw.failed, raw.message
+        return stream-operation-result; raw.failed, raw.message
 
-    function sync-data operation-result;
+    function sync-data stream-operation-result;
         raw = host-sync-data; this.handle
-        return operation-result; raw.failed, raw.message
+        return stream-operation-result; raw.failed, raw.message
 
-    function sync-all operation-result;
+    function sync-all stream-operation-result;
         raw = host-sync-all; this.handle
-        return operation-result; raw.failed, raw.message
+        return stream-operation-result; raw.failed, raw.message
 
-    function close operation-result;
+    function close stream-operation-result;
         raw = host-close; this.handle
-        return operation-result; raw.failed, raw.message
+        return stream-operation-result; raw.failed, raw.message
 
     function destruct;
         # Destruction cannot report failure; explicit close is the observable failure path.

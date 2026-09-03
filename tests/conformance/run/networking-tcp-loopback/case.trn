@@ -2,7 +2,7 @@ namespace app
 
 from /core/output import print
 from /core/encodings import utf8
-from /core/networking import ip-address-from-string, socket-address-from-ip, socket-address-from-string, cancellation-token, operation-options, tcp-listener, listener-result, stream-result, bind-tcp, connect-tcp
+from /core/networking import ip-address-from-string, socket-address-from-ip, socket-address-from-string, network-cancellation-token, network-operation-options, tcp-listener, listener-result, stream-result, bind-tcp, connect-tcp
 
 class async-runner
     callback function to none = function none;
@@ -21,7 +21,7 @@ function main;
     bound listener-result = bind-tcp; bind-address.value
     listener = move bound.value
     endpoint-text string = listener.local-address
-    server-options = operation-options; 1000, (cancellation-token;)
+    server-options = network-operation-options; 1000, (network-cancellation-token;)
     serve = function none;
         accepted stream-result = listener.accept; server-options
         stream = move accepted.value
@@ -35,7 +35,7 @@ function main;
     scope = task-scope;
     child = scope.spawn; server.run
     destination = socket-address-from-string; endpoint-text
-    client-options = operation-options; 1000, (cancellation-token;)
+    client-options = network-operation-options; 1000, (network-cancellation-token;)
     connected stream-result = connect-tcp; destination.value, client-options
     client = move connected.value
     sent = client.write; b'terrane', client-options
