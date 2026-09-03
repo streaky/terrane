@@ -3551,6 +3551,13 @@ impl Emitter<'_> {
         }
     }
 
+    fn escaped_construction(node: &SyntaxNode) -> ! {
+        unreachable!(
+            "construction expression at {}..{} escaped call lowering",
+            node.span.start, node.span.end
+        )
+    }
+
     fn expression(&mut self, node: &SyntaxNode) -> String {
         match node.kind {
             SyntaxKind::Literal => literal(self.text(node)),
@@ -3641,10 +3648,7 @@ impl Emitter<'_> {
             SyntaxKind::TypeMembershipExpression => self.type_membership(node),
             SyntaxKind::MemberExpression => self.member(node),
             SyntaxKind::StaticMemberExpression => self.static_member(node),
-            SyntaxKind::ConstructionExpression => unreachable!(
-                "construction expression at {}..{} escaped call lowering",
-                node.span.start, node.span.end
-            ),
+            SyntaxKind::ConstructionExpression => Self::escaped_construction(node),
             SyntaxKind::IndexExpression => self.index(node),
             SyntaxKind::CallExpression => self.call(node),
             SyntaxKind::PostfixExpression => node

@@ -664,13 +664,6 @@ pub fn terrane_platform_uuid_v7(
         terrane_platform_i128!(unix_milliseconds, "UUID v7 timestamp"),
     )
 }
-#[allow(dead_code)]
-#[derive(Clone, Copy)]
-struct TerraneDescriptor {
-    identity: &'static str,
-    name: &'static str,
-    kind: &'static str,
-}
 // Source: case.trn
 // Namespace: app
 fn main() {

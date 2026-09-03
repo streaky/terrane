@@ -1028,13 +1028,6 @@ pub fn terrane_path_text(path: std::path::PathBuf) -> std::io::Result<String> {
             )
         })
 }
-#[allow(dead_code)]
-#[derive(Clone, Copy)]
-struct TerraneDescriptor {
-    identity: &'static str,
-    name: &'static str,
-    kind: &'static str,
-}
 // Source: case.trn
 // Namespace: conformance/filesystem-durability-exports
 fn exercise(

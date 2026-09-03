@@ -656,13 +656,6 @@ pub fn terrane_platform_acquire_stdout() -> TerranePlatformStreamHandle {
 pub fn terrane_platform_acquire_stderr() -> TerranePlatformStreamHandle {
     TerranePlatformStreamHandle::new(terrane_stream_abi::acquire_stderr())
 }
-#[allow(dead_code)]
-#[derive(Clone, Copy)]
-struct TerraneDescriptor {
-    identity: &'static str,
-    name: &'static str,
-    kind: &'static str,
-}
 // Source: case.trn
 // Namespace: text-stream-decode-failure
 fn read_all(input: TextReader) -> Result<String, TerraneError> {

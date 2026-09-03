@@ -712,13 +712,6 @@ fn terrane_platform_thread_local_int_set(
     let replacement = terrane_platform_i128!(replacement, "thread-local value");
     terrane_platform_support::thread_local_int_set(value, replacement)
 }
-#[allow(dead_code)]
-#[derive(Clone, Copy)]
-struct TerraneDescriptor {
-    identity: &'static str,
-    name: &'static str,
-    kind: &'static str,
-}
 // Source: src/main.trn
 // Namespace: restricted-standard-capabilities
 fn main() {

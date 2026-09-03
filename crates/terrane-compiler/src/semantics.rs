@@ -835,6 +835,15 @@ fn object_name_containing(unit: &SemanticUnit, span: Span) -> Option<String> {
     })
 }
 
+fn implicit_receiver_span(node: &SyntaxNode, name: &str) -> Span {
+    let offset = node.span.start + usize::from(name == "this");
+    Span {
+        file: node.span.file,
+        start: offset,
+        end: offset,
+    }
+}
+
 fn index_enclosing_function_spans(root: &SyntaxNode) -> BTreeMap<usize, Option<Span>> {
     fn visit(
         node: &SyntaxNode,
@@ -5416,7 +5425,7 @@ fn collect_typed_bindings(
         if let Some(owner) = &contract.owner {
             parameter_bindings.push(TypedBinding {
                 name: "self".to_owned(),
-                span: node.span,
+                span: implicit_receiver_span(node, "self"),
                 visible_from: node.span.start,
                 scope: Some(node.span),
                 value_type: ValueType::Descriptor(owner.clone()),
@@ -5427,7 +5436,7 @@ fn collect_typed_bindings(
             if !contract.is_static {
                 parameter_bindings.push(TypedBinding {
                     name: "this".to_owned(),
-                    span: node.span,
+                    span: implicit_receiver_span(node, "this"),
                     visible_from: node.span.start,
                     scope: Some(node.span),
                     value_type: ValueType::Object(ObjectIdentity::new(&unit.namespace, owner)),
@@ -10433,13 +10442,25 @@ fn add_lexical_scope(
         return Ok(index);
     }
     if is_function_node(node) && object_name_containing(unit, node.span).is_some() {
-        insert_local(unit, scopes, index, "self".to_owned(), node.span)?;
+        insert_local(
+            unit,
+            scopes,
+            index,
+            "self".to_owned(),
+            implicit_receiver_span(node, "self"),
+        )?;
         let is_static = node.children.iter().any(|child| {
             child.kind == SyntaxKind::DeclarationQualifier
                 && node_text(&unit.source, child) == "static"
         });
         if !is_static {
-            insert_local(unit, scopes, index, "this".to_owned(), node.span)?;
+            insert_local(
+                unit,
+                scopes,
+                index,
+                "this".to_owned(),
+                implicit_receiver_span(node, "this"),
+            )?;
         }
     }
     if is_function_node(node)

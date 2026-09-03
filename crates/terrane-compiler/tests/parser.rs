@@ -194,6 +194,22 @@ fn construction_requires_invocation_marker() {
 }
 
 #[test]
+fn construction_postfix_reports_one_source_oriented_diagnostic() {
+    let source = SourceFile::new(
+        0,
+        "case.trn".into(),
+        "value int = instance widget.value;\n".to_owned(),
+    );
+    let diagnostics = parse(&source, lex(&source).unwrap()).diagnostics;
+    assert_eq!(diagnostics.len(), 1, "{diagnostics:#?}");
+    assert_eq!(diagnostics[0].code, "S1096");
+    assert_eq!(
+        diagnostics[0].help.as_deref(),
+        Some("invoke construction first, for example `(instance class;).member`")
+    );
+}
+
+#[test]
 fn rejects_spaced_member_access_and_chained_comparisons() {
     rejected("value = print .concat\n", "S1013");
     rejected("value = a < b < c\n", "S1012");

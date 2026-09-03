@@ -914,6 +914,24 @@ impl Parser<'_> {
     fn parse_postfix(&mut self, allow_call: bool) -> SyntaxNode {
         let start = self.position;
         let mut value = self.parse_primary();
+        if value.kind == SyntaxKind::ConstructionExpression
+            && matches!(
+                self.current().kind,
+                TokenKind::Dot
+                    | TokenKind::DoubleColon
+                    | TokenKind::OpenBracket
+                    | TokenKind::Increment
+                    | TokenKind::Decrement
+            )
+        {
+            self.error_here_with_help(
+                "S1096",
+                "member and index operations cannot attach before construction is invoked",
+                "invoke construction first, for example `(instance class;).member`",
+            );
+            self.recover_expression();
+            return value;
+        }
         while value.kind != SyntaxKind::ConstructionExpression {
             if self.at(TokenKind::Dot) {
                 if self.current().attachment != Attachment::Both {
@@ -1276,7 +1294,7 @@ impl Parser<'_> {
     }
 
     fn reject_contextual_declaration_name(&mut self) {
-        if matches!(self.text(), "instance" | "self") {
+        if matches!(self.text(), "instance" | "self" | "this") {
             self.error_here(
                 "S1095",
                 format!("`{}` is reserved and cannot be declared", self.text()),
