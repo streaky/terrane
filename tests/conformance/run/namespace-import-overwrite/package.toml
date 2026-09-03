@@ -1,0 +1,10 @@
+package = "namespace-import-overwrite"
+prelude = true
+
+[namespaces]
+app = "app"
+root-one = "root-one"
+root-two = "root-two"
+local-one = "local-one"
+local-two = "local-two"
+codec-shadow = "codec-shadow"

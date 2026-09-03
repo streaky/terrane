@@ -815,7 +815,13 @@ from /image/codec import resize as scale
 from /core/types import int64 as word
 ```
 
-The alias binds the exported object under the new name in the current scope, preserving the object's identity and visibility checks. Since imports now bind ordinary names, an import cannot shadow a name while leaving the original reachable under a second spelling; where both are wanted, alias one of them.
+The alias binds the exported object under the new name in the current scope, preserving the object's identity and visibility checks. A selective import cannot shadow a name while leaving the original reachable under a second spelling; where both are wanted, alias one of them.
+
+The namespace-wide form `import /namespace` deliberately differs from a selective import: it
+processes public function-body objects in source order and replaces the binding currently visible
+under each declared name. Replacing a different object emits `W4004` with both qualified
+identities; reimporting the same object is silent. To retain both objects, establish a selective
+alias before the namespace-wide import. Selective same-scope collisions remain errors.
 
 Import syntax is not declaration-modifier syntax. An alias can never create or replace a program-global:
 
@@ -832,7 +838,9 @@ from /core/output import print as core-print
 global print = core-print
 ```
 
-The bound name follows the same collision, duplicate-name, visibility, and scope rules as any other ordinary binding. Import syntax cannot smuggle `global`, `constant`, visibility, or any other declaration qualifier onto it.
+A selectively bound name follows the same collision, duplicate-name, visibility, and scope rules as
+any other ordinary binding; namespace-wide replacement is the explicit exception above. Import
+syntax cannot smuggle `global`, `constant`, visibility, or any other declaration qualifier onto it.
 
 ## 12. Async, concurrency, and system profiles
 

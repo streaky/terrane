@@ -4,3 +4,5 @@ prelude = true
 app = "app"
 left = "left"
 right = "right"
+z-left = "z-left"
+"z/left" = "z/left"

@@ -120,10 +120,11 @@ dot_exception: NONE - the dot has no other role anywhere in the language
 scope: lexical + namespace
 namespace_variable_scope: the namespace tier ONLY - not its own function bodies, not descendant namespaces, not importers; its role is composition at the tier
 leaving_the_tier: a value that must leave is a 'constant', a 'global', or a function result
-collision: different object symbols under same object name in same scope => error
+collision: selective import or declaration introduces different object under same name in same scope => S2011
 shadowing: nearer binding shadows farther binding
-reimport_same_export: idempotent
-reimport_different_same_name: collision; alias required
+reimport_same_export: idempotent, including namespace-wide reimport; no warning
+namespace_wide_overwrite: source-ordered replacement of visible different object => W4004 naming old and new qualified identities
+retain_both: establish selective alias before namespace-wide import
 ```
 
 Top-level plain assignment is namespace-local, including root namespace. `global` explicitly creates/replaces program-global identity and does not erase lexical provenance/visibility. A namespace variable is readable and writable only by other namespace-level declarations in that namespace, so `public` on one is meaningless and rejected rather than accepted as documentation.
@@ -150,8 +151,8 @@ Rules:
 
 - `use` declares a build dependency; it does not automatically bind supplied names.
 - `from ... import x` binds ordinary `x` in the scope containing the import; `as` renames it. No declare-then-bind step.
-- `import /namespace` binds every public function-body object under its declared name; identities stay in the source namespace, private objects remain hidden, and any collision is `S2011`.
-- Namespace-wide imports have no alias clause; resolve collisions with selective `from ... import ... as ...`. `/deps/*` remains selective-only until dependency projection supports namespace-wide imports.
+- `import /namespace` binds every public function-body object under its declared name; identities stay in the source namespace and private objects remain hidden. In source order, each object replaces the visible same-name binding; a different identity emits `W4004`, while an identical reimport is silent.
+- Namespace-wide imports have no alias clause. Retain both objects by establishing a selective `from ... import ... as ...` alias before the namespace-wide import. Selective same-scope collisions remain `S2011`. `/deps/*` remains selective-only until dependency projection supports namespace-wide imports.
 - Imports at every lexical depth load their bundled core package and contribute its capability requirements; discovery never leaks their names out of the declaring scope.
 - Prelude names and descriptor constructs need NO import: `print; value` and `value int8 = 42` are complete programs. Importing `print` or `int8` is redundant, not required, and should not appear in examples or fixtures unless the case is specifically about importing.
 

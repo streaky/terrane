@@ -87,6 +87,7 @@ pub struct SemanticPackage {
     pub descriptor_constructs: BTreeMap<String, Symbol>,
     pub units: Vec<SemanticUnit>,
     binding_events: BTreeMap<(u32, usize, usize), Vec<BindingEvent>>,
+    import_warnings: Vec<Diagnostic>,
     pub bootstrap_version: &'static str,
 }
 
@@ -796,6 +797,7 @@ pub struct LexicalScope {
     pub span: Span,
     pub parent: Option<usize>,
     pub symbols: BTreeMap<String, Vec<Symbol>>,
+    import_warnings: Vec<Diagnostic>,
 }
 
 #[derive(Clone)]
@@ -1204,9 +1206,14 @@ pub fn analyze(package: &Package) -> Result<SemanticPackage, SemanticFailure> {
             return Err(failure(&import.source, "S2029", message, import.span));
         }
     }
-    resolve_imports(imports, &mut namespaces)?;
+    let mut import_warnings = resolve_imports(imports, &mut namespaces)?;
     for unit in &mut units {
         unit.scopes = collect_lexical_scopes(unit, &namespaces, &globals)?;
+        import_warnings.extend(
+            unit.scopes
+                .iter()
+                .flat_map(|scope| scope.import_warnings.iter().cloned()),
+        );
     }
     let prelude_bindings = if package.prelude {
         bootstrap_prelude()
@@ -1228,6 +1235,7 @@ pub fn analyze(package: &Package) -> Result<SemanticPackage, SemanticFailure> {
         units,
         projection,
         binding_events: BTreeMap::new(),
+        import_warnings,
         bootstrap_version: BOOTSTRAP_VERSION,
     };
     validate_initializer_dependencies(&semantic)?;
@@ -2193,10 +2201,37 @@ fn imported_objects(
         .collect())
 }
 
+fn import_collision_failure(import: &Import, name: &str) -> SemanticFailure {
+    failure(
+        &import.source,
+        "S2011",
+        format!("object import collides on `{name}`; use an `as` alias"),
+        import.span,
+    )
+}
+
+fn import_overwrite_warning(
+    import: &Import,
+    name: &str,
+    existing: &Symbol,
+    replacement: &Symbol,
+) -> Diagnostic {
+    Diagnostic::warning(
+        "W4004",
+        format!(
+            "namespace-wide import overwrites `{name}` from `{}` with `{}`",
+            existing.identity, replacement.identity
+        ),
+        import.span,
+    )
+    .with_help("use selective `from ... import ... as ...` imports to retain both objects")
+}
+
 fn resolve_imports(
     imports: Vec<Import>,
     namespaces: &mut BTreeMap<String, Namespace>,
-) -> Result<(), SemanticFailure> {
+) -> Result<Vec<Diagnostic>, SemanticFailure> {
+    let mut warnings = Vec::new();
     for import in imports {
         let exports = imported_objects(&import, namespaces)?;
         for (name, export) in exports {
@@ -2207,17 +2242,15 @@ fn resolve_imports(
                 if existing.identity == export.identity {
                     continue;
                 }
-                return Err(failure(
-                    &import.source,
-                    "S2011",
-                    format!("namespace import collides on `{name}`; use an explicit object import"),
-                    import.span,
-                ));
+                if !import.namespace_wide {
+                    return Err(import_collision_failure(&import, &name));
+                }
+                warnings.push(import_overwrite_warning(&import, &name, existing, &export));
             }
             destination.symbols.insert(name, export);
         }
     }
-    Ok(())
+    Ok(warnings)
 }
 
 fn resolved_object_span(package: &SemanticPackage, identity: &ObjectIdentity) -> Option<Span> {
@@ -10027,6 +10060,7 @@ fn add_lexical_scope(
         span: node.span,
         parent,
         symbols: BTreeMap::new(),
+        import_warnings: Vec::new(),
     });
     if parent.is_none() && function_body {
         let mut namespace_paths = namespace_chain(&unit.namespace).collect::<Vec<_>>();
@@ -10148,6 +10182,7 @@ fn populate_node(
                 span: node.span,
                 parent: Some(index),
                 symbols: BTreeMap::new(),
+                import_warnings: Vec::new(),
             });
             if let Some(first) = node.children.first() {
                 if first.kind == SyntaxKind::ForTarget {
@@ -10184,6 +10219,7 @@ fn populate_node(
                 span: node.span,
                 parent: Some(index),
                 symbols: BTreeMap::new(),
+                import_warnings: Vec::new(),
             });
             if let Some(block) = node.children.last()
                 && block.kind == SyntaxKind::Block
@@ -10860,12 +10896,12 @@ fn populate_imports(
                 if existing.identity == export.identity {
                     continue;
                 }
-                return Err(failure(
-                    &unit.source,
-                    "S2011",
-                    format!("namespace import collides on `{name}`; use an explicit object import"),
-                    import.span,
-                ));
+                if !import.namespace_wide {
+                    return Err(import_collision_failure(&import, &name));
+                }
+                scopes[index]
+                    .import_warnings
+                    .push(import_overwrite_warning(&import, &name, existing, &export));
             }
             export.binding_span = Some(import.span);
             scopes[index].symbols.insert(name, vec![export]);
@@ -12646,6 +12682,7 @@ fn collect_duplicate_union_arm_warnings(
 
 pub(crate) fn warnings(package: &SemanticPackage, lint_name_style: bool) -> Vec<Diagnostic> {
     let mut warnings = Vec::new();
+    warnings.extend(package.import_warnings.iter().cloned());
     for unit in &package.units {
         if lint_name_style && !unit.bundled && !unit.namespace.starts_with("/deps/") {
             collect_name_style_warnings(unit, &mut warnings);

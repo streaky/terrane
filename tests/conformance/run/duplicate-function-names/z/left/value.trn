@@ -1,0 +1,4 @@
+namespace z/left
+
+public function pick string;
+    return 'nested'

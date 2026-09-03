@@ -140,7 +140,7 @@ fn imports_establish_ordinary_bindings_and_support_aliases() {
 }
 
 #[test]
-fn identical_reimport_is_idempotent_and_collisions_need_aliases() {
+fn identical_reimport_is_idempotent_and_selective_collisions_need_aliases() {
     let accepted = analyze(&package(
         false,
         &[(

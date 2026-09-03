@@ -2,6 +2,8 @@ namespace app
 from /core/output import print
 from /left import render as render-left
 from /right import render as render-right
+from /z-left import pick as pick-flat
+from /z/left import pick as pick-nested
 
 function apply string; callback function to string
     return callback;
@@ -9,3 +11,5 @@ function apply string; callback function to string
 function main;
     print; (apply; render-left)
     print; (apply; render-right)
+    print; (apply; pick-flat)
+    print; (apply; pick-nested)

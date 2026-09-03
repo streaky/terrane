@@ -7552,30 +7552,45 @@ fn rust_builtin_error_kind(kind: &str) -> Option<&'static str> {
     }
 }
 
+fn function_namespace_suffix(package: &SemanticPackage, contract: &FunctionContract) -> String {
+    package
+        .units
+        .iter()
+        .find(|unit| unit.source.id() == contract.span.file)
+        .expect("function contract source must belong to a semantic unit")
+        .namespace
+        .trim_start_matches('/')
+        .split('/')
+        .map(rust_name)
+        .collect::<Vec<_>>()
+        .join("_")
+}
+
 fn function_name(package: &SemanticPackage, contract: &FunctionContract) -> String {
-    let duplicate = contract.owner.is_none()
-        && package
-            .units
+    let duplicates = package
+        .units
+        .iter()
+        .flat_map(|unit| &unit.functions)
+        .filter(|candidate| {
+            candidate.owner.is_none()
+                && candidate.name == contract.name
+                && candidate.span != contract.span
+        })
+        .collect::<Vec<_>>();
+    if !duplicates.is_empty() && contract.owner.is_none() {
+        let namespace = function_namespace_suffix(package, contract);
+        let mut name = format!("{}_terrane_{namespace}", rust_name(&contract.name));
+        let first_normalized_namespace = duplicates
             .iter()
-            .flat_map(|unit| &unit.functions)
-            .any(|candidate| {
-                candidate.owner.is_none()
-                    && candidate.name == contract.name
-                    && candidate.span != contract.span
-            });
-    if duplicate {
-        let namespace = package
-            .units
-            .iter()
-            .find(|unit| unit.source.id() == contract.span.file)
-            .expect("function contract source must belong to a semantic unit")
-            .namespace
-            .trim_start_matches('/')
-            .split('/')
-            .map(rust_name)
-            .collect::<Vec<_>>()
-            .join("_");
-        format!("{}_terrane_{namespace}", rust_name(&contract.name))
+            .filter(|candidate| function_namespace_suffix(package, candidate) == namespace)
+            .map(|candidate| candidate.span.file)
+            .chain(std::iter::once(contract.span.file))
+            .min()
+            .expect("the declaring function supplies a normalized namespace");
+        if contract.span.file != first_normalized_namespace {
+            write!(name, "_f{}", contract.span.file).unwrap();
+        }
+        name
     } else if contract.name == "main" {
         "main".to_owned()
     } else {

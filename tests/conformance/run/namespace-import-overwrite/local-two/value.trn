@@ -1,0 +1,4 @@
+namespace local-two
+
+public function local-value int;
+    return 4

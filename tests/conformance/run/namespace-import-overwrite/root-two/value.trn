@@ -1,0 +1,4 @@
+namespace root-two
+
+public function root-value int;
+    return 2
