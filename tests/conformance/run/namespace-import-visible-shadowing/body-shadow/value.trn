@@ -1,0 +1,16 @@
+namespace body-shadow
+
+public function parent-body string;
+    return 'imported-parent'
+
+public function global-body int;
+    return 4
+
+public function int8 int;
+    return 8
+
+public function utf8 string;
+    return 'imported-prelude'
+
+public function use-body-prelude string;
+    return (utf8;)

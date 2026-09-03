@@ -1,0 +1,7 @@
+namespace lib
+
+public function greet string;
+    return 'imported'
+
+public function anchor string;
+    return (greet;)

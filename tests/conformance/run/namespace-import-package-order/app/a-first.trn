@@ -1,0 +1,6 @@
+namespace app
+
+import /one
+
+public function first-choice string;
+    return (pick;)

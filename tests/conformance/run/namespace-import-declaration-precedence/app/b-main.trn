@@ -1,0 +1,10 @@
+namespace app
+
+from /lib import anchor
+
+function greet string;
+    return 'local'
+
+function main;
+    print; (greet;)
+    print; (anchor;)

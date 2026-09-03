@@ -1,0 +1,7 @@
+package = "namespace-import-package-order"
+prelude = true
+
+[namespaces]
+app = "app"
+one = "one"
+two = "two"

@@ -1,0 +1,18 @@
+namespace parent/child
+
+from /core/output import print as output
+from /parent import original-total
+import /root-shadow
+
+function main;
+    output; (original-total;)
+    output; (parent-root;)
+    output; (global-root;)
+    output; (uint8;)
+    output; (use-root-prelude;)
+    import /body-shadow
+    output; (parent-body;)
+    output; (global-body;)
+    output; (int8;)
+    output; (use-body-prelude;)
+    output; true

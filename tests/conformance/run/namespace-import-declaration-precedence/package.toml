@@ -1,0 +1,6 @@
+package = "namespace-import-declaration-precedence"
+prelude = true
+
+[namespaces]
+app = "app"
+lib = "lib"

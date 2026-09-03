@@ -120,10 +120,12 @@ dot_exception: NONE - the dot has no other role anywhere in the language
 scope: lexical + namespace
 namespace_variable_scope: the namespace tier ONLY - not its own function bodies, not descendant namespaces, not importers; its role is composition at the tier
 leaving_the_tier: a value that must leave is a 'constant', a 'global', or a function result
-collision: selective import or declaration introduces different object under same name in same scope => S2011
+collision: selective import introduces different object under same name in same scope => S2011
 shadowing: nearer binding shadows farther binding
 reimport_same_export: idempotent, including namespace-wide reimport; no warning
-namespace_wide_overwrite: source-ordered replacement of visible different object => W4004 naming old and new qualified identities
+namespace_wide_visible_chain: lexical scopes -> current/parent namespaces -> globals -> /core/types -> prelude; shadow different object => W4004
+namespace_declaration_precedence: top-level declaration in importing namespace always keeps its name; conflicting namespace-wide object skipped => W4004
+namespace_wide_order: otherwise last import wins; multi-file order is normalized relative source path; replacement warning points to invalidated earlier import
 retain_both: establish selective alias before namespace-wide import
 ```
 
@@ -151,8 +153,8 @@ Rules:
 
 - `use` declares a build dependency; it does not automatically bind supplied names.
 - `from ... import x` binds ordinary `x` in the scope containing the import; `as` renames it. No declare-then-bind step.
-- `import /namespace` binds every public function-body object under its declared name; identities stay in the source namespace and private objects remain hidden. In source order, each object replaces the visible same-name binding; a different identity emits `W4004`, while an identical reimport is silent.
-- Namespace-wide imports have no alias clause. Retain both objects by establishing a selective `from ... import ... as ...` alias before the namespace-wide import. Selective same-scope collisions remain `S2011`. `/deps/*` remains selective-only until dependency projection supports namespace-wide imports.
+- `import /namespace` binds every public function-body object under its declared name; identities stay in the source namespace and private objects remain hidden. It checks the complete visible chain (lexical parents, namespace parents, globals, implicit `/core/types`, then prelude) and emits `W4004` before shadowing a different object. An authored top-level declaration in the importing namespace always retains its name, so the conflicting imported object is skipped with `W4004`.
+- Namespace-wide imports otherwise replace one another in source order; multi-file packages use normalized relative source-path order, and a replacement warning identifies the earlier import binding it invalidates. Identical reimports are silent. Namespace-wide imports have no alias clause. Retain both objects by establishing a selective `from ... import ... as ...` alias before the namespace-wide import. Selective same-scope collisions remain `S2011`. `/deps/*` remains selective-only until dependency projection supports namespace-wide imports.
 - Imports at every lexical depth load their bundled core package and contribute its capability requirements; discovery never leaks their names out of the declaring scope.
 - Prelude names and descriptor constructs need NO import: `print; value` and `value int8 = 42` are complete programs. Importing `print` or `int8` is redundant, not required, and should not appear in examples or fixtures unless the case is specifically about importing.
 

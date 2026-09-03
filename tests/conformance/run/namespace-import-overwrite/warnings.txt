@@ -1,6 +1,6 @@
-main.trn:6:1: warning[W4004]: namespace-wide import overwrites `encode-base64` from `/codec-shadow::encode-base64` with `/core/codecs::encode-base64`
+main.trn:5:1: warning[W4004]: namespace-wide import overwrites `encode-base64` from `/codec-shadow::encode-base64` with `/core/codecs::encode-base64`
   help: use selective `from ... import ... as ...` imports to retain both objects
-main.trn:8:1: warning[W4004]: namespace-wide import overwrites `root-value` from `/root-one::root-value` with `/root-two::root-value`
+main.trn:7:1: warning[W4004]: namespace-wide import overwrites `root-value` from `/root-one::root-value` with `/root-two::root-value`
   help: use selective `from ... import ... as ...` imports to retain both objects
 main.trn:13:5: warning[W4004]: namespace-wide import overwrites `local-value` from `/local-one::local-value` with `/local-two::local-value`
   help: use selective `from ... import ... as ...` imports to retain both objects

@@ -843,13 +843,17 @@ from /image/codec import resize
 
 Imports populate the scope containing them: block imports last to the end of the block, function imports to the end of the function, and namespace-top-level imports populate that exact namespace. Lookup proceeds from the current lexical scope outward through enclosing scopes, the current namespace, and parent namespaces nearest first. Namespace-level imports are inherited by descendant namespaces under the same visibility rules as ordinary namespace bindings.
 
-A nearer binding shadows a farther one. Selective imports and declarations cannot introduce two
-different objects under the same name in one scope: that is a compile-time collision, source order
-does not choose a winner, and `as` is required when both objects must remain available. A
-namespace-wide `import` is the deliberate source-ordered replacement form: each imported public
-function-body object replaces the binding currently visible under its declared name and emits
-`W4004` when the replaced binding denotes a different object. Reimporting the same export is
-idempotent and emits no warning:
+A nearer binding shadows a farther one. Selective imports cannot introduce two different objects
+under the same name in one scope: that is a compile-time collision, source order does not choose a
+winner, and `as` is required when both objects must remain available. A namespace-wide `import` is
+the deliberate source-ordered replacement form. In a lexical scope, each imported public
+function-body object replaces the different object visible through the complete lookup chain and
+emits `W4004`; that chain includes enclosing scopes, the namespace and its parents, program globals,
+implicit `/core/types` descriptors, and prelude bindings. At namespace top level, an authored
+declaration in the importing namespace always retains its own name: a conflicting namespace-wide
+object is skipped with `W4004`, regardless of which source file contains either construct. Other
+namespace-wide imports replace one another in deterministic package source order. Reimporting the
+same export is idempotent and emits no warning:
 
 ```terrane
 from /core/output import print as myprint
@@ -999,13 +1003,17 @@ import /core/filesystem
 ```
 
 Imported objects retain their declaring identities and bind under their declared names. The form
-never imports private objects and has no alias clause. It is processed in source order: each
-public function-body object replaces the binding currently visible under its declared name, and
-`W4004` names the old and new qualified identities when they differ. Reimporting the same identity
-is idempotent. A selective import or declaration that collides in the same scope remains `S2011`;
-use selective `from ... import ... as ...` before a namespace-wide import when both objects must
-remain available. Namespace-wide dependency projection is deferred, so `/deps/*` continues to
-require selective object imports.
+never imports private objects and has no alias clause. A namespace-wide object that differs from a
+name visible through lexical parents, namespace parents, program globals, implicit `/core/types`,
+or the prelude shadows that object with `W4004`. An authored top-level declaration in the importing
+namespace is the exception: it always retains the name, and the conflicting imported object is
+skipped with `W4004`. Namespace-wide imports otherwise replace one another in source order;
+multi-file packages define that order by normalized relative source path. When one top-level import
+replaces another, the warning's primary span identifies the earlier binding that was invalidated.
+Reimporting the same identity is idempotent. A selective import that collides in the same scope
+remains `S2011`; use selective `from ... import ... as ...` before a namespace-wide import when both
+objects must remain available. Namespace-wide dependency projection is deferred, so `/deps/*`
+continues to require selective object imports.
 
 Imports are discovered throughout the complete syntax tree. A block-local selective or
 namespace-wide import therefore loads its bundled core package and contributes that package's
@@ -6087,7 +6095,7 @@ Unless a snippet explicitly tests unresolved lookup, the conformance harness sup
 7. `../foo` resolves one tier upward.
 8. importing `print` binds `print` in the scope containing the import, and `as` binds it under a different name.
 9. `from /core/output import print as emit` binds `emit` namespace-locally.
-9a. `import /core/filesystem` binds every public importable object under its declared name, excludes private objects, replaces a different visible same-name binding with `W4004`, and leaves an earlier alias available; every `/core/types` descriptor still resolves with the prelude disabled and without either import form.
+9a. `import /core/filesystem` binds every public importable object under its declared name, excludes private objects, warns when it shadows a different name anywhere in the visible lookup chain, skips a name owned by a declaration in the importing namespace, replaces earlier namespace-wide imports in normalized package source order, and leaves an earlier alias available; every `/core/types` descriptor still resolves with the prelude disabled and without either import form.
 10. `global print = my-print` replaces the program-global binding.
 11. `import with custom-import` changes subsequent import resolution in its namespace, `global import with custom-import` selects the program fallback, and an ordinary binding named `import` changes neither.
 12. `#`, `//`, and `/* ... */` comments lex and format without changing indentation structure.
@@ -6119,7 +6127,7 @@ Unless a snippet explicitly tests unresolved lookup, the conformance harness sup
 38. a reference derived through member access or collection iteration retains its origin's anonymous provenance and cannot escape or widen its inferred lifetime.
 39. reflection reports source name, generated Rust name, and native symbol independently, and `native-name; mmdrop, "__mmdrop"` changes only the last.
 40. lexical ownership and acyclic shared ownership destroy deterministically, while a provable `shared ref` cycle is rejected and an uncollectable runtime cycle is diagnosed or documented as a leak rather than promised deterministic reclamation.
-41. imports obey lexical and namespace scope, nearer imports shadow farther ones, selective same-scope collisions are rejected, namespace-wide imports replace visible same-name objects in source order with `W4004`, identical reimports are silent, and `as` retains both objects.
+41. imports obey lexical and namespace scope, nearer imports shadow farther names with `W4004`, selective same-scope collisions are rejected, top-level declarations retain their own names against namespace-wide imports, namespace-wide imports replace one another in deterministic package source order, identical reimports are silent, and `as` retains both objects.
 42. plain top-level assignment remains namespace-local even in the root namespace; creating or replacing a program-global binding without `global` is rejected.
 43. the default prelude contains exactly `print`, `task-scope`, `utf8`, `utf16-le`, `utf16-be`, `utf32-le`, and `utf32-be`; disabling it removes those defaults while `/core/types` descriptors remain implicit constructs and explicit `/core` imports still work.
 44. a call owns its remaining logical expression, nested calls require grouping, zero-argument calls require `;`, and three-clause `for` semicolons cannot be consumed as call delimiters.

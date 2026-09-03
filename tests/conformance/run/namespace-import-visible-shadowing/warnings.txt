@@ -1,0 +1,16 @@
+main.trn:5:1: warning[W4004]: namespace-wide import overwrites `global-root` from `global::global-root` with `/root-shadow::global-root`
+  help: use selective `from ... import ... as ...` imports to retain both objects
+main.trn:5:1: warning[W4004]: namespace-wide import overwrites `parent-root` from `/parent::parent-root` with `/root-shadow::parent-root`
+  help: use selective `from ... import ... as ...` imports to retain both objects
+main.trn:5:1: warning[W4004]: namespace-wide import overwrites `print` from `/core/output::print` with `/root-shadow::print`
+  help: use selective `from ... import ... as ...` imports to retain both objects
+main.trn:5:1: warning[W4004]: namespace-wide import overwrites `uint8` from `/core/types::uint8` with `/root-shadow::uint8`
+  help: use selective `from ... import ... as ...` imports to retain both objects
+main.trn:13:5: warning[W4004]: namespace-wide import overwrites `global-body` from `global::global-body` with `/body-shadow::global-body`
+  help: use selective `from ... import ... as ...` imports to retain both objects
+main.trn:13:5: warning[W4004]: namespace-wide import overwrites `int8` from `/core/types::int8` with `/body-shadow::int8`
+  help: use selective `from ... import ... as ...` imports to retain both objects
+main.trn:13:5: warning[W4004]: namespace-wide import overwrites `parent-body` from `/parent::parent-body` with `/body-shadow::parent-body`
+  help: use selective `from ... import ... as ...` imports to retain both objects
+main.trn:13:5: warning[W4004]: namespace-wide import overwrites `utf8` from `/core/encodings::utf8` with `/body-shadow::utf8`
+  help: use selective `from ... import ... as ...` imports to retain both objects

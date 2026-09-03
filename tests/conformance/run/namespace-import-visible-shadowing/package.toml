@@ -1,0 +1,7 @@
+package = "namespace-import-visible-shadowing"
+prelude = true
+
+[namespaces]
+parent = "parent"
+root-shadow = "root-shadow"
+body-shadow = "body-shadow"

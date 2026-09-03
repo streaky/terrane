@@ -420,16 +420,22 @@ complete syntax tree, so selective and namespace-wide imports at every lexical d
 core packages and contribute their capability requirements without widening lexical scope. Its
 fixed bootstrap table and exact default prelude are versioned compiler-owned data. Every
 `/core/types` descriptor also resolves as an implicit construct independently of prelude selection.
-`import /namespace` binds all public function-body objects in source order, replaces a different
-visible same-name binding with `W4004`, treats identical reimports as idempotent, diagnoses
-unsupported public namespace variables deterministically, and keeps `/deps/*` selective until
-dependency projection supports namespace-wide imports. Selective import collisions remain `S2011`,
-and an alias established before a namespace-wide import retains the earlier object.
-Focused accepted and rejected cases cover explicit and namespace-wide binding, root and lexical
-namespace-wide replacement, imported core-package replacement, alias preservation, nested import
+`import /namespace` binds all public function-body objects in source order. It checks the full visible
+lookup chain, including enclosing lexical scopes, namespace parents, globals, `/core/types`, and the
+prelude, and reports `W4004` before shadowing a different object. A top-level declaration in the
+importing namespace always retains its name; a conflicting namespace-wide object is skipped with
+`W4004`. Namespace-wide imports otherwise replace one another in normalized relative source-path
+order, with the warning attributed to an earlier import binding when that binding is invalidated.
+Identical reimports remain idempotent, unsupported public namespace variables are diagnosed
+deterministically, and `/deps/*` stays selective until dependency projection supports namespace-wide
+imports. Selective import collisions remain `S2011`, and an alias established before a
+namespace-wide import retains the earlier object.
+Focused accepted and rejected cases cover explicit and namespace-wide binding, declaration
+precedence, deterministic cross-file replacement and diagnostic attribution, complete root and
+lexical visible-chain warnings, imported core-package replacement, alias preservation, nested import
 loading and capability enforcement, visibility, selective collision rules, idempotent reimports,
 `global` assignment, legal namespace-local shadowing of program globals, unresolved references,
-and ordinary bindings named `import`; a manifest-driven multi-source contract test exercises package
+and ordinary bindings named `import`; manifest-driven multi-source contract tests exercise package
 assembly and cross-unit resolution. Semantic phases report the first failure in
 deterministic package and source order because subsequent resolution failures can depend
 on declarations or imports that the first failure prevented from assembling; manifest
@@ -466,7 +472,7 @@ Terrane source warnings own the stable `W4xxx` range:
 W4001 initialized local binding is never read
 W4002 initial or later store cannot reach a read before definite replacement
 W4003 duplicate semantic union arm
-W4004 namespace-wide import replaces a different visible object
+W4004 namespace-wide import shadows, replaces, or is skipped for a different visible object
 ```
 
 Warnings are non-blocking diagnostics. Their codes have the same stability rule as error

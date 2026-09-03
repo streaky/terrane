@@ -1,0 +1,7 @@
+namespace one
+
+public function pick string;
+    return 'one'
+
+public function first-import-choice string;
+    return (pick;)

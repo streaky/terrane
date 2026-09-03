@@ -817,11 +817,14 @@ from /core/types import int64 as word
 
 The alias binds the exported object under the new name in the current scope, preserving the object's identity and visibility checks. A selective import cannot shadow a name while leaving the original reachable under a second spelling; where both are wanted, alias one of them.
 
-The namespace-wide form `import /namespace` deliberately differs from a selective import: it
-processes public function-body objects in source order and replaces the binding currently visible
-under each declared name. Replacing a different object emits `W4004` with both qualified
-identities; reimporting the same object is silent. To retain both objects, establish a selective
-alias before the namespace-wide import. Selective same-scope collisions remain errors.
+The namespace-wide form `import /namespace` deliberately differs from a selective import. It checks
+the complete visible lookup chain and emits `W4004` before shadowing a different object. An authored
+top-level declaration in the importing namespace always retains its name, and a conflicting
+namespace-wide object is skipped with `W4004`. Namespace-wide imports otherwise replace one another
+in source order; multi-file packages use normalized relative source-path order, and the replacement
+warning identifies an earlier import binding that it invalidates. Reimporting the same object is
+silent. To retain both objects, establish a selective alias before the namespace-wide import.
+Selective same-scope collisions remain errors.
 
 Import syntax is not declaration-modifier syntax. An alias can never create or replace a program-global:
 

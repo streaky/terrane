@@ -1,0 +1,16 @@
+namespace root-shadow
+
+public function parent-root string;
+    return 'imported-parent'
+
+public function global-root int;
+    return 3
+
+public function uint8 int;
+    return 8
+
+public function print string;
+    return 'imported-prelude'
+
+public function use-root-prelude string;
+    return (print;)

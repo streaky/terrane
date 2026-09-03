@@ -1,0 +1,4 @@
+namespace two
+
+public function pick string;
+    return 'two'
