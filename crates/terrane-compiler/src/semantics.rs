@@ -12889,7 +12889,6 @@ fn validate_task_consumption(package: &SemanticPackage) -> Result<(), SemanticFa
     Ok(())
 }
 
-
 pub(crate) fn descriptor_binding_is_materialized(
     package: &SemanticPackage,
     unit: &SemanticUnit,
