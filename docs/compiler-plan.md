@@ -1200,7 +1200,9 @@ Caller-supplied pair conversion callbacks are not implemented.
 
 Deliver:
 
-- class declaration, fields, construction through `construct`, destruction through `destruct`, and deterministic drop;
+- class declaration, instance and static fields and methods, explicit `instance class; arguments`
+  construction through `construct`, `.` instance selection, `::` static selection, late-bound
+  `self`, destruction through `destruct`, and deterministic drop;
 - single class inheritance preserving complete subclass state;
 - structural named interfaces and non-type traits with explicit conflict resolution;
 - dispatch and compatibility over the descriptor model rather than a parallel class table.
@@ -1228,17 +1230,15 @@ conflicts. Structural conformance and integration with the descriptor model rema
 object analysis currently uses a compiler-owned parallel
 contract table.
 
-Construct/destruct notes, and the docs should be updated to reflect this when we get there:
+Construct/destruct contract:
 
 ```markdown
 Ordinary declared methods with compiler-recognized lifecycle roles. That preserves the object model while still letting the compiler guarantee invocation at the right times.
 
-A few semantics worth fixing explicitly:
-
 `construct`
 
-- called by class default invocation;
-- may take parameters (though doesn't have to);
+- called only by the explicit `instance class; arguments` operation;
+- may take parameters (though it does not have to);
 - runs after storage exists but before the instance becomes externally observable;
 - if it throws, partially initialized state is cleaned up deterministically.
 
@@ -1246,10 +1246,11 @@ A few semantics worth fixing explicitly:
 
 - zero-argument;
 - invoked exactly once for an owned instance when its lifetime ends;
-- should probably not be called automatically on values whose ownership was moved away;
-- throwing from destruct either forbidden or very constrained, because destruction during another error path gets ugly quickly.
+- is not invoked automatically on a value whose ownership was moved away;
+- cannot throw in version one, because destruction during an active error path must not replace or obscure that error.
 
-Destruct over drop for Terrane. drop is excellent Rust terminology, but construct / destruct form a much more obvious pair at the source-language level. That symmetry is valuable.
+`construct` / `destruct` are ordinary declared methods with compiler-recognized lifecycle roles.
+The paired Terrane terminology is retained instead of Rust's `drop`.
 ```
 
 ### Milestone 17 — References and provenance

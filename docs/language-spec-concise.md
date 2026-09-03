@@ -193,9 +193,11 @@ explicit_import: remains available for rebinding, aliasing, and shadowing ('from
 thing;                         # explicit zero-arg default call
 print; message                 # positional arg
 connect; host, port, timeout = 10
-buffer.clear;                  # zero-arg member call
-print; render                 # a bare name passes the object
-print; (render; report)       # nested call MUST be grouped
+buffer.clear;                  # zero-arg instance-member call
+widget::default;               # zero-arg static-member call
+instance widget;               # zero-arg class construction
+print; render                  # a bare name passes the object
+print; (render; report)        # nested call MUST be grouped
 ```
 
 Rules:
@@ -203,7 +205,9 @@ Rules:
 ```yaml
 call_marker: semicolon
 zero_arg: semicolon required
-member: receiver.member (no whitespace before dot)
+member: receiver.member (no whitespace before dot) selects an instance member
+static_member: class::member selects a class/static member; '.' and '::' are never interchangeable
+construction: 'instance class; arguments'; semicolon required with zero arguments; class name invocation never constructs
 member_kind: semantic, never inferred from arity; property selection yields receiver state/classification, method selection yields a callable object and requires ';' even with zero parameters
 adjacency: 'receiver object' invalid; NEVER invocation
 call_extent: unwrapped call owns remainder of containing logical expression
@@ -710,9 +714,15 @@ encoding: explicit utf8/utf16-le/utf16-be/utf32-le/utf32-be; encode total; decod
 ## OBJECT_MODEL
 
 - Objects expose protocols rather than compiler-special-cased runtime species.
-- `name` resolves through one lookup view; `value.name` is member lookup; calls explicit with `;`.
+- `name` resolves through one lookup view; `value.name` selects an instance member; `class::name`
+  selects a static/class member; calls are explicit with `;`.
+- `instance class; arguments` is the only class-construction form. `instance` means semantic
+  instantiation, not allocation; bare class invocation never constructs.
+- `this` is the current instance and exists only in instance methods. `self` is the effective,
+  late-bound class receiver, exists in instance and static methods, and may be used by
+  `instance self;`.
 - Function/class/namespace/type objects are reflectable semantic objects.
-- `construct` is conventional constructor method selected by class default invocation.
+- `construct` is the conventional constructor method invoked by `instance`.
 - Protocol: structural capability.
 - Interface: typed dispatch boundary.
 - Trait: implementation reuse, not a type.

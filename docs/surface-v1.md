@@ -77,7 +77,7 @@ object
 |   +-- function
 |   +-- bound-method
 |   +-- method-family                           callable default + child modes
-|   +-- class constructor/default invocation
+|   +-- class construction operation             explicit `instance class; arguments`
 |   +-- closure
 +-- instance
 |   +-- ordinary class instance                 COW value by default
@@ -612,22 +612,28 @@ callable
 |   contracts remain orthogonal; I/O/allocation/blocking facts are NOT source permissions
 
 class descriptor
-+-- default invocation -> construct
-+-- static fields and methods
++-- static fields
++-- static methods                              selected with `::`
 +-- one optional base class
 +-- implemented interfaces
 +-- used traits
 +-- instance descriptor
++-- self                                        effective, late-bound class receiver
 
 class instance
 +-- public/protected/private fields by scope
-+-- bound method objects
-+-- this
-+-- drop when declared
++-- bound method objects                        selected with `.`
++-- this                                        current instance
++-- self                                        effective, late-bound class receiver
++-- destruct when declared
 ```
 
 - Functions and selected methods are first-class callable objects.
-- `construct` is the class object's default invocation.
+- `instance class; arguments` constructs and invokes `construct`; a class has no implicit
+  construction through default invocation.
+- `.` selects only instance members and `::` selects only static/class members.
+- `this` exists only in instance methods. `self` exists in instance and static methods, follows the
+  effective class receiver through inherited behaviour, and may be constructed with `instance self;`.
 - `drop` is deterministic.
 - Interfaces are named structural contract/type objects.
 - Traits reuse implementation and are not subtyping.
