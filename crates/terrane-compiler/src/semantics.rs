@@ -12889,14 +12889,36 @@ fn validate_task_consumption(package: &SemanticPackage) -> Result<(), SemanticFa
     Ok(())
 }
 
-pub(crate) fn binding_is_read(package: &SemanticPackage, declaration_span: Span) -> bool {
+
+pub(crate) fn descriptor_binding_is_materialized(
+    package: &SemanticPackage,
+    unit: &SemanticUnit,
+    declaration_span: Span,
+) -> bool {
+    fn read_materializes(node: &SyntaxNode, read_span: Span, is_designator: bool) -> Option<bool> {
+        if node.kind == SyntaxKind::Name && node.span == read_span {
+            return Some(!is_designator);
+        }
+        node.children.iter().enumerate().find_map(|(index, child)| {
+            let child_is_designator = index == 0
+                && matches!(
+                    node.kind,
+                    SyntaxKind::ConstructionExpression | SyntaxKind::StaticMemberExpression
+                );
+            read_materializes(child, read_span, child_is_designator)
+        })
+    }
+
     package
         .binding_events
         .get(&span_key(declaration_span))
         .is_some_and(|events| {
-            events
-                .iter()
-                .any(|event| matches!(event, BindingEvent::Read { .. }))
+            events.iter().any(|event| {
+                let BindingEvent::Read { span, .. } = event else {
+                    return false;
+                };
+                read_materializes(&unit.tree.root, *span, false).unwrap_or(false)
+            })
         })
 }
 

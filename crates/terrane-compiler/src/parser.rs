@@ -911,11 +911,9 @@ impl Parser<'_> {
         self.parse_postfix(allow_call)
     }
 
-    fn parse_postfix(&mut self, allow_call: bool) -> SyntaxNode {
-        let start = self.position;
-        let mut value = self.parse_primary();
-        if value.kind == SyntaxKind::ConstructionExpression
-            && matches!(
+    fn reject_construction_postfix(&mut self, value: &SyntaxNode) -> bool {
+        if value.kind != SyntaxKind::ConstructionExpression
+            || !matches!(
                 self.current().kind,
                 TokenKind::Dot
                     | TokenKind::DoubleColon
@@ -924,12 +922,21 @@ impl Parser<'_> {
                     | TokenKind::Decrement
             )
         {
-            self.error_here_with_help(
-                "S1096",
-                "member and index operations cannot attach before construction is invoked",
-                "invoke construction first, for example `(instance class;).member`",
-            );
-            self.recover_expression();
+            return false;
+        }
+        self.error_here_with_help(
+            "S1096",
+            "member and index operations cannot attach before construction is invoked",
+            "invoke construction first, for example `(instance class;).member`",
+        );
+        self.recover_expression();
+        true
+    }
+
+    fn parse_postfix(&mut self, allow_call: bool) -> SyntaxNode {
+        let start = self.position;
+        let mut value = self.parse_primary();
+        if self.reject_construction_postfix(&value) {
             return value;
         }
         while value.kind != SyntaxKind::ConstructionExpression {

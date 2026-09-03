@@ -12,9 +12,9 @@ use crate::{
         ArithmeticFamily, CoercionPolicy, ContextualConstant, ElementType, FloatMemberOperation,
         FunctionContract, MemberFamily, ObjectContract, ObjectField, ObjectIdentity, ObjectKind,
         SemanticPackage, SemanticUnit, StringFamily, SymbolKind, TypedBinding, ValueType,
-        binding_is_read, binding_span_is_mutated, binding_store_value_is_read, bound_method,
-        contextual_constant, float_member_contract, narrowed_optional_type, narrowed_value_type,
-        promoted_integer_type, string_call_selection,
+        binding_span_is_mutated, binding_store_value_is_read, bound_method, contextual_constant,
+        descriptor_binding_is_materialized, float_member_contract, narrowed_optional_type,
+        narrowed_value_type, promoted_integer_type, string_call_selection,
     },
     syntax::{SyntaxKind, SyntaxNode},
 };
@@ -317,7 +317,7 @@ pub(crate) fn lower(package: &SemanticPackage) -> Program {
     if package.units.iter().any(|unit| {
         unit.typed_bindings.iter().any(|binding| {
             matches!(binding.value_type, ValueType::Descriptor(_))
-                && binding_is_read(package, binding.span)
+                && descriptor_binding_is_materialized(package, unit, binding.span)
         })
     }) {
         runtime.push(GeneratedModule {
