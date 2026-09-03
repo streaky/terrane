@@ -1,6 +1,5 @@
 namespace scalar-reference-transparency
 from /core/output import print
-from /core/types import int8
 
 function main;
     text string = 'abc'

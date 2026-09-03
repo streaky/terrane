@@ -6,7 +6,7 @@ use num_traits::{FromPrimitive, ToPrimitive};
 use crate::syntax::{SyntaxKind, SyntaxNode, SyntaxTree};
 use crate::{Diagnostic, Package, ScalarType, SourceFile, Span, TypeCategory, lexer, parser};
 
-pub const BOOTSTRAP_VERSION: &str = "1";
+pub const BOOTSTRAP_VERSION: &str = "2";
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum Visibility {
@@ -28,6 +28,7 @@ pub enum SymbolKind {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Symbol {
     pub identity: String,
+    pub(crate) lowering_identity: Option<String>,
     pub name: String,
     pub namespace: String,
     pub visibility: Visibility,
@@ -35,9 +36,15 @@ pub struct Symbol {
     pub constant: bool,
     pub kind: SymbolKind,
     pub declaration_span: Option<Span>,
+    pub binding_span: Option<Span>,
 }
 
 impl Symbol {
+    #[must_use]
+    pub(crate) fn compiler_identity(&self) -> &str {
+        self.lowering_identity.as_deref().unwrap_or(&self.identity)
+    }
+
     /// Returns the compiler-owned scalar represented by this canonical type descriptor.
     #[must_use]
     pub fn descriptor_type(&self) -> Option<ScalarType> {
@@ -80,6 +87,7 @@ pub struct SemanticPackage {
     pub descriptor_constructs: BTreeMap<String, Symbol>,
     pub units: Vec<SemanticUnit>,
     binding_events: BTreeMap<(u32, usize, usize), Vec<BindingEvent>>,
+    import_warnings: Vec<Diagnostic>,
     pub bootstrap_version: &'static str,
 }
 
@@ -732,6 +740,7 @@ pub struct SemanticUnit {
     pub objects: Vec<ObjectContract>,
     comparable_foreign_objects: BTreeSet<ObjectIdentity>,
     function_aliases: BTreeMap<String, FunctionContract>,
+    function_contracts_by_span: BTreeMap<(u32, usize, usize), FunctionContract>,
     enclosing_function_spans: BTreeMap<usize, Option<Span>>,
     descriptor_aliases: BTreeMap<String, Vec<DescriptorAlias>>,
     pub unreachable_spans: Vec<Span>,
@@ -788,6 +797,7 @@ pub struct LexicalScope {
     pub span: Span,
     pub parent: Option<usize>,
     pub symbols: BTreeMap<String, Vec<Symbol>>,
+    import_warnings: Vec<Diagnostic>,
 }
 
 #[derive(Clone)]
@@ -796,6 +806,7 @@ struct Import {
     bundled: bool,
     namespace: String,
     target: String,
+    namespace_wide: bool,
     object: String,
     alias: String,
     span: Span,
@@ -904,6 +915,7 @@ fn parse_unit(
         objects: Vec::new(),
         comparable_foreign_objects: BTreeSet::new(),
         function_aliases: BTreeMap::new(),
+        function_contracts_by_span: BTreeMap::new(),
         descriptor_aliases: BTreeMap::new(),
         enclosing_function_spans,
         unreachable_spans: Vec::new(),
@@ -940,16 +952,8 @@ fn parse_units(
         .saturating_add(1);
     let mut dependency_imports = BTreeMap::<String, BTreeSet<String>>::new();
     for unit in &units {
-        for import in unit
-            .tree
-            .root
-            .children
-            .iter()
-            .filter(|node| node.kind == SyntaxKind::ImportDeclaration)
-            .map(|node| imports_from_syntax(unit, node))
-            .collect::<Result<Vec<_>, _>>()?
+        for import in imports_in_tree(unit)?
             .into_iter()
-            .flatten()
             .filter(|import| import.target.starts_with("/deps/"))
         {
             dependency_imports
@@ -978,16 +982,8 @@ fn parse_units(
     }
     let mut index = 0;
     while index < units.len() {
-        let targets = units[index]
-            .tree
-            .root
-            .children
-            .iter()
-            .filter(|node| node.kind == SyntaxKind::ImportDeclaration)
-            .map(|node| imports_from_syntax(&units[index], node))
-            .collect::<Result<Vec<_>, _>>()?
+        let targets = imports_in_tree(&units[index])?
             .into_iter()
-            .flatten()
             .map(|import| import.target)
             .collect::<BTreeSet<_>>();
         for target in targets {
@@ -1092,20 +1088,12 @@ pub fn analyze(package: &Package) -> Result<SemanticPackage, SemanticFailure> {
     let mut namespaces = bootstrap_namespaces();
     for unit in &units {
         let bundled = unit.bundled;
-        if matches!(
-            unit.namespace.as_str(),
-            "/core/output"
-                | "/core/types"
-                | "/core/errors"
-                | "/core/collections"
-                | "/core/platform-streams"
-                | "/core/platform-system"
-                | "/core/platform-data"
-                | "/core/platform-capabilities"
-                | "/core/platform-concurrency"
-                | "/core/platform-adapters"
-        ) || ((unit.namespace == "/deps" || unit.namespace.starts_with("/deps/")) && !bundled)
-            || (crate::bundled::source(&unit.namespace).is_some() && !bundled)
+        if !bundled
+            && (unit.namespace == "/core"
+                || unit.namespace.starts_with("/core/")
+                || unit.namespace == "/deps"
+                || unit.namespace.starts_with("/deps/")
+                || crate::bundled::source(&unit.namespace).is_some())
         {
             let span = unit
                 .tree
@@ -1132,8 +1120,15 @@ pub fn analyze(package: &Package) -> Result<SemanticPackage, SemanticFailure> {
     for unit in &units {
         collect_unit(unit, &mut namespaces, &mut globals, &mut imports)?;
     }
-    for import in imports.iter().filter(|import| !import.bundled) {
-        for capability in standard_capabilities(&import.target) {
+    let discovered_imports = units
+        .iter()
+        .map(imports_in_tree)
+        .collect::<Result<Vec<_>, _>>()?
+        .into_iter()
+        .flatten()
+        .collect::<Vec<_>>();
+    for import in discovered_imports.iter().filter(|import| !import.bundled) {
+        for capability in namespace_capabilities(&import.target) {
             if !package.profile.allows(capability) {
                 return Err(failure(
                     &import.source,
@@ -1147,7 +1142,7 @@ pub fn analyze(package: &Package) -> Result<SemanticPackage, SemanticFailure> {
             }
         }
     }
-    for import in &imports {
+    for import in &discovered_imports {
         let Some(dependency) = import
             .target
             .strip_prefix("/deps/")
@@ -1211,15 +1206,21 @@ pub fn analyze(package: &Package) -> Result<SemanticPackage, SemanticFailure> {
             return Err(failure(&import.source, "S2029", message, import.span));
         }
     }
-    resolve_imports(imports, &mut namespaces)?;
-    for unit in &mut units {
-        unit.scopes = collect_lexical_scopes(unit, &namespaces, &globals)?;
-    }
     let prelude_bindings = if package.prelude {
         bootstrap_prelude()
     } else {
         BTreeMap::new()
     };
+    let mut import_warnings =
+        resolve_imports(imports, &mut namespaces, &globals, &prelude_bindings)?;
+    for unit in &mut units {
+        unit.scopes = collect_lexical_scopes(unit, &namespaces, &globals, &prelude_bindings)?;
+        import_warnings.extend(
+            unit.scopes
+                .iter()
+                .flat_map(|scope| scope.import_warnings.iter().cloned()),
+        );
+    }
     let descriptor_constructs = bootstrap_descriptor_constructs();
 
     let mut semantic = SemanticPackage {
@@ -1235,6 +1236,7 @@ pub fn analyze(package: &Package) -> Result<SemanticPackage, SemanticFailure> {
         units,
         projection,
         binding_events: BTreeMap::new(),
+        import_warnings,
         bootstrap_version: BOOTSTRAP_VERSION,
     };
     validate_initializer_dependencies(&semantic)?;
@@ -1513,21 +1515,68 @@ fn populate_function_aliases(package: &mut SemanticPackage) {
         })
         .collect::<BTreeMap<_, _>>();
     for unit in &mut package.units {
-        unit.function_aliases = package
-            .namespaces
-            .get(&unit.namespace)
-            .into_iter()
-            .flat_map(|namespace| &namespace.symbols)
-            .filter_map(|(visible_name, symbol)| {
-                let span = symbol.declaration_span?;
-                (symbol.kind == SymbolKind::Function)
-                    .then(|| contracts.get(&(span.file, span.start, span.end)))
-                    .flatten()
-                    .cloned()
-                    .map(|contract| (visible_name.clone(), contract))
-            })
-            .collect();
+        let mut aliases = BTreeMap::new();
+        let mut contracts_by_span = BTreeMap::new();
+        for namespace_name in namespace_chain(&unit.namespace) {
+            let Some(namespace) = package.namespaces.get(&namespace_name) else {
+                continue;
+            };
+            for (visible_name, symbol) in &namespace.symbols {
+                let Some(span) = symbol.declaration_span else {
+                    continue;
+                };
+                if symbol.kind != SymbolKind::Function || !visible_from(symbol, &unit.namespace) {
+                    continue;
+                }
+                let key = (span.file, span.start, span.end);
+                if let Some(contract) = contracts.get(&key) {
+                    aliases
+                        .entry(visible_name.clone())
+                        .or_insert_with(|| contract.clone());
+                    contracts_by_span
+                        .entry(key)
+                        .or_insert_with(|| contract.clone());
+                }
+            }
+        }
+        for symbol in unit
+            .scopes
+            .iter()
+            .flat_map(|scope| scope.symbols.values())
+            .flatten()
+            .filter(|symbol| symbol.kind == SymbolKind::Function)
+        {
+            let Some(span) = symbol.declaration_span else {
+                continue;
+            };
+            let key = (span.file, span.start, span.end);
+            if let Some(contract) = contracts.get(&key) {
+                contracts_by_span
+                    .entry(key)
+                    .or_insert_with(|| contract.clone());
+            }
+        }
+        unit.function_aliases = aliases;
+        unit.function_contracts_by_span = contracts_by_span;
     }
+}
+
+fn resolved_function_contract<'a>(
+    unit: &'a SemanticUnit,
+    name: &str,
+    offset: usize,
+) -> Option<&'a FunctionContract> {
+    lexical_scope_chain(unit, offset)
+        .find_map(|scope| {
+            let symbol = scope.symbols.get(name)?.iter().rev().find(|symbol| {
+                symbol.kind == SymbolKind::Function
+                    && symbol.binding_span.is_none_or(|span| span.end <= offset)
+            })?;
+            let span = symbol.declaration_span?;
+            unit.function_contracts_by_span
+                .get(&(span.file, span.start, span.end))
+        })
+        .or_else(|| unit.function_aliases.get(name))
 }
 
 fn populate_function_type_dependencies(package: &mut SemanticPackage) {
@@ -1558,6 +1607,7 @@ fn populate_function_type_dependencies(package: &mut SemanticPackage) {
         let mut queue = unit
             .function_aliases
             .values()
+            .chain(unit.function_contracts_by_span.values())
             .filter_map(|contract| match &contract.return_type {
                 Some(ValueType::Object(identity)) => Some(identity.clone()),
                 _ => None,
@@ -1642,6 +1692,7 @@ impl SemanticPackage {
                     .get(name)
                     .filter(|symbol| visible_from(symbol, namespace))
             })
+            .or_else(|| self.symbol("/core/types", name))
             .or_else(|| self.prelude_bindings.get(name))
     }
 
@@ -1656,11 +1707,12 @@ impl SemanticPackage {
         let inside_lexical_scope = scopes.peek().is_some();
         scopes
             .find_map(|scope| {
-                scope.symbols.get(name)?.iter().rev().find(|symbol| {
-                    symbol
-                        .declaration_span
-                        .is_none_or(|span| span.end <= offset)
-                })
+                scope
+                    .symbols
+                    .get(name)?
+                    .iter()
+                    .rev()
+                    .find(|symbol| symbol.binding_span.is_none_or(|span| span.end <= offset))
             })
             .or_else(|| {
                 self.resolve_name(&unit.namespace, name)
@@ -1923,6 +1975,7 @@ fn collect_declaration(
     };
     let symbol = Symbol {
         identity,
+        lowering_identity: None,
         name: declaration.name.clone(),
         namespace: unit.namespace.clone(),
         visibility: declaration.visibility,
@@ -1930,6 +1983,7 @@ fn collect_declaration(
         constant: declaration.constant,
         kind: declaration.kind,
         declaration_span: Some(node.span),
+        binding_span: Some(node.span),
     };
     if declaration.global {
         globals.insert(declaration.name, symbol);
@@ -1960,14 +2014,14 @@ fn collect_declaration(
     Ok(())
 }
 
-fn standard_capabilities(namespace: &str) -> &'static [&'static str] {
+fn namespace_capabilities(namespace: &str) -> &'static [&'static str] {
     match namespace {
-        "/standard/streams" | "/standard/process" => &["process"],
-        "/standard/filesystem" => &["filesystem"],
-        "/standard/random" | "/standard/uuid" => &["entropy"],
-        "/standard/networking" => &["networking"],
-        "/standard/tls" => &["networking", "tls"],
-        "/standard/concurrency" => &["threads"],
+        "/core/streams" | "/core/process" => &["process"],
+        "/core/filesystem" => &["filesystem"],
+        "/core/random" | "/core/random/uuid" => &["entropy"],
+        "/core/networking" => &["networking"],
+        "/core/networking/tls" => &["networking", "tls"],
+        "/core/concurrency" => &["threads"],
         _ => &[],
     }
 }
@@ -2032,46 +2086,57 @@ fn imports_from_syntax(
             bundled: unit.bundled,
             namespace: unit.namespace.clone(),
             target: target.clone(),
+            namespace_wide: false,
             object: imported.to_owned(),
             alias: alias.to_owned(),
             span: import_node.span,
         });
     }
+    if result.is_empty() {
+        if target == "/deps" || target.starts_with("/deps/") {
+            return Err(failure(
+                &unit.source,
+                "S2033",
+                "namespace-wide dependency imports are not implemented; import dependency objects explicitly",
+                node.span,
+            ));
+        }
+        result.push(Import {
+            source: unit.source.clone(),
+            bundled: unit.bundled,
+            namespace: unit.namespace.clone(),
+            target,
+            namespace_wide: true,
+            object: String::new(),
+            alias: String::new(),
+            span: node.span,
+        });
+    }
     Ok(result)
+}
+fn imports_in_tree(unit: &SemanticUnit) -> Result<Vec<Import>, SemanticFailure> {
+    fn collect(
+        unit: &SemanticUnit,
+        node: &SyntaxNode,
+        imports: &mut Vec<Import>,
+    ) -> Result<(), SemanticFailure> {
+        if node.kind == SyntaxKind::ImportDeclaration {
+            imports.extend(imports_from_syntax(unit, node)?);
+        }
+        for child in &node.children {
+            collect(unit, child, imports)?;
+        }
+        Ok(())
+    }
+
+    let mut imports = Vec::new();
+    collect(unit, &unit.tree.root, &mut imports)?;
+    Ok(imports)
 }
 fn imported_object(
     import: &Import,
     namespaces: &BTreeMap<String, Namespace>,
 ) -> Result<Symbol, SemanticFailure> {
-    if matches!(
-        import.target.as_str(),
-        "/core/platform-streams"
-            | "/core/platform-system"
-            | "/core/platform-data"
-            | "/core/platform-capabilities"
-            | "/core/platform-concurrency"
-            | "/core/platform-adapters"
-    ) && !import.bundled
-    {
-        let facility = match import.target.as_str() {
-            "/core/platform-streams" => "`/standard/streams`",
-            "/core/platform-data" => {
-                "`/standard/documents`, `/standard/json`, `/standard/yaml`, or `/standard/urls`"
-            }
-            "/core/platform-capabilities" => {
-                "`/standard/random`, `/standard/codecs`, `/standard/compression`, `/standard/uuid`, `/standard/networking`, or `/standard/tls`"
-            }
-            "/core/platform-concurrency" => "`/standard/concurrency`",
-            "/core/platform-adapters" => "`/standard/process`",
-            _ => "`/standard/filesystem` or `/standard/process`",
-        };
-        return Err(failure(
-            &import.source,
-            "T0100",
-            format!("host intrinsics are private to the bundled {facility} package"),
-            import.span,
-        ));
-    }
     let export = namespaces
         .get(&import.target)
         .and_then(|namespace| namespace.symbols.get(&import.object))
@@ -2100,30 +2165,172 @@ fn imported_object(
     }
     Ok(export.clone())
 }
+fn imported_objects(
+    import: &Import,
+    namespaces: &BTreeMap<String, Namespace>,
+) -> Result<Vec<(String, Symbol)>, SemanticFailure> {
+    if !import.namespace_wide {
+        return Ok(vec![(
+            import.alias.clone(),
+            imported_object(import, namespaces)?,
+        )]);
+    }
+    let namespace = namespaces.get(&import.target).ok_or_else(|| {
+        failure(
+            &import.source,
+            "S2009",
+            format!("unknown namespace `{}`", import.target),
+            import.span,
+        )
+    })?;
+    if let Some(symbol) = namespace.symbols.values().find(|symbol| {
+        symbol.visibility == Visibility::Public && !symbol.available_in_function_body()
+    }) {
+        return Err(namespace_variable_import_failure(
+            &import.source,
+            &symbol.name,
+            import.span,
+        ));
+    }
+    Ok(namespace
+        .symbols
+        .values()
+        .filter(|symbol| {
+            symbol.visibility == Visibility::Public && symbol.available_in_function_body()
+        })
+        .map(|symbol| (symbol.name.clone(), symbol.clone()))
+        .collect())
+}
+
+fn import_collision_failure(import: &Import, name: &str) -> SemanticFailure {
+    failure(
+        &import.source,
+        "S2011",
+        format!("object import collides on `{name}`; use an `as` alias"),
+        import.span,
+    )
+}
+
+fn import_overwrite_warning(
+    name: &str,
+    existing: &Symbol,
+    replacement: &Symbol,
+    span: Span,
+) -> Diagnostic {
+    Diagnostic::warning(
+        "W4004",
+        format!(
+            "namespace-wide import overwrites `{name}` from `{}` with `{}`",
+            existing.identity, replacement.identity
+        ),
+        span,
+    )
+    .with_help("use selective `from ... import ... as ...` imports to retain both objects")
+}
+
+fn import_declaration_precedence_warning(
+    import: &Import,
+    name: &str,
+    declaration: &Symbol,
+    rejected: &Symbol,
+) -> Diagnostic {
+    Diagnostic::warning(
+        "W4004",
+        format!(
+            "namespace-wide import leaves declared `{name}` from `{}` in place instead of `{}`",
+            declaration.identity, rejected.identity
+        ),
+        import.span,
+    )
+    .with_help("use a selective `from ... import ... as ...` import to bind the imported object")
+}
+
+fn visible_fallback_symbol<'a>(
+    namespace: &str,
+    name: &str,
+    namespaces: &'a BTreeMap<String, Namespace>,
+    globals: &'a BTreeMap<String, Symbol>,
+    prelude_bindings: &'a BTreeMap<String, Symbol>,
+) -> Option<&'a Symbol> {
+    namespace_chain(namespace)
+        .skip(1)
+        .find_map(|path| {
+            namespaces.get(&path)?.symbols.get(name).filter(|symbol| {
+                visible_from(symbol, namespace)
+                    && (symbol.kind != SymbolKind::Binding
+                        || symbol.constant
+                        || symbol.global
+                        || symbol.namespace == namespace)
+            })
+        })
+        .or_else(|| {
+            globals
+                .get(name)
+                .filter(|symbol| visible_from(symbol, namespace))
+        })
+        .or_else(|| namespaces.get("/core/types")?.symbols.get(name))
+        .or_else(|| prelude_bindings.get(name))
+}
 
 fn resolve_imports(
     imports: Vec<Import>,
     namespaces: &mut BTreeMap<String, Namespace>,
-) -> Result<(), SemanticFailure> {
+    globals: &BTreeMap<String, Symbol>,
+    prelude_bindings: &BTreeMap<String, Symbol>,
+) -> Result<Vec<Diagnostic>, SemanticFailure> {
+    let mut warnings = Vec::new();
     for import in imports {
-        let export = imported_object(&import, namespaces)?;
-        let destination = namespaces
-            .get_mut(&import.namespace)
-            .expect("every import destination is a preassembled source-unit namespace");
-        if let Some(existing) = destination.symbols.get(&import.alias) {
-            if existing.identity == export.identity {
-                continue;
+        let exports = imported_objects(&import, namespaces)?;
+        for (name, mut export) in exports {
+            let existing = namespaces
+                .get(&import.namespace)
+                .and_then(|destination| destination.symbols.get(&name))
+                .cloned();
+            if let Some(existing) = existing {
+                if existing.identity == export.identity {
+                    continue;
+                }
+                if !import.namespace_wide {
+                    return Err(import_collision_failure(&import, &name));
+                }
+                if existing.namespace == import.namespace {
+                    warnings.push(import_declaration_precedence_warning(
+                        &import, &name, &existing, &export,
+                    ));
+                    continue;
+                }
+                warnings.push(import_overwrite_warning(
+                    &name,
+                    &existing,
+                    &export,
+                    existing.binding_span.unwrap_or(import.span),
+                ));
+            } else if import.namespace_wide
+                && let Some(existing) = visible_fallback_symbol(
+                    &import.namespace,
+                    &name,
+                    namespaces,
+                    globals,
+                    prelude_bindings,
+                )
+                && existing.identity != export.identity
+            {
+                warnings.push(import_overwrite_warning(
+                    &name,
+                    existing,
+                    &export,
+                    import.span,
+                ));
             }
-            return Err(failure(
-                &import.source,
-                "S2011",
-                format!("import `{}` collides; use an alias", import.alias),
-                import.span,
-            ));
+            export.binding_span = Some(import.span);
+            namespaces
+                .get_mut(&import.namespace)
+                .expect("every import destination is a preassembled source-unit namespace")
+                .symbols
+                .insert(name, export);
         }
-        destination.symbols.insert(import.alias, export);
     }
-    Ok(())
+    Ok(warnings)
 }
 
 fn resolved_object_span(package: &SemanticPackage, identity: &ObjectIdentity) -> Option<Span> {
@@ -4566,10 +4773,10 @@ fn infer_receiver_consumption(package: &mut SemanticPackage) {
             if callee.kind == SyntaxKind::Name {
                 let identity = package
                     .resolve_name_at(unit, callee.span.start, node_text(&unit.source, callee))
-                    .map(|symbol| symbol.identity.as_str());
+                    .map(Symbol::compiler_identity);
                 if matches!(
                     identity,
-                    Some("/core/platform-streams::close" | "/core/platform-streams::release")
+                    Some("intrinsic:streams::close" | "intrinsic:streams::release")
                 ) && arguments
                     .first()
                     .and_then(|argument| argument.children.last())
@@ -5773,8 +5980,6 @@ fn infer_throwing_effects(package: &mut SemanticPackage) -> Result<(), SemanticF
                 .flatten();
             let mut errors = if integer_coercion_can_fail(unit, node) {
                 BTreeSet::from(["/core/errors::integer-conversion-overflow".to_owned()])
-            } else if member_name == "decode" {
-                BTreeSet::from(["/core/errors::decode-error".to_owned()])
             } else if let Some(ValueType::Object(object)) = receiver_type {
                 unit.functions
                     .iter()
@@ -5785,6 +5990,8 @@ fn infer_throwing_effects(package: &mut SemanticPackage) -> Result<(), SemanticF
                     .and_then(|contract| inferred.get(&key(contract.span)))
                     .cloned()
                     .unwrap_or_default()
+            } else if member_name == "decode" {
+                BTreeSet::from(["/core/errors::decode-error".to_owned()])
             } else {
                 BTreeSet::new()
             };
@@ -6364,26 +6571,15 @@ fn declared_value_type_with_visible_objects(
             }
         }
     }
-    if type_name == "resource-handle" {
-        return Ok(ValueType::PlatformStreamHandle);
-    }
-    if type_name == "filesystem-authority" {
-        return Ok(ValueType::FilesystemAuthority);
-    }
-    if type_name == "platform-data-result" {
-        return Ok(ValueType::PlatformDataResult);
-    }
-    if type_name == "platform-url-result" {
-        return Ok(ValueType::PlatformUrlResult);
-    }
-    if type_name == "platform-capability" {
-        return Ok(ValueType::PlatformCapability);
-    }
-    if type_name == "platform-resource-handle" {
-        return Ok(ValueType::PlatformResourceHandle);
-    }
-    if type_name == "platform-result" {
-        return Ok(ValueType::PlatformResult);
+    match type_name {
+        "host-resource-handle" => return Ok(ValueType::PlatformStreamHandle),
+        "host-filesystem-authority" => return Ok(ValueType::FilesystemAuthority),
+        "host-platform-data-result" => return Ok(ValueType::PlatformDataResult),
+        "host-platform-url-result" => return Ok(ValueType::PlatformUrlResult),
+        "host-platform-capability" => return Ok(ValueType::PlatformCapability),
+        "host-platform-resource-handle" => return Ok(ValueType::PlatformResourceHandle),
+        "host-platform-result" => return Ok(ValueType::PlatformResult),
+        _ => {}
     }
     if type_name == "encoding" {
         return Ok(ValueType::Encoding);
@@ -7232,208 +7428,196 @@ fn infer_value_type(
     if node.kind == SyntaxKind::CallExpression {
         if let [callee, arguments] = node.children.as_slice() {
             if callee.kind == SyntaxKind::Name
-                && resolved_name_identity(unit, callee)
+                && resolved_compiler_identity(unit, callee)
                     .is_some_and(|identity| identity == "/core/async::task-scope")
             {
                 return Ok(Some(ValueType::TaskScope));
             }
             if callee.kind == SyntaxKind::Name
-                && let Some(identity) = resolved_name_identity(unit, callee)
+                && let Some(identity) = resolved_compiler_identity(unit, callee)
             {
                 let platform_result = match identity {
-                    "/core/platform-streams::acquire-stdin"
-                    | "/core/platform-streams::acquire-stdout"
-                    | "/core/platform-streams::acquire-stderr" => {
-                        Some(ValueType::PlatformStreamHandle)
-                    }
-                    "/core/platform-system::acquire-filesystem-authority" => {
+                    "intrinsic:streams::acquire-stdin"
+                    | "intrinsic:streams::acquire-stdout"
+                    | "intrinsic:streams::acquire-stderr" => Some(ValueType::PlatformStreamHandle),
+                    "intrinsic:system::acquire-filesystem-authority" => {
                         Some(ValueType::FilesystemAuthority)
                     }
-                    "/core/platform-streams::open-file"
-                    | "/core/platform-streams::open-directory-beneath"
-                    | "/core/platform-streams::open-file-beneath" => {
-                        Some(ValueType::PlatformOpenResult)
-                    }
-                    "/core/platform-streams::read" => Some(ValueType::PlatformReadResult),
-                    "/core/platform-streams::write" => Some(ValueType::PlatformWriteResult),
-                    "/core/platform-streams::flush"
-                    | "/core/platform-streams::sync-data"
-                    | "/core/platform-streams::sync-all"
-                    | "/core/platform-streams::close"
-                    | "/core/platform-streams::release" => Some(ValueType::PlatformUnitResult),
-                    "/core/platform-data::empty-document"
-                    | "/core/platform-data::make-document-none"
-                    | "/core/platform-data::make-document-bool"
-                    | "/core/platform-data::make-document-string"
-                    | "/core/platform-data::make-document-integer"
-                    | "/core/platform-data::make-document-decimal"
-                    | "/core/platform-data::make-document-list"
-                    | "/core/platform-data::make-document-map"
-                    | "/core/platform-data::document-list-append"
-                    | "/core/platform-data::document-map-insert"
-                    | "/core/platform-data::json-parse"
-                    | "/core/platform-data::json-canonical"
-                    | "/core/platform-data::yaml-parse"
-                    | "/core/platform-data::document-item"
-                    | "/core/platform-data::document-field"
-                    | "/core/platform-data::validate-mapping" => {
-                        Some(ValueType::PlatformDataResult)
-                    }
-                    "/core/platform-data::url-parse" => Some(ValueType::PlatformUrlResult),
-                    "/core/platform-capabilities::secure-random"
-                    | "/core/platform-capabilities::cancellation-token"
-                    | "/core/platform-capabilities::pseudo-random"
-                    | "/core/platform-capabilities::secret-buffer"
-                    | "/core/platform-capabilities::result-capability"
-                    | "/core/platform-concurrency::platform-capability"
-                    | "/core/platform-concurrency::no-capability" => {
-                        Some(ValueType::PlatformCapability)
-                    }
-                    "/core/platform-capabilities::result-resource"
-                    | "/core/platform-capabilities::no-resource" => {
+                    "intrinsic:streams::open-file"
+                    | "intrinsic:streams::open-directory-beneath"
+                    | "intrinsic:streams::open-file-beneath" => Some(ValueType::PlatformOpenResult),
+                    "intrinsic:streams::read" => Some(ValueType::PlatformReadResult),
+                    "intrinsic:streams::write" => Some(ValueType::PlatformWriteResult),
+                    "intrinsic:streams::flush"
+                    | "intrinsic:streams::sync-data"
+                    | "intrinsic:streams::sync-all"
+                    | "intrinsic:streams::close"
+                    | "intrinsic:streams::release" => Some(ValueType::PlatformUnitResult),
+                    "intrinsic:data::empty-document"
+                    | "intrinsic:data::make-document-none"
+                    | "intrinsic:data::make-document-bool"
+                    | "intrinsic:data::make-document-string"
+                    | "intrinsic:data::make-document-integer"
+                    | "intrinsic:data::make-document-decimal"
+                    | "intrinsic:data::make-document-list"
+                    | "intrinsic:data::make-document-map"
+                    | "intrinsic:data::document-list-append"
+                    | "intrinsic:data::document-map-insert"
+                    | "intrinsic:data::json-parse"
+                    | "intrinsic:data::json-canonical"
+                    | "intrinsic:data::yaml-parse"
+                    | "intrinsic:data::document-item"
+                    | "intrinsic:data::document-field"
+                    | "intrinsic:data::validate-mapping" => Some(ValueType::PlatformDataResult),
+                    "intrinsic:data::url-parse" => Some(ValueType::PlatformUrlResult),
+                    "intrinsic:capabilities::secure-random"
+                    | "intrinsic:capabilities::cancellation-token"
+                    | "intrinsic:capabilities::pseudo-random"
+                    | "intrinsic:capabilities::secret-buffer"
+                    | "intrinsic:capabilities::result-capability"
+                    | "intrinsic:concurrency::platform-capability"
+                    | "intrinsic:concurrency::no-capability" => Some(ValueType::PlatformCapability),
+                    "intrinsic:capabilities::result-resource"
+                    | "intrinsic:capabilities::no-resource" => {
                         Some(ValueType::PlatformResourceHandle)
                     }
-                    "/core/platform-capabilities::failed-result"
-                    | "/core/platform-capabilities::random-bytes"
-                    | "/core/platform-capabilities::random-bounded"
-                    | "/core/platform-capabilities::random-split"
-                    | "/core/platform-capabilities::digest"
-                    | "/core/platform-capabilities::hmac"
-                    | "/core/platform-capabilities::destroy-secret"
-                    | "/core/platform-capabilities::hex-decode"
-                    | "/core/platform-capabilities::base64-decode"
-                    | "/core/platform-capabilities::uuid-parse"
-                    | "/core/platform-capabilities::uuid-v4"
-                    | "/core/platform-capabilities::uuid-v7"
-                    | "/core/platform-capabilities::compress"
-                    | "/core/platform-capabilities::decompress"
-                    | "/core/platform-capabilities::parse-ip"
-                    | "/core/platform-capabilities::parse-host-name"
-                    | "/core/platform-capabilities::parse-socket"
-                    | "/core/platform-capabilities::parse-socket-text"
-                    | "/core/platform-capabilities::tcp-bind"
-                    | "/core/platform-capabilities::tcp-connect"
-                    | "/core/platform-capabilities::tcp-connect-host"
-                    | "/core/platform-capabilities::tcp-accept"
-                    | "/core/platform-capabilities::tcp-read"
-                    | "/core/platform-capabilities::tcp-write"
-                    | "/core/platform-capabilities::tcp-shutdown"
-                    | "/core/platform-capabilities::tcp-configure"
-                    | "/core/platform-capabilities::udp-bind"
-                    | "/core/platform-capabilities::udp-configure"
-                    | "/core/platform-capabilities::udp-send-to"
-                    | "/core/platform-capabilities::udp-receive-from"
-                    | "/core/platform-capabilities::dns-lookup"
-                    | "/core/platform-capabilities::tls-client"
-                    | "/core/platform-capabilities::tls-read"
-                    | "/core/platform-capabilities::tls-write"
-                    | "/core/platform-capabilities::tls-shutdown"
-                    | "/core/platform-capabilities::cancel"
-                    | "/core/platform-capabilities::close"
-                    | "/core/platform-concurrency::platform-result"
-                    | "/core/platform-concurrency::int-channel"
-                    | "/core/platform-concurrency::int-mutex"
-                    | "/core/platform-concurrency::int-read-write-lock"
-                    | "/core/platform-concurrency::atomic-int64"
-                    | "/core/platform-concurrency::thread-local-int"
-                    | "/core/platform-concurrency::int-channel-send"
-                    | "/core/platform-concurrency::int-channel-receive"
-                    | "/core/platform-concurrency::int-channel-try-receive"
-                    | "/core/platform-concurrency::int-mutex-load"
-                    | "/core/platform-concurrency::int-mutex-store"
-                    | "/core/platform-concurrency::int-mutex-add"
-                    | "/core/platform-concurrency::int-read-write-lock-read"
-                    | "/core/platform-concurrency::int-read-write-lock-write"
-                    | "/core/platform-concurrency::atomic-int64-load"
-                    | "/core/platform-concurrency::atomic-int64-store"
-                    | "/core/platform-concurrency::atomic-int64-add"
-                    | "/core/platform-concurrency::thread-local-int-get"
-                    | "/core/platform-concurrency::thread-local-int-set"
-                    | "/core/platform-adapters::platform-result"
-                    | "/core/platform-adapters::system-host-name" => {
-                        Some(ValueType::PlatformResult)
-                    }
-                    "/core/platform-system::filesystem-exists"
-                    | "/core/platform-system::filesystem-metadata"
-                    | "/core/platform-system::filesystem-realpath"
-                    | "/core/platform-system::filesystem-read-link"
-                    | "/core/platform-system::filesystem-read-bounded"
-                    | "/core/platform-system::filesystem-write-atomic"
-                    | "/core/platform-system::filesystem-rename"
-                    | "/core/platform-system::filesystem-remove" => {
+                    "intrinsic:capabilities::failed-result"
+                    | "intrinsic:capabilities::random-bytes"
+                    | "intrinsic:capabilities::random-bounded"
+                    | "intrinsic:capabilities::random-split"
+                    | "intrinsic:capabilities::digest"
+                    | "intrinsic:capabilities::hmac"
+                    | "intrinsic:capabilities::destroy-secret"
+                    | "intrinsic:capabilities::hex-decode"
+                    | "intrinsic:capabilities::base64-decode"
+                    | "intrinsic:capabilities::uuid-parse"
+                    | "intrinsic:capabilities::uuid-v4"
+                    | "intrinsic:capabilities::uuid-v7"
+                    | "intrinsic:capabilities::compress"
+                    | "intrinsic:capabilities::decompress"
+                    | "intrinsic:capabilities::parse-ip"
+                    | "intrinsic:capabilities::parse-host-name"
+                    | "intrinsic:capabilities::parse-socket"
+                    | "intrinsic:capabilities::parse-socket-text"
+                    | "intrinsic:capabilities::tcp-bind"
+                    | "intrinsic:capabilities::tcp-connect"
+                    | "intrinsic:capabilities::tcp-connect-host"
+                    | "intrinsic:capabilities::tcp-accept"
+                    | "intrinsic:capabilities::tcp-read"
+                    | "intrinsic:capabilities::tcp-write"
+                    | "intrinsic:capabilities::tcp-shutdown"
+                    | "intrinsic:capabilities::tcp-configure"
+                    | "intrinsic:capabilities::udp-bind"
+                    | "intrinsic:capabilities::udp-configure"
+                    | "intrinsic:capabilities::udp-send-to"
+                    | "intrinsic:capabilities::udp-receive-from"
+                    | "intrinsic:capabilities::dns-lookup"
+                    | "intrinsic:capabilities::tls-client"
+                    | "intrinsic:capabilities::tls-read"
+                    | "intrinsic:capabilities::tls-write"
+                    | "intrinsic:capabilities::tls-shutdown"
+                    | "intrinsic:capabilities::cancel"
+                    | "intrinsic:capabilities::close"
+                    | "intrinsic:concurrency::platform-result"
+                    | "intrinsic:concurrency::int-channel"
+                    | "intrinsic:concurrency::int-mutex"
+                    | "intrinsic:concurrency::int-read-write-lock"
+                    | "intrinsic:concurrency::atomic-int64"
+                    | "intrinsic:concurrency::thread-local-int"
+                    | "intrinsic:concurrency::int-channel-send"
+                    | "intrinsic:concurrency::int-channel-receive"
+                    | "intrinsic:concurrency::int-channel-try-receive"
+                    | "intrinsic:concurrency::int-mutex-load"
+                    | "intrinsic:concurrency::int-mutex-store"
+                    | "intrinsic:concurrency::int-mutex-add"
+                    | "intrinsic:concurrency::int-read-write-lock-read"
+                    | "intrinsic:concurrency::int-read-write-lock-write"
+                    | "intrinsic:concurrency::atomic-int64-load"
+                    | "intrinsic:concurrency::atomic-int64-store"
+                    | "intrinsic:concurrency::atomic-int64-add"
+                    | "intrinsic:concurrency::thread-local-int-get"
+                    | "intrinsic:concurrency::thread-local-int-set"
+                    | "intrinsic:adapters::platform-result"
+                    | "intrinsic:adapters::system-host-name" => Some(ValueType::PlatformResult),
+                    "intrinsic:system::filesystem-exists"
+                    | "intrinsic:system::filesystem-metadata"
+                    | "intrinsic:system::filesystem-realpath"
+                    | "intrinsic:system::filesystem-read-link"
+                    | "intrinsic:system::filesystem-read-bounded"
+                    | "intrinsic:system::filesystem-write-atomic"
+                    | "intrinsic:system::filesystem-rename"
+                    | "intrinsic:system::filesystem-remove" => {
                         Some(ValueType::PlatformFilesystemResult)
                     }
-                    "/core/platform-system::result-failed"
-                    | "/core/platform-system::result-bool"
-                    | "/core/platform-system::platform-value-is-text"
-                    | "/core/platform-data::data-failed"
-                    | "/core/platform-data::url-failed"
-                    | "/core/platform-capabilities::constant-time-equal"
-                    | "/core/platform-capabilities::result-failed"
-                    | "/core/platform-capabilities::result-resource-limit"
-                    | "/core/platform-capabilities::result-truncated"
-                    | "/core/platform-capabilities::result-deadline-exceeded"
-                    | "/core/platform-capabilities::result-bool"
-                    | "/core/platform-concurrency::result-failed"
-                    | "/core/platform-concurrency::result-bool"
-                    | "/core/platform-adapters::result-failed"
-                    | "/core/platform-adapters::result-bool" => {
+                    "intrinsic:system::result-failed"
+                    | "intrinsic:system::result-bool"
+                    | "intrinsic:system::platform-value-is-text"
+                    | "intrinsic:data::data-failed"
+                    | "intrinsic:data::url-failed"
+                    | "intrinsic:capabilities::constant-time-equal"
+                    | "intrinsic:capabilities::result-failed"
+                    | "intrinsic:capabilities::result-resource-limit"
+                    | "intrinsic:capabilities::result-truncated"
+                    | "intrinsic:capabilities::result-deadline-exceeded"
+                    | "intrinsic:capabilities::result-bool"
+                    | "intrinsic:concurrency::result-failed"
+                    | "intrinsic:concurrency::result-bool"
+                    | "intrinsic:adapters::result-failed"
+                    | "intrinsic:adapters::result-bool" => {
                         Some(ValueType::Scalar(ScalarType::Bool))
                     }
-                    "/core/platform-system::result-message"
-                    | "/core/platform-system::result-text"
-                    | "/core/platform-system::result-detail"
-                    | "/core/platform-system::platform-value-text"
-                    | "/core/platform-data::data-message"
-                    | "/core/platform-data::data-path"
-                    | "/core/platform-data::data-expected"
-                    | "/core/platform-data::data-encoded"
-                    | "/core/platform-data::document-kind"
-                    | "/core/platform-data::document-text"
-                    | "/core/platform-data::document-coefficient"
-                    | "/core/platform-data::document-key"
-                    | "/core/platform-data::url-message"
-                    | "/core/platform-data::url-serialized"
-                    | "/core/platform-data::url-display"
-                    | "/core/platform-data::url-scheme"
-                    | "/core/platform-data::url-username"
-                    | "/core/platform-data::url-password"
-                    | "/core/platform-data::url-host"
-                    | "/core/platform-data::url-port"
-                    | "/core/platform-data::url-path"
-                    | "/core/platform-data::url-query-key"
-                    | "/core/platform-data::url-query-value"
-                    | "/core/platform-data::url-fragment"
-                    | "/core/platform-data::url-origin"
-                    | "/core/platform-capabilities::hex-encode"
-                    | "/core/platform-capabilities::base64-encode"
-                    | "/core/platform-capabilities::result-message"
-                    | "/core/platform-capabilities::result-text"
-                    | "/core/platform-capabilities::result-detail"
-                    | "/core/platform-concurrency::result-message"
-                    | "/core/platform-adapters::result-message"
-                    | "/core/platform-adapters::result-text" => {
+                    "intrinsic:system::result-message"
+                    | "intrinsic:system::result-text"
+                    | "intrinsic:system::result-detail"
+                    | "intrinsic:system::platform-value-text"
+                    | "intrinsic:data::data-message"
+                    | "intrinsic:data::data-path"
+                    | "intrinsic:data::data-expected"
+                    | "intrinsic:data::data-encoded"
+                    | "intrinsic:data::document-kind"
+                    | "intrinsic:data::document-text"
+                    | "intrinsic:data::document-coefficient"
+                    | "intrinsic:data::document-key"
+                    | "intrinsic:data::url-message"
+                    | "intrinsic:data::url-serialized"
+                    | "intrinsic:data::url-display"
+                    | "intrinsic:data::url-scheme"
+                    | "intrinsic:data::url-username"
+                    | "intrinsic:data::url-password"
+                    | "intrinsic:data::url-host"
+                    | "intrinsic:data::url-port"
+                    | "intrinsic:data::url-path"
+                    | "intrinsic:data::url-query-key"
+                    | "intrinsic:data::url-query-value"
+                    | "intrinsic:data::url-fragment"
+                    | "intrinsic:data::url-origin"
+                    | "intrinsic:capabilities::hex-encode"
+                    | "intrinsic:capabilities::base64-encode"
+                    | "intrinsic:capabilities::result-message"
+                    | "intrinsic:capabilities::result-text"
+                    | "intrinsic:capabilities::result-detail"
+                    | "intrinsic:concurrency::result-message"
+                    | "intrinsic:adapters::result-message"
+                    | "intrinsic:adapters::result-text" => {
                         Some(ValueType::Scalar(ScalarType::String))
                     }
-                    "/core/platform-system::result-bytes"
-                    | "/core/platform-system::platform-value-bytes"
-                    | "/core/platform-capabilities::result-bytes" => {
+                    "intrinsic:system::result-bytes"
+                    | "intrinsic:system::platform-value-bytes"
+                    | "intrinsic:capabilities::result-bytes" => {
                         Some(ValueType::Scalar(ScalarType::Bytes))
                     }
-                    "/core/platform-system::result-int"
-                    | "/core/platform-data::document-exponent"
-                    | "/core/platform-data::document-length"
-                    | "/core/platform-data::url-query-length"
-                    | "/core/platform-capabilities::result-int"
-                    | "/core/platform-concurrency::result-int" => {
+                    "intrinsic:system::result-int"
+                    | "intrinsic:data::document-exponent"
+                    | "intrinsic:data::document-length"
+                    | "intrinsic:data::url-query-length"
+                    | "intrinsic:capabilities::result-int"
+                    | "intrinsic:concurrency::result-int" => {
                         Some(ValueType::Scalar(ScalarType::Int))
                     }
-                    "/core/platform-system::process-arguments"
-                    | "/core/platform-system::environment-entries"
-                    | "/core/platform-capabilities::result-entries" => Some(ValueType::StringList),
-                    "/core/platform-system::process-exit" => {
-                        Some(ValueType::Scalar(ScalarType::None))
-                    }
+                    "intrinsic:system::process-arguments"
+                    | "intrinsic:system::environment-entries"
+                    | "intrinsic:capabilities::result-entries" => Some(ValueType::StringList),
+                    "intrinsic:system::process-exit" => Some(ValueType::Scalar(ScalarType::None)),
                     _ => None,
                 };
                 if platform_result.is_some() {
@@ -7609,11 +7793,7 @@ fn infer_value_type(
             {
                 return Ok(Some(ValueType::Object(object.identity.clone())));
             }
-            if let Some(contract) = unit.function_aliases.get(name).or_else(|| {
-                unit.functions
-                    .iter()
-                    .find(|contract| contract.owner.is_none() && contract.name == name)
-            }) {
+            if let Some(contract) = resolved_function_contract(unit, name, callee.span.start) {
                 let result = ElementType::new(
                     contract
                         .return_type
@@ -8661,6 +8841,9 @@ fn infer_string_call_type(
     let family = selection.family.source_name();
     let child = selection.child.as_str();
     let subject_type = transparent_value_type(infer_value_type(unit, subject, bindings)?);
+    if matches!(subject_type, Some(ValueType::Object(_))) {
+        return Ok(None);
+    }
     let receiver_valid = match family {
         "decode" => subject_type == Some(ValueType::Scalar(ScalarType::Bytes)),
         _ => subject_type == Some(ValueType::Scalar(ScalarType::String)),
@@ -8892,7 +9075,8 @@ fn infer_parse_or_radix_type(
         ));
     }
     let callback_name = node_text(&unit.source, callback);
-    let Some(contract) = unit.function_aliases.get(callback_name) else {
+    let Some(contract) = resolved_function_contract(unit, callback_name, callback.span.start)
+    else {
         return Err(failure(
             &unit.source,
             "T0025",
@@ -9897,12 +10081,24 @@ fn scalar_integer_bounds(ty: ScalarType) -> Option<(BigInt, BigInt)> {
     }
 }
 
+struct LexicalScopeContext<'a> {
+    namespaces: &'a BTreeMap<String, Namespace>,
+    globals: &'a BTreeMap<String, Symbol>,
+    prelude_bindings: &'a BTreeMap<String, Symbol>,
+}
+
 fn collect_lexical_scopes(
     unit: &SemanticUnit,
     namespaces: &BTreeMap<String, Namespace>,
     globals: &BTreeMap<String, Symbol>,
+    prelude_bindings: &BTreeMap<String, Symbol>,
 ) -> Result<Vec<LexicalScope>, SemanticFailure> {
     let mut scopes = Vec::new();
+    let context = &LexicalScopeContext {
+        namespaces,
+        globals,
+        prelude_bindings,
+    };
     for node in &unit.tree.root.children {
         match node.kind {
             SyntaxKind::ClassDeclaration
@@ -9918,23 +10114,15 @@ fn collect_lexical_scopes(
                         .iter()
                         .filter(|child| child.kind == SyntaxKind::FunctionDeclaration)
                     {
-                        add_lexical_scope(
-                            unit,
-                            namespaces,
-                            globals,
-                            &mut scopes,
-                            method,
-                            None,
-                            true,
-                        )?;
+                        add_lexical_scope(unit, context, &mut scopes, method, None, true)?;
                     }
                 }
             }
             _ if is_function_node(node) => {
-                add_lexical_scope(unit, namespaces, globals, &mut scopes, node, None, true)?;
+                add_lexical_scope(unit, context, &mut scopes, node, None, true)?;
             }
             SyntaxKind::Block => {
-                add_lexical_scope(unit, namespaces, globals, &mut scopes, node, None, false)?;
+                add_lexical_scope(unit, context, &mut scopes, node, None, false)?;
             }
             _ => {}
         }
@@ -9944,18 +10132,19 @@ fn collect_lexical_scopes(
 
 fn add_lexical_scope(
     unit: &SemanticUnit,
-    namespaces: &BTreeMap<String, Namespace>,
-    globals: &BTreeMap<String, Symbol>,
+    context: &LexicalScopeContext<'_>,
     scopes: &mut Vec<LexicalScope>,
     node: &SyntaxNode,
     parent: Option<usize>,
     function_body: bool,
 ) -> Result<usize, SemanticFailure> {
+    let namespaces = context.namespaces;
     let index = scopes.len();
     scopes.push(LexicalScope {
         span: node.span,
         parent,
         symbols: BTreeMap::new(),
+        import_warnings: Vec::new(),
     });
     if parent.is_none() && function_body {
         let mut namespace_paths = namespace_chain(&unit.namespace).collect::<Vec<_>>();
@@ -9976,7 +10165,7 @@ fn add_lexical_scope(
         }
     }
     if node.kind == SyntaxKind::Block {
-        populate_scope(unit, namespaces, globals, scopes, index, node)?;
+        populate_scope(unit, context, scopes, index, node)?;
         return Ok(index);
     }
     if is_function_node(node) && object_name_containing(unit, node.span).is_some() {
@@ -9998,13 +10187,13 @@ fn add_lexical_scope(
         match child.kind {
             SyntaxKind::ParameterList => {}
             SyntaxKind::Block if is_function_node(node) => {
-                populate_scope(unit, namespaces, globals, scopes, index, child)?;
+                populate_scope(unit, context, scopes, index, child)?;
             }
             SyntaxKind::Block => {
-                add_lexical_scope(unit, namespaces, globals, scopes, child, Some(index), false)?;
+                add_lexical_scope(unit, context, scopes, child, Some(index), false)?;
             }
             _ if function_body => {
-                populate_node(unit, namespaces, globals, scopes, index, child)?;
+                populate_node(unit, context, scopes, index, child)?;
             }
             _ => {}
         }
@@ -10014,14 +10203,13 @@ fn add_lexical_scope(
 
 fn populate_scope(
     unit: &SemanticUnit,
-    namespaces: &BTreeMap<String, Namespace>,
-    globals: &BTreeMap<String, Symbol>,
+    context: &LexicalScopeContext<'_>,
     scopes: &mut Vec<LexicalScope>,
     index: usize,
     block: &SyntaxNode,
 ) -> Result<(), SemanticFailure> {
     for node in &block.children {
-        populate_node(unit, namespaces, globals, scopes, index, node)?;
+        populate_node(unit, context, scopes, index, node)?;
     }
     Ok(())
 }
@@ -10032,18 +10220,20 @@ fn populate_scope(
 )]
 fn populate_node(
     unit: &SemanticUnit,
-    namespaces: &BTreeMap<String, Namespace>,
-    globals: &BTreeMap<String, Symbol>,
+    context: &LexicalScopeContext<'_>,
     scopes: &mut Vec<LexicalScope>,
     index: usize,
     node: &SyntaxNode,
 ) -> Result<(), SemanticFailure> {
+    let namespaces = context.namespaces;
+    let globals = context.globals;
+    let prelude_bindings = context.prelude_bindings;
     match node.kind {
         SyntaxKind::Binding => {
             populate_binding(unit, scopes, index, node)?;
             for child in &node.children {
                 if child.kind == SyntaxKind::AnonymousFunction {
-                    populate_node(unit, namespaces, globals, scopes, index, child)?;
+                    populate_node(unit, context, scopes, index, child)?;
                 }
             }
         }
@@ -10051,25 +10241,33 @@ fn populate_node(
             populate_assignment(unit, namespaces, globals, scopes, index, node)?;
             for child in &node.children {
                 if child.kind == SyntaxKind::AnonymousFunction {
-                    populate_node(unit, namespaces, globals, scopes, index, child)?;
+                    populate_node(unit, context, scopes, index, child)?;
                 }
             }
         }
 
         SyntaxKind::ImportDeclaration => {
-            populate_imports(unit, namespaces, scopes, index, node)?;
+            populate_imports(
+                unit,
+                namespaces,
+                globals,
+                prelude_bindings,
+                scopes,
+                index,
+                node,
+            )?;
         }
         SyntaxKind::FunctionDeclaration => {
             if let Some(name) = declaration_name(node, &unit.source) {
                 insert_local(unit, scopes, index, name, node.span)?;
             }
-            add_lexical_scope(unit, namespaces, globals, scopes, node, Some(index), true)?;
+            add_lexical_scope(unit, context, scopes, node, Some(index), true)?;
         }
         SyntaxKind::AnonymousFunction => {
-            add_lexical_scope(unit, namespaces, globals, scopes, node, Some(index), true)?;
+            add_lexical_scope(unit, context, scopes, node, Some(index), true)?;
         }
         SyntaxKind::Block => {
-            add_lexical_scope(unit, namespaces, globals, scopes, node, Some(index), false)?;
+            add_lexical_scope(unit, context, scopes, node, Some(index), false)?;
         }
         SyntaxKind::ForStatement => {
             let loop_index = scopes.len();
@@ -10077,6 +10275,7 @@ fn populate_node(
                 span: node.span,
                 parent: Some(index),
                 symbols: BTreeMap::new(),
+                import_warnings: Vec::new(),
             });
             if let Some(first) = node.children.first() {
                 if first.kind == SyntaxKind::ForTarget {
@@ -10090,21 +10289,13 @@ fn populate_node(
                         )?;
                     }
                 } else {
-                    populate_node(unit, namespaces, globals, scopes, loop_index, first)?;
+                    populate_node(unit, context, scopes, loop_index, first)?;
                 }
             }
             if let Some(block) = node.children.last()
                 && block.kind == SyntaxKind::Block
             {
-                add_lexical_scope(
-                    unit,
-                    namespaces,
-                    globals,
-                    scopes,
-                    block,
-                    Some(loop_index),
-                    false,
-                )?;
+                add_lexical_scope(unit, context, scopes, block, Some(loop_index), false)?;
             }
         }
         SyntaxKind::CatchClause => {
@@ -10113,48 +10304,25 @@ fn populate_node(
                 span: node.span,
                 parent: Some(index),
                 symbols: BTreeMap::new(),
+                import_warnings: Vec::new(),
             });
             if let Some(block) = node.children.last()
                 && block.kind == SyntaxKind::Block
             {
-                add_lexical_scope(
-                    unit,
-                    namespaces,
-                    globals,
-                    scopes,
-                    block,
-                    Some(catch_index),
-                    false,
-                )?;
+                add_lexical_scope(unit, context, scopes, block, Some(catch_index), false)?;
             }
         }
         SyntaxKind::ElseClause => {
             for child in &node.children {
                 if child.kind == SyntaxKind::Block {
-                    add_lexical_scope(
-                        unit,
-                        namespaces,
-                        globals,
-                        scopes,
-                        child,
-                        Some(index),
-                        false,
-                    )?;
+                    add_lexical_scope(unit, context, scopes, child, Some(index), false)?;
                 }
             }
         }
         _ => {
             for child in &node.children {
                 if child.kind == SyntaxKind::Block {
-                    add_lexical_scope(
-                        unit,
-                        namespaces,
-                        globals,
-                        scopes,
-                        child,
-                        Some(index),
-                        false,
-                    )?;
+                    add_lexical_scope(unit, context, scopes, child, Some(index), false)?;
                 } else if matches!(
                     child.kind,
                     SyntaxKind::AnonymousFunction
@@ -10162,7 +10330,7 @@ fn populate_node(
                         | SyntaxKind::CatchClause
                         | SyntaxKind::FinallyClause
                 ) {
-                    populate_node(unit, namespaces, globals, scopes, index, child)?;
+                    populate_node(unit, context, scopes, index, child)?;
                 }
             }
         }
@@ -10772,31 +10940,77 @@ fn validate_return(
     }
 }
 
+fn visible_symbol_for_lexical_import<'a>(
+    unit: &SemanticUnit,
+    namespaces: &'a BTreeMap<String, Namespace>,
+    globals: &'a BTreeMap<String, Symbol>,
+    prelude_bindings: &'a BTreeMap<String, Symbol>,
+    scopes: &'a [LexicalScope],
+    mut index: usize,
+    name: &str,
+) -> Option<&'a Symbol> {
+    loop {
+        if let Some(symbol) = scopes[index]
+            .symbols
+            .get(name)
+            .and_then(|symbols| symbols.last())
+        {
+            return Some(symbol);
+        }
+        let Some(parent) = scopes[index].parent else {
+            break;
+        };
+        index = parent;
+    }
+    visible_fallback_symbol(&unit.namespace, name, namespaces, globals, prelude_bindings)
+}
+
 fn populate_imports(
     unit: &SemanticUnit,
     namespaces: &BTreeMap<String, Namespace>,
+    globals: &BTreeMap<String, Symbol>,
+    prelude_bindings: &BTreeMap<String, Symbol>,
     scopes: &mut [LexicalScope],
     index: usize,
     node: &SyntaxNode,
 ) -> Result<(), SemanticFailure> {
     for import in imports_from_syntax(unit, node)? {
-        let export = imported_object(&import, namespaces)?;
-        if let Some(existing) = scopes[index]
-            .symbols
-            .get(&import.alias)
-            .and_then(|symbols| symbols.last())
-        {
-            if existing.identity == export.identity {
-                continue;
+        for (name, mut export) in imported_objects(&import, namespaces)? {
+            let existing = if import.namespace_wide {
+                visible_symbol_for_lexical_import(
+                    unit,
+                    namespaces,
+                    globals,
+                    prelude_bindings,
+                    scopes,
+                    index,
+                    &name,
+                )
+                .cloned()
+            } else {
+                scopes[index]
+                    .symbols
+                    .get(&name)
+                    .and_then(|symbols| symbols.last())
+                    .cloned()
+            };
+            if let Some(existing) = existing {
+                if existing.identity == export.identity {
+                    continue;
+                }
+                if !import.namespace_wide {
+                    return Err(import_collision_failure(&import, &name));
+                }
+                scopes[index].import_warnings.push(import_overwrite_warning(
+                    &name,
+                    &existing,
+                    &export,
+                    import.span,
+                ));
             }
-            return Err(failure(
-                &unit.source,
-                "S2011",
-                format!("import `{}` collides; use an alias", import.alias),
-                import.span,
-            ));
+            export.binding_span = Some(import.span);
+            scopes[index].symbols.insert(name, vec![export]);
         }
-        scopes[index].symbols.insert(import.alias, vec![export]);
     }
     Ok(())
 }
@@ -10847,6 +11061,7 @@ fn insert_local_replacement(
         .or_default()
         .push(Symbol {
             identity: format!("{}::scope{index}::{name}@{}", unit.namespace, span.start),
+            lowering_identity: None,
             name,
             namespace: unit.namespace.clone(),
             visibility: Visibility::Private,
@@ -10854,6 +11069,7 @@ fn insert_local_replacement(
             constant: false,
             kind: SymbolKind::Binding,
             declaration_span: Some(span),
+            binding_span: Some(span),
         });
 }
 
@@ -10885,8 +11101,10 @@ fn namespace_chain(namespace: &str) -> impl Iterator<Item = String> {
         let result = current.clone();
         if current == "/" {
             current.clear();
+        } else if let Some(separator) = current.rfind('/') {
+            current.truncate(separator.max(1));
         } else {
-            current.truncate(current.rfind('/').unwrap_or(0).max(1));
+            current.clear();
         }
         Some(result)
     })
@@ -10904,7 +11122,7 @@ fn visible_from(symbol: &Symbol, namespace: &str) -> bool {
         }
     }
 }
-fn resolved_name_identity<'a>(unit: &'a SemanticUnit, node: &SyntaxNode) -> Option<&'a str> {
+fn resolved_compiler_identity<'a>(unit: &'a SemanticUnit, node: &SyntaxNode) -> Option<&'a str> {
     let name = node_text(&unit.source, node);
     lexical_scope_chain(unit, node.span.start)
         .find_map(|scope| {
@@ -10914,7 +11132,7 @@ fn resolved_name_identity<'a>(unit: &'a SemanticUnit, node: &SyntaxNode) -> Opti
                     .is_none_or(|span| span.end <= node.span.start)
             })
         })
-        .map(|symbol| symbol.identity.as_str())
+        .map(Symbol::compiler_identity)
         .or_else(|| (unit.prelude && name == "task-scope").then_some("/core/async::task-scope"))
 }
 
@@ -10986,7 +11204,7 @@ fn task_scope_deadline_ms(
         return None;
     };
     if callee.kind == SyntaxKind::Name
-        && resolved_name_identity(unit, callee)
+        && resolved_compiler_identity(unit, callee)
             .is_some_and(|identity| identity == "/core/async::task-scope")
     {
         return arguments
@@ -11012,15 +11230,9 @@ fn task_scope_deadline_ms(
 }
 
 fn bootstrap_prelude() -> BTreeMap<String, Symbol> {
-    const PRELUDE: [(&str, &str, &str); 13] = [
+    const PRELUDE: [(&str, &str, &str); 7] = [
         ("print", "/core/output::print", "/core/output"),
         ("task-scope", "/core/async::task-scope", "/core/async"),
-        ("int", "/core/types::int", "/core/types"),
-        ("float", "/core/types::float", "/core/types"),
-        ("bool", "/core/types::bool", "/core/types"),
-        ("string", "/core/types::string", "/core/types"),
-        ("bytes", "/core/types::bytes", "/core/types"),
-        ("none", "/core/types::none", "/core/types"),
         ("utf8", "/core/encodings::utf8", "/core/encodings"),
         ("utf16-le", "/core/encodings::utf16-le", "/core/encodings"),
         ("utf16-be", "/core/encodings::utf16-be", "/core/encodings"),
@@ -11034,6 +11246,7 @@ fn bootstrap_prelude() -> BTreeMap<String, Symbol> {
                 name.to_owned(),
                 Symbol {
                     identity: identity.to_owned(),
+                    lowering_identity: None,
                     name: name.to_owned(),
                     namespace: namespace.to_owned(),
                     visibility: Visibility::Public,
@@ -11041,12 +11254,12 @@ fn bootstrap_prelude() -> BTreeMap<String, Symbol> {
                     constant: !matches!(name, "print" | "task-scope"),
                     kind: if matches!(name, "print" | "task-scope") {
                         SymbolKind::Function
-                    } else if identity.starts_with("/core/encodings::") {
-                        SymbolKind::Binding
                     } else {
-                        SymbolKind::TypeDescriptor
+                        SymbolKind::Binding
                     },
                     declaration_span: None,
+
+                    binding_span: None,
                 },
             )
         })
@@ -11062,6 +11275,7 @@ fn bootstrap_descriptor_constructs() -> BTreeMap<String, Symbol> {
                 name.clone(),
                 Symbol {
                     identity: format!("/core/types::{}", ty.source_name()),
+                    lowering_identity: None,
                     name,
                     namespace: "/core/types".to_owned(),
                     visibility: Visibility::Public,
@@ -11069,6 +11283,8 @@ fn bootstrap_descriptor_constructs() -> BTreeMap<String, Symbol> {
                     constant: false,
                     kind: SymbolKind::TypeDescriptor,
                     declaration_span: None,
+
+                    binding_span: None,
                 },
             )
         })
@@ -11089,233 +11305,332 @@ fn bootstrap_namespaces() -> BTreeMap<String, Namespace> {
         "/core/async".to_owned(),
         namespace_with_objects("/core/async", ["task-scope"], SymbolKind::Function),
     );
-    namespaces.insert(
-        "/core/platform-streams".to_owned(),
-        namespace_with_objects(
-            "/core/platform-streams",
-            [
-                "acquire-stdin",
-                "acquire-stdout",
-                "acquire-stderr",
-                "open-file",
-                "open-directory-beneath",
-                "open-file-beneath",
-                "resource-handle",
-                "read",
-                "write",
-                "flush",
-                "sync-data",
-                "sync-all",
-                "close",
-                "release",
-            ],
-            SymbolKind::Function,
-        ),
+    add_private_host_bindings(
+        &mut namespaces,
+        "/core/codecs",
+        "capabilities",
+        [
+            "hex-encode",
+            "hex-decode",
+            "base64-encode",
+            "base64-decode",
+            "result-failed",
+            "result-message",
+            "result-bytes",
+        ],
     );
-    namespaces.insert(
-        "/core/platform-system".to_owned(),
-        namespace_with_objects(
-            "/core/platform-system",
-            [
-                "filesystem-authority",
-                "acquire-filesystem-authority",
-                "filesystem-exists",
-                "filesystem-metadata",
-                "filesystem-realpath",
-                "filesystem-read-link",
-                "filesystem-read-bounded",
-                "filesystem-write-atomic",
-                "filesystem-rename",
-                "filesystem-remove",
-                "result-failed",
-                "result-message",
-                "result-text",
-                "result-detail",
-                "result-bytes",
-                "result-int",
-                "result-bool",
-                "platform-value-is-text",
-                "platform-value-text",
-                "platform-value-bytes",
-                "process-arguments",
-                "environment-entries",
-                "process-exit",
-            ],
-            SymbolKind::Function,
-        ),
+    add_private_host_bindings(
+        &mut namespaces,
+        "/core/compression",
+        "capabilities",
+        [
+            "compress",
+            "decompress",
+            "result-failed",
+            "result-resource-limit",
+            "result-message",
+            "result-bytes",
+        ],
     );
-    namespaces.insert(
-        "/core/platform-data".to_owned(),
-        namespace_with_objects(
-            "/core/platform-data",
-            [
-                "platform-data-result",
-                "platform-url-result",
-                "empty-document",
-                "make-document-none",
-                "make-document-bool",
-                "make-document-string",
-                "make-document-integer",
-                "make-document-decimal",
-                "make-document-list",
-                "make-document-map",
-                "document-list-append",
-                "document-map-insert",
-                "json-parse",
-                "json-canonical",
-                "yaml-parse",
-                "data-failed",
-                "data-message",
-                "data-path",
-                "data-expected",
-                "data-encoded",
-                "document-kind",
-                "document-text",
-                "document-length",
-                "document-coefficient",
-                "document-exponent",
-                "document-item",
-                "document-key",
-                "document-field",
-                "validate-mapping",
-                "url-parse",
-                "url-failed",
-                "url-message",
-                "url-serialized",
-                "url-display",
-                "url-scheme",
-                "url-username",
-                "url-password",
-                "url-host",
-                "url-port",
-                "url-path",
-                "url-query-length",
-                "url-query-key",
-                "url-query-value",
-                "url-fragment",
-                "url-origin",
-            ],
-            SymbolKind::Function,
-        ),
+    add_private_host_bindings(
+        &mut namespaces,
+        "/core/concurrency",
+        "concurrency",
+        [
+            "platform-capability",
+            "platform-result",
+            "no-capability",
+            "int-channel",
+            "int-channel-send",
+            "int-channel-receive",
+            "int-channel-try-receive",
+            "int-mutex",
+            "int-mutex-load",
+            "int-mutex-store",
+            "int-mutex-add",
+            "int-read-write-lock",
+            "int-read-write-lock-read",
+            "int-read-write-lock-write",
+            "atomic-int64",
+            "atomic-int64-load",
+            "atomic-int64-store",
+            "atomic-int64-add",
+            "thread-local-int",
+            "thread-local-int-get",
+            "thread-local-int-set",
+            "result-failed",
+            "result-message",
+            "result-int",
+            "result-bool",
+        ],
     );
-    namespaces.insert(
-        "/core/platform-capabilities".to_owned(),
-        namespace_with_objects(
-            "/core/platform-capabilities",
-            [
-                "platform-capability",
-                "platform-resource-handle",
-                "platform-result",
-                "secure-random",
-                "pseudo-random",
-                "secret-buffer",
-                "random-bytes",
-                "random-bounded",
-                "random-split",
-                "digest",
-                "destroy-secret",
-                "hmac",
-                "cancellation-token",
-                "no-resource",
-                "failed-result",
-                "cancel",
-                "constant-time-equal",
-                "hex-encode",
-                "hex-decode",
-                "base64-encode",
-                "base64-decode",
-                "uuid-parse",
-                "uuid-v4",
-                "uuid-v7",
-                "compress",
-                "decompress",
-                "parse-host-name",
-                "parse-ip",
-                "parse-socket",
-                "parse-socket-text",
-                "tcp-bind",
-                "tcp-connect",
-                "tcp-connect-host",
-                "tcp-accept",
-                "tcp-read",
-                "tcp-write",
-                "tcp-configure",
-                "tcp-shutdown",
-                "udp-bind",
-                "udp-configure",
-                "udp-send-to",
-                "udp-receive-from",
-                "dns-lookup",
-                "tls-client",
-                "tls-read",
-                "tls-write",
-                "tls-shutdown",
-                "close",
-                "result-failed",
-                "result-resource-limit",
-                "result-truncated",
-                "result-deadline-exceeded",
-                "result-message",
-                "result-text",
-                "result-detail",
-                "result-bytes",
-                "result-int",
-                "result-bool",
-                "result-entries",
-                "result-capability",
-                "result-resource",
-            ],
-            SymbolKind::Function,
-        ),
+    add_private_host_bindings(
+        &mut namespaces,
+        "/core/concurrency",
+        "capabilities",
+        [
+            "cancellation-token",
+            "cancel",
+            "result-deadline-exceeded",
+            "result-capability",
+        ],
     );
-    namespaces.insert(
-        "/core/platform-concurrency".to_owned(),
-        namespace_with_objects(
-            "/core/platform-concurrency",
-            [
-                "platform-capability",
-                "platform-result",
-                "no-capability",
-                "int-channel",
-                "int-channel-send",
-                "int-channel-receive",
-                "int-channel-try-receive",
-                "int-mutex",
-                "int-mutex-load",
-                "int-mutex-store",
-                "int-mutex-add",
-                "int-read-write-lock",
-                "int-read-write-lock-read",
-                "int-read-write-lock-write",
-                "atomic-int64",
-                "atomic-int64-load",
-                "atomic-int64-store",
-                "atomic-int64-add",
-                "thread-local-int",
-                "thread-local-int-get",
-                "thread-local-int-set",
-                "result-failed",
-                "result-message",
-                "result-int",
-                "result-bool",
-            ],
-            SymbolKind::Function,
-        ),
+    add_private_host_bindings(
+        &mut namespaces,
+        "/core/documents",
+        "data",
+        [
+            "platform-data-result",
+            "make-document-none",
+            "make-document-bool",
+            "make-document-string",
+            "make-document-integer",
+            "make-document-decimal",
+            "make-document-list",
+            "document-list-append",
+            "make-document-map",
+            "document-map-insert",
+            "empty-document",
+            "data-failed",
+            "data-message",
+            "data-path",
+            "data-expected",
+            "data-encoded",
+            "document-kind",
+            "document-text",
+            "document-coefficient",
+            "document-exponent",
+            "document-length",
+            "document-item",
+            "document-key",
+            "document-field",
+            "validate-mapping",
+        ],
     );
-    namespaces.insert(
-        "/core/platform-adapters".to_owned(),
-        namespace_with_objects(
-            "/core/platform-adapters",
-            [
-                "platform-result",
-                "system-host-name",
-                "result-failed",
-                "result-bool",
-                "result-message",
-                "result-text",
-            ],
-            SymbolKind::Function,
-        ),
+    add_private_host_bindings(
+        &mut namespaces,
+        "/core/filesystem",
+        "system",
+        [
+            "filesystem-exists",
+            "filesystem-metadata",
+            "filesystem-realpath",
+            "filesystem-read-link",
+            "filesystem-read-bounded",
+            "filesystem-write-atomic",
+            "filesystem-rename",
+            "filesystem-remove",
+            "result-failed",
+            "result-message",
+            "result-text",
+            "result-detail",
+            "result-bytes",
+            "result-int",
+            "result-bool",
+            "filesystem-authority",
+            "acquire-filesystem-authority",
+        ],
+    );
+    add_private_host_bindings(
+        &mut namespaces,
+        "/core/filesystem",
+        "streams",
+        [
+            "resource-handle",
+            "open-file",
+            "open-directory-beneath",
+            "open-file-beneath",
+            "read",
+            "write",
+            "flush",
+            "sync-data",
+            "sync-all",
+            "close",
+            "release",
+        ],
+    );
+    add_private_host_bindings(
+        &mut namespaces,
+        "/core/documents/json",
+        "data",
+        ["json-parse", "json-canonical"],
+    );
+    add_private_host_bindings(
+        &mut namespaces,
+        "/core/networking",
+        "capabilities",
+        [
+            "platform-resource-handle",
+            "platform-capability",
+            "platform-result",
+            "no-resource",
+            "failed-result",
+            "parse-ip",
+            "parse-host-name",
+            "parse-socket",
+            "parse-socket-text",
+            "tcp-bind",
+            "tcp-connect",
+            "tcp-connect-host",
+            "tcp-accept",
+            "tcp-read",
+            "tcp-write",
+            "tcp-shutdown",
+            "tcp-configure",
+            "udp-bind",
+            "udp-send-to",
+            "udp-receive-from",
+            "udp-configure",
+            "cancellation-token",
+            "cancel",
+            "dns-lookup",
+            "close",
+            "result-failed",
+            "result-truncated",
+            "result-deadline-exceeded",
+            "result-message",
+            "result-text",
+            "result-detail",
+            "result-bytes",
+            "result-int",
+            "result-bool",
+            "result-entries",
+            "result-resource",
+        ],
+    );
+    add_private_host_bindings(
+        &mut namespaces,
+        "/core/process",
+        "system",
+        [
+            "process-arguments",
+            "environment-entries",
+            "process-exit",
+            "platform-value-is-text",
+            "platform-value-text",
+            "platform-value-bytes",
+        ],
+    );
+    add_private_host_bindings(
+        &mut namespaces,
+        "/core/process",
+        "adapters",
+        [
+            "platform-result",
+            "system-host-name",
+            "result-failed",
+            "result-message",
+            "result-text",
+            "result-bool",
+        ],
+    );
+    add_private_host_bindings(
+        &mut namespaces,
+        "/core/random",
+        "capabilities",
+        [
+            "platform-capability",
+            "secure-random",
+            "pseudo-random",
+            "random-bytes",
+            "random-bounded",
+            "random-split",
+            "secret-buffer",
+            "destroy-secret",
+            "digest",
+            "hmac",
+            "constant-time-equal",
+            "result-failed",
+            "result-message",
+            "result-bytes",
+            "result-int",
+            "result-capability",
+        ],
+    );
+    add_private_host_bindings(
+        &mut namespaces,
+        "/core/streams",
+        "streams",
+        [
+            "resource-handle",
+            "acquire-stdin",
+            "acquire-stdout",
+            "acquire-stderr",
+            "read",
+            "write",
+            "flush",
+            "sync-data",
+            "sync-all",
+            "close",
+            "release",
+        ],
+    );
+    add_private_host_bindings(
+        &mut namespaces,
+        "/core/networking/tls",
+        "capabilities",
+        [
+            "platform-resource-handle",
+            "no-resource",
+            "tls-client",
+            "tls-read",
+            "tls-write",
+            "tls-shutdown",
+            "close",
+            "result-failed",
+            "result-deadline-exceeded",
+            "result-message",
+            "result-text",
+            "result-bytes",
+            "result-int",
+            "result-bool",
+            "result-resource",
+        ],
+    );
+    add_private_host_bindings(
+        &mut namespaces,
+        "/core/urls",
+        "data",
+        [
+            "platform-url-result",
+            "url-parse",
+            "url-failed",
+            "url-message",
+            "url-serialized",
+            "url-display",
+            "url-scheme",
+            "url-username",
+            "url-password",
+            "url-host",
+            "url-port",
+            "url-path",
+            "url-fragment",
+            "url-origin",
+            "url-query-length",
+            "url-query-key",
+            "url-query-value",
+        ],
+    );
+    add_private_host_bindings(
+        &mut namespaces,
+        "/core/random/uuid",
+        "capabilities",
+        [
+            "platform-capability",
+            "uuid-parse",
+            "uuid-v4",
+            "uuid-v7",
+            "result-failed",
+            "result-message",
+            "result-text",
+            "result-bytes",
+        ],
+    );
+    add_private_host_bindings(
+        &mut namespaces,
+        "/core/documents/yaml",
+        "data",
+        ["yaml-parse", "json-canonical"],
     );
     let mut types = vec![
         "int".to_owned(),
@@ -12472,6 +12787,7 @@ fn collect_duplicate_union_arm_warnings(
 
 pub(crate) fn warnings(package: &SemanticPackage, lint_name_style: bool) -> Vec<Diagnostic> {
     let mut warnings = Vec::new();
+    warnings.extend(package.import_warnings.iter().cloned());
     for unit in &package.units {
         if lint_name_style && !unit.bundled && !unit.namespace.starts_with("/deps/") {
             collect_name_style_warnings(unit, &mut warnings);
@@ -12658,6 +12974,38 @@ pub(crate) fn binding_span_is_mutated(
     ) > usize::from(!initially_assigned)
 }
 
+fn add_private_host_bindings<'a>(
+    namespaces: &mut BTreeMap<String, Namespace>,
+    path: &str,
+    group: &str,
+    bindings: impl IntoIterator<Item = &'a str>,
+) {
+    let namespace = namespaces.entry(path.to_owned()).or_default();
+    for intrinsic in bindings {
+        let local_name = format!("host-{intrinsic}");
+        let previous = namespace.symbols.insert(
+            local_name.clone(),
+            Symbol {
+                identity: format!("{path}::{local_name}"),
+                lowering_identity: Some(format!("intrinsic:{group}::{intrinsic}")),
+                name: local_name.clone(),
+                namespace: path.to_owned(),
+                visibility: Visibility::Private,
+                global: false,
+                constant: false,
+                kind: SymbolKind::Function,
+                declaration_span: None,
+
+                binding_span: None,
+            },
+        );
+        assert!(
+            previous.is_none(),
+            "duplicate private host binding `{path}::{local_name}`"
+        );
+    }
+}
+
 fn namespace_with_objects<'a>(
     path: &str,
     names: impl IntoIterator<Item = &'a str>,
@@ -12673,6 +13021,7 @@ fn namespace_with_objects<'a>(
 fn compiler_owned_object(path: &str, name: &str, kind: SymbolKind) -> Symbol {
     Symbol {
         identity: format!("{path}::{name}"),
+        lowering_identity: None,
         name: name.to_owned(),
         namespace: path.to_owned(),
         visibility: Visibility::Public,
@@ -12680,6 +13029,8 @@ fn compiler_owned_object(path: &str, name: &str, kind: SymbolKind) -> Symbol {
         constant: false,
         kind,
         declaration_span: None,
+
+        binding_span: None,
     }
 }
 

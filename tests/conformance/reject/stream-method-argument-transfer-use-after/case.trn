@@ -1,5 +1,5 @@
 namespace stream-method-argument-transfer-use-after
-from /standard/streams import byte-reader, stdin
+from /core/streams import byte-reader, stdin
 
 class sink
     function take; input byte-reader

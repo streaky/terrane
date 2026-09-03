@@ -1,5 +1,4 @@
 namespace bounded-arithmetic-families
-from /core/types import int8, int
 function main;
   small int8 = 120
   wrapped int8 = small.add.wrap; 10

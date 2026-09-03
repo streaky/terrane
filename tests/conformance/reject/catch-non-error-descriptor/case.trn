@@ -1,5 +1,4 @@
 namespace catch-non-error-descriptor
-from /core/types import int8
 function main;
   try
     print; >body

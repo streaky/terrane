@@ -1,0 +1,5 @@
+namespace body-core-import
+
+function main;
+    import /core/codecs
+    print; (encode-base64; b'abc', false, true)

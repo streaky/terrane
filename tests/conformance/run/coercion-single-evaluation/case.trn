@@ -1,5 +1,4 @@
 namespace coercion-single-evaluation
-from /core/types import uint8
 
 function observed int;
   print; 'once'

@@ -633,7 +633,9 @@ fn lex_line(
                 };
                 let attached = attachment(line, start, index);
                 if text == "/" && namespace_path_line(tokens) {
-                    let leading_anchor = tokens.last().is_some_and(|token| token.text == "from");
+                    let leading_anchor = tokens
+                        .last()
+                        .is_some_and(|token| matches!(token.text.as_str(), "from" | "import"));
                     let compact = if leading_anchor {
                         matches!(attached, Attachment::Right)
                     } else {
@@ -886,7 +888,7 @@ fn namespace_path_line(tokens: &[Token]) -> bool {
         .take_while(|token| token.kind != TokenKind::Newline)
         .filter(|token| !matches!(token.kind, TokenKind::Indent | TokenKind::Dedent))
         .last()
-        .is_some_and(|token| matches!(token.text.as_str(), "namespace" | "from"))
+        .is_some_and(|token| matches!(token.text.as_str(), "namespace" | "from" | "import"))
 }
 
 fn push_token(

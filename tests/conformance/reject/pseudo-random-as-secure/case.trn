@@ -1,7 +1,7 @@
 namespace app
 
-from /standard/random import secure-random, pseudo-random, chacha20
-from /standard/uuid import random-uuid
+from /core/random import secure-random, pseudo-random, chacha20
+from /core/random/uuid import random-uuid
 
 function require-secure; source secure-random
     random-uuid; source

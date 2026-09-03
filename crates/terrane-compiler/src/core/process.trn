@@ -1,0 +1,136 @@
+namespace core/process
+
+from /core/collections import list
+
+class native-string
+    is-text bool = true
+    text string = ''
+    raw bytes = b''
+
+    function construct; encoded string
+        this.is-text = host-platform-value-is-text; encoded
+        this.text = host-platform-value-text; encoded
+        this.raw = host-platform-value-bytes; encoded
+
+class environment-entry
+    name native-string = native-string; 'text:'
+    value native-string = native-string; 'text:'
+
+    function construct; name native-string, entry-value native-string
+        this.name = name
+        this.value = entry-value
+class process-host-name-result
+    failed bool = false
+    available bool = false
+    message string = ''
+    value native-string = native-string; 'text:'
+
+    function construct; did-fail bool, is-available bool, detail string, result-value native-string
+        this.failed = did-fail
+        this.available = is-available
+        this.message = detail
+        this.value = result-value
+
+function process-host-name process-host-name-result;
+    raw = host-system-host-name;
+    return process-host-name-result; (host-result-failed; raw), (host-result-bool; raw), (host-result-message; raw), (native-string; (host-result-text; raw))
+
+
+function arguments list of native-string;
+    encoded = (host-process-arguments;)
+    values list of native-string = list
+    index int = 0
+    while index < encoded.length
+        values.append; (native-string; encoded[index])
+        index = index + 1
+    return values
+
+function environment list of environment-entry;
+    encoded = (host-environment-entries;)
+    values list of environment-entry = list
+    index int = 0
+    while index + 1 < encoded.length
+        name = native-string; encoded[index]
+        value = native-string; encoded[index + 1]
+        values.append; (environment-entry; name, value)
+        index = index + 2
+    return values
+
+class cli-schema
+    entries list of string = list
+
+    function construct; declared list of string
+        this.entries = declared
+
+class command-line
+    flags list of string = list
+    option-names list of string = list
+    option-values list of native-string = list
+    positionals list of native-string = list
+    diagnostic-arguments list of int = list
+    diagnostic-messages list of string = list
+
+
+function schema-has bool; schema cli-schema, sought string
+    for entry in schema.entries
+        if entry == sought
+            return true
+    return false
+
+function parse-command-line command-line; schema cli-schema, supplied list of native-string
+    flags list of string = list
+    option-names list of string = list
+    option-values list of native-string = list
+    positionals list of native-string = list
+    diagnostic-arguments list of int = list
+    diagnostic-messages list of string = list
+    index int = 0
+    while index < supplied.length
+        argument = supplied[index]
+        if not argument.is-text
+            diagnostic-arguments.append; index
+            diagnostic-messages.append; 'command-line option is not Unicode text'
+        else
+            flag-entry = 'flag:'.concat; argument.text
+            value-entry = 'value:'.concat; argument.text
+            if (schema-has; schema, flag-entry)
+                flags.append; argument.text
+            else if (schema-has; schema, value-entry)
+                if index + 1 >= supplied.length
+                    diagnostic-arguments.append; index
+                    diagnostic-messages.append; 'option requires a value'
+                else
+                    option-names.append; argument.text
+                    option-values.append; supplied[index + 1]
+                    index = index + 1
+            else if (argument.text.contains.start; '--')
+                diagnostic-arguments.append; index
+                diagnostic-messages.append; 'unknown option'
+            else
+                positionals.append; argument
+        index = index + 1
+    result = (command-line;)
+    result.flags = flags
+    result.option-names = option-names
+    result.option-values = option-values
+    result.positionals = positionals
+    result.diagnostic-arguments = diagnostic-arguments
+    result.diagnostic-messages = diagnostic-messages
+    return result
+
+class exit-status
+    code int = 0
+    valid bool = true
+
+
+function make-exit-status exit-status; requested int
+    result = (exit-status;)
+    if requested < 0 or requested > 255
+        result.code = 255
+        result.valid = false
+    else
+        result.code = requested
+    return result
+
+function exit; status exit-status
+    host-process-exit; status.code

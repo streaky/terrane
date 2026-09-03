@@ -1,0 +1,4 @@
+phase = "check"
+status = "reject"
+code = "T0012"
+contains = "missing required argument `url-safe`"

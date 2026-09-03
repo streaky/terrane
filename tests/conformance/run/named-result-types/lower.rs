@@ -380,13 +380,13 @@ mod __terrane_trace {
     pub static FUNCTIONS: [&str; 1] = ["/named-result-types::divide"];
     pub static SITES: [Site; 1] = [
         {
-            /* terrane-site-row: site 0: /named-result-types::divide (case.trn:10:10-10:26) */
+            /* terrane-site-row: site 0: /named-result-types::divide (case.trn:9:10-9:26) */
             Site {
                 function: 0,
                 file: 0,
-                line: 10,
+                line: 9,
                 column: 10,
-                end_line: 10,
+                end_line: 9,
                 end_column: 26,
             }
         },
@@ -417,7 +417,7 @@ fn divide() -> terrane_int_support::DivRemResult<i8> {
     let small: i8 = 7;
     return __terrane_raised(
         terrane_int_support::fixed_div_rem(small, 3),
-        0 /* terrane-site: case.trn:10:10-10:26 */,
+        0 /* terrane-site: case.trn:9:10-9:26 */,
     );
 }
 fn main() {

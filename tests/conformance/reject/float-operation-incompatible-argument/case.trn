@@ -1,5 +1,4 @@
 namespace float-operation-incompatible-argument
-from /core/types import float64
 function main;
   value float64 = 1.0
   print; (value.minimum; 'x')

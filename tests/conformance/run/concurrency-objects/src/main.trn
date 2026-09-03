@@ -1,7 +1,7 @@
 namespace concurrency-objects
 
 from /core/output import print
-from /standard/concurrency import operation-options, cancellation-token, int-channel, int-mutex, int-read-write-lock, atomic-int64, acquire-order, release-order, acquire-release-order, thread-local-int
+from /core/concurrency import concurrency-operation-options, concurrency-cancellation-token, int-channel, int-mutex, int-read-write-lock, atomic-int64, acquire-order, release-order, acquire-release-order, thread-local-int
 
 class async-runner
     callback function to none = function none;
@@ -15,7 +15,7 @@ class async-runner
         callback;
 
 function main;
-    options = operation-options; 30_000, (cancellation-token;)
+    options = concurrency-operation-options; 30_000, (concurrency-cancellation-token;)
     messages = int-channel; 0
     counter = int-mutex; 4
     work = function none;
@@ -29,13 +29,13 @@ function main;
     print; messages.failed
     invalid-channel = int-channel; -1
     print; invalid-channel.failed
-    cancelled = cancellation-token;
+    cancelled = concurrency-cancellation-token;
     cancelled.cancel;
-    cancelled-options = operation-options; 1000, cancelled
+    cancelled-options = concurrency-operation-options; 1000, cancelled
     cancelled-channel = int-channel; 1
     cancelled-receive = cancelled-channel.receive; cancelled-options
     print; cancelled-receive.failed
-    timeout-options = operation-options; 1, (cancellation-token;)
+    timeout-options = concurrency-operation-options; 1, (concurrency-cancellation-token;)
     timeout-channel = int-channel; 1
     timed-out = timeout-channel.receive; timeout-options
     print; timed-out.deadline-exceeded

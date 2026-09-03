@@ -1,0 +1,6 @@
+namespace core-wrapper-arity
+
+from /core/codecs import encode-base64
+
+function main;
+    encode-base64; b'abc'

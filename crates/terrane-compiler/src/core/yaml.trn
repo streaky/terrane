@@ -1,0 +1,39 @@
+namespace core/documents/yaml
+
+from /core/documents import document-value, document-result, make-document-result
+from /core/documents import document-mapping, decode-document
+from /core/documents import serializable, deserializable, serialize-document, deserialize-document
+
+class yaml-options
+    max-depth int = 128
+    max-bytes int = 16777216
+    max-alias-nodes int = 65536
+
+    function construct; max-depth int, max-bytes int, max-alias-nodes int
+        this.max-depth = max-depth
+        this.max-bytes = max-bytes
+        this.max-alias-nodes = max-alias-nodes
+
+function default-yaml-options yaml-options;
+    return yaml-options; 128, 16777216, 65536
+
+function make-yaml-options yaml-options; max-depth int, max-bytes int, max-alias-nodes int
+    return yaml-options; max-depth, max-bytes, max-alias-nodes
+
+function parse-yaml document-result; input string, options yaml-options
+    raw = host-yaml-parse; input, options.max-depth, options.max-bytes, options.max-alias-nodes
+    return make-document-result; raw
+
+function stringify-yaml document-result; value document-value
+    # The safe core writer deliberately emits JSON, which is a valid YAML 1.2 document.
+    raw = host-json-canonical; value.raw
+    return make-document-result; raw
+
+function decode-yaml document-result; input string, mapping deserializable, options yaml-options
+    parsed = parse-yaml; input, options
+    if parsed.failed
+        return parsed
+    return deserialize-document; parsed.value, mapping
+
+function encode-yaml document-result; value serializable
+    return stringify-yaml; (serialize-document; value)

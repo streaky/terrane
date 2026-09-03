@@ -380,13 +380,13 @@ mod __terrane_trace {
     pub static FUNCTIONS: [&str; 1] = ["/integer-coercion-failure::main"];
     pub static SITES: [Site; 1] = [
         {
-            /* terrane-site-row: site 0: /integer-coercion-failure::main (case.trn:6:17-6:22) */
+            /* terrane-site-row: site 0: /integer-coercion-failure::main (case.trn:5:17-5:22) */
             Site {
                 function: 0,
                 file: 0,
-                line: 6,
+                line: 5,
                 column: 17,
-                end_line: 6,
+                end_line: 5,
                 end_column: 22,
             }
         },
@@ -409,7 +409,7 @@ fn main() {
     let value: i64 = 128;
     let narrow: i8 = __terrane_raised(
         terrane_int_support::coerce::<i8>(&value),
-        0 /* terrane-site: case.trn:6:17-6:22 */,
+        0 /* terrane-site: case.trn:5:17-5:22 */,
     );
     println!("{}", terrane_scalar_support::scalar_text(&narrow));
 }

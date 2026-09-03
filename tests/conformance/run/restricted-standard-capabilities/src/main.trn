@@ -1,11 +1,11 @@
 namespace restricted-standard-capabilities
 
 from /core/output import print
-from /standard/concurrency import int-channel
-from /standard/process import host-name
+from /core/concurrency import int-channel
+from /core/process import process-host-name
 
 function main;
     channel = int-channel; 1
     print; channel.failed
-    name = host-name;
+    name = process-host-name;
     print; name.failed or name.available

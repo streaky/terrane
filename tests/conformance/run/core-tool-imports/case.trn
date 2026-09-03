@@ -1,0 +1,11 @@
+namespace core-tool-imports
+
+import /core/codecs
+
+function describe string; enabled bool, payload bytes, small int8
+    encode-base64; payload, enabled, enabled
+    return 'core tools are explicit'
+
+function main;
+    describe; true, b'abc', 1
+    print; 'core namespace import works'

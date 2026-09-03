@@ -2,7 +2,8 @@ namespace app
 
 from /core/output import print
 from /core/encodings import utf8
-from /standard/networking import ip-address-from-string, socket-address-from-ip, socket-address-from-string, cancellation-token, operation-options, udp-options, udp-result, bind-udp
+from /core/networking import ip-address-from-string, socket-address-from-ip, socket-address-from-string, network-cancellation-token, network-operation-options, udp-options, udp-result, bind-udp
+from /core/streams import stdout
 
 function main;
     loopback = ip-address-from-string; '127.0.0.1'
@@ -11,12 +12,16 @@ function main;
     socket = move bound.value
     destination = socket-address-from-string; socket.local-address
     configured = socket.configure; (udp-options; false, 32)
-    cancellation = cancellation-token;
-    options = operation-options; 1000, cancellation
+    cancellation = network-cancellation-token;
+    options = network-operation-options; 1000, cancellation
     sent = socket.send-to; b'terrane', destination.value, options
     received = socket.receive-from; 32, options
     print; not configured.failed
     print; sent.completed
-    print; (received.data.decode; utf8)
+    bytes-output = stdout;
+    output = bytes-output.text; utf8
+    written = output.line; (received.data.decode; utf8)
+    if written.failed
+        print; written.message
     print; not received.truncated
     socket.close;

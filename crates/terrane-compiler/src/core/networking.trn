@@ -1,0 +1,321 @@
+namespace core/networking
+
+from /core/collections import list
+
+class network-operation-result
+    failed bool = false
+    deadline-exceeded bool = false
+    message string = ''
+
+    function construct; failed bool, deadline-exceeded bool, message string
+        this.failed = failed
+        this.deadline-exceeded = deadline-exceeded
+        this.message = message
+class network-cancellation-token
+    private handle host-platform-capability = host-cancellation-token;
+
+
+function network-cancel-operation network-operation-result; cancellation network-cancellation-token
+    raw = host-cancel; cancellation.handle
+    return network-operation-result; (host-result-failed; raw), (host-result-deadline-exceeded; raw), (host-result-message; raw)
+
+class network-operation-options
+    deadline-ms int = 30000
+    cancellation network-cancellation-token = network-cancellation-token;
+
+    function construct; deadline-ms int, cancellation network-cancellation-token
+        this.deadline-ms = deadline-ms
+        this.cancellation = cancellation
+
+
+protected function operation-cancellation host-platform-capability; options network-operation-options
+    return options.cancellation.handle
+class tcp-options
+    no-delay bool = true
+    ttl int = 64
+
+    function construct; no-delay bool, ttl int
+        this.no-delay = no-delay
+        this.ttl = ttl
+
+class udp-options
+    broadcast bool = false
+    ttl int = 64
+
+    function construct; broadcast bool, ttl int
+        this.broadcast = broadcast
+        this.ttl = ttl
+
+
+class ip-address
+    value string = ''
+    version string = ''
+    is-loopback bool = false
+
+    private function construct; raw host-platform-result
+        this.value = host-result-text; raw
+        this.version = host-result-detail; raw
+        this.is-loopback = host-result-bool; raw
+
+    function string string;
+        return this.value
+
+class ip-result
+    failed bool = false
+    message string = ''
+    value ip-address = ip-address; (host-failed-result;)
+
+    function construct; failed bool, message string, address ip-address
+        this.failed = failed
+        this.message = message
+        this.value = address
+
+function ip-address-from-string ip-result; text string
+    raw = host-parse-ip; text
+    failed = host-result-failed; raw
+    message = host-result-message; raw
+    return ip-result; failed, message, (ip-address; raw)
+
+class socket-address
+    value string = ''
+    ip ip-address = ip-address; (host-failed-result;)
+    port int = 0
+
+    private function construct; raw host-platform-result, address-ip ip-address, address-port int
+        this.value = host-result-text; raw
+        this.ip = address-ip
+        this.port = address-port
+
+    function string string;
+        return this.value
+
+class socket-result
+    failed bool = false
+    message string = ''
+    value socket-address = socket-address; (host-failed-result;), (ip-address; (host-failed-result;)), 0
+
+    function construct; failed bool, message string, address socket-address
+        this.failed = failed
+        this.message = message
+        this.value = address
+
+function socket-address-from-ip socket-result; ip ip-address, port int
+    raw = host-parse-socket; ip.value, port
+    failed = host-result-failed; raw
+    message = host-result-message; raw
+    address = socket-address; raw, ip, port
+    return socket-result; failed, message, address
+
+function socket-address-from-string socket-result; text string
+    raw = host-parse-socket-text; text
+    failed = host-result-failed; raw
+    message = host-result-message; raw
+    address-ip = ip-address; (host-parse-ip; (host-result-detail; raw))
+    port = host-result-int; raw
+    address = socket-address; raw, address-ip, port
+    return socket-result; failed, message, address
+
+class io-result
+    failed bool = false
+    truncated bool = false
+    deadline-exceeded bool = false
+    message string = ''
+    data bytes = b''
+    completed int = 0
+    peer string = ''
+    end bool = false
+
+    function construct; failed bool, truncated bool, deadline-exceeded bool, message string, data bytes, completed int, peer string, end bool
+        this.failed = failed
+        this.truncated = truncated
+        this.deadline-exceeded = deadline-exceeded
+        this.message = message
+        this.data = data
+        this.completed = completed
+        this.peer = peer
+        this.end = end
+
+class tcp-stream
+    protected handle host-platform-resource-handle
+
+    private function construct; resource host-platform-resource-handle
+        this.handle = resource
+
+    function read io-result; limit int, options network-operation-options
+        raw = host-tcp-read; this.handle, limit, options.deadline-ms, options.cancellation.handle
+        return io-result; (host-result-failed; raw), false, (host-result-deadline-exceeded; raw), (host-result-message; raw), (host-result-bytes; raw), (host-result-int; raw), '', (host-result-bool; raw)
+
+    function write io-result; data bytes, options network-operation-options
+        raw = host-tcp-write; this.handle, data, options.deadline-ms, options.cancellation.handle
+        return io-result; (host-result-failed; raw), false, (host-result-deadline-exceeded; raw), (host-result-message; raw), b'', (host-result-int; raw), '', false
+
+    function configure network-operation-result; options tcp-options
+        raw = host-tcp-configure; this.handle, options.no-delay, options.ttl
+        return network-operation-result; (host-result-failed; raw), (host-result-deadline-exceeded; raw), (host-result-message; raw)
+
+    function shutdown network-operation-result; direction string
+        raw = host-tcp-shutdown; this.handle, direction
+        return network-operation-result; (host-result-failed; raw), (host-result-deadline-exceeded; raw), (host-result-message; raw)
+
+    function close network-operation-result;
+        raw = host-close; this.handle
+        return network-operation-result; (host-result-failed; raw), (host-result-deadline-exceeded; raw), (host-result-message; raw)
+
+    function destruct;
+        host-close; this.handle
+
+class stream-result
+    failed bool = false
+    deadline-exceeded bool = false
+    message string = ''
+    peer string = ''
+    value tcp-stream = tcp-stream; (host-no-resource;)
+
+    function construct; failed bool, deadline-exceeded bool, message string, peer string, stream tcp-stream
+        this.failed = failed
+        this.deadline-exceeded = deadline-exceeded
+        this.message = message
+        this.peer = peer
+        this.value = stream
+
+function connect-tcp stream-result; address socket-address, options network-operation-options
+    raw = host-tcp-connect; address.value, options.deadline-ms, options.cancellation.handle
+    stream = tcp-stream; (host-result-resource; raw)
+    return stream-result; (host-result-failed; raw), (host-result-deadline-exceeded; raw), (host-result-message; raw), '', stream
+
+function connect-host stream-result; host network-host-name, port int, options network-operation-options
+    raw = host-tcp-connect-host; host.value, port, options.deadline-ms, options.cancellation.handle
+    stream = tcp-stream; (host-result-resource; raw)
+    return stream-result; (host-result-failed; raw), (host-result-deadline-exceeded; raw), (host-result-message; raw), (host-result-text; raw), stream
+
+class tcp-listener
+    private handle host-platform-resource-handle
+
+    private function construct; resource host-platform-resource-handle
+        this.handle = resource
+    local-address string = ''
+
+    function accept stream-result; options network-operation-options
+        raw = host-tcp-accept; this.handle, options.deadline-ms, options.cancellation.handle
+        stream = tcp-stream; (host-result-resource; raw)
+        return stream-result; (host-result-failed; raw), (host-result-deadline-exceeded; raw), (host-result-message; raw), (host-result-text; raw), stream
+
+    function close network-operation-result;
+        raw = host-close; this.handle
+        return network-operation-result; (host-result-failed; raw), (host-result-deadline-exceeded; raw), (host-result-message; raw)
+
+    function destruct;
+        host-close; this.handle
+
+class listener-result
+    failed bool = false
+    deadline-exceeded bool = false
+    message string = ''
+    value tcp-listener = tcp-listener; (host-no-resource;)
+
+    function construct; failed bool, deadline-exceeded bool, message string, listener tcp-listener
+        this.failed = failed
+        this.deadline-exceeded = deadline-exceeded
+        this.message = message
+        this.value = listener
+
+function bind-tcp listener-result; address socket-address
+    raw = host-tcp-bind; address.value
+    listener = tcp-listener; (host-result-resource; raw)
+    if not (host-result-failed; raw)
+        listener.local-address = host-result-text; raw
+    return listener-result; (host-result-failed; raw), (host-result-deadline-exceeded; raw), (host-result-message; raw), listener
+
+class udp-socket
+    private handle host-platform-resource-handle
+
+    private function construct; resource host-platform-resource-handle
+        this.handle = resource
+    local-address string = ''
+
+    function send-to io-result; data bytes, address socket-address, options network-operation-options
+        raw = host-udp-send-to; this.handle, data, address.value, options.deadline-ms, options.cancellation.handle
+        return io-result; (host-result-failed; raw), false, (host-result-deadline-exceeded; raw), (host-result-message; raw), b'', (host-result-int; raw), '', false
+
+    function receive-from io-result; limit int, options network-operation-options
+        raw = host-udp-receive-from; this.handle, limit, options.deadline-ms, options.cancellation.handle
+        return io-result; (host-result-failed; raw), (host-result-truncated; raw), (host-result-deadline-exceeded; raw), (host-result-message; raw), (host-result-bytes; raw), (host-result-int; raw), (host-result-text; raw), false
+
+    function configure network-operation-result; options udp-options
+        raw = host-udp-configure; this.handle, options.broadcast, options.ttl
+        return network-operation-result; (host-result-failed; raw), (host-result-deadline-exceeded; raw), (host-result-message; raw)
+
+    function close network-operation-result;
+        raw = host-close; this.handle
+        return network-operation-result; (host-result-failed; raw), (host-result-deadline-exceeded; raw), (host-result-message; raw)
+
+    function destruct;
+        host-close; this.handle
+
+class udp-result
+    failed bool = false
+    deadline-exceeded bool = false
+    message string = ''
+    value udp-socket = udp-socket; (host-no-resource;)
+
+    function construct; failed bool, deadline-exceeded bool, message string, socket udp-socket
+        this.failed = failed
+        this.deadline-exceeded = deadline-exceeded
+        this.message = message
+        this.value = socket
+
+function bind-udp udp-result; address socket-address
+    raw = host-udp-bind; address.value
+    socket = udp-socket; (host-result-resource; raw)
+    if not (host-result-failed; raw)
+        socket.local-address = host-result-text; raw
+    return udp-result; (host-result-failed; raw), (host-result-deadline-exceeded; raw), (host-result-message; raw), socket
+
+class dns-result
+    failed bool = false
+    deadline-exceeded bool = false
+    message string = ''
+    candidates list of string = list; ''
+    ttl int = 0
+    ttl-known bool = false
+
+    function construct; failed bool, deadline-exceeded bool, message string, ttl int, ttl-known bool, candidates list of string
+        this.failed = failed
+        this.deadline-exceeded = deadline-exceeded
+        this.message = message
+        this.ttl = ttl
+        this.ttl-known = ttl-known
+        this.candidates = candidates
+
+class network-host-name
+    value string = ''
+
+    private function construct; raw host-platform-result
+        this.value = host-result-text; raw
+
+class network-host-name-result
+    failed bool = false
+    message string = ''
+    value network-host-name = network-host-name; (host-failed-result;)
+
+    function construct; failed bool, message string, host network-host-name
+        this.failed = failed
+        this.message = message
+        this.value = host
+
+function parse-host-name network-host-name-result; text string
+    raw = host-parse-host-name; text
+    failed = host-result-failed; raw
+    message = host-result-message; raw
+    host = network-host-name; raw
+    return network-host-name-result; failed, message, host
+
+function lookup-dns dns-result; host network-host-name, port int, options network-operation-options
+    raw = host-dns-lookup; host.value, port, options.deadline-ms, options.cancellation.handle
+    raw-candidates = host-result-entries; raw
+    candidates list of string = list; ''
+    index int = 0
+    while index < raw-candidates.length
+        candidates.append; raw-candidates[index]
+        index = index + 1
+    return dns-result; (host-result-failed; raw), (host-result-deadline-exceeded; raw), (host-result-message; raw), (host-result-int; raw), (host-result-bool; raw), candidates

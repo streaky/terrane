@@ -380,13 +380,13 @@ mod __terrane_trace {
     pub static FUNCTIONS: [&str; 1] = ["/fixed-overflow::main"];
     pub static SITES: [Site; 1] = [
         {
-            /* terrane-site-row: site 0: /fixed-overflow::main (case.trn:6:11-6:23) */
+            /* terrane-site-row: site 0: /fixed-overflow::main (case.trn:5:11-5:23) */
             Site {
                 function: 0,
                 file: 0,
-                line: 6,
+                line: 5,
                 column: 11,
-                end_line: 6,
+                end_line: 5,
                 end_column: 23,
             }
         },
@@ -411,6 +411,6 @@ fn main() {
     println!(
         "{}",
         terrane_scalar_support::scalar_text(&__terrane_raised(terrane_int_support::fixed_addition(left,
-        right), 0 /* terrane-site: case.trn:6:11-6:23 */))
+        right), 0 /* terrane-site: case.trn:5:11-5:23 */))
     );
 }

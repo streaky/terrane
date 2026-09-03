@@ -1,6 +1,5 @@
 namespace foundational-float-math
 from /core/collections import tuple
-from /core/types import float32, float64
 
 function main;
   zero32 float32 = 0.0

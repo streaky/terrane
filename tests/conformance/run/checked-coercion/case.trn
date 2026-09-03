@@ -1,5 +1,5 @@
 namespace checked-coercion
-from /core/types import int8, int8 as tiny, uint8, none
+from /core/types import int8 as tiny
 
 constant shared int = 100
 

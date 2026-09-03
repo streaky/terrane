@@ -1,7 +1,7 @@
 namespace system-adapter
 from /core/output import print
-from /standard/process import host-name
+from /core/process import process-host-name
 
 function main;
-    name = host-name;
+    name = process-host-name;
     print; name.failed or name.available

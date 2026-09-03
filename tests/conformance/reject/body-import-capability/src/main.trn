@@ -1,0 +1,5 @@
+namespace body-import-capability
+
+function main;
+    import /core/filesystem
+    return

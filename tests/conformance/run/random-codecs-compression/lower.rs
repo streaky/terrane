@@ -458,9 +458,9 @@ mod __terrane_trace {
         )
     }
 }
-type TerranePlatformCapability = terrane_platform_support::Capability;
-type TerranePlatformResult = terrane_platform_support::ResultValue;
-fn terrane_platform_i128(
+pub type TerranePlatformCapability = terrane_platform_support::Capability;
+pub type TerranePlatformResult = terrane_platform_support::ResultValue;
+pub fn terrane_platform_i128(
     value: &terrane_int_support::Int,
     label: &str,
 ) -> Result<i128, TerranePlatformResult> {
@@ -543,24 +543,24 @@ fn terrane_platform_result_capability(
 ) -> TerranePlatformCapability {
     result.capability.clone().unwrap_or_default()
 }
-fn terrane_platform_secure_random() -> TerranePlatformCapability {
+pub fn terrane_platform_secure_random() -> TerranePlatformCapability {
     terrane_platform_support::secure_random()
 }
-fn terrane_platform_pseudo_random(
+pub fn terrane_platform_pseudo_random(
     algorithm: String,
     seed: Vec<u8>,
 ) -> TerranePlatformCapability {
     terrane_platform_support::pseudo_random(&algorithm, &seed)
 }
-fn terrane_platform_secret_buffer(data: Vec<u8>) -> TerranePlatformCapability {
+pub fn terrane_platform_secret_buffer(data: Vec<u8>) -> TerranePlatformCapability {
     terrane_platform_support::secret_buffer(data)
 }
-fn terrane_platform_destroy_secret(
+pub fn terrane_platform_destroy_secret(
     secret: &TerranePlatformCapability,
 ) -> TerranePlatformResult {
     terrane_platform_support::destroy_secret(secret)
 }
-fn terrane_platform_random_bytes(
+pub fn terrane_platform_random_bytes(
     source: &TerranePlatformCapability,
     count: terrane_int_support::Int,
 ) -> TerranePlatformResult {
@@ -569,7 +569,7 @@ fn terrane_platform_random_bytes(
         terrane_platform_i128!(count, "random byte count"),
     )
 }
-fn terrane_platform_random_bounded(
+pub fn terrane_platform_random_bounded(
     source: &TerranePlatformCapability,
     upper: terrane_int_support::Int,
 ) -> TerranePlatformResult {
@@ -578,45 +578,48 @@ fn terrane_platform_random_bounded(
         terrane_platform_i128!(upper, "random upper bound"),
     )
 }
-fn terrane_platform_random_split(
+pub fn terrane_platform_random_split(
     source: &TerranePlatformCapability,
 ) -> TerranePlatformResult {
     terrane_platform_support::random_split(source)
 }
-fn terrane_platform_digest(algorithm: &String, data: Vec<u8>) -> TerranePlatformResult {
+pub fn terrane_platform_digest(
+    algorithm: &String,
+    data: Vec<u8>,
+) -> TerranePlatformResult {
     terrane_platform_support::digest(algorithm, &data)
 }
-fn terrane_platform_hmac(
+pub fn terrane_platform_hmac(
     algorithm: &String,
     key: &TerranePlatformCapability,
     data: Vec<u8>,
 ) -> TerranePlatformResult {
     terrane_platform_support::hmac(algorithm, key, &data)
 }
-fn terrane_platform_constant_time_equal(left: Vec<u8>, right: Vec<u8>) -> bool {
+pub fn terrane_platform_constant_time_equal(left: Vec<u8>, right: Vec<u8>) -> bool {
     terrane_platform_support::constant_time_equal(&left, &right)
 }
-fn terrane_platform_hex_encode(data: Vec<u8>) -> String {
+pub fn terrane_platform_hex_encode(data: Vec<u8>) -> String {
     terrane_platform_support::hex_encode(&data)
 }
-fn terrane_platform_hex_decode(text: String) -> TerranePlatformResult {
+pub fn terrane_platform_hex_decode(text: String) -> TerranePlatformResult {
     terrane_platform_support::hex_decode(&text)
 }
-fn terrane_platform_base64_encode(
+pub fn terrane_platform_base64_encode(
     data: Vec<u8>,
     url_safe: bool,
     padded: bool,
 ) -> String {
     terrane_platform_support::base64_encode(&data, url_safe, padded)
 }
-fn terrane_platform_base64_decode(
+pub fn terrane_platform_base64_decode(
     text: String,
     url_safe: bool,
     padded: bool,
 ) -> TerranePlatformResult {
     terrane_platform_support::base64_decode(&text, url_safe, padded)
 }
-fn terrane_platform_compress(
+pub fn terrane_platform_compress(
     format: String,
     data: Vec<u8>,
     level: terrane_int_support::Int,
@@ -629,7 +632,7 @@ fn terrane_platform_compress(
         deterministic,
     )
 }
-fn terrane_platform_decompress(
+pub fn terrane_platform_decompress(
     format: String,
     data: Vec<u8>,
     output: terrane_int_support::Int,
@@ -644,15 +647,15 @@ fn terrane_platform_decompress(
         terrane_platform_i128!(work, "decompression work limit"),
     )
 }
-fn terrane_platform_uuid_parse(text: String) -> TerranePlatformResult {
+pub fn terrane_platform_uuid_parse(text: String) -> TerranePlatformResult {
     terrane_platform_support::uuid_parse(&text)
 }
-fn terrane_platform_uuid_v4(
+pub fn terrane_platform_uuid_v4(
     source: &TerranePlatformCapability,
 ) -> TerranePlatformResult {
     terrane_platform_support::uuid_v4(source)
 }
-fn terrane_platform_uuid_v7(
+pub fn terrane_platform_uuid_v7(
     source: &TerranePlatformCapability,
     unix_milliseconds: terrane_int_support::Int,
 ) -> TerranePlatformResult {
@@ -690,7 +693,7 @@ fn main() {
         terrane_int_support::Int::from(16_i128)).value == pseudo_bytes(second_child,
         terrane_int_support::Int::from(16_i128)).value))
     );
-    let bounded: IntResult = pseudo_bounded_int(
+    let bounded: RandomIntResult = pseudo_bounded_int(
         first.clone(),
         terrane_int_support::Int::from(17_i128),
     );
@@ -709,7 +712,7 @@ fn main() {
         &&terrane_int_support::Int::from(secure_data.value.len() as i128) ==
         terrane_int_support::Int::from(16_i128)))
     );
-    let secure_number: IntResult = secure_bounded_int(
+    let secure_number: RandomIntResult = secure_bounded_int(
         secure.clone(),
         terrane_int_support::Int::from(17_i128),
     );
@@ -923,8 +926,8 @@ fn main() {
     );
     println!("{}", terrane_scalar_support::scalar_text(&invalid_time.failed));
 }
-// Source: standard/codecs.trn
-// Namespace: standard/codecs
+// Source: core/codecs.trn
+// Namespace: core/codecs
 #[derive(Clone)]
 pub struct DecodeResult {
     pub failed: bool,
@@ -1029,8 +1032,8 @@ pub fn decode_base64(text: String, url_safe: bool, padded: bool) -> DecodeResult
         terrane_platform_result_bytes(&raw),
     );
 }
-// Source: standard/compression.trn
-// Namespace: standard/compression
+// Source: core/compression.trn
+// Namespace: core/compression
 #[derive(Clone)]
 pub struct CompressionOptions {
     pub level: terrane_int_support::Int,
@@ -1185,8 +1188,8 @@ pub fn deflate_raw() -> CompressionCodec {
 pub fn zstd() -> CompressionCodec {
     return CompressionCodec::terrane_construct(String::from("zstd"));
 }
-// Source: standard/random.trn
-// Namespace: standard/random
+// Source: core/random.trn
+// Namespace: core/random
 #[derive(Clone)]
 pub struct ByteResult {
     pub failed: bool,
@@ -1210,12 +1213,12 @@ impl ByteResult {
     }
 }
 #[derive(Clone)]
-pub struct IntResult {
+pub struct RandomIntResult {
     pub failed: bool,
     pub message: String,
     pub value: terrane_int_support::Int,
 }
-impl IntResult {
+impl RandomIntResult {
     pub fn terrane_construct(
         failed: bool,
         message: String,
@@ -1417,12 +1420,15 @@ impl SecureRandom {
             terrane_platform_result_bytes(&raw),
         );
     }
-    pub fn bounded_int(&self, upper_exclusive: terrane_int_support::Int) -> IntResult {
+    pub fn bounded_int(
+        &self,
+        upper_exclusive: terrane_int_support::Int,
+    ) -> RandomIntResult {
         let raw: TerranePlatformResult = terrane_platform_random_bounded(
             &self.handle,
             upper_exclusive,
         );
-        return IntResult::terrane_construct(
+        return RandomIntResult::terrane_construct(
             terrane_platform_result_failed(&raw),
             terrane_platform_result_message(&raw),
             terrane_platform_result_int(&raw),
@@ -1475,12 +1481,15 @@ impl PseudoRandom {
             terrane_platform_result_bytes(&raw),
         );
     }
-    pub fn bounded_int(&self, upper_exclusive: terrane_int_support::Int) -> IntResult {
+    pub fn bounded_int(
+        &self,
+        upper_exclusive: terrane_int_support::Int,
+    ) -> RandomIntResult {
         let raw: TerranePlatformResult = terrane_platform_random_bounded(
             &self.handle,
             upper_exclusive,
         );
-        return IntResult::terrane_construct(
+        return RandomIntResult::terrane_construct(
             terrane_platform_result_failed(&raw),
             terrane_platform_result_message(&raw),
             terrane_platform_result_int(&raw),
@@ -1536,12 +1545,12 @@ pub fn pseudo_bytes(
 pub fn secure_bounded_int(
     source: SecureRandom,
     upper_exclusive: terrane_int_support::Int,
-) -> IntResult {
+) -> RandomIntResult {
     let raw: TerranePlatformResult = terrane_platform_random_bounded(
         &source.handle,
         upper_exclusive,
     );
-    return IntResult::terrane_construct(
+    return RandomIntResult::terrane_construct(
         terrane_platform_result_failed(&raw),
         terrane_platform_result_message(&raw),
         terrane_platform_result_int(&raw),
@@ -1550,12 +1559,12 @@ pub fn secure_bounded_int(
 pub fn pseudo_bounded_int(
     source: PseudoRandom,
     upper_exclusive: terrane_int_support::Int,
-) -> IntResult {
+) -> RandomIntResult {
     let raw: TerranePlatformResult = terrane_platform_random_bounded(
         &source.handle,
         upper_exclusive,
     );
-    return IntResult::terrane_construct(
+    return RandomIntResult::terrane_construct(
         terrane_platform_result_failed(&raw),
         terrane_platform_result_message(&raw),
         terrane_platform_result_int(&raw),
@@ -1619,8 +1628,8 @@ pub fn digest_equals(left: DigestValue, right: DigestValue) -> bool {
 pub fn signature_equals(left: SignatureValue, right: SignatureValue) -> bool {
     return left.constant_time_equals(right.clone());
 }
-// Source: standard/uuid.trn
-// Namespace: standard/uuid
+// Source: core/uuid.trn
+// Namespace: core/random/uuid
 #[derive(Clone)]
 pub struct Uuid {
     pub string: String,

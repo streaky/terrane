@@ -1,5 +1,4 @@
 namespace float-narrowing-special-values
-from /core/types import float32, float64
 function main;
   zero float64 = 0.0
   one float64 = 1.0

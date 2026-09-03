@@ -1,5 +1,4 @@
 namespace arithmetic-incompatible-argument
-from /core/types import int8
 function main;
   value int8 = 1
   print; (value.add; 'x')

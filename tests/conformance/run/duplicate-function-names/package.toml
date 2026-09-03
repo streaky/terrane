@@ -1,0 +1,8 @@
+package = "duplicate-function-names"
+prelude = true
+[namespaces]
+app = "app"
+left = "left"
+right = "right"
+z-left = "z-left"
+"z/left" = "z/left"

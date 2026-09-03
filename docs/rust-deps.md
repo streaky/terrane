@@ -37,16 +37,19 @@ to Terrane source:
 
 1. **Support crate.** `crates/terrane-document-support/src/lib.rs` exposes flat free functions over
    `serde_json`/`yaml-rust2`/`url`, hiding those crates' types behind `DataResult` and `UrlResult`.
-2. **Platform namespace.** `/core/platform-data` names the primitives the compiler recognises
-   (`crates/terrane-compiler/src/semantics.rs`, the name list and the call-to-type mapping).
+2. **Private package bindings.** Before analysing `/core/documents`, `/core/documents/json`,
+   `/core/documents/yaml`, or `/core/urls`, the compiler seeds that exact namespace with only the
+   private host bindings its bundled Terrane implementation needs. Each binding carries a
+   compiler-only lowering identity.
 3. **Generated shims.** `crates/terrane-compiler/src/runtime/platform_urls.rs` and its siblings emit
-   one thin Rust function per crossed member into the generated crate.
-4. **Authored Terrane wrapper.** `crates/terrane-compiler/src/standard/urls.trn` imports the platform
-   primitives and presents an ordinary Terrane API.
+   one public Rust function per crossed private binding into the generated support artifact.
+4. **Bundled Terrane core wrapper.** The owning package presents the typed public `/core/*` object
+   model over those private bindings. Rust visibility needed between generated modules does not
+   make a host binding importable in Terrane.
 
-Milestone 25 generalises layers 2, 3 and 4: `/deps/<crate>` replaces the hard-coded platform
-namespace, the shims are generated from a projection instead of being written by hand, and layer 4
-becomes optional rather than mandatory.
+Milestone 25 generalises layers 1 through 3: `/deps/<crate>` supplies projected package objects
+instead of compiler-seeded private bindings, the shims are generated from a projection instead of
+being written by hand, and the authored wrapper layer becomes optional rather than mandatory.
 
 ### 2.1 The shape the existing boundary already has
 
@@ -572,6 +575,6 @@ the lexical change, the lint demotion, and A21 as explicit deliverables. Not app
 
 ### 11.6 Deferred
 
-Migrating `/core/platform-data` and the `platform_*.rs` shims onto this machinery. The general path
-does by hand what they do by hand today, so they could move onto it once it exists. Not part of this
-work, and the design should not make it impossible.
+Migrating the compiler-registered core tool objects and the `platform_*.rs` shims onto this
+machinery. The general path does by projection what they do by hand today, so they could move onto
+it once it exists. Not part of this work, and the design should not make it impossible.

@@ -1,6 +1,6 @@
 namespace conformance/platform-data-intrinsics
 
-from /core/platform-data import json-parse
+from /core/documents/json import host-json-parse
 
 function main;
-    json-parse; '{}', true, 32, 1024
+    host-json-parse; '{}', 32, 1024

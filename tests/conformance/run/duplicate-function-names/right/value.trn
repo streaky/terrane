@@ -1,0 +1,4 @@
+namespace right
+
+public function render string;
+    return 'right'

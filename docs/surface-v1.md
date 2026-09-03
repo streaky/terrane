@@ -4,6 +4,13 @@ This document maps the proposed **version-one language contract**, not the compi
 
 The map is deliberately opinionated in one important respect: a member may be both a callable object and a namespace of related callable modes. Selecting `value.coerce` produces a method object; invoking that object selects its default behaviour, while selecting `value.coerce.checked` selects a child method object.
 
+Compiler-backed does not mean implicit or internal. Every `/core/types` descriptor is language
+vocabulary available without import; operational compiler-supplied objects belong under
+purpose-named public `/core` parents and require an explicit object or namespace-wide import.
+Whether a public core object is implemented in Terrane or Rust is not reflected in its namespace.
+Compiler lowering keys and Rust shims are implementation details, not `/internal` or
+`/core/platform-*` language namespaces.
+
 ## Reading the map
 
 ```text
@@ -213,11 +220,14 @@ The default prelude is intentionally small:
 
 ```text
 print task-scope
-int float bool string bytes none
 utf8 utf16-le utf16-be utf32-le utf32-be
 ```
 
-These thirteen names are ordinary program-global bindings. Fixed-width numeric descriptors, abstract protocol descriptors, and collection constructors are not ordinary prelude bindings, so they do not flood value-name lookup. They are compiler-owned descriptor constructs usable directly in construct positions; explicit import remains available when a source scope needs rebinding, aliasing, or shadowing.
+These seven names are ordinary program-global bindings. Every `/core/types` descriptor instead
+belongs to the compiler-owned construct vocabulary, so descriptors remain usable in construct
+positions even when the prelude is disabled without flooding ordinary value-name lookup. Explicit
+import remains available when a source scope needs rebinding, aliasing, or shadowing. Collection
+constructors and operational tooling remain explicit imports.
 
 ### 4.1 Numeric context and destinations
 
@@ -748,7 +758,7 @@ User-declared names may use uppercase and underscores so projected dependency na
 
 The namespace tree corresponds to a directory tree; a declaration disagreeing with its location is an error unless the manifest declares that mapping. The manifest maps a namespace root to a directory root, longest prefix wins, and a dependency's namespaces come from its own manifest rather than from scanning its tree.
 
-**Most programs need few imports.** The prelude supplies `print`, `task-scope`, `int`, `float`, `bool`, `string`, `bytes`, `none`, `utf8`, `utf16-le`, `utf16-be`, `utf32-le`, and `utf32-be` as ordinary bindings. Other compiler-owned descriptors are constructs available directly in construct positions without becoming ordinary prelude values. This is a complete program:
+**Most programs need few imports.** The prelude supplies `print`, `task-scope`, `utf8`, `utf16-le`, `utf16-be`, `utf32-le`, and `utf32-be` as ordinary bindings. Every compiler-owned `/core/types` descriptor is available directly in construct positions without becoming an ordinary prelude value. This is a complete program:
 
 ```terrane
 namespace demo
@@ -805,7 +815,16 @@ from /image/codec import resize as scale
 from /core/types import int64 as word
 ```
 
-The alias binds the exported object under the new name in the current scope, preserving the object's identity and visibility checks. Since imports now bind ordinary names, an import cannot shadow a name while leaving the original reachable under a second spelling; where both are wanted, alias one of them.
+The alias binds the exported object under the new name in the current scope, preserving the object's identity and visibility checks. A selective import cannot shadow a name while leaving the original reachable under a second spelling; where both are wanted, alias one of them.
+
+The namespace-wide form `import /namespace` deliberately differs from a selective import. It checks
+the complete visible lookup chain and emits `W4004` before shadowing a different object. An authored
+top-level declaration in the importing namespace always retains its name, and a conflicting
+namespace-wide object is skipped with `W4004`. Namespace-wide imports otherwise replace one another
+in source order; multi-file packages use normalized relative source-path order, and the replacement
+warning identifies an earlier import binding that it invalidates. Reimporting the same object is
+silent. To retain both objects, establish a selective alias before the namespace-wide import.
+Selective same-scope collisions remain errors.
 
 Import syntax is not declaration-modifier syntax. An alias can never create or replace a program-global:
 
@@ -822,7 +841,9 @@ from /core/output import print as core-print
 global print = core-print
 ```
 
-The bound name follows the same collision, duplicate-name, visibility, and scope rules as any other ordinary binding. Import syntax cannot smuggle `global`, `constant`, visibility, or any other declaration qualifier onto it.
+A selectively bound name follows the same collision, duplicate-name, visibility, and scope rules as
+any other ordinary binding; namespace-wide replacement is the explicit exception above. Import
+syntax cannot smuggle `global`, `constant`, visibility, or any other declaration qualifier onto it.
 
 ## 12. Async, concurrency, and system profiles
 
@@ -837,7 +858,7 @@ structured task scope                              v1 language-level object, not
 +-- deadline inheritance: a child may shorten but never extend its parent's
 +-- failure observation for a child that throws while siblings run
 
-profile library objects                              /standard/concurrency; requires threads
+profile library objects                              /core/concurrency; requires threads
 +-- int-channel                                      bounded, zero-capacity rendezvous; cancellable/deadline blocking operations
 +-- int-mutex                                        individually synchronized integer load/store/increase cell
 +-- int-read-write-lock                              integer shared-read/exclusive-write cell; no exposed guard
@@ -1088,8 +1109,8 @@ process arguments
 +-- raw values -> platform argument values        profile-specific
 
 host identity
-+-- host-name -> host-name-result
-+-- result -> failed / available / message / platform-string value
++-- process-host-name -> process-host-name-result
++-- result -> failed / available / message / native-string value
 
 
 argument parser

@@ -1,1 +1,1 @@
-case.trn:4:3: warning[W4002]: initial value assigned to `nested-value` is never read
+case.trn:3:3: warning[W4002]: initial value assigned to `nested-value` is never read

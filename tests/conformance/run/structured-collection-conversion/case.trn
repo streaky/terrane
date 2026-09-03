@@ -1,5 +1,4 @@
 namespace structured-collection-conversion
-from /core/types import int8, int16
 from /core/collections import list
 from /core/errors import integer-conversion-overflow
 function build list of int8; wide int16

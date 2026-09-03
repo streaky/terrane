@@ -1,0 +1,4 @@
+namespace core-tool-requires-import
+
+function main;
+    encode-base64; b'abc', false, true

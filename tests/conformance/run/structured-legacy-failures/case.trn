@@ -1,5 +1,4 @@
 namespace structured-legacy-failures
-from /core/types import int, int8, int16, float32, float64
 from /core/errors import integer-conversion-overflow, division-by-zero
 function narrow-fixed int8;
   wide int16 = 300

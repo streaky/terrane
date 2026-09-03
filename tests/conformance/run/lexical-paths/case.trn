@@ -1,7 +1,7 @@
 namespace conformance/lexical-paths
 
 from /core/output import print
-from /standard/paths import path, normalise-path, path-components, path-is-absolute, path-name, path-stem, path-extension, path-parent, join-path
+from /core/filesystem/paths import path, normalise-path, path-components, path-is-absolute, path-name, path-stem, path-extension, path-parent, join-path
 
 function main;
     relative = path; 'alpha/./beta/../gamma/../../delta'

@@ -1,0 +1,4 @@
+namespace root-one
+
+public function root-value int;
+    return 1

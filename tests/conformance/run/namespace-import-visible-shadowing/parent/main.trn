@@ -1,0 +1,13 @@
+namespace parent
+
+global global-root int = 1
+global global-body int = 2
+
+public function parent-root int;
+    return global-root
+
+public function parent-body int;
+    return global-body
+
+public function original-total int;
+    return (parent-root;) + (parent-body;)

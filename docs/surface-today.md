@@ -2,6 +2,9 @@
 
 This map describes the language surface implemented by the compiler today. It is not a map of every object proposed by the language draft.
 
+Compiler-only host bindings and generated Rust ABI details are documented separately in
+[`internal-surface.md`](internal-surface.md); they are not part of this public map.
+
 Status labels:
 
 - **implemented** — checked and lowered by the current compiler pipeline.
@@ -10,11 +13,16 @@ Status labels:
 
 Source-declared and projected class, interface, and trait types have namespace-qualified nominal identity. Import aliases preserve that identity; same-named types from different namespaces remain distinct.
 
+Every `/core/types` descriptor is available as an implicit language construct. Operational core
+tooling is not implicit: authored and bundled source must import an individual object or use
+`import /core/<facility>` to bind every public importable object in that namespace. Core tool
+symbols retain their `/core` identities; compiler-only lowering keys are not namespace objects.
+
 ## Tree
 
 ```text
 Terrane package
-├── compiler-owned namespaces
+├── public compiler-shipped core surface
 │   ├── /core
 │   │   ├── /core/output
 │   │   │   └── print                          function
@@ -78,25 +86,33 @@ Terrane package
 │   │   │   ├── entry                          key/value pair constructor
 │   │   │   ├── unordered-map                  deterministic unordered map constructor
 │   │   │   └── unordered-set                  deterministic unordered set constructor
+│   │   ├── /core/codecs                       public facility namespace
+│   │   ├── /core/compression                  public facility namespace
+│   │   ├── /core/concurrency                  public facility namespace
+│   │   ├── /core/documents                    public facility namespace
+│   │   ├── /core/filesystem                   public facility namespace
+│   │   ├── /core/documents/json               public facility namespace
+│   │   ├── /core/networking                   public facility namespace
+│   │   ├── /core/process                      public facility namespace
+│   │   ├── /core/random                       public facility namespace
+│   │   ├── /core/streams                      public facility namespace
+│   │   ├── /core/networking/tls               public facility namespace
+│   │   ├── /core/urls                         public facility namespace
+│   │   ├── /core/random/uuid                  public facility namespace
+│   │   ├── /core/documents/yaml               public facility namespace
 │   │   └── /core/async
 │   │       └── task-scope                     structured task-scope constructor
 ├── default prelude
 │   ├── print                                  binding to /core/output::print
-│   ├── bool                                   type name for /core/types::bool
-│   ├── int                                    type name for /core/types::int
-│   ├── float                                  type spelling for /core/types::float64
-│   ├── string                                 type name for /core/types::string
-│   ├── bytes                                  type name for /core/types::bytes
-│   ├── none                                   type name for /core/types::none
 │   ├── utf8                                   encoding name for /core/encodings::utf8
 │   ├── utf16-le                               encoding name for /core/encodings::utf16-le
 │   ├── utf16-be                               encoding name for /core/encodings::utf16-be
 │   ├── utf32-le                               encoding name for /core/encodings::utf32-le
 │   ├── utf32-be                               encoding name for /core/encodings::utf32-be
 │   └── task-scope                             binding to /core/async::task-scope
-└── source-declared package surface
-    ├── /standard/streams                      bundled Terrane package, included when imported
-    │   ├── operation-result                   failed / message
+└── public core facility details
+    ├── /core/streams                          standard streams; requires `process`
+    │   ├── stream-operation-result            failed / message
     │   ├── read-result                        bytes / completed / end / failed / message
     │   ├── text-read-result                   text / completed / end / failed / message
     │   ├── write-result                       encoded bytes / completed / failed / message
@@ -107,15 +123,16 @@ Terrane package
     │   ├── stdin                              byte-reader factory
     │   ├── stdout                             byte-writer factory
     │   └── stderr                             byte-writer factory
-    ├── /standard/paths                        bundled Terrane package, included when imported
+    ├── /core/filesystem/paths                 lexical filesystem paths
     │   ├── path                               platform-neutral lexical component value
     │   ├── normalise-path                     lexical `.` / `..` resolution, root-bounded
     │   ├── join-path                          lexical base/child resolution
     │   ├── path-components / path-is-absolute
     │   └── path-name / path-parent / path-stem / path-extension
-    ├── /standard/filesystem                   bundled Terrane package over minimal host intrinsics
+    ├── /core/filesystem                       filesystem operations; requires `filesystem`
     │   ├── filesystem                         unforgeable capability, acquired via filesystem-capability
     │   ├── filesystem-capability() -> filesystem
+    │   ├── filesystem-operation-result        failed / message
     │   ├── existence-result                   exists / failed / message result object
     │   ├── file-handle                        inferred resource-owning file stream
     │   ├── directory-handle                   inferred resource-owning directory anchor
@@ -129,13 +146,13 @@ Terrane package
     │   ├── filesystem-canonical / filesystem-realpath / filesystem-read-link
     │   ├── filesystem-read-bounded / filesystem-write-atomic
     │   └── filesystem-rename / filesystem-remove
-    ├── /standard/process                      bundled Terrane process/system package; requires `process`
-    │   ├── platform-string                    lossless text-or-raw platform value
+    ├── /core/process                          process and host environment; requires `process`
+    │   ├── native-string                    lossless text-or-raw platform value
     │   ├── arguments / environment            explicit process snapshots
     │   ├── cli-schema / parse-command-line    schema-driven options and structured diagnostics
     │   ├── exit-status / make-exit-status / exit explicit validated termination
-    │   └── host-name-result / host-name        lossless platform host name or translated host failure
-    ├── /standard/documents                    bundled Terrane document model over narrow scanner intrinsics
+    │   └── process-host-name-result / process-host-name lossless platform host name or translated host failure
+    ├── /core/documents                        structured document values and mappings
     │   ├── document-integer                   exact integral value; text uses canonical exact number spelling
     │   ├── document-decimal                   coefficient / exponent / canonical exact text value
     │   ├── document-value                     none / bool / integer / decimal / string / list / map
@@ -144,52 +161,57 @@ Terrane package
     │   ├── serializable / deserializable      explicit typed conversion interfaces
     │   ├── exact scalar/list/map constructors programmatic document construction with duplicate rejection
     │   └── decode-document                    descriptor-driven validation with document-path diagnostics
-    ├── /standard/json                         bundled Terrane policy and document integration
+    ├── /core/documents/json                   JSON policy and document integration
     │   ├── json-options / default-json-options depth and byte limits; duplicates always rejected
     │   ├── parse-json / stringify-json / canonical-json
     │   │                                       JCS key ordering/escaping with exact, ECMAScript-shaped numbers
     │   └── decode-json / encode-json
-    ├── /standard/yaml                         bundled Terrane policy and document integration
+    ├── /core/documents/yaml                   YAML policy and document integration
     │   ├── yaml-options / default-yaml-options / make-yaml-options
     │   │                                       depth (capped at 255), byte, and alias-expanded-node limits
     │   ├── parse-yaml                         JSON-shaped safe scalars; tags and duplicate keys rejected
     │   ├── stringify-yaml                     emits canonical JSON, a valid YAML 1.2 document
     │   └── decode-yaml / encode-yaml
-    ├── /standard/urls                         bundled Terrane URL and ordered-query model
+    ├── /core/urls                             URL and ordered-query model
     │   ├── url                                serialized / display / components / query / origin
     │   ├── url-query                          ordered duplicate-preserving query entries (read-only after parsing)
     │   ├── url-result                         value or failed / message result
     │   └── parse-url / parse-url-relative
-    ├── /standard/random                       bundled Terrane random, digest, and secret-value policy
+    ├── /core/random                           random and digest policy; requires `entropy`
     │   ├── secure-random / pseudo-random      incompatible source types; ChaCha20 is selected explicitly
+    │   ├── random-int-result                  failed / message plus bounded integer value
     │   ├── pseudo-bytes / pseudo-bounded-int / split-pseudo
     │   ├── secure-bytes / secure-bounded-int
     │   ├── secret-buffer / destroy-secret     opaque key material with explicit best-effort zeroisation
     │   ├── sha256 / sha512                    distinct digest algorithms
     │   └── digest-bytes / sign-hmac / digest-equals / signature-equals
-    ├── /standard/codecs                       bundled Terrane strict codec policy
+    ├── /core/codecs                           strict codec policy
+    │   ├── decode-result                       failed / message plus decoded bytes
+    │   ├── hex / hex-codec                     reusable hexadecimal codec with encode / decode
+    │   ├── base64 / base64-url / base64-codec reusable alphabet policy with encode / decode
     │   ├── encode-hex / decode-hex
-    │   └── encode-base64 / decode-base64      standard or URL-safe alphabet with explicit padding
-    ├── /standard/compression                  bundled Terrane bounded compression policy
+    │   └── encode-base64 / decode-base64      direct standard or URL-safe operations with explicit padding
+    ├── /core/compression                      bounded compression policy
     │   ├── gzip / zlib / deflate-raw / zstd   explicit codecs; no auto-detection
     │   ├── compression-options                level and deterministic-output policy
     │   └── decompression-limits               mandatory output, ratio, and work limits
-    ├── /standard/uuid                         bundled Terrane UUID values
+    ├── /core/random/uuid                      UUID values; requires `entropy`
     │   └── parse-uuid / random-uuid / time-uuid strict canonical parsing plus v4 and v7 generation
-    ├── /standard/networking                   bundled Terrane sockets and name-resolution policy
-    │   ├── ip-address / socket-address / host-name validated value objects with structured parse results
-    │   ├── cancellation-token / operation-options shared observable cancellation and positive deadlines
+    ├── /core/networking                       sockets and DNS; requires `networking`
+    │   ├── ip-address / socket-address / network-host-name validated value objects with structured parse results
+    │   ├── network-operation-result           explicit failure / deadline / message
+    │   ├── network-cancellation-token / network-operation-options shared observable cancellation and positive deadlines
     │   ├── tcp-stream / tcp-listener / udp-socket
     │   ├── ip-address-from-string / socket-address-from-ip / socket-address-from-string / parse-host-name
     │   ├── connect-tcp / connect-host / bind-tcp / bind-udp
     │   └── lookup-dns                         ordered candidates with TTL and explicit failure results
-    ├── /standard/tls                          bundled Terrane TLS policy over transferred network resources
+    ├── /core/networking/tls                   TLS; requires `networking` and `tls`
     │   ├── tls-stream                         negotiated-version plus deadline-aware read, write, shutdown, and close
     │   └── connect-tls                        validated TLS 1.3/1.2 client connection; no insecure ordinary option
-    ├── /standard/concurrency                  bundled Terrane synchronization objects; requires `threads`
-    │   ├── operation-result / int-result      explicit failure, deadline, availability, message, and value
-    │   ├── cancellation-token                 explicit shared cancellation with a typed `cancel` operation
-    │   ├── operation-options                  positive deadline and cancellation token for blocking channel operations
+    ├── /core/concurrency                      synchronization objects; requires `threads`
+    │   ├── concurrency-operation-result / concurrency-int-result explicit failure, deadline, availability, message, and value
+    │   ├── concurrency-cancellation-token     explicit shared cancellation with `concurrency-cancel-operation`
+    │   ├── concurrency-operation-options      positive deadline and cancellation token for blocking channel operations
     │   ├── int-channel                        bounded integer send / receive / non-blocking try-receive; zero-capacity rendezvous
     │   ├── int-mutex                          individually synchronized integer load / store / increase cell
     │   ├── int-read-write-lock                integer shared read / exclusive write cell; no exposed guards
@@ -217,6 +239,7 @@ Terrane package
     └── lexical block
         └── binding                            local typed value, ref, or shared ref
 ```
+
 
 ## Implemented value types
 

@@ -1,14 +1,13 @@
 namespace conformance/filesystem-facilities
 
 from /core/output import print
-from /core/types import bool, bytes
-from /standard/paths import path, normalise-path
-from /standard/filesystem import filesystem, filesystem-capability, filesystem-write-atomic, filesystem-exists
-from /standard/filesystem import filesystem-metadata, filesystem-symlink-metadata, filesystem-read-link
-from /standard/filesystem import filesystem-read-bounded, filesystem-canonical, filesystem-realpath
-from /standard/filesystem import filesystem-open-beneath, filesystem-remove, filesystem-rename
-from /standard/filesystem import directory-handle, file-handle, open-file, open-file-beneath, file-read, file-write
-from /standard/filesystem import file-flush, file-sync-data, file-sync-all, file-close
+from /core/filesystem/paths import path, normalise-path
+from /core/filesystem import filesystem, filesystem-capability, filesystem-write-atomic, filesystem-exists
+from /core/filesystem import filesystem-metadata, filesystem-symlink-metadata, filesystem-read-link
+from /core/filesystem import filesystem-read-bounded, filesystem-canonical, filesystem-realpath
+from /core/filesystem import filesystem-open-beneath, filesystem-remove, filesystem-rename
+from /core/filesystem import directory-handle, file-handle, open-file, open-file-beneath, file-read, file-write
+from /core/filesystem import file-flush, file-sync-data, file-sync-all, file-close
 
 function sync-file bool; capability filesystem, output ref file-handle
     flushed = file-flush; capability, output

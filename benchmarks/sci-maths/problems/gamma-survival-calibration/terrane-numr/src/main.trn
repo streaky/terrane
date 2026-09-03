@@ -1,6 +1,6 @@
 namespace benchmark-gamma-survival-calibration
 
-from /standard/process import platform-string, arguments, exit, make-exit-status
+from /core/process import native-string, arguments, exit, make-exit-status
 from /deps/numr/algorithm/special import gammaincc_scalar
 
 function benchmark-size int64;

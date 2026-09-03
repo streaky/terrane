@@ -1,5 +1,4 @@
 namespace contextual-floating-literals
-from /core/types import float32, float64
 function main;
   hexadecimal float32 = 0xff
   hexadecimal64 float64 = 0x5

@@ -1,5 +1,5 @@
 namespace standard-byte-streams
-from /standard/streams import stdin, stdout, write-result
+from /core/streams import stdin, stdout, write-result
 
 function main;
     input = stdin;

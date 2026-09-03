@@ -1,8 +1,7 @@
 namespace conformance/filesystem-durability-exports
 
-from /core/types import bool
-from /standard/paths import path
-from /standard/filesystem import filesystem, file-handle, filesystem-capability, open-file, file-sync-data, file-sync-all
+from /core/filesystem/paths import path
+from /core/filesystem import filesystem, file-handle, filesystem-capability, open-file, file-sync-data, file-sync-all
 
 function exercise bool; capability filesystem, output ref file-handle
     data = file-sync-data; capability, output

@@ -1,0 +1,4 @@
+namespace app/child
+
+public function use-parent-functions int; value int
+    return (double; value) + (triple; value)

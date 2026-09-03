@@ -124,14 +124,14 @@ fn structured_error_infrastructure_is_separate_from_authored_lowering() {
 }
 
 #[test]
-fn bundled_standard_lowering_is_part_of_the_support_sidecar() {
+fn bundled_core_lowering_is_part_of_the_support_sidecar() {
     let compilation = terrane_compiler::compile(
         "process-user.trn",
         "namespace process-user\n\
          from /core/output import print\n\
-         from /standard/process import host-name\n\
+         from /core/process import process-host-name\n\
          function main;\n\
-             name = host-name;\n\
+             name = process-host-name;\n\
              print; name.failed\n"
             .to_owned(),
     )
@@ -142,9 +142,9 @@ fn bundled_standard_lowering_is_part_of_the_support_sidecar() {
     let support = &files[0].contents;
     let entrypoint = &files[1].contents;
 
-    assert!(support.contains("// Source: standard/process.trn"));
-    assert!(support.contains("// Namespace: standard/process"));
-    assert!(!entrypoint.contains("// Source: standard/process.trn"));
+    assert!(support.contains("// Source: core/process.trn"));
+    assert!(support.contains("// Namespace: core/process"));
+    assert!(!entrypoint.contains("// Source: core/process.trn"));
     assert!(entrypoint.contains("// Source: process-user.trn"));
 }
 
@@ -200,7 +200,7 @@ fn platform_support_requirement_comes_from_lowering_metadata() {
 
     let process = terrane_compiler::compile(
         "process.trn",
-        "namespace process\nfrom /standard/process import host-name\nfunction main;\n    name = host-name;\n"
+        "namespace process\nfrom /core/process import process-host-name\nfunction main;\n    name = process-host-name;\n"
             .to_owned(),
     )
     .unwrap();

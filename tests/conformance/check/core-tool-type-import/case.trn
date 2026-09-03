@@ -1,0 +1,12 @@
+namespace core-tool-type-import
+
+import /core/filesystem
+from /core/filesystem/paths import path
+
+function preserve existence-result; result existence-result
+    return result
+
+function main;
+    capability = filesystem-capability;
+    result = filesystem-exists; capability, (path; '.')
+    preserve; result

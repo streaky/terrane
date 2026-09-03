@@ -1,6 +1,6 @@
 namespace app
 
-from /standard/tls import tls-stream
+from /core/networking/tls import tls-stream
 
 function main;
     return

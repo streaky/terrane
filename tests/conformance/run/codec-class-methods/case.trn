@@ -1,0 +1,14 @@
+namespace codec-class-methods
+from /core/codecs import hex, base64
+from /core/output import print
+
+function main;
+    hexadecimal = hex;
+    encoded-hex string = hexadecimal.encode; b'abc'
+    decoded-hex = hexadecimal.decode; encoded-hex
+    print; (decoded-hex.value.decode; utf8)
+
+    standard-base64 = base64;
+    encoded-base64 string = standard-base64.encode; b'abc', true
+    decoded-base64 = standard-base64.decode; encoded-base64, true
+    print; (decoded-base64.value.decode; utf8)

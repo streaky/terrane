@@ -2,8 +2,8 @@ namespace conformance/process-facilities
 
 from /core/output import print
 from /core/collections import list
-from /standard/process import platform-string, arguments, environment
-from /standard/process import cli-schema, parse-command-line, make-exit-status
+from /core/process import native-string, arguments, environment
+from /core/process import cli-schema, parse-command-line, make-exit-status
 
 function main;
     actual = (arguments;)
@@ -12,7 +12,7 @@ function main;
     print; ambient.length > 0
     schema-entries list of string = list; 'flag:--verbose', 'value:--output'
     schema = cli-schema; schema-entries
-    supplied list of platform-string = list; (platform-string; 'text:--verbose'), (platform-string; 'text:--output'), (platform-string; 'text:result.txt'), (platform-string; 'text:input.trn'), (platform-string; 'text:--unknown'), (platform-string; 'text:--output')
+    supplied list of native-string = list; (native-string; 'text:--verbose'), (native-string; 'text:--output'), (native-string; 'text:result.txt'), (native-string; 'text:input.trn'), (native-string; 'text:--unknown'), (native-string; 'text:--output')
     parsed = parse-command-line; schema, supplied
     print; parsed.flags.length, parsed.option-names.length, parsed.option-values[0].text
     print; parsed.positionals.length, parsed.positionals[0].text

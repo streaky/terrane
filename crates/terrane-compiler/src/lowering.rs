@@ -156,62 +156,39 @@ pub(crate) fn lower(package: &SemanticPackage) -> Program {
             items: vec![Item::generated(support)],
         });
     }
-    let uses_standard_streams = package
-        .units
-        .iter()
-        .any(|unit| unit.namespace == "/standard/streams");
-    let uses_filesystem = package
-        .units
-        .iter()
-        .any(|unit| unit.namespace == "/standard/filesystem");
-    let uses_process = package
-        .units
-        .iter()
-        .any(|unit| unit.namespace == "/standard/process");
-    let uses_documents = package
-        .units
-        .iter()
-        .any(|unit| unit.namespace == "/standard/documents");
-    let uses_json = package
-        .units
-        .iter()
-        .any(|unit| unit.namespace == "/standard/json");
-    let uses_yaml = package
-        .units
-        .iter()
-        .any(|unit| unit.namespace == "/standard/yaml");
-    let uses_urls = package
-        .units
-        .iter()
-        .any(|unit| unit.namespace == "/standard/urls");
-    let uses_random = package
-        .units
-        .iter()
-        .any(|unit| unit.namespace == "/standard/random");
-    let uses_codecs = package
-        .units
-        .iter()
-        .any(|unit| unit.namespace == "/standard/codecs");
-    let uses_compression = package
-        .units
-        .iter()
-        .any(|unit| unit.namespace == "/standard/compression");
-    let uses_uuid = package
-        .units
-        .iter()
-        .any(|unit| unit.namespace == "/standard/uuid");
-    let uses_networking = package
-        .units
-        .iter()
-        .any(|unit| unit.namespace == "/standard/networking");
-    let uses_tls = package
-        .units
-        .iter()
-        .any(|unit| unit.namespace == "/standard/tls");
-    let uses_concurrency = package
-        .units
-        .iter()
-        .any(|unit| unit.namespace == "/standard/concurrency");
+    let mut uses_streams = false;
+    let mut uses_filesystem = false;
+    let mut uses_process = false;
+    let mut uses_documents = false;
+    let mut uses_json = false;
+    let mut uses_yaml = false;
+    let mut uses_urls = false;
+    let mut uses_random = false;
+    let mut uses_codecs = false;
+    let mut uses_compression = false;
+    let mut uses_uuid = false;
+    let mut uses_networking = false;
+    let mut uses_tls = false;
+    let mut uses_concurrency = false;
+    for unit in &package.units {
+        match unit.namespace.as_str() {
+            "/core/streams" => uses_streams = true,
+            "/core/filesystem" => uses_filesystem = true,
+            "/core/process" => uses_process = true,
+            "/core/documents" => uses_documents = true,
+            "/core/documents/json" => uses_json = true,
+            "/core/documents/yaml" => uses_yaml = true,
+            "/core/urls" => uses_urls = true,
+            "/core/random" => uses_random = true,
+            "/core/codecs" => uses_codecs = true,
+            "/core/compression" => uses_compression = true,
+            "/core/random/uuid" => uses_uuid = true,
+            "/core/networking" => uses_networking = true,
+            "/core/networking/tls" => uses_tls = true,
+            "/core/concurrency" => uses_concurrency = true,
+            _ => {}
+        }
+    }
     let uses_platform_capabilities = uses_random
         || uses_codecs
         || uses_compression
@@ -219,7 +196,7 @@ pub(crate) fn lower(package: &SemanticPackage) -> Program {
         || uses_networking
         || uses_tls
         || uses_concurrency;
-    let requires_platform_support = uses_standard_streams
+    let requires_platform_support = uses_streams
         || uses_filesystem
         || uses_process
         || uses_documents
@@ -227,9 +204,9 @@ pub(crate) fn lower(package: &SemanticPackage) -> Program {
         || uses_yaml
         || uses_urls
         || uses_platform_capabilities;
-    if uses_standard_streams || uses_filesystem {
+    if uses_streams || uses_filesystem {
         let mut items = vec![Item::generated(include_str!("runtime/platform_streams.rs"))];
-        if uses_standard_streams {
+        if uses_streams {
             items.push(Item::generated(include_str!(
                 "runtime/platform_standard_streams.rs"
             )));
@@ -260,8 +237,13 @@ pub(crate) fn lower(package: &SemanticPackage) -> Program {
             items,
         });
     }
-    if uses_documents || uses_urls {
+    if uses_documents || uses_json || uses_yaml || uses_urls {
         let mut items = Vec::new();
+        if uses_documents || uses_json || uses_yaml {
+            items.push(Item::generated(include_str!(
+                "runtime/platform_data_base.rs"
+            )));
+        }
         if uses_documents {
             items.push(Item::generated(include_str!(
                 "runtime/platform_documents.rs"
@@ -2277,7 +2259,8 @@ impl Emitter<'_> {
             .find(|item| item.span == node.span)
             .expect("analyzed function declaration must have a semantic contract");
         self.line_start();
-        let name = name_override.map_or_else(|| function_name(contract), str::to_owned);
+        let name =
+            name_override.map_or_else(|| function_name(self.package, contract), str::to_owned);
         let async_main = contract.is_async && contract.name == "main" && receiver.is_none();
         write!(
             self.output,
@@ -3924,13 +3907,11 @@ impl Emitter<'_> {
                 }
             }
             ValueType::Function(_, _) if node.kind == SyntaxKind::Name => {
-                if let Some(contract) = self
-                    .unit
-                    .functions
-                    .iter()
-                    .find(|contract| contract.name == self.text(node))
-                {
-                    format!("std::sync::Arc::new({})", function_name(contract))
+                if let Some(contract) = self.contract_for_call(node) {
+                    format!(
+                        "std::sync::Arc::new({})",
+                        function_name(self.package, contract)
+                    )
                 } else {
                     format!("({}).clone()", self.expression(node))
                 }
@@ -5349,7 +5330,7 @@ impl Emitter<'_> {
         ]
         .into_iter()
         .find_map(|(terrane, rust)| {
-            self.is_builtin(callee, &format!("/core/platform-data::{terrane}"))
+            self.is_builtin(callee, &format!("intrinsic:data::{terrane}"))
                 .then_some(rust)
         });
         if let Some(function) = data_call {
@@ -5439,7 +5420,7 @@ impl Emitter<'_> {
             ("tls-read", "platform_tls_read"),
             ("tls-write", "platform_tls_write"),
             ("tls-shutdown", "platform_tls_shutdown"),
-            ("close", "platform_close"),
+            ("close", "platform_capability_close"),
             ("result-failed", "platform_result_failed"),
             ("result-resource-limit", "platform_result_resource_limit"),
             ("result-truncated", "platform_result_truncated"),
@@ -5459,7 +5440,7 @@ impl Emitter<'_> {
         ]
         .into_iter()
         .find_map(|(terrane, rust)| {
-            self.is_builtin(callee, &format!("/core/platform-capabilities::{terrane}"))
+            self.is_builtin(callee, &format!("intrinsic:capabilities::{terrane}"))
                 .then_some(rust)
         });
         if let Some(function) = capability_call {
@@ -5488,7 +5469,7 @@ impl Emitter<'_> {
                                 | "platform_tls_read"
                                 | "platform_tls_write"
                                 | "platform_tls_shutdown"
-                                | "platform_close"
+                                | "platform_capability_close"
                                 | "platform_digest"
                                 | "platform_hmac"
                                 | "platform_parse_socket"
@@ -5555,7 +5536,7 @@ impl Emitter<'_> {
         ]
         .into_iter()
         .find_map(|(terrane, rust)| {
-            self.is_builtin(callee, &format!("/core/platform-concurrency::{terrane}"))
+            self.is_builtin(callee, &format!("intrinsic:concurrency::{terrane}"))
                 .then_some(rust)
         });
         if let Some(function) = concurrency_call {
@@ -5586,7 +5567,7 @@ impl Emitter<'_> {
                 .join(", ");
             return format!("terrane_{function}({values})");
         }
-        if self.is_builtin(callee, "/core/platform-adapters::system-host-name") {
+        if self.is_builtin(callee, "intrinsic:adapters::system-host-name") {
             return "terrane_platform_support::system_host_name()".to_owned();
         }
         let adapter_result_field = [
@@ -5597,7 +5578,7 @@ impl Emitter<'_> {
         ]
         .into_iter()
         .find_map(|(terrane, field, cloned)| {
-            self.is_builtin(callee, &format!("/core/platform-adapters::{terrane}"))
+            self.is_builtin(callee, &format!("intrinsic:adapters::{terrane}"))
                 .then_some((field, cloned))
         });
         if let Some((field, cloned)) = adapter_result_field {
@@ -5636,7 +5617,7 @@ impl Emitter<'_> {
         ]
         .into_iter()
         .find_map(|(terrane, rust)| {
-            self.is_builtin(callee, &format!("/core/platform-system::{terrane}"))
+            self.is_builtin(callee, &format!("intrinsic:system::{terrane}"))
                 .then_some(rust)
         });
         if let Some(function) = system_call {
@@ -5675,7 +5656,7 @@ impl Emitter<'_> {
         ]
         .into_iter()
         .find_map(|(terrane, rust)| {
-            self.is_builtin(callee, &format!("/core/platform-streams::{terrane}"))
+            self.is_builtin(callee, &format!("intrinsic:streams::{terrane}"))
                 .then_some(rust)
         });
         if let Some(function) = platform_call {
@@ -5817,7 +5798,7 @@ impl Emitter<'_> {
         let name = if let Some(contract) = &contract
             && contract.owner.is_none()
         {
-            function_name(contract)
+            function_name(self.package, contract)
         } else if contract
             .as_ref()
             .is_some_and(|contract| contract.owner.is_some())
@@ -6061,6 +6042,9 @@ impl Emitter<'_> {
         let selection = string_call_selection(self.source, node)?;
         let subject = find_node_by_span(&self.unit.tree.root, selection.receiver)
             .expect("selected string receiver belongs to this syntax tree");
+        if matches!(self.value_type(subject), Some(ValueType::Object(_))) {
+            return None;
+        }
         let family = selection.family.source_name();
         let child = selection.child.as_str();
         let receiver = self.receiver_expression(subject);
@@ -6775,7 +6759,7 @@ impl Emitter<'_> {
         };
         self.package
             .resolve_name_at(self.unit, node.span.start, self.text(node))
-            .is_some_and(|symbol| symbol.identity == identity)
+            .is_some_and(|symbol| symbol.compiler_identity() == identity)
     }
 
     fn unary_operator(&self, node: &SyntaxNode) -> Option<String> {
@@ -7568,8 +7552,46 @@ fn rust_builtin_error_kind(kind: &str) -> Option<&'static str> {
     }
 }
 
-fn function_name(contract: &FunctionContract) -> String {
-    if contract.name == "main" {
+fn function_namespace_suffix(package: &SemanticPackage, contract: &FunctionContract) -> String {
+    package
+        .units
+        .iter()
+        .find(|unit| unit.source.id() == contract.span.file)
+        .expect("function contract source must belong to a semantic unit")
+        .namespace
+        .trim_start_matches('/')
+        .split('/')
+        .map(rust_name)
+        .collect::<Vec<_>>()
+        .join("_")
+}
+
+fn function_name(package: &SemanticPackage, contract: &FunctionContract) -> String {
+    let duplicates = package
+        .units
+        .iter()
+        .flat_map(|unit| &unit.functions)
+        .filter(|candidate| {
+            candidate.owner.is_none()
+                && candidate.name == contract.name
+                && candidate.span != contract.span
+        })
+        .collect::<Vec<_>>();
+    if !duplicates.is_empty() && contract.owner.is_none() {
+        let namespace = function_namespace_suffix(package, contract);
+        let mut name = format!("{}_terrane_{namespace}", rust_name(&contract.name));
+        let first_normalized_namespace = duplicates
+            .iter()
+            .filter(|candidate| function_namespace_suffix(package, candidate) == namespace)
+            .map(|candidate| candidate.span.file)
+            .chain(std::iter::once(contract.span.file))
+            .min()
+            .expect("the declaring function supplies a normalized namespace");
+        if contract.span.file != first_normalized_namespace {
+            write!(name, "_f{}", contract.span.file).unwrap();
+        }
+        name
+    } else if contract.name == "main" {
         "main".to_owned()
     } else {
         rust_name(&contract.name)

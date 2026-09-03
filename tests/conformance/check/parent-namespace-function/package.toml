@@ -1,0 +1,4 @@
+package = "parent-namespace-function"
+prelude = false
+[namespaces]
+app = "app"

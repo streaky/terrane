@@ -1,0 +1,108 @@
+namespace core/urls
+
+from /core/collections import list
+
+class url-query
+    keys list of string = list; ''
+    values list of string = list; ''
+    count int = 0
+
+    function construct;
+        keys list of string = list;
+        values list of string = list;
+        this.keys = keys
+        this.values = values
+        this.count = 0
+
+    function length int;
+        return this.count
+
+    function get string; name string
+        index int = 0
+        while index < this.keys.length
+            if this.keys[index] == name
+                return this.values[index]
+            index = index + 1
+        return ''
+
+    function get-all list of string; name string
+        result list of string = list;
+        index int = 0
+        while index < this.keys.length
+            if this.keys[index] == name
+                result.append; this.values[index]
+            index = index + 1
+        return result
+
+function append-query-entry url-query; query url-query, name string, value string
+    query.count = query.count + 1
+    query.keys.append; name
+    query.values.append; value
+    return query
+
+
+class url
+    serialized string = ''
+    display string = ''
+    scheme string = ''
+    username string = ''
+    password string = ''
+    host string = ''
+    port string = ''
+    path string = ''
+    query url-query = url-query;
+    fragment string = ''
+    origin string = ''
+
+    function construct; serialized string, display string, scheme string, username string, password string, host string, port string, path string, query url-query, fragment string, origin string
+        this.serialized = serialized
+        this.display = display
+        this.scheme = scheme
+        this.username = username
+        this.password = password
+        this.host = host
+        this.port = port
+        this.path = path
+        this.query = query
+        this.fragment = fragment
+        this.origin = origin
+
+    function string string;
+        return this.display
+
+    function resolve url-result; relative string
+        return parse-url-relative; relative, this
+
+class url-result
+    failed bool = false
+    message string = ''
+    value url = url; '', '', '', '', '', '', '', '', (url-query;), '', ''
+
+    function construct; failed bool, message string, parsed-url url
+        this.failed = failed
+        this.message = message
+        this.value = parsed-url
+
+private function url-from-platform url-result; raw host-platform-url-result
+    failed = host-url-failed; raw
+    if failed
+        empty-query = url-query;
+        empty-url = url; '', '', '', '', '', '', '', '', empty-query, '', ''
+        return url-result; true, (host-url-message; raw), empty-url
+    query = url-query;
+    count = host-url-query-length; raw
+    index int = 0
+    while index < count
+        query = append-query-entry; query, (host-url-query-key; raw, index), (host-url-query-value; raw, index)
+        index = index + 1
+    value = url; (host-url-serialized; raw), (host-url-display; raw), (host-url-scheme; raw), (host-url-username; raw), (host-url-password; raw), (host-url-host; raw), (host-url-port; raw), (host-url-path; raw), query, (host-url-fragment; raw), (host-url-origin; raw)
+    return url-result; false, '', value
+
+function parse-url url-result; input string
+    raw = host-url-parse; input, ''
+    return url-from-platform; raw
+
+function parse-url-relative url-result; input string, base url
+    raw = host-url-parse; input, base.serialized
+    return url-from-platform; raw
+

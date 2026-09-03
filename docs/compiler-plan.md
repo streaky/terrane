@@ -404,7 +404,7 @@ Deliver:
 - duplicate, shadowing, visibility/inaccessibility, unresolved-name, and same-scope object-form collision diagnostics;
 - idempotent reimport of the same object-form export, with aliases required for distinct colliding exports;
 - fixed bootstrap importer whose milestone-3 module table registers versioned `/core/output`, `/core/types`, `/core/errors`, and `/core/collections` namespaces as structural compiler-owned modules rather than runtime calls; milestone 3 populates the first three, including all fixed-width numeric descriptor objects under `/core/types`, while `/core/collections` remains an empty reserved namespace until the iterator protocol and collections ship in milestones 13 and 14;
-- the exact default prelude bindings `print`, `int`, `float`, `bool`, `string`, `bytes`, and `none`, requiring no import at any use site;
+- the initial milestone default bindings, superseded by the current contract in which every `/core/types` descriptor is implicit construct vocabulary and the seven ordinary prelude bindings are `print`, `task-scope`, and the five encoding objects;
 - import resolution that does not create an ordinary binding automatically, and proof that an ordinary binding named `import` cannot alter structural import syntax or importer selection.
 
 Defer custom importer execution and package acquisition. The initial bootstrap environment may resolve compiler-owned modules from a fixed, versioned table.
@@ -415,12 +415,27 @@ Implemented evidence: package input now uses the authored `package.toml` contrac
 deterministically loads its complete enumerated source set before analysis. The shared
 semantic pass assembles symmetric namespace declarations, resolves exact root and parent
 imports, keeps ordinary and object-form namespaces separate, and records lexical scopes
-for parameters, local bindings, assignments, and block-local object imports. Its fixed
-bootstrap table and exact default prelude are versioned compiler-owned data. Focused
-accepted and rejected cases cover explicit object-to-ordinary binding, visibility,
-duplicate and collision rules, idempotent reimports, `global` assignment, legal
-namespace-local shadowing of program globals, unresolved references, and ordinary
-bindings named `import`; a manifest-driven multi-source contract test exercises package
+for parameters, local bindings, assignments, and block-local imports. Import discovery walks the
+complete syntax tree, so selective and namespace-wide imports at every lexical depth load bundled
+core packages and contribute their capability requirements without widening lexical scope. Its
+fixed bootstrap table and exact default prelude are versioned compiler-owned data. Every
+`/core/types` descriptor also resolves as an implicit construct independently of prelude selection.
+`import /namespace` binds all public function-body objects in source order. It checks the full visible
+lookup chain, including enclosing lexical scopes, namespace parents, globals, `/core/types`, and the
+prelude, and reports `W4004` before shadowing a different object. A top-level declaration in the
+importing namespace always retains its name; a conflicting namespace-wide object is skipped with
+`W4004`. Namespace-wide imports otherwise replace one another in normalized relative source-path
+order, with the warning attributed to an earlier import binding when that binding is invalidated.
+Identical reimports remain idempotent, unsupported public namespace variables are diagnosed
+deterministically, and `/deps/*` stays selective until dependency projection supports namespace-wide
+imports. Selective import collisions remain `S2011`, and an alias established before a
+namespace-wide import retains the earlier object.
+Focused accepted and rejected cases cover explicit and namespace-wide binding, declaration
+precedence, deterministic cross-file replacement and diagnostic attribution, complete root and
+lexical visible-chain warnings, imported core-package replacement, alias preservation, nested import
+loading and capability enforcement, visibility, selective collision rules, idempotent reimports,
+`global` assignment, legal namespace-local shadowing of program globals, unresolved references,
+and ordinary bindings named `import`; manifest-driven multi-source contract tests exercise package
 assembly and cross-unit resolution. Semantic phases report the first failure in
 deterministic package and source order because subsequent resolution failures can depend
 on declarations or imports that the first failure prevented from assembling; manifest
@@ -446,6 +461,7 @@ S2027 undeclared Rust dependency             S2029 projected member absent or de
 S2028 Rust dependency projection failure     S2030 retired; do not reuse
 S2031 projected member removed by version change
 S2032 forbidden capability import
+S2033 unsupported namespace-wide dependency import
 ```
 
 Retired codes remain unavailable so a stable code never acquires a second meaning.
@@ -456,6 +472,7 @@ Terrane source warnings own the stable `W4xxx` range:
 W4001 initialized local binding is never read
 W4002 initial or later store cannot reach a read before definite replacement
 W4003 duplicate semantic union arm
+W4004 namespace-wide import shadows, replaces, or is skipped for a different visible object
 ```
 
 Warnings are non-blocking diagnostics. Their codes have the same stability rule as error
@@ -928,8 +945,8 @@ renders either a complete standalone translation unit or a caller-named split en
 output derives one sibling `<entrypoint-stem>.support.rs`; the entrypoint contains a relative
 `include!`, source and namespace associations, and user-authored package lowering, while
 compiler-owned prelude, runtime, structured-error and source-site infrastructure, selectively
-included bundled `/core` and `/standard` implementations, and projected `/deps` lowering stay in the
-support file. The sidecar is emitted even when empty so every named lowering has one stable two-file
+included bundled `/core` implementations, and projected `/deps` lowering stay in the support file.
+The sidecar is emitted even when empty so every named lowering has one stable two-file
 shape. The compiler does not invent a named output path: `check`, `build`, and `run` explicitly
 request `src/main.rs`, which derives `src/main.support.rs`, through the same renderer. `terrane rust`
 streams the complete
@@ -1371,7 +1388,7 @@ Exit criterion: partial reads and writes, EOF, and use-after-close each have cas
 Implemented on `byte-text-streams`. Import-driven bundled source infrastructure recursively includes
 registered Terrane namespaces only when selected by an ordinary import, preserves every included
 source for diagnostics and generated-source associations, and lowers the bundled source beside the
-application rather than pre-lowering it. `/standard/streams` uses that path for result objects,
+application rather than pre-lowering it. `/core/streams` uses that path for result objects,
 inferred resource-owning stream classes, partial/exact/all loops, explicit encoding adapters,
 process factories, newline policy, and async wrappers. Rust is limited to the process-I/O
 syscall/ABI layer: an
@@ -1385,8 +1402,8 @@ typed standard error, malformed decode failure, distinct flush and sync operatio
 adapters, observable idempotent close, and both outcomes of cancellation racing an async stream
 operation. Rejected conformance covers resource transfer through assignment, ordinary calls, and
 method arguments followed by use, use after close, double close, resource-owning inheritance,
-direct imports of private host intrinsics, and the removed
-`linear class` declaration qualifier. Accepted cases compile their generated
+the removed `/core/platform-streams` spelling, and the removed `linear class` declaration
+qualifier. Accepted cases compile their generated
 crates with warnings denied; canonical-Rust validation is enabled for
 the accepted cases that pass untouched structural validation. Milestone evidence:
 `cargo test -p terrane-compiler --tests` with `RUSTFLAGS=-D warnings`, plus piped executions of the
@@ -1403,12 +1420,12 @@ Deliver:
 - the capability-gated `filesystem` object with metadata, symlink metadata, canonicalization, and permissions as a portable subset plus profile detail;
 - race-resistant directory-handle-relative traversal with no-follow by default and explicit beneath and cross-filesystem policies;
 - file handles as linear resources, bounded whole-file operations, and atomic replacement that renames without following links;
-- environment and argument access over a lossless platform-string type, the schema-driven CLI parser, and `exit-status` with the `0..=255` code range.
+- environment and argument access over a lossless native-string type, the schema-driven CLI parser, and `exit-status` with the `0..=255` code range.
 
 Exit criterion: lexical resolution and filesystem canonicalization are separately observable, a traversal escape attempt is refused, and the CLI parser returns structured diagnostics without calling process exit itself.
 
 Implemented on `filesystem-process-facilities`. Import-driven bundled Terrane packages keep
-`/standard/paths`, `/standard/filesystem`, and `/standard/process` visible through semantic
+`/core/filesystem/paths`, `/core/filesystem`, and `/core/process` visible through semantic
 analysis and lowering. Rust is limited to host filesystem, descriptor, environment, argument, and
 process-exit boundaries. Paths normalize and resolve lexically in Terrane;
 `filesystem-canonical` is the distinct native host-resolution operation, with
@@ -1425,10 +1442,10 @@ diagnostics without terminating, and validated `exit-status` values in `0..=255`
 conformance distinguishes lexical resolution from canonicalization, rejects a traversal escape,
 and executes flush, sync-data, and sync-all against a real file descriptor alongside atomic
 replacement and rename; passes text and non-Unicode process arguments; checks parser diagnostics
-and invalid exit-status construction; and observes process exit status 7. Direct imports of
-compiler-owned platform intrinsics are rejected.
-Runtime templates are split by selected standard facility so stream-only, filesystem-only, and
-process-only programs emit no unrelated host intrinsics or corresponding dead-code allowances.
+and invalid exit-status construction; and observes process exit status 7. Compiler-supplied host
+operations are public objects in purpose-named `/core` namespaces; bundled packages import those
+namespaces explicitly. Runtime templates are split by selected core or standard facility so
+stream-only, filesystem-only, and process-only programs emit no unrelated host shims.
 Resource-owning collection types are rejected before lowering, and stream operations release the
 global registry lock before per-handle blocking I/O. Untouched generated Rust passes
 warnings-denied compilation and canonical-Rust validation. Milestone evidence:
@@ -1469,8 +1486,8 @@ kind-stable JSON/YAML numbers, unconditional duplicate-key rejection, determinis
 ordering with exact number serialization, serializing and deserializing descriptor interfaces,
 document paths and unknown fields, JSON/YAML depth and size limits, YAML alias-node limits and safe
 scalar behavior, URL credential-safe display, duplicate ordered query entries, relative resolution,
-and generated-Rust compilation and execution with warnings denied. A rejection case keeps host
-intrinsics private.
+and generated-Rust compilation and execution with warnings denied. Rejection cases prove that the
+old `/core/documents/json::platform-parse` implementation spelling is not exported.
 
 ### Milestone 23 — Randomness, codecs, digests, and compression
 
@@ -1496,9 +1513,9 @@ constant-time/zeroising primitives, and audited codec/compression implementation
 execution covers deterministic ChaCha20 generation and splitting, secure and bounded generation,
 SHA-256 and SHA-512 digests and HMAC, destroyed-key and unsupported-algorithm failures, strict codec
 padding policies, UUID parsing and v4/v7 generation, all four compression formats, explicit
-single-layer decompression, and distinct limit refusal. Rejected cases prove that pseudo-random values cannot
-satisfy secure-random parameters and that the private host intrinsic namespace cannot be imported
-directly.
+single-layer decompression, and distinct limit refusal. Rejected cases prove that pseudo-random
+values cannot satisfy secure-random parameters and that core tools remain unavailable until their
+owning namespace or object is imported.
 
 
 ### Milestone 24 — Networking and TLS
@@ -1508,7 +1525,7 @@ Written in Terrane over the minimal Rust core, per delivery principle 9. Each la
 
 Deliver:
 
-- parsed `ip-address`, `socket-address`, and a distinct `host-name` type, serialising IPv6 per RFC 5952;
+- parsed `ip-address`, `socket-address`, and a distinct `network-host-name` type, serialising IPv6 per RFC 5952;
 - `tcp-listener`, `tcp-stream`, and `udp-socket` type objects owning their factories and returning distinct linear resource instances;
 - explicit `dns` lookup returning ordered candidates with TTL, leaving caching to an explicit resolver and connection racing to `connect`;
 - deadline and cancellation on every blocking operation, typed socket options, and explicit UDP truncation reporting;
@@ -1884,7 +1901,7 @@ explicit operational contracts, deterministic lowering, and compiled and run evi
 standard or system capability is rejected with a Terrane diagnostic. No surface is represented as an
 empty compiler-owned name to make the map look complete.
 
-Implemented evidence: `/standard/concurrency` provides zero-or-positive-capacity integer channels,
+Implemented evidence: `/core/concurrency` provides zero-or-positive-capacity integer channels,
 integer mutex and read/write-lock cells, typed `atomic-int64` memory ordering, and per-existing-host-
 thread local integers over opaque shared host identities. Blocking channel send and receive carry
 explicit positive deadlines and cancellation tokens; `try-receive` is non-blocking. Generated Rust
@@ -1896,11 +1913,11 @@ without a receiver mutex. Terrane retains the object model, deadline and cancell
 error translation above that boundary. Explicit channel closure, arbitrary guard-scoped critical
 sections, and non-integer generic cells remain deferred rather than being implied by these names.
 
-Bundled standard imports are checked against `[profile]`; `S2032` names the profile, forbidden
-capability, imported namespace, and importing namespace, including `threads` for concurrency and
-`process` for the process/system surface. `/standard/process::host-name` demonstrates the remaining
-owned system crossing: its host ABI returns no borrowed value or handle, translates host failures,
-and preserves non-Unicode platform names in the existing `platform-string` representation. Rust's
+Bundled core imports are checked against `[profile]`; `S2032` names the profile, forbidden
+capability, imported namespace, and importing namespace. The complete gate map is recorded in the
+language specification and concise reference. `/core/process::process-host-name` demonstrates the
+remaining owned system crossing: its host ABI returns no borrowed value or handle, translates host failures,
+and preserves non-Unicode platform names in the existing `native-string` representation. Rust's
 standard library has no portable host-name query, so its maintained layer uses the audited
 `hostname` crate only for host retrieval and non-Unicode OS-string conversion.
 Accepted canonical-Rust package cases compile and run both restricted-profile surfaces, focused

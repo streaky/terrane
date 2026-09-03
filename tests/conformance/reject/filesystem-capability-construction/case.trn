@@ -1,4 +1,4 @@
 namespace filesystem-capability-construction
-from /standard/filesystem import filesystem
+from /core/filesystem import filesystem
 function main;
   authority = filesystem;

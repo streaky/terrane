@@ -1,5 +1,5 @@
 namespace stream-read-exact-eof
-from /standard/streams import stdin
+from /core/streams import stdin
 function main;
     input = stdin;
     result = input.read-exact; 5

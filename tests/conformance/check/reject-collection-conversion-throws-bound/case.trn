@@ -1,5 +1,4 @@
 namespace reject-collection-conversion-throws-bound
-from /core/types import int8, int16
 from /core/collections import list
 from /core/errors import coercion-error
 function build list of int8 throws coercion-error; wide int16

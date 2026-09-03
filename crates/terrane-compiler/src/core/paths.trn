@@ -1,0 +1,124 @@
+namespace core/filesystem/paths
+
+from /core/collections import list
+
+class path
+    text string = ''
+
+    function construct; input string
+        this.text = input
+
+function path-components list of string; subject path
+    parts = subject.text.split; '/'
+    result list of string = list;
+    index int = 0
+    while index < parts.length
+        part = parts[index]
+        if part != ''
+            result.append; part
+        index = index + 1
+    return result
+
+function path-is-absolute bool; subject path
+    return subject.text.contains.start; '/'
+
+function normalise-path path; subject path
+    parts = subject.text.split; '/'
+    absolute = path-is-absolute; subject
+    kept list of string = list;
+    count int = 0
+    part-index int = 0
+    while part-index < parts.length
+        part = parts[part-index]
+        if part != '' and part != '.'
+            if part == '..'
+                if count > 0 and kept[count - 1] != '..'
+                    count = count - 1
+                else
+                    if not absolute
+                        if count < kept.length
+                            kept.set; count, part
+                        else
+                            kept.append; part
+                        count = count + 1
+            else
+                if count < kept.length
+                    kept.set; count, part
+                else
+                    kept.append; part
+                count = count + 1
+        part-index = part-index + 1
+    result string = ''
+    index int = 0
+    while index < count
+        if result != ''
+            result = result.concat; '/'
+        result = result.concat; kept[index]
+        index = index + 1
+    if absolute
+        result = '/'.concat; result
+    if result == '' and absolute
+        result = '/'
+    return path; result
+
+function path-name string; subject path
+    normal = normalise-path; subject
+    parts = path-components; normal
+    if parts.length == 0
+        return ''
+    return parts[parts.length - 1]
+
+function path-parent path; subject path
+    normal = normalise-path; subject
+    parts = path-components; normal
+    if parts.length == 0
+        return normal
+    if parts.length == 1 and not (path-is-absolute; normal)
+        return path; '.'
+    result string = ''
+    index int = 0
+    while index < parts.length - 1
+        if result != ''
+            result = result.concat; '/'
+        result = result.concat; parts[index]
+        index = index + 1
+    absolute = path-is-absolute; normal
+    if absolute
+        result = '/'.concat; result
+    return path; result
+
+function path-stem string; subject path
+    current = path-name; subject
+    pieces = current.split; '.'
+    if pieces.length <= 1
+        return current
+    if pieces.length == 2 and pieces[0] == ''
+        return current
+    result string = ''
+    index int = 0
+    while index < pieces.length - 1
+        if index > 0
+            result = result.concat; '.'
+        result = result.concat; pieces[index]
+        index = index + 1
+    return result
+
+function path-extension string; subject path
+    current = path-name; subject
+    pieces = current.split; '.'
+    if pieces.length <= 1
+        return ''
+    if pieces.length == 2 and pieces[0] == ''
+        return ''
+    return pieces[pieces.length - 1]
+
+function join-path path; base path, child path
+    absolute = path-is-absolute; child
+    if absolute
+        return normalise-path; child
+    joined string = base.text
+    if joined != '' and not joined.contains.end; '/'
+        joined = joined.concat; '/'
+    joined = joined.concat; child.text
+    combined = path; joined
+    return normalise-path; combined

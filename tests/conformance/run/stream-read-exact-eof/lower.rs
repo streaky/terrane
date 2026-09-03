@@ -376,13 +376,13 @@ mod __terrane_trace {
         pub end_line: u32,
         pub end_column: u32,
     }
-    pub static FILES: [&str; 2] = ["case.trn", "standard/streams.trn"];
+    pub static FILES: [&str; 2] = ["case.trn", "core/streams.trn"];
     pub static FUNCTIONS: [&str; 5] = [
         "/stream-read-exact-eof::main",
-        "/standard/streams::read",
-        "/standard/streams::read-exact",
-        "/standard/streams::read-all",
-        "/standard/streams::read-async",
+        "/core/streams::read",
+        "/core/streams::read-exact",
+        "/core/streams::read-all",
+        "/core/streams::read-async",
     ];
     pub static SITES: [Site; 5] = [
         {
@@ -397,46 +397,46 @@ mod __terrane_trace {
             }
         },
         {
-            /* terrane-site-row: site 1: /standard/streams::read (standard/streams.trn:195:23-195:50) */
+            /* terrane-site-row: site 1: /core/streams::read (core/streams.trn:187:23-187:50) */
             Site {
                 function: 1,
                 file: 1,
-                line: 195,
+                line: 187,
                 column: 23,
-                end_line: 195,
+                end_line: 187,
                 end_column: 50,
             }
         },
         {
-            /* terrane-site-row: site 2: /standard/streams::read-exact (standard/streams.trn:217:23-217:46) */
+            /* terrane-site-row: site 2: /core/streams::read-exact (core/streams.trn:209:23-209:46) */
             Site {
                 function: 2,
                 file: 1,
-                line: 217,
+                line: 209,
                 column: 23,
-                end_line: 217,
+                end_line: 209,
                 end_column: 46,
             }
         },
         {
-            /* terrane-site-row: site 3: /standard/streams::read-all (standard/streams.trn:236:23-236:46) */
+            /* terrane-site-row: site 3: /core/streams::read-all (core/streams.trn:228:23-228:46) */
             Site {
                 function: 3,
                 file: 1,
-                line: 236,
+                line: 228,
                 column: 23,
-                end_line: 236,
+                end_line: 228,
                 end_column: 46,
             }
         },
         {
-            /* terrane-site-row: site 4: /standard/streams::read-async (standard/streams.trn:240:16-240:32) */
+            /* terrane-site-row: site 4: /core/streams::read-async (core/streams.trn:232:16-232:32) */
             Site {
                 function: 4,
                 file: 1,
-                line: 240,
+                line: 232,
                 column: 16,
-                end_line: 240,
+                end_line: 232,
                 end_column: 32,
             }
         },
@@ -506,25 +506,25 @@ impl TerranePlatformStreamHandle {
     }
 }
 #[derive(Clone)]
-struct TerranePlatformReadResult {
-    data: Vec<u8>,
-    completed: terrane_int_support::Int,
-    end: bool,
-    failed: bool,
-    message: String,
+pub struct TerranePlatformReadResult {
+    pub data: Vec<u8>,
+    pub completed: terrane_int_support::Int,
+    pub end: bool,
+    pub failed: bool,
+    pub message: String,
 }
 #[derive(Clone)]
-struct TerranePlatformWriteResult {
-    completed: terrane_int_support::Int,
-    failed: bool,
-    message: String,
+pub struct TerranePlatformWriteResult {
+    pub completed: terrane_int_support::Int,
+    pub failed: bool,
+    pub message: String,
 }
 #[derive(Clone)]
-struct TerranePlatformUnitResult {
-    failed: bool,
-    message: String,
+pub struct TerranePlatformUnitResult {
+    pub failed: bool,
+    pub message: String,
 }
-fn terrane_platform_read(
+pub fn terrane_platform_read(
     handle: &TerranePlatformStreamHandle,
     limit: terrane_int_support::Int,
 ) -> TerranePlatformReadResult {
@@ -558,7 +558,7 @@ fn terrane_platform_read(
         }
     }
 }
-fn terrane_platform_write(
+pub fn terrane_platform_write(
     handle: &TerranePlatformStreamHandle,
     data: &[u8],
     offset: terrane_int_support::Int,
@@ -587,27 +587,27 @@ fn terrane_platform_write(
         }
     }
 }
-fn terrane_platform_flush(
+pub fn terrane_platform_flush(
     handle: &TerranePlatformStreamHandle,
 ) -> TerranePlatformUnitResult {
     terrane_platform_unit(terrane_stream_abi::flush(handle.abi_handle()))
 }
-fn terrane_platform_sync_data(
+pub fn terrane_platform_sync_data(
     handle: &TerranePlatformStreamHandle,
 ) -> TerranePlatformUnitResult {
     terrane_platform_unit(terrane_stream_abi::sync_data(handle.abi_handle()))
 }
-fn terrane_platform_sync_all(
+pub fn terrane_platform_sync_all(
     handle: &TerranePlatformStreamHandle,
 ) -> TerranePlatformUnitResult {
     terrane_platform_unit(terrane_stream_abi::sync_all(handle.abi_handle()))
 }
-fn terrane_platform_close(
+pub fn terrane_platform_close(
     handle: &TerranePlatformStreamHandle,
 ) -> TerranePlatformUnitResult {
     terrane_platform_unit(terrane_stream_abi::close(handle.abi_handle()))
 }
-fn terrane_platform_release(
+pub fn terrane_platform_release(
     handle: &TerranePlatformStreamHandle,
 ) -> TerranePlatformUnitResult {
     if std::sync::Arc::strong_count(&handle.0) == 1 {
@@ -619,7 +619,7 @@ fn terrane_platform_release(
         }
     }
 }
-fn terrane_platform_unit(result: std::io::Result<()>) -> TerranePlatformUnitResult {
+pub fn terrane_platform_unit(result: std::io::Result<()>) -> TerranePlatformUnitResult {
     match result {
         Ok(()) => {
             TerranePlatformUnitResult {
@@ -635,13 +635,13 @@ fn terrane_platform_unit(result: std::io::Result<()>) -> TerranePlatformUnitResu
         }
     }
 }
-fn terrane_platform_acquire_stdin() -> TerranePlatformStreamHandle {
+pub fn terrane_platform_acquire_stdin() -> TerranePlatformStreamHandle {
     TerranePlatformStreamHandle::new(terrane_stream_abi::acquire_stdin())
 }
-fn terrane_platform_acquire_stdout() -> TerranePlatformStreamHandle {
+pub fn terrane_platform_acquire_stdout() -> TerranePlatformStreamHandle {
     TerranePlatformStreamHandle::new(terrane_stream_abi::acquire_stdout())
 }
-fn terrane_platform_acquire_stderr() -> TerranePlatformStreamHandle {
+pub fn terrane_platform_acquire_stderr() -> TerranePlatformStreamHandle {
     TerranePlatformStreamHandle::new(terrane_stream_abi::acquire_stderr())
 }
 // Source: case.trn
@@ -659,14 +659,14 @@ fn main() {
     println!("{}", terrane_scalar_support::scalar_text(&result.failed));
     input.close();
 }
-// Source: standard/streams.trn
-// Namespace: standard/streams
+// Source: core/streams.trn
+// Namespace: core/streams
 #[derive(Clone)]
-pub struct OperationResult {
+pub struct StreamOperationResult {
     pub failed: bool,
     pub message: String,
 }
-impl OperationResult {
+impl StreamOperationResult {
     pub fn terrane_construct(failed: bool, message: String) -> Self {
         let mut value = Self {
             failed: false,
@@ -910,9 +910,9 @@ impl ByteReader {
     pub fn text(self, codec: terrane_string_support::Encoding) -> TextReader {
         return TextReader::terrane_construct(self.handle.clone(), codec);
     }
-    pub fn close(self) -> OperationResult {
+    pub fn close(self) -> StreamOperationResult {
         let raw: TerranePlatformUnitResult = terrane_platform_close(&self.handle);
-        return OperationResult::terrane_construct(
+        return StreamOperationResult::terrane_construct(
             raw.failed,
             raw.message.clone().clone(),
         );
@@ -1002,30 +1002,30 @@ impl ByteWriter {
     pub fn text(self, codec: terrane_string_support::Encoding) -> TextWriter {
         return TextWriter::terrane_construct(self.handle.clone(), codec);
     }
-    pub fn flush(&self) -> OperationResult {
+    pub fn flush(&self) -> StreamOperationResult {
         let raw: TerranePlatformUnitResult = terrane_platform_flush(&self.handle);
-        return OperationResult::terrane_construct(
+        return StreamOperationResult::terrane_construct(
             raw.failed,
             raw.message.clone().clone(),
         );
     }
-    pub fn sync_data(&self) -> OperationResult {
+    pub fn sync_data(&self) -> StreamOperationResult {
         let raw: TerranePlatformUnitResult = terrane_platform_sync_data(&self.handle);
-        return OperationResult::terrane_construct(
+        return StreamOperationResult::terrane_construct(
             raw.failed,
             raw.message.clone().clone(),
         );
     }
-    pub fn sync_all(&self) -> OperationResult {
+    pub fn sync_all(&self) -> StreamOperationResult {
         let raw: TerranePlatformUnitResult = terrane_platform_sync_all(&self.handle);
-        return OperationResult::terrane_construct(
+        return StreamOperationResult::terrane_construct(
             raw.failed,
             raw.message.clone().clone(),
         );
     }
-    pub fn close(self) -> OperationResult {
+    pub fn close(self) -> StreamOperationResult {
         let raw: TerranePlatformUnitResult = terrane_platform_close(&self.handle);
-        return OperationResult::terrane_construct(
+        return StreamOperationResult::terrane_construct(
             raw.failed,
             raw.message.clone().clone(),
         );
@@ -1070,7 +1070,7 @@ impl TextReader {
         let raw: TerranePlatformReadResult = terrane_platform_read(&self.handle, count);
         let text: String = __terrane_raised_err(
             terrane_string_support::decode(&raw.data.clone(), self.codec),
-            1 /* terrane-site: standard/streams.trn:195:23-195:50 */,
+            1 /* terrane-site: core/streams.trn:187:23-187:50 */,
         )?;
         return Ok(
             TextReadResult::terrane_construct(
@@ -1120,7 +1120,7 @@ impl TextReader {
         }
         let text: String = __terrane_raised_err(
             terrane_string_support::decode(&data, self.codec),
-            2 /* terrane-site: standard/streams.trn:217:23-217:46 */,
+            2 /* terrane-site: core/streams.trn:209:23-209:46 */,
         )?;
         return Ok(
             TextReadResult::terrane_construct(
@@ -1166,7 +1166,7 @@ impl TextReader {
         }
         let text: String = __terrane_raised_err(
             terrane_string_support::decode(&data, self.codec),
-            3 /* terrane-site: standard/streams.trn:236:23-236:46 */,
+            3 /* terrane-site: core/streams.trn:228:23-228:46 */,
         )?;
         return Ok(
             TextReadResult::terrane_construct(
@@ -1185,13 +1185,13 @@ impl TextReader {
         return Ok(
             __terrane_traced_err(
                 self.read(count.clone()),
-                4 /* terrane-site: standard/streams.trn:240:16-240:32 */,
+                4 /* terrane-site: core/streams.trn:232:16-232:32 */,
             )?,
         );
     }
-    pub fn close(self) -> OperationResult {
+    pub fn close(self) -> StreamOperationResult {
         let raw: TerranePlatformUnitResult = terrane_platform_close(&self.handle);
-        return OperationResult::terrane_construct(
+        return StreamOperationResult::terrane_construct(
             raw.failed,
             raw.message.clone().clone(),
         );
@@ -1301,30 +1301,30 @@ impl TextWriter {
     pub async fn write_async(&self, text: String) -> WriteResult {
         return self.write(text);
     }
-    pub fn flush(&self) -> OperationResult {
+    pub fn flush(&self) -> StreamOperationResult {
         let raw: TerranePlatformUnitResult = terrane_platform_flush(&self.handle);
-        return OperationResult::terrane_construct(
+        return StreamOperationResult::terrane_construct(
             raw.failed,
             raw.message.clone().clone(),
         );
     }
-    pub fn sync_data(&self) -> OperationResult {
+    pub fn sync_data(&self) -> StreamOperationResult {
         let raw: TerranePlatformUnitResult = terrane_platform_sync_data(&self.handle);
-        return OperationResult::terrane_construct(
+        return StreamOperationResult::terrane_construct(
             raw.failed,
             raw.message.clone().clone(),
         );
     }
-    pub fn sync_all(&self) -> OperationResult {
+    pub fn sync_all(&self) -> StreamOperationResult {
         let raw: TerranePlatformUnitResult = terrane_platform_sync_all(&self.handle);
-        return OperationResult::terrane_construct(
+        return StreamOperationResult::terrane_construct(
             raw.failed,
             raw.message.clone().clone(),
         );
     }
-    pub fn close(self) -> OperationResult {
+    pub fn close(self) -> StreamOperationResult {
         let raw: TerranePlatformUnitResult = terrane_platform_close(&self.handle);
-        return OperationResult::terrane_construct(
+        return StreamOperationResult::terrane_construct(
             raw.failed,
             raw.message.clone().clone(),
         );

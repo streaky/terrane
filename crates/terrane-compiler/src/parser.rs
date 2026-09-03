@@ -66,6 +66,15 @@ impl Parser<'_> {
             "class" => self.parse_object_declaration(SyntaxKind::ClassDeclaration),
             "interface" => self.parse_object_declaration(SyntaxKind::InterfaceDeclaration),
             "trait" => self.parse_object_declaration(SyntaxKind::TraitDeclaration),
+            "public" | "private" | "protected" if self.peek_text(1) == Some("class") => {
+                self.parse_object_declaration(SyntaxKind::ClassDeclaration)
+            }
+            "public" | "private" | "protected" if self.peek_text(1) == Some("interface") => {
+                self.parse_object_declaration(SyntaxKind::InterfaceDeclaration)
+            }
+            "public" | "private" | "protected" if self.peek_text(1) == Some("trait") => {
+                self.parse_object_declaration(SyntaxKind::TraitDeclaration)
+            }
             "global" | "constant" | "pure" | "io" | "blocks" | "mutating" | "mutates"
             | "awaits" | "foreign"
                 if self.peek_text(1) == Some("function") =>
@@ -98,7 +107,8 @@ impl Parser<'_> {
             {
                 self.parse_binding()
             }
-            "import" => self.parse_import_selection(),
+            "import" if self.peek_text(1) == Some("with") => self.parse_import_selection(),
+            "import" => self.parse_namespace_import(),
             "linear"
                 if matches!(
                     self.peek_text(1),
@@ -170,6 +180,7 @@ impl Parser<'_> {
     fn parse_object_declaration(&mut self, kind: SyntaxKind) -> SyntaxNode {
         let start = self.position;
         let mut children = Vec::new();
+        self.parse_visibility(&mut children);
         self.bump();
         if self.at(TokenKind::Identifier) {
             children.push(self.leaf(SyntaxKind::Name));
@@ -212,6 +223,18 @@ impl Parser<'_> {
         }
         children.push(self.parse_block());
         self.node(kind, start, self.position, children)
+    }
+
+    fn parse_namespace_import(&mut self) -> SyntaxNode {
+        let start = self.position;
+        self.bump();
+        let path = self.parse_namespace_path();
+        self.node(
+            SyntaxKind::ImportDeclaration,
+            start,
+            self.position,
+            vec![path],
+        )
     }
 
     fn parse_import_declaration(&mut self) -> SyntaxNode {

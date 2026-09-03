@@ -1,5 +1,5 @@
 namespace conformance/process-exit
-from /standard/process import exit, make-exit-status
+from /core/process import exit, make-exit-status
 
 function main;
     status = make-exit-status; 7

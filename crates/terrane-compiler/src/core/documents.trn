@@ -1,0 +1,186 @@
+namespace core/documents
+
+from /core/collections import list
+
+class document-integer
+    text string = '0'
+
+    function construct; text string
+        this.text = text
+
+class document-decimal
+    coefficient string = '0'
+    exponent int = 0
+    text string = '0'
+
+    function construct; coefficient string, exponent int, text string
+        this.coefficient = coefficient
+        this.exponent = exponent
+        this.text = text
+
+interface serializable
+    function to-document document-value;
+
+interface deserializable
+    function from-document document-result; value document-value
+
+class document-value implements serializable
+    protected raw host-platform-data-result = host-empty-document;
+    encoded string = ''
+    kind string = 'invalid'
+    scalar string = ''
+    integer document-integer = document-integer; '0'
+    decimal document-decimal = document-decimal; '0', 0, '0'
+
+    private function construct; raw host-platform-data-result
+        this.kind = host-document-kind; raw
+        this.scalar = host-document-text; raw
+        this.encoded = host-data-encoded; raw
+        if this.kind == 'integer'
+            this.integer = document-integer; this.scalar
+        if this.kind == 'decimal'
+            this.decimal = document-decimal; (host-document-coefficient; raw), (host-document-exponent; raw), this.scalar
+        this.raw = raw
+
+    function length int;
+        return host-document-length; this.raw
+
+    function to-document document-value;
+        return this
+
+    function item document-result; index int
+        raw = host-document-item; this.raw, index
+        return make-document-result; raw
+
+    function key string; index int
+        return host-document-key; this.raw, index
+
+    function field document-result; name string
+        raw = host-document-field; this.raw, name
+        return make-document-result; raw
+
+class document-result
+    failed bool = false
+    message string = ''
+    path string = '$'
+    expected string = ''
+    value document-value = document-value; (host-empty-document;)
+
+    private function construct; failed bool, message string, path string, expected string, raw host-platform-data-result
+        this.failed = failed
+        this.message = message
+        this.path = path
+        this.expected = expected
+        this.value = document-value; raw
+
+class document-mapping implements deserializable
+    descriptor-name string = 'document-value'
+    expected-kind string = 'map'
+    field-names list of string = list; ''
+    optional-fields list of string = list; ''
+    default-fields list of string = list; ''
+    default-values list of string = list; ''
+    allow-unknown bool = false
+
+    function construct; descriptor-name string, expected-kind string, allow-unknown bool
+        this.descriptor-name = descriptor-name
+        this.expected-kind = expected-kind
+        this.allow-unknown = allow-unknown
+
+
+    function from-document document-result; value document-value
+        return decode-document; value, this
+
+function serialize-document document-value; value serializable
+    return value.to-document;
+
+function deserialize-document document-result; value document-value, destination deserializable
+    return destination.from-document; value
+
+protected function make-document-result document-result; raw host-platform-data-result
+    return document-result; (host-data-failed; raw), (host-data-message; raw), (host-data-path; raw), (host-data-expected; raw), raw
+
+
+function make-document-none document-value;
+    return document-value; (host-make-document-none;)
+
+function make-document-bool document-value; value bool
+    return document-value; (host-make-document-bool; value)
+
+function make-document-string document-value; value string
+    return document-value; (host-make-document-string; value)
+
+function make-document-integer document-result; value string
+    return make-document-result; (host-make-document-integer; value)
+
+function make-document-decimal document-result; value string
+    return make-document-result; (host-make-document-decimal; value)
+class document-map-entries
+    private raw host-platform-data-result = host-make-document-map;
+
+    function construct;
+        this.raw = host-make-document-map;
+
+    function append; key string, value document-value
+        this.raw = host-document-map-insert; this.raw, key, value.raw
+
+function append-document-map-entry document-map-entries; entries document-map-entries, key string, value document-value
+    entries.append; key, value
+    return entries
+
+function make-document-list document-result; values list of document-value
+    raw = host-make-document-list;
+    index int = 0
+    while index < values.length
+        raw = host-document-list-append; raw, values[index].raw
+        index = index + 1
+    return make-document-result; raw
+
+function make-document-map document-result; entries document-map-entries
+    return make-document-result; entries.raw
+function mapping-required-fields list of string; mapping document-mapping
+    fields = mapping.field-names
+    optional-fields = mapping.optional-fields
+    default-fields = mapping.default-fields
+    required list of string = list;
+    index int = 0
+    while index < fields.length
+        field = fields[index]
+        optional bool = false
+        optional-index int = 0
+        while optional-index < optional-fields.length
+            if optional-fields[optional-index] == field
+                optional = true
+            optional-index = optional-index + 1
+        defaulted bool = false
+        default-index int = 0
+        while default-index < default-fields.length
+            if default-fields[default-index] == field
+                defaulted = true
+            default-index = default-index + 1
+        if field != '' and not optional and not defaulted
+            required.append; field
+        index = index + 1
+    return required
+
+function decode-document document-result; value document-value, mapping document-mapping
+    required = mapping-required-fields; mapping
+    declared-fields list of string = list;
+    field-index int = 0
+    while field-index < mapping.field-names.length
+        if mapping.field-names[field-index] != ''
+            declared-fields.append; mapping.field-names[field-index]
+        field-index = field-index + 1
+    default-fields list of string = list;
+    default-values list of string = list;
+    default-index int = 0
+    while default-index < mapping.default-fields.length and default-index < mapping.default-values.length
+        if mapping.default-fields[default-index] != ''
+            default-fields.append; mapping.default-fields[default-index]
+            default-values.append; mapping.default-values[default-index]
+        default-index = default-index + 1
+    raw = host-validate-mapping; value.raw, mapping.expected-kind, required, declared-fields, default-fields, default-values, mapping.allow-unknown
+    result = make-document-result; raw
+    if result.failed
+        result.expected = mapping.descriptor-name
+    return result

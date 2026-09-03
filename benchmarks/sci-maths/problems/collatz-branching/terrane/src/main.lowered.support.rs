@@ -375,13 +375,13 @@ mod __terrane_trace {
         pub end_line: u32,
         pub end_column: u32,
     }
-    pub static FILES: [&str; 2] = ["src/main.trn", "standard/process.trn"];
+    pub static FILES: [&str; 2] = ["src/main.trn", "core/process.trn"];
     pub static FUNCTIONS: [&str; 5] = [
         "/benchmark-collatz-branching::benchmark-size",
         "/benchmark-collatz-branching::main",
-        "/standard/process::arguments",
-        "/standard/process::environment",
-        "/standard/process::parse-command-line",
+        "/core/process::arguments",
+        "/core/process::environment",
+        "/core/process::parse-command-line",
     ];
     pub static SITES: [Site; 13] = [
         {
@@ -473,57 +473,57 @@ mod __terrane_trace {
             }
         },
         {
-            /* terrane-site-row: site 8: /standard/process::arguments (standard/process.trn:51:42-51:56) */
+            /* terrane-site-row: site 8: /core/process::arguments (core/process.trn:44:40-44:54) */
             Site {
                 function: 2,
                 file: 1,
-                line: 51,
-                column: 42,
-                end_line: 51,
-                end_column: 56,
+                line: 44,
+                column: 40,
+                end_line: 44,
+                end_column: 54,
             }
         },
         {
-            /* terrane-site-row: site 9: /standard/process::environment (standard/process.trn:60:33-60:47) */
+            /* terrane-site-row: site 9: /core/process::environment (core/process.trn:53:31-53:45) */
             Site {
                 function: 3,
                 file: 1,
-                line: 60,
-                column: 33,
-                end_line: 60,
-                end_column: 47,
+                line: 53,
+                column: 31,
+                end_line: 53,
+                end_column: 45,
             }
         },
         {
-            /* terrane-site-row: site 10: /standard/process::environment (standard/process.trn:61:34-61:52) */
+            /* terrane-site-row: site 10: /core/process::environment (core/process.trn:54:32-54:50) */
             Site {
                 function: 3,
                 file: 1,
-                line: 61,
-                column: 34,
-                end_line: 61,
-                end_column: 52,
+                line: 54,
+                column: 32,
+                end_line: 54,
+                end_column: 50,
             }
         },
         {
-            /* terrane-site-row: site 11: /standard/process::parse-command-line (standard/process.trn:96:20-96:35) */
+            /* terrane-site-row: site 11: /core/process::parse-command-line (core/process.trn:89:20-89:35) */
             Site {
                 function: 4,
                 file: 1,
-                line: 96,
+                line: 89,
                 column: 20,
-                end_line: 96,
+                end_line: 89,
                 end_column: 35,
             }
         },
         {
-            /* terrane-site-row: site 12: /standard/process::parse-command-line (standard/process.trn:111:43-111:62) */
+            /* terrane-site-row: site 12: /core/process::parse-command-line (core/process.trn:104:43-104:62) */
             Site {
                 function: 4,
                 file: 1,
-                line: 111,
+                line: 104,
                 column: 43,
-                end_line: 111,
+                end_line: 104,
                 end_column: 62,
             }
         },
@@ -540,8 +540,8 @@ mod __terrane_trace {
         )
     }
 }
-type TerranePlatformResult = terrane_platform_support::ResultValue;
-fn terrane_unhex(text: &str) -> Vec<u8> {
+pub type TerranePlatformResult = terrane_platform_support::ResultValue;
+pub fn terrane_unhex(text: &str) -> Vec<u8> {
     fn digit(byte: u8) -> Option<u8> {
         match byte {
             b'0'..=b'9' => Some(byte - b'0'),
@@ -555,22 +555,22 @@ fn terrane_unhex(text: &str) -> Vec<u8> {
         .filter_map(|pair| Some(digit(pair[0])? << 4 | digit(pair[1])?))
         .collect()
 }
-fn terrane_platform_value(value: std::ffi::OsString) -> String {
+pub fn terrane_platform_value(value: std::ffi::OsString) -> String {
     terrane_platform_support::platform_value(value)
 }
-fn terrane_platform_value_is_text(value: &str) -> bool {
+pub fn terrane_platform_value_is_text(value: &str) -> bool {
     value.starts_with("text:")
 }
-fn terrane_platform_value_text(value: &str) -> String {
+pub fn terrane_platform_value_text(value: &str) -> String {
     value.strip_prefix("text:").unwrap_or("").to_owned()
 }
-fn terrane_platform_value_bytes(value: &str) -> Vec<u8> {
+pub fn terrane_platform_value_bytes(value: &str) -> Vec<u8> {
     value.strip_prefix("raw:").map(terrane_unhex).unwrap_or_default()
 }
-fn terrane_process_arguments() -> Vec<String> {
+pub fn terrane_process_arguments() -> Vec<String> {
     std::env::args_os().skip(1).map(terrane_platform_value).collect()
 }
-fn terrane_environment_entries() -> Vec<String> {
+pub fn terrane_environment_entries() -> Vec<String> {
     std::env::vars_os()
         .flat_map(|(name, value)| [
             terrane_platform_value(name),
@@ -578,19 +578,19 @@ fn terrane_environment_entries() -> Vec<String> {
         ])
         .collect()
 }
-fn terrane_process_exit(code: terrane_int_support::Int) {
+pub fn terrane_process_exit(code: terrane_int_support::Int) {
     let code = terrane_int_support::checked_coerce::<i32>(&code).unwrap_or(255);
     std::process::exit(code)
 }
-// Source: standard/process.trn
-// Namespace: standard/process
+// Source: core/process.trn
+// Namespace: core/process
 #[derive(Clone)]
-pub struct PlatformString {
+pub struct NativeString {
     pub is_text: bool,
     pub text: String,
     pub raw: Vec<u8>,
 }
-impl PlatformString {
+impl NativeString {
     pub fn terrane_construct(encoded: String) -> Self {
         let mut value = Self {
             is_text: true,
@@ -608,42 +608,42 @@ impl PlatformString {
 }
 #[derive(Clone)]
 pub struct EnvironmentEntry {
-    pub name: PlatformString,
-    pub value: PlatformString,
+    pub name: NativeString,
+    pub value: NativeString,
 }
 impl EnvironmentEntry {
-    pub fn terrane_construct(name: PlatformString, entry_value: PlatformString) -> Self {
+    pub fn terrane_construct(name: NativeString, entry_value: NativeString) -> Self {
         let mut value = Self {
-            name: PlatformString::terrane_construct(String::from("text:")),
-            value: PlatformString::terrane_construct(String::from("text:")),
+            name: NativeString::terrane_construct(String::from("text:")),
+            value: NativeString::terrane_construct(String::from("text:")),
         };
         value.construct(name, entry_value);
         value
     }
-    pub fn construct(&mut self, name: PlatformString, entry_value: PlatformString) {
+    pub fn construct(&mut self, name: NativeString, entry_value: NativeString) {
         self.name = name.clone();
         self.value = entry_value.clone();
     }
 }
 #[derive(Clone)]
-pub struct HostNameResult {
+pub struct ProcessHostNameResult {
     pub failed: bool,
     pub available: bool,
     pub message: String,
-    pub value: PlatformString,
+    pub value: NativeString,
 }
-impl HostNameResult {
+impl ProcessHostNameResult {
     pub fn terrane_construct(
         did_fail: bool,
         is_available: bool,
         detail: String,
-        result_value: PlatformString,
+        result_value: NativeString,
     ) -> Self {
         let mut value = Self {
             failed: false,
             available: false,
             message: String::from(""),
-            value: PlatformString::terrane_construct(String::from("text:")),
+            value: NativeString::terrane_construct(String::from("text:")),
         };
         value.construct(did_fail, is_available, detail, result_value);
         value
@@ -653,7 +653,7 @@ impl HostNameResult {
         did_fail: bool,
         is_available: bool,
         detail: String,
-        result_value: PlatformString,
+        result_value: NativeString,
     ) {
         self.failed = did_fail;
         self.available = is_available;
@@ -661,41 +661,41 @@ impl HostNameResult {
         self.value = result_value.clone();
     }
 }
-pub fn host_name() -> HostNameResult {
+pub fn process_host_name() -> ProcessHostNameResult {
     let raw: TerranePlatformResult = terrane_platform_support::system_host_name();
-    return HostNameResult::terrane_construct(
+    return ProcessHostNameResult::terrane_construct(
         raw.failed,
         raw.flag,
         raw.message.clone(),
-        PlatformString::terrane_construct(raw.text.clone()),
+        NativeString::terrane_construct(raw.text.clone()),
     );
 }
-pub fn arguments() -> terrane_collection_support::List<PlatformString> {
+pub fn arguments() -> terrane_collection_support::List<NativeString> {
     let encoded: Vec<String> = terrane_process_arguments();
-    let mut values: terrane_collection_support::List<PlatformString> = terrane_collection_support::List::<
-        PlatformString,
+    let mut values: terrane_collection_support::List<NativeString> = terrane_collection_support::List::<
+        NativeString,
     >::new(Vec::new());
     let mut index: terrane_int_support::Int = terrane_int_support::Int::from(0_i128);
     while index.clone() < terrane_int_support::Int::from(encoded.len() as i128) {
         values
             .append(
-                PlatformString::terrane_construct(
+                NativeString::terrane_construct(
                     __terrane_raised(
                         encoded
                             .get(
                                 __terrane_raised(
                                     terrane_collection_support::index_from_int(&index.clone()),
-                                    8 /* terrane-site: standard/process.trn:51:42-51:56 */,
+                                    8 /* terrane-site: core/process.trn:44:40-44:54 */,
                                 ),
                             )
                             .cloned()
                             .ok_or(terrane_collection_support::IndexError {
                                 index: __terrane_raised(
                                     terrane_collection_support::index_from_int(&index.clone()),
-                                    8 /* terrane-site: standard/process.trn:51:42-51:56 */,
+                                    8 /* terrane-site: core/process.trn:44:40-44:54 */,
                                 ),
                             }),
-                        8 /* terrane-site: standard/process.trn:51:42-51:56 */,
+                        8 /* terrane-site: core/process.trn:44:40-44:54 */,
                     ),
                 ),
             );
@@ -712,26 +712,26 @@ pub fn environment() -> terrane_collection_support::List<EnvironmentEntry> {
     while index.clone() + terrane_int_support::Int::from(1_i128)
         < terrane_int_support::Int::from(encoded.len() as i128)
     {
-        let name: PlatformString = PlatformString::terrane_construct(
+        let name: NativeString = NativeString::terrane_construct(
             __terrane_raised(
                 encoded
                     .get(
                         __terrane_raised(
                             terrane_collection_support::index_from_int(&index.clone()),
-                            9 /* terrane-site: standard/process.trn:60:33-60:47 */,
+                            9 /* terrane-site: core/process.trn:53:31-53:45 */,
                         ),
                     )
                     .cloned()
                     .ok_or(terrane_collection_support::IndexError {
                         index: __terrane_raised(
                             terrane_collection_support::index_from_int(&index.clone()),
-                            9 /* terrane-site: standard/process.trn:60:33-60:47 */,
+                            9 /* terrane-site: core/process.trn:53:31-53:45 */,
                         ),
                     }),
-                9 /* terrane-site: standard/process.trn:60:33-60:47 */,
+                9 /* terrane-site: core/process.trn:53:31-53:45 */,
             ),
         );
-        let value: PlatformString = PlatformString::terrane_construct(
+        let value: NativeString = NativeString::terrane_construct(
             __terrane_raised(
                 encoded
                     .get(
@@ -739,7 +739,7 @@ pub fn environment() -> terrane_collection_support::List<EnvironmentEntry> {
                             terrane_collection_support::index_from_int(
                                 &(index.clone() + terrane_int_support::Int::from(1_i128)),
                             ),
-                            10 /* terrane-site: standard/process.trn:61:34-61:52 */,
+                            10 /* terrane-site: core/process.trn:54:32-54:50 */,
                         ),
                     )
                     .cloned()
@@ -748,10 +748,10 @@ pub fn environment() -> terrane_collection_support::List<EnvironmentEntry> {
                             terrane_collection_support::index_from_int(
                                 &(index.clone() + terrane_int_support::Int::from(1_i128)),
                             ),
-                            10 /* terrane-site: standard/process.trn:61:34-61:52 */,
+                            10 /* terrane-site: core/process.trn:54:32-54:50 */,
                         ),
                     }),
-                10 /* terrane-site: standard/process.trn:61:34-61:52 */,
+                10 /* terrane-site: core/process.trn:54:32-54:50 */,
             ),
         );
         values.append(EnvironmentEntry::terrane_construct(name, value));
@@ -781,8 +781,8 @@ impl CliSchema {
 pub struct CommandLine {
     pub flags: terrane_collection_support::List<String>,
     pub option_names: terrane_collection_support::List<String>,
-    pub option_values: terrane_collection_support::List<PlatformString>,
-    pub positionals: terrane_collection_support::List<PlatformString>,
+    pub option_values: terrane_collection_support::List<NativeString>,
+    pub positionals: terrane_collection_support::List<NativeString>,
     pub diagnostic_arguments: terrane_collection_support::List<terrane_int_support::Int>,
     pub diagnostic_messages: terrane_collection_support::List<String>,
 }
@@ -792,10 +792,10 @@ impl CommandLine {
             flags: terrane_collection_support::List::<String>::new(Vec::new()),
             option_names: terrane_collection_support::List::<String>::new(Vec::new()),
             option_values: terrane_collection_support::List::<
-                PlatformString,
+                NativeString,
             >::new(Vec::new()),
             positionals: terrane_collection_support::List::<
-                PlatformString,
+                NativeString,
             >::new(Vec::new()),
             diagnostic_arguments: terrane_collection_support::List::<
                 terrane_int_support::Int,
@@ -823,7 +823,7 @@ pub fn schema_has(schema: CliSchema, sought: String) -> bool {
 }
 pub fn parse_command_line(
     schema: CliSchema,
-    supplied: terrane_collection_support::List<PlatformString>,
+    supplied: terrane_collection_support::List<NativeString>,
 ) -> CommandLine {
     let mut flags: terrane_collection_support::List<String> = terrane_collection_support::List::<
         String,
@@ -831,11 +831,11 @@ pub fn parse_command_line(
     let mut option_names: terrane_collection_support::List<String> = terrane_collection_support::List::<
         String,
     >::new(Vec::new());
-    let mut option_values: terrane_collection_support::List<PlatformString> = terrane_collection_support::List::<
-        PlatformString,
+    let mut option_values: terrane_collection_support::List<NativeString> = terrane_collection_support::List::<
+        NativeString,
     >::new(Vec::new());
-    let mut positionals: terrane_collection_support::List<PlatformString> = terrane_collection_support::List::<
-        PlatformString,
+    let mut positionals: terrane_collection_support::List<NativeString> = terrane_collection_support::List::<
+        NativeString,
     >::new(Vec::new());
     let mut diagnostic_arguments: terrane_collection_support::List<
         terrane_int_support::Int,
@@ -849,15 +849,15 @@ pub fn parse_command_line(
             terrane_int_support::Int::from(supplied.length()),
         )
     {
-        let argument: PlatformString = __terrane_raised(
+        let argument: NativeString = __terrane_raised(
             supplied
                 .get_or_error(
                     __terrane_raised(
                         terrane_collection_support::index_from_int(&index.clone()),
-                        11 /* terrane-site: standard/process.trn:96:20-96:35 */,
+                        11 /* terrane-site: core/process.trn:89:20-89:35 */,
                     ),
                 ),
-            11 /* terrane-site: standard/process.trn:96:20-96:35 */,
+            11 /* terrane-site: core/process.trn:89:20-89:35 */,
         );
         if !argument.is_text {
             diagnostic_arguments.append(index.clone());
@@ -893,10 +893,10 @@ pub fn parse_command_line(
                                             terrane_collection_support::index_from_int(
                                                 &(index.clone() + terrane_int_support::Int::from(1_i128)),
                                             ),
-                                            12 /* terrane-site: standard/process.trn:111:43-111:62 */,
+                                            12 /* terrane-site: core/process.trn:104:43-104:62 */,
                                         ),
                                     ),
-                                12 /* terrane-site: standard/process.trn:111:43-111:62 */,
+                                12 /* terrane-site: core/process.trn:104:43-104:62 */,
                             ),
                         );
                     index = index.clone() + terrane_int_support::Int::from(1_i128);

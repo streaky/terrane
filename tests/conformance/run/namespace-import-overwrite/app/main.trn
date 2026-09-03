@@ -1,0 +1,22 @@
+namespace app
+
+from /codec-shadow import encode-base64 as shadow-encode
+from /root-one import root-value as first-root
+import /codec-shadow
+import /core/codecs
+import /root-one
+import /root-two
+
+function local-choice int;
+    from /local-one import local-value as first-local
+    import /local-one
+    import /local-two
+    print; (first-local;)
+    return local-value;
+
+function main;
+    print; (first-root;)
+    print; (root-value;)
+    print; (local-choice;)
+    print; (shadow-encode;)
+    print; (encode-base64; b'a', false, true)

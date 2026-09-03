@@ -1,0 +1,4 @@
+namespace codec-shadow
+
+public function encode-base64 string;
+    return 'shadow'

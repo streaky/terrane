@@ -380,46 +380,46 @@ mod __terrane_trace {
     pub static FUNCTIONS: [&str; 1] = ["/scalar-reference-transparency::main"];
     pub static SITES: [Site; 4] = [
         {
-            /* terrane-site-row: site 0: /scalar-reference-transparency::main (case.trn:14:13-14:33) */
+            /* terrane-site-row: site 0: /scalar-reference-transparency::main (case.trn:13:13-13:33) */
             Site {
                 function: 0,
                 file: 0,
-                line: 14,
+                line: 13,
                 column: 13,
-                end_line: 14,
+                end_line: 13,
                 end_column: 33,
             }
         },
         {
-            /* terrane-site-row: site 1: /scalar-reference-transparency::main (case.trn:19:13-19:28) */
+            /* terrane-site-row: site 1: /scalar-reference-transparency::main (case.trn:18:13-18:28) */
             Site {
                 function: 0,
                 file: 0,
-                line: 19,
+                line: 18,
                 column: 13,
-                end_line: 19,
+                end_line: 18,
                 end_column: 28,
             }
         },
         {
-            /* terrane-site-row: site 2: /scalar-reference-transparency::main (case.trn:20:12-20:24) */
+            /* terrane-site-row: site 2: /scalar-reference-transparency::main (case.trn:19:12-19:24) */
             Site {
                 function: 0,
                 file: 0,
-                line: 20,
+                line: 19,
                 column: 12,
-                end_line: 20,
+                end_line: 19,
                 end_column: 24,
             }
         },
         {
-            /* terrane-site-row: site 3: /scalar-reference-transparency::main (case.trn:24:12-24:21) */
+            /* terrane-site-row: site 3: /scalar-reference-transparency::main (case.trn:23:12-23:21) */
             Site {
                 function: 0,
                 file: 0,
-                line: 24,
+                line: 23,
                 column: 12,
-                end_line: 24,
+                end_line: 23,
                 end_column: 21,
             }
         },
@@ -494,7 +494,7 @@ fn main() {
         let __terrane_owner = decoded.upgrade().expect("reference expired"); let
         __terrane_value = __terrane_owner.lock().expect("reference lock poisoned")
         .clone(); __terrane_value }, terrane_string_support::Encoding::Utf8),
-        0 /* terrane-site: case.trn:14:13-14:33 */))
+        0 /* terrane-site: case.trn:13:13-13:33 */))
     );
     let number: std::sync::Arc<std::sync::Mutex<i8>> = std::sync::Arc::new(
         std::sync::Mutex::new(7),
@@ -518,14 +518,14 @@ fn main() {
         terrane_scalar_support::scalar_text(&__terrane_raised(terrane_int_support::fixed_addition({
         let __terrane_owner = observed.upgrade().expect("reference expired"); let
         __terrane_value = __terrane_owner.lock().expect("reference lock poisoned")
-        .clone(); __terrane_value }, 2), 1 /* terrane-site: case.trn:19:13-19:28 */))
+        .clone(); __terrane_value }, 2), 1 /* terrane-site: case.trn:18:13-18:28 */))
     );
     println!(
         "{}",
         terrane_scalar_support::scalar_text(&__terrane_raised(terrane_int_support::fixed_addition({
         let __terrane_owner = observed.upgrade().expect("reference expired"); let
         __terrane_value = __terrane_owner.lock().expect("reference lock poisoned")
-        .clone(); __terrane_value }, 3), 2 /* terrane-site: case.trn:20:12-20:24 */))
+        .clone(); __terrane_value }, 3), 2 /* terrane-site: case.trn:19:12-19:24 */))
     );
     println!(
         "{}", terrane_scalar_support::scalar_text(&- { let __terrane_owner = observed
@@ -541,6 +541,6 @@ fn main() {
         "{}",
         terrane_scalar_support::scalar_text(&__terrane_raised(terrane_int_support::fixed_multiplication({
         let __terrane_value = owner.lock().expect("shared reference lock poisoned")
-        .clone(); __terrane_value }, 2), 3 /* terrane-site: case.trn:24:12-24:21 */))
+        .clone(); __terrane_value }, 2), 3 /* terrane-site: case.trn:23:12-23:21 */))
     );
 }

@@ -1,0 +1,2 @@
+a-import.trn:3:1: warning[W4004]: namespace-wide import leaves declared `greet` from `/app::greet` in place instead of `/lib::greet`
+  help: use a selective `from ... import ... as ...` import to bind the imported object

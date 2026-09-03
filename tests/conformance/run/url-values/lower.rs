@@ -376,50 +376,50 @@ mod __terrane_trace {
         pub end_line: u32,
         pub end_column: u32,
     }
-    pub static FILES: [&str; 1] = ["standard/urls.trn"];
-    pub static FUNCTIONS: [&str; 2] = ["/standard/urls::get", "/standard/urls::get-all"];
+    pub static FILES: [&str; 1] = ["core/urls.trn"];
+    pub static FUNCTIONS: [&str; 2] = ["/core/urls::get", "/core/urls::get-all"];
     pub static SITES: [Site; 4] = [
         {
-            /* terrane-site-row: site 0: /standard/urls::get (standard/urls.trn:29:16-29:32) */
+            /* terrane-site-row: site 0: /core/urls::get (core/urls.trn:23:16-23:32) */
             Site {
                 function: 0,
                 file: 0,
-                line: 29,
+                line: 23,
                 column: 16,
-                end_line: 29,
+                end_line: 23,
                 end_column: 32,
             }
         },
         {
-            /* terrane-site-row: site 1: /standard/urls::get (standard/urls.trn:30:24-30:42) */
+            /* terrane-site-row: site 1: /core/urls::get (core/urls.trn:24:24-24:42) */
             Site {
                 function: 0,
                 file: 0,
-                line: 30,
+                line: 24,
                 column: 24,
-                end_line: 30,
+                end_line: 24,
                 end_column: 42,
             }
         },
         {
-            /* terrane-site-row: site 2: /standard/urls::get-all (standard/urls.trn:38:16-38:32) */
+            /* terrane-site-row: site 2: /core/urls::get-all (core/urls.trn:32:16-32:32) */
             Site {
                 function: 1,
                 file: 0,
-                line: 38,
+                line: 32,
                 column: 16,
-                end_line: 38,
+                end_line: 32,
                 end_column: 32,
             }
         },
         {
-            /* terrane-site-row: site 3: /standard/urls::get-all (standard/urls.trn:39:32-39:50) */
+            /* terrane-site-row: site 3: /core/urls::get-all (core/urls.trn:33:32-33:50) */
             Site {
                 function: 1,
                 file: 0,
-                line: 39,
+                line: 33,
                 column: 32,
-                end_line: 39,
+                end_line: 33,
                 end_column: 50,
             }
         },
@@ -436,46 +436,46 @@ mod __terrane_trace {
         )
     }
 }
-fn terrane_url_limit(value: &terrane_int_support::Int) -> usize {
+pub fn terrane_url_limit(value: &terrane_int_support::Int) -> usize {
     value.as_usize().unwrap_or(usize::MAX)
 }
-fn terrane_url_parse(
+pub fn terrane_url_parse(
     input: String,
     base: String,
 ) -> terrane_document_support::UrlResult {
     terrane_document_support::parse_url(&input, &base)
 }
-fn terrane_url_failed(result: &terrane_document_support::UrlResult) -> bool {
+pub fn terrane_url_failed(result: &terrane_document_support::UrlResult) -> bool {
     result.failed
 }
-fn terrane_url_message(result: &terrane_document_support::UrlResult) -> String {
+pub fn terrane_url_message(result: &terrane_document_support::UrlResult) -> String {
     result.message.clone()
 }
-fn terrane_url_serialized(result: &terrane_document_support::UrlResult) -> String {
+pub fn terrane_url_serialized(result: &terrane_document_support::UrlResult) -> String {
     result.serialized.clone()
 }
-fn terrane_url_display(result: &terrane_document_support::UrlResult) -> String {
+pub fn terrane_url_display(result: &terrane_document_support::UrlResult) -> String {
     result.display.clone()
 }
-fn terrane_url_scheme(result: &terrane_document_support::UrlResult) -> String {
+pub fn terrane_url_scheme(result: &terrane_document_support::UrlResult) -> String {
     result.scheme.clone()
 }
-fn terrane_url_username(result: &terrane_document_support::UrlResult) -> String {
+pub fn terrane_url_username(result: &terrane_document_support::UrlResult) -> String {
     result.username.clone()
 }
-fn terrane_url_password(result: &terrane_document_support::UrlResult) -> String {
+pub fn terrane_url_password(result: &terrane_document_support::UrlResult) -> String {
     result.password.clone()
 }
-fn terrane_url_host(result: &terrane_document_support::UrlResult) -> String {
+pub fn terrane_url_host(result: &terrane_document_support::UrlResult) -> String {
     result.host.clone()
 }
-fn terrane_url_port(result: &terrane_document_support::UrlResult) -> String {
+pub fn terrane_url_port(result: &terrane_document_support::UrlResult) -> String {
     result.port.clone()
 }
-fn terrane_url_path(result: &terrane_document_support::UrlResult) -> String {
+pub fn terrane_url_path(result: &terrane_document_support::UrlResult) -> String {
     result.path.clone()
 }
-fn terrane_url_query_length(
+pub fn terrane_url_query_length(
     result: &terrane_document_support::UrlResult,
 ) -> terrane_int_support::Int {
     terrane_int_support::Int::from(
@@ -483,22 +483,22 @@ fn terrane_url_query_length(
             .expect("query length fits in i128"),
     )
 }
-fn terrane_url_query_key(
+pub fn terrane_url_query_key(
     result: &terrane_document_support::UrlResult,
     index: terrane_int_support::Int,
 ) -> String {
     terrane_document_support::url_query_key(result, terrane_url_limit(&index))
 }
-fn terrane_url_query_value(
+pub fn terrane_url_query_value(
     result: &terrane_document_support::UrlResult,
     index: terrane_int_support::Int,
 ) -> String {
     terrane_document_support::url_query_value(result, terrane_url_limit(&index))
 }
-fn terrane_url_fragment(result: &terrane_document_support::UrlResult) -> String {
+pub fn terrane_url_fragment(result: &terrane_document_support::UrlResult) -> String {
     result.fragment.clone()
 }
-fn terrane_url_origin(result: &terrane_document_support::UrlResult) -> String {
+pub fn terrane_url_origin(result: &terrane_document_support::UrlResult) -> String {
     result.origin.clone()
 }
 // Source: case.trn
@@ -543,8 +543,8 @@ fn main() {
         terrane_scalar_support::scalar_text(&relative.value.query.get(String::from("q")))
     );
 }
-// Source: standard/urls.trn
-// Namespace: standard/urls
+// Source: core/urls.trn
+// Namespace: core/urls
 #[derive(Clone)]
 pub struct UrlQuery {
     pub keys: terrane_collection_support::List<String>,
@@ -592,10 +592,10 @@ impl UrlQuery {
                     .get_or_error(
                         __terrane_raised(
                             terrane_collection_support::index_from_int(&index.clone()),
-                            0 /* terrane-site: standard/urls.trn:29:16-29:32 */,
+                            0 /* terrane-site: core/urls.trn:23:16-23:32 */,
                         ),
                     ),
-                0 /* terrane-site: standard/urls.trn:29:16-29:32 */,
+                0 /* terrane-site: core/urls.trn:23:16-23:32 */,
             ) == name
             {
                 return __terrane_raised(
@@ -604,10 +604,10 @@ impl UrlQuery {
                         .get_or_error(
                             __terrane_raised(
                                 terrane_collection_support::index_from_int(&index.clone()),
-                                1 /* terrane-site: standard/urls.trn:30:24-30:42 */,
+                                1 /* terrane-site: core/urls.trn:24:24-24:42 */,
                             ),
                         ),
-                    1 /* terrane-site: standard/urls.trn:30:24-30:42 */,
+                    1 /* terrane-site: core/urls.trn:24:24-24:42 */,
                 );
             }
             index = index.clone() + terrane_int_support::Int::from(1_i128);
@@ -630,10 +630,10 @@ impl UrlQuery {
                     .get_or_error(
                         __terrane_raised(
                             terrane_collection_support::index_from_int(&index.clone()),
-                            2 /* terrane-site: standard/urls.trn:38:16-38:32 */,
+                            2 /* terrane-site: core/urls.trn:32:16-32:32 */,
                         ),
                     ),
-                2 /* terrane-site: standard/urls.trn:38:16-38:32 */,
+                2 /* terrane-site: core/urls.trn:32:16-32:32 */,
             ) == name
             {
                 result
@@ -644,10 +644,10 @@ impl UrlQuery {
                                 .get_or_error(
                                     __terrane_raised(
                                         terrane_collection_support::index_from_int(&index.clone()),
-                                        3 /* terrane-site: standard/urls.trn:39:32-39:50 */,
+                                        3 /* terrane-site: core/urls.trn:33:32-33:50 */,
                                     ),
                                 ),
-                            3 /* terrane-site: standard/urls.trn:39:32-39:50 */,
+                            3 /* terrane-site: core/urls.trn:33:32-33:50 */,
                         ),
                     );
             }

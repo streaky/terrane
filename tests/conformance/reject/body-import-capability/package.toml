@@ -1,0 +1,8 @@
+package = "body-import-capability"
+
+[profile]
+name = "no-host-capabilities"
+capabilities = []
+
+[namespaces]
+body-import-capability = "src"

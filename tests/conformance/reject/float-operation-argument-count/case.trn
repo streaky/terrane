@@ -1,5 +1,4 @@
 namespace float-operation-argument-count
-from /core/types import float64
 function main;
   value float64 = 1.0
   print; (value.multiply-add; 2.0)

@@ -1,5 +1,4 @@
 namespace contextual-constant-arithmetic
-from /core/types import int8, int32, float32
 
 function third float32;
   return 1 / 3

@@ -1,2 +1,2 @@
 arithmetic-overflow: fixed-width integer arithmetic overflow
-at /fixed-overflow::main (case.trn:6:11-6:23)
+at /fixed-overflow::main (case.trn:5:11-5:23)

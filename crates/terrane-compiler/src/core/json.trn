@@ -1,0 +1,37 @@
+namespace core/documents/json
+
+from /core/documents import document-value, document-result, make-document-result
+from /core/documents import document-mapping, decode-document
+from /core/documents import serializable, deserializable, serialize-document, deserialize-document
+
+class json-options
+    max-depth int = 256
+    max-bytes int = 16777216
+
+    function construct; max-depth int, max-bytes int
+        this.max-depth = max-depth
+        this.max-bytes = max-bytes
+
+function default-json-options json-options;
+    return json-options; 256, 16777216
+
+function parse-json document-result; input string, options json-options
+    raw = host-json-parse; input, options.max-depth, options.max-bytes
+    return make-document-result; raw
+
+function stringify-json document-result; value document-value, options json-options
+    raw = host-json-canonical; value.raw
+    return make-document-result; raw
+
+function canonical-json document-result; value document-value
+    raw = host-json-canonical; value.raw
+    return make-document-result; raw
+
+function decode-json document-result; input string, mapping deserializable, options json-options
+    parsed = parse-json; input, options
+    if parsed.failed
+        return parsed
+    return deserialize-document; parsed.value, mapping
+
+function encode-json document-result; value serializable, options json-options
+    return stringify-json; (serialize-document; value), options

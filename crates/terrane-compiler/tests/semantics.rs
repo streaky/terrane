@@ -70,11 +70,25 @@ fn namespace_diagnostics_use_source_spelling() {
 
 #[test]
 fn compiler_owned_namespaces_cannot_be_extended() {
+    for namespace in ["core/output", "core/application-tool"] {
+        let source = format!("namespace {namespace}\npublic constant injected = 1\n");
+        let failure = analyze(&package(false, &[("main.trn", &source)])).unwrap_err();
+
+        assert_eq!(failure.diagnostics[0].code, "S2017");
+        assert_eq!(
+            failure.diagnostics[0].message,
+            format!("cannot declare into compiler-owned namespace `/{namespace}`")
+        );
+    }
+}
+
+#[test]
+fn bundled_core_namespaces_cannot_be_extended() {
     let failure = analyze(&package(
         false,
         &[(
             "main.trn",
-            "namespace core/output\npublic constant injected = 1\n",
+            "namespace core/streams\npublic constant injected = 1\n",
         )],
     ))
     .unwrap_err();
@@ -82,7 +96,7 @@ fn compiler_owned_namespaces_cannot_be_extended() {
     assert_eq!(failure.diagnostics[0].code, "S2017");
     assert_eq!(
         failure.diagnostics[0].message,
-        "cannot declare into compiler-owned namespace `/core/output`"
+        "cannot declare into compiler-owned namespace `/core/streams`"
     );
 }
 #[test]
@@ -126,7 +140,7 @@ fn imports_establish_ordinary_bindings_and_support_aliases() {
 }
 
 #[test]
-fn identical_reimport_is_idempotent_and_collisions_need_aliases() {
+fn identical_reimport_is_idempotent_and_selective_collisions_need_aliases() {
     let accepted = analyze(&package(
         false,
         &[(
@@ -158,13 +172,7 @@ fn prelude_has_exact_ordinary_bindings_and_can_be_disabled() {
     assert_eq!(
         names,
         [
-            "bool",
-            "bytes",
-            "float",
-            "int",
-            "none",
             "print",
-            "string",
             "task-scope",
             "utf16-be",
             "utf16-le",
@@ -190,6 +198,12 @@ fn prelude_has_exact_ordinary_bindings_and_can_be_disabled() {
             .get(ty.source_name())
             .unwrap();
         assert_eq!(construct.descriptor_type(), Some(ty));
+        assert_eq!(
+            disabled
+                .resolve_name(&disabled.units[0].namespace, ty.source_name())
+                .and_then(terrane_compiler::Symbol::descriptor_type),
+            Some(ty)
+        );
     }
     assert_eq!(
         disabled.descriptor_constructs["float"].identity,
@@ -231,12 +245,14 @@ fn descriptor_constructs_are_rejected_in_non_reflection_value_contexts() {
 fn bootstrap_registry_contains_versioned_modules_and_fixed_width_types() {
     let analyzed = analyze(&package(false, &[("main.trn", "namespace app\n")])).unwrap();
 
-    assert_eq!(analyzed.bootstrap_version, "1");
+    assert_eq!(analyzed.bootstrap_version, "2");
     for namespace in [
         "/core/output",
         "/core/types",
         "/core/errors",
         "/core/collections",
+        "/core/codecs",
+        "/core/filesystem",
     ] {
         assert!(analyzed.namespaces.contains_key(namespace));
     }

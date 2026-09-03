@@ -1,5 +1,4 @@
 namespace named-result-types
-from /core/types import int8, overflow-result, div-rem-result
 from /core/errors import throwable
 function pass overflow-result of int8;
   small int8 = 120

@@ -1,5 +1,5 @@
 namespace cancelled-stream-operation
-from /standard/streams import stdin, read-result
+from /core/streams import stdin, read-result
 
 async function read-one read-result;
     input = stdin;

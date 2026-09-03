@@ -1,0 +1,6 @@
+namespace app
+
+function main;
+    print; (first-import-choice;)
+    print; (first-choice;)
+    print; (pick;)

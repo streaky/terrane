@@ -1,5 +1,4 @@
 namespace optional-value-narrowing
-from /core/types import int8
 function helper;
     found string = 'shadow'
     print; found

@@ -1,0 +1,2 @@
+a-first.trn:3:1: warning[W4004]: namespace-wide import overwrites `pick` from `/one::pick` with `/two::pick`
+  help: use selective `from ... import ... as ...` imports to retain both objects

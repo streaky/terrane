@@ -1,0 +1,9 @@
+namespace core-tool-import-collision
+
+from /core/codecs import encode-base64
+
+function encode-base64;
+    return
+
+function main;
+    return

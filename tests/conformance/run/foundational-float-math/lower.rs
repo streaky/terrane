@@ -380,46 +380,46 @@ mod __terrane_trace {
     pub static FUNCTIONS: [&str; 1] = ["/foundational-float-math::main"];
     pub static SITES: [Site; 4] = [
         {
-            /* terrane-site-row: site 0: /foundational-float-math::main (case.trn:14:30-14:39) */
+            /* terrane-site-row: site 0: /foundational-float-math::main (case.trn:13:30-13:39) */
             Site {
                 function: 0,
                 file: 0,
-                line: 14,
+                line: 13,
                 column: 30,
-                end_line: 14,
+                end_line: 13,
                 end_column: 39,
             }
         },
         {
-            /* terrane-site-row: site 1: /foundational-float-math::main (case.trn:14:48-14:57) */
+            /* terrane-site-row: site 1: /foundational-float-math::main (case.trn:13:48-13:57) */
             Site {
                 function: 0,
                 file: 0,
-                line: 14,
+                line: 13,
                 column: 48,
-                end_line: 14,
+                end_line: 13,
                 end_column: 57,
             }
         },
         {
-            /* terrane-site-row: site 2: /foundational-float-math::main (case.trn:25:30-25:39) */
+            /* terrane-site-row: site 2: /foundational-float-math::main (case.trn:24:30-24:39) */
             Site {
                 function: 0,
                 file: 0,
-                line: 25,
+                line: 24,
                 column: 30,
-                end_line: 25,
+                end_line: 24,
                 end_column: 39,
             }
         },
         {
-            /* terrane-site-row: site 3: /foundational-float-math::main (case.trn:25:48-25:57) */
+            /* terrane-site-row: site 3: /foundational-float-math::main (case.trn:24:48-24:57) */
             Site {
                 function: 0,
                 file: 0,
-                line: 25,
+                line: 24,
                 column: 48,
-                end_line: 25,
+                end_line: 24,
                 end_column: 57,
             }
         },
@@ -461,10 +461,10 @@ fn main() {
         .length())) == terrane_int_support::Int::from(2_i128))),
         terrane_scalar_support::scalar_text(&(__terrane_raised(pair32
         .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
-        0 /* terrane-site: case.trn:14:30-14:39 */)), 0 /* terrane-site: case.trn:14:30-14:39 */) == 0.0_f32)),
+        0 /* terrane-site: case.trn:13:30-13:39 */)), 0 /* terrane-site: case.trn:13:30-13:39 */) == 0.0_f32)),
         terrane_scalar_support::scalar_text(&(__terrane_raised(pair32
         .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(1_i128)),
-        1 /* terrane-site: case.trn:14:48-14:57 */)), 1 /* terrane-site: case.trn:14:48-14:57 */) == 1.0_f32))
+        1 /* terrane-site: case.trn:13:48-13:57 */)), 1 /* terrane-site: case.trn:13:48-13:57 */) == 1.0_f32))
     );
     println!("{}", terrane_scalar_support::scalar_text(&(one32.ln() == 0.0_f32)));
     println!("{}", terrane_scalar_support::scalar_text(&(zero32.exp() == 1.0_f32)));
@@ -486,10 +486,10 @@ fn main() {
         .length())) == terrane_int_support::Int::from(2_i128))),
         terrane_scalar_support::scalar_text(&(__terrane_raised(pair64
         .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
-        2 /* terrane-site: case.trn:25:30-25:39 */)), 2 /* terrane-site: case.trn:25:30-25:39 */) == 0.0)),
+        2 /* terrane-site: case.trn:24:30-24:39 */)), 2 /* terrane-site: case.trn:24:30-24:39 */) == 0.0)),
         terrane_scalar_support::scalar_text(&(__terrane_raised(pair64
         .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(1_i128)),
-        3 /* terrane-site: case.trn:25:48-25:57 */)), 3 /* terrane-site: case.trn:25:48-25:57 */) == 1.0))
+        3 /* terrane-site: case.trn:24:48-24:57 */)), 3 /* terrane-site: case.trn:24:48-24:57 */) == 1.0))
     );
     println!("{}", terrane_scalar_support::scalar_text(&(one64.ln() == 0.0)));
     println!("{}", terrane_scalar_support::scalar_text(&(zero64.exp() == 1.0)));

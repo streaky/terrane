@@ -1,5 +1,5 @@
 namespace resource-owning-inheritance
-from /standard/streams import byte-reader, stdin
+from /core/streams import byte-reader, stdin
 
 class base
 
