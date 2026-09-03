@@ -9,4 +9,4 @@ class shared-error implements throwable
     return this.message
 
 function fail throws shared-error;
-  throw shared-error; >left failure
+  throw instance shared-error; >left failure

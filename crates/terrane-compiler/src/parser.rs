@@ -19,6 +19,8 @@ pub fn parse(source: &SourceFile, lexed: LexedSource) -> ParseOutput {
         source,
         tokens: &lexed.tokens,
         position: 0,
+        block_depth: 0,
+        class_body_depth: usize::MAX,
         semicolon_boundary: false,
         diagnostics: Vec::new(),
     };
@@ -34,6 +36,8 @@ struct Parser<'source> {
     source: &'source SourceFile,
     tokens: &'source [Token],
     position: usize,
+    block_depth: usize,
+    class_body_depth: usize,
     semicolon_boundary: bool,
     diagnostics: Vec<Diagnostic>,
 }
@@ -183,6 +187,7 @@ impl Parser<'_> {
         self.parse_visibility(&mut children);
         self.bump();
         if self.at(TokenKind::Identifier) {
+            self.reject_contextual_declaration_name();
             children.push(self.leaf(SyntaxKind::Name));
         } else {
             self.error_here("S1034", "object declaration requires a name");
@@ -221,7 +226,12 @@ impl Parser<'_> {
             }
             children.push(self.node(clause_kind, clause_start, self.position, names));
         }
+        let previous_class_body_depth = self.class_body_depth;
+        if kind == SyntaxKind::ClassDeclaration {
+            self.class_body_depth = self.block_depth + 1;
+        }
         children.push(self.parse_block());
+        self.class_body_depth = previous_class_body_depth;
         self.node(kind, start, self.position, children)
     }
 
@@ -366,22 +376,34 @@ impl Parser<'_> {
         let start = self.position;
         let mut children = Vec::new();
         self.parse_visibility(&mut children);
-        let mut qualifier_seen = false;
-        while matches!(self.text(), "global" | "constant") {
-            if qualifier_seen {
+        let mut qualifiers = std::collections::BTreeSet::new();
+        while matches!(self.text(), "global" | "constant" | "static") {
+            let qualifier = self.text().to_owned();
+            if !qualifiers.insert(qualifier.clone()) {
+                self.error_here("S1029", "duplicate binding qualifier");
+            }
+            if qualifier == "static" && self.block_depth != self.class_body_depth {
+                self.error_here("S1029", "`static` bindings are only valid in class bodies");
+            }
+            if qualifiers.len() > 1 && qualifiers.contains("static") {
+                self.error_here(
+                    "S1029",
+                    "`static` cannot be combined with `global` or `constant`",
+                );
+            } else if qualifiers.contains("global") && qualifiers.contains("constant") {
                 self.error_here(
                     "S1029",
                     "a binding may have only one of `global` or `constant`",
                 );
             }
-            qualifier_seen = true;
             children.push(self.leaf(SyntaxKind::DeclarationQualifier));
         }
         if matches!(self.text(), "public" | "private" | "protected") {
-            self.error_here("S1029", "visibility must precede `global` or `constant`");
+            self.error_here("S1029", "visibility must precede binding qualifiers");
             children.push(self.leaf(SyntaxKind::Visibility));
         }
         if self.at(TokenKind::Identifier) {
+            self.reject_contextual_declaration_name();
             children.push(self.leaf(SyntaxKind::Name));
         } else if self.at(TokenKind::Dot) && self.peek_kind(1) == Some(TokenKind::Identifier) {
             self.error_here_with_help(
@@ -411,6 +433,9 @@ impl Parser<'_> {
         let start = self.position;
         let mut children = Vec::new();
         self.parse_visibility(&mut children);
+        if self.text() == "static" && self.block_depth != self.class_body_depth {
+            self.error_here("S1029", "`static` functions are only valid in class bodies");
+        }
         let mut qualifiers = std::collections::BTreeSet::new();
         while matches!(self.text(), "static" | "async") {
             let qualifier_start = self.position;
@@ -428,6 +453,7 @@ impl Parser<'_> {
         }
         self.expect_text("function", "S1005", "expected `function`");
         if self.at(TokenKind::Identifier) && !self.at_text("from") && !self.at_text("to") {
+            self.reject_contextual_declaration_name();
             children.push(self.leaf(SyntaxKind::Name));
             if self.at_text("of") {
                 self.error_here(
@@ -507,6 +533,7 @@ impl Parser<'_> {
         while !(self.at_line_end() || grouped && self.at(TokenKind::CloseParen)) {
             let parameter_start = self.position;
             if self.at(TokenKind::Identifier) {
+                self.reject_contextual_declaration_name();
                 let mut parts = vec![self.leaf(SyntaxKind::Name)];
                 if !(self.at(TokenKind::Assign)
                     || self.at(TokenKind::Comma)
@@ -884,10 +911,35 @@ impl Parser<'_> {
         self.parse_postfix(allow_call)
     }
 
+    fn reject_construction_postfix(&mut self, value: &SyntaxNode) -> bool {
+        if value.kind != SyntaxKind::ConstructionExpression
+            || !matches!(
+                self.current().kind,
+                TokenKind::Dot
+                    | TokenKind::DoubleColon
+                    | TokenKind::OpenBracket
+                    | TokenKind::Increment
+                    | TokenKind::Decrement
+            )
+        {
+            return false;
+        }
+        self.error_here_with_help(
+            "S1096",
+            "member and index operations cannot attach before construction is invoked",
+            "invoke construction first, for example `(instance class;).member`",
+        );
+        self.recover_expression();
+        true
+    }
+
     fn parse_postfix(&mut self, allow_call: bool) -> SyntaxNode {
         let start = self.position;
         let mut value = self.parse_primary();
-        loop {
+        if self.reject_construction_postfix(&value) {
+            return value;
+        }
+        while value.kind != SyntaxKind::ConstructionExpression {
             if self.at(TokenKind::Dot) {
                 if self.current().attachment != Attachment::Both {
                     self.error_here(
@@ -906,6 +958,25 @@ impl Parser<'_> {
                     );
                 } else {
                     self.error_here("S1014", "expected a member name after `.`");
+                }
+            } else if self.at(TokenKind::DoubleColon) {
+                if self.current().attachment != Attachment::Both {
+                    self.error_here(
+                        "S1091",
+                        "static member selection requires no whitespace around `::`; write `class::member`",
+                    );
+                }
+                self.bump();
+                if self.at(TokenKind::Identifier) {
+                    let name = self.leaf(SyntaxKind::Name);
+                    value = self.node(
+                        SyntaxKind::StaticMemberExpression,
+                        start,
+                        self.position,
+                        vec![value, name],
+                    );
+                } else {
+                    self.error_here("S1092", "expected a static member name after `::`");
                 }
             } else if self.eat(TokenKind::OpenBracket) {
                 let index = self.require_expression("index");
@@ -946,6 +1017,12 @@ impl Parser<'_> {
                 );
                 self.recover_expression();
             }
+        } else if value.kind == SyntaxKind::ConstructionExpression {
+            self.error_here_with_help(
+                "S1093",
+                "class construction requires `;`, including with zero arguments",
+                "write `instance class;`",
+            );
         }
         value
     }
@@ -983,6 +1060,22 @@ impl Parser<'_> {
                 self.leaf(SyntaxKind::Literal)
             }
             TokenKind::Identifier if self.at_text("function") => self.parse_anonymous_function(),
+            TokenKind::Identifier if self.at_text("instance") => {
+                let start = self.position;
+                self.bump();
+                let class = if self.at(TokenKind::Identifier) {
+                    self.leaf(SyntaxKind::Name)
+                } else {
+                    self.error_here("S1094", "expected a class name after `instance`");
+                    self.node(SyntaxKind::Error, self.position, self.position, Vec::new())
+                };
+                self.node(
+                    SyntaxKind::ConstructionExpression,
+                    start,
+                    self.position,
+                    vec![class],
+                )
+            }
             TokenKind::Identifier => self.leaf(SyntaxKind::Name),
             TokenKind::Number
             | TokenKind::String
@@ -1126,6 +1219,7 @@ impl Parser<'_> {
         self.skip_newlines();
         let mut children = Vec::new();
         if self.eat(TokenKind::Indent) {
+            self.block_depth += 1;
             self.skip_newlines();
             while !self.at(TokenKind::Dedent) && !self.at(TokenKind::Eof) {
                 if self.at(TokenKind::Indent) {
@@ -1138,6 +1232,7 @@ impl Parser<'_> {
                 }
                 self.skip_newlines();
             }
+            self.block_depth -= 1;
             self.expect(
                 TokenKind::Dedent,
                 "S1024",
@@ -1205,6 +1300,15 @@ impl Parser<'_> {
         }
     }
 
+    fn reject_contextual_declaration_name(&mut self) {
+        if matches!(self.text(), "instance" | "self" | "this") {
+            self.error_here(
+                "S1095",
+                format!("`{}` is reserved and cannot be declared", self.text()),
+            );
+        }
+    }
+
     fn parse_visibility(&mut self, children: &mut Vec<SyntaxNode>) {
         if matches!(self.text(), "public" | "private" | "protected") {
             children.push(self.leaf(SyntaxKind::Visibility));
@@ -1225,7 +1329,10 @@ impl Parser<'_> {
             has_prefix = true;
             offset += 1;
         }
-        if matches!(self.peek_text(offset), Some("global" | "constant")) {
+        while matches!(
+            self.peek_text(offset),
+            Some("global" | "constant" | "static")
+        ) {
             has_prefix = true;
             offset += 1;
         }

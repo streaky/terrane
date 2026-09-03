@@ -45,6 +45,8 @@ pub enum SyntaxKind {
     UnaryOperator,
     PostfixExpression,
     MemberExpression,
+    StaticMemberExpression,
+    ConstructionExpression,
     IndexExpression,
     CallExpression,
     ArgumentList,

@@ -7,5 +7,5 @@ function require-secure; source secure-random
     random-uuid; source
 
 function main;
-    source = pseudo-random; (chacha20;), b'test'
+    source = instance pseudo-random; (chacha20;), b'test'
     require-secure; source

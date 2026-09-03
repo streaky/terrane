@@ -3,4 +3,4 @@ namespace app
 from /core/networking import tcp-stream
 
 function main;
-    stream = tcp-stream;
+    stream = instance tcp-stream;

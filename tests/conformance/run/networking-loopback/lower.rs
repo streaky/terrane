@@ -2094,7 +2094,7 @@ impl ByteReader {
     pub async fn read_async(&self, count: terrane_int_support::Int) -> ReadResult {
         return self.read(count.clone());
     }
-    pub fn text(self, codec: terrane_string_support::Encoding) -> TextReader {
+    pub fn text(&self, codec: terrane_string_support::Encoding) -> TextReader {
         return TextReader::terrane_construct(self.handle.clone(), codec);
     }
     pub fn close(self) -> StreamOperationResult {
@@ -2186,7 +2186,7 @@ impl ByteWriter {
     pub async fn write_async(&self, data: Vec<u8>) -> WriteResult {
         return self.write(data);
     }
-    pub fn text(self, codec: terrane_string_support::Encoding) -> TextWriter {
+    pub fn text(&self, codec: terrane_string_support::Encoding) -> TextWriter {
         return TextWriter::terrane_construct(self.handle.clone(), codec);
     }
     pub fn flush(&self) -> StreamOperationResult {

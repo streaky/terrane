@@ -10,6 +10,6 @@ class base
 class child extends base
 
 function main;
-  value child = child;
+  value child = instance child;
   result base = value.copy;
   print; (result.marker;)

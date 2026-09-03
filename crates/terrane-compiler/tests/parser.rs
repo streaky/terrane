@@ -168,6 +168,48 @@ fn calls_distinguish_names_zero_arguments_and_grouped_nesting() {
 }
 
 #[test]
+fn distinguishes_construction_instance_members_and_static_members() {
+    let tree = parse_source(
+        "made = instance widget;\nchanged = value.reset;\nshared = widget::default;\n",
+    );
+    let construction = tree.root.children[0].children.last().unwrap();
+    assert_eq!(construction.kind, SyntaxKind::CallExpression);
+    assert_eq!(
+        construction.children[0].kind,
+        SyntaxKind::ConstructionExpression
+    );
+    assert_eq!(
+        tree.root.children[1].children.last().unwrap().children[0].kind,
+        SyntaxKind::MemberExpression
+    );
+    assert_eq!(
+        tree.root.children[2].children.last().unwrap().children[0].kind,
+        SyntaxKind::StaticMemberExpression
+    );
+}
+
+#[test]
+fn construction_requires_invocation_marker() {
+    rejected("made = instance widget\n", "S1093");
+}
+
+#[test]
+fn construction_postfix_reports_one_source_oriented_diagnostic() {
+    let source = SourceFile::new(
+        0,
+        "case.trn".into(),
+        "value int = instance widget.value;\n".to_owned(),
+    );
+    let diagnostics = parse(&source, lex(&source).unwrap()).diagnostics;
+    assert_eq!(diagnostics.len(), 1, "{diagnostics:#?}");
+    assert_eq!(diagnostics[0].code, "S1096");
+    assert_eq!(
+        diagnostics[0].help.as_deref(),
+        Some("invoke construction first, for example `(instance class;).member`")
+    );
+}
+
+#[test]
 fn rejects_spaced_member_access_and_chained_comparisons() {
     rejected("value = print .concat\n", "S1013");
     rejected("value = a < b < c\n", "S1012");

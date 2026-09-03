@@ -23,7 +23,7 @@ function main;
     if second-write.failed
         print; second-write.message
     prefix = writer.write; b'd'
-    partial = write-result; b'def', 1, false, ''
+    partial = instance write-result; b'def', 1, false, ''
     resumed = writer.resume; partial
     if prefix.completed != 1 or resumed.completed != 3
         print; 'unexpected resumed write'

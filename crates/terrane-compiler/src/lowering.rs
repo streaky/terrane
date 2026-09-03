@@ -13,8 +13,8 @@ use crate::{
         FunctionContract, MemberFamily, ObjectContract, ObjectField, ObjectIdentity, ObjectKind,
         SemanticPackage, SemanticUnit, StringFamily, SymbolKind, TypedBinding, ValueType,
         binding_span_is_mutated, binding_store_value_is_read, bound_method, contextual_constant,
-        float_member_contract, narrowed_optional_type, narrowed_value_type, promoted_integer_type,
-        string_call_selection,
+        descriptor_binding_is_materialized, float_member_contract, narrowed_optional_type,
+        narrowed_value_type, promoted_integer_type, string_call_selection,
     },
     syntax::{SyntaxKind, SyntaxNode},
 };
@@ -315,9 +315,10 @@ pub(crate) fn lower(package: &SemanticPackage) -> Program {
         });
     }
     if package.units.iter().any(|unit| {
-        unit.typed_bindings
-            .iter()
-            .any(|binding| matches!(binding.value_type, ValueType::Descriptor(_)))
+        unit.typed_bindings.iter().any(|binding| {
+            matches!(binding.value_type, ValueType::Descriptor(_))
+                && descriptor_binding_is_materialized(package, unit, binding.span)
+        })
     }) {
         runtime.push(GeneratedModule {
             name: "reflection",
@@ -365,6 +366,7 @@ pub(crate) fn lower(package: &SemanticPackage) -> Program {
                 in_loop: false,
                 bounded_integer_ranges: Vec::new(),
                 closure_depth: 0,
+                assignment_target: false,
             };
             emitter.emit_union_types();
             let mut items = Vec::new();
@@ -686,6 +688,7 @@ struct Emitter<'a> {
     try_completion: bool,
     in_loop: bool,
     closure_depth: usize,
+    assignment_target: bool,
     bounded_integer_ranges: Vec<BoundedIntegerRange>,
 }
 
@@ -1360,6 +1363,7 @@ fn emit_global_storage(
             in_loop: false,
             bounded_integer_ranges: Vec::new(),
             closure_depth: 0,
+            assignment_target: false,
         };
         let value_type = unit
             .typed_bindings
@@ -1423,6 +1427,7 @@ fn emit_global_storage(
                 in_loop: false,
                 bounded_integer_ranges: Vec::new(),
                 closure_depth: 0,
+                assignment_target: false,
             };
             Some(initial_emitter.expression_as(initializer, ValueType::Scalar(scalar)))
         });
@@ -1716,15 +1721,61 @@ impl Emitter<'_> {
             ObjectKind::Trait => {}
             ObjectKind::Class => {
                 let fields = effective_object_fields(self.unit, object);
-                let class_type = rust_object_type_name(self.package, &object.identity);
+                let instance_fields = fields
+                    .iter()
+                    .copied()
+                    .filter(|field| !field.is_static)
+                    .collect::<Vec<_>>();
+                let static_fields = fields
+                    .iter()
+                    .copied()
+                    .filter(|field| field.is_static)
+                    .collect::<Vec<_>>();
                 let descendants = object_descendants(self.unit, object);
+                let class_type = rust_object_type_name(self.package, &object.identity);
                 let storage_type = if descendants.is_empty() {
                     class_type.clone()
                 } else {
                     format!("{class_type}Storage")
                 };
-                let methods = effective_object_methods(self.unit, object);
+                let all_methods = effective_object_methods(self.unit, object);
+                let methods = all_methods
+                    .iter()
+                    .copied()
+                    .filter(|method| !method.is_static)
+                    .collect::<Vec<_>>();
+                let static_methods = all_methods
+                    .iter()
+                    .copied()
+                    .filter(|method| method.is_static)
+                    .collect::<Vec<_>>();
                 let has_destructor = methods.iter().any(|method| method.name == "destruct");
+
+                let previous_object = self.current_object.replace(object.identity.clone());
+                for field in &static_fields {
+                    let initializer = find_node_by_span(&self.unit.tree.root, field.span)
+                        .and_then(|binding| {
+                            binding
+                                .children
+                                .iter()
+                                .position(|child| child.kind == SyntaxKind::Name)
+                                .and_then(|index| binding_initializer(binding, index))
+                        })
+                        .map_or_else(
+                            || "panic!(\"static object field was not initialized\")".to_owned(),
+                            |value| self.expression_as(value, field.value_type.clone()),
+                        );
+                    self.line(&format!(
+                        "pub static {}: std::sync::LazyLock<std::sync::Mutex<{}>> = std::sync::LazyLock::new(|| std::sync::Mutex::new({initializer}));",
+                        rust_static_field_name(self.package, &object.identity, &field.name),
+                        rust_value_type(self.package, field.value_type.clone())
+                    ));
+                }
+                self.current_object = previous_object;
+                if !static_fields.is_empty() {
+                    self.output.push('\n');
+                }
+
                 if !object.resource_owning {
                     self.line("#[derive(Clone)]");
                 }
@@ -1733,7 +1784,7 @@ impl Emitter<'_> {
                 if has_destructor && !object.resource_owning {
                     self.line("__terrane_lifetime: std::sync::Arc<()>,");
                 }
-                for field in &fields {
+                for field in &instance_fields {
                     self.line(&format!(
                         "pub {}: {},",
                         rust_name(&field.name),
@@ -1761,7 +1812,7 @@ impl Emitter<'_> {
                     self.indent += 1;
                     self.line("let mut value = Self {");
                     self.indent += 1;
-                    for field in &fields {
+                    for field in &instance_fields {
                         let initializer = find_node_by_span(&self.unit.tree.root, field.span)
                             .and_then(|binding| {
                                 binding
@@ -1801,7 +1852,7 @@ impl Emitter<'_> {
                     self.indent += 1;
                     self.line("Self {");
                     self.indent += 1;
-                    for field in &fields {
+                    for field in &instance_fields {
                         let initializer = find_node_by_span(&self.unit.tree.root, field.span)
                             .and_then(|binding| {
                                 binding
@@ -1847,6 +1898,17 @@ impl Emitter<'_> {
                     )
                     .expect("object method contract must retain its syntax");
                     self.object_method(method_node);
+                }
+                if descendants.is_empty() {
+                    for method in &static_methods {
+                        let method_node = find_node(
+                            &self.unit.tree.root,
+                            SyntaxKind::FunctionDeclaration,
+                            method.span,
+                        )
+                        .expect("static object method must have a syntax node");
+                        self.object_static_method(method_node);
+                    }
                 }
                 let destructors = object_destructor_chain(self.unit, object);
                 for (index, destructor) in destructors
@@ -1914,6 +1976,17 @@ impl Emitter<'_> {
                             "pub fn terrane_construct() -> Self {{ Self::Own({storage_type}::terrane_construct()) }}"
                         ));
                     }
+                    let previous_object = self.current_object.replace(object.identity.clone());
+                    for method in &static_methods {
+                        let method_node = find_node(
+                            &self.unit.tree.root,
+                            SyntaxKind::FunctionDeclaration,
+                            method.span,
+                        )
+                        .expect("static object method must have a syntax node");
+                        self.object_static_method(method_node);
+                    }
+                    self.current_object = previous_object;
                     let hierarchy_has_destructor = has_destructor
                         || descendants.iter().any(|descendant| {
                             effective_object_methods(self.unit, descendant)
@@ -2017,7 +2090,7 @@ impl Emitter<'_> {
                         self.indent -= 1;
                         self.line("}");
                     }
-                    for field in &fields {
+                    for field in &instance_fields {
                         let field_name = rust_name(&field.name);
                         let field_type = rust_value_type(self.package, field.value_type.clone());
                         self.line(&format!(
@@ -2221,6 +2294,20 @@ impl Emitter<'_> {
         };
         self.emit_function_as(node, Some(receiver), None);
     }
+
+    fn object_static_method(&mut self, node: &SyntaxNode) {
+        let contract = self
+            .unit
+            .functions
+            .iter()
+            .find(|contract| contract.span == node.span)
+            .expect("analyzed static method must have a semantic contract");
+        self.emit_function_as(
+            node,
+            None,
+            Some(&format!("terrane_static_{}", rust_name(&contract.name))),
+        );
+    }
     fn object_method_as(&mut self, node: &SyntaxNode, name: &str) {
         let contract = self
             .unit
@@ -2258,6 +2345,17 @@ impl Emitter<'_> {
             .iter()
             .find(|item| item.span == node.span)
             .expect("analyzed function declaration must have a semantic contract");
+        let return_type = contract.return_type.clone().map(|return_type| {
+            if contract.is_static
+                && let ValueType::Object(returned) = &return_type
+                && contract.owner.as_deref() == Some(returned.name.as_str())
+                && let Some(effective) = &self.current_object
+            {
+                ValueType::Object(effective.clone())
+            } else {
+                return_type
+            }
+        });
         self.line_start();
         let name =
             name_override.map_or_else(|| function_name(self.package, contract), str::to_owned);
@@ -2265,9 +2363,7 @@ impl Emitter<'_> {
         write!(
             self.output,
             "{}{}fn {name}(",
-            if (receiver.is_some() && name_override.is_none())
-                || (receiver.is_none() && self.unit.bundled)
-            {
+            if contract.owner.is_some() || (receiver.is_none() && self.unit.bundled) {
                 "pub "
             } else {
                 ""
@@ -2296,12 +2392,12 @@ impl Emitter<'_> {
         self.output.push(')');
         let function_errors = contract.throws && contract.name != "main";
         if function_errors {
-            let result = contract.return_type.clone().map_or_else(
+            let result = return_type.clone().map_or_else(
                 || "()".to_owned(),
                 |value_type| rust_value_type(self.package, value_type),
             );
             write!(self.output, " -> Result<{result}, TerraneError>").unwrap();
-        } else if let Some(return_type) = contract.return_type.clone()
+        } else if let Some(return_type) = return_type.clone()
             && return_type != ValueType::Scalar(ScalarType::None)
         {
             write!(
@@ -2339,8 +2435,7 @@ impl Emitter<'_> {
             self.indent += 1;
             self.line("__terrane_block_on(async move {");
         }
-        let outer_return_type =
-            std::mem::replace(&mut self.return_type, contract.return_type.clone());
+        let outer_return_type = std::mem::replace(&mut self.return_type, return_type);
         let outer_function_errors = std::mem::replace(&mut self.function_errors, function_errors);
         let outer_propagation = std::mem::replace(&mut self.propagate_errors, function_errors);
         let outer_function = self.current_function.replace(format!(
@@ -2711,6 +2806,69 @@ impl Emitter<'_> {
         mutation.map(|mutation| self.wrap_receiver_guard(receiver, mutation))
     }
 
+    fn assigned_binding(&self, left: &SyntaxNode) -> Option<TypedBinding> {
+        (left.kind == SyntaxKind::Name)
+            .then(|| {
+                self.package
+                    .resolve_name_at(self.unit, left.span.start, self.text(left))
+            })
+            .flatten()
+            .and_then(|symbol| symbol.declaration_span)
+            .and_then(|span| {
+                self.unit
+                    .typed_bindings
+                    .iter()
+                    .find(|binding| binding.span == span)
+            })
+            .cloned()
+    }
+
+    fn nested_static_assignment_target(&self, node: &SyntaxNode) -> Option<String> {
+        let [receiver, member] = node.children.as_slice() else {
+            return None;
+        };
+        if node.kind != SyntaxKind::MemberExpression {
+            return None;
+        }
+        let mut target = if receiver.kind == SyntaxKind::StaticMemberExpression {
+            let [class, field] = receiver.children.as_slice() else {
+                return None;
+            };
+            let object = self.class_designator(class)?;
+            let field_name = self.text(field);
+            effective_object_fields(self.unit, object)
+                .iter()
+                .any(|candidate| candidate.is_static && candidate.name == field_name)
+                .then(|| {
+                    format!(
+                        "{}.lock().expect(\"static field lock poisoned\")",
+                        rust_static_field_name(self.package, &object.identity, field_name)
+                    )
+                })?
+        } else {
+            self.nested_static_assignment_target(receiver)?
+        };
+        write!(target, ".{}", rust_name(self.text(member))).unwrap();
+        Some(target)
+    }
+
+    fn assign_static_field(&mut self, left: &SyntaxNode, value: &str) -> bool {
+        let [receiver, member] = left.children.as_slice() else {
+            return false;
+        };
+        if left.kind != SyntaxKind::StaticMemberExpression {
+            return false;
+        }
+        let Some(object) = self.class_designator(receiver) else {
+            return false;
+        };
+        self.line(&format!(
+            "{{ let __terrane_static_value = {value}; *{}.lock().expect(\"static field lock poisoned\") = __terrane_static_value; }}",
+            rust_static_field_name(self.package, &object.identity, self.text(member))
+        ));
+        true
+    }
+
     fn assignment(&mut self, node: &SyntaxNode) {
         if self.global_assignment(node) {
             return;
@@ -2757,21 +2915,10 @@ impl Emitter<'_> {
         let [left, right] = node.children.as_slice() else {
             return;
         };
-        let assigned_binding = (left.kind == SyntaxKind::Name)
-            .then(|| {
-                self.package
-                    .resolve_name_at(self.unit, left.span.start, self.text(left))
-            })
-            .flatten()
-            .and_then(|symbol| symbol.declaration_span)
-            .and_then(|span| {
-                self.unit
-                    .typed_bindings
-                    .iter()
-                    .find(|binding| binding.span == span)
-            });
+        let assigned_binding = self.assigned_binding(left);
         let union_binding = self.union_binding(left);
         let value_type = assigned_binding
+            .as_ref()
             .map(|binding| binding.value_type.clone())
             .or_else(|| self.value_type(left));
         let value = if let Some(binding) = union_binding {
@@ -2782,15 +2929,21 @@ impl Emitter<'_> {
             self.expression(right)
         };
         let value = Self::unwrapped_expression(value);
-        let reference_backed =
-            assigned_binding.is_some_and(|binding| self.reference_backed(binding));
+        if self.assign_static_field(left, &value) {
+            return;
+        }
+        let reference_backed = assigned_binding
+            .as_ref()
+            .is_some_and(|binding| self.reference_backed(binding));
+        let previous_assignment_target = self.assignment_target;
+        self.assignment_target = true;
         let target = if reference_backed {
             format!(
                 "*{}.lock().expect(\"reference lock poisoned\")",
                 rust_name(self.text(left))
             )
-        } else if left.kind == SyntaxKind::Name {
-            rust_name(self.text(left))
+        } else if let Some(target) = self.nested_static_assignment_target(left) {
+            target
         } else if let [receiver, member] = left.children.as_slice()
             && left.kind == SyntaxKind::MemberExpression
             && self.wrapped_object_field(receiver, self.text(member))
@@ -2803,8 +2956,9 @@ impl Emitter<'_> {
         } else {
             self.expression(left)
         };
+        self.assignment_target = previous_assignment_target;
         self.line(&format!("{target} = {value};"));
-        if let Some(binding) = assigned_binding
+        if let Some(binding) = &assigned_binding
             && !reference_backed
             && !binding_store_value_is_read(self.package, binding.span, node.span)
         {
@@ -2817,6 +2971,11 @@ impl Emitter<'_> {
             node.children.first().unwrap_or(node)
         } else {
             node
+        };
+        let descriptor = if descriptor.kind == SyntaxKind::ConstructionExpression {
+            descriptor.children.first().unwrap_or(descriptor)
+        } else {
+            descriptor
         };
         self.package
             .resolve_name_at(self.unit, descriptor.span.start, self.text(descriptor))
@@ -2836,6 +2995,11 @@ impl Emitter<'_> {
             node.children.first().unwrap_or(node)
         } else {
             node
+        };
+        let descriptor = if descriptor.kind == SyntaxKind::ConstructionExpression {
+            descriptor.children.first().unwrap_or(descriptor)
+        } else {
+            descriptor
         };
         if let Some(symbol) =
             self.package
@@ -3387,10 +3551,28 @@ impl Emitter<'_> {
         }
     }
 
+    fn escaped_construction(node: &SyntaxNode) -> ! {
+        unreachable!(
+            "construction expression at {}..{} escaped call lowering",
+            node.span.start, node.span.end
+        )
+    }
+
     fn expression(&mut self, node: &SyntaxNode) -> String {
         match node.kind {
             SyntaxKind::Literal => literal(self.text(node)),
             SyntaxKind::AnonymousFunction => self.anonymous_function(node),
+            SyntaxKind::Name if self.text(node) == "self" => {
+                let identity = self
+                    .current_object
+                    .as_ref()
+                    .expect("`self` is only lowered in an object method");
+                format!(
+                    "TerraneDescriptor {{ identity: {:?}, name: {:?}, kind: \"class\" }}",
+                    identity.to_string(),
+                    identity.name
+                )
+            }
             SyntaxKind::Name => {
                 let binding = self.unit.typed_bindings.iter().rev().find(|binding| {
                     binding.name == self.text(node)
@@ -3465,6 +3647,8 @@ impl Emitter<'_> {
             SyntaxKind::BinaryExpression => self.binary(node),
             SyntaxKind::TypeMembershipExpression => self.type_membership(node),
             SyntaxKind::MemberExpression => self.member(node),
+            SyntaxKind::StaticMemberExpression => self.static_member(node),
+            SyntaxKind::ConstructionExpression => Self::escaped_construction(node),
             SyntaxKind::IndexExpression => self.index(node),
             SyntaxKind::CallExpression => self.call(node),
             SyntaxKind::PostfixExpression => node
@@ -3494,11 +3678,21 @@ impl Emitter<'_> {
         {
             return self.expression_as(grouped, value_type);
         }
-        if let Some(actual) = self.value_type(node)
+        if !self.assignment_target
+            && let Some(actual) = self.value_type(node)
             && let ValueType::Reference(item) | ValueType::SharedReference(item) = actual
             && item.value_type() == value_type
         {
             return self.receiver_expression(node);
+        }
+        if !self.assignment_target
+            && let Some(ValueType::Optional(inner)) = self.value_type(node)
+            && *inner == value_type
+        {
+            return format!(
+                "({}).expect(\"semantic optional narrowing\")",
+                self.expression(node)
+            );
         }
         if node.kind == SyntaxKind::CallExpression
             && let [callee, arguments] = node.children.as_slice()
@@ -3715,6 +3909,9 @@ impl Emitter<'_> {
                 &value_type,
                 ValueType::Scalar(ScalarType::String | ScalarType::Bytes)
             )
+            && node.children.first().is_none_or(|receiver| {
+                !matches!(self.value_type(receiver), Some(ValueType::Descriptor(_)))
+            })
         {
             return format!("({}).clone()", self.expression(node));
         }
@@ -4606,6 +4803,51 @@ impl Emitter<'_> {
         }
     }
 
+    fn class_designator(&self, node: &SyntaxNode) -> Option<&ObjectContract> {
+        let name = self.text(node);
+        if name == "self" {
+            let identity = self.current_object.as_ref()?;
+            return self
+                .unit
+                .objects
+                .iter()
+                .find(|object| object.identity == *identity && object.kind == ObjectKind::Class);
+        }
+        if self.unit.typed_bindings.iter().rev().any(|binding| {
+            binding.name == name && binding.is_visible_at(self.unit.source.id(), node.span.start)
+        }) {
+            return None;
+        }
+        self.unit
+            .objects
+            .iter()
+            .find(|object| object.name == name && object.kind == ObjectKind::Class)
+    }
+
+    fn static_member(&mut self, node: &SyntaxNode) -> String {
+        let [receiver, member] = node.children.as_slice() else {
+            return String::new();
+        };
+        let Some(object) = self.class_designator(receiver) else {
+            return String::new();
+        };
+        let member_name = self.text(member);
+        if effective_object_fields(self.unit, object)
+            .iter()
+            .any(|field| field.is_static && field.name == member_name)
+        {
+            return format!(
+                "({}.lock().expect(\"static field lock poisoned\")).clone()",
+                rust_static_field_name(self.package, &object.identity, member_name)
+            );
+        }
+        format!(
+            "{}::terrane_static_{}",
+            rust_object_type_name(self.package, &object.identity),
+            rust_name(member_name)
+        )
+    }
+
     #[expect(
         clippy::too_many_lines,
         reason = "member lowering keeps one ordered dispatch across scalar and collection surfaces"
@@ -4964,36 +5206,7 @@ impl Emitter<'_> {
                 _ => String::new(),
             };
         }
-        if callee.kind == SyntaxKind::Name
-            && let Some(object) =
-                self.unit.objects.iter().find(|object| {
-                    object.kind == ObjectKind::Class && object.name == self.text(callee)
-                })
-        {
-            let construct = self.contract_for_call(callee).cloned();
-            let values = arguments
-                .children
-                .iter()
-                .enumerate()
-                .map(|(index, argument)| {
-                    let value = argument.children.last().unwrap_or(argument);
-                    let destination = construct
-                        .as_ref()
-                        .and_then(|contract| contract.parameters.get(index))
-                        .and_then(|parameter| parameter.value_type.clone());
-                    if let Some(ty) = destination {
-                        self.expression_as(value, ty)
-                    } else {
-                        self.expression(value)
-                    }
-                })
-                .collect::<Vec<_>>()
-                .join(", ");
-            return format!(
-                "{}::terrane_construct({values})",
-                rust_object_type_name(self.package, &object.identity)
-            );
-        }
+
         if callee.kind == SyntaxKind::MemberExpression
             && let [family, child] = callee.children.as_slice()
             && self.text(child) == "checked"
@@ -5795,7 +6008,27 @@ impl Emitter<'_> {
                 })
                 .collect();
         }
-        let name = if let Some(contract) = &contract
+        let name = if callee.kind == SyntaxKind::ConstructionExpression {
+            callee
+                .children
+                .first()
+                .and_then(|designator| self.class_designator(designator))
+                .map_or_else(String::new, |object| {
+                    format!(
+                        "{}::terrane_construct",
+                        rust_object_type_name(self.package, &object.identity)
+                    )
+                })
+        } else if let [receiver, member] = callee.children.as_slice()
+            && callee.kind == SyntaxKind::StaticMemberExpression
+            && let Some(object) = self.class_designator(receiver)
+        {
+            format!(
+                "{}::terrane_static_{}",
+                rust_object_type_name(self.package, &object.identity),
+                rust_name(self.text(member))
+            )
+        } else if let Some(contract) = &contract
             && contract.owner.is_none()
         {
             function_name(self.package, contract)
@@ -6370,17 +6603,39 @@ impl Emitter<'_> {
 
     fn contract_for_call(&self, callee: &SyntaxNode) -> Option<&FunctionContract> {
         if let [receiver, member] = callee.children.as_slice()
-            && callee.kind == SyntaxKind::MemberExpression
-            && let Some(ValueType::Object(object_name)) = self.receiver_value_type(receiver)
-            && let Some(object) = self
-                .unit
-                .objects
-                .iter()
-                .find(|object| object.identity == object_name)
+            && matches!(
+                callee.kind,
+                SyntaxKind::MemberExpression | SyntaxKind::StaticMemberExpression
+            )
         {
+            let is_static = callee.kind == SyntaxKind::StaticMemberExpression;
+            let object = if is_static {
+                self.class_designator(receiver)
+            } else {
+                self.receiver_value_type(receiver).and_then(|value_type| {
+                    let ValueType::Object(identity) = value_type else {
+                        return None;
+                    };
+                    self.unit
+                        .objects
+                        .iter()
+                        .find(|object| object.identity == identity)
+                })
+            }?;
             return effective_object_methods(self.unit, object)
                 .into_iter()
-                .find(|contract| contract.name == self.text(member));
+                .find(|contract| {
+                    contract.name == self.text(member) && contract.is_static == is_static
+                });
+        }
+        if callee.kind == SyntaxKind::ConstructionExpression {
+            let object = callee
+                .children
+                .first()
+                .and_then(|designator| self.class_designator(designator))?;
+            return effective_object_methods(self.unit, object)
+                .into_iter()
+                .find(|contract| contract.name == "construct" && !contract.is_static);
         }
         if callee.kind != SyntaxKind::Name {
             return None;
@@ -6389,18 +6644,6 @@ impl Emitter<'_> {
             self.package
                 .resolve_name_at(self.unit, callee.span.start, self.text(callee))?;
         let span = symbol.declaration_span?;
-        if let Some((namespace, object_name)) = symbol.identity.rsplit_once("::")
-            && let Some(unit) = self
-                .package
-                .units
-                .iter()
-                .find(|unit| unit.namespace == namespace)
-            && unit.objects.iter().any(|object| object.name == object_name)
-        {
-            return unit.functions.iter().find(|contract| {
-                contract.owner.as_deref() == Some(object_name) && contract.name == "construct"
-            });
-        }
         self.package
             .units
             .iter()
@@ -6421,16 +6664,19 @@ impl Emitter<'_> {
             }
             .to_owned();
         }
-        let narrowed =
-            narrowed_value_type(self.unit, node, &self.unit.typed_bindings).or_else(|| {
-                self.parameter_types
-                    .iter()
-                    .rev()
-                    .find(|(name, _)| name == source_name)
-                    .and_then(|(_, value_type)| {
-                        narrowed_optional_type(self.unit, node, value_type.clone())
-                    })
-            });
+        let narrowed = (!self.assignment_target)
+            .then(|| {
+                narrowed_value_type(self.unit, node, &self.unit.typed_bindings).or_else(|| {
+                    self.parameter_types
+                        .iter()
+                        .rev()
+                        .find(|(name, _)| name == source_name)
+                        .and_then(|(_, value_type)| {
+                            narrowed_optional_type(self.unit, node, value_type.clone())
+                        })
+                })
+            })
+            .flatten();
         if let Some(narrowed) = narrowed {
             let access = format!(
                 "{}.as_ref().expect(\"semantic optional narrowing\")",
@@ -7136,10 +7382,9 @@ fn effective_object_fields<'a>(
             }
         }
         for field in &object.fields {
-            if let Some(index) = fields
-                .iter()
-                .position(|existing| existing.name == field.name)
-            {
+            if let Some(index) = fields.iter().position(|existing| {
+                existing.name == field.name && existing.is_static == field.is_static
+            }) {
                 fields[index] = field;
             } else {
                 fields.push(field);
@@ -7246,10 +7491,9 @@ fn effective_object_methods<'a>(
             .iter()
             .filter(|method| method.owner.as_deref() == Some(object.identity.name.as_str()))
         {
-            if let Some(index) = methods
-                .iter()
-                .position(|existing| existing.name == method.name)
-            {
+            if let Some(index) = methods.iter().position(|existing| {
+                existing.name == method.name && existing.is_static == method.is_static
+            }) {
                 methods[index] = method;
             } else {
                 methods.push(method);
@@ -7646,6 +7890,18 @@ fn rust_object_type_name(package: &SemanticPackage, identity: &ObjectIdentity) -
             .expect("writing to a string cannot fail");
     }
     format!("TerraneNs{namespace}{}", rust_object_name(&identity.name))
+}
+
+fn rust_static_field_name(
+    package: &SemanticPackage,
+    identity: &ObjectIdentity,
+    field: &str,
+) -> String {
+    format!(
+        "TERRANE_STATIC_{}_{}",
+        rust_object_type_name(package, identity).to_ascii_uppercase(),
+        rust_name(field).to_ascii_uppercase()
+    )
 }
 
 fn rust_name(name: &str) -> String {

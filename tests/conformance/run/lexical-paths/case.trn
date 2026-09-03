@@ -4,10 +4,10 @@ from /core/output import print
 from /core/filesystem/paths import path, normalise-path, path-components, path-is-absolute, path-name, path-stem, path-extension, path-parent, join-path
 
 function main;
-    relative = path; 'alpha/./beta/../gamma/../../delta'
-    rooted = path; '/alpha/../../beta/file.tar.gz'
-    base = path; 'work/root'
-    child = path; '../next'
+    relative = instance path; 'alpha/./beta/../gamma/../../delta'
+    rooted = instance path; '/alpha/../../beta/file.tar.gz'
+    base = instance path; 'work/root'
+    child = instance path; '../next'
     relative-normal = normalise-path; relative
     rooted-normal = normalise-path; rooted
     relative-text = relative-normal.text
@@ -28,7 +28,7 @@ function main;
     print; resolved-text
     components = path-components; rooted-normal
     print; components.length, (path-is-absolute; rooted-normal), (path-is-absolute; relative-normal)
-    hidden = path; '.profile'
+    hidden = instance path; '.profile'
     print; (path-stem; hidden)
     print; (path-extension; hidden)
-    print; (path-parent; (path; 'child')).text
+    print; (path-parent; (instance path; 'child')).text

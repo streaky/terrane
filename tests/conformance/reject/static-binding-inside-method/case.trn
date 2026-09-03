@@ -1,0 +1,5 @@
+namespace static-binding-inside-method
+
+class widget
+    function update;
+        static count int = 0

@@ -22,7 +22,7 @@ class child extends base implements describable uses tagged
         return prefix.concat; 'child'
 
 function main;
-    value child = child;
+    value child = instance child;
     view describable = value
     base-view base = value
     print; (view.describe; 'a-')

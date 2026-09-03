@@ -3,15 +3,33 @@
   "dependencies": [
     {
       "name": "date-codec",
-      "version": "1.0.2",
+      "version": "1.0.3",
       "members": [
-        ["/deps/date-codec", "Error"],
-        ["/deps/date-codec", "fmt_http_date"],
-        ["/deps/date-codec", "parse_http_date"],
-        ["/deps/date-codec", "removed_parser"],
-        ["/deps/date-codec/date", "HttpDate"]
+        [
+          "/deps/date-codec",
+          "Error"
+        ],
+        [
+          "/deps/date-codec",
+          "fmt_http_date"
+        ],
+        [
+          "/deps/date-codec",
+          "parse_http_date"
+        ],
+        [
+          "/deps/date-codec/date",
+          "HttpDate"
+        ]
       ]
     }
   ],
-  "removed": []
+  "removed": [
+    {
+      "namespace": "/deps/date-codec",
+      "name": "removed_parser",
+      "previous_version": "1.0.2",
+      "current_version": "1.0.3"
+    }
+  ]
 }

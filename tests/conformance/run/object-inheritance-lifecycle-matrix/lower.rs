@@ -535,7 +535,7 @@ impl Child {
             "{}", terrane_scalar_support::scalar_text(&String::from("child-destruct"))
         );
     }
-    fn terrane_destruct_0(&self) {
+    pub fn terrane_destruct_0(&self) {
         println!(
             "{}", terrane_scalar_support::scalar_text(&String::from("base-destruct"))
         );

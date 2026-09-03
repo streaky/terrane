@@ -29,17 +29,17 @@ class document-value implements serializable
     encoded string = ''
     kind string = 'invalid'
     scalar string = ''
-    integer document-integer = document-integer; '0'
-    decimal document-decimal = document-decimal; '0', 0, '0'
+    integer document-integer = instance document-integer; '0'
+    decimal document-decimal = instance document-decimal; '0', 0, '0'
 
     private function construct; raw host-platform-data-result
         this.kind = host-document-kind; raw
         this.scalar = host-document-text; raw
         this.encoded = host-data-encoded; raw
         if this.kind == 'integer'
-            this.integer = document-integer; this.scalar
+            this.integer = instance document-integer; this.scalar
         if this.kind == 'decimal'
-            this.decimal = document-decimal; (host-document-coefficient; raw), (host-document-exponent; raw), this.scalar
+            this.decimal = instance document-decimal; (host-document-coefficient; raw), (host-document-exponent; raw), this.scalar
         this.raw = raw
 
     function length int;
@@ -64,14 +64,14 @@ class document-result
     message string = ''
     path string = '$'
     expected string = ''
-    value document-value = document-value; (host-empty-document;)
+    value document-value = instance document-value; (host-empty-document;)
 
     private function construct; failed bool, message string, path string, expected string, raw host-platform-data-result
         this.failed = failed
         this.message = message
         this.path = path
         this.expected = expected
-        this.value = document-value; raw
+        this.value = instance document-value; raw
 
 class document-mapping implements deserializable
     descriptor-name string = 'document-value'
@@ -98,17 +98,17 @@ function deserialize-document document-result; value document-value, destination
     return destination.from-document; value
 
 protected function make-document-result document-result; raw host-platform-data-result
-    return document-result; (host-data-failed; raw), (host-data-message; raw), (host-data-path; raw), (host-data-expected; raw), raw
+    return instance document-result; (host-data-failed; raw), (host-data-message; raw), (host-data-path; raw), (host-data-expected; raw), raw
 
 
 function make-document-none document-value;
-    return document-value; (host-make-document-none;)
+    return instance document-value; (host-make-document-none;)
 
 function make-document-bool document-value; value bool
-    return document-value; (host-make-document-bool; value)
+    return instance document-value; (host-make-document-bool; value)
 
 function make-document-string document-value; value string
-    return document-value; (host-make-document-string; value)
+    return instance document-value; (host-make-document-string; value)
 
 function make-document-integer document-result; value string
     return make-document-result; (host-make-document-integer; value)

@@ -18,7 +18,7 @@ class child extends base
         print; 'child-destruct'
 
 function main;
-    value child = child;
+    value child = instance child;
     print; (value.report;)
     value.set; 4
     print; (value.report;)

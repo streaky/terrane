@@ -59,7 +59,7 @@ function normalise-path path; subject path
         result = '/'.concat; result
     if result == '' and absolute
         result = '/'
-    return path; result
+    return instance path; result
 
 function path-name string; subject path
     normal = normalise-path; subject
@@ -74,7 +74,7 @@ function path-parent path; subject path
     if parts.length == 0
         return normal
     if parts.length == 1 and not (path-is-absolute; normal)
-        return path; '.'
+        return instance path; '.'
     result string = ''
     index int = 0
     while index < parts.length - 1
@@ -85,7 +85,7 @@ function path-parent path; subject path
     absolute = path-is-absolute; normal
     if absolute
         result = '/'.concat; result
-    return path; result
+    return instance path; result
 
 function path-stem string; subject path
     current = path-name; subject
@@ -120,5 +120,5 @@ function join-path path; base path, child path
     if joined != '' and not joined.contains.end; '/'
         joined = joined.concat; '/'
     joined = joined.concat; child.text
-    combined = path; joined
+    combined = instance path; joined
     return normalise-path; combined

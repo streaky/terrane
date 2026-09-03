@@ -21,9 +21,9 @@ function main;
     print; invalid-host.failed
     port int = 443
     deadline int = 1000
-    cancellation = network-cancellation-token;
+    cancellation = instance network-cancellation-token;
     network-cancel-operation; cancellation
-    cancelled = network-operation-options; deadline, cancellation
+    cancelled = instance network-operation-options; deadline, cancellation
     host = parse-host-name; 'localhost'
     lookup = lookup-dns; host.value, port, cancelled
     print; lookup.failed

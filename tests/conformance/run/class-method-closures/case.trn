@@ -7,7 +7,7 @@ class maker
       return this.base + value
 
 function main;
-  value maker = maker;
+  value maker = instance maker;
   add function from int to int = value.offset;
   result int = add; 5
   print; result

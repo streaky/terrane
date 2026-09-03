@@ -1,0 +1,15 @@
+namespace explicit-class-operations
+
+class widget
+    value int = 1
+
+    static function create widget;
+        return instance self;
+
+    function read int;
+        return this.value
+
+function main;
+    direct widget = instance widget;
+    factory widget = widget::create;
+    print; (direct.read;), (factory.read;)

@@ -1,0 +1,6 @@
+namespace direct-class-invocation
+
+class widget
+
+function main;
+    value widget = widget;

@@ -1,0 +1,7 @@
+namespace static-selection-instance-member
+
+class widget
+
+    function reset;
+function main;
+    widget::reset;

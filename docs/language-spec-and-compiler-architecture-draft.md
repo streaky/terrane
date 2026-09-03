@@ -1160,11 +1160,12 @@ print; message
 
 For a function object, the default behaviour executes the function.
 
-For a class object, the default behaviour constructs an instance.
-
 For an importer, it resolves an import request.
 
 For an ordinary object, the class may define whatever default invocation means.
+
+A class object has no implicit default invocation. Construction is the distinct `instance`
+operation described in §9.10, and static member selection uses `::`.
 
 A zero-argument invocation is explicit:
 
@@ -1172,27 +1173,46 @@ A zero-argument invocation is explicit:
 thing = thing;
 ```
 
-### 9.3 Member lookup and member invocation
+### 9.3 Instance and static member selection
 
-No whitespace before the dot means member access:
+No whitespace before the dot means member access on an object instance:
 
 ```text
-print.concat
+value.member
 ```
 
-The result is the `concat` member object.
-
-Invoking it is ordinary default invocation:
+The result is the `member` object bound to `value`. Invoking it is ordinary default invocation:
 
 ```terrane
-print.concat; a, b, c
+value.member; a, b, c
 ```
 
-A zero-argument method invocation remains explicit:
+A zero-argument instance method invocation remains explicit:
 
 ```terrane
 buffer.clear;
 ```
+
+`::` instead selects a member from a class object:
+
+```terrane
+widget::current
+widget::from-config; config
+```
+
+The left operand is a simple class name visible in the current scope, or `self` inside a class
+method; imported classes are selected through their imported local name. `::` marks static/class
+selection, and the right operand names the member. Selection and invocation remain distinct: a
+static field needs no semicolon, while a zero-argument static method call does:
+
+```terrane
+widget::default;
+```
+
+`.` never selects a static member and `::` never selects an instance member. This distinction is
+present in the syntax tree before either name is resolved. The shifted punctuation keeps the class
+designator/member boundary visually distinct from ordinary instance selection; ordinary
+high-frequency syntax continues to prefer unshifted punctuation where it is equally clear.
 
 ### 9.4 Objects as arguments
 
@@ -1371,12 +1391,19 @@ class widget
     return this.width * this.height
 ```
 
-The implicit binding `this` refers to the current instance. It is not written as an explicit first parameter.
-
-The class object’s default invocation constructs:
+The implicit binding `this` refers to the current instance. It is available only in an instance
+method and is not written as an explicit first parameter. A class is constructed only through the
+explicit `instance` operation:
 
 ```terrane
-widget = widget; 100, 50
+item widget = instance widget; 100, 50
+```
+
+Invoking the class name does not construct it:
+
+```terrane
+widget;                 # not construction
+instance widget;        # zero-argument construction
 ```
 
 ### 9.8 Functions and methods are objects
@@ -1403,23 +1430,84 @@ handler = server.handle
 handler; request
 ```
 
-### 9.9 Static/class behaviour
+### 9.9 Static/class behaviour, `self`, and `this`
 
-Functions declared inside a class are instance methods by default.
-
-A `static` qualifier declares a function on the class object rather than on instances:
+Fields and functions declared inside a class are instance members by default. A `static` qualifier
+declares a field or function on the class object rather than on its instances:
 
 ```terrane
 class widget
 
-  static function from-config widget; config
+  private static current widget|none = none
+
+  static function shared widget;
+    ...
 ```
 
-Static state is state on the class object and follows the same visibility and concurrency rules as other globals/shared objects.
+Static members are selected with `::`, never `.`, and instance members are selected with `.`,
+never `::`:
+
+```terrane
+shared widget = widget::shared;
+widget.configure; config
+```
+
+`this` denotes the current object instance and exists only in instance methods. `self` denotes the
+effective class receiver and exists in both instance and static methods:
+
+```terrane
+class widget
+
+  function type-name;
+    print; self
+
+  static function create widget;
+    return instance self;
+```
+
+For inherited behaviour, `self` follows the class through which the method was selected rather
+than the class in which its body was declared. Given:
+
+```terrane
+class animal
+
+  static function create animal;
+    return instance self;
+
+
+class dog extends animal
+```
+
+`dog::create;` executes the inherited method with `self` bound to `dog`, so `instance self;`
+constructs `dog`. Source names the declaring class explicitly when lexical-class behaviour is
+required; Terrane does not split lexical and late-bound class context into separate implicit
+bindings.
+
+Static state is state on a class object and follows the same authored visibility and concurrency
+rules as other globals. Instance storage is independent between constructed values; static storage
+is shared by selections whose effective class receiver is the same class. The Rust backend
+currently represents each mutable static field, like mutable program-global storage, with
+`LazyLock<Mutex<T>>`: initialization occurs once, each read copies the stored Terrane value, and
+each individual read or write holds the compiler-owned lock only for that operation. A poisoned
+lock terminates execution as an internal runtime failure. This representation prevents host data
+races but does not make a sequence of source operations atomic and does not satisfy the authored
+shared-thread-safe protocol; cross-task invariants still require an explicit concurrency object.
 
 ### 9.10 Construction and destruction
 
-`construct` is the conventional constructor method used by a class object’s default invocation.
+`instance class; arguments` constructs a fresh instance and invokes its conventional `construct`
+method with those arguments. The semicolon is required even when construction has no arguments:
+
+```terrane
+item empty = instance widget;
+item sized = instance widget; 100, 50
+```
+
+`instance` denotes semantic instantiation, not allocation. The compiler may realise the result as
+a stack value, native Rust struct, optimised scalar representation, heap allocation, or any other
+representation preserving Terrane semantics. The class operand is resolved as a class designator,
+not invoked as an ordinary callable; it may be a written class name or the implicit `self`
+class receiver.
 
 `destruct` is the conventional deterministic destruction hook:
 
@@ -1882,7 +1970,7 @@ A class name is usable as a type expression, and is renamed the same way:
 ```terrane
 from /models import user as user-type
 
-person user-type = user-type; data
+person user-type = instance user-type; data
 ```
 
 The compiler resolves type compatibility through the object’s type protocol.

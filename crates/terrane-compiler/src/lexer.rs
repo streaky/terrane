@@ -464,10 +464,16 @@ fn lex_line(
             }
             b':' => {
                 index += 1;
+                let kind = if bytes.get(index) == Some(&b':') {
+                    index += 1;
+                    TokenKind::DoubleColon
+                } else {
+                    TokenKind::Colon
+                };
                 push_token(
                     source,
                     tokens,
-                    TokenKind::Colon,
+                    kind,
                     base + start,
                     base + index,
                     attachment(line, start, index),

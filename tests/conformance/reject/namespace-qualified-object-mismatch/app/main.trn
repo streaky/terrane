@@ -6,5 +6,5 @@ function accept; item left-response
     return
 
 function main;
-    actual right-response = right-response;
+    actual right-response = instance right-response;
     accept; actual

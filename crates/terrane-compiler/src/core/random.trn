@@ -37,7 +37,7 @@ class secret-buffer
 
 function destroy-secret secret-operation-result; secret secret-buffer
     raw = host-destroy-secret; secret.handle
-    return secret-operation-result; (host-result-failed; raw), (host-result-message; raw)
+    return instance secret-operation-result; (host-result-failed; raw), (host-result-message; raw)
 
 class digest-value
     algorithm string = ''
@@ -56,7 +56,7 @@ class digest-value
 class digest-result
     failed bool = false
     message string = ''
-    value digest-value = digest-value; '', b''
+    value digest-value = instance digest-value; '', b''
 
     function construct; failed bool, message string, digest digest-value
         this.failed = failed
@@ -80,7 +80,7 @@ class signature-value
 class signature-result
     failed bool = false
     message string = ''
-    value signature-value = signature-value; '', b''
+    value signature-value = instance signature-value; '', b''
 
     function construct; failed bool, message string, signature signature-value
         this.failed = failed
@@ -95,11 +95,11 @@ class secure-random
 
     function generate-bytes byte-result; count int
         raw = host-random-bytes; this.handle, count
-        return byte-result; (host-result-failed; raw), (host-result-message; raw), (host-result-bytes; raw)
+        return instance byte-result; (host-result-failed; raw), (host-result-message; raw), (host-result-bytes; raw)
 
     function bounded-int random-int-result; upper-exclusive int
         raw = host-random-bounded; this.handle, upper-exclusive
-        return random-int-result; (host-result-failed; raw), (host-result-message; raw), (host-result-int; raw)
+        return instance random-int-result; (host-result-failed; raw), (host-result-message; raw), (host-result-int; raw)
 
 class pseudo-random-algorithm
     name string = ''
@@ -108,7 +108,7 @@ class pseudo-random-algorithm
         this.name = name
 
 function chacha20 pseudo-random-algorithm;
-    return pseudo-random-algorithm; 'chacha20'
+    return instance pseudo-random-algorithm; 'chacha20'
 
 class pseudo-random
     private handle host-platform-capability = host-pseudo-random; 'chacha20', b''
@@ -118,38 +118,38 @@ class pseudo-random
 
     function generate-bytes byte-result; count int
         raw = host-random-bytes; this.handle, count
-        return byte-result; (host-result-failed; raw), (host-result-message; raw), (host-result-bytes; raw)
+        return instance byte-result; (host-result-failed; raw), (host-result-message; raw), (host-result-bytes; raw)
 
     function bounded-int random-int-result; upper-exclusive int
         raw = host-random-bounded; this.handle, upper-exclusive
-        return random-int-result; (host-result-failed; raw), (host-result-message; raw), (host-result-int; raw)
+        return instance random-int-result; (host-result-failed; raw), (host-result-message; raw), (host-result-int; raw)
 
     function split pseudo-random;
         raw = host-random-split; this.handle
-        child = pseudo-random; (chacha20;), b''
+        child = instance pseudo-random; (chacha20;), b''
         child.handle = host-result-capability; raw
         return child
 
 function split-pseudo pseudo-random; source pseudo-random
     raw = host-random-split; source.handle
-    child = pseudo-random; (chacha20;), b''
+    child = instance pseudo-random; (chacha20;), b''
     child.handle = host-result-capability; raw
     return child
 function secure-bytes byte-result; source secure-random, count int
     raw = host-random-bytes; source.handle, count
-    return byte-result; (host-result-failed; raw), (host-result-message; raw), (host-result-bytes; raw)
+    return instance byte-result; (host-result-failed; raw), (host-result-message; raw), (host-result-bytes; raw)
 
 function pseudo-bytes byte-result; source pseudo-random, count int
     raw = host-random-bytes; source.handle, count
-    return byte-result; (host-result-failed; raw), (host-result-message; raw), (host-result-bytes; raw)
+    return instance byte-result; (host-result-failed; raw), (host-result-message; raw), (host-result-bytes; raw)
 
 function secure-bounded-int random-int-result; source secure-random, upper-exclusive int
     raw = host-random-bounded; source.handle, upper-exclusive
-    return random-int-result; (host-result-failed; raw), (host-result-message; raw), (host-result-int; raw)
+    return instance random-int-result; (host-result-failed; raw), (host-result-message; raw), (host-result-int; raw)
 
 function pseudo-bounded-int random-int-result; source pseudo-random, upper-exclusive int
     raw = host-random-bounded; source.handle, upper-exclusive
-    return random-int-result; (host-result-failed; raw), (host-result-message; raw), (host-result-int; raw)
+    return instance random-int-result; (host-result-failed; raw), (host-result-message; raw), (host-result-int; raw)
 
 class hash-algorithm
     name string = ''
@@ -159,20 +159,20 @@ class hash-algorithm
 
 
 function sha256 hash-algorithm;
-    return hash-algorithm; 'sha-256'
+    return instance hash-algorithm; 'sha-256'
 
 function sha512 hash-algorithm;
-    return hash-algorithm; 'sha-512'
+    return instance hash-algorithm; 'sha-512'
 
 function digest-bytes digest-result; algorithm hash-algorithm, data bytes
     raw = host-digest; algorithm.name, data
-    value = digest-value; algorithm.name, (host-result-bytes; raw)
-    return digest-result; (host-result-failed; raw), (host-result-message; raw), value
+    value = instance digest-value; algorithm.name, (host-result-bytes; raw)
+    return instance digest-result; (host-result-failed; raw), (host-result-message; raw), value
 
 function sign-hmac signature-result; algorithm hash-algorithm, key secret-buffer, data bytes
     raw = host-hmac; algorithm.name, key.handle, data
-    value = signature-value; algorithm.name, (host-result-bytes; raw)
-    return signature-result; (host-result-failed; raw), (host-result-message; raw), value
+    value = instance signature-value; algorithm.name, (host-result-bytes; raw)
+    return instance signature-result; (host-result-failed; raw), (host-result-message; raw), value
 
 function digest-equals bool; left digest-value, right digest-value
     return left.constant-time-equals; right

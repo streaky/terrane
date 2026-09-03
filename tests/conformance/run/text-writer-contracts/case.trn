@@ -5,7 +5,7 @@ function main;
     output = stdout;
     prefix = output.write; b'a'
     writer = output.text; utf8
-    partial = write-result; b'abc', 1, false, ''
+    partial = instance write-result; b'abc', 1, false, ''
     resumed = writer.resume; partial
     line = writer.line; 'x'
     data-sync = writer.sync-data;

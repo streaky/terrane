@@ -12,21 +12,21 @@ class tls-stream
     function read io-result; limit int, options network-operation-options
         cancellation = operation-cancellation; options
         raw = host-tls-read; this.handle, limit, options.deadline-ms, cancellation
-        return io-result; (host-result-failed; raw), false, (host-result-deadline-exceeded; raw), (host-result-message; raw), (host-result-bytes; raw), (host-result-int; raw), '', (host-result-bool; raw)
+        return instance io-result; (host-result-failed; raw), false, (host-result-deadline-exceeded; raw), (host-result-message; raw), (host-result-bytes; raw), (host-result-int; raw), '', (host-result-bool; raw)
 
     function write io-result; data bytes, options network-operation-options
         cancellation = operation-cancellation; options
         raw = host-tls-write; this.handle, data, options.deadline-ms, cancellation
-        return io-result; (host-result-failed; raw), false, (host-result-deadline-exceeded; raw), (host-result-message; raw), b'', (host-result-int; raw), '', false
+        return instance io-result; (host-result-failed; raw), false, (host-result-deadline-exceeded; raw), (host-result-message; raw), b'', (host-result-int; raw), '', false
 
     function close network-operation-result;
         raw = host-close; this.handle
-        return network-operation-result; (host-result-failed; raw), (host-result-deadline-exceeded; raw), (host-result-message; raw)
+        return instance network-operation-result; (host-result-failed; raw), (host-result-deadline-exceeded; raw), (host-result-message; raw)
 
     function shutdown network-operation-result; options network-operation-options
         cancellation = operation-cancellation; options
         raw = host-tls-shutdown; this.handle, options.deadline-ms, cancellation
-        return network-operation-result; (host-result-failed; raw), (host-result-deadline-exceeded; raw), (host-result-message; raw)
+        return instance network-operation-result; (host-result-failed; raw), (host-result-deadline-exceeded; raw), (host-result-message; raw)
 
     function destruct;
         host-close; this.handle
@@ -35,7 +35,7 @@ class tls-result
     failed bool = false
     deadline-exceeded bool = false
     message string = ''
-    value tls-stream = tls-stream; (host-no-resource;)
+    value tls-stream = instance tls-stream; (host-no-resource;)
 
     function construct; failed bool, deadline-exceeded bool, message string, stream tls-stream
         this.failed = failed
@@ -48,7 +48,7 @@ class tls-result
 function connect-tls tls-result; stream tcp-stream, server-name network-host-name, options network-operation-options
     cancellation = operation-cancellation; options
     raw = host-tls-client; stream.handle, server-name.value, options.deadline-ms, cancellation
-    value = tls-stream; (host-result-resource; raw)
+    value = instance tls-stream; (host-result-resource; raw)
     if not (host-result-failed; raw)
         value.negotiated-version = host-result-text; raw
-    return tls-result; (host-result-failed; raw), (host-result-deadline-exceeded; raw), (host-result-message; raw), value
+    return instance tls-result; (host-result-failed; raw), (host-result-deadline-exceeded; raw), (host-result-message; raw), value

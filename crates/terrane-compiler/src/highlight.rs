@@ -145,7 +145,7 @@ fn classify_node(
                 classify_names(name, tokens, classified, HighlightKind::Variable, true);
             }
         }
-        SyntaxKind::MemberExpression => {
+        SyntaxKind::MemberExpression | SyntaxKind::StaticMemberExpression => {
             if let Some(name) = node
                 .children
                 .last()
@@ -204,6 +204,9 @@ fn is_keyword(text: &str) -> bool {
             | "global"
             | "constant"
             | "static"
+            | "instance"
+            | "self"
+            | "this"
             | "async"
             | "unsafe"
             | "throws"
@@ -222,7 +225,6 @@ fn is_keyword(text: &str) -> bool {
             | "a"
             | "ref"
             | "shared"
-            | "this"
             | "construct"
             | "destruct"
             | "move"

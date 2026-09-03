@@ -1,0 +1,4 @@
+namespace duplicate-static-qualifier
+
+class widget
+    static static count int = 0

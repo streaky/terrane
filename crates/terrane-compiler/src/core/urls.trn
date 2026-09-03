@@ -50,7 +50,7 @@ class url
     host string = ''
     port string = ''
     path string = ''
-    query url-query = url-query;
+    query url-query = instance url-query;
     fragment string = ''
     origin string = ''
 
@@ -76,7 +76,7 @@ class url
 class url-result
     failed bool = false
     message string = ''
-    value url = url; '', '', '', '', '', '', '', '', (url-query;), '', ''
+    value url = instance url; '', '', '', '', '', '', '', '', (instance url-query;), '', ''
 
     function construct; failed bool, message string, parsed-url url
         this.failed = failed
@@ -86,17 +86,17 @@ class url-result
 private function url-from-platform url-result; raw host-platform-url-result
     failed = host-url-failed; raw
     if failed
-        empty-query = url-query;
-        empty-url = url; '', '', '', '', '', '', '', '', empty-query, '', ''
-        return url-result; true, (host-url-message; raw), empty-url
-    query = url-query;
+        empty-query = instance url-query;
+        empty-url = instance url; '', '', '', '', '', '', '', '', empty-query, '', ''
+        return instance url-result; true, (host-url-message; raw), empty-url
+    query = instance url-query;
     count = host-url-query-length; raw
     index int = 0
     while index < count
         query = append-query-entry; query, (host-url-query-key; raw, index), (host-url-query-value; raw, index)
         index = index + 1
-    value = url; (host-url-serialized; raw), (host-url-display; raw), (host-url-scheme; raw), (host-url-username; raw), (host-url-password; raw), (host-url-host; raw), (host-url-port; raw), (host-url-path; raw), query, (host-url-fragment; raw), (host-url-origin; raw)
-    return url-result; false, '', value
+    value = instance url; (host-url-serialized; raw), (host-url-display; raw), (host-url-scheme; raw), (host-url-username; raw), (host-url-password; raw), (host-url-host; raw), (host-url-port; raw), (host-url-path; raw), query, (host-url-fragment; raw), (host-url-origin; raw)
+    return instance url-result; false, '', value
 
 function parse-url url-result; input string
     raw = host-url-parse; input, ''

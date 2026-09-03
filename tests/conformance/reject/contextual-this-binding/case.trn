@@ -1,0 +1,4 @@
+namespace contextual-this-binding
+
+function main;
+    this int = 4

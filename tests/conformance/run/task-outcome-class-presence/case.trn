@@ -6,7 +6,7 @@ class point
     this.x = x
 
 async function make point;
-  return point; 5
+  return instance point; 5
 
 function main;
   scope = task-scope;

@@ -17,7 +17,7 @@ class hex-codec
 
     function decode decode-result; text string
         raw = host-hex-decode; text
-        return decode-result; (host-result-failed; raw), (host-result-message; raw), (host-result-bytes; raw)
+        return instance decode-result; (host-result-failed; raw), (host-result-message; raw), (host-result-bytes; raw)
 
 class base64-codec
     url-safe bool = false
@@ -30,27 +30,27 @@ class base64-codec
 
     function decode decode-result; text string, padded bool
         raw = host-base64-decode; text, this.url-safe, padded
-        return decode-result; (host-result-failed; raw), (host-result-message; raw), (host-result-bytes; raw)
+        return instance decode-result; (host-result-failed; raw), (host-result-message; raw), (host-result-bytes; raw)
 
 function hex hex-codec;
-    return hex-codec;
+    return instance hex-codec;
 
 function base64 base64-codec;
-    return base64-codec; false
+    return instance base64-codec; false
 
 function base64-url base64-codec;
-    return base64-codec; true
+    return instance base64-codec; true
 
 function encode-hex string; data bytes
     return host-hex-encode; data
 
 function decode-hex decode-result; text string
     raw = host-hex-decode; text
-    return decode-result; (host-result-failed; raw), (host-result-message; raw), (host-result-bytes; raw)
+    return instance decode-result; (host-result-failed; raw), (host-result-message; raw), (host-result-bytes; raw)
 
 function encode-base64 string; data bytes, url-safe bool, padded bool
     return host-base64-encode; data, url-safe, padded
 
 function decode-base64 decode-result; text string, url-safe bool, padded bool
     raw = host-base64-decode; text, url-safe, padded
-    return decode-result; (host-result-failed; raw), (host-result-message; raw), (host-result-bytes; raw)
+    return instance decode-result; (host-result-failed; raw), (host-result-message; raw), (host-result-bytes; raw)

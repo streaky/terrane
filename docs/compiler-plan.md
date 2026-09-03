@@ -1200,45 +1200,55 @@ Caller-supplied pair conversion callbacks are not implemented.
 
 Deliver:
 
-- class declaration, fields, construction through `construct`, destruction through `destruct`, and deterministic drop;
+- class declaration, instance and static fields and methods, explicit `instance class; arguments`
+  construction through `construct`, `.` instance selection, `::` static selection, late-bound
+  `self`, destruction through `destruct`, and deterministic drop;
 - single class inheritance preserving complete subclass state;
 - structural named interfaces and non-type traits with explicit conflict resolution;
 - dispatch and compatibility over the descriptor model rather than a parallel class table.
 
 Exit criterion: each of construction, inheritance, interface conformance, and trait reuse has an executable slice; dynamic-object state is preserved end to end.
 
-Implemented evidence (partial; the exit criterion remains open): source classes lower typed fields,
-custom `construct`, one-lineage-per-independent-value `destruct`, mutating receivers inferred
-transitively from effective method contracts, immutable methods, and separated value state.
-Ordinary assignment, by-value closure capture, and interface-typed copies create fresh lifecycle
-lineages, while compiler-only Rust clones remain within their originating lineage. Single
-inheritance of arbitrary depth retains base and subclass fields, lets methods access flattened
-storage directly, recursively forwards base-typed field reads and writes through generated
-wrappers, dispatches overridden methods, inherits base interface conformance, safely widens
-inherited `this` returns, and composes overridden destruction hooks from the most-derived class
-toward the root base. Declared, nominal interface conformance lowers through typed protocol
-wrappers and preserves mutating receiver
+Implemented evidence (partial; the exit criterion remains open): source classes lower typed instance
+and static fields and methods; construction is explicit through `instance class; arguments`, with
+bare class invocation rejected; `.` and `::` are distinct syntax and semantic paths that reject the
+opposite member kind; `this` is instance-only; and late-bound `self` supports inherited static
+factories and independently stored state for each effective class. Static fields use the same
+compiler-owned per-operation synchronization strategy as mutable globals, including nested member
+mutation without copy-out. Custom `construct`, one-lineage-per-independent-value `destruct`,
+mutating receivers inferred transitively from effective method contracts, immutable methods, and
+separated value state are implemented. Ordinary assignment, by-value closure capture, and
+interface-typed copies create fresh lifecycle lineages, while compiler-only Rust clones remain
+within their originating lineage. Single inheritance of arbitrary depth retains base and subclass
+fields, lets methods access flattened storage directly, recursively forwards instance field reads
+and writes through generated wrappers, dispatches overridden methods, inherits base interface
+conformance, safely widens inherited `this` and static `self` factory returns, and composes
+overridden destruction hooks from the most-derived class toward the root base. Declared, nominal
+interface conformance lowers through typed protocol wrappers and preserves mutating receiver
 requirements inferred from implementations, while traits reuse fields and methods. Executable
-cases cover construction, separated state and destruction, inheritance, inherited fields including
+cases isolate direct construction and member dispatch, independent instance state, singleton
+state, inherited `self` construction, inherited per-effective-class static state, nested static
+field mutation, separated state and destruction, inheritance, inherited fields including
 ten-level read/write forwarding, interface conformance across inheritance, self-typed returns,
 immutable and mutating interface dispatch, trait reuse, and combined
-inheritance/interface/lifecycle behavior; rejected cases cover
-uninitialized fields, missing interface methods, incompatible signatures, and unresolved trait
-conflicts. Structural conformance and integration with the descriptor model remain outstanding;
-object analysis currently uses a compiler-owned parallel
-contract table.
+inheritance/interface/lifecycle behavior. Rejected cases cover implicit class invocation,
+construction postfixes before the required call marker, missing/non-class construction
+designators, non-class static selectors, static-selector whitespace, duplicate or out-of-class
+static qualifiers, contextual-name declarations, class-designator shadowing, cross-kind member
+selection, `this` in static methods, missing construction punctuation, uninitialized fields,
+missing interface methods, incompatible signatures, and unresolved trait conflicts. Structural
+conformance and integration with the descriptor model remain outstanding; object analysis
+currently uses a compiler-owned parallel contract table.
 
-Construct/destruct notes, and the docs should be updated to reflect this when we get there:
+Construct/destruct contract:
 
 ```markdown
 Ordinary declared methods with compiler-recognized lifecycle roles. That preserves the object model while still letting the compiler guarantee invocation at the right times.
 
-A few semantics worth fixing explicitly:
-
 `construct`
 
-- called by class default invocation;
-- may take parameters (though doesn't have to);
+- called only by the explicit `instance class; arguments` operation;
+- may take parameters (though it does not have to);
 - runs after storage exists but before the instance becomes externally observable;
 - if it throws, partially initialized state is cleaned up deterministically.
 
@@ -1246,10 +1256,11 @@ A few semantics worth fixing explicitly:
 
 - zero-argument;
 - invoked exactly once for an owned instance when its lifetime ends;
-- should probably not be called automatically on values whose ownership was moved away;
-- throwing from destruct either forbidden or very constrained, because destruction during another error path gets ugly quickly.
+- is not invoked automatically on a value whose ownership was moved away;
+- cannot throw in version one, because destruction during an active error path must not replace or obscure that error.
 
-Destruct over drop for Terrane. drop is excellent Rust terminology, but construct / destruct form a much more obvious pair at the source-language level. That symmetry is valuable.
+`construct` / `destruct` are ordinary declared methods with compiler-recognized lifecycle roles.
+The paired Terrane terminology is retained instead of Rust's `drop`.
 ```
 
 ### Milestone 17 — References and provenance

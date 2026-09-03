@@ -7,4 +7,4 @@ class report implements printable
     value int = 1
 
 function main;
-    value report = report;
+    value report = instance report;

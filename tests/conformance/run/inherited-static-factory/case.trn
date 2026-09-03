@@ -1,0 +1,14 @@
+namespace inherited-static-factory
+
+class animal
+    static function create animal;
+        return instance self;
+
+    function class-name string;
+        return self.name
+
+class dog extends animal
+
+function main;
+    pet dog = dog::create;
+    print; (pet.class-name;)

@@ -1,0 +1,6 @@
+namespace this-in-static-method
+
+class widget
+
+    static function invalid;
+        print; this

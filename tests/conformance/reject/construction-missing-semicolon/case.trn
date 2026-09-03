@@ -1,0 +1,6 @@
+namespace construction-missing-semicolon
+
+class widget
+
+function main;
+    value widget = instance widget

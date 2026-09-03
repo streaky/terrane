@@ -1,0 +1,9 @@
+namespace instance-selection-static-member
+
+class widget
+
+    static function reset;
+
+function main;
+    value widget = instance widget;
+    value.reset;

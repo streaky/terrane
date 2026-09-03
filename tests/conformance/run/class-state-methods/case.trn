@@ -17,7 +17,7 @@ class counter
         print; 'destruct'
 
 function main;
-    first counter = counter; 10
+    first counter = instance counter; 10
     second counter = first
     shift function from int to int = first.shifted
     print; (first.increase; 5)

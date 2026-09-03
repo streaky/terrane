@@ -55,7 +55,7 @@ function main;
     optional-fields list of string = list; 'nickname'
     default-fields list of string = list; 'active'
     default-values list of string = list; 'true'
-    mapping = document-mapping; 'person', 'map', false
+    mapping = instance document-mapping; 'person', 'map', false
     mapping.field-names = fields
     mapping.optional-fields = optional-fields
     mapping.default-fields = default-fields
@@ -70,26 +70,26 @@ function main;
     mapped = decode-document; mapped.value, mapping
     active = mapped.value.field; 'active'
     print; mapped.failed, active.value.scalar
-    constructor-mapping = document-mapping; 'open-map', 'map', true
+    constructor-mapping = instance document-mapping; 'open-map', 'map', true
     constructor-input = parse-json; '{"a":1}', options
     constructor-result = decode-document; constructor-input.value, constructor-mapping
     print; constructor-result.failed, constructor-result.value.encoded
 
-    encoded-note = encode-json; (note; 'hello'), options
-    encoded-yaml-note = encode-yaml; (note; 'hello')
+    encoded-note = encode-json; (instance note; 'hello'), options
+    encoded-yaml-note = encode-yaml; (instance note; 'hello')
     print; encoded-note.value.encoded, encoded-yaml-note.value.encoded
     exact-integer = make-document-integer; '123456789012345678901234567890'
     exact-decimal = make-document-decimal; '1.2300'
     values list of document-value = list; exact-integer.value, exact-decimal.value, (make-document-none;)
     built-list = make-document-list; values
     print; built-list.failed, built-list.value.encoded
-    entries = document-map-entries;
+    entries = instance document-map-entries;
     entries = append-document-map-entry; entries, 'message', (make-document-string; 'hello')
     count-value = make-document-integer; '123456789012345678901234567890'
     entries = append-document-map-entry; entries, 'count', count-value.value
     built-map = make-document-map; entries
     print; built-map.failed, built-map.value.encoded
-    duplicate-entries = document-map-entries;
+    duplicate-entries = instance document-map-entries;
     duplicate-entries = append-document-map-entry; duplicate-entries, 'same', (make-document-string; 'first')
     duplicate-entries = append-document-map-entry; duplicate-entries, 'same', (make-document-string; 'second')
     duplicate-map = make-document-map; duplicate-entries
@@ -98,10 +98,10 @@ function main;
     decoded-through-interface = decode-json; '{"name":"Ada"}', mapping, options
     print; decoded-through-interface.failed
 
-    negative-limits = json-options; -1, -1
+    negative-limits = instance json-options; -1, -1
     limited = parse-json; '{}', negative-limits
     print; limited.failed, (limited.message.contains; 'byte limit')
-    excessive-depth = parse-json; '[]', (json-options; 1000000, 1024)
+    excessive-depth = parse-json; '[]', (instance json-options; 1000000, 1024)
     print; excessive-depth.failed, (excessive-depth.message.contains; 'cannot exceed')
     trailing-json = parse-json; '{"a":1} garbage', options
     print; trailing-json.failed, (trailing-json.message.contains; 'trailing characters')

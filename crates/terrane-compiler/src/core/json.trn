@@ -13,7 +13,7 @@ class json-options
         this.max-bytes = max-bytes
 
 function default-json-options json-options;
-    return json-options; 256, 16777216
+    return instance json-options; 256, 16777216
 
 function parse-json document-result; input string, options json-options
     raw = host-json-parse; input, options.max-depth, options.max-bytes

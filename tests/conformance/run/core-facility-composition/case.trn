@@ -4,6 +4,6 @@ import /core/filesystem
 import /core/streams
 
 function main;
-    filesystem-result = filesystem-operation-result; false, ''
-    stream-result = stream-operation-result; false, ''
+    filesystem-result = instance filesystem-operation-result; false, ''
+    stream-result = instance stream-operation-result; false, ''
     print; not filesystem-result.failed and not stream-result.failed

@@ -23,7 +23,7 @@ class level9 extends level8
     f9 int = 9
 
 function main;
-    leaf level9 = level9;
+    leaf level9 = instance level9;
     print; leaf.f0, leaf.f5, leaf.f9
     root level0 = leaf
     print; root.f0

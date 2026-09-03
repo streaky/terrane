@@ -1,0 +1,7 @@
+namespace construction-postfix-before-call
+
+class widget
+    value int = 1
+
+function main;
+    value int = instance widget.value;

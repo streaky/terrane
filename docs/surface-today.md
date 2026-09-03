@@ -231,9 +231,11 @@ Terrane package
     │   ├── anonymous function                 value-capturing closure
     │   └── bound method                       receiver captured once
     ├── class
-    │   ├── field                              inherited or directly declared state
-    │   ├── construct / destruct               compiler-recognized lifecycle methods
-    │   └── method                             receiver-bound function
+    │   ├── instance field / method             selected with `.`
+    │   ├── static field / method               selected with `::`
+    │   ├── instance                            explicit construction operation
+    │   ├── self / this                         class / instance implicit receivers
+    │   └── construct / destruct                compiler-recognized lifecycle methods
     ├── interface                              named structural dispatch contract
     ├── trait                                  reusable fields and methods
     └── lexical block
@@ -616,18 +618,24 @@ A top-level plain assignment creates a namespace variable. Functions cannot read
 
 ## Classes, interfaces, traits, and references
 
-Classes provide typed, definitely initialized fields, ordinary methods, single inheritance,
-default invocation through `construct`, and one deterministic invocation of each applicable
-`destruct` hook per independently owned source value, ordered from the most-derived class toward
-the root base. Value separation copies class and interface-typed state into a fresh lifecycle
-lineage, while compiler-introduced Rust clones remain within one lineage and cannot multiply the
-hook. Subclass values retain inherited and directly declared state at arbitrary inheritance depth;
-methods access their flattened storage directly, while nested base wrappers recursively forward
-inherited field reads and writes and overridden methods to the preserved concrete value. Subclasses
-inherit their bases' declared interface conformance. Declared named interfaces check complete
-method signatures, infer required
-receiver mutability from conforming implementations, and lower as typed dispatch contracts. Traits
-reuse declared fields and methods, with unresolved multi-trait member conflicts rejected.
+Classes provide typed, definitely initialized instance fields and methods, class-level static fields
+and methods, single inheritance, explicit `instance class; arguments` construction through
+`construct`, and one deterministic invocation of each applicable `destruct` hook per independently
+owned source value. `.` selects only instance members and `::` only static members. `this` denotes
+the current instance in instance methods; late-bound `self` denotes the effective class in instance
+and static methods, including inherited static factories using `instance self;`. Instance state is
+independent for every constructed value. Static state is shared by one effective class but separate
+between a base class and each subclass; nested member writes mutate that shared storage directly.
+Destruction is ordered from the most-derived class toward the root base. Value separation copies
+class and interface-typed state into a fresh lifecycle lineage, while compiler-introduced Rust
+clones remain within one lineage and cannot multiply the hook. Subclass values retain inherited and
+directly declared state at arbitrary inheritance depth; methods access their flattened storage
+directly, while nested base wrappers recursively forward inherited instance-field reads and writes
+and overridden methods to the preserved concrete value. Static fields are never forwarded through
+instances. Subclasses inherit their bases' declared interface conformance. Declared named
+interfaces check complete method signatures, infer required receiver mutability from conforming
+implementations, and lower as typed dispatch contracts. Traits reuse declared fields and methods,
+with unresolved multi-trait member conflicts rejected.
 
 `ref T` values are non-owning aliases backed by synchronized weak storage; member use and scalar
 consumers such as `print` transparently observe the referenced value, upgrading the target or

@@ -397,14 +397,14 @@ mod __terrane_trace {
     ];
     pub static SITES: [Site; 2] = [
         {
-            /* terrane-site-row: site 0: /custom-throwable::load (case.trn:14:3-14:54) */
+            /* terrane-site-row: site 0: /custom-throwable::load (case.trn:14:3-14:63) */
             Site {
                 function: 0,
                 file: 0,
                 line: 14,
                 column: 3,
                 end_line: 14,
-                end_column: 54,
+                end_column: 63,
             }
         },
         {
@@ -464,7 +464,7 @@ fn load(path: String) -> Result<String, TerraneError> {
         TerraneError::raised_with_message(
             TerraneErrorKind::Custom(DescriptorId(0)),
             value.render(),
-            0 /* terrane-site: case.trn:14:3-14:54 */,
+            0 /* terrane-site: case.trn:14:3-14:63 */,
         )
     });
 }

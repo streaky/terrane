@@ -9,7 +9,7 @@ class base
 class child extends base
 
 function main;
-  value child = child;
+  value child = instance child;
   result base = value.copy;
   result.marker;
   return
