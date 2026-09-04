@@ -181,7 +181,11 @@ fn every_manifest_drives_a_conformance_case() {
                 let normalized = compilation
                     .rust
                     .replace(terrane_compiler::VERSION, "<version>");
-                assert_eq!(normalized, expected, "{}", case.display());
+                if std::env::var_os("TERRANE_UPDATE_GOLDENS").is_some() {
+                    fs::write(case.join("lower.rs"), &normalized).unwrap();
+                } else {
+                    assert_eq!(normalized, expected, "{}", case.display());
+                }
                 compile_and_maybe_run(
                     case,
                     phase,
