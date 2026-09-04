@@ -70,6 +70,31 @@ function main;
     three-clause.append; for-index
   print; three-clause.length, three-clause[3], for-index
 
+  three-clause-break list of int = list
+  for break-index = 0; break-index < 10; break-index++
+    three-clause-break.append; break-index
+    if break-index > 2
+      break
+  print; three-clause-break.length, three-clause-break[3]
+
+  update-observed list of int = list
+  for update-index = 0; update-index < 3; update-index = update-index + 1 + update-observed.length - update-observed.length
+    update-observed.append; update-index
+  print; update-observed.length
+
+  condition-observed list of int = list
+  for condition-index = 0; condition-index < 4 + condition-observed.length - condition-observed.length; condition-index++
+    condition-observed.append; condition-index
+  print; condition-observed.length
+
+  double-index int64 = 0
+  print; double-index
+  double-update list of int64 = list
+  for double-index = 0; double-index < limit; double-index++
+    double-update.append; double-index
+    double-index++
+  print; double-update.length
+
   dependent list of int64 = list
   dependent-index int64 = 0
   while dependent-index < 3

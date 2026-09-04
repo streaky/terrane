@@ -52,7 +52,13 @@ impl Emitter<'_> {
             SyntaxKind::BreakStatement if self.try_completion => {
                 self.line("return TerraneCompletion::Break;");
             }
-            SyntaxKind::BreakStatement => self.line("break;"),
+            SyntaxKind::BreakStatement => {
+                if let Some(label) = &self.break_label {
+                    self.line(&format!("break '{label};"));
+                } else {
+                    self.line("break;");
+                }
+            }
             SyntaxKind::ContinueStatement if self.try_completion => {
                 self.line("return TerraneCompletion::Continue;");
             }
@@ -542,7 +548,11 @@ impl Emitter<'_> {
             self.line("TerraneCompletion::Error(error) => __terrane_uncaught(error),");
         }
         if self.in_loop {
-            self.line("TerraneCompletion::Break => break,");
+            if let Some(label) = &self.break_label {
+                self.line(&format!("TerraneCompletion::Break => break '{label},"));
+            } else {
+                self.line("TerraneCompletion::Break => break,");
+            }
             if let Some(label) = &self.continue_label {
                 self.line(&format!("TerraneCompletion::Continue => break '{label},"));
             } else {
@@ -826,6 +836,7 @@ impl Emitter<'_> {
         self.line(&format!("while {condition} {{"));
         self.indent += 1;
         let outer_continue = self.continue_label.take();
+        let outer_break = self.break_label.take();
         let outer_loop = std::mem::replace(&mut self.in_loop, true);
         if let Some(range) = bounded_range {
             self.bounded_integer_ranges.push(range);
@@ -835,6 +846,7 @@ impl Emitter<'_> {
             self.bounded_integer_ranges.pop();
         }
         self.in_loop = outer_loop;
+        self.break_label = outer_break;
         self.continue_label = outer_continue;
         self.indent -= 1;
         self.line("}");
@@ -874,9 +886,11 @@ impl Emitter<'_> {
                 self.indent += 1;
                 self.iteration_target_bindings(target, &iterator, loop_index);
                 let outer_continue = self.continue_label.take();
+                let outer_break = self.break_label.take();
                 let outer_loop = std::mem::replace(&mut self.in_loop, true);
                 self.block(block);
                 self.in_loop = outer_loop;
+                self.break_label = outer_break;
                 self.continue_label = outer_continue;
                 self.indent -= 1;
                 self.line("}");
@@ -893,16 +907,20 @@ impl Emitter<'_> {
                 let condition = self.control_condition(condition);
                 let prior_borrow_count =
                     self.begin_list_append_region(append_bindings, capacity_hint.as_ref());
-                self.line(&format!("while {condition} {{"));
-                self.indent += 1;
-                let label = format!("__terrane_continue_{}", self.loop_counter);
+                let loop_index = self.loop_counter;
                 self.loop_counter += 1;
-                self.line(&format!("'{label}: {{"));
+                let continue_label = format!("__terrane_continue_{loop_index}");
+                let break_label = format!("__terrane_break_{loop_index}");
+                self.line(&format!("'{break_label}: while {condition} {{"));
                 self.indent += 1;
-                let outer_continue = self.continue_label.replace(label);
+                self.line(&format!("'{continue_label}: {{"));
+                self.indent += 1;
+                let outer_continue = self.continue_label.replace(continue_label);
+                let outer_break = self.break_label.replace(break_label);
                 let outer_loop = std::mem::replace(&mut self.in_loop, true);
                 self.block(block);
                 self.in_loop = outer_loop;
+                self.break_label = outer_break;
                 self.continue_label = outer_continue;
                 self.indent -= 1;
                 self.line("}");
