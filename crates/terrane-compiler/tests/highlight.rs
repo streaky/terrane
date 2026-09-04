@@ -74,6 +74,21 @@ fn classifies_object_and_ownership_contextual_keywords() {
 }
 
 #[test]
+fn classifies_linear_as_an_ordinary_binding_when_context_disambiguates_it() {
+    let contextual = classified("linear class resource-wrapper\n");
+    let binding = classified("function main;\n  linear = 42\n");
+
+    assert!(
+        contextual.contains(&("linear".to_owned(), HighlightKind::Keyword, false)),
+        "missing contextual keyword in {contextual:#?}"
+    );
+    assert!(
+        binding.contains(&("linear".to_owned(), HighlightKind::Variable, false)),
+        "missing ordinary binding in {binding:#?}"
+    );
+}
+
+#[test]
 fn retains_highlights_around_lexical_and_syntax_errors() {
     let source = "namespace app\ninvalid = @\nfunction main;\n  value = 'ok'\n";
     let file = SourceFile::new(0, "broken.trn".into(), source.to_owned());

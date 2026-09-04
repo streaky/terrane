@@ -41,7 +41,11 @@ pub fn highlight(source: &SourceFile) -> HighlightOutput {
     diagnostics.extend(parsed.diagnostics);
 
     let tokens = &parsed.tree.lexed.tokens;
-    let mut classified = tokens.iter().map(base_classification).collect::<Vec<_>>();
+    let mut classified = tokens
+        .iter()
+        .enumerate()
+        .map(|(index, token)| base_classification(token, tokens.get(index + 1)))
+        .collect::<Vec<_>>();
     classify_node(&parsed.tree.root, tokens, &mut classified);
 
     let mut highlights = parsed
@@ -83,7 +87,7 @@ pub fn highlight(source: &SourceFile) -> HighlightOutput {
     }
 }
 
-fn base_classification(token: &Token) -> Option<(HighlightKind, bool)> {
+fn base_classification(token: &Token, next: Option<&Token>) -> Option<(HighlightKind, bool)> {
     match token.kind {
         TokenKind::Number => Some((HighlightKind::Number, false)),
         TokenKind::String | TokenKind::TailString | TokenKind::BlockString => {
@@ -95,6 +99,17 @@ fn base_classification(token: &Token) -> Option<(HighlightKind, bool)> {
         | TokenKind::Decrement
         | TokenKind::Pipe => Some((HighlightKind::Operator, false)),
         TokenKind::Identifier if matches!(token.text.as_str(), "true" | "false") => {
+            Some((HighlightKind::Keyword, false))
+        }
+        TokenKind::Identifier
+            if token.text == "linear"
+                && next.is_some_and(|next| {
+                    matches!(
+                        next.text.as_str(),
+                        "class" | "interface" | "trait" | "function"
+                    )
+                }) =>
+        {
             Some((HighlightKind::Keyword, false))
         }
         TokenKind::Identifier if is_keyword(&token.text) => Some((HighlightKind::Keyword, false)),
