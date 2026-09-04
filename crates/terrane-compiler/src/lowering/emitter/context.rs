@@ -252,6 +252,24 @@ impl Emitter<'_> {
         condition: &SyntaxNode,
         block: &SyntaxNode,
     ) -> Option<(String, String)> {
+        self.list_append_capacity_hint(condition, None, block)
+    }
+
+    pub(super) fn for_capacity_hint(
+        &self,
+        condition: &SyntaxNode,
+        update: &SyntaxNode,
+        block: &SyntaxNode,
+    ) -> Option<(String, String)> {
+        self.list_append_capacity_hint(condition, Some(update), block)
+    }
+
+    fn list_append_capacity_hint(
+        &self,
+        condition: &SyntaxNode,
+        update: Option<&SyntaxNode>,
+        block: &SyntaxNode,
+    ) -> Option<(String, String)> {
         fn mutation_count(
             emitter: &Emitter<'_>,
             node: &SyntaxNode,
@@ -272,6 +290,22 @@ impl Emitter<'_> {
                 .iter()
                 .map(|child| mutation_count(emitter, child, binding))
                 .sum::<usize>()
+        }
+
+        fn is_direct_increment(
+            emitter: &Emitter<'_>,
+            statement: &SyntaxNode,
+            binding: &TypedBinding,
+        ) -> bool {
+            statement.kind == SyntaxKind::PostfixExpression
+                && statement.children.first().is_some_and(|target| {
+                    emitter
+                        .local_typed_binding(target)
+                        .is_some_and(|target_binding| target_binding.span == binding.span)
+                })
+                && emitter.source.text()[statement.span.start..statement.span.end]
+                    .trim_end()
+                    .ends_with("++")
         }
 
         let [left, right] = condition.children.as_slice() else {
@@ -295,21 +329,18 @@ impl Emitter<'_> {
             return None;
         };
         (lower == BigInt::from(0_u8)).then_some(())?;
-        (mutation_count(self, block, binding) == 1).then_some(())?;
-        let direct_increment_count = block
-            .children
-            .iter()
-            .filter(|statement| {
-                statement.kind == SyntaxKind::PostfixExpression
-                    && statement.children.first().is_some_and(|target| {
-                        self.local_typed_binding(target)
-                            .is_some_and(|target_binding| target_binding.span == binding.span)
-                    })
-                    && self.source.text()[statement.span.start..statement.span.end]
-                        .trim_end()
-                        .ends_with("++")
-            })
-            .count();
+        let update_mutations = update.map_or(0, |update| mutation_count(self, update, binding));
+        (mutation_count(self, block, binding) + update_mutations == 1).then_some(())?;
+        let direct_increment_count = update.map_or_else(
+            || {
+                block
+                    .children
+                    .iter()
+                    .filter(|statement| is_direct_increment(self, statement, binding))
+                    .count()
+            },
+            |update| usize::from(is_direct_increment(self, update, binding)),
+        );
         (direct_increment_count == 1).then_some(())?;
         (!self.contains_loop_early_exit(block, 0)).then_some(())?;
 
@@ -319,7 +350,9 @@ impl Emitter<'_> {
                 return None;
             };
             fixed_integer_shape(upper_type)?;
-            (mutation_count(self, block, upper) == 0).then_some(())?;
+            let upper_update_mutations =
+                update.map_or(0, |update| mutation_count(self, update, upper));
+            (mutation_count(self, block, upper) + upper_update_mutations == 0).then_some(())?;
             rust_name(&upper.name)
         } else {
             (right.kind == SyntaxKind::Literal).then_some(())?;

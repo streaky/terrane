@@ -1174,13 +1174,13 @@ parameter, and return boundaries; tuple runtime length is not part of the type. 
 covers member and indexed mutation, checked and throwing lookup with typed `index-error` /
 `missing-key`, ordered and unordered iteration, typed `key, value` destructuring of map entries,
 range direction and inclusivity, homogeneous-item rejection, and assignment separation. Lowering
-recognises append-only local-list mutation in `while` and collection-iteration `for` regions,
-performs any copy-on-write split once before entering the outermost such region, and reuses that
-borrow in nested loops. A qualifying `while` loop also reserves the remaining count when it has one
-direct `++` step and no function or process exit from its body. Preallocation is capped at 256 MiB
-per region as a backstop against speculative bounds, without changing the source collection
-contract. Collection
-drop order is not yet
+recognises append-only local-list mutation in `while`, three-clause `for`, and
+collection-iteration `for` regions, performs any copy-on-write split once before entering the
+outermost such region, and reuses that borrow in nested loops. A qualifying count-controlled
+`while` or three-clause `for` loop also reserves the remaining count when it has one direct `++`
+step and no function or process exit from its body. Preallocation is capped at 256 MiB per region
+as a backstop against speculative bounds, without changing the source collection contract.
+Collection drop order is not yet
 source-observable, and collection identity metadata plus source `is` behavior are not implemented;
 those parts of the exit criterion remain outstanding.
 

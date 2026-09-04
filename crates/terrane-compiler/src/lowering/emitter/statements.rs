@@ -884,7 +884,15 @@ impl Emitter<'_> {
             }
             [initial, condition, update, block] => {
                 self.statement(initial);
+                let mut append_bindings = self.inactive_list_append_bindings(condition, block);
+                let update_append_bindings = self.append_only_list_bindings(update, block);
+                append_bindings.retain(|binding| update_append_bindings.contains(binding));
+                let capacity_hint = (!append_bindings.is_empty())
+                    .then(|| self.for_capacity_hint(condition, update, block))
+                    .flatten();
                 let condition = self.control_condition(condition);
+                let prior_borrow_count =
+                    self.begin_list_append_region(append_bindings, capacity_hint.as_ref());
                 self.line(&format!("while {condition} {{"));
                 self.indent += 1;
                 let label = format!("__terrane_continue_{}", self.loop_counter);
@@ -901,6 +909,7 @@ impl Emitter<'_> {
                 self.statement(update);
                 self.indent -= 1;
                 self.line("}");
+                self.end_list_append_region(prior_borrow_count);
             }
             _ => {}
         }

@@ -63,6 +63,13 @@ function main;
   print; original.length
   print; values.length
 
+  three-clause list of int64 = list
+  for-index int64 = 0
+  print; for-index
+  for for-index = 0; for-index < limit; for-index++
+    three-clause.append; for-index
+  print; three-clause.length, three-clause[3]
+
   dependent list of int64 = list
   dependent-index int64 = 0
   while dependent-index < 3
