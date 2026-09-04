@@ -740,7 +740,16 @@ impl Emitter<'_> {
         };
         let bounded_range = self.bounded_integer_range(condition, block);
         let has_bounded_range = bounded_range.is_some();
-        let append_bindings = self.append_only_list_bindings(condition, block);
+        let append_bindings = self
+            .append_only_list_bindings(condition, block)
+            .into_iter()
+            .filter(|binding| {
+                !self
+                    .list_append_borrows
+                    .iter()
+                    .any(|borrow| borrow.binding == *binding)
+            })
+            .collect::<Vec<_>>();
         let capacity_hint = (!append_bindings.is_empty())
             .then(|| self.while_capacity_hint(condition, block))
             .flatten();

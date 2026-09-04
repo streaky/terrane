@@ -1175,8 +1175,9 @@ covers member and indexed mutation, checked and throwing lookup with typed `inde
 `missing-key`, ordered and unordered iteration, typed `key, value` destructuring of map entries,
 range direction and inclusivity, homogeneous-item rejection, and assignment separation. Lowering
 recognises append-only local-list mutation in a `while` region, performs any copy-on-write split
-once before entering the loop, and reserves the remaining count for a canonical zero-based bounded
-loop without changing the source collection contract. Collection drop order is not yet
+once before entering the outermost such region, reuses that borrow in nested loops, and reserves
+the remaining count only for a break-free zero-based fixed-integer loop with one direct `++` step,
+without changing the source collection contract. Collection drop order is not yet
 source-observable, and collection identity metadata plus source `is` behavior are not implemented;
 those parts of the exit criterion remain outstanding.
 

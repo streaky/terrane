@@ -244,6 +244,9 @@ impl Emitter<'_> {
                 .map(|child| mutation_count(emitter, child, binding))
                 .sum::<usize>()
         }
+        fn contains_break(node: &SyntaxNode) -> bool {
+            node.kind == SyntaxKind::BreakStatement || node.children.iter().any(contains_break)
+        }
 
         let [left, right] = condition.children.as_slice() else {
             return None;
@@ -253,7 +256,7 @@ impl Emitter<'_> {
         let ValueType::Scalar(storage) = binding.value_type else {
             return None;
         };
-        fixed_integer_shape(storage)?;
+        let (signed, width) = fixed_integer_shape(storage)?;
         let declaration = find_node_by_span(&self.unit.tree.root, binding.span)?;
         let name_index = declaration
             .children
@@ -267,18 +270,40 @@ impl Emitter<'_> {
         };
         (lower == BigInt::from(0_u8)).then_some(())?;
         (mutation_count(self, block, binding) == 1).then_some(())?;
+        let direct_increment_count = block
+            .children
+            .iter()
+            .filter(|statement| {
+                statement.kind == SyntaxKind::PostfixExpression
+                    && statement.children.first().is_some_and(|target| {
+                        self.local_typed_binding(target)
+                            .is_some_and(|target_binding| target_binding.span == binding.span)
+                    })
+                    && self.source.text()[statement.span.start..statement.span.end]
+                        .trim_end()
+                        .ends_with("++")
+            })
+            .count();
+        (direct_increment_count == 1).then_some(())?;
+        (!contains_break(block)).then_some(())?;
 
-        if right.kind == SyntaxKind::Name {
+        let end = if right.kind == SyntaxKind::Name {
             let upper = self.local_typed_binding(right)?;
             let ValueType::Scalar(upper_type) = upper.value_type else {
                 return None;
             };
             fixed_integer_shape(upper_type)?;
             (mutation_count(self, block, upper) == 0).then_some(())?;
+            self.expression(right)
         } else {
             (right.kind == SyntaxKind::Literal).then_some(())?;
-        }
-        Some((self.expression(left), self.expression(right)))
+            format!(
+                "({} as {}{width})",
+                self.expression(right),
+                if signed { "i" } else { "u" }
+            )
+        };
+        Some((self.expression(left), end))
     }
 
     pub(super) fn binding_has_bounded_integer_range(&self, node: &SyntaxNode) -> bool {

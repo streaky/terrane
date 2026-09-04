@@ -378,27 +378,38 @@ mod __terrane_trace {
     }
     pub static FILES: [&str; 1] = ["case.trn"];
     pub static FUNCTIONS: [&str; 1] = ["/list-append-bulk-mutation::main"];
-    pub static SITES: [Site; 2] = [
+    pub static SITES: [Site; 3] = [
         {
-            /* terrane-site-row: site 0: /list-append-bulk-mutation::main (case.trn:11:5-11:12) */
+            /* terrane-site-row: site 0: /list-append-bulk-mutation::main (case.trn:20:5-20:12) */
             Site {
                 function: 0,
                 file: 0,
-                line: 11,
+                line: 20,
                 column: 5,
-                end_line: 11,
+                end_line: 20,
                 end_column: 12,
             }
         },
         {
-            /* terrane-site-row: site 1: /list-append-bulk-mutation::main (case.trn:21:23-21:39) */
+            /* terrane-site-row: site 1: /list-append-bulk-mutation::main (case.trn:30:23-30:39) */
             Site {
                 function: 0,
                 file: 0,
-                line: 21,
+                line: 30,
                 column: 23,
-                end_line: 21,
+                end_line: 30,
                 end_column: 39,
+            }
+        },
+        {
+            /* terrane-site-row: site 2: /list-append-bulk-mutation::main (case.trn:60:5-60:18) */
+            Site {
+                function: 0,
+                file: 0,
+                line: 60,
+                column: 5,
+                end_line: 60,
+                end_column: 18,
             }
         },
     ];
@@ -416,26 +427,49 @@ mod __terrane_trace {
 }
 // Source: case.trn
 // Namespace: list-append-bulk-mutation
+fn validate_large_literal(enabled: bool) {
+    if enabled {
+        let mut values: terrane_collection_support::List<i64> = terrane_collection_support::List::<
+            i64,
+        >::new(Vec::new());
+        let mut index: i64 = 0;
+        {
+            let __terrane_list_append_0 = values.make_unique();
+            if let (Ok(__terrane_start), Ok(__terrane_end)) = (
+                usize::try_from(index),
+                usize::try_from(4000000000 as i64),
+            ) {
+                __terrane_list_append_0
+                    .reserve(__terrane_end.saturating_sub(__terrane_start));
+            }
+            while index < 4000000000 {
+                __terrane_list_append_0.push(index);
+                index = index + 1;
+            }
+        }
+    }
+}
 fn main() {
+    validate_large_literal(false);
     let mut values: terrane_collection_support::List<i64> = terrane_collection_support::List::<
         i64,
     >::new(Vec::new());
     let mut index: i64 = 0;
     let limit: i64 = 4;
     {
-        let __terrane_list_append_0 = values.make_unique();
+        let __terrane_list_append_1 = values.make_unique();
         if let (Ok(__terrane_start), Ok(__terrane_end)) = (
             usize::try_from(index),
             usize::try_from(limit),
         ) {
-            __terrane_list_append_0
+            __terrane_list_append_1
                 .reserve(__terrane_end.saturating_sub(__terrane_start));
         }
         while index < limit {
-            __terrane_list_append_0.push(index);
+            __terrane_list_append_1.push(index);
             index = __terrane_raised(
                 terrane_int_support::fixed_addition(index, 1),
-                0 /* terrane-site: case.trn:11:5-11:12 */,
+                0 /* terrane-site: case.trn:20:5-20:12 */,
             );
         }
     }
@@ -461,16 +495,16 @@ fn main() {
                     terrane_int_support::coerce::<
                         i64,
                     >(&terrane_int_support::Int::from(dependent.length())),
-                    1 /* terrane-site: case.trn:21:23-21:39 */,
+                    1 /* terrane-site: case.trn:30:23-30:39 */,
                 ),
             );
         dependent_index = dependent_index + 1;
     }
-    let mut __terrane_iterator_1 = terrane_collection_support::Iterable::terrane_iterator(
+    let mut __terrane_iterator_2 = terrane_collection_support::Iterable::terrane_iterator(
         &dependent,
     );
     loop {
-        let value = match __terrane_iterator_1.next() {
+        let value = match __terrane_iterator_2.next() {
             terrane_collection_support::IterationStep::Item(item) => item,
             terrane_collection_support::IterationStep::End => break,
         };
@@ -484,4 +518,54 @@ fn main() {
         inner.append(inner_index);
         inner_index = inner_index + 1;
     }
+    let mut nested: terrane_collection_support::List<i64> = terrane_collection_support::List::<
+        i64,
+    >::new(Vec::new());
+    let mut outer_index: i64 = 0;
+    {
+        let __terrane_list_append_3 = nested.make_unique();
+        if let (Ok(__terrane_start), Ok(__terrane_end)) = (
+            usize::try_from(outer_index),
+            usize::try_from(3 as i64),
+        ) {
+            __terrane_list_append_3
+                .reserve(__terrane_end.saturating_sub(__terrane_start));
+        }
+        while outer_index < 3 {
+            __terrane_list_append_3.push(outer_index);
+            let mut nested_index: i64 = 0;
+            while nested_index < 2 {
+                __terrane_list_append_3.push(nested_index);
+                nested_index = nested_index + 1;
+            }
+            outer_index = outer_index + 1;
+        }
+    }
+    println!(
+        "{}", terrane_scalar_support::scalar_text(&terrane_int_support::Int::from(nested
+        .length()))
+    );
+    let mut early_exit: terrane_collection_support::List<i64> = terrane_collection_support::List::<
+        i64,
+    >::new(Vec::new());
+    let mut early_index: i64 = 0;
+    let early_limit: i64 = 100000000000000;
+    {
+        let __terrane_list_append_4 = early_exit.make_unique();
+        while early_index < early_limit {
+            __terrane_list_append_4.push(early_index);
+            if early_index > 2 {
+                break;
+            }
+            early_index = __terrane_raised(
+                terrane_int_support::fixed_addition(early_index, 1),
+                2 /* terrane-site: case.trn:60:5-60:18 */,
+            );
+        }
+    }
+    println!(
+        "{}",
+        terrane_scalar_support::scalar_text(&terrane_int_support::Int::from(early_exit
+        .length()))
+    );
 }

@@ -2,7 +2,16 @@ namespace list-append-bulk-mutation
 
 from /core/collections import list
 
+function validate-large-literal; enabled bool
+  if enabled
+    values list of int64 = list
+    index int64 = 0
+    while index < 4000000000
+      values.append; index
+      index++
+
 function main;
+  validate-large-literal; false
   values list of int64 = list
   index int64 = 0
   limit int64 = 4
@@ -28,3 +37,25 @@ function main;
     inner list of int64 = list
     inner.append; inner-index
     inner-index++
+
+  nested list of int64 = list
+  outer-index int64 = 0
+  while outer-index < 3
+    nested.append; outer-index
+    nested-index int64 = 0
+    while nested-index < 2
+      nested.append; nested-index
+      nested-index++
+    outer-index++
+  print; nested.length
+
+
+  early-exit list of int64 = list
+  early-index int64 = 0
+  early-limit int64 = 100000000000000
+  while early-index < early-limit
+    early-exit.append; early-index
+    if early-index > 2
+      break
+    early-index++
+  print; early-exit.length
