@@ -16,7 +16,7 @@ use crate::{
     semantics::{ObjectIdentity, SemanticPackage, SemanticUnit, ValueType},
 };
 
-// Covers the 80 MiB scientific benchmark lists while bounding a mistaken speculative hint.
+// Bound speculative eager allocation; larger lists continue through ordinary geometric growth.
 const LIST_PREALLOCATION_LIMIT_BYTES: usize = 256 * 1024 * 1024;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
