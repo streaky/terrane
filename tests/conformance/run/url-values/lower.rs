@@ -619,39 +619,42 @@ impl UrlQuery {
             String,
         >::new(vec![]);
         let mut index: terrane_int_support::Int = terrane_int_support::Int::from(0_i128);
-        while index.clone()
-            < terrane_int_support::Int::from(
-                terrane_int_support::Int::from(self.keys.length()),
-            )
         {
-            if __terrane_raised(
-                self
-                    .keys
-                    .get_or_error(
-                        __terrane_raised(
-                            terrane_collection_support::index_from_int(&index.clone()),
-                            2 /* terrane-site: core/urls.trn:32:16-32:32 */,
-                        ),
-                    ),
-                2 /* terrane-site: core/urls.trn:32:16-32:32 */,
-            ) == name
+            let __terrane_list_append_0 = result.make_unique();
+            while index.clone()
+                < terrane_int_support::Int::from(
+                    terrane_int_support::Int::from(self.keys.length()),
+                )
             {
-                result
-                    .append(
-                        __terrane_raised(
-                            self
-                                .values
-                                .get_or_error(
-                                    __terrane_raised(
-                                        terrane_collection_support::index_from_int(&index.clone()),
-                                        3 /* terrane-site: core/urls.trn:33:32-33:50 */,
-                                    ),
-                                ),
-                            3 /* terrane-site: core/urls.trn:33:32-33:50 */,
+                if __terrane_raised(
+                    self
+                        .keys
+                        .get_or_error(
+                            __terrane_raised(
+                                terrane_collection_support::index_from_int(&index.clone()),
+                                2 /* terrane-site: core/urls.trn:32:16-32:32 */,
+                            ),
                         ),
-                    );
+                    2 /* terrane-site: core/urls.trn:32:16-32:32 */,
+                ) == name
+                {
+                    __terrane_list_append_0
+                        .push(
+                            __terrane_raised(
+                                self
+                                    .values
+                                    .get_or_error(
+                                        __terrane_raised(
+                                            terrane_collection_support::index_from_int(&index.clone()),
+                                            3 /* terrane-site: core/urls.trn:33:32-33:50 */,
+                                        ),
+                                    ),
+                                3 /* terrane-site: core/urls.trn:33:32-33:50 */,
+                            ),
+                        );
+                }
+                index = index.clone() + terrane_int_support::Int::from(1_i128);
             }
-            index = index.clone() + terrane_int_support::Int::from(1_i128);
         }
         return result.clone();
     }

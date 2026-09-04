@@ -78,6 +78,16 @@ impl Emitter<'_> {
             return None;
         }
         let receiver_type = self.receiver_value_type(receiver)?;
+        let list_append_vector = (self.text(member) == "append")
+            .then(|| self.local_typed_binding(receiver))
+            .flatten()
+            .and_then(|binding| {
+                self.list_append_borrows
+                    .iter()
+                    .rev()
+                    .find(|borrow| borrow.binding == binding.span)
+                    .map(|borrow| borrow.vector.clone())
+            });
         let receiver_value = self.receiver_guard_expression(receiver);
         let values = arguments
             .children
@@ -85,10 +95,13 @@ impl Emitter<'_> {
             .map(|argument| argument.children.last().unwrap_or(argument))
             .collect::<Vec<_>>();
         let mutation = match (receiver_type, self.text(member)) {
-            (ValueType::List(item), "append") => Some(format!(
-                "({receiver_value}).append({})",
-                self.expression_as(values[0], item.value_type())
-            )),
+            (ValueType::List(item), "append") => {
+                let value = self.expression_as(values[0], item.value_type());
+                Some(list_append_vector.map_or_else(
+                    || format!("({receiver_value}).append({value})"),
+                    |vector| format!("{vector}.push({value})"),
+                ))
+            }
             (ValueType::List(item), "set") => {
                 let index = self.expression_as(values[0], ValueType::Scalar(ScalarType::Int));
                 let index = self.fallible(
@@ -727,7 +740,45 @@ impl Emitter<'_> {
         };
         let bounded_range = self.bounded_integer_range(condition, block);
         let has_bounded_range = bounded_range.is_some();
+        let append_bindings = self.append_only_list_bindings(condition, block);
+        let capacity_hint = (!append_bindings.is_empty())
+            .then(|| self.while_capacity_hint(condition, block))
+            .flatten();
         let condition = self.control_condition(condition);
+        let prior_borrow_count = self.list_append_borrows.len();
+        if !append_bindings.is_empty() {
+            self.line("{");
+            self.indent += 1;
+            for binding_span in append_bindings {
+                let binding = self
+                    .unit
+                    .typed_bindings
+                    .iter()
+                    .find(|binding| binding.span == binding_span)
+                    .expect("append-only list binding must remain available during lowering");
+                let vector = format!("__terrane_list_append_{}", self.loop_counter);
+                self.loop_counter += 1;
+                self.line(&format!(
+                    "let {vector} = {}.make_unique();",
+                    rust_name(&binding.name)
+                ));
+                if let Some((start, end)) = &capacity_hint {
+                    self.line(&format!(
+                        "if let (Ok(__terrane_start), Ok(__terrane_end)) = (usize::try_from({start}), usize::try_from({end})) {{"
+                    ));
+                    self.indent += 1;
+                    self.line(&format!(
+                        "{vector}.reserve(__terrane_end.saturating_sub(__terrane_start));"
+                    ));
+                    self.indent -= 1;
+                    self.line("}");
+                }
+                self.list_append_borrows.push(ListAppendBorrow {
+                    binding: binding_span,
+                    vector,
+                });
+            }
+        }
         self.line(&format!("while {condition} {{"));
         self.indent += 1;
         let outer_continue = self.continue_label.take();
@@ -743,6 +794,11 @@ impl Emitter<'_> {
         self.continue_label = outer_continue;
         self.indent -= 1;
         self.line("}");
+        if self.list_append_borrows.len() > prior_borrow_count {
+            self.list_append_borrows.truncate(prior_borrow_count);
+            self.indent -= 1;
+            self.line("}");
+        }
     }
 
     pub(super) fn for_statement(&mut self, node: &SyntaxNode) {

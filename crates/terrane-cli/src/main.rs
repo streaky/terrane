@@ -666,7 +666,7 @@ fn write_generated_crate(
     if panic == terrane_compiler::PanicProfile::Abort {
         manifest.push_str("\n[profile.dev]\npanic = \"abort\"\n");
     }
-    manifest.push_str("\n[profile.release]\nlto = \"thin\"\n");
+    manifest.push_str("\n[profile.release]\nopt-level = 3\nlto = \"fat\"\ncodegen-units = 1\n");
     manifest.push_str("\n[workspace]\n");
     write_if_changed(&directory.join("Cargo.toml"), manifest.as_bytes()).map_err(|error| {
         CliFailure::backend(format!("cannot write generated manifest: {error}"))
@@ -747,7 +747,7 @@ fn write_generated_support(directory: &Path, uses_platform_support: bool) -> std
     )?;
     write_if_changed(
         &string.join("Cargo.toml"),
-        b"[package]\nname = \"terrane-string-support\"\nversion = \"0.1.0\"\nedition = \"2024\"\n\n[dependencies]\nunicode-casefold = \"0.2\"\nunicode-normalization = \"0.1\"\nunicode-segmentation = \"1\"\n",
+        b"[package]\nname = \"terrane-string-support\"\nversion = \"0.1.0\"\nedition = \"2024\"\n\n[dependencies]\n# unicode-normalization permits tinyvec 1.13, whose alloc-only build fails on Rust 1.93.\ntinyvec = { version = \"=1.12.0\", features = [\"std\"] }\nunicode-casefold = \"0.2\"\nunicode-normalization = \"0.1\"\nunicode-segmentation = \"1\"\n",
     )?;
     write_if_changed(
         &string.join("src/lib.rs"),
@@ -949,7 +949,10 @@ mod tests {
 
         let manifest = fs::read_to_string(directory.join("Cargo.toml")).unwrap();
         assert!(manifest.contains("[profile.dev]\npanic = \"abort\"\n"));
-        assert!(manifest.contains("[profile.release]\nlto = \"thin\"\n"));
+        assert!(
+            manifest
+                .contains("[profile.release]\nopt-level = 3\nlto = \"fat\"\ncodegen-units = 1\n")
+        );
         fs::remove_dir_all(directory).unwrap();
     }
 }

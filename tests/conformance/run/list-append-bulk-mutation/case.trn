@@ -1,0 +1,30 @@
+namespace list-append-bulk-mutation
+
+from /core/collections import list
+
+function main;
+  values list of int64 = list
+  index int64 = 0
+  limit int64 = 4
+  while index < limit
+    values.append; index
+    index++
+
+  original = values
+  values.append; 9
+  print; original.length
+  print; values.length
+
+  dependent list of int64 = list
+  dependent-index int64 = 0
+  while dependent-index < 3
+    dependent.append; dependent.length
+    dependent-index++
+  for value in dependent
+    print; value
+
+  inner-index int64 = 0
+  while inner-index < 1
+    inner list of int64 = list
+    inner.append; inner-index
+    inner-index++

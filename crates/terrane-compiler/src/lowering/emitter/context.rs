@@ -134,6 +134,153 @@ impl Emitter<'_> {
             .flatten()
     }
 
+    fn list_append_binding(&self, node: &SyntaxNode) -> Option<crate::Span> {
+        let [callee, arguments] = node.children.as_slice() else {
+            return None;
+        };
+        let [receiver, member] = callee.children.as_slice() else {
+            return None;
+        };
+        (node.kind == SyntaxKind::CallExpression
+            && callee.kind == SyntaxKind::MemberExpression
+            && receiver.kind == SyntaxKind::Name
+            && self.text(member) == "append"
+            && arguments.children.len() == 1)
+            .then_some(())?;
+        let binding = self.local_typed_binding(receiver)?;
+        matches!(binding.value_type, ValueType::List(_)).then_some(binding.span)
+    }
+
+    pub(super) fn append_only_list_bindings(
+        &self,
+        condition: &SyntaxNode,
+        block: &SyntaxNode,
+    ) -> Vec<crate::Span> {
+        fn collect(
+            emitter: &Emitter<'_>,
+            node: &SyntaxNode,
+            statement_position: bool,
+            candidates: &mut Vec<crate::Span>,
+        ) {
+            if statement_position
+                && let Some(binding) = emitter.list_append_binding(node)
+                && !candidates.contains(&binding)
+            {
+                candidates.push(binding);
+            }
+            for child in &node.children {
+                collect(emitter, child, node.kind == SyntaxKind::Block, candidates);
+            }
+        }
+
+        fn uses(
+            emitter: &Emitter<'_>,
+            node: &SyntaxNode,
+            statement_position: bool,
+            binding: crate::Span,
+        ) -> (usize, usize) {
+            let reference = usize::from(
+                node.kind == SyntaxKind::Name
+                    && emitter
+                        .local_typed_binding(node)
+                        .is_some_and(|candidate| candidate.span == binding),
+            );
+            let append = usize::from(
+                statement_position && emitter.list_append_binding(node) == Some(binding),
+            );
+            node.children
+                .iter()
+                .fold((reference, append), |(references, appends), child| {
+                    let (child_references, child_appends) =
+                        uses(emitter, child, node.kind == SyntaxKind::Block, binding);
+                    (references + child_references, appends + child_appends)
+                })
+        }
+
+        let mut candidates = Vec::new();
+        collect(self, block, false, &mut candidates);
+        candidates.retain(|binding| {
+            let Some(binding) = self
+                .unit
+                .typed_bindings
+                .iter()
+                .find(|candidate| candidate.span == *binding)
+                .filter(|candidate| {
+                    candidate.is_visible_at(self.source.id(), condition.span.start)
+                })
+            else {
+                return false;
+            };
+            let (condition_references, _) = uses(self, condition, false, binding.span);
+            let (references, appends) = uses(self, block, false, binding.span);
+            condition_references == 0 && appends > 0 && references == appends
+        });
+        candidates
+    }
+
+    pub(super) fn while_capacity_hint(
+        &mut self,
+        condition: &SyntaxNode,
+        block: &SyntaxNode,
+    ) -> Option<(String, String)> {
+        fn mutation_count(
+            emitter: &Emitter<'_>,
+            node: &SyntaxNode,
+            binding: &TypedBinding,
+        ) -> usize {
+            let own = usize::from(
+                matches!(
+                    node.kind,
+                    SyntaxKind::Assignment | SyntaxKind::PostfixExpression
+                ) && node.children.first().is_some_and(|target| {
+                    emitter
+                        .local_typed_binding(target)
+                        .is_some_and(|target_binding| target_binding.span == binding.span)
+                }),
+            );
+            own + node
+                .children
+                .iter()
+                .map(|child| mutation_count(emitter, child, binding))
+                .sum::<usize>()
+        }
+
+        let [left, right] = condition.children.as_slice() else {
+            return None;
+        };
+        (self.source.text()[left.span.end..right.span.start].trim() == "<").then_some(())?;
+        let binding = self.local_typed_binding(left)?;
+        let ValueType::Scalar(storage) = binding.value_type else {
+            return None;
+        };
+        fixed_integer_shape(storage)?;
+        let declaration = find_node_by_span(&self.unit.tree.root, binding.span)?;
+        let name_index = declaration
+            .children
+            .iter()
+            .position(|child| child.kind == SyntaxKind::Name)?;
+        let initializer = binding_initializer(declaration, name_index)?;
+        let ContextualConstant::Integer(lower) =
+            contextual_constant(self.source, initializer, storage)?.ok()?
+        else {
+            return None;
+        };
+        (lower == BigInt::from(0_u8)).then_some(())?;
+        (mutation_count(self, block, binding) == 1).then_some(())?;
+
+        if right.kind == SyntaxKind::Name {
+            let upper = self.local_typed_binding(right)?;
+            let ValueType::Scalar(upper_type) = upper.value_type else {
+                return None;
+            };
+            fixed_integer_shape(upper_type)?;
+            (mutation_count(self, block, upper) == 0).then_some(())?;
+        } else {
+            (right.kind == SyntaxKind::Literal).then_some(())?;
+        }
+        Some((self.expression(left), self.expression(right)))
+    }
+
     pub(super) fn binding_has_bounded_integer_range(&self, node: &SyntaxNode) -> bool {
         self.local_typed_binding(node).is_some_and(|binding| {
             self.bounded_integer_ranges

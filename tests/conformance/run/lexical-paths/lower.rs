@@ -604,28 +604,31 @@ pub fn path_components(subject: Path) -> terrane_collection_support::List<String
         String,
     >::new(vec![]);
     let mut index: terrane_int_support::Int = terrane_int_support::Int::from(0_i128);
-    while index.clone() < terrane_int_support::Int::from(parts.len() as i128) {
-        let part: String = __terrane_raised(
-            parts
-                .get(
-                    __terrane_raised(
-                        terrane_collection_support::index_from_int(&index.clone()),
-                        0 /* terrane-site: core/paths.trn:16:16-16:28 */,
-                    ),
-                )
-                .cloned()
-                .ok_or(terrane_collection_support::IndexError {
-                    index: __terrane_raised(
-                        terrane_collection_support::index_from_int(&index.clone()),
-                        0 /* terrane-site: core/paths.trn:16:16-16:28 */,
-                    ),
-                }),
-            0 /* terrane-site: core/paths.trn:16:16-16:28 */,
-        );
-        if part != String::from("") {
-            result.append(part);
+    {
+        let __terrane_list_append_0 = result.make_unique();
+        while index.clone() < terrane_int_support::Int::from(parts.len() as i128) {
+            let part: String = __terrane_raised(
+                parts
+                    .get(
+                        __terrane_raised(
+                            terrane_collection_support::index_from_int(&index.clone()),
+                            0 /* terrane-site: core/paths.trn:16:16-16:28 */,
+                        ),
+                    )
+                    .cloned()
+                    .ok_or(terrane_collection_support::IndexError {
+                        index: __terrane_raised(
+                            terrane_collection_support::index_from_int(&index.clone()),
+                            0 /* terrane-site: core/paths.trn:16:16-16:28 */,
+                        ),
+                    }),
+                0 /* terrane-site: core/paths.trn:16:16-16:28 */,
+            );
+            if part != String::from("") {
+                __terrane_list_append_0.push(part);
+            }
+            index = index.clone() + terrane_int_support::Int::from(1_i128);
         }
-        index = index.clone() + terrane_int_support::Int::from(1_i128);
     }
     return result.clone();
 }

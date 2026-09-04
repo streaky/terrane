@@ -100,6 +100,12 @@ pub(super) struct BoundedIntegerRange {
     pub(super) upper: BigInt,
 }
 
+#[derive(Clone, Debug)]
+pub(super) struct ListAppendBorrow {
+    pub(super) binding: crate::Span,
+    pub(super) vector: String,
+}
+
 #[expect(
     clippy::struct_excessive_bools,
     reason = "these independent lexical control contexts are saved and restored separately"
@@ -128,6 +134,7 @@ pub(super) struct Emitter<'a> {
     closure_depth: usize,
     assignment_target: bool,
     bounded_integer_ranges: Vec<BoundedIntegerRange>,
+    list_append_borrows: Vec<ListAppendBorrow>,
 }
 
 impl<'a> Emitter<'a> {
@@ -160,6 +167,7 @@ impl<'a> Emitter<'a> {
             closure_depth: 0,
             assignment_target: false,
             bounded_integer_ranges: Vec::new(),
+            list_append_borrows: Vec::new(),
         }
     }
 }
