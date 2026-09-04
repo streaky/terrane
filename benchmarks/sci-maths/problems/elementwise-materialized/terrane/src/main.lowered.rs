@@ -52,8 +52,14 @@ fn main() {
             usize::try_from(index),
             usize::try_from(count),
         ) {
+            let __terrane_capacity_limit = 268435456usize
+                / std::mem::size_of::<f64>().max(1);
             __terrane_list_append_0
-                .reserve(__terrane_end.saturating_sub(__terrane_start));
+                .reserve(
+                    __terrane_end
+                        .saturating_sub(__terrane_start)
+                        .min(__terrane_capacity_limit),
+                );
         }
         while index < count {
             let raw: f64 = __terrane_raised(
@@ -69,11 +75,11 @@ fn main() {
         }
     }
     let mut total: f64 = 0.0_f64;
-    let mut __terrane_iterator_1 = terrane_collection_support::Iterable::terrane_iterator(
+    let mut __terrane_iterator_0 = terrane_collection_support::Iterable::terrane_iterator(
         &transformed,
     );
     loop {
-        let value = match __terrane_iterator_1.next() {
+        let value = match __terrane_iterator_0.next() {
             terrane_collection_support::IterationStep::Item(item) => item,
             terrane_collection_support::IterationStep::End => break,
         };

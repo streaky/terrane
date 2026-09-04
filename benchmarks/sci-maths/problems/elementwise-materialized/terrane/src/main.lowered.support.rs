@@ -781,11 +781,11 @@ impl CommandLine {
     }
 }
 pub fn schema_has(schema: CliSchema, sought: String) -> bool {
-    let mut __terrane_iterator_2 = terrane_collection_support::Iterable::terrane_iterator(
+    let mut __terrane_iterator_0 = terrane_collection_support::Iterable::terrane_iterator(
         &schema.entries,
     );
     loop {
-        let entry = match __terrane_iterator_2.next() {
+        let entry = match __terrane_iterator_0.next() {
             terrane_collection_support::IterationStep::Item(item) => item,
             terrane_collection_support::IterationStep::End => break,
         };
@@ -819,12 +819,12 @@ pub fn parse_command_line(
     >::new(Vec::new());
     let mut index: terrane_int_support::Int = terrane_int_support::Int::from(0_i128);
     {
-        let __terrane_list_append_3 = diagnostic_arguments.make_unique();
-        let __terrane_list_append_4 = diagnostic_messages.make_unique();
-        let __terrane_list_append_5 = flags.make_unique();
-        let __terrane_list_append_6 = option_names.make_unique();
-        let __terrane_list_append_7 = option_values.make_unique();
-        let __terrane_list_append_8 = positionals.make_unique();
+        let __terrane_list_append_2 = diagnostic_arguments.make_unique();
+        let __terrane_list_append_3 = diagnostic_messages.make_unique();
+        let __terrane_list_append_4 = flags.make_unique();
+        let __terrane_list_append_5 = option_names.make_unique();
+        let __terrane_list_append_6 = option_values.make_unique();
+        let __terrane_list_append_7 = positionals.make_unique();
         while index.clone()
             < terrane_int_support::Int::from(
                 terrane_int_support::Int::from(supplied.length()),
@@ -841,8 +841,8 @@ pub fn parse_command_line(
                 8 /* terrane-site: core/process.trn:89:20-89:35 */,
             );
             if !argument.is_text {
-                __terrane_list_append_3.push(index.clone());
-                __terrane_list_append_4
+                __terrane_list_append_2.push(index.clone());
+                __terrane_list_append_3
                     .push(String::from("command-line option is not Unicode text"));
             } else {
                 let flag_entry: String = format!(
@@ -854,19 +854,19 @@ pub fn parse_command_line(
                     terrane_scalar_support::scalar_text(&argument.text)
                 );
                 if schema_has(schema.clone(), flag_entry) {
-                    __terrane_list_append_5.push(argument.text.clone());
+                    __terrane_list_append_4.push(argument.text.clone());
                 } else if schema_has(schema.clone(), value_entry) {
                     if index.clone() + terrane_int_support::Int::from(1_i128)
                         >= terrane_int_support::Int::from(
                             terrane_int_support::Int::from(supplied.length()),
                         )
                     {
-                        __terrane_list_append_3.push(index.clone());
-                        __terrane_list_append_4
+                        __terrane_list_append_2.push(index.clone());
+                        __terrane_list_append_3
                             .push(String::from("option requires a value"));
                     } else {
-                        __terrane_list_append_6.push(argument.text.clone());
-                        __terrane_list_append_7
+                        __terrane_list_append_5.push(argument.text.clone());
+                        __terrane_list_append_6
                             .push(
                                 __terrane_raised(
                                     supplied
@@ -884,10 +884,10 @@ pub fn parse_command_line(
                         index = index.clone() + terrane_int_support::Int::from(1_i128);
                     }
                 } else if argument.text.starts_with(&String::from("--")) {
-                    __terrane_list_append_3.push(index.clone());
-                    __terrane_list_append_4.push(String::from("unknown option"));
+                    __terrane_list_append_2.push(index.clone());
+                    __terrane_list_append_3.push(String::from("unknown option"));
                 } else {
-                    __terrane_list_append_8.push(argument.clone());
+                    __terrane_list_append_7.push(argument.clone());
                 }
             }
             index = index.clone() + terrane_int_support::Int::from(1_i128);

@@ -109,6 +109,35 @@ function main;
     break-outer++
   print; nested-break.length
 
+  source list of int64 = list; 1, 2, 3, 4
+  collected list of int64 = list
+  for value in source
+    collected.append; value
+  print; collected.length, collected[3]
+
+  observed list of int64 = list
+  for value in source
+    observed.append; observed.length
+  print; observed[3]
+
+  rows list of list of int64 = list; (list; 1, 2), (list; 3)
+  flattened list of int64 = list
+  for row in rows
+    for value in row
+      flattened.append; value
+  print; flattened.length, flattened[2]
+
+  aliased list of int64 = list; 1, 2
+  alias = aliased
+  for value in alias
+    aliased.append; value
+  print; aliased.length, alias.length
+
+  self-source list of int64 = list; 1, 2
+  for value in self-source
+    self-source.append; value
+  print; self-source.length
+
   print; (validate-return;)
   validate-throw;
   validate-exit;

@@ -734,14 +734,12 @@ impl Emitter<'_> {
         }
         self.line("}");
     }
-    pub(super) fn while_statement(&mut self, node: &SyntaxNode) {
-        let [condition, block] = node.children.as_slice() else {
-            return;
-        };
-        let bounded_range = self.bounded_integer_range(condition, block);
-        let has_bounded_range = bounded_range.is_some();
-        let append_bindings = self
-            .append_only_list_bindings(condition, block)
+    fn inactive_list_append_bindings(
+        &self,
+        boundary: &SyntaxNode,
+        block: &SyntaxNode,
+    ) -> Vec<crate::Span> {
+        self.append_only_list_bindings(boundary, block)
             .into_iter()
             .filter(|binding| {
                 !self
@@ -749,53 +747,82 @@ impl Emitter<'_> {
                     .iter()
                     .any(|borrow| borrow.binding == *binding)
             })
-            .collect::<Vec<_>>();
+            .collect()
+    }
+
+    fn begin_list_append_region(
+        &mut self,
+        append_bindings: Vec<crate::Span>,
+        capacity_hint: Option<&(String, String)>,
+    ) -> usize {
+        let prior_borrow_count = self.list_append_borrows.len();
+        if append_bindings.is_empty() {
+            return prior_borrow_count;
+        }
+        self.line("{");
+        self.indent += 1;
+        for binding_span in append_bindings {
+            let binding = self
+                .unit
+                .typed_bindings
+                .iter()
+                .find(|binding| binding.span == binding_span)
+                .expect("append-only list binding must remain available during lowering");
+            let item_type = match &binding.value_type {
+                ValueType::List(item) => rust_element_type(self.package, item.clone()),
+                _ => unreachable!("append-only list binding must retain its list type"),
+            };
+            let preallocation_limit = super::LIST_PREALLOCATION_LIMIT_BYTES;
+            let vector = format!("__terrane_list_append_{}", self.list_append_counter);
+            self.list_append_counter += 1;
+            self.line(&format!(
+                "let {vector} = {}.make_unique();",
+                rust_name(&binding.name)
+            ));
+            if let Some((start, end)) = capacity_hint {
+                self.line(&format!(
+                    "if let (Ok(__terrane_start), Ok(__terrane_end)) = (usize::try_from({start}), usize::try_from({end})) {{"
+                ));
+                self.indent += 1;
+                self.line(&format!(
+                    "let __terrane_capacity_limit = {preallocation_limit}usize / std::mem::size_of::<{item_type}>().max(1);"
+                ));
+                self.line(&format!(
+                    "{vector}.reserve(__terrane_end.saturating_sub(__terrane_start).min(__terrane_capacity_limit));"
+                ));
+                self.indent -= 1;
+                self.line("}");
+            }
+            self.list_append_borrows.push(ListAppendBorrow {
+                binding: binding_span,
+                vector,
+            });
+        }
+        prior_borrow_count
+    }
+
+    fn end_list_append_region(&mut self, prior_borrow_count: usize) {
+        if self.list_append_borrows.len() <= prior_borrow_count {
+            return;
+        }
+        self.list_append_borrows.truncate(prior_borrow_count);
+        self.indent -= 1;
+        self.line("}");
+    }
+
+    pub(super) fn while_statement(&mut self, node: &SyntaxNode) {
+        let [condition, block] = node.children.as_slice() else {
+            return;
+        };
+        let bounded_range = self.bounded_integer_range(condition, block);
+        let has_bounded_range = bounded_range.is_some();
+        let append_bindings = self.inactive_list_append_bindings(condition, block);
         let capacity_hint = (!append_bindings.is_empty())
             .then(|| self.while_capacity_hint(condition, block))
             .flatten();
         let condition = self.control_condition(condition);
-        let prior_borrow_count = self.list_append_borrows.len();
-        if !append_bindings.is_empty() {
-            self.line("{");
-            self.indent += 1;
-            for binding_span in append_bindings {
-                let binding = self
-                    .unit
-                    .typed_bindings
-                    .iter()
-                    .find(|binding| binding.span == binding_span)
-                    .expect("append-only list binding must remain available during lowering");
-                let item_type = match &binding.value_type {
-                    ValueType::List(item) => rust_element_type(self.package, item.clone()),
-                    _ => unreachable!("append-only list binding must retain its list type"),
-                };
-                let preallocation_limit = super::LIST_PREALLOCATION_LIMIT_BYTES;
-                let vector = format!("__terrane_list_append_{}", self.loop_counter);
-                self.loop_counter += 1;
-                self.line(&format!(
-                    "let {vector} = {}.make_unique();",
-                    rust_name(&binding.name)
-                ));
-                if let Some((start, end)) = &capacity_hint {
-                    self.line(&format!(
-                        "if let (Ok(__terrane_start), Ok(__terrane_end)) = (usize::try_from({start}), usize::try_from({end})) {{"
-                    ));
-                    self.indent += 1;
-                    self.line(&format!(
-                        "let __terrane_capacity_limit = {preallocation_limit}usize / std::mem::size_of::<{item_type}>().max(1);"
-                    ));
-                    self.line(&format!(
-                        "{vector}.reserve(__terrane_end.saturating_sub(__terrane_start).min(__terrane_capacity_limit));"
-                    ));
-                    self.indent -= 1;
-                    self.line("}");
-                }
-                self.list_append_borrows.push(ListAppendBorrow {
-                    binding: binding_span,
-                    vector,
-                });
-            }
-        }
+        let prior_borrow_count =
+            self.begin_list_append_region(append_bindings, capacity_hint.as_ref());
         self.line(&format!("while {condition} {{"));
         self.indent += 1;
         let outer_continue = self.continue_label.take();
@@ -811,17 +838,14 @@ impl Emitter<'_> {
         self.continue_label = outer_continue;
         self.indent -= 1;
         self.line("}");
-        if self.list_append_borrows.len() > prior_borrow_count {
-            self.list_append_borrows.truncate(prior_borrow_count);
-            self.indent -= 1;
-            self.line("}");
-        }
+        self.end_list_append_region(prior_borrow_count);
     }
 
     pub(super) fn for_statement(&mut self, node: &SyntaxNode) {
         match node.children.as_slice() {
             [target, collection, block] if target.kind == SyntaxKind::ForTarget => {
                 let collection_type = self.value_type(collection);
+                let append_bindings = self.inactive_list_append_bindings(collection, block);
                 let collection = self.expression(collection);
                 let loop_index = self.loop_counter;
                 let iterator = format!("__terrane_iterator_{loop_index}");
@@ -845,6 +869,7 @@ impl Emitter<'_> {
                     _ => format!("terrane_collection_support::string_iterator(&({collection}))"),
                 };
                 self.line(&format!("let mut {iterator} = {constructor};"));
+                let prior_borrow_count = self.begin_list_append_region(append_bindings, None);
                 self.line("loop {");
                 self.indent += 1;
                 self.iteration_target_bindings(target, &iterator, loop_index);
@@ -855,6 +880,7 @@ impl Emitter<'_> {
                 self.continue_label = outer_continue;
                 self.indent -= 1;
                 self.line("}");
+                self.end_list_append_region(prior_borrow_count);
             }
             [initial, condition, update, block] => {
                 self.statement(initial);

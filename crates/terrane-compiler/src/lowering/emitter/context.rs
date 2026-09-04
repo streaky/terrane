@@ -248,7 +248,7 @@ impl Emitter<'_> {
     }
 
     pub(super) fn while_capacity_hint(
-        &mut self,
+        &self,
         condition: &SyntaxNode,
         block: &SyntaxNode,
     ) -> Option<(String, String)> {
@@ -320,16 +320,16 @@ impl Emitter<'_> {
             };
             fixed_integer_shape(upper_type)?;
             (mutation_count(self, block, upper) == 0).then_some(())?;
-            self.expression(right)
+            rust_name(&upper.name)
         } else {
             (right.kind == SyntaxKind::Literal).then_some(())?;
             format!(
                 "({} as {}{width})",
-                self.expression(right),
+                self.text(right),
                 if signed { "i" } else { "u" }
             )
         };
-        Some((self.expression(left), end))
+        Some((rust_name(&binding.name), end))
     }
 
     pub(super) fn binding_has_bounded_integer_range(&self, node: &SyntaxNode) -> bool {
