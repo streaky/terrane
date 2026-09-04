@@ -52,7 +52,13 @@ impl Emitter<'_> {
             SyntaxKind::BreakStatement if self.try_completion => {
                 self.line("return TerraneCompletion::Break;");
             }
-            SyntaxKind::BreakStatement => self.line("break;"),
+            SyntaxKind::BreakStatement => {
+                if let Some(label) = &self.break_label {
+                    self.line(&format!("break '{label};"));
+                } else {
+                    self.line("break;");
+                }
+            }
             SyntaxKind::ContinueStatement if self.try_completion => {
                 self.line("return TerraneCompletion::Continue;");
             }
@@ -78,6 +84,16 @@ impl Emitter<'_> {
             return None;
         }
         let receiver_type = self.receiver_value_type(receiver)?;
+        let list_append_vector = (self.text(member) == "append")
+            .then(|| self.local_typed_binding(receiver))
+            .flatten()
+            .and_then(|binding| {
+                self.list_append_borrows
+                    .iter()
+                    .rev()
+                    .find(|borrow| borrow.binding == binding.span)
+                    .map(|borrow| borrow.vector.clone())
+            });
         let receiver_value = self.receiver_guard_expression(receiver);
         let values = arguments
             .children
@@ -85,10 +101,13 @@ impl Emitter<'_> {
             .map(|argument| argument.children.last().unwrap_or(argument))
             .collect::<Vec<_>>();
         let mutation = match (receiver_type, self.text(member)) {
-            (ValueType::List(item), "append") => Some(format!(
-                "({receiver_value}).append({})",
-                self.expression_as(values[0], item.value_type())
-            )),
+            (ValueType::List(item), "append") => {
+                let value = self.expression_as(values[0], item.value_type());
+                Some(list_append_vector.map_or_else(
+                    || format!("({receiver_value}).append({value})"),
+                    |vector| format!("{vector}.push({value})"),
+                ))
+            }
             (ValueType::List(item), "set") => {
                 let index = self.expression_as(values[0], ValueType::Scalar(ScalarType::Int));
                 let index = self.fallible(
@@ -529,7 +548,11 @@ impl Emitter<'_> {
             self.line("TerraneCompletion::Error(error) => __terrane_uncaught(error),");
         }
         if self.in_loop {
-            self.line("TerraneCompletion::Break => break,");
+            if let Some(label) = &self.break_label {
+                self.line(&format!("TerraneCompletion::Break => break '{label},"));
+            } else {
+                self.line("TerraneCompletion::Break => break,");
+            }
             if let Some(label) = &self.continue_label {
                 self.line(&format!("TerraneCompletion::Continue => break '{label},"));
             } else {
@@ -721,16 +744,99 @@ impl Emitter<'_> {
         }
         self.line("}");
     }
+    fn inactive_list_append_bindings(
+        &self,
+        boundary: &SyntaxNode,
+        block: &SyntaxNode,
+    ) -> Vec<crate::Span> {
+        self.append_only_list_bindings(boundary, block)
+            .into_iter()
+            .filter(|binding| {
+                !self
+                    .list_append_borrows
+                    .iter()
+                    .any(|borrow| borrow.binding == *binding)
+            })
+            .collect()
+    }
+
+    fn begin_list_append_region(
+        &mut self,
+        append_bindings: Vec<crate::Span>,
+        capacity_hint: Option<&(String, String)>,
+    ) -> usize {
+        let prior_borrow_count = self.list_append_borrows.len();
+        if append_bindings.is_empty() {
+            return prior_borrow_count;
+        }
+        self.line("{");
+        self.indent += 1;
+        for binding_span in append_bindings {
+            let binding = self
+                .unit
+                .typed_bindings
+                .iter()
+                .find(|binding| binding.span == binding_span)
+                .expect("append-only list binding must remain available during lowering");
+            let item_type = match &binding.value_type {
+                ValueType::List(item) => rust_element_type(self.package, item.clone()),
+                _ => unreachable!("append-only list binding must retain its list type"),
+            };
+            let preallocation_limit = super::LIST_PREALLOCATION_LIMIT_BYTES;
+            let vector = format!("__terrane_list_append_{}", self.list_append_counter);
+            self.list_append_counter += 1;
+            self.line(&format!(
+                "let {vector} = {}.make_unique();",
+                rust_name(&binding.name)
+            ));
+            if let Some((start, end)) = capacity_hint {
+                self.line(&format!(
+                    "if let (Ok(__terrane_start), Ok(__terrane_end)) = (usize::try_from({start}), usize::try_from({end})) {{"
+                ));
+                self.indent += 1;
+                self.line(&format!(
+                    "let __terrane_capacity_limit = {preallocation_limit}usize / std::mem::size_of::<{item_type}>().max(1);"
+                ));
+                self.line(&format!(
+                    "{vector}.reserve(__terrane_end.saturating_sub(__terrane_start).min(__terrane_capacity_limit));"
+                ));
+                self.indent -= 1;
+                self.line("}");
+            }
+            self.list_append_borrows.push(ListAppendBorrow {
+                binding: binding_span,
+                vector,
+            });
+        }
+        prior_borrow_count
+    }
+
+    fn end_list_append_region(&mut self, prior_borrow_count: usize) {
+        if self.list_append_borrows.len() <= prior_borrow_count {
+            return;
+        }
+        self.list_append_borrows.truncate(prior_borrow_count);
+        self.indent -= 1;
+        self.line("}");
+    }
+
     pub(super) fn while_statement(&mut self, node: &SyntaxNode) {
         let [condition, block] = node.children.as_slice() else {
             return;
         };
         let bounded_range = self.bounded_integer_range(condition, block);
         let has_bounded_range = bounded_range.is_some();
+        let append_bindings = self.inactive_list_append_bindings(condition, block);
+        let capacity_hint = (!append_bindings.is_empty())
+            .then(|| self.while_capacity_hint(condition, block))
+            .flatten();
         let condition = self.control_condition(condition);
+        let prior_borrow_count =
+            self.begin_list_append_region(append_bindings, capacity_hint.as_ref());
         self.line(&format!("while {condition} {{"));
         self.indent += 1;
         let outer_continue = self.continue_label.take();
+        let outer_break = self.break_label.take();
         let outer_loop = std::mem::replace(&mut self.in_loop, true);
         if let Some(range) = bounded_range {
             self.bounded_integer_ranges.push(range);
@@ -740,15 +846,18 @@ impl Emitter<'_> {
             self.bounded_integer_ranges.pop();
         }
         self.in_loop = outer_loop;
+        self.break_label = outer_break;
         self.continue_label = outer_continue;
         self.indent -= 1;
         self.line("}");
+        self.end_list_append_region(prior_borrow_count);
     }
 
     pub(super) fn for_statement(&mut self, node: &SyntaxNode) {
         match node.children.as_slice() {
             [target, collection, block] if target.kind == SyntaxKind::ForTarget => {
                 let collection_type = self.value_type(collection);
+                let append_bindings = self.inactive_list_append_bindings(collection, block);
                 let collection = self.expression(collection);
                 let loop_index = self.loop_counter;
                 let iterator = format!("__terrane_iterator_{loop_index}");
@@ -772,36 +881,53 @@ impl Emitter<'_> {
                     _ => format!("terrane_collection_support::string_iterator(&({collection}))"),
                 };
                 self.line(&format!("let mut {iterator} = {constructor};"));
+                let prior_borrow_count = self.begin_list_append_region(append_bindings, None);
                 self.line("loop {");
                 self.indent += 1;
                 self.iteration_target_bindings(target, &iterator, loop_index);
                 let outer_continue = self.continue_label.take();
+                let outer_break = self.break_label.take();
                 let outer_loop = std::mem::replace(&mut self.in_loop, true);
                 self.block(block);
                 self.in_loop = outer_loop;
+                self.break_label = outer_break;
                 self.continue_label = outer_continue;
                 self.indent -= 1;
                 self.line("}");
+                self.end_list_append_region(prior_borrow_count);
             }
             [initial, condition, update, block] => {
                 self.statement(initial);
+                let mut append_bindings = self.inactive_list_append_bindings(condition, block);
+                let update_append_bindings = self.append_only_list_bindings(update, block);
+                append_bindings.retain(|binding| update_append_bindings.contains(binding));
+                let capacity_hint = (!append_bindings.is_empty())
+                    .then(|| self.for_capacity_hint(condition, update, block))
+                    .flatten();
                 let condition = self.control_condition(condition);
-                self.line(&format!("while {condition} {{"));
-                self.indent += 1;
-                let label = format!("__terrane_continue_{}", self.loop_counter);
+                let prior_borrow_count =
+                    self.begin_list_append_region(append_bindings, capacity_hint.as_ref());
+                let loop_index = self.loop_counter;
                 self.loop_counter += 1;
-                self.line(&format!("'{label}: {{"));
+                let continue_label = format!("__terrane_continue_{loop_index}");
+                let break_label = format!("__terrane_break_{loop_index}");
+                self.line(&format!("'{break_label}: while {condition} {{"));
                 self.indent += 1;
-                let outer_continue = self.continue_label.replace(label);
+                self.line(&format!("'{continue_label}: {{"));
+                self.indent += 1;
+                let outer_continue = self.continue_label.replace(continue_label);
+                let outer_break = self.break_label.replace(break_label);
                 let outer_loop = std::mem::replace(&mut self.in_loop, true);
                 self.block(block);
                 self.in_loop = outer_loop;
+                self.break_label = outer_break;
                 self.continue_label = outer_continue;
                 self.indent -= 1;
                 self.line("}");
                 self.statement(update);
                 self.indent -= 1;
                 self.line("}");
+                self.end_list_append_region(prior_borrow_count);
             }
             _ => {}
         }

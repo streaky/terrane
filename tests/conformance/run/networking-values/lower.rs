@@ -1546,28 +1546,33 @@ pub fn lookup_dns(
         String,
     >::new(vec![String::from("")]);
     let mut index: terrane_int_support::Int = terrane_int_support::Int::from(0_i128);
-    while index.clone() < terrane_int_support::Int::from(raw_candidates.len() as i128) {
-        candidates
-            .append(
-                __terrane_raised(
-                    raw_candidates
-                        .get(
-                            __terrane_raised(
-                                terrane_collection_support::index_from_int(&index.clone()),
-                                0 /* terrane-site: core/networking.trn:319:28-319:49 */,
-                            ),
-                        )
-                        .cloned()
-                        .ok_or(terrane_collection_support::IndexError {
-                            index: __terrane_raised(
-                                terrane_collection_support::index_from_int(&index.clone()),
-                                0 /* terrane-site: core/networking.trn:319:28-319:49 */,
-                            ),
-                        }),
-                    0 /* terrane-site: core/networking.trn:319:28-319:49 */,
-                ),
-            );
-        index = index.clone() + terrane_int_support::Int::from(1_i128);
+    {
+        let __terrane_list_append_0 = candidates.make_unique();
+        while index.clone()
+            < terrane_int_support::Int::from(raw_candidates.len() as i128)
+        {
+            __terrane_list_append_0
+                .push(
+                    __terrane_raised(
+                        raw_candidates
+                            .get(
+                                __terrane_raised(
+                                    terrane_collection_support::index_from_int(&index.clone()),
+                                    0 /* terrane-site: core/networking.trn:319:28-319:49 */,
+                                ),
+                            )
+                            .cloned()
+                            .ok_or(terrane_collection_support::IndexError {
+                                index: __terrane_raised(
+                                    terrane_collection_support::index_from_int(&index.clone()),
+                                    0 /* terrane-site: core/networking.trn:319:28-319:49 */,
+                                ),
+                            }),
+                        0 /* terrane-site: core/networking.trn:319:28-319:49 */,
+                    ),
+                );
+            index = index.clone() + terrane_int_support::Int::from(1_i128);
+        }
     }
     return DnsResult::terrane_construct(
         terrane_platform_result_failed(&raw),

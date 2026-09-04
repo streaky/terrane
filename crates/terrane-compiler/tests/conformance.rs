@@ -181,7 +181,11 @@ fn every_manifest_drives_a_conformance_case() {
                 let normalized = compilation
                     .rust
                     .replace(terrane_compiler::VERSION, "<version>");
-                assert_eq!(normalized, expected, "{}", case.display());
+                if std::env::var_os("TERRANE_UPDATE_GOLDENS").is_some() {
+                    fs::write(case.join("lower.rs"), &normalized).unwrap();
+                } else {
+                    assert_eq!(normalized, expected, "{}", case.display());
+                }
                 compile_and_maybe_run(
                     case,
                     phase,
@@ -386,7 +390,7 @@ fn write_support_crates(directory: &Path) {
     .unwrap();
     fs::write(
         string.join("Cargo.toml"),
-        "[package]\nname = \"terrane-string-support\"\nversion = \"0.1.0\"\nedition = \"2024\"\n\n[dependencies]\nunicode-casefold = \"0.2\"\nunicode-normalization = \"0.1\"\nunicode-segmentation = \"1\"\n",
+        "[package]\nname = \"terrane-string-support\"\nversion = \"0.1.0\"\nedition = \"2024\"\n\n[dependencies]\n# unicode-normalization permits tinyvec 1.13, whose alloc-only build fails on Rust 1.93.\ntinyvec = { version = \"=1.12.0\", features = [\"std\"] }\nunicode-casefold = \"0.2\"\nunicode-normalization = \"0.1\"\nunicode-segmentation = \"1\"\n",
     )
     .unwrap();
     fs::write(

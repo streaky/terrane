@@ -19,4 +19,4 @@ environment = [
 
 [metadata]
 implementation = "Terrane compiler-generated Rust"
-native-build-profile = "Cargo release"
+native-build-profile = "Cargo release: opt-level 3, fat LTO, one codegen unit"

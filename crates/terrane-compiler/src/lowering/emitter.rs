@@ -16,6 +16,9 @@ use crate::{
     semantics::{ObjectIdentity, SemanticPackage, SemanticUnit, ValueType},
 };
 
+// Bound speculative eager allocation; larger lists continue through ordinary geometric growth.
+const LIST_PREALLOCATION_LIMIT_BYTES: usize = 256 * 1024 * 1024;
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(super) struct LoweringSite {
     pub(super) function: u32,
@@ -100,6 +103,12 @@ pub(super) struct BoundedIntegerRange {
     pub(super) upper: BigInt,
 }
 
+#[derive(Clone, Debug)]
+pub(super) struct ListAppendBorrow {
+    pub(super) binding: crate::Span,
+    pub(super) vector: String,
+}
+
 #[expect(
     clippy::struct_excessive_bools,
     reason = "these independent lexical control contexts are saved and restored separately"
@@ -112,7 +121,9 @@ pub(super) struct Emitter<'a> {
     output: String,
     indent: usize,
     continue_label: Option<String>,
+    break_label: Option<String>,
     loop_counter: usize,
+    list_append_counter: usize,
     return_type: Option<ValueType>,
     parameter_types: Vec<(String, ValueType)>,
     namespace_initializer: Option<(String, String)>,
@@ -128,6 +139,7 @@ pub(super) struct Emitter<'a> {
     closure_depth: usize,
     assignment_target: bool,
     bounded_integer_ranges: Vec<BoundedIntegerRange>,
+    list_append_borrows: Vec<ListAppendBorrow>,
 }
 
 impl<'a> Emitter<'a> {
@@ -144,7 +156,9 @@ impl<'a> Emitter<'a> {
             output: String::new(),
             indent: 0,
             continue_label: None,
+            break_label: None,
             loop_counter: 0,
+            list_append_counter: 0,
             return_type: None,
             parameter_types: Vec::new(),
             namespace_initializer: None,
@@ -160,6 +174,7 @@ impl<'a> Emitter<'a> {
             closure_depth: 0,
             assignment_target: false,
             bounded_integer_ranges: Vec::new(),
+            list_append_borrows: Vec::new(),
         }
     }
 }

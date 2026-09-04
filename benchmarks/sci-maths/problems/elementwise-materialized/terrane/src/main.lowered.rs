@@ -46,17 +46,33 @@ fn main() {
         f64,
     >::new(Vec::new());
     let mut index: i64 = 0;
-    while index < count {
-        let raw: f64 = __terrane_raised(
-            terrane_int_support::exact_fixed_f64(index.rem_euclid(1000)),
-            3 /* terrane-site: src/main.trn:21:19-21:31 */,
-        );
-        let x: f64 = raw / 100.0_f64;
-        transformed.append(x * x + 3.0_f64 * x - 7.0_f64);
-        index = __terrane_raised(
-            terrane_int_support::fixed_addition(index, 1),
-            4 /* terrane-site: src/main.trn:24:5-24:12 */,
-        );
+    {
+        let __terrane_list_append_0 = transformed.make_unique();
+        if let (Ok(__terrane_start), Ok(__terrane_end)) = (
+            usize::try_from(index),
+            usize::try_from(count),
+        ) {
+            let __terrane_capacity_limit = 268435456usize
+                / std::mem::size_of::<f64>().max(1);
+            __terrane_list_append_0
+                .reserve(
+                    __terrane_end
+                        .saturating_sub(__terrane_start)
+                        .min(__terrane_capacity_limit),
+                );
+        }
+        while index < count {
+            let raw: f64 = __terrane_raised(
+                terrane_int_support::exact_fixed_f64(index.rem_euclid(1000)),
+                3 /* terrane-site: src/main.trn:21:19-21:31 */,
+            );
+            let x: f64 = raw / 100.0_f64;
+            __terrane_list_append_0.push(x * x + 3.0_f64 * x - 7.0_f64);
+            index = __terrane_raised(
+                terrane_int_support::fixed_addition(index, 1),
+                4 /* terrane-site: src/main.trn:24:5-24:12 */,
+            );
+        }
     }
     let mut total: f64 = 0.0_f64;
     let mut __terrane_iterator_0 = terrane_collection_support::Iterable::terrane_iterator(

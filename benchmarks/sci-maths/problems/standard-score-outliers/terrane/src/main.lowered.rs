@@ -47,27 +47,46 @@ fn main() {
     >::new(Vec::new());
     let mut total: f64 = 0.0_f64;
     let mut index: i64 = 0;
-    while index < count {
-        let raw: f64 = __terrane_raised(
-            terrane_int_support::exact_fixed_f64(
-                __terrane_raised(
-                    terrane_int_support::fixed_subtraction(index.rem_euclid(200), 100),
-                    3 /* terrane-site: src/main.trn:22:19-22:38 */,
+    {
+        let __terrane_list_append_0 = values.make_unique();
+        if let (Ok(__terrane_start), Ok(__terrane_end)) = (
+            usize::try_from(index),
+            usize::try_from(count),
+        ) {
+            let __terrane_capacity_limit = 268435456usize
+                / std::mem::size_of::<f64>().max(1);
+            __terrane_list_append_0
+                .reserve(
+                    __terrane_end
+                        .saturating_sub(__terrane_start)
+                        .min(__terrane_capacity_limit),
+                );
+        }
+        while index < count {
+            let raw: f64 = __terrane_raised(
+                terrane_int_support::exact_fixed_f64(
+                    __terrane_raised(
+                        terrane_int_support::fixed_subtraction(
+                            index.rem_euclid(200),
+                            100,
+                        ),
+                        3 /* terrane-site: src/main.trn:22:19-22:38 */,
+                    ),
                 ),
-            ),
-            3 /* terrane-site: src/main.trn:22:19-22:38 */,
-        );
-        let periodic: f64 = __terrane_raised(
-            terrane_int_support::exact_fixed_f64(index.rem_euclid(7)),
-            4 /* terrane-site: src/main.trn:23:24-23:33 */,
-        );
-        let value: f64 = 0.01 * raw * raw + periodic - 3.0_f64;
-        values.append(value);
-        total = total + value;
-        index = __terrane_raised(
-            terrane_int_support::fixed_addition(index, 1),
-            5 /* terrane-site: src/main.trn:27:5-27:12 */,
-        );
+                3 /* terrane-site: src/main.trn:22:19-22:38 */,
+            );
+            let periodic: f64 = __terrane_raised(
+                terrane_int_support::exact_fixed_f64(index.rem_euclid(7)),
+                4 /* terrane-site: src/main.trn:23:24-23:33 */,
+            );
+            let value: f64 = 0.01 * raw * raw + periodic - 3.0_f64;
+            __terrane_list_append_0.push(value);
+            total = total + value;
+            index = __terrane_raised(
+                terrane_int_support::fixed_addition(index, 1),
+                5 /* terrane-site: src/main.trn:27:5-27:12 */,
+            );
+        }
     }
     let divisor: f64 = __terrane_raised(
         terrane_int_support::exact_fixed_f64(count),

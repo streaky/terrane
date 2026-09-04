@@ -1,0 +1,175 @@
+namespace list-append-bulk-mutation
+
+from /core/collections import list
+from /core/process import exit, make-exit-status
+from /core/errors import arithmetic-overflow
+
+
+function validate-large-literal; enabled bool
+  if enabled
+    values list of int64 = list
+    index int64 = 0
+    while index < 4000000000
+      values.append; index
+      index++
+
+function validate-return int;
+  values list of int64 = list
+  index int64 = 0
+  limit int64 = 100000000000000
+  while index < limit
+    values.append; index
+    if index > 2
+      return index + 1
+    index++
+  return 0
+
+function validate-exit;
+  values list of int64 = list
+  index int64 = 0
+  limit int64 = 100000000000000
+  while index < limit
+    values.append; index
+    if index > 2
+      print; index + 1
+      exit; (make-exit-status; 0)
+    index++
+
+function validate-throw;
+  try
+    values list of int64 = list
+    index int64 = 0
+    limit int64 = 100000000000000
+    while index < limit
+      values.append; index
+      if index > 2
+        print; index + 1
+        throw arithmetic-overflow
+      index++
+  catch arithmetic-overflow
+    print; >throw-caught
+
+function main;
+  validate-large-literal; false
+  values list of int64 = list
+  index int64 = 0
+  limit int64 = 4
+  while index < limit
+    values.append; index
+    index++
+
+  original = values
+  values.append; 9
+  print; original.length
+  print; values.length
+
+  three-clause list of int64 = list
+  for-index int64 = 0
+  print; for-index
+  for for-index = 0; for-index < limit; for-index++
+    three-clause.append; for-index
+  print; three-clause.length, three-clause[3], for-index
+
+  three-clause-break list of int = list
+  for break-index = 0; break-index < 10; break-index++
+    three-clause-break.append; break-index
+    if break-index > 2
+      break
+  print; three-clause-break.length, three-clause-break[3]
+
+  update-observed list of int = list
+  for update-index = 0; update-index < 3; update-index = update-index + 1 + update-observed.length - update-observed.length
+    update-observed.append; update-index
+  print; update-observed.length
+
+  condition-observed list of int = list
+  for condition-index = 0; condition-index < 4 + condition-observed.length - condition-observed.length; condition-index++
+    condition-observed.append; condition-index
+  print; condition-observed.length
+
+  double-index int64 = 0
+  print; double-index
+  double-update list of int64 = list
+  for double-index = 0; double-index < limit; double-index++
+    double-update.append; double-index
+    double-index++
+  print; double-update.length
+
+  dependent list of int64 = list
+  dependent-index int64 = 0
+  while dependent-index < 3
+    dependent.append; dependent.length
+    dependent-index++
+  for value in dependent
+    print; value
+
+  inner-index int64 = 0
+  while inner-index < 1
+    inner list of int64 = list
+    inner.append; inner-index
+    inner-index++
+
+  nested list of int64 = list
+  outer-index int64 = 0
+  while outer-index < 3
+    nested.append; outer-index
+    nested-index int64 = 0
+    while nested-index < 2
+      nested.append; nested-index
+      nested-index++
+    outer-index++
+  print; nested.length
+
+
+  early-exit list of int64 = list
+  early-index int64 = 0
+  early-limit int64 = 100000000000000
+  while early-index < early-limit
+    early-exit.append; early-index
+    if early-index > 2
+      break
+    early-index++
+  print; early-exit.length
+
+  nested-break list of int64 = list
+  break-outer int64 = 0
+  while break-outer < 3
+    nested-break.append; break-outer
+    break-inner int64 = 0
+    while break-inner < 3
+      break
+    break-outer++
+  print; nested-break.length
+
+  source list of int64 = list; 1, 2, 3, 4
+  collected list of int64 = list
+  for value in source
+    collected.append; value
+  print; collected.length, collected[3]
+
+  observed list of int64 = list
+  for value in source
+    observed.append; observed.length
+  print; observed[3]
+
+  rows list of list of int64 = list; (list; 1, 2), (list; 3)
+  flattened list of int64 = list
+  for row in rows
+    for value in row
+      flattened.append; value
+  print; flattened.length, flattened[2]
+
+  aliased list of int64 = list; 1, 2
+  alias = aliased
+  for value in alias
+    aliased.append; value
+  print; aliased.length, alias.length
+
+  self-source list of int64 = list; 1, 2
+  for value in self-source
+    self-source.append; value
+  print; self-source.length
+
+  print; (validate-return;)
+  validate-throw;
+  validate-exit;

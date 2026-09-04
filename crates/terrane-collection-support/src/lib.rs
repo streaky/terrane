@@ -129,6 +129,18 @@ impl<T> List<T> {
     {
         self.0.get(index).cloned().ok_or(IndexError { index })
     }
+    /// Returns exclusive access to the backing vector after separating shared storage.
+    ///
+    /// Compiler-generated bulk mutation regions use this once before a loop so repeated
+    /// mutations do not perform an atomic uniqueness check for every element.
+    #[doc(hidden)]
+    #[inline]
+    pub fn make_unique(&mut self) -> &mut Vec<T>
+    where
+        T: Clone,
+    {
+        Arc::make_mut(&mut self.0)
+    }
 }
 
 impl<T: Clone> IntoIterator for List<T> {
@@ -146,15 +158,17 @@ impl<T: Clone> List<T> {
     /// # Errors
     ///
     /// Returns [`IndexError`] when `index` is outside the list.
+    #[inline]
     pub fn set(&mut self, index: usize, value: T) -> Result<(), IndexError> {
-        let Some(slot) = Arc::make_mut(&mut self.0).get_mut(index) else {
+        let Some(slot) = self.make_unique().get_mut(index) else {
             return Err(IndexError { index });
         };
         *slot = value;
         Ok(())
     }
+    #[inline]
     pub fn append(&mut self, value: T) {
-        Arc::make_mut(&mut self.0).push(value);
+        self.make_unique().push(value);
     }
 }
 
@@ -704,6 +718,18 @@ mod tests {
         copy.append(2);
         assert_eq!(original.length(), 1);
         assert_eq!(copy.length(), 2);
+    }
+
+    #[test]
+    fn list_bulk_mutation_separates_shared_storage_once() {
+        let original = List::new(vec![1]);
+        let mut copy = original.clone();
+        let values = copy.make_unique();
+        values.reserve(2);
+        values.push(2);
+        values.push(3);
+        assert_eq!(original.0.as_slice(), &[1]);
+        assert_eq!(copy.0.as_slice(), &[1, 2, 3]);
     }
 
     #[test]

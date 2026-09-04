@@ -1405,77 +1405,82 @@ pub fn mapping_required_fields(
         String,
     >::new(vec![]);
     let mut index: terrane_int_support::Int = terrane_int_support::Int::from(0_i128);
-    while index.clone()
-        < terrane_int_support::Int::from(terrane_int_support::Int::from(fields.length()))
     {
-        let field: String = __terrane_raised(
-            fields
-                .get_or_error(
-                    __terrane_raised(
-                        terrane_collection_support::index_from_int(&index.clone()),
-                        1 /* terrane-site: core/documents.trn:148:17-148:30 */,
-                    ),
-                ),
-            1 /* terrane-site: core/documents.trn:148:17-148:30 */,
-        );
-        let mut optional: bool = false;
-        let mut optional_index: terrane_int_support::Int = terrane_int_support::Int::from(
-            0_i128,
-        );
-        while optional_index.clone()
+        let __terrane_list_append_0 = required.make_unique();
+        while index.clone()
             < terrane_int_support::Int::from(
-                terrane_int_support::Int::from(optional_fields.length()),
+                terrane_int_support::Int::from(fields.length()),
             )
         {
-            if __terrane_raised(
-                optional_fields
+            let field: String = __terrane_raised(
+                fields
                     .get_or_error(
                         __terrane_raised(
-                            terrane_collection_support::index_from_int(
-                                &optional_index.clone(),
-                            ),
-                            2 /* terrane-site: core/documents.trn:152:16-152:47 */,
+                            terrane_collection_support::index_from_int(&index.clone()),
+                            1 /* terrane-site: core/documents.trn:148:17-148:30 */,
                         ),
                     ),
-                2 /* terrane-site: core/documents.trn:152:16-152:47 */,
-            ) == field
+                1 /* terrane-site: core/documents.trn:148:17-148:30 */,
+            );
+            let mut optional: bool = false;
+            let mut optional_index: terrane_int_support::Int = terrane_int_support::Int::from(
+                0_i128,
+            );
+            while optional_index.clone()
+                < terrane_int_support::Int::from(
+                    terrane_int_support::Int::from(optional_fields.length()),
+                )
             {
-                optional = true;
-            }
-            optional_index = optional_index.clone()
-                + terrane_int_support::Int::from(1_i128);
-        }
-        let mut defaulted: bool = false;
-        let mut default_index: terrane_int_support::Int = terrane_int_support::Int::from(
-            0_i128,
-        );
-        while default_index.clone()
-            < terrane_int_support::Int::from(
-                terrane_int_support::Int::from(default_fields.length()),
-            )
-        {
-            if __terrane_raised(
-                default_fields
-                    .get_or_error(
-                        __terrane_raised(
-                            terrane_collection_support::index_from_int(
-                                &default_index.clone(),
+                if __terrane_raised(
+                    optional_fields
+                        .get_or_error(
+                            __terrane_raised(
+                                terrane_collection_support::index_from_int(
+                                    &optional_index.clone(),
+                                ),
+                                2 /* terrane-site: core/documents.trn:152:16-152:47 */,
                             ),
-                            3 /* terrane-site: core/documents.trn:158:16-158:45 */,
                         ),
-                    ),
-                3 /* terrane-site: core/documents.trn:158:16-158:45 */,
-            ) == field
-            {
-                defaulted = true;
+                    2 /* terrane-site: core/documents.trn:152:16-152:47 */,
+                ) == field
+                {
+                    optional = true;
+                }
+                optional_index = optional_index.clone()
+                    + terrane_int_support::Int::from(1_i128);
             }
-            default_index = default_index.clone()
-                + terrane_int_support::Int::from(1_i128);
+            let mut defaulted: bool = false;
+            let mut default_index: terrane_int_support::Int = terrane_int_support::Int::from(
+                0_i128,
+            );
+            while default_index.clone()
+                < terrane_int_support::Int::from(
+                    terrane_int_support::Int::from(default_fields.length()),
+                )
+            {
+                if __terrane_raised(
+                    default_fields
+                        .get_or_error(
+                            __terrane_raised(
+                                terrane_collection_support::index_from_int(
+                                    &default_index.clone(),
+                                ),
+                                3 /* terrane-site: core/documents.trn:158:16-158:45 */,
+                            ),
+                        ),
+                    3 /* terrane-site: core/documents.trn:158:16-158:45 */,
+                ) == field
+                {
+                    defaulted = true;
+                }
+                default_index = default_index.clone()
+                    + terrane_int_support::Int::from(1_i128);
+            }
+            if field != String::from("") && !optional && !defaulted {
+                __terrane_list_append_0.push(field);
+            }
+            index = index.clone() + terrane_int_support::Int::from(1_i128);
         }
-        if field != String::from("") && !optional && !defaulted {
-            required.append(field);
-        }
-        index = index.clone() + terrane_int_support::Int::from(1_i128);
     }
     return required.clone();
 }
@@ -1492,41 +1497,46 @@ pub fn decode_document(
     let mut field_index: terrane_int_support::Int = terrane_int_support::Int::from(
         0_i128,
     );
-    while field_index.clone()
-        < terrane_int_support::Int::from(
-            terrane_int_support::Int::from(mapping.field_names.length()),
-        )
     {
-        if __terrane_raised(
-            mapping
-                .field_names
-                .get_or_error(
-                    __terrane_raised(
-                        terrane_collection_support::index_from_int(&field_index.clone()),
-                        4 /* terrane-site: core/documents.trn:171:12-171:44 */,
-                    ),
-                ),
-            4 /* terrane-site: core/documents.trn:171:12-171:44 */,
-        ) != String::from("")
+        let __terrane_list_append_1 = declared_fields.make_unique();
+        while field_index.clone()
+            < terrane_int_support::Int::from(
+                terrane_int_support::Int::from(mapping.field_names.length()),
+            )
         {
-            declared_fields
-                .append(
-                    __terrane_raised(
-                        mapping
-                            .field_names
-                            .get_or_error(
-                                __terrane_raised(
-                                    terrane_collection_support::index_from_int(
-                                        &field_index.clone(),
-                                    ),
-                                    5 /* terrane-site: core/documents.trn:172:37-172:69 */,
-                                ),
+            if __terrane_raised(
+                mapping
+                    .field_names
+                    .get_or_error(
+                        __terrane_raised(
+                            terrane_collection_support::index_from_int(
+                                &field_index.clone(),
                             ),
-                        5 /* terrane-site: core/documents.trn:172:37-172:69 */,
+                            4 /* terrane-site: core/documents.trn:171:12-171:44 */,
+                        ),
                     ),
-                );
+                4 /* terrane-site: core/documents.trn:171:12-171:44 */,
+            ) != String::from("")
+            {
+                __terrane_list_append_1
+                    .push(
+                        __terrane_raised(
+                            mapping
+                                .field_names
+                                .get_or_error(
+                                    __terrane_raised(
+                                        terrane_collection_support::index_from_int(
+                                            &field_index.clone(),
+                                        ),
+                                        5 /* terrane-site: core/documents.trn:172:37-172:69 */,
+                                    ),
+                                ),
+                            5 /* terrane-site: core/documents.trn:172:37-172:69 */,
+                        ),
+                    );
+            }
+            field_index = field_index.clone() + terrane_int_support::Int::from(1_i128);
         }
-        field_index = field_index.clone() + terrane_int_support::Int::from(1_i128);
     }
     let mut default_fields: terrane_collection_support::List<String> = terrane_collection_support::List::<
         String,

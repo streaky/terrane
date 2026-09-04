@@ -595,30 +595,33 @@ pub fn arguments() -> terrane_collection_support::List<NativeString> {
         NativeString,
     >::new(Vec::new());
     let mut index: terrane_int_support::Int = terrane_int_support::Int::from(0_i128);
-    while index.clone() < terrane_int_support::Int::from(encoded.len() as i128) {
-        values
-            .append(
-                NativeString::terrane_construct(
-                    __terrane_raised(
-                        encoded
-                            .get(
-                                __terrane_raised(
-                                    terrane_collection_support::index_from_int(&index.clone()),
-                                    0 /* terrane-site: core/process.trn:44:49-44:63 */,
-                                ),
-                            )
-                            .cloned()
-                            .ok_or(terrane_collection_support::IndexError {
-                                index: __terrane_raised(
-                                    terrane_collection_support::index_from_int(&index.clone()),
-                                    0 /* terrane-site: core/process.trn:44:49-44:63 */,
-                                ),
-                            }),
-                        0 /* terrane-site: core/process.trn:44:49-44:63 */,
+    {
+        let __terrane_list_append_0 = values.make_unique();
+        while index.clone() < terrane_int_support::Int::from(encoded.len() as i128) {
+            __terrane_list_append_0
+                .push(
+                    NativeString::terrane_construct(
+                        __terrane_raised(
+                            encoded
+                                .get(
+                                    __terrane_raised(
+                                        terrane_collection_support::index_from_int(&index.clone()),
+                                        0 /* terrane-site: core/process.trn:44:49-44:63 */,
+                                    ),
+                                )
+                                .cloned()
+                                .ok_or(terrane_collection_support::IndexError {
+                                    index: __terrane_raised(
+                                        terrane_collection_support::index_from_int(&index.clone()),
+                                        0 /* terrane-site: core/process.trn:44:49-44:63 */,
+                                    ),
+                                }),
+                            0 /* terrane-site: core/process.trn:44:49-44:63 */,
+                        ),
                     ),
-                ),
-            );
-        index = index.clone() + terrane_int_support::Int::from(1_i128);
+                );
+            index = index.clone() + terrane_int_support::Int::from(1_i128);
+        }
     }
     return values.clone();
 }
@@ -628,53 +631,57 @@ pub fn environment() -> terrane_collection_support::List<EnvironmentEntry> {
         EnvironmentEntry,
     >::new(Vec::new());
     let mut index: terrane_int_support::Int = terrane_int_support::Int::from(0_i128);
-    while index.clone() + terrane_int_support::Int::from(1_i128)
-        < terrane_int_support::Int::from(encoded.len() as i128)
     {
-        let name: NativeString = NativeString::terrane_construct(
-            __terrane_raised(
-                encoded
-                    .get(
-                        __terrane_raised(
-                            terrane_collection_support::index_from_int(&index.clone()),
-                            1 /* terrane-site: core/process.trn:53:40-53:54 */,
-                        ),
-                    )
-                    .cloned()
-                    .ok_or(terrane_collection_support::IndexError {
-                        index: __terrane_raised(
-                            terrane_collection_support::index_from_int(&index.clone()),
-                            1 /* terrane-site: core/process.trn:53:40-53:54 */,
-                        ),
-                    }),
-                1 /* terrane-site: core/process.trn:53:40-53:54 */,
-            ),
-        );
-        let value: NativeString = NativeString::terrane_construct(
-            __terrane_raised(
-                encoded
-                    .get(
-                        __terrane_raised(
-                            terrane_collection_support::index_from_int(
-                                &(index.clone() + terrane_int_support::Int::from(1_i128)),
+        let __terrane_list_append_1 = values.make_unique();
+        while index.clone() + terrane_int_support::Int::from(1_i128)
+            < terrane_int_support::Int::from(encoded.len() as i128)
+        {
+            let name: NativeString = NativeString::terrane_construct(
+                __terrane_raised(
+                    encoded
+                        .get(
+                            __terrane_raised(
+                                terrane_collection_support::index_from_int(&index.clone()),
+                                1 /* terrane-site: core/process.trn:53:40-53:54 */,
                             ),
-                            2 /* terrane-site: core/process.trn:54:41-54:59 */,
-                        ),
-                    )
-                    .cloned()
-                    .ok_or(terrane_collection_support::IndexError {
-                        index: __terrane_raised(
-                            terrane_collection_support::index_from_int(
-                                &(index.clone() + terrane_int_support::Int::from(1_i128)),
+                        )
+                        .cloned()
+                        .ok_or(terrane_collection_support::IndexError {
+                            index: __terrane_raised(
+                                terrane_collection_support::index_from_int(&index.clone()),
+                                1 /* terrane-site: core/process.trn:53:40-53:54 */,
                             ),
-                            2 /* terrane-site: core/process.trn:54:41-54:59 */,
-                        ),
-                    }),
-                2 /* terrane-site: core/process.trn:54:41-54:59 */,
-            ),
-        );
-        values.append(EnvironmentEntry::terrane_construct(name, value));
-        index = index.clone() + terrane_int_support::Int::from(2_i128);
+                        }),
+                    1 /* terrane-site: core/process.trn:53:40-53:54 */,
+                ),
+            );
+            let value: NativeString = NativeString::terrane_construct(
+                __terrane_raised(
+                    encoded
+                        .get(
+                            __terrane_raised(
+                                terrane_collection_support::index_from_int(
+                                    &(index.clone() + terrane_int_support::Int::from(1_i128)),
+                                ),
+                                2 /* terrane-site: core/process.trn:54:41-54:59 */,
+                            ),
+                        )
+                        .cloned()
+                        .ok_or(terrane_collection_support::IndexError {
+                            index: __terrane_raised(
+                                terrane_collection_support::index_from_int(
+                                    &(index.clone() + terrane_int_support::Int::from(1_i128)),
+                                ),
+                                2 /* terrane-site: core/process.trn:54:41-54:59 */,
+                            ),
+                        }),
+                    2 /* terrane-site: core/process.trn:54:41-54:59 */,
+                ),
+            );
+            __terrane_list_append_1
+                .push(EnvironmentEntry::terrane_construct(name, value));
+            index = index.clone() + terrane_int_support::Int::from(2_i128);
+        }
     }
     return values.clone();
 }
@@ -763,71 +770,80 @@ pub fn parse_command_line(
         String,
     >::new(Vec::new());
     let mut index: terrane_int_support::Int = terrane_int_support::Int::from(0_i128);
-    while index.clone()
-        < terrane_int_support::Int::from(
-            terrane_int_support::Int::from(supplied.length()),
-        )
     {
-        let argument: NativeString = __terrane_raised(
-            supplied
-                .get_or_error(
-                    __terrane_raised(
-                        terrane_collection_support::index_from_int(&index.clone()),
-                        3 /* terrane-site: core/process.trn:89:20-89:35 */,
+        let __terrane_list_append_2 = diagnostic_arguments.make_unique();
+        let __terrane_list_append_3 = diagnostic_messages.make_unique();
+        let __terrane_list_append_4 = flags.make_unique();
+        let __terrane_list_append_5 = option_names.make_unique();
+        let __terrane_list_append_6 = option_values.make_unique();
+        let __terrane_list_append_7 = positionals.make_unique();
+        while index.clone()
+            < terrane_int_support::Int::from(
+                terrane_int_support::Int::from(supplied.length()),
+            )
+        {
+            let argument: NativeString = __terrane_raised(
+                supplied
+                    .get_or_error(
+                        __terrane_raised(
+                            terrane_collection_support::index_from_int(&index.clone()),
+                            3 /* terrane-site: core/process.trn:89:20-89:35 */,
+                        ),
                     ),
-                ),
-            3 /* terrane-site: core/process.trn:89:20-89:35 */,
-        );
-        if !argument.is_text {
-            diagnostic_arguments.append(index.clone());
-            diagnostic_messages
-                .append(String::from("command-line option is not Unicode text"));
-        } else {
-            let flag_entry: String = format!(
-                "{}{}", terrane_scalar_support::scalar_text(&String::from("flag:")),
-                terrane_scalar_support::scalar_text(&argument.text)
+                3 /* terrane-site: core/process.trn:89:20-89:35 */,
             );
-            let value_entry: String = format!(
-                "{}{}", terrane_scalar_support::scalar_text(&String::from("value:")),
-                terrane_scalar_support::scalar_text(&argument.text)
-            );
-            if schema_has(schema.clone(), flag_entry) {
-                flags.append(argument.text.clone());
-            } else if schema_has(schema.clone(), value_entry) {
-                if index.clone() + terrane_int_support::Int::from(1_i128)
-                    >= terrane_int_support::Int::from(
-                        terrane_int_support::Int::from(supplied.length()),
-                    )
-                {
-                    diagnostic_arguments.append(index.clone());
-                    diagnostic_messages.append(String::from("option requires a value"));
-                } else {
-                    option_names.append(argument.text.clone());
-                    option_values
-                        .append(
-                            __terrane_raised(
-                                supplied
-                                    .get_or_error(
-                                        __terrane_raised(
-                                            terrane_collection_support::index_from_int(
-                                                &(index.clone() + terrane_int_support::Int::from(1_i128)),
-                                            ),
-                                            4 /* terrane-site: core/process.trn:104:43-104:62 */,
-                                        ),
-                                    ),
-                                4 /* terrane-site: core/process.trn:104:43-104:62 */,
-                            ),
-                        );
-                    index = index.clone() + terrane_int_support::Int::from(1_i128);
-                }
-            } else if argument.text.starts_with(&String::from("--")) {
-                diagnostic_arguments.append(index.clone());
-                diagnostic_messages.append(String::from("unknown option"));
+            if !argument.is_text {
+                __terrane_list_append_2.push(index.clone());
+                __terrane_list_append_3
+                    .push(String::from("command-line option is not Unicode text"));
             } else {
-                positionals.append(argument.clone());
+                let flag_entry: String = format!(
+                    "{}{}", terrane_scalar_support::scalar_text(&String::from("flag:")),
+                    terrane_scalar_support::scalar_text(&argument.text)
+                );
+                let value_entry: String = format!(
+                    "{}{}", terrane_scalar_support::scalar_text(&String::from("value:")),
+                    terrane_scalar_support::scalar_text(&argument.text)
+                );
+                if schema_has(schema.clone(), flag_entry) {
+                    __terrane_list_append_4.push(argument.text.clone());
+                } else if schema_has(schema.clone(), value_entry) {
+                    if index.clone() + terrane_int_support::Int::from(1_i128)
+                        >= terrane_int_support::Int::from(
+                            terrane_int_support::Int::from(supplied.length()),
+                        )
+                    {
+                        __terrane_list_append_2.push(index.clone());
+                        __terrane_list_append_3
+                            .push(String::from("option requires a value"));
+                    } else {
+                        __terrane_list_append_5.push(argument.text.clone());
+                        __terrane_list_append_6
+                            .push(
+                                __terrane_raised(
+                                    supplied
+                                        .get_or_error(
+                                            __terrane_raised(
+                                                terrane_collection_support::index_from_int(
+                                                    &(index.clone() + terrane_int_support::Int::from(1_i128)),
+                                                ),
+                                                4 /* terrane-site: core/process.trn:104:43-104:62 */,
+                                            ),
+                                        ),
+                                    4 /* terrane-site: core/process.trn:104:43-104:62 */,
+                                ),
+                            );
+                        index = index.clone() + terrane_int_support::Int::from(1_i128);
+                    }
+                } else if argument.text.starts_with(&String::from("--")) {
+                    __terrane_list_append_2.push(index.clone());
+                    __terrane_list_append_3.push(String::from("unknown option"));
+                } else {
+                    __terrane_list_append_7.push(argument.clone());
+                }
             }
+            index = index.clone() + terrane_int_support::Int::from(1_i128);
         }
-        index = index.clone() + terrane_int_support::Int::from(1_i128);
     }
     let mut result: CommandLine = CommandLine::terrane_construct();
     result.flags = flags.clone();

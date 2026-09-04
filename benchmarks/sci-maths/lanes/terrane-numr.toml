@@ -20,4 +20,4 @@ environment = [
 [metadata]
 implementation = "Terrane using numr 0.7.0 through /deps"
 scientific-packages = true
-native-build-profile = "Cargo release"
+native-build-profile = "Cargo release: opt-level 3, fat LTO, one codegen unit"
