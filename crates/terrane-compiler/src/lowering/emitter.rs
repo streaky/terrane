@@ -16,6 +16,8 @@ use crate::{
     semantics::{ObjectIdentity, SemanticPackage, SemanticUnit, ValueType},
 };
 
+const LIST_PREALLOCATION_LIMIT_BYTES: usize = 256 * 1024 * 1024;
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(super) struct LoweringSite {
     pub(super) function: u32,

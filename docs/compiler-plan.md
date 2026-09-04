@@ -1176,8 +1176,10 @@ covers member and indexed mutation, checked and throwing lookup with typed `inde
 range direction and inclusivity, homogeneous-item rejection, and assignment separation. Lowering
 recognises append-only local-list mutation in a `while` region, performs any copy-on-write split
 once before entering the outermost such region, reuses that borrow in nested loops, and reserves
-the remaining count only for a break-free zero-based fixed-integer loop with one direct `++` step,
-without changing the source collection contract. Collection drop order is not yet
+the remaining count only for a zero-based fixed-integer loop with one direct `++` step and no
+function or process exit from its body. Preallocation is capped at 256 MiB per region as a
+backstop against speculative bounds, without changing the source collection contract. Collection
+drop order is not yet
 source-observable, and collection identity metadata plus source `is` behavior are not implemented;
 those parts of the exit criterion remain outstanding.
 

@@ -218,6 +218,35 @@ impl Emitter<'_> {
         candidates
     }
 
+    fn contains_loop_early_exit(&self, node: &SyntaxNode, loop_depth: usize) -> bool {
+        if matches!(
+            node.kind,
+            SyntaxKind::FunctionDeclaration | SyntaxKind::AnonymousFunction
+        ) {
+            return false;
+        }
+        if matches!(
+            node.kind,
+            SyntaxKind::ReturnStatement | SyntaxKind::ThrowStatement
+        ) || (node.kind == SyntaxKind::BreakStatement && loop_depth == 0)
+            || (node.kind == SyntaxKind::CallExpression
+                && node
+                    .children
+                    .first()
+                    .is_some_and(|callee| self.is_builtin(callee, "/core/process::exit")))
+        {
+            return true;
+        }
+        let child_loop_depth = loop_depth
+            + usize::from(matches!(
+                node.kind,
+                SyntaxKind::WhileStatement | SyntaxKind::ForStatement
+            ));
+        node.children
+            .iter()
+            .any(|child| self.contains_loop_early_exit(child, child_loop_depth))
+    }
+
     pub(super) fn while_capacity_hint(
         &mut self,
         condition: &SyntaxNode,
@@ -243,9 +272,6 @@ impl Emitter<'_> {
                 .iter()
                 .map(|child| mutation_count(emitter, child, binding))
                 .sum::<usize>()
-        }
-        fn contains_break(node: &SyntaxNode) -> bool {
-            node.kind == SyntaxKind::BreakStatement || node.children.iter().any(contains_break)
         }
 
         let [left, right] = condition.children.as_slice() else {
@@ -285,7 +311,7 @@ impl Emitter<'_> {
             })
             .count();
         (direct_increment_count == 1).then_some(())?;
-        (!contains_break(block)).then_some(())?;
+        (!self.contains_loop_early_exit(block, 0)).then_some(())?;
 
         let end = if right.kind == SyntaxKind::Name {
             let upper = self.local_typed_binding(right)?;

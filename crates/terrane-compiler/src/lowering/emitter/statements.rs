@@ -765,6 +765,11 @@ impl Emitter<'_> {
                     .iter()
                     .find(|binding| binding.span == binding_span)
                     .expect("append-only list binding must remain available during lowering");
+                let item_type = match &binding.value_type {
+                    ValueType::List(item) => rust_element_type(self.package, item.clone()),
+                    _ => unreachable!("append-only list binding must retain its list type"),
+                };
+                let preallocation_limit = super::LIST_PREALLOCATION_LIMIT_BYTES;
                 let vector = format!("__terrane_list_append_{}", self.loop_counter);
                 self.loop_counter += 1;
                 self.line(&format!(
@@ -777,7 +782,10 @@ impl Emitter<'_> {
                     ));
                     self.indent += 1;
                     self.line(&format!(
-                        "{vector}.reserve(__terrane_end.saturating_sub(__terrane_start));"
+                        "let __terrane_capacity_limit = {preallocation_limit}usize / std::mem::size_of::<{item_type}>().max(1);"
+                    ));
+                    self.line(&format!(
+                        "{vector}.reserve(__terrane_end.saturating_sub(__terrane_start).min(__terrane_capacity_limit));"
                     ));
                     self.indent -= 1;
                     self.line("}");

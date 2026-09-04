@@ -1,6 +1,8 @@
 namespace list-append-bulk-mutation
 
 from /core/collections import list
+from /core/process import exit, make-exit-status
+
 
 function validate-large-literal; enabled bool
   if enabled
@@ -9,6 +11,28 @@ function validate-large-literal; enabled bool
     while index < 4000000000
       values.append; index
       index++
+
+function validate-return int;
+  values list of int64 = list
+  index int64 = 0
+  limit int64 = 100000000000000
+  while index < limit
+    values.append; index
+    if index > 2
+      return values.length
+    index++
+  return 0
+
+function validate-exit;
+  values list of int64 = list
+  index int64 = 0
+  limit int64 = 100000000000000
+  while index < limit
+    values.append; index
+    if index > 2
+      print; values.length
+      exit; (make-exit-status; 0)
+    index++
 
 function main;
   validate-large-literal; false
@@ -59,3 +83,16 @@ function main;
       break
     early-index++
   print; early-exit.length
+
+  nested-break list of int64 = list
+  break-outer int64 = 0
+  while break-outer < 3
+    nested-break.append; break-outer
+    break-inner int64 = 0
+    while break-inner < 3
+      break
+    break-outer++
+  print; nested-break.length
+
+  print; (validate-return;)
+  validate-exit;
