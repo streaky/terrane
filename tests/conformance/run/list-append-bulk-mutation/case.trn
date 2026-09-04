@@ -2,6 +2,7 @@ namespace list-append-bulk-mutation
 
 from /core/collections import list
 from /core/process import exit, make-exit-status
+from /core/errors import arithmetic-overflow
 
 
 function validate-large-literal; enabled bool
@@ -19,7 +20,7 @@ function validate-return int;
   while index < limit
     values.append; index
     if index > 2
-      return values.length
+      return index + 1
     index++
   return 0
 
@@ -30,9 +31,23 @@ function validate-exit;
   while index < limit
     values.append; index
     if index > 2
-      print; values.length
+      print; index + 1
       exit; (make-exit-status; 0)
     index++
+
+function validate-throw;
+  try
+    values list of int64 = list
+    index int64 = 0
+    limit int64 = 100000000000000
+    while index < limit
+      values.append; index
+      if index > 2
+        print; index + 1
+        throw arithmetic-overflow
+      index++
+  catch arithmetic-overflow
+    print; >throw-caught
 
 function main;
   validate-large-literal; false
@@ -95,4 +110,5 @@ function main;
   print; nested-break.length
 
   print; (validate-return;)
+  validate-throw;
   validate-exit;
