@@ -68,7 +68,7 @@ function main;
   print; for-index
   for for-index = 0; for-index < limit; for-index++
     three-clause.append; for-index
-  print; three-clause.length, three-clause[3]
+  print; three-clause.length, three-clause[3], for-index
 
   dependent list of int64 = list
   dependent-index int64 = 0

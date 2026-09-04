@@ -892,11 +892,11 @@ fn main() {
         }
     }
     println!(
-        "{}{}",
+        "{}{}{}",
         terrane_scalar_support::scalar_text(&terrane_int_support::Int::from(three_clause
         .length())), terrane_scalar_support::scalar_text(&__terrane_raised(three_clause
         .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(3_i128)),
-        9 /* terrane-site: case.trn:71:31-71:46 */)), 9 /* terrane-site: case.trn:71:31-71:46 */))
+        9 /* terrane-site: case.trn:71:31-71:46 */)), 9 /* terrane-site: case.trn:71:31-71:46 */)), terrane_scalar_support::scalar_text(&for_index)
     );
     let mut dependent: terrane_collection_support::List<i64> = terrane_collection_support::List::<
         i64,
