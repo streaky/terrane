@@ -1,12 +1,12 @@
 # Scientific mathematics and data benchmarks
 
-This corpus compares clear implementations of the same scientific or data problem in two groups. `language-baseline` exercises ordinary language facilities in Terrane, Python, and a clean Rust control. `scientific-stack` exercises harder numerical workloads in pure Terrane, Python with NumPy/SciPy, and Terrane with the pinned `numr` Rust dependency.
+This corpus compares clear implementations of the same scientific or data problem in two groups. `language-baseline` exercises ordinary language facilities in Terrane, Python, Rust, and Go. `scientific-stack` exercises harder numerical workloads in pure Terrane, Python with NumPy/SciPy, and Terrane with the pinned `numr` Rust dependency.
 
 The corpus is design and performance evidence, not compiler conformance. Every implementation must pass its problem's correctness profile before the runner records performance measurements.
 
 ## Run it
 
-Python 3.11 or newer is required for the runner, `uv` provisions the locked NumPy/SciPy environment, and the Terrane, Terrane+numr, and Rust lanes use the repository's Rust toolchain.
+Python 3.11 or newer is required for the runner, `uv` provisions the locked NumPy/SciPy environment, Go is required for the Go control, and the Terrane, Terrane+numr, and Rust lanes use the repository's Rust toolchain.
 
 ```console
 python3 benchmarks/sci-maths/run.py list
@@ -28,6 +28,8 @@ python3 benchmarks/sci-maths/run.py \
 ```
 
 `check` prepares each selected implementation and runs the small correctness profile. `benchmark` and `report` preserve adapter-declared build caches by default, complete all lane setup before running a case, recheck correctness, perform warm-ups, and then record end-to-end program runs. Compilation and preparation time is never included in an execution result; a lane with no build step, such as Python, follows the same timing boundary. Cases are interleaved in suite order within each warm-up or measured run index, rather than finishing all repetitions for one lane before starting another. Pass `--cold-builds` to clear only adapter-declared caches inside this suite and record separate cold and immediately repeated incremental preparation measurements. `benchmark` emits JSON. `report` writes a timestamped Markdown report and a same-named complete JSON record under `reports/` by default; `--output path/report.md` chooses another pair of paths. Neither command removes the repository's Cargo target directory.
+
+Markdown reports separate results by problem. Within each problem, lanes are sorted by median wall time from fastest to slowest, and `Longer than fastest` reports the percentage overhead relative to that problem's fastest lane.
 
 `lower` refreshes each lane's declared inspectable lowering by passing the first resolved
 `lower-outputs` path as `$lowered` and requiring every declared output to be rewritten. The Terrane
@@ -54,7 +56,7 @@ The Terrane adapters build both the compiler and every generated benchmark execu
 
 ## Groups and fairness
 
-The `language-baseline` group retains the five original deterministic workloads. Its Python lane uses only the standard library, its Terrane lane uses only Terrane's standard surface, and its Rust lane is a direct, standalone control. The implementations preserve each problem's intended materialization or fusion boundary rather than optimizing the benchmark into a different algorithm.
+The `language-baseline` group retains the five original deterministic workloads. Its Python lane uses only the standard library, its Terrane lane uses only Terrane's standard surface, and its Rust and Go lanes are direct, standalone controls. The implementations preserve each problem's intended materialization or fusion boundary rather than optimizing the benchmark into a different algorithm.
 
 The `scientific-stack` group currently contains pairwise oscillatory Bessel-kernel energy and gamma survival-model calibration. Python uses vectorized NumPy arrays and SciPy special functions. Terrane+numr imports `numr` 0.7.0 through `/deps/numr/algorithm/special` and calls its public scalar special-function entry points. Pure Terrane implements the same special-function algorithms from scalar arithmetic and the compiler's foundational floating-point methods: a rational Bessel approximation invokes `square-root`, `sine`, and `cosine`, while incomplete-gamma series and continued fractions invoke `natural-log` and `exponential` around a source-authored log-gamma approximation. All three lanes receive the same size, generate the same data in-process, evaluate every ordered Bessel pair or gamma sample, and emit one scalar mean. Correctness is checked against the independent SciPy lane before timing.
 
