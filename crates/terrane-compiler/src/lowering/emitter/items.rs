@@ -1,5 +1,24 @@
 use super::super::prelude::*;
 
+fn forwarded_method_return_type(
+    package: &SemanticPackage,
+    method: &FunctionContract,
+) -> Option<String> {
+    if method.throws {
+        let result = method.return_type.clone().map_or_else(
+            || "()".to_owned(),
+            |value_type| rust_value_type(package, value_type),
+        );
+        Some(format!("Result<{result}, TerraneError>"))
+    } else {
+        method
+            .return_type
+            .clone()
+            .filter(|result| *result != ValueType::Scalar(ScalarType::None))
+            .map(|result| rust_value_type(package, result))
+    }
+}
+
 impl Emitter<'_> {
     pub(super) fn global_storage(&self, node: &SyntaxNode) -> Option<String> {
         (node.kind == SyntaxKind::Name)
@@ -357,7 +376,11 @@ impl Emitter<'_> {
                         );
                         write!(self.output, "{}: {ty}", rust_name(&parameter.name)).unwrap();
                     }
-                    self.output.push_str(") -> Self {\n");
+                    if construct.throws {
+                        self.output.push_str(") -> Result<Self, TerraneError> {\n");
+                    } else {
+                        self.output.push_str(") -> Self {\n");
+                    }
                     self.indent += 1;
                     self.line("let mut value = Self {");
                     self.indent += 1;
@@ -392,8 +415,15 @@ impl Emitter<'_> {
                         .map(|parameter| rust_name(&parameter.name))
                         .collect::<Vec<_>>()
                         .join(", ");
-                    self.line(&format!("value.construct({arguments});"));
-                    self.line("value");
+                    self.line(&format!(
+                        "value.construct({arguments}){};",
+                        if construct.throws { "?" } else { "" }
+                    ));
+                    self.line(if construct.throws {
+                        "Ok(value)"
+                    } else {
+                        "value"
+                    });
                     self.indent -= 1;
                     self.line("}");
                 } else {
@@ -507,7 +537,11 @@ impl Emitter<'_> {
                             );
                             write!(self.output, "{}: {ty}", rust_name(&parameter.name)).unwrap();
                         }
-                        self.output.push_str(") -> Self {\n");
+                        if construct.throws {
+                            self.output.push_str(") -> Result<Self, TerraneError> {\n");
+                        } else {
+                            self.output.push_str(") -> Self {\n");
+                        }
                         self.indent += 1;
                         let arguments = construct
                             .parameters
@@ -515,9 +549,15 @@ impl Emitter<'_> {
                             .map(|parameter| rust_name(&parameter.name))
                             .collect::<Vec<_>>()
                             .join(", ");
-                        self.line(&format!(
-                            "Self::Own({storage_type}::terrane_construct({arguments}))"
-                        ));
+                        if construct.throws {
+                            self.line(&format!(
+                                "Ok(Self::Own({storage_type}::terrane_construct({arguments})?))"
+                            ));
+                        } else {
+                            self.line(&format!(
+                                "Self::Own({storage_type}::terrane_construct({arguments}))"
+                            ));
+                        }
                         self.indent -= 1;
                         self.line("}");
                     } else {
@@ -596,13 +636,8 @@ impl Emitter<'_> {
                             write!(self.output, ", {}: {ty}", rust_name(&parameter.name)).unwrap();
                         }
                         self.output.push(')');
-                        if let Some(result) = method
-                            .return_type
-                            .clone()
-                            .filter(|result| *result != ValueType::Scalar(ScalarType::None))
-                        {
-                            write!(self.output, " -> {}", rust_value_type(self.package, result))
-                                .unwrap();
+                        if let Some(result) = forwarded_method_return_type(self.package, method) {
+                            write!(self.output, " -> {result}").unwrap();
                         }
                         self.output.push_str(" {\n");
                         self.indent += 1;
@@ -750,13 +785,8 @@ impl Emitter<'_> {
                             write!(self.output, ", {}: {ty}", rust_name(&parameter.name)).unwrap();
                         }
                         self.output.push(')');
-                        if let Some(result) = method
-                            .return_type
-                            .clone()
-                            .filter(|result| *result != ValueType::Scalar(ScalarType::None))
-                        {
-                            write!(self.output, " -> {}", rust_value_type(self.package, result))
-                                .unwrap();
+                        if let Some(result) = forwarded_method_return_type(self.package, method) {
+                            write!(self.output, " -> {result}").unwrap();
                         }
                         self.output.push_str(" {\n");
                         self.indent += 1;

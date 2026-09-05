@@ -1,0 +1,35 @@
+namespace callable-class-parameters
+
+function increment int; value int
+  return value + 1
+
+class direct-holder
+  stored int = 0
+
+  function construct; operation function from int to int
+    this.stored = operation; 1
+
+  function apply int; operation function from int to int, value int
+    return operation; this.stored + value
+
+  function ignore int; operation function from int to int, value int
+    return value
+
+class base-holder
+  stored int = 0
+
+  function construct; operation function from int to int
+    this.stored = operation; 1
+
+  function apply int; operation function from int to int, value int
+    return operation; this.stored + value
+
+class child-holder extends base-holder
+
+function main;
+  operation function from int to int = increment
+  direct direct-holder = instance direct-holder; operation
+  print; (direct.apply; operation, 4)
+  print; (direct.ignore; operation, 9)
+  base base-holder = instance base-holder; operation
+  print; (base.apply; operation, 5)
