@@ -117,6 +117,38 @@ fn reports(
     })
 }
 
+fn assert_expected_warnings(
+    case: &Path,
+    manifest: &str,
+    compilation: &terrane_compiler::Compilation,
+) {
+    let Some(warnings_file) = field(manifest, "warnings") else {
+        return;
+    };
+    let expected = fs::read_to_string(case.join(warnings_file)).unwrap();
+    let actual = compilation
+        .warnings
+        .iter()
+        .map(|warning| {
+            let source = warning
+                .primary
+                .and_then(|span| {
+                    compilation
+                        .sources
+                        .iter()
+                        .find(|source| source.id() == span.file)
+                })
+                .unwrap_or(&compilation.source);
+            warning.render(source).replacen(
+                &source.path().display().to_string(),
+                &source.path().file_name().unwrap().to_string_lossy(),
+                1,
+            )
+        })
+        .collect::<String>();
+    assert_eq!(actual, expected, "{} warnings", case.display());
+}
+
 #[test]
 fn every_manifest_drives_a_conformance_case() {
     let manifests = manifests_below(&corpus());
@@ -138,46 +170,19 @@ fn every_manifest_drives_a_conformance_case() {
         match (phase, status) {
             ("run" | "check", "accept") => {
                 let expected = fs::read_to_string(case.join("lower.rs")).unwrap();
-                let (compilation, sources, dependencies) = if package_case {
+                let (compilation, dependencies) = if package_case {
                     let package = terrane_compiler::Package::load(&source_path).unwrap();
                     let compilation =
                         terrane_compiler::compile_package_with_options(&package, options).unwrap();
-                    let sources = compilation.sources.clone();
-                    (compilation, sources, package.rust_dependencies)
+                    (compilation, package.rust_dependencies)
                 } else {
                     let source = fs::read_to_string(&source_path).unwrap();
                     let compilation =
                         terrane_compiler::compile_with_options(&source_path, source, options)
                             .unwrap();
-                    let sources = compilation.sources.clone();
-                    (compilation, sources, Vec::new())
+                    (compilation, Vec::new())
                 };
-                if let Some(warnings_file) = field(&manifest, "warnings") {
-                    let expected_warnings = fs::read_to_string(case.join(warnings_file)).unwrap();
-                    let actual_warnings = compilation
-                        .warnings
-                        .iter()
-                        .map(|warning| {
-                            let source = warning
-                                .primary
-                                .and_then(|span| {
-                                    sources.iter().find(|source| source.id() == span.file)
-                                })
-                                .unwrap_or(&compilation.source);
-                            warning.render(source).replacen(
-                                &source.path().display().to_string(),
-                                &source.path().file_name().unwrap().to_string_lossy(),
-                                1,
-                            )
-                        })
-                        .collect::<String>();
-                    assert_eq!(
-                        actual_warnings,
-                        expected_warnings,
-                        "{} warnings",
-                        case.display()
-                    );
-                }
+                assert_expected_warnings(case, &manifest, &compilation);
                 let normalized = compilation
                     .rust
                     .replace(terrane_compiler::VERSION, "<version>");

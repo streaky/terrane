@@ -364,7 +364,7 @@ pub(super) fn emit_error_support(
         }
     "#});
     if uses_float_coercion_error {
-        output.push_str(indoc! {r#"
+        output.push_str(indoc! {r"
         impl TerraneRaised for terrane_int_support::CoercionError {
             fn raised(self, origin: TerraneSite) -> TerraneError {
                 TerraneError::raised_with_message(
@@ -374,7 +374,7 @@ pub(super) fn emit_error_support(
                 )
             }
         }
-        "#});
+        "});
     }
     output.push_str(indoc! {r#"
         impl TerraneRaised for terrane_string_support::DecodeError {

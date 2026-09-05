@@ -1175,17 +1175,7 @@ fn types_canonical_integer_coercion_family() {
 }
 
 #[test]
-fn rejects_unsupported_integer_coercion_destinations() {
-    let failure = analyze(&package(
-        true,
-        &[(
-            "main.trn",
-            "namespace app\nfunction main;\n  value int = 1\n  converted = value.coerce; float\n",
-        )],
-    ))
-    .unwrap_err();
-    assert_eq!(failure.diagnostics[0].code, "T0008");
-
+fn rejects_unsupported_adaptive_integer_coercion_forms() {
     for expression in ["value.coerce.wrap; int", "value.coerce.checked; int"] {
         let failure = analyze(&package(
             true,

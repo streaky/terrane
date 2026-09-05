@@ -105,7 +105,6 @@ pub(super) fn descriptor_alias(
     reason = "binding collection preserves declaration and scope ordering in one traversal"
 )]
 pub(super) fn collect_typed_bindings(
-    package: &SemanticPackage,
     unit: &SemanticUnit,
     node: &SyntaxNode,
     visible_bindings: &mut Vec<TypedBinding>,
@@ -129,7 +128,6 @@ pub(super) fn collect_typed_bindings(
                 .filter(|child| child.kind == SyntaxKind::FunctionDeclaration)
             {
                 collect_typed_bindings(
-                    package,
                     unit,
                     method,
                     visible_bindings,
@@ -191,7 +189,6 @@ pub(super) fn collect_typed_bindings(
         bindings.extend(parameter_bindings);
         for child in &node.children {
             collect_typed_bindings(
-                package,
                 unit,
                 child,
                 &mut function_bindings,
@@ -205,7 +202,7 @@ pub(super) fn collect_typed_bindings(
         && node.kind == SyntaxKind::ForStatement
         && target.kind == SyntaxKind::ForTarget
     {
-        collect_typed_bindings(package, unit, collection, visible_bindings, bindings, scope)?;
+        collect_typed_bindings(unit, collection, visible_bindings, bindings, scope)?;
         let item_type = infer_value_type(unit, collection, visible_bindings)?
             .and_then(iterable_item_type)
             .ok_or_else(|| {
@@ -222,7 +219,6 @@ pub(super) fn collect_typed_bindings(
         let mut visible_loop_bindings = visible_bindings.clone();
         visible_loop_bindings.extend(loop_bindings);
         collect_typed_bindings(
-            package,
             unit,
             block,
             &mut visible_loop_bindings,
@@ -238,7 +234,7 @@ pub(super) fn collect_typed_bindings(
             .find(|child| child.kind == SyntaxKind::CatchBinding)
         else {
             for child in &node.children {
-                collect_typed_bindings(package, unit, child, visible_bindings, bindings, scope)?;
+                collect_typed_bindings(unit, child, visible_bindings, bindings, scope)?;
             }
             return Ok(());
         };
@@ -261,7 +257,6 @@ pub(super) fn collect_typed_bindings(
         let mut visible_catch_bindings = visible_bindings.clone();
         visible_catch_bindings.push(catch_binding);
         collect_typed_bindings(
-            package,
             unit,
             block,
             &mut visible_catch_bindings,
@@ -279,14 +274,7 @@ pub(super) fn collect_typed_bindings(
         let child_scope = (child.kind == SyntaxKind::Block)
             .then_some(child.span)
             .or(scope);
-        collect_typed_bindings(
-            package,
-            unit,
-            child,
-            visible_bindings,
-            bindings,
-            child_scope,
-        )?;
+        collect_typed_bindings(unit, child, visible_bindings, bindings, child_scope)?;
     }
     Ok(())
 }
@@ -576,8 +564,9 @@ pub(super) fn infer_throwing_effects(package: &mut SemanticPackage) -> Result<()
         }
         match (source, destination) {
             (ScalarType::Int, ScalarType::Float32 | ScalarType::Float64)
-            | (ScalarType::Uint128, ScalarType::Float32)
-            | (ScalarType::Float64, ScalarType::Float32) => Some("/core/errors::coercion-error"),
+            | (ScalarType::Uint128 | ScalarType::Float64, ScalarType::Float32) => {
+                Some("/core/errors::coercion-error")
+            }
             _ => None,
         }
     }

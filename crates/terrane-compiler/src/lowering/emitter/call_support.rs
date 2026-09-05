@@ -411,6 +411,25 @@ impl Emitter<'_> {
             };
         }
 
+        self.numeric_float_coercion(
+            source,
+            destination,
+            receiver,
+            callee,
+            receiver_is_borrowed,
+            policy,
+        )
+    }
+
+    fn numeric_float_coercion(
+        &mut self,
+        source: ScalarType,
+        destination: ScalarType,
+        receiver: &SyntaxNode,
+        callee: &SyntaxNode,
+        receiver_is_borrowed: bool,
+        policy: CoercionPolicy,
+    ) -> String {
         let receiver = self.receiver_expression(receiver);
         let value = if receiver_is_borrowed {
             format!("*({receiver})")

@@ -179,7 +179,10 @@ fn fixed_integer_float_conversions_preserve_exactness_without_adaptive_integers(
         exact_fixed_f64(9_007_199_254_740_992_i64),
         Ok(9_007_199_254_740_992.0)
     );
-    assert_eq!(exact_fixed_f64(i64::MIN), Ok(i64::MIN as f64));
+    assert_eq!(
+        exact_fixed_f64(i64::MIN),
+        Ok(-9_223_372_036_854_775_808.0_f64)
+    );
     assert_eq!(
         exact_fixed_f64(9_007_199_254_740_993_i64),
         Err(ArithmeticError::conversion_overflow(

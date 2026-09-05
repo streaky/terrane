@@ -938,22 +938,54 @@ pub trait FixedIntegerSource: Copy + ToString + 'static {
     fn to_f64(self) -> f64;
 }
 
+#[expect(
+    clippy::cast_precision_loss,
+    reason = "Terrane integer-to-float coercion deliberately uses IEEE rounding"
+)]
+fn signed_fixed_to_f32(value: i128) -> f32 {
+    value as f32
+}
+
+#[expect(
+    clippy::cast_precision_loss,
+    reason = "Terrane integer-to-float coercion deliberately uses IEEE rounding"
+)]
+fn signed_fixed_to_f64(value: i128) -> f64 {
+    value as f64
+}
+
+#[expect(
+    clippy::cast_precision_loss,
+    reason = "Terrane integer-to-float coercion deliberately uses IEEE rounding"
+)]
+fn unsigned_fixed_to_f32(value: u128) -> f32 {
+    value as f32
+}
+
+#[expect(
+    clippy::cast_precision_loss,
+    reason = "Terrane integer-to-float coercion deliberately uses IEEE rounding"
+)]
+fn unsigned_fixed_to_f64(value: u128) -> f64 {
+    value as f64
+}
+
 macro_rules! signed_fixed_integer_sources {
     ($($type:ty),+ $(,)?) => {$(
         impl FixedIntegerSource for $type {
             #[inline]
             fn unsigned_magnitude(self) -> u128 {
-                self.unsigned_abs() as u128
+                u128::from(self.unsigned_abs())
             }
 
             #[inline]
             fn to_f32(self) -> f32 {
-                self as f32
+                signed_fixed_to_f32(i128::from(self))
             }
 
             #[inline]
             fn to_f64(self) -> f64 {
-                self as f64
+                signed_fixed_to_f64(i128::from(self))
             }
         }
     )+};
@@ -964,17 +996,17 @@ macro_rules! unsigned_fixed_integer_sources {
         impl FixedIntegerSource for $type {
             #[inline]
             fn unsigned_magnitude(self) -> u128 {
-                self as u128
+                u128::from(self)
             }
 
             #[inline]
             fn to_f32(self) -> f32 {
-                self as f32
+                unsigned_fixed_to_f32(u128::from(self))
             }
 
             #[inline]
             fn to_f64(self) -> f64 {
-                self as f64
+                unsigned_fixed_to_f64(u128::from(self))
             }
         }
     )+};
@@ -1332,6 +1364,10 @@ pub fn coerce_fixed_to_f32<T: FixedIntegerSource>(value: T) -> Result<f32, Coerc
 /// # Errors
 /// Returns [`CoercionError`] when a finite source rounds beyond the
 /// destination's finite range.
+#[expect(
+    clippy::cast_possible_truncation,
+    reason = "Terrane float narrowing deliberately uses IEEE rounding"
+)]
 pub fn coerce_f64_to_f32(value: f64) -> Result<f32, CoercionError> {
     let converted = value as f32;
     if value.is_finite() && !converted.is_finite() {
