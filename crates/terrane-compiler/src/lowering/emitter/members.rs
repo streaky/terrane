@@ -101,7 +101,7 @@ impl Emitter<'_> {
             _ if self.reference_backed_name(receiver).is_some() => {
                 format!(
                     "{}.lock().expect(\"reference lock poisoned\")",
-                    self.name(receiver)
+                    rust_name(self.text(receiver))
                 )
             }
             _ => self.expression(receiver),

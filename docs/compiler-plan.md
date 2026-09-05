@@ -1308,8 +1308,9 @@ now use non-owning `ref T` and owning `shared ref T`; lowering represents them w
 and strong storage respectively. Conformance proves ordinary references to named owned local
 bindings, transparent scalar member and consumer access, shared mutation through an owner, bounded
 non-owning observation, explicit ownership transfer, temporary and parameter-source rejection,
-source-diagnosed return escape, replacement invalidation of non-owning references, and continued
-access through shared owners after replacement. The current generated
+source-diagnosed return escape, replacement invalidation of non-owning references, continued
+access through shared owners after replacement, and ordinary copy-on-write mutation before a later
+`ref` or `shared ref` selects reference-backed storage for the original binding. The current generated
 representation clones the referenced value for each read; this is a correctness-first lowering, not
 the intended reference cost model. Async suspension now proves a directly declared local owner that
 remains in the task frame without replacement or ownership transfer; broader lifetime analysis,
