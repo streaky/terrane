@@ -1477,7 +1477,7 @@ pub fn mapping_required_fields(
                     + terrane_int_support::Int::from(1_i128);
             }
             if field != String::from("") && !optional && !defaulted {
-                __terrane_list_append_0.push(field);
+                __terrane_list_append_0.push(field.clone());
             }
             index = index.clone() + terrane_int_support::Int::from(1_i128);
         }

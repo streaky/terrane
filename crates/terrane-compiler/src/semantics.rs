@@ -57,7 +57,9 @@ mod prelude {
 }
 
 pub use analysis::analyze;
-pub(crate) use bindings::{binding_store_value_is_read, descriptor_binding_is_materialized};
+pub(crate) use bindings::{
+    binding_read_value_is_reused, binding_store_value_is_read, descriptor_binding_is_materialized,
+};
 pub(crate) use contracts::{descriptor_expression_category, descriptor_expression_type};
 pub(crate) use diagnostics::{binding_span_is_mutated, warnings};
 pub(crate) use member_inference::string_call_selection;

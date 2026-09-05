@@ -805,9 +805,9 @@ pub fn parse_command_line(
                     "{}{}", terrane_scalar_support::scalar_text(&String::from("value:")),
                     terrane_scalar_support::scalar_text(&argument.text)
                 );
-                if schema_has(schema.clone(), flag_entry) {
+                if schema_has(schema.clone(), flag_entry.clone()) {
                     __terrane_list_append_4.push(argument.text.clone());
-                } else if schema_has(schema.clone(), value_entry) {
+                } else if schema_has(schema.clone(), value_entry.clone()) {
                     if index.clone() + terrane_int_support::Int::from(1_i128)
                         >= terrane_int_support::Int::from(
                             terrane_int_support::Int::from(supplied.length()),

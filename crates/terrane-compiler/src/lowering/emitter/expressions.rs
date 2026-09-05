@@ -375,6 +375,11 @@ impl Emitter<'_> {
             {
                 format!("(*{}).clone()", self.namespace_name(node))
             }
+            ValueType::Scalar(ScalarType::String)
+                if node.kind == SyntaxKind::Name && self.binding_value_is_reused(node) =>
+            {
+                format!("({}).clone()", self.expression(node))
+            }
             ValueType::List(item)
                 if node.kind == SyntaxKind::Name
                     && self.is_builtin(node, "/core/collections::list") =>
@@ -1081,6 +1086,7 @@ impl Emitter<'_> {
                 .map(|child| count_references(emitter, child, binding_span, name))
                 .sum::<usize>()
         }
+
         let name = self.text(node).trim();
         if name == "this" {
             return false;
@@ -1092,6 +1098,20 @@ impl Emitter<'_> {
         };
 
         count_references(self, &self.unit.tree.root, binding.span, name) == 1
+    }
+    fn binding_value_is_reused(&self, node: &SyntaxNode) -> bool {
+        let name = self.text(node);
+        self.unit
+            .typed_bindings
+            .iter()
+            .rev()
+            .find(|binding| {
+                binding.name == name
+                    && binding.is_visible_at(self.unit.source.id(), node.span.start)
+            })
+            .is_some_and(|binding| {
+                binding_read_value_is_reused(self.package, binding.span, node.span)
+            })
     }
 
     pub(in crate::lowering) fn value_type(&self, node: &SyntaxNode) -> Option<ValueType> {

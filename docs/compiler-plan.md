@@ -1174,7 +1174,8 @@ parameter, and return boundaries; tuple runtime length is not part of the type. 
 covers member and indexed mutation, checked and throwing lookup with typed `index-error` /
 `missing-key`, arithmetic after presence refinement of an adaptive-integer checked lookup,
 ordered and unordered iteration, typed `key, value` destructuring of map entries, range direction
-and inclusivity, homogeneous-item rejection, and assignment separation. Lowering
+and inclusivity, homogeneous-item rejection, assignment separation, and reuse of string-valued
+parameters after both ordinary calls and object-field assignment. Lowering
 recognises append-only local-list mutation in `while`, three-clause `for`, and
 collection-iteration `for` regions, performs any copy-on-write split once before entering the
 outermost such region, and reuses that borrow in nested loops. A qualifying count-controlled
