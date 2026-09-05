@@ -894,6 +894,24 @@ pub(super) fn infer_throwing_effects(package: &mut SemanticPackage) -> Result<()
             );
             return errors;
         }
+        if node.kind == SyntaxKind::CallExpression
+            && let Some(callee) = node.children.first()
+            && callee.kind == SyntaxKind::Name
+            && matches!(
+                infer_value_type(unit, callee, &unit.typed_bindings),
+                Ok(Some(ValueType::Function(_, _)))
+            )
+        {
+            let mut errors = BTreeSet::from(["/core/errors::throwable".to_owned()]);
+            errors.extend(local_errors);
+            errors.extend(
+                node.children
+                    .iter()
+                    .skip(1)
+                    .flat_map(|argument| escaping_errors(package, unit, argument, inferred)),
+            );
+            return errors;
+        }
         if node.kind == SyntaxKind::TryStatement {
             let mut errors = node.children.first().map_or_else(BTreeSet::new, |block| {
                 escaping_errors(package, unit, block, inferred)

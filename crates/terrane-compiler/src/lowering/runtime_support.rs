@@ -40,7 +40,11 @@ pub(super) fn package_uses_structured_errors(package: &SemanticPackage) -> bool 
     fn contains(package: &SemanticPackage, unit: &SemanticUnit, node: &SyntaxNode) -> bool {
         matches!(
             node.kind,
-            SyntaxKind::ThrowStatement | SyntaxKind::TryStatement | SyntaxKind::IndexExpression
+            SyntaxKind::ThrowStatement
+                | SyntaxKind::TryStatement
+                | SyntaxKind::IndexExpression
+                | SyntaxKind::FunctionType
+                | SyntaxKind::AnonymousFunction
         ) || string_call_selection(&unit.source, node)
             .is_some_and(|selection| selection.family == StringFamily::Decode)
             || node

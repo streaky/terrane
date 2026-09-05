@@ -975,7 +975,10 @@ impl Emitter<'_> {
         } else {
             call
         };
-        if contract.is_some_and(|contract| contract.throws) || foreign_error {
+        let function_value_call = contract.is_none()
+            && matches!(self.value_type(callee), Some(ValueType::Function(_, _)));
+        if contract.is_some_and(|contract| contract.throws) || foreign_error || function_value_call
+        {
             let site = self.error_site(node);
             let dependency_boundary = self
                 .package

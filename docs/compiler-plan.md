@@ -1198,10 +1198,14 @@ Exit criterion: a selected method family can be stored, passed, and invoked; the
 Implemented evidence (partial; the exit criterion remains open): typed, synchronous function values
 cross binding and parameter boundaries; anonymous functions capture resolver-selected outer bindings
 once; and stored bound methods capture their receiver once before later invocation. Generated Rust
-uses statically typed `Arc<dyn Fn>` values rather than a universal runtime value and compiles
-receiver-free methods without lint suppression. Conformance executes a passed closure,
-distinguishes parameter shadowing from an outer capture, and invokes a stored receiver-bound method.
-Caller-supplied pair conversion callbacks are not implemented.
+uses statically typed `Arc<dyn Fn>` values rather than a universal runtime value. Synchronous
+callable values use one result-bearing ABI so inferred errors survive an erased callable boundary;
+non-throwing functions and closures are adapted with `Ok`, while invocation through a callable
+parameter contributes the broad `throwable` set until a concrete implementation narrows it.
+Conformance executes non-throwing closures and bound methods and now also passes a named,
+string-returning throwing function through a higher-order function, catching its propagated error
+and exercising its successful return. Caller-supplied pair conversion callbacks are not
+implemented.
 
 ### Milestone 16 — Classes, interfaces, and traits
 

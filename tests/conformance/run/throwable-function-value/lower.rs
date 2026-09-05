@@ -377,17 +377,54 @@ mod __terrane_trace {
         pub end_column: u32,
     }
     pub static FILES: [&str; 1] = ["case.trn"];
-    pub static FUNCTIONS: [&str; 1] = ["/class-method-closures::main"];
-    pub static SITES: [Site; 1] = [
+    pub static FUNCTIONS: [&str; 3] = [
+        "/throwable-function-value::render",
+        "/throwable-function-value::apply",
+        "/throwable-function-value::main",
+    ];
+    pub static SITES: [Site; 4] = [
         {
-            /* terrane-site-row: site 0: /class-method-closures::main (case.trn:12:16-12:22) */
+            /* terrane-site-row: site 0: /throwable-function-value::render (case.trn:6:5-6:25) */
             Site {
                 function: 0,
                 file: 0,
-                line: 12,
-                column: 16,
-                end_line: 12,
-                end_column: 22,
+                line: 6,
+                column: 5,
+                end_line: 6,
+                end_column: 25,
+            }
+        },
+        {
+            /* terrane-site-row: site 1: /throwable-function-value::apply (case.trn:10:10-10:26) */
+            Site {
+                function: 1,
+                file: 0,
+                line: 10,
+                column: 10,
+                end_line: 10,
+                end_column: 26,
+            }
+        },
+        {
+            /* terrane-site-row: site 2: /throwable-function-value::main (case.trn:14:13-14:30) */
+            Site {
+                function: 2,
+                file: 0,
+                line: 14,
+                column: 13,
+                end_line: 14,
+                end_column: 30,
+            }
+        },
+        {
+            /* terrane-site-row: site 3: /throwable-function-value::main (case.trn:17:11-17:27) */
+            Site {
+                function: 2,
+                file: 0,
+                line: 17,
+                column: 11,
+                end_line: 17,
+                end_column: 27,
             }
         },
     ];
@@ -404,44 +441,75 @@ mod __terrane_trace {
     }
 }
 // Source: case.trn
-// Namespace: class-method-closures
-#[derive(Clone)]
-pub struct Maker {
-    pub base: terrane_int_support::Int,
+// Namespace: throwable-function-value
+fn render(value: terrane_int_support::Int) -> Result<String, TerraneError> {
+    if value.clone() < terrane_int_support::Int::from(0_i128) {
+        return Err(
+            TerraneError::raised(
+                TerraneErrorKind::CoercionError,
+                0 /* terrane-site: case.trn:6:5-6:25 */,
+            ),
+        );
+    }
+    return Ok(String::from("ok"));
 }
-impl Maker {
-    pub fn terrane_construct() -> Self {
-        Self {
-            base: terrane_int_support::Int::from(10_i128),
-        }
-    }
-    pub fn offset(
-        &self,
-    ) -> std::sync::Arc<
-        dyn Fn(
-            terrane_int_support::Int,
-        ) -> Result<terrane_int_support::Int, TerraneError> + Send + Sync,
-    > {
-        return {
-            let this = self.clone();
-            std::sync::Arc::new(move |
-                value: terrane_int_support::Int,
-            | -> Result<terrane_int_support::Int, TerraneError> {
-                return Ok(this.base.clone() + value.clone());
-            })
-        };
-    }
+fn apply(
+    operation: std::sync::Arc<
+        dyn Fn(terrane_int_support::Int) -> Result<String, TerraneError> + Send + Sync,
+    >,
+    value: terrane_int_support::Int,
+) -> Result<String, TerraneError> {
+    return Ok(
+        __terrane_traced_err(
+            operation(value.clone()),
+            1 /* terrane-site: case.trn:10:10-10:26 */,
+        )?,
+    );
 }
 fn main() {
-    let value: Maker = Maker::terrane_construct();
-    let add: std::sync::Arc<
-        dyn Fn(
-            terrane_int_support::Int,
-        ) -> Result<terrane_int_support::Int, TerraneError> + Send + Sync,
-    > = value.offset();
-    let result: terrane_int_support::Int = __terrane_traced(
-        add(terrane_int_support::Int::from(5_i128)),
-        0 /* terrane-site: case.trn:12:16-12:22 */,
+    let __terrane_completion_0: TerraneCompletion<()> = (|| {
+        let __terrane_try_0: TerraneCompletion<()> = (|| {
+            println!(
+                "{}",
+                terrane_scalar_support::scalar_text(&__terrane_traced_completion!(apply(std::sync::Arc::new(render),
+                terrane_int_support::Int::from(- 1_i128)), 2 /* terrane-site: case.trn:14:13-14:30 */))
+            );
+            TerraneCompletion::Normal
+        })();
+        match __terrane_try_0 {
+            TerraneCompletion::Return(value) => return TerraneCompletion::Return(value),
+            TerraneCompletion::Break => return TerraneCompletion::Break,
+            TerraneCompletion::Continue => return TerraneCompletion::Continue,
+            TerraneCompletion::Normal => {}
+            TerraneCompletion::Error(__terrane_error_0) => {
+                let mut __terrane_handled_0 = false;
+                if !__terrane_handled_0
+                    && __terrane_error_0.kind == TerraneErrorKind::CoercionError
+                {
+                    __terrane_handled_0 = true;
+                    println!(
+                        "{}",
+                        terrane_scalar_support::scalar_text(&String::from("caught"))
+                    );
+                }
+                if !__terrane_handled_0 {
+                    return TerraneCompletion::Error(__terrane_error_0);
+                }
+            }
+        }
+        TerraneCompletion::Normal
+    })();
+    match __terrane_completion_0 {
+        TerraneCompletion::Normal => {}
+        TerraneCompletion::Return(value) => return value,
+        TerraneCompletion::Error(error) => __terrane_uncaught(error),
+        TerraneCompletion::Break | TerraneCompletion::Continue => {
+            __terrane_generated_defect("loop control escaped a non-loop try")
+        }
+    }
+    println!(
+        "{}",
+        terrane_scalar_support::scalar_text(&__terrane_traced(apply(std::sync::Arc::new(render),
+        terrane_int_support::Int::from(4_i128)), 3 /* terrane-site: case.trn:17:11-17:27 */))
     );
-    println!("{}", terrane_scalar_support::scalar_text(&result));
 }

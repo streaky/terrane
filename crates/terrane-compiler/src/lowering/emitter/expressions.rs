@@ -505,6 +505,9 @@ impl Emitter<'_> {
                     return String::new();
                 };
                 let callable_field = self.callable_object_field(receiver, self.text(member));
+                let throws = self
+                    .contract_for_call(node)
+                    .is_some_and(|contract| contract.throws);
                 let receiver_type = self
                     .value_type(receiver)
                     .expect("bound object method receiver must have a static type");
@@ -535,7 +538,7 @@ impl Emitter<'_> {
                     )
                 {
                     return format!(
-                        "{{ let receiver = {receiver}; std::sync::Arc::new(move |{declarations}| {body}) }}"
+                        "{{ let receiver = {receiver}; std::sync::Arc::new(move |{declarations}| Ok({body})) }}"
                     );
                 }
                 if callable_field {
@@ -544,18 +547,41 @@ impl Emitter<'_> {
                         rust_name(self.text(member))
                     )
                 } else {
+                    let call = format!("receiver.{}({arguments})", rust_name(self.text(member)));
+                    let body = if throws { call } else { format!("Ok({call})") };
                     format!(
-                        "{{ let receiver = {receiver}; std::sync::Arc::new(move |{declarations}| receiver.{}({arguments})) }}",
-                        rust_name(self.text(member))
+                        "{{ let receiver = {receiver}; std::sync::Arc::new(move |{declarations}| {body}) }}"
                     )
                 }
             }
-            ValueType::Function(_, _) if node.kind == SyntaxKind::Name => {
+            ValueType::Function(parameters, _) if node.kind == SyntaxKind::Name => {
                 if let Some(contract) = self.contract_for_call(node) {
-                    format!(
-                        "std::sync::Arc::new({})",
-                        function_name(self.package, contract)
-                    )
+                    if contract.throws {
+                        format!(
+                            "std::sync::Arc::new({})",
+                            function_name(self.package, contract)
+                        )
+                    } else {
+                        let declarations = parameters
+                            .iter()
+                            .enumerate()
+                            .map(|(index, parameter)| {
+                                format!(
+                                    "argument_{index}: {}",
+                                    rust_element_type(self.package, parameter.clone())
+                                )
+                            })
+                            .collect::<Vec<_>>()
+                            .join(", ");
+                        let arguments = (0..parameters.len())
+                            .map(|index| format!("argument_{index}"))
+                            .collect::<Vec<_>>()
+                            .join(", ");
+                        format!(
+                            "std::sync::Arc::new(move |{declarations}| Ok({}({arguments})))",
+                            function_name(self.package, contract)
+                        )
+                    }
                 } else {
                     format!("({}).clone()", self.expression(node))
                 }

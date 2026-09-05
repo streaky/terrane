@@ -1071,12 +1071,15 @@ impl Emitter<'_> {
             .return_type
             .clone()
             .unwrap_or(ValueType::Scalar(ScalarType::None));
-        let result_type = rust_value_type(self.package, result.clone());
+        let result_type = format!(
+            "Result<{}, TerraneError>",
+            rust_value_type(self.package, result.clone())
+        );
         let outer_output = std::mem::take(&mut self.output);
         let outer_indent = self.indent;
-        let outer_return_type = self.return_type.replace(result);
-        let outer_function_errors = std::mem::replace(&mut self.function_errors, false);
-        let outer_propagation = std::mem::replace(&mut self.propagate_errors, false);
+        let outer_return_type = self.return_type.replace(result.clone());
+        let outer_function_errors = std::mem::replace(&mut self.function_errors, true);
+        let outer_propagation = std::mem::replace(&mut self.propagate_errors, contract.throws);
         let outer_parameter_types = std::mem::replace(
             &mut self.parameter_types,
             contract
@@ -1098,6 +1101,9 @@ impl Emitter<'_> {
             .find(|child| child.kind == SyntaxKind::Block)
         {
             self.block(block);
+            if result == ValueType::Scalar(ScalarType::None) && block_may_fall_through(block) {
+                self.line("Ok(())");
+            }
         }
         self.closure_depth -= 1;
         let body = std::mem::replace(&mut self.output, outer_output);

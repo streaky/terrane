@@ -424,7 +424,7 @@ pub(super) fn rust_value_type(package: &SemanticPackage, ty: ValueType) -> Strin
         }
         ValueType::TextRangeList => "Vec<terrane_string_support::TextRange>".to_owned(),
         ValueType::Function(parameters, result) => format!(
-            "std::sync::Arc<dyn Fn({}) -> {} + Send + Sync>",
+            "std::sync::Arc<dyn Fn({}) -> Result<{}, TerraneError> + Send + Sync>",
             parameters
                 .into_iter()
                 .map(|parameter| rust_element_type(package, parameter))

@@ -1,0 +1,17 @@
+namespace throwable-function-value
+from /core/errors import coercion-error
+
+function render string throws coercion-error; value int
+  if value < 0
+    throw coercion-error
+  return 'ok'
+
+function apply string; operation function from int to string, value int
+  return operation; value
+
+function main;
+  try
+    print; (apply; render, -1)
+  catch coercion-error
+    print; 'caught'
+  print; (apply; render, 4)
