@@ -342,7 +342,7 @@ impl Emitter<'_> {
         }
     }
 
-    pub(super) fn integer_coercion(
+    pub(super) fn numeric_coercion(
         &mut self,
         method: &crate::BoundMethod,
         receiver: &SyntaxNode,
@@ -362,43 +362,103 @@ impl Emitter<'_> {
         let destination = self
             .descriptor_type(destination)
             .expect("validated coercion destination must resolve to a scalar descriptor");
+        let source = self
+            .receiver_value_type(receiver)
+            .and_then(|value_type| {
+                if let ValueType::Scalar(source) = value_type {
+                    Some(source)
+                } else {
+                    None
+                }
+            })
+            .expect("validated numeric coercion receiver must have a scalar type");
         let receiver_is_borrowed = receiver.kind == SyntaxKind::Name
             && self.lazy_namespace_binding_type(receiver).is_some();
-        if policy == CoercionPolicy::Default
-            && !receiver_is_borrowed
-            && let Some(ValueType::Scalar(source)) = self.receiver_value_type(receiver)
-        {
-            if source == destination {
-                return if destination == ScalarType::Int
-                    && self.small_int_binding(receiver).is_some()
-                {
-                    self.expression_as(receiver, ValueType::Scalar(ScalarType::Int))
-                } else {
-                    self.receiver_expression(receiver)
-                };
+
+        if destination.is_integer() {
+            if policy == CoercionPolicy::Default && !receiver_is_borrowed {
+                if source == destination {
+                    return if destination == ScalarType::Int
+                        && self.small_int_binding(receiver).is_some()
+                    {
+                        self.expression_as(receiver, ValueType::Scalar(ScalarType::Int))
+                    } else {
+                        self.receiver_expression(receiver)
+                    };
+                }
+                return self.numeric_destination(receiver, source, destination);
             }
-            return self.numeric_destination(receiver, source, destination);
+            let helper = match policy {
+                CoercionPolicy::Default => "coerce",
+                CoercionPolicy::Checked => "checked_coerce",
+                CoercionPolicy::Wrap => "wrapping_coerce",
+                CoercionPolicy::Saturate => "saturating_coerce",
+            };
+            let receiver = self.receiver_expression(receiver);
+            let source = if receiver_is_borrowed {
+                receiver
+            } else {
+                format!("&({receiver})")
+            };
+            let call = format!(
+                "terrane_int_support::{helper}::<{}>({source})",
+                rust_type(destination)
+            );
+            return if policy == CoercionPolicy::Default {
+                self.fallible(call, callee)
+            } else {
+                call
+            };
         }
-        let helper = match policy {
-            CoercionPolicy::Default => "coerce",
-            CoercionPolicy::Checked => "checked_coerce",
-            CoercionPolicy::Wrap => "wrapping_coerce",
-            CoercionPolicy::Saturate => "saturating_coerce",
-        };
+
         let receiver = self.receiver_expression(receiver);
-        let source = if receiver_is_borrowed {
-            receiver
+        let value = if receiver_is_borrowed {
+            format!("*({receiver})")
         } else {
-            format!("&({receiver})")
+            receiver.clone()
         };
-        let call = format!(
-            "terrane_int_support::{helper}::<{}>({source})",
-            rust_type(destination)
-        );
-        if policy == CoercionPolicy::Default {
-            self.fallible(call, callee)
+        let fallible = match (source, destination) {
+            (ScalarType::Int, ScalarType::Float32) => Some(format!(
+                "terrane_int_support::coerce_to_f32({})",
+                if receiver_is_borrowed {
+                    receiver
+                } else {
+                    format!("&({receiver})")
+                }
+            )),
+            (ScalarType::Int, ScalarType::Float64) => Some(format!(
+                "terrane_int_support::coerce_to_f64({})",
+                if receiver_is_borrowed {
+                    receiver
+                } else {
+                    format!("&({receiver})")
+                }
+            )),
+            (ScalarType::Uint128, ScalarType::Float32) => {
+                Some(format!("terrane_int_support::coerce_fixed_to_f32({value})"))
+            }
+            (ScalarType::Float64, ScalarType::Float32) => {
+                Some(format!("terrane_int_support::coerce_f64_to_f32({value})"))
+            }
+            _ => None,
+        };
+        if let Some(call) = fallible {
+            if policy == CoercionPolicy::Checked {
+                return format!("({call}).ok()");
+            }
+            self.registry.uses_float_coercion_error.set(true);
+            return self.fallible(call, callee);
+        }
+
+        let converted = if source == destination {
+            value
         } else {
-            call
+            format!("(({value}) as {})", rust_type(destination))
+        };
+        if policy == CoercionPolicy::Checked {
+            format!("Some({converted})")
+        } else {
+            converted
         }
     }
 

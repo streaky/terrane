@@ -898,6 +898,17 @@ one primitive cast. Boundary conformance covers signed and unsigned sources thro
 both floating widths, including caught inexact arrivals; only adaptive `int` uses the arbitrary-
 precision conversion path.
 
+Implemented follow-up: the written coercion family now covers every declared numeric-to-floating
+pair. Integer sources of every width, including adaptive `int` and 128-bit fixed integers, use
+IEEE round-to-nearest with ties to even; `float32` to `float64` is exact and `float64` to `float32`
+uses the same rounding rule. The bare child reports finite-range failure as `coercion-error`, while
+`checked` returns `none`; `wrap` and `saturate` remain fixed-integer-only, and floating-to-integer
+written pairs remain absent in favor of the named rounding methods. `explicit-numeric-coercions`
+exercises inexact successful conversions, adaptive and 128-bit sources, floating widening and
+narrowing, IEEE non-finite categories, checked overflow, and catchable default failure. Focused
+rejections preserve the undeclared floating-to-integer and floating-policy boundaries, and the
+reviewed generated Rust keeps fixed-width total conversions allocation-free.
+
 Milestone 5 must preserve the Small-tier proof for an unnecessary written `coerce; int`, so it
 lowers identically to the equivalent implicit conversion instead of materialising the erased
 adaptive-integer wrapper.

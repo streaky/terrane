@@ -1,0 +1,5 @@
+namespace floating-wrap-coercion
+
+function main;
+  value int = 4
+  rounded float32 = value.coerce.wrap; float32

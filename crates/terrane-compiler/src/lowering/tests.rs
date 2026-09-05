@@ -5,7 +5,12 @@ use crate::{SourceFile, Span};
 
 #[test]
 fn error_support_is_canonical_rust() {
-    for (has_custom_throwable, has_dependency) in [(false, false), (true, false), (true, true)] {
+    for (has_custom_throwable, has_dependency, uses_float_coercion_error) in [
+        (false, false, false),
+        (true, false, false),
+        (true, true, false),
+        (false, false, true),
+    ] {
         let mut emitted = String::new();
         let registry = LoweringRegistry::default();
         if has_dependency {
@@ -16,6 +21,7 @@ fn error_support_is_canonical_rust() {
             &mut emitted,
             has_custom_throwable,
             has_dependency,
+            uses_float_coercion_error,
             &registry,
         );
         let canonical = crate::rust_ir::canonicalize_rust(&emitted).unwrap();

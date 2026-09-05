@@ -468,6 +468,7 @@ fixed_to_int: exact; int8..int64 and uint8..uint32 fit Small, uint64..int128 fit
 float_to_integer_written: NO declared coerce pair - choosing an integer for a fractional value needs a rounding mode and coerce never takes one; 'ratio.coerce; int' is absent while 'count int = ratio' is admitted
 float_rounding_methods: round (ties-to-even) | floor | ceiling | truncate; each is invoked with ';' and yields an integer before destination conversion
 float_out_of_range: written coerce throws coercion-error; never yields an infinity
+float_nonfinite_written: floating-to-floating coerce preserves signed infinity and NaN category; these are not finite-overflow failures
 string_parse: accepts exactly the destination's canonical text-display spelling
 coerce_options: NONE - coerce takes only its destination; it must never grow radix or format arguments
 parse_family: 'value.parse; callback' - the callback is REQUIRED; there is no built-in destination-owned parse

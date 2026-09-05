@@ -1898,6 +1898,12 @@ There is no universal guarantee that every type can coerce to every other type. 
 
 Coercion among integer types follows §17.7 exactly. Written coercion to a floating-point destination rounds to the nearest representable value using the IEEE 754 default round-to-nearest, ties-to-even rule; because that rounding is defined for every finite source magnitude, an inexact numeric-to-float coercion is a normal result rather than a failure, and precision loss is visible through the destination type rather than through an error. This differs deliberately from an implicit numeric destination, which accepts the value exactly or throws. A source magnitude beyond the destination's finite range throws `coercion-error`; it never yields an infinity, because a silent infinity is a lost error rather than a result. `checked` returns absence for exactly that overflow case.
 
+Across floating-to-floating written coercion, same-width conversion is identity, `float32` to
+`float64` is exact, and `float64` to `float32` applies that rounding rule. Signed infinity remains
+signed infinity and NaN remains NaN when the destination represents the same IEEE category; neither
+is a finite source magnitude and neither is the finite-overflow case above. This differs from
+implicit exact arrival, whose stricter NaN and narrowing rules remain those of §17.7.
+
 Floating values expose the zero-argument methods `round`, `floor`, `ceiling`, and `truncate`, each producing an integer before any later destination conversion. `round` uses round-to-nearest with ties to even; the other names state their direction. These methods are how an author selects and invokes a policy for a fractional floating value before an integer destination applies §17.7's exact-or-throw rule.
 
 No floating-to-integer pair is declared on `coerce`, because choosing an integer for a fractional value requires a rounding mode and `coerce` never takes one. `ratio.coerce; int` is therefore absent from the type, while `count int = ratio` is admitted under §17.7 and `ratio.round;` invokes the chosen policy. This is the one place where a destination admits a conversion the written family does not offer, and it is deliberate: the destination rule is exact-or-throw and needs no mode, whereas any written alternative would have to name one.

@@ -175,7 +175,7 @@ impl Emitter<'_> {
                 .expect("validated bound method receiver");
             let receiver = self.expression(receiver_node);
             if method.family == MemberFamily::Coerce {
-                return self.integer_coercion(&method, receiver_node, callee, arguments);
+                return self.numeric_coercion(&method, receiver_node, callee, arguments);
             }
             if let MemberFamily::Arithmetic(family) = method.family {
                 return self.arithmetic_family(

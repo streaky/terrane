@@ -1,7 +1,8 @@
 use num_bigint::BigInt;
 use terrane_int_support::{
-    ArithmeticError, FixedWidthArithmetic, Int, Tier, checked_coerce, coerce, exact_fixed_f32,
-    exact_fixed_f64, saturating_coerce, wrapping_coerce,
+    ArithmeticError, FixedWidthArithmetic, Int, Tier, checked_coerce, coerce, coerce_f64_to_f32,
+    coerce_fixed_to_f32, coerce_to_f32, coerce_to_f64, exact_fixed_f32, exact_fixed_f64,
+    saturating_coerce, wrapping_coerce,
 };
 
 #[test]
@@ -228,4 +229,20 @@ fn fixed_integer_float_conversions_preserve_exactness_without_adaptive_integers(
             "the integer is not exactly representable",
         ))
     );
+}
+
+#[test]
+fn written_float_coercions_round_and_reject_finite_overflow() {
+    let inexact = Int::from(9_007_199_254_740_993_i64);
+    assert_eq!(coerce_to_f64(&inexact), Ok(9_007_199_254_740_992.0));
+    assert_eq!(coerce_to_f32(&inexact), Ok(9_007_199_000_000_000.0));
+    let too_large = Int::from_big(BigInt::from(1_u8) << 2_048);
+    assert!(coerce_to_f64(&too_large).is_err());
+    assert!(coerce_to_f32(&too_large).is_err());
+    assert_eq!(coerce_fixed_to_f32(-7_i8), Ok(-7.0));
+    assert!(coerce_fixed_to_f32(u128::MAX).is_err());
+    assert_eq!(coerce_f64_to_f32(16_777_217.0), Ok(16_777_216.0));
+    assert!(coerce_f64_to_f32(65_536.0_f64.powi(8)).is_err());
+    assert_eq!(coerce_f64_to_f32(f64::INFINITY), Ok(f32::INFINITY));
+    assert!(coerce_f64_to_f32(f64::NAN).unwrap().is_nan());
 }

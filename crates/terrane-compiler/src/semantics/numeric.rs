@@ -150,7 +150,7 @@ pub(super) fn infer_arithmetic_family_type(
     Ok(Some(result))
 }
 
-pub(super) fn infer_integer_coercion_type(
+pub(super) fn infer_numeric_coercion_type(
     unit: &SemanticUnit,
     node: &SyntaxNode,
     bindings: &[TypedBinding],
@@ -158,7 +158,7 @@ pub(super) fn infer_integer_coercion_type(
     let Some(callee) = node.children.first() else {
         return Ok(None);
     };
-    let Some((source_node, policy)) = integer_coercion_call(&unit.source, callee) else {
+    let Some((source_node, policy)) = numeric_coercion_call(&unit.source, callee) else {
         if let Some(member) = obsolete_integer_coercion_member(unit, callee) {
             return Err(failure(
                 &unit.source,
@@ -191,16 +191,16 @@ pub(super) fn infer_integer_coercion_type(
         return Err(failure(
             &unit.source,
             "T0009",
-            "`.coerce` requires an integer source",
+            "`.coerce` requires a numeric source",
             source_node.span,
         ));
     };
-    if !source_type.is_integer() {
+    if !is_numeric(source_type) {
         return Err(failure(
             &unit.source,
             "T0009",
             format!(
-                "`{}` requires an integer source, found `{source_type}`",
+                "`{}` requires a numeric source, found `{source_type}`",
                 policy.invocation_name()
             ),
             source_node.span,
@@ -216,7 +216,7 @@ pub(super) fn infer_integer_coercion_type(
                 &unit.source,
                 "T0008",
                 format!(
-                    "`{}` from `{source_type}` requires one integer destination",
+                    "`{}` from `{source_type}` requires one numeric destination",
                     policy.invocation_name()
                 ),
                 node.span,
@@ -236,7 +236,7 @@ pub(super) fn infer_integer_coercion_type(
                 destination_node.span,
             )
         })?;
-    if !destination.is_integer() {
+    if !is_numeric(destination) {
         return Err(failure(
             &unit.source,
             "T0008",
@@ -247,29 +247,41 @@ pub(super) fn infer_integer_coercion_type(
             destination_node.span,
         ));
     }
-    let result = integer_coercion_result_type(source_type, destination, policy)
+    let result = numeric_coercion_result_type(source_type, destination, policy)
         .map_err(|message| failure(&unit.source, "T0010", message, destination_node.span))?;
     Ok(Some(result))
 }
 
-pub(super) fn integer_coercion_result_type(
+pub(super) fn numeric_coercion_result_type(
     source: ScalarType,
     destination: ScalarType,
     policy: CoercionPolicy,
 ) -> Result<ValueType, String> {
-    match (source, destination, policy) {
+    let floating_destination = matches!(destination, ScalarType::Float32 | ScalarType::Float64);
+    if matches!(source, ScalarType::Float32 | ScalarType::Float64) && destination.is_integer() {
+        return Err(format!(
+            "`{}` from `{source}` to `{destination}` is not declared; use a named rounding method before the integer destination",
+            policy.invocation_name()
+        ));
+    }
+    if floating_destination && matches!(policy, CoercionPolicy::Wrap | CoercionPolicy::Saturate) {
+        return Err(format!(
+            "`{}` from `{source}` requires a fixed-width integer destination",
+            policy.invocation_name()
+        ));
+    }
+    match (destination, policy) {
         (
-            _,
             ScalarType::Int,
             CoercionPolicy::Checked | CoercionPolicy::Wrap | CoercionPolicy::Saturate,
         ) => Err(format!(
             "`.coerce.{}` from `{source}` requires a fixed-width integer destination",
             policy.source_name()
         )),
-        (_, _, CoercionPolicy::Checked) => Ok(ValueType::Optional(Box::new(ValueType::Scalar(
+        (_, CoercionPolicy::Checked) => Ok(ValueType::Optional(Box::new(ValueType::Scalar(
             destination,
         )))),
-        (_, _, CoercionPolicy::Default | CoercionPolicy::Wrap | CoercionPolicy::Saturate) => {
+        (_, CoercionPolicy::Default | CoercionPolicy::Wrap | CoercionPolicy::Saturate) => {
             Ok(ValueType::Scalar(destination))
         }
     }
@@ -334,7 +346,7 @@ pub(crate) fn bound_method(source: &SourceFile, callee: &SyntaxNode) -> Option<B
 ///
 /// The returned policy is shared semantic metadata for analysis and lowering; the
 /// Rust helper names used after family erasure are not independent source members.
-pub(crate) fn integer_coercion_call<'a>(
+pub(crate) fn numeric_coercion_call<'a>(
     source: &SourceFile,
     callee: &'a SyntaxNode,
 ) -> Option<(&'a SyntaxNode, CoercionPolicy)> {
@@ -357,7 +369,7 @@ pub(crate) fn integer_coercion_call<'a>(
 
 pub(super) fn invalid_coercion_policy(unit: &SemanticUnit, callee: &SyntaxNode) -> Option<String> {
     (coercion_family_receiver(unit, callee)
-        && integer_coercion_call(&unit.source, callee).is_none())
+        && numeric_coercion_call(&unit.source, callee).is_none())
     .then(|| {
         let callee_text = node_text(&unit.source, callee);
         let family_start = callee_text.find(".coerce").unwrap_or(0);

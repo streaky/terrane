@@ -545,44 +545,41 @@ pub(super) fn infer_throwing_effects(package: &mut SemanticPackage) -> Result<()
             .collect()
     }
 
-    fn integer_coercion_can_fail(unit: &SemanticUnit, node: &SyntaxNode) -> bool {
-        let Some(callee) = node.children.first() else {
-            return false;
-        };
-        let Some((source_node, CoercionPolicy::Default)) =
-            integer_coercion_call(&unit.source, callee)
+    fn numeric_coercion_error(unit: &SemanticUnit, node: &SyntaxNode) -> Option<&'static str> {
+        let callee = node.children.first()?;
+        let (source_node, CoercionPolicy::Default) = numeric_coercion_call(&unit.source, callee)?
         else {
-            return false;
+            return None;
         };
         let Ok(Some(ValueType::Scalar(source))) =
             infer_receiver_value_type(unit, source_node, &unit.typed_bindings)
         else {
-            return false;
+            return None;
         };
-        let Some(destination_node) = node
-            .children
-            .get(1)
-            .and_then(|arguments| arguments.children.first())
-            .and_then(|argument| argument.children.last())
-        else {
-            return false;
-        };
-        let Some(destination) = unit.descriptor_alias_at(
+        let destination_node = node.children.get(1)?.children.first()?.children.last()?;
+        let destination = unit.descriptor_alias_at(
             node_text(&unit.source, destination_node),
             destination_node.span.start,
-        ) else {
-            return false;
-        };
-        if destination == ScalarType::Int {
-            return false;
+        )?;
+        if destination.is_integer() {
+            if destination == ScalarType::Int {
+                return None;
+            }
+            let destination_bounds = scalar_integer_bounds(destination)?;
+            let Some(source_bounds) = scalar_integer_bounds(source) else {
+                return (source == ScalarType::Int)
+                    .then_some("/core/errors::integer-conversion-overflow");
+            };
+            return (source_bounds.0 < destination_bounds.0
+                || source_bounds.1 > destination_bounds.1)
+                .then_some("/core/errors::integer-conversion-overflow");
         }
-        let Some(destination_bounds) = scalar_integer_bounds(destination) else {
-            return false;
-        };
-        let Some(source_bounds) = scalar_integer_bounds(source) else {
-            return source == ScalarType::Int;
-        };
-        source_bounds.0 < destination_bounds.0 || source_bounds.1 > destination_bounds.1
+        match (source, destination) {
+            (ScalarType::Int, ScalarType::Float32 | ScalarType::Float64)
+            | (ScalarType::Uint128, ScalarType::Float32)
+            | (ScalarType::Float64, ScalarType::Float32) => Some("/core/errors::coercion-error"),
+            _ => None,
+        }
     }
 
     fn fixed_integer_bits(ty: ScalarType) -> Option<u16> {
@@ -901,8 +898,8 @@ pub(super) fn infer_throwing_effects(package: &mut SemanticPackage) -> Result<()
             let receiver_type = infer_receiver_value_type(unit, receiver, &unit.typed_bindings)
                 .ok()
                 .flatten();
-            let mut errors = if integer_coercion_can_fail(unit, node) {
-                BTreeSet::from(["/core/errors::integer-conversion-overflow".to_owned()])
+            let mut errors = if let Some(error) = numeric_coercion_error(unit, node) {
+                BTreeSet::from([error.to_owned()])
             } else if let Some(ValueType::Object(object)) = receiver_type {
                 unit.functions
                     .iter()

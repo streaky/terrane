@@ -7,7 +7,10 @@ mod members;
 pub(super) mod pipeline;
 mod statements;
 
-use std::{cell::RefCell, collections::BTreeMap};
+use std::{
+    cell::{Cell, RefCell},
+    collections::BTreeMap,
+};
 
 use num_bigint::BigInt;
 
@@ -36,6 +39,7 @@ pub(super) struct LoweringRegistry {
     pub(super) sites: RefCell<Vec<LoweringSite>>,
     pub(super) descriptors: RefCell<Vec<(String, String)>>,
     pub(super) descriptor_ids: RefCell<BTreeMap<String, u32>>,
+    pub(super) uses_float_coercion_error: Cell<bool>,
 }
 
 impl LoweringRegistry {

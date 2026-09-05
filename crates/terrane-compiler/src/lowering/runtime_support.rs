@@ -96,6 +96,7 @@ pub(super) fn emit_error_support(
     output: &mut String,
     has_custom_throwable: bool,
     has_dependency: bool,
+    uses_float_coercion_error: bool,
     registry: &LoweringRegistry,
 ) {
     output.push_str(indoc! {r#"
@@ -350,7 +351,8 @@ pub(super) fn emit_error_support(
                             origin,
                         )
                     }
-                    error @ (ArithmeticError::InvalidRadix | ArithmeticError::InvalidRadixText) => {
+                    error @ (ArithmeticError::InvalidRadix
+                    | ArithmeticError::InvalidRadixText) => {
                         TerraneError::raised_with_message(
                             TerraneErrorKind::CoercionError,
                             error.to_string(),
@@ -360,6 +362,21 @@ pub(super) fn emit_error_support(
                 }
             }
         }
+    "#});
+    if uses_float_coercion_error {
+        output.push_str(indoc! {r#"
+        impl TerraneRaised for terrane_int_support::CoercionError {
+            fn raised(self, origin: TerraneSite) -> TerraneError {
+                TerraneError::raised_with_message(
+                    TerraneErrorKind::CoercionError,
+                    self.to_string(),
+                    origin,
+                )
+            }
+        }
+        "#});
+    }
+    output.push_str(indoc! {r#"
         impl TerraneRaised for terrane_string_support::DecodeError {
             fn raised(self, origin: TerraneSite) -> TerraneError {
                 TerraneError::raised_with_message(

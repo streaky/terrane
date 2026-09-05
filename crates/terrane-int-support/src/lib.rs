@@ -29,6 +29,43 @@ pub enum ArithmeticError {
     InvalidRadix,
     InvalidRadixText,
 }
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct CoercionError {
+    source_value: String,
+    source_type: &'static str,
+    destination_type: &'static str,
+    condition: &'static str,
+}
+
+impl CoercionError {
+    #[must_use]
+    pub fn new(
+        source_value: &impl ToString,
+        source_type: &'static str,
+        destination_type: &'static str,
+        condition: &'static str,
+    ) -> Self {
+        Self {
+            source_value: source_value.to_string(),
+            source_type,
+            destination_type,
+            condition,
+        }
+    }
+}
+
+impl fmt::Display for CoercionError {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            formatter,
+            "value {} of type {} cannot be coerced to {}: {}",
+            self.source_value, self.source_type, self.destination_type, self.condition
+        )
+    }
+}
+
+impl std::error::Error for CoercionError {}
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct OverflowResult<T> {
     pub value: T,
@@ -1230,6 +1267,83 @@ pub fn exact_f32(value: &(impl IntegerSource + 'static)) -> Result<f32, Arithmet
     (BigInt::from_f32(converted).as_ref() == Some(&integer))
         .then_some(converted)
         .ok_or_else(error)
+}
+
+/// Converts an integer to `f64` using IEEE round-to-nearest, ties-to-even.
+///
+/// # Errors
+/// Returns [`CoercionError`] when the rounded result is outside the
+/// destination's finite range.
+pub fn coerce_to_f64(value: &(impl IntegerSource + 'static)) -> Result<f64, CoercionError> {
+    let integer = value.integer_value();
+    integer
+        .to_f64()
+        .filter(|result| result.is_finite())
+        .ok_or_else(|| {
+            CoercionError::new(
+                &integer,
+                terrane_numeric_type(std::any::type_name_of_val(value)),
+                "float64",
+                "the rounded value is outside the destination finite range",
+            )
+        })
+}
+
+/// Converts an integer to `f32` using IEEE round-to-nearest, ties-to-even.
+///
+/// # Errors
+/// Returns [`CoercionError`] when the rounded result is outside the
+/// destination's finite range.
+pub fn coerce_to_f32(value: &(impl IntegerSource + 'static)) -> Result<f32, CoercionError> {
+    let integer = value.integer_value();
+    integer
+        .to_f32()
+        .filter(|result| result.is_finite())
+        .ok_or_else(|| {
+            CoercionError::new(
+                &integer,
+                terrane_numeric_type(std::any::type_name_of_val(value)),
+                "float32",
+                "the rounded value is outside the destination finite range",
+            )
+        })
+}
+
+/// Converts a fixed-width integer to `f32` using IEEE round-to-nearest,
+/// ties-to-even without materializing an adaptive integer.
+///
+/// # Errors
+/// Returns [`CoercionError`] when the rounded result is outside the
+/// destination's finite range.
+pub fn coerce_fixed_to_f32<T: FixedIntegerSource>(value: T) -> Result<f32, CoercionError> {
+    let converted = value.to_f32();
+    converted.is_finite().then_some(converted).ok_or_else(|| {
+        CoercionError::new(
+            &value,
+            terrane_numeric_type(std::any::type_name::<T>()),
+            "float32",
+            "the rounded value is outside the destination finite range",
+        )
+    })
+}
+
+/// Narrows `f64` to `f32` using IEEE round-to-nearest, ties-to-even.
+///
+/// # Errors
+/// Returns [`CoercionError`] when a finite source rounds beyond the
+/// destination's finite range.
+pub fn coerce_f64_to_f32(value: f64) -> Result<f32, CoercionError> {
+    let converted = value as f32;
+    if value.is_finite() && !converted.is_finite() {
+        Err(CoercionError::new(
+            &value,
+            "float64",
+            "float32",
+            "the rounded value is outside the destination finite range",
+        ))
+    } else {
+        Ok(converted)
+    }
 }
 
 /// Rounds a finite floating value using the selected source-language mode.
