@@ -1241,8 +1241,9 @@ interface conformance lowers through typed protocol wrappers and preserves mutat
 requirements inferred from implementations, while traits reuse fields and methods. Executable
 cases isolate direct construction and member dispatch, independent instance state, singleton
 state, inherited `self` construction, inherited per-effective-class static state, nested static
-field mutation, separated state and destruction, inheritance, inherited fields including
-ten-level read/write forwarding, interface conformance across inheritance, self-typed returns,
+field mutation, adaptive `int|none` field reads and arithmetic after presence refinement,
+separated state and destruction, inheritance, inherited fields including ten-level read/write
+forwarding, interface conformance across inheritance, self-typed returns,
 immutable and mutating interface dispatch, trait reuse, and combined
 inheritance/interface/lifecycle behavior. Rejected cases cover implicit class invocation,
 construction postfixes before the required call marker, missing/non-class construction

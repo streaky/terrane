@@ -613,6 +613,21 @@ impl Emitter<'_> {
             })
     }
 
+    pub(super) fn object_field(&self, receiver: &SyntaxNode, name: &str) -> bool {
+        let Some(ValueType::Object(identity)) = self.receiver_value_type(receiver) else {
+            return false;
+        };
+        self.unit
+            .objects
+            .iter()
+            .find(|object| object.identity == identity)
+            .is_some_and(|object| {
+                effective_object_fields(self.unit, object)
+                    .iter()
+                    .any(|field| field.name == name)
+            })
+    }
+
     pub(super) fn callable_object_field(&self, receiver: &SyntaxNode, name: &str) -> bool {
         let Some(ValueType::Object(identity)) = self.receiver_value_type(receiver) else {
             return false;
