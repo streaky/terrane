@@ -641,7 +641,7 @@ impl Emitter<'_> {
                     self.name(node)
                 )
             }
-            SyntaxKind::Name => format!("{}.clone()", self.name(node)),
+            SyntaxKind::Name => format!("({}).clone()", self.name(node)),
             SyntaxKind::GroupExpression => {
                 node.children.first().map_or_else(String::new, |child| {
                     format!("({})", self.adaptive_expression(child))

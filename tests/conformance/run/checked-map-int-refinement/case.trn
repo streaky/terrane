@@ -1,0 +1,10 @@
+namespace checked-map-int-refinement
+
+from /core/collections import map
+
+function main;
+  counts = map; apple=1
+  current = counts.get.checked; 'apple'
+  if current != none
+    counts['apple'] = current + 1
+  print; counts['apple']
