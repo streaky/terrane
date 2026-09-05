@@ -41,7 +41,7 @@ pub(super) fn object_method_contract<'a>(
         })
 }
 
-pub(super) fn object_member_type(
+pub(super) fn object_field_type(
     unit: &SemanticUnit,
     object_identity: &ObjectIdentity,
     member: &str,
@@ -54,6 +54,27 @@ pub(super) fn object_member_type(
         .find(|field| field.name == member && field.is_static == is_static)
     {
         return Some(field.value_type.clone());
+    }
+    for used_trait in &object.traits {
+        if let Some(found) = object_field_type(unit, used_trait, member, is_static) {
+            return Some(found);
+        }
+    }
+    object
+        .base
+        .as_ref()
+        .and_then(|base| object_field_type(unit, base, member, is_static))
+}
+
+pub(super) fn object_member_type(
+    unit: &SemanticUnit,
+    object_identity: &ObjectIdentity,
+    member: &str,
+    is_static: bool,
+) -> Option<ValueType> {
+    let object = object_contract(unit, object_identity)?;
+    if let Some(field_type) = object_field_type(unit, object_identity, member, is_static) {
+        return Some(field_type);
     }
     if let Some(method) = object_method_contract(unit, object_identity, member, is_static) {
         let parameters = method

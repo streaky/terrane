@@ -1,0 +1,5 @@
+namespace read-only-string-member-assignment
+
+function main;
+  text string = 'abc'
+  text.length = 5

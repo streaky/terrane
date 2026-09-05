@@ -1,0 +1,5 @@
+namespace read-only-float-member-assignment
+
+function main;
+  value float64 = 1.0
+  value.finite = false

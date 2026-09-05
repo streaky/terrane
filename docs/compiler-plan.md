@@ -383,11 +383,11 @@ T0059 reference used after replacement     T0066 field missing type and initiali
 T0067 incompatible interface signature    T0068 escaping non-owning reference
 T0070 reflection unavailable in profile     T0074 invalid task-core operation
 T0071 unavailable reflected member          T0075 child deadline extension
-T0073 value live across suspension           T0076 unconsumed task
-T0078 parameterized program entrypoint
+T0072 read-only member assignment            T0076 unconsumed task
+T0073 value live across suspension           T0078 parameterized program entrypoint
 ```
 
-`T0056`, `T0057`, `T0060`, `T0069`, `T0072`, and `T0077` are intentionally unassigned.
+`T0056`, `T0057`, `T0060`, `T0069`, and `T0077` are intentionally unassigned.
 
 ### Milestone 3 — Namespaces, scopes, and bootstrap environment
 

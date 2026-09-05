@@ -11,6 +11,30 @@ pub(super) fn analyze_binding_node(
     scope: Option<Span>,
 ) -> Result<(), SemanticFailure> {
     if node.kind == SyntaxKind::Assignment
+        && let [target, _] = node.children.as_slice()
+        && target.kind == SyntaxKind::MemberExpression
+        && let [receiver, member] = target.children.as_slice()
+    {
+        infer_member_value_type(unit, target, bindings)?;
+        let writable = matches!(
+            infer_receiver_value_type(unit, receiver, bindings)?,
+            Some(ValueType::Object(identity))
+                if object_field_type(unit, &identity, node_text(&unit.source, member), false)
+                    .is_some()
+        );
+        if !writable {
+            return Err(failure(
+                &unit.source,
+                "T0072",
+                format!(
+                    "member `{}` is read-only and cannot be assigned",
+                    node_text(&unit.source, member)
+                ),
+                member.span,
+            ));
+        }
+    }
+    if node.kind == SyntaxKind::Assignment
         && let [target, value] = node.children.as_slice()
         && target.kind == SyntaxKind::IndexExpression
         && let [receiver, _] = target.children.as_slice()
