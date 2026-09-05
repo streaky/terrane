@@ -1038,6 +1038,7 @@ pub(super) fn analyze_types(package: &mut SemanticPackage) -> Result<(), Semanti
         let mut visible_bindings = Vec::new();
         let mut bindings = Vec::new();
         collect_typed_bindings(
+            package,
             unit,
             &unit.tree.root,
             &mut visible_bindings,

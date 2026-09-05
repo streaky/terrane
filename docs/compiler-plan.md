@@ -1346,11 +1346,14 @@ the structured-error pipeline.
 Descriptor values materialise only when observed, and minimal reflection profiles reject unavailable
 metadata access. `awaits`, `mutating`, `mutates`, and bare `foreign` have been removed as callable
 qualifiers; suspension and receiver mutation are inferred, while foreign transitions belong to
-concrete adapter or ABI constructs. Accepted and rejected conformance covers catch/finally throwable
-sets, scalar and collection-contained coercion failures propagated across callable boundaries,
-custom throwables, incompatible bounds including inferred explicit and implicit coercion failures,
-callable-contract reflection, descriptor materialisation, profile denial, stripped reflection, and
-rejection of removed qualifiers. This satisfies the milestone exit criterion.
+concrete adapter or ABI constructs. Typed and catch-all clauses may bind the caught runtime
+`throwable` envelope and inspect its `message`, optional `cause`, and non-throwing `render`; throwing
+that bound value preserves its kind and cause chain. Accepted and rejected conformance covers
+catch/finally throwable sets, scalar and collection-contained coercion failures propagated across
+callable boundaries, custom throwables, executable typed catch bindings, incompatible bounds
+including inferred explicit and implicit coercion failures, callable-contract reflection,
+descriptor materialisation, profile denial, stripped reflection, and rejection of removed
+qualifiers. This satisfies the milestone exit criterion.
 
 ### Milestone 19 — Async core: tasks, scope, cancellation, and deadlines
 

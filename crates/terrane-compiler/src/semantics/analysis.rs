@@ -464,8 +464,13 @@ pub(super) fn validate_error_clauses(package: &SemanticPackage) -> Result<(), Se
                     thrown.span.start,
                     node_text(&unit.source, thrown.children.first().unwrap_or(thrown)),
                 );
-                let standard = symbol.is_some_and(|symbol| symbol.kind == SymbolKind::ErrorObject);
                 let value_type = infer_value_type(unit, thrown, &unit.typed_bindings)?;
+                let standard = symbol.is_some_and(|symbol| symbol.kind == SymbolKind::ErrorObject)
+                    || matches!(
+                        &value_type,
+                        Some(ValueType::Object(identity))
+                            if identity == &ObjectIdentity::new("/core/errors", "throwable")
+                    );
                 let object_name = match &value_type {
                     Some(ValueType::Descriptor(name)) => Some(name.as_str()),
                     Some(ValueType::Object(identity)) => Some(identity.name.as_str()),
@@ -505,18 +510,6 @@ pub(super) fn validate_error_clauses(package: &SemanticPackage) -> Result<(), Se
                 .iter()
                 .filter(|child| child.kind == SyntaxKind::CatchClause)
             {
-                if let Some(alias) = clause
-                    .children
-                    .iter()
-                    .find(|child| child.kind == SyntaxKind::CatchBinding)
-                {
-                    return Err(failure(
-                        &unit.source,
-                        "T0027",
-                        "catch aliases are unavailable until error values expose source-level members",
-                        alias.span,
-                    ));
-                }
                 let Some(descriptor) = clause
                     .children
                     .first()

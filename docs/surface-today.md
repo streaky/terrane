@@ -747,12 +747,22 @@ The `/core/errors::throwable` interface and compiler-owned standard throwable ob
 identities used by `throw`, `try`, `catch`, and `finally`. Ordinary source-declared classes may
 implement `throwable`; a conforming class supplies `message string` and a synchronous, non-throwing,
 zero-argument `render string` method, while `cause` is compiler-managed in the runtime envelope.
-The class may retain its own additional declared fields. Arithmetic, coercion, decoding, and
-collection failures enter the same typed result-propagation
+The class may retain its own additional declared fields. A typed or catch-all `catch ... as name`
+binding exposes the common runtime envelope:
+
+```text
+throwable value
+├── .message -> string
+├── .cause -> throwable or none
+└── .render; -> string
+```
+
+Arithmetic, coercion, decoding, and collection failures enter the same typed result-propagation
 path and are catchable. Exact escaping throwable alternatives are inferred transitively after
 catches and `finally` replacement. A postfix `throws T` clause is an optional upper-bound contract:
 every escaping throwable must implement `T`. Reflection exposes the declared bound separately from
-the inferred escaping set.
+the inferred escaping set. Throwing a caught throwable value preserves its runtime kind and existing
+cause chain while adding the explicit rethrow site.
 
 ## Projected Rust dependencies
 
@@ -786,7 +796,6 @@ The authoritative language draft proposes a much larger ontology. None of the fo
 ```text
 collection checked lookup children and source-visible typed lookup errors
 reflection inventories beyond retained callable contracts, throwable alternatives, and canonical descriptor identity
-source-visible standard-error fields, causes, and error hierarchies
 bytes indexing and slicing
 user-authored implementations of general iteration protocols
 user-declared type parameters and generic application

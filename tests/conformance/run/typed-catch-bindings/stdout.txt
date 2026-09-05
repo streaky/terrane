@@ -1,0 +1,5 @@
+coercion has no compatible result
+true
+false
+coercion has no compatible result
+fixed-width integer arithmetic overflow

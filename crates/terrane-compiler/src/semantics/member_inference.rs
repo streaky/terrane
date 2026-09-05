@@ -137,6 +137,30 @@ pub(super) fn infer_member_value_type(
     ) {
         return Ok(Some(ValueType::Scalar(ScalarType::String)));
     }
+    if member_name != "type"
+        && matches!(
+            &receiver_type,
+            Some(ValueType::Object(identity))
+                if identity == &ObjectIdentity::new("/core/errors", "throwable")
+        )
+    {
+        return match member_name {
+            "message" => Ok(Some(ValueType::Scalar(ScalarType::String))),
+            "cause" => Ok(Some(ValueType::Optional(Box::new(ValueType::Object(
+                ObjectIdentity::new("/core/errors", "throwable"),
+            ))))),
+            "render" => Ok(Some(ValueType::Function(
+                Vec::new(),
+                ElementType::new(ValueType::Scalar(ScalarType::String)),
+            ))),
+            _ => Err(failure(
+                &unit.source,
+                "T0055",
+                format!("`throwable` has no instance member `{member_name}`"),
+                member.span,
+            )),
+        };
+    }
     if let Some(result) = &receiver_type
         && matches!(
             result,

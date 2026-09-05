@@ -1,8 +1,9 @@
-namespace typed-catch-alias
+namespace catch-binding-out-of-scope
 from /core/errors import arithmetic-overflow
 
 function main;
   try
     throw arithmetic-overflow
   catch arithmetic-overflow as failure
-    print; >unreachable
+    print; failure.message
+  print; failure.message

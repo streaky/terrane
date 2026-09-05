@@ -368,17 +368,22 @@ impl Emitter<'_> {
         let Some(error_node) = node.children.first() else {
             return;
         };
-        let kind = self.rust_error_kind(error_node);
         let origin = self.error_site(node);
-        let mut error = if kind.starts_with("Custom(") {
-            let value = self.expression(error_node);
-            format!(
-                "{{ let value = {value}; TerraneError::raised_with_message(TerraneErrorKind::{kind}, value.render(), {origin}) }}"
-            )
+        let rethrow = self.is_throwable_value(error_node);
+        let mut error = if rethrow {
+            format!("{}.clone().at({origin})", self.expression(error_node))
         } else {
-            format!("TerraneError::raised(TerraneErrorKind::{kind}, {origin})")
+            let kind = self.rust_error_kind(error_node);
+            if kind.starts_with("Custom(") {
+                let value = self.expression(error_node);
+                format!(
+                    "{{ let value = {value}; TerraneError::raised_with_message(TerraneErrorKind::{kind}, value.render(), {origin}) }}"
+                )
+            } else {
+                format!("TerraneError::raised(TerraneErrorKind::{kind}, {origin})")
+            }
         };
-        if let Some(current_error) = &self.current_error {
+        if !rethrow && let Some(current_error) = &self.current_error {
             error = format!("{error}.with_cause({current_error}.clone())");
         }
         if self.try_completion {
@@ -469,6 +474,16 @@ impl Emitter<'_> {
             self.line(&format!("if {condition} {{"));
             self.indent += 1;
             self.line(&format!("__terrane_handled_{index} = true;"));
+            if let Some(alias) = clause
+                .children
+                .iter()
+                .find(|child| child.kind == SyntaxKind::CatchBinding)
+            {
+                self.line(&format!(
+                    "let {} = __terrane_error_{index}.clone();",
+                    rust_name(self.text(alias))
+                ));
+            }
             let outer_error = self
                 .current_error
                 .replace(format!("__terrane_error_{index}"));

@@ -134,6 +134,14 @@ impl Emitter<'_> {
             .flatten()
     }
 
+    pub(super) fn is_throwable_value(&self, node: &SyntaxNode) -> bool {
+        matches!(
+            self.value_type(node),
+            Some(ValueType::Object(identity))
+                if identity.namespace == "/core/errors" && identity.name == "throwable"
+        )
+    }
+
     fn list_append_binding(&self, node: &SyntaxNode) -> Option<crate::Span> {
         let [callee, arguments] = node.children.as_slice() else {
             return None;

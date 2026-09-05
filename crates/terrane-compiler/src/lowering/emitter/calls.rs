@@ -88,6 +88,13 @@ impl Emitter<'_> {
         }
         if callee.kind == SyntaxKind::MemberExpression
             && let [receiver, member] = callee.children.as_slice()
+            && self.is_throwable_value(receiver)
+            && self.text(member) == "render"
+        {
+            return format!("({}).render()", self.expression(receiver));
+        }
+        if callee.kind == SyntaxKind::MemberExpression
+            && let [receiver, member] = callee.children.as_slice()
             && let Some(receiver_type) = self.receiver_value_type(receiver)
         {
             let receiver_value = self.receiver_guard_expression(receiver);
