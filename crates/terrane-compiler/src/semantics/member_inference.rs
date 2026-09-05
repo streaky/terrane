@@ -66,6 +66,22 @@ pub(super) fn object_field_type(
         .and_then(|base| object_field_type(unit, base, member, is_static))
 }
 
+fn optional_object_inner_has_member(
+    unit: &SemanticUnit,
+    receiver_type: &ValueType,
+    member: &str,
+) -> bool {
+    let ValueType::Optional(inner) = receiver_type else {
+        return false;
+    };
+    let ValueType::Object(identity) = inner.as_ref() else {
+        return false;
+    };
+    (identity == &ObjectIdentity::new("/core/errors", "throwable")
+        && matches!(member, "message" | "cause" | "render"))
+        || object_member_type(unit, identity, member, false).is_some()
+}
+
 pub(super) fn object_member_type(
     unit: &SemanticUnit,
     object_identity: &ObjectIdentity,
@@ -383,12 +399,24 @@ pub(super) fn infer_member_value_type(
     }
     if member_name != "length" {
         return match receiver_type {
-            Some(receiver_type) => Err(failure(
-                &unit.source,
-                "T0031",
-                format!("`{receiver_type}` has no member `.{member_name}`"),
-                member.span,
-            )),
+            Some(receiver_type) => {
+                let mut diagnostic = Diagnostic::error(
+                    "T0031",
+                    format!("`{receiver_type}` has no member `.{member_name}`"),
+                    member.span,
+                );
+                if optional_object_inner_has_member(unit, &receiver_type, member_name) {
+                    diagnostic = diagnostic.with_help(format!(
+                        "`.{member_name}` requires narrowing; bind the optional-producing expression \
+                         to a name, guard that name with `!= none`, then select `.{member_name}` from \
+                         the narrowed name"
+                    ));
+                }
+                Err(SemanticFailure {
+                    source: unit.source.clone(),
+                    diagnostics: vec![diagnostic],
+                })
+            }
             None => Ok(None),
         };
     }

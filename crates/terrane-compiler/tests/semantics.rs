@@ -1885,6 +1885,21 @@ fn records_parameter_mutability() {
     assert!(parameter.mutable);
 }
 
+#[test]
+fn optional_object_member_diagnostic_explains_stable_narrowing() {
+    let source = "namespace app\nfrom /core/errors import arithmetic-overflow, coercion-error\nfunction main;\n  try\n    try\n      throw coercion-error\n    catch coercion-error\n      throw arithmetic-overflow\n  catch arithmetic-overflow as outer\n    print; (outer.cause).message\n";
+    let failure = analyze(&package(true, &[("main.trn", source)])).unwrap_err();
+    let diagnostic = &failure.diagnostics[0];
+    assert_eq!(diagnostic.code, "T0031");
+    assert_eq!(
+        diagnostic.help.as_deref(),
+        Some(
+            "`.message` requires narrowing; bind the optional-producing expression to a name, \
+             guard that name with `!= none`, then select `.message` from the narrowed name"
+        )
+    );
+}
+
 fn contains_kind(node: &terrane_compiler::syntax::SyntaxNode, kind: SyntaxKind) -> bool {
     node.kind == kind || node.children.iter().any(|child| contains_kind(child, kind))
 }
