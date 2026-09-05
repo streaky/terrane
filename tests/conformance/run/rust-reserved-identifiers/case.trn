@@ -1,0 +1,17 @@
+namespace rust-reserved-identifiers
+
+function main;
+  abstract = 1
+  become = 2
+  box = 3
+  do = 4
+  final = 5
+  macro = 6
+  override = 7
+  priv = 8
+  typeof = 9
+  unsized = 10
+  virtual = 11
+  gen = 12
+  total = abstract + become + box + do + final + macro + override + priv + typeof + unsized + virtual + gen
+  print; total
