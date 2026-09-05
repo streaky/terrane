@@ -68,8 +68,14 @@ pub struct Item {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
+enum BlockBody {
+    Parsed(syn::File),
+    Raw(String),
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Block {
-    parsed: syn::File,
+    body: BlockBody,
 }
 
 struct CanonicalizeExpressions;
@@ -373,17 +379,21 @@ fn restore_terrane_metadata(rendered: &str, module_comment_marker: Option<&str>)
 
 impl Block {
     fn from_rendered(rust: &str) -> Self {
-        let parsed = syn::parse_file(rust).expect("lowered Rust item must parse");
-        Self {
-            parsed: canonicalize_file(parsed),
-        }
+        let body = syn::parse_file(rust).map_or_else(
+            |_| BlockBody::Raw(rust.to_owned()),
+            |parsed| BlockBody::Parsed(canonicalize_file(parsed)),
+        );
+        Self { body }
     }
 
     fn render(&self, output: &mut String) {
-        output.push_str(&restore_terrane_metadata(
-            &prettyplease::unparse(&self.parsed),
-            None,
-        ));
+        match &self.body {
+            BlockBody::Parsed(parsed) => output.push_str(&restore_terrane_metadata(
+                &prettyplease::unparse(parsed),
+                None,
+            )),
+            BlockBody::Raw(raw) => output.push_str(raw),
+        }
     }
 }
 
@@ -603,6 +613,17 @@ mod tests {
             "{rendered}"
         );
         assert!(!rendered.contains("&(("), "{rendered}");
+    }
+
+    #[test]
+    fn preserves_unparsable_generated_text_for_validation() {
+        let rust = "fn broken( {";
+        let block = Block::from_rendered(rust);
+        let mut rendered = String::new();
+        block.render(&mut rendered);
+
+        assert_eq!(rendered, rust);
+        assert!(canonicalize_rust(&rendered).is_err());
     }
 
     #[test]
