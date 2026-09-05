@@ -1,5 +1,6 @@
 namespace catch-binding-out-of-scope
 from /core/errors import arithmetic-overflow
+from /core/output import print
 
 function main;
   try

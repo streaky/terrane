@@ -497,6 +497,7 @@ pub(super) fn node_may_declare_typed_binding(node: &SyntaxNode) -> bool {
             | SyntaxKind::Assignment
             | SyntaxKind::Parameter
             | SyntaxKind::ForTarget
+            | SyntaxKind::CatchBinding
     )
 }
 
@@ -532,9 +533,10 @@ pub(super) fn record_declared_binding_writes(
     if !declares_binding {
         return false;
     }
-    let initial_store = node.kind == SyntaxKind::ForTarget
-        || node.kind == SyntaxKind::Parameter
-        || unit.source.text()[node.span.start..node.span.end].contains('=');
+    let initial_store = matches!(
+        node.kind,
+        SyntaxKind::ForTarget | SyntaxKind::Parameter | SyntaxKind::CatchBinding
+    ) || unit.source.text()[node.span.start..node.span.end].contains('=');
     if !initial_store {
         return false;
     }
@@ -969,7 +971,11 @@ pub(crate) fn binding_read_value_is_reused(
             BindingEvent::Read { .. } => {}
         }
     }
-    !read_loops.is_empty()
+    read_loops.last().is_some_and(|loop_span| {
+        declaration_span.file != loop_span.file
+            || declaration_span.start < loop_span.start
+            || loop_span.end < declaration_span.end
+    })
 }
 
 pub(crate) fn binding_store_value_is_read(

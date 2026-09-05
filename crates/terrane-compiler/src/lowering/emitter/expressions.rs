@@ -212,7 +212,7 @@ impl Emitter<'_> {
             return if actual == Some(ValueType::Optional(inner.clone())) {
                 let expression = self.expression(node);
                 if node.kind == SyntaxKind::MemberExpression
-                    && matches!(inner.as_ref(), ValueType::Scalar(ScalarType::Int))
+                    && !rust_value_is_copy(inner.as_ref())
                     && let [receiver, member] = node.children.as_slice()
                     && self.object_field(receiver, self.text(member))
                 {

@@ -102,6 +102,15 @@ impl Emitter<'_> {
         }
     }
 
+    pub(super) fn raw_storage_name(&self, node: &SyntaxNode) -> String {
+        let source_name = self.text(node);
+        if source_name == "this" && self.closure_depth == 0 {
+            "self".to_owned()
+        } else {
+            rust_name(source_name)
+        }
+    }
+
     pub(super) fn uninitialized_global_failure(&self, node: &SyntaxNode) -> String {
         let (line, column) = self.source.line_column(node.span.start);
         format!(

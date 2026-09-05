@@ -1175,6 +1175,24 @@ fn types_canonical_integer_coercion_family() {
 }
 
 #[test]
+fn types_default_float_coercion_destination_as_float64() {
+    let analyzed = analyze(&package(
+        true,
+        &[(
+            "main.trn",
+            "namespace app\nfunction main;\n  value int = 1\n  converted = value.coerce; float\n",
+        )],
+    ))
+    .unwrap();
+    let converted = analyzed.units[0]
+        .typed_bindings
+        .iter()
+        .find(|binding| binding.name == "converted")
+        .unwrap();
+    assert_eq!(converted.value_type, ValueType::Scalar(ScalarType::Float64));
+}
+
+#[test]
 fn rejects_unsupported_adaptive_integer_coercion_forms() {
     for expression in ["value.coerce.wrap; int", "value.coerce.checked; int"] {
         let failure = analyze(&package(

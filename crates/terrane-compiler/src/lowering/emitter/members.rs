@@ -101,7 +101,7 @@ impl Emitter<'_> {
             _ if self.reference_backed_name(receiver).is_some() => {
                 format!(
                     "{}.lock().expect(\"reference lock poisoned\")",
-                    rust_name(self.text(receiver))
+                    self.raw_storage_name(receiver)
                 )
             }
             _ => self.expression(receiver),
@@ -211,7 +211,9 @@ impl Emitter<'_> {
                 "render" => format!(
                     "std::sync::Arc::new({{ let error = ({receiver}).clone(); move || Ok(error.render()) }})"
                 ),
-                _ => String::new(),
+                name => {
+                    unreachable!("semantic analysis admitted unknown throwable member `{name}`")
+                }
             };
         }
         if let Some(ValueType::Descriptor(_)) = &receiver_type {

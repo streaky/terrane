@@ -341,6 +341,28 @@ pub(super) fn binding_initializer(node: &SyntaxNode, name_index: usize) -> Optio
 pub(super) fn rust_type(ty: ScalarType) -> &'static str {
     ty.lowering_type()
 }
+
+pub(super) const fn rust_value_is_copy(ty: &ValueType) -> bool {
+    matches!(
+        ty,
+        ValueType::Scalar(
+            ScalarType::Bool
+                | ScalarType::Int8
+                | ScalarType::Int16
+                | ScalarType::Int32
+                | ScalarType::Int64
+                | ScalarType::Int128
+                | ScalarType::Uint8
+                | ScalarType::Uint16
+                | ScalarType::Uint32
+                | ScalarType::Uint64
+                | ScalarType::Uint128
+                | ScalarType::Float32
+                | ScalarType::Float64
+                | ScalarType::None
+        )
+    )
+}
 #[expect(
     clippy::needless_pass_by_value,
     reason = "element lowering owns the recursively described value type"

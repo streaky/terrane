@@ -982,7 +982,8 @@ impl Emitter<'_> {
         } else {
             call
         };
-        let function_value_call = contract.is_none()
+        let function_value_call = callee.kind == SyntaxKind::Name
+            && contract.is_none()
             && matches!(self.value_type(callee), Some(ValueType::Function(_, _)));
         if contract.is_some_and(|contract| contract.throws) || foreign_error || function_value_call
         {

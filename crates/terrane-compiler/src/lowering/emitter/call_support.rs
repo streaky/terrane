@@ -342,6 +342,22 @@ impl Emitter<'_> {
         }
     }
 
+    fn numeric_coercion_types(
+        &self,
+        receiver: &SyntaxNode,
+        arguments: &SyntaxNode,
+    ) -> Option<(ScalarType, ScalarType)> {
+        let destination = arguments
+            .children
+            .first()
+            .and_then(|argument| argument.children.last())
+            .or_else(|| arguments.children.first())?;
+        let ValueType::Scalar(source) = self.receiver_value_type(receiver)? else {
+            return None;
+        };
+        Some((source, self.descriptor_type(destination)?))
+    }
+
     pub(super) fn numeric_coercion(
         &mut self,
         method: &crate::BoundMethod,
@@ -354,24 +370,12 @@ impl Emitter<'_> {
             child => CoercionPolicy::from_member(child)
                 .expect("validated coercion family child must select a policy"),
         };
-        let destination = arguments
-            .children
-            .first()
-            .and_then(|argument| argument.children.last())
-            .unwrap_or_else(|| &arguments.children[0]);
-        let destination = self
-            .descriptor_type(destination)
-            .expect("validated coercion destination must resolve to a scalar descriptor");
-        let source = self
-            .receiver_value_type(receiver)
-            .and_then(|value_type| {
-                if let ValueType::Scalar(source) = value_type {
-                    Some(source)
-                } else {
-                    None
-                }
-            })
-            .expect("validated numeric coercion receiver must have a scalar type");
+        let Some((source, destination)) = self.numeric_coercion_types(receiver, arguments) else {
+            unreachable!(
+                "semantic analysis admitted a non-scalar numeric coercion at {}..{}",
+                callee.span.start, callee.span.end
+            );
+        };
         let receiver_is_borrowed = receiver.kind == SyntaxKind::Name
             && self.lazy_namespace_binding_type(receiver).is_some();
 

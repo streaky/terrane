@@ -478,6 +478,7 @@ impl Emitter<'_> {
                 .children
                 .iter()
                 .find(|child| child.kind == SyntaxKind::CatchBinding)
+                .filter(|alias| binding_store_value_is_read(self.package, alias.span, alias.span))
             {
                 self.line(&format!(
                     "let {} = __terrane_error_{index}.clone();",
