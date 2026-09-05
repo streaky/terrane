@@ -508,6 +508,7 @@ mod __terrane_trace {
 }
 // Source: case.trn
 // Namespace: callable-class-parameters
+#[allow(dead_code)]
 fn increment(value: terrane_int_support::Int) -> terrane_int_support::Int {
     return value.clone() + terrane_int_support::Int::from(1_i128);
 }

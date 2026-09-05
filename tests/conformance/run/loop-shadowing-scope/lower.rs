@@ -405,6 +405,7 @@ mod __terrane_trace {
 }
 // Source: case.trn
 // Namespace: loop-shadowing-scope
+#[allow(dead_code)]
 fn value() -> terrane_int_support::Int {
     return terrane_int_support::Int::from(1_i128);
 }

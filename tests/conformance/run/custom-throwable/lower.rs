@@ -455,6 +455,7 @@ impl ConfigError {
         return self.message.clone();
     }
 }
+#[allow(dead_code)]
 fn load(path: String) -> Result<String, TerraneError> {
     return Err({
         let value = ConfigError::terrane_construct(

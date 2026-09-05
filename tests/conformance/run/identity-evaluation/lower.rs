@@ -1,6 +1,7 @@
 // Generated deterministically by Terrane <version>.
 // Source: case.trn
 // Namespace: identity-evaluation
+#[allow(dead_code)]
 fn observed(item: terrane_int_support::Int) -> terrane_int_support::Int {
     println!("{}", terrane_scalar_support::scalar_text(&item));
     return item.clone();

@@ -419,6 +419,7 @@ mod __terrane_trace {
 }
 // Source: case.trn
 // Namespace: uncaught-detailed-coercion
+#[allow(dead_code)]
 fn narrow(value: terrane_int_support::Int) -> Result<i8, TerraneError> {
     return Ok(
         __terrane_raised_err(

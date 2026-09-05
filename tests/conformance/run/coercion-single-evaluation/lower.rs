@@ -1,6 +1,7 @@
 // Generated deterministically by Terrane <version>.
 // Source: case.trn
 // Namespace: coercion-single-evaluation
+#[allow(dead_code)]
 fn observed() -> terrane_int_support::Int {
     println!("{}", terrane_scalar_support::scalar_text(&String::from("once")));
     return terrane_int_support::Int::from(300_i128);

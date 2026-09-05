@@ -935,6 +935,13 @@ impl Emitter<'_> {
                 return_type
             }
         });
+        if receiver.is_none()
+            && contract.owner.is_none()
+            && contract.name != "main"
+            && !self.unit.bundled
+        {
+            self.line("#[allow(dead_code)]");
+        }
         self.line_start();
         let name =
             name_override.map_or_else(|| function_name(self.package, contract), str::to_owned);

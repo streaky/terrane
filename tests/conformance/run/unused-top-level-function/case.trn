@@ -1,0 +1,7 @@
+namespace unused-top-level-function
+
+function helper string; value int
+  return 'unused'
+
+function main;
+  print; 'ok'

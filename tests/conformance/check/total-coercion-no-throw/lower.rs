@@ -1,6 +1,7 @@
 // Generated deterministically by Terrane <version>.
 // Source: case.trn
 // Namespace: total-coercion-no-throw
+#[allow(dead_code)]
 fn widen(value: i8) -> i16 {
     return value as i16;
 }

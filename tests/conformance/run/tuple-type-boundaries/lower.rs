@@ -460,11 +460,13 @@ mod __terrane_trace {
 }
 // Source: case.trn
 // Namespace: tuple-type-boundaries
+#[allow(dead_code)]
 fn echo(
     values: terrane_collection_support::Tuple<terrane_int_support::Int>,
 ) -> terrane_collection_support::Tuple<terrane_int_support::Int> {
     return values.clone();
 }
+#[allow(dead_code)]
 fn nested(
     values: terrane_collection_support::List<
         terrane_collection_support::Tuple<terrane_int_support::Int>,

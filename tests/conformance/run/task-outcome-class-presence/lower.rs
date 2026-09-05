@@ -564,6 +564,7 @@ impl Point {
         self.x = x.clone();
     }
 }
+#[allow(dead_code)]
 async fn make() -> Point {
     return Point::terrane_construct(terrane_int_support::Int::from(5_i128));
 }

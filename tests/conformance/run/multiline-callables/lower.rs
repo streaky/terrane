@@ -1,6 +1,7 @@
 // Generated deterministically by Terrane <version>.
 // Source: case.trn
 // Namespace: multiline-callables
+#[allow(dead_code)]
 fn combine(
     first: terrane_int_support::Int,
     second: terrane_int_support::Int,

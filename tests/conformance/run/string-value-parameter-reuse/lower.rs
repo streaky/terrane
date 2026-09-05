@@ -1,6 +1,7 @@
 // Generated deterministically by Terrane <version>.
 // Source: case.trn
 // Namespace: string-value-parameter-reuse
+#[allow(dead_code)]
 fn consume(value: String) {
     println!(
         "{}{}", terrane_scalar_support::scalar_text(&String::from("consume:")),

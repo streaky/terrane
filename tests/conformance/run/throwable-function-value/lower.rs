@@ -442,6 +442,7 @@ mod __terrane_trace {
 }
 // Source: case.trn
 // Namespace: throwable-function-value
+#[allow(dead_code)]
 fn render(value: terrane_int_support::Int) -> Result<String, TerraneError> {
     if value.clone() < terrane_int_support::Int::from(0_i128) {
         return Err(
@@ -453,6 +454,7 @@ fn render(value: terrane_int_support::Int) -> Result<String, TerraneError> {
     }
     return Ok(String::from("ok"));
 }
+#[allow(dead_code)]
 fn apply(
     operation: std::sync::Arc<
         dyn Fn(terrane_int_support::Int) -> Result<String, TerraneError> + Send + Sync,

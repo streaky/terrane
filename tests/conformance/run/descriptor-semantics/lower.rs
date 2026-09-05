@@ -1,6 +1,7 @@
 // Generated deterministically by Terrane <version>.
 // Source: case.trn
 // Namespace: descriptor-semantics
+#[allow(dead_code)]
 fn accepts(item: terrane_int_support::Int) -> bool {
     println!("{}", terrane_scalar_support::scalar_text(&item));
     return {
@@ -8,6 +9,7 @@ fn accepts(item: terrane_int_support::Int) -> bool {
         true
     };
 }
+#[allow(dead_code)]
 fn same_type(left: terrane_int_support::Int, right: terrane_int_support::Int) -> bool {
     println!("{}", terrane_scalar_support::scalar_text(&left));
     println!("{}", terrane_scalar_support::scalar_text(&right));
@@ -17,6 +19,7 @@ fn same_type(left: terrane_int_support::Int, right: terrane_int_support::Int) ->
         true
     };
 }
+#[allow(dead_code)]
 fn different_type(left: terrane_int_support::Int, right: String) -> bool {
     println!("{}", terrane_scalar_support::scalar_text(&left));
     println!("{}", terrane_scalar_support::scalar_text(&right));

@@ -4,6 +4,7 @@
 static __TERRANE_F0_TITLE: std::sync::LazyLock<String> = std::sync::LazyLock::new(|| String::from(
     "Terrane",
 ));
+#[allow(dead_code)]
 fn report(name: String, passed: bool, attempts: terrane_int_support::Int) {
     if passed {
         println!(

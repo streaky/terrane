@@ -405,6 +405,7 @@ mod __terrane_trace {
 }
 // Source: case.trn
 // Namespace: parameter-dead-store-warnings
+#[allow(dead_code)]
 fn take(mut v: terrane_collection_support::List<terrane_int_support::Int>) {
     let _ = &v;
     v = terrane_collection_support::List::<
@@ -421,15 +422,18 @@ fn take(mut v: terrane_collection_support::List<terrane_int_support::Int>) {
         0 /* terrane-site: case.trn:6:10-6:14 */)), 0 /* terrane-site: case.trn:6:10-6:14 */))
     );
 }
+#[allow(dead_code)]
 fn scalar(mut v: terrane_int_support::Int) {
     let _ = &v;
     v = terrane_int_support::Int::from(4_i128);
     println!("{}", terrane_scalar_support::scalar_text(&v));
 }
+#[allow(dead_code)]
 fn unused(v: terrane_collection_support::List<terrane_int_support::Int>) {
     let _ = &v;
     println!("{}", terrane_scalar_support::scalar_text(&String::from("ignored")));
 }
+#[allow(dead_code)]
 fn optional(v: terrane_int_support::Int) {
     println!("{}", terrane_scalar_support::scalar_text(&v));
 }

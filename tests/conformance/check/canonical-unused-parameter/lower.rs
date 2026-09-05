@@ -1,6 +1,7 @@
 // Generated deterministically by Terrane <version>.
 // Source: case.trn
 // Namespace: canonical-unused-parameter
+#[allow(dead_code)]
 fn ignore(value: terrane_int_support::Int) {
     let _ = &value;
 }

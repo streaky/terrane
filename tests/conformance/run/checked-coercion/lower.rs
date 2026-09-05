@@ -443,6 +443,7 @@ mod __terrane_trace {
 // Namespace: checked-coercion
 static __TERRANE_F0_SHARED: std::sync::LazyLock<terrane_int_support::Int> = std::sync::LazyLock::new(||
 terrane_int_support::Int::from(100_i128));
+#[allow(dead_code)]
 fn convert(item: terrane_int_support::Int) -> Result<i8, TerraneError> {
     let mut result: i8 = 0;
     if item.clone() > terrane_int_support::Int::from(0_i128) {
@@ -453,6 +454,7 @@ fn convert(item: terrane_int_support::Int) -> Result<i8, TerraneError> {
     }
     return Ok(result);
 }
+#[allow(dead_code)]
 fn helper() {
     println!("{}", terrane_scalar_support::scalar_text(&String::from("helper")));
 }

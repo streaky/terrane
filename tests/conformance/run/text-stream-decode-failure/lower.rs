@@ -658,6 +658,7 @@ pub fn terrane_platform_acquire_stderr() -> TerranePlatformStreamHandle {
 }
 // Source: case.trn
 // Namespace: text-stream-decode-failure
+#[allow(dead_code)]
 fn read_all(input: TextReader) -> Result<String, TerraneError> {
     let decoded: TextReadResult = __terrane_traced_err(
         input.read_all(terrane_int_support::Int::from(10_i128)),

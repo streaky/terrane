@@ -4895,6 +4895,11 @@ diagnostics. Loop targets likewise remain outside `W4001`; generated Rust explic
 loop targets, dead stores, and other warning-only locals so source-level warnings do not leak into
 opaque `rustc` warning failures. `W4003` reports an authored union arm whose canonical semantic
 identity already occurred earlier in the same union; lowering uses the normalized unique arm set.
+`W4005` reports an authored top-level function that is not referenced anywhere in the semantic
+package. References are matched by resolved declaration identity across source units rather than by
+spelling; the declaration name itself is excluded, while recursive self-reference conservatively
+counts as use. Generated non-entry top-level functions carry a narrow dead-code allowance so this
+source condition remains a Terrane warning rather than an opaque generated-Rust failure.
 
 
 ### 29.1 Bidirectional maps

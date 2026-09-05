@@ -38,6 +38,7 @@ fn __terrane_block_on<F: Future>(future: F) -> F::Output {
 }
 // Source: case.trn
 // Namespace: awaited-task-binding
+#[allow(dead_code)]
 async fn answer() -> terrane_int_support::Int {
     return terrane_int_support::Int::from(42_i128);
 }

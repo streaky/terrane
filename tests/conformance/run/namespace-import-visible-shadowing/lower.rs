@@ -22,18 +22,23 @@ fn __terrane_uninitialized_global(
 }
 // Source: body-shadow/value.trn
 // Namespace: body-shadow
+#[allow(dead_code)]
 fn parent_body_terrane_body_shadow() -> String {
     return String::from("imported-parent");
 }
+#[allow(dead_code)]
 fn global_body() -> terrane_int_support::Int {
     return terrane_int_support::Int::from(4_i128);
 }
+#[allow(dead_code)]
 fn int8() -> terrane_int_support::Int {
     return terrane_int_support::Int::from(8_i128);
 }
+#[allow(dead_code)]
 fn utf8() -> String {
     return String::from("imported-prelude");
 }
+#[allow(dead_code)]
 fn use_body_prelude() -> String {
     return utf8();
 }
@@ -57,6 +62,7 @@ fn main() {
 }
 // Source: parent/main.trn
 // Namespace: parent
+#[allow(dead_code)]
 fn parent_root_terrane_parent() -> terrane_int_support::Int {
     return __TERRANE_GLOBAL_GLOBAL_ROOT
         .lock()
@@ -70,6 +76,7 @@ fn parent_root_terrane_parent() -> terrane_int_support::Int {
         ))
         .clone();
 }
+#[allow(dead_code)]
 fn parent_body_terrane_parent() -> terrane_int_support::Int {
     return __TERRANE_GLOBAL_GLOBAL_BODY
         .lock()
@@ -83,23 +90,29 @@ fn parent_body_terrane_parent() -> terrane_int_support::Int {
         ))
         .clone();
 }
+#[allow(dead_code)]
 fn original_total() -> terrane_int_support::Int {
     return parent_root_terrane_parent() + parent_body_terrane_parent();
 }
 // Source: root-shadow/value.trn
 // Namespace: root-shadow
+#[allow(dead_code)]
 fn parent_root_terrane_root_shadow() -> String {
     return String::from("imported-parent");
 }
+#[allow(dead_code)]
 fn global_root() -> terrane_int_support::Int {
     return terrane_int_support::Int::from(3_i128);
 }
+#[allow(dead_code)]
 fn uint8() -> terrane_int_support::Int {
     return terrane_int_support::Int::from(8_i128);
 }
+#[allow(dead_code)]
 fn print() -> String {
     return String::from("imported-prelude");
 }
+#[allow(dead_code)]
 fn use_root_prelude() -> String {
     return print();
 }

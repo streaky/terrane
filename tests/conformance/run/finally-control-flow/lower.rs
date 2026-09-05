@@ -405,6 +405,7 @@ mod __terrane_trace {
 }
 // Source: case.trn
 // Namespace: finally-control-flow
+#[allow(dead_code)]
 fn early() -> terrane_int_support::Int {
     let mut __terrane_completion_0: TerraneCompletion<terrane_int_support::Int> = (|| {
         let __terrane_try_0: TerraneCompletion<terrane_int_support::Int> = (|| {
@@ -445,6 +446,7 @@ fn early() -> terrane_int_support::Int {
         }
     }
 }
+#[allow(dead_code)]
 fn caught() -> terrane_int_support::Int {
     let mut __terrane_completion_1: TerraneCompletion<terrane_int_support::Int> = (|| {
         let __terrane_try_1: TerraneCompletion<terrane_int_support::Int> = (|| {

@@ -1,6 +1,7 @@
 // Generated deterministically by Terrane <version>.
 // Source: case.trn
 // Namespace: callable-contract-reflection
+#[allow(dead_code)]
 fn marked() {}
 fn main() {
     println!(

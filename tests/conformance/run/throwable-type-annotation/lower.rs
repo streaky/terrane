@@ -376,9 +376,21 @@ mod __terrane_trace {
         pub end_line: u32,
         pub end_column: u32,
     }
-    pub static FILES: [&str; 0] = [];
-    pub static FUNCTIONS: [&str; 0] = [];
-    pub static SITES: [Site; 0] = [];
+    pub static FILES: [&str; 1] = ["case.trn"];
+    pub static FUNCTIONS: [&str; 1] = ["/throwable-type-annotation::main"];
+    pub static SITES: [Site; 1] = [
+        {
+            /* terrane-site-row: site 0: /throwable-type-annotation::main (case.trn:10:5-10:25) */
+            Site {
+                function: 0,
+                file: 0,
+                line: 10,
+                column: 5,
+                end_line: 10,
+                end_column: 25,
+            }
+        },
+    ];
     #[cold]
     #[inline(never)]
     pub fn render(site: u32) -> String {
@@ -393,6 +405,7 @@ mod __terrane_trace {
 }
 // Source: case.trn
 // Namespace: throwable-type-annotation
+#[allow(dead_code)]
 fn report(failure: Option<TerraneError>) {
     if failure.is_some() {
         println!(
@@ -402,5 +415,42 @@ fn report(failure: Option<TerraneError>) {
     }
 }
 fn main() {
-    report(None);
+    let __terrane_completion_0: TerraneCompletion<()> = (|| {
+        let __terrane_try_0: TerraneCompletion<()> = (|| {
+            return TerraneCompletion::Error(
+                TerraneError::raised(
+                    TerraneErrorKind::CoercionError,
+                    0 /* terrane-site: case.trn:10:5-10:25 */,
+                ),
+            );
+        })();
+        match __terrane_try_0 {
+            TerraneCompletion::Return(value) => return TerraneCompletion::Return(value),
+            TerraneCompletion::Break => return TerraneCompletion::Break,
+            TerraneCompletion::Continue => return TerraneCompletion::Continue,
+            TerraneCompletion::Normal => {}
+            TerraneCompletion::Error(__terrane_error_0) => {
+                let mut __terrane_handled_0 = false;
+                if !__terrane_handled_0
+                    && __terrane_error_0.kind == TerraneErrorKind::CoercionError
+                {
+                    __terrane_handled_0 = true;
+                    let failure = __terrane_error_0.clone();
+                    report(Some(failure));
+                }
+                if !__terrane_handled_0 {
+                    return TerraneCompletion::Error(__terrane_error_0);
+                }
+            }
+        }
+        TerraneCompletion::Normal
+    })();
+    match __terrane_completion_0 {
+        TerraneCompletion::Normal => {}
+        TerraneCompletion::Return(value) => return value,
+        TerraneCompletion::Error(error) => __terrane_uncaught(error),
+        TerraneCompletion::Break | TerraneCompletion::Continue => {
+            __terrane_generated_defect("loop control escaped a non-loop try")
+        }
+    }
 }

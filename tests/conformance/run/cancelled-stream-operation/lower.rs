@@ -752,6 +752,7 @@ pub fn terrane_platform_acquire_stderr() -> TerranePlatformStreamHandle {
 }
 // Source: case.trn
 // Namespace: cancelled-stream-operation
+#[allow(dead_code)]
 async fn read_one() -> ReadResult {
     let input: ByteReader = stdin();
     let pending: std::pin::Pin<Box<dyn Future<Output = ReadResult>>> = Box::pin(

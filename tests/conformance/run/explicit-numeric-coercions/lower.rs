@@ -480,6 +480,7 @@ mod __terrane_trace {
 }
 // Source: case.trn
 // Namespace: explicit-numeric-coercions
+#[allow(dead_code)]
 fn divide(numerator: f64, denominator: f64) -> f64 {
     return numerator / denominator;
 }

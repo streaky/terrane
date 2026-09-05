@@ -419,9 +419,11 @@ mod __terrane_trace {
 }
 // Source: case.trn
 // Namespace: typed-effect-reflection
+#[allow(dead_code)]
 fn fallible() -> terrane_int_support::Int {
     return terrane_int_support::Int::from(1_i128);
 }
+#[allow(dead_code)]
 fn exact() -> Result<terrane_int_support::Int, TerraneError> {
     return Err(
         TerraneError::raised(

@@ -1,9 +1,11 @@
 // Generated deterministically by Terrane <version>.
 // Source: case.trn
 // Namespace: resolved-name-effects
+#[allow(dead_code)]
 fn print(value: String) -> String {
     return value;
 }
+#[allow(dead_code)]
 fn quiet() -> String {
     return print(String::from("quiet"));
 }

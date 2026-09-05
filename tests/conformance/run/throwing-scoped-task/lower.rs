@@ -560,6 +560,7 @@ pub struct TerraneTaskOutcome<T> {
 }
 // Source: case.trn
 // Namespace: throwing-scoped-task
+#[allow(dead_code)]
 async fn fail() -> Result<terrane_int_support::Int, TerraneError> {
     return Err(
         TerraneError::raised(

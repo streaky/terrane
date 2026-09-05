@@ -17,6 +17,7 @@ fn __terrane_uninitialized_global(
 }
 // Source: case.trn
 // Namespace: global-replacement
+#[allow(dead_code)]
 fn setup() {
     {
         let value = terrane_int_support::Int::from(11_i128);
@@ -25,6 +26,7 @@ fn setup() {
         );
     }
 }
+#[allow(dead_code)]
 fn bump() {
     {
         let value = __TERRANE_GLOBAL_COUNTER
@@ -43,6 +45,7 @@ fn bump() {
         );
     }
 }
+#[allow(dead_code)]
 fn current() -> terrane_int_support::Int {
     return __TERRANE_GLOBAL_COUNTER
         .lock()

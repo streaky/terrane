@@ -560,6 +560,7 @@ pub struct TerraneTaskOutcome<T> {
 }
 // Source: case.trn
 // Namespace: failing-task-cancels-sibling
+#[allow(dead_code)]
 async fn fail() -> Result<terrane_int_support::Int, TerraneError> {
     return Err(
         TerraneError::raised(
@@ -568,6 +569,7 @@ async fn fail() -> Result<terrane_int_support::Int, TerraneError> {
         ),
     );
 }
+#[allow(dead_code)]
 async fn survive() -> terrane_int_support::Int {
     return terrane_int_support::Int::from(7_i128);
 }

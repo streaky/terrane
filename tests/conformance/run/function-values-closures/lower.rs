@@ -419,6 +419,7 @@ mod __terrane_trace {
 }
 // Source: case.trn
 // Namespace: function-values-closures
+#[allow(dead_code)]
 fn apply(
     callback: std::sync::Arc<
         dyn Fn(

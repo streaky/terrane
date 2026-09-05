@@ -1,6 +1,7 @@
 // Generated deterministically by Terrane <version>.
 // Source: case.trn
 // Namespace: typed-destinations
+#[allow(dead_code)]
 fn answer() -> terrane_int_support::Int {
     return terrane_int_support::Int::from(41_i128);
 }

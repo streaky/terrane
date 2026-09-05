@@ -544,6 +544,7 @@ mod __terrane_trace {
 }
 // Source: case.trn
 // Namespace: collection-boundary-contextual-typing
+#[allow(dead_code)]
 fn take(values: terrane_collection_support::List<i8>) {
     println!(
         "{}", terrane_scalar_support::scalar_text(&__terrane_raised(values
@@ -551,9 +552,11 @@ fn take(values: terrane_collection_support::List<i8>) {
         0 /* terrane-site: case.trn:5:10-5:19 */)), 0 /* terrane-site: case.trn:5:10-5:19 */))
     );
 }
+#[allow(dead_code)]
 fn make() -> terrane_collection_support::List<i8> {
     return terrane_collection_support::List::<i8>::new(vec![5, 6]);
 }
+#[allow(dead_code)]
 fn take_entry_map(
     values: terrane_collection_support::Map<
         String,
@@ -568,6 +571,7 @@ fn take_entry_map(
         .value)
     );
 }
+#[allow(dead_code)]
 fn make_entry_map() -> terrane_collection_support::Map<
     String,
     terrane_collection_support::Entry<String, i8>,
@@ -582,6 +586,7 @@ fn make_entry_map() -> terrane_collection_support::Map<
         ],
     );
 }
+#[allow(dead_code)]
 fn take_nested_map(
     values: terrane_collection_support::Map<
         String,
@@ -595,6 +600,7 @@ fn take_nested_map(
         .get_or_error(&String::from("b")), 4 /* terrane-site: case.trn:13:10-13:26 */))
     );
 }
+#[allow(dead_code)]
 fn take_nested_list(
     values: terrane_collection_support::List<terrane_collection_support::List<i8>>,
 ) {
@@ -607,6 +613,7 @@ fn take_nested_list(
         6 /* terrane-site: case.trn:15:10-15:22 */)), 6 /* terrane-site: case.trn:15:10-15:22 */))
     );
 }
+#[allow(dead_code)]
 fn take_map_list(
     values: terrane_collection_support::Map<String, terrane_collection_support::List<i8>>,
 ) {

@@ -1030,6 +1030,7 @@ pub fn terrane_path_text(path: std::path::PathBuf) -> std::io::Result<String> {
 }
 // Source: case.trn
 // Namespace: conformance/filesystem-facilities
+#[allow(dead_code)]
 fn sync_file(
     capability: Filesystem,
     output: std::sync::Weak<std::sync::Mutex<FileHandle>>,

@@ -419,6 +419,7 @@ mod __terrane_trace {
 }
 // Source: case.trn
 // Namespace: closure-semantic-captures
+#[allow(dead_code)]
 fn apply(
     callback: std::sync::Arc<
         dyn Fn(

@@ -419,6 +419,7 @@ mod __terrane_trace {
 }
 // Source: case.trn
 // Namespace: catch-finally-lexical-scopes
+#[allow(dead_code)]
 fn typed_catch() {
     let mut __terrane_completion_0: TerraneCompletion<()> = (|| {
         let __terrane_try_0: TerraneCompletion<()> = (|| {
@@ -468,6 +469,7 @@ fn typed_catch() {
         }
     }
 }
+#[allow(dead_code)]
 fn catch_all() {
     let __terrane_completion_1: TerraneCompletion<()> = (|| {
         let __terrane_try_1: TerraneCompletion<()> = (|| {
