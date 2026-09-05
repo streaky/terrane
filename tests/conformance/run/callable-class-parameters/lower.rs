@@ -382,7 +382,7 @@ mod __terrane_trace {
         "/callable-class-parameters::apply",
         "/callable-class-parameters::main",
     ];
-    pub static SITES: [Site; 8] = [
+    pub static SITES: [Site; 10] = [
         {
             /* terrane-site-row: site 0: /callable-class-parameters::construct (case.trn:10:19-10:31) */
             Site {
@@ -469,6 +469,28 @@ mod __terrane_trace {
                 column: 11,
                 end_line: 35,
                 end_column: 35,
+            }
+        },
+        {
+            /* terrane-site-row: site 8: /callable-class-parameters::main (case.trn:36:24-36:56) */
+            Site {
+                function: 2,
+                file: 0,
+                line: 36,
+                column: 24,
+                end_line: 36,
+                end_column: 56,
+            }
+        },
+        {
+            /* terrane-site-row: site 9: /callable-class-parameters::main (case.trn:37:11-37:36) */
+            Site {
+                function: 2,
+                file: 0,
+                line: 37,
+                column: 11,
+                end_line: 37,
+                end_column: 36,
             }
         },
     ];
@@ -718,5 +740,13 @@ fn main() {
     println!(
         "{}", terrane_scalar_support::scalar_text(&__terrane_traced(base.apply(operation
         .clone(), terrane_int_support::Int::from(5_i128)), 7 /* terrane-site: case.trn:35:11-35:35 */))
+    );
+    let child: ChildHolder = __terrane_traced(
+        ChildHolder::terrane_construct(operation.clone()),
+        8 /* terrane-site: case.trn:36:24-36:56 */,
+    );
+    println!(
+        "{}", terrane_scalar_support::scalar_text(&__terrane_traced(child.apply(operation
+        .clone(), terrane_int_support::Int::from(6_i128)), 9 /* terrane-site: case.trn:37:11-37:36 */))
     );
 }

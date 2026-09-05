@@ -33,3 +33,5 @@ function main;
   print; (direct.ignore; operation, 9)
   base base-holder = instance base-holder; operation
   print; (base.apply; operation, 5)
+  child child-holder = instance child-holder; operation
+  print; (child.apply; operation, 6)
