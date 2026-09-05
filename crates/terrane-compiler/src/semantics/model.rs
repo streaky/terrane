@@ -97,6 +97,10 @@ impl ElementType {
         self.0.as_ref().clone()
     }
 
+    pub(crate) fn value_type_ref(&self) -> &ValueType {
+        self.0.as_ref()
+    }
+
     pub(super) fn scalar(&self) -> Option<ScalarType> {
         match self.0.as_ref() {
             ValueType::Scalar(scalar) => Some(*scalar),

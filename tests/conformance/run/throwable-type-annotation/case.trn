@@ -1,0 +1,9 @@
+namespace throwable-type-annotation
+from /core/errors import throwable
+
+function report; failure throwable|none
+  if failure != none
+    print; failure.message
+
+function main;
+  report; none

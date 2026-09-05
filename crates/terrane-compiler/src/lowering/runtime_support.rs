@@ -36,6 +36,41 @@ pub(super) fn package_uses_task_scope(package: &SemanticPackage) -> bool {
         .any(|unit| contains(package, unit, &unit.tree.root))
 }
 
+fn value_type_contains_throwable(value_type: &ValueType) -> bool {
+    match value_type {
+        ValueType::Object(identity) => {
+            identity.namespace == "/core/errors" && identity.name == "throwable"
+        }
+        ValueType::Optional(inner) => value_type_contains_throwable(inner),
+        ValueType::Iterator(inner)
+        | ValueType::IterationStep(inner)
+        | ValueType::List(inner)
+        | ValueType::Set(inner)
+        | ValueType::UnorderedSet(inner)
+        | ValueType::Tuple(inner, _)
+        | ValueType::Task(inner)
+        | ValueType::ScopedTask(inner)
+        | ValueType::TaskOutcome(inner)
+        | ValueType::Reference(inner)
+        | ValueType::SharedReference(inner) => {
+            value_type_contains_throwable(inner.value_type_ref())
+        }
+        ValueType::Map(key, value)
+        | ValueType::Entry(key, value)
+        | ValueType::UnorderedMap(key, value) => {
+            value_type_contains_throwable(key.value_type_ref())
+                || value_type_contains_throwable(value.value_type_ref())
+        }
+        ValueType::Function(parameters, result) | ValueType::AsyncFunction(parameters, result) => {
+            parameters
+                .iter()
+                .any(|parameter| value_type_contains_throwable(parameter.value_type_ref()))
+                || value_type_contains_throwable(result.value_type_ref())
+        }
+        _ => false,
+    }
+}
+
 pub(super) fn package_uses_structured_errors(package: &SemanticPackage) -> bool {
     fn contains(package: &SemanticPackage, unit: &SemanticUnit, node: &SyntaxNode) -> bool {
         matches!(
@@ -77,7 +112,22 @@ pub(super) fn package_uses_structured_errors(package: &SemanticPackage) -> bool 
                 }))
     }
     package.units.iter().any(|unit| {
-        unit.functions.iter().any(|contract| contract.throws)
+        unit.typed_bindings
+            .iter()
+            .any(|binding| value_type_contains_throwable(&binding.value_type))
+            || unit.functions.iter().any(|function| {
+                function.throws
+                    || function.parameters.iter().any(|parameter| {
+                        parameter
+                            .value_type
+                            .as_ref()
+                            .is_some_and(value_type_contains_throwable)
+                    })
+                    || function
+                        .return_type
+                        .as_ref()
+                        .is_some_and(value_type_contains_throwable)
+            })
             || contains(package, unit, &unit.tree.root)
     }) || package.projection.dependencies.iter().any(|dependency| {
         dependency.items.iter().any(|item| match &item.kind {
