@@ -2717,7 +2717,7 @@ else
 ```
 
 No trailing colon or parentheses are required.
-A direct presence guard narrows a named `T|none` binding to `T` within the guarded block. The recognized guard forms are `value != none`, `none != value`, and `not (value is a none)`, with parentheses permitted around the complete test or its operands. Narrowing is structural rather than inferred from arbitrary Boolean equivalence: combining a presence test with another condition using `and` or `or` does not establish narrowing. The fact is scoped to the guarded block and its nested scopes; assigning that name within the block invalidates the fact from that assignment onward.
+A direct presence guard narrows a named `T|none` binding to `T` within the guarded block. The recognized guard forms are `value != none`, `none != value`, and `not (value is a none)`, with parentheses permitted around the complete test or its operands. Narrowing is structural rather than inferred from arbitrary Boolean equivalence: combining a presence test with another condition using `and` or `or` does not establish narrowing. The subject must be a name binding: repeated member, index, and call expressions are not narrowed because their value may change between evaluations. Bind such an expression once, then guard and use that stable name. The fact is scoped to the guarded block and its nested scopes; assigning that name within the block invalidates the fact from that assignment onward.
 
 ### 14.2 `while`
 

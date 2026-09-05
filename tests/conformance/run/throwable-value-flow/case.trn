@@ -1,0 +1,22 @@
+namespace throwable-value-flow
+from /core/errors import arithmetic-overflow, coercion-error, throwable
+
+function describe string; failure throwable
+  return failure.message
+
+function relay throwable; failure throwable
+  return failure
+
+function main;
+  try
+    try
+      throw coercion-error
+    catch coercion-error as caught
+      again = relay; caught
+      print; (describe; again)
+      throw arithmetic-overflow
+  catch arithmetic-overflow as outer
+    origin = outer.cause
+    if origin != none
+      returned = relay; origin
+      print; (describe; returned)

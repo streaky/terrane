@@ -490,6 +490,11 @@ pub(super) fn rust_value_type(package: &SemanticPackage, ty: ValueType) -> Strin
             "TerranePlatformCapability".to_owned()
         }
         ValueType::PlatformResult => "TerranePlatformResult".to_owned(),
+        ValueType::Object(identity)
+            if identity.namespace == "/core/errors" && identity.name == "throwable" =>
+        {
+            "TerraneError".to_owned()
+        }
         ValueType::Object(identity) => rust_object_type_name(package, &identity),
         ValueType::SharedReference(item) => format!(
             "std::sync::Arc<std::sync::Mutex<{}>>",

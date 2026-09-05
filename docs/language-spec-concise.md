@@ -378,7 +378,7 @@ backing_object: real - type returns it, 'is a' compares it, identity survives re
 - Type descriptors are semantic objects with stable canonical identity, not ordinary values. Version-one type expressions/coercion destinations must resolve to finite compiler-known descriptor alternatives; lowering may erase the descriptor only when source behavior is unchanged.
 
 - Union destinations choose an exact type match first, otherwise the unique arm admitted by contextual constant typing or numeric destination conversion. Multiple admitted arms are a compile-time ambiguity; arm order never decides. Repeated arms normalize by canonical semantic identity and each authored duplicate reports `W4003`; aliases of one descriptor are duplicates.
-- `T|none` is a declared type anywhere a source type is accepted: bindings, parameters, and returns. A direct guard `value != none`, `none != value`, or `not (value is a none)` narrows that named binding to `T` in the guarded block; `and`/`or` combinations do not, and assignment invalidates the fact.
+- `T|none` is a declared type anywhere a source type is accepted: bindings, parameters, and returns. A direct guard `value != none`, `none != value`, or `not (value is a none)` narrows that named binding to `T` in the guarded block; `and`/`or` combinations do not, and assignment invalidates the fact. Member/index/call expressions are not narrowing subjects because repeated evaluation may change; bind once, then guard and use the stable name.
 
 ## INTEGER
 
