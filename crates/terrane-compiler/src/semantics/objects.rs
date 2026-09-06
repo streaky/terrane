@@ -499,6 +499,7 @@ pub(super) fn validate_object_conformance(
                         thrown_types: Vec::new(),
                         escaping_throwables: BTreeSet::new(),
                         task_transferability: TaskTransferability::Transferable,
+                        execution_requirements: crate::execution::ExecutionRequirements::default(),
                         throws: false,
                         is_async: false,
                         mutates_receiver: false,

@@ -73,6 +73,8 @@ pub struct SemanticPackage {
     pub prelude: bool,
     pub reflection: crate::package::ReflectionProfile,
     pub executor: crate::package::ExecutorProfile,
+    pub(crate) execution_strategy: crate::execution::ExecutionStrategy,
+    pub(crate) execution_requirements: crate::execution::ExecutionRequirements,
     pub profile: crate::package::CapabilityProfile,
     pub projection: crate::projection::Projection,
     pub namespaces: BTreeMap<String, Namespace>,
@@ -695,6 +697,7 @@ pub struct FunctionContract {
     pub is_static: bool,
     pub mutates_receiver: bool,
     pub consumes_receiver: bool,
+    pub(crate) execution_requirements: crate::execution::ExecutionRequirements,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]

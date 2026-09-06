@@ -375,6 +375,8 @@ pub fn analyze(package: &Package) -> Result<SemanticPackage, SemanticFailure> {
         prelude: package.prelude,
         reflection: package.reflection,
         executor: package.executor,
+        execution_strategy: crate::execution::ExecutionStrategy::from_profile(package.executor),
+        execution_requirements: crate::execution::ExecutionRequirements::default(),
         profile: package.profile.clone(),
         namespaces,
         globals,

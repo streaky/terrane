@@ -689,6 +689,12 @@ cooperative scope accepts them. Direct invocation and immediate await keep the c
 type; generated boxing/pinning remains only at erased callable or task ABI boundaries, with `Send`
 present only for transferable futures.
 
+The manifest's two executor profiles map to internal `local` and `parallel` strategies. Semantic
+analysis aggregates runtime-context, wake-support, task-mobility, and blocking-delegation
+requirements, including explicit requirements on referenced projected async members. Runtime
+selection is downstream of this generic model; compiler-owned semantic contracts do not contain
+Tokio or another executor crate name.
+
 `task-scope; deadline?` constructs a scope using the selected threaded or cooperative executor
 profile. `.spawn; callable` consumes an async callable invocation into a linear scoped task;
 `.join; move task` consumes it and returns a task outcome. `.child-scope; deadline` creates a child

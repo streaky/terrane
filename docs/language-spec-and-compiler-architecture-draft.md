@@ -3668,6 +3668,12 @@ A package/build profile selects the runtime implementation.
 
 The compiler lowers async code into Rust futures and target runtime integration.
 
+Source executor profiles map to compiler-owned execution strategies. Semantic lowering aggregates
+generic requirements including runtime context, wake support, local or transferable work, and
+blocking delegation; the later runtime-selection boundary satisfies those requirements with a
+concrete implementation. Semantic contracts and language diagnostics must not encode Tokio or
+another runtime crate by name.
+
 ### 21.4 Structured concurrency
 
 The structured-concurrency scope is a version-one language-level object, not a library preference.

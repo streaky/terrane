@@ -901,13 +901,29 @@ pub(super) fn infer_task_transferability(package: &mut SemanticPackage) {
             }
         }
     }
-    let transferability = package
+    for unit in &mut package.units {
+        for contract in &mut unit.functions {
+            if !contract.is_async {
+                continue;
+            }
+            contract.execution_requirements.local_task =
+                contract.task_transferability == TaskTransferability::Local;
+            contract.execution_requirements.transferable_task =
+                contract.task_transferability == TaskTransferability::Transferable;
+        }
+    }
+    let contracts = package
         .units
         .iter()
-        .flat_map(|unit| {
-            unit.functions
-                .iter()
-                .map(|contract| (span_key(contract.span), contract.task_transferability))
+        .flat_map(|unit| &unit.functions)
+        .map(|contract| {
+            (
+                span_key(contract.span),
+                (
+                    contract.task_transferability,
+                    contract.execution_requirements,
+                ),
+            )
         })
         .collect::<BTreeMap<_, _>>();
     for unit in &mut package.units {
@@ -916,10 +932,32 @@ pub(super) fn infer_task_transferability(package: &mut SemanticPackage) {
             .values_mut()
             .chain(unit.function_contracts_by_span.values_mut())
         {
-            if let Some(inferred) = transferability.get(&span_key(contract.span)) {
-                contract.task_transferability = *inferred;
+            if let Some((transferability, requirements)) = contracts.get(&span_key(contract.span)) {
+                contract.task_transferability = *transferability;
+                contract.execution_requirements = *requirements;
             }
         }
+    }
+    let mut requirements = crate::execution::ExecutionRequirements::default();
+    for contract in package
+        .units
+        .iter()
+        .flat_map(|unit| &unit.functions)
+        .filter(|contract| {
+            contract.is_async
+                && (contract.name == "main" || package.function_is_referenced(contract.span))
+        })
+    {
+        requirements.merge(contract.execution_requirements);
+    }
+    package.execution_requirements = requirements;
+    if package.units.iter().any(|unit| {
+        unit.typed_bindings
+            .iter()
+            .any(|binding| binding.value_type == ValueType::TaskScope)
+    }) {
+        package.execution_requirements.runtime_context = true;
+        package.execution_requirements.wake_support = true;
     }
 }
 
@@ -1088,7 +1126,7 @@ pub(super) fn validate_task_transferability(
         Ok(None)
     }
 
-    if package.executor != crate::package::ExecutorProfile::Threaded {
+    if package.execution_strategy != crate::execution::ExecutionStrategy::Parallel {
         return Ok(());
     }
     for unit in &package.units {

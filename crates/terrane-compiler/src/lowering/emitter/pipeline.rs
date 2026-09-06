@@ -12,6 +12,10 @@ pub(super) fn module_destination(unit: &SemanticUnit) -> ModuleDestination {
     reason = "package lowering assembles one deterministic generated-crate prelude and unit set"
 )]
 pub(crate) fn lower(package: &SemanticPackage) -> Program {
+    debug_assert!(
+        package.execution_requirements.is_consistent(),
+        "semantic execution requirements must form a coherent strategy request"
+    );
     let mut runtime = Vec::new();
     let mut globals = String::new();
     let registry = LoweringRegistry::default();
@@ -57,11 +61,11 @@ pub(crate) fn lower(package: &SemanticPackage) -> Program {
         });
     }
     if package_uses_task_scope(package) {
-        let support = match package.executor {
-            crate::package::ExecutorProfile::Cooperative => {
+        let support = match package.execution_strategy {
+            crate::execution::ExecutionStrategy::Local => {
                 include_str!("../../runtime/tasks_cooperative.rs")
             }
-            crate::package::ExecutorProfile::Threaded => {
+            crate::execution::ExecutionStrategy::Parallel => {
                 include_str!("../../runtime/tasks_threaded.rs")
             }
         };

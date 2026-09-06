@@ -1418,6 +1418,14 @@ local callable in source terms, while the cooperative strategy admits it. Direct
 their concrete Rust future type; boxing and pinning remain only at erased task/callable ABI
 boundaries, whose Rust `Send` bound is selected from the semantic transfer contract.
 
+The two source executor profiles now map through a compiler-owned execution-strategy model rather
+than selecting runtime templates directly throughout lowering. Semantic analysis aggregates generic
+requirements for runtime context, wake support, local or transferable work, and blocking delegation;
+projected async contracts explicitly request wake support, a runtime context, and local execution
+until stronger evidence exists. Entry, task-scope support, and transfer validation route through the
+strategy seam. The representation contains no Tokio or other runtime-specific name, preserving one
+place to select or replace the concrete executor in the following work unit.
+
 Every lowered Terrane `await` yields to the executor before polling its operand and again after the
 operand completes. The cancellable executor checks the scope between those child polls, so even an
 immediately-ready awaited future cannot carry execution past the suspension point after cancellation
