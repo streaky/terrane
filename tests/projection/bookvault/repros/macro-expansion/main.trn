@@ -1,0 +1,7 @@
+namespace repro
+
+@rust-derive; '/deps/utoipa/OpenApi'
+class ApiDocument;
+
+function main;
+    print; 'derive expansion must be consumed by the generated crate'

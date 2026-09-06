@@ -1,0 +1,9 @@
+namespace repro
+from /deps/reqwest import get
+
+async function fetch;
+    response = await get; 'https://example.invalid'
+    print; response
+
+function main;
+    print; 'projected async visibility currently exceeds lowering support'

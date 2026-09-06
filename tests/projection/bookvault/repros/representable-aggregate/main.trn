@@ -1,0 +1,8 @@
+namespace repro
+from /deps/axum/extract/ws import Message
+
+function consume-message; message Message;
+    print; message
+
+function main;
+    print; 'Message data variants are unavailable as Terrane aggregates'

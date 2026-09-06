@@ -1,0 +1,7 @@
+namespace repro
+from /deps/sqlx import query
+
+function main;
+    statement = query; 'select $1'
+    bound = statement.bind; 1
+    print; 'the lifetime-bearing intermediates must not escape this chain'

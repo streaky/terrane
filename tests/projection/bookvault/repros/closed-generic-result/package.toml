@@ -1,0 +1,10 @@
+package = "repro-closed-generic-result"
+[profile]
+capabilities = ["build"]
+[namespaces]
+repro = "."
+[rust-dependencies.sqlx]
+version = "=0.8.6"
+default-features = false
+features = ["json", "postgres", "runtime-tokio-rustls"]
+effects = ["build"]

@@ -1,0 +1,10 @@
+package = "repro-async-lowering"
+[profile]
+capabilities = ["build"]
+[namespaces]
+repro = "."
+[rust-dependencies.reqwest]
+version = "=0.12.28"
+default-features = false
+features = ["json", "rustls-tls"]
+effects = ["build"]

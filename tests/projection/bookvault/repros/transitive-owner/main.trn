@@ -1,0 +1,9 @@
+namespace repro
+from /deps/reqwest/async-impl/response import Response, status
+
+function inspect-status; response Response;
+    value = status; move response
+    print; value
+
+function main;
+    print; 'StatusCode is owned by the undeclared http crate'

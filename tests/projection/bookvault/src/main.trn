@@ -1,0 +1,4 @@
+namespace bookvault
+
+function main;
+    print; 'BookVault dependency projection probe'
