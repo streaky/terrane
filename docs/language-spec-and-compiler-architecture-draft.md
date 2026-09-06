@@ -3671,12 +3671,36 @@ tasks, when supplied, use a separate explicit operation and lifetime contract.
 - `value T or none`: present exactly when `completed` is true;
 - `error throwable or none`: present exactly when the child failed.
 
-Cancellation is cooperative. `await`, scope join, and library operations explicitly documented as
-cancellable are cancellation points. A request stops new child admission, is observed at the next
-cancellation point, and never erases work or a value completed before observation; an outcome may
-therefore be both `completed` and `cancelled`. When one child fails, its scope requests cancellation
-of surviving siblings, continues to join them through cleanup, and retains each child's outcome.
-No child is abandoned and no failure is silently dropped.
+Cancellation is cooperative at defined observation points, but observation at a suspended operation
+has a prompt, drop-safe meaning. `await`, scope join, and library operations explicitly documented as
+cancellable are cancellation points. A request stops new child admission and is observed at the next
+cancellation point. If the task has already produced a value before observation, that value is never
+erased, so an outcome may be both `completed` and `cancelled`. When one child fails, its scope requests
+cancellation of surviving siblings, continues to join them through cleanup, and retains each child's
+outcome. No child is abandoned and no failure is silently dropped.
+
+When cancellation is observed while a task is suspended in a dependency or compiler-owned future,
+the executor stops polling and drops that in-flight future. Any foreign values owned only by that
+future run their Rust `Drop` implementations at this point. Dropping the operation must not drop or
+skip Terrane cleanup state: the compiler separates values required by active `finally` regions,
+enters those regions exactly once in innermost-first order, and drives their synchronous or
+asynchronous cleanup to completion before the task can be joined. Cleanup is shielded from the
+cancellation request that initiated it; a repeated request does not enter it twice.
+
+A value needed by cancellation cleanup must therefore have one statically unambiguous owner. The
+compiler rejects a suspension where the in-flight operation and a reachable `finally` cleanup would
+require overlapping exclusive ownership, a borrow whose lender does not outlive cleanup, or another
+capture arrangement that cannot be split into operation state and cleanup state. Shared ownership is
+valid only through its authored `shared ref` contract; cancellation never upgrades an ordinary
+value or `ref`.
+
+A deadline and sibling failure use this same cancellation transition; neither is a hard kill.
+Cleanup may itself suspend and the scope's join remains pending until it finishes. Consequently the
+language guarantees cleanup entry and executor driving, not progress from a foreign cleanup future
+that never wakes. If cleanup throws, its error replaces the pending cancellation completion under the
+ordinary `finally` rule while the outcome continues to record that cancellation was requested. A
+panic while dropping a dependency future follows the selected dependency-panic policy and does not
+silently suppress separately retained Terrane cleanup.
 
 Deadlines are explicit scope inputs, not ambient task-local state. A child inherits its parent's
 effective deadline. A requested child deadline is combined with that inherited value by taking the

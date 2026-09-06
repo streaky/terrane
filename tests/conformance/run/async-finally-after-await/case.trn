@@ -1,0 +1,11 @@
+namespace async-finally-after-await
+
+async function step int;
+  return 7
+
+async function main;
+  try
+    value int = await step;
+    print; value
+  finally
+    print; 'cleanup'

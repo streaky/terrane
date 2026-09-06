@@ -1401,6 +1401,15 @@ pending self-waking future plus typed success and failure results; accepted exec
 existing async-context and linear-task rejections cover the source contract without claiming a
 reactor-backed dependency runtime.
 
+The cancellation contract for the wake-driven replacement is now fixed before runtime selection:
+when cancellation is observed during suspension, the in-flight operation is dropped promptly, while
+compiler-separated `finally` state is retained and driven exactly once in innermost-first order.
+Cleanup is shielded from the initiating request and may suspend; deadlines do not hard-kill it, so a
+foreign cleanup future that never wakes can keep join pending. Lowering must reject captures that
+cannot split exclusive operation state from cleanup-owned state. Rust `Drop` runs for operation-only
+foreign values before Terrane cleanup, cleanup-owned values survive through that cleanup, and a
+cleanup error replaces pending cancellation without erasing the cancellation observation.
+
 Every lowered Terrane `await` yields to the executor before polling its operand and again after the
 operand completes. The cancellable executor checks the scope between those child polls, so even an
 immediately-ready awaited future cannot carry execution past the suspension point after cancellation
