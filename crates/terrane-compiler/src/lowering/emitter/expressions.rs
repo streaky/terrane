@@ -529,7 +529,7 @@ impl Emitter<'_> {
             {
                 self.expression(node)
             }
-            ValueType::AsyncFunction(parameters, _)
+            ValueType::AsyncFunction(parameters, _, _)
                 if node.kind == SyntaxKind::MemberExpression =>
             {
                 let [receiver, member] = node.children.as_slice() else {

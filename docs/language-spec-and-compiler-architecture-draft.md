@@ -3643,6 +3643,23 @@ response = await request.send;
 
 Values live across suspension are captures of the generated task. They follow ordinary value, `ref`, move, provenance, thread-transfer, and cancellation rules. A borrow may cross suspension only when its lender is proven to outlive the task and the selected executor's movement/thread requirements are satisfied; otherwise the compiler diagnoses the capture at the `await`. An async implementation may have fewer throwing effects than declared, but cannot implement a synchronous callable contract.
 
+Every async callable contract carries compiler-owned task transferability. A task is `transferable`
+only when each parameter, capture, and value retained across a suspension has a transferable
+contract and every invoked async boundary promises a transferable future; otherwise it is
+executor-local. A non-owning `ref` is local unless its separately proven lifetime and target
+execution strategy establish the required movement contract. A projected Rust async member is
+local unless its admitted contract or an exact compiler probe proves the returned future
+transferable; Rust crate names and runtime-specific trait names do not enter Terrane source.
+Callable compatibility preserves this distinction rather than erasing a local future into a
+transferable callable type.
+
+Lowering keeps the concrete Rust future type at direct invocation, local binding, immediate
+`await`, and other statically known positions. Type erasure and pinning occur only at an explicit
+heterogeneous storage or callable ABI boundary. A transferable erased task includes the selected
+strategy's transfer requirement; a local erased task does not acquire it silently. Before its first
+poll a linear task may be moved into its consuming `await` or scope operation. After advancement it
+is pinned inside compiler-owned executor state and cannot be moved through a source operation.
+
 ### 21.3 Runtime independence
 
 The source language should not hard-code one async executor.

@@ -1,0 +1,8 @@
+namespace app
+from /deps/async-witness import ready_after_yield
+
+function main;
+  scope = task-scope;
+  child = scope.spawn; ready_after_yield
+  outcome = scope.join; move child
+  print; outcome.completed

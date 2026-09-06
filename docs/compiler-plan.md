@@ -1410,6 +1410,14 @@ cannot split exclusive operation state from cleanup-owned state. Rust `Drop` run
 foreign values before Terrane cleanup, cleanup-owned values survive through that cleanup, and a
 cleanup error replaces pending cancellation without erasing the cancellation observation.
 
+Task representation now carries compiler-owned local-versus-transferable metadata through async
+callables, ordinary tasks, and scoped tasks. Authored task mobility is inferred conservatively from
+parameters and values live across suspension; projected Rust async members remain local until an
+admitted contract or exact probe proves their future transferable. Threaded scope spawn rejects a
+local callable in source terms, while the cooperative strategy admits it. Direct async calls retain
+their concrete Rust future type; boxing and pinning remain only at erased task/callable ABI
+boundaries, whose Rust `Send` bound is selected from the semantic transfer contract.
+
 Every lowered Terrane `await` yields to the executor before polling its operand and again after the
 operand completes. The cancellable executor checks the scope between those child polls, so even an
 immediately-ready awaited future cannot carry execution past the suspension point after cancellation

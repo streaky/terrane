@@ -325,7 +325,7 @@ pub(super) fn declared_value_type_with_visible_objects(
             visible_objects,
         )?);
         return Ok(if node_text(&unit.source, function).starts_with("async") {
-            ValueType::AsyncFunction(parameters, result)
+            ValueType::AsyncFunction(parameters, result, TaskTransferability::Transferable)
         } else {
             ValueType::Function(parameters, result)
         });
@@ -736,7 +736,8 @@ pub(super) fn diagnostic_value_type(objects: &[ObjectContract], value_type: &Val
             format!("unordered-map of {}, {}", nested(key), nested(value))
         }
         ValueType::UnorderedSet(item) => format!("unordered-set of {}", nested(item)),
-        ValueType::Function(parameters, result) | ValueType::AsyncFunction(parameters, result) => {
+        ValueType::Function(parameters, result)
+        | ValueType::AsyncFunction(parameters, result, _) => {
             let prefix = if matches!(value_type, ValueType::AsyncFunction(..)) {
                 "async function"
             } else {
@@ -750,8 +751,8 @@ pub(super) fn diagnostic_value_type(objects: &[ObjectContract], value_type: &Val
             };
             format!("{prefix}{from} to {}", nested(result))
         }
-        ValueType::Task(result) => format!("task of {}", nested(result)),
-        ValueType::ScopedTask(result) => format!("scoped task of {}", nested(result)),
+        ValueType::Task(result, _) => format!("task of {}", nested(result)),
+        ValueType::ScopedTask(result, _) => format!("scoped task of {}", nested(result)),
         ValueType::TaskOutcome(result) => format!("task-outcome of {}", nested(result)),
         ValueType::Reference(item) => format!("ref {}", nested(item)),
         ValueType::SharedReference(item) => format!("shared ref {}", nested(item)),

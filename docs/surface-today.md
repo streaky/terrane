@@ -681,6 +681,14 @@ An `async function` has a distinct callable type and invocation produces a linea
 source diagnostic. The compiler rejects sync/async callable substitutions and non-owning references
 whose owner is not proven across suspension.
 
+Async callable, task, and scoped-task types retain compiler-owned local-versus-transferable
+metadata. Authored callables infer it conservatively from parameters and values live across
+suspension; projected Rust async members are currently local because rustdoc alone does not prove
+their returned future transferable. The threaded scope rejects local callables, while the
+cooperative scope accepts them. Direct invocation and immediate await keep the concrete Rust future
+type; generated boxing/pinning remains only at erased callable or task ABI boundaries, with `Send`
+present only for transferable futures.
+
 `task-scope; deadline?` constructs a scope using the selected threaded or cooperative executor
 profile. `.spawn; callable` consumes an async callable invocation into a linear scoped task;
 `.join; move task` consumes it and returns a task outcome. `.child-scope; deadline` creates a child

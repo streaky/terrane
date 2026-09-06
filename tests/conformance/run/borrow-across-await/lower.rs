@@ -48,7 +48,7 @@ async fn inspect() -> terrane_int_support::Int {
     let observed: std::sync::Weak<std::sync::Mutex<terrane_int_support::Int>> = std::sync::Arc::downgrade(
         &value,
     );
-    let result: terrane_int_support::Int = __terrane_await(Box::pin(answer())).await;
+    let result: terrane_int_support::Int = __terrane_await(answer()).await;
     println!(
         "{}", terrane_scalar_support::scalar_text(&{ let __terrane_owner = observed
         .upgrade().expect("reference expired"); let __terrane_value = __terrane_owner
@@ -58,8 +58,7 @@ async fn inspect() -> terrane_int_support::Int {
 }
 fn main() {
     __terrane_block_on(async move {
-        let result: terrane_int_support::Int = __terrane_await(Box::pin(inspect()))
-            .await;
+        let result: terrane_int_support::Int = __terrane_await(inspect()).await;
         println!("{}", terrane_scalar_support::scalar_text(&result));
     });
 }

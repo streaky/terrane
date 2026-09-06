@@ -43,7 +43,7 @@ async fn answer() -> terrane_int_support::Int {
 }
 fn main() {
     __terrane_block_on(async move {
-        let value: terrane_int_support::Int = __terrane_await(Box::pin(answer())).await;
+        let value: terrane_int_support::Int = __terrane_await(answer()).await;
         println!("{}", terrane_scalar_support::scalar_text(&value));
     });
 }

@@ -625,20 +625,22 @@ impl Emitter<'_> {
             .and_then(|binding| binding.storage_type)
             .filter(|_| !reference_backed)
             .filter(|_| !binding_span_is_mutated(self.package, self.unit, node.span, true));
-        let ty = binding.map(|binding| {
-            let value_type = if !binding.destination_arms.is_empty() {
-                union_type_name(binding)
-            } else if let Some(storage_type) = storage_type {
-                rust_type(storage_type).to_owned()
-            } else {
-                rust_value_type(self.package, binding.value_type.clone())
-            };
-            if reference_backed {
-                format!("std::sync::Arc<std::sync::Mutex<{value_type}>>")
-            } else {
-                value_type
-            }
-        });
+        let ty = binding
+            .filter(|binding| !matches!(binding.value_type, ValueType::Task(_, _)))
+            .map(|binding| {
+                let value_type = if !binding.destination_arms.is_empty() {
+                    union_type_name(binding)
+                } else if let Some(storage_type) = storage_type {
+                    rust_type(storage_type).to_owned()
+                } else {
+                    rust_value_type(self.package, binding.value_type.clone())
+                };
+                if reference_backed {
+                    format!("std::sync::Arc<std::sync::Mutex<{value_type}>>")
+                } else {
+                    value_type
+                }
+            });
         let initializer = binding_initializer(node, name_index);
         assert!(
             initializer.is_some() || !self.text(node).contains('='),

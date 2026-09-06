@@ -41,3 +41,8 @@ pub async fn checked_echo(value: String) -> Result<String, ValidationError> {
         Ok(value)
     }
 }
+
+pub async fn ready_after_yield() -> String {
+    YieldOnce(false).await;
+    "ready".to_owned()
+}

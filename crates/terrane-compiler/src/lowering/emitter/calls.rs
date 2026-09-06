@@ -1020,15 +1020,13 @@ impl Emitter<'_> {
             }
         };
         if contract.as_ref().is_some_and(|contract| contract.is_async)
-            && matches!(self.value_type(node), Some(ValueType::Task(_)))
+            && matches!(self.value_type(node), Some(ValueType::Task(_, _)))
         {
             if foreign_error || dependency_boundary {
                 let completed = format!("__terrane_raised_err(__terrane_future.await, {site})");
-                format!(
-                    "{{ let __terrane_future = {call}; Box::pin(async move {{ {completed} }}) }}"
-                )
+                format!("{{ let __terrane_future = {call}; async move {{ {completed} }} }}")
             } else {
-                format!("Box::pin({call})")
+                call
             }
         } else {
             map_errors(&call)

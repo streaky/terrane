@@ -437,8 +437,7 @@ fn main() {
     __terrane_block_on(async move {
         let mut __terrane_completion_0: TerraneCompletion<()> = async {
             let __terrane_try_0: TerraneCompletion<()> = async {
-                let value: terrane_int_support::Int = __terrane_await(Box::pin(step()))
-                    .await;
+                let value: terrane_int_support::Int = __terrane_await(step()).await;
                 println!("{}", terrane_scalar_support::scalar_text(&value));
                 TerraneCompletion::Normal
             }

@@ -105,7 +105,7 @@ pub(super) fn object_member_type(
                 .unwrap_or(ValueType::Scalar(ScalarType::None)),
         );
         return Some(if method.is_async {
-            ValueType::AsyncFunction(parameters, result)
+            ValueType::AsyncFunction(parameters, result, method.task_transferability)
         } else {
             ValueType::Function(parameters, result)
         });
@@ -167,7 +167,7 @@ pub(super) fn infer_member_value_type(
     }
     if matches!(
         receiver_type,
-        Some(ValueType::Function(_, _) | ValueType::AsyncFunction(_, _))
+        Some(ValueType::Function(_, _) | ValueType::AsyncFunction(_, _, _))
     ) && matches!(
         member_name,
         "contracts" | "throwable-contract" | "escaping-throwables"
@@ -637,7 +637,7 @@ pub(super) fn infer_unary_type(
     let operator = unary_operator_text(unit, node).unwrap_or_default();
     if operator == "await" {
         return match infer_value_type(unit, operand_node, bindings)? {
-            Some(ValueType::Task(result)) => Ok(result.value_type()),
+            Some(ValueType::Task(result, _)) => Ok(result.value_type()),
             _ => Err(operator_failure(
                 unit,
                 node,

@@ -211,6 +211,12 @@ impl std::fmt::Display for ObjectIdentity {
     }
 }
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum TaskTransferability {
+    Local,
+    Transferable,
+}
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum ValueType {
     Scalar(ScalarType),
@@ -234,10 +240,10 @@ pub enum ValueType {
     UnorderedSet(ElementType),
     Encoding,
     Function(Vec<ElementType>, ElementType),
-    AsyncFunction(Vec<ElementType>, ElementType),
+    AsyncFunction(Vec<ElementType>, ElementType, TaskTransferability),
     Descriptor(String),
-    Task(ElementType),
-    ScopedTask(ElementType),
+    Task(ElementType, TaskTransferability),
+    ScopedTask(ElementType, TaskTransferability),
     TaskScope,
     TaskOutcome(ElementType),
     FilesystemAuthority,
@@ -371,7 +377,7 @@ impl std::fmt::Display for ValueType {
                 }
                 write!(formatter, " to {result}")
             }
-            Self::AsyncFunction(parameters, result) => {
+            Self::AsyncFunction(parameters, result, _) => {
                 formatter.write_str("async function")?;
                 if !parameters.is_empty() {
                     formatter.write_str(" from ")?;
@@ -384,10 +390,10 @@ impl std::fmt::Display for ValueType {
                 }
                 write!(formatter, " to {result}")
             }
-            Self::Task(result) => write!(formatter, "task of {result}"),
+            Self::Task(result, _) => write!(formatter, "task of {result}"),
             Self::Descriptor(_) => formatter.write_str("descriptor"),
             Self::Object(identity) => identity.fmt(formatter),
-            Self::ScopedTask(result) => write!(formatter, "scoped task of {result}"),
+            Self::ScopedTask(result, _) => write!(formatter, "scoped task of {result}"),
             Self::TaskScope => formatter.write_str("task-scope"),
             Self::TaskOutcome(result) => write!(formatter, "task-outcome of {result}"),
             Self::FilesystemAuthority => formatter.write_str("filesystem-authority"),
@@ -685,6 +691,7 @@ pub struct FunctionContract {
     pub escaping_throwables: BTreeSet<String>,
     pub throws: bool,
     pub is_async: bool,
+    pub task_transferability: TaskTransferability,
     pub is_static: bool,
     pub mutates_receiver: bool,
     pub consumes_receiver: bool,

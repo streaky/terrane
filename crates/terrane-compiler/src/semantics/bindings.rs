@@ -789,6 +789,140 @@ pub(super) fn reference_has_stable_local_owner(
         })
 }
 
+fn value_type_is_task_transferable(value_type: &ValueType) -> bool {
+    match value_type {
+        ValueType::Reference(_) => false,
+        ValueType::Object(identity) => !identity.namespace.starts_with("/deps/"),
+        ValueType::Optional(inner) => value_type_is_task_transferable(inner),
+        ValueType::Iterator(inner)
+        | ValueType::IterationStep(inner)
+        | ValueType::List(inner)
+        | ValueType::Set(inner)
+        | ValueType::Tuple(inner, _)
+        | ValueType::UnorderedSet(inner)
+        | ValueType::TaskOutcome(inner)
+        | ValueType::SharedReference(inner) => {
+            value_type_is_task_transferable(inner.value_type_ref())
+        }
+        ValueType::Map(key, value)
+        | ValueType::Entry(key, value)
+        | ValueType::UnorderedMap(key, value) => {
+            value_type_is_task_transferable(key.value_type_ref())
+                && value_type_is_task_transferable(value.value_type_ref())
+        }
+        ValueType::AsyncFunction(_, _, transferability)
+        | ValueType::Task(_, transferability)
+        | ValueType::ScopedTask(_, transferability) => {
+            *transferability == TaskTransferability::Transferable
+        }
+        _ => true,
+    }
+}
+
+pub(super) fn infer_task_transferability(package: &mut SemanticPackage) {
+    fn uses_local_async_boundary(
+        unit: &SemanticUnit,
+        node: &SyntaxNode,
+        function_span: Span,
+    ) -> bool {
+        if node.span.start < function_span.start || node.span.end > function_span.end {
+            return false;
+        }
+        if node.kind == SyntaxKind::CallExpression
+            && let Some(callee) = node.children.first()
+            && resolved_function_contract(unit, node_text(&unit.source, callee), callee.span.start)
+                .is_some_and(|contract| {
+                    contract.is_async && contract.task_transferability == TaskTransferability::Local
+                })
+        {
+            return true;
+        }
+        node.children
+            .iter()
+            .any(|child| uses_local_async_boundary(unit, child, function_span))
+    }
+
+    for unit_index in 0..package.units.len() {
+        let updates = {
+            let unit = &package.units[unit_index];
+            let mut suspensions = Vec::new();
+            collect_suspension_points(unit, &unit.tree.root, &mut suspensions);
+            unit.functions
+                .iter()
+                .filter(|contract| contract.is_async)
+                .map(|contract| {
+                    let transferable = !unit.namespace.starts_with("/deps/")
+                        && !uses_local_async_boundary(unit, &unit.tree.root, contract.span)
+                        && contract.parameters.iter().all(|parameter| {
+                            parameter
+                                .value_type
+                                .as_ref()
+                                .is_none_or(value_type_is_task_transferable)
+                        })
+                        && unit.typed_bindings.iter().all(|binding| {
+                            if binding.span.start < contract.span.start
+                                || binding.span.end > contract.span.end
+                                || value_type_is_task_transferable(&binding.value_type)
+                            {
+                                return true;
+                            }
+                            let Some(events) = package.binding_events.get(&span_key(binding.span))
+                            else {
+                                return true;
+                            };
+                            !suspensions.iter().any(|suspension| {
+                                suspension.start >= binding.visible_from
+                                    && suspension.end <= contract.span.end
+                                    && events.iter().any(|event| {
+                                        matches!(
+                                            event,
+                                            BindingEvent::Read { span, .. }
+                                                if span.start > suspension.end
+                                        )
+                                    })
+                            })
+                        });
+                    (
+                        contract.span,
+                        if transferable {
+                            TaskTransferability::Transferable
+                        } else {
+                            TaskTransferability::Local
+                        },
+                    )
+                })
+                .collect::<Vec<_>>()
+        };
+        for contract in &mut package.units[unit_index].functions {
+            if let Some((_, transferability)) =
+                updates.iter().find(|(span, _)| *span == contract.span)
+            {
+                contract.task_transferability = *transferability;
+            }
+        }
+    }
+    let transferability = package
+        .units
+        .iter()
+        .flat_map(|unit| {
+            unit.functions
+                .iter()
+                .map(|contract| (span_key(contract.span), contract.task_transferability))
+        })
+        .collect::<BTreeMap<_, _>>();
+    for unit in &mut package.units {
+        for contract in unit
+            .function_aliases
+            .values_mut()
+            .chain(unit.function_contracts_by_span.values_mut())
+        {
+            if let Some(inferred) = transferability.get(&span_key(contract.span)) {
+                contract.task_transferability = *inferred;
+            }
+        }
+    }
+}
+
 pub(super) fn validate_suspension_ownership(
     package: &SemanticPackage,
 ) -> Result<(), SemanticFailure> {
@@ -841,7 +975,7 @@ pub(super) fn validate_task_consumption(package: &SemanticPackage) -> Result<(),
                 && child.kind == SyntaxKind::CallExpression
                 && matches!(
                     infer_value_type(unit, child, &unit.typed_bindings)?,
-                    Some(ValueType::Task(_) | ValueType::ScopedTask(_))
+                    Some(ValueType::Task(_, _) | ValueType::ScopedTask(_, _))
                 )
             {
                 return Ok(Some(child.span));
@@ -906,7 +1040,7 @@ pub(super) fn validate_task_consumption(package: &SemanticPackage) -> Result<(),
         for binding in unit.typed_bindings.iter().filter(|binding| {
             matches!(
                 binding.value_type,
-                ValueType::Task(_) | ValueType::ScopedTask(_)
+                ValueType::Task(_, _) | ValueType::ScopedTask(_, _)
             )
         }) {
             if !consumed(unit, &unit.tree.root, binding, false) {
@@ -920,6 +1054,51 @@ pub(super) fn validate_task_consumption(package: &SemanticPackage) -> Result<(),
                     binding.span,
                 ));
             }
+        }
+    }
+
+    Ok(())
+}
+pub(super) fn validate_task_transferability(
+    package: &SemanticPackage,
+) -> Result<(), SemanticFailure> {
+    fn visit(unit: &SemanticUnit, node: &SyntaxNode) -> Result<Option<Span>, SemanticFailure> {
+        if node.kind == SyntaxKind::CallExpression
+            && let Some(callee) = node.children.first()
+            && callee.kind == SyntaxKind::MemberExpression
+            && let [receiver, member] = callee.children.as_slice()
+            && node_text(&unit.source, member) == "spawn"
+            && infer_value_type(unit, receiver, &unit.typed_bindings)? == Some(ValueType::TaskScope)
+            && let Some(arguments) = node.children.get(1)
+            && let Some(argument) = arguments.children.first()
+        {
+            let callable = argument.children.last().unwrap_or(argument);
+            if matches!(
+                infer_value_type(unit, callable, &unit.typed_bindings)?,
+                Some(ValueType::AsyncFunction(_, _, TaskTransferability::Local))
+            ) {
+                return Ok(Some(callable.span));
+            }
+        }
+        for child in &node.children {
+            if let Some(span) = visit(unit, child)? {
+                return Ok(Some(span));
+            }
+        }
+        Ok(None)
+    }
+
+    if package.executor != crate::package::ExecutorProfile::Threaded {
+        return Ok(());
+    }
+    for unit in &package.units {
+        if let Some(span) = visit(unit, &unit.tree.root)? {
+            return Err(failure(
+                &unit.source,
+                "T0104",
+                "executor-local async callable cannot be spawned by the threaded executor",
+                span,
+            ));
         }
     }
     Ok(())

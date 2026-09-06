@@ -517,12 +517,12 @@ fn main() {
                     let __terrane_future = echo_after_yield(
                         String::from("projected async success"),
                     );
-                    Box::pin(async move {
+                    async move {
                         __terrane_raised_err(
                             __terrane_future.await,
                             0 /* terrane-site: src/main.trn:6:25-6:67 */,
                         )
-                    })
+                    }
                 })
                 .await,
             0 /* terrane-site: src/main.trn:6:25-6:67 */,
@@ -532,8 +532,8 @@ fn main() {
             let __terrane_try_0: TerraneCompletion<()> = async {
                 let rejected: String = __terrane_traced_completion!(
                     __terrane_await({ let __terrane_future =
-                    checked_echo(String::from("reject")); Box::pin(async move {
-                    __terrane_raised_err(__terrane_future. await, 1 /* terrane-site: src/main.trn:9:29-9:50 */) }) }). await, 1 /* terrane-site: src/main.trn:9:29-9:50 */
+                    checked_echo(String::from("reject")); async move {
+                    __terrane_raised_err(__terrane_future. await, 1 /* terrane-site: src/main.trn:9:29-9:50 */) } }). await, 1 /* terrane-site: src/main.trn:9:29-9:50 */
                 );
                 println!("{}", terrane_scalar_support::scalar_text(&rejected));
                 TerraneCompletion::Normal
