@@ -33,7 +33,7 @@ pub use source::{SourceFile, Span};
 pub use types::{DescriptorSchema, ScalarType, TypeCategory};
 
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
-pub const BUILD_TOOLCHAIN: &str = "1.85.0";
+pub const BUILD_TOOLCHAIN: &str = "1.93.1";
 pub const RUSTDOC_TOOLCHAIN: &str = "nightly-2026-04-29";
 
 #[must_use]

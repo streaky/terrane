@@ -791,7 +791,7 @@ fn write_generated_support(directory: &Path, uses_platform_support: bool) -> std
     )?;
     write_if_changed(
         &document.join("Cargo.toml"),
-        format!("[package]\nname = \"terrane-document-support\"\nversion = \"0.1.0\"\nedition = \"2024\"\nrust-version = {:?}\n\n[dependencies]\nserde = \"=1.0.219\"\nserde_json = {{ version = \"=1.0.143\", features = [\"arbitrary_precision\", \"unbounded_depth\"] }}\nurl = \"=2.5.7\"\nyaml-rust2 = \"=0.10.4\"\n", terrane_compiler::BUILD_TOOLCHAIN).as_bytes(),
+        format!("[package]\nname = \"terrane-document-support\"\nversion = \"0.1.0\"\nedition = \"2024\"\nrust-version = {:?}\n\n[dependencies]\nserde = \"=1.0.228\"\nserde_json = {{ version = \"=1.0.145\", features = [\"arbitrary_precision\", \"unbounded_depth\"] }}\nurl = \"=2.5.7\"\nyaml-rust2 = \"=0.10.4\"\n", terrane_compiler::BUILD_TOOLCHAIN).as_bytes(),
     )?;
     write_if_changed(
         &document.join("src/lib.rs"),
@@ -841,7 +841,7 @@ fn ensure_rust_toolchain(
                 if build_toolchain == terrane_compiler::BuildToolchain::Pinned {
                     terrane_compiler::BUILD_TOOLCHAIN
                 } else {
-                    "1.85.0 or newer"
+                    "1.93.1 or newer"
                 }
             ),
             4,
@@ -1099,11 +1099,11 @@ mod tests {
             manifest
                 .contains("[profile.release]\nopt-level = 3\nlto = \"fat\"\ncodegen-units = 1\n")
         );
-        assert!(manifest.contains("rust-version = \"1.85.0\""));
+        assert!(manifest.contains("rust-version = \"1.93.1\""));
         assert!(manifest.contains("[lints.rust]\nunsafe_code = \"forbid\""));
         assert!(directory.join("rust-toolchain.toml").is_file());
         let metadata = fs::read_to_string(directory.join("terrane-build.toml")).unwrap();
-        assert!(metadata.contains("rust-toolchain = \"1.85.0\""));
+        assert!(metadata.contains("rust-toolchain = \"1.93.1\""));
         fs::remove_dir_all(directory).unwrap();
     }
 }

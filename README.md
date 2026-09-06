@@ -56,7 +56,7 @@ The working `terrane` CLI can check, lower, build, and run manifest-backed progr
 
 ## Developing Terrane
 
-Terrane-generated crates pin the exact stable Rust release the compiler supports, currently 1.85.0,
+Terrane-generated crates pin the exact stable Rust release the compiler supports, currently 1.93.1,
 and rustup installs that pin when it is first needed. `terrane --version` reports both the stable
 build toolchain and the pinned rustdoc nightly. A package can explicitly set
 `rust-toolchain = "system"` to use its ambient compiler instead. `terrane toolchains` reports only
