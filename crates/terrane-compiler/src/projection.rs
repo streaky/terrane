@@ -709,15 +709,18 @@ pub fn resolve(
     }
     let mut projected = Vec::new();
     for dependency in dependencies {
+        let package_spec = dependency.version.strip_prefix('=').map_or_else(
+            || dependency.package.clone(),
+            |version| format!("{}@{version}", dependency.package),
+        );
         run_cargo(
             &workspace,
             &[
                 "rustdoc",
                 "-p",
-                &dependency.package,
+                &package_spec,
                 "--target-dir",
                 "target/rustdoc-57",
-                "--lib",
                 "--offline",
                 "--frozen",
                 "--",
