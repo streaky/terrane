@@ -1103,6 +1103,45 @@ fn fetch_remote_projection(
     }
 }
 
+fn artifact_dependency_mismatch(
+    actual: &[ArtifactDependency],
+    expected: &[ArtifactDependency],
+) -> Option<String> {
+    if actual.len() != expected.len() {
+        return Some(format!(
+            "dependency metadata mismatch: expected {} entries, found {}",
+            expected.len(),
+            actual.len()
+        ));
+    }
+    for (actual, expected) in actual.iter().zip(expected) {
+        if actual.name != expected.name
+            || actual.package != expected.package
+            || actual.version != expected.version
+            || actual.effects != expected.effects
+        {
+            return Some(format!(
+                "dependency metadata mismatch for `{}`",
+                expected.name
+            ));
+        }
+        if actual.features != expected.features
+            || actual.default_features != expected.default_features
+        {
+            return Some(format!("feature metadata mismatch for `{}`", expected.name));
+        }
+        if actual.target != expected.target {
+            return Some(format!(
+                "dependency target mismatch for `{}`: expected `{}`, found `{}`",
+                expected.name,
+                expected.target.as_deref().unwrap_or("all targets"),
+                actual.target.as_deref().unwrap_or("all targets")
+            ));
+        }
+    }
+    None
+}
+
 fn validate_projection_artifact(
     artifact: ProjectionArtifact,
     identity: &str,
@@ -1134,8 +1173,10 @@ fn validate_projection_artifact(
         Some("rustdoc format mismatch".to_owned())
     } else if artifact.projection_schema != PROJECTION_SCHEMA {
         Some("projection schema mismatch".to_owned())
-    } else if artifact.dependencies != expected_dependencies {
-        Some("dependency, feature, or target metadata mismatch".to_owned())
+    } else if let Some(reason) =
+        artifact_dependency_mismatch(&artifact.dependencies, &expected_dependencies)
+    {
+        Some(reason)
     } else if artifact.projection.cache_identity != identity {
         Some("projection payload identity mismatch".to_owned())
     } else {
@@ -3598,17 +3639,51 @@ mod tests {
         assert_eq!(projection.source, ProjectionSource::Remote);
         assert_eq!(projection.containment, Containment::Unavailable);
 
+        let reject = |candidate| {
+            validate_projection_artifact(
+                candidate,
+                "exact",
+                "x86_64-unknown-linux-gnu",
+                std::slice::from_ref(&dependency),
+                Containment::Unavailable,
+            )
+            .unwrap_err()
+        };
+
+        let mut mismatched = artifact.clone();
+        mismatched.dependencies[0].version = "=9.9.9".to_owned();
+        assert_eq!(
+            reject(mismatched),
+            "dependency metadata mismatch for `witness`"
+        );
+
+        let mut mismatched = artifact.clone();
+        mismatched.dependencies[0].effects = vec!["network".to_owned()];
+        assert_eq!(
+            reject(mismatched),
+            "dependency metadata mismatch for `witness`"
+        );
+
         let mut mismatched = artifact.clone();
         mismatched.dependencies[0].features = vec!["different".to_owned()];
-        let reason = validate_projection_artifact(
-            mismatched,
-            "exact",
-            "x86_64-unknown-linux-gnu",
-            std::slice::from_ref(&dependency),
-            Containment::Unavailable,
-        )
-        .unwrap_err();
-        assert!(reason.contains("dependency, feature, or target metadata mismatch"));
+        assert_eq!(
+            reject(mismatched),
+            "feature metadata mismatch for `witness`"
+        );
+
+        let mut mismatched = artifact.clone();
+        mismatched.dependencies[0].default_features = true;
+        assert_eq!(
+            reject(mismatched),
+            "feature metadata mismatch for `witness`"
+        );
+
+        let mut mismatched = artifact.clone();
+        mismatched.dependencies[0].target = Some("cfg(windows)".to_owned());
+        assert_eq!(
+            reject(mismatched),
+            "dependency target mismatch for `witness`: expected `cfg(unix)`, found `cfg(windows)`"
+        );
 
         let mut corrupt = artifact;
         corrupt.content_hash = "not-the-payload-hash".to_owned();
