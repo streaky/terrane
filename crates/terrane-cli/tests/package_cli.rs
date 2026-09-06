@@ -190,3 +190,48 @@ fn projected_reqwest_runs_against_a_loopback_server() {
     assert!(manifest.contains("\"blocking\""));
     assert!(manifest.contains("\"rustls-tls-webpki-roots\""));
 }
+
+#[test]
+fn representative_dependency_projection_matches_reviewed_lock() {
+    let serial = NEXT_TEMP.fetch_add(1, Ordering::Relaxed);
+    let package = TempPackage(std::env::temp_dir().join(format!(
+        "terrane-cli-projection-{}-{serial}",
+        std::process::id()
+    )));
+    let fixture = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("../../tests/projection/representative-dependency-stack");
+    copy_fixture(&fixture, &package.0);
+    let reviewed = fs::read(package.0.join("terrane-projection.lock")).unwrap();
+
+    let output = Command::new(env!("CARGO_BIN_EXE_terrane"))
+        .args(["check", package.0.to_str().unwrap()])
+        .output()
+        .unwrap();
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert_eq!(
+        fs::read(package.0.join("terrane-projection.lock")).unwrap(),
+        reviewed,
+        "the exact dependency projection drifted from its reviewed lock"
+    );
+}
+
+fn copy_fixture(source: &std::path::Path, destination: &std::path::Path) {
+    fs::create_dir_all(destination).unwrap();
+    for entry in fs::read_dir(source).unwrap() {
+        let entry = entry.unwrap();
+        let name = entry.file_name();
+        if name == ".trn" {
+            continue;
+        }
+        let target = destination.join(&name);
+        if entry.file_type().unwrap().is_dir() {
+            copy_fixture(&entry.path(), &target);
+        } else {
+            fs::copy(entry.path(), target).unwrap();
+        }
+    }
+}

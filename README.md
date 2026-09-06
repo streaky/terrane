@@ -76,6 +76,10 @@ Set `TERRANE_PROJECTION_ARTIFACT_URL` to a trusted HTTPS projection repository t
 precomputed dependency surfaces before local rustdoc. Terrane verifies the dependency, feature,
 target, toolchain, rustdoc-format, and projection-schema identity; every miss or mismatch falls back
 to local generation. A verified artifact is cached project-locally for subsequent offline builds.
+The CLI integration suite regenerates a reviewed representative dependency stack and compares its
+machine-independent projection lock byte for byte. Upstream additions, removals, signature or
+identity changes, and newly declined members therefore require an explicit reviewed lock update.
+
 
 Cargo retains downloaded registry indexes and crate archives in `CARGO_HOME`, so repeated toolchain and conformance builds do not download unchanged dependencies again. The conformance runner additionally reuses one generated Cargo workspace for all accepted cases in a corpus run. With explicit opt-in, `sccache` provides further reuse across separate runs and branches.
 

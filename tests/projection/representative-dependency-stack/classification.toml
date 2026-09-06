@@ -9,8 +9,8 @@ looked-inside-held-types = 5
 [[dependency]]
 name = "axum"
 version = "0.8.9"
-admitted = 62
-declined = 1048
+admitted = 36
+declined = 1074
 required-gaps = ["axum::extract::WebSocketUpgrade<DefaultOnFailedUpgrade>::on_upgrade: open generic C"]
 classification = "default generic identity is reusable; callable-handler shapes still need specialization"
 
@@ -25,17 +25,17 @@ classification = "default generic identity is reusable; non-escaping builder cha
 [[dependency]]
 name = "tower-http"
 version = "0.6.11"
-admitted = 57
-declined = 539
+admitted = 54
+declined = 542
 classification = "reusable generic identity and non-escaping builder chain"
 
 [[dependency]]
 name = "reqwest"
 version = "0.12.28"
-admitted = 43
-declined = 515
-required-gaps = ["reqwest::get: projects as async but lowering emits a synchronous shim"]
-classification = "compiler defect handled by Phase B; synchronous Client constructors already lower"
+admitted = 31
+declined = 527
+required-gaps = ["reqwest::get: projects as async but lowering emits a synchronous shim", "reqwest::Response::status: result type is owned by undeclared crate http"]
+classification = "async lowering is Phase B; transitive owner is repaired by declaring http"
 
 [[dependency]]
 name = "tokio-tungstenite"
@@ -72,23 +72,23 @@ classification = "closed generic specialization; concrete string path is the wit
 [[dependency]]
 name = "tokio"
 version = "1.53.1"
-admitted = 132
-declined = 1235
+admitted = 133
+declined = 1234
 classification = "generic handle identity and async lowering/runtime work"
 
 [[dependency]]
 name = "tracing"
 version = "0.1.44"
-admitted = 7
-declined = 73
+admitted = 2
+declined = 78
 required-gaps = ["tracing::info: macro item has no Terrane projection"]
 classification = "replaceable by Terrane standard logging; no projection feature"
 
 [[dependency]]
 name = "sentry"
 version = "0.46.2"
-admitted = 4
-declined = 56
+admitted = 3
+declined = 57
 required-gaps = ["sentry::init: open generic C"]
 classification = "concrete upstream configuration or narrow optional facade; outside the core projection gate"
 
@@ -121,6 +121,18 @@ member = "sqlx::query(...).bind(...).execute(...)"
 name = "macro-expansion"
 path = "repros/macro-expansion"
 member = "utoipa::OpenApi derive"
+
+[[decision]]
+unit = "A8"
+outcome = "deferred"
+witness = "sqlx::Row::try_get"
+reason = "the concrete accessor is lifetime-parameterized over the row borrow and database decode associated types, which the bounded A4 oracle cannot express; the exact application boundary is cheaper and safer as an owned narrow facade"
+
+[[decision]]
+unit = "A9"
+outcome = "deferred"
+witness = "sqlx::query(...).bind(...).execute(...)"
+reason = "the only demanding exact witness terminates in an async operation; admitting its non-escaping temporary chain before Phase B would create an unexecutable success path, while an owned narrow facade is available"
 
 [[reproduction]]
 name = "async-lowering"

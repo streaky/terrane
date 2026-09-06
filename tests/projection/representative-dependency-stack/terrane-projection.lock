@@ -6,10 +6,6 @@
       "version": "0.8.9",
       "members": [
         [
-          "/deps/axum/body",
-          "to_bytes"
-        ],
-        [
           "/deps/axum/error-handling/future",
           "HandleErrorFuture"
         ],
@@ -132,10 +128,6 @@
         [
           "/deps/axum/extract/ws",
           "WebSocketUpgrade-df61bc54"
-        ],
-        [
-          "/deps/axum/extract/ws/onfailedupgrade",
-          "call"
         ],
         [
           "/deps/axum/extract/ws/rejection",
@@ -438,10 +430,6 @@
       "version": "0.46.2",
       "members": [
         [
-          "/deps/sentry/defaults",
-          "apply_defaults"
-        ],
-        [
           "/deps/sentry/init",
           "ClientInitGuard"
         ],
@@ -527,6 +515,10 @@
         [
           "/deps/tokio/io/util/mem",
           "SimplexStream"
+        ],
+        [
+          "/deps/tokio/io/util/mem",
+          "duplex"
         ],
         [
           "/deps/tokio/io/util/mem",
@@ -683,6 +675,10 @@
         [
           "/deps/tokio/net/unix/stream",
           "from_std"
+        ],
+        [
+          "/deps/tokio/net/unix/stream",
+          "pair"
         ],
         [
           "/deps/tokio/net/unix/ucred",
@@ -1103,10 +1099,6 @@
           "ServerErrorsFailureClass"
         ],
         [
-          "/deps/tower-http/classify/classifyeos",
-          "classify_eos"
-        ],
-        [
           "/deps/tower-http/classify/grpc-errors-as-failures",
           "GrpcCode"
         ],
@@ -1299,10 +1291,6 @@
           "DefaultOnEos"
         ],
         [
-          "/deps/tower-http/trace/on-eos/oneos",
-          "on_eos"
-        ],
-        [
           "/deps/tower-http/trace/on-failure",
           "DefaultOnFailure"
         ],
@@ -1331,18 +1319,6 @@
         [
           "/deps/tracing/span",
           "current"
-        ],
-        [
-          "/deps/tracing/span",
-          "new"
-        ],
-        [
-          "/deps/tracing/span",
-          "new_disabled"
-        ],
-        [
-          "/deps/tracing/span",
-          "new_root"
         ],
         [
           "/deps/tracing/span",

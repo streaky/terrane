@@ -1882,6 +1882,19 @@ wall time in the transferable artifact.
 Concrete generic arguments and Rust type-alias substitutions now participate in projected foreign
 identity, and lowering emits instantiated Rust spellings as deterministic type aliases so distinct
 instantiations cannot collapse onto one semantic object.
+Generic declarations whose type parameters all have defaults now project their default concrete
+identity, including `Self` substitution in methods. Standard sequence, map, set, optional, and
+homogeneous-tuple shapes project recursively and lower through explicit collection-boundary
+conversions. Signature types owned by undeclared transitive crates decline with the owner and
+lock-resolved version; declaring a unique unifying owner makes its canonical identity reachable,
+while crossed owners with multiple resolved versions fail before Rust lowering.
+The exact dependency probe leaves destination-directed generic results and non-escaping projected
+temporary chains deferred rather than admitting speculative success paths. The demanding
+`sqlx::Row::try_get` witness carries a lifetime-parameterized database decode associated type that
+the bounded compile-time oracle cannot state; an owned narrow facade is the cheaper boundary.
+The exact `query(...).bind(...).execute(...)` chain terminates in an async operation and therefore
+cannot become executable before the Phase B lowering contract. The probe inventory records both
+decisions and their exact witnesses.
 `terrane-projection.lock` provides deterministic machine-independent history and `S2031` names a
 removed member and its resolved version transition. The accepted
 `rust-dependency-deferred-surface` execution case crosses a `bytes` receiver-first trait method and

@@ -4,7 +4,9 @@ package = "representative-dependency-stack"
 capabilities = ["build"]
 
 [namespaces]
-projection-probe = "src"
+"projection-probe/app" = "src/app"
+"projection-probe/service" = "src/service"
+"projection-probe/streams" = "src/streams"
 
 [rust-dependencies]
 axum = { version = "=0.8.9", default-features = false, features = ["http1", "json", "tokio", "ws"], effects = ["build"] }
