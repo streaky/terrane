@@ -4103,9 +4103,34 @@ the generated invocation and return its expanded public API. Results are cached 
 projection identity, serialized into projection artifacts, and include compiled-probe count and
 wall time. An exact cached answer is reused without compiling the probe again.
 
-Projected type identity follows the Rust item rather than the importing module alone. A public re-export is resolved to its canonical Rust path before the Terrane namespace and object identity are recorded. Therefore a re-exported type and its defining item denote one type, while distinct Rust items with the same short name in sibling modules remain distinct. Generated Rust imports each canonical path at most once per generated module and aliases it to the compiler-owned name derived from that namespace-qualified identity.
+Projected type identity follows the Rust item rather than the importing module alone. A public
+re-export is resolved to its canonical Rust path before the Terrane namespace and object identity
+are recorded. Therefore a re-exported type and its defining item denote one type, while distinct
+Rust items with the same short name in sibling modules remain distinct. A signature type owned by
+an undeclared transitive crate is not projected as a memberless lookalike: the member declines with
+an actionable reason naming the owning crate and its lock-resolved version. Declaring that owner
+with a unifying version makes its canonical identity and members reachable; multiple resolved
+versions at a crossed type boundary are a manifest-resolution error naming every version.
+Generated Rust imports each canonical path at most once per generated module and aliases it to the
+compiler-owned name derived from that namespace-qualified identity.
 
-The compiler generates Rust shims only for projected members crossed by Terrane source. This is direct Rust-to-Rust calling inside the generated crate, not an adapter or marshalled runtime boundary. `Option<T>` projects as `T|none`. A representable `Result<T, E>` returns `T` and throws the projected error class. `&self` projects as a shared receiver, `&mut self` records receiver mutability on the projected contract, and `self` retains `move` semantics under the ordinary foreign-resource ownership rule. Both borrowed receiver forms use ordinary Terrane member-call syntax; the projected contract makes lowering emit the required Rust borrow and mutable binding. On unwinding profiles, a panic crossing a generated shim becomes `dependency-panic`; aborting profiles do not claim containment.
+The compiler generates Rust shims only for projected members crossed by Terrane source. This is
+direct Rust-to-Rust calling inside the generated crate, not an adapter or marshalled runtime
+boundary. `Option<T>` projects in parameter and result positions as `T|none`. Rust sequences,
+ordered and unordered maps, sets, and homogeneous tuples project recursively to the corresponding
+Terrane collections when every component is representable; shim code performs the explicit
+element-wise conversion in either direction. `Vec<u8>` remains the direct `bytes` representation.
+An aggregate declines as a whole when its first component cannot cross, and heterogeneous Rust
+tuples remain declined until Terrane has a matching heterogeneous tuple contract. A representable
+`Result<T, E>` returns `T` and throws the projected error class. `&self` projects as a shared
+receiver, `&mut self` records receiver mutability on the projected contract, and `self` retains
+`move` semantics under the ordinary foreign-resource ownership rule. Both borrowed receiver forms
+use ordinary Terrane member-call syntax; the projected contract makes lowering emit the required
+Rust borrow and mutable binding. On unwinding profiles, a panic crossing a generated shim becomes
+`dependency-panic`; aborting profiles emit no unwind boundary and generated Cargo profiles use
+`panic = "abort"`. Receiver-bearing unwind shims use the compiler-owned
+`AssertUnwindSafe` invariant because the receiver is already governed by Terrane's ownership
+rules; receiver-free shims retain Rust's ordinary `UnwindSafe` proof.
 
 Cargo and rustc remain authoritative. Projection and editor information are advisory and derived from the resolved package rather than predefined by Terrane. The language server uses the shared artifact for completion, signature help, hover, exact Rust paths, and declined-item reasons. Projection executes under the build-script capability policy.
 

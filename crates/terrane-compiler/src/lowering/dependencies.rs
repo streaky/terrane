@@ -52,15 +52,47 @@ pub(super) fn projected_argument_expression(
         crate::projection::ProjectedType::Char => format!(
             "{name}.parse::<char>().map_err(|_| crate::TerraneForeignError(crate::TerraneError::raised_with_message(crate::TerraneErrorKind::CoercionError, \"projected `char` requires exactly one Unicode scalar\", crate::TERRANE_NO_SITE)))?"
         ),
-        crate::projection::ProjectedType::Optional(inner) => match inner.as_ref() {
-            crate::projection::ProjectedType::RustInt(rust_type) => format!(
-                "{name}.map(|value| terrane_int_support::coerce::<{rust_type}>(&value)).transpose().map_err(|error| crate::TerraneForeignError(crate::TerraneRaised::raised(error, crate::TERRANE_NO_SITE)))?"
-            ),
-            crate::projection::ProjectedType::Char => format!(
-                "{name}.map(|value| value.parse::<char>().map_err(|_| crate::TerraneForeignError(crate::TerraneError::raised_with_message(crate::TerraneErrorKind::CoercionError, \"projected `char` requires exactly one Unicode scalar\", crate::TERRANE_NO_SITE)))).transpose()?"
-            ),
-            _ => name.to_owned(),
-        },
+        crate::projection::ProjectedType::Optional(inner) => {
+            let converted = projected_argument_expression("value", inner);
+            format!(
+                "{name}.map(|value| -> Result<_, crate::TerraneForeignError> {{ Ok({converted}) }}).transpose()?"
+            )
+        }
+        crate::projection::ProjectedType::Sequence { rust_path, item }
+        | crate::projection::ProjectedType::Set {
+            rust_path, item, ..
+        } => {
+            let converted = projected_argument_expression("item", item);
+            format!(
+                "{name}.into_iter().map(|item| -> Result<_, crate::TerraneForeignError> {{ Ok({converted}) }}).collect::<Result<{rust_path}, _>>()?"
+            )
+        }
+        crate::projection::ProjectedType::Mapping {
+            rust_path,
+            key,
+            value,
+            ..
+        } => {
+            let key = projected_argument_expression("entry.key", key);
+            let value = projected_argument_expression("entry.value", value);
+            format!(
+                "terrane_collection_support::Iterable::terrane_iterator(&{name}).map(|entry| -> Result<_, crate::TerraneForeignError> {{ Ok(({key}, {value})) }}).collect::<Result<{rust_path}, _>>()?"
+            )
+        }
+        crate::projection::ProjectedType::Tuple(items) => format!(
+            "({})",
+            items
+                .iter()
+                .enumerate()
+                .map(|(index, item)| projected_argument_expression(
+                    &format!(
+                        "{name}.get({index}).expect(\"projected tuple length is checked\").clone()"
+                    ),
+                    item,
+                ))
+                .collect::<Vec<_>>()
+                .join(", ")
+        ),
         _ => name.to_owned(),
     }
 }
@@ -79,12 +111,45 @@ pub(super) fn projected_result_expression(
         crate::projection::ProjectedType::Char => format!("{value}.to_string()"),
         crate::projection::ProjectedType::Optional(inner) => {
             let converted = projected_result_expression("value", inner);
-            if converted == "value" {
-                value.to_owned()
-            } else {
-                format!("{value}.map(|value| {converted})")
-            }
+            format!("{value}.map(|value| {converted})")
         }
+        crate::projection::ProjectedType::Sequence { item, .. } => {
+            let converted = projected_result_expression("item", item);
+            format!(
+                "terrane_collection_support::List::new({value}.into_iter().map(|item| {converted}).collect())"
+            )
+        }
+        crate::projection::ProjectedType::Mapping {
+            key,
+            value: item,
+            ordered,
+            ..
+        } => {
+            let key = projected_result_expression("key", key);
+            let item = projected_result_expression("item", item);
+            let collection = if *ordered { "Map" } else { "UnorderedMap" };
+            format!(
+                "terrane_collection_support::{collection}::new({value}.into_iter().map(|(key, item)| terrane_collection_support::Entry::new({key}, {item})).collect())"
+            )
+        }
+        crate::projection::ProjectedType::Set { item, ordered, .. } => {
+            let converted = projected_result_expression("item", item);
+            let collection = if *ordered { "Set" } else { "UnorderedSet" };
+            format!(
+                "terrane_collection_support::{collection}::new({value}.into_iter().map(|item| {converted}).collect())"
+            )
+        }
+        crate::projection::ProjectedType::Tuple(items) => format!(
+            "terrane_collection_support::Tuple::new(vec![{}])",
+            items
+                .iter()
+                .enumerate()
+                .map(|(index, item)| {
+                    projected_result_expression(&format!("{value}.{index}"), item)
+                })
+                .collect::<Vec<_>>()
+                .join(", ")
+        ),
         _ => value.to_owned(),
     }
 }
@@ -244,6 +309,9 @@ pub(super) fn emit_dependency_unit(package: &SemanticPackage, unit: &SemanticUni
     output
 }
 fn rust_value_path(path: &str) -> String {
+    if path.starts_with('<') {
+        return path.to_owned();
+    }
     path.find('<').map_or_else(
         || path.to_owned(),
         |arguments| format!("{}::{}", &path[..arguments], &path[arguments..]),

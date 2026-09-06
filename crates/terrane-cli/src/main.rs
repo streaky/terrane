@@ -85,7 +85,7 @@ fn run(arguments: &[OsString]) -> Result<ExitCode, CliFailure> {
         return Ok(ExitCode::SUCCESS);
     }
     if command == "toolchains" {
-        report_toolchains()?;
+        report_toolchains();
         return Ok(ExitCode::SUCCESS);
     }
     if command == "--help" || command == "-h" {
@@ -953,11 +953,11 @@ fn record_toolchain_pin(toolchain: &str) -> Result<(), CliFailure> {
         })
 }
 
-fn report_toolchains() -> Result<(), CliFailure> {
+fn report_toolchains() {
     let pins = fs::read_to_string(toolchain_state_path()).unwrap_or_default();
     if pins.lines().next().is_none() {
         println!("Terrane has not requested any Rust toolchains.");
-        return Ok(());
+        return;
     }
     println!("Rust toolchains requested by Terrane:");
     for pin in pins.lines() {
@@ -968,7 +968,6 @@ fn report_toolchains() -> Result<(), CliFailure> {
         };
         println!("  {pin} ({use_note})");
     }
-    Ok(())
 }
 
 fn usage() -> String {

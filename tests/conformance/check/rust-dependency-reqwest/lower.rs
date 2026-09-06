@@ -420,7 +420,7 @@ mod __terrane_trace {
     }
     pub static FILES: [&str; 1] = ["src/main.trn"];
     pub static FUNCTIONS: [&str; 1] = ["/app::main"];
-    pub static SITES: [Site; 3] = [
+    pub static SITES: [Site; 2] = [
         {
             /* terrane-site-row: site 0: /app::main (src/main.trn:4:16-4:45) */
             Site {
@@ -433,24 +433,13 @@ mod __terrane_trace {
             }
         },
         {
-            /* terrane-site-row: site 1: /app::main (src/main.trn:5:5-5:26) */
+            /* terrane-site-row: site 1: /app::main (src/main.trn:5:19-5:33) */
             Site {
                 function: 0,
                 file: 0,
                 line: 5,
-                column: 5,
-                end_line: 5,
-                end_column: 26,
-            }
-        },
-        {
-            /* terrane-site-row: site 2: /app::main (src/main.trn:6:19-6:33) */
-            Site {
-                function: 0,
-                file: 0,
-                line: 6,
                 column: 19,
-                end_line: 6,
+                end_line: 5,
                 end_column: 33,
             }
         },
@@ -470,28 +459,9 @@ mod __terrane_trace {
 // Source: src/main.trn
 // Namespace: app
 fn main() {
-    let mut response: Response = __terrane_raised(
+    let response: Response = __terrane_raised(
         get(String::from("http://127.0.0.1:38125/")),
         0 /* terrane-site: src/main.trn:4:16-4:45 */,
-    );
-    __terrane_raised(
-        match std::panic::catch_unwind(
-            std::panic::AssertUnwindSafe(|| {
-                response.headers_mut();
-            }),
-        ) {
-            Ok(value) => Ok(value),
-            Err(payload) => {
-                Err(
-                    crate::__terrane_dependency_panic(
-                        payload,
-                        "reqwest",
-                        "reqwest::blocking::Response::headers_mut",
-                    ),
-                )
-            }
-        },
-        1 /* terrane-site: src/main.trn:5:5-5:26 */,
     );
     let body: String = __terrane_raised(
         match std::panic::catch_unwind(
@@ -521,7 +491,7 @@ fn main() {
                 )
             }
         },
-        2 /* terrane-site: src/main.trn:6:19-6:33 */,
+        1 /* terrane-site: src/main.trn:5:19-5:33 */,
     );
     println!("{}", terrane_scalar_support::scalar_text(&body));
 }
