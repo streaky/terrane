@@ -152,7 +152,6 @@ fn projected_reqwest_runs_against_a_loopback_server() {
                 "from /deps/reqwest/blocking import get\n",
                 "function main;\n",
                 "    response = get; >http://{}/\n",
-                "    response.headers_mut;\n",
                 "    body string = response.text;\n",
                 "    print; body\n",
             ),
