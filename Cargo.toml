@@ -19,6 +19,9 @@ edition = "2024"
 license = "GPL-2.0-only"
 rust-version = "1.85"
 
+[workspace.dependencies]
+rustdoc-types = "=0.57.0"
+
 [workspace.lints.rust]
 unsafe_code = "forbid"
 

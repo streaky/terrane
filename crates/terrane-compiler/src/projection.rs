@@ -1,18 +1,21 @@
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::fmt::Write as _;
 use std::fs;
 use std::path::Path;
 use std::process::Command;
 use std::sync::LazyLock;
 
+use rustdoc_types::{
+    Crate as RustdocCrate, Function, GenericArg, GenericArgs, GenericBound, GenericParamDefKind,
+    Id, Impl, Item, ItemEnum, ItemSummary, Path as RustdocPath, Type, VariantKind, Visibility,
+};
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
 use sha2::{Digest, Sha256};
 
 use crate::RustDependency;
 
 pub use crate::RUSTDOC_TOOLCHAIN;
-const PROJECTION_SCHEMA: &str = "7";
+const PROJECTION_SCHEMA: &str = "8";
 const MAX_PROJECTION_CACHE_RECORDS: usize = 4;
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
@@ -652,6 +655,8 @@ pub fn resolve(
                 "rustdoc",
                 "-p",
                 &dependency.package,
+                "--target-dir",
+                "target/rustdoc-57",
                 "--lib",
                 "--offline",
                 "--frozen",
@@ -670,7 +675,7 @@ pub fn resolve(
         )?;
         let crate_name = dependency.package.replace('-', "_");
         let rustdoc_path = workspace
-            .join("target/doc")
+            .join("target/rustdoc-57/doc")
             .join(format!("{crate_name}.json"));
         let bytes = fs::read(&rustdoc_path).map_err(|error| ProjectionError {
             message: format!(
@@ -922,7 +927,7 @@ fn run_cargo(
     })
 }
 
-fn prefer_public_path(public_paths: &mut BTreeMap<String, String>, id: String, candidate: String) {
+fn prefer_public_path(public_paths: &mut BTreeMap<Id, String>, id: Id, candidate: String) {
     public_paths
         .entry(id)
         .and_modify(|existing| {
@@ -934,47 +939,48 @@ fn prefer_public_path(public_paths: &mut BTreeMap<String, String>, id: String, c
 }
 
 fn record_public_module_items(
-    index: &serde_json::Map<String, Value>,
-    module_id: &str,
+    index: &HashMap<Id, Item>,
+    module_id: Id,
     module_path: &[String],
-    public_paths: &mut BTreeMap<String, String>,
-    visiting: &mut BTreeSet<String>,
+    public_paths: &mut BTreeMap<Id, String>,
+    visiting: &mut BTreeSet<Id>,
 ) {
-    if !visiting.insert(module_id.to_owned()) {
+    if !visiting.insert(module_id) {
         return;
     }
-    let Some(module) = index
-        .get(module_id)
-        .and_then(|item| item["inner"]["module"].as_object())
+    let Some(Item {
+        inner: ItemEnum::Module(module),
+        ..
+    }) = index.get(&module_id)
     else {
-        visiting.remove(module_id);
+        visiting.remove(&module_id);
         return;
     };
-    for child_id in string_or_number_array(&module["items"]) {
+    for child_id in &module.items {
         let Some(item) = index
-            .get(&child_id)
-            .filter(|item| item["visibility"].as_str() == Some("public"))
+            .get(child_id)
+            .filter(|item| item.visibility == Visibility::Public)
         else {
             continue;
         };
-        if let Some(import) = item["inner"]["use"].as_object() {
-            let Some(target_id) = value_id(&import["id"]) else {
+        if let ItemEnum::Use(import) = &item.inner {
+            let Some(target_id) = import.id else {
                 continue;
             };
-            if import["is_glob"].as_bool() == Some(true) {
-                record_public_module_items(index, &target_id, module_path, public_paths, visiting);
-            } else if let Some(name) = import["name"].as_str() {
+            if import.is_glob {
+                record_public_module_items(index, target_id, module_path, public_paths, visiting);
+            } else {
                 let candidate = module_path
                     .iter()
                     .map(String::as_str)
-                    .chain(std::iter::once(name))
+                    .chain(std::iter::once(import.name.as_str()))
                     .collect::<Vec<_>>()
                     .join("::");
                 prefer_public_path(public_paths, target_id, candidate);
             }
             continue;
         }
-        let Some(name) = item["name"].as_str() else {
+        let Some(name) = item.name.as_deref() else {
             continue;
         };
         let candidate = module_path
@@ -983,9 +989,9 @@ fn record_public_module_items(
             .chain(std::iter::once(name))
             .collect::<Vec<_>>()
             .join("::");
-        prefer_public_path(public_paths, child_id, candidate);
+        prefer_public_path(public_paths, *child_id, candidate);
     }
-    visiting.remove(module_id);
+    visiting.remove(&module_id);
 }
 
 #[expect(
@@ -996,180 +1002,171 @@ fn project_rustdoc(
     dependency: &RustDependency,
     bytes: &[u8],
 ) -> Result<ProjectedDependency, ProjectionError> {
-    let document: Value = serde_json::from_slice(bytes).map_err(|error| ProjectionError {
-        message: format!("invalid rustdoc JSON for `{}`: {error}", dependency.package),
-    })?;
-    let index = document["index"]
-        .as_object()
-        .ok_or_else(|| ProjectionError {
+    let document: RustdocCrate =
+        serde_json::from_slice(bytes).map_err(|error| ProjectionError {
             message: format!(
-                "rustdoc JSON for `{}` has no item index",
-                dependency.package
+                "rustdoc JSON schema mismatch for `{}`: {error}; expected rustdoc format {} from `{RUSTDOC_TOOLCHAIN}`",
+                dependency.package,
+                rustdoc_types::FORMAT_VERSION
             ),
         })?;
-    let paths = document["paths"]
-        .as_object()
-        .ok_or_else(|| ProjectionError {
+    if document.format_version != rustdoc_types::FORMAT_VERSION {
+        return Err(ProjectionError {
             message: format!(
-                "rustdoc JSON for `{}` has no path index",
-                dependency.package
+                "rustdoc JSON schema mismatch for `{}`: format {} is unsupported; expected format {} from `{RUSTDOC_TOOLCHAIN}`",
+                dependency.package,
+                document.format_version,
+                rustdoc_types::FORMAT_VERSION
             ),
-        })?;
-    let mut public_paths = BTreeMap::<String, String>::new();
+        });
+    }
+    let index = &document.index;
+    let paths = &document.paths;
+    let mut public_paths = BTreeMap::<Id, String>::new();
     for (module_id, summary) in paths {
-        if summary["crate_id"].as_u64() != Some(0)
-            || index
-                .get(module_id)
-                .and_then(|item| item["inner"]["module"].as_object())
-                .is_none()
+        if summary.crate_id != 0
+            || !matches!(
+                index.get(module_id).map(|item| &item.inner),
+                Some(ItemEnum::Module(_))
+            )
         {
             continue;
         }
-        let module_path = string_array(&summary["path"]);
         record_public_module_items(
             index,
-            module_id,
-            &module_path,
+            *module_id,
+            &summary.path,
             &mut public_paths,
             &mut BTreeSet::new(),
         );
     }
-    let mut resolved_paths = paths.clone();
+    let mut candidates = BTreeMap::<Id, Vec<String>>::new();
+    for (id, summary) in paths.iter().filter(|(_, summary)| summary.crate_id == 0) {
+        candidates.insert(*id, summary.path.clone());
+    }
     for (id, public_path) in &public_paths {
-        if !resolved_paths.contains_key(id) {
-            resolved_paths.insert(
-                id.clone(),
-                serde_json::json!({
-                    "crate_id": 0,
-                    "path": public_path.split("::").collect::<Vec<_>>(),
-                }),
-            );
-        }
+        candidates
+            .entry(*id)
+            .or_insert_with(|| public_path.split("::").map(str::to_owned).collect());
     }
     let mut items = Vec::new();
     let mut projected_enum_items = Vec::new();
     let mut declined = Vec::new();
     let mut projected_trait_items = Vec::new();
     let mut projected_associated_items = Vec::new();
-    for (id, summary) in &resolved_paths {
-        if summary["crate_id"].as_u64() != Some(0) {
+    for (id, path) in candidates {
+        let Some(item) = index.get(&id) else { continue };
+        if item.visibility != Visibility::Public {
             continue;
         }
-        let Some(item) = index.get(id) else { continue };
-        if item["visibility"].as_str() != Some("public") {
-            continue;
-        }
-        let path = string_array(&summary["path"]);
         let Some(name) = path.last().cloned() else {
             continue;
         };
         let namespace = dependency_namespace(dependency, &path[..path.len().saturating_sub(1)]);
-        let rust_path = extern_rust_path(
-            dependency,
-            &public_paths
-                .get(id)
-                .cloned()
-                .unwrap_or_else(|| path.join("::")),
-        );
-        let docs = item["docs"].as_str().map(str::to_owned);
-        let inner = &item["inner"];
-        let projected = if let Some(function) = inner.get("function") {
-            project_function(function, index, &resolved_paths, Some(&name))
-                .map(ProjectedKind::Function)
-        } else if let Some(structure) = inner.get("struct") {
-            if has_type_parameters(structure) {
-                Err("type has generic or lifetime parameters".to_owned())
-            } else {
-                let (methods, trait_methods, method_declines) =
-                    project_methods(structure, index, &resolved_paths, &public_paths, &rust_path);
-                for method in methods.iter().filter(|method| method.receiver.is_none()) {
-                    projected_associated_items.push(ProjectedItem {
-                        namespace: namespace.clone(),
-                        name: method.name.clone(),
-                        rust_path: format!("{rust_path}::{}", method.name),
-                        docs: None,
-                        kind: ProjectedKind::Function(method.clone()),
-                    });
-                }
-                for (trait_path, public_trait_path, method) in trait_methods {
-                    let trait_segments = trait_path
-                        .split("::")
-                        .map(str::to_owned)
-                        .collect::<Vec<_>>();
-                    let trait_namespace = dependency_namespace(dependency, &trait_segments);
-                    let trait_rust_path = extern_rust_path(dependency, &public_trait_path);
-                    projected_trait_items.push(ProjectedItem {
-                        namespace: trait_namespace,
-                        name: method.name.clone(),
-                        rust_path: format!("<{rust_path} as {trait_rust_path}>::{}", method.name),
-                        docs: None,
-                        kind: ProjectedKind::Function(method),
-                    });
-                }
-                declined.extend(
-                    method_declines
-                        .into_iter()
-                        .map(|(name, reason)| DeclinedItem {
-                            rust_path: format!("{rust_path}::{name}"),
-                            reason,
-                        }),
-                );
-                Ok(ProjectedKind::ForeignType { methods })
+        let public_rust_path = public_paths
+            .get(&id)
+            .cloned()
+            .unwrap_or_else(|| path.join("::"));
+        let rust_path = extern_rust_path(dependency, &public_rust_path);
+        let docs = item.docs.clone();
+        let projected = match &item.inner {
+            ItemEnum::Function(function) => {
+                project_function(function, index, paths, Some(&name)).map(ProjectedKind::Function)
             }
-        } else if let Some(enumeration) = inner.get("enum") {
-            if has_type_parameters(enumeration) {
-                Err("type has generic or lifetime parameters".to_owned())
-            } else {
-                let data_carrying = enumeration["variants"].as_array().is_some_and(|variants| {
-                    variants.iter().any(|id| {
-                        value_id(id)
-                            .and_then(|id| index.get(&id))
-                            .and_then(|variant| variant["inner"]["variant"]["kind"].as_str())
-                            != Some("plain")
-                    })
-                });
-                if !data_carrying {
-                    let variant_namespace = dependency_namespace(dependency, &path);
-                    for variant_id in string_or_number_array(&enumeration["variants"]) {
-                        let Some(variant) = index.get(&variant_id) else {
-                            continue;
-                        };
-                        let Some(variant_name) = variant["name"].as_str() else {
-                            continue;
-                        };
-                        projected_enum_items.push(ProjectedItem {
-                            namespace: variant_namespace.clone(),
-                            name: variant_name.to_owned(),
-                            rust_path: format!("{rust_path}::{variant_name}"),
-                            docs: variant["docs"].as_str().map(str::to_owned),
-                            kind: ProjectedKind::Function(ProjectedFunction {
-                                name: variant_name.to_owned(),
-                                parameters: Vec::new(),
-                                result: ProjectedType::Foreign {
-                                    rust_path: rust_path.clone(),
-                                    name: name.clone(),
-                                },
-                                error: None,
-                                is_async: false,
-                                receiver: None,
-                            }),
+            ItemEnum::Struct(structure) => {
+                if has_type_parameters(&structure.generics.params) {
+                    Err("type has generic or lifetime parameters".to_owned())
+                } else {
+                    let (methods, trait_methods, method_declines) =
+                        project_methods(&structure.impls, index, paths, &public_paths, &rust_path);
+                    for method in methods.iter().filter(|method| method.receiver.is_none()) {
+                        projected_associated_items.push(ProjectedItem {
+                            namespace: namespace.clone(),
+                            name: method.name.clone(),
+                            rust_path: format!("{rust_path}::{}", method.name),
+                            docs: None,
+                            kind: ProjectedKind::Function(method.clone()),
                         });
                     }
+                    for (trait_path, public_trait_path, method) in trait_methods {
+                        let trait_segments = trait_path
+                            .split("::")
+                            .map(str::to_owned)
+                            .collect::<Vec<_>>();
+                        let trait_namespace = dependency_namespace(dependency, &trait_segments);
+                        let trait_rust_path = extern_rust_path(dependency, &public_trait_path);
+                        projected_trait_items.push(ProjectedItem {
+                            namespace: trait_namespace,
+                            name: method.name.clone(),
+                            rust_path: format!(
+                                "<{rust_path} as {trait_rust_path}>::{}",
+                                method.name
+                            ),
+                            docs: None,
+                            kind: ProjectedKind::Function(method),
+                        });
+                    }
+                    declined.extend(method_declines.into_iter().map(|(name, reason)| {
+                        DeclinedItem {
+                            rust_path: format!("{rust_path}::{name}"),
+                            reason,
+                        }
+                    }));
+                    Ok(ProjectedKind::ForeignType { methods })
                 }
-                Ok(ProjectedKind::Enum {
-                    data_carrying,
-                    comparable: implements_trait(
-                        enumeration,
-                        index,
-                        &resolved_paths,
-                        "core::cmp::PartialEq",
-                    ),
-                })
             }
-        } else if inner.get("trait").is_some() {
-            continue;
-        } else {
-            Err("item kind has no Terrane projection".to_owned())
+            ItemEnum::Enum(enumeration) => {
+                if has_type_parameters(&enumeration.generics.params) {
+                    Err("type has generic or lifetime parameters".to_owned())
+                } else {
+                    let data_carrying = enumeration.variants.iter().any(|id| {
+                        !matches!(
+                            index.get(id).map(|variant| &variant.inner),
+                            Some(ItemEnum::Variant(variant))
+                                if matches!(variant.kind, VariantKind::Plain)
+                        )
+                    });
+                    if !data_carrying {
+                        let variant_namespace = dependency_namespace(dependency, &path);
+                        for variant_id in &enumeration.variants {
+                            let Some(variant) = index.get(variant_id) else {
+                                continue;
+                            };
+                            let Some(variant_name) = variant.name.as_deref() else {
+                                continue;
+                            };
+                            projected_enum_items.push(ProjectedItem {
+                                namespace: variant_namespace.clone(),
+                                name: variant_name.to_owned(),
+                                rust_path: format!("{rust_path}::{variant_name}"),
+                                docs: variant.docs.clone(),
+                                kind: ProjectedKind::Function(ProjectedFunction {
+                                    name: variant_name.to_owned(),
+                                    parameters: Vec::new(),
+                                    result: ProjectedType::Foreign {
+                                        rust_path: rust_path.clone(),
+                                        name: name.clone(),
+                                    },
+                                    error: None,
+                                    is_async: false,
+                                    receiver: None,
+                                }),
+                            });
+                        }
+                    }
+                    Ok(ProjectedKind::Enum {
+                        data_carrying,
+                        comparable: implements_trait(
+                            &enumeration.impls,
+                            index,
+                            paths,
+                            "core::cmp::PartialEq",
+                        ),
+                    })
+                }
+            }
+            ItemEnum::Trait(_) => continue,
+            _ => Err("item kind has no Terrane projection".to_owned()),
         };
         match projected {
             Ok(kind) => items.push(ProjectedItem {
@@ -1228,20 +1225,20 @@ fn project_rustdoc(
             &right.rust_path,
         ))
     });
-    let mut index = 0;
-    while index < projected_trait_items.len() {
-        let first = index;
+    let mut projected_index = 0;
+    while projected_index < projected_trait_items.len() {
+        let first = projected_index;
         let key = (
-            projected_trait_items[index].namespace.clone(),
-            projected_trait_items[index].name.clone(),
+            projected_trait_items[projected_index].namespace.clone(),
+            projected_trait_items[projected_index].name.clone(),
         );
-        while index < projected_trait_items.len()
-            && projected_trait_items[index].namespace == key.0
-            && projected_trait_items[index].name == key.1
+        while projected_index < projected_trait_items.len()
+            && projected_trait_items[projected_index].namespace == key.0
+            && projected_trait_items[projected_index].name == key.1
         {
-            index += 1;
+            projected_index += 1;
         }
-        if index - first == 1
+        if projected_index - first == 1
             && !items
                 .iter()
                 .any(|item| item.namespace == key.0 && item.name == key.1)
@@ -1249,7 +1246,7 @@ fn project_rustdoc(
             items.push(projected_trait_items[first].clone());
         } else {
             declined.extend(
-                projected_trait_items[first..index]
+                projected_trait_items[first..projected_index]
                     .iter()
                     .map(|item| DeclinedItem {
                         rust_path: item.rust_path.clone(),
@@ -1265,19 +1262,16 @@ fn project_rustdoc(
     Ok(ProjectedDependency {
         name: dependency.name.clone(),
         package: dependency.package.clone(),
-        version: document["crate_version"]
-            .as_str()
-            .unwrap_or(&dependency.version)
-            .to_owned(),
+        version: document
+            .crate_version
+            .unwrap_or_else(|| dependency.version.clone()),
         items,
         declined,
     })
 }
 
-fn has_type_parameters(item: &Value) -> bool {
-    item["generics"]["params"]
-        .as_array()
-        .is_some_and(|parameters| !parameters.is_empty())
+fn has_type_parameters(parameters: &[rustdoc_types::GenericParamDef]) -> bool {
+    !parameters.is_empty()
 }
 
 fn extern_rust_path(dependency: &RustDependency, path: &str) -> String {
@@ -1300,43 +1294,38 @@ type ProjectedMethods = (
     reason = "rustdoc impl traversal keeps trait and inherent decisions in one deterministic pass"
 )]
 fn project_methods(
-    structure: &Value,
-    index: &serde_json::Map<String, Value>,
-    paths: &serde_json::Map<String, Value>,
-    public_paths: &BTreeMap<String, String>,
+    impl_ids: &[Id],
+    index: &HashMap<Id, Item>,
+    paths: &HashMap<Id, ItemSummary>,
+    public_paths: &BTreeMap<Id, String>,
     owner_rust_path: &str,
 ) -> ProjectedMethods {
     let mut candidates = Vec::new();
     let mut trait_methods = Vec::new();
     let mut declined = Vec::new();
-    let Some(impls) = structure["impls"].as_array() else {
-        return (Vec::new(), trait_methods, declined);
-    };
-    for impl_id in impls {
-        let Some(implementation) = value_id(impl_id)
-            .and_then(|id| index.get(&id))
-            .and_then(|item| item["inner"]["impl"].as_object())
+    for impl_id in impl_ids {
+        let Some(Item {
+            inner: ItemEnum::Impl(implementation),
+            ..
+        }) = index.get(impl_id)
         else {
             continue;
         };
-        if implementation["is_negative"].as_bool() == Some(true) {
+        if implementation.is_negative {
             continue;
         }
-        let inherent = implementation["trait"].is_null();
-        let Some(method_ids) = implementation["items"].as_array() else {
-            continue;
-        };
-        for method_id in method_ids {
-            let Some(item) = value_id(method_id).and_then(|id| index.get(&id)) else {
+        let inherent = implementation.trait_.is_none();
+        for method_id in &implementation.items {
+            let Some(item) = index.get(method_id) else {
                 continue;
             };
-            if inherent && item["visibility"].as_str() != Some("public") {
+            if inherent && item.visibility != Visibility::Public {
                 continue;
             }
-            let Some(name) = item["name"].as_str() else {
+            let Some(name) = item.name.as_deref() else {
                 continue;
             };
-            let Some(function) = item["inner"].get("function") else {
+            let ItemEnum::Function(function) = &item.inner else {
                 declined.push((
                     name.to_owned(),
                     "item kind has no Terrane method projection".to_owned(),
@@ -1344,18 +1333,18 @@ fn project_methods(
                 continue;
             };
             if !inherent {
-                let Some(trait_path) = implementation_trait_path(&implementation["trait"], paths)
-                else {
+                let Some(trait_) = implementation.trait_.as_ref() else {
+                    continue;
+                };
+                let Some(trait_path) = implementation_trait_path(trait_, paths) else {
                     declined.push((
                         name.to_owned(),
                         "trait method is not declared by this dependency crate".to_owned(),
                     ));
                     continue;
                 };
-                let public_trait_path = implementation["trait"]["id"]
-                    .as_u64()
-                    .map(|id| id.to_string())
-                    .and_then(|id| public_paths.get(&id))
+                let public_trait_path = public_paths
+                    .get(&trait_.id)
                     .cloned()
                     .unwrap_or_else(|| trait_path.clone());
                 match project_function(function, index, paths, Some(name)) {
@@ -1397,12 +1386,12 @@ fn project_methods(
     while let Some(method) = candidates.pop() {
         let name = method.name.clone();
         let mut matching = vec![method];
-        let mut index = 0;
-        while index < candidates.len() {
-            if candidates[index].name == name {
-                matching.push(candidates.swap_remove(index));
+        let mut candidate_index = 0;
+        while candidate_index < candidates.len() {
+            if candidates[candidate_index].name == name {
+                matching.push(candidates.swap_remove(candidate_index));
             } else {
-                index += 1;
+                candidate_index += 1;
             }
         }
         if matching.len() == 1 {
@@ -1421,35 +1410,27 @@ fn project_methods(
 }
 
 fn project_function(
-    function: &Value,
-    index: &serde_json::Map<String, Value>,
-    paths: &serde_json::Map<String, Value>,
+    function: &Function,
+    index: &HashMap<Id, Item>,
+    paths: &HashMap<Id, ItemSummary>,
     method_name: Option<&str>,
 ) -> Result<ProjectedFunction, String> {
-    if function["header"]["is_unsafe"].as_bool() == Some(true) {
+    if function.header.is_unsafe {
         return Err("unsafe function".to_owned());
     }
     let generic_types = generic_monomorphisations(function, index, paths)?;
-    let inputs = function["sig"]["inputs"]
-        .as_array()
-        .ok_or_else(|| "function signature has no inputs".to_owned())?;
     let mut parameters = Vec::new();
     let mut receiver = None;
-    for input in inputs {
-        let pair = input
-            .as_array()
-            .ok_or_else(|| "malformed function input".to_owned())?;
-        let name = pair.first().and_then(Value::as_str).unwrap_or("value");
-        let ty = pair
-            .get(1)
-            .ok_or_else(|| "malformed function input type".to_owned())?;
+    for (name, ty) in &function.sig.inputs {
         if name == "self" {
             receiver = Some(receiver_kind(ty));
             continue;
         }
         let projected_type = project_type(ty, index, paths, &generic_types)?;
-        let borrowed = ty.get("borrowed_ref").is_some();
-        let mutable_borrow = ty["borrowed_ref"]["is_mutable"].as_bool() == Some(true);
+        let (borrowed, mutable_borrow) = match ty {
+            Type::BorrowedRef { is_mutable, .. } => (true, *is_mutable),
+            _ => (false, false),
+        };
         if mutable_borrow && !matches!(projected_type, ProjectedType::Foreign { .. }) {
             return Err("mutable borrowed primitive parameters are not representable".to_owned());
         }
@@ -1461,10 +1442,7 @@ fn project_function(
         });
     }
     let mut error = None;
-    let result = if function["sig"]["output"].is_null() {
-        ProjectedType::None
-    } else {
-        let output = &function["sig"]["output"];
+    let result = if let Some(output) = &function.sig.output {
         if resolved_name(output, paths)
             .is_some_and(|name| name.ends_with("::Result") || name == "Result")
         {
@@ -1488,50 +1466,50 @@ fn project_function(
         } else {
             project_type(output, index, paths, &generic_types)?
         }
+    } else {
+        ProjectedType::None
     };
     Ok(ProjectedFunction {
         name: method_name.unwrap_or_default().to_owned(),
         parameters,
         result,
         error,
-        is_async: function["header"]["is_async"].as_bool() == Some(true),
+        is_async: function.header.is_async,
         receiver,
     })
 }
 
 fn generic_monomorphisations(
-    function: &Value,
-    index: &serde_json::Map<String, Value>,
-    paths: &serde_json::Map<String, Value>,
+    function: &Function,
+    index: &HashMap<Id, Item>,
+    paths: &HashMap<Id, ItemSummary>,
 ) -> Result<BTreeMap<String, ProjectedType>, String> {
     let mut result = BTreeMap::new();
-    let Some(params) = function["generics"]["params"].as_array() else {
-        return Ok(result);
-    };
-    for parameter in params {
-        let Some(name) = parameter["name"].as_str() else {
-            continue;
+    for parameter in &function.generics.params {
+        let GenericParamDefKind::Type { bounds, .. } = &parameter.kind else {
+            return Err(format!("unbounded generic `{}`", parameter.name));
         };
-        let Some(bounds) = parameter["kind"]["type"]["bounds"].as_array() else {
-            return Err(format!("unbounded generic `{name}`"));
+        let Some(GenericBound::TraitBound { trait_, .. }) = bounds.first() else {
+            return Err(format!("open generic `{}`", parameter.name));
         };
-        let Some(trait_id) = bounds
-            .first()
-            .and_then(|bound| value_id(&bound["trait_bound"]["trait"]["id"]))
+        let Some(Item {
+            inner: ItemEnum::Trait(trait_definition),
+            ..
+        }) = index.get(&trait_.id)
         else {
-            return Err(format!("open generic `{name}`"));
+            return Err(format!(
+                "generic bound for `{}` has no closed impl set",
+                parameter.name
+            ));
         };
-        let Some(implementations) = index
-            .get(&trait_id)
-            .and_then(|item| item["inner"]["trait"]["implementations"].as_array())
-        else {
-            return Err(format!("generic bound for `{name}` has no closed impl set"));
-        };
-        let mut candidates = implementations
+        let mut candidates = trait_definition
+            .implementations
             .iter()
-            .filter_map(value_id)
-            .filter_map(|id| index.get(&id))
-            .filter_map(|item| item["inner"]["impl"].get("for"))
+            .filter_map(|id| index.get(id))
+            .filter_map(|item| match &item.inner {
+                ItemEnum::Impl(implementation) => Some(&implementation.for_),
+                _ => None,
+            })
             .filter_map(|ty| project_type(ty, index, paths, &BTreeMap::new()).ok())
             .collect::<Vec<_>>();
         let mut unique = Vec::new();
@@ -1557,39 +1535,41 @@ fn generic_monomorphisations(
         let selected = if direct.is_empty() { &unique } else { &direct };
         let [chosen] = selected.as_slice() else {
             return Err(if selected.is_empty() {
-                format!("generic bound for `{name}` has no Terrane-representable impl")
+                format!(
+                    "generic bound for `{}` has no Terrane-representable impl",
+                    parameter.name
+                )
             } else {
                 format!(
-                    "generic bound for `{name}` has {} viable Terrane representations and requires a caller-chosen type",
+                    "generic bound for `{}` has {} viable Terrane representations and requires a caller-chosen type",
+                    parameter.name,
                     selected.len()
                 )
             });
         };
-        result.insert(name.to_owned(), chosen.clone());
+        result.insert(parameter.name.clone(), chosen.clone());
     }
     Ok(result)
 }
 
 fn project_type(
-    ty: &Value,
-    index: &serde_json::Map<String, Value>,
-    paths: &serde_json::Map<String, Value>,
+    ty: &Type,
+    index: &HashMap<Id, Item>,
+    paths: &HashMap<Id, ItemSummary>,
     generics: &BTreeMap<String, ProjectedType>,
 ) -> Result<ProjectedType, String> {
-    if let Some(reference) = ty.get("borrowed_ref") {
-        return project_type(&reference["type"], index, paths, generics);
-    }
-    if let Some(generic) = ty.get("generic").and_then(Value::as_str) {
-        if generic == "Self" {
-            return Err("receiver type used outside receiver position".to_owned());
+    match ty {
+        Type::BorrowedRef { type_, .. } => project_type(type_, index, paths, generics),
+        Type::Generic(generic) => {
+            if generic == "Self" {
+                return Err("receiver type used outside receiver position".to_owned());
+            }
+            generics
+                .get(generic)
+                .cloned()
+                .ok_or_else(|| format!("unbounded generic `{generic}`"))
         }
-        return generics
-            .get(generic)
-            .cloned()
-            .ok_or_else(|| format!("unbounded generic `{generic}`"));
-    }
-    if let Some(primitive) = ty.get("primitive").and_then(Value::as_str) {
-        return match primitive {
+        Type::Primitive(primitive) => match primitive.as_str() {
             "bool" => Ok(ProjectedType::Bool),
             "str" => Ok(ProjectedType::String),
             "f32" => Ok(ProjectedType::Float32),
@@ -1597,103 +1577,110 @@ fn project_type(
             "char" => Ok(ProjectedType::Char),
             "i64" => Ok(ProjectedType::Int),
             "i8" | "i16" | "i32" | "i128" | "isize" | "u8" | "u16" | "u32" | "u64" | "u128"
-            | "usize" => Ok(ProjectedType::RustInt(primitive.to_owned())),
+            | "usize" => Ok(ProjectedType::RustInt(primitive.clone())),
             "unit" => Ok(ProjectedType::None),
             other => Err(format!("unsupported primitive `{other}`")),
-        };
-    }
-    if let Some(id) = ty
-        .get("resolved_path")
-        .and_then(|resolved| value_id(&resolved["id"]))
-        && let Some(alias) = index
-            .get(&id)
-            .and_then(|item| item["inner"].get("type_alias"))
-    {
-        return project_type(&alias["type"], index, paths, generics);
-    }
-    let Some(path) = resolved_name(ty, paths) else {
-        return Err("type has no stable Rust path".to_owned());
-    };
-    let short = path.rsplit("::").next().unwrap_or(&path).to_owned();
-    match short.as_str() {
-        "String" => Ok(ProjectedType::String),
-        "Vec"
-            if type_arguments(ty)
-                .first()
-                .is_some_and(|inner| inner["primitive"].as_str() == Some("u8")) =>
-        {
-            Ok(ProjectedType::Bytes)
+        },
+        Type::ResolvedPath(path) => {
+            if let Some(Item {
+                inner: ItemEnum::TypeAlias(alias),
+                ..
+            }) = index.get(&path.id)
+            {
+                return project_type(&alias.type_, index, paths, generics);
+            }
+            let resolved = resolved_path_name(path, paths);
+            let short = resolved.rsplit("::").next().unwrap_or(&resolved).to_owned();
+            if short == "String" {
+                Ok(ProjectedType::String)
+            } else if short == "Vec"
+                && type_arguments(ty)
+                    .first()
+                    .is_some_and(|inner| matches!(inner, Type::Primitive(name) if name == "u8"))
+            {
+                Ok(ProjectedType::Bytes)
+            } else {
+                Ok(ProjectedType::Foreign {
+                    rust_path: resolved,
+                    name: short,
+                })
+            }
         }
-        _ => Ok(ProjectedType::Foreign {
-            rust_path: path,
-            name: short,
-        }),
+        _ => Err("type has no stable Rust path".to_owned()),
     }
 }
 
-fn receiver_kind(ty: &Value) -> Receiver {
-    ty.get("borrowed_ref").map_or(Receiver::Move, |reference| {
-        if reference["is_mutable"].as_bool() == Some(true) {
-            Receiver::MutableBorrow
-        } else {
-            Receiver::Borrow
-        }
-    })
+fn receiver_kind(ty: &Type) -> Receiver {
+    match ty {
+        Type::BorrowedRef {
+            is_mutable: true, ..
+        } => Receiver::MutableBorrow,
+        Type::BorrowedRef { .. } => Receiver::Borrow,
+        _ => Receiver::Move,
+    }
 }
+
 fn implementation_trait_path(
-    trait_path: &Value,
-    paths: &serde_json::Map<String, Value>,
+    trait_path: &RustdocPath,
+    paths: &HashMap<Id, ItemSummary>,
 ) -> Option<String> {
-    let id = trait_path["id"].as_u64()?.to_string();
-    let summary = paths.get(&id)?;
-    (summary["crate_id"].as_u64() == Some(0))
-        .then(|| string_array(&summary["path"]).join("::"))
+    let summary = paths.get(&trait_path.id)?;
+    (summary.crate_id == 0)
+        .then(|| summary.path.join("::"))
         .filter(|path| !path.is_empty())
 }
 
 fn implements_trait(
-    item: &Value,
-    index: &serde_json::Map<String, Value>,
-    paths: &serde_json::Map<String, Value>,
+    impls: &[Id],
+    index: &HashMap<Id, Item>,
+    paths: &HashMap<Id, ItemSummary>,
     expected: &str,
 ) -> bool {
-    string_or_number_array(&item["impls"])
-        .into_iter()
-        .any(|id| {
-            index
-                .get(&id)
-                .and_then(|implementation| implementation["inner"]["impl"]["trait"].as_object())
-                .and_then(|trait_path| trait_path.get("id"))
-                .and_then(Value::as_u64)
-                .map(|id| id.to_string())
-                .and_then(|id| paths.get(&id))
-                .is_some_and(|summary| string_array(&summary["path"]).join("::") == expected)
-        })
-}
-
-fn resolved_name(ty: &Value, paths: &serde_json::Map<String, Value>) -> Option<String> {
-    let resolved = ty.get("resolved_path")?;
-    let id = resolved["id"].as_u64()?.to_string();
-    Some(
+    impls.iter().any(|id| {
+        let Some(Item {
+            inner:
+                ItemEnum::Impl(Impl {
+                    trait_: Some(trait_),
+                    ..
+                }),
+            ..
+        }) = index.get(id)
+        else {
+            return false;
+        };
         paths
-            .get(&id)
-            .map(|summary| string_array(&summary["path"]).join("::"))
-            .filter(|path| !path.is_empty())
-            .unwrap_or_else(|| {
-                resolved["path"]
-                    .as_str()
-                    .unwrap_or_default()
-                    .replace("crate::", "")
-            }),
-    )
+            .get(&trait_.id)
+            .is_some_and(|summary| summary.path.join("::") == expected)
+    })
 }
 
-fn type_arguments(ty: &Value) -> Vec<&Value> {
-    ty["resolved_path"]["args"]["angle_bracketed"]["args"]
-        .as_array()
-        .into_iter()
-        .flatten()
-        .filter_map(|argument| argument.get("type"))
+fn resolved_path_name(path: &RustdocPath, paths: &HashMap<Id, ItemSummary>) -> String {
+    paths
+        .get(&path.id)
+        .map(|summary| summary.path.join("::"))
+        .filter(|path| !path.is_empty())
+        .unwrap_or_else(|| path.path.replace("crate::", ""))
+}
+
+fn resolved_name(ty: &Type, paths: &HashMap<Id, ItemSummary>) -> Option<String> {
+    match ty {
+        Type::ResolvedPath(path) => Some(resolved_path_name(path, paths)),
+        _ => None,
+    }
+}
+
+fn type_arguments(ty: &Type) -> Vec<&Type> {
+    let Type::ResolvedPath(path) = ty else {
+        return Vec::new();
+    };
+    let Some(GenericArgs::AngleBracketed { args, .. }) = path.args.as_deref() else {
+        return Vec::new();
+    };
+    args.iter()
+        .filter_map(|argument| match argument {
+            GenericArg::Type(ty) => Some(ty),
+            _ => None,
+        })
         .collect()
 }
 
@@ -1768,32 +1755,6 @@ fn safe_parameter_name(name: &str) -> String {
     }
 }
 
-fn string_array(value: &Value) -> Vec<String> {
-    value
-        .as_array()
-        .into_iter()
-        .flatten()
-        .filter_map(Value::as_str)
-        .map(str::to_owned)
-        .collect()
-}
-
-fn string_or_number_array(value: &Value) -> Vec<String> {
-    value
-        .as_array()
-        .into_iter()
-        .flatten()
-        .filter_map(value_id)
-        .collect()
-}
-
-fn value_id(value: &Value) -> Option<String> {
-    value
-        .as_str()
-        .map(str::to_owned)
-        .or_else(|| value.as_u64().map(|number| number.to_string()))
-}
-
 fn cache_identity(
     root: &Path,
     workspace: &Path,
@@ -1804,18 +1765,19 @@ fn cache_identity(
     let lock = fs::read(workspace.join("Cargo.lock"))
         .or_else(|_| fs::read(root.join("Cargo.lock")))
         .unwrap_or_default();
-    let rustc = tool_version("rustc", &["-vV"])?;
-    let target = selected_target(&rustc);
+    let rustc_verbose = tool_version("rustc", &["-vV"])?;
+    let target = selected_target(&rustc_verbose);
     let nightly = format!("+{RUSTDOC_TOOLCHAIN}");
     let rustdoc = tool_version("rustdoc", &[&nightly, "--version"])?;
+    let rustdoc_format = rustdoc_types::FORMAT_VERSION.to_string();
     let mut hash = Sha256::new();
     for (label, bytes) in [
         ("manifest", manifest.as_slice()),
         ("lock", lock.as_slice()),
         ("inputs", format!("{dependencies:?}").as_bytes()),
         ("target", target.as_bytes()),
-        ("rustc", rustc.as_bytes()),
         ("rustdoc", rustdoc.as_bytes()),
+        ("rustdoc-format", rustdoc_format.as_bytes()),
         ("schema", PROJECTION_SCHEMA.as_bytes()),
         ("containment", format!("{containment:?}").as_bytes()),
     ] {
@@ -1900,11 +1862,12 @@ fn io_error(context: &'static str) -> impl FnOnce(std::io::Error) -> ProjectionE
 #[cfg(test)]
 mod tests {
     use std::{
-        collections::{BTreeMap, BTreeSet},
+        collections::{BTreeMap, BTreeSet, HashMap},
         fs,
     };
 
-    use serde_json::{Value, json};
+    use rustdoc_types::{GenericParamDef, GenericParamDefKind, Type};
+    use serde_json::json;
 
     use super::{
         Containment, ProjectedDependency, ProjectedFunction, ProjectedItem, ProjectedKind,
@@ -1914,27 +1877,32 @@ mod tests {
     use crate::RustDependency;
 
     #[test]
-    fn type_parameter_guard_reads_destructured_type_descriptors() {
-        for descriptor in [
-            json!({"generics": {"params": [{"name": "T"}]}}),
-            json!({"generics": {"params": [{"lifetime": "'a"}]}}),
-        ] {
-            assert!(has_type_parameters(&descriptor));
-        }
-        assert!(!has_type_parameters(&json!({"generics": {"params": []}})));
+    fn type_parameter_guard_rejects_declared_generics() {
+        let parameters = vec![GenericParamDef {
+            name: "T".to_owned(),
+            kind: GenericParamDefKind::Type {
+                bounds: Vec::new(),
+                default: None,
+                is_synthetic: false,
+            },
+        }];
+        assert!(has_type_parameters(&parameters));
+        assert!(!has_type_parameters(&[]));
     }
 
     #[test]
     fn receiver_kind_preserves_mutable_borrows() {
+        let borrowed = |is_mutable| Type::BorrowedRef {
+            lifetime: None,
+            is_mutable,
+            type_: Box::new(Type::Primitive("str".to_owned())),
+        };
+        assert_eq!(receiver_kind(&borrowed(true)), Receiver::MutableBorrow);
+        assert_eq!(receiver_kind(&borrowed(false)), Receiver::Borrow);
         assert_eq!(
-            receiver_kind(&json!({"borrowed_ref": {"is_mutable": true}})),
-            Receiver::MutableBorrow
+            receiver_kind(&Type::Primitive("str".to_owned())),
+            Receiver::Move
         );
-        assert_eq!(
-            receiver_kind(&json!({"borrowed_ref": {"is_mutable": false}})),
-            Receiver::Borrow
-        );
-        assert_eq!(receiver_kind(&json!({})), Receiver::Move);
     }
 
     #[test]
@@ -2066,23 +2034,18 @@ mod tests {
 
     #[test]
     fn wider_primitives_project_without_narrowing() {
-        let paths = serde_json::Map::new();
+        let paths = HashMap::new();
+        let index = HashMap::new();
         let generics = BTreeMap::new();
 
         assert_eq!(
-            project_type(
-                &json!({"primitive": "u8"}),
-                &serde_json::Map::new(),
-                &paths,
-                &generics
-            )
-            .unwrap(),
+            project_type(&Type::Primitive("u8".to_owned()), &index, &paths, &generics).unwrap(),
             ProjectedType::RustInt("u8".to_owned())
         );
         assert_eq!(
             project_type(
-                &json!({"primitive": "f32"}),
-                &serde_json::Map::new(),
+                &Type::Primitive("f32".to_owned()),
+                &index,
                 &paths,
                 &generics
             )
@@ -2091,8 +2054,8 @@ mod tests {
         );
         assert_eq!(
             project_type(
-                &json!({"primitive": "char"}),
-                &serde_json::Map::new(),
+                &Type::Primitive("char".to_owned()),
+                &index,
                 &paths,
                 &generics
             )
@@ -2102,220 +2065,16 @@ mod tests {
     }
 
     #[test]
-    fn representable_type_aliases_are_transparent() {
-        let paths =
-            serde_json::Map::from_iter([("7".to_owned(), json!({"path": ["fixture", "Count"]}))]);
-        let index = serde_json::Map::from_iter([(
-            "7".to_owned(),
-            json!({"inner": {"type_alias": {"type": {"primitive": "u32"}}}}),
-        )]);
-
-        assert_eq!(
-            project_type(
-                &json!({"resolved_path": {"id": 7, "name": "Count", "args": {"angle_bracketed": {"args": []}}}}),
-                &index,
-                &paths,
-                &BTreeMap::new()
-            )
-            .unwrap(),
-            ProjectedType::RustInt("u32".to_owned())
-        );
-    }
-
-    fn trait_and_enum_rustdoc() -> Value {
-        json!({
-            "crate_version": "1.0.0",
-            "paths": {
-                "0": {"crate_id": 0, "path": ["witness"]},
-                "1": {"crate_id": 0, "path": ["witness", "Reader"]},
-                "2": {"crate_id": 0, "path": ["witness", "Readable"]},
-                "5": {"crate_id": 0, "path": ["witness", "Mood"]},
-                "11": {"crate_id": 1, "path": ["core", "cmp", "PartialEq"]}
-            },
-            "index": {
-                "0": {
-                    "visibility": "public",
-                    "inner": {"module": {"items": [1, 2, 5]}}
-                },
-                "1": {
-                    "name": "Reader",
-                    "visibility": "public",
-                    "docs": null,
-                    "inner": {"struct": {"generics": {"params": []}, "impls": [3]}}
-                },
-                "2": {
-                    "name": "Readable",
-                    "visibility": "public",
-                    "inner": {"trait": {}}
-                },
-                "3": {
-                    "inner": {"impl": {
-                        "is_negative": false,
-                        "trait": {"id": 2},
-                        "items": [4]
-                    }}
-                },
-                "4": {
-                    "name": "remaining",
-                    "visibility": "default",
-                    "inner": {"function": {
-                        "header": {"is_unsafe": false, "is_async": false},
-                        "generics": {"params": []},
-                        "sig": {
-                            "inputs": [["self", {"borrowed_ref": {
-                                "is_mutable": false,
-                                "type": {"generic": "Self"}
-                            }}]],
-                            "output": {"primitive": "usize"}
-                        }
-                    }}
-                },
-                "5": {
-                    "name": "Mood",
-                    "visibility": "public",
-                    "docs": null,
-                    "inner": {"enum": {
-                        "generics": {"params": []},
-                        "variants": [6, 7],
-                        "impls": [10]
-                    }}
-                },
-                "6": {
-                    "name": "Calm",
-                    "docs": null,
-                    "inner": {"variant": {"kind": "plain"}}
-                },
-                "7": {
-                    "name": "Busy",
-                    "docs": null,
-                    "inner": {"variant": {"kind": "plain"}}
-                },
-                "10": {
-                    "inner": {"impl": {"trait": {"id": 11}}}
-                }
-            }
-        })
-    }
-
-    #[test]
-    fn rustdoc_projects_receiver_first_traits_and_comparable_enum_variants() {
-        let document = trait_and_enum_rustdoc();
-        let dependency = RustDependency {
-            name: "witness".to_owned(),
-            package: "witness".to_owned(),
-            version: "=1.0.0".to_owned(),
-            features: Vec::new(),
-            default_features: true,
-            target: None,
-            effects: Vec::new(),
-        };
-
-        let projected =
-            project_rustdoc(&dependency, &serde_json::to_vec(&document).unwrap()).unwrap();
-        let trait_method = projected
-            .items
-            .iter()
-            .find(|item| item.namespace == "/deps/witness/readable" && item.name == "remaining")
-            .expect("receiver-first trait method");
-        let ProjectedKind::Function(function) = &trait_method.kind else {
-            panic!("trait method must project as a function");
-        };
-        assert_eq!(function.result, ProjectedType::RustInt("usize".to_owned()));
-        assert_eq!(function.parameters.len(), 1);
-        assert!(function.parameters[0].borrowed);
-        assert_eq!(
-            function.parameters[0].ty,
-            ProjectedType::Foreign {
-                rust_path: "witness::Reader".to_owned(),
-                name: "Reader".to_owned(),
-            }
-        );
-        assert!(
-            projected
-                .items
-                .iter()
-                .any(|item| { item.namespace == "/deps/witness/mood" && item.name == "Calm" })
-        );
-        assert!(
-            projected
-                .items
-                .iter()
-                .any(|item| { item.namespace == "/deps/witness/mood" && item.name == "Busy" })
-        );
-        assert!(matches!(
-            projected
-                .items
-                .iter()
-                .find(|item| item.name == "Mood")
-                .map(|item| &item.kind),
-            Some(ProjectedKind::Enum {
-                data_carrying: false,
-                comparable: true,
-            })
-        ));
-        let variant = projected
-            .items
-            .iter()
-            .find(|item| item.name == "Calm")
-            .unwrap()
-            .clone();
-        let projection = Projection {
-            cache_identity: "fixture".to_owned(),
-            dependencies: vec![projected],
-            containment: Containment::Unavailable,
-            removed: Vec::new(),
-        };
-        assert!(projection.is_unit_variant(&variant));
-    }
-
-    #[test]
-    fn rustdoc_glob_reexports_use_the_public_module_path() {
+    fn rustdoc_schema_mismatch_is_explicit() {
         let document = json!({
+            "root": 0,
             "crate_version": "1.0.0",
-            "paths": {
-                "0": {"crate_id": 0, "path": ["witness"]},
-                "1": {"crate_id": 0, "path": ["witness", "scalar"]},
-                "3": {"crate_id": 0, "path": ["witness", "private", "special"]}
-            },
-            "index": {
-                "0": {
-                    "visibility": "public",
-                    "inner": {"module": {"items": [1]}}
-                },
-                "1": {
-                    "name": "scalar",
-                    "visibility": "public",
-                    "inner": {"module": {"items": [2]}}
-                },
-                "2": {
-                    "name": null,
-                    "visibility": "public",
-                    "inner": {"use": {
-                        "source": "special",
-                        "name": "special",
-                        "id": 3,
-                        "is_glob": true
-                    }}
-                },
-                "3": {
-                    "name": "special",
-                    "visibility": "crate",
-                    "inner": {"module": {"items": [4]}}
-                },
-                "4": {
-                    "name": "evaluate",
-                    "visibility": "public",
-                    "docs": null,
-                    "inner": {"function": {
-                        "header": {"is_unsafe": false, "is_async": false},
-                        "generics": {"params": []},
-                        "sig": {
-                            "inputs": [["x", {"primitive": "f64"}]],
-                            "output": {"primitive": "f64"}
-                        }
-                    }}
-                }
-            }
+            "includes_private": false,
+            "index": {},
+            "paths": {},
+            "external_crates": {},
+            "target": {"triple": "x86_64-unknown-linux-gnu", "target_features": []},
+            "format_version": rustdoc_types::FORMAT_VERSION + 1
         });
         let dependency = RustDependency {
             name: "witness".to_owned(),
@@ -2327,60 +2086,23 @@ mod tests {
             effects: Vec::new(),
         };
 
-        let projected =
-            project_rustdoc(&dependency, &serde_json::to_vec(&document).unwrap()).unwrap();
-        let function = projected
-            .items
-            .iter()
-            .find(|item| item.name == "evaluate")
-            .expect("glob-reexported function");
+        let error = project_rustdoc(&dependency, &serde_json::to_vec(&document).unwrap())
+            .expect_err("an unsupported rustdoc schema must fail");
 
-        assert_eq!(function.namespace, "/deps/witness/scalar");
-        assert_eq!(function.rust_path, "witness::scalar::evaluate");
+        assert!(error.message.contains("schema mismatch"));
+        assert!(
+            error
+                .message
+                .contains(&format!("format {}", rustdoc_types::FORMAT_VERSION + 1))
+        );
+        assert!(error.message.contains(&format!(
+            "expected format {}",
+            rustdoc_types::FORMAT_VERSION
+        )));
     }
 
     #[test]
-    fn colliding_receiver_free_associated_functions_are_declined() {
-        let mut document = trait_and_enum_rustdoc();
-        document["index"]["0"]["inner"]["module"]["items"]
-            .as_array_mut()
-            .unwrap()
-            .push(json!(12));
-        document["index"]["1"]["inner"]["struct"]["impls"]
-            .as_array_mut()
-            .unwrap()
-            .push(json!(13));
-        document["paths"]["12"] = json!({"crate_id": 0, "path": ["witness", "Writer"]});
-        document["index"]["12"] = json!({
-            "name": "Writer",
-            "visibility": "public",
-            "docs": null,
-            "inner": {"struct": {"generics": {"params": []}, "impls": [15]}}
-        });
-        document["index"]["13"] = json!({
-            "inner": {"impl": {
-                "is_negative": false,
-                "trait": null,
-                "items": [14]
-            }}
-        });
-        document["index"]["14"] = json!({
-            "name": "new",
-            "visibility": "public",
-            "inner": {"function": {
-                "header": {"is_unsafe": false, "is_async": false},
-                "generics": {"params": []},
-                "sig": {"inputs": [], "output": null}
-            }}
-        });
-        document["index"]["15"] = json!({
-            "inner": {"impl": {
-                "is_negative": false,
-                "trait": null,
-                "items": [16]
-            }}
-        });
-        document["index"]["16"] = document["index"]["14"].clone();
+    fn malformed_rustdoc_json_is_not_silently_declined() {
         let dependency = RustDependency {
             name: "witness".to_owned(),
             package: "witness".to_owned(),
@@ -2390,29 +2112,16 @@ mod tests {
             target: None,
             effects: Vec::new(),
         };
+        let malformed = format!(r#"{{"format_version":{}}}"#, rustdoc_types::FORMAT_VERSION);
 
-        let projected =
-            project_rustdoc(&dependency, &serde_json::to_vec(&document).unwrap()).unwrap();
+        let error = project_rustdoc(&dependency, malformed.as_bytes())
+            .expect_err("malformed rustdoc JSON must fail");
 
-        assert!(
-            !projected
-                .items
-                .iter()
-                .any(|item| item.namespace == "/deps/witness" && item.name == "new")
-        );
-        let declines = projected
-            .declined
-            .iter()
-            .filter(|item| {
-                item.reason
-                    == "multiple receiver-free associated functions with the same projected name"
-            })
-            .map(|item| item.rust_path.as_str())
-            .collect::<BTreeSet<_>>();
-        assert_eq!(
-            declines,
-            BTreeSet::from(["witness::Reader::new", "witness::Writer::new"])
-        );
+        assert!(error.message.contains("schema mismatch"));
+        assert!(error.message.contains(&format!(
+            "expected rustdoc format {}",
+            rustdoc_types::FORMAT_VERSION
+        )));
     }
 
     #[test]

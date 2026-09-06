@@ -1152,6 +1152,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "rustdoc-types"
+version = "0.57.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "97a32214c8a67cec971ddea507040fb3d8ac485a2cbf29ecb0a502264ab3a873"
+dependencies = [
+ "serde",
+ "serde_derive",
+]
+
+[[package]]
 name = "rusticata-macros"
 version = "4.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1397,6 +1407,7 @@ dependencies = [
  "prettyplease",
  "proc-macro2",
  "quote",
+ "rustdoc-types",
  "serde",
  "serde_json",
  "sha2",

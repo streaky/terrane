@@ -1867,8 +1867,10 @@ receiver-first trait methods, data-free enum variants, wider primitives, `char`,
 concrete aliases are projected without narrowing. `[profile]` and dependency `effects` are validated
 at manifest load; abort profiles omit unwind conversion and configure generated Cargo accordingly.
 Receiver crossings retain an explicit logical-invariant unwind assertion while receiver-free
-crossings use Rust's `UnwindSafe` proof. Rustdoc and generated-crate compilation run offline/frozen
-inside `bwrap` where available, with the unavailable host tier reported instead of rejected.
+crossings use Rust's `UnwindSafe` proof. The complete rustdoc document is traversed through the
+version-matched typed `rustdoc-types` schema; malformed documents and format drift fail explicitly.
+Rustdoc and generated-crate compilation run offline/frozen inside `bwrap` where available, with the
+unavailable host tier reported instead of rejected.
 `terrane-projection.lock` provides deterministic machine-independent history and `S2031` names a
 removed member and its resolved version transition. The accepted
 `rust-dependency-deferred-surface` execution case crosses a `bytes` receiver-first trait method and

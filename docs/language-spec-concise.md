@@ -892,6 +892,7 @@ rust_declaration: package.toml [rust-dependencies] only; no source dependency de
 rust_import: /deps/<manifest-name>/<rust-modules>; undeclared root is S2027
 bridging: generated Rust shims ONLY for projected members source crosses; direct Rust calls in one crate, no marshalling/runtime adapter
 projection: one lock-resolved rustdoc artifact shared by compiler and LSP; verbatim names; module namespaces; functions/methods/trait receiver-functions/opaque types/enums; every decline has a reason
+projection_schema: full rustdoc document deserialized through version-matched rustdoc-types; toolchain pin + FORMAT_VERSION + schema crate + cache schema are one unit; malformed/mismatched input fails explicitly, representability limits are recorded declines
 projected_reexports: resolve to canonical Rust item path before assigning namespace-qualified identity; re-export and definition are one type; distinct same-named sibling items remain distinct; generated imports deduplicate canonical paths
 types: Option<T> => T|none; Result<T,E> => T throws projected-E; &self => shared receiver; &mut self => mutable-receiver contract; self => move. Borrowed receivers use ordinary member-call syntax; the contract drives Rust borrowing and mutable binding
 panic: unwinding profile converts crossing panic to dependency-panic; abort profile emits no catch boundary and generated Cargo uses panic=abort. Receiver crossings use an explicit AssertUnwindSafe boundary because foreign receiver state is the captured logical invariant; receiver-free crossings retain Rust's UnwindSafe proof

@@ -4068,6 +4068,13 @@ reqwest = { version = "0.12", default-features = false, features = ["blocking", 
 
 Resolution and Cargo's lockfile determine the exact package interface. The build runs rustdoc for that resolved graph and produces one projection artifact shared by compiler and language server. Rust module paths become `/deps/<manifest-name>/...` namespaces; public names remain verbatim. The projection admits directly representable functions, inherent methods, receiver-first trait functions, opaque foreign types, and data-free or data-carrying enums. It records a reason for every public item it declines.
 
+The projector deserializes the complete rustdoc document through the version-matched
+`rustdoc-types` schema before traversing it. It does not infer item kinds or type shapes from
+untyped JSON keys. The projection toolchain pin, rustdoc JSON format number, schema crate version,
+and projection cache schema form one compatibility unit: malformed input or a format mismatch is a
+projection failure naming the expected format and toolchain, while valid but unrepresentable Rust
+items remain ordinary declined items with stable reasons.
+
 Projected type identity follows the Rust item rather than the importing module alone. A public re-export is resolved to its canonical Rust path before the Terrane namespace and object identity are recorded. Therefore a re-exported type and its defining item denote one type, while distinct Rust items with the same short name in sibling modules remain distinct. Generated Rust imports each canonical path at most once per generated module and aliases it to the compiler-owned name derived from that namespace-qualified identity.
 
 The compiler generates Rust shims only for projected members crossed by Terrane source. This is direct Rust-to-Rust calling inside the generated crate, not an adapter or marshalled runtime boundary. `Option<T>` projects as `T|none`. A representable `Result<T, E>` returns `T` and throws the projected error class. `&self` projects as a shared receiver, `&mut self` records receiver mutability on the projected contract, and `self` retains `move` semantics under the ordinary foreign-resource ownership rule. Both borrowed receiver forms use ordinary Terrane member-call syntax; the projected contract makes lowering emit the required Rust borrow and mutable binding. On unwinding profiles, a panic crossing a generated shim becomes `dependency-panic`; aborting profiles do not claim containment.
