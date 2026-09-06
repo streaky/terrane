@@ -9,24 +9,24 @@ looked-inside-held-types = 5
 [[dependency]]
 name = "axum"
 version = "0.8.9"
-admitted = 57
-declined = 887
-required-gaps = ["axum::Router: type has generic or lifetime parameters", "axum::extract::WebSocketUpgrade: type has generic or lifetime parameters"]
-classification = "reusable generic identity and callable-handler shapes"
+admitted = 62
+declined = 1048
+required-gaps = ["axum::extract::WebSocketUpgrade<DefaultOnFailedUpgrade>::on_upgrade: open generic C"]
+classification = "default generic identity is reusable; callable-handler shapes still need specialization"
 
 [[dependency]]
 name = "tower"
 version = "0.5.3"
-admitted = 11
-declined = 220
-required-gaps = ["tower::ServiceBuilder: type has generic or lifetime parameters"]
-classification = "reusable generic identity and non-escaping builder chain"
+admitted = 18
+declined = 268
+required-gaps = ["tower::ServiceBuilder<Identity>::service: open generic S"]
+classification = "default generic identity is reusable; non-escaping builder chains still need specialization"
 
 [[dependency]]
 name = "tower-http"
 version = "0.6.11"
-admitted = 59
-declined = 514
+admitted = 57
+declined = 539
 classification = "reusable generic identity and non-escaping builder chain"
 
 [[dependency]]
@@ -73,7 +73,7 @@ classification = "closed generic specialization; concrete string path is the wit
 name = "tokio"
 version = "1.53.1"
 admitted = 132
-declined = 1277
+declined = 1235
 classification = "generic handle identity and async lowering/runtime work"
 
 [[dependency]]
@@ -90,7 +90,7 @@ version = "0.46.2"
 admitted = 4
 declined = 56
 required-gaps = ["sentry::init: open generic C"]
-classification = "concrete upstream configuration or narrow optional facade; non-blocking for BookVault v1"
+classification = "concrete upstream configuration or narrow optional facade; outside the core projection gate"
 
 [[reproduction]]
 name = "generic-identity"

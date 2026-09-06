@@ -1,0 +1,6 @@
+namespace projection-probe
+from /deps/axum/routing import new
+
+function main;
+    router = new;
+    print; (router.has_routes;)

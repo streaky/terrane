@@ -4075,6 +4075,16 @@ and projection cache schema form one compatibility unit: malformed input or a fo
 projection failure naming the expected format and toolchain, while valid but unrepresentable Rust
 items remain ordinary declined items with stable reasons.
 
+Projected foreign identity includes every concrete generic argument. Two instantiations of one Rust
+generic declaration are distinct Terrane object identities; one may not be passed where the other
+is expected. The projector renders a deterministic full Rust type spelling, applies generic
+arguments through Rust type aliases, and assigns each instantiated spelling a stable compiler-owned
+Terrane name. A generic foreign type whose every type parameter has a default is projected at that
+default instantiation, and `Self` in its methods resolves to that concrete identity. Generated
+dependency modules lower instantiated spellings as Rust type aliases rather than invalid `use`
+paths. Lifetime-parameterized types and generic parameters without defaults remain explicit
+declines until a call-directed or non-escaping-chain rule proves a concrete use.
+
 Before running local rustdoc, the projector may request an artifact from the trusted HTTPS repository
 configured by `TERRANE_PROJECTION_ARTIFACT_URL`. An artifact is accepted only when its cache
 identity and explicit metadata match the complete dependency request, target triple, stable build

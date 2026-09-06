@@ -130,6 +130,10 @@
           "WebSocket"
         ],
         [
+          "/deps/axum/extract/ws",
+          "WebSocketUpgrade-df61bc54"
+        ],
+        [
           "/deps/axum/extract/ws/onfailedupgrade",
           "call"
         ],
@@ -214,6 +218,14 @@
           "KeepAlive"
         ],
         [
+          "/deps/axum/routing",
+          "Router-3d09c110"
+        ],
+        [
+          "/deps/axum/routing",
+          "new"
+        ],
+        [
           "/deps/axum/routing/method-filter",
           "MethodFilter"
         ],
@@ -222,16 +234,24 @@
           "NoMatchingMethodFilter"
         ],
         [
+          "/deps/axum/routing/method-routing",
+          "MethodRouter-00ebd944"
+        ],
+        [
+          "/deps/axum/routing/method-routing",
+          "new"
+        ],
+        [
           "/deps/axum/routing/route",
           "InfallibleRouteFuture"
         ],
         [
-          "/deps/axum/serve/private",
-          "ServeFuture"
+          "/deps/axum/routing/route",
+          "Route-b940c910"
         ],
         [
-          "/deps/axum/service-ext/serviceext",
-          "into_make_service"
+          "/deps/axum/serve/private",
+          "ServeFuture"
         ]
       ]
     },
@@ -479,10 +499,6 @@
         [
           "/deps/tokio/io/async-buf-read/asyncbufread",
           "consume"
-        ],
-        [
-          "/deps/tokio/io/async-buf-read/asyncbufread",
-          "poll_fill_buf"
         ],
         [
           "/deps/tokio/io/async-fd",
@@ -757,6 +773,10 @@
           "try_id"
         ],
         [
+          "/deps/tokio/signal/ctrl-c",
+          "ctrl_c"
+        ],
+        [
           "/deps/tokio/signal/unix",
           "Signal"
         ],
@@ -1006,7 +1026,19 @@
         ],
         [
           "/deps/tower/retry/backoff",
+          "ExponentialBackoff-e2a82020"
+        ],
+        [
+          "/deps/tower/retry/backoff",
+          "ExponentialBackoffMaker-b603f655"
+        ],
+        [
+          "/deps/tower/retry/backoff",
           "InvalidBackoff"
+        ],
+        [
+          "/deps/tower/retry/backoff",
+          "new"
         ],
         [
           "/deps/tower/retry/budget/budget",
@@ -1031,6 +1063,22 @@
         [
           "/deps/tower/util/optional/error",
           "None"
+        ],
+        [
+          "/deps/tower/util/rng",
+          "HasherRng-d250ece9"
+        ],
+        [
+          "/deps/tower/util/rng",
+          "new"
+        ],
+        [
+          "/deps/tower/util/rng",
+          "with_hasher"
+        ],
+        [
+          "/deps/tower/util/rng/rng",
+          "next_u64"
         ]
       ]
     },
@@ -1055,8 +1103,8 @@
           "ServerErrorsFailureClass"
         ],
         [
-          "/deps/tower-http/classify",
-          "make_classifier"
+          "/deps/tower-http/classify/classifyeos",
+          "classify_eos"
         ],
         [
           "/deps/tower-http/classify/grpc-errors-as-failures",
@@ -1073,10 +1121,6 @@
         [
           "/deps/tower-http/classify/grpc-errors-as-failures",
           "GrpcFailureClass"
-        ],
-        [
-          "/deps/tower-http/classify/grpc-errors-as-failures",
-          "make_classifier"
         ],
         [
           "/deps/tower-http/classify/grpc-errors-as-failures/grpccode",
@@ -1156,7 +1200,19 @@
         ],
         [
           "/deps/tower-http/follow-redirect",
+          "FollowRedirectLayer-25964673"
+        ],
+        [
+          "/deps/tower-http/follow-redirect",
           "RequestUri"
+        ],
+        [
+          "/deps/tower-http/follow-redirect",
+          "new"
+        ],
+        [
+          "/deps/tower-http/follow-redirect",
+          "with_policy"
         ],
         [
           "/deps/tower-http/follow-redirect/policy",
@@ -1177,10 +1233,6 @@
         [
           "/deps/tower-http/follow-redirect/policy/limited",
           "Limited"
-        ],
-        [
-          "/deps/tower-http/follow-redirect/policy/policy",
-          "on_request"
         ],
         [
           "/deps/tower-http/follow-redirect/policy/same-origin",
@@ -1239,10 +1291,6 @@
           "DefaultMakeSpan"
         ],
         [
-          "/deps/tower-http/trace/make-span/makespan",
-          "make_span"
-        ],
-        [
           "/deps/tower-http/trace/on-body-chunk",
           "DefaultOnBodyChunk"
         ],
@@ -1263,16 +1311,8 @@
           "DefaultOnRequest"
         ],
         [
-          "/deps/tower-http/trace/on-request/onrequest",
-          "on_request"
-        ],
-        [
           "/deps/tower-http/trace/on-response",
           "DefaultOnResponse"
-        ],
-        [
-          "/deps/tower-http/trace/on-response/onresponse",
-          "on_response"
         ]
       ]
     },

@@ -30,7 +30,10 @@ pub(super) fn emit_dependency_imports(
 }
 
 pub(super) fn write_foreign_import(output: &mut String, path: &str, rust_name: &str) {
-    if path.rsplit("::").next() == Some(rust_name) {
+    if path.contains('<') || path.starts_with('(') || path.starts_with('[') {
+        writeln!(output, "pub type {rust_name} = {path};")
+            .expect("writing to a string cannot fail");
+    } else if path.rsplit("::").next() == Some(rust_name) {
         writeln!(output, "pub use {path};").expect("writing to a string cannot fail");
     } else {
         writeln!(output, "pub use {path} as {rust_name};")
@@ -189,10 +192,11 @@ pub(super) fn emit_dependency_unit(package: &SemanticPackage, unit: &SemanticUni
         for conversion in argument_conversions {
             writeln!(output, "{conversion}").expect("writing to a string cannot fail");
         }
+        let value_path = rust_value_path(&item.rust_path);
         let call = if unit_variant {
-            item.rust_path.clone()
+            value_path
         } else {
-            format!("{}({arguments})", item.rust_path)
+            format!("{value_path}({arguments})")
         };
         let caught = if projected
             .parameters
@@ -234,7 +238,26 @@ pub(super) fn emit_dependency_unit(package: &SemanticPackage, unit: &SemanticUni
             )
             .expect("writing to a string cannot fail");
         }
+
         output.push_str("}\n");
     }
     output
+}
+fn rust_value_path(path: &str) -> String {
+    path.find('<').map_or_else(
+        || path.to_owned(),
+        |arguments| format!("{}::{}", &path[..arguments], &path[arguments..]),
+    )
+}
+
+#[cfg(test)]
+mod tests {
+    use super::write_foreign_import;
+
+    #[test]
+    fn instantiated_foreign_import_is_a_type_alias() {
+        let mut output = String::new();
+        write_foreign_import(&mut output, "witness::Wrapper<u8>", "Wrapper_abcd");
+        assert_eq!(output, "pub type Wrapper_abcd = witness::Wrapper<u8>;\n");
+    }
 }

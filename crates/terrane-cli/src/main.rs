@@ -378,6 +378,7 @@ fn run_cargo(
     if has_rust_dependencies {
         let mut fetch = Command::new("cargo");
         terrane_compiler::cargo_toolchain::configure_cargo_command(&mut fetch);
+        configure_generated_toolchain(&mut fetch, crate_dir);
         let fetch = fetch
             .args(["fetch", "--manifest-path"])
             .arg(crate_dir.join("Cargo.toml"))
@@ -436,6 +437,7 @@ fn run_cargo(
         Command::new("cargo")
     };
     terrane_compiler::cargo_toolchain::configure_cargo_command(&mut cargo);
+    configure_generated_toolchain(&mut cargo, crate_dir);
     cargo.args([
         command,
         "--quiet",
@@ -522,6 +524,20 @@ fn run_cargo(
         format!("Cargo {command} failed: {}", stderr.trim()),
         4,
     ))
+}
+fn configure_generated_toolchain(command: &mut Command, crate_dir: &Path) {
+    let Ok(metadata) = fs::read_to_string(crate_dir.join("terrane-build.toml")) else {
+        return;
+    };
+    let Some(toolchain) = metadata.lines().find_map(|line| {
+        line.strip_prefix("rust-toolchain = ")
+            .map(|value| value.trim_matches('"'))
+    }) else {
+        return;
+    };
+    if toolchain != "system" {
+        command.arg(format!("+{toolchain}"));
+    }
 }
 
 fn generated_crate_path(

@@ -1879,6 +1879,9 @@ The projection layer also owns a deterministic contained compile-time oracle for
 metadata cannot answer. It batches and caches bound assertions with distinct yes/no/unknown results,
 recovers macro-expanded public API through rustdoc, and records questions, answers, probe count, and
 wall time in the transferable artifact.
+Concrete generic arguments and Rust type-alias substitutions now participate in projected foreign
+identity, and lowering emits instantiated Rust spellings as deterministic type aliases so distinct
+instantiations cannot collapse onto one semantic object.
 `terrane-projection.lock` provides deterministic machine-independent history and `S2031` names a
 removed member and its resolved version transition. The accepted
 `rust-dependency-deferred-surface` execution case crosses a `bytes` receiver-first trait method and
