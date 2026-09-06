@@ -21,8 +21,8 @@ pub use compiler::{
 };
 pub use diagnostic::{Diagnostic, Severity};
 pub use package::{
-    CapabilityProfile, ExecutorProfile, IMPLICIT_PACKAGE_ID, MANIFEST_FILE_NAME, Package,
-    PackageLoadError, PanicProfile, ReflectionProfile, RustDependency, SourceUnit,
+    BuildToolchain, CapabilityProfile, ExecutorProfile, IMPLICIT_PACKAGE_ID, MANIFEST_FILE_NAME,
+    Package, PackageLoadError, PanicProfile, ReflectionProfile, RustDependency, SourceUnit,
 };
 pub use semantics::{
     BOOTSTRAP_VERSION, BoundMethod, EvaluationKind, EvaluationStep, FunctionContract, MemberFamily,
@@ -33,6 +33,8 @@ pub use source::{SourceFile, Span};
 pub use types::{DescriptorSchema, ScalarType, TypeCategory};
 
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
+pub const BUILD_TOOLCHAIN: &str = "1.85.0";
+pub const RUSTDOC_TOOLCHAIN: &str = "nightly-2026-04-29";
 
 #[must_use]
 pub fn platform_support_manifest() -> String {
@@ -50,7 +52,7 @@ fn platform_support_manifest_from(source: &str) -> String {
         .collect::<Vec<_>>()
         .join("\n");
     format!(
-        "[package]\nname = \"terrane-platform-support\"\nversion = \"{VERSION}\"\nedition = \"2024\"\n\n[dependencies]\n{dependencies}\n"
+        "[package]\nname = \"terrane-platform-support\"\nversion = \"{VERSION}\"\nedition = \"2024\"\nrust-version = \"{BUILD_TOOLCHAIN}\"\n\n[lints.rust]\nunsafe_code = \"forbid\"\n\n[dependencies]\n{dependencies}\n"
     )
 }
 

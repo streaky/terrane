@@ -898,6 +898,10 @@ panic: unwinding profile converts crossing panic to dependency-panic; abort prof
 tooling: completion/signature/hover and declined reasons are ADVISORY; Cargo/rustc remain authoritative
 execution: Rust inspection and generated-crate compilation use the build capability policy; fetch may be online, then compilation is offline/frozen
 cache_identity: manifest + lock checksum + features/default-feature policy + target + toolchain + package source checksums + sandbox tier; project-local cache keeps current + at most 3 prior projections
+build_toolchain: generated crate pins exact stable 1.85.0 in rust-toolchain.toml and rust-version; package rust-toolchain = "system" explicitly opts out and is recorded
+lint_policy: user builds inherit RUSTFLAGS and generated manifests forbid only compiler-guaranteed unsafe_code; conformance denies all warnings
+cargo_cache_wrapper: sccache only when TERRANE_SCCACHE=1; choice participates in generated-crate cache identity
+toolchain_report: terrane toolchains lists only stable pins Terrane requested; reports current/not-current use, never removes or says safe
 containment: bwrap-capable hosts contain compilation; other hosts report the unavailable tier and continue under declared host policy
 lock_change_diagnostic: machine-independent terrane-projection.lock history distinguishes a removed crossed member from a never-present member; S2031 names the member and dependency version change
 ```

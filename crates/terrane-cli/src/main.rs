@@ -76,7 +76,16 @@ fn run(arguments: &[OsString]) -> Result<ExitCode, CliFailure> {
         return Err(CliFailure::usage());
     };
     if command == "--version" || command == "-V" {
-        println!("terrane {}", terrane_compiler::VERSION);
+        println!(
+            "terrane {} (build rust {}, projection rustdoc {})",
+            terrane_compiler::VERSION,
+            terrane_compiler::BUILD_TOOLCHAIN,
+            terrane_compiler::RUSTDOC_TOOLCHAIN
+        );
+        return Ok(ExitCode::SUCCESS);
+    }
+    if command == "toolchains" {
+        report_toolchains()?;
         return Ok(ExitCode::SUCCESS);
     }
     if command == "--help" || command == "-h" {
@@ -130,13 +139,14 @@ fn run(arguments: &[OsString]) -> Result<ExitCode, CliFailure> {
         write_rust(&rust_files)?;
         return Ok(ExitCode::SUCCESS);
     }
-    ensure_rust_toolchain()?;
+    ensure_rust_toolchain(package.build_toolchain)?;
     let uses_platform_support = compilation.requires_platform_support;
     let crate_dir = generated_crate_path(
         &package.root,
         &rust_files,
         uses_platform_support,
         &compilation.rust_dependencies,
+        package.build_toolchain,
     )?;
     write_generated_crate(
         &crate_dir,
@@ -145,6 +155,7 @@ fn run(arguments: &[OsString]) -> Result<ExitCode, CliFailure> {
         &compilation.rust_dependencies,
         package.profile.panic,
         uses_platform_support,
+        package.build_toolchain,
     )?;
     record_and_prune_generated_crates(&crate_dir)?;
     let target_dir = package.root.join(".trn/cache/target");
@@ -361,11 +372,7 @@ fn run_cargo(
     containment: terrane_compiler::projection::Containment,
     release: bool,
 ) -> Result<(), CliFailure> {
-    let mut rustflags = std::env::var_os("RUSTFLAGS").unwrap_or_default();
-    if !rustflags.is_empty() {
-        rustflags.push(" ");
-    }
-    rustflags.push("-Dwarnings");
+    let rustflags = std::env::var_os("RUSTFLAGS").unwrap_or_default();
     let contained =
         has_rust_dependencies && containment == terrane_compiler::projection::Containment::Enforced;
     if has_rust_dependencies {
@@ -522,6 +529,7 @@ fn generated_crate_path(
     rust_files: &[terrane_compiler::rust_ir::RenderedFile],
     uses_platform_support: bool,
     rust_dependencies: &[terrane_compiler::RustDependency],
+    build_toolchain: terrane_compiler::BuildToolchain,
 ) -> Result<PathBuf, CliFailure> {
     let root = package_root.canonicalize().map_err(|error| {
         CliFailure::backend(format!(
@@ -537,12 +545,14 @@ fn generated_crate_path(
         "CARGO_ENCODED_RUSTFLAGS",
         "RUSTC",
         "RUSTFLAGS",
+        "TERRANE_SCCACHE",
     ] {
         hash.update(variable.as_bytes());
         hash.update(b"=");
         hash.update(std::env::var(variable).unwrap_or_default());
         hash.update(b"\0");
     }
+    hash.update(format!("build-toolchain={build_toolchain:?}\0").as_bytes());
     hash.update(b"profile=debug\0");
     for file in rust_files {
         hash.update(file.path.as_bytes());
@@ -626,17 +636,20 @@ fn write_generated_crate(
     rust_dependencies: &[terrane_compiler::RustDependency],
     panic: terrane_compiler::PanicProfile,
     uses_platform_support: bool,
+    build_toolchain: terrane_compiler::BuildToolchain,
 ) -> Result<(), CliFailure> {
     fs::create_dir_all(directory.join("src"))
         .map_err(|error| CliFailure::backend(format!("cannot create generated crate: {error}")))?;
-    let mut manifest = String::from(
-        "[package]\nname = \"terrane_program\"\nversion = \"0.0.0\"\nedition = \"2024\"\n\n\
-         [dependencies]\nterrane-int-support = { path = \"support/terrane-int-support\" }\n\
-         terrane-collection-support = { path = \"support/terrane-collection-support\" }\n\
-         terrane-scalar-support = { path = \"support/terrane-scalar-support\" }\n\
-         terrane-string-support = { path = \"support/terrane-string-support\" }\n\
-         terrane-document-support = { path = \"support/terrane-document-support\" }\n\
-         terrane-stream-abi = { path = \"support/terrane-stream-abi\" }\n",
+    let mut manifest = format!(
+        "[package]\nname = \"terrane_program\"\nversion = \"0.0.0\"\nedition = \"2024\"\nrust-version = {:?}\n\n\
+         [lints.rust]\nunsafe_code = \"forbid\"\n\n\
+         [dependencies]\nterrane-int-support = {{ path = \"support/terrane-int-support\" }}\n\
+         terrane-collection-support = {{ path = \"support/terrane-collection-support\" }}\n\
+         terrane-scalar-support = {{ path = \"support/terrane-scalar-support\" }}\n\
+         terrane-string-support = {{ path = \"support/terrane-string-support\" }}\n\
+         terrane-document-support = {{ path = \"support/terrane-document-support\" }}\n\
+         terrane-stream-abi = {{ path = \"support/terrane-stream-abi\" }}\n",
+        terrane_compiler::BUILD_TOOLCHAIN
     );
     if uses_platform_support {
         manifest.push_str(
@@ -671,6 +684,20 @@ fn write_generated_crate(
     write_if_changed(&directory.join("Cargo.toml"), manifest.as_bytes()).map_err(|error| {
         CliFailure::backend(format!("cannot write generated manifest: {error}"))
     })?;
+    let toolchain_path = directory.join("rust-toolchain.toml");
+    if build_toolchain == terrane_compiler::BuildToolchain::Pinned {
+        let toolchain = format!(
+            "[toolchain]\nchannel = {:?}\nprofile = \"minimal\"\n",
+            terrane_compiler::BUILD_TOOLCHAIN
+        );
+        write_if_changed(&toolchain_path, toolchain.as_bytes()).map_err(|error| {
+            CliFailure::backend(format!("cannot write generated toolchain pin: {error}"))
+        })?;
+    } else if toolchain_path.exists() {
+        fs::remove_file(&toolchain_path).map_err(|error| {
+            CliFailure::backend(format!("cannot remove generated toolchain pin: {error}"))
+        })?;
+    }
     write_generated_support(directory, uses_platform_support).map_err(|error| {
         CliFailure::backend(format!("cannot write generated runtime support: {error}"))
     })?;
@@ -694,6 +721,15 @@ fn write_generated_crate(
         )
         .expect("writing to a String cannot fail");
     }
+    writeln!(
+        sources,
+        "rust-toolchain = {:?}",
+        match build_toolchain {
+            terrane_compiler::BuildToolchain::Pinned => terrane_compiler::BUILD_TOOLCHAIN,
+            terrane_compiler::BuildToolchain::System => "system",
+        }
+    )
+    .expect("writing to a String cannot fail");
     write_if_changed(&directory.join("terrane-build.toml"), sources.as_bytes())
         .map_err(|error| CliFailure::backend(format!("cannot write build metadata: {error}")))?;
     Ok(())
@@ -723,11 +759,11 @@ fn write_generated_support(directory: &Path, uses_platform_support: bool) -> std
     }
     write_if_changed(
         &int.join("Cargo.toml"),
-        b"[package]\nname = \"terrane-int-support\"\nversion = \"0.1.0\"\nedition = \"2024\"\n\n[dependencies]\nnum-bigint = { version = \"0.4\", features = [\"std\"] }\nnum-integer = \"0.1\"\nnum-traits = \"0.2\"\n",
+        format!("[package]\nname = \"terrane-int-support\"\nversion = \"0.1.0\"\nedition = \"2024\"\nrust-version = {:?}\n\n[dependencies]\nnum-bigint = {{ version = \"0.4\", features = [\"std\"] }}\nnum-integer = \"0.1\"\nnum-traits = \"0.2\"\n", terrane_compiler::BUILD_TOOLCHAIN).as_bytes(),
     )?;
     write_if_changed(
         &collection.join("Cargo.toml"),
-        b"[package]\nname = \"terrane-collection-support\"\nversion = \"0.1.0\"\nedition = \"2024\"\n\n[dependencies]\nindexmap = \"2\"\nterrane-int-support = { path = \"../terrane-int-support\" }\nunicode-segmentation = \"1\"\n",
+        format!("[package]\nname = \"terrane-collection-support\"\nversion = \"0.1.0\"\nedition = \"2024\"\nrust-version = {:?}\n\n[dependencies]\nindexmap = \"2\"\nterrane-int-support = {{ path = \"../terrane-int-support\" }}\nunicode-segmentation = \"1\"\n", terrane_compiler::BUILD_TOOLCHAIN).as_bytes(),
     )?;
     write_if_changed(
         &collection.join("src/lib.rs"),
@@ -739,7 +775,7 @@ fn write_generated_support(directory: &Path, uses_platform_support: bool) -> std
     )?;
     write_if_changed(
         &scalar.join("Cargo.toml"),
-        b"[package]\nname = \"terrane-scalar-support\"\nversion = \"0.1.0\"\nedition = \"2024\"\n\n[dependencies]\nterrane-int-support = { path = \"../terrane-int-support\" }\n",
+        format!("[package]\nname = \"terrane-scalar-support\"\nversion = \"0.1.0\"\nedition = \"2024\"\nrust-version = {:?}\n\n[dependencies]\nterrane-int-support = {{ path = \"../terrane-int-support\" }}\n", terrane_compiler::BUILD_TOOLCHAIN).as_bytes(),
     )?;
     write_if_changed(
         &scalar.join("src/lib.rs"),
@@ -747,7 +783,7 @@ fn write_generated_support(directory: &Path, uses_platform_support: bool) -> std
     )?;
     write_if_changed(
         &string.join("Cargo.toml"),
-        b"[package]\nname = \"terrane-string-support\"\nversion = \"0.1.0\"\nedition = \"2024\"\n\n[dependencies]\n# unicode-normalization permits tinyvec 1.13, whose alloc-only build fails on Rust 1.93.\ntinyvec = { version = \"=1.12.0\", features = [\"std\"] }\nunicode-casefold = \"0.2\"\nunicode-normalization = \"0.1\"\nunicode-segmentation = \"1\"\n",
+        format!("[package]\nname = \"terrane-string-support\"\nversion = \"0.1.0\"\nedition = \"2024\"\nrust-version = {:?}\n\n[dependencies]\n# unicode-normalization permits tinyvec 1.13, whose alloc-only build fails on Rust 1.93.\ntinyvec = {{ version = \"=1.12.0\", features = [\"std\"] }}\nunicode-casefold = \"0.2\"\nunicode-normalization = \"0.1\"\nunicode-segmentation = \"1\"\n", terrane_compiler::BUILD_TOOLCHAIN).as_bytes(),
     )?;
     write_if_changed(
         &string.join("src/lib.rs"),
@@ -755,7 +791,7 @@ fn write_generated_support(directory: &Path, uses_platform_support: bool) -> std
     )?;
     write_if_changed(
         &document.join("Cargo.toml"),
-        b"[package]\nname = \"terrane-document-support\"\nversion = \"0.1.0\"\nedition = \"2024\"\n\n[dependencies]\nserde = \"=1.0.219\"\nserde_json = { version = \"=1.0.143\", features = [\"arbitrary_precision\", \"unbounded_depth\"] }\nurl = \"=2.5.7\"\nyaml-rust2 = \"=0.10.4\"\n",
+        format!("[package]\nname = \"terrane-document-support\"\nversion = \"0.1.0\"\nedition = \"2024\"\nrust-version = {:?}\n\n[dependencies]\nserde = \"=1.0.219\"\nserde_json = {{ version = \"=1.0.143\", features = [\"arbitrary_precision\", \"unbounded_depth\"] }}\nurl = \"=2.5.7\"\nyaml-rust2 = \"=0.10.4\"\n", terrane_compiler::BUILD_TOOLCHAIN).as_bytes(),
     )?;
     write_if_changed(
         &document.join("src/lib.rs"),
@@ -763,7 +799,7 @@ fn write_generated_support(directory: &Path, uses_platform_support: bool) -> std
     )?;
     write_if_changed(
         &stream.join("Cargo.toml"),
-        b"[package]\nname = \"terrane-stream-abi\"\nversion = \"0.1.0\"\nedition = \"2024\"\n\n[dependencies]\nlibc = \"0.2\"\nrustix = { version = \"1\", features = [\"fs\"] }\n",
+        format!("[package]\nname = \"terrane-stream-abi\"\nversion = \"0.1.0\"\nedition = \"2024\"\nrust-version = {:?}\n\n[dependencies]\nlibc = \"0.2\"\nrustix = {{ version = \"1\", features = [\"fs\"] }}\n", terrane_compiler::BUILD_TOOLCHAIN).as_bytes(),
     )?;
     write_if_changed(
         &stream.join("src/lib.rs"),
@@ -788,39 +824,148 @@ fn write_if_changed(path: &Path, content: &[u8]) -> std::io::Result<()> {
     }
     fs::write(path, content)
 }
-fn ensure_rust_toolchain() -> Result<(), CliFailure> {
-    let status = Command::new("cargo")
+fn ensure_rust_toolchain(
+    build_toolchain: terrane_compiler::BuildToolchain,
+) -> Result<(), CliFailure> {
+    let mut command = Command::new("cargo");
+    if build_toolchain == terrane_compiler::BuildToolchain::Pinned {
+        record_toolchain_pin(terrane_compiler::BUILD_TOOLCHAIN)?;
+        command.arg(format!("+{}", terrane_compiler::BUILD_TOOLCHAIN));
+    }
+    let status = command.arg("--version").output().map_err(|error| {
+        CliFailure::diagnostic(
+            PathBuf::from("<toolchain>"),
+            "S9001",
+            format!(
+                "Cargo with Rust {} is required to compile generated Rust: {error}",
+                if build_toolchain == terrane_compiler::BuildToolchain::Pinned {
+                    terrane_compiler::BUILD_TOOLCHAIN
+                } else {
+                    "1.85.0 or newer"
+                }
+            ),
+            4,
+        )
+    })?;
+    if !status.status.success() {
+        return Err(CliFailure::diagnostic(
+            PathBuf::from("<toolchain>"),
+            "S9001",
+            format!(
+                "Cargo prerequisite check failed; generated Rust requires Rust {}",
+                terrane_compiler::BUILD_TOOLCHAIN
+            ),
+            4,
+        ));
+    }
+    if build_toolchain == terrane_compiler::BuildToolchain::System {
+        ensure_system_rust_version()?;
+    }
+    Ok(())
+}
+
+fn ensure_system_rust_version() -> Result<(), CliFailure> {
+    let output = Command::new("rustc")
         .arg("--version")
         .output()
         .map_err(|error| {
             CliFailure::diagnostic(
                 PathBuf::from("<toolchain>"),
                 "S9001",
-                format!("Cargo is required to compile generated Rust: {error}"),
+                format!(
+                    "the system-toolchain escape hatch requires Rust {} or newer: {error}",
+                    terrane_compiler::BUILD_TOOLCHAIN
+                ),
                 4,
             )
         })?;
-    if status.status.success() {
-        Ok(())
-    } else {
-        Err(CliFailure::diagnostic(
+    let found = String::from_utf8_lossy(&output.stdout);
+    let version = found.split_whitespace().nth(1).unwrap_or_default();
+    let numeric = |text: &str| {
+        text.split('.')
+            .take(3)
+            .map(|part| part.parse::<u32>().unwrap_or_default())
+            .collect::<Vec<_>>()
+    };
+    if !output.status.success() || numeric(version) < numeric(terrane_compiler::BUILD_TOOLCHAIN) {
+        return Err(CliFailure::diagnostic(
             PathBuf::from("<toolchain>"),
             "S9001",
-            "Cargo prerequisite check failed".to_owned(),
+            format!(
+                "system Rust `{version}` is too old; generated Rust requires {} or newer",
+                terrane_compiler::BUILD_TOOLCHAIN
+            ),
             4,
-        ))
+        ));
     }
+    Ok(())
+}
+
+fn toolchain_state_path() -> PathBuf {
+    std::env::var_os("XDG_STATE_HOME")
+        .map_or_else(
+            || {
+                std::env::var_os("HOME").map_or_else(
+                    || PathBuf::from(".trn-state"),
+                    |home| PathBuf::from(home).join(".local/state"),
+                )
+            },
+            PathBuf::from,
+        )
+        .join("terrane/toolchains")
+}
+
+fn record_toolchain_pin(toolchain: &str) -> Result<(), CliFailure> {
+    let path = toolchain_state_path();
+    let mut pins = fs::read_to_string(&path)
+        .unwrap_or_default()
+        .lines()
+        .map(str::to_owned)
+        .collect::<BTreeSet<_>>();
+    if !pins.insert(toolchain.to_owned()) {
+        return Ok(());
+    }
+    fs::create_dir_all(path.parent().expect("toolchain state file has a parent"))
+        .and_then(|()| {
+            fs::write(
+                &path,
+                pins.into_iter().collect::<Vec<_>>().join("\n") + "\n",
+            )
+        })
+        .map_err(|error| {
+            CliFailure::backend(format!("cannot record requested Rust toolchain: {error}"))
+        })
+}
+
+fn report_toolchains() -> Result<(), CliFailure> {
+    let pins = fs::read_to_string(toolchain_state_path()).unwrap_or_default();
+    if pins.lines().next().is_none() {
+        println!("Terrane has not requested any Rust toolchains.");
+        return Ok(());
+    }
+    println!("Rust toolchains requested by Terrane:");
+    for pin in pins.lines() {
+        let use_note = if pin == terrane_compiler::BUILD_TOOLCHAIN {
+            "used by this Terrane version"
+        } else {
+            "not used by this Terrane version"
+        };
+        println!("  {pin} ({use_note})");
+    }
+    Ok(())
 }
 
 fn usage() -> String {
     "usage: terrane <check|rust|build|run> [--require-canonical-rust] [--lint-name-style] \
      [--release] [--output <file>] <source.trn> [-- program arguments]\n\
+     terrane toolchains\n\
      options:\n  --require-canonical-rust  fail unless lowering emits bundled-formatter output\n  \
      --lint-name-style  warn when authored declarations are not kebab-case\n  \
      --release  use Cargo's optimized release profile for build or run\n  \
      -o, --output <file>  write rust output and its support sidecar (rust only)\n\
      commands:\n  check  validate and compile generated Rust\n  rust   print generated Rust or write split files\n  \
-     build  compile a native executable\n  run    compile and execute the program"
+     build  compile a native executable\n  run    compile and execute the program\n  \
+     toolchains  report Rust toolchains previously requested by Terrane"
         .to_owned()
 }
 
@@ -943,6 +1088,7 @@ mod tests {
                 &[],
                 terrane_compiler::PanicProfile::Abort,
                 false,
+                terrane_compiler::BuildToolchain::Pinned,
             )
             .is_ok()
         );
@@ -953,6 +1099,11 @@ mod tests {
             manifest
                 .contains("[profile.release]\nopt-level = 3\nlto = \"fat\"\ncodegen-units = 1\n")
         );
+        assert!(manifest.contains("rust-version = \"1.85.0\""));
+        assert!(manifest.contains("[lints.rust]\nunsafe_code = \"forbid\""));
+        assert!(directory.join("rust-toolchain.toml").is_file());
+        let metadata = fs::read_to_string(directory.join("terrane-build.toml")).unwrap();
+        assert!(metadata.contains("rust-toolchain = \"1.85.0\""));
         fs::remove_dir_all(directory).unwrap();
     }
 }

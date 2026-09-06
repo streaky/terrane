@@ -2,12 +2,14 @@ use std::ffi::OsStr;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
-/// Makes Cargo use `sccache` whenever an executable is available on `PATH`.
+/// Makes Cargo use `sccache` only when `TERRANE_SCCACHE=1` explicitly opts in.
 ///
-/// An absolute wrapper path makes the decision independent of inherited Cargo
-/// configuration and remains valid for contained Cargo processes.
+/// An absolute wrapper path keeps the declared decision valid for contained Cargo processes.
 pub fn configure_cargo_command(command: &mut Command) {
-    configure_cargo_command_from_path(command, std::env::var_os("PATH").as_deref());
+    let path = (std::env::var_os("TERRANE_SCCACHE").as_deref() == Some(OsStr::new("1")))
+        .then(|| std::env::var_os("PATH"))
+        .flatten();
+    configure_cargo_command_from_path(command, path.as_deref());
 }
 
 fn configure_cargo_command_from_path(command: &mut Command, path: Option<&OsStr>) {

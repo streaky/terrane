@@ -11,7 +11,7 @@ use sha2::{Digest, Sha256};
 
 use crate::RustDependency;
 
-pub const RUSTDOC_TOOLCHAIN: &str = "nightly-2026-04-29";
+pub use crate::RUSTDOC_TOOLCHAIN;
 const PROJECTION_SCHEMA: &str = "7";
 const MAX_PROJECTION_CACHE_RECORDS: usize = 4;
 

@@ -2,7 +2,9 @@ use std::fs;
 use std::path::Path;
 use std::sync::atomic::{AtomicU64, Ordering};
 
-use terrane_compiler::{IMPLICIT_PACKAGE_ID, Package, PanicProfile, analyze, compile_package};
+use terrane_compiler::{
+    BuildToolchain, IMPLICIT_PACKAGE_ID, Package, PanicProfile, analyze, compile_package,
+};
 
 static NEXT_TEMP: AtomicU64 = AtomicU64::new(0);
 
@@ -76,6 +78,20 @@ fn manifest_discovers_sources_in_deterministic_path_order() {
     );
     assert_eq!(loaded.units[0].source.id(), 0);
     assert_eq!(loaded.units[1].source.id(), 1);
+}
+
+#[test]
+fn manifest_can_explicitly_use_the_system_rust_toolchain() {
+    let package = TempPackage::new();
+    package.write(
+        "package.toml",
+        "package = \"example.system-toolchain\"\nrust-toolchain = \"system\"\n[namespaces]\nexample = \"src\"\n",
+    );
+    package.write("src/main.trn", "namespace example\nfunction main;\n");
+
+    let loaded = Package::load(&package.0).unwrap();
+
+    assert_eq!(loaded.build_toolchain, BuildToolchain::System);
 }
 
 #[test]
