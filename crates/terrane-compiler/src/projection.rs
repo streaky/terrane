@@ -17,7 +17,7 @@ use sha2::{Digest, Sha256};
 use crate::RustDependency;
 
 pub use crate::RUSTDOC_TOOLCHAIN;
-const PROJECTION_SCHEMA: &str = "14";
+const PROJECTION_SCHEMA: &str = "15";
 const MAX_PROJECTION_CACHE_RECORDS: usize = 4;
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
@@ -1429,7 +1429,11 @@ fn prefer_public_path(public_paths: &mut BTreeMap<Id, String>, id: Id, candidate
     public_paths
         .entry(id)
         .and_modify(|existing| {
-            if candidate.matches("::").count() < existing.matches("::").count() {
+            let candidate_depth = candidate.matches("::").count();
+            let existing_depth = existing.matches("::").count();
+            if candidate_depth < existing_depth
+                || (candidate_depth == existing_depth && candidate < *existing)
+            {
                 existing.clone_from(&candidate);
             }
         })
@@ -2040,9 +2044,16 @@ fn project_rustdoc(
             );
         }
     }
-    items
-        .sort_by(|left, right| (&left.namespace, &left.name).cmp(&(&right.namespace, &right.name)));
-    declined.sort_by(|left, right| left.rust_path.cmp(&right.rust_path));
+    items.sort_by(|left, right| {
+        (&left.namespace, &left.name, &left.rust_path).cmp(&(
+            &right.namespace,
+            &right.name,
+            &right.rust_path,
+        ))
+    });
+    declined.sort_by(|left, right| {
+        (&left.rust_path, &left.reason).cmp(&(&right.rust_path, &right.reason))
+    });
     Ok(ProjectedDependency {
         name: dependency.name.clone(),
         package: dependency.package.clone(),
@@ -2996,8 +3007,9 @@ mod tests {
         ProjectedKind, ProjectedType, Projection, ProjectionArtifact, ProjectionHistory,
         ProjectionResolution, ProjectionSource, Receiver, ResolutionOutcome,
         apply_projection_history, enforce_transitive_reachability, has_type_parameters,
-        project_rustdoc, project_type, projection_content_hash, prune_projection_cache,
-        receiver_kind, resolve, selected_target, validate_projection_artifact,
+        prefer_public_path, project_rustdoc, project_type, projection_content_hash,
+        prune_projection_cache, receiver_kind, resolve, selected_target,
+        validate_projection_artifact,
     };
     use crate::RustDependency;
 
@@ -3016,6 +3028,15 @@ mod tests {
             "wasm32-unknown-unknown"
         );
         fs::remove_dir_all(directory).unwrap();
+    }
+
+    #[test]
+    fn equally_short_public_paths_use_lexical_tie_breaking() {
+        let id = Id(1);
+        let mut paths = BTreeMap::new();
+        prefer_public_path(&mut paths, id, "crate::zeta::Item".to_owned());
+        prefer_public_path(&mut paths, id, "crate::alpha::Item".to_owned());
+        assert_eq!(paths[&id], "crate::alpha::Item");
     }
 
     #[test]

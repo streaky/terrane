@@ -4113,11 +4113,12 @@ current projector has no production question source and therefore does not use p
 admit or decline members; transferable projections currently record an empty probe list and zero
 probe wall time. A future consumer must serialize the reports it actually uses.
 
-Projected type identity follows the Rust item rather than the importing module alone. A public
-re-export is resolved to its canonical Rust path before the Terrane namespace and object identity
-are recorded, so importing a type through its re-export and through its defining module does not
-create two Terrane types. Concrete instantiations append the complete lowercase SHA-256 digest of
-their canonical instantiated Rust path to the readable short name; no truncated hash or
+Projected type identity follows the Rust item rather than the importing module alone. Public path
+selection is deterministic: prefer the shortest reachable path, then lexical order for equal-depth
+re-exports. A public re-export is resolved through that rule before the Terrane namespace and object
+identity are recorded, so importing a type through its re-export and through its defining module
+does not create two Terrane types. Concrete instantiations append the complete lowercase SHA-256
+of their canonical instantiated Rust path to the readable short name; no truncated hash or
 order-dependent suffix is used. Distinct same-named sibling types and distinct instantiations
 therefore remain distinct.
 A signature type owned by
