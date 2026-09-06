@@ -91,7 +91,6 @@ pub fn terrane_platform_base64_decode(
 }
 // Source: case.trn
 // Namespace: body-selective-import
-#[allow(dead_code)]
 fn encoded() -> String {
     return encode_base64(Vec::from([97, 98, 99]), false, true);
 }

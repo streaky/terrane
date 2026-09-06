@@ -4898,8 +4898,10 @@ identity already occurred earlier in the same union; lowering uses the normalize
 `W4005` reports an authored top-level function that is not referenced anywhere in the semantic
 package. References are matched by resolved declaration identity across source units rather than by
 spelling; the declaration name itself is excluded, while recursive self-reference conservatively
-counts as use. Generated non-entry top-level functions carry a narrow dead-code allowance so this
-source condition remains a Terrane warning rather than an opaque generated-Rust failure.
+counts as use. The resulting package-wide reference index is retained for diagnostics and lowering.
+Only an authored top-level function that produces `W4005` carries a narrow generated-Rust dead-code
+allowance, so the source condition remains a Terrane warning rather than an opaque backend failure
+without suppressing dead-code diagnostics for referenced functions.
 
 
 ### 29.1 Bidirectional maps

@@ -405,7 +405,6 @@ mod __terrane_trace {
 }
 // Source: case.trn
 // Namespace: throwable-type-annotation
-#[allow(dead_code)]
 fn report(failure: Option<TerraneError>) {
     if failure.is_some() {
         println!(

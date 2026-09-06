@@ -449,7 +449,6 @@ mod __terrane_trace {
 }
 // Source: app/main.trn
 // Namespace: app
-#[allow(dead_code)]
 fn apply(
     callback: std::sync::Arc<dyn Fn() -> Result<String, TerraneError> + Send + Sync>,
 ) -> Result<String, TerraneError> {
@@ -484,25 +483,21 @@ fn main() {
 }
 // Source: left/value.trn
 // Namespace: left
-#[allow(dead_code)]
 fn render_terrane_left() -> String {
     return String::from("left");
 }
 // Source: right/value.trn
 // Namespace: right
-#[allow(dead_code)]
 fn render_terrane_right() -> String {
     return String::from("right");
 }
 // Source: z/left/value.trn
 // Namespace: z/left
-#[allow(dead_code)]
 fn pick_terrane_z_left() -> String {
     return String::from("nested");
 }
 // Source: z-left/value.trn
 // Namespace: z-left
-#[allow(dead_code)]
 fn pick_terrane_z_left_f4() -> String {
     return String::from("flat");
 }

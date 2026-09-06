@@ -472,17 +472,14 @@ fn __terrane_block_on<F: Future>(future: F) -> F::Output {
 }
 // Source: src/main.trn
 // Namespace: app
-#[allow(dead_code)]
 fn cross_async(value: TerraneNs4Deps7Reqwest10AsyncImpl8ResponseResponse) {
     let _ = &value;
     return ();
 }
-#[allow(dead_code)]
 fn cross_blocking(value: TerraneNs4Deps7Reqwest8Blocking8ResponseResponse) {
     let _ = &value;
     return ();
 }
-#[allow(dead_code)]
 fn keep_crossings(
     async_crossing: std::sync::Arc<
         dyn Fn(

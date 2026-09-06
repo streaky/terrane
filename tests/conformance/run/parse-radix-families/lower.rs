@@ -431,14 +431,12 @@ mod __terrane_trace {
 }
 // Source: case.trn
 // Namespace: parse-radix-families
-#[allow(dead_code)]
 fn from_hex(source: String) -> terrane_int_support::Int {
     return __terrane_raised(
         terrane_int_support::parse_radix(&source, &16),
         0 /* terrane-site: case.trn:4:10-4:26 */,
     );
 }
-#[allow(dead_code)]
 fn fail(source: String) -> Result<terrane_int_support::Int, TerraneError> {
     println!("{}", terrane_scalar_support::scalar_text(&source));
     return Err(

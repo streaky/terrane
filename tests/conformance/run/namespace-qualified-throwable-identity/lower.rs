@@ -500,7 +500,6 @@ impl TerraneNs4LeftSharedError {
         return self.message.clone();
     }
 }
-#[allow(dead_code)]
 fn fail() -> Result<(), TerraneError> {
     return Err({
         let value = TerraneNs4LeftSharedError::terrane_construct(

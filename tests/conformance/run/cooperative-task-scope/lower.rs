@@ -541,7 +541,6 @@ pub struct TerraneTaskOutcome<T> {
 }
 // Source: app/main.trn
 // Namespace: cooperative-task-scope
-#[allow(dead_code)]
 async fn work() -> terrane_int_support::Int {
     return terrane_int_support::Int::from(9_i128);
 }

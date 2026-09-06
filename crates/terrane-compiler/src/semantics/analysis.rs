@@ -383,6 +383,7 @@ pub fn analyze(package: &Package) -> Result<SemanticPackage, SemanticFailure> {
         units,
         projection,
         binding_events: BTreeMap::new(),
+        referenced_functions: BTreeSet::new(),
         import_warnings,
         bootstrap_version: BOOTSTRAP_VERSION,
     };
@@ -407,6 +408,7 @@ pub fn analyze(package: &Package) -> Result<SemanticPackage, SemanticFailure> {
         unit.unreachable_spans = unreachable_spans;
         unit.evaluation_steps = collect_evaluation_steps(&unit.source, &unit.tree.root);
     }
+    record_function_references(&mut semantic);
     Ok(semantic)
 }
 
@@ -813,6 +815,11 @@ impl SemanticPackage {
     #[must_use]
     pub fn symbol(&self, namespace: &str, name: &str) -> Option<&Symbol> {
         self.namespaces.get(namespace)?.symbols.get(name)
+    }
+
+    #[must_use]
+    pub(crate) fn function_is_referenced(&self, declaration: Span) -> bool {
+        self.referenced_functions.contains(&span_key(declaration))
     }
 
     #[must_use]

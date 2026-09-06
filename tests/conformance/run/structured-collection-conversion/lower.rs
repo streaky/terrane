@@ -464,7 +464,6 @@ mod __terrane_trace {
 }
 // Source: case.trn
 // Namespace: structured-collection-conversion
-#[allow(dead_code)]
 fn build(wide: i16) -> Result<terrane_collection_support::List<i8>, TerraneError> {
     return Ok(
         terrane_collection_support::List::<
@@ -480,7 +479,6 @@ fn build(wide: i16) -> Result<terrane_collection_support::List<i8>, TerraneError
         ),
     );
 }
-#[allow(dead_code)]
 fn append_value(
     wide: i16,
 ) -> Result<terrane_collection_support::List<i8>, TerraneError> {

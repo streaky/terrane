@@ -939,6 +939,7 @@ impl Emitter<'_> {
             && contract.owner.is_none()
             && contract.name != "main"
             && !self.unit.bundled
+            && !self.package.function_is_referenced(contract.span)
         {
             self.line("#[allow(dead_code)]");
         }

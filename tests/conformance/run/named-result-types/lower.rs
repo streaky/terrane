@@ -405,7 +405,6 @@ mod __terrane_trace {
 }
 // Source: case.trn
 // Namespace: named-result-types
-#[allow(dead_code)]
 fn pass() -> terrane_int_support::OverflowResult<i8> {
     let small: i8 = 120;
     let result: terrane_int_support::OverflowResult<i8> = terrane_int_support::fixed_addition_overflowing(
@@ -414,7 +413,6 @@ fn pass() -> terrane_int_support::OverflowResult<i8> {
     );
     return result;
 }
-#[allow(dead_code)]
 fn divide() -> terrane_int_support::DivRemResult<i8> {
     let small: i8 = 7;
     return __terrane_raised(

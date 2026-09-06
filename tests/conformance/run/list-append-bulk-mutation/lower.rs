@@ -708,7 +708,6 @@ pub fn terrane_process_exit(code: terrane_int_support::Int) {
 }
 // Source: case.trn
 // Namespace: list-append-bulk-mutation
-#[allow(dead_code)]
 fn validate_large_literal(enabled: bool) {
     if enabled {
         let mut values: terrane_collection_support::List<i64> = terrane_collection_support::List::<
@@ -737,7 +736,6 @@ fn validate_large_literal(enabled: bool) {
         }
     }
 }
-#[allow(dead_code)]
 fn validate_return() -> terrane_int_support::Int {
     let mut values: terrane_collection_support::List<i64> = terrane_collection_support::List::<
         i64,
@@ -764,7 +762,6 @@ fn validate_return() -> terrane_int_support::Int {
     }
     return terrane_int_support::Int::from(0_i128);
 }
-#[allow(dead_code)]
 fn validate_exit() {
     let mut values: terrane_collection_support::List<i64> = terrane_collection_support::List::<
         i64,
@@ -790,7 +787,6 @@ fn validate_exit() {
         }
     }
 }
-#[allow(dead_code)]
 fn validate_throw() {
     let __terrane_completion_0: TerraneCompletion<()> = (|| {
         let __terrane_try_0: TerraneCompletion<()> = (|| {

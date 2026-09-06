@@ -416,11 +416,9 @@ mod __terrane_trace {
 }
 // Source: case.trn
 // Namespace: contextual-constant-arithmetic
-#[allow(dead_code)]
 fn third() -> Result<f32, TerraneError> {
     return Ok(0.33333334_f32);
 }
-#[allow(dead_code)]
 fn bounded() -> i32 {
     return 1;
 }

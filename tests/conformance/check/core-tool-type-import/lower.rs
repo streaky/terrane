@@ -1030,7 +1030,6 @@ pub fn terrane_path_text(path: std::path::PathBuf) -> std::io::Result<String> {
 }
 // Source: case.trn
 // Namespace: core-tool-type-import
-#[allow(dead_code)]
 fn preserve(result: ExistenceResult) -> ExistenceResult {
     return result.clone();
 }

@@ -1,12 +1,10 @@
 // Generated deterministically by Terrane <version>.
 // Source: case.trn
 // Namespace: optional-value-narrowing
-#[allow(dead_code)]
 fn helper() {
     let found: String = String::from("shadow");
     println!("{}", terrane_scalar_support::scalar_text(&found));
 }
-#[allow(dead_code)]
 fn show(value: Option<i8>) {
     if value.is_some() {
         println!(
@@ -15,11 +13,9 @@ fn show(value: Option<i8>) {
         );
     }
 }
-#[allow(dead_code)]
 fn maybe() -> Option<i8> {
     return Some(4);
 }
-#[allow(dead_code)]
 fn missing() -> Option<i8> {
     return None;
 }

@@ -1,7 +1,6 @@
 // Generated deterministically by Terrane <version>.
 // Source: app/main.trn
 // Namespace: app
-#[allow(dead_code)]
 fn identity(value: Item) -> Item {
     return value.clone();
 }

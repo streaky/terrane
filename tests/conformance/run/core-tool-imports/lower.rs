@@ -91,7 +91,6 @@ pub fn terrane_platform_base64_decode(
 }
 // Source: case.trn
 // Namespace: core-tool-imports
-#[allow(dead_code)]
 fn describe(enabled: bool, payload: Vec<u8>, small: i8) -> String {
     let _ = &small;
     encode_base64(payload, enabled, enabled);

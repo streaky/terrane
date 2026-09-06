@@ -431,7 +431,6 @@ mod __terrane_trace {
 }
 // Source: case.trn
 // Namespace: structured-error-origin-and-frames
-#[allow(dead_code)]
 fn leaf() -> Result<(), TerraneError> {
     return Err(
         TerraneError::raised(
@@ -440,7 +439,6 @@ fn leaf() -> Result<(), TerraneError> {
         ),
     );
 }
-#[allow(dead_code)]
 fn middle() -> Result<(), TerraneError> {
     __terrane_traced_err(leaf(), 1 /* terrane-site: case.trn:8:3-8:8 */)?;
     Ok(())

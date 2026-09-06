@@ -134,7 +134,7 @@ pub(super) fn collect_duplicate_union_arm_warnings(
     collect(package, unit, &unit.tree.root, warnings);
 }
 
-fn referenced_function_declarations(package: &SemanticPackage) -> BTreeSet<(u32, usize, usize)> {
+pub(super) fn record_function_references(package: &mut SemanticPackage) {
     fn collect(
         package: &SemanticPackage,
         unit: &SemanticUnit,
@@ -157,16 +157,19 @@ fn referenced_function_declarations(package: &SemanticPackage) -> BTreeSet<(u32,
         }
     }
 
-    let mut references = BTreeSet::new();
-    for unit in &package.units {
-        collect(package, unit, &unit.tree.root, &mut references);
-    }
-    references
+    let references = package
+        .units
+        .iter()
+        .fold(BTreeSet::new(), |mut references, unit| {
+            collect(package, unit, &unit.tree.root, &mut references);
+            references
+        });
+    package.referenced_functions = references;
 }
 
 fn collect_unused_top_level_function_warnings(
+    package: &SemanticPackage,
     unit: &SemanticUnit,
-    referenced_functions: &BTreeSet<(u32, usize, usize)>,
     warnings: &mut Vec<Diagnostic>,
 ) {
     if unit.bundled || unit.namespace.starts_with("/deps/") {
@@ -188,7 +191,7 @@ fn collect_unused_top_level_function_warnings(
         else {
             continue;
         };
-        if !referenced_functions.contains(&span_key(function.span)) {
+        if !package.function_is_referenced(function.span) {
             warnings.push(
                 Diagnostic::warning(
                     "W4005",
@@ -204,13 +207,13 @@ fn collect_unused_top_level_function_warnings(
 pub(crate) fn warnings(package: &SemanticPackage, lint_name_style: bool) -> Vec<Diagnostic> {
     let mut warnings = Vec::new();
     warnings.extend(package.import_warnings.iter().cloned());
-    let referenced_functions = referenced_function_declarations(package);
+
     for unit in &package.units {
         if lint_name_style && !unit.bundled && !unit.namespace.starts_with("/deps/") {
             collect_name_style_warnings(unit, &mut warnings);
         }
         collect_duplicate_union_arm_warnings(package, unit, &mut warnings);
-        collect_unused_top_level_function_warnings(unit, &referenced_functions, &mut warnings);
+        collect_unused_top_level_function_warnings(package, unit, &mut warnings);
         let mut loop_targets = BTreeSet::new();
         collect_loop_target_spans(&unit.tree.root, &mut loop_targets);
         for binding in &unit.typed_bindings {

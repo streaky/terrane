@@ -442,7 +442,6 @@ mod __terrane_trace {
 }
 // Source: case.trn
 // Namespace: finally-error-replacement
-#[allow(dead_code)]
 fn error_then_return() -> Result<terrane_int_support::Int, TerraneError> {
     let mut __terrane_completion_0: TerraneCompletion<terrane_int_support::Int> = (|| {
         let __terrane_try_0: TerraneCompletion<terrane_int_support::Int> = (|| {
@@ -485,7 +484,6 @@ fn error_then_return() -> Result<terrane_int_support::Int, TerraneError> {
         }
     }
 }
-#[allow(dead_code)]
 fn return_then_error() -> Result<terrane_int_support::Int, TerraneError> {
     let mut __terrane_completion_1: TerraneCompletion<terrane_int_support::Int> = (|| {
         let __terrane_try_1: TerraneCompletion<terrane_int_support::Int> = (|| {

@@ -534,7 +534,6 @@ mod __terrane_trace {
 }
 // Source: case.trn
 // Namespace: structured-legacy-failures
-#[allow(dead_code)]
 fn narrow_fixed() -> Result<i8, TerraneError> {
     let wide: i16 = 300;
     return Ok({
@@ -551,7 +550,6 @@ fn narrow_fixed() -> Result<i8, TerraneError> {
         )?
     });
 }
-#[allow(dead_code)]
 fn narrow_float() -> Result<f32, TerraneError> {
     let wide_float: f64 = 340282400000000000000000000000000000000.0;
     return Ok({
@@ -574,7 +572,6 @@ fn narrow_float() -> Result<f32, TerraneError> {
         }
     });
 }
-#[allow(dead_code)]
 fn divide() -> Result<terrane_int_support::Int, TerraneError> {
     let numerator: i64 = 1;
     let denominator: i64 = 0;
@@ -586,7 +583,6 @@ fn divide() -> Result<terrane_int_support::Int, TerraneError> {
         )?,
     );
 }
-#[allow(dead_code)]
 fn remainder() -> Result<terrane_int_support::Int, TerraneError> {
     let numerator: i64 = 1;
     let denominator: i64 = 0;
@@ -598,7 +594,6 @@ fn remainder() -> Result<terrane_int_support::Int, TerraneError> {
         )?,
     );
 }
-#[allow(dead_code)]
 fn round_value() -> Result<terrane_int_support::Int, TerraneError> {
     let one: f64 = 1.0;
     let zero: f64 = 0.0;
@@ -613,11 +608,9 @@ fn round_value() -> Result<terrane_int_support::Int, TerraneError> {
         )?,
     );
 }
-#[allow(dead_code)]
 fn accepts_narrow(value: i8) -> terrane_int_support::Int {
     return terrane_int_support::Int::from(value as i128);
 }
-#[allow(dead_code)]
 fn narrow_argument() -> Result<terrane_int_support::Int, TerraneError> {
     let wide: i16 = 300;
     return Ok(

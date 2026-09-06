@@ -416,11 +416,9 @@ mod __terrane_trace {
 }
 // Source: case.trn
 // Namespace: throwable-value-flow
-#[allow(dead_code)]
 fn describe(failure: TerraneError) -> String {
     return failure.message().to_owned().clone();
 }
-#[allow(dead_code)]
 fn relay(failure: TerraneError) -> TerraneError {
     return failure.clone();
 }

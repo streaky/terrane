@@ -1,7 +1,6 @@
 // Generated deterministically by Terrane <version>.
 // Source: app/a-first.trn
 // Namespace: app
-#[allow(dead_code)]
 fn first_choice() -> String {
     return pick_terrane_two();
 }
@@ -14,17 +13,14 @@ fn main() {
 }
 // Source: one/value.trn
 // Namespace: one
-#[allow(dead_code)]
 fn pick_terrane_one() -> String {
     return String::from("one");
 }
-#[allow(dead_code)]
 fn first_import_choice() -> String {
     return pick_terrane_one();
 }
 // Source: two/value.trn
 // Namespace: two
-#[allow(dead_code)]
 fn pick_terrane_two() -> String {
     return String::from("two");
 }

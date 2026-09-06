@@ -548,7 +548,6 @@ pub struct TerraneTaskOutcome<T> {
 }
 // Source: case.trn
 // Namespace: cancelled-task-progress
-#[allow(dead_code)]
 async fn work() -> terrane_int_support::Int {
     return terrane_int_support::Int::from(7_i128);
 }

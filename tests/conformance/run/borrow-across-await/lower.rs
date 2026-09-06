@@ -38,11 +38,9 @@ fn __terrane_block_on<F: Future>(future: F) -> F::Output {
 }
 // Source: case.trn
 // Namespace: borrow-across-await
-#[allow(dead_code)]
 async fn answer() -> terrane_int_support::Int {
     return terrane_int_support::Int::from(42_i128);
 }
-#[allow(dead_code)]
 async fn inspect() -> terrane_int_support::Int {
     let value: std::sync::Arc<std::sync::Mutex<terrane_int_support::Int>> = std::sync::Arc::new(
         std::sync::Mutex::new(terrane_int_support::Int::from(7_i128)),
