@@ -1214,12 +1214,12 @@ cross binding and parameter boundaries; anonymous functions capture resolver-sel
 once; and stored bound methods capture their receiver once before later invocation. Generated Rust
 uses statically typed `Arc<dyn Fn>` values rather than a universal runtime value. Synchronous
 callable values use one result-bearing ABI so inferred errors survive an erased callable boundary;
-non-throwing functions and closures are adapted with `Ok`, while invocation through a callable
-parameter contributes the broad `throwable` set until a concrete implementation narrows it.
-Conformance executes non-throwing closures and bound methods and now also passes a named,
-string-returning throwing function through a higher-order function, catching its propagated error
-and exercising its successful return. Caller-supplied pair conversion callbacks are not
-implemented.
+non-throwing functions and closures are adapted with `Ok`. Invocation through a callable parameter
+deliberately contributes the broad `throwable` set until milestone 26.2 gives function types an
+expressible throwable contract. Conformance executes non-throwing closures and bound methods and
+now also passes a named, string-returning throwing function through a higher-order function,
+catching its propagated error and exercising its successful return. Caller-supplied pair conversion
+callbacks are not implemented.
 
 ### Milestone 16 — Classes, interfaces, and traits
 
@@ -2008,6 +2008,39 @@ runs. A first baseline-then-implementation sequence showed an apparent 6.2–12.
 repeating the baseline after the implementation reduced the comparison to -3.7–+1.0%, with every
 before/after range overlapping. The reversed control therefore identifies the first result as
 ordering/environment noise, not a performance benefit of this work.
+
+### Milestone 26.2 — Throwable contracts for function types
+
+Milestone 15 established one sound result-bearing ABI for synchronous callable values but
+deliberately erased their precise throwable sets. Milestone 26.1 establishes stable structured-error
+identity and propagation. This milestone joins those contracts at the language surface; it does not
+weaken the broad `throwable` fallback for a callable whose contract is genuinely unavailable.
+
+Deliver:
+
+- settle and implement function-type syntax for a declared throwable upper bound, including its
+  association and grouping within nested `function from ... to ...` types and its interaction with
+  `async`;
+- retain the written upper bound and inferred concrete escaping set as distinct callable-type
+  metadata, consistent with ordinary function declarations and reflection;
+- make callable compatibility accept an infallible or narrower implementation and reject an
+  incompatible or broader implementation at the assignment, argument, return, or object-member
+  boundary;
+- make invocation through a typed callable value contribute its declared bound instead of the broad
+  `throwable` set, while an unbounded erased callable remains broad;
+- preserve exact throwable metadata for named functions, closures, and bound-method values, removing
+  result propagation and error-site registration where the selected callable contract proves the
+  invocation infallible;
+- add accepted and rejected conformance for nonthrowing, exact-bound, narrower-bound, broader-bound,
+  nested-function, bound-method, and async callable types before documenting a canonical spelling.
+
+Exit criterion: a higher-order function can state the throwable contract required of its callback;
+passing and invoking callbacks preserves that contract across binding, parameter, return, member,
+closure, and bound-method boundaries; incompatible effects receive a source-oriented diagnostic at
+the compatibility boundary; a provably infallible callable-value invocation lowers without an error
+site or `?`; reflection distinguishes the written bound from the inferred concrete set; and all
+accepted forms have deterministic canonical formatting, generated-Rust goldens, compiled crates,
+and runtime evidence.
 
 ### Milestone 27 — Structured logging
 
