@@ -774,13 +774,16 @@ default-feature policy, package alias, target condition, and declared effects. A
 selects an effect allowlist and unwind or abort panic policy; a forbidden dependency effect is rejected
 during manifest resolution.
 
-Declared crates are projected from rustdoc into reserved `/deps/<manifest-name>/...` namespaces. The
-shared projection records verbatim public names, Rust paths, documentation, representable free and
-inherent methods, receiver-first trait functions, receiver ownership, opaque foreign types,
-data-free enum variant constructors, directly representable `Result` returns, arbitrary projected
-`Option<T>` values, all Rust integer widths, `f32`, `char`, and concrete representable type aliases.
-Data-carrying enums remain opaque and use projected crate accessors; every declined public item carries
-a reason.
+Declared crates are projected from typed rustdoc metadata into reserved
+`/deps/<manifest-name>/...` namespaces. The shared projection records verbatim public names,
+canonical Rust paths, documentation, representable free and inherent methods, receiver-first trait
+functions, receiver ownership, opaque foreign types, data-free enum variant constructors, directly
+representable `Result` returns, arbitrary projected `Option<T>` values, all Rust integer widths,
+`f32`, `char`, concrete representable type aliases, and recursive standard sequence, map, set, and
+homogeneous tuple shapes. Map keys and set items are limited to Terrane scalars. Cross-crate
+signature types are admitted only when their canonical owner is declared directly at one
+lock-resolved version; otherwise the member remains an explicit decline. Data-carrying enums remain
+opaque and use projected crate accessors; every declined public item carries a reason.
 
 Semantic import resolution and the language server consume that same projection. Lowering emits only
 crossed-member Rust shims and generated Cargo dependencies; calls remain direct Rust calls inside one
@@ -788,9 +791,11 @@ generated crate. Foreign receivers borrow, use `ref`, or require `move` accordin
 receiver. Unwinding dependency panics enter the compiler-owned `dependency-panic` throwable path;
 abort profiles omit containment and generate Cargo `panic = "abort"`. Projection and generated-crate
 compilation use `bwrap` containment where available and report the host tier otherwise.
-`terrane-projection.lock` retains machine-independent member/version history so `S2031` names removed
-members and their version change. Completion, signature help, and hover remain advisory; Cargo and
-rustc are authoritative.
+`terrane-projection.lock` format 2 retains machine-independent member/version history plus source,
+rustdoc format, projection schema, exact cache identity, content hash, and resolution events. `S2031`
+names removed members and their version change; a changed payload under one exact cache identity is
+rejected as replay drift. Completion, signature help, and hover remain advisory; Cargo and rustc are
+authoritative.
 
 ## Major planned surface absent today
 

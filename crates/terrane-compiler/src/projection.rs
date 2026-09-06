@@ -17,7 +17,7 @@ use sha2::{Digest, Sha256};
 use crate::RustDependency;
 
 pub use crate::RUSTDOC_TOOLCHAIN;
-const PROJECTION_SCHEMA: &str = "13";
+const PROJECTION_SCHEMA: &str = "14";
 const MAX_PROJECTION_CACHE_RECORDS: usize = 4;
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
@@ -280,6 +280,21 @@ pub enum ProjectedType {
 }
 
 impl ProjectedType {
+    fn is_terrane_scalar(&self) -> bool {
+        matches!(
+            self,
+            Self::None
+                | Self::Bool
+                | Self::Int
+                | Self::RustInt(_)
+                | Self::Float
+                | Self::Float32
+                | Self::Char
+                | Self::String
+                | Self::Bytes
+        )
+    }
+
     fn rust_type(&self) -> String {
         match self {
             Self::None => "()".to_owned(),
@@ -1211,11 +1226,12 @@ fn apply_projection_history(
         && previous.dependencies == dependencies
         && previous.rustdoc_format == Some(rustdoc_types::FORMAT_VERSION)
         && previous.projection_schema.as_deref() == Some(PROJECTION_SCHEMA)
+        && previous.cache_identity.as_deref() == Some(&projection.cache_identity)
         && previous.content_hash.as_deref() != Some(&projection.content_hash)
     {
         return Err(ProjectionError {
             message: format!(
-                "projection replay mismatch in `{}`: the same dependency and schema identity previously produced `{}`, now produced `{}`",
+                "projection replay mismatch in `{}`: the same cache identity previously produced `{}`, now produced `{}`",
                 path.display(),
                 previous.content_hash.as_deref().unwrap_or("missing"),
                 projection.content_hash
@@ -2513,7 +2529,7 @@ fn project_resolved_type(
             return Err("map type does not have exactly two type arguments".to_owned());
         };
         let key = project_type(key, index, paths, generics)?;
-        if matches!(key, ProjectedType::Foreign { .. }) {
+        if !key.is_terrane_scalar() {
             return Err("map key is not a Terrane scalar".to_owned());
         }
         return Ok(ProjectedType::Mapping {
@@ -2534,7 +2550,7 @@ fn project_resolved_type(
             .first()
             .ok_or_else(|| "set has no item type".to_owned())?;
         let item = project_type(item, index, paths, generics)?;
-        if matches!(item, ProjectedType::Foreign { .. }) {
+        if !item.is_terrane_scalar() {
             return Err("set item is not a Terrane scalar".to_owned());
         }
         return Ok(ProjectedType::Set {
@@ -2657,11 +2673,7 @@ fn instantiated_type_name(short: &str, rust_path: &str) -> String {
     if rust_path.rsplit("::").next() == Some(short) {
         return short.to_owned();
     }
-    let digest = Sha256::digest(rust_path.as_bytes());
-    format!(
-        "{short}-{:02x}{:02x}{:02x}{:02x}",
-        digest[0], digest[1], digest[2], digest[3]
-    )
+    format!("{short}-{:x}", Sha256::digest(rust_path.as_bytes()))
 }
 
 fn receiver_kind(ty: &Type) -> Receiver {
@@ -2819,8 +2831,9 @@ fn cache_identity(
     let lock = fs::read(workspace.join("Cargo.lock"))
         .or_else(|_| fs::read(root.join("Cargo.lock")))
         .unwrap_or_default();
-    let rustc_verbose = tool_version("rustc", &["-vV"])?;
-    let target = selected_target(&rustc_verbose);
+    let build_selector = format!("+{}", crate::BUILD_TOOLCHAIN);
+    let rustc_verbose = tool_version("rustc", &[&build_selector, "-vV"])?;
+    let target = selected_target(workspace, &rustc_verbose)?;
     let rustdoc_format = rustdoc_types::FORMAT_VERSION.to_string();
     let mut hash = Sha256::new();
     for (label, bytes) in [
@@ -2842,16 +2855,71 @@ fn cache_identity(
     Ok((format!("{:x}", hash.finalize()), target))
 }
 
-fn selected_target(rustc_verbose_version: &str) -> String {
-    std::env::var("CARGO_BUILD_TARGET")
+fn selected_target(
+    workspace: &Path,
+    rustc_verbose_version: &str,
+) -> Result<String, ProjectionError> {
+    if let Some(target) = std::env::var("CARGO_BUILD_TARGET")
         .ok()
         .filter(|target| !target.is_empty())
-        .or_else(|| {
-            rustc_verbose_version
-                .lines()
-                .find_map(|line| line.strip_prefix("host: ").map(str::to_owned))
-        })
-        .unwrap_or_else(|| "unknown-target".to_owned())
+    {
+        return Ok(target);
+    }
+    let output = Command::new("cargo")
+        .arg(format!("+{RUSTDOC_TOOLCHAIN}"))
+        .args([
+            "-Z",
+            "unstable-options",
+            "config",
+            "get",
+            "build.target",
+            "--format",
+            "json",
+        ])
+        .current_dir(workspace)
+        .output()
+        .map_err(|error| ProjectionError {
+            message: format!("cannot inspect Cargo build target configuration: {error}"),
+        })?;
+    if output.status.success() {
+        let config =
+            serde_json::from_slice::<serde_json::Value>(&output.stdout).map_err(|error| {
+                ProjectionError {
+                    message: format!("cannot decode Cargo build target configuration: {error}"),
+                }
+            })?;
+        let target = config
+            .get("build.target")
+            .or_else(|| config.get("build").and_then(|build| build.get("target")));
+        return match target {
+            Some(serde_json::Value::String(target)) => Ok(target.clone()),
+            Some(serde_json::Value::Array(targets)) if targets.len() == 1 => targets[0]
+                .as_str()
+                .map(str::to_owned)
+                .ok_or_else(|| ProjectionError {
+                    message: "Cargo build target configuration is not a string".to_owned(),
+                }),
+            Some(serde_json::Value::Array(_)) => Err(ProjectionError {
+                message: "dependency projection requires exactly one Cargo build target".to_owned(),
+            }),
+            _ => Err(ProjectionError {
+                message: "Cargo returned no usable build target configuration".to_owned(),
+            }),
+        };
+    }
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    if !stderr.contains("config value `build.target` is not set") {
+        return Err(ProjectionError {
+            message: format!(
+                "cannot inspect Cargo build target configuration: {}",
+                stderr.trim()
+            ),
+        });
+    }
+    Ok(rustc_verbose_version
+        .lines()
+        .find_map(|line| line.strip_prefix("host: ").map(str::to_owned))
+        .unwrap_or_else(|| "unknown-target".to_owned()))
 }
 
 fn tool_version(program: &str, arguments: &[&str]) -> Result<String, ProjectionError> {
@@ -2914,10 +2982,8 @@ fn io_error(context: &'static str) -> impl FnOnce(std::io::Error) -> ProjectionE
 
 #[cfg(test)]
 mod tests {
-    use std::{
-        collections::{BTreeMap, BTreeSet, HashMap},
-        fs,
-    };
+    use std::collections::{BTreeMap, BTreeSet, HashMap};
+    use std::fs;
 
     use rustdoc_types::{
         GenericArg, GenericArgs, GenericParamDef, GenericParamDefKind, Id, ItemKind, ItemSummary,
@@ -2931,9 +2997,41 @@ mod tests {
         ProjectionResolution, ProjectionSource, Receiver, ResolutionOutcome,
         apply_projection_history, enforce_transitive_reachability, has_type_parameters,
         project_rustdoc, project_type, projection_content_hash, prune_projection_cache,
-        receiver_kind, resolve, validate_projection_artifact,
+        receiver_kind, resolve, selected_target, validate_projection_artifact,
     };
     use crate::RustDependency;
+
+    #[test]
+    fn target_identity_reads_effective_cargo_configuration() {
+        let directory =
+            std::env::temp_dir().join(format!("terrane-projection-target-{}", std::process::id()));
+        fs::create_dir_all(directory.join(".cargo")).unwrap();
+        fs::write(
+            directory.join(".cargo/config.toml"),
+            "[build]\ntarget = \"wasm32-unknown-unknown\"\n",
+        )
+        .unwrap();
+        assert_eq!(
+            selected_target(&directory, "host: x86_64-unknown-linux-gnu").unwrap(),
+            "wasm32-unknown-unknown"
+        );
+        fs::remove_dir_all(directory).unwrap();
+    }
+
+    #[test]
+    fn projected_map_and_set_keys_require_scalars() {
+        assert!(ProjectedType::String.is_terrane_scalar());
+        assert!(ProjectedType::Bytes.is_terrane_scalar());
+        assert!(!ProjectedType::Optional(Box::new(ProjectedType::String)).is_terrane_scalar());
+        assert!(
+            !ProjectedType::Sequence {
+                rust_path: "alloc::vec::Vec<String>".to_owned(),
+                item: Box::new(ProjectedType::String),
+            }
+            .is_terrane_scalar()
+        );
+        assert!(!ProjectedType::Tuple(vec![ProjectedType::String]).is_terrane_scalar());
+    }
 
     #[test]
     fn dependency_free_resolution_records_its_outcome() {

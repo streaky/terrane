@@ -1686,7 +1686,7 @@ generated Rust and Cargo output remain deterministic and warning free. Target-sp
 tables, recorded projection declines, and asynchronous namespace-aware completion, hover, and
 signature help cover the corresponding resolution and editor contracts.
 
-Four small items are carried out of milestone 25 rather than blocking it. None changes an observable
+Three small items are carried out of milestone 25 rather than blocking it. None changes an observable
 contract, and each is cheap to take whenever its file is next open:
 
 - **`cargo_manifest_table` is a stringly-typed discriminator.** It returns a `String`, and six call
@@ -1695,11 +1695,6 @@ contract, and each is cheap to take whenever its file is next open:
   whether an entry belongs in the default Cargo table — over information `RustDependency::target`
   already carries as an `Option`. Returning `Option<String>`, with `None` meaning the default table,
   removes all six literals;
-- **`selected_target` reads only `CARGO_BUILD_TARGET`.** Cache identity distinguishes a
-  cross-compiled projection from a host one through that variable, falling back to `rustc -vV`'s
-  `host:` line. A target selected by a `--target` argument or by `build.target` in a
-  `.cargo/config.toml` is not seen, so two such builds share a cache entry. Narrower than the gap it
-  replaced, and worth closing when the build surface next grows a target flag of its own;
 - **the language server resolves an imported name by its first matching import line.**
   `imported_dependency_namespace` scans the document for a `from /deps/... import ...` naming the
   symbol, so a name imported from two dependency namespaces in one file resolves to whichever line
@@ -1886,14 +1881,19 @@ expanded public API through rustdoc. No production projector path creates questi
 transferable artifacts honestly retain empty evidence and zero wall time rather than claiming an
 unused report was recorded.
 Concrete generic arguments and Rust type-alias substitutions now participate in projected foreign
-identity, and lowering emits instantiated Rust spellings as deterministic type aliases so distinct
-instantiations cannot collapse onto one semantic object.
-Generic declarations whose type parameters all have defaults now project their default concrete
-identity, including `Self` substitution in methods. Standard sequence, map, set, optional, and
-homogeneous-tuple shapes project recursively and lower through explicit collection-boundary
-conversions. Signature types owned by undeclared transitive crates decline with the owner and
-lock-resolved version; declaring a unique unifying owner makes its canonical identity reachable,
-while crossed owners with multiple resolved versions fail before Rust lowering.
+identity. Compiler names retain the readable short type name plus the full SHA-256 of the canonical
+instantiated path, so collision handling is deterministic and does not depend on projection order.
+Lowering emits instantiated Rust spellings as deterministic type aliases so distinct
+instantiations cannot collapse onto one semantic object. Generic declarations whose type
+parameters all have defaults now project their default concrete identity, including `Self`
+substitution in methods. Standard sequence, map, set, optional, and homogeneous-tuple shapes
+project recursively; map keys and set items are scalar-only. Lowering elides identity-element
+vector mapping and moves uniquely owned tuple elements without cloning or panic, while retaining
+explicit conversion where representations differ. Signature types owned by undeclared transitive
+crates decline with the owner and lock-resolved version; declaring a unique unifying owner makes
+its canonical identity reachable. After Cargo lock resolution, projection validation rejects
+crossed owners with multiple versions before semantic import resolution and Rust lowering, and
+reports every resolved version.
 The exact dependency probe leaves destination-directed generic results and non-escaping projected
 temporary chains deferred rather than admitting speculative success paths. A compiled exact-call
 probe proves that `sqlx::Row::try_get::<String, _>` is valid against SQLx 0.8.6, including its

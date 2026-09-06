@@ -41,6 +41,24 @@ pub(super) fn write_foreign_import(output: &mut String, path: &str, rust_name: &
     }
 }
 
+fn projected_scalar_is_identity(ty: &crate::projection::ProjectedType) -> bool {
+    matches!(
+        ty,
+        crate::projection::ProjectedType::None
+            | crate::projection::ProjectedType::Bool
+            | crate::projection::ProjectedType::Int
+            | crate::projection::ProjectedType::Float
+            | crate::projection::ProjectedType::Float32
+            | crate::projection::ProjectedType::String
+            | crate::projection::ProjectedType::Bytes
+            | crate::projection::ProjectedType::Foreign { .. }
+    )
+}
+
+fn projected_sequence_is_vec(path: &str) -> bool {
+    path.starts_with("alloc::vec::Vec<") || path.starts_with("std::vec::Vec<")
+}
+
 pub(super) fn projected_argument_expression(
     name: &str,
     ty: &crate::projection::ProjectedType,
@@ -58,8 +76,17 @@ pub(super) fn projected_argument_expression(
                 "{name}.map(|value| -> Result<_, crate::TerraneForeignError> {{ Ok({converted}) }}).transpose()?"
             )
         }
-        crate::projection::ProjectedType::Sequence { rust_path, item }
-        | crate::projection::ProjectedType::Set {
+        crate::projection::ProjectedType::Sequence { rust_path, item } => {
+            if projected_sequence_is_vec(rust_path) && projected_scalar_is_identity(item) {
+                format!("{name}.into_vec()")
+            } else {
+                let converted = projected_argument_expression("item", item);
+                format!(
+                    "{name}.into_iter().map(|item| -> Result<_, crate::TerraneForeignError> {{ Ok({converted}) }}).collect::<Result<{rust_path}, _>>()?"
+                )
+            }
+        }
+        crate::projection::ProjectedType::Set {
             rust_path, item, ..
         } => {
             let converted = projected_argument_expression("item", item);
@@ -79,20 +106,21 @@ pub(super) fn projected_argument_expression(
                 "terrane_collection_support::Iterable::terrane_iterator(&{name}).map(|entry| -> Result<_, crate::TerraneForeignError> {{ Ok(({key}, {value})) }}).collect::<Result<{rust_path}, _>>()?"
             )
         }
-        crate::projection::ProjectedType::Tuple(items) => format!(
-            "({})",
-            items
+        crate::projection::ProjectedType::Tuple(items) => {
+            let converted = items
                 .iter()
-                .enumerate()
-                .map(|(index, item)| projected_argument_expression(
-                    &format!(
-                        "{name}.get({index}).expect(\"projected tuple length is checked\").clone()"
-                    ),
-                    item,
-                ))
+                .map(|item| {
+                    projected_argument_expression(
+                        "tuple_items.next().ok_or_else(|| crate::TerraneForeignError(crate::TerraneError::custom_raised(crate::TERRANE_DEPENDENCY_ERROR, \"projected tuple length did not match its checked type\", crate::TERRANE_NO_SITE)))?",
+                        item,
+                    )
+                })
                 .collect::<Vec<_>>()
-                .join(", ")
-        ),
+                .join(", ");
+            format!(
+                "{{ let mut tuple_items = {name}.try_into_iter().map_err(|_| crate::TerraneForeignError(crate::TerraneError::custom_raised(crate::TERRANE_DEPENDENCY_ERROR, \"projected tuple cannot move shared elements\", crate::TERRANE_NO_SITE)))?; ({converted},) }}"
+            )
+        }
         _ => name.to_owned(),
     }
 }
@@ -114,10 +142,14 @@ pub(super) fn projected_result_expression(
             format!("{value}.map(|value| {converted})")
         }
         crate::projection::ProjectedType::Sequence { item, .. } => {
-            let converted = projected_result_expression("item", item);
-            format!(
-                "terrane_collection_support::List::new({value}.into_iter().map(|item| {converted}).collect())"
-            )
+            if projected_scalar_is_identity(item) {
+                format!("terrane_collection_support::List::new({value})")
+            } else {
+                let converted = projected_result_expression("item", item);
+                format!(
+                    "terrane_collection_support::List::new({value}.into_iter().map(|item| {converted}).collect())"
+                )
+            }
         }
         crate::projection::ProjectedType::Mapping {
             key,

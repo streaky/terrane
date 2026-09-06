@@ -4115,12 +4115,17 @@ probe wall time. A future consumer must serialize the reports it actually uses.
 
 Projected type identity follows the Rust item rather than the importing module alone. A public
 re-export is resolved to its canonical Rust path before the Terrane namespace and object identity
-are recorded. Therefore a re-exported type and its defining item denote one type, while distinct
-Rust items with the same short name in sibling modules remain distinct. A signature type owned by
+are recorded, so importing a type through its re-export and through its defining module does not
+create two Terrane types. Concrete instantiations append the complete lowercase SHA-256 digest of
+their canonical instantiated Rust path to the readable short name; no truncated hash or
+order-dependent suffix is used. Distinct same-named sibling types and distinct instantiations
+therefore remain distinct.
+A signature type owned by
 an undeclared transitive crate is not projected as a memberless lookalike: the member declines with
 an actionable reason naming the owning crate and its lock-resolved version. Declaring that owner
-with a unifying version makes its canonical identity and members reachable; multiple resolved
-versions at a crossed type boundary are a manifest-resolution error naming every version.
+with a unifying version makes its canonical identity and members reachable. After Cargo resolves
+the lock graph, projection validation rejects multiple resolved versions at a crossed type boundary
+and names every version; this occurs before semantic import resolution and Rust lowering.
 Generated Rust imports each canonical path at most once per generated module and aliases it to the
 compiler-owned name derived from that namespace-qualified identity.
 
@@ -4128,10 +4133,15 @@ The compiler generates Rust shims only for projected members crossed by Terrane 
 direct Rust-to-Rust calling inside the generated crate, not an adapter or marshalled runtime
 boundary. `Option<T>` projects in parameter and result positions as `T|none`. Rust sequences,
 ordered and unordered maps, sets, and homogeneous tuples project recursively to the corresponding
-Terrane collections when every component is representable; shim code performs the explicit
-element-wise conversion in either direction. `Vec<u8>` remains the direct `bytes` representation.
-An aggregate declines as a whole when its first component cannot cross, and heterogeneous Rust
-tuples remain declined until Terrane has a matching heterogeneous tuple contract. A representable
+Terrane collections when every component is representable. Map keys and set items must be Terrane
+scalars; nested optionals, sequences, mappings, sets, tuples, and foreign objects are rejected in
+those positions. Shim code performs only the required boundary and element conversions: an
+identity-element `Vec<T>` reuses owned backing storage in the Terrane-to-Rust direction and wraps
+the returned vector directly in the Rust-to-Terrane direction. `Vec<u8>` remains the direct `bytes`
+representation. Tuple arguments move uniquely owned elements without cloning; shared tuple storage
+fails at the dependency boundary rather than panicking or cloning resource values. An aggregate
+declines as a whole when its first component cannot cross, and heterogeneous Rust tuples remain
+declined until Terrane has a matching heterogeneous tuple contract. A representable
 `Result<T, E>` returns `T` and throws the projected error class. `&self` projects as a shared
 receiver, `&mut self` records receiver mutability on the projected contract, and `self` retains
 `move` semantics under the ordinary foreign-resource ownership rule. Both borrowed receiver forms
