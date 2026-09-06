@@ -3674,6 +3674,20 @@ blocking delegation; the later runtime-selection boundary satisfies those requir
 concrete implementation. Semantic contracts and language diagnostics must not encode Tokio or
 another runtime crate by name.
 
+The current native backend creates exactly one selected wake-driven runtime around an asynchronous
+entrypoint and drops it only after the entry task and its owned scopes finish. A projected Rust
+future is constructed when its Terrane task is first polled inside that context. Runtime wakeups
+drive pending dependency futures and timers; lowering does not retry a failed runtime-context
+requirement by blocking the current thread. Cancellable legacy scope polling parks on its waker with
+a bounded deadline/cancellation check rather than spinning between polls; scope scheduling itself is
+specified separately below.
+
+Projection metadata represents runtime-context, wake-support, and transfer knowledge independently
+as `required`, `not required`, or `unknown`. Rust `async fn` projection currently records wake
+support as required and leaves runtime context and transfer unknown unless exact artifact evidence
+establishes more. Editor completion and hover present those Terrane execution requirements rather
+than Rust future internals.
+
 ### 21.4 Structured concurrency
 
 The structured-concurrency scope is a version-one language-level object, not a library preference.

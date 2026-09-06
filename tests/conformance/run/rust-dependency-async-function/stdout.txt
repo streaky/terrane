@@ -1,2 +1,4 @@
 projected async success
+2
+awake
 caught projected async failure

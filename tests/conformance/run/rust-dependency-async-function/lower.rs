@@ -420,7 +420,7 @@ mod __terrane_trace {
     }
     pub static FILES: [&str; 1] = ["src/main.trn"];
     pub static FUNCTIONS: [&str; 1] = ["/app::main"];
-    pub static SITES: [Site; 2] = [
+    pub static SITES: [Site; 4] = [
         {
             /* terrane-site-row: site 0: /app::main (src/main.trn:6:25-6:67) */
             Site {
@@ -433,13 +433,35 @@ mod __terrane_trace {
             }
         },
         {
-            /* terrane-site-row: site 1: /app::main (src/main.trn:9:29-9:50) */
+            /* terrane-site-row: site 1: /app::main (src/main.trn:8:21-8:38) */
             Site {
                 function: 0,
                 file: 0,
-                line: 9,
+                line: 8,
+                column: 21,
+                end_line: 8,
+                end_column: 38,
+            }
+        },
+        {
+            /* terrane-site-row: site 2: /app::main (src/main.trn:10:26-10:44) */
+            Site {
+                function: 0,
+                file: 0,
+                line: 10,
+                column: 26,
+                end_line: 10,
+                end_column: 44,
+            }
+        },
+        {
+            /* terrane-site-row: site 3: /app::main (src/main.trn:13:29-13:50) */
+            Site {
+                function: 0,
+                file: 0,
+                line: 13,
                 column: 29,
-                end_line: 9,
+                end_line: 13,
                 end_column: 50,
             }
         },
@@ -478,20 +500,12 @@ async fn __terrane_await<F: Future>(future: F) -> F::Output {
     YieldOnce(false).await;
     output
 }
-fn __terrane_block_on<F: Future>(future: F) -> F::Output {
-    struct Wake;
-    impl std::task::Wake for Wake {
-        fn wake(self: std::sync::Arc<Self>) {}
-    }
-    let waker = std::task::Waker::from(std::sync::Arc::new(Wake));
-    let mut context = std::task::Context::from_waker(&waker);
-    let mut future = std::pin::pin!(future);
-    loop {
-        match future.as_mut().poll(&mut context) {
-            std::task::Poll::Ready(value) => return value,
-            std::task::Poll::Pending => std::thread::yield_now(),
-        }
-    }
+fn __terrane_run<F: Future>(future: F) -> F::Output {
+    tokio::runtime::Builder::new_current_thread()
+        .enable_all()
+        .build()
+        .expect("Terrane async runtime must initialize")
+        .block_on(future)
 }
 async fn __terrane_dependency_await_unwind<F: Future>(
     future: F,
@@ -511,7 +525,7 @@ async fn __terrane_dependency_await_unwind<F: Future>(
 // Source: src/main.trn
 // Namespace: app
 fn main() {
-    __terrane_block_on(async move {
+    __terrane_run(async move {
         let echoed: String = __terrane_traced(
             __terrane_await({
                     let __terrane_future = echo_after_yield(
@@ -528,12 +542,40 @@ fn main() {
             0 /* terrane-site: src/main.trn:6:25-6:67 */,
         );
         println!("{}", terrane_scalar_support::scalar_text(&echoed));
+        let polls: terrane_int_support::Int = __terrane_traced(
+            __terrane_await({
+                    let __terrane_future = timer_poll_count();
+                    async move {
+                        __terrane_raised_err(
+                            __terrane_future.await,
+                            1 /* terrane-site: src/main.trn:8:21-8:38 */,
+                        )
+                    }
+                })
+                .await,
+            1 /* terrane-site: src/main.trn:8:21-8:38 */,
+        );
+        println!("{}", terrane_scalar_support::scalar_text(&polls));
+        let message: String = __terrane_traced(
+            __terrane_await({
+                    let __terrane_future = socket_round_trip();
+                    async move {
+                        __terrane_raised_err(
+                            __terrane_future.await,
+                            2 /* terrane-site: src/main.trn:10:26-10:44 */,
+                        )
+                    }
+                })
+                .await,
+            2 /* terrane-site: src/main.trn:10:26-10:44 */,
+        );
+        println!("{}", terrane_scalar_support::scalar_text(&message));
         let __terrane_completion_0: TerraneCompletion<()> = async {
             let __terrane_try_0: TerraneCompletion<()> = async {
                 let rejected: String = __terrane_traced_completion!(
                     __terrane_await({ let __terrane_future =
                     checked_echo(String::from("reject")); async move {
-                    __terrane_raised_err(__terrane_future. await, 1 /* terrane-site: src/main.trn:9:29-9:50 */) } }). await, 1 /* terrane-site: src/main.trn:9:29-9:50 */
+                    __terrane_raised_err(__terrane_future. await, 3 /* terrane-site: src/main.trn:13:29-13:50 */) } }). await, 3 /* terrane-site: src/main.trn:13:29-13:50 */
                 );
                 println!("{}", terrane_scalar_support::scalar_text(&rejected));
                 TerraneCompletion::Normal
@@ -624,6 +666,41 @@ pub async fn echo_after_yield(
                     payload,
                     "async-witness",
                     "async_witness::echo_after_yield",
+                ),
+            )
+        }
+    }
+}
+pub async fn socket_round_trip() -> Result<String, crate::TerraneForeignError> {
+    match crate::__terrane_dependency_await_unwind(async_witness::socket_round_trip())
+        .await
+    {
+        Ok(value) => Ok(value),
+        Err(payload) => {
+            Err(
+                crate::__terrane_dependency_panic(
+                    payload,
+                    "async-witness",
+                    "async_witness::socket_round_trip",
+                ),
+            )
+        }
+    }
+}
+pub async fn timer_poll_count() -> Result<
+    terrane_int_support::Int,
+    crate::TerraneForeignError,
+> {
+    match crate::__terrane_dependency_await_unwind(async_witness::timer_poll_count())
+        .await
+    {
+        Ok(value) => Ok(terrane_int_support::Int::from_u128(value as u128)),
+        Err(payload) => {
+            Err(
+                crate::__terrane_dependency_panic(
+                    payload,
+                    "async-witness",
+                    "async_witness::timer_poll_count",
                 ),
             )
         }

@@ -1012,7 +1012,7 @@ impl Emitter<'_> {
         {
             self.output.push_str(" {\n");
             self.indent += 1;
-            self.line("__terrane_block_on(async move {});");
+            self.line("__terrane_run(async move {});");
             self.indent -= 1;
             self.line("}");
             return;
@@ -1020,7 +1020,7 @@ impl Emitter<'_> {
         self.output.push_str(" {\n");
         if async_main {
             self.indent += 1;
-            self.line("__terrane_block_on(async move {");
+            self.line("__terrane_run(async move {");
         }
         let outer_return_type = std::mem::replace(&mut self.return_type, return_type);
         let outer_function_errors = std::mem::replace(&mut self.function_errors, function_errors);

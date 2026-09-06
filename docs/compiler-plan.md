@@ -1421,10 +1421,23 @@ boundaries, whose Rust `Send` bound is selected from the semantic transfer contr
 The two source executor profiles now map through a compiler-owned execution-strategy model rather
 than selecting runtime templates directly throughout lowering. Semantic analysis aggregates generic
 requirements for runtime context, wake support, local or transferable work, and blocking delegation;
-projected async contracts explicitly request wake support, a runtime context, and local execution
-until stronger evidence exists. Entry, task-scope support, and transfer validation route through the
-strategy seam. The representation contains no Tokio or other runtime-specific name, preserving one
-place to select or replace the concrete executor in the following work unit.
+projected async contracts request wake support and local execution while retaining `unknown` for
+runtime-context and transfer evidence the artifact does not establish. Entry, task-scope support,
+and transfer validation route through the strategy seam. The representation contains no Tokio or
+other runtime-specific name, preserving one place to select or replace the concrete executor in the
+following work unit.
+
+Wake-driven runtime integration now wraps an async entrypoint in exactly one generated selected
+runtime, constructs projected Rust futures when their Terrane task is first polled inside that
+context, and tears the runtime down deterministically after linearly owned scopes finish. The
+runtime Cargo dependency is exact and emitted only when semantic analysis requires async support.
+Cancellable legacy scope polling now parks on a real waker with bounded cancellation/deadline
+observation instead of busy-yielding. A controlled dependency witness awaits both a one-second Tokio
+timer and a loopback Tokio socket operation: each wakes correctly, the timer future is polled twice,
+and cached-executable timing records `0.02 s` user plus `0.04 s` system CPU over `1.02 s` elapsed.
+Generated lowering has no catch-and-block fallback for missing runtime context. Hover and completion
+surface the compiler-owned runtime-context, wake-support, and transfer requirement knowledge for
+projected async functions.
 
 Every lowered Terrane `await` yields to the executor before polling its operand and again after the
 operand completes. The cancellable executor checks the scope between those child polls, so even an

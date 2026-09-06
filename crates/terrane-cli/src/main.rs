@@ -141,10 +141,12 @@ fn run(arguments: &[OsString]) -> Result<ExitCode, CliFailure> {
     }
     ensure_rust_toolchain(package.build_toolchain)?;
     let uses_platform_support = compilation.requires_platform_support;
+    let uses_async_runtime = compilation.requires_async_runtime;
     let crate_dir = generated_crate_path(
         &package.root,
         &rust_files,
         uses_platform_support,
+        uses_async_runtime,
         &compilation.rust_dependencies,
         package.build_toolchain,
     )?;
@@ -155,6 +157,7 @@ fn run(arguments: &[OsString]) -> Result<ExitCode, CliFailure> {
         &compilation.rust_dependencies,
         package.profile.panic,
         uses_platform_support,
+        uses_async_runtime,
         package.build_toolchain,
     )?;
     record_and_prune_generated_crates(&crate_dir)?;
@@ -545,6 +548,7 @@ fn generated_crate_path(
     package_root: &Path,
     rust_files: &[terrane_compiler::rust_ir::RenderedFile],
     uses_platform_support: bool,
+    uses_async_runtime: bool,
     rust_dependencies: &[terrane_compiler::RustDependency],
     build_toolchain: terrane_compiler::BuildToolchain,
 ) -> Result<PathBuf, CliFailure> {
@@ -570,6 +574,7 @@ fn generated_crate_path(
         hash.update(b"\0");
     }
     hash.update(format!("build-toolchain={build_toolchain:?}\0").as_bytes());
+    hash.update([u8::from(uses_async_runtime)]);
     hash.update(b"profile=debug\0");
     for file in rust_files {
         hash.update(file.path.as_bytes());
@@ -653,6 +658,7 @@ fn write_generated_crate(
     rust_dependencies: &[terrane_compiler::RustDependency],
     panic: terrane_compiler::PanicProfile,
     uses_platform_support: bool,
+    uses_async_runtime: bool,
     build_toolchain: terrane_compiler::BuildToolchain,
 ) -> Result<(), CliFailure> {
     fs::create_dir_all(directory.join("src"))
@@ -671,6 +677,11 @@ fn write_generated_crate(
     if uses_platform_support {
         manifest.push_str(
             "terrane-platform-support = { path = \"support/terrane-platform-support\" }\n",
+        );
+    }
+    if uses_async_runtime {
+        manifest.push_str(
+            "tokio = { version = \"=1.53.0\", features = [\"rt\", \"rt-multi-thread\", \"time\"] }\n",
         );
     }
     for dependency in rust_dependencies
@@ -1089,7 +1100,7 @@ mod tests {
         fs::remove_dir_all(directory).unwrap();
     }
     #[test]
-    fn generated_cargo_manifest_configures_build_profiles() {
+    fn generated_cargo_manifest_configures_build_profiles_and_runtime() {
         let directory =
             std::env::temp_dir().join(format!("terrane-build-profiles-{}", std::process::id()));
         if directory.exists() {
@@ -1104,6 +1115,7 @@ mod tests {
                 &[],
                 terrane_compiler::PanicProfile::Abort,
                 false,
+                true,
                 terrane_compiler::BuildToolchain::Pinned,
             )
             .is_ok()
@@ -1116,10 +1128,29 @@ mod tests {
                 .contains("[profile.release]\nopt-level = 3\nlto = \"fat\"\ncodegen-units = 1\n")
         );
         assert!(manifest.contains("rust-version = \"1.93.1\""));
+        assert!(manifest.contains(
+            "tokio = { version = \"=1.53.0\", features = [\"rt\", \"rt-multi-thread\", \"time\"] }"
+        ));
         assert!(manifest.contains("[lints.rust]\nunsafe_code = \"forbid\""));
         assert!(directory.join("rust-toolchain.toml").is_file());
         let metadata = fs::read_to_string(directory.join("terrane-build.toml")).unwrap();
         assert!(metadata.contains("rust-toolchain = \"1.93.1\""));
+
+        assert!(
+            write_generated_crate(
+                &directory,
+                &[],
+                &[],
+                &[],
+                terrane_compiler::PanicProfile::Abort,
+                false,
+                false,
+                terrane_compiler::BuildToolchain::Pinned,
+            )
+            .is_ok()
+        );
+        let synchronous_manifest = fs::read_to_string(directory.join("Cargo.toml")).unwrap();
+        assert!(!synchronous_manifest.contains("\ntokio = "));
         fs::remove_dir_all(directory).unwrap();
     }
 }

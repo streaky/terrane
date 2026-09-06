@@ -1,10 +1,14 @@
 namespace app
-from /deps/async-witness import echo_after_yield, checked_echo
+from /deps/async-witness import echo_after_yield, checked_echo, timer_poll_count, socket_round_trip
 from /core/errors import dependency-error
 
 async function main;
   echoed string = await echo_after_yield; >projected async success
   print; echoed
+  polls int = await timer_poll_count;
+  print; polls
+  message string = await socket_round_trip;
+  print; message
   try
     rejected string = await checked_echo; >reject
     print; rejected

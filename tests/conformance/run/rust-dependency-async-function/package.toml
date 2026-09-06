@@ -1,4 +1,5 @@
 package = "rust-dependency-async-function"
+executor = "cooperative"
 
 [namespaces]
 app = "src"

@@ -951,12 +951,20 @@ pub(super) fn infer_task_transferability(package: &mut SemanticPackage) {
         requirements.merge(contract.execution_requirements);
     }
     package.execution_requirements = requirements;
+    if package
+        .units
+        .iter()
+        .flat_map(|unit| &unit.functions)
+        .any(|contract| contract.name == "main" && contract.is_async)
+    {
+        package.execution_requirements.runtime_context = true;
+        package.execution_requirements.wake_support = true;
+    }
     if package.units.iter().any(|unit| {
         unit.typed_bindings
             .iter()
             .any(|binding| binding.value_type == ValueType::TaskScope)
     }) {
-        package.execution_requirements.runtime_context = true;
         package.execution_requirements.wake_support = true;
     }
 }

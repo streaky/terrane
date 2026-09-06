@@ -695,6 +695,20 @@ requirements, including explicit requirements on referenced projected async memb
 selection is downstream of this generic model; compiler-owned semantic contracts do not contain
 Tokio or another executor crate name.
 
+An asynchronous entrypoint creates one selected wake-driven runtime and tears it down after the
+entry task and all linearly owned scopes finish. Projected Rust futures are constructed on first poll
+inside that context, so dependency timers, sockets, and other reactor-backed futures can suspend
+without a busy loop. The generated Cargo manifest includes the pinned runtime dependency only when
+semantic lowering requires async support. There is no fallback that catches missing runtime context
+and blocks instead. Cancellable legacy scope polling parks on real wakeups with bounded
+cancellation/deadline observation; concurrent runtime-native scope scheduling is not implemented
+yet.
+
+Projected async metadata records runtime-context, wake-support, and transfer knowledge separately.
+Rust `async fn` items currently mark wake support `required` and runtime context and transfer
+`unknown`; hover and completion expose those Terrane terms. Semantic lowering conservatively keeps
+such work local and never treats `unknown` as permission.
+
 `task-scope; deadline?` constructs a scope using the selected threaded or cooperative executor
 profile. `.spawn; callable` consumes an async callable invocation into a linear scoped task;
 `.join; move task` consumes it and returns a task outcome. `.child-scope; deadline` creates a child

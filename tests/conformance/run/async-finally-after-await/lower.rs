@@ -413,20 +413,12 @@ async fn __terrane_await<F: Future>(future: F) -> F::Output {
     YieldOnce(false).await;
     output
 }
-fn __terrane_block_on<F: Future>(future: F) -> F::Output {
-    struct Wake;
-    impl std::task::Wake for Wake {
-        fn wake(self: std::sync::Arc<Self>) {}
-    }
-    let waker = std::task::Waker::from(std::sync::Arc::new(Wake));
-    let mut context = std::task::Context::from_waker(&waker);
-    let mut future = std::pin::pin!(future);
-    loop {
-        match future.as_mut().poll(&mut context) {
-            std::task::Poll::Ready(value) => return value,
-            std::task::Poll::Pending => std::thread::yield_now(),
-        }
-    }
+fn __terrane_run<F: Future>(future: F) -> F::Output {
+    tokio::runtime::Builder::new_multi_thread()
+        .enable_all()
+        .build()
+        .expect("Terrane async runtime must initialize")
+        .block_on(future)
 }
 // Source: case.trn
 // Namespace: async-finally-after-await
@@ -434,7 +426,7 @@ async fn step() -> terrane_int_support::Int {
     return terrane_int_support::Int::from(7_i128);
 }
 fn main() {
-    __terrane_block_on(async move {
+    __terrane_run(async move {
         let mut __terrane_completion_0: TerraneCompletion<()> = async {
             let __terrane_try_0: TerraneCompletion<()> = async {
                 let value: terrane_int_support::Int = __terrane_await(step()).await;

@@ -17,7 +17,7 @@ use sha2::{Digest, Sha256};
 use crate::RustDependency;
 
 pub use crate::RUSTDOC_TOOLCHAIN;
-const PROJECTION_SCHEMA: &str = "15";
+const PROJECTION_SCHEMA: &str = "16";
 const MAX_PROJECTION_CACHE_RECORDS: usize = 4;
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
@@ -223,7 +223,23 @@ pub struct ProjectedFunction {
     pub result: ProjectedType,
     pub error: Option<String>,
     pub is_async: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub execution_requirements: Option<ProjectedExecutionRequirements>,
     pub receiver: Option<Receiver>,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
+pub struct ProjectedExecutionRequirements {
+    pub runtime_context: RequirementKnowledge,
+    pub wake_support: RequirementKnowledge,
+    pub transfer: RequirementKnowledge,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
+pub enum RequirementKnowledge {
+    Required,
+    NotRequired,
+    Unknown,
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
@@ -1988,6 +2004,7 @@ fn project_rustdoc(
                                     },
                                     error: None,
                                     is_async: false,
+                                    execution_requirements: None,
                                     receiver: None,
                                 }),
                             });
@@ -2392,6 +2409,13 @@ fn project_function_inner(
         result,
         error,
         is_async: function.header.is_async,
+        execution_requirements: function.header.is_async.then_some(
+            ProjectedExecutionRequirements {
+                runtime_context: RequirementKnowledge::Unknown,
+                wake_support: RequirementKnowledge::Required,
+                transfer: RequirementKnowledge::Unknown,
+            },
+        ),
         receiver,
     })
 }
@@ -3389,6 +3413,7 @@ mod tests {
                     },
                     error: None,
                     is_async: false,
+                    execution_requirements: None,
                     receiver: None,
                 }),
             }],
@@ -3721,6 +3746,7 @@ mod tests {
                 result: ProjectedType::None,
                 error: None,
                 is_async: false,
+                execution_requirements: None,
                 receiver: None,
             }),
         };

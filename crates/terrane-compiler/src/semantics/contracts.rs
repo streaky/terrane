@@ -442,7 +442,7 @@ pub(super) fn analyze_function_contract(
         },
         execution_requirements: if is_async {
             crate::execution::ExecutionRequirements {
-                runtime_context: true,
+                runtime_context: false,
                 wake_support: true,
                 local_task: unit.namespace.starts_with("/deps/"),
                 transferable_task: !unit.namespace.starts_with("/deps/"),

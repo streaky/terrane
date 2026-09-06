@@ -31,6 +31,15 @@ pub(crate) fn lower(package: &SemanticPackage) -> Program {
                 .iter()
                 .any(|function| function.is_async && package.function_is_referenced(function.span))
     });
+    let has_async = package
+        .units
+        .iter()
+        .any(|unit| unit.functions.iter().any(|function| function.is_async));
+    let has_async_entry = package
+        .units
+        .iter()
+        .flat_map(|unit| &unit.functions)
+        .any(|function| function.name == "main" && function.is_async);
     let has_custom_throwable = has_dependency
         || package.units.iter().any(|unit| {
             unit.objects.iter().any(|object| {
@@ -43,12 +52,18 @@ pub(crate) fn lower(package: &SemanticPackage) -> Program {
         registry.register_descriptor("/core/errors::dependency-error", "dependency-error");
         registry.register_descriptor("/core/errors::dependency-panic", "dependency-panic");
     }
-    if package
-        .units
-        .iter()
-        .any(|unit| unit.functions.iter().any(|function| function.is_async))
-    {
+    if has_async {
         let mut support = include_str!("../../runtime/async.rs").to_owned();
+        if has_async_entry {
+            support.push_str(match package.execution_strategy {
+                crate::execution::ExecutionStrategy::Local => {
+                    include_str!("../../runtime/executor_local.rs")
+                }
+                crate::execution::ExecutionStrategy::Parallel => {
+                    include_str!("../../runtime/executor_parallel.rs")
+                }
+            });
+        }
         if has_async_dependency {
             support.push_str(include_str!("../../runtime/async_dependency.rs"));
         }
@@ -327,6 +342,7 @@ pub(crate) fn lower(package: &SemanticPackage) -> Program {
     Program {
         version: crate::VERSION,
         requires_platform_support,
+        requires_async_runtime: has_async_entry,
         runtime,
         globals: (!globals.is_empty())
             .then(|| Item::generated(&globals))
