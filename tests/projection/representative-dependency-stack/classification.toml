@@ -1,3 +1,12 @@
+[cost]
+observed-on = "2026-09-06"
+host = "x86_64 Linux, AMD Ryzen 9 3900XT"
+method = "target/debug/terrane check; cold removes the project .trn/dependencies workspace but retains Cargo's user cache; warm immediately repeats; generated size counts current src/main.rs and src/main.support.rs"
+cold-wall-seconds = 34.168
+warm-wall-seconds = 0.371
+generated-rust-lines = 557
+generated-rust-bytes = 18299
+
 format = 1
 projection-source = "local-rustdoc"
 build-toolchain = "1.93.1"
@@ -9,8 +18,8 @@ looked-inside-held-types = 5
 [[dependency]]
 name = "axum"
 version = "0.8.9"
-admitted = 36
-declined = 1074
+admitted = 60
+declined = 1052
 required-gaps = ["axum::extract::WebSocketUpgrade<DefaultOnFailedUpgrade>::on_upgrade: open generic C"]
 classification = "default generic identity is reusable; callable-handler shapes still need specialization"
 
@@ -25,17 +34,24 @@ classification = "default generic identity is reusable; non-escaping builder cha
 [[dependency]]
 name = "tower-http"
 version = "0.6.11"
-admitted = 54
-declined = 542
+admitted = 57
+declined = 539
 classification = "reusable generic identity and non-escaping builder chain"
 
 [[dependency]]
 name = "reqwest"
 version = "0.12.28"
-admitted = 31
-declined = 527
-required-gaps = ["reqwest::get: projects as async but lowering emits a synchronous shim", "reqwest::Response::status: result type is owned by undeclared crate http"]
-classification = "async lowering is Phase B; transitive owner is repaired by declaring http"
+admitted = 43
+declined = 526
+required-gaps = ["reqwest::get: projects as async but lowering emits a synchronous shim"]
+classification = "async lowering is Phase B; direct http ownership makes response status identity reachable"
+
+[[dependency]]
+name = "http"
+version = "1.3.1"
+admitted = 41
+declined = 834
+classification = "direct canonical owner for status, header, request, and response types"
 
 [[dependency]]
 name = "tokio-tungstenite"
@@ -72,15 +88,15 @@ classification = "closed generic specialization; concrete string path is the wit
 [[dependency]]
 name = "tokio"
 version = "1.53.1"
-admitted = 133
+admitted = 134
 declined = 1234
 classification = "generic handle identity and async lowering/runtime work"
 
 [[dependency]]
 name = "tracing"
 version = "0.1.44"
-admitted = 2
-declined = 78
+admitted = 4
+declined = 83
 required-gaps = ["tracing::info: macro item has no Terrane projection"]
 classification = "replaceable by Terrane standard logging; no projection feature"
 

@@ -13,6 +13,7 @@ axum = { version = "=0.8.9", default-features = false, features = ["http1", "jso
 tower = { version = "=0.5.3", default-features = false, features = ["limit", "timeout", "util"], effects = ["build"] }
 tower-http = { version = "=0.6.11", default-features = false, features = ["limit", "request-id", "timeout", "trace"], effects = ["build"] }
 reqwest = { version = "=0.12.28", default-features = false, features = ["json", "rustls-tls"], effects = ["build"] }
+http = { version = "=1.3.1", effects = ["build"] }
 tokio-tungstenite = { version = "=0.30.0", default-features = false, features = ["connect", "rustls-tls-webpki-roots"], effects = ["build"] }
 sqlx = { version = "=0.8.6", default-features = false, features = ["json", "postgres", "runtime-tokio-rustls"], effects = ["build"] }
 utoipa = { version = "=5.5.0", features = ["axum_extras", "chrono", "uuid"], effects = ["build"] }

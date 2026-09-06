@@ -1,6 +1,10 @@
 namespace app
 from /deps/reqwest/blocking import get
+from /deps/http/status import StatusCode
 function main;
     response = get; >http://127.0.0.1:38125/
+    response.headers_mut;
+    response-status StatusCode = response.status;
+    print; (response-status.is_success;)
     body string = response.text;
     print; body

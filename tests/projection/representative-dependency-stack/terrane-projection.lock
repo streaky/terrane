@@ -1,5 +1,5 @@
 {
-  "format": 1,
+  "format": 2,
   "dependencies": [
     {
       "name": "axum",
@@ -127,7 +127,7 @@
         ],
         [
           "/deps/axum/extract/ws",
-          "WebSocketUpgrade-df61bc54"
+          "WebSocketUpgrade-df61bc54c4179bc27abbb03902230a8779598b8d3015ad0f8f3c9e7a5b396147"
         ],
         [
           "/deps/axum/extract/ws/rejection",
@@ -211,7 +211,7 @@
         ],
         [
           "/deps/axum/routing",
-          "Router-3d09c110"
+          "Router-3d09c110110da8e67659905c6f5d403a6c123f684c35f4b5944072f063cef466"
         ],
         [
           "/deps/axum/routing",
@@ -227,7 +227,7 @@
         ],
         [
           "/deps/axum/routing/method-routing",
-          "MethodRouter-00ebd944"
+          "MethodRouter-00ebd944b5e1ef51fc9dffef1365fd1a6f37c5c8536b597785ecf5835d5aed29"
         ],
         [
           "/deps/axum/routing/method-routing",
@@ -239,11 +239,181 @@
         ],
         [
           "/deps/axum/routing/route",
-          "Route-b940c910"
+          "Route-b940c910788559dcee57f9a9558dc26e0896f3158833a06405b732a9eb2d2772"
         ],
         [
           "/deps/axum/serve/private",
           "ServeFuture"
+        ]
+      ]
+    },
+    {
+      "name": "http",
+      "version": "1.3.1",
+      "members": [
+        [
+          "/deps/http/error",
+          "Error"
+        ],
+        [
+          "/deps/http/extensions",
+          "Extensions"
+        ],
+        [
+          "/deps/http/extensions",
+          "new"
+        ],
+        [
+          "/deps/http/header/map",
+          "HeaderMap-7f30e0da67462cd8069ae23edfbaa33dd7e6b4f0bde85c4d7f7b6a21b084dd16"
+        ],
+        [
+          "/deps/http/header/map",
+          "MaxSizeReached"
+        ],
+        [
+          "/deps/http/header/map",
+          "new"
+        ],
+        [
+          "/deps/http/header/map",
+          "try_with_capacity"
+        ],
+        [
+          "/deps/http/header/map",
+          "with_capacity"
+        ],
+        [
+          "/deps/http/header/map/as-header-name",
+          "TryEntryError"
+        ],
+        [
+          "/deps/http/header/name",
+          "HeaderName"
+        ],
+        [
+          "/deps/http/header/name",
+          "InvalidHeaderName"
+        ],
+        [
+          "/deps/http/header/name",
+          "from_static"
+        ],
+        [
+          "/deps/http/header/value",
+          "HeaderValue"
+        ],
+        [
+          "/deps/http/header/value",
+          "InvalidHeaderValue"
+        ],
+        [
+          "/deps/http/header/value",
+          "ToStrError"
+        ],
+        [
+          "/deps/http/header/value",
+          "from_name"
+        ],
+        [
+          "/deps/http/header/value",
+          "from_static"
+        ],
+        [
+          "/deps/http/header/value",
+          "from_str"
+        ],
+        [
+          "/deps/http/method",
+          "InvalidMethod"
+        ],
+        [
+          "/deps/http/method",
+          "Method"
+        ],
+        [
+          "/deps/http/request",
+          "Builder"
+        ],
+        [
+          "/deps/http/request",
+          "Parts"
+        ],
+        [
+          "/deps/http/request",
+          "new"
+        ],
+        [
+          "/deps/http/response",
+          "Builder"
+        ],
+        [
+          "/deps/http/response",
+          "Parts"
+        ],
+        [
+          "/deps/http/response",
+          "new"
+        ],
+        [
+          "/deps/http/status",
+          "InvalidStatusCode"
+        ],
+        [
+          "/deps/http/status",
+          "StatusCode"
+        ],
+        [
+          "/deps/http/status",
+          "from_u16"
+        ],
+        [
+          "/deps/http/uri",
+          "InvalidUri"
+        ],
+        [
+          "/deps/http/uri",
+          "InvalidUriParts"
+        ],
+        [
+          "/deps/http/uri",
+          "Parts"
+        ],
+        [
+          "/deps/http/uri",
+          "Uri"
+        ],
+        [
+          "/deps/http/uri",
+          "builder"
+        ],
+        [
+          "/deps/http/uri",
+          "from_parts"
+        ],
+        [
+          "/deps/http/uri/authority",
+          "Authority"
+        ],
+        [
+          "/deps/http/uri/builder",
+          "Builder"
+        ],
+        [
+          "/deps/http/uri/builder",
+          "new"
+        ],
+        [
+          "/deps/http/uri/path",
+          "PathAndQuery"
+        ],
+        [
+          "/deps/http/uri/scheme",
+          "Scheme"
+        ],
+        [
+          "/deps/http/version",
+          "Version"
         ]
       ]
     },
@@ -1022,11 +1192,11 @@
         ],
         [
           "/deps/tower/retry/backoff",
-          "ExponentialBackoff-e2a82020"
+          "ExponentialBackoff-e2a82020178f1a5387e2e31c5e8fb74f1d65a5d1e906682f12d1de55b7f45733"
         ],
         [
           "/deps/tower/retry/backoff",
-          "ExponentialBackoffMaker-b603f655"
+          "ExponentialBackoffMaker-b603f65576c693b7e43b4b61cd23a5030addc69a80057e63f529a0a8382cc88c"
         ],
         [
           "/deps/tower/retry/backoff",
@@ -1062,7 +1232,7 @@
         ],
         [
           "/deps/tower/util/rng",
-          "HasherRng-d250ece9"
+          "HasherRng-d250ece96d434c53bb6f7d2c1a93595ecb3ee3b237b65cd5acf21fca24f1a212"
         ],
         [
           "/deps/tower/util/rng",
@@ -1097,6 +1267,10 @@
         [
           "/deps/tower-http/classify",
           "ServerErrorsFailureClass"
+        ],
+        [
+          "/deps/tower-http/classify/classifyeos",
+          "classify_eos"
         ],
         [
           "/deps/tower-http/classify/grpc-errors-as-failures",
@@ -1192,7 +1366,7 @@
         ],
         [
           "/deps/tower-http/follow-redirect",
-          "FollowRedirectLayer-25964673"
+          "FollowRedirectLayer-259646736fea12646a759a57df982e8af487de35b00294b25d18e90aa3ee2027"
         ],
         [
           "/deps/tower-http/follow-redirect",
@@ -1289,6 +1463,10 @@
         [
           "/deps/tower-http/trace/on-eos",
           "DefaultOnEos"
+        ],
+        [
+          "/deps/tower-http/trace/on-eos/oneos",
+          "on_eos"
         ],
         [
           "/deps/tower-http/trace/on-failure",
@@ -2055,5 +2233,30 @@
       ]
     }
   ],
-  "removed": []
+  "removed": [],
+  "cache_identity": "b668d179777894520c1253b8cce0ef9a60420d3f77f5c5641e5d7c39ec8d5f15",
+  "source": "Local",
+  "rustdoc_format": 57,
+  "projection_schema": "14",
+  "content_hash": "54beec31a702903d253e5e6ed594d74dda9f16f2b3b0abe896aec06dc38039e5",
+  "resolution": {
+    "outcome": "LocalRustdoc",
+    "events": [
+      {
+        "source": "BundledArtifact",
+        "status": "Skipped",
+        "reason": "bundled projection distribution is deliberately deferred until Terrane has a release artifact channel"
+      },
+      {
+        "source": "PublishedArtifact",
+        "status": "Skipped",
+        "reason": "`TERRANE_PROJECTION_ARTIFACT_URL` is not configured"
+      },
+      {
+        "source": "LocalRustdoc",
+        "status": "Generated",
+        "reason": "no reusable exact artifact was available; generated with the pinned local rustdoc toolchain"
+      }
+    ]
+  }
 }
