@@ -1957,6 +1957,74 @@ selection, zero-argument invocation, arity, and argument contracts. Generated Ru
 support, compiles warning-free, and execution matches the documented source contract without a
 scientific dependency.
 
+### Milestone 25.4 — Destination-directed specialization of closed generic results
+
+Milestone 25.2 widened the representable projected surface and milestone 25.1 gave projected objects
+namespace-qualified identity. Neither admits a dependency operation whose result type is chosen by the
+caller. Such an operation is declined today with an open-generic reason, so a Terrane program cannot
+extract an owned value from a projected container, select a concrete item type where a Rust type
+parameter is otherwise unconstrained, or construct a concrete collection argument for a projected call.
+
+The dependency-projection foundations work established that this is a cost decision rather than a
+representability one. The projection oracle compiles a generated probe against the resolved dependency
+graph and asks `rustc` whether a concrete type satisfies a bound, so bound proof does not require
+enumerating implementations from metadata and is not defeated by blanket implementations. An exact
+lifetime-parameterized accessor — a database row accessor whose decoded type is bounded over the row
+borrow and over a driver associated type — was probed against a real driver and compiles. The shape
+this plan declines as unprojectable is therefore narrower than previously recorded, and the remaining
+question is which destinations the language admits, not whether the compiler can prove them.
+
+This milestone is the general capability. It is deliberately not scoped to any application: an
+application that finds a narrow owned facade cheaper may continue to use one, and that choice must not
+determine whether the language has the capability at all.
+
+It also retires `docs/rust-deps.md` §7.1, which states the caller-chosen type-argument rule and defers
+object destinations because generating a struct carrying a deserialization derive "makes `serde` a
+structural dependency of the projector itself". That reasoning no longer holds: the compiler emits a
+derive as text, the derive is requested through the author's manifest, the package consumes the
+generated implementation, and the projector learns nothing about the serialization crate. Whether
+object destinations are admitted is therefore a scope decision for this milestone rather than a
+structural obstacle, and §7.1's deferral note is removed rather than reworded when it lands.
+
+Deliver:
+
+- **destination-directed inference.** An expected result type carried into projected call selection
+  from exactly one written Terrane destination — an explicitly typed binding, an explicitly typed
+  argument, a class field assignment, or a declared function return. An unconstrained call remains an
+  error naming the absent destination. This is not source-declared generic programming, and it must not
+  become bidirectional inference outside a projected call result;
+- **oracle-backed bound proof.** One exact monomorphization admitted by asking the projection oracle
+  whether the destination type satisfies the projected parameter's bounds, including bounds satisfied
+  only through blanket implementations and bounds carrying higher-ranked lifetimes or associated types.
+  An oracle answer of `unknown` declines; it is never read as satisfied;
+- **the closed destination set**, built recursively from the identity and aggregate surfaces already
+  delivered: scalars, strings, bytes, foreign instantiations, `T|none`, and representable sequences,
+  maps, sets, and homogeneous tuples. Each shape enters when an exercised dependency requires it;
+- **ownership and escape rules.** The chosen type's Rust representation is owned; no borrow escapes the
+  emitted expression or its monomorphic shim; a destination that would require a borrowed result is
+  declined against the owned form rather than silently cloned;
+- **projection and tooling parity.** The selected result, its errors, its ownership, and its available
+  members are exposed identically to semantic checking, completion, hover, definitions, and
+  diagnostics, from the one projection artifact;
+- **lowering.** Readable generated Rust naming the concrete type argument, with representation
+  conversion where the two statically known shapes differ, and no universal boxed value introduced to
+  adapt types already known at compile time;
+- **a settled position on object destinations**, per the §7.1 note above: either admit a declared
+  Terrane class as a destination by emitting the derive its bound requires and proving the bound
+  through the oracle, or decline object destinations with a stated reason that is not the retired
+  structural-dependency one;
+- **an explicit source-level descriptor argument only if destination context proves inadequate.**
+  Rust-style angle-bracket type arguments are not added to the language.
+
+Exit criterion: an accepted program selects owned scalar, optional, bytes, and aggregate results from
+explicit Terrane destinations and retains them beyond the source object's immediate borrow. Rejected
+cases prove unconstrained results, borrowed results, unsatisfied bounds, conflicting destinations, an
+oracle `unknown`, and a value crossing suspension with a live borrow. Two dissimilar dependencies
+witness the same destination-directed rule, one of them carrying a lifetime-parameterized bound, so
+neither crate shape defines the implementation. Generated Rust names every concrete type argument
+explicitly, compiles with warnings denied, and passes canonical validation where untouched lowering
+already does.
+
 ### Milestone 26 — Remaining concurrency and system adapters
 
 Milestone 25.2 already established the package `[profile]` model, validates declared dependency
@@ -2110,6 +2178,62 @@ Deliver:
 - no test or release command that treats `demos/` as supported source.
 
 Exit criterion: the clean-checkout release scenario below passes on supported platforms and the implemented-subset document agrees with executable conformance tests.
+
+### Milestone 28.1 — Projection artifact distribution
+
+Dependency projection reads rustdoc JSON, which requires a pinned nightly toolchain. That requirement
+is the only reason a user of `[rust-dependencies]` needs a second toolchain at all: everything else a
+generated build asks of the host is answered by the pinned stable. Distributing precomputed projection
+artifacts removes it for every dependency an artifact covers, and removes the per-project cost of
+generating rustdoc for large crates at the same time.
+
+Artifacts are data rather than machine code, so they do not carry Rust's ABI constraints and remain
+valid across toolchain changes. What they must carry is enough identity to be refused when they do not
+apply, because an artifact describing a member that the consumer's resolved features do not provide
+produces a member that projects cleanly, appears in tooling, and fails at `rustc` — the misleading
+successful projection this design otherwise works to prevent.
+
+Implemented foundation: the projection artifact envelope, its content hash, and its exact-match
+acceptance rule; the resolution chain with per-source events and outcomes recorded in
+`terrane-projection.lock`; local rustdoc as the ground-truth source; and a published-artifact source
+behind `TERRANE_PROJECTION_ARTIFACT_URL`. Bundled distribution is recorded as a skipped source with a
+stated reason rather than left absent, because it requires a release artifact channel that does not yet
+exist. That channel is what this milestone adds.
+
+Deliver:
+
+- **a bundled artifact set shipped with the compiler**, resolved ahead of any network source, for
+  dependencies common enough to justify the distribution size. Bundling is a size-and-coverage
+  judgement and the selection rule belongs in the release manifest, not in the compiler;
+- **content-addressed, relocatable artifact files** resolved from an overridable search path, so a
+  fetch tool is never the only way to satisfy a projection. An artifact obtained by any means — vendored
+  into a tree, mirrored internally, copied by hand — must be indistinguishable from one the compiler
+  fetched itself;
+- **verification against a hash pinned in the compiler**, refusing on mismatch. Artifacts determine
+  what code is generated, so an unverified artifact is a supply-chain position rather than a
+  convenience;
+- **an offline and air-gapped path** that does not degrade to a network prerequisite: a vendoring
+  command or documented layout that materialises everything a project needs into its tree, and a
+  disable switch honouring the same posture as the existing offline build;
+- **a settled position on the published source.** Either run projection infrastructure and serve
+  artifacts produced under the pinned nightly, or consume a third-party published source and accept its
+  availability and feature-configuration constraints. The decision is a measurement: the resolution
+  events already record hit, miss, feature mismatch, unsupported format version, unavailable version,
+  and fallback per source, and those counts are the evidence;
+- **a settled position on feature-set strictness.** Exact feature match is the current rule and is the
+  safe floor. The alternative is to accept an artifact whose feature set differs and prove each member
+  the program actually uses through the projection oracle, declining cleanly on a member absent under
+  the resolved features. If taken, the probe must exercise the emitted call shape rather than mere
+  existence, and an oracle answer of `unknown` must never read as present;
+- **cache and prune behaviour** for fetched artifacts consistent with the existing projection cache,
+  including a stated policy on how long an artifact for a superseded lock is retained.
+
+Exit criterion: a project declaring dependencies covered by the bundled set builds with no nightly
+toolchain present and no network access, and its lock records the bundled source. A project declaring
+an uncovered dependency falls back with a diagnostic naming the dependency and the reason. A corrupted
+or unverified artifact is refused rather than used. A vendored artifact tree satisfies a build with
+fetching disabled. The published-source and feature-strictness positions are recorded with the
+resolution counts that decided them, rather than asserted.
 
 ## 8. Clean-checkout release scenario
 
