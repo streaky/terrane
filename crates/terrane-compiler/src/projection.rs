@@ -915,6 +915,7 @@ fn fetch_remote_projection(
                     .to_owned(),
         });
     }
+    let _ = rustls::crypto::aws_lc_rs::default_provider().install_default();
     let url = format!("{}/{}.json", base_url.trim_end_matches('/'), identity);
     let agent: ureq::Agent = ureq::Agent::config_builder()
         .https_only(true)

@@ -19,6 +19,7 @@ rustdoc-types.workspace = true
 sha2 = "0.10"
 syn = { version = "2", features = ["extra-traits", "fold", "full"] }
 ureq.workspace = true
+rustls.workspace = true
 toml = "0.8"
 [lints]
 workspace = true
