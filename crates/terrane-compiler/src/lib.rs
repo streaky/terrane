@@ -26,7 +26,8 @@ pub use package::{
     Package, PackageLoadError, PanicProfile, ReflectionProfile, RustDependency, SourceUnit,
 };
 pub use projection_oracle::{
-    BoundQuestion, ProbeAnswer, ProbeEvidence, ProbeReport, ProjectionOracle,
+    BoundQuestion, CallProbeEvidence, CallProbeReport, CallQuestion, ProbeAnswer, ProbeEvidence,
+    ProbeReport, ProjectionOracle,
 };
 pub use semantics::{
     BOOTSTRAP_VERSION, BoundMethod, EvaluationKind, EvaluationStep, FunctionContract, MemberFamily,

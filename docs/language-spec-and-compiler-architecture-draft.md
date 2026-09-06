@@ -4095,13 +4095,15 @@ later offline compilation does not contact the service or require the nightly pr
 metadata records whether the admitted surface came from a verified remote artifact or local rustdoc.
 
 When typed metadata cannot prove a concrete Rust bound or reveal an emit-and-consume macro result,
-the projection compile-time oracle generates a deterministic minimal crate against the already
-resolved dependency workspace. Bound questions are batched and answer `yes`, `no`, or `unknown`:
-only rustc's trait-bound failure is `no`; resolution, toolchain, containment, and unrelated compiler
-failures are `unknown` and may not silently become a declined member. Macro probes run rustdoc over
-the generated invocation and return its expanded public API. Results are cached under the shared
-projection identity, serialized into projection artifacts, and include compiled-probe count and
-wall time. An exact cached answer is reused without compiling the probe again.
+the projection compile-time oracle can generate a deterministic minimal crate against the already
+resolved dependency workspace. Bound and exact-call questions are batched and answer `yes`, `no`,
+or `unknown`: `yes` requires Cargo to emit the probe target's compiler artifact; only rustc's
+probe-local trait-bound failure is `no`; resolution, toolchain, containment, spanless, and unrelated
+compiler failures are `unknown`. Macro probes run rustdoc over the generated invocation and return
+its expanded public API. The infrastructure caches exact reports under projection identity, but the
+current projector has no production question source and therefore does not use probe answers to
+admit or decline members; transferable projections currently record an empty probe list and zero
+probe wall time. A future consumer must serialize the reports it actually uses.
 
 Projected type identity follows the Rust item rather than the importing module alone. A public
 re-export is resolved to its canonical Rust path before the Terrane namespace and object identity

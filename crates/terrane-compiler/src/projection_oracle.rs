@@ -35,6 +35,25 @@ pub struct ProbeReport {
     pub wall_time_ms: u128,
 }
 
+#[derive(Clone, Debug, Deserialize, Eq, Ord, PartialEq, PartialOrd, Serialize)]
+pub struct CallQuestion {
+    pub label: String,
+    pub source: String,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+pub struct CallProbeEvidence {
+    pub question: CallQuestion,
+    pub answer: ProbeAnswer,
+}
+
+#[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq, Serialize)]
+pub struct CallProbeReport {
+    pub evidence: Vec<CallProbeEvidence>,
+    pub compiled_probe_count: usize,
+    pub wall_time_ms: u128,
+}
+
 #[derive(Debug)]
 pub struct ProjectionOracle<'a> {
     workspace: &'a Path,
@@ -77,6 +96,10 @@ impl<'a> ProjectionOracle<'a> {
 
         let started = Instant::now();
         let bin_directory = self.workspace.join("src/bin");
+        if bin_directory.exists() {
+            fs::remove_dir_all(&bin_directory)
+                .map_err(io_error("clear projection probe directory"))?;
+        }
         fs::create_dir_all(&bin_directory)
             .map_err(io_error("create projection probe directory"))?;
         let mut names = BTreeMap::new();
@@ -102,52 +125,7 @@ impl<'a> ProjectionOracle<'a> {
             ],
             self.containment,
         )?;
-        let mut answers = vec![ProbeAnswer::Yes; questions.len()];
-        for line in String::from_utf8_lossy(&output.stdout).lines() {
-            let Ok(message) = serde_json::from_str::<serde_json::Value>(line) else {
-                continue;
-            };
-            if message["reason"] != "compiler-message" || message["message"]["level"] != "error" {
-                continue;
-            }
-            let code = message["message"]["code"]["code"].as_str();
-            let rendered = message["message"]["rendered"]
-                .as_str()
-                .unwrap_or("probe compilation failed")
-                .trim()
-                .to_owned();
-            for span in message["message"]["spans"].as_array().into_iter().flatten() {
-                let Some(file_name) = span["file_name"].as_str() else {
-                    continue;
-                };
-                let Some(stem) = Path::new(file_name)
-                    .file_stem()
-                    .and_then(|stem| stem.to_str())
-                else {
-                    continue;
-                };
-                let Some(index) = names.get(stem).copied() else {
-                    continue;
-                };
-                answers[index] = if code == Some("E0277") {
-                    ProbeAnswer::No
-                } else {
-                    ProbeAnswer::Unknown {
-                        reason: rendered.clone(),
-                    }
-                };
-            }
-        }
-        if !output.status.success() && answers.iter().all(|answer| answer == &ProbeAnswer::Yes) {
-            let reason = String::from_utf8_lossy(&output.stderr).trim().to_owned();
-            answers.fill(ProbeAnswer::Unknown {
-                reason: if reason.is_empty() {
-                    "Cargo probe failed without a compiler diagnostic".to_owned()
-                } else {
-                    reason
-                },
-            });
-        }
+        let answers = classify_probe_answers(&output, &names, questions.len());
         let report = ProbeReport {
             evidence: questions
                 .into_iter()
@@ -159,6 +137,81 @@ impl<'a> ProjectionOracle<'a> {
         };
         let mut bytes = serde_json::to_vec_pretty(&report).map_err(|error| ProjectionError {
             message: format!("cannot serialize projection probe cache: {error}"),
+        })?;
+        bytes.push(b'\n');
+        write_if_changed(&cache_path, &bytes)?;
+        Ok(report)
+    }
+
+    /// Compiles exact Rust call shapes against the resolved dependency workspace.
+    ///
+    /// A successful answer requires Cargo to emit a compiler artifact for that probe target.
+    /// Probe-local compiler failures are `No` only for trait-bound failures; every other failure
+    /// remains `Unknown`.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the deterministic probe workspace or its cache cannot be prepared.
+    pub fn prove_calls(
+        &self,
+        questions: &[CallQuestion],
+    ) -> Result<CallProbeReport, ProjectionError> {
+        let mut questions = questions.to_vec();
+        questions.sort();
+        questions.dedup();
+        if questions.is_empty() {
+            return Ok(CallProbeReport::default());
+        }
+        let batch_identity = call_batch_identity(self.cache_identity, &questions)?;
+        let cache_path = self
+            .workspace
+            .join(format!("oracle-calls-{batch_identity}.json"));
+        if let Ok(bytes) = fs::read(&cache_path) {
+            return serde_json::from_slice(&bytes).map_err(|error| ProjectionError {
+                message: format!("invalid cached projection call probe: {error}"),
+            });
+        }
+
+        let started = Instant::now();
+        let bin_directory = self.workspace.join("src/bin");
+        if bin_directory.exists() {
+            fs::remove_dir_all(&bin_directory)
+                .map_err(io_error("clear projection probe directory"))?;
+        }
+        fs::create_dir_all(&bin_directory)
+            .map_err(io_error("create projection probe directory"))?;
+        let mut names = BTreeMap::new();
+        for (index, question) in questions.iter().enumerate() {
+            let name = format!("terrane_call_probe_{index}");
+            names.insert(name.clone(), index);
+            write_if_changed(
+                &bin_directory.join(format!("{name}.rs")),
+                question.source.as_bytes(),
+            )?;
+        }
+        let output = cargo_output(
+            self.workspace,
+            &[
+                "check",
+                "--bins",
+                "--keep-going",
+                "--offline",
+                "--frozen",
+                "--message-format=json",
+            ],
+            self.containment,
+        )?;
+        let report = CallProbeReport {
+            evidence: questions
+                .into_iter()
+                .zip(classify_probe_answers(&output, &names, names.len()))
+                .map(|(question, answer)| CallProbeEvidence { question, answer })
+                .collect(),
+            compiled_probe_count: names.len(),
+            wall_time_ms: started.elapsed().as_millis(),
+        };
+        let mut bytes = serde_json::to_vec_pretty(&report).map_err(|error| ProjectionError {
+            message: format!("cannot serialize projection call probe cache: {error}"),
         })?;
         bytes.push(b'\n');
         write_if_changed(&cache_path, &bytes)?;
@@ -212,6 +265,79 @@ impl<'a> ProjectionOracle<'a> {
     }
 }
 
+fn classify_probe_answers(
+    output: &std::process::Output,
+    names: &BTreeMap<String, usize>,
+    count: usize,
+) -> Vec<ProbeAnswer> {
+    let unclassified =
+        "compiler emitted neither a successful artifact nor a probe-local diagnostic";
+    let mut answers = vec![
+        ProbeAnswer::Unknown {
+            reason: unclassified.to_owned(),
+        };
+        count
+    ];
+    for line in String::from_utf8_lossy(&output.stdout).lines() {
+        let Ok(message) = serde_json::from_str::<serde_json::Value>(line) else {
+            continue;
+        };
+        if message["reason"] == "compiler-artifact" {
+            if let Some(index) = message["target"]["name"]
+                .as_str()
+                .and_then(|name| names.get(name))
+                .copied()
+            {
+                answers[index] = ProbeAnswer::Yes;
+            }
+            continue;
+        }
+        if message["reason"] != "compiler-message" || message["message"]["level"] != "error" {
+            continue;
+        }
+        let code = message["message"]["code"]["code"].as_str();
+        let rendered = message["message"]["rendered"]
+            .as_str()
+            .unwrap_or("probe compilation failed")
+            .trim()
+            .to_owned();
+        for span in message["message"]["spans"].as_array().into_iter().flatten() {
+            let Some(file_name) = span["file_name"].as_str() else {
+                continue;
+            };
+            let Some(stem) = Path::new(file_name)
+                .file_stem()
+                .and_then(|stem| stem.to_str())
+            else {
+                continue;
+            };
+            let Some(index) = names.get(stem).copied() else {
+                continue;
+            };
+            answers[index] = if code == Some("E0277") {
+                ProbeAnswer::No
+            } else {
+                ProbeAnswer::Unknown {
+                    reason: rendered.clone(),
+                }
+            };
+        }
+    }
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr).trim().to_owned();
+        if !stderr.is_empty() {
+            for answer in &mut answers {
+                if matches!(answer, ProbeAnswer::Unknown { reason } if reason == unclassified) {
+                    *answer = ProbeAnswer::Unknown {
+                        reason: stderr.clone(),
+                    };
+                }
+            }
+        }
+    }
+    answers
+}
+
 fn batch_identity(identity: &str, questions: &[BoundQuestion]) -> Result<String, ProjectionError> {
     let encoded = serde_json::to_vec(questions).map_err(|error| ProjectionError {
         message: format!("cannot encode projection probe identity: {error}"),
@@ -219,6 +345,20 @@ fn batch_identity(identity: &str, questions: &[BoundQuestion]) -> Result<String,
     let mut hash = Sha256::new();
     hash.update(identity.as_bytes());
     hash.update([0]);
+    hash.update(encoded);
+    Ok(format!("{:x}", hash.finalize()))
+}
+
+fn call_batch_identity(
+    identity: &str,
+    questions: &[CallQuestion],
+) -> Result<String, ProjectionError> {
+    let encoded = serde_json::to_vec(questions).map_err(|error| ProjectionError {
+        message: format!("cannot encode projection call probe identity: {error}"),
+    })?;
+    let mut hash = Sha256::new();
+    hash.update(identity.as_bytes());
+    hash.update(b"calls");
     hash.update(encoded);
     Ok(format!("{:x}", hash.finalize()))
 }
@@ -289,14 +429,19 @@ fn io_error(context: &'static str) -> impl Fn(std::io::Error) -> ProjectionError
 #[cfg(test)]
 mod tests {
     use std::fs;
+    use std::process::Command;
     use std::time::{SystemTime, UNIX_EPOCH};
 
     use rustdoc_types::{Crate as RustdocCrate, ItemEnum};
 
-    use super::{BoundQuestion, ProbeAnswer, ProjectionOracle};
+    use super::{BoundQuestion, CallQuestion, ProbeAnswer, ProjectionOracle};
     use crate::projection::Containment;
 
     fn workspace(name: &str) -> std::path::PathBuf {
+        workspace_with_dependencies(name, "")
+    }
+
+    fn workspace_with_dependencies(name: &str, dependencies: &str) -> std::path::PathBuf {
         let nonce = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .unwrap()
@@ -305,7 +450,9 @@ mod tests {
         fs::create_dir_all(path.join("src")).unwrap();
         fs::write(
             path.join("Cargo.toml"),
-            "[package]\nname = \"terrane_dependency_projection\"\nversion = \"0.0.0\"\nedition = \"2024\"\n[workspace]\n",
+            format!(
+                "[package]\nname = \"terrane_dependency_projection\"\nversion = \"0.0.0\"\nedition = \"2024\"\n\n[dependencies]\n{dependencies}\n[workspace]\n"
+            ),
         )
         .unwrap();
         fs::write(path.join("src/lib.rs"), "").unwrap();
@@ -317,8 +464,6 @@ mod tests {
             .unwrap();
         path
     }
-
-    use std::process::Command;
 
     #[test]
     fn bound_probe_distinguishes_yes_no_and_unknown_and_caches() {
@@ -362,6 +507,59 @@ mod tests {
 
         let second = oracle.prove_bounds(&questions).unwrap();
         assert_eq!(second, first);
+        fs::remove_dir_all(workspace).unwrap();
+    }
+
+    #[test]
+    fn later_batch_uses_positive_artifacts_and_clears_stale_bins() {
+        let workspace = workspace("success-artifacts");
+        let oracle = ProjectionOracle::new(&workspace, "identity", Containment::Unavailable);
+        let first = oracle
+            .prove_bounds(&[
+                BoundQuestion {
+                    rust_type: "Vec<u8>".to_owned(),
+                    rust_bound: "IntoIterator<Item = u8>".to_owned(),
+                },
+                BoundQuestion {
+                    rust_type: "String".to_owned(),
+                    rust_bound: "Copy".to_owned(),
+                },
+            ])
+            .unwrap();
+        assert!(
+            first
+                .evidence
+                .iter()
+                .any(|evidence| evidence.answer == ProbeAnswer::No)
+        );
+
+        let second = oracle
+            .prove_bounds(&[BoundQuestion {
+                rust_type: "Vec<u16>".to_owned(),
+                rust_bound: "IntoIterator<Item = u16>".to_owned(),
+            }])
+            .unwrap();
+        assert_eq!(second.evidence[0].answer, ProbeAnswer::Yes);
+        assert_eq!(fs::read_dir(workspace.join("src/bin")).unwrap().count(), 1);
+        fs::remove_dir_all(workspace).unwrap();
+    }
+
+    #[test]
+    fn exact_sqlx_row_accessor_call_compiles_against_resolved_dependency() {
+        let workspace = workspace_with_dependencies(
+            "sqlx-row-accessor",
+            "sqlx = { version = \"=0.8.6\", default-features = false, features = [\"postgres\", \"runtime-tokio-rustls\"] }\n",
+        );
+        let oracle = ProjectionOracle::new(&workspace, "sqlx-0.8.6", Containment::Unavailable);
+        let report = oracle
+            .prove_calls(&[CallQuestion {
+                label: "sqlx::Row::try_get::<String, _>".to_owned(),
+                source: "use sqlx::Row as _;\nfn read_name(row: &sqlx::postgres::PgRow) -> Result<String, sqlx::Error> {\n    row.try_get::<String, _>(\"name\")\n}\nfn main() { let _ = read_name; }\n".to_owned(),
+            }])
+            .unwrap();
+
+        assert_eq!(report.compiled_probe_count, 1);
+        assert_eq!(report.evidence[0].answer, ProbeAnswer::Yes);
         fs::remove_dir_all(workspace).unwrap();
     }
 

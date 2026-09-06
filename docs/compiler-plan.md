@@ -1875,10 +1875,13 @@ An optional trusted HTTPS projection-artifact lookup verifies the complete depen
 toolchain, rustdoc-format, and projection-schema identity before admission; verified results enter
 the ordinary offline cache, while unavailable or mismatched artifacts take the same exact local
 rustdoc fallback.
-The projection layer also owns a deterministic contained compile-time oracle for questions typed
-metadata cannot answer. It batches and caches bound assertions with distinct yes/no/unknown results,
-recovers macro-expanded public API through rustdoc, and records questions, answers, probe count, and
-wall time in the transferable artifact.
+The projection layer owns infrastructure for deterministic contained compile-time questions that
+typed metadata cannot answer. Bound and exact-call probes require positive compiler-artifact
+evidence for `yes`, preserve probe-local bound errors as `no`, classify every other failure as
+`unknown`, clear stale targets between batches, and cache exact reports. Macro probes recover
+expanded public API through rustdoc. No production projector path creates questions yet, so current
+transferable artifacts honestly retain empty evidence and zero wall time rather than claiming an
+unused report was recorded.
 Concrete generic arguments and Rust type-alias substitutions now participate in projected foreign
 identity, and lowering emits instantiated Rust spellings as deterministic type aliases so distinct
 instantiations cannot collapse onto one semantic object.
@@ -1889,12 +1892,13 @@ conversions. Signature types owned by undeclared transitive crates decline with 
 lock-resolved version; declaring a unique unifying owner makes its canonical identity reachable,
 while crossed owners with multiple resolved versions fail before Rust lowering.
 The exact dependency probe leaves destination-directed generic results and non-escaping projected
-temporary chains deferred rather than admitting speculative success paths. The demanding
-`sqlx::Row::try_get` witness carries a lifetime-parameterized database decode associated type that
-the bounded compile-time oracle cannot state; an owned narrow facade is the cheaper boundary.
-The exact `query(...).bind(...).execute(...)` chain terminates in an async operation and therefore
-cannot become executable before the Phase B lowering contract. The probe inventory records both
-decisions and their exact witnesses.
+temporary chains deferred rather than admitting speculative success paths. A compiled exact-call
+probe proves that `sqlx::Row::try_get::<String, _>` is valid against SQLx 0.8.6, including its
+lifetime-parameterized `Decode` and `Type` obligations. Destination-driven projection remains
+deferred because no exact application witness requires the direct generic surface and the owned
+narrow facade is the cheaper boundary. The exact `query(...).bind(...).execute(...)` chain
+terminates in an async operation and therefore cannot become executable before the Phase B
+lowering contract. The probe inventory records both decisions and their exact witnesses.
 `terrane-projection.lock` provides deterministic machine-independent history and `S2031` names a
 removed member and its resolved version transition. The accepted
 `rust-dependency-deferred-surface` execution case crosses a `bytes` receiver-first trait method and

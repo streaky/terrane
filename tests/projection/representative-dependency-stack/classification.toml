@@ -125,8 +125,10 @@ member = "utoipa::OpenApi derive"
 [[decision]]
 unit = "A8"
 outcome = "deferred"
-witness = "sqlx::Row::try_get"
-reason = "the concrete accessor is lifetime-parameterized over the row borrow and database decode associated types, which the bounded A4 oracle cannot express; the exact application boundary is cheaper and safer as an owned narrow facade"
+witness = "sqlx::Row::try_get::<String, _>"
+probe = "projection_oracle::tests::exact_sqlx_row_accessor_call_compiles_against_resolved_dependency"
+probe-answer = "yes"
+reason = "the exact call compiles against sqlx 0.8.6, including its lifetime-parameterized Decode and Type bounds; projection remains deferred because the application boundary does not require direct destination-driven specialization and an owned narrow facade is cheaper and safer"
 
 [[decision]]
 unit = "A9"
