@@ -4,6 +4,7 @@ use std::fs;
 use std::path::Path;
 use std::process::Command;
 use std::sync::LazyLock;
+use std::time::Duration;
 
 use rustdoc_types::{
     Crate as RustdocCrate, Function, GenericArg, GenericArgs, GenericBound, GenericParamDefKind,
@@ -24,6 +25,8 @@ pub struct Projection {
     pub dependencies: Vec<ProjectedDependency>,
     pub containment: Containment,
     #[serde(default)]
+    pub source: ProjectionSource,
+    #[serde(default)]
     pub removed: Vec<RemovedItem>,
 }
 
@@ -31,6 +34,51 @@ pub struct Projection {
 pub enum Containment {
     Enforced,
     Unavailable,
+}
+
+#[derive(Clone, Copy, Debug, Default, Deserialize, Eq, PartialEq, Serialize)]
+pub enum ProjectionSource {
+    Remote,
+    #[default]
+    Local,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+struct ProjectionArtifact {
+    format: u32,
+    cache_identity: String,
+    target: String,
+    build_toolchain: String,
+    rustdoc_toolchain: String,
+    rustdoc_format: u32,
+    projection_schema: String,
+    dependencies: Vec<ArtifactDependency>,
+    projection: Projection,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+struct ArtifactDependency {
+    name: String,
+    package: String,
+    version: String,
+    features: Vec<String>,
+    default_features: bool,
+    target: Option<String>,
+    effects: Vec<String>,
+}
+
+impl From<&RustDependency> for ArtifactDependency {
+    fn from(dependency: &RustDependency) -> Self {
+        Self {
+            name: dependency.name.clone(),
+            package: dependency.package.clone(),
+            version: dependency.version.clone(),
+            features: dependency.features.clone(),
+            default_features: dependency.default_features,
+            target: dependency.target.clone(),
+            effects: dependency.effects.clone(),
+        }
+    }
 }
 #[derive(Clone, Copy)]
 enum CargoToolchain {
@@ -610,6 +658,7 @@ pub fn resolve(
     if dependencies.is_empty() {
         return Ok(Projection {
             cache_identity: String::from("no-rust-dependencies"),
+            source: ProjectionSource::Local,
             dependencies: Vec::new(),
             removed: Vec::new(),
             containment: sandbox,
@@ -632,7 +681,7 @@ pub fn resolve(
             CargoExecution::Host,
         )?;
     }
-    let identity = cache_identity(root, &workspace, dependencies, sandbox)?;
+    let (identity, target) = cache_identity(root, &workspace, dependencies, sandbox)?;
     let cache_path = workspace.join(format!("projection-{identity}.json"));
     if let Ok(bytes) = fs::read(&cache_path) {
         let mut cached =
@@ -646,6 +695,17 @@ pub fn resolve(
         apply_projection_history(root, &mut cached)?;
         prune_projection_cache(&workspace, &cache_path)?;
         return Ok(cached);
+    }
+    if let Some(mut projection) =
+        fetch_remote_projection(&identity, &target, dependencies, sandbox)?
+    {
+        let bytes = serde_json::to_vec_pretty(&projection).map_err(|error| ProjectionError {
+            message: format!("cannot serialize remote dependency projection: {error}"),
+        })?;
+        write_if_changed(&cache_path, &bytes)?;
+        apply_projection_history(root, &mut projection)?;
+        prune_projection_cache(&workspace, &cache_path)?;
+        return Ok(projection);
     }
     let mut projected = Vec::new();
     for dependency in dependencies {
@@ -687,6 +747,7 @@ pub fn resolve(
     }
     let projection = Projection {
         cache_identity: identity,
+        source: ProjectionSource::Local,
         dependencies: projected,
         containment: sandbox,
         removed: Vec::new(),
@@ -700,6 +761,84 @@ pub fn resolve(
     prune_projection_cache(&workspace, &cache_path)?;
     Ok(projection)
 }
+fn fetch_remote_projection(
+    identity: &str,
+    target: &str,
+    dependencies: &[RustDependency],
+    containment: Containment,
+) -> Result<Option<Projection>, ProjectionError> {
+    let Some(base_url) = std::env::var_os("TERRANE_PROJECTION_ARTIFACT_URL") else {
+        return Ok(None);
+    };
+    let base_url = base_url.to_string_lossy();
+    if !base_url.starts_with("https://") {
+        return Err(ProjectionError {
+            message:
+                "`TERRANE_PROJECTION_ARTIFACT_URL` must name a trusted HTTPS artifact repository"
+                    .to_owned(),
+        });
+    }
+    let url = format!("{}/{}.json", base_url.trim_end_matches('/'), identity);
+    let agent: ureq::Agent = ureq::Agent::config_builder()
+        .https_only(true)
+        .timeout_global(Some(Duration::from_secs(10)))
+        .build()
+        .into();
+    let mut response = match agent.get(&url).call() {
+        Ok(response) => response,
+        Err(_) => return Ok(None),
+    };
+    let bytes = match response
+        .body_mut()
+        .with_config()
+        .limit(64 * 1024 * 1024)
+        .read_to_vec()
+    {
+        Ok(bytes) => bytes,
+        Err(_) => return Ok(None),
+    };
+    let artifact = match serde_json::from_slice::<ProjectionArtifact>(&bytes) {
+        Ok(artifact) => artifact,
+        Err(_) => return Ok(None),
+    };
+    Ok(validate_projection_artifact(
+        artifact,
+        identity,
+        target,
+        dependencies,
+        containment,
+    ))
+}
+
+fn validate_projection_artifact(
+    artifact: ProjectionArtifact,
+    identity: &str,
+    target: &str,
+    dependencies: &[RustDependency],
+    containment: Containment,
+) -> Option<Projection> {
+    let expected_dependencies = dependencies
+        .iter()
+        .map(ArtifactDependency::from)
+        .collect::<Vec<_>>();
+    if artifact.format != 1
+        || artifact.cache_identity != identity
+        || artifact.target != target
+        || artifact.build_toolchain != crate::BUILD_TOOLCHAIN
+        || artifact.rustdoc_toolchain != RUSTDOC_TOOLCHAIN
+        || artifact.rustdoc_format != rustdoc_types::FORMAT_VERSION
+        || artifact.projection_schema != PROJECTION_SCHEMA
+        || artifact.dependencies != expected_dependencies
+        || artifact.projection.cache_identity != identity
+    {
+        return None;
+    }
+    let mut projection = artifact.projection;
+    projection.source = ProjectionSource::Remote;
+    projection.containment = containment;
+    Some(projection)
+}
+
 fn apply_projection_history(
     root: &Path,
     projection: &mut Projection,
@@ -1760,15 +1899,13 @@ fn cache_identity(
     workspace: &Path,
     dependencies: &[RustDependency],
     containment: Containment,
-) -> Result<String, ProjectionError> {
+) -> Result<(String, String), ProjectionError> {
     let manifest = fs::read(root.join(crate::MANIFEST_FILE_NAME)).unwrap_or_default();
     let lock = fs::read(workspace.join("Cargo.lock"))
         .or_else(|_| fs::read(root.join("Cargo.lock")))
         .unwrap_or_default();
     let rustc_verbose = tool_version("rustc", &["-vV"])?;
     let target = selected_target(&rustc_verbose);
-    let nightly = format!("+{RUSTDOC_TOOLCHAIN}");
-    let rustdoc = tool_version("rustdoc", &[&nightly, "--version"])?;
     let rustdoc_format = rustdoc_types::FORMAT_VERSION.to_string();
     let mut hash = Sha256::new();
     for (label, bytes) in [
@@ -1776,7 +1913,8 @@ fn cache_identity(
         ("lock", lock.as_slice()),
         ("inputs", format!("{dependencies:?}").as_bytes()),
         ("target", target.as_bytes()),
-        ("rustdoc", rustdoc.as_bytes()),
+        ("build-toolchain", crate::BUILD_TOOLCHAIN.as_bytes()),
+        ("rustdoc-toolchain", RUSTDOC_TOOLCHAIN.as_bytes()),
         ("rustdoc-format", rustdoc_format.as_bytes()),
         ("schema", PROJECTION_SCHEMA.as_bytes()),
         ("containment", format!("{containment:?}").as_bytes()),
@@ -1786,7 +1924,7 @@ fn cache_identity(
         hash.update(bytes.len().to_le_bytes());
         hash.update(bytes);
     }
-    Ok(format!("{:x}", hash.finalize()))
+    Ok((format!("{:x}", hash.finalize()), target))
 }
 
 fn selected_target(rustc_verbose_version: &str) -> String {
@@ -1870,9 +2008,10 @@ mod tests {
     use serde_json::json;
 
     use super::{
-        Containment, ProjectedDependency, ProjectedFunction, ProjectedItem, ProjectedKind,
-        ProjectedType, Projection, Receiver, apply_projection_history, has_type_parameters,
-        project_rustdoc, project_type, prune_projection_cache, receiver_kind,
+        ArtifactDependency, Containment, ProjectedDependency, ProjectedFunction, ProjectedItem,
+        ProjectedKind, ProjectedType, Projection, ProjectionArtifact, ProjectionSource, Receiver,
+        apply_projection_history, has_type_parameters, project_rustdoc, project_type,
+        prune_projection_cache, receiver_kind, validate_projection_artifact,
     };
     use crate::RustDependency;
 
@@ -2125,6 +2264,60 @@ mod tests {
     }
 
     #[test]
+    fn remote_artifact_requires_exact_projection_inputs() {
+        let dependency = RustDependency {
+            name: "witness".to_owned(),
+            package: "witness-package".to_owned(),
+            version: "=1.2.3".to_owned(),
+            features: vec!["derive".to_owned()],
+            default_features: false,
+            target: Some("cfg(unix)".to_owned()),
+            effects: vec!["filesystem".to_owned()],
+        };
+        let artifact = ProjectionArtifact {
+            format: 1,
+            cache_identity: "exact".to_owned(),
+            target: "x86_64-unknown-linux-gnu".to_owned(),
+            build_toolchain: crate::BUILD_TOOLCHAIN.to_owned(),
+            rustdoc_toolchain: crate::RUSTDOC_TOOLCHAIN.to_owned(),
+            rustdoc_format: rustdoc_types::FORMAT_VERSION,
+            projection_schema: super::PROJECTION_SCHEMA.to_owned(),
+            dependencies: vec![ArtifactDependency::from(&dependency)],
+            projection: Projection {
+                cache_identity: "exact".to_owned(),
+                dependencies: Vec::new(),
+                containment: Containment::Enforced,
+                source: ProjectionSource::Local,
+                removed: Vec::new(),
+            },
+        };
+
+        let projection = validate_projection_artifact(
+            artifact.clone(),
+            "exact",
+            "x86_64-unknown-linux-gnu",
+            std::slice::from_ref(&dependency),
+            Containment::Unavailable,
+        )
+        .expect("exact artifact metadata must be admitted");
+        assert_eq!(projection.source, ProjectionSource::Remote);
+        assert_eq!(projection.containment, Containment::Unavailable);
+
+        let mut mismatched = artifact;
+        mismatched.dependencies[0].features = vec!["different".to_owned()];
+        assert!(
+            validate_projection_artifact(
+                mismatched,
+                "exact",
+                "x86_64-unknown-linux-gnu",
+                &[dependency],
+                Containment::Unavailable,
+            )
+            .is_none()
+        );
+    }
+
+    #[test]
     fn projection_history_retains_removed_members_across_checks() {
         let directory =
             std::env::temp_dir().join(format!("terrane-projection-history-{}", std::process::id()));
@@ -2154,6 +2347,7 @@ mod tests {
             cache_identity: "old".to_owned(),
             dependencies: vec![dependency("1.0.0", vec![item])],
             containment: Containment::Unavailable,
+            source: ProjectionSource::Local,
             removed: Vec::new(),
         };
         apply_projection_history(&directory, &mut old).unwrap();
@@ -2161,6 +2355,7 @@ mod tests {
             cache_identity: "current".to_owned(),
             dependencies: vec![dependency("2.0.0", Vec::new())],
             containment: Containment::Unavailable,
+            source: ProjectionSource::Local,
             removed: Vec::new(),
         };
         apply_projection_history(&directory, &mut current).unwrap();

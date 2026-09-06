@@ -72,6 +72,11 @@ fallback uses the pinned nightly toolchain; dependencies satisfied by a prepared
 artifact do not. Bubblewrap contains Cargo and rustdoc inspection of third-party packages;
 dependency-free Terrane projects do not require it.
 
+Set `TERRANE_PROJECTION_ARTIFACT_URL` to a trusted HTTPS projection repository to try exact
+precomputed dependency surfaces before local rustdoc. Terrane verifies the dependency, feature,
+target, toolchain, rustdoc-format, and projection-schema identity; every miss or mismatch falls back
+to local generation. A verified artifact is cached project-locally for subsequent offline builds.
+
 Cargo retains downloaded registry indexes and crate archives in `CARGO_HOME`, so repeated toolchain and conformance builds do not download unchanged dependencies again. The conformance runner additionally reuses one generated Cargo workspace for all accepted cases in a corpus run. With explicit opt-in, `sccache` provides further reuse across separate runs and branches.
 
 Generated Rust is returned exactly as Terrane lowering emits it. Compiler work can pass

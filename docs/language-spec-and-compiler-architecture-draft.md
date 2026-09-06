@@ -4075,6 +4075,15 @@ and projection cache schema form one compatibility unit: malformed input or a fo
 projection failure naming the expected format and toolchain, while valid but unrepresentable Rust
 items remain ordinary declined items with stable reasons.
 
+Before running local rustdoc, the projector may request an artifact from the trusted HTTPS repository
+configured by `TERRANE_PROJECTION_ARTIFACT_URL`. An artifact is accepted only when its cache
+identity and explicit metadata match the complete dependency request, target triple, stable build
+toolchain, rustdoc toolchain, rustdoc format, and projection schema. Missing, malformed, unreadable,
+or mismatched artifacts are cache misses and fall back to the exact local pinned-nightly path; they
+never widen a match. A verified remote result is written to the ordinary project-local cache, so
+later offline compilation does not contact the service or require the nightly projector. Projection
+metadata records whether the admitted surface came from a verified remote artifact or local rustdoc.
+
 Projected type identity follows the Rust item rather than the importing module alone. A public re-export is resolved to its canonical Rust path before the Terrane namespace and object identity are recorded. Therefore a re-exported type and its defining item denote one type, while distinct Rust items with the same short name in sibling modules remain distinct. Generated Rust imports each canonical path at most once per generated module and aliases it to the compiler-owned name derived from that namespace-qualified identity.
 
 The compiler generates Rust shims only for projected members crossed by Terrane source. This is direct Rust-to-Rust calling inside the generated crate, not an adapter or marshalled runtime boundary. `Option<T>` projects as `T|none`. A representable `Result<T, E>` returns `T` and throws the projected error class. `&self` projects as a shared receiver, `&mut self` records receiver mutability on the projected contract, and `self` retains `move` semantics under the ordinary foreign-resource ownership rule. Both borrowed receiver forms use ordinary Terrane member-call syntax; the projected contract makes lowering emit the required Rust borrow and mutable binding. On unwinding profiles, a panic crossing a generated shim becomes `dependency-panic`; aborting profiles do not claim containment.

@@ -1871,6 +1871,10 @@ crossings use Rust's `UnwindSafe` proof. The complete rustdoc document is traver
 version-matched typed `rustdoc-types` schema; malformed documents and format drift fail explicitly.
 Rustdoc and generated-crate compilation run offline/frozen inside `bwrap` where available, with the
 unavailable host tier reported instead of rejected.
+An optional trusted HTTPS projection-artifact lookup verifies the complete dependency, target,
+toolchain, rustdoc-format, and projection-schema identity before admission; verified results enter
+the ordinary offline cache, while unavailable or mismatched artifacts take the same exact local
+rustdoc fallback.
 `terrane-projection.lock` provides deterministic machine-independent history and `S2031` names a
 removed member and its resolved version transition. The accepted
 `rust-dependency-deferred-surface` execution case crosses a `bytes` receiver-first trait method and

@@ -21,6 +21,7 @@ rust-version = "1.85"
 
 [workspace.dependencies]
 rustdoc-types = "=0.57.0"
+ureq = { version = "3", default-features = false, features = ["rustls"] }
 
 [workspace.lints.rust]
 unsafe_code = "forbid"
