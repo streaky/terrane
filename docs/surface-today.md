@@ -769,10 +769,12 @@ cause chain while adding the explicit rethrow site.
 
 ## Projected Rust dependencies
 
-`package.toml` accepts lock-resolved `[rust-dependencies]` entries with version, features,
-default-feature policy, package alias, target condition, and declared effects. An optional `[profile]`
-selects an effect allowlist and unwind or abort panic policy; a forbidden dependency effect is rejected
-during manifest resolution.
+`package.toml` accepts a top-level `rust-toolchain = "pinned" | "system"` selection and
+lock-resolved `[rust-dependencies]` entries with version, features, default-feature policy, package
+alias, target condition, and declared effects. The default `pinned` selection emits Terrane's exact
+stable toolchain; `system` explicitly opts into the caller's active Rust toolchain. An optional
+`[profile]` selects an effect allowlist and unwind or abort panic policy; a forbidden dependency
+effect is rejected during manifest resolution.
 
 Declared crates are projected from typed rustdoc metadata into reserved
 `/deps/<manifest-name>/...` namespaces. The shared projection records verbatim public names,

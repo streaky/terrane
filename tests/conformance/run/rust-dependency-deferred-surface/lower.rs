@@ -611,7 +611,7 @@ pub fn from_u128(
             crate::TerraneRaised::raised(error, crate::TERRANE_NO_SITE),
         ))?;
     match std::panic::catch_unwind(|| serde_json::Number::from_u128(i)) {
-        Ok(value) => Ok(value.map(|value| value)),
+        Ok(value) => Ok(value),
         Err(payload) => {
             Err(
                 crate::__terrane_dependency_panic(

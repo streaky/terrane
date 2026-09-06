@@ -41,18 +41,19 @@ pub(super) fn write_foreign_import(output: &mut String, path: &str, rust_name: &
     }
 }
 
-fn projected_scalar_is_identity(ty: &crate::projection::ProjectedType) -> bool {
-    matches!(
-        ty,
+fn projected_type_is_identity(ty: &crate::projection::ProjectedType) -> bool {
+    match ty {
+        crate::projection::ProjectedType::Optional(inner) => projected_type_is_identity(inner),
         crate::projection::ProjectedType::None
-            | crate::projection::ProjectedType::Bool
-            | crate::projection::ProjectedType::Int
-            | crate::projection::ProjectedType::Float
-            | crate::projection::ProjectedType::Float32
-            | crate::projection::ProjectedType::String
-            | crate::projection::ProjectedType::Bytes
-            | crate::projection::ProjectedType::Foreign { .. }
-    )
+        | crate::projection::ProjectedType::Bool
+        | crate::projection::ProjectedType::Int
+        | crate::projection::ProjectedType::Float
+        | crate::projection::ProjectedType::Float32
+        | crate::projection::ProjectedType::String
+        | crate::projection::ProjectedType::Bytes
+        | crate::projection::ProjectedType::Foreign { .. } => true,
+        _ => false,
+    }
 }
 
 fn projected_sequence_is_vec(path: &str) -> bool {
@@ -71,13 +72,17 @@ pub(super) fn projected_argument_expression(
             "{name}.parse::<char>().map_err(|_| crate::TerraneForeignError(crate::TerraneError::raised_with_message(crate::TerraneErrorKind::CoercionError, \"projected `char` requires exactly one Unicode scalar\", crate::TERRANE_NO_SITE)))?"
         ),
         crate::projection::ProjectedType::Optional(inner) => {
-            let converted = projected_argument_expression("value", inner);
-            format!(
-                "{name}.map(|value| -> Result<_, crate::TerraneForeignError> {{ Ok({converted}) }}).transpose()?"
-            )
+            if projected_type_is_identity(inner) {
+                name.to_owned()
+            } else {
+                let converted = projected_argument_expression("value", inner);
+                format!(
+                    "{name}.map(|value| -> Result<_, crate::TerraneForeignError> {{ Ok({converted}) }}).transpose()?"
+                )
+            }
         }
         crate::projection::ProjectedType::Sequence { rust_path, item } => {
-            if projected_sequence_is_vec(rust_path) && projected_scalar_is_identity(item) {
+            if projected_sequence_is_vec(rust_path) && projected_type_is_identity(item) {
                 format!("{name}.into_vec()")
             } else {
                 let converted = projected_argument_expression("item", item);
@@ -138,11 +143,15 @@ pub(super) fn projected_result_expression(
         }
         crate::projection::ProjectedType::Char => format!("{value}.to_string()"),
         crate::projection::ProjectedType::Optional(inner) => {
-            let converted = projected_result_expression("value", inner);
-            format!("{value}.map(|value| {converted})")
+            if projected_type_is_identity(inner) {
+                value.to_owned()
+            } else {
+                let converted = projected_result_expression("value", inner);
+                format!("{value}.map(|value| {converted})")
+            }
         }
         crate::projection::ProjectedType::Sequence { item, .. } => {
-            if projected_scalar_is_identity(item) {
+            if projected_type_is_identity(item) {
                 format!("terrane_collection_support::List::new({value})")
             } else {
                 let converted = projected_result_expression("item", item);
