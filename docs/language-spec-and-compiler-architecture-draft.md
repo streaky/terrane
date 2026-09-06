@@ -4093,9 +4093,11 @@ hash over the transferable projection payload must also match both the envelope 
 Missing, malformed, unreadable, hash-invalid, or metadata-mismatched artifacts are explicit
 resolution events and fall back to the exact local pinned-nightly path; they never widen a match.
 A verified published result enters the ordinary project-local cache, so later offline compilation
-does not contact the service or require the nightly projector. Projection metadata and
-`terrane-projection.lock` record the final outcome, ordered source attempts, fallback reasons,
-provenance, rustdoc format, projection schema, cache identity, and verified content hash.
+does not contact the service or require the nightly projector. The returned projection metadata
+records the current resolution outcome, ordered source attempts, and fallback reasons.
+`terrane-projection.lock` records the content-origin outcome and reasons together with provenance,
+rustdoc format, projection schema, cache identity, and verified content hash; resolving the same
+content from its exact cache does not rewrite that origin history.
 
 A bundled artifact source is deliberately deferred until Terrane has a release artifact channel
 that can ship and update the corresponding envelopes. Resolution records that source as skipped
@@ -4121,9 +4123,9 @@ does not create two Terrane types. Concrete instantiations append the complete l
 of their canonical instantiated Rust path to the readable short name; no truncated hash or
 order-dependent suffix is used. Distinct same-named sibling types and distinct instantiations
 therefore remain distinct.
-A signature type owned by
-an undeclared transitive crate is not projected as a memberless lookalike: the member declines with
-an actionable reason naming the owning crate and its lock-resolved version. Declaring that owner
+A signature type owned by an undeclared transitive crate is not projected as a memberless
+lookalike: the member declines with an actionable reason naming the owning crate and its
+lock-resolved version. Declaring that owner
 with a unifying version makes its canonical identity and members reachable. After Cargo resolves
 the lock graph, projection validation rejects multiple resolved versions at a crossed type boundary
 and names every version; this occurs before semantic import resolution and Rust lowering.

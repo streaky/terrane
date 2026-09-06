@@ -1868,11 +1868,12 @@ Rustdoc and generated-crate compilation run offline/frozen inside `bwrap` where 
 unavailable host tier reported instead of rejected.
 An optional trusted HTTPS projection-artifact lookup verifies the complete dependency, target,
 toolchain, rustdoc-format, projection-schema, and SHA-256 payload identity before admission.
-Verified results enter the ordinary offline cache. Every cache, published, bundled, and local
-attempt records its hit, miss, rejection, skip, generation, or fallback reason and the final
-outcome; history format 2 persists provenance, rustdoc format, projection schema, cache identity,
-and content hash. Bundled artifacts are explicitly deferred until Terrane has a release artifact
-channel, and appear as a recorded skipped source rather than an accidentally absent branch.
+Verified results enter the ordinary offline cache. Every current cache, published, bundled, and
+local attempt reports its hit, miss, rejection, skip, generation, or fallback reason and final
+outcome. History format 2 persists stable content-origin provenance and reasons, rustdoc format,
+projection schema, cache identity, and content hash; an exact cache hit does not rewrite that
+origin. Bundled artifacts are explicitly deferred until Terrane has a release artifact channel,
+and appear as a recorded skipped source rather than an accidentally absent branch.
 The projection layer owns infrastructure for deterministic contained compile-time questions that
 typed metadata cannot answer. Bound and exact-call probes require positive compiler-artifact
 evidence for `yes`, preserve probe-local bound errors as `no`, classify every other failure as

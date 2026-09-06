@@ -1278,6 +1278,16 @@ fn apply_projection_history(
     removed
         .sort_by(|left, right| (&left.namespace, &left.name).cmp(&(&right.namespace, &right.name)));
     projection.removed.clone_from(&removed);
+    let persisted_resolution = previous
+        .as_ref()
+        .filter(|history| {
+            history.format == 2
+                && history.cache_identity.as_deref() == Some(&projection.cache_identity)
+                && history.content_hash.as_deref() == Some(&projection.content_hash)
+                && history.source == Some(projection.source)
+        })
+        .and_then(|history| history.resolution.clone())
+        .unwrap_or_else(|| projection.resolution.clone());
     let history = ProjectionHistory {
         format: 2,
         dependencies,
@@ -1287,7 +1297,7 @@ fn apply_projection_history(
         rustdoc_format: Some(rustdoc_types::FORMAT_VERSION),
         projection_schema: Some(PROJECTION_SCHEMA.to_owned()),
         content_hash: Some(projection.content_hash.clone()),
-        resolution: Some(projection.resolution.clone()),
+        resolution: Some(persisted_resolution),
     };
     let mut bytes = serde_json::to_vec_pretty(&history).map_err(|error| ProjectionError {
         message: format!("cannot serialize projection history: {error}"),
@@ -3669,6 +3679,40 @@ mod tests {
         current.removed.clear();
         apply_projection_history(&directory, &mut current).unwrap();
         assert_eq!(current.removed.len(), 1);
+        fs::remove_dir_all(directory).unwrap();
+    }
+
+    #[test]
+    fn projection_history_keeps_content_origin_across_cache_hits() {
+        let directory =
+            std::env::temp_dir().join(format!("terrane-projection-origin-{}", std::process::id()));
+        fs::create_dir_all(&directory).unwrap();
+        let generated = ProjectionResolution {
+            outcome: ResolutionOutcome::LocalRustdoc,
+            events: Vec::new(),
+        };
+        let mut projection = Projection {
+            cache_identity: "stable-identity".to_owned(),
+            content_hash: String::new(),
+            dependencies: Vec::new(),
+            containment: Containment::Unavailable,
+            source: ProjectionSource::Local,
+            probes: Vec::new(),
+            probe_wall_time_ms: 0,
+            resolution: generated.clone(),
+            removed: Vec::new(),
+        };
+        projection.content_hash = projection_content_hash(&projection).unwrap();
+        apply_projection_history(&directory, &mut projection).unwrap();
+        projection.resolution = ProjectionResolution {
+            outcome: ResolutionOutcome::ExactCache,
+            events: Vec::new(),
+        };
+        apply_projection_history(&directory, &mut projection).unwrap();
+        let history: ProjectionHistory =
+            serde_json::from_slice(&fs::read(directory.join("terrane-projection.lock")).unwrap())
+                .unwrap();
+        assert_eq!(history.resolution, Some(generated));
         fs::remove_dir_all(directory).unwrap();
     }
 

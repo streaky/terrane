@@ -74,9 +74,10 @@ dependency-free Terrane projects do not require it.
 
 Set `TERRANE_PROJECTION_ARTIFACT_URL` to a trusted HTTPS projection repository to try exact
 precomputed dependency surfaces before local rustdoc. Terrane verifies dependency, feature, target,
-toolchain, rustdoc-format, projection-schema, and SHA-256 payload identity. Resolution events and
-fallback reasons are persisted in `terrane-projection.lock`; a verified artifact is cached locally
-for subsequent offline builds. Bundled artifacts are deliberately deferred until Terrane has a
+toolchain, rustdoc-format, projection-schema, and SHA-256 payload identity. Content-origin
+resolution events and fallback reasons are persisted in `terrane-projection.lock`; cache hits do
+not rewrite that provenance. A verified artifact is cached locally for subsequent offline builds.
+Bundled artifacts are deliberately deferred until Terrane has a
 release artifact channel, and resolution records that source as skipped.
 The CLI integration suite regenerates a reviewed representative dependency stack and compares its
 machine-independent projection lock byte for byte. Upstream additions, removals, signature or
