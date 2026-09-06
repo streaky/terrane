@@ -1,25 +1,40 @@
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::fmt::Write as _;
 use std::fs;
 use std::path::Path;
 use std::process::Command;
 use std::sync::LazyLock;
+use std::time::Duration;
 
+use rustdoc_types::{
+    Crate as RustdocCrate, Function, GenericArg, GenericArgs, GenericBound, GenericParamDefKind,
+    Id, Impl, Item, ItemEnum, ItemSummary, Path as RustdocPath, Struct, Type, VariantKind,
+    Visibility,
+};
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
 use sha2::{Digest, Sha256};
 
 use crate::RustDependency;
 
-pub const RUSTDOC_TOOLCHAIN: &str = "nightly-2026-04-29";
-const PROJECTION_SCHEMA: &str = "7";
+pub use crate::RUSTDOC_TOOLCHAIN;
+const PROJECTION_SCHEMA: &str = "15";
 const MAX_PROJECTION_CACHE_RECORDS: usize = 4;
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub struct Projection {
     pub cache_identity: String,
+    #[serde(default)]
+    pub content_hash: String,
     pub dependencies: Vec<ProjectedDependency>,
     pub containment: Containment,
+    #[serde(default)]
+    pub source: ProjectionSource,
+    #[serde(default)]
+    pub probes: Vec<crate::ProbeEvidence>,
+    #[serde(default)]
+    pub probe_wall_time_ms: u128,
+    #[serde(default)]
+    pub resolution: ProjectionResolution,
     #[serde(default)]
     pub removed: Vec<RemovedItem>,
 }
@@ -28,6 +43,96 @@ pub struct Projection {
 pub enum Containment {
     Enforced,
     Unavailable,
+}
+
+#[derive(Clone, Copy, Debug, Default, Deserialize, Eq, PartialEq, Serialize)]
+pub enum ProjectionSource {
+    Remote,
+    #[default]
+    Local,
+}
+
+#[derive(Clone, Copy, Debug, Default, Deserialize, Eq, PartialEq, Serialize)]
+pub enum ResolutionOutcome {
+    NoDependencies,
+    ExactCache,
+    PublishedArtifact,
+    #[default]
+    LocalRustdoc,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
+pub enum ResolutionSource {
+    ExactCache,
+    BundledArtifact,
+    PublishedArtifact,
+    LocalRustdoc,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
+pub enum ResolutionStatus {
+    Hit,
+    Miss,
+    Rejected,
+    Skipped,
+    Generated,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+pub struct ResolutionEvent {
+    pub source: ResolutionSource,
+    pub status: ResolutionStatus,
+    pub reason: String,
+}
+
+#[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq, Serialize)]
+pub struct ProjectionResolution {
+    pub outcome: ResolutionOutcome,
+    pub events: Vec<ResolutionEvent>,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+struct ProjectionArtifact {
+    format: u32,
+    cache_identity: String,
+    content_hash: String,
+    target: String,
+    build_toolchain: String,
+    rustdoc_toolchain: String,
+    rustdoc_format: u32,
+    projection_schema: String,
+    dependencies: Vec<ArtifactDependency>,
+    projection: Projection,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+struct ArtifactDependency {
+    name: String,
+    package: String,
+    version: String,
+    features: Vec<String>,
+    default_features: bool,
+    target: Option<String>,
+    effects: Vec<String>,
+}
+
+impl From<&RustDependency> for ArtifactDependency {
+    fn from(dependency: &RustDependency) -> Self {
+        Self {
+            name: dependency.name.clone(),
+            package: dependency.package.clone(),
+            version: dependency.version.clone(),
+            features: dependency.features.clone(),
+            default_features: dependency.default_features,
+            target: dependency.target.clone(),
+            effects: dependency.effects.clone(),
+        }
+    }
+}
+
+enum PublishedProjection {
+    Hit(Projection),
+    Event(ResolutionEvent),
 }
 #[derive(Clone, Copy)]
 enum CargoToolchain {
@@ -65,6 +170,18 @@ struct ProjectionHistory {
     dependencies: Vec<ProjectionHistoryDependency>,
     #[serde(default)]
     removed: Vec<RemovedItem>,
+    #[serde(default)]
+    cache_identity: Option<String>,
+    #[serde(default)]
+    source: Option<ProjectionSource>,
+    #[serde(default)]
+    rustdoc_format: Option<u32>,
+    #[serde(default)]
+    projection_schema: Option<String>,
+    #[serde(default)]
+    content_hash: Option<String>,
+    #[serde(default)]
+    resolution: Option<ProjectionResolution>,
 }
 
 fn projection_history_format() -> u32 {
@@ -135,8 +252,75 @@ pub enum ProjectedType {
     Char,
     String,
     Bytes,
-    Foreign { rust_path: String, name: String },
+    Sequence {
+        rust_path: String,
+        item: Box<ProjectedType>,
+    },
+    Mapping {
+        rust_path: String,
+        key: Box<ProjectedType>,
+        value: Box<ProjectedType>,
+        ordered: bool,
+    },
+    Set {
+        rust_path: String,
+        item: Box<ProjectedType>,
+        ordered: bool,
+    },
+    Tuple(Vec<ProjectedType>),
+    Foreign {
+        rust_path: String,
+        name: String,
+        #[serde(default)]
+        base_rust_path: String,
+        #[serde(default)]
+        arguments: Vec<ProjectedType>,
+    },
     Optional(Box<ProjectedType>),
+}
+
+impl ProjectedType {
+    fn is_terrane_scalar(&self) -> bool {
+        matches!(
+            self,
+            Self::None
+                | Self::Bool
+                | Self::Int
+                | Self::RustInt(_)
+                | Self::Float
+                | Self::Float32
+                | Self::Char
+                | Self::String
+                | Self::Bytes
+        )
+    }
+
+    fn rust_type(&self) -> String {
+        match self {
+            Self::None => "()".to_owned(),
+            Self::Bool => "bool".to_owned(),
+            Self::Int => "i64".to_owned(),
+            Self::RustInt(name) => name.clone(),
+            Self::Float => "f64".to_owned(),
+            Self::Float32 => "f32".to_owned(),
+            Self::Char => "char".to_owned(),
+            Self::String => "String".to_owned(),
+            Self::Bytes => "Vec<u8>".to_owned(),
+            Self::Sequence { rust_path, .. }
+            | Self::Mapping { rust_path, .. }
+            | Self::Set { rust_path, .. }
+            | Self::Foreign { rust_path, .. } => rust_path.clone(),
+            Self::Tuple(items) => format!(
+                "({},)",
+                items
+                    .iter()
+                    .map(Self::rust_type)
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            ),
+            Self::Optional(inner) => format!("Option<{}>", inner.rust_type()),
+        }
+    }
 }
 
 impl ProjectedType {
@@ -150,6 +334,27 @@ impl ProjectedType {
             Self::Float32 => "float32".to_owned(),
             Self::Char | Self::String => "string".to_owned(),
             Self::Bytes => "bytes".to_owned(),
+            Self::Sequence { item, .. } => format!("list of {}", item.terrane_name()),
+            Self::Mapping {
+                key,
+                value,
+                ordered,
+                ..
+            } => format!(
+                "{}map of {}, {}",
+                if *ordered { "" } else { "unordered-" },
+                key.terrane_name(),
+                value.terrane_name()
+            ),
+            Self::Set { item, ordered, .. } => format!(
+                "{}set of {}",
+                if *ordered { "" } else { "unordered-" },
+                item.terrane_name()
+            ),
+            Self::Tuple(items) if items.windows(2).all(|pair| pair[0] == pair[1]) => {
+                format!("tuple of {}", items[0].terrane_name())
+            }
+            Self::Tuple(_) => "heterogeneous tuple".to_owned(),
             Self::Foreign { name, .. } => name.clone(),
             Self::Optional(inner) => format!("{}|none", inner.terrane_name()),
         }
@@ -495,10 +700,23 @@ fn collect_foreign_function(function: &ProjectedFunction, foreign: &mut BTreeMap
 
 fn collect_foreign_type(ty: &ProjectedType, foreign: &mut BTreeMap<String, String>) {
     match ty {
-        ProjectedType::Foreign { rust_path, name } => {
+        ProjectedType::Foreign {
+            rust_path, name, ..
+        } => {
             foreign.insert(rust_path.clone(), name.clone());
         }
-        ProjectedType::Optional(inner) => collect_foreign_type(inner, foreign),
+        ProjectedType::Optional(inner)
+        | ProjectedType::Sequence { item: inner, .. }
+        | ProjectedType::Set { item: inner, .. } => collect_foreign_type(inner, foreign),
+        ProjectedType::Mapping { key, value, .. } => {
+            collect_foreign_type(key, foreign);
+            collect_foreign_type(value, foreign);
+        }
+        ProjectedType::Tuple(items) => {
+            for item in items {
+                collect_foreign_type(item, foreign);
+            }
+        }
         _ => {}
     }
 }
@@ -516,7 +734,13 @@ fn foreign_function_dependency_count(function: &ProjectedFunction, owner: &str) 
 fn foreign_type_name(ty: &ProjectedType) -> Option<&str> {
     match ty {
         ProjectedType::Foreign { name, .. } => Some(name),
-        ProjectedType::Optional(inner) => foreign_type_name(inner),
+        ProjectedType::Optional(inner)
+        | ProjectedType::Sequence { item: inner, .. }
+        | ProjectedType::Set { item: inner, .. } => foreign_type_name(inner),
+        ProjectedType::Mapping { key, value, .. } => {
+            foreign_type_name(key).or_else(|| foreign_type_name(value))
+        }
+        ProjectedType::Tuple(items) => items.iter().find_map(foreign_type_name),
         _ => None,
     }
 }
@@ -571,13 +795,38 @@ fn render_function(
 
 fn projected_type_name(ty: &ProjectedType, foreign_aliases: &BTreeMap<String, String>) -> String {
     match ty {
-        ProjectedType::Foreign { rust_path, name } => foreign_aliases
+        ProjectedType::Foreign {
+            rust_path, name, ..
+        } => foreign_aliases
             .get(rust_path)
             .cloned()
             .unwrap_or_else(|| name.clone()),
         ProjectedType::Optional(inner) => {
             format!("{}|none", projected_type_name(inner, foreign_aliases))
         }
+        ProjectedType::Sequence { item, .. } => {
+            format!("list of {}", projected_type_name(item, foreign_aliases))
+        }
+        ProjectedType::Mapping {
+            key,
+            value,
+            ordered,
+            ..
+        } => format!(
+            "{}map of {}, {}",
+            if *ordered { "" } else { "unordered-" },
+            projected_type_name(key, foreign_aliases),
+            projected_type_name(value, foreign_aliases)
+        ),
+        ProjectedType::Set { item, ordered, .. } => format!(
+            "{}set of {}",
+            if *ordered { "" } else { "unordered-" },
+            projected_type_name(item, foreign_aliases)
+        ),
+        ProjectedType::Tuple(items) => format!(
+            "tuple of {}",
+            projected_type_name(&items[0], foreign_aliases)
+        ),
         _ => ty.terrane_name(),
     }
 }
@@ -599,18 +848,32 @@ impl std::error::Error for ProjectionError {}
 /// # Errors
 /// Returns a projection error when Cargo resolution, rustdoc generation, cache input reading, or
 /// projection of the resolved metadata fails.
+#[expect(
+    clippy::too_many_lines,
+    reason = "one transactional resolution path owns fetch, exact cache, artifact, and local fallback"
+)]
 pub fn resolve(
     root: &Path,
     dependencies: &[RustDependency],
 ) -> Result<Projection, ProjectionError> {
     let sandbox = containment();
     if dependencies.is_empty() {
-        return Ok(Projection {
+        let mut projection = Projection {
             cache_identity: String::from("no-rust-dependencies"),
+            content_hash: String::new(),
+            source: ProjectionSource::Local,
             dependencies: Vec::new(),
+            probes: Vec::new(),
+            probe_wall_time_ms: 0,
+            resolution: ProjectionResolution {
+                outcome: ResolutionOutcome::NoDependencies,
+                events: Vec::new(),
+            },
             removed: Vec::new(),
             containment: sandbox,
-        });
+        };
+        projection.content_hash = projection_content_hash(&projection)?;
+        return Ok(projection);
     }
     let workspace = root.join(".trn/dependencies");
     write_workspace(&workspace, dependencies)?;
@@ -629,7 +892,7 @@ pub fn resolve(
             CargoExecution::Host,
         )?;
     }
-    let identity = cache_identity(root, &workspace, dependencies, sandbox)?;
+    let (identity, target) = cache_identity(root, &workspace, dependencies, sandbox)?;
     let cache_path = workspace.join(format!("projection-{identity}.json"));
     if let Ok(bytes) = fs::read(&cache_path) {
         let mut cached =
@@ -639,20 +902,78 @@ pub fn resolve(
                     cache_path.display()
                 ),
             })?;
+        let actual_hash = projection_content_hash(&cached)?;
+        if cached.content_hash != actual_hash {
+            return Err(ProjectionError {
+                message: format!(
+                    "cached dependency projection `{}` failed its content hash: expected `{}`, computed `{actual_hash}`",
+                    cache_path.display(),
+                    cached.content_hash
+                ),
+            });
+        }
         cached.containment = sandbox;
+        cached.resolution = ProjectionResolution {
+            outcome: ResolutionOutcome::ExactCache,
+            events: vec![ResolutionEvent {
+                source: ResolutionSource::ExactCache,
+                status: ResolutionStatus::Hit,
+                reason: format!("matched projection identity `{identity}`"),
+            }],
+        };
         apply_projection_history(root, &mut cached)?;
         prune_projection_cache(&workspace, &cache_path)?;
         return Ok(cached);
     }
+
+    let mut resolution_events = vec![ResolutionEvent {
+        source: ResolutionSource::BundledArtifact,
+        status: ResolutionStatus::Skipped,
+        reason: "bundled projection distribution is deliberately deferred until Terrane has a release artifact channel".to_owned(),
+    }];
+    match fetch_remote_projection(&identity, &target, dependencies, sandbox)? {
+        PublishedProjection::Hit(mut projection) => {
+            resolution_events.push(ResolutionEvent {
+                source: ResolutionSource::PublishedArtifact,
+                status: ResolutionStatus::Hit,
+                reason: format!(
+                    "verified identity and content hash `{}`",
+                    projection.content_hash
+                ),
+            });
+            projection.resolution = ProjectionResolution {
+                outcome: ResolutionOutcome::PublishedArtifact,
+                events: resolution_events,
+            };
+            let bytes =
+                serde_json::to_vec_pretty(&projection).map_err(|error| ProjectionError {
+                    message: format!("cannot serialize published dependency projection: {error}"),
+                })?;
+            write_if_changed(&cache_path, &bytes)?;
+            apply_projection_history(root, &mut projection)?;
+            prune_projection_cache(&workspace, &cache_path)?;
+            projection
+                .probes
+                .sort_by(|left, right| left.question.cmp(&right.question));
+            return Ok(projection);
+        }
+        PublishedProjection::Event(event) => resolution_events.push(event),
+    }
+
     let mut projected = Vec::new();
     for dependency in dependencies {
+        let package_spec = dependency.version.strip_prefix('=').map_or_else(
+            || dependency.package.clone(),
+            |version| format!("{}@{version}", dependency.package),
+        );
         run_cargo(
             &workspace,
             &[
                 "rustdoc",
                 "-p",
-                &dependency.package,
-                "--lib",
+                &package_spec,
+                "--target-dir",
+                "target/rustdoc-57",
                 "--offline",
                 "--frozen",
                 "--",
@@ -670,7 +991,7 @@ pub fn resolve(
         )?;
         let crate_name = dependency.package.replace('-', "_");
         let rustdoc_path = workspace
-            .join("target/doc")
+            .join("target/rustdoc-57/doc")
             .join(format!("{crate_name}.json"));
         let bytes = fs::read(&rustdoc_path).map_err(|error| ProjectionError {
             message: format!(
@@ -680,34 +1001,228 @@ pub fn resolve(
         })?;
         projected.push(project_rustdoc(dependency, &bytes)?);
     }
-    let projection = Projection {
+    enforce_transitive_reachability(&mut projected, dependencies, &workspace)?;
+    resolution_events.push(ResolutionEvent {
+        source: ResolutionSource::LocalRustdoc,
+        status: ResolutionStatus::Generated,
+        reason: "no reusable exact artifact was available; generated with the pinned local rustdoc toolchain".to_owned(),
+    });
+    let mut projection = Projection {
         cache_identity: identity,
+        content_hash: String::new(),
+        source: ProjectionSource::Local,
         dependencies: projected,
         containment: sandbox,
+        probes: Vec::new(),
+        probe_wall_time_ms: 0,
+        resolution: ProjectionResolution {
+            outcome: ResolutionOutcome::LocalRustdoc,
+            events: resolution_events,
+        },
         removed: Vec::new(),
     };
+    projection.content_hash = projection_content_hash(&projection)?;
     let bytes = serde_json::to_vec_pretty(&projection).map_err(|error| ProjectionError {
         message: format!("cannot serialize dependency projection: {error}"),
     })?;
     write_if_changed(&cache_path, &bytes)?;
-    let mut projection = projection;
     apply_projection_history(root, &mut projection)?;
     prune_projection_cache(&workspace, &cache_path)?;
     Ok(projection)
 }
-fn apply_projection_history(
-    root: &Path,
-    projection: &mut Projection,
-) -> Result<(), ProjectionError> {
-    let path = root.join("terrane-projection.lock");
-    let previous = match fs::read(&path) {
+fn fetch_remote_projection(
+    identity: &str,
+    target: &str,
+    dependencies: &[RustDependency],
+    containment: Containment,
+) -> Result<PublishedProjection, ProjectionError> {
+    let Some(base_url) = std::env::var_os("TERRANE_PROJECTION_ARTIFACT_URL") else {
+        return Ok(PublishedProjection::Event(ResolutionEvent {
+            source: ResolutionSource::PublishedArtifact,
+            status: ResolutionStatus::Skipped,
+            reason: "`TERRANE_PROJECTION_ARTIFACT_URL` is not configured".to_owned(),
+        }));
+    };
+    let base_url = base_url.to_string_lossy();
+    if !base_url.starts_with("https://") {
+        return Err(ProjectionError {
+            message:
+                "`TERRANE_PROJECTION_ARTIFACT_URL` must name a trusted HTTPS artifact repository"
+                    .to_owned(),
+        });
+    }
+    let _ = rustls::crypto::aws_lc_rs::default_provider().install_default();
+    let url = format!("{}/{}.json", base_url.trim_end_matches('/'), identity);
+    let agent: ureq::Agent = ureq::Agent::config_builder()
+        .https_only(true)
+        .timeout_global(Some(Duration::from_secs(10)))
+        .build()
+        .into();
+    let mut response = match agent.get(&url).call() {
+        Ok(response) => response,
+        Err(error) => {
+            return Ok(PublishedProjection::Event(ResolutionEvent {
+                source: ResolutionSource::PublishedArtifact,
+                status: ResolutionStatus::Miss,
+                reason: format!("artifact request `{url}` was unavailable: {error}"),
+            }));
+        }
+    };
+    let bytes = match response
+        .body_mut()
+        .with_config()
+        .limit(64 * 1024 * 1024)
+        .read_to_vec()
+    {
+        Ok(bytes) => bytes,
+        Err(error) => {
+            return Ok(PublishedProjection::Event(ResolutionEvent {
+                source: ResolutionSource::PublishedArtifact,
+                status: ResolutionStatus::Rejected,
+                reason: format!("artifact body could not be read: {error}"),
+            }));
+        }
+    };
+    let artifact = match serde_json::from_slice::<ProjectionArtifact>(&bytes) {
+        Ok(artifact) => artifact,
+        Err(error) => {
+            return Ok(PublishedProjection::Event(ResolutionEvent {
+                source: ResolutionSource::PublishedArtifact,
+                status: ResolutionStatus::Rejected,
+                reason: format!("artifact JSON did not match the projection envelope: {error}"),
+            }));
+        }
+    };
+    match validate_projection_artifact(artifact, identity, target, dependencies, containment) {
+        Ok(projection) => Ok(PublishedProjection::Hit(projection)),
+        Err(reason) => Ok(PublishedProjection::Event(ResolutionEvent {
+            source: ResolutionSource::PublishedArtifact,
+            status: ResolutionStatus::Rejected,
+            reason,
+        })),
+    }
+}
+
+fn artifact_dependency_mismatch(
+    actual: &[ArtifactDependency],
+    expected: &[ArtifactDependency],
+) -> Option<String> {
+    if actual.len() != expected.len() {
+        return Some(format!(
+            "dependency metadata mismatch: expected {} entries, found {}",
+            expected.len(),
+            actual.len()
+        ));
+    }
+    for (actual, expected) in actual.iter().zip(expected) {
+        if actual.name != expected.name
+            || actual.package != expected.package
+            || actual.version != expected.version
+            || actual.effects != expected.effects
+        {
+            return Some(format!(
+                "dependency metadata mismatch for `{}`",
+                expected.name
+            ));
+        }
+        if actual.features != expected.features
+            || actual.default_features != expected.default_features
+        {
+            return Some(format!("feature metadata mismatch for `{}`", expected.name));
+        }
+        if actual.target != expected.target {
+            return Some(format!(
+                "dependency target mismatch for `{}`: expected `{}`, found `{}`",
+                expected.name,
+                expected.target.as_deref().unwrap_or("all targets"),
+                actual.target.as_deref().unwrap_or("all targets")
+            ));
+        }
+    }
+    None
+}
+
+fn validate_projection_artifact(
+    artifact: ProjectionArtifact,
+    identity: &str,
+    target: &str,
+    dependencies: &[RustDependency],
+    containment: Containment,
+) -> Result<Projection, String> {
+    let expected_dependencies = dependencies
+        .iter()
+        .map(ArtifactDependency::from)
+        .collect::<Vec<_>>();
+    let mismatch = if artifact.format != 1 {
+        Some(format!(
+            "envelope format {} is not supported",
+            artifact.format
+        ))
+    } else if artifact.cache_identity != identity {
+        Some("cache identity mismatch".to_owned())
+    } else if artifact.target != target {
+        Some(format!(
+            "target mismatch: expected `{target}`, found `{}`",
+            artifact.target
+        ))
+    } else if artifact.build_toolchain != crate::BUILD_TOOLCHAIN {
+        Some("stable build toolchain mismatch".to_owned())
+    } else if artifact.rustdoc_toolchain != RUSTDOC_TOOLCHAIN {
+        Some("rustdoc toolchain mismatch".to_owned())
+    } else if artifact.rustdoc_format != rustdoc_types::FORMAT_VERSION {
+        Some("rustdoc format mismatch".to_owned())
+    } else if artifact.projection_schema != PROJECTION_SCHEMA {
+        Some("projection schema mismatch".to_owned())
+    } else if let Some(reason) =
+        artifact_dependency_mismatch(&artifact.dependencies, &expected_dependencies)
+    {
+        Some(reason)
+    } else if artifact.projection.cache_identity != identity {
+        Some("projection payload identity mismatch".to_owned())
+    } else {
+        None
+    };
+    if let Some(reason) = mismatch {
+        return Err(reason);
+    }
+    let computed = projection_content_hash(&artifact.projection).map_err(|error| error.message)?;
+    if artifact.content_hash != computed {
+        return Err(format!(
+            "content hash mismatch: envelope recorded `{}`, computed `{computed}`",
+            artifact.content_hash
+        ));
+    }
+    if artifact.projection.content_hash != artifact.content_hash {
+        return Err("projection payload content hash does not match its envelope".to_owned());
+    }
+    let mut projection = artifact.projection;
+    projection.source = ProjectionSource::Remote;
+    projection.containment = containment;
+    Ok(projection)
+}
+
+fn projection_content_hash(projection: &Projection) -> Result<String, ProjectionError> {
+    let payload = serde_json::to_vec(&(
+        &projection.cache_identity,
+        &projection.dependencies,
+        &projection.probes,
+        projection.probe_wall_time_ms,
+    ))
+    .map_err(|error| ProjectionError {
+        message: format!("cannot encode projection content hash: {error}"),
+    })?;
+    Ok(format!("{:x}", Sha256::digest(payload)))
+}
+
+fn read_projection_history(path: &Path) -> Result<Option<ProjectionHistory>, ProjectionError> {
+    match fs::read(path) {
         Ok(bytes) => {
             let history = serde_json::from_slice::<ProjectionHistory>(&bytes).map_err(|error| {
                 ProjectionError {
                     message: format!("invalid projection history `{}`: {error}", path.display()),
                 }
             })?;
-            if history.format != 1 {
+            if !matches!(history.format, 1 | 2) {
                 return Err(ProjectionError {
                     message: format!(
                         "unsupported projection history format {} in `{}`",
@@ -716,18 +1231,24 @@ fn apply_projection_history(
                     ),
                 });
             }
-            Some(history)
+            Ok(Some(history))
         }
-        Err(error) if error.kind() == std::io::ErrorKind::NotFound => None,
-        Err(error) => {
-            return Err(ProjectionError {
-                message: format!(
-                    "cannot read projection history `{}`: {error}",
-                    path.display()
-                ),
-            });
-        }
-    };
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(None),
+        Err(error) => Err(ProjectionError {
+            message: format!(
+                "cannot read projection history `{}`: {error}",
+                path.display()
+            ),
+        }),
+    }
+}
+
+fn apply_projection_history(
+    root: &Path,
+    projection: &mut Projection,
+) -> Result<(), ProjectionError> {
+    let path = root.join("terrane-projection.lock");
+    let previous = read_projection_history(&path)?;
     let dependencies = projection
         .dependencies
         .iter()
@@ -741,6 +1262,23 @@ fn apply_projection_history(
                 .collect(),
         })
         .collect::<Vec<_>>();
+    if let Some(previous) = &previous
+        && previous.format == 2
+        && previous.dependencies == dependencies
+        && previous.rustdoc_format == Some(rustdoc_types::FORMAT_VERSION)
+        && previous.projection_schema.as_deref() == Some(PROJECTION_SCHEMA)
+        && previous.cache_identity.as_deref() == Some(&projection.cache_identity)
+        && previous.content_hash.as_deref() != Some(&projection.content_hash)
+    {
+        return Err(ProjectionError {
+            message: format!(
+                "projection replay mismatch in `{}`: the same cache identity previously produced `{}`, now produced `{}`",
+                path.display(),
+                previous.content_hash.as_deref().unwrap_or("missing"),
+                projection.content_hash
+            ),
+        });
+    }
     let mut removed = previous
         .as_ref()
         .map_or_else(Vec::new, |history| history.removed.clone());
@@ -781,10 +1319,26 @@ fn apply_projection_history(
     removed
         .sort_by(|left, right| (&left.namespace, &left.name).cmp(&(&right.namespace, &right.name)));
     projection.removed.clone_from(&removed);
+    let persisted_resolution = previous
+        .as_ref()
+        .filter(|history| {
+            history.format == 2
+                && history.cache_identity.as_deref() == Some(&projection.cache_identity)
+                && history.content_hash.as_deref() == Some(&projection.content_hash)
+                && history.source == Some(projection.source)
+        })
+        .and_then(|history| history.resolution.clone())
+        .unwrap_or_else(|| projection.resolution.clone());
     let history = ProjectionHistory {
-        format: 1,
+        format: 2,
         dependencies,
         removed,
+        cache_identity: Some(projection.cache_identity.clone()),
+        source: Some(projection.source),
+        rustdoc_format: Some(rustdoc_types::FORMAT_VERSION),
+        projection_schema: Some(PROJECTION_SCHEMA.to_owned()),
+        content_hash: Some(projection.content_hash.clone()),
+        resolution: Some(persisted_resolution),
     };
     let mut bytes = serde_json::to_vec_pretty(&history).map_err(|error| ProjectionError {
         message: format!("cannot serialize projection history: {error}"),
@@ -922,11 +1476,15 @@ fn run_cargo(
     })
 }
 
-fn prefer_public_path(public_paths: &mut BTreeMap<String, String>, id: String, candidate: String) {
+fn prefer_public_path(public_paths: &mut BTreeMap<Id, String>, id: Id, candidate: String) {
     public_paths
         .entry(id)
         .and_modify(|existing| {
-            if candidate.matches("::").count() < existing.matches("::").count() {
+            let candidate_depth = candidate.matches("::").count();
+            let existing_depth = existing.matches("::").count();
+            if candidate_depth < existing_depth
+                || (candidate_depth == existing_depth && candidate < *existing)
+            {
                 existing.clone_from(&candidate);
             }
         })
@@ -934,47 +1492,48 @@ fn prefer_public_path(public_paths: &mut BTreeMap<String, String>, id: String, c
 }
 
 fn record_public_module_items(
-    index: &serde_json::Map<String, Value>,
-    module_id: &str,
+    index: &HashMap<Id, Item>,
+    module_id: Id,
     module_path: &[String],
-    public_paths: &mut BTreeMap<String, String>,
-    visiting: &mut BTreeSet<String>,
+    public_paths: &mut BTreeMap<Id, String>,
+    visiting: &mut BTreeSet<Id>,
 ) {
-    if !visiting.insert(module_id.to_owned()) {
+    if !visiting.insert(module_id) {
         return;
     }
-    let Some(module) = index
-        .get(module_id)
-        .and_then(|item| item["inner"]["module"].as_object())
+    let Some(Item {
+        inner: ItemEnum::Module(module),
+        ..
+    }) = index.get(&module_id)
     else {
-        visiting.remove(module_id);
+        visiting.remove(&module_id);
         return;
     };
-    for child_id in string_or_number_array(&module["items"]) {
+    for child_id in &module.items {
         let Some(item) = index
-            .get(&child_id)
-            .filter(|item| item["visibility"].as_str() == Some("public"))
+            .get(child_id)
+            .filter(|item| item.visibility == Visibility::Public)
         else {
             continue;
         };
-        if let Some(import) = item["inner"]["use"].as_object() {
-            let Some(target_id) = value_id(&import["id"]) else {
+        if let ItemEnum::Use(import) = &item.inner {
+            let Some(target_id) = import.id else {
                 continue;
             };
-            if import["is_glob"].as_bool() == Some(true) {
-                record_public_module_items(index, &target_id, module_path, public_paths, visiting);
-            } else if let Some(name) = import["name"].as_str() {
+            if import.is_glob {
+                record_public_module_items(index, target_id, module_path, public_paths, visiting);
+            } else {
                 let candidate = module_path
                     .iter()
                     .map(String::as_str)
-                    .chain(std::iter::once(name))
+                    .chain(std::iter::once(import.name.as_str()))
                     .collect::<Vec<_>>()
                     .join("::");
                 prefer_public_path(public_paths, target_id, candidate);
             }
             continue;
         }
-        let Some(name) = item["name"].as_str() else {
+        let Some(name) = item.name.as_deref() else {
             continue;
         };
         let candidate = module_path
@@ -983,9 +1542,251 @@ fn record_public_module_items(
             .chain(std::iter::once(name))
             .collect::<Vec<_>>()
             .join("::");
-        prefer_public_path(public_paths, child_id, candidate);
+        prefer_public_path(public_paths, *child_id, candidate);
     }
-    visiting.remove(module_id);
+    visiting.remove(&module_id);
+}
+
+fn enforce_transitive_reachability(
+    projected: &mut [ProjectedDependency],
+    dependencies: &[RustDependency],
+    workspace: &Path,
+) -> Result<(), ProjectionError> {
+    let declared = dependencies
+        .iter()
+        .flat_map(|dependency| [&dependency.name, &dependency.package])
+        .map(|name| name.replace('-', "_"))
+        .collect::<BTreeSet<_>>();
+    let versions = resolved_package_versions(workspace)?;
+    for dependency in &mut *projected {
+        let mut retained = Vec::new();
+        for mut item in std::mem::take(&mut dependency.items) {
+            if let Some(owner) = item_undeclared_owner(&item, &declared) {
+                let owner = owner.to_owned();
+                dependency.declined.push(DeclinedItem {
+                    rust_path: item.rust_path,
+                    reason: undeclared_owner_reason(&owner, &versions),
+                });
+                continue;
+            }
+            if let ProjectedKind::ForeignType { methods } = &mut item.kind {
+                let owner_path = item.rust_path.clone();
+                let mut retained_methods = Vec::new();
+                for method in std::mem::take(methods) {
+                    if let Some(owner) = function_undeclared_owner(&method, &declared) {
+                        dependency.declined.push(DeclinedItem {
+                            rust_path: format!("{owner_path}::{}", method.name),
+                            reason: undeclared_owner_reason(owner, &versions),
+                        });
+                    } else {
+                        retained_methods.push(method);
+                    }
+                }
+                *methods = retained_methods;
+            }
+            retained.push(item);
+        }
+        dependency.items = retained;
+        dependency
+            .declined
+            .sort_by(|left, right| left.rust_path.cmp(&right.rust_path));
+    }
+    for owner in declared {
+        let Some(owner_versions) = versions.get(&owner) else {
+            continue;
+        };
+        let referenced = projected.iter().any(|dependency| {
+            dependency.package.replace('-', "_") != owner
+                && dependency.items.iter().any(|item| {
+                    item_foreign_owners(item)
+                        .into_iter()
+                        .any(|candidate| candidate == owner)
+                })
+        });
+        if referenced && owner_versions.len() > 1 {
+            return Err(ProjectionError {
+                message: format!(
+                    "declared Rust crate `{}` resolves to multiple versions ({}) while a dependency signature uses its types",
+                    owner.replace('_', "-"),
+                    owner_versions
+                        .iter()
+                        .cloned()
+                        .collect::<Vec<_>>()
+                        .join(", ")
+                ),
+            });
+        }
+    }
+    Ok(())
+}
+
+fn resolved_package_versions(
+    workspace: &Path,
+) -> Result<BTreeMap<String, BTreeSet<String>>, ProjectionError> {
+    let text = fs::read_to_string(workspace.join("Cargo.lock"))
+        .map_err(io_error("read dependency projection lockfile"))?;
+    let lock = text
+        .parse::<toml::Value>()
+        .map_err(|error| ProjectionError {
+            message: format!("invalid dependency projection lockfile: {error}"),
+        })?;
+    let mut versions = BTreeMap::<String, BTreeSet<String>>::new();
+    for package in lock
+        .get("package")
+        .and_then(toml::Value::as_array)
+        .into_iter()
+        .flatten()
+    {
+        let (Some(name), Some(version)) = (
+            package.get("name").and_then(toml::Value::as_str),
+            package.get("version").and_then(toml::Value::as_str),
+        ) else {
+            continue;
+        };
+        versions
+            .entry(name.replace('-', "_"))
+            .or_default()
+            .insert(version.to_owned());
+    }
+    Ok(versions)
+}
+
+fn item_undeclared_owner<'a>(
+    item: &'a ProjectedItem,
+    declared: &BTreeSet<String>,
+) -> Option<&'a str> {
+    rust_path_owner(&item.rust_path)
+        .filter(|owner| !owner_is_reachable(owner, declared))
+        .or_else(|| match &item.kind {
+            ProjectedKind::Function(function) => function_undeclared_owner(function, declared),
+            ProjectedKind::ForeignType { .. } | ProjectedKind::Enum { .. } => None,
+        })
+}
+
+fn function_undeclared_owner<'a>(
+    function: &'a ProjectedFunction,
+    declared: &BTreeSet<String>,
+) -> Option<&'a str> {
+    function
+        .parameters
+        .iter()
+        .map(|parameter| &parameter.ty)
+        .chain(std::iter::once(&function.result))
+        .find_map(|ty| type_undeclared_owner(ty, declared))
+}
+
+fn type_undeclared_owner<'a>(
+    ty: &'a ProjectedType,
+    declared: &BTreeSet<String>,
+) -> Option<&'a str> {
+    match ty {
+        ProjectedType::Foreign {
+            rust_path,
+            base_rust_path,
+            arguments,
+            ..
+        } => arguments
+            .iter()
+            .find_map(|argument| type_undeclared_owner(argument, declared))
+            .or_else(|| {
+                rust_path_owner(if base_rust_path.is_empty() {
+                    rust_path
+                } else {
+                    base_rust_path
+                })
+                .filter(|owner| !owner_is_reachable(owner, declared))
+            }),
+        ProjectedType::Optional(inner)
+        | ProjectedType::Sequence { item: inner, .. }
+        | ProjectedType::Set { item: inner, .. } => type_undeclared_owner(inner, declared),
+        ProjectedType::Mapping { key, value, .. } => {
+            type_undeclared_owner(key, declared).or_else(|| type_undeclared_owner(value, declared))
+        }
+        ProjectedType::Tuple(items) => items
+            .iter()
+            .find_map(|item| type_undeclared_owner(item, declared)),
+        _ => None,
+    }
+}
+
+fn item_foreign_owners(item: &ProjectedItem) -> BTreeSet<String> {
+    let mut owners = BTreeSet::new();
+    if let Some(owner) = rust_path_owner(&item.rust_path) {
+        owners.insert(owner.to_owned());
+    }
+    let functions = match &item.kind {
+        ProjectedKind::Function(function) => vec![function],
+        ProjectedKind::ForeignType { methods } => methods.iter().collect(),
+        ProjectedKind::Enum { .. } => Vec::new(),
+    };
+    for function in functions {
+        for ty in function
+            .parameters
+            .iter()
+            .map(|parameter| &parameter.ty)
+            .chain(std::iter::once(&function.result))
+        {
+            collect_type_owners(ty, &mut owners);
+        }
+    }
+    owners
+}
+
+fn collect_type_owners(ty: &ProjectedType, owners: &mut BTreeSet<String>) {
+    match ty {
+        ProjectedType::Foreign {
+            rust_path,
+            arguments,
+            ..
+        } => {
+            if let Some(owner) = rust_path_owner(rust_path) {
+                owners.insert(owner.to_owned());
+            }
+            for argument in arguments {
+                collect_type_owners(argument, owners);
+            }
+        }
+        ProjectedType::Optional(inner)
+        | ProjectedType::Sequence { item: inner, .. }
+        | ProjectedType::Set { item: inner, .. } => collect_type_owners(inner, owners),
+        ProjectedType::Mapping { key, value, .. } => {
+            collect_type_owners(key, owners);
+            collect_type_owners(value, owners);
+        }
+        ProjectedType::Tuple(items) => {
+            for item in items {
+                collect_type_owners(item, owners);
+            }
+        }
+        _ => {}
+    }
+}
+
+fn rust_path_owner(path: &str) -> Option<&str> {
+    path.trim_start_matches('<')
+        .split("::")
+        .next()
+        .filter(|owner| {
+            !owner.is_empty()
+                && owner
+                    .bytes()
+                    .all(|byte| byte.is_ascii_alphanumeric() || byte == b'_')
+        })
+}
+
+fn owner_is_reachable(owner: &str, declared: &BTreeSet<String>) -> bool {
+    matches!(owner, "std" | "core" | "alloc") || declared.contains(owner)
+}
+
+fn undeclared_owner_reason(owner: &str, versions: &BTreeMap<String, BTreeSet<String>>) -> String {
+    let version = versions.get(owner).map_or_else(
+        || "unknown".to_owned(),
+        |versions| versions.iter().cloned().collect::<Vec<_>>().join(", "),
+    );
+    format!(
+        "type is owned by undeclared crate `{}` at resolved version `{version}`; declare that crate with a unifying version to project its members",
+        owner.replace('_', "-")
+    )
 }
 
 #[expect(
@@ -996,180 +1797,215 @@ fn project_rustdoc(
     dependency: &RustDependency,
     bytes: &[u8],
 ) -> Result<ProjectedDependency, ProjectionError> {
-    let document: Value = serde_json::from_slice(bytes).map_err(|error| ProjectionError {
-        message: format!("invalid rustdoc JSON for `{}`: {error}", dependency.package),
-    })?;
-    let index = document["index"]
-        .as_object()
-        .ok_or_else(|| ProjectionError {
+    let document: RustdocCrate =
+        serde_json::from_slice(bytes).map_err(|error| ProjectionError {
             message: format!(
-                "rustdoc JSON for `{}` has no item index",
-                dependency.package
+                "rustdoc JSON schema mismatch for `{}`: {error}; expected rustdoc format {} from `{RUSTDOC_TOOLCHAIN}`",
+                dependency.package,
+                rustdoc_types::FORMAT_VERSION
             ),
         })?;
-    let paths = document["paths"]
-        .as_object()
-        .ok_or_else(|| ProjectionError {
+    if document.format_version != rustdoc_types::FORMAT_VERSION {
+        return Err(ProjectionError {
             message: format!(
-                "rustdoc JSON for `{}` has no path index",
-                dependency.package
+                "rustdoc JSON schema mismatch for `{}`: format {} is unsupported; expected format {} from `{RUSTDOC_TOOLCHAIN}`",
+                dependency.package,
+                document.format_version,
+                rustdoc_types::FORMAT_VERSION
             ),
-        })?;
-    let mut public_paths = BTreeMap::<String, String>::new();
+        });
+    }
+    let index = &document.index;
+    let paths = &document.paths;
+    let mut public_paths = BTreeMap::<Id, String>::new();
     for (module_id, summary) in paths {
-        if summary["crate_id"].as_u64() != Some(0)
-            || index
-                .get(module_id)
-                .and_then(|item| item["inner"]["module"].as_object())
-                .is_none()
+        if summary.crate_id != 0
+            || !matches!(
+                index.get(module_id).map(|item| &item.inner),
+                Some(ItemEnum::Module(_))
+            )
         {
             continue;
         }
-        let module_path = string_array(&summary["path"]);
         record_public_module_items(
             index,
-            module_id,
-            &module_path,
+            *module_id,
+            &summary.path,
             &mut public_paths,
             &mut BTreeSet::new(),
         );
     }
-    let mut resolved_paths = paths.clone();
+    let mut candidates = BTreeMap::<Id, Vec<String>>::new();
+    for (id, summary) in paths.iter().filter(|(_, summary)| summary.crate_id == 0) {
+        candidates.insert(*id, summary.path.clone());
+    }
     for (id, public_path) in &public_paths {
-        if !resolved_paths.contains_key(id) {
-            resolved_paths.insert(
-                id.clone(),
-                serde_json::json!({
-                    "crate_id": 0,
-                    "path": public_path.split("::").collect::<Vec<_>>(),
-                }),
-            );
-        }
+        candidates
+            .entry(*id)
+            .or_insert_with(|| public_path.split("::").map(str::to_owned).collect());
     }
     let mut items = Vec::new();
     let mut projected_enum_items = Vec::new();
     let mut declined = Vec::new();
     let mut projected_trait_items = Vec::new();
     let mut projected_associated_items = Vec::new();
-    for (id, summary) in &resolved_paths {
-        if summary["crate_id"].as_u64() != Some(0) {
+    for (id, path) in candidates {
+        let Some(item) = index.get(&id) else { continue };
+        if item.visibility != Visibility::Public {
             continue;
         }
-        let Some(item) = index.get(id) else { continue };
-        if item["visibility"].as_str() != Some("public") {
-            continue;
-        }
-        let path = string_array(&summary["path"]);
-        let Some(name) = path.last().cloned() else {
+        let Some(mut name) = path.last().cloned() else {
             continue;
         };
         let namespace = dependency_namespace(dependency, &path[..path.len().saturating_sub(1)]);
-        let rust_path = extern_rust_path(
-            dependency,
-            &public_paths
-                .get(id)
-                .cloned()
-                .unwrap_or_else(|| path.join("::")),
-        );
-        let docs = item["docs"].as_str().map(str::to_owned);
-        let inner = &item["inner"];
-        let projected = if let Some(function) = inner.get("function") {
-            project_function(function, index, &resolved_paths, Some(&name))
-                .map(ProjectedKind::Function)
-        } else if let Some(structure) = inner.get("struct") {
-            if has_type_parameters(structure) {
-                Err("type has generic or lifetime parameters".to_owned())
-            } else {
-                let (methods, trait_methods, method_declines) =
-                    project_methods(structure, index, &resolved_paths, &public_paths, &rust_path);
-                for method in methods.iter().filter(|method| method.receiver.is_none()) {
-                    projected_associated_items.push(ProjectedItem {
-                        namespace: namespace.clone(),
-                        name: method.name.clone(),
-                        rust_path: format!("{rust_path}::{}", method.name),
-                        docs: None,
-                        kind: ProjectedKind::Function(method.clone()),
-                    });
-                }
-                for (trait_path, public_trait_path, method) in trait_methods {
-                    let trait_segments = trait_path
-                        .split("::")
-                        .map(str::to_owned)
-                        .collect::<Vec<_>>();
-                    let trait_namespace = dependency_namespace(dependency, &trait_segments);
-                    let trait_rust_path = extern_rust_path(dependency, &public_trait_path);
-                    projected_trait_items.push(ProjectedItem {
-                        namespace: trait_namespace,
-                        name: method.name.clone(),
-                        rust_path: format!("<{rust_path} as {trait_rust_path}>::{}", method.name),
-                        docs: None,
-                        kind: ProjectedKind::Function(method),
-                    });
-                }
-                declined.extend(
-                    method_declines
-                        .into_iter()
-                        .map(|(name, reason)| DeclinedItem {
-                            rust_path: format!("{rust_path}::{name}"),
-                            reason,
-                        }),
-                );
-                Ok(ProjectedKind::ForeignType { methods })
+        let public_rust_path = public_paths
+            .get(&id)
+            .cloned()
+            .unwrap_or_else(|| path.join("::"));
+        let mut rust_path = extern_rust_path(dependency, &public_rust_path);
+        let docs = item.docs.clone();
+        let projected = match &item.inner {
+            ItemEnum::Function(function) => {
+                project_function(function, index, paths, Some(&name)).map(ProjectedKind::Function)
             }
-        } else if let Some(enumeration) = inner.get("enum") {
-            if has_type_parameters(enumeration) {
-                Err("type has generic or lifetime parameters".to_owned())
-            } else {
-                let data_carrying = enumeration["variants"].as_array().is_some_and(|variants| {
-                    variants.iter().any(|id| {
-                        value_id(id)
-                            .and_then(|id| index.get(&id))
-                            .and_then(|variant| variant["inner"]["variant"]["kind"].as_str())
-                            != Some("plain")
-                    })
-                });
-                if !data_carrying {
-                    let variant_namespace = dependency_namespace(dependency, &path);
-                    for variant_id in string_or_number_array(&enumeration["variants"]) {
-                        let Some(variant) = index.get(&variant_id) else {
+            ItemEnum::Struct(structure) => {
+                let mut owner_generics =
+                    match default_generic_instantiation(structure, index, paths) {
+                        Ok(generics) => generics,
+                        Err(reason) => {
+                            declined.push(DeclinedItem {
+                                rust_path: rust_path.clone(),
+                                reason,
+                            });
                             continue;
-                        };
-                        let Some(variant_name) = variant["name"].as_str() else {
-                            continue;
-                        };
-                        projected_enum_items.push(ProjectedItem {
-                            namespace: variant_namespace.clone(),
-                            name: variant_name.to_owned(),
-                            rust_path: format!("{rust_path}::{variant_name}"),
-                            docs: variant["docs"].as_str().map(str::to_owned),
-                            kind: ProjectedKind::Function(ProjectedFunction {
-                                name: variant_name.to_owned(),
-                                parameters: Vec::new(),
-                                result: ProjectedType::Foreign {
-                                    rust_path: rust_path.clone(),
-                                    name: name.clone(),
-                                },
-                                error: None,
-                                is_async: false,
-                                receiver: None,
-                            }),
+                        }
+                    };
+                if !owner_generics.is_empty() {
+                    let base_rust_path = rust_path.clone();
+                    let arguments = structure
+                        .generics
+                        .params
+                        .iter()
+                        .filter_map(|parameter| owner_generics.get(&parameter.name).cloned())
+                        .collect::<Vec<_>>();
+                    rust_path = format!(
+                        "{base_rust_path}<{}>",
+                        arguments
+                            .iter()
+                            .map(ProjectedType::rust_type)
+                            .collect::<Vec<_>>()
+                            .join(", ")
+                    );
+                    name = instantiated_type_name(&name, &rust_path);
+                    owner_generics.insert(
+                        "Self".to_owned(),
+                        ProjectedType::Foreign {
+                            rust_path: rust_path.clone(),
+                            name: name.clone(),
+                            base_rust_path,
+                            arguments,
+                        },
+                    );
+                }
+                {
+                    let (methods, trait_methods, method_declines) = project_methods(
+                        &structure.impls,
+                        index,
+                        paths,
+                        &public_paths,
+                        &rust_path,
+                        &owner_generics,
+                    );
+                    for method in methods.iter().filter(|method| method.receiver.is_none()) {
+                        projected_associated_items.push(ProjectedItem {
+                            namespace: namespace.clone(),
+                            name: method.name.clone(),
+                            rust_path: format!("{rust_path}::{}", method.name),
+                            docs: None,
+                            kind: ProjectedKind::Function(method.clone()),
                         });
                     }
+                    for (trait_path, public_trait_path, method) in trait_methods {
+                        let trait_segments = trait_path
+                            .split("::")
+                            .map(str::to_owned)
+                            .collect::<Vec<_>>();
+                        let trait_namespace = dependency_namespace(dependency, &trait_segments);
+                        let trait_rust_path = extern_rust_path(dependency, &public_trait_path);
+                        projected_trait_items.push(ProjectedItem {
+                            namespace: trait_namespace,
+                            name: method.name.clone(),
+                            rust_path: format!(
+                                "<{rust_path} as {trait_rust_path}>::{}",
+                                method.name
+                            ),
+                            docs: None,
+                            kind: ProjectedKind::Function(method),
+                        });
+                    }
+                    declined.extend(method_declines.into_iter().map(|(name, reason)| {
+                        DeclinedItem {
+                            rust_path: format!("{rust_path}::{name}"),
+                            reason,
+                        }
+                    }));
+                    Ok(ProjectedKind::ForeignType { methods })
                 }
-                Ok(ProjectedKind::Enum {
-                    data_carrying,
-                    comparable: implements_trait(
-                        enumeration,
-                        index,
-                        &resolved_paths,
-                        "core::cmp::PartialEq",
-                    ),
-                })
             }
-        } else if inner.get("trait").is_some() {
-            continue;
-        } else {
-            Err("item kind has no Terrane projection".to_owned())
+            ItemEnum::Enum(enumeration) => {
+                if has_type_parameters(&enumeration.generics.params) {
+                    Err("type has generic or lifetime parameters".to_owned())
+                } else {
+                    let data_carrying = enumeration.variants.iter().any(|id| {
+                        !matches!(
+                            index.get(id).map(|variant| &variant.inner),
+                            Some(ItemEnum::Variant(variant))
+                                if matches!(variant.kind, VariantKind::Plain)
+                        )
+                    });
+                    if !data_carrying {
+                        let variant_namespace = dependency_namespace(dependency, &path);
+                        for variant_id in &enumeration.variants {
+                            let Some(variant) = index.get(variant_id) else {
+                                continue;
+                            };
+                            let Some(variant_name) = variant.name.as_deref() else {
+                                continue;
+                            };
+                            projected_enum_items.push(ProjectedItem {
+                                namespace: variant_namespace.clone(),
+                                name: variant_name.to_owned(),
+                                rust_path: format!("{rust_path}::{variant_name}"),
+                                docs: variant.docs.clone(),
+                                kind: ProjectedKind::Function(ProjectedFunction {
+                                    name: variant_name.to_owned(),
+                                    parameters: Vec::new(),
+                                    result: ProjectedType::Foreign {
+                                        rust_path: rust_path.clone(),
+                                        name: name.clone(),
+                                        base_rust_path: rust_path.clone(),
+                                        arguments: Vec::new(),
+                                    },
+                                    error: None,
+                                    is_async: false,
+                                    receiver: None,
+                                }),
+                            });
+                        }
+                    }
+                    Ok(ProjectedKind::Enum {
+                        data_carrying,
+                        comparable: implements_trait(
+                            &enumeration.impls,
+                            index,
+                            paths,
+                            "core::cmp::PartialEq",
+                        ),
+                    })
+                }
+            }
+            ItemEnum::Trait(_) => continue,
+            _ => Err("item kind has no Terrane projection".to_owned()),
         };
         match projected {
             Ok(kind) => items.push(ProjectedItem {
@@ -1228,20 +2064,20 @@ fn project_rustdoc(
             &right.rust_path,
         ))
     });
-    let mut index = 0;
-    while index < projected_trait_items.len() {
-        let first = index;
+    let mut projected_index = 0;
+    while projected_index < projected_trait_items.len() {
+        let first = projected_index;
         let key = (
-            projected_trait_items[index].namespace.clone(),
-            projected_trait_items[index].name.clone(),
+            projected_trait_items[projected_index].namespace.clone(),
+            projected_trait_items[projected_index].name.clone(),
         );
-        while index < projected_trait_items.len()
-            && projected_trait_items[index].namespace == key.0
-            && projected_trait_items[index].name == key.1
+        while projected_index < projected_trait_items.len()
+            && projected_trait_items[projected_index].namespace == key.0
+            && projected_trait_items[projected_index].name == key.1
         {
-            index += 1;
+            projected_index += 1;
         }
-        if index - first == 1
+        if projected_index - first == 1
             && !items
                 .iter()
                 .any(|item| item.namespace == key.0 && item.name == key.1)
@@ -1249,7 +2085,7 @@ fn project_rustdoc(
             items.push(projected_trait_items[first].clone());
         } else {
             declined.extend(
-                projected_trait_items[first..index]
+                projected_trait_items[first..projected_index]
                     .iter()
                     .map(|item| DeclinedItem {
                         rust_path: item.rust_path.clone(),
@@ -1259,25 +2095,67 @@ fn project_rustdoc(
             );
         }
     }
-    items
-        .sort_by(|left, right| (&left.namespace, &left.name).cmp(&(&right.namespace, &right.name)));
-    declined.sort_by(|left, right| left.rust_path.cmp(&right.rust_path));
+    items.sort_by(|left, right| {
+        (&left.namespace, &left.name, &left.rust_path).cmp(&(
+            &right.namespace,
+            &right.name,
+            &right.rust_path,
+        ))
+    });
+    declined.sort_by(|left, right| {
+        (&left.rust_path, &left.reason).cmp(&(&right.rust_path, &right.reason))
+    });
     Ok(ProjectedDependency {
         name: dependency.name.clone(),
         package: dependency.package.clone(),
-        version: document["crate_version"]
-            .as_str()
-            .unwrap_or(&dependency.version)
-            .to_owned(),
+        version: document
+            .crate_version
+            .unwrap_or_else(|| dependency.version.clone()),
         items,
         declined,
     })
 }
 
-fn has_type_parameters(item: &Value) -> bool {
-    item["generics"]["params"]
-        .as_array()
-        .is_some_and(|parameters| !parameters.is_empty())
+fn default_generic_instantiation(
+    structure: &Struct,
+    index: &HashMap<Id, Item>,
+    paths: &HashMap<Id, ItemSummary>,
+) -> Result<BTreeMap<String, ProjectedType>, String> {
+    let mut substitutions = BTreeMap::new();
+    for parameter in &structure.generics.params {
+        match &parameter.kind {
+            GenericParamDefKind::Type {
+                default: Some(default),
+                ..
+            } => {
+                let projected = project_type(default, index, paths, &substitutions)?;
+                substitutions.insert(parameter.name.clone(), projected);
+            }
+            GenericParamDefKind::Type { default: None, .. } => {
+                return Err(format!(
+                    "generic type parameter `{}` has no default instantiation",
+                    parameter.name
+                ));
+            }
+            GenericParamDefKind::Lifetime { .. } => {
+                return Err(format!(
+                    "lifetime parameter `{}` requires non-escaping chain projection",
+                    parameter.name
+                ));
+            }
+            GenericParamDefKind::Const { .. } => {
+                return Err(format!(
+                    "const parameter `{}` has no projected value identity",
+                    parameter.name
+                ));
+            }
+        }
+    }
+    Ok(substitutions)
+}
+
+fn has_type_parameters(parameters: &[rustdoc_types::GenericParamDef]) -> bool {
+    !parameters.is_empty()
 }
 
 fn extern_rust_path(dependency: &RustDependency, path: &str) -> String {
@@ -1300,43 +2178,39 @@ type ProjectedMethods = (
     reason = "rustdoc impl traversal keeps trait and inherent decisions in one deterministic pass"
 )]
 fn project_methods(
-    structure: &Value,
-    index: &serde_json::Map<String, Value>,
-    paths: &serde_json::Map<String, Value>,
-    public_paths: &BTreeMap<String, String>,
+    impl_ids: &[Id],
+    index: &HashMap<Id, Item>,
+    paths: &HashMap<Id, ItemSummary>,
+    public_paths: &BTreeMap<Id, String>,
     owner_rust_path: &str,
+    owner_generics: &BTreeMap<String, ProjectedType>,
 ) -> ProjectedMethods {
     let mut candidates = Vec::new();
     let mut trait_methods = Vec::new();
     let mut declined = Vec::new();
-    let Some(impls) = structure["impls"].as_array() else {
-        return (Vec::new(), trait_methods, declined);
-    };
-    for impl_id in impls {
-        let Some(implementation) = value_id(impl_id)
-            .and_then(|id| index.get(&id))
-            .and_then(|item| item["inner"]["impl"].as_object())
+    for impl_id in impl_ids {
+        let Some(Item {
+            inner: ItemEnum::Impl(implementation),
+            ..
+        }) = index.get(impl_id)
         else {
             continue;
         };
-        if implementation["is_negative"].as_bool() == Some(true) {
+        if implementation.is_negative {
             continue;
         }
-        let inherent = implementation["trait"].is_null();
-        let Some(method_ids) = implementation["items"].as_array() else {
-            continue;
-        };
-        for method_id in method_ids {
-            let Some(item) = value_id(method_id).and_then(|id| index.get(&id)) else {
+        let inherent = implementation.trait_.is_none();
+        for method_id in &implementation.items {
+            let Some(item) = index.get(method_id) else {
                 continue;
             };
-            if inherent && item["visibility"].as_str() != Some("public") {
+            if inherent && item.visibility != Visibility::Public {
                 continue;
             }
-            let Some(name) = item["name"].as_str() else {
+            let Some(name) = item.name.as_deref() else {
                 continue;
             };
-            let Some(function) = item["inner"].get("function") else {
+            let ItemEnum::Function(function) = &item.inner else {
                 declined.push((
                     name.to_owned(),
                     "item kind has no Terrane method projection".to_owned(),
@@ -1344,21 +2218,27 @@ fn project_methods(
                 continue;
             };
             if !inherent {
-                let Some(trait_path) = implementation_trait_path(&implementation["trait"], paths)
-                else {
+                let Some(trait_) = implementation.trait_.as_ref() else {
+                    continue;
+                };
+                let Some(trait_path) = implementation_trait_path(trait_, paths) else {
                     declined.push((
                         name.to_owned(),
                         "trait method is not declared by this dependency crate".to_owned(),
                     ));
                     continue;
                 };
-                let public_trait_path = implementation["trait"]["id"]
-                    .as_u64()
-                    .map(|id| id.to_string())
-                    .and_then(|id| public_paths.get(&id))
+                let public_trait_path = public_paths
+                    .get(&trait_.id)
                     .cloned()
                     .unwrap_or_else(|| trait_path.clone());
-                match project_function(function, index, paths, Some(name)) {
+                match project_function_with_generics(
+                    function,
+                    index,
+                    paths,
+                    Some(name),
+                    owner_generics,
+                ) {
                     Ok(mut method) => {
                         let Some(receiver) = method.receiver.take() else {
                             declined
@@ -1376,6 +2256,11 @@ fn project_methods(
                                         .next()
                                         .unwrap_or(owner_rust_path)
                                         .to_owned(),
+                                    base_rust_path: owner_rust_path
+                                        .split_once('<')
+                                        .map_or(owner_rust_path, |(base, _)| base)
+                                        .to_owned(),
+                                    arguments: Vec::new(),
                                 },
                                 borrowed: receiver != Receiver::Move,
                                 mutable_borrow: receiver == Receiver::MutableBorrow,
@@ -1387,7 +2272,8 @@ fn project_methods(
                 }
                 continue;
             }
-            match project_function(function, index, paths, Some(name)) {
+            match project_function_with_generics(function, index, paths, Some(name), owner_generics)
+            {
                 Ok(method) => candidates.push(method),
                 Err(reason) => declined.push((name.to_owned(), reason)),
             }
@@ -1397,12 +2283,12 @@ fn project_methods(
     while let Some(method) = candidates.pop() {
         let name = method.name.clone();
         let mut matching = vec![method];
-        let mut index = 0;
-        while index < candidates.len() {
-            if candidates[index].name == name {
-                matching.push(candidates.swap_remove(index));
+        let mut candidate_index = 0;
+        while candidate_index < candidates.len() {
+            if candidates[candidate_index].name == name {
+                matching.push(candidates.swap_remove(candidate_index));
             } else {
-                index += 1;
+                candidate_index += 1;
             }
         }
         if matching.len() == 1 {
@@ -1420,36 +2306,48 @@ fn project_methods(
     (methods, trait_methods, declined)
 }
 
+fn project_function_with_generics(
+    function: &Function,
+    index: &HashMap<Id, Item>,
+    paths: &HashMap<Id, ItemSummary>,
+    method_name: Option<&str>,
+    supplied_generics: &BTreeMap<String, ProjectedType>,
+) -> Result<ProjectedFunction, String> {
+    project_function_inner(function, index, paths, method_name, supplied_generics)
+}
+
 fn project_function(
-    function: &Value,
-    index: &serde_json::Map<String, Value>,
-    paths: &serde_json::Map<String, Value>,
+    function: &Function,
+    index: &HashMap<Id, Item>,
+    paths: &HashMap<Id, ItemSummary>,
     method_name: Option<&str>,
 ) -> Result<ProjectedFunction, String> {
-    if function["header"]["is_unsafe"].as_bool() == Some(true) {
+    project_function_inner(function, index, paths, method_name, &BTreeMap::new())
+}
+
+fn project_function_inner(
+    function: &Function,
+    index: &HashMap<Id, Item>,
+    paths: &HashMap<Id, ItemSummary>,
+    method_name: Option<&str>,
+    supplied_generics: &BTreeMap<String, ProjectedType>,
+) -> Result<ProjectedFunction, String> {
+    if function.header.is_unsafe {
         return Err("unsafe function".to_owned());
     }
-    let generic_types = generic_monomorphisations(function, index, paths)?;
-    let inputs = function["sig"]["inputs"]
-        .as_array()
-        .ok_or_else(|| "function signature has no inputs".to_owned())?;
+    let generic_types = generic_monomorphisations(function, index, paths, supplied_generics)?;
     let mut parameters = Vec::new();
     let mut receiver = None;
-    for input in inputs {
-        let pair = input
-            .as_array()
-            .ok_or_else(|| "malformed function input".to_owned())?;
-        let name = pair.first().and_then(Value::as_str).unwrap_or("value");
-        let ty = pair
-            .get(1)
-            .ok_or_else(|| "malformed function input type".to_owned())?;
+    for (name, ty) in &function.sig.inputs {
         if name == "self" {
             receiver = Some(receiver_kind(ty));
             continue;
         }
         let projected_type = project_type(ty, index, paths, &generic_types)?;
-        let borrowed = ty.get("borrowed_ref").is_some();
-        let mutable_borrow = ty["borrowed_ref"]["is_mutable"].as_bool() == Some(true);
+        let (borrowed, mutable_borrow) = match ty {
+            Type::BorrowedRef { is_mutable, .. } => (true, *is_mutable),
+            _ => (false, false),
+        };
         if mutable_borrow && !matches!(projected_type, ProjectedType::Foreign { .. }) {
             return Err("mutable borrowed primitive parameters are not representable".to_owned());
         }
@@ -1461,10 +2359,7 @@ fn project_function(
         });
     }
     let mut error = None;
-    let result = if function["sig"]["output"].is_null() {
-        ProjectedType::None
-    } else {
-        let output = &function["sig"]["output"];
+    let result = if let Some(output) = &function.sig.output {
         if resolved_name(output, paths)
             .is_some_and(|name| name.ends_with("::Result") || name == "Result")
         {
@@ -1488,50 +2383,54 @@ fn project_function(
         } else {
             project_type(output, index, paths, &generic_types)?
         }
+    } else {
+        ProjectedType::None
     };
     Ok(ProjectedFunction {
         name: method_name.unwrap_or_default().to_owned(),
         parameters,
         result,
         error,
-        is_async: function["header"]["is_async"].as_bool() == Some(true),
+        is_async: function.header.is_async,
         receiver,
     })
 }
 
 fn generic_monomorphisations(
-    function: &Value,
-    index: &serde_json::Map<String, Value>,
-    paths: &serde_json::Map<String, Value>,
+    function: &Function,
+    index: &HashMap<Id, Item>,
+    paths: &HashMap<Id, ItemSummary>,
+    supplied: &BTreeMap<String, ProjectedType>,
 ) -> Result<BTreeMap<String, ProjectedType>, String> {
-    let mut result = BTreeMap::new();
-    let Some(params) = function["generics"]["params"].as_array() else {
-        return Ok(result);
-    };
-    for parameter in params {
-        let Some(name) = parameter["name"].as_str() else {
+    let mut result = supplied.clone();
+    for parameter in &function.generics.params {
+        if result.contains_key(&parameter.name) {
             continue;
+        }
+        let GenericParamDefKind::Type { bounds, .. } = &parameter.kind else {
+            return Err(format!("unbounded generic `{}`", parameter.name));
         };
-        let Some(bounds) = parameter["kind"]["type"]["bounds"].as_array() else {
-            return Err(format!("unbounded generic `{name}`"));
+        let Some(GenericBound::TraitBound { trait_, .. }) = bounds.first() else {
+            return Err(format!("open generic `{}`", parameter.name));
         };
-        let Some(trait_id) = bounds
-            .first()
-            .and_then(|bound| value_id(&bound["trait_bound"]["trait"]["id"]))
+        let Some(Item {
+            inner: ItemEnum::Trait(trait_definition),
+            ..
+        }) = index.get(&trait_.id)
         else {
-            return Err(format!("open generic `{name}`"));
+            return Err(format!(
+                "generic bound for `{}` has no closed impl set",
+                parameter.name
+            ));
         };
-        let Some(implementations) = index
-            .get(&trait_id)
-            .and_then(|item| item["inner"]["trait"]["implementations"].as_array())
-        else {
-            return Err(format!("generic bound for `{name}` has no closed impl set"));
-        };
-        let mut candidates = implementations
+        let mut candidates = trait_definition
+            .implementations
             .iter()
-            .filter_map(value_id)
-            .filter_map(|id| index.get(&id))
-            .filter_map(|item| item["inner"]["impl"].get("for"))
+            .filter_map(|id| index.get(id))
+            .filter_map(|item| match &item.inner {
+                ItemEnum::Impl(implementation) => Some(&implementation.for_),
+                _ => None,
+            })
             .filter_map(|ty| project_type(ty, index, paths, &BTreeMap::new()).ok())
             .collect::<Vec<_>>();
         let mut unique = Vec::new();
@@ -1557,39 +2456,39 @@ fn generic_monomorphisations(
         let selected = if direct.is_empty() { &unique } else { &direct };
         let [chosen] = selected.as_slice() else {
             return Err(if selected.is_empty() {
-                format!("generic bound for `{name}` has no Terrane-representable impl")
+                format!(
+                    "generic bound for `{}` has no Terrane-representable impl",
+                    parameter.name
+                )
             } else {
                 format!(
-                    "generic bound for `{name}` has {} viable Terrane representations and requires a caller-chosen type",
+                    "generic bound for `{}` has {} viable Terrane representations and requires a caller-chosen type",
+                    parameter.name,
                     selected.len()
                 )
             });
         };
-        result.insert(name.to_owned(), chosen.clone());
+        result.insert(parameter.name.clone(), chosen.clone());
     }
     Ok(result)
 }
 
 fn project_type(
-    ty: &Value,
-    index: &serde_json::Map<String, Value>,
-    paths: &serde_json::Map<String, Value>,
+    ty: &Type,
+    index: &HashMap<Id, Item>,
+    paths: &HashMap<Id, ItemSummary>,
     generics: &BTreeMap<String, ProjectedType>,
 ) -> Result<ProjectedType, String> {
-    if let Some(reference) = ty.get("borrowed_ref") {
-        return project_type(&reference["type"], index, paths, generics);
-    }
-    if let Some(generic) = ty.get("generic").and_then(Value::as_str) {
-        if generic == "Self" {
-            return Err("receiver type used outside receiver position".to_owned());
-        }
-        return generics
-            .get(generic)
-            .cloned()
-            .ok_or_else(|| format!("unbounded generic `{generic}`"));
-    }
-    if let Some(primitive) = ty.get("primitive").and_then(Value::as_str) {
-        return match primitive {
+    match ty {
+        Type::BorrowedRef { type_, .. } => project_type(type_, index, paths, generics),
+        Type::Generic(generic) => generics.get(generic).cloned().ok_or_else(|| {
+            if generic == "Self" {
+                "receiver type used outside receiver position".to_owned()
+            } else {
+                format!("unbounded generic `{generic}`")
+            }
+        }),
+        Type::Primitive(primitive) => match primitive.as_str() {
             "bool" => Ok(ProjectedType::Bool),
             "str" => Ok(ProjectedType::String),
             "f32" => Ok(ProjectedType::Float32),
@@ -1597,103 +2496,319 @@ fn project_type(
             "char" => Ok(ProjectedType::Char),
             "i64" => Ok(ProjectedType::Int),
             "i8" | "i16" | "i32" | "i128" | "isize" | "u8" | "u16" | "u32" | "u64" | "u128"
-            | "usize" => Ok(ProjectedType::RustInt(primitive.to_owned())),
+            | "usize" => Ok(ProjectedType::RustInt(primitive.clone())),
             "unit" => Ok(ProjectedType::None),
             other => Err(format!("unsupported primitive `{other}`")),
-        };
-    }
-    if let Some(id) = ty
-        .get("resolved_path")
-        .and_then(|resolved| value_id(&resolved["id"]))
-        && let Some(alias) = index
-            .get(&id)
-            .and_then(|item| item["inner"].get("type_alias"))
-    {
-        return project_type(&alias["type"], index, paths, generics);
-    }
-    let Some(path) = resolved_name(ty, paths) else {
-        return Err("type has no stable Rust path".to_owned());
-    };
-    let short = path.rsplit("::").next().unwrap_or(&path).to_owned();
-    match short.as_str() {
-        "String" => Ok(ProjectedType::String),
-        "Vec"
-            if type_arguments(ty)
-                .first()
-                .is_some_and(|inner| inner["primitive"].as_str() == Some("u8")) =>
-        {
-            Ok(ProjectedType::Bytes)
+        },
+        Type::Tuple(types) if types.is_empty() => Ok(ProjectedType::None),
+        Type::Tuple(types) => {
+            let items = types
+                .iter()
+                .map(|item| project_type(item, index, paths, generics))
+                .collect::<Result<Vec<_>, _>>()?;
+            if items.windows(2).any(|pair| pair[0] != pair[1]) {
+                return Err("heterogeneous tuple has no Terrane tuple representation".to_owned());
+            }
+            Ok(ProjectedType::Tuple(items))
         }
-        _ => Ok(ProjectedType::Foreign {
-            rust_path: path,
-            name: short,
-        }),
+        Type::ResolvedPath(path) => project_resolved_type(ty, path, index, paths, generics),
+        _ => Err("type has no stable Rust path".to_owned()),
+    }
+}
+#[expect(
+    clippy::too_many_lines,
+    reason = "resolved Rust type classification keeps canonical paths and recursive shape checks together"
+)]
+fn project_resolved_type(
+    ty: &Type,
+    path: &RustdocPath,
+    index: &HashMap<Id, Item>,
+    paths: &HashMap<Id, ItemSummary>,
+    generics: &BTreeMap<String, ProjectedType>,
+) -> Result<ProjectedType, String> {
+    if let Some(Item {
+        inner: ItemEnum::TypeAlias(alias),
+        ..
+    }) = index.get(&path.id)
+    {
+        let mut substitutions = generics.clone();
+        let arguments = type_arguments(ty);
+        let parameters = alias
+            .generics
+            .params
+            .iter()
+            .filter(|parameter| matches!(parameter.kind, GenericParamDefKind::Type { .. }));
+        for (parameter, argument) in parameters.zip(arguments) {
+            substitutions.insert(
+                parameter.name.clone(),
+                project_type(argument, index, paths, generics)?,
+            );
+        }
+        return project_type(&alias.type_, index, paths, &substitutions);
+    }
+    let resolved = resolved_path_name(path, paths);
+    if matches!(
+        resolved.as_str(),
+        "alloc::string::String" | "std::string::String"
+    ) {
+        return Ok(ProjectedType::String);
+    }
+    let arguments = type_arguments(ty);
+    if matches!(
+        resolved.as_str(),
+        "core::option::Option" | "std::option::Option"
+    ) {
+        let inner = arguments
+            .first()
+            .ok_or_else(|| "Option has no value type".to_owned())?;
+        return Ok(ProjectedType::Optional(Box::new(project_type(
+            inner, index, paths, generics,
+        )?)));
+    }
+    if matches!(resolved.as_str(), "alloc::vec::Vec" | "std::vec::Vec") {
+        let item = arguments
+            .first()
+            .ok_or_else(|| "Vec has no item type".to_owned())?;
+        let item = project_type(item, index, paths, generics)?;
+        if item == ProjectedType::RustInt("u8".to_owned()) {
+            return Ok(ProjectedType::Bytes);
+        }
+        let rust_path = render_resolved_path(path, index, paths, generics)?;
+        return Ok(ProjectedType::Sequence {
+            rust_path,
+            item: Box::new(item),
+        });
+    }
+    let rust_path = render_resolved_path(path, index, paths, generics)?;
+    if matches!(
+        resolved.as_str(),
+        "std::collections::HashMap"
+            | "std::collections::hash::map::HashMap"
+            | "alloc::collections::BTreeMap"
+            | "alloc::collections::btree::map::BTreeMap"
+    ) {
+        let [key, value] = arguments.as_slice() else {
+            return Err("map type does not have exactly two type arguments".to_owned());
+        };
+        let key = project_type(key, index, paths, generics)?;
+        if !key.is_terrane_scalar() {
+            return Err("map key is not a Terrane scalar".to_owned());
+        }
+        return Ok(ProjectedType::Mapping {
+            rust_path,
+            key: Box::new(key),
+            value: Box::new(project_type(value, index, paths, generics)?),
+            ordered: resolved.contains("BTree"),
+        });
+    }
+    if matches!(
+        resolved.as_str(),
+        "std::collections::HashSet"
+            | "std::collections::hash::set::HashSet"
+            | "alloc::collections::BTreeSet"
+            | "alloc::collections::btree::set::BTreeSet"
+    ) {
+        let item = arguments
+            .first()
+            .ok_or_else(|| "set has no item type".to_owned())?;
+        let item = project_type(item, index, paths, generics)?;
+        if !item.is_terrane_scalar() {
+            return Err("set item is not a Terrane scalar".to_owned());
+        }
+        return Ok(ProjectedType::Set {
+            rust_path,
+            item: Box::new(item),
+            ordered: resolved.contains("BTree"),
+        });
+    }
+    let short = resolved.rsplit("::").next().unwrap_or(&resolved).to_owned();
+    let arguments = arguments
+        .into_iter()
+        .map(|argument| project_type(argument, index, paths, generics))
+        .collect::<Result<Vec<_>, _>>()?;
+    let name = instantiated_type_name(&short, &rust_path);
+    Ok(ProjectedType::Foreign {
+        rust_path,
+        name,
+        base_rust_path: resolved,
+        arguments,
+    })
+}
+
+fn render_resolved_path(
+    path: &RustdocPath,
+    index: &HashMap<Id, Item>,
+    paths: &HashMap<Id, ItemSummary>,
+    generics: &BTreeMap<String, ProjectedType>,
+) -> Result<String, String> {
+    let base = resolved_path_name(path, paths);
+    let Some(arguments) = path.args.as_deref() else {
+        return Ok(base);
+    };
+    match arguments {
+        GenericArgs::AngleBracketed { args, constraints } => {
+            if !constraints.is_empty() {
+                return Err("associated generic constraints have no stable projection".to_owned());
+            }
+            let rendered = args
+                .iter()
+                .map(|argument| match argument {
+                    GenericArg::Lifetime(lifetime) => Ok(lifetime.clone()),
+                    GenericArg::Type(ty) => render_rust_type(ty, index, paths, generics),
+                    GenericArg::Const(constant) => Ok(constant.expr.clone()),
+                    GenericArg::Infer => {
+                        Err("inferred generic argument has no stable projection".to_owned())
+                    }
+                })
+                .collect::<Result<Vec<_>, _>>()?;
+            Ok(format!("{base}<{}>", rendered.join(", ")))
+        }
+        GenericArgs::Parenthesized { inputs, output } => {
+            let inputs = inputs
+                .iter()
+                .map(|ty| render_rust_type(ty, index, paths, generics))
+                .collect::<Result<Vec<_>, _>>()?;
+            let output = output
+                .as_ref()
+                .map(|ty| render_rust_type(ty, index, paths, generics))
+                .transpose()?
+                .map_or_else(String::new, |ty| format!(" -> {ty}"));
+            Ok(format!("{base}({}){output}", inputs.join(", ")))
+        }
+        GenericArgs::ReturnTypeNotation => {
+            Err("return-type notation has no stable projection".to_owned())
+        }
     }
 }
 
-fn receiver_kind(ty: &Value) -> Receiver {
-    ty.get("borrowed_ref").map_or(Receiver::Move, |reference| {
-        if reference["is_mutable"].as_bool() == Some(true) {
-            Receiver::MutableBorrow
+fn render_rust_type(
+    ty: &Type,
+    index: &HashMap<Id, Item>,
+    paths: &HashMap<Id, ItemSummary>,
+    generics: &BTreeMap<String, ProjectedType>,
+) -> Result<String, String> {
+    match ty {
+        Type::ResolvedPath(path) => render_resolved_path(path, index, paths, generics),
+        Type::Generic(name) => generics
+            .get(name)
+            .map(ProjectedType::rust_type)
+            .ok_or_else(|| format!("unbounded generic `{name}`")),
+        Type::Primitive(name) => Ok(if name == "unit" {
+            "()".to_owned()
         } else {
-            Receiver::Borrow
-        }
-    })
+            name.clone()
+        }),
+        Type::BorrowedRef {
+            lifetime,
+            is_mutable,
+            type_,
+        } => Ok(format!(
+            "&{}{}{}",
+            lifetime
+                .as_deref()
+                .map(|lifetime| format!("{lifetime} "))
+                .unwrap_or_default(),
+            if *is_mutable { "mut " } else { "" },
+            render_rust_type(type_, index, paths, generics)?
+        )),
+        Type::Tuple(types) => Ok(format!(
+            "({})",
+            types
+                .iter()
+                .map(|ty| render_rust_type(ty, index, paths, generics))
+                .collect::<Result<Vec<_>, _>>()?
+                .join(", ")
+        )),
+        Type::Slice(type_) => Ok(format!(
+            "[{}]",
+            render_rust_type(type_, index, paths, generics)?
+        )),
+        Type::Array { type_, len } => Ok(format!(
+            "[{}; {len}]",
+            render_rust_type(type_, index, paths, generics)?
+        )),
+        _ => Err("generic argument has no stable Rust type spelling".to_owned()),
+    }
 }
+
+fn instantiated_type_name(short: &str, rust_path: &str) -> String {
+    if rust_path.rsplit("::").next() == Some(short) {
+        return short.to_owned();
+    }
+    format!("{short}-{:x}", Sha256::digest(rust_path.as_bytes()))
+}
+
+fn receiver_kind(ty: &Type) -> Receiver {
+    match ty {
+        Type::BorrowedRef {
+            is_mutable: true, ..
+        } => Receiver::MutableBorrow,
+        Type::BorrowedRef { .. } => Receiver::Borrow,
+        _ => Receiver::Move,
+    }
+}
+
 fn implementation_trait_path(
-    trait_path: &Value,
-    paths: &serde_json::Map<String, Value>,
+    trait_path: &RustdocPath,
+    paths: &HashMap<Id, ItemSummary>,
 ) -> Option<String> {
-    let id = trait_path["id"].as_u64()?.to_string();
-    let summary = paths.get(&id)?;
-    (summary["crate_id"].as_u64() == Some(0))
-        .then(|| string_array(&summary["path"]).join("::"))
+    let summary = paths.get(&trait_path.id)?;
+    (summary.crate_id == 0)
+        .then(|| summary.path.join("::"))
         .filter(|path| !path.is_empty())
 }
 
 fn implements_trait(
-    item: &Value,
-    index: &serde_json::Map<String, Value>,
-    paths: &serde_json::Map<String, Value>,
+    impls: &[Id],
+    index: &HashMap<Id, Item>,
+    paths: &HashMap<Id, ItemSummary>,
     expected: &str,
 ) -> bool {
-    string_or_number_array(&item["impls"])
-        .into_iter()
-        .any(|id| {
-            index
-                .get(&id)
-                .and_then(|implementation| implementation["inner"]["impl"]["trait"].as_object())
-                .and_then(|trait_path| trait_path.get("id"))
-                .and_then(Value::as_u64)
-                .map(|id| id.to_string())
-                .and_then(|id| paths.get(&id))
-                .is_some_and(|summary| string_array(&summary["path"]).join("::") == expected)
-        })
-}
-
-fn resolved_name(ty: &Value, paths: &serde_json::Map<String, Value>) -> Option<String> {
-    let resolved = ty.get("resolved_path")?;
-    let id = resolved["id"].as_u64()?.to_string();
-    Some(
+    impls.iter().any(|id| {
+        let Some(Item {
+            inner:
+                ItemEnum::Impl(Impl {
+                    trait_: Some(trait_),
+                    ..
+                }),
+            ..
+        }) = index.get(id)
+        else {
+            return false;
+        };
         paths
-            .get(&id)
-            .map(|summary| string_array(&summary["path"]).join("::"))
-            .filter(|path| !path.is_empty())
-            .unwrap_or_else(|| {
-                resolved["path"]
-                    .as_str()
-                    .unwrap_or_default()
-                    .replace("crate::", "")
-            }),
-    )
+            .get(&trait_.id)
+            .is_some_and(|summary| summary.path.join("::") == expected)
+    })
 }
 
-fn type_arguments(ty: &Value) -> Vec<&Value> {
-    ty["resolved_path"]["args"]["angle_bracketed"]["args"]
-        .as_array()
-        .into_iter()
-        .flatten()
-        .filter_map(|argument| argument.get("type"))
+fn resolved_path_name(path: &RustdocPath, paths: &HashMap<Id, ItemSummary>) -> String {
+    paths
+        .get(&path.id)
+        .map(|summary| summary.path.join("::"))
+        .filter(|path| !path.is_empty())
+        .unwrap_or_else(|| path.path.replace("crate::", ""))
+}
+
+fn resolved_name(ty: &Type, paths: &HashMap<Id, ItemSummary>) -> Option<String> {
+    match ty {
+        Type::ResolvedPath(path) => Some(resolved_path_name(path, paths)),
+        _ => None,
+    }
+}
+
+fn type_arguments(ty: &Type) -> Vec<&Type> {
+    let Type::ResolvedPath(path) = ty else {
+        return Vec::new();
+    };
+    let Some(GenericArgs::AngleBracketed { args, .. }) = path.args.as_deref() else {
+        return Vec::new();
+    };
+    args.iter()
+        .filter_map(|argument| match argument {
+            GenericArg::Type(ty) => Some(ty),
+            _ => None,
+        })
         .collect()
 }
 
@@ -1768,54 +2883,29 @@ fn safe_parameter_name(name: &str) -> String {
     }
 }
 
-fn string_array(value: &Value) -> Vec<String> {
-    value
-        .as_array()
-        .into_iter()
-        .flatten()
-        .filter_map(Value::as_str)
-        .map(str::to_owned)
-        .collect()
-}
-
-fn string_or_number_array(value: &Value) -> Vec<String> {
-    value
-        .as_array()
-        .into_iter()
-        .flatten()
-        .filter_map(value_id)
-        .collect()
-}
-
-fn value_id(value: &Value) -> Option<String> {
-    value
-        .as_str()
-        .map(str::to_owned)
-        .or_else(|| value.as_u64().map(|number| number.to_string()))
-}
-
 fn cache_identity(
     root: &Path,
     workspace: &Path,
     dependencies: &[RustDependency],
     containment: Containment,
-) -> Result<String, ProjectionError> {
+) -> Result<(String, String), ProjectionError> {
     let manifest = fs::read(root.join(crate::MANIFEST_FILE_NAME)).unwrap_or_default();
     let lock = fs::read(workspace.join("Cargo.lock"))
         .or_else(|_| fs::read(root.join("Cargo.lock")))
         .unwrap_or_default();
-    let rustc = tool_version("rustc", &["-vV"])?;
-    let target = selected_target(&rustc);
-    let nightly = format!("+{RUSTDOC_TOOLCHAIN}");
-    let rustdoc = tool_version("rustdoc", &[&nightly, "--version"])?;
+    let build_selector = format!("+{}", crate::BUILD_TOOLCHAIN);
+    let rustc_verbose = tool_version("rustc", &[&build_selector, "-vV"])?;
+    let target = selected_target(workspace, &rustc_verbose)?;
+    let rustdoc_format = rustdoc_types::FORMAT_VERSION.to_string();
     let mut hash = Sha256::new();
     for (label, bytes) in [
         ("manifest", manifest.as_slice()),
         ("lock", lock.as_slice()),
         ("inputs", format!("{dependencies:?}").as_bytes()),
         ("target", target.as_bytes()),
-        ("rustc", rustc.as_bytes()),
-        ("rustdoc", rustdoc.as_bytes()),
+        ("build-toolchain", crate::BUILD_TOOLCHAIN.as_bytes()),
+        ("rustdoc-toolchain", RUSTDOC_TOOLCHAIN.as_bytes()),
+        ("rustdoc-format", rustdoc_format.as_bytes()),
         ("schema", PROJECTION_SCHEMA.as_bytes()),
         ("containment", format!("{containment:?}").as_bytes()),
     ] {
@@ -1824,19 +2914,74 @@ fn cache_identity(
         hash.update(bytes.len().to_le_bytes());
         hash.update(bytes);
     }
-    Ok(format!("{:x}", hash.finalize()))
+    Ok((format!("{:x}", hash.finalize()), target))
 }
 
-fn selected_target(rustc_verbose_version: &str) -> String {
-    std::env::var("CARGO_BUILD_TARGET")
+fn selected_target(
+    workspace: &Path,
+    rustc_verbose_version: &str,
+) -> Result<String, ProjectionError> {
+    if let Some(target) = std::env::var("CARGO_BUILD_TARGET")
         .ok()
         .filter(|target| !target.is_empty())
-        .or_else(|| {
-            rustc_verbose_version
-                .lines()
-                .find_map(|line| line.strip_prefix("host: ").map(str::to_owned))
-        })
-        .unwrap_or_else(|| "unknown-target".to_owned())
+    {
+        return Ok(target);
+    }
+    let output = Command::new("cargo")
+        .arg(format!("+{RUSTDOC_TOOLCHAIN}"))
+        .args([
+            "-Z",
+            "unstable-options",
+            "config",
+            "get",
+            "build.target",
+            "--format",
+            "json",
+        ])
+        .current_dir(workspace)
+        .output()
+        .map_err(|error| ProjectionError {
+            message: format!("cannot inspect Cargo build target configuration: {error}"),
+        })?;
+    if output.status.success() {
+        let config =
+            serde_json::from_slice::<serde_json::Value>(&output.stdout).map_err(|error| {
+                ProjectionError {
+                    message: format!("cannot decode Cargo build target configuration: {error}"),
+                }
+            })?;
+        let target = config
+            .get("build.target")
+            .or_else(|| config.get("build").and_then(|build| build.get("target")));
+        return match target {
+            Some(serde_json::Value::String(target)) => Ok(target.clone()),
+            Some(serde_json::Value::Array(targets)) if targets.len() == 1 => targets[0]
+                .as_str()
+                .map(str::to_owned)
+                .ok_or_else(|| ProjectionError {
+                    message: "Cargo build target configuration is not a string".to_owned(),
+                }),
+            Some(serde_json::Value::Array(_)) => Err(ProjectionError {
+                message: "dependency projection requires exactly one Cargo build target".to_owned(),
+            }),
+            _ => Err(ProjectionError {
+                message: "Cargo returned no usable build target configuration".to_owned(),
+            }),
+        };
+    }
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    if !stderr.contains("config value `build.target` is not set") {
+        return Err(ProjectionError {
+            message: format!(
+                "cannot inspect Cargo build target configuration: {}",
+                stderr.trim()
+            ),
+        });
+    }
+    Ok(rustc_verbose_version
+        .lines()
+        .find_map(|line| line.strip_prefix("host: ").map(str::to_owned))
+        .unwrap_or_else(|| "unknown-target".to_owned()))
 }
 
 fn tool_version(program: &str, arguments: &[&str]) -> Result<String, ProjectionError> {
@@ -1899,42 +3044,252 @@ fn io_error(context: &'static str) -> impl FnOnce(std::io::Error) -> ProjectionE
 
 #[cfg(test)]
 mod tests {
-    use std::{
-        collections::{BTreeMap, BTreeSet},
-        fs,
-    };
+    use std::collections::{BTreeMap, BTreeSet, HashMap};
+    use std::fs;
 
-    use serde_json::{Value, json};
+    use rustdoc_types::{
+        GenericArg, GenericArgs, GenericParamDef, GenericParamDefKind, Id, ItemKind, ItemSummary,
+        Path as RustdocPath, Type,
+    };
+    use serde_json::json;
 
     use super::{
-        Containment, ProjectedDependency, ProjectedFunction, ProjectedItem, ProjectedKind,
-        ProjectedType, Projection, Receiver, apply_projection_history, has_type_parameters,
-        project_rustdoc, project_type, prune_projection_cache, receiver_kind,
+        ArtifactDependency, Containment, ProjectedDependency, ProjectedFunction, ProjectedItem,
+        ProjectedKind, ProjectedType, Projection, ProjectionArtifact, ProjectionHistory,
+        ProjectionResolution, ProjectionSource, Receiver, ResolutionOutcome,
+        apply_projection_history, enforce_transitive_reachability, has_type_parameters,
+        prefer_public_path, project_rustdoc, project_type, projection_content_hash,
+        prune_projection_cache, receiver_kind, resolve, selected_target,
+        validate_projection_artifact,
     };
     use crate::RustDependency;
 
     #[test]
-    fn type_parameter_guard_reads_destructured_type_descriptors() {
-        for descriptor in [
-            json!({"generics": {"params": [{"name": "T"}]}}),
-            json!({"generics": {"params": [{"lifetime": "'a"}]}}),
-        ] {
-            assert!(has_type_parameters(&descriptor));
-        }
-        assert!(!has_type_parameters(&json!({"generics": {"params": []}})));
+    fn target_identity_reads_effective_cargo_configuration() {
+        let directory =
+            std::env::temp_dir().join(format!("terrane-projection-target-{}", std::process::id()));
+        fs::create_dir_all(directory.join(".cargo")).unwrap();
+        fs::write(
+            directory.join(".cargo/config.toml"),
+            "[build]\ntarget = \"wasm32-unknown-unknown\"\n",
+        )
+        .unwrap();
+        assert_eq!(
+            selected_target(&directory, "host: x86_64-unknown-linux-gnu").unwrap(),
+            "wasm32-unknown-unknown"
+        );
+        fs::remove_dir_all(directory).unwrap();
+    }
+
+    #[test]
+    fn equally_short_public_paths_use_lexical_tie_breaking() {
+        let id = Id(1);
+        let mut paths = BTreeMap::new();
+        prefer_public_path(&mut paths, id, "crate::zeta::Item".to_owned());
+        prefer_public_path(&mut paths, id, "crate::alpha::Item".to_owned());
+        assert_eq!(paths[&id], "crate::alpha::Item");
+    }
+
+    #[test]
+    fn projected_map_and_set_keys_require_scalars() {
+        assert!(ProjectedType::String.is_terrane_scalar());
+        assert!(ProjectedType::Bytes.is_terrane_scalar());
+        assert!(!ProjectedType::Optional(Box::new(ProjectedType::String)).is_terrane_scalar());
+        assert!(
+            !ProjectedType::Sequence {
+                rust_path: "alloc::vec::Vec<String>".to_owned(),
+                item: Box::new(ProjectedType::String),
+            }
+            .is_terrane_scalar()
+        );
+        assert!(!ProjectedType::Tuple(vec![ProjectedType::String]).is_terrane_scalar());
+    }
+
+    #[test]
+    fn dependency_free_resolution_records_its_outcome() {
+        let projection = resolve(std::path::Path::new("."), &[]).unwrap();
+        assert_eq!(
+            projection.resolution.outcome,
+            ResolutionOutcome::NoDependencies
+        );
+        assert!(projection.resolution.events.is_empty());
+        assert_eq!(
+            projection.content_hash,
+            projection_content_hash(&projection).unwrap()
+        );
+    }
+
+    #[test]
+    fn type_parameter_guard_rejects_declared_generics() {
+        let parameters = vec![GenericParamDef {
+            name: "T".to_owned(),
+            kind: GenericParamDefKind::Type {
+                bounds: Vec::new(),
+                default: None,
+                is_synthetic: false,
+            },
+        }];
+        assert!(has_type_parameters(&parameters));
+        assert!(!has_type_parameters(&[]));
     }
 
     #[test]
     fn receiver_kind_preserves_mutable_borrows() {
+        let borrowed = |is_mutable| Type::BorrowedRef {
+            lifetime: None,
+            is_mutable,
+            type_: Box::new(Type::Primitive("str".to_owned())),
+        };
+        assert_eq!(receiver_kind(&borrowed(true)), Receiver::MutableBorrow);
+        assert_eq!(receiver_kind(&borrowed(false)), Receiver::Borrow);
         assert_eq!(
-            receiver_kind(&json!({"borrowed_ref": {"is_mutable": true}})),
-            Receiver::MutableBorrow
+            receiver_kind(&Type::Primitive("str".to_owned())),
+            Receiver::Move
+        );
+    }
+
+    #[test]
+    fn instantiated_generic_paths_have_distinct_foreign_identity() {
+        let id = Id(1);
+        let paths = HashMap::from([(
+            id,
+            ItemSummary {
+                crate_id: 0,
+                path: vec!["witness".to_owned(), "Wrapper".to_owned()],
+                kind: ItemKind::Struct,
+            },
+        )]);
+        let instantiated = |primitive: &str| {
+            Type::ResolvedPath(RustdocPath {
+                path: "witness::Wrapper".to_owned(),
+                id,
+                args: Some(Box::new(GenericArgs::AngleBracketed {
+                    args: vec![GenericArg::Type(Type::Primitive(primitive.to_owned()))],
+                    constraints: Vec::new(),
+                })),
+            })
+        };
+        let index = HashMap::new();
+        let generics = BTreeMap::new();
+
+        let left = project_type(&instantiated("u8"), &index, &paths, &generics).unwrap();
+        let right = project_type(&instantiated("u16"), &index, &paths, &generics).unwrap();
+
+        assert_ne!(left, right);
+        assert!(matches!(
+            left,
+            ProjectedType::Foreign {
+                rust_path, name, ..
+            }
+                if rust_path == "witness::Wrapper<u8>" && name.starts_with("Wrapper-")
+        ));
+        assert!(matches!(
+            right,
+            ProjectedType::Foreign {
+                rust_path, name, ..
+            }
+                if rust_path == "witness::Wrapper<u16>" && name.starts_with("Wrapper-")
+        ));
+    }
+    #[test]
+    fn standard_aggregates_project_recursively() {
+        let vec_id = Id(1);
+        let string_id = Id(2);
+        let map_id = Id(3);
+        let option_id = Id(4);
+        let paths = HashMap::from([
+            (
+                vec_id,
+                ItemSummary {
+                    crate_id: 0,
+                    path: vec!["alloc".to_owned(), "vec".to_owned(), "Vec".to_owned()],
+                    kind: ItemKind::Struct,
+                },
+            ),
+            (
+                string_id,
+                ItemSummary {
+                    crate_id: 0,
+                    path: vec!["alloc".to_owned(), "string".to_owned(), "String".to_owned()],
+                    kind: ItemKind::Struct,
+                },
+            ),
+            (
+                map_id,
+                ItemSummary {
+                    crate_id: 0,
+                    path: vec![
+                        "std".to_owned(),
+                        "collections".to_owned(),
+                        "HashMap".to_owned(),
+                    ],
+                    kind: ItemKind::Struct,
+                },
+            ),
+            (
+                option_id,
+                ItemSummary {
+                    crate_id: 0,
+                    path: vec!["core".to_owned(), "option".to_owned(), "Option".to_owned()],
+                    kind: ItemKind::Enum,
+                },
+            ),
+        ]);
+        let resolved = |id, path: &str, arguments: Vec<Type>| {
+            Type::ResolvedPath(RustdocPath {
+                path: path.to_owned(),
+                id,
+                args: Some(Box::new(GenericArgs::AngleBracketed {
+                    args: arguments.into_iter().map(GenericArg::Type).collect(),
+                    constraints: Vec::new(),
+                })),
+            })
+        };
+        let string = resolved(string_id, "alloc::string::String", Vec::new());
+        let vector = resolved(vec_id, "alloc::vec::Vec", vec![string.clone()]);
+        let map = resolved(
+            map_id,
+            "std::collections::HashMap",
+            vec![string, Type::Primitive("u16".to_owned())],
+        );
+        let optional = resolved(
+            option_id,
+            "core::option::Option",
+            vec![Type::Primitive("u16".to_owned())],
+        );
+        let index = HashMap::new();
+        let generics = BTreeMap::new();
+
+        assert!(matches!(
+            project_type(&vector, &index, &paths, &generics).unwrap(),
+            ProjectedType::Sequence { item, .. } if *item == ProjectedType::String
+        ));
+        assert!(matches!(
+            project_type(&map, &index, &paths, &generics).unwrap(),
+            ProjectedType::Mapping { key, value, ordered: false, .. }
+                if *key == ProjectedType::String
+                    && *value == ProjectedType::RustInt("u16".to_owned())
+        ));
+        assert_eq!(
+            project_type(&optional, &index, &paths, &generics).unwrap(),
+            ProjectedType::Optional(Box::new(ProjectedType::RustInt("u16".to_owned())))
         );
         assert_eq!(
-            receiver_kind(&json!({"borrowed_ref": {"is_mutable": false}})),
-            Receiver::Borrow
+            project_type(
+                &Type::Tuple(vec![
+                    Type::Primitive("u16".to_owned()),
+                    Type::Primitive("u16".to_owned()),
+                ]),
+                &index,
+                &paths,
+                &generics,
+            )
+            .unwrap(),
+            ProjectedType::Tuple(vec![
+                ProjectedType::RustInt("u16".to_owned()),
+                ProjectedType::RustInt("u16".to_owned()),
+            ])
         );
-        assert_eq!(receiver_kind(&json!({})), Receiver::Move);
     }
 
     #[test]
@@ -1947,6 +3302,7 @@ mod tests {
                 "package": "witness",
                 "version": "1.0.0",
                 "declined": [],
+
                 "items": [
                     {
                         "namespace": "/deps/witness/async",
@@ -1993,6 +3349,86 @@ mod tests {
                 .and_then(|method| method.receiver),
             Some(Receiver::MutableBorrow)
         );
+    }
+    #[test]
+    fn transitive_type_owner_must_be_declared_at_one_version() {
+        let directory =
+            std::env::temp_dir().join(format!("terrane-transitive-owner-{}", std::process::id()));
+        fs::create_dir_all(&directory).unwrap();
+        fs::write(
+            directory.join("Cargo.lock"),
+            "version = 4\n\n[[package]]\nname = \"reqwest\"\nversion = \"0.12.28\"\n\n[[package]]\nname = \"http\"\nversion = \"1.3.1\"\n",
+        )
+        .unwrap();
+        let dependency = |name: &str| RustDependency {
+            name: name.to_owned(),
+            package: name.to_owned(),
+            version: "=1.0.0".to_owned(),
+            features: Vec::new(),
+            default_features: true,
+            target: None,
+            effects: Vec::new(),
+        };
+        let response_status = || ProjectedDependency {
+            name: "reqwest".to_owned(),
+            package: "reqwest".to_owned(),
+            version: "0.12.28".to_owned(),
+            items: vec![ProjectedItem {
+                namespace: "/deps/reqwest".to_owned(),
+                name: "status".to_owned(),
+                rust_path: "reqwest::Response::status".to_owned(),
+                docs: None,
+                kind: ProjectedKind::Function(ProjectedFunction {
+                    name: "status".to_owned(),
+                    parameters: Vec::new(),
+                    result: ProjectedType::Foreign {
+                        rust_path: "http::StatusCode".to_owned(),
+                        name: "StatusCode".to_owned(),
+                        base_rust_path: "http::StatusCode".to_owned(),
+                        arguments: Vec::new(),
+                    },
+                    error: None,
+                    is_async: false,
+                    receiver: None,
+                }),
+            }],
+            declined: Vec::new(),
+        };
+
+        let mut undeclared = vec![response_status()];
+        enforce_transitive_reachability(&mut undeclared, &[dependency("reqwest")], &directory)
+            .unwrap();
+        assert!(undeclared[0].items.is_empty());
+        assert!(
+            undeclared[0].declined[0]
+                .reason
+                .contains("undeclared crate `http` at resolved version `1.3.1`")
+        );
+
+        let mut declared = vec![response_status()];
+        enforce_transitive_reachability(
+            &mut declared,
+            &[dependency("reqwest"), dependency("http")],
+            &directory,
+        )
+        .unwrap();
+        assert_eq!(declared[0].items.len(), 1);
+        fs::write(
+            directory.join("Cargo.lock"),
+            "version = 4\n\n[[package]]\nname = \"reqwest\"\nversion = \"0.12.28\"\n\n[[package]]\nname = \"http\"\nversion = \"1.3.1\"\n\n[[package]]\nname = \"http\"\nversion = \"0.2.12\"\n",
+        )
+        .unwrap();
+        let mut conflicting = [response_status()];
+        let error = enforce_transitive_reachability(
+            &mut conflicting,
+            &[dependency("reqwest"), dependency("http")],
+            &directory,
+        )
+        .unwrap_err();
+        assert!(error.message.contains("http"));
+        assert!(error.message.contains("0.2.12"));
+        assert!(error.message.contains("1.3.1"));
+        fs::remove_dir_all(directory).unwrap();
     }
 
     #[test]
@@ -2066,23 +3502,18 @@ mod tests {
 
     #[test]
     fn wider_primitives_project_without_narrowing() {
-        let paths = serde_json::Map::new();
+        let paths = HashMap::new();
+        let index = HashMap::new();
         let generics = BTreeMap::new();
 
         assert_eq!(
-            project_type(
-                &json!({"primitive": "u8"}),
-                &serde_json::Map::new(),
-                &paths,
-                &generics
-            )
-            .unwrap(),
+            project_type(&Type::Primitive("u8".to_owned()), &index, &paths, &generics).unwrap(),
             ProjectedType::RustInt("u8".to_owned())
         );
         assert_eq!(
             project_type(
-                &json!({"primitive": "f32"}),
-                &serde_json::Map::new(),
+                &Type::Primitive("f32".to_owned()),
+                &index,
                 &paths,
                 &generics
             )
@@ -2091,8 +3522,8 @@ mod tests {
         );
         assert_eq!(
             project_type(
-                &json!({"primitive": "char"}),
-                &serde_json::Map::new(),
+                &Type::Primitive("char".to_owned()),
+                &index,
                 &paths,
                 &generics
             )
@@ -2102,104 +3533,17 @@ mod tests {
     }
 
     #[test]
-    fn representable_type_aliases_are_transparent() {
-        let paths =
-            serde_json::Map::from_iter([("7".to_owned(), json!({"path": ["fixture", "Count"]}))]);
-        let index = serde_json::Map::from_iter([(
-            "7".to_owned(),
-            json!({"inner": {"type_alias": {"type": {"primitive": "u32"}}}}),
-        )]);
-
-        assert_eq!(
-            project_type(
-                &json!({"resolved_path": {"id": 7, "name": "Count", "args": {"angle_bracketed": {"args": []}}}}),
-                &index,
-                &paths,
-                &BTreeMap::new()
-            )
-            .unwrap(),
-            ProjectedType::RustInt("u32".to_owned())
-        );
-    }
-
-    fn trait_and_enum_rustdoc() -> Value {
-        json!({
+    fn rustdoc_schema_mismatch_is_explicit() {
+        let document = json!({
+            "root": 0,
             "crate_version": "1.0.0",
-            "paths": {
-                "0": {"crate_id": 0, "path": ["witness"]},
-                "1": {"crate_id": 0, "path": ["witness", "Reader"]},
-                "2": {"crate_id": 0, "path": ["witness", "Readable"]},
-                "5": {"crate_id": 0, "path": ["witness", "Mood"]},
-                "11": {"crate_id": 1, "path": ["core", "cmp", "PartialEq"]}
-            },
-            "index": {
-                "0": {
-                    "visibility": "public",
-                    "inner": {"module": {"items": [1, 2, 5]}}
-                },
-                "1": {
-                    "name": "Reader",
-                    "visibility": "public",
-                    "docs": null,
-                    "inner": {"struct": {"generics": {"params": []}, "impls": [3]}}
-                },
-                "2": {
-                    "name": "Readable",
-                    "visibility": "public",
-                    "inner": {"trait": {}}
-                },
-                "3": {
-                    "inner": {"impl": {
-                        "is_negative": false,
-                        "trait": {"id": 2},
-                        "items": [4]
-                    }}
-                },
-                "4": {
-                    "name": "remaining",
-                    "visibility": "default",
-                    "inner": {"function": {
-                        "header": {"is_unsafe": false, "is_async": false},
-                        "generics": {"params": []},
-                        "sig": {
-                            "inputs": [["self", {"borrowed_ref": {
-                                "is_mutable": false,
-                                "type": {"generic": "Self"}
-                            }}]],
-                            "output": {"primitive": "usize"}
-                        }
-                    }}
-                },
-                "5": {
-                    "name": "Mood",
-                    "visibility": "public",
-                    "docs": null,
-                    "inner": {"enum": {
-                        "generics": {"params": []},
-                        "variants": [6, 7],
-                        "impls": [10]
-                    }}
-                },
-                "6": {
-                    "name": "Calm",
-                    "docs": null,
-                    "inner": {"variant": {"kind": "plain"}}
-                },
-                "7": {
-                    "name": "Busy",
-                    "docs": null,
-                    "inner": {"variant": {"kind": "plain"}}
-                },
-                "10": {
-                    "inner": {"impl": {"trait": {"id": 11}}}
-                }
-            }
-        })
-    }
-
-    #[test]
-    fn rustdoc_projects_receiver_first_traits_and_comparable_enum_variants() {
-        let document = trait_and_enum_rustdoc();
+            "includes_private": false,
+            "index": {},
+            "paths": {},
+            "external_crates": {},
+            "target": {"triple": "x86_64-unknown-linux-gnu", "target_features": []},
+            "format_version": rustdoc_types::FORMAT_VERSION + 1
+        });
         let dependency = RustDependency {
             name: "witness".to_owned(),
             package: "witness".to_owned(),
@@ -2210,209 +3554,148 @@ mod tests {
             effects: Vec::new(),
         };
 
-        let projected =
-            project_rustdoc(&dependency, &serde_json::to_vec(&document).unwrap()).unwrap();
-        let trait_method = projected
-            .items
-            .iter()
-            .find(|item| item.namespace == "/deps/witness/readable" && item.name == "remaining")
-            .expect("receiver-first trait method");
-        let ProjectedKind::Function(function) = &trait_method.kind else {
-            panic!("trait method must project as a function");
+        let error = project_rustdoc(&dependency, &serde_json::to_vec(&document).unwrap())
+            .expect_err("an unsupported rustdoc schema must fail");
+
+        assert!(error.message.contains("schema mismatch"));
+        assert!(
+            error
+                .message
+                .contains(&format!("format {}", rustdoc_types::FORMAT_VERSION + 1))
+        );
+        assert!(error.message.contains(&format!(
+            "expected format {}",
+            rustdoc_types::FORMAT_VERSION
+        )));
+    }
+
+    #[test]
+    fn malformed_rustdoc_json_is_not_silently_declined() {
+        let dependency = RustDependency {
+            name: "witness".to_owned(),
+            package: "witness".to_owned(),
+            version: "=1.0.0".to_owned(),
+            features: Vec::new(),
+            default_features: true,
+            target: None,
+            effects: Vec::new(),
         };
-        assert_eq!(function.result, ProjectedType::RustInt("usize".to_owned()));
-        assert_eq!(function.parameters.len(), 1);
-        assert!(function.parameters[0].borrowed);
-        assert_eq!(
-            function.parameters[0].ty,
-            ProjectedType::Foreign {
-                rust_path: "witness::Reader".to_owned(),
-                name: "Reader".to_owned(),
-            }
-        );
-        assert!(
-            projected
-                .items
-                .iter()
-                .any(|item| { item.namespace == "/deps/witness/mood" && item.name == "Calm" })
-        );
-        assert!(
-            projected
-                .items
-                .iter()
-                .any(|item| { item.namespace == "/deps/witness/mood" && item.name == "Busy" })
-        );
-        assert!(matches!(
-            projected
-                .items
-                .iter()
-                .find(|item| item.name == "Mood")
-                .map(|item| &item.kind),
-            Some(ProjectedKind::Enum {
-                data_carrying: false,
-                comparable: true,
-            })
-        ));
-        let variant = projected
-            .items
-            .iter()
-            .find(|item| item.name == "Calm")
-            .unwrap()
-            .clone();
-        let projection = Projection {
-            cache_identity: "fixture".to_owned(),
-            dependencies: vec![projected],
-            containment: Containment::Unavailable,
+        let malformed = format!(r#"{{"format_version":{}}}"#, rustdoc_types::FORMAT_VERSION);
+
+        let error = project_rustdoc(&dependency, malformed.as_bytes())
+            .expect_err("malformed rustdoc JSON must fail");
+
+        assert!(error.message.contains("schema mismatch"));
+        assert!(error.message.contains(&format!(
+            "expected rustdoc format {}",
+            rustdoc_types::FORMAT_VERSION
+        )));
+    }
+
+    #[test]
+    fn remote_artifact_requires_exact_projection_inputs() {
+        let dependency = RustDependency {
+            name: "witness".to_owned(),
+            package: "witness-package".to_owned(),
+            version: "=1.2.3".to_owned(),
+            features: vec!["derive".to_owned()],
+            default_features: false,
+            target: Some("cfg(unix)".to_owned()),
+            effects: vec!["filesystem".to_owned()],
+        };
+        let mut payload = Projection {
+            cache_identity: "exact".to_owned(),
+            content_hash: String::new(),
+            dependencies: Vec::new(),
+            containment: Containment::Enforced,
+            source: ProjectionSource::Local,
+            probes: Vec::new(),
+            probe_wall_time_ms: 0,
+            resolution: ProjectionResolution::default(),
             removed: Vec::new(),
         };
-        assert!(projection.is_unit_variant(&variant));
-    }
-
-    #[test]
-    fn rustdoc_glob_reexports_use_the_public_module_path() {
-        let document = json!({
-            "crate_version": "1.0.0",
-            "paths": {
-                "0": {"crate_id": 0, "path": ["witness"]},
-                "1": {"crate_id": 0, "path": ["witness", "scalar"]},
-                "3": {"crate_id": 0, "path": ["witness", "private", "special"]}
-            },
-            "index": {
-                "0": {
-                    "visibility": "public",
-                    "inner": {"module": {"items": [1]}}
-                },
-                "1": {
-                    "name": "scalar",
-                    "visibility": "public",
-                    "inner": {"module": {"items": [2]}}
-                },
-                "2": {
-                    "name": null,
-                    "visibility": "public",
-                    "inner": {"use": {
-                        "source": "special",
-                        "name": "special",
-                        "id": 3,
-                        "is_glob": true
-                    }}
-                },
-                "3": {
-                    "name": "special",
-                    "visibility": "crate",
-                    "inner": {"module": {"items": [4]}}
-                },
-                "4": {
-                    "name": "evaluate",
-                    "visibility": "public",
-                    "docs": null,
-                    "inner": {"function": {
-                        "header": {"is_unsafe": false, "is_async": false},
-                        "generics": {"params": []},
-                        "sig": {
-                            "inputs": [["x", {"primitive": "f64"}]],
-                            "output": {"primitive": "f64"}
-                        }
-                    }}
-                }
-            }
-        });
-        let dependency = RustDependency {
-            name: "witness".to_owned(),
-            package: "witness".to_owned(),
-            version: "=1.0.0".to_owned(),
-            features: Vec::new(),
-            default_features: true,
-            target: None,
-            effects: Vec::new(),
+        payload.content_hash = projection_content_hash(&payload).unwrap();
+        let artifact = ProjectionArtifact {
+            format: 1,
+            cache_identity: "exact".to_owned(),
+            content_hash: payload.content_hash.clone(),
+            target: "x86_64-unknown-linux-gnu".to_owned(),
+            build_toolchain: crate::BUILD_TOOLCHAIN.to_owned(),
+            rustdoc_toolchain: crate::RUSTDOC_TOOLCHAIN.to_owned(),
+            rustdoc_format: rustdoc_types::FORMAT_VERSION,
+            projection_schema: super::PROJECTION_SCHEMA.to_owned(),
+            dependencies: vec![ArtifactDependency::from(&dependency)],
+            projection: payload,
         };
 
-        let projected =
-            project_rustdoc(&dependency, &serde_json::to_vec(&document).unwrap()).unwrap();
-        let function = projected
-            .items
-            .iter()
-            .find(|item| item.name == "evaluate")
-            .expect("glob-reexported function");
+        let projection = validate_projection_artifact(
+            artifact.clone(),
+            "exact",
+            "x86_64-unknown-linux-gnu",
+            std::slice::from_ref(&dependency),
+            Containment::Unavailable,
+        )
+        .expect("exact artifact metadata must be admitted");
+        assert_eq!(projection.source, ProjectionSource::Remote);
+        assert_eq!(projection.containment, Containment::Unavailable);
 
-        assert_eq!(function.namespace, "/deps/witness/scalar");
-        assert_eq!(function.rust_path, "witness::scalar::evaluate");
-    }
-
-    #[test]
-    fn colliding_receiver_free_associated_functions_are_declined() {
-        let mut document = trait_and_enum_rustdoc();
-        document["index"]["0"]["inner"]["module"]["items"]
-            .as_array_mut()
-            .unwrap()
-            .push(json!(12));
-        document["index"]["1"]["inner"]["struct"]["impls"]
-            .as_array_mut()
-            .unwrap()
-            .push(json!(13));
-        document["paths"]["12"] = json!({"crate_id": 0, "path": ["witness", "Writer"]});
-        document["index"]["12"] = json!({
-            "name": "Writer",
-            "visibility": "public",
-            "docs": null,
-            "inner": {"struct": {"generics": {"params": []}, "impls": [15]}}
-        });
-        document["index"]["13"] = json!({
-            "inner": {"impl": {
-                "is_negative": false,
-                "trait": null,
-                "items": [14]
-            }}
-        });
-        document["index"]["14"] = json!({
-            "name": "new",
-            "visibility": "public",
-            "inner": {"function": {
-                "header": {"is_unsafe": false, "is_async": false},
-                "generics": {"params": []},
-                "sig": {"inputs": [], "output": null}
-            }}
-        });
-        document["index"]["15"] = json!({
-            "inner": {"impl": {
-                "is_negative": false,
-                "trait": null,
-                "items": [16]
-            }}
-        });
-        document["index"]["16"] = document["index"]["14"].clone();
-        let dependency = RustDependency {
-            name: "witness".to_owned(),
-            package: "witness".to_owned(),
-            version: "=1.0.0".to_owned(),
-            features: Vec::new(),
-            default_features: true,
-            target: None,
-            effects: Vec::new(),
+        let reject = |candidate| {
+            validate_projection_artifact(
+                candidate,
+                "exact",
+                "x86_64-unknown-linux-gnu",
+                std::slice::from_ref(&dependency),
+                Containment::Unavailable,
+            )
+            .unwrap_err()
         };
 
-        let projected =
-            project_rustdoc(&dependency, &serde_json::to_vec(&document).unwrap()).unwrap();
-
-        assert!(
-            !projected
-                .items
-                .iter()
-                .any(|item| item.namespace == "/deps/witness" && item.name == "new")
-        );
-        let declines = projected
-            .declined
-            .iter()
-            .filter(|item| {
-                item.reason
-                    == "multiple receiver-free associated functions with the same projected name"
-            })
-            .map(|item| item.rust_path.as_str())
-            .collect::<BTreeSet<_>>();
+        let mut mismatched = artifact.clone();
+        mismatched.dependencies[0].version = "=9.9.9".to_owned();
         assert_eq!(
-            declines,
-            BTreeSet::from(["witness::Reader::new", "witness::Writer::new"])
+            reject(mismatched),
+            "dependency metadata mismatch for `witness`"
         );
+
+        let mut mismatched = artifact.clone();
+        mismatched.dependencies[0].effects = vec!["network".to_owned()];
+        assert_eq!(
+            reject(mismatched),
+            "dependency metadata mismatch for `witness`"
+        );
+
+        let mut mismatched = artifact.clone();
+        mismatched.dependencies[0].features = vec!["different".to_owned()];
+        assert_eq!(
+            reject(mismatched),
+            "feature metadata mismatch for `witness`"
+        );
+
+        let mut mismatched = artifact.clone();
+        mismatched.dependencies[0].default_features = true;
+        assert_eq!(
+            reject(mismatched),
+            "feature metadata mismatch for `witness`"
+        );
+
+        let mut mismatched = artifact.clone();
+        mismatched.dependencies[0].target = Some("cfg(windows)".to_owned());
+        assert_eq!(
+            reject(mismatched),
+            "dependency target mismatch for `witness`: expected `cfg(unix)`, found `cfg(windows)`"
+        );
+
+        let mut corrupt = artifact;
+        corrupt.content_hash = "not-the-payload-hash".to_owned();
+        let reason = validate_projection_artifact(
+            corrupt,
+            "exact",
+            "x86_64-unknown-linux-gnu",
+            &[dependency],
+            Containment::Unavailable,
+        )
+        .unwrap_err();
+        assert!(reason.contains("content hash mismatch"));
     }
 
     #[test]
@@ -2443,22 +3726,120 @@ mod tests {
         };
         let mut old = Projection {
             cache_identity: "old".to_owned(),
+            content_hash: String::new(),
             dependencies: vec![dependency("1.0.0", vec![item])],
             containment: Containment::Unavailable,
+            source: ProjectionSource::Local,
+            probes: Vec::new(),
+            probe_wall_time_ms: 0,
+            resolution: ProjectionResolution::default(),
             removed: Vec::new(),
         };
+        old.content_hash = projection_content_hash(&old).unwrap();
         apply_projection_history(&directory, &mut old).unwrap();
         let mut current = Projection {
             cache_identity: "current".to_owned(),
+            content_hash: String::new(),
             dependencies: vec![dependency("2.0.0", Vec::new())],
             containment: Containment::Unavailable,
+            source: ProjectionSource::Local,
+            probes: Vec::new(),
+            probe_wall_time_ms: 0,
+            resolution: ProjectionResolution::default(),
             removed: Vec::new(),
         };
+        current.content_hash = projection_content_hash(&current).unwrap();
         apply_projection_history(&directory, &mut current).unwrap();
         assert_eq!(current.removed.len(), 1);
         current.removed.clear();
         apply_projection_history(&directory, &mut current).unwrap();
         assert_eq!(current.removed.len(), 1);
+        fs::remove_dir_all(directory).unwrap();
+    }
+
+    #[test]
+    fn projection_history_keeps_content_origin_across_cache_hits() {
+        let directory =
+            std::env::temp_dir().join(format!("terrane-projection-origin-{}", std::process::id()));
+        fs::create_dir_all(&directory).unwrap();
+        let generated = ProjectionResolution {
+            outcome: ResolutionOutcome::LocalRustdoc,
+            events: Vec::new(),
+        };
+        let mut projection = Projection {
+            cache_identity: "stable-identity".to_owned(),
+            content_hash: String::new(),
+            dependencies: Vec::new(),
+            containment: Containment::Unavailable,
+            source: ProjectionSource::Local,
+            probes: Vec::new(),
+            probe_wall_time_ms: 0,
+            resolution: generated.clone(),
+            removed: Vec::new(),
+        };
+        projection.content_hash = projection_content_hash(&projection).unwrap();
+        apply_projection_history(&directory, &mut projection).unwrap();
+        projection.resolution = ProjectionResolution {
+            outcome: ResolutionOutcome::ExactCache,
+            events: Vec::new(),
+        };
+        apply_projection_history(&directory, &mut projection).unwrap();
+        let history: ProjectionHistory =
+            serde_json::from_slice(&fs::read(directory.join("terrane-projection.lock")).unwrap())
+                .unwrap();
+        assert_eq!(history.resolution, Some(generated));
+        fs::remove_dir_all(directory).unwrap();
+    }
+
+    #[test]
+    fn projection_history_migrates_provenance_and_detects_replay_drift() {
+        let directory = std::env::temp_dir().join(format!(
+            "terrane-projection-provenance-{}",
+            std::process::id()
+        ));
+        fs::create_dir_all(&directory).unwrap();
+        fs::write(
+            directory.join("terrane-projection.lock"),
+            b"{\"format\":1,\"dependencies\":[],\"removed\":[]}\n",
+        )
+        .unwrap();
+        let mut projection = Projection {
+            cache_identity: "stable-identity".to_owned(),
+            content_hash: String::new(),
+            dependencies: Vec::new(),
+            containment: Containment::Unavailable,
+            source: ProjectionSource::Local,
+            probes: Vec::new(),
+            probe_wall_time_ms: 0,
+            resolution: ProjectionResolution::default(),
+            removed: Vec::new(),
+        };
+        projection.content_hash = projection_content_hash(&projection).unwrap();
+        apply_projection_history(&directory, &mut projection).unwrap();
+
+        let migrated: ProjectionHistory =
+            serde_json::from_slice(&fs::read(directory.join("terrane-projection.lock")).unwrap())
+                .unwrap();
+        assert_eq!(migrated.format, 2);
+        assert_eq!(migrated.source, Some(ProjectionSource::Local));
+        assert_eq!(migrated.rustdoc_format, Some(rustdoc_types::FORMAT_VERSION));
+        assert_eq!(
+            migrated.content_hash.as_deref(),
+            Some(projection.content_hash.as_str())
+        );
+
+        projection.source = ProjectionSource::Remote;
+        apply_projection_history(&directory, &mut projection).unwrap();
+        let changed_source: ProjectionHistory =
+            serde_json::from_slice(&fs::read(directory.join("terrane-projection.lock")).unwrap())
+                .unwrap();
+        assert_eq!(changed_source.source, Some(ProjectionSource::Remote));
+
+        projection.probe_wall_time_ms = 1;
+        projection.content_hash = projection_content_hash(&projection).unwrap();
+        let error = apply_projection_history(&directory, &mut projection).unwrap_err();
+        assert!(error.message.contains("projection replay mismatch"));
+        assert!(error.message.contains("previously produced"));
         fs::remove_dir_all(directory).unwrap();
     }
 

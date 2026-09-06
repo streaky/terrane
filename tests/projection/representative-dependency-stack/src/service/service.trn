@@ -1,0 +1,6 @@
+namespace projection-probe/service
+from /deps/axum/routing import new
+
+function router-empty bool;
+    router = new;
+    return not (router.has_routes;)

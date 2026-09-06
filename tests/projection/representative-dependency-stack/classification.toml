@@ -1,0 +1,158 @@
+[cost]
+observed-on = "2026-09-06"
+host = "x86_64 Linux, AMD Ryzen 9 3900XT"
+method = "target/debug/terrane check; cold removes the project .trn/dependencies workspace but retains Cargo's user cache; warm immediately repeats; generated size counts current src/main.rs and src/main.support.rs"
+cold-wall-seconds = 34.168
+warm-wall-seconds = 0.371
+generated-rust-lines = 557
+generated-rust-bytes = 18299
+
+format = 1
+projection-source = "local-rustdoc"
+build-toolchain = "1.93.1"
+rustdoc-toolchain = "nightly-2026-04-29"
+rustdoc-format = 57
+pass-through-held-types = 11
+looked-inside-held-types = 5
+
+[[dependency]]
+name = "axum"
+version = "0.8.9"
+admitted = 60
+declined = 1052
+required-gaps = ["axum::extract::WebSocketUpgrade<DefaultOnFailedUpgrade>::on_upgrade: open generic C"]
+classification = "default generic identity is reusable; callable-handler shapes still need specialization"
+
+[[dependency]]
+name = "tower"
+version = "0.5.3"
+admitted = 18
+declined = 268
+required-gaps = ["tower::ServiceBuilder<Identity>::service: open generic S"]
+classification = "default generic identity is reusable; non-escaping builder chains still need specialization"
+
+[[dependency]]
+name = "tower-http"
+version = "0.6.11"
+admitted = 57
+declined = 539
+classification = "reusable generic identity and non-escaping builder chain"
+
+[[dependency]]
+name = "reqwest"
+version = "0.12.28"
+admitted = 43
+declined = 526
+required-gaps = ["reqwest::get: projects as async but lowering emits a synchronous shim"]
+classification = "async lowering is Phase B; direct http ownership makes response status identity reachable"
+
+[[dependency]]
+name = "http"
+version = "1.3.1"
+admitted = 41
+declined = 834
+classification = "direct canonical owner for status, header, request, and response types"
+
+[[dependency]]
+name = "tokio-tungstenite"
+version = "0.30.0"
+admitted = 1
+declined = 14
+required-gaps = ["tokio_tungstenite::connect_async: open generic R"]
+classification = "destination/call-directed closed specialization plus async lowering"
+
+[[dependency]]
+name = "sqlx"
+version = "0.8.6"
+admitted = 0
+declined = 6
+required-gaps = ["sqlx::query: item kind has no Terrane projection", "sqlx::query::Query: type has generic or lifetime parameters"]
+classification = "macro-exported constructor plus closed generic result and chain-only temporaries"
+
+[[dependency]]
+name = "utoipa"
+version = "5.5.0"
+admitted = 175
+declined = 1542
+required-gaps = ["utoipa::OpenApi: procedural derive is not represented as a callable API"]
+classification = "emit-and-consume derive with compile-time oracle validation"
+
+[[dependency]]
+name = "utoipa-swagger-ui"
+version = "9.0.2"
+admitted = 4
+declined = 100
+required-gaps = ["utoipa_swagger_ui::SwaggerUi::new: generic bound for P has no closed impl set"]
+classification = "closed generic specialization; concrete string path is the witness"
+
+[[dependency]]
+name = "tokio"
+version = "1.53.1"
+admitted = 134
+declined = 1234
+classification = "generic handle identity and async lowering/runtime work"
+
+[[dependency]]
+name = "tracing"
+version = "0.1.44"
+admitted = 4
+declined = 83
+required-gaps = ["tracing::info: macro item has no Terrane projection"]
+classification = "replaceable by Terrane standard logging; no projection feature"
+
+[[dependency]]
+name = "sentry"
+version = "0.46.2"
+admitted = 3
+declined = 57
+required-gaps = ["sentry::init: open generic C"]
+classification = "concrete upstream configuration or narrow optional facade; outside the core projection gate"
+
+[[reproduction]]
+name = "generic-identity"
+path = "repros/generic-identity"
+member = "axum::Router"
+
+[[reproduction]]
+name = "representable-aggregate"
+path = "repros/representable-aggregate"
+member = "axum::extract::ws::Message"
+
+[[reproduction]]
+name = "transitive-owner"
+path = "repros/transitive-owner"
+member = "reqwest::Response::status"
+
+[[reproduction]]
+name = "closed-generic-result"
+path = "repros/closed-generic-result"
+member = "sqlx::Row::try_get"
+
+[[reproduction]]
+name = "non-escaping-chain"
+path = "repros/non-escaping-chain"
+member = "sqlx::query(...).bind(...).execute(...)"
+
+[[reproduction]]
+name = "macro-expansion"
+path = "repros/macro-expansion"
+member = "utoipa::OpenApi derive"
+
+[[decision]]
+unit = "A8"
+outcome = "deferred"
+witness = "sqlx::Row::try_get::<String, _>"
+probe = "projection_oracle::tests::exact_sqlx_row_accessor_call_compiles_against_resolved_dependency"
+probe-answer = "yes"
+reason = "the exact call compiles against sqlx 0.8.6, including its lifetime-parameterized Decode and Type bounds; projection remains deferred because the application boundary does not require direct destination-driven specialization and an owned narrow facade is cheaper and safer"
+
+[[decision]]
+unit = "A9"
+outcome = "deferred"
+witness = "sqlx::query(...).bind(...).execute(...)"
+reason = "the only demanding exact witness terminates in an async operation; admitting its non-escaping temporary chain before Phase B would create an unexecutable success path, while an owned narrow facade is available"
+
+[[reproduction]]
+name = "async-lowering"
+path = "repros/async-lowering"
+member = "reqwest::get"

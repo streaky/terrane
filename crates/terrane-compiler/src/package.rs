@@ -40,6 +40,11 @@ pub enum PanicProfile {
     Unwind,
     Abort,
 }
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum BuildToolchain {
+    Pinned,
+    System,
+}
 
 const CAPABILITY_NAMES: [&str; 7] = [
     "build",
@@ -125,6 +130,7 @@ pub struct Package {
     pub reflection: ReflectionProfile,
     pub executor: ExecutorProfile,
     pub profile: CapabilityProfile,
+    pub build_toolchain: BuildToolchain,
     pub units: Vec<SourceUnit>,
     pub rust_dependencies: Vec<RustDependency>,
 }
@@ -166,6 +172,7 @@ impl Package {
             prelude: true,
             reflection: ReflectionProfile::Ordinary,
             executor: ExecutorProfile::Threaded,
+            build_toolchain: BuildToolchain::Pinned,
             profile: CapabilityProfile::unrestricted(),
             units: vec![SourceUnit {
                 relative_path,
@@ -206,6 +213,7 @@ impl Package {
             root,
             prelude: manifest.prelude,
             reflection: manifest.reflection,
+            build_toolchain: manifest.build_toolchain,
             executor: manifest.executor,
             profile: manifest.profile,
             units,
@@ -218,6 +226,7 @@ struct ParsedManifest {
     identity: String,
     prelude: bool,
     reflection: ReflectionProfile,
+    build_toolchain: BuildToolchain,
     executor: ExecutorProfile,
     profile: CapabilityProfile,
     namespace_roots: Vec<NamespaceRoot>,
@@ -257,6 +266,7 @@ fn parse_manifest(
                 | "prelude"
                 | "reflection"
                 | "executor"
+                | "rust-toolchain"
                 | "profile"
                 | "namespaces"
                 | "rust-dependencies"
@@ -302,6 +312,20 @@ fn parse_manifest(
             true
         }
         None => true,
+    };
+    let build_toolchain = match table.get("rust-toolchain") {
+        None => BuildToolchain::Pinned,
+        Some(toml::Value::String(value)) if value == "pinned" => BuildToolchain::Pinned,
+        Some(toml::Value::String(value)) if value == "system" => BuildToolchain::System,
+        Some(_) => {
+            errors.push(manifest_error(
+                manifest_path,
+                text,
+                "`rust-toolchain` must be either `pinned` or `system`",
+                Some("rust-toolchain"),
+            ));
+            BuildToolchain::Pinned
+        }
     };
     let reflection = match table.get("reflection") {
         Some(toml::Value::String(value)) if value == "ordinary" => ReflectionProfile::Ordinary,
@@ -355,6 +379,7 @@ fn parse_manifest(
             identity: identity.expect("validated package identity"),
             prelude,
             reflection,
+            build_toolchain,
             executor,
             profile,
             namespace_roots,

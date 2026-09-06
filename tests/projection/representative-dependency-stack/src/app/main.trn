@@ -1,0 +1,7 @@
+namespace projection-probe/app
+from /projection-probe/service import router-empty
+from /projection-probe/streams import in-memory-stream-count
+
+function main;
+    print; (router-empty;)
+    print; (in-memory-stream-count;)

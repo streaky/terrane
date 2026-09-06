@@ -115,6 +115,14 @@ impl<T> List<T> {
     pub fn length(&self) -> i128 {
         self.0.len() as i128
     }
+    /// Consumes the list and reuses its backing vector when it is uniquely owned.
+    #[must_use]
+    pub fn into_vec(self) -> Vec<T>
+    where
+        T: Clone,
+    {
+        Arc::unwrap_or_clone(self.0)
+    }
     #[must_use]
     pub fn get(&self, index: usize) -> Option<&T> {
         self.0.get(index)
@@ -201,6 +209,15 @@ impl<T> Tuple<T> {
     #[must_use]
     pub fn get(&self, index: usize) -> Option<&T> {
         self.0.get(index)
+    }
+    /// Consumes a uniquely owned tuple without cloning its elements.
+    ///
+    /// Returns the tuple unchanged when another persistent handle still shares its storage.
+    ///
+    /// # Errors
+    /// Returns the original tuple when its backing storage is shared.
+    pub fn try_into_iter(self) -> Result<std::vec::IntoIter<T>, Self> {
+        Arc::try_unwrap(self.0).map(Vec::into_iter).map_err(Self)
     }
     /// Returns the indexed item or an error when the index is outside the tuple.
     ///
@@ -730,6 +747,20 @@ mod tests {
         values.push(3);
         assert_eq!(original.0.as_slice(), &[1]);
         assert_eq!(copy.0.as_slice(), &[1, 2, 3]);
+    }
+
+    #[test]
+    fn tuple_consumption_moves_unique_items_and_rejects_shared_storage() {
+        let unique = Tuple::new(vec![String::from("moved")]);
+        assert_eq!(
+            unique.try_into_iter().unwrap().collect::<Vec<_>>(),
+            ["moved"]
+        );
+
+        let shared = Tuple::new(vec![String::from("shared")]);
+        let alias = shared.clone();
+        assert!(shared.try_into_iter().is_err());
+        assert_eq!(alias.get(0).map(String::as_str), Some("shared"));
     }
 
     #[test]

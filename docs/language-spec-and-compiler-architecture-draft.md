@@ -4034,6 +4034,21 @@ Users may inspect the generated `Cargo.toml`.
 
 They should not normally need to maintain it separately unless a project deliberately takes ownership of the Rust layer.
 
+Generated crates declare the exact stable Rust release supported by this Terrane compiler in both
+`rust-version` and a generated `rust-toolchain.toml`. This pin is the default for `check`, `build`,
+and `run`, makes ambient toolchain updates irrelevant to unchanged Terrane projects, and remains in
+the generated directory for direct Cargo debugging. A package may explicitly set
+`rust-toolchain = "system"` to use its invoking environment instead; the build metadata records that
+escape hatch, and the selected compiler must still meet Terrane's declared minimum.
+
+User builds preserve inherited warning policy rather than appending a blanket `-Dwarnings`.
+Generated manifests declare the stable lint contracts lowering guarantees, while the compiler's
+conformance corpus continues to deny every warning. Compiler-owned Cargo commands use `sccache`
+only after the explicit `TERRANE_SCCACHE=1` opt-in; that choice participates in build cache identity.
+Terrane records only stable toolchain pins it has itself requested. Its `toolchains` report may
+identify an older pin as not used by the current Terrane version, but never removes it or claims it
+is safe to remove.
+
 ### 23.7 Build scripts
 
 Declarative build metadata is preferred.
@@ -4053,9 +4068,92 @@ reqwest = { version = "0.12", default-features = false, features = ["blocking", 
 
 Resolution and Cargo's lockfile determine the exact package interface. The build runs rustdoc for that resolved graph and produces one projection artifact shared by compiler and language server. Rust module paths become `/deps/<manifest-name>/...` namespaces; public names remain verbatim. The projection admits directly representable functions, inherent methods, receiver-first trait functions, opaque foreign types, and data-free or data-carrying enums. It records a reason for every public item it declines.
 
-Projected type identity follows the Rust item rather than the importing module alone. A public re-export is resolved to its canonical Rust path before the Terrane namespace and object identity are recorded. Therefore a re-exported type and its defining item denote one type, while distinct Rust items with the same short name in sibling modules remain distinct. Generated Rust imports each canonical path at most once per generated module and aliases it to the compiler-owned name derived from that namespace-qualified identity.
+The projector deserializes the complete rustdoc document through the version-matched
+`rustdoc-types` schema before traversing it. It does not infer item kinds or type shapes from
+untyped JSON keys. The projection toolchain pin, rustdoc JSON format number, schema crate version,
+and projection cache schema form one compatibility unit: malformed input or a format mismatch is a
+projection failure naming the expected format and toolchain, while valid but unrepresentable Rust
+items remain ordinary declined items with stable reasons.
 
-The compiler generates Rust shims only for projected members crossed by Terrane source. This is direct Rust-to-Rust calling inside the generated crate, not an adapter or marshalled runtime boundary. `Option<T>` projects as `T|none`. A representable `Result<T, E>` returns `T` and throws the projected error class. `&self` projects as a shared receiver, `&mut self` records receiver mutability on the projected contract, and `self` retains `move` semantics under the ordinary foreign-resource ownership rule. Both borrowed receiver forms use ordinary Terrane member-call syntax; the projected contract makes lowering emit the required Rust borrow and mutable binding. On unwinding profiles, a panic crossing a generated shim becomes `dependency-panic`; aborting profiles do not claim containment.
+Projected foreign identity includes every concrete generic argument. Two instantiations of one Rust
+generic declaration are distinct Terrane object identities; one may not be passed where the other
+is expected. The projector renders a deterministic full Rust type spelling, applies generic
+arguments through Rust type aliases, and assigns each instantiated spelling a stable compiler-owned
+Terrane name. A generic foreign type whose every type parameter has a default is projected at that
+default instantiation, and `Self` in its methods resolves to that concrete identity. Generated
+dependency modules lower instantiated spellings as Rust type aliases rather than invalid `use`
+paths. Lifetime-parameterized types and generic parameters without defaults remain explicit
+declines until a call-directed or non-escaping-chain rule proves a concrete use.
+
+Before running local rustdoc, the projector may request an artifact from the trusted HTTPS
+repository. The response is accepted only when its envelope matches the complete cache identity:
+dependencies, exact versions, default-feature switches, feature sets, target conditions, selected
+target, build toolchain, rustdoc toolchain, rustdoc format, and projection schema. A SHA-256 content
+hash over the transferable projection payload must also match both the envelope and payload.
+Missing, malformed, unreadable, hash-invalid, or metadata-mismatched artifacts are explicit
+resolution events and fall back to the exact local pinned-nightly path; they never widen a match.
+A verified published result enters the ordinary project-local cache, so later offline compilation
+does not contact the service or require the nightly projector. The returned projection metadata
+records the current resolution outcome, ordered source attempts, and fallback reasons.
+`terrane-projection.lock` records the content-origin outcome and reasons together with provenance,
+rustdoc format, projection schema, cache identity, and verified content hash; resolving the same
+content from its exact cache does not rewrite that origin history.
+
+A bundled artifact source is deliberately deferred until Terrane has a release artifact channel
+that can ship and update the corresponding envelopes. Resolution records that source as skipped
+rather than silently omitting it; current source order is exact local cache, published artifact,
+then local rustdoc.
+
+When typed metadata cannot prove a concrete Rust bound or reveal an emit-and-consume macro result,
+the projection compile-time oracle can generate a deterministic minimal crate against the already
+resolved dependency workspace. Bound and exact-call questions are batched and answer `yes`, `no`,
+or `unknown`: `yes` requires Cargo to emit the probe target's compiler artifact; only rustc's
+probe-local trait-bound failure is `no`; resolution, toolchain, containment, spanless, and unrelated
+compiler failures are `unknown`. Macro probes run rustdoc over the generated invocation and return
+its expanded public API. The infrastructure caches exact reports under projection identity, but the
+current projector has no production question source and therefore does not use probe answers to
+admit or decline members; transferable projections currently record an empty probe list and zero
+probe wall time. A future consumer must serialize the reports it actually uses.
+
+Projected type identity follows the Rust item rather than the importing module alone. Public path
+selection is deterministic: prefer the shortest reachable path, then lexical order for equal-depth
+re-exports. A public re-export is resolved through that rule before the Terrane namespace and object
+identity are recorded, so importing a type through its re-export and through its defining module
+does not create two Terrane types. Concrete instantiations append the complete lowercase SHA-256
+of their canonical instantiated Rust path to the readable short name; no truncated hash or
+order-dependent suffix is used. Distinct same-named sibling types and distinct instantiations
+therefore remain distinct.
+A signature type owned by an undeclared transitive crate is not projected as a memberless
+lookalike: the member declines with an actionable reason naming the owning crate and its
+lock-resolved version. Declaring that owner
+with a unifying version makes its canonical identity and members reachable. After Cargo resolves
+the lock graph, projection validation rejects multiple resolved versions at a crossed type boundary
+and names every version; this occurs before semantic import resolution and Rust lowering.
+Generated Rust imports each canonical path at most once per generated module and aliases it to the
+compiler-owned name derived from that namespace-qualified identity.
+
+The compiler generates Rust shims only for projected members crossed by Terrane source. This is
+direct Rust-to-Rust calling inside the generated crate, not an adapter or marshalled runtime
+boundary. `Option<T>` projects in parameter and result positions as `T|none`. Rust sequences,
+ordered and unordered maps, sets, and homogeneous tuples project recursively to the corresponding
+Terrane collections when every component is representable. Map keys and set items must be Terrane
+scalars; nested optionals, sequences, mappings, sets, tuples, and foreign objects are rejected in
+those positions. Shim code performs only the required boundary and element conversions: an
+identity-element `Vec<T>` reuses owned backing storage in the Terrane-to-Rust direction and wraps
+the returned vector directly in the Rust-to-Terrane direction. `Vec<u8>` remains the direct `bytes`
+representation. Tuple arguments move uniquely owned elements without cloning; shared tuple storage
+fails at the dependency boundary rather than panicking or cloning resource values. An aggregate
+declines as a whole when its first component cannot cross, and heterogeneous Rust tuples remain
+declined until Terrane has a matching heterogeneous tuple contract. A representable
+`Result<T, E>` returns `T` and throws the projected error class. `&self` projects as a shared
+receiver, `&mut self` records receiver mutability on the projected contract, and `self` retains
+`move` semantics under the ordinary foreign-resource ownership rule. Both borrowed receiver forms
+use ordinary Terrane member-call syntax; the projected contract makes lowering emit the required
+Rust borrow and mutable binding. On unwinding profiles, a panic crossing a generated shim becomes
+`dependency-panic`; aborting profiles emit no unwind boundary and generated Cargo profiles use
+`panic = "abort"`. Receiver-bearing unwind shims use the compiler-owned
+`AssertUnwindSafe` invariant because the receiver is already governed by Terrane's ownership
+rules; receiver-free shims retain Rust's ordinary `UnwindSafe` proof.
 
 Cargo and rustc remain authoritative. Projection and editor information are advisory and derived from the resolved package rather than predefined by Terrane. The language server uses the shared artifact for completion, signature help, hover, exact Rust paths, and declined-item reasons. Projection executes under the build-script capability policy.
 

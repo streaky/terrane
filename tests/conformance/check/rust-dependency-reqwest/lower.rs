@@ -420,37 +420,59 @@ mod __terrane_trace {
     }
     pub static FILES: [&str; 1] = ["src/main.trn"];
     pub static FUNCTIONS: [&str; 1] = ["/app::main"];
-    pub static SITES: [Site; 3] = [
+    pub static SITES: [Site; 5] = [
         {
-            /* terrane-site-row: site 0: /app::main (src/main.trn:4:16-4:45) */
-            Site {
-                function: 0,
-                file: 0,
-                line: 4,
-                column: 16,
-                end_line: 4,
-                end_column: 45,
-            }
-        },
-        {
-            /* terrane-site-row: site 1: /app::main (src/main.trn:5:5-5:26) */
+            /* terrane-site-row: site 0: /app::main (src/main.trn:5:16-5:45) */
             Site {
                 function: 0,
                 file: 0,
                 line: 5,
-                column: 5,
+                column: 16,
                 end_line: 5,
-                end_column: 26,
+                end_column: 45,
             }
         },
         {
-            /* terrane-site-row: site 2: /app::main (src/main.trn:6:19-6:33) */
+            /* terrane-site-row: site 1: /app::main (src/main.trn:6:5-6:26) */
             Site {
                 function: 0,
                 file: 0,
                 line: 6,
-                column: 19,
+                column: 5,
                 end_line: 6,
+                end_column: 26,
+            }
+        },
+        {
+            /* terrane-site-row: site 2: /app::main (src/main.trn:7:34-7:50) */
+            Site {
+                function: 0,
+                file: 0,
+                line: 7,
+                column: 34,
+                end_line: 7,
+                end_column: 50,
+            }
+        },
+        {
+            /* terrane-site-row: site 3: /app::main (src/main.trn:8:13-8:40) */
+            Site {
+                function: 0,
+                file: 0,
+                line: 8,
+                column: 13,
+                end_line: 8,
+                end_column: 40,
+            }
+        },
+        {
+            /* terrane-site-row: site 4: /app::main (src/main.trn:9:19-9:33) */
+            Site {
+                function: 0,
+                file: 0,
+                line: 9,
+                column: 19,
+                end_line: 9,
                 end_column: 33,
             }
         },
@@ -472,7 +494,7 @@ mod __terrane_trace {
 fn main() {
     let mut response: Response = __terrane_raised(
         get(String::from("http://127.0.0.1:38125/")),
-        0 /* terrane-site: src/main.trn:4:16-4:45 */,
+        0 /* terrane-site: src/main.trn:5:16-5:45 */,
     );
     __terrane_raised(
         match std::panic::catch_unwind(
@@ -491,7 +513,31 @@ fn main() {
                 )
             }
         },
-        1 /* terrane-site: src/main.trn:5:5-5:26 */,
+        1 /* terrane-site: src/main.trn:6:5-6:26 */,
+    );
+    let response_status: StatusCode = __terrane_raised(
+        match std::panic::catch_unwind(
+            std::panic::AssertUnwindSafe(|| response.status()),
+        ) {
+            Ok(value) => Ok(value),
+            Err(payload) => {
+                Err(
+                    crate::__terrane_dependency_panic(
+                        payload,
+                        "reqwest",
+                        "reqwest::blocking::Response::status",
+                    ),
+                )
+            }
+        },
+        2 /* terrane-site: src/main.trn:7:34-7:50 */,
+    );
+    println!(
+        "{}", terrane_scalar_support::scalar_text(&__terrane_raised(match
+        std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | response_status
+        .is_success())) { Ok(value) => Ok(value), Err(payload) => Err(crate
+        ::__terrane_dependency_panic(payload, "http", "http::StatusCode::is_success")) },
+        3 /* terrane-site: src/main.trn:8:13-8:40 */))
     );
     let body: String = __terrane_raised(
         match std::panic::catch_unwind(
@@ -521,10 +567,19 @@ fn main() {
                 )
             }
         },
-        2 /* terrane-site: src/main.trn:6:19-6:33 */,
+        4 /* terrane-site: src/main.trn:9:19-9:33 */,
     );
     println!("{}", terrane_scalar_support::scalar_text(&body));
 }
+// Source: <terrane>/projected/deps/http/extensions.trn
+// Namespace: deps/http/extensions
+pub use http::Extensions;
+// Source: <terrane>/projected/deps/http/status.trn
+// Namespace: deps/http/status
+pub use http::StatusCode;
+// Source: <terrane>/projected/deps/http/version.trn
+// Namespace: deps/http/version
+pub use http::Version;
 // Source: <terrane>/projected/deps/reqwest/blocking.trn
 // Namespace: deps/reqwest/blocking
 pub fn get(url: String) -> Result<Response, crate::TerraneForeignError> {

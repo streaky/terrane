@@ -1,0 +1,10 @@
+package = "repro-generic-identity"
+[profile]
+capabilities = ["build"]
+[namespaces]
+repro = "."
+[rust-dependencies.axum]
+version = "=0.8.9"
+default-features = false
+features = ["http1", "json", "tokio", "ws"]
+effects = ["build"]

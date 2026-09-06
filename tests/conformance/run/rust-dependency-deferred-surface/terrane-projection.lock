@@ -1,5 +1,5 @@
 {
-  "format": 1,
+  "format": 2,
   "dependencies": [
     {
       "name": "bytes",
@@ -142,5 +142,30 @@
       ]
     }
   ],
-  "removed": []
+  "removed": [],
+  "cache_identity": "1e49b2a1e4b75658e0c66978029cce8bcb4c5f976656429b9d74ac452fc7e12b",
+  "source": "Local",
+  "rustdoc_format": 57,
+  "projection_schema": "15",
+  "content_hash": "3e2bc1e32195ff9e23707a7e82d4660566b79cee39c1d4661a7dd1f660a9d0cb",
+  "resolution": {
+    "outcome": "LocalRustdoc",
+    "events": [
+      {
+        "source": "BundledArtifact",
+        "status": "Skipped",
+        "reason": "bundled projection distribution is deliberately deferred until Terrane has a release artifact channel"
+      },
+      {
+        "source": "PublishedArtifact",
+        "status": "Skipped",
+        "reason": "`TERRANE_PROJECTION_ARTIFACT_URL` is not configured"
+      },
+      {
+        "source": "LocalRustdoc",
+        "status": "Generated",
+        "reason": "no reusable exact artifact was available; generated with the pinned local rustdoc toolchain"
+      }
+    ]
+  }
 }

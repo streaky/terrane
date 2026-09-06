@@ -56,18 +56,35 @@ The working `terrane` CLI can check, lower, build, and run manifest-backed progr
 
 ## Developing Terrane
 
-The Terrane compiler automatically uses
-[`sccache`](https://github.com/mozilla/sccache) for every compiler-owned Cargo invocation when an
-executable is available on `PATH`, setting an absolute `RUSTC_WRAPPER` independently of the user's
-Cargo environment. It falls back to Cargo without adding a wrapper when `sccache` is unavailable.
-The scientific benchmark runner applies the same policy while building the compiler and generated
-programs; an unavailable cache is not an error, and repository checks and benchmarks never clear it.
+Terrane-generated crates pin the exact stable Rust release the compiler supports, currently 1.93.1,
+and rustup installs that pin when it is first needed. `terrane --version` reports both the stable
+build toolchain and the pinned rustdoc nightly. A package can explicitly set
+`rust-toolchain = "system"` to use its ambient compiler instead. `terrane toolchains` reports only
+pins Terrane has previously requested; it never removes toolchains or recommends removal.
 
-Projects that declare `[rust-dependencies]` additionally require the pinned Rust nightly toolchain and
-Linux [`bubblewrap`](https://github.com/containers/bubblewrap) (`bwrap`) on `PATH`. Bubblewrap contains
-Cargo and rustdoc inspection of third-party packages; dependency-free Terrane projects do not require it.
+Compiler-owned Cargo invocations use [`sccache`](https://github.com/mozilla/sccache) only when
+`TERRANE_SCCACHE=1` explicitly opts in. An unavailable cache is not an error, and repository checks
+and benchmarks never clear it.
 
-Cargo retains downloaded registry indexes and crate archives in `CARGO_HOME`, so repeated toolchain and conformance builds do not download unchanged dependencies again. The conformance runner additionally reuses one generated Cargo workspace for all accepted cases in a corpus run. When available, `sccache` provides further reuse across separate runs and branches.
+Projects that declare `[rust-dependencies]` additionally require Linux
+[`bubblewrap`](https://github.com/containers/bubblewrap) (`bwrap`) on `PATH`. Local projection
+fallback uses the pinned nightly toolchain; dependencies satisfied by a prepared projection
+artifact do not. Bubblewrap contains Cargo and rustdoc inspection of third-party packages;
+dependency-free Terrane projects do not require it.
+
+Set `TERRANE_PROJECTION_ARTIFACT_URL` to a trusted HTTPS projection repository to try exact
+precomputed dependency surfaces before local rustdoc. Terrane verifies dependency, feature, target,
+toolchain, rustdoc-format, projection-schema, and SHA-256 payload identity. Content-origin
+resolution events and fallback reasons are persisted in `terrane-projection.lock`; cache hits do
+not rewrite that provenance. A verified artifact is cached locally for subsequent offline builds.
+Bundled artifacts are deliberately deferred until Terrane has a
+release artifact channel, and resolution records that source as skipped.
+The CLI integration suite regenerates a reviewed representative dependency stack and compares its
+machine-independent projection lock byte for byte. Upstream additions, removals, signature or
+identity changes, and newly declined members therefore require an explicit reviewed lock update.
+
+
+Cargo retains downloaded registry indexes and crate archives in `CARGO_HOME`, so repeated toolchain and conformance builds do not download unchanged dependencies again. The conformance runner additionally reuses one generated Cargo workspace for all accepted cases in a corpus run. With explicit opt-in, `sccache` provides further reuse across separate runs and branches.
 
 Generated Rust is returned exactly as Terrane lowering emits it. Compiler work can pass
 `--require-canonical-rust` after any CLI command name to compare that untouched output with the

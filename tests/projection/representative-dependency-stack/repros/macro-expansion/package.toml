@@ -1,0 +1,9 @@
+package = "repro-macro-expansion"
+[profile]
+capabilities = ["build"]
+[namespaces]
+repro = "."
+[rust-dependencies.utoipa]
+version = "=5.5.0"
+features = ["axum_extras", "chrono", "uuid"]
+effects = ["build"]

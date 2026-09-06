@@ -15,8 +15,11 @@ proc-macro2 = "1"
 quote = "1"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
+rustdoc-types.workspace = true
 sha2 = "0.10"
 syn = { version = "2", features = ["extra-traits", "fold", "full"] }
+ureq.workspace = true
+rustls.workspace = true
 toml = "0.8"
 [lints]
 workspace = true

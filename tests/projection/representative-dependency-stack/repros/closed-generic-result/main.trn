@@ -1,0 +1,9 @@
+namespace repro
+from /deps/sqlx/row import Row, try_get
+
+function read-name; row Row;
+    name string = try_get; row, 'name'
+    print; name
+
+function main;
+    print; 'try_get needs its written destination type'

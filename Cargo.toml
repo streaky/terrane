@@ -19,6 +19,11 @@ edition = "2024"
 license = "GPL-2.0-only"
 rust-version = "1.85"
 
+[workspace.dependencies]
+rustdoc-types = "=0.57.0"
+ureq = { version = "3", default-features = false, features = ["rustls-no-provider", "rustls-webpki-roots"] }
+rustls = { version = "0.23", default-features = false, features = ["aws_lc_rs", "std"] }
+
 [workspace.lints.rust]
 unsafe_code = "forbid"
 
