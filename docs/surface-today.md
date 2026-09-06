@@ -789,9 +789,13 @@ opaque and use projected crate accessors; every declined public item carries a r
 
 Semantic import resolution and the language server consume that same projection. Lowering emits only
 crossed-member Rust shims and generated Cargo dependencies; calls remain direct Rust calls inside one
-generated crate. Foreign receivers borrow, use `ref`, or require `move` according to their Rust
-receiver. Unwinding dependency panics enter the compiler-owned `dependency-panic` throwable path;
-abort profiles omit containment and generate Cargo `panic = "abort"`. Projection and generated-crate
+generated crate. A projected Rust `async fn` emits an async shim and constructs a Terrane task whose
+awaited result uses the same conversion, error, ownership, and panic boundary as a synchronous
+projected call. Self-contained dependency futures run under today's async driver; dependency
+operations requiring a reactor or other runtime context remain deferred to the wake-driven execution
+strategy. Foreign receivers borrow, use `ref`, or require `move` according to their Rust receiver.
+Unwinding dependency panics enter the compiler-owned `dependency-panic` throwable path; abort
+profiles omit containment and generate Cargo `panic = "abort"`. Projection and generated-crate
 compilation use `bwrap` containment where available and report the host tier otherwise.
 `terrane-projection.lock` format 2 retains machine-independent member/version history plus source,
 rustdoc format, projection schema, exact cache identity, content hash, and resolution events. `S2031`

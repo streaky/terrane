@@ -403,6 +403,19 @@ impl Emitter<'_> {
         let Some(block) = node.children.first() else {
             return;
         };
+        fn contains_await(unit: &SemanticUnit, node: &SyntaxNode) -> bool {
+            (node.kind == SyntaxKind::UnaryExpression
+                && node.children.first().is_some_and(|operator| {
+                    unit.source.text()[operator.span.start..operator.span.end].trim() == "await"
+                }))
+                || node
+                    .children
+                    .iter()
+                    .any(|child| contains_await(unit, child))
+        }
+        let asynchronous = contains_await(self.unit, node);
+        let closure_start = if asynchronous { "async {" } else { "(|| {" };
+        let closure_end = if asynchronous { "}.await;" } else { "})();" };
         let index = self.try_counter;
         self.try_counter += 1;
         let result = self.return_type.clone().map_or_else(
@@ -419,11 +432,11 @@ impl Emitter<'_> {
             ""
         };
         self.line(&format!(
-            "let {mutable}__terrane_completion_{index}: TerraneCompletion<{result}> = (|| {{"
+            "let {mutable}__terrane_completion_{index}: TerraneCompletion<{result}> = {closure_start}"
         ));
         self.indent += 1;
         self.line(&format!(
-            "let __terrane_try_{index}: TerraneCompletion<{result}> = (|| {{"
+            "let __terrane_try_{index}: TerraneCompletion<{result}> = {closure_start}"
         ));
         self.indent += 1;
         let outer_completion = std::mem::replace(&mut self.try_completion, true);
@@ -436,7 +449,7 @@ impl Emitter<'_> {
         self.function_errors = outer_function_errors;
         self.propagate_errors = outer_propagation;
         self.indent -= 1;
-        self.line("})();");
+        self.line(closure_end);
         self.line(&format!("match __terrane_try_{index} {{"));
         self.indent += 1;
         self.line("TerraneCompletion::Return(value) => return TerraneCompletion::Return(value),");
@@ -509,15 +522,26 @@ impl Emitter<'_> {
         self.line("}");
         self.line("TerraneCompletion::Normal");
         self.indent -= 1;
-        self.line("})();");
+        self.line(closure_end);
         if let Some(finally) = node
             .children
             .iter()
             .find(|child| child.kind == SyntaxKind::FinallyClause)
             .and_then(|clause| clause.children.first())
         {
+            let finally_asynchronous = contains_await(self.unit, finally);
+            let finally_start = if finally_asynchronous {
+                "async {"
+            } else {
+                "(|| {"
+            };
+            let finally_end = if finally_asynchronous {
+                "}.await;"
+            } else {
+                "})();"
+            };
             self.line(&format!(
-                "let __terrane_finally_{index}: TerraneCompletion<{result}> = (|| {{"
+                "let __terrane_finally_{index}: TerraneCompletion<{result}> = {finally_start}"
             ));
             self.indent += 1;
             let outer_completion = std::mem::replace(&mut self.try_completion, true);
@@ -531,7 +555,7 @@ impl Emitter<'_> {
             self.propagate_errors = outer_propagation;
             self.try_completion = outer_completion;
             self.indent -= 1;
-            self.line("})();");
+            self.line(finally_end);
             self.line(&format!("match __terrane_finally_{index} {{"));
             self.indent += 1;
             self.line("TerraneCompletion::Normal => {}");

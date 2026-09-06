@@ -104,6 +104,15 @@ fn case_source_path(build: &ConformanceBuild, case: &Path, entrypoint: &str) -> 
         fs::remove_dir_all(&staged).unwrap();
     }
     copy_package_fixture(case, &staged);
+    let fixture_registry = staged.join("fixture-registry");
+    if fixture_registry.is_dir() {
+        let dependency_workspace = staged.join(".trn/dependencies");
+        copy_package_fixture(
+            &fixture_registry,
+            &dependency_workspace.join("fixture-registry"),
+        );
+        copy_package_fixture(&staged.join(".cargo"), &dependency_workspace.join(".cargo"));
+    }
     staged.join(entrypoint)
 }
 
@@ -237,6 +246,11 @@ fn compile_and_maybe_run(
     dependencies: &[terrane_compiler::RustDependency],
     build: &ConformanceBuild,
 ) {
+    let fixture_registry = case.join("fixture-registry");
+    if fixture_registry.is_dir() {
+        copy_package_fixture(&fixture_registry, &build.root.join("fixture-registry"));
+        copy_package_fixture(&case.join(".cargo"), &build.root.join(".cargo"));
+    }
     build.write_manifest(dependencies);
     let build_dir = &build.root;
     let dependency_panic_test = field(manifest, "dependency-panic-test");
@@ -258,6 +272,7 @@ fn compile_and_maybe_run(
         .arg(build_dir.join("Cargo.toml"))
         .env("CARGO_TARGET_DIR", &build.target)
         .env("RUSTFLAGS", "-Dwarnings")
+        .current_dir(build_dir)
         .output()
         .unwrap();
     let mut binary_path = build.target.join("debug/terrane_conformance_program");
@@ -275,6 +290,7 @@ fn compile_and_maybe_run(
             .arg(build_dir.join("Cargo.toml"))
             .env("CARGO_TARGET_DIR", &build.target)
             .env("RUSTFLAGS", "-Dwarnings")
+            .current_dir(build_dir)
             .output()
             .unwrap();
         assert!(

@@ -1393,6 +1393,14 @@ parser, semantic model, and Rust lowering. Presence comparisons on optional task
 type. Runtime and dependency inclusion is selected by lowering metadata rather than rendered-source
 scanning.
 
+The first async-execution-foundations increment also lowers projected Rust `async fn` members
+through the ordinary task path. Generated async dependency shims construct the Rust future at the
+Terrane call, await it inside the shim, and then apply the same conversion, `Result`, receiver, and
+panic boundary used for synchronous members. A controlled local fixture supplies a genuinely
+pending self-waking future plus typed success and failure results; accepted execution and the
+existing async-context and linear-task rejections cover the source contract without claiming a
+reactor-backed dependency runtime.
+
 Every lowered Terrane `await` yields to the executor before polling its operand and again after the
 operand completes. The cancellable executor checks the scope between those child polls, so even an
 immediately-ready awaited future cannot carry execution past the suspension point after cancellation

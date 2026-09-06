@@ -1,0 +1,2 @@
+projected async success
+caught projected async failure

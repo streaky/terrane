@@ -832,6 +832,27 @@ pub(super) fn validate_suspension_ownership(
 }
 
 pub(super) fn validate_task_consumption(package: &SemanticPackage) -> Result<(), SemanticFailure> {
+    fn discarded_task(
+        unit: &SemanticUnit,
+        node: &SyntaxNode,
+    ) -> Result<Option<Span>, SemanticFailure> {
+        for child in &node.children {
+            if node.kind == SyntaxKind::Block
+                && child.kind == SyntaxKind::CallExpression
+                && matches!(
+                    infer_value_type(unit, child, &unit.typed_bindings)?,
+                    Some(ValueType::Task(_) | ValueType::ScopedTask(_))
+                )
+            {
+                return Ok(Some(child.span));
+            }
+            if let Some(span) = discarded_task(unit, child)? {
+                return Ok(Some(span));
+            }
+        }
+        Ok(None)
+    }
+
     fn consumed(
         unit: &SemanticUnit,
         node: &SyntaxNode,
@@ -874,6 +895,14 @@ pub(super) fn validate_task_consumption(package: &SemanticPackage) -> Result<(),
     }
 
     for unit in &package.units {
+        if let Some(span) = discarded_task(unit, &unit.tree.root)? {
+            return Err(failure(
+                &unit.source,
+                "T0076",
+                "task must be awaited, joined, or bound for later consumption",
+                span,
+            ));
+        }
         for binding in unit.typed_bindings.iter().filter(|binding| {
             matches!(
                 binding.value_type,

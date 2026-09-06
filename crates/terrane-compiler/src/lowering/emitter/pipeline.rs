@@ -20,6 +20,13 @@ pub(crate) fn lower(package: &SemanticPackage) -> Program {
         .units
         .iter()
         .any(|unit| unit.namespace.starts_with("/deps/") && !unit.functions.is_empty());
+    let has_async_dependency = package.units.iter().any(|unit| {
+        unit.namespace.starts_with("/deps/")
+            && unit
+                .functions
+                .iter()
+                .any(|function| function.is_async && package.function_is_referenced(function.span))
+    });
     let has_custom_throwable = has_dependency
         || package.units.iter().any(|unit| {
             unit.objects.iter().any(|object| {
@@ -38,6 +45,9 @@ pub(crate) fn lower(package: &SemanticPackage) -> Program {
         .any(|unit| unit.functions.iter().any(|function| function.is_async))
     {
         let mut support = include_str!("../../runtime/async.rs").to_owned();
+        if has_async_dependency {
+            support.push_str(include_str!("../../runtime/async_dependency.rs"));
+        }
         if package_uses_task_scope(package) {
             support.push_str(include_str!("../../runtime/async_cancellable.rs"));
         }

@@ -939,59 +939,70 @@ impl Emitter<'_> {
                 .expect("foreign method owner has a projected Rust path");
             let dependency = type_path.split("::").next().unwrap_or("dependency");
             let member = format!("{type_path}::{}", method.name);
-            let catch_unwind = |body: &str| {
-                if method.receiver.is_some() {
-                    format!("std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {body}))")
-                } else {
-                    format!("std::panic::catch_unwind(|| {body})")
-                }
+            let invocation = if method.is_async {
+                format!("{call}.await")
+            } else {
+                call.clone()
             };
-            if self.package.profile.panic == crate::package::PanicProfile::Abort {
+            let unwind_call = if !method.is_async
+                && method.error.is_none()
+                && self.discarded_call == Some(node.span)
+            {
+                format!("{{ {call}; }}")
+            } else {
+                call.clone()
+            };
+            let caught = if method.is_async {
+                format!("crate::__terrane_dependency_await_unwind({call}).await")
+            } else if method.receiver.is_some() {
+                format!("std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {unwind_call}))")
+            } else {
+                format!("std::panic::catch_unwind(|| {unwind_call})")
+            };
+            let mapped = if self.package.profile.panic == crate::package::PanicProfile::Abort {
                 if method.error.is_some() {
                     format!(
-                        "match {call} {{ Ok(value) => Ok(value), Err(error) => Err(crate::TerraneForeignError(crate::TerraneError::custom_raised(crate::TERRANE_DEPENDENCY_ERROR, format!(\"Rust dependency `{dependency}` member `{member}` failed: {{error}}\"), crate::TERRANE_NO_SITE))) }}"
+                        "match {invocation} {{ Ok(value) => Ok(value), Err(error) => Err(crate::TerraneForeignError(crate::TerraneError::custom_raised(crate::TERRANE_DEPENDENCY_ERROR, format!(\"Rust dependency `{dependency}` member `{member}` failed: {{error}}\"), crate::TERRANE_NO_SITE))) }}"
                     )
                 } else if self.discarded_call == Some(node.span) {
-                    format!("{{ {call}; Ok(()) }}")
+                    format!("{{ {invocation}; Ok(()) }}")
                 } else {
-                    format!("Ok({call})")
+                    format!("Ok({invocation})")
                 }
             } else if method.error.is_some() {
-                let caught = catch_unwind(&call);
                 format!(
                     "match {caught} {{ Ok(Ok(value)) => Ok(value), Ok(Err(error)) => Err(crate::TerraneForeignError(crate::TerraneError::custom_raised(crate::TERRANE_DEPENDENCY_ERROR, format!(\"Rust dependency `{dependency}` member `{member}` failed: {{error}}\"), crate::TERRANE_NO_SITE))), Err(payload) => Err(crate::__terrane_dependency_panic(payload, {dependency:?}, {member:?})) }}"
                 )
             } else {
-                let unwind_body = if self.discarded_call == Some(node.span) {
-                    format!("{{ {call}; }}")
-                } else {
-                    call
-                };
-                let caught = catch_unwind(&unwind_body);
                 format!(
                     "match {caught} {{ Ok(value) => Ok(value), Err(payload) => Err(crate::__terrane_dependency_panic(payload, {dependency:?}, {member:?})) }}"
                 )
+            };
+            if method.is_async {
+                format!("async move {{ {mapped} }}")
+            } else {
+                mapped
             }
-        } else {
-            call
-        };
-        let call = if contract.as_ref().is_some_and(|contract| contract.is_async)
-            && matches!(self.value_type(node), Some(ValueType::Task(_)))
-        {
-            format!("Box::pin({call})")
         } else {
             call
         };
         let function_value_call = callee.kind == SyntaxKind::Name
             && contract.is_none()
             && matches!(self.value_type(callee), Some(ValueType::Function(_, _)));
-        if contract.is_some_and(|contract| contract.throws) || foreign_error || function_value_call
-        {
-            let site = self.error_site(node);
-            let dependency_boundary = self
-                .package
-                .resolve_name_at(self.unit, callee.span.start, self.text(callee))
-                .is_some_and(|symbol| symbol.identity.starts_with("/deps/"));
+        let needs_error_mapping = contract.as_ref().is_some_and(|contract| contract.throws)
+            || foreign_error
+            || function_value_call;
+        let site = needs_error_mapping
+            .then(|| self.error_site(node))
+            .unwrap_or_default();
+        let dependency_boundary = self
+            .package
+            .resolve_name_at(self.unit, callee.span.start, self.text(callee))
+            .is_some_and(|symbol| symbol.identity.starts_with("/deps/"));
+        let map_errors = |call: &str| {
+            if !needs_error_mapping {
+                return call.to_owned();
+            }
             if foreign_error || dependency_boundary {
                 if self.try_completion {
                     format!("__terrane_raised_completion!({call}, {site})")
@@ -1007,8 +1018,20 @@ impl Emitter<'_> {
             } else {
                 format!("__terrane_traced({call}, {site})")
             }
+        };
+        if contract.as_ref().is_some_and(|contract| contract.is_async)
+            && matches!(self.value_type(node), Some(ValueType::Task(_)))
+        {
+            if foreign_error || dependency_boundary {
+                let completed = format!("__terrane_raised_err(__terrane_future.await, {site})");
+                format!(
+                    "{{ let __terrane_future = {call}; Box::pin(async move {{ {completed} }}) }}"
+                )
+            } else {
+                format!("Box::pin({call})")
+            }
         } else {
-            call
+            map_errors(&call)
         }
     }
 }

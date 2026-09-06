@@ -4155,6 +4155,13 @@ Rust borrow and mutable binding. On unwinding profiles, a panic crossing a gener
 `AssertUnwindSafe` invariant because the receiver is already governed by Terrane's ownership
 rules; receiver-free shims retain Rust's ordinary `UnwindSafe` proof.
 
+A projected Rust `async fn` remains asynchronous in its Terrane callable contract. Calling it
+constructs a Terrane task; awaiting that task polls the Rust future. Its generated async shim awaits
+the Rust operation before applying the same argument conversion, result conversion, `Result` error
+mapping, receiver ownership, and panic-containment rules as a synchronous projected member. The
+future is constructed when the Terrane call expression is evaluated rather than being deferred
+until a later `await`.
+
 Cargo and rustc remain authoritative. Projection and editor information are advisory and derived from the resolved package rather than predefined by Terrane. The language server uses the shared artifact for completion, signature help, hover, exact Rust paths, and declined-item reasons. Projection executes under the build-script capability policy.
 
 The generated dependency crate graph preserves the manifest's selected features and default-feature policy, compiles offline and frozen after an online fetch, and records whether containment was enforced. Platforms with `bwrap` contain rustdoc and generated-crate compilation; platforms without it report the unavailable tier and continue under the declared host policy. Its cache identity covers the manifest, lock checksum, selected features, target triple, Rust toolchain, package source checksums, and sandbox tier. The project-local cache retains the current projection and at most three prior projection artifacts for ordinary rollback and editor churn. Machine-independent `terrane-projection.lock` history records projected members by resolved dependency version; a lock update that removes a crossed member produces `S2031` at the Terrane import with the member and version change.

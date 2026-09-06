@@ -382,6 +382,7 @@ fn run_cargo(
         let fetch = fetch
             .args(["fetch", "--manifest-path"])
             .arg(crate_dir.join("Cargo.toml"))
+            .current_dir(crate_dir)
             .output()
             .map_err(|error| {
                 CliFailure::backend(format!("failed to fetch generated dependencies: {error}"))

@@ -1,0 +1,12 @@
+namespace app
+from /deps/async-witness import echo_after_yield, checked_echo
+from /core/errors import dependency-error
+
+async function main;
+  echoed string = await echo_after_yield; >projected async success
+  print; echoed
+  try
+    rejected string = await checked_echo; >reject
+    print; rejected
+  catch dependency-error
+    print; 'caught projected async failure'

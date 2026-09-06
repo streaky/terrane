@@ -1,0 +1,6 @@
+namespace app
+from /deps/async-witness import echo_after_yield
+
+function main;
+  value string = await echo_after_yield; >invalid context
+  print; value

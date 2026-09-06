@@ -1,0 +1,49 @@
+{
+  "format": 2,
+  "dependencies": [
+    {
+      "name": "async-witness",
+      "version": "0.1.0",
+      "members": [
+        [
+          "/deps/async-witness",
+          "ValidationError"
+        ],
+        [
+          "/deps/async-witness",
+          "checked_echo"
+        ],
+        [
+          "/deps/async-witness",
+          "echo_after_yield"
+        ]
+      ]
+    }
+  ],
+  "removed": [],
+  "cache_identity": "9abc2452af723ad943bcafa2dc2f1a32d9b0924cf9c043f9bc74ca1958092f03",
+  "source": "Local",
+  "rustdoc_format": 57,
+  "projection_schema": "15",
+  "content_hash": "c4326ef70118aa85ebef144bbe84c7915384fdcd815edb395436209d446b76cf",
+  "resolution": {
+    "outcome": "LocalRustdoc",
+    "events": [
+      {
+        "source": "BundledArtifact",
+        "status": "Skipped",
+        "reason": "bundled projection distribution is deliberately deferred until Terrane has a release artifact channel"
+      },
+      {
+        "source": "PublishedArtifact",
+        "status": "Skipped",
+        "reason": "`TERRANE_PROJECTION_ARTIFACT_URL` is not configured"
+      },
+      {
+        "source": "LocalRustdoc",
+        "status": "Generated",
+        "reason": "no reusable exact artifact was available; generated with the pinned local rustdoc toolchain"
+      }
+    ]
+  }
+}

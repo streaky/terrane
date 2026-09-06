@@ -1,6 +1,51 @@
 use super::super::prelude::*;
 
 impl Emitter<'_> {
+    fn await_expression(&mut self, operand: &SyntaxNode) -> String {
+        let awaited = format!("__terrane_await({}).await", self.expression(operand));
+        let callee = (operand.kind == SyntaxKind::CallExpression)
+            .then(|| operand.children.first())
+            .flatten();
+        let contract = callee.and_then(|callee| self.contract_for_call(callee));
+        let projected = callee.is_some_and(|callee| {
+            if callee.kind == SyntaxKind::Name {
+                return self
+                    .package
+                    .resolve_name_at(self.unit, callee.span.start, self.text(callee))
+                    .and_then(|symbol| symbol.identity.rsplit_once("::"))
+                    .and_then(|(namespace, name)| self.package.projection.item(namespace, name))
+                    .is_some_and(|item| {
+                        matches!(&item.kind, crate::projection::ProjectedKind::Function(_))
+                    });
+            }
+            let Some(contract) = contract else {
+                return false;
+            };
+            let Some(receiver) = callee.children.first() else {
+                return false;
+            };
+            let Some(ValueType::Object(identity)) = self.value_type(receiver) else {
+                return false;
+            };
+            self.package
+                .projection
+                .method(&identity.namespace, &identity.name, &contract.name)
+                .is_some()
+        });
+        let throws = projected || contract.is_some_and(|contract| contract.throws);
+        if !throws {
+            return awaited;
+        }
+        let site = self.error_site(operand);
+        if self.try_completion {
+            format!("__terrane_traced_completion!({awaited}, {site})")
+        } else if self.propagate_errors {
+            format!("__terrane_traced_err({awaited}, {site})?")
+        } else {
+            format!("__terrane_traced({awaited}, {site})")
+        }
+    }
+
     pub(super) fn expression(&mut self, node: &SyntaxNode) -> String {
         match node.kind {
             SyntaxKind::Literal => literal(self.text(node)),
@@ -65,7 +110,7 @@ impl Emitter<'_> {
                     };
                 }
                 if source_operator == "await" {
-                    return format!("__terrane_await({}).await", self.expression(operand));
+                    return self.await_expression(operand);
                 }
                 if source_operator == "move" {
                     return match operand.kind {
@@ -667,7 +712,7 @@ impl Emitter<'_> {
                 };
                 let operator = self.unary_operator(node).unwrap_or_default();
                 if operator == "await" {
-                    format!("__terrane_await({}).await", self.expression(operand))
+                    self.await_expression(operand)
                 } else {
                     format!("{operator}{}", self.adaptive_expression(operand))
                 }
