@@ -791,7 +791,7 @@ fn write_generated_support(directory: &Path, uses_platform_support: bool) -> std
     )?;
     write_if_changed(
         &document.join("Cargo.toml"),
-        format!("[package]\nname = \"terrane-document-support\"\nversion = \"0.1.0\"\nedition = \"2024\"\nrust-version = {:?}\n\n[dependencies]\nserde = \"=1.0.228\"\nserde_json = {{ version = \"=1.0.145\", features = [\"arbitrary_precision\", \"unbounded_depth\"] }}\nurl = \"=2.5.7\"\nyaml-rust2 = \"=0.10.4\"\n", terrane_compiler::BUILD_TOOLCHAIN).as_bytes(),
+        format!("[package]\nname = \"terrane-document-support\"\nversion = \"0.1.0\"\nedition = \"2024\"\nrust-version = {:?}\n\n[dependencies]\nserde = \"1\"\nserde_json = {{ version = \"1\", features = [\"arbitrary_precision\", \"unbounded_depth\"] }}\nurl = \"=2.5.7\"\nyaml-rust2 = \"=0.10.4\"\n", terrane_compiler::BUILD_TOOLCHAIN).as_bytes(),
     )?;
     write_if_changed(
         &document.join("src/lib.rs"),

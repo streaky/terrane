@@ -253,6 +253,7 @@ fn compile_and_maybe_run(
     };
     fs::write(build_dir.join("src/main.rs"), rust).unwrap();
     let output = Command::new("cargo")
+        .arg(format!("+{}", terrane_compiler::BUILD_TOOLCHAIN))
         .args(["build", "--quiet", "--manifest-path"])
         .arg(build_dir.join("Cargo.toml"))
         .env("CARGO_TARGET_DIR", &build.target)
@@ -269,6 +270,7 @@ fn compile_and_maybe_run(
     );
     if dependency_panic_test.is_some() {
         let output = Command::new("cargo")
+            .arg(format!("+{}", terrane_compiler::BUILD_TOOLCHAIN))
             .args(["test", "--quiet", "--manifest-path"])
             .arg(build_dir.join("Cargo.toml"))
             .env("CARGO_TARGET_DIR", &build.target)
@@ -405,7 +407,7 @@ fn write_support_crates(directory: &Path) {
     .unwrap();
     fs::write(
         document.join("Cargo.toml"),
-        "[package]\nname = \"terrane-document-support\"\nversion = \"0.1.0\"\nedition = \"2024\"\n\n[dependencies]\nserde = \"=1.0.228\"\nserde_json = { version = \"=1.0.145\", features = [\"arbitrary_precision\", \"unbounded_depth\"] }\nurl = \"=2.5.7\"\nyaml-rust2 = \"=0.10.4\"\n",
+        "[package]\nname = \"terrane-document-support\"\nversion = \"0.1.0\"\nedition = \"2024\"\n\n[dependencies]\nserde = \"1\"\nserde_json = { version = \"1\", features = [\"arbitrary_precision\", \"unbounded_depth\"] }\nurl = \"=2.5.7\"\nyaml-rust2 = \"=0.10.4\"\n",
     )
     .unwrap();
     fs::write(
