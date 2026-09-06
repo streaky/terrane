@@ -27,6 +27,10 @@ pub struct Projection {
     #[serde(default)]
     pub source: ProjectionSource,
     #[serde(default)]
+    pub probes: Vec<crate::ProbeEvidence>,
+    #[serde(default)]
+    pub probe_wall_time_ms: u128,
+    #[serde(default)]
     pub removed: Vec<RemovedItem>,
 }
 
@@ -650,6 +654,10 @@ impl std::error::Error for ProjectionError {}
 /// # Errors
 /// Returns a projection error when Cargo resolution, rustdoc generation, cache input reading, or
 /// projection of the resolved metadata fails.
+#[expect(
+    clippy::too_many_lines,
+    reason = "one transactional resolution path owns fetch, exact cache, artifact, and local fallback"
+)]
 pub fn resolve(
     root: &Path,
     dependencies: &[RustDependency],
@@ -660,6 +668,8 @@ pub fn resolve(
             cache_identity: String::from("no-rust-dependencies"),
             source: ProjectionSource::Local,
             dependencies: Vec::new(),
+            probes: Vec::new(),
+            probe_wall_time_ms: 0,
             removed: Vec::new(),
             containment: sandbox,
         });
@@ -705,6 +715,9 @@ pub fn resolve(
         write_if_changed(&cache_path, &bytes)?;
         apply_projection_history(root, &mut projection)?;
         prune_projection_cache(&workspace, &cache_path)?;
+        projection
+            .probes
+            .sort_by(|left, right| left.question.cmp(&right.question));
         return Ok(projection);
     }
     let mut projected = Vec::new();
@@ -753,6 +766,8 @@ pub fn resolve(
         source: ProjectionSource::Local,
         dependencies: projected,
         containment: sandbox,
+        probes: Vec::new(),
+        probe_wall_time_ms: 0,
         removed: Vec::new(),
     };
     let bytes = serde_json::to_vec_pretty(&projection).map_err(|error| ProjectionError {
@@ -787,22 +802,19 @@ fn fetch_remote_projection(
         .timeout_global(Some(Duration::from_secs(10)))
         .build()
         .into();
-    let mut response = match agent.get(&url).call() {
-        Ok(response) => response,
-        Err(_) => return Ok(None),
+    let Ok(mut response) = agent.get(&url).call() else {
+        return Ok(None);
     };
-    let bytes = match response
+    let Ok(bytes) = response
         .body_mut()
         .with_config()
         .limit(64 * 1024 * 1024)
         .read_to_vec()
-    {
-        Ok(bytes) => bytes,
-        Err(_) => return Ok(None),
+    else {
+        return Ok(None);
     };
-    let artifact = match serde_json::from_slice::<ProjectionArtifact>(&bytes) {
-        Ok(artifact) => artifact,
-        Err(_) => return Ok(None),
+    let Ok(artifact) = serde_json::from_slice::<ProjectionArtifact>(&bytes) else {
+        return Ok(None);
     };
     Ok(validate_projection_artifact(
         artifact,
@@ -2291,6 +2303,8 @@ mod tests {
                 dependencies: Vec::new(),
                 containment: Containment::Enforced,
                 source: ProjectionSource::Local,
+                probes: Vec::new(),
+                probe_wall_time_ms: 0,
                 removed: Vec::new(),
             },
         };
@@ -2351,6 +2365,8 @@ mod tests {
             dependencies: vec![dependency("1.0.0", vec![item])],
             containment: Containment::Unavailable,
             source: ProjectionSource::Local,
+            probes: Vec::new(),
+            probe_wall_time_ms: 0,
             removed: Vec::new(),
         };
         apply_projection_history(&directory, &mut old).unwrap();
@@ -2359,6 +2375,8 @@ mod tests {
             dependencies: vec![dependency("2.0.0", Vec::new())],
             containment: Containment::Unavailable,
             source: ProjectionSource::Local,
+            probes: Vec::new(),
+            probe_wall_time_ms: 0,
             removed: Vec::new(),
         };
         apply_projection_history(&directory, &mut current).unwrap();

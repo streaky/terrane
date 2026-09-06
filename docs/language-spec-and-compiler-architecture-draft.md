@@ -4084,6 +4084,15 @@ never widen a match. A verified remote result is written to the ordinary project
 later offline compilation does not contact the service or require the nightly projector. Projection
 metadata records whether the admitted surface came from a verified remote artifact or local rustdoc.
 
+When typed metadata cannot prove a concrete Rust bound or reveal an emit-and-consume macro result,
+the projection compile-time oracle generates a deterministic minimal crate against the already
+resolved dependency workspace. Bound questions are batched and answer `yes`, `no`, or `unknown`:
+only rustc's trait-bound failure is `no`; resolution, toolchain, containment, and unrelated compiler
+failures are `unknown` and may not silently become a declined member. Macro probes run rustdoc over
+the generated invocation and return its expanded public API. Results are cached under the shared
+projection identity, serialized into projection artifacts, and include compiled-probe count and
+wall time. An exact cached answer is reused without compiling the probe again.
+
 Projected type identity follows the Rust item rather than the importing module alone. A public re-export is resolved to its canonical Rust path before the Terrane namespace and object identity are recorded. Therefore a re-exported type and its defining item denote one type, while distinct Rust items with the same short name in sibling modules remain distinct. Generated Rust imports each canonical path at most once per generated module and aliases it to the compiler-owned name derived from that namespace-qualified identity.
 
 The compiler generates Rust shims only for projected members crossed by Terrane source. This is direct Rust-to-Rust calling inside the generated crate, not an adapter or marshalled runtime boundary. `Option<T>` projects as `T|none`. A representable `Result<T, E>` returns `T` and throws the projected error class. `&self` projects as a shared receiver, `&mut self` records receiver mutability on the projected contract, and `self` retains `move` semantics under the ordinary foreign-resource ownership rule. Both borrowed receiver forms use ordinary Terrane member-call syntax; the projected contract makes lowering emit the required Rust borrow and mutable binding. On unwinding profiles, a panic crossing a generated shim becomes `dependency-panic`; aborting profiles do not claim containment.

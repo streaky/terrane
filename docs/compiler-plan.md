@@ -1875,6 +1875,10 @@ An optional trusted HTTPS projection-artifact lookup verifies the complete depen
 toolchain, rustdoc-format, and projection-schema identity before admission; verified results enter
 the ordinary offline cache, while unavailable or mismatched artifacts take the same exact local
 rustdoc fallback.
+The projection layer also owns a deterministic contained compile-time oracle for questions typed
+metadata cannot answer. It batches and caches bound assertions with distinct yes/no/unknown results,
+recovers macro-expanded public API through rustdoc, and records questions, answers, probe count, and
+wall time in the transferable artifact.
 `terrane-projection.lock` provides deterministic machine-independent history and `S2031` names a
 removed member and its resolved version transition. The accepted
 `rust-dependency-deferred-surface` execution case crosses a `bytes` receiver-first trait method and

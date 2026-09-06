@@ -15,6 +15,7 @@ pub mod syntax;
 pub mod tokens;
 pub mod types;
 
+mod projection_oracle;
 pub use compiler::{
     Compilation, CompilationFailure, CompilerOptions, RustArtifactError, compile, compile_package,
     compile_package_with_options, compile_with_options,
@@ -23,6 +24,9 @@ pub use diagnostic::{Diagnostic, Severity};
 pub use package::{
     BuildToolchain, CapabilityProfile, ExecutorProfile, IMPLICIT_PACKAGE_ID, MANIFEST_FILE_NAME,
     Package, PackageLoadError, PanicProfile, ReflectionProfile, RustDependency, SourceUnit,
+};
+pub use projection_oracle::{
+    BoundQuestion, ProbeAnswer, ProbeEvidence, ProbeReport, ProjectionOracle,
 };
 pub use semantics::{
     BOOTSTRAP_VERSION, BoundMethod, EvaluationKind, EvaluationStep, FunctionContract, MemberFamily,
