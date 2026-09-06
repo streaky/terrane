@@ -4085,14 +4085,22 @@ dependency modules lower instantiated spellings as Rust type aliases rather than
 paths. Lifetime-parameterized types and generic parameters without defaults remain explicit
 declines until a call-directed or non-escaping-chain rule proves a concrete use.
 
-Before running local rustdoc, the projector may request an artifact from the trusted HTTPS repository
-configured by `TERRANE_PROJECTION_ARTIFACT_URL`. An artifact is accepted only when its cache
-identity and explicit metadata match the complete dependency request, target triple, stable build
-toolchain, rustdoc toolchain, rustdoc format, and projection schema. Missing, malformed, unreadable,
-or mismatched artifacts are cache misses and fall back to the exact local pinned-nightly path; they
-never widen a match. A verified remote result is written to the ordinary project-local cache, so
-later offline compilation does not contact the service or require the nightly projector. Projection
-metadata records whether the admitted surface came from a verified remote artifact or local rustdoc.
+Before running local rustdoc, the projector may request an artifact from the trusted HTTPS
+repository. The response is accepted only when its envelope matches the complete cache identity:
+dependencies, exact versions, default-feature switches, feature sets, target conditions, selected
+target, build toolchain, rustdoc toolchain, rustdoc format, and projection schema. A SHA-256 content
+hash over the transferable projection payload must also match both the envelope and payload.
+Missing, malformed, unreadable, hash-invalid, or metadata-mismatched artifacts are explicit
+resolution events and fall back to the exact local pinned-nightly path; they never widen a match.
+A verified published result enters the ordinary project-local cache, so later offline compilation
+does not contact the service or require the nightly projector. Projection metadata and
+`terrane-projection.lock` record the final outcome, ordered source attempts, fallback reasons,
+provenance, rustdoc format, projection schema, cache identity, and verified content hash.
+
+A bundled artifact source is deliberately deferred until Terrane has a release artifact channel
+that can ship and update the corresponding envelopes. Resolution records that source as skipped
+rather than silently omitting it; current source order is exact local cache, published artifact,
+then local rustdoc.
 
 When typed metadata cannot prove a concrete Rust bound or reveal an emit-and-consume macro result,
 the projection compile-time oracle can generate a deterministic minimal crate against the already

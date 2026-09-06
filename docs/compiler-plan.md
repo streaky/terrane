@@ -1872,9 +1872,12 @@ version-matched typed `rustdoc-types` schema; malformed documents and format dri
 Rustdoc and generated-crate compilation run offline/frozen inside `bwrap` where available, with the
 unavailable host tier reported instead of rejected.
 An optional trusted HTTPS projection-artifact lookup verifies the complete dependency, target,
-toolchain, rustdoc-format, and projection-schema identity before admission; verified results enter
-the ordinary offline cache, while unavailable or mismatched artifacts take the same exact local
-rustdoc fallback.
+toolchain, rustdoc-format, projection-schema, and SHA-256 payload identity before admission.
+Verified results enter the ordinary offline cache. Every cache, published, bundled, and local
+attempt records its hit, miss, rejection, skip, generation, or fallback reason and the final
+outcome; history format 2 persists provenance, rustdoc format, projection schema, cache identity,
+and content hash. Bundled artifacts are explicitly deferred until Terrane has a release artifact
+channel, and appear as a recorded skipped source rather than an accidentally absent branch.
 The projection layer owns infrastructure for deterministic contained compile-time questions that
 typed metadata cannot answer. Bound and exact-call probes require positive compiler-artifact
 evidence for `yes`, preserve probe-local bound errors as `no`, classify every other failure as
@@ -1899,8 +1902,10 @@ deferred because no exact application witness requires the direct generic surfac
 narrow facade is the cheaper boundary. The exact `query(...).bind(...).execute(...)` chain
 terminates in an async operation and therefore cannot become executable before the Phase B
 lowering contract. The probe inventory records both decisions and their exact witnesses.
-`terrane-projection.lock` provides deterministic machine-independent history and `S2031` names a
-removed member and its resolved version transition. The accepted
+`terrane-projection.lock` format 2 provides deterministic machine-independent history, records
+projection provenance and content identity, migrates format 1 on the next successful projection,
+and rejects same-input replay drift with both hashes. `S2031` names a removed member and its
+resolved version transition. The accepted
 `rust-dependency-deferred-surface` execution case crosses a `bytes` receiver-first trait method and
 uses `serde_json`'s `Option<Number>`, `u128` edge coercion, data-free enum variants, and enum
 comparison; focused package, projection, semantic, generated-Rust, and rejection checks cover the

@@ -73,9 +73,11 @@ artifact do not. Bubblewrap contains Cargo and rustdoc inspection of third-party
 dependency-free Terrane projects do not require it.
 
 Set `TERRANE_PROJECTION_ARTIFACT_URL` to a trusted HTTPS projection repository to try exact
-precomputed dependency surfaces before local rustdoc. Terrane verifies the dependency, feature,
-target, toolchain, rustdoc-format, and projection-schema identity; every miss or mismatch falls back
-to local generation. A verified artifact is cached project-locally for subsequent offline builds.
+precomputed dependency surfaces before local rustdoc. Terrane verifies dependency, feature, target,
+toolchain, rustdoc-format, projection-schema, and SHA-256 payload identity. Resolution events and
+fallback reasons are persisted in `terrane-projection.lock`; a verified artifact is cached locally
+for subsequent offline builds. Bundled artifacts are deliberately deferred until Terrane has a
+release artifact channel, and resolution records that source as skipped.
 The CLI integration suite regenerates a reviewed representative dependency stack and compares its
 machine-independent projection lock byte for byte. Upstream additions, removals, signature or
 identity changes, and newly declined members therefore require an explicit reviewed lock update.

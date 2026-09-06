@@ -17,12 +17,14 @@ use sha2::{Digest, Sha256};
 use crate::RustDependency;
 
 pub use crate::RUSTDOC_TOOLCHAIN;
-const PROJECTION_SCHEMA: &str = "12";
+const PROJECTION_SCHEMA: &str = "13";
 const MAX_PROJECTION_CACHE_RECORDS: usize = 4;
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub struct Projection {
     pub cache_identity: String,
+    #[serde(default)]
+    pub content_hash: String,
     pub dependencies: Vec<ProjectedDependency>,
     pub containment: Containment,
     #[serde(default)]
@@ -31,6 +33,8 @@ pub struct Projection {
     pub probes: Vec<crate::ProbeEvidence>,
     #[serde(default)]
     pub probe_wall_time_ms: u128,
+    #[serde(default)]
+    pub resolution: ProjectionResolution,
     #[serde(default)]
     pub removed: Vec<RemovedItem>,
 }
@@ -48,10 +52,50 @@ pub enum ProjectionSource {
     Local,
 }
 
+#[derive(Clone, Copy, Debug, Default, Deserialize, Eq, PartialEq, Serialize)]
+pub enum ResolutionOutcome {
+    NoDependencies,
+    ExactCache,
+    PublishedArtifact,
+    #[default]
+    LocalRustdoc,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
+pub enum ResolutionSource {
+    ExactCache,
+    BundledArtifact,
+    PublishedArtifact,
+    LocalRustdoc,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
+pub enum ResolutionStatus {
+    Hit,
+    Miss,
+    Rejected,
+    Skipped,
+    Generated,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+pub struct ResolutionEvent {
+    pub source: ResolutionSource,
+    pub status: ResolutionStatus,
+    pub reason: String,
+}
+
+#[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq, Serialize)]
+pub struct ProjectionResolution {
+    pub outcome: ResolutionOutcome,
+    pub events: Vec<ResolutionEvent>,
+}
+
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 struct ProjectionArtifact {
     format: u32,
     cache_identity: String,
+    content_hash: String,
     target: String,
     build_toolchain: String,
     rustdoc_toolchain: String,
@@ -84,6 +128,11 @@ impl From<&RustDependency> for ArtifactDependency {
             effects: dependency.effects.clone(),
         }
     }
+}
+
+enum PublishedProjection {
+    Hit(Projection),
+    Event(ResolutionEvent),
 }
 #[derive(Clone, Copy)]
 enum CargoToolchain {
@@ -121,6 +170,18 @@ struct ProjectionHistory {
     dependencies: Vec<ProjectionHistoryDependency>,
     #[serde(default)]
     removed: Vec<RemovedItem>,
+    #[serde(default)]
+    cache_identity: Option<String>,
+    #[serde(default)]
+    source: Option<ProjectionSource>,
+    #[serde(default)]
+    rustdoc_format: Option<u32>,
+    #[serde(default)]
+    projection_schema: Option<String>,
+    #[serde(default)]
+    content_hash: Option<String>,
+    #[serde(default)]
+    resolution: Option<ProjectionResolution>,
 }
 
 fn projection_history_format() -> u32 {
@@ -782,15 +843,22 @@ pub fn resolve(
 ) -> Result<Projection, ProjectionError> {
     let sandbox = containment();
     if dependencies.is_empty() {
-        return Ok(Projection {
+        let mut projection = Projection {
             cache_identity: String::from("no-rust-dependencies"),
+            content_hash: String::new(),
             source: ProjectionSource::Local,
             dependencies: Vec::new(),
             probes: Vec::new(),
             probe_wall_time_ms: 0,
+            resolution: ProjectionResolution {
+                outcome: ResolutionOutcome::NoDependencies,
+                events: Vec::new(),
+            },
             removed: Vec::new(),
             containment: sandbox,
-        });
+        };
+        projection.content_hash = projection_content_hash(&projection)?;
+        return Ok(projection);
     }
     let workspace = root.join(".trn/dependencies");
     write_workspace(&workspace, dependencies)?;
@@ -819,25 +887,64 @@ pub fn resolve(
                     cache_path.display()
                 ),
             })?;
+        let actual_hash = projection_content_hash(&cached)?;
+        if cached.content_hash != actual_hash {
+            return Err(ProjectionError {
+                message: format!(
+                    "cached dependency projection `{}` failed its content hash: expected `{}`, computed `{actual_hash}`",
+                    cache_path.display(),
+                    cached.content_hash
+                ),
+            });
+        }
         cached.containment = sandbox;
+        cached.resolution = ProjectionResolution {
+            outcome: ResolutionOutcome::ExactCache,
+            events: vec![ResolutionEvent {
+                source: ResolutionSource::ExactCache,
+                status: ResolutionStatus::Hit,
+                reason: format!("matched projection identity `{identity}`"),
+            }],
+        };
         apply_projection_history(root, &mut cached)?;
         prune_projection_cache(&workspace, &cache_path)?;
         return Ok(cached);
     }
-    if let Some(mut projection) =
-        fetch_remote_projection(&identity, &target, dependencies, sandbox)?
-    {
-        let bytes = serde_json::to_vec_pretty(&projection).map_err(|error| ProjectionError {
-            message: format!("cannot serialize remote dependency projection: {error}"),
-        })?;
-        write_if_changed(&cache_path, &bytes)?;
-        apply_projection_history(root, &mut projection)?;
-        prune_projection_cache(&workspace, &cache_path)?;
-        projection
-            .probes
-            .sort_by(|left, right| left.question.cmp(&right.question));
-        return Ok(projection);
+
+    let mut resolution_events = vec![ResolutionEvent {
+        source: ResolutionSource::BundledArtifact,
+        status: ResolutionStatus::Skipped,
+        reason: "bundled projection distribution is deliberately deferred until Terrane has a release artifact channel".to_owned(),
+    }];
+    match fetch_remote_projection(&identity, &target, dependencies, sandbox)? {
+        PublishedProjection::Hit(mut projection) => {
+            resolution_events.push(ResolutionEvent {
+                source: ResolutionSource::PublishedArtifact,
+                status: ResolutionStatus::Hit,
+                reason: format!(
+                    "verified identity and content hash `{}`",
+                    projection.content_hash
+                ),
+            });
+            projection.resolution = ProjectionResolution {
+                outcome: ResolutionOutcome::PublishedArtifact,
+                events: resolution_events,
+            };
+            let bytes =
+                serde_json::to_vec_pretty(&projection).map_err(|error| ProjectionError {
+                    message: format!("cannot serialize published dependency projection: {error}"),
+                })?;
+            write_if_changed(&cache_path, &bytes)?;
+            apply_projection_history(root, &mut projection)?;
+            prune_projection_cache(&workspace, &cache_path)?;
+            projection
+                .probes
+                .sort_by(|left, right| left.question.cmp(&right.question));
+            return Ok(projection);
+        }
+        PublishedProjection::Event(event) => resolution_events.push(event),
     }
+
     let mut projected = Vec::new();
     for dependency in dependencies {
         let package_spec = dependency.version.strip_prefix('=').map_or_else(
@@ -880,20 +987,30 @@ pub fn resolve(
         projected.push(project_rustdoc(dependency, &bytes)?);
     }
     enforce_transitive_reachability(&mut projected, dependencies, &workspace)?;
-    let projection = Projection {
+    resolution_events.push(ResolutionEvent {
+        source: ResolutionSource::LocalRustdoc,
+        status: ResolutionStatus::Generated,
+        reason: "no reusable exact artifact was available; generated with the pinned local rustdoc toolchain".to_owned(),
+    });
+    let mut projection = Projection {
         cache_identity: identity,
+        content_hash: String::new(),
         source: ProjectionSource::Local,
         dependencies: projected,
         containment: sandbox,
         probes: Vec::new(),
         probe_wall_time_ms: 0,
+        resolution: ProjectionResolution {
+            outcome: ResolutionOutcome::LocalRustdoc,
+            events: resolution_events,
+        },
         removed: Vec::new(),
     };
+    projection.content_hash = projection_content_hash(&projection)?;
     let bytes = serde_json::to_vec_pretty(&projection).map_err(|error| ProjectionError {
         message: format!("cannot serialize dependency projection: {error}"),
     })?;
     write_if_changed(&cache_path, &bytes)?;
-    let mut projection = projection;
     apply_projection_history(root, &mut projection)?;
     prune_projection_cache(&workspace, &cache_path)?;
     Ok(projection)
@@ -903,9 +1020,13 @@ fn fetch_remote_projection(
     target: &str,
     dependencies: &[RustDependency],
     containment: Containment,
-) -> Result<Option<Projection>, ProjectionError> {
+) -> Result<PublishedProjection, ProjectionError> {
     let Some(base_url) = std::env::var_os("TERRANE_PROJECTION_ARTIFACT_URL") else {
-        return Ok(None);
+        return Ok(PublishedProjection::Event(ResolutionEvent {
+            source: ResolutionSource::PublishedArtifact,
+            status: ResolutionStatus::Skipped,
+            reason: "`TERRANE_PROJECTION_ARTIFACT_URL` is not configured".to_owned(),
+        }));
     };
     let base_url = base_url.to_string_lossy();
     if !base_url.starts_with("https://") {
@@ -922,27 +1043,49 @@ fn fetch_remote_projection(
         .timeout_global(Some(Duration::from_secs(10)))
         .build()
         .into();
-    let Ok(mut response) = agent.get(&url).call() else {
-        return Ok(None);
+    let mut response = match agent.get(&url).call() {
+        Ok(response) => response,
+        Err(error) => {
+            return Ok(PublishedProjection::Event(ResolutionEvent {
+                source: ResolutionSource::PublishedArtifact,
+                status: ResolutionStatus::Miss,
+                reason: format!("artifact request `{url}` was unavailable: {error}"),
+            }));
+        }
     };
-    let Ok(bytes) = response
+    let bytes = match response
         .body_mut()
         .with_config()
         .limit(64 * 1024 * 1024)
         .read_to_vec()
-    else {
-        return Ok(None);
+    {
+        Ok(bytes) => bytes,
+        Err(error) => {
+            return Ok(PublishedProjection::Event(ResolutionEvent {
+                source: ResolutionSource::PublishedArtifact,
+                status: ResolutionStatus::Rejected,
+                reason: format!("artifact body could not be read: {error}"),
+            }));
+        }
     };
-    let Ok(artifact) = serde_json::from_slice::<ProjectionArtifact>(&bytes) else {
-        return Ok(None);
+    let artifact = match serde_json::from_slice::<ProjectionArtifact>(&bytes) {
+        Ok(artifact) => artifact,
+        Err(error) => {
+            return Ok(PublishedProjection::Event(ResolutionEvent {
+                source: ResolutionSource::PublishedArtifact,
+                status: ResolutionStatus::Rejected,
+                reason: format!("artifact JSON did not match the projection envelope: {error}"),
+            }));
+        }
     };
-    Ok(validate_projection_artifact(
-        artifact,
-        identity,
-        target,
-        dependencies,
-        containment,
-    ))
+    match validate_projection_artifact(artifact, identity, target, dependencies, containment) {
+        Ok(projection) => Ok(PublishedProjection::Hit(projection)),
+        Err(reason) => Ok(PublishedProjection::Event(ResolutionEvent {
+            source: ResolutionSource::PublishedArtifact,
+            status: ResolutionStatus::Rejected,
+            reason,
+        })),
+    }
 }
 
 fn validate_projection_artifact(
@@ -951,42 +1094,79 @@ fn validate_projection_artifact(
     target: &str,
     dependencies: &[RustDependency],
     containment: Containment,
-) -> Option<Projection> {
+) -> Result<Projection, String> {
     let expected_dependencies = dependencies
         .iter()
         .map(ArtifactDependency::from)
         .collect::<Vec<_>>();
-    if artifact.format != 1
-        || artifact.cache_identity != identity
-        || artifact.target != target
-        || artifact.build_toolchain != crate::BUILD_TOOLCHAIN
-        || artifact.rustdoc_toolchain != RUSTDOC_TOOLCHAIN
-        || artifact.rustdoc_format != rustdoc_types::FORMAT_VERSION
-        || artifact.projection_schema != PROJECTION_SCHEMA
-        || artifact.dependencies != expected_dependencies
-        || artifact.projection.cache_identity != identity
-    {
-        return None;
+    let mismatch = if artifact.format != 1 {
+        Some(format!(
+            "envelope format {} is not supported",
+            artifact.format
+        ))
+    } else if artifact.cache_identity != identity {
+        Some("cache identity mismatch".to_owned())
+    } else if artifact.target != target {
+        Some(format!(
+            "target mismatch: expected `{target}`, found `{}`",
+            artifact.target
+        ))
+    } else if artifact.build_toolchain != crate::BUILD_TOOLCHAIN {
+        Some("stable build toolchain mismatch".to_owned())
+    } else if artifact.rustdoc_toolchain != RUSTDOC_TOOLCHAIN {
+        Some("rustdoc toolchain mismatch".to_owned())
+    } else if artifact.rustdoc_format != rustdoc_types::FORMAT_VERSION {
+        Some("rustdoc format mismatch".to_owned())
+    } else if artifact.projection_schema != PROJECTION_SCHEMA {
+        Some("projection schema mismatch".to_owned())
+    } else if artifact.dependencies != expected_dependencies {
+        Some("dependency, feature, or target metadata mismatch".to_owned())
+    } else if artifact.projection.cache_identity != identity {
+        Some("projection payload identity mismatch".to_owned())
+    } else {
+        None
+    };
+    if let Some(reason) = mismatch {
+        return Err(reason);
+    }
+    let computed = projection_content_hash(&artifact.projection).map_err(|error| error.message)?;
+    if artifact.content_hash != computed {
+        return Err(format!(
+            "content hash mismatch: envelope recorded `{}`, computed `{computed}`",
+            artifact.content_hash
+        ));
+    }
+    if artifact.projection.content_hash != artifact.content_hash {
+        return Err("projection payload content hash does not match its envelope".to_owned());
     }
     let mut projection = artifact.projection;
     projection.source = ProjectionSource::Remote;
     projection.containment = containment;
-    Some(projection)
+    Ok(projection)
 }
 
-fn apply_projection_history(
-    root: &Path,
-    projection: &mut Projection,
-) -> Result<(), ProjectionError> {
-    let path = root.join("terrane-projection.lock");
-    let previous = match fs::read(&path) {
+fn projection_content_hash(projection: &Projection) -> Result<String, ProjectionError> {
+    let payload = serde_json::to_vec(&(
+        &projection.cache_identity,
+        &projection.dependencies,
+        &projection.probes,
+        projection.probe_wall_time_ms,
+    ))
+    .map_err(|error| ProjectionError {
+        message: format!("cannot encode projection content hash: {error}"),
+    })?;
+    Ok(format!("{:x}", Sha256::digest(payload)))
+}
+
+fn read_projection_history(path: &Path) -> Result<Option<ProjectionHistory>, ProjectionError> {
+    match fs::read(path) {
         Ok(bytes) => {
             let history = serde_json::from_slice::<ProjectionHistory>(&bytes).map_err(|error| {
                 ProjectionError {
                     message: format!("invalid projection history `{}`: {error}", path.display()),
                 }
             })?;
-            if history.format != 1 {
+            if !matches!(history.format, 1 | 2) {
                 return Err(ProjectionError {
                     message: format!(
                         "unsupported projection history format {} in `{}`",
@@ -995,18 +1175,24 @@ fn apply_projection_history(
                     ),
                 });
             }
-            Some(history)
+            Ok(Some(history))
         }
-        Err(error) if error.kind() == std::io::ErrorKind::NotFound => None,
-        Err(error) => {
-            return Err(ProjectionError {
-                message: format!(
-                    "cannot read projection history `{}`: {error}",
-                    path.display()
-                ),
-            });
-        }
-    };
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(None),
+        Err(error) => Err(ProjectionError {
+            message: format!(
+                "cannot read projection history `{}`: {error}",
+                path.display()
+            ),
+        }),
+    }
+}
+
+fn apply_projection_history(
+    root: &Path,
+    projection: &mut Projection,
+) -> Result<(), ProjectionError> {
+    let path = root.join("terrane-projection.lock");
+    let previous = read_projection_history(&path)?;
     let dependencies = projection
         .dependencies
         .iter()
@@ -1020,6 +1206,22 @@ fn apply_projection_history(
                 .collect(),
         })
         .collect::<Vec<_>>();
+    if let Some(previous) = &previous
+        && previous.format == 2
+        && previous.dependencies == dependencies
+        && previous.rustdoc_format == Some(rustdoc_types::FORMAT_VERSION)
+        && previous.projection_schema.as_deref() == Some(PROJECTION_SCHEMA)
+        && previous.content_hash.as_deref() != Some(&projection.content_hash)
+    {
+        return Err(ProjectionError {
+            message: format!(
+                "projection replay mismatch in `{}`: the same dependency and schema identity previously produced `{}`, now produced `{}`",
+                path.display(),
+                previous.content_hash.as_deref().unwrap_or("missing"),
+                projection.content_hash
+            ),
+        });
+    }
     let mut removed = previous
         .as_ref()
         .map_or_else(Vec::new, |history| history.removed.clone());
@@ -1061,9 +1263,15 @@ fn apply_projection_history(
         .sort_by(|left, right| (&left.namespace, &left.name).cmp(&(&right.namespace, &right.name)));
     projection.removed.clone_from(&removed);
     let history = ProjectionHistory {
-        format: 1,
+        format: 2,
         dependencies,
         removed,
+        cache_identity: Some(projection.cache_identity.clone()),
+        source: Some(projection.source),
+        rustdoc_format: Some(rustdoc_types::FORMAT_VERSION),
+        projection_schema: Some(PROJECTION_SCHEMA.to_owned()),
+        content_hash: Some(projection.content_hash.clone()),
+        resolution: Some(projection.resolution.clone()),
     };
     let mut bytes = serde_json::to_vec_pretty(&history).map_err(|error| ProjectionError {
         message: format!("cannot serialize projection history: {error}"),
@@ -2719,12 +2927,27 @@ mod tests {
 
     use super::{
         ArtifactDependency, Containment, ProjectedDependency, ProjectedFunction, ProjectedItem,
-        ProjectedKind, ProjectedType, Projection, ProjectionArtifact, ProjectionSource, Receiver,
+        ProjectedKind, ProjectedType, Projection, ProjectionArtifact, ProjectionHistory,
+        ProjectionResolution, ProjectionSource, Receiver, ResolutionOutcome,
         apply_projection_history, enforce_transitive_reachability, has_type_parameters,
-        project_rustdoc, project_type, prune_projection_cache, receiver_kind,
-        validate_projection_artifact,
+        project_rustdoc, project_type, projection_content_hash, prune_projection_cache,
+        receiver_kind, resolve, validate_projection_artifact,
     };
     use crate::RustDependency;
+
+    #[test]
+    fn dependency_free_resolution_records_its_outcome() {
+        let projection = resolve(std::path::Path::new("."), &[]).unwrap();
+        assert_eq!(
+            projection.resolution.outcome,
+            ResolutionOutcome::NoDependencies
+        );
+        assert!(projection.resolution.events.is_empty());
+        assert_eq!(
+            projection.content_hash,
+            projection_content_hash(&projection).unwrap()
+        );
+    }
 
     #[test]
     fn type_parameter_guard_rejects_declared_generics() {
@@ -3210,24 +3433,29 @@ mod tests {
             target: Some("cfg(unix)".to_owned()),
             effects: vec!["filesystem".to_owned()],
         };
+        let mut payload = Projection {
+            cache_identity: "exact".to_owned(),
+            content_hash: String::new(),
+            dependencies: Vec::new(),
+            containment: Containment::Enforced,
+            source: ProjectionSource::Local,
+            probes: Vec::new(),
+            probe_wall_time_ms: 0,
+            resolution: ProjectionResolution::default(),
+            removed: Vec::new(),
+        };
+        payload.content_hash = projection_content_hash(&payload).unwrap();
         let artifact = ProjectionArtifact {
             format: 1,
             cache_identity: "exact".to_owned(),
+            content_hash: payload.content_hash.clone(),
             target: "x86_64-unknown-linux-gnu".to_owned(),
             build_toolchain: crate::BUILD_TOOLCHAIN.to_owned(),
             rustdoc_toolchain: crate::RUSTDOC_TOOLCHAIN.to_owned(),
             rustdoc_format: rustdoc_types::FORMAT_VERSION,
             projection_schema: super::PROJECTION_SCHEMA.to_owned(),
             dependencies: vec![ArtifactDependency::from(&dependency)],
-            projection: Projection {
-                cache_identity: "exact".to_owned(),
-                dependencies: Vec::new(),
-                containment: Containment::Enforced,
-                source: ProjectionSource::Local,
-                probes: Vec::new(),
-                probe_wall_time_ms: 0,
-                removed: Vec::new(),
-            },
+            projection: payload,
         };
 
         let projection = validate_projection_artifact(
@@ -3241,18 +3469,29 @@ mod tests {
         assert_eq!(projection.source, ProjectionSource::Remote);
         assert_eq!(projection.containment, Containment::Unavailable);
 
-        let mut mismatched = artifact;
+        let mut mismatched = artifact.clone();
         mismatched.dependencies[0].features = vec!["different".to_owned()];
-        assert!(
-            validate_projection_artifact(
-                mismatched,
-                "exact",
-                "x86_64-unknown-linux-gnu",
-                &[dependency],
-                Containment::Unavailable,
-            )
-            .is_none()
-        );
+        let reason = validate_projection_artifact(
+            mismatched,
+            "exact",
+            "x86_64-unknown-linux-gnu",
+            std::slice::from_ref(&dependency),
+            Containment::Unavailable,
+        )
+        .unwrap_err();
+        assert!(reason.contains("dependency, feature, or target metadata mismatch"));
+
+        let mut corrupt = artifact;
+        corrupt.content_hash = "not-the-payload-hash".to_owned();
+        let reason = validate_projection_artifact(
+            corrupt,
+            "exact",
+            "x86_64-unknown-linux-gnu",
+            &[dependency],
+            Containment::Unavailable,
+        )
+        .unwrap_err();
+        assert!(reason.contains("content hash mismatch"));
     }
 
     #[test]
@@ -3283,28 +3522,86 @@ mod tests {
         };
         let mut old = Projection {
             cache_identity: "old".to_owned(),
+            content_hash: String::new(),
             dependencies: vec![dependency("1.0.0", vec![item])],
             containment: Containment::Unavailable,
             source: ProjectionSource::Local,
             probes: Vec::new(),
             probe_wall_time_ms: 0,
+            resolution: ProjectionResolution::default(),
             removed: Vec::new(),
         };
+        old.content_hash = projection_content_hash(&old).unwrap();
         apply_projection_history(&directory, &mut old).unwrap();
         let mut current = Projection {
             cache_identity: "current".to_owned(),
+            content_hash: String::new(),
             dependencies: vec![dependency("2.0.0", Vec::new())],
             containment: Containment::Unavailable,
             source: ProjectionSource::Local,
             probes: Vec::new(),
             probe_wall_time_ms: 0,
+            resolution: ProjectionResolution::default(),
             removed: Vec::new(),
         };
+        current.content_hash = projection_content_hash(&current).unwrap();
         apply_projection_history(&directory, &mut current).unwrap();
         assert_eq!(current.removed.len(), 1);
         current.removed.clear();
         apply_projection_history(&directory, &mut current).unwrap();
         assert_eq!(current.removed.len(), 1);
+        fs::remove_dir_all(directory).unwrap();
+    }
+
+    #[test]
+    fn projection_history_migrates_provenance_and_detects_replay_drift() {
+        let directory = std::env::temp_dir().join(format!(
+            "terrane-projection-provenance-{}",
+            std::process::id()
+        ));
+        fs::create_dir_all(&directory).unwrap();
+        fs::write(
+            directory.join("terrane-projection.lock"),
+            b"{\"format\":1,\"dependencies\":[],\"removed\":[]}\n",
+        )
+        .unwrap();
+        let mut projection = Projection {
+            cache_identity: "stable-identity".to_owned(),
+            content_hash: String::new(),
+            dependencies: Vec::new(),
+            containment: Containment::Unavailable,
+            source: ProjectionSource::Local,
+            probes: Vec::new(),
+            probe_wall_time_ms: 0,
+            resolution: ProjectionResolution::default(),
+            removed: Vec::new(),
+        };
+        projection.content_hash = projection_content_hash(&projection).unwrap();
+        apply_projection_history(&directory, &mut projection).unwrap();
+
+        let migrated: ProjectionHistory =
+            serde_json::from_slice(&fs::read(directory.join("terrane-projection.lock")).unwrap())
+                .unwrap();
+        assert_eq!(migrated.format, 2);
+        assert_eq!(migrated.source, Some(ProjectionSource::Local));
+        assert_eq!(migrated.rustdoc_format, Some(rustdoc_types::FORMAT_VERSION));
+        assert_eq!(
+            migrated.content_hash.as_deref(),
+            Some(projection.content_hash.as_str())
+        );
+
+        projection.source = ProjectionSource::Remote;
+        apply_projection_history(&directory, &mut projection).unwrap();
+        let changed_source: ProjectionHistory =
+            serde_json::from_slice(&fs::read(directory.join("terrane-projection.lock")).unwrap())
+                .unwrap();
+        assert_eq!(changed_source.source, Some(ProjectionSource::Remote));
+
+        projection.probe_wall_time_ms = 1;
+        projection.content_hash = projection_content_hash(&projection).unwrap();
+        let error = apply_projection_history(&directory, &mut projection).unwrap_err();
+        assert!(error.message.contains("projection replay mismatch"));
+        assert!(error.message.contains("previously produced"));
         fs::remove_dir_all(directory).unwrap();
     }
 
