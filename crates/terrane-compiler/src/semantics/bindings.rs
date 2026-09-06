@@ -497,6 +497,7 @@ pub(super) fn node_may_declare_typed_binding(node: &SyntaxNode) -> bool {
             | SyntaxKind::Assignment
             | SyntaxKind::Parameter
             | SyntaxKind::ForTarget
+            | SyntaxKind::CatchBinding
     )
 }
 
@@ -532,9 +533,10 @@ pub(super) fn record_declared_binding_writes(
     if !declares_binding {
         return false;
     }
-    let initial_store = node.kind == SyntaxKind::ForTarget
-        || node.kind == SyntaxKind::Parameter
-        || unit.source.text()[node.span.start..node.span.end].contains('=');
+    let initial_store = matches!(
+        node.kind,
+        SyntaxKind::ForTarget | SyntaxKind::Parameter | SyntaxKind::CatchBinding
+    ) || unit.source.text()[node.span.start..node.span.end].contains('=');
     if !initial_store {
         return false;
     }
@@ -924,6 +926,56 @@ pub(crate) fn descriptor_binding_is_materialized(
                 read_materializes(&unit.tree.root, *span, false).unwrap_or(false)
             })
         })
+}
+
+pub(crate) fn binding_read_value_is_reused(
+    package: &SemanticPackage,
+    declaration_span: Span,
+    read_span: Span,
+) -> bool {
+    let Some(events) = package.binding_events.get(&span_key(declaration_span)) else {
+        return false;
+    };
+    let Some((read, read_loops, read_regions)) =
+        events.iter().enumerate().find_map(|(index, event)| {
+            let BindingEvent::Read {
+                span,
+                loops,
+                regions,
+            } = event
+            else {
+                return None;
+            };
+            (*span == read_span).then_some((index, loops, regions))
+        })
+    else {
+        return false;
+    };
+    let mut intervening_stores: Vec<&[ControlRegion]> = Vec::new();
+    for event in &events[read + 1..] {
+        match event {
+            BindingEvent::Read { regions, .. }
+                if !regions_conflict(read_regions, regions)
+                    && !intervening_stores
+                        .iter()
+                        .any(|intervening| later_store_replaces(regions, intervening)) =>
+            {
+                return true;
+            }
+            BindingEvent::Write { regions, .. } => {
+                if later_store_replaces(read_regions, regions) {
+                    return false;
+                }
+                intervening_stores.push(regions.as_slice());
+            }
+            BindingEvent::Read { .. } => {}
+        }
+    }
+    read_loops.last().is_some_and(|loop_span| {
+        declaration_span.file != loop_span.file
+            || declaration_span.start < loop_span.start
+            || loop_span.end < declaration_span.end
+    })
 }
 
 pub(crate) fn binding_store_value_is_read(

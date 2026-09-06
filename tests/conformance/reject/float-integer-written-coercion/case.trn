@@ -1,0 +1,5 @@
+namespace float-integer-written-coercion
+
+function main;
+  ratio float64 = 4.5
+  count int = ratio.coerce; int

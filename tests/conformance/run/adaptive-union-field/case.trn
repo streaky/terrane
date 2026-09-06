@@ -1,0 +1,25 @@
+namespace adaptive-union-field
+
+class work-item
+    estimate int|none = none
+
+    function construct; estimate int|none
+        this.estimate = estimate
+
+    function estimate-units int|none;
+        return this.estimate
+
+    function next-estimate int|none;
+        current int|none = this.estimate
+        if current != none
+            return current + 1
+        return none
+
+function main;
+    item = instance work-item; 4
+    estimate int|none = item.estimate-units;
+    if estimate != none
+        print; estimate
+    next int|none = item.next-estimate;
+    if next != none
+        print; next

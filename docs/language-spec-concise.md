@@ -378,7 +378,7 @@ backing_object: real - type returns it, 'is a' compares it, identity survives re
 - Type descriptors are semantic objects with stable canonical identity, not ordinary values. Version-one type expressions/coercion destinations must resolve to finite compiler-known descriptor alternatives; lowering may erase the descriptor only when source behavior is unchanged.
 
 - Union destinations choose an exact type match first, otherwise the unique arm admitted by contextual constant typing or numeric destination conversion. Multiple admitted arms are a compile-time ambiguity; arm order never decides. Repeated arms normalize by canonical semantic identity and each authored duplicate reports `W4003`; aliases of one descriptor are duplicates.
-- `T|none` is a declared type anywhere a source type is accepted: bindings, parameters, and returns. A direct guard `value != none`, `none != value`, or `not (value is a none)` narrows that named binding to `T` in the guarded block; `and`/`or` combinations do not, and assignment invalidates the fact.
+- `T|none` is a declared type anywhere a source type is accepted: bindings, parameters, and returns. A direct guard `value != none`, `none != value`, or `not (value is a none)` narrows that named binding to `T` in the guarded block; `and`/`or` combinations do not, and assignment invalidates the fact. Member/index/call expressions are not narrowing subjects because repeated evaluation may change; bind once, then guard and use the stable name.
 
 ## INTEGER
 
@@ -468,6 +468,7 @@ fixed_to_int: exact; int8..int64 and uint8..uint32 fit Small, uint64..int128 fit
 float_to_integer_written: NO declared coerce pair - choosing an integer for a fractional value needs a rounding mode and coerce never takes one; 'ratio.coerce; int' is absent while 'count int = ratio' is admitted
 float_rounding_methods: round (ties-to-even) | floor | ceiling | truncate; each is invoked with ';' and yields an integer before destination conversion
 float_out_of_range: written coerce throws coercion-error; never yields an infinity
+float_nonfinite_written: floating-to-floating coerce preserves signed infinity and NaN category; these are not finite-overflow failures
 string_parse: accepts exactly the destination's canonical text-display spelling
 coerce_options: NONE - coerce takes only its destination; it must never grow radix or format arguments
 parse_family: 'value.parse; callback' - the callback is REQUIRED; there is no built-in destination-owned parse
@@ -962,7 +963,7 @@ Contracts:
 - Cache keys include source set, compiler version, target, dependencies, import/modifier plans, build selections, relevant options.
 - Conformance cases are implementation truth. Accepted compile cases compile generated crates; runtime changes execute; generated-Rust goldens reviewed.
 - Source warnings do not fail `check`/`rust`/`build`/`run`; generated/compiler Rust warnings remain denied. Warning conformance files match code, source-relative span, severity, message, order, and multiplicity exactly.
-- Binding usage is indexed once by resolved declaration identity. `W4001`: initialized local value is never read. `W4002`: initial/later store cannot reach a read before definite replacement; conditional stores do not kill incoming values. Parameters and loop targets are excluded from `W4001`; parameter-name linting is deferred to an explicit policy. Lowering consumes warning-only locals so generated Rust stays warning-free. `W4003`: authored union arm repeats an earlier canonical semantic identity; lowering uses the normalized unique set.
+- Binding and function usage is resolved by declaration identity. `W4001`: initialized local value is never read. `W4002`: initial/later store cannot reach a read before definite replacement; conditional stores do not kill incoming values. Parameters and loop targets are excluded from `W4001`; parameter-name linting is deferred to an explicit policy. Lowering consumes warning-only locals so generated Rust stays warning-free. `W4003`: authored union arm repeats an earlier canonical semantic identity; lowering uses the normalized unique set. `W4005`: authored non-entry top-level function has no resolved reference anywhere in the semantic package; the declaration name is excluded and recursive self-reference may count as use. The package retains the resolved function-reference index, and only the exact declarations producing `W4005` receive a generated Rust dead-code allowance.
 - See `docs/compiler-plan.md` for milestone sequencing; do not infer implementation status from this design reference.
 
 ## DIAGNOSTIC HOTSPOTS

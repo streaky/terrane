@@ -41,7 +41,7 @@ pub(super) fn object_method_contract<'a>(
         })
 }
 
-pub(super) fn object_member_type(
+pub(super) fn object_field_type(
     unit: &SemanticUnit,
     object_identity: &ObjectIdentity,
     member: &str,
@@ -54,6 +54,43 @@ pub(super) fn object_member_type(
         .find(|field| field.name == member && field.is_static == is_static)
     {
         return Some(field.value_type.clone());
+    }
+    for used_trait in &object.traits {
+        if let Some(found) = object_field_type(unit, used_trait, member, is_static) {
+            return Some(found);
+        }
+    }
+    object
+        .base
+        .as_ref()
+        .and_then(|base| object_field_type(unit, base, member, is_static))
+}
+
+fn optional_object_inner_has_member(
+    unit: &SemanticUnit,
+    receiver_type: &ValueType,
+    member: &str,
+) -> bool {
+    let ValueType::Optional(inner) = receiver_type else {
+        return false;
+    };
+    let ValueType::Object(identity) = inner.as_ref() else {
+        return false;
+    };
+    (identity == &ObjectIdentity::new("/core/errors", "throwable")
+        && matches!(member, "message" | "cause" | "render"))
+        || object_member_type(unit, identity, member, false).is_some()
+}
+
+pub(super) fn object_member_type(
+    unit: &SemanticUnit,
+    object_identity: &ObjectIdentity,
+    member: &str,
+    is_static: bool,
+) -> Option<ValueType> {
+    let object = object_contract(unit, object_identity)?;
+    if let Some(field_type) = object_field_type(unit, object_identity, member, is_static) {
+        return Some(field_type);
     }
     if let Some(method) = object_method_contract(unit, object_identity, member, is_static) {
         let parameters = method
@@ -136,6 +173,30 @@ pub(super) fn infer_member_value_type(
         "contracts" | "throwable-contract" | "escaping-throwables"
     ) {
         return Ok(Some(ValueType::Scalar(ScalarType::String)));
+    }
+    if member_name != "type"
+        && matches!(
+            &receiver_type,
+            Some(ValueType::Object(identity))
+                if identity == &ObjectIdentity::new("/core/errors", "throwable")
+        )
+    {
+        return match member_name {
+            "message" => Ok(Some(ValueType::Scalar(ScalarType::String))),
+            "cause" => Ok(Some(ValueType::Optional(Box::new(ValueType::Object(
+                ObjectIdentity::new("/core/errors", "throwable"),
+            ))))),
+            "render" => Ok(Some(ValueType::Function(
+                Vec::new(),
+                ElementType::new(ValueType::Scalar(ScalarType::String)),
+            ))),
+            _ => Err(failure(
+                &unit.source,
+                "T0055",
+                format!("`throwable` has no instance member `{member_name}`"),
+                member.span,
+            )),
+        };
     }
     if let Some(result) = &receiver_type
         && matches!(
@@ -338,12 +399,24 @@ pub(super) fn infer_member_value_type(
     }
     if member_name != "length" {
         return match receiver_type {
-            Some(receiver_type) => Err(failure(
-                &unit.source,
-                "T0031",
-                format!("`{receiver_type}` has no member `.{member_name}`"),
-                member.span,
-            )),
+            Some(receiver_type) => {
+                let mut diagnostic = Diagnostic::error(
+                    "T0031",
+                    format!("`{receiver_type}` has no member `.{member_name}`"),
+                    member.span,
+                );
+                if optional_object_inner_has_member(unit, &receiver_type, member_name) {
+                    diagnostic = diagnostic.with_help(format!(
+                        "`.{member_name}` requires narrowing; bind the optional-producing expression \
+                         to a name, guard that name with `!= none`, then select `.{member_name}` from \
+                         the narrowed name"
+                    ));
+                }
+                Err(SemanticFailure {
+                    source: unit.source.clone(),
+                    diagnostics: vec![diagnostic],
+                })
+            }
             None => Ok(None),
         };
     }

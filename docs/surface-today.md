@@ -302,7 +302,7 @@ int value
     └── value is an int -> bool
 ```
 
-For an `int` source, the destination may be `int` or any fixed-width integer descriptor. `.coerce.wrap` and `.coerce.saturate` require a fixed-width source and therefore are not available from `int`.
+For an `int` source, the destination may be any integer or floating-point descriptor. Integer destinations use exact checked conversion. Floating destinations use IEEE round-to-nearest, ties-to-even; a rounded magnitude outside the destination's finite range throws `coercion-error`. `.coerce.checked` returns `none` instead of throwing. `.coerce.wrap` and `.coerce.saturate` require a fixed-width integer source and destination and therefore are not available from `int`.
 `int` also exposes the compiler-owned `add`, `subtract`, `multiply`, `divide`,
 `remainder`, `div-rem`, `negate`, `shift-left`, and `shift-right` families. Their default
 children retain exact adaptive arithmetic; fixed-width-only `wrap`, `saturate`, and
@@ -355,7 +355,7 @@ fixed-width integer value T
     └── value is a descriptor T -> bool
 ```
 
-All integer descriptors, including `int`, are valid destinations except that `.coerce.wrap` and `.coerce.saturate` do not accept `int`. The family is compile-time only: a selection must be invoked in the same expression, so `family = value.coerce` is rejected, and the destination must resolve statically to a canonical descriptor. The flat `.checked-coerce`, `.wrapping-coerce`, and `.saturating-coerce` spellings are rejected with a migration diagnostic and no aliases remain. Default fixed-width arithmetic is checked; overflow is a runtime failure. `.coerce.checked` returns `T or none`; `.coerce.wrap` and `.coerce.saturate` return `T`.
+All integer and floating-point descriptors are valid destinations for the bare and checked policies, except that no floating-to-integer pair is declared. `.coerce.wrap` and `.coerce.saturate` require fixed-width integer sources and destinations and do not accept `int` or a floating destination. The family is compile-time only: a selection must be invoked in the same expression, so `family = value.coerce` is rejected, and the destination must resolve statically to a canonical descriptor. The flat `.checked-coerce`, `.wrapping-coerce`, and `.saturating-coerce` spellings are rejected with a migration diagnostic and no aliases remain. Default integer-to-integer coercion is exact and checked; integer-to-floating coercion rounds to nearest with ties to even and throws `coercion-error` only when the rounded magnitude is outside the destination's finite range. `.coerce.checked` returns `T or none`; `.coerce.wrap` and `.coerce.saturate` return `T`.
 The same nine named arithmetic families are implemented on fixed-width integers. Their
 `checked`, `wrap`, `saturate`, and `overflowing` children select explicit policies instead
 of inheriting Rust build-mode behavior. `overflowing` returns `.value` and `.overflowed`;
@@ -418,13 +418,16 @@ floating-point value T
 │   ├── .floor; -> int
 │   ├── .ceiling; -> int
 │   └── .truncate; -> int
+├── coercion family
+│   ├── .coerce; FloatingDestination -> FloatingDestination
+│   └── .coerce.checked; FloatingDestination -> FloatingDestination or none
 └── descriptor relation
     └── value is a descriptor T -> bool
 ```
 
 The foundational computational methods lower directly to the corresponding Rust primitive operation, so they require no scientific library; their zero-argument arity does not make them properties. The three classification members remain properties because they observe receiver state. Floating results preserve the receiver precision. The mathematical members inherit IEEE-754 NaN, infinity, signed-zero, domain, overflow, and underflow behavior except for the explicit `minimum`, `maximum`, and fused-rounding contracts in the specification. `sine-cosine` evaluates the receiver once and returns sine followed by cosine.
 
-No float conversion methods are implemented. Numeric destinations do implement exact integer/floating crossings and exact `float64`-to-`float32` narrowing; inexact narrowing fails with `integer-conversion-overflow`.
+Floating values implement bare and checked coercion to floating destinations. Same-width coercion is identity, `float32` to `float64` is exact, and `float64` to `float32` rounds to nearest with ties to even. A finite source that rounds outside the `float32` finite range throws `coercion-error`, while `.coerce.checked` returns `none`. IEEE infinity and NaN retain their categories across written floating conversion. No floating-to-integer pair is declared on `coerce`; use `round`, `floor`, `ceiling`, or `truncate` to choose the fractional policy before an integer destination.
 
 ### `string`
 
@@ -747,12 +750,22 @@ The `/core/errors::throwable` interface and compiler-owned standard throwable ob
 identities used by `throw`, `try`, `catch`, and `finally`. Ordinary source-declared classes may
 implement `throwable`; a conforming class supplies `message string` and a synchronous, non-throwing,
 zero-argument `render string` method, while `cause` is compiler-managed in the runtime envelope.
-The class may retain its own additional declared fields. Arithmetic, coercion, decoding, and
-collection failures enter the same typed result-propagation
+The class may retain its own additional declared fields. A typed or catch-all `catch ... as name`
+binding exposes the common runtime envelope:
+
+```text
+throwable value
+├── .message -> string
+├── .cause -> throwable or none
+└── .render; -> string
+```
+
+Arithmetic, coercion, decoding, and collection failures enter the same typed result-propagation
 path and are catchable. Exact escaping throwable alternatives are inferred transitively after
 catches and `finally` replacement. A postfix `throws T` clause is an optional upper-bound contract:
 every escaping throwable must implement `T`. Reflection exposes the declared bound separately from
-the inferred escaping set.
+the inferred escaping set. Throwing a caught throwable value preserves its runtime kind and existing
+cause chain while adding the explicit rethrow site.
 
 ## Projected Rust dependencies
 
@@ -786,7 +799,6 @@ The authoritative language draft proposes a much larger ontology. None of the fo
 ```text
 collection checked lookup children and source-visible typed lookup errors
 reflection inventories beyond retained callable contracts, throwable alternatives, and canonical descriptor identity
-source-visible standard-error fields, causes, and error hierarchies
 bytes indexing and slicing
 user-authored implementations of general iteration protocols
 user-declared type parameters and generic application

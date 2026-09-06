@@ -299,6 +299,7 @@ pub(crate) fn lower(package: &SemanticPackage) -> Program {
             &mut support,
             has_custom_throwable,
             has_dependency,
+            registry.uses_float_coercion_error.get(),
             &registry,
         );
         runtime.insert(

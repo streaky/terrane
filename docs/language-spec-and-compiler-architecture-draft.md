@@ -1898,6 +1898,12 @@ There is no universal guarantee that every type can coerce to every other type. 
 
 Coercion among integer types follows §17.7 exactly. Written coercion to a floating-point destination rounds to the nearest representable value using the IEEE 754 default round-to-nearest, ties-to-even rule; because that rounding is defined for every finite source magnitude, an inexact numeric-to-float coercion is a normal result rather than a failure, and precision loss is visible through the destination type rather than through an error. This differs deliberately from an implicit numeric destination, which accepts the value exactly or throws. A source magnitude beyond the destination's finite range throws `coercion-error`; it never yields an infinity, because a silent infinity is a lost error rather than a result. `checked` returns absence for exactly that overflow case.
 
+Across floating-to-floating written coercion, same-width conversion is identity, `float32` to
+`float64` is exact, and `float64` to `float32` applies that rounding rule. Signed infinity remains
+signed infinity and NaN remains NaN when the destination represents the same IEEE category; neither
+is a finite source magnitude and neither is the finite-overflow case above. This differs from
+implicit exact arrival, whose stricter NaN and narrowing rules remain those of §17.7.
+
 Floating values expose the zero-argument methods `round`, `floor`, `ceiling`, and `truncate`, each producing an integer before any later destination conversion. `round` uses round-to-nearest with ties to even; the other names state their direction. These methods are how an author selects and invokes a policy for a fractional floating value before an integer destination applies §17.7's exact-or-throw rule.
 
 No floating-to-integer pair is declared on `coerce`, because choosing an integer for a fractional value requires a rounding mode and `coerce` never takes one. `ratio.coerce; int` is therefore absent from the type, while `count int = ratio` is admitted under §17.7 and `ratio.round;` invokes the chosen policy. This is the one place where a destination admits a conversion the written family does not offer, and it is deliberate: the destination rule is exact-or-throw and needs no mode, whereas any written alternative would have to name one.
@@ -2711,7 +2717,7 @@ else
 ```
 
 No trailing colon or parentheses are required.
-A direct presence guard narrows a named `T|none` binding to `T` within the guarded block. The recognized guard forms are `value != none`, `none != value`, and `not (value is a none)`, with parentheses permitted around the complete test or its operands. Narrowing is structural rather than inferred from arbitrary Boolean equivalence: combining a presence test with another condition using `and` or `or` does not establish narrowing. The fact is scoped to the guarded block and its nested scopes; assigning that name within the block invalidates the fact from that assignment onward.
+A direct presence guard narrows a named `T|none` binding to `T` within the guarded block. The recognized guard forms are `value != none`, `none != value`, and `not (value is a none)`, with parentheses permitted around the complete test or its operands. Narrowing is structural rather than inferred from arbitrary Boolean equivalence: combining a presence test with another condition using `and` or `or` does not establish narrowing. The subject must be a name binding: repeated member, index, and call expressions are not narrowed because their value may change between evaluations. Bind such an expression once, then guard and use that stable name. The fact is scoped to the guarded block and its nested scopes; assigning that name within the block invalidates the fact from that assignment onward.
 
 ### 14.2 `while`
 
@@ -4889,6 +4895,13 @@ diagnostics. Loop targets likewise remain outside `W4001`; generated Rust explic
 loop targets, dead stores, and other warning-only locals so source-level warnings do not leak into
 opaque `rustc` warning failures. `W4003` reports an authored union arm whose canonical semantic
 identity already occurred earlier in the same union; lowering uses the normalized unique arm set.
+`W4005` reports an authored top-level function that is not referenced anywhere in the semantic
+package. References are matched by resolved declaration identity across source units rather than by
+spelling; the declaration name itself is excluded, while recursive self-reference conservatively
+counts as use. The resulting package-wide reference index is retained for diagnostics and lowering.
+Only an authored top-level function that produces `W4005` carries a narrow generated-Rust dead-code
+allowance, so the source condition remains a Terrane warning rather than an opaque backend failure
+without suppressing dead-code diagnostics for referenced functions.
 
 
 ### 29.1 Bidirectional maps

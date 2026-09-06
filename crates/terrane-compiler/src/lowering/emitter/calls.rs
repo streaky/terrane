@@ -88,6 +88,13 @@ impl Emitter<'_> {
         }
         if callee.kind == SyntaxKind::MemberExpression
             && let [receiver, member] = callee.children.as_slice()
+            && self.is_throwable_value(receiver)
+            && self.text(member) == "render"
+        {
+            return format!("({}).render()", self.expression(receiver));
+        }
+        if callee.kind == SyntaxKind::MemberExpression
+            && let [receiver, member] = callee.children.as_slice()
             && let Some(receiver_type) = self.receiver_value_type(receiver)
         {
             let receiver_value = self.receiver_guard_expression(receiver);
@@ -168,7 +175,7 @@ impl Emitter<'_> {
                 .expect("validated bound method receiver");
             let receiver = self.expression(receiver_node);
             if method.family == MemberFamily::Coerce {
-                return self.integer_coercion(&method, receiver_node, callee, arguments);
+                return self.numeric_coercion(&method, receiver_node, callee, arguments);
             }
             if let MemberFamily::Arithmetic(family) = method.family {
                 return self.arithmetic_family(
@@ -975,7 +982,11 @@ impl Emitter<'_> {
         } else {
             call
         };
-        if contract.is_some_and(|contract| contract.throws) || foreign_error {
+        let function_value_call = callee.kind == SyntaxKind::Name
+            && contract.is_none()
+            && matches!(self.value_type(callee), Some(ValueType::Function(_, _)));
+        if contract.is_some_and(|contract| contract.throws) || foreign_error || function_value_call
+        {
             let site = self.error_site(node);
             let dependency_boundary = self
                 .package

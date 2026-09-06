@@ -244,6 +244,19 @@ pub(super) fn populate_node(
                 symbols: BTreeMap::new(),
                 import_warnings: Vec::new(),
             });
+            if let Some(alias) = node
+                .children
+                .iter()
+                .find(|child| child.kind == SyntaxKind::CatchBinding)
+            {
+                insert_local(
+                    unit,
+                    scopes,
+                    catch_index,
+                    node_text(&unit.source, alias).to_owned(),
+                    alias.span,
+                )?;
+            }
             if let Some(block) = node.children.last()
                 && block.kind == SyntaxKind::Block
             {

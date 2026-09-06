@@ -377,12 +377,27 @@ mod __terrane_trace {
         pub end_column: u32,
     }
     pub static FILES: [&str; 2] = ["case.trn", "core/networking.trn"];
-    pub static FUNCTIONS: [&str; 2] = ["/app::main", "/core/networking::lookup-dns"];
-    pub static SITES: [Site; 2] = [
+    pub static FUNCTIONS: [&str; 3] = [
+        "/app::run",
+        "/app::main",
+        "/core/networking::lookup-dns",
+    ];
+    pub static SITES: [Site; 3] = [
         {
-            /* terrane-site-row: site 0: /app::main (case.trn:45:13-45:39) */
+            /* terrane-site-row: site 0: /app::run (case.trn:16:9-16:18) */
             Site {
                 function: 0,
+                file: 0,
+                line: 16,
+                column: 9,
+                end_line: 16,
+                end_column: 18,
+            }
+        },
+        {
+            /* terrane-site-row: site 1: /app::main (case.trn:45:13-45:39) */
+            Site {
+                function: 1,
                 file: 0,
                 line: 45,
                 column: 13,
@@ -391,9 +406,9 @@ mod __terrane_trace {
             }
         },
         {
-            /* terrane-site-row: site 1: /core/networking::lookup-dns (core/networking.trn:319:28-319:49) */
+            /* terrane-site-row: site 2: /core/networking::lookup-dns (core/networking.trn:319:28-319:49) */
             Site {
-                function: 1,
+                function: 2,
                 file: 1,
                 line: 319,
                 column: 28,
@@ -817,31 +832,37 @@ pub fn terrane_platform_capability_close(
 // Namespace: app
 #[derive(Clone)]
 pub struct AsyncRunner {
-    pub callback: std::sync::Arc<dyn Fn() -> () + Send + Sync>,
+    pub callback: std::sync::Arc<dyn Fn() -> Result<(), TerraneError> + Send + Sync>,
 }
 impl AsyncRunner {
     pub fn terrane_construct(
-        callback: std::sync::Arc<dyn Fn() -> () + Send + Sync>,
+        callback: std::sync::Arc<dyn Fn() -> Result<(), TerraneError> + Send + Sync>,
     ) -> Self {
         let mut value = Self {
             callback: {
-                std::sync::Arc::new(move || -> () {
-                    return ();
+                std::sync::Arc::new(move || -> Result<(), TerraneError> {
+                    return Ok(());
                 })
             },
         };
         value.construct(callback);
         value
     }
-    pub fn construct(&mut self, callback: std::sync::Arc<dyn Fn() -> () + Send + Sync>) {
+    pub fn construct(
+        &mut self,
+        callback: std::sync::Arc<dyn Fn() -> Result<(), TerraneError> + Send + Sync>,
+    ) {
         self.callback = callback.clone();
     }
-    pub async fn run(&self) {
-        let callback: std::sync::Arc<dyn Fn() -> () + Send + Sync> = {
+    pub async fn run(&self) -> Result<(), TerraneError> {
+        let callback: std::sync::Arc<
+            dyn Fn() -> Result<(), TerraneError> + Send + Sync,
+        > = {
             let receiver = self.clone();
             std::sync::Arc::new(move || (receiver.callback)())
         };
-        callback();
+        __terrane_traced_err(callback(), 0 /* terrane-site: case.trn:16:9-16:18 */)?;
+        Ok(())
     }
 }
 fn main() {
@@ -857,20 +878,21 @@ fn main() {
         terrane_int_support::Int::from(1000_i128),
         NetworkCancellationToken::terrane_construct(),
     );
-    let serve: std::sync::Arc<dyn Fn() -> () + Send + Sync> = {
+    let serve: std::sync::Arc<dyn Fn() -> Result<(), TerraneError> + Send + Sync> = {
         let listener = listener;
         let server_options = server_options.clone();
-        std::sync::Arc::new(move || -> () {
+        std::sync::Arc::new(move || -> Result<(), TerraneError> {
             let accepted: StreamResult = listener.accept(server_options.clone());
             let stream: TcpStream = accepted.value;
             let request: IoResult = stream
                 .read(terrane_int_support::Int::from(7_i128), server_options.clone());
             if request.data != Vec::from([116, 101, 114, 114, 97, 110, 101]) {
-                return ();
+                return Ok(());
             }
             stream.write(Vec::from([114, 101, 112, 108, 121]), server_options.clone());
             stream.shutdown(String::from("both"));
             stream.close();
+            Ok(())
         })
     };
     let server: AsyncRunner = AsyncRunner::terrane_construct(serve.clone());
@@ -890,7 +912,8 @@ fn main() {
             }(),
             move || __terrane_cancel.should_cancel(),
         ) {
-            Some(value) => TerraneTaskResult::Completed(value),
+            Some(Ok(value)) => TerraneTaskResult::Completed(value),
+            Some(Err(error)) => TerraneTaskResult::Failed(error),
             None => TerraneTaskResult::Cancelled,
         })
     };
@@ -910,7 +933,7 @@ fn main() {
     println!(
         "{}",
         terrane_scalar_support::scalar_text(&__terrane_raised(terrane_string_support::decode(&response
-        .data, terrane_string_support::Encoding::Utf8), 0 /* terrane-site: case.trn:45:13-45:39 */))
+        .data, terrane_string_support::Encoding::Utf8), 1 /* terrane-site: case.trn:45:13-45:39 */))
     );
     println!("{}", terrane_scalar_support::scalar_text(&outcome.completed));
     client.close();
@@ -1787,17 +1810,17 @@ pub fn lookup_dns(
                             .get(
                                 __terrane_raised(
                                     terrane_collection_support::index_from_int(&index.clone()),
-                                    1 /* terrane-site: core/networking.trn:319:28-319:49 */,
+                                    2 /* terrane-site: core/networking.trn:319:28-319:49 */,
                                 ),
                             )
                             .cloned()
                             .ok_or(terrane_collection_support::IndexError {
                                 index: __terrane_raised(
                                     terrane_collection_support::index_from_int(&index.clone()),
-                                    1 /* terrane-site: core/networking.trn:319:28-319:49 */,
+                                    2 /* terrane-site: core/networking.trn:319:28-319:49 */,
                                 ),
                             }),
-                        1 /* terrane-site: core/networking.trn:319:28-319:49 */,
+                        2 /* terrane-site: core/networking.trn:319:28-319:49 */,
                     ),
                 );
             index = index.clone() + terrane_int_support::Int::from(1_i128);

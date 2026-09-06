@@ -1,0 +1,12 @@
+namespace throwable-type-annotation
+from /core/errors import coercion-error, throwable
+
+function report; failure throwable|none
+  if failure != none
+    print; failure.message
+
+function main;
+  try
+    throw coercion-error
+  catch coercion-error as failure
+    report; failure

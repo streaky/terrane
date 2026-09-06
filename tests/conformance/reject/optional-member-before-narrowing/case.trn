@@ -1,0 +1,11 @@
+namespace optional-member-before-narrowing
+from /core/errors import arithmetic-overflow, coercion-error
+
+function main;
+  try
+    try
+      throw coercion-error
+    catch coercion-error
+      throw arithmetic-overflow
+  catch arithmetic-overflow as outer
+    print; (outer.cause).message

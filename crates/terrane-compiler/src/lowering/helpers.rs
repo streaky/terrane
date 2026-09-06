@@ -341,6 +341,28 @@ pub(super) fn binding_initializer(node: &SyntaxNode, name_index: usize) -> Optio
 pub(super) fn rust_type(ty: ScalarType) -> &'static str {
     ty.lowering_type()
 }
+
+pub(super) const fn rust_value_is_copy(ty: &ValueType) -> bool {
+    matches!(
+        ty,
+        ValueType::Scalar(
+            ScalarType::Bool
+                | ScalarType::Int8
+                | ScalarType::Int16
+                | ScalarType::Int32
+                | ScalarType::Int64
+                | ScalarType::Int128
+                | ScalarType::Uint8
+                | ScalarType::Uint16
+                | ScalarType::Uint32
+                | ScalarType::Uint64
+                | ScalarType::Uint128
+                | ScalarType::Float32
+                | ScalarType::Float64
+                | ScalarType::None
+        )
+    )
+}
 #[expect(
     clippy::needless_pass_by_value,
     reason = "element lowering owns the recursively described value type"
@@ -424,7 +446,7 @@ pub(super) fn rust_value_type(package: &SemanticPackage, ty: ValueType) -> Strin
         }
         ValueType::TextRangeList => "Vec<terrane_string_support::TextRange>".to_owned(),
         ValueType::Function(parameters, result) => format!(
-            "std::sync::Arc<dyn Fn({}) -> {} + Send + Sync>",
+            "std::sync::Arc<dyn Fn({}) -> Result<{}, TerraneError> + Send + Sync>",
             parameters
                 .into_iter()
                 .map(|parameter| rust_element_type(package, parameter))
@@ -468,6 +490,11 @@ pub(super) fn rust_value_type(package: &SemanticPackage, ty: ValueType) -> Strin
             "TerranePlatformCapability".to_owned()
         }
         ValueType::PlatformResult => "TerranePlatformResult".to_owned(),
+        ValueType::Object(identity)
+            if identity.namespace == "/core/errors" && identity.name == "throwable" =>
+        {
+            "TerraneError".to_owned()
+        }
         ValueType::Object(identity) => rust_object_type_name(package, &identity),
         ValueType::SharedReference(item) => format!(
             "std::sync::Arc<std::sync::Mutex<{}>>",
@@ -718,25 +745,38 @@ pub(super) fn rust_name(name: &str) -> String {
             .all(|byte| byte.is_ascii_alphanumeric() || byte == b'-' || byte == b'_');
     let keyword = matches!(
         name,
-        "as" | "break"
+        "abstract"
+            | "as"
+            | "async"
+            | "await"
+            | "become"
+            | "box"
+            | "break"
             | "const"
             | "continue"
             | "crate"
+            | "do"
+            | "dyn"
             | "else"
             | "enum"
             | "extern"
             | "false"
+            | "final"
             | "fn"
             | "for"
+            | "gen"
             | "if"
             | "impl"
             | "in"
             | "let"
             | "loop"
+            | "macro"
             | "match"
             | "mod"
             | "move"
             | "mut"
+            | "override"
+            | "priv"
             | "pub"
             | "ref"
             | "return"
@@ -748,13 +788,13 @@ pub(super) fn rust_name(name: &str) -> String {
             | "trait"
             | "true"
             | "type"
+            | "typeof"
             | "unsafe"
+            | "unsized"
             | "use"
+            | "virtual"
             | "where"
             | "while"
-            | "async"
-            | "await"
-            | "dyn"
     );
     if readable_identifier && !keyword {
         return name.replace('-', "_");

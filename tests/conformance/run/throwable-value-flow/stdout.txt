@@ -1,0 +1,2 @@
+coercion has no compatible result
+coercion has no compatible result

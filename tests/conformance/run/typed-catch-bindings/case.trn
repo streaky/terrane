@@ -1,0 +1,26 @@
+namespace typed-catch-bindings
+from /core/errors import arithmetic-overflow, coercion-error
+
+function main;
+  try
+    try
+      throw coercion-error
+    catch coercion-error as caught
+      print; caught.message
+      print; ((caught.render;).contains; 'coercion-error: coercion has no compatible result')
+      throw arithmetic-overflow
+  catch arithmetic-overflow as replacement
+    print; (replacement.cause is a none)
+
+  try
+    try
+      throw coercion-error
+    catch coercion-error as caught
+      throw caught
+  catch coercion-error as reraised
+    print; reraised.message
+
+  try
+    throw arithmetic-overflow
+  catch as failure
+    print; failure.message

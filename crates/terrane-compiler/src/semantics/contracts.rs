@@ -227,6 +227,44 @@ pub(super) fn collect_typed_bindings(
         )?;
         return Ok(());
     }
+    if node.kind == SyntaxKind::CatchClause {
+        let Some(alias) = node
+            .children
+            .iter()
+            .find(|child| child.kind == SyntaxKind::CatchBinding)
+        else {
+            for child in &node.children {
+                collect_typed_bindings(unit, child, visible_bindings, bindings, scope)?;
+            }
+            return Ok(());
+        };
+        let block = node
+            .children
+            .iter()
+            .find(|child| child.kind == SyntaxKind::Block)
+            .expect("parsed catch clause has a block");
+        let catch_binding = TypedBinding {
+            name: node_text(&unit.source, alias).to_owned(),
+            span: alias.span,
+            visible_from: alias.span.start,
+            scope: Some(block.span),
+            value_type: ValueType::Object(ObjectIdentity::new("/core/errors", "throwable")),
+            destination_arms: Vec::new(),
+            storage_type: None,
+            mutable: false,
+        };
+        bindings.push(catch_binding.clone());
+        let mut visible_catch_bindings = visible_bindings.clone();
+        visible_catch_bindings.push(catch_binding);
+        collect_typed_bindings(
+            unit,
+            block,
+            &mut visible_catch_bindings,
+            bindings,
+            Some(block.span),
+        )?;
+        return Ok(());
+    }
     if matches!(node.kind, SyntaxKind::Binding | SyntaxKind::Assignment) {
         let prior_len = visible_bindings.len();
         analyze_binding_node(unit, node, visible_bindings, scope)?;
@@ -495,44 +533,42 @@ pub(super) fn infer_throwing_effects(package: &mut SemanticPackage) -> Result<()
             .collect()
     }
 
-    fn integer_coercion_can_fail(unit: &SemanticUnit, node: &SyntaxNode) -> bool {
-        let Some(callee) = node.children.first() else {
-            return false;
-        };
-        let Some((source_node, CoercionPolicy::Default)) =
-            integer_coercion_call(&unit.source, callee)
+    fn numeric_coercion_error(unit: &SemanticUnit, node: &SyntaxNode) -> Option<&'static str> {
+        let callee = node.children.first()?;
+        let (source_node, CoercionPolicy::Default) = numeric_coercion_call(&unit.source, callee)?
         else {
-            return false;
+            return None;
         };
         let Ok(Some(ValueType::Scalar(source))) =
             infer_receiver_value_type(unit, source_node, &unit.typed_bindings)
         else {
-            return false;
+            return None;
         };
-        let Some(destination_node) = node
-            .children
-            .get(1)
-            .and_then(|arguments| arguments.children.first())
-            .and_then(|argument| argument.children.last())
-        else {
-            return false;
-        };
-        let Some(destination) = unit.descriptor_alias_at(
+        let destination_node = node.children.get(1)?.children.first()?.children.last()?;
+        let destination = unit.descriptor_alias_at(
             node_text(&unit.source, destination_node),
             destination_node.span.start,
-        ) else {
-            return false;
-        };
-        if destination == ScalarType::Int {
-            return false;
+        )?;
+        if destination.is_integer() {
+            if destination == ScalarType::Int {
+                return None;
+            }
+            let destination_bounds = scalar_integer_bounds(destination)?;
+            let Some(source_bounds) = scalar_integer_bounds(source) else {
+                return (source == ScalarType::Int)
+                    .then_some("/core/errors::integer-conversion-overflow");
+            };
+            return (source_bounds.0 < destination_bounds.0
+                || source_bounds.1 > destination_bounds.1)
+                .then_some("/core/errors::integer-conversion-overflow");
         }
-        let Some(destination_bounds) = scalar_integer_bounds(destination) else {
-            return false;
-        };
-        let Some(source_bounds) = scalar_integer_bounds(source) else {
-            return source == ScalarType::Int;
-        };
-        source_bounds.0 < destination_bounds.0 || source_bounds.1 > destination_bounds.1
+        match (source, destination) {
+            (ScalarType::Int, ScalarType::Float32 | ScalarType::Float64)
+            | (ScalarType::Uint128 | ScalarType::Float64, ScalarType::Float32) => {
+                Some("/core/errors::coercion-error")
+            }
+            _ => None,
+        }
     }
 
     fn fixed_integer_bits(ty: ScalarType) -> Option<u16> {
@@ -851,8 +887,8 @@ pub(super) fn infer_throwing_effects(package: &mut SemanticPackage) -> Result<()
             let receiver_type = infer_receiver_value_type(unit, receiver, &unit.typed_bindings)
                 .ok()
                 .flatten();
-            let mut errors = if integer_coercion_can_fail(unit, node) {
-                BTreeSet::from(["/core/errors::integer-conversion-overflow".to_owned()])
+            let mut errors = if let Some(error) = numeric_coercion_error(unit, node) {
+                BTreeSet::from([error.to_owned()])
             } else if let Some(ValueType::Object(object)) = receiver_type {
                 unit.functions
                     .iter()
@@ -885,6 +921,24 @@ pub(super) fn infer_throwing_effects(package: &mut SemanticPackage) -> Result<()
             && let Some(span) = symbol.declaration_span
         {
             let mut errors = inferred.get(&key(span)).cloned().unwrap_or_default();
+            errors.extend(local_errors);
+            errors.extend(
+                node.children
+                    .iter()
+                    .skip(1)
+                    .flat_map(|argument| escaping_errors(package, unit, argument, inferred)),
+            );
+            return errors;
+        }
+        if node.kind == SyntaxKind::CallExpression
+            && let Some(callee) = node.children.first()
+            && callee.kind == SyntaxKind::Name
+            && matches!(
+                infer_value_type(unit, callee, &unit.typed_bindings),
+                Ok(Some(ValueType::Function(_, _)))
+            )
+        {
+            let mut errors = BTreeSet::from(["/core/errors::throwable".to_owned()]);
             errors.extend(local_errors);
             errors.extend(
                 node.children

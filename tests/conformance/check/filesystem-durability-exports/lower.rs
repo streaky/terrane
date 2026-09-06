@@ -1857,7 +1857,7 @@ pub fn path_stem(subject: Path) -> String {
     if terrane_int_support::Int::from(pieces.len() as i128)
         <= terrane_int_support::Int::from(1_i128)
     {
-        return current;
+        return current.clone();
     }
     if terrane_int_support::Int::from(pieces.len() as i128)
         == terrane_int_support::Int::from(2_i128)

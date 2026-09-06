@@ -1,0 +1,8 @@
+namespace read-only-throwable-member-assignment
+from /core/errors import coercion-error
+
+function main;
+  try
+    throw coercion-error
+  catch coercion-error as caught
+    caught.message = 'replacement'

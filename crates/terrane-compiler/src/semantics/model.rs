@@ -81,6 +81,7 @@ pub struct SemanticPackage {
     pub descriptor_constructs: BTreeMap<String, Symbol>,
     pub units: Vec<SemanticUnit>,
     pub(super) binding_events: BTreeMap<(u32, usize, usize), Vec<BindingEvent>>,
+    pub(super) referenced_functions: BTreeSet<(u32, usize, usize)>,
     pub(super) import_warnings: Vec<Diagnostic>,
     pub bootstrap_version: &'static str,
 }
@@ -95,6 +96,10 @@ impl ElementType {
 
     pub(crate) fn value_type(&self) -> ValueType {
         self.0.as_ref().clone()
+    }
+
+    pub(crate) fn value_type_ref(&self) -> &ValueType {
+        self.0.as_ref()
     }
 
     pub(super) fn scalar(&self) -> Option<ScalarType> {

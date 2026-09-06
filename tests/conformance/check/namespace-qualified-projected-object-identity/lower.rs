@@ -482,10 +482,14 @@ fn cross_blocking(value: TerraneNs4Deps7Reqwest8Blocking8ResponseResponse) {
 }
 fn keep_crossings(
     async_crossing: std::sync::Arc<
-        dyn Fn(TerraneNs4Deps7Reqwest10AsyncImpl8ResponseResponse) -> () + Send + Sync,
+        dyn Fn(
+            TerraneNs4Deps7Reqwest10AsyncImpl8ResponseResponse,
+        ) -> Result<(), TerraneError> + Send + Sync,
     >,
     blocking_crossing: std::sync::Arc<
-        dyn Fn(TerraneNs4Deps7Reqwest8Blocking8ResponseResponse) -> () + Send + Sync,
+        dyn Fn(
+            TerraneNs4Deps7Reqwest8Blocking8ResponseResponse,
+        ) -> Result<(), TerraneError> + Send + Sync,
     >,
 ) {
     let _ = (&async_crossing, &blocking_crossing);
@@ -493,8 +497,12 @@ fn keep_crossings(
 }
 fn main() {
     keep_crossings(
-        std::sync::Arc::new(cross_async),
-        std::sync::Arc::new(cross_blocking),
+        std::sync::Arc::new(move |
+            argument_0: TerraneNs4Deps7Reqwest10AsyncImpl8ResponseResponse|
+        Ok(cross_async(argument_0))),
+        std::sync::Arc::new(move |
+            argument_0: TerraneNs4Deps7Reqwest8Blocking8ResponseResponse|
+        Ok(cross_blocking(argument_0))),
     );
 }
 // Source: <terrane>/projected/deps/reqwest/async-impl/response.trn

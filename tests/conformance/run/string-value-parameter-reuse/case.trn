@@ -1,0 +1,22 @@
+namespace string-value-parameter-reuse
+
+from /core/collections import map
+
+function consume; value string
+  print; 'consume:', value
+
+class message-box
+  message string = ''
+
+  function construct; message string
+    this.message = message
+    print; 'parameter:', message
+
+function main;
+  entries map of string, int = map; alpha=1
+  for key, value in entries
+    consume; key
+    print; 'key:', key, '=', value
+
+  holder = instance message-box; 'saved'
+  print; 'field:', holder.message

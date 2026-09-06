@@ -210,7 +210,16 @@ impl Emitter<'_> {
         if let ValueType::Optional(inner) = value_type {
             let actual = self.value_type(node);
             return if actual == Some(ValueType::Optional(inner.clone())) {
-                self.expression(node)
+                let expression = self.expression(node);
+                if node.kind == SyntaxKind::MemberExpression
+                    && !rust_value_is_copy(inner.as_ref())
+                    && let [receiver, member] = node.children.as_slice()
+                    && self.object_field(receiver, self.text(member))
+                {
+                    format!("({expression}).clone()")
+                } else {
+                    expression
+                }
             } else if self.text(node).trim() == "none"
                 || actual == Some(ValueType::Scalar(ScalarType::None))
             {
@@ -375,6 +384,11 @@ impl Emitter<'_> {
             {
                 format!("(*{}).clone()", self.namespace_name(node))
             }
+            ValueType::Scalar(ScalarType::String)
+                if node.kind == SyntaxKind::Name && self.binding_value_is_reused(node) =>
+            {
+                format!("({}).clone()", self.expression(node))
+            }
             ValueType::List(item)
                 if node.kind == SyntaxKind::Name
                     && self.is_builtin(node, "/core/collections::list") =>
@@ -505,6 +519,9 @@ impl Emitter<'_> {
                     return String::new();
                 };
                 let callable_field = self.callable_object_field(receiver, self.text(member));
+                let throws = self
+                    .contract_for_call(node)
+                    .is_some_and(|contract| contract.throws);
                 let receiver_type = self
                     .value_type(receiver)
                     .expect("bound object method receiver must have a static type");
@@ -535,7 +552,7 @@ impl Emitter<'_> {
                     )
                 {
                     return format!(
-                        "{{ let receiver = {receiver}; std::sync::Arc::new(move |{declarations}| {body}) }}"
+                        "{{ let receiver = {receiver}; std::sync::Arc::new(move |{declarations}| Ok({body})) }}"
                     );
                 }
                 if callable_field {
@@ -544,18 +561,41 @@ impl Emitter<'_> {
                         rust_name(self.text(member))
                     )
                 } else {
+                    let call = format!("receiver.{}({arguments})", rust_name(self.text(member)));
+                    let body = if throws { call } else { format!("Ok({call})") };
                     format!(
-                        "{{ let receiver = {receiver}; std::sync::Arc::new(move |{declarations}| receiver.{}({arguments})) }}",
-                        rust_name(self.text(member))
+                        "{{ let receiver = {receiver}; std::sync::Arc::new(move |{declarations}| {body}) }}"
                     )
                 }
             }
-            ValueType::Function(_, _) if node.kind == SyntaxKind::Name => {
+            ValueType::Function(parameters, _) if node.kind == SyntaxKind::Name => {
                 if let Some(contract) = self.contract_for_call(node) {
-                    format!(
-                        "std::sync::Arc::new({})",
-                        function_name(self.package, contract)
-                    )
+                    if contract.throws {
+                        format!(
+                            "std::sync::Arc::new({})",
+                            function_name(self.package, contract)
+                        )
+                    } else {
+                        let declarations = parameters
+                            .iter()
+                            .enumerate()
+                            .map(|(index, parameter)| {
+                                format!(
+                                    "argument_{index}: {}",
+                                    rust_element_type(self.package, parameter.clone())
+                                )
+                            })
+                            .collect::<Vec<_>>()
+                            .join(", ");
+                        let arguments = (0..parameters.len())
+                            .map(|index| format!("argument_{index}"))
+                            .collect::<Vec<_>>()
+                            .join(", ");
+                        format!(
+                            "std::sync::Arc::new(move |{declarations}| Ok({}({arguments})))",
+                            function_name(self.package, contract)
+                        )
+                    }
                 } else {
                     format!("({}).clone()", self.expression(node))
                 }
@@ -615,7 +655,7 @@ impl Emitter<'_> {
                     self.name(node)
                 )
             }
-            SyntaxKind::Name => format!("{}.clone()", self.name(node)),
+            SyntaxKind::Name => format!("({}).clone()", self.name(node)),
             SyntaxKind::GroupExpression => {
                 node.children.first().map_or_else(String::new, |child| {
                     format!("({})", self.adaptive_expression(child))
@@ -1055,6 +1095,7 @@ impl Emitter<'_> {
                 .map(|child| count_references(emitter, child, binding_span, name))
                 .sum::<usize>()
         }
+
         let name = self.text(node).trim();
         if name == "this" {
             return false;
@@ -1066,6 +1107,20 @@ impl Emitter<'_> {
         };
 
         count_references(self, &self.unit.tree.root, binding.span, name) == 1
+    }
+    fn binding_value_is_reused(&self, node: &SyntaxNode) -> bool {
+        let name = self.text(node);
+        self.unit
+            .typed_bindings
+            .iter()
+            .rev()
+            .find(|binding| {
+                binding.name == name
+                    && binding.is_visible_at(self.unit.source.id(), node.span.start)
+            })
+            .is_some_and(|binding| {
+                binding_read_value_is_reused(self.package, binding.span, node.span)
+            })
     }
 
     pub(in crate::lowering) fn value_type(&self, node: &SyntaxNode) -> Option<ValueType> {

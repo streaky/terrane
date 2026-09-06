@@ -134,14 +134,86 @@ pub(super) fn collect_duplicate_union_arm_warnings(
     collect(package, unit, &unit.tree.root, warnings);
 }
 
+pub(super) fn record_function_references(package: &mut SemanticPackage) {
+    fn collect(
+        package: &SemanticPackage,
+        unit: &SemanticUnit,
+        node: &SyntaxNode,
+        references: &mut BTreeSet<(u32, usize, usize)>,
+    ) {
+        if node.kind == SyntaxKind::Name
+            && let Some(symbol) =
+                package.resolve_name_at(unit, node.span.start, node_text(&unit.source, node))
+            && symbol.kind == SymbolKind::Function
+            && let Some(declaration) = symbol.declaration_span
+        {
+            references.insert(span_key(declaration));
+        }
+        for child in &node.children {
+            if node.kind == SyntaxKind::FunctionDeclaration && child.kind == SyntaxKind::Name {
+                continue;
+            }
+            collect(package, unit, child, references);
+        }
+    }
+
+    let references = package
+        .units
+        .iter()
+        .fold(BTreeSet::new(), |mut references, unit| {
+            collect(package, unit, &unit.tree.root, &mut references);
+            references
+        });
+    package.referenced_functions = references;
+}
+
+fn collect_unused_top_level_function_warnings(
+    package: &SemanticPackage,
+    unit: &SemanticUnit,
+    warnings: &mut Vec<Diagnostic>,
+) {
+    if unit.bundled || unit.namespace.starts_with("/deps/") {
+        return;
+    }
+    for function in &unit.functions {
+        if function.owner.is_some() || function.name == "main" {
+            continue;
+        }
+        let Some(declaration) = unit.tree.root.children.iter().find(|node| {
+            node.kind == SyntaxKind::FunctionDeclaration && node.span == function.span
+        }) else {
+            continue;
+        };
+        let Some(name) = declaration
+            .children
+            .iter()
+            .find(|child| child.kind == SyntaxKind::Name)
+        else {
+            continue;
+        };
+        if !package.function_is_referenced(function.span) {
+            warnings.push(
+                Diagnostic::warning(
+                    "W4005",
+                    format!("function `{}` is never referenced", function.name),
+                    name.span,
+                )
+                .with_help("remove the function or call, pass, or otherwise reference it"),
+            );
+        }
+    }
+}
+
 pub(crate) fn warnings(package: &SemanticPackage, lint_name_style: bool) -> Vec<Diagnostic> {
     let mut warnings = Vec::new();
     warnings.extend(package.import_warnings.iter().cloned());
+
     for unit in &package.units {
         if lint_name_style && !unit.bundled && !unit.namespace.starts_with("/deps/") {
             collect_name_style_warnings(unit, &mut warnings);
         }
         collect_duplicate_union_arm_warnings(package, unit, &mut warnings);
+        collect_unused_top_level_function_warnings(package, unit, &mut warnings);
         let mut loop_targets = BTreeSet::new();
         collect_loop_target_spans(&unit.tree.root, &mut loop_targets);
         for binding in &unit.typed_bindings {

@@ -1,0 +1,2 @@
+case.trn:3:10: warning[W4005]: function `helper` is never referenced
+  help: remove the function or call, pass, or otherwise reference it

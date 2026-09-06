@@ -1175,17 +1175,25 @@ fn types_canonical_integer_coercion_family() {
 }
 
 #[test]
-fn rejects_unsupported_integer_coercion_destinations() {
-    let failure = analyze(&package(
+fn types_default_float_coercion_destination_as_float64() {
+    let analyzed = analyze(&package(
         true,
         &[(
             "main.trn",
             "namespace app\nfunction main;\n  value int = 1\n  converted = value.coerce; float\n",
         )],
     ))
-    .unwrap_err();
-    assert_eq!(failure.diagnostics[0].code, "T0008");
+    .unwrap();
+    let converted = analyzed.units[0]
+        .typed_bindings
+        .iter()
+        .find(|binding| binding.name == "converted")
+        .unwrap();
+    assert_eq!(converted.value_type, ValueType::Scalar(ScalarType::Float64));
+}
 
+#[test]
+fn rejects_unsupported_adaptive_integer_coercion_forms() {
     for expression in ["value.coerce.wrap; int", "value.coerce.checked; int"] {
         let failure = analyze(&package(
             true,
@@ -1875,6 +1883,21 @@ fn records_parameter_mutability() {
         .unwrap()
         .parameters[0];
     assert!(parameter.mutable);
+}
+
+#[test]
+fn optional_object_member_diagnostic_explains_stable_narrowing() {
+    let source = "namespace app\nfrom /core/errors import arithmetic-overflow, coercion-error\nfunction main;\n  try\n    try\n      throw coercion-error\n    catch coercion-error\n      throw arithmetic-overflow\n  catch arithmetic-overflow as outer\n    print; (outer.cause).message\n";
+    let failure = analyze(&package(true, &[("main.trn", source)])).unwrap_err();
+    let diagnostic = &failure.diagnostics[0];
+    assert_eq!(diagnostic.code, "T0031");
+    assert_eq!(
+        diagnostic.help.as_deref(),
+        Some(
+            "`.message` requires narrowing; bind the optional-producing expression to a name, \
+             guard that name with `!= none`, then select `.message` from the narrowed name"
+        )
+    );
 }
 
 fn contains_kind(node: &terrane_compiler::syntax::SyntaxNode, kind: SyntaxKind) -> bool {

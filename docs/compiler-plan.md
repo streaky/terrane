@@ -383,11 +383,11 @@ T0059 reference used after replacement     T0066 field missing type and initiali
 T0067 incompatible interface signature    T0068 escaping non-owning reference
 T0070 reflection unavailable in profile     T0074 invalid task-core operation
 T0071 unavailable reflected member          T0075 child deadline extension
-T0073 value live across suspension           T0076 unconsumed task
-T0078 parameterized program entrypoint
+T0072 read-only member assignment            T0076 unconsumed task
+T0073 value live across suspension           T0078 parameterized program entrypoint
 ```
 
-`T0056`, `T0057`, `T0060`, `T0069`, `T0072`, and `T0077` are intentionally unassigned.
+`T0056`, `T0057`, `T0060`, `T0069`, and `T0077` are intentionally unassigned.
 
 ### Milestone 3 — Namespaces, scopes, and bootstrap environment
 
@@ -473,6 +473,7 @@ W4001 initialized local binding is never read
 W4002 initial or later store cannot reach a read before definite replacement
 W4003 duplicate semantic union arm
 W4004 namespace-wide import shadows, replaces, or is skipped for a different visible object
+W4005 authored top-level function is never referenced
 ```
 
 Warnings are non-blocking diagnostics. Their codes have the same stability rule as error
@@ -898,6 +899,17 @@ one primitive cast. Boundary conformance covers signed and unsigned sources thro
 both floating widths, including caught inexact arrivals; only adaptive `int` uses the arbitrary-
 precision conversion path.
 
+Implemented follow-up: the written coercion family now covers every declared numeric-to-floating
+pair. Integer sources of every width, including adaptive `int` and 128-bit fixed integers, use
+IEEE round-to-nearest with ties to even; `float32` to `float64` is exact and `float64` to `float32`
+uses the same rounding rule. The bare child reports finite-range failure as `coercion-error`, while
+`checked` returns `none`; `wrap` and `saturate` remain fixed-integer-only, and floating-to-integer
+written pairs remain absent in favor of the named rounding methods. `explicit-numeric-coercions`
+exercises inexact successful conversions, adaptive and 128-bit sources, floating widening and
+narrowing, IEEE non-finite categories, checked overflow, and catchable default failure. Focused
+rejections preserve the undeclared floating-to-integer and floating-policy boundaries, and the
+reviewed generated Rust keeps fixed-width total conversions allocation-free.
+
 Milestone 5 must preserve the Small-tier proof for an unnecessary written `coerce; int`, so it
 lowers identically to the equivalent implicit conversion instead of materialising the erased
 adaptive-integer wrapper.
@@ -1172,8 +1184,10 @@ homogeneous fixed-length tuples, ranges, entries, and separately named unordered
 using a deterministic fixed-seed hash implementation. Applied `tuple of Item` types cross binding,
 parameter, and return boundaries; tuple runtime length is not part of the type. Conformance
 covers member and indexed mutation, checked and throwing lookup with typed `index-error` /
-`missing-key`, ordered and unordered iteration, typed `key, value` destructuring of map entries,
-range direction and inclusivity, homogeneous-item rejection, and assignment separation. Lowering
+`missing-key`, arithmetic after presence refinement of an adaptive-integer checked lookup,
+ordered and unordered iteration, typed `key, value` destructuring of map entries, range direction
+and inclusivity, homogeneous-item rejection, assignment separation, and reuse of string-valued
+parameters after both ordinary calls and object-field assignment. Lowering
 recognises append-only local-list mutation in `while`, three-clause `for`, and
 collection-iteration `for` regions, performs any copy-on-write split once before entering the
 outermost such region, and reuses that borrow in nested loops. A qualifying count-controlled
@@ -1198,10 +1212,14 @@ Exit criterion: a selected method family can be stored, passed, and invoked; the
 Implemented evidence (partial; the exit criterion remains open): typed, synchronous function values
 cross binding and parameter boundaries; anonymous functions capture resolver-selected outer bindings
 once; and stored bound methods capture their receiver once before later invocation. Generated Rust
-uses statically typed `Arc<dyn Fn>` values rather than a universal runtime value and compiles
-receiver-free methods without lint suppression. Conformance executes a passed closure,
-distinguishes parameter shadowing from an outer capture, and invokes a stored receiver-bound method.
-Caller-supplied pair conversion callbacks are not implemented.
+uses statically typed `Arc<dyn Fn>` values rather than a universal runtime value. Synchronous
+callable values use one result-bearing ABI so inferred errors survive an erased callable boundary;
+non-throwing functions and closures are adapted with `Ok`. Invocation through a callable parameter
+deliberately contributes the broad `throwable` set until milestone 26.2 gives function types an
+expressible throwable contract. Conformance executes non-throwing closures and bound methods and
+now also passes a named, string-returning throwing function through a higher-order function,
+catching its propagated error and exercising its successful return. Caller-supplied pair conversion
+callbacks are not implemented.
 
 ### Milestone 16 — Classes, interfaces, and traits
 
@@ -1235,8 +1253,9 @@ interface conformance lowers through typed protocol wrappers and preserves mutat
 requirements inferred from implementations, while traits reuse fields and methods. Executable
 cases isolate direct construction and member dispatch, independent instance state, singleton
 state, inherited `self` construction, inherited per-effective-class static state, nested static
-field mutation, separated state and destruction, inheritance, inherited fields including
-ten-level read/write forwarding, interface conformance across inheritance, self-typed returns,
+field mutation, adaptive `int|none` field reads and arithmetic after presence refinement,
+separated state and destruction, inheritance, inherited fields including ten-level read/write
+forwarding, interface conformance across inheritance, self-typed returns,
 immutable and mutating interface dispatch, trait reuse, and combined
 inheritance/interface/lifecycle behavior. Rejected cases cover implicit class invocation,
 construction postfixes before the required call marker, missing/non-class construction
@@ -1301,8 +1320,9 @@ now use non-owning `ref T` and owning `shared ref T`; lowering represents them w
 and strong storage respectively. Conformance proves ordinary references to named owned local
 bindings, transparent scalar member and consumer access, shared mutation through an owner, bounded
 non-owning observation, explicit ownership transfer, temporary and parameter-source rejection,
-source-diagnosed return escape, replacement invalidation of non-owning references, and continued
-access through shared owners after replacement. The current generated
+source-diagnosed return escape, replacement invalidation of non-owning references, continued
+access through shared owners after replacement, and ordinary copy-on-write mutation before a later
+`ref` or `shared ref` selects reference-backed storage for the original binding. The current generated
 representation clones the referenced value for each read; this is a correctness-first lowering, not
 the intended reference cost model. Async suspension now proves a directly declared local owner that
 remains in the task frame without replacement or ownership transfer; broader lifetime analysis,
@@ -1341,11 +1361,14 @@ the structured-error pipeline.
 Descriptor values materialise only when observed, and minimal reflection profiles reject unavailable
 metadata access. `awaits`, `mutating`, `mutates`, and bare `foreign` have been removed as callable
 qualifiers; suspension and receiver mutation are inferred, while foreign transitions belong to
-concrete adapter or ABI constructs. Accepted and rejected conformance covers catch/finally throwable
-sets, scalar and collection-contained coercion failures propagated across callable boundaries,
-custom throwables, incompatible bounds including inferred explicit and implicit coercion failures,
-callable-contract reflection, descriptor materialisation, profile denial, stripped reflection, and
-rejection of removed qualifiers. This satisfies the milestone exit criterion.
+concrete adapter or ABI constructs. Typed and catch-all clauses may bind the caught runtime
+`throwable` envelope and inspect its `message`, optional `cause`, and non-throwing `render`; throwing
+that bound value preserves its kind and cause chain. Accepted and rejected conformance covers
+catch/finally throwable sets, scalar and collection-contained coercion failures propagated across
+callable boundaries, custom throwables, executable typed catch bindings, incompatible bounds
+including inferred explicit and implicit coercion failures, callable-contract reflection,
+descriptor materialisation, profile denial, stripped reflection, and rejection of removed
+qualifiers. This satisfies the milestone exit criterion.
 
 ### Milestone 19 — Async core: tasks, scope, cancellation, and deadlines
 
@@ -1985,6 +2008,39 @@ runs. A first baseline-then-implementation sequence showed an apparent 6.2–12.
 repeating the baseline after the implementation reduced the comparison to -3.7–+1.0%, with every
 before/after range overlapping. The reversed control therefore identifies the first result as
 ordering/environment noise, not a performance benefit of this work.
+
+### Milestone 26.2 — Throwable contracts for function types
+
+Milestone 15 established one sound result-bearing ABI for synchronous callable values but
+deliberately erased their precise throwable sets. Milestone 26.1 establishes stable structured-error
+identity and propagation. This milestone joins those contracts at the language surface; it does not
+weaken the broad `throwable` fallback for a callable whose contract is genuinely unavailable.
+
+Deliver:
+
+- settle and implement function-type syntax for a declared throwable upper bound, including its
+  association and grouping within nested `function from ... to ...` types and its interaction with
+  `async`;
+- retain the written upper bound and inferred concrete escaping set as distinct callable-type
+  metadata, consistent with ordinary function declarations and reflection;
+- make callable compatibility accept an infallible or narrower implementation and reject an
+  incompatible or broader implementation at the assignment, argument, return, or object-member
+  boundary;
+- make invocation through a typed callable value contribute its declared bound instead of the broad
+  `throwable` set, while an unbounded erased callable remains broad;
+- preserve exact throwable metadata for named functions, closures, and bound-method values, removing
+  result propagation and error-site registration where the selected callable contract proves the
+  invocation infallible;
+- add accepted and rejected conformance for nonthrowing, exact-bound, narrower-bound, broader-bound,
+  nested-function, bound-method, and async callable types before documenting a canonical spelling.
+
+Exit criterion: a higher-order function can state the throwable contract required of its callback;
+passing and invoking callbacks preserves that contract across binding, parameter, return, member,
+closure, and bound-method boundaries; incompatible effects receive a source-oriented diagnostic at
+the compatibility boundary; a provably infallible callable-value invocation lowers without an error
+site or `?`; reflection distinguishes the written bound from the inferred concrete set; and all
+accepted forms have deterministic canonical formatting, generated-Rust goldens, compiled crates,
+and runtime evidence.
 
 ### Milestone 27 — Structured logging
 

@@ -76,7 +76,7 @@ pub(super) fn validate_call_nodes<'a>(
     }
 
     validate_resolved_assignment(package, unit, node, contracts)?;
-    validate_integer_coercion_call(unit, node, scoped_bindings)?;
+    validate_numeric_coercion_call(unit, node, scoped_bindings)?;
     if node.kind == SyntaxKind::CallExpression
         && let Some(arguments) = node.children.get(1)
     {
@@ -281,7 +281,7 @@ pub(super) fn validate_call_nodes<'a>(
     for (index, child) in node.children.iter().enumerate() {
         if node.kind == SyntaxKind::CallExpression
             && index == 0
-            && let Some((source, _)) = integer_coercion_call(&unit.source, child)
+            && let Some((source, _)) = numeric_coercion_call(&unit.source, child)
         {
             validate_call_nodes(
                 package,
@@ -305,13 +305,13 @@ pub(super) fn validate_call_nodes<'a>(
     Ok(())
 }
 
-pub(super) fn validate_integer_coercion_call(
+pub(super) fn validate_numeric_coercion_call(
     unit: &SemanticUnit,
     node: &SyntaxNode,
     bindings: &[TypedBinding],
 ) -> Result<(), SemanticFailure> {
     if node.kind == SyntaxKind::CallExpression {
-        infer_integer_coercion_type(unit, node, bindings)?;
+        infer_numeric_coercion_type(unit, node, bindings)?;
     }
     Ok(())
 }

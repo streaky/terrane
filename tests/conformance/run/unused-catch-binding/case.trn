@@ -1,0 +1,9 @@
+namespace unused-catch-binding
+from /core/errors import coercion-error
+from /core/output import print
+
+function main;
+  try
+    throw coercion-error
+  catch coercion-error as unused
+    print; >caught

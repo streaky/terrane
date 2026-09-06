@@ -376,9 +376,21 @@ mod __terrane_trace {
         pub end_line: u32,
         pub end_column: u32,
     }
-    pub static FILES: [&str; 0] = [];
-    pub static FUNCTIONS: [&str; 0] = [];
-    pub static SITES: [Site; 0] = [];
+    pub static FILES: [&str; 1] = ["src/main.trn"];
+    pub static FUNCTIONS: [&str; 1] = ["/concurrency-objects::run"];
+    pub static SITES: [Site; 1] = [
+        {
+            /* terrane-site-row: site 0: /concurrency-objects::run (src/main.trn:15:9-15:18) */
+            Site {
+                function: 0,
+                file: 0,
+                line: 15,
+                column: 9,
+                end_line: 15,
+                end_column: 18,
+            }
+        },
+    ];
     #[cold]
     #[inline(never)]
     pub fn render(site: u32) -> String {
@@ -770,31 +782,40 @@ fn terrane_platform_thread_local_int_set(
 // Namespace: concurrency-objects
 #[derive(Clone)]
 pub struct AsyncRunner {
-    pub callback: std::sync::Arc<dyn Fn() -> () + Send + Sync>,
+    pub callback: std::sync::Arc<dyn Fn() -> Result<(), TerraneError> + Send + Sync>,
 }
 impl AsyncRunner {
     pub fn terrane_construct(
-        callback: std::sync::Arc<dyn Fn() -> () + Send + Sync>,
+        callback: std::sync::Arc<dyn Fn() -> Result<(), TerraneError> + Send + Sync>,
     ) -> Self {
         let mut value = Self {
             callback: {
-                std::sync::Arc::new(move || -> () {
-                    return ();
+                std::sync::Arc::new(move || -> Result<(), TerraneError> {
+                    return Ok(());
                 })
             },
         };
         value.construct(callback);
         value
     }
-    pub fn construct(&mut self, callback: std::sync::Arc<dyn Fn() -> () + Send + Sync>) {
+    pub fn construct(
+        &mut self,
+        callback: std::sync::Arc<dyn Fn() -> Result<(), TerraneError> + Send + Sync>,
+    ) {
         self.callback = callback.clone();
     }
-    pub async fn run(&self) {
-        let callback: std::sync::Arc<dyn Fn() -> () + Send + Sync> = {
+    pub async fn run(&self) -> Result<(), TerraneError> {
+        let callback: std::sync::Arc<
+            dyn Fn() -> Result<(), TerraneError> + Send + Sync,
+        > = {
             let receiver = self.clone();
             std::sync::Arc::new(move || (receiver.callback)())
         };
-        callback();
+        __terrane_traced_err(
+            callback(),
+            0 /* terrane-site: src/main.trn:15:9-15:18 */,
+        )?;
+        Ok(())
     }
 }
 fn main() {
@@ -808,13 +829,14 @@ fn main() {
     let counter: IntMutex = IntMutex::terrane_construct(
         terrane_int_support::Int::from(4_i128),
     );
-    let work: std::sync::Arc<dyn Fn() -> () + Send + Sync> = {
+    let work: std::sync::Arc<dyn Fn() -> Result<(), TerraneError> + Send + Sync> = {
         let counter = counter.clone();
         let messages = messages.clone();
         let options = options.clone();
-        std::sync::Arc::new(move || -> () {
+        std::sync::Arc::new(move || -> Result<(), TerraneError> {
             messages.send(terrane_int_support::Int::from(11_i128), options.clone());
             counter.increase(terrane_int_support::Int::from(3_i128));
+            Ok(())
         })
     };
     let worker: AsyncRunner = AsyncRunner::terrane_construct(work.clone());
@@ -834,7 +856,8 @@ fn main() {
             }(),
             move || __terrane_cancel.should_cancel(),
         ) {
-            Some(value) => TerraneTaskResult::Completed(value),
+            Some(Ok(value)) => TerraneTaskResult::Completed(value),
+            Some(Err(error)) => TerraneTaskResult::Failed(error),
             None => TerraneTaskResult::Cancelled,
         })
     };

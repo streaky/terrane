@@ -383,6 +383,7 @@ pub fn analyze(package: &Package) -> Result<SemanticPackage, SemanticFailure> {
         units,
         projection,
         binding_events: BTreeMap::new(),
+        referenced_functions: BTreeSet::new(),
         import_warnings,
         bootstrap_version: BOOTSTRAP_VERSION,
     };
@@ -407,6 +408,7 @@ pub fn analyze(package: &Package) -> Result<SemanticPackage, SemanticFailure> {
         unit.unreachable_spans = unreachable_spans;
         unit.evaluation_steps = collect_evaluation_steps(&unit.source, &unit.tree.root);
     }
+    record_function_references(&mut semantic);
     Ok(semantic)
 }
 
@@ -464,8 +466,13 @@ pub(super) fn validate_error_clauses(package: &SemanticPackage) -> Result<(), Se
                     thrown.span.start,
                     node_text(&unit.source, thrown.children.first().unwrap_or(thrown)),
                 );
-                let standard = symbol.is_some_and(|symbol| symbol.kind == SymbolKind::ErrorObject);
                 let value_type = infer_value_type(unit, thrown, &unit.typed_bindings)?;
+                let standard = symbol.is_some_and(|symbol| symbol.kind == SymbolKind::ErrorObject)
+                    || matches!(
+                        &value_type,
+                        Some(ValueType::Object(identity))
+                            if identity == &ObjectIdentity::new("/core/errors", "throwable")
+                    );
                 let object_name = match &value_type {
                     Some(ValueType::Descriptor(name)) => Some(name.as_str()),
                     Some(ValueType::Object(identity)) => Some(identity.name.as_str()),
@@ -505,18 +512,6 @@ pub(super) fn validate_error_clauses(package: &SemanticPackage) -> Result<(), Se
                 .iter()
                 .filter(|child| child.kind == SyntaxKind::CatchClause)
             {
-                if let Some(alias) = clause
-                    .children
-                    .iter()
-                    .find(|child| child.kind == SyntaxKind::CatchBinding)
-                {
-                    return Err(failure(
-                        &unit.source,
-                        "T0027",
-                        "catch aliases are unavailable until error values expose source-level members",
-                        alias.span,
-                    ));
-                }
                 let Some(descriptor) = clause
                     .children
                     .first()
@@ -820,6 +815,11 @@ impl SemanticPackage {
     #[must_use]
     pub fn symbol(&self, namespace: &str, name: &str) -> Option<&Symbol> {
         self.namespaces.get(namespace)?.symbols.get(name)
+    }
+
+    #[must_use]
+    pub(crate) fn function_is_referenced(&self, declaration: Span) -> bool {
+        self.referenced_functions.contains(&span_key(declaration))
     }
 
     #[must_use]

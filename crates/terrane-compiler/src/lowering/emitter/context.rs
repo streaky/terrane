@@ -102,6 +102,15 @@ impl Emitter<'_> {
         }
     }
 
+    pub(super) fn raw_storage_name(&self, node: &SyntaxNode) -> String {
+        let source_name = self.text(node);
+        if source_name == "this" && self.closure_depth == 0 {
+            "self".to_owned()
+        } else {
+            rust_name(source_name)
+        }
+    }
+
     pub(super) fn uninitialized_global_failure(&self, node: &SyntaxNode) -> String {
         let (line, column) = self.source.line_column(node.span.start);
         format!(
@@ -132,6 +141,14 @@ impl Emitter<'_> {
                 })
             })
             .flatten()
+    }
+
+    pub(super) fn is_throwable_value(&self, node: &SyntaxNode) -> bool {
+        matches!(
+            self.value_type(node),
+            Some(ValueType::Object(identity))
+                if identity.namespace == "/core/errors" && identity.name == "throwable"
+        )
     }
 
     fn list_append_binding(&self, node: &SyntaxNode) -> Option<crate::Span> {
@@ -602,6 +619,21 @@ impl Emitter<'_> {
                     .split_whitespace()
                     .collect::<Vec<_>>()
                     .join(" ")
+            })
+    }
+
+    pub(super) fn object_field(&self, receiver: &SyntaxNode, name: &str) -> bool {
+        let Some(ValueType::Object(identity)) = self.receiver_value_type(receiver) else {
+            return false;
+        };
+        self.unit
+            .objects
+            .iter()
+            .find(|object| object.identity == identity)
+            .is_some_and(|object| {
+                effective_object_fields(self.unit, object)
+                    .iter()
+                    .any(|field| field.name == name)
             })
     }
 
