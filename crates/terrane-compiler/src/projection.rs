@@ -3024,8 +3024,9 @@ mod tests {
             "version = 4\n\n[[package]]\nname = \"reqwest\"\nversion = \"0.12.28\"\n\n[[package]]\nname = \"http\"\nversion = \"1.3.1\"\n\n[[package]]\nname = \"http\"\nversion = \"0.2.12\"\n",
         )
         .unwrap();
+        let mut conflicting = [response_status()];
         let error = enforce_transitive_reachability(
-            &mut vec![response_status()],
+            &mut conflicting,
             &[dependency("reqwest"), dependency("http")],
             &directory,
         )
