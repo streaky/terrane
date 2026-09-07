@@ -187,6 +187,163 @@ impl Emitter<'_> {
     }
     #[expect(
         clippy::too_many_lines,
+        reason = "one decoder emission pass keeps field ordering and diagnostic accumulation auditable"
+    )]
+    fn object_document_decoder(
+        &mut self,
+        object: &ObjectContract,
+        class_type: &str,
+        fields: &[&ObjectField],
+    ) {
+        let (class_line, class_column) = self.source.line_column(object.span.start);
+        let class_source = format!("{}:{class_line}:{class_column}", self.unit.source_path);
+        let declared_fields = fields
+            .iter()
+            .map(|field| format!("{:?}", field.metadata.external_name))
+            .collect::<Vec<_>>()
+            .join(", ");
+        self.line(&format!("impl TerraneDocumentDecode for {class_type} {{"));
+        self.indent += 1;
+        self.line("fn terrane_decode_document(");
+        self.indent += 1;
+        self.line("input: &terrane_document_support::DataResult,");
+        self.line("path: &str,");
+        self.line("allow_unknown: bool,");
+        self.line("source: &str,");
+        self.line("_field_source: &str,");
+        self.indent -= 1;
+        self.line(") -> Result<Self, Vec<TerraneDocumentDiagnostic>> {");
+        self.indent += 1;
+        self.line("if input.failed {");
+        self.indent += 1;
+        self.line(&format!(
+            "return Err(vec![__terrane_document_diagnostic(path, {:?}, \"invalid\", \"parse\", input.message.clone(), source, {:?})]);",
+            object.name, class_source
+        ));
+        self.indent -= 1;
+        self.line("}");
+        self.line("if terrane_document_support::document_kind(input) != \"map\" {");
+        self.indent += 1;
+        self.line(&format!(
+            "return __terrane_document_type_error(input, path, {:?}, source, {:?});",
+            object.name, class_source
+        ));
+        self.indent -= 1;
+        self.line("}");
+        self.line("let mut value = Self::terrane_construct();");
+        self.line("let mut diagnostics = Vec::new();");
+        self.line(&format!(
+            "let declared_fields: &[&str] = &[{declared_fields}];"
+        ));
+        self.line("if !allow_unknown {");
+        self.indent += 1;
+        self.line("for index in 0..terrane_document_support::document_length(input) {");
+        self.indent += 1;
+        self.line("let key = terrane_document_support::document_key(input, index);");
+        self.line("if !declared_fields.contains(&key.as_str()) {");
+        self.indent += 1;
+        self.line(&format!(
+            "diagnostics.push(__terrane_document_diagnostic(__terrane_document_child_path(path, &key), {:?}, \"present\", \"unknown-field\", format!(\"unknown field `{{key}}`\"), source, {:?}));",
+            object.name, class_source
+        ));
+        self.indent -= 1;
+        self.line("}");
+        self.indent -= 1;
+        self.line("}");
+        self.indent -= 1;
+        self.line("}");
+        for field in fields {
+            let rust_field = rust_name(&field.name);
+            let rust_type = rust_value_type(self.package, field.value_type.clone());
+            let external = &field.metadata.external_name;
+            let (field_line, field_column) = self.source.line_column(field.span.start);
+            let field_source = format!("{}:{field_line}:{field_column}", self.unit.source_path);
+            self.line("{");
+            self.indent += 1;
+            self.line(&format!(
+                "let field = terrane_document_support::document_field(input, {external:?});"
+            ));
+            self.line(&format!(
+                "let field_path = __terrane_document_child_path(path, {external:?});"
+            ));
+            self.line("if field.failed {");
+            self.indent += 1;
+            if field.metadata.defaulted || field.metadata.optional {
+                self.line("// The field initializer supplies the absent default.");
+            } else {
+                self.line(&format!(
+                    "diagnostics.push(__terrane_document_diagnostic(&field_path, {:?}, \"missing\", \"missing-required\", \"required field is missing\", source, {:?}));",
+                    field.value_type.to_string(), field_source
+                ));
+            }
+            self.indent -= 1;
+            self.line("} else {");
+            self.indent += 1;
+            if let ValueType::Tuple(_, Some(length)) = field.value_type {
+                self.line(&format!(
+                    "if terrane_document_support::document_kind(&field) == \"list\" && terrane_document_support::document_length(&field) != {length} {{"
+                ));
+                self.indent += 1;
+                self.line(&format!(
+                    "diagnostics.push(__terrane_document_diagnostic(&field_path, {:?}, \"list\", \"tuple-length\", {:?}, source, {:?}));",
+                    field.value_type.to_string(),
+                    format!("expected exactly {length} tuple items"),
+                    field_source
+                ));
+                self.indent -= 1;
+                self.line("} else {");
+                self.indent += 1;
+            }
+            self.line(&format!(
+                "match <{rust_type} as TerraneDocumentDecode>::terrane_decode_document(&field, &field_path, allow_unknown, source, {field_source:?}) {{"
+            ));
+            self.indent += 1;
+            self.line(&format!("Ok(decoded) => value.{rust_field} = decoded,"));
+            self.line("Err(mut field_diagnostics) => diagnostics.append(&mut field_diagnostics),");
+            self.indent -= 1;
+            self.line("}");
+            if matches!(field.value_type, ValueType::Tuple(_, Some(_))) {
+                self.indent -= 1;
+                self.line("}");
+            }
+            self.indent -= 1;
+            self.line("}");
+            self.indent -= 1;
+            self.line("}");
+        }
+        if object.interfaces.iter().any(|interface| {
+            interface.namespace == "/core/documents" && interface.name == "document-validatable"
+        }) {
+            self.line("if diagnostics.is_empty() {");
+            self.indent += 1;
+            self.line("if let Some(message) = value.validate_document() {");
+            self.indent += 1;
+            self.line(&format!(
+                "diagnostics.push(__terrane_document_diagnostic(path, {:?}, \"map\", \"validation\", message, source, {:?}));",
+                object.name, class_source
+            ));
+            self.indent -= 1;
+            self.line("}");
+            self.indent -= 1;
+            self.line("}");
+        }
+        self.line("if diagnostics.is_empty() {");
+        self.indent += 1;
+        self.line("Ok(value)");
+        self.indent -= 1;
+        self.line("} else {");
+        self.indent += 1;
+        self.line("Err(diagnostics)");
+        self.indent -= 1;
+        self.line("}");
+        self.indent -= 1;
+        self.line("}");
+        self.indent -= 1;
+        self.line("}");
+    }
+
+    #[expect(
+        clippy::too_many_lines,
         reason = "object lowering emits one complete, ordered Rust object contract"
     )]
     pub(super) fn object(&mut self, node: &SyntaxNode) {
@@ -238,6 +395,11 @@ impl Emitter<'_> {
                 self.line(&format!(
                     "impl Clone for Box<dyn {protocol}> {{ fn clone(&self) -> Self {{ self.clone_box() }} }}"
                 ));
+                if methods.is_empty() {
+                    self.line(
+                        "#[allow(dead_code, reason = \"marker interface storage is materialized only when a value is erased to that marker\")]",
+                    );
+                }
                 self.line("#[derive(Clone)]");
                 self.line(&format!("pub struct {name}(Box<dyn {protocol}>);"));
                 self.line(&format!("impl {name} {{"));
@@ -506,6 +668,18 @@ impl Emitter<'_> {
                 self.current_object = previous_object;
                 self.indent -= 1;
                 self.line("}");
+                if package_uses_typed_documents(self.package)
+                    && object.interfaces.iter().any(|interface| {
+                        interface.namespace == "/core/documents"
+                            && interface.name == "document-decodable"
+                    })
+                    && object.base.is_none()
+                    && descendants.is_empty()
+                    && !object.resource_owning
+                    && !methods.iter().any(|method| method.name == "construct")
+                {
+                    self.object_document_decoder(object, &class_type, &instance_fields);
+                }
                 if !descendants.is_empty() {
                     if !object.resource_owning {
                         self.line("#[derive(Clone)]");

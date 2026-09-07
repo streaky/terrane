@@ -1,0 +1,9 @@
+namespace typed-document-requires-opt-in
+
+from /core/documents/json import decode-typed-json, default-json-options
+
+class settings
+    name string = ''
+
+function main;
+    result = decode-typed-json; '{}', settings, (default-json-options;), false

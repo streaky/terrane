@@ -1,0 +1,12 @@
+falseapilocalhost8443
+443edge40.5
+true5
+$.extra:unknown-field
+$.serviceName:type-mismatch
+$.endpoint.host:type-mismatch
+$.ports[1]:type-mismatch
+$.ratio:numeric-conversion
+truetrue
+truevalidationservice name is reserved
+false443
+falseyamllocal

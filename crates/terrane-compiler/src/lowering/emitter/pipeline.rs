@@ -20,6 +20,7 @@ pub(crate) fn lower(package: &SemanticPackage) -> Program {
     let mut globals = String::new();
     let registry = LoweringRegistry::default();
     let uses_errors = package_uses_structured_errors(package) || package_uses_task_scope(package);
+    let uses_typed_documents = package_uses_typed_documents(package);
     let has_dependency = package
         .units
         .iter()
@@ -234,6 +235,14 @@ pub(crate) fn lower(package: &SemanticPackage) -> Program {
         runtime.push(GeneratedModule {
             name: "platform_data",
             items,
+        });
+    }
+    if uses_typed_documents {
+        runtime.push(GeneratedModule {
+            name: "typed_documents",
+            items: vec![Item::generated(include_str!(
+                "../../runtime/typed_documents.rs"
+            ))],
         });
     }
     if uses_platform_capabilities {

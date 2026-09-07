@@ -6498,6 +6498,42 @@ outside that range produces an invalid status with sentinel code `255`; it does 
 `exit` is the sole terminating operation and passes the validated status code to the host process
 boundary.
 
+### 37.4 Typed document decoding
+
+`/core/documents` defines `document-decodable` as the explicit opt-in marker for compiler-derived
+fieldwise decoding. `/core/documents/json::decode-typed-json` and
+`/core/documents/yaml::decode-typed-yaml` each take source text, one concrete opted-in class
+descriptor, the corresponding parser options, and an explicit `allow-unknown` boolean. Their
+result contains a value of that concrete class and a typed list of every decode diagnostic;
+`failed` is true exactly when the list is non-empty. The value on failure is the class's ordinary
+initialized value and must not be mistaken for partial success.
+
+Derived decoding accepts scalars, nested opted-in classes, lists, homogeneous tuples, and maps with
+string keys when every nested value is itself decodable. Integer conversion is exact and
+range-checked. Decimal or integer input to a binary float succeeds only when the mathematical
+document number is exactly representable in the destination width; the decoder never rounds.
+Classes with resource ownership, inheritance, custom construction, unsupported fields, or a
+recursive value cycle must implement `deserializable` manually rather than receiving an unsafe
+partial derivation.
+
+Missing fields use their ordinary declaration initializer. A `T|none` field may be absent and
+retains its initialized optional value. Other missing fields are errors. External document keys
+come only from the field metadata in §18.1. Unknown fields are rejected or ignored according to
+the explicit call policy, recursively. JSON and YAML parsing retain their existing depth, byte,
+and alias limits before typed conversion begins.
+
+Diagnostics are accumulated rather than stopped at the first malformed field. Their deterministic
+sequence carries the data path, expected type, actual document kind, reason, message, decode call
+source, and declared field source. An opted-in class may additionally implement
+`document-validatable`; its zero-argument `validate-document` method returns `string|none` and runs
+only after the complete value has decoded without mapping errors. A returned message becomes a
+validation diagnostic. Validation never receives or exposes a partially decoded value.
+
+Rust owns the generated, statically typed construction glue because it must materialize a concrete
+Rust representation selected by a Terrane class descriptor. Parser policy, field metadata,
+initializers, validation methods, diagnostics exposed to callers, and unknown-field policy remain
+Terrane contracts. No universal boxed runtime value is introduced.
+
 ---
 
 ## 38. Implementation sequencing

@@ -11,6 +11,7 @@ mod scopes;
 mod calls;
 mod collections;
 mod contracts;
+mod documents;
 mod expressions;
 mod member_inference;
 mod numeric;
@@ -45,6 +46,7 @@ mod prelude {
     pub(super) use super::collections::*;
     pub(super) use super::contracts::*;
     pub(super) use super::diagnostics::*;
+    pub(super) use super::documents::*;
     pub(super) use super::expressions::*;
     pub(super) use super::member_inference::*;
     pub(super) use super::model::*;

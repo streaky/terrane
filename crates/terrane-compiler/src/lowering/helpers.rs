@@ -437,6 +437,11 @@ pub(super) fn rust_value_type(package: &SemanticPackage, ty: ValueType) -> Strin
             )
         }
         ValueType::ChannelOverflowPolicy => "TerraneChannelOverflow".to_owned(),
+        ValueType::DocumentDecodeOutcome(value) => format!(
+            "TerraneDocumentDecodeOutcome<{}>",
+            rust_element_type(package, value)
+        ),
+        ValueType::DocumentDiagnostic => "TerraneDocumentDiagnostic".to_owned(),
         ValueType::List(item) => {
             format!(
                 "terrane_collection_support::List<{}>",

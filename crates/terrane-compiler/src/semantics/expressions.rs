@@ -250,6 +250,9 @@ pub(super) fn infer_value_type(
             });
     }
     if node.kind == SyntaxKind::CallExpression {
+        if let Some(value_type) = infer_typed_document_decode(unit, node, bindings)? {
+            return Ok(Some(value_type));
+        }
         if let [callee, arguments] = node.children.as_slice() {
             if callee.kind == SyntaxKind::ConstructionExpression {
                 let class = callee.children.first().ok_or_else(|| {

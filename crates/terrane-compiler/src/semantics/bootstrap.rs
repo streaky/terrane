@@ -183,6 +183,16 @@ pub(super) fn bootstrap_namespaces() -> BTreeMap<String, Namespace> {
         "data",
         ["json-parse", "json-canonical"],
     );
+    if let Some(json) = namespaces.get_mut("/core/documents/json") {
+        json.symbols.insert(
+            "decode-typed-json".to_owned(),
+            compiler_owned_object(
+                "/core/documents/json",
+                "decode-typed-json",
+                SymbolKind::Function,
+            ),
+        );
+    }
     add_private_host_bindings(
         &mut namespaces,
         "/core/networking",
@@ -373,6 +383,16 @@ pub(super) fn bootstrap_namespaces() -> BTreeMap<String, Namespace> {
         "data",
         ["yaml-parse", "json-canonical"],
     );
+    if let Some(yaml) = namespaces.get_mut("/core/documents/yaml") {
+        yaml.symbols.insert(
+            "decode-typed-yaml".to_owned(),
+            compiler_owned_object(
+                "/core/documents/yaml",
+                "decode-typed-yaml",
+                SymbolKind::Function,
+            ),
+        );
+    }
     let mut types = vec![
         "int".to_owned(),
         "float".to_owned(),

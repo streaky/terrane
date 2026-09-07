@@ -216,6 +216,32 @@ impl Emitter<'_> {
                 }
             };
         }
+        if matches!(receiver_type, Some(ValueType::DocumentDecodeOutcome(_))) {
+            let receiver = self.expression(receiver);
+            return match self.text(member) {
+                "failed" => format!("({receiver}).diagnostics.length() != 0"),
+                "value" => format!("({receiver}).value.clone()"),
+                "diagnostics" => format!("({receiver}).diagnostics.clone()"),
+                name => unreachable!(
+                    "semantic analysis admitted unknown document outcome member `{name}`"
+                ),
+            };
+        }
+        if receiver_type == Some(ValueType::DocumentDiagnostic) {
+            let receiver = self.expression(receiver);
+            return match self.text(member) {
+                "path" => format!("({receiver}).path.clone()"),
+                "expected" => format!("({receiver}).expected.clone()"),
+                "actual-kind" => format!("({receiver}).actual_kind.clone()"),
+                "reason" => format!("({receiver}).reason.to_owned()"),
+                "message" => format!("({receiver}).message.clone()"),
+                "source" => format!("({receiver}).source.clone()"),
+                "field-source" => format!("({receiver}).field_source.clone()"),
+                name => unreachable!(
+                    "semantic analysis admitted unknown document diagnostic member `{name}`"
+                ),
+            };
+        }
         if let Some(ValueType::Descriptor(_)) = &receiver_type {
             let receiver = self.expression(receiver);
             return match self.text(member) {

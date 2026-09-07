@@ -158,20 +158,26 @@ Terrane package
     │   ├── document-value                     none / bool / integer / decimal / string / list / map
     │   ├── document-result                    value or failed / message / path / expected diagnostic
     │   ├── document-mapping                   descriptor name, expected kind, fields, defaults, unknown-field policy
-    │   ├── serializable / deserializable      explicit typed conversion interfaces
+    │   ├── serializable / deserializable      explicit manual typed conversion interfaces
+    │   ├── document-decodable                 explicit compiler-derived fieldwise decoding opt-in
+    │   ├── document-validatable               optional post-decode `string|none` validation contract
+    │   ├── document-diagnostic                path / expected / actual kind / reason / message / decode and field source
+    │   ├── document-decode-outcome of T       initialized T value plus deterministic typed diagnostic list
     │   ├── exact scalar/list/map constructors programmatic document construction with duplicate rejection
-    │   └── decode-document                    descriptor-driven validation with document-path diagnostics
+    │   └── decode-document                    descriptor-driven document-shape validation
     ├── /core/documents/json                   JSON policy and document integration
     │   ├── json-options / default-json-options depth and byte limits; duplicates always rejected
     │   ├── parse-json / stringify-json / canonical-json
     │   │                                       JCS key ordering/escaping with exact, ECMAScript-shaped numbers
-    │   └── decode-json / encode-json
+    │   ├── decode-json / encode-json
+    │   └── decode-typed-json                  opted-in concrete class decoding with explicit unknown policy
     ├── /core/documents/yaml                   YAML policy and document integration
     │   ├── yaml-options / default-yaml-options / make-yaml-options
     │   │                                       depth (capped at 255), byte, and alias-expanded-node limits
     │   ├── parse-yaml                         JSON-shaped safe scalars; tags and duplicate keys rejected
     │   ├── stringify-yaml                     emits canonical JSON, a valid YAML 1.2 document
-    │   └── decode-yaml / encode-yaml
+    │   ├── decode-yaml / encode-yaml
+    │   └── decode-typed-yaml                  same typed conversion and diagnostics after safe YAML parsing
     ├── /core/urls                             URL and ordered-query model
     │   ├── url                                serialized / display / components / query / origin
     │   ├── url-query                          ordered duplicate-preserving query entries (read-only after parsing)

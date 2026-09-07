@@ -240,6 +240,8 @@ pub enum ValueType {
     ChannelSendOutcome(ElementType),
     ChannelReceiveOutcome(ElementType),
     ChannelOverflowPolicy,
+    DocumentDecodeOutcome(ElementType),
+    DocumentDiagnostic,
     List(ElementType),
     Map(ElementType, ElementType),
     Set(ElementType),
@@ -344,6 +346,10 @@ pub(crate) struct StringCallSelection {
 }
 
 impl std::fmt::Display for ValueType {
+    #[expect(
+        clippy::too_many_lines,
+        reason = "the closed semantic value-type enum has one exhaustive source-name mapping"
+    )]
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::Scalar(ty) => ty.fmt(formatter),
@@ -428,6 +434,10 @@ impl std::fmt::Display for ValueType {
             Self::ScopedTask(result, _) => write!(formatter, "scoped task of {result}"),
             Self::TaskScope => formatter.write_str("task-scope"),
             Self::TaskOutcome(result) => write!(formatter, "task-outcome of {result}"),
+            Self::DocumentDecodeOutcome(value) => {
+                write!(formatter, "document-decode-outcome of {value}")
+            }
+            Self::DocumentDiagnostic => formatter.write_str("document-diagnostic"),
             Self::FilesystemAuthority => formatter.write_str("filesystem-authority"),
             Self::PlatformFilesystemResult => formatter.write_str("platform-filesystem-result"),
             Self::PlatformStreamHandle => formatter.write_str("platform-stream-handle"),

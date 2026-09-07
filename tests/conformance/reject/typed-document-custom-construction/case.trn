@@ -1,0 +1,13 @@
+namespace typed-document-custom-construction
+
+from /core/documents import document-decodable
+from /core/documents/json import decode-typed-json, default-json-options
+
+class settings implements document-decodable
+    name string = ''
+
+    function construct; name string
+        this.name = name
+
+function main;
+    result = decode-typed-json; '{}', settings, (default-json-options;), false

@@ -170,6 +170,33 @@ pub(super) fn infer_member_value_type(
             )),
         };
     }
+    if let Some(ValueType::DocumentDecodeOutcome(value)) = &receiver_type {
+        return match member_name {
+            "failed" => Ok(Some(ValueType::Scalar(ScalarType::Bool))),
+            "value" => Ok(Some(value.value_type())),
+            "diagnostics" => Ok(Some(ValueType::List(ElementType::new(
+                ValueType::DocumentDiagnostic,
+            )))),
+            _ => Err(failure(
+                &unit.source,
+                "T0115",
+                format!("document decode outcome has no member `{member_name}`"),
+                member.span,
+            )),
+        };
+    }
+    if receiver_type == Some(ValueType::DocumentDiagnostic) {
+        return match member_name {
+            "path" | "expected" | "actual-kind" | "reason" | "message" | "source"
+            | "field-source" => Ok(Some(ValueType::Scalar(ScalarType::String))),
+            _ => Err(failure(
+                &unit.source,
+                "T0115",
+                format!("document diagnostic has no member `{member_name}`"),
+                member.span,
+            )),
+        };
+    }
     if matches!(
         receiver_type,
         Some(ValueType::Function(_, _) | ValueType::AsyncFunction(_, _, _))

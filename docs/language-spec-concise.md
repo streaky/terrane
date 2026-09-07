@@ -778,6 +778,24 @@ encoding: explicit utf8/utf16-le/utf16-be/utf32-le/utf32-be; encode total; decod
 - `thread-local-int`: one value per existing host thread and shared object identity; dropping last owner makes entries stale and later accesses sweep them.
 - Unavailable target capability rejects async or concurrency facilities statically.
 
+## DOCUMENTS
+
+```yaml
+opt_in: class implements /core/documents::document-decodable; no implicit class decoding
+entrypoints: /core/documents/json::decode-typed-json | /core/documents/yaml::decode-typed-yaml
+arguments: source string, concrete class descriptor, matching parser options, explicit allow-unknown bool
+result: document-decode-outcome of T; concrete initialized T value + typed list of every diagnostic; failed iff diagnostics nonempty
+fields: scalar | nested opted class | list | homogeneous tuple | map of string,V; all nested values decodable
+numeric: integers exact/range-checked; decimal/integer to float only when mathematically exact in destination width
+absence: ordinary initializer is default; T|none may be absent; every other absent field diagnoses
+names: one OBJ field metadata record supplies semantic name, external-name, defaulted, optional, secret
+unknowns: rejected or recursively ignored only by explicit call policy
+diagnostic: deterministic path, expected, actual-kind, reason, message, decode-call source, field source
+validation: optional document-validatable.validate-document -> string|none after error-free field decoding
+ineligible: resource ownership | inheritance | custom construction | recursive value cycle | unsupported field -> implement deserializable manually
+boundary: generated Rust materializes statically known T; parser/metadata/default/validation/diagnostic policy remains Terrane; no universal boxed value
+```
+
 ## STREAMS
 
 ```yaml

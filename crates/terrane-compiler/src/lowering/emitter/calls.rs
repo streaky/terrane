@@ -1,6 +1,40 @@
 use super::super::prelude::*;
 
 impl Emitter<'_> {
+    fn typed_document_decode_call(
+        &mut self,
+        node: &SyntaxNode,
+        identity: &str,
+        arguments: &SyntaxNode,
+    ) -> String {
+        let values = arguments
+            .children
+            .iter()
+            .map(|argument| argument.children.last().unwrap_or(argument))
+            .collect::<Vec<_>>();
+        let source = self.expression_as(values[0], ValueType::Scalar(ScalarType::String));
+        let destination = self.text(values[1]);
+        let object = self
+            .unit
+            .objects
+            .iter()
+            .find(|object| object.name == destination)
+            .expect("typed document semantics retained the destination class");
+        let destination_type = rust_object_type_name(self.package, &object.identity);
+        let options = self.expression(values[2]);
+        let allow_unknown = self.expression_as(values[3], ValueType::Scalar(ScalarType::Bool));
+        let (line, column) = self.source.line_column(node.span.start);
+        let source_site = format!("{}:{line}:{column}", self.unit.source_path);
+        let parse = if identity == "/core/documents/json::decode-typed-json" {
+            "terrane_document_support::parse_json(&source, terrane_limit(&options.max_depth), terrane_limit(&options.max_bytes))".to_owned()
+        } else {
+            "terrane_document_support::parse_yaml(&source, terrane_limit(&options.max_depth), terrane_limit(&options.max_bytes), terrane_limit(&options.max_alias_nodes))".to_owned()
+        };
+        format!(
+            "{{ let source = {source}; let options = {options}; let input = {parse}; match <{destination_type} as TerraneDocumentDecode>::terrane_decode_document(&input, \"$\", {allow_unknown}, {source_site:?}, {source_site:?}) {{ Ok(value) => TerraneDocumentDecodeOutcome {{ value, diagnostics: terrane_collection_support::List::new(Vec::new()) }}, Err(diagnostics) => TerraneDocumentDecodeOutcome {{ value: {destination_type}::terrane_construct(), diagnostics: terrane_collection_support::List::new(diagnostics) }} }} }}"
+        )
+    }
+
     #[expect(
         clippy::too_many_lines,
         reason = "all call forms share one ordering and error-propagation path"
@@ -9,6 +43,19 @@ impl Emitter<'_> {
         let [callee, arguments] = node.children.as_slice() else {
             return String::new();
         };
+        if callee.kind == SyntaxKind::Name
+            && let Some(identity) = self
+                .package
+                .resolve_name_at(self.unit, callee.span.start, self.text(callee))
+                .map(|symbol| symbol.identity.clone())
+            && matches!(
+                identity.as_str(),
+                "/core/documents/json::decode-typed-json"
+                    | "/core/documents/yaml::decode-typed-yaml"
+            )
+        {
+            return self.typed_document_decode_call(node, &identity, arguments);
+        }
         if callee.kind == SyntaxKind::Name && self.text(callee) == "task-scope" {
             let deadline = arguments.children.first().map_or_else(
                 || "None".to_owned(),
