@@ -3,7 +3,7 @@ namespace app
 from /core/output import print
 from /core/networking import ip-address-from-string, parse-host-name, network-cancellation-token, network-cancel-operation, network-operation-options, lookup-dns
 
-function main;
+async function main;
     parsed = ip-address-from-string; '2001:0db8:0:0:0:0:0:1'
     print; parsed.value.value
     print; parsed.value.version
@@ -25,6 +25,6 @@ function main;
     network-cancel-operation; cancellation
     cancelled = instance network-operation-options; deadline, cancellation
     host = parse-host-name; 'localhost'
-    lookup = lookup-dns; host.value, port, cancelled
+    lookup = await lookup-dns; host.value, port, cancelled
     print; lookup.failed
     print; lookup.message

@@ -560,7 +560,7 @@ impl Emitter<'_> {
                     .collect::<Vec<_>>()
                     .join(", ");
                 format!(
-                    "{{ let receiver = {receiver}; std::sync::Arc::new(move |{declarations}| -> std::pin::Pin<Box<dyn Future<Output = _>{send}>> {{ let receiver = receiver.clone(); Box::pin(async move {{ receiver.{}({arguments}).await }}) }}) }}",
+                    "{{ let receiver = std::sync::Arc::new({receiver}); std::sync::Arc::new(move |{declarations}| -> std::pin::Pin<Box<dyn Future<Output = _>{send}>> {{ let receiver = receiver.clone(); Box::pin(async move {{ receiver.{}({arguments}).await }}) }}) }}",
                     rust_name(self.text(member))
                 )
             }

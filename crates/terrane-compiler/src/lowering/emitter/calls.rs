@@ -35,22 +35,28 @@ impl Emitter<'_> {
                             .package
                             .resolve_name_at(self.unit, callable.span.start, self.text(callable))
                             .is_some_and(|symbol| symbol.identity.starts_with("/deps/"));
-                    let callable = if let Some(value_type) = self.value_type(callable) {
+                    let callable_type = self.value_type(callable);
+                    let callable = if let Some(value_type) = callable_type.clone() {
                         self.expression_as(callable, value_type)
                     } else {
                         self.expression(callable)
                     };
+                    let invocation = if matches!(callable_type, Some(ValueType::Task(_, _))) {
+                        callable
+                    } else {
+                        format!("({callable})()")
+                    };
                     if foreign_error {
                         format!(
-                            "{{ let __terrane_scope = ({receiver}).clone(); let __terrane_cancel = __terrane_scope.clone(); TerraneScopedTask::spawn(async move {{ match __terrane_cancellable(({callable})(), move || __terrane_cancel.should_cancel()).await {{ Some(Ok(value)) => TerraneTaskResult::Completed(value), Some(Err(error)) => TerraneTaskResult::Failed(crate::TerraneRaised::raised(error, crate::TERRANE_NO_SITE)), None => TerraneTaskResult::Cancelled }} }}) }}"
+                            "{{ let __terrane_scope = ({receiver}).clone(); let __terrane_cancel = __terrane_scope.clone(); TerraneScopedTask::spawn(async move {{ match __terrane_cancellable({invocation}, move || __terrane_cancel.should_cancel()).await {{ Some(Ok(value)) => TerraneTaskResult::Completed(value), Some(Err(error)) => TerraneTaskResult::Failed(crate::TerraneRaised::raised(error, crate::TERRANE_NO_SITE)), None => TerraneTaskResult::Cancelled }} }}) }}"
                         )
                     } else if throws {
                         format!(
-                            "{{ let __terrane_scope = ({receiver}).clone(); let __terrane_cancel = __terrane_scope.clone(); TerraneScopedTask::spawn(async move {{ match __terrane_cancellable(({callable})(), move || __terrane_cancel.should_cancel()).await {{ Some(Ok(value)) => TerraneTaskResult::Completed(value), Some(Err(error)) => TerraneTaskResult::Failed(error), None => TerraneTaskResult::Cancelled }} }}) }}"
+                            "{{ let __terrane_scope = ({receiver}).clone(); let __terrane_cancel = __terrane_scope.clone(); TerraneScopedTask::spawn(async move {{ match __terrane_cancellable({invocation}, move || __terrane_cancel.should_cancel()).await {{ Some(Ok(value)) => TerraneTaskResult::Completed(value), Some(Err(error)) => TerraneTaskResult::Failed(error), None => TerraneTaskResult::Cancelled }} }}) }}"
                         )
                     } else {
                         format!(
-                            "{{ let __terrane_scope = ({receiver}).clone(); let __terrane_cancel = __terrane_scope.clone(); TerraneScopedTask::spawn(async move {{ match __terrane_cancellable(({callable})(), move || __terrane_cancel.should_cancel()).await {{ Some(value) => TerraneTaskResult::Completed(value), None => TerraneTaskResult::Cancelled }} }}) }}"
+                            "{{ let __terrane_scope = ({receiver}).clone(); let __terrane_cancel = __terrane_scope.clone(); TerraneScopedTask::spawn(async move {{ match __terrane_cancellable({invocation}, move || __terrane_cancel.should_cancel()).await {{ Some(value) => TerraneTaskResult::Completed(value), None => TerraneTaskResult::Cancelled }} }}) }}"
                         )
                     }
                 }),
@@ -496,6 +502,14 @@ impl Emitter<'_> {
             ("udp-send-to", "platform_udp_send_to"),
             ("udp-receive-from", "platform_udp_receive_from"),
             ("dns-lookup", "platform_dns_lookup"),
+            ("tcp-connect-async", "platform_tcp_connect_async"),
+            ("tcp-connect-host-async", "platform_tcp_connect_host_async"),
+            ("tcp-accept-async", "platform_tcp_accept_async"),
+            ("tcp-read-async", "platform_tcp_read_async"),
+            ("tcp-write-async", "platform_tcp_write_async"),
+            ("udp-send-to-async", "platform_udp_send_to_async"),
+            ("udp-receive-from-async", "platform_udp_receive_from_async"),
+            ("dns-lookup-async", "platform_dns_lookup_async"),
             ("tls-client", "platform_tls_client"),
             ("tls-read", "platform_tls_read"),
             ("tls-write", "platform_tls_write"),
@@ -538,12 +552,17 @@ impl Emitter<'_> {
                                 | "platform_uuid_v4"
                                 | "platform_uuid_v7"
                                 | "platform_tcp_accept"
+                                | "platform_tcp_accept_async"
                                 | "platform_tcp_read"
+                                | "platform_tcp_read_async"
                                 | "platform_tcp_write"
+                                | "platform_tcp_write_async"
                                 | "platform_tcp_shutdown"
                                 | "platform_tcp_configure"
                                 | "platform_udp_send_to"
+                                | "platform_udp_send_to_async"
                                 | "platform_udp_receive_from"
+                                | "platform_udp_receive_from_async"
                                 | "platform_udp_configure"
                                 | "platform_tls_client"
                                 | "platform_tls_read"
@@ -559,22 +578,29 @@ impl Emitter<'_> {
                         ) | ("platform_parse_socket" | "platform_hmac", 1)
                             | (
                                 "platform_tcp_connect"
+                                    | "platform_tcp_connect_async"
                                     | "platform_tcp_accept"
+                                    | "platform_tcp_accept_async"
                                     | "platform_tls_shutdown",
                                 2
                             )
                             | (
                                 "platform_tcp_connect_host"
+                                    | "platform_tcp_connect_host_async"
                                     | "platform_tcp_read"
+                                    | "platform_tcp_read_async"
                                     | "platform_tcp_write"
+                                    | "platform_tcp_write_async"
                                     | "platform_udp_receive_from"
+                                    | "platform_udp_receive_from_async"
                                     | "platform_dns_lookup"
+                                    | "platform_dns_lookup_async"
                                     | "platform_tls_client"
                                     | "platform_tls_read"
                                     | "platform_tls_write",
                                 3,
                             )
-                            | ("platform_udp_send_to", 4)
+                            | ("platform_udp_send_to" | "platform_udp_send_to_async", 4)
                     ) || function.starts_with("platform_result_") && index == 0;
                     if borrowed {
                         format!("&({value})")

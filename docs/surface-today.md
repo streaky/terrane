@@ -733,6 +733,12 @@ blocking-delegation path and awaits that delegated operation. The source contrac
 the same read result, while the execution requirement records that the host-standard-stream read
 cannot yet use a readiness-native operation.
 
+TCP connect, listener accept, stream read/write, UDP send/receive, and DNS lookup are asynchronous.
+They await compiler-owned host intrinsics which explicitly delegate the current standard-socket ABI
+to the selected runtime's blocking pool. A scope may spawn either an async callable or an unpolled
+task moved into it; this permits resource-owning arguments to enter a child without borrowing them
+across suspension.
+
 Task runtime support and its Cargo dependencies are selected from semantic lowering metadata, not
 from generated source-text searches. Merely spelling a runtime crate path in source text cannot
 change the generated manifest.

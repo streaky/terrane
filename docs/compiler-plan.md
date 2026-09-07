@@ -1462,6 +1462,12 @@ The first B7 migration makes `/core/streams` byte and text `read-async` await a 
 `spawn_blocking` delegation rather than call the synchronous read on an executor task. That
 delegation is recorded as a generic runtime requirement; its observable read result is unchanged.
 
+TCP connect/accept/read/write, UDP send/receive, and DNS lookup now expose async Terrane contracts
+backed by distinct async host intrinsics. Their current standard-socket ABI work is submitted through
+the selected runtime's blocking pool, while task-scope `spawn` can accept an already-constructed
+unpolled task so owned listener state moves safely into a concurrent server child. TCP, UDP, and
+cancelled-DNS conformance retain their prior observable results.
+
 Accepted and rejected conformance covers async/sync type incompatibility, task consumption,
 successful, throwing, cancelled, and sibling-cancelling children, statically resolvable nested
 deadline extension, a non-owning reference whose unchanged local owner is proven to remain in the

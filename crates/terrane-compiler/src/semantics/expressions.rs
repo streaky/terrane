@@ -364,6 +364,19 @@ pub(super) fn infer_value_type(
                     | "intrinsic:capabilities::no-resource" => {
                         Some(ValueType::PlatformResourceHandle)
                     }
+                    "intrinsic:capabilities::tcp-connect-async"
+                    | "intrinsic:capabilities::tcp-connect-host-async"
+                    | "intrinsic:capabilities::tcp-accept-async"
+                    | "intrinsic:capabilities::tcp-read-async"
+                    | "intrinsic:capabilities::tcp-write-async"
+                    | "intrinsic:capabilities::udp-send-to-async"
+                    | "intrinsic:capabilities::udp-receive-from-async"
+                    | "intrinsic:capabilities::dns-lookup-async" => {
+                        return Ok(Some(ValueType::Task(
+                            ElementType::new(ValueType::PlatformResult),
+                            TaskTransferability::Local,
+                        )));
+                    }
                     "intrinsic:capabilities::failed-result"
                     | "intrinsic:capabilities::random-bytes"
                     | "intrinsic:capabilities::random-bounded"
@@ -527,13 +540,14 @@ pub(super) fn infer_value_type(
                         };
                         let callable = callable.children.last().unwrap_or(callable);
                         match infer_value_type(unit, callable, bindings)? {
-                            Some(ValueType::AsyncFunction(_, result, transferability)) => {
+                            Some(ValueType::AsyncFunction(_, result, transferability))
+                            | Some(ValueType::Task(result, transferability)) => {
                                 Ok(Some(ValueType::ScopedTask(result, transferability)))
                             }
                             _ => Err(failure(
                                 &unit.source,
                                 "T0074",
-                                "`task-scope.spawn` requires an async callable value",
+                                "`task-scope.spawn` requires an async callable or task value",
                                 callable.span,
                             )),
                         }

@@ -3696,8 +3696,9 @@ timeout, stream-cancellation, and network-deadline contracts elsewhere in this d
 defined against it.
 
 An async invocation produces a linear `task of T`. `await` consumes that task exactly once. A scope's
-`spawn` method instead produces a linear `scoped-task of T` owned by that scope. `join` consumes the
-scoped task exactly once and constructs a `task of task-outcome of T`; `await scope.join; move child`
+`spawn` method accepts either an async callable or an unpolled task moved into the scope, and
+produces a linear `scoped-task of T` owned by that scope. `join` consumes the scoped task exactly
+once and constructs a `task of task-outcome of T`; `await scope.join; move child`
 consumes that join task and observes the outcome. Leaving either kind unconsumed is a compile-time
 error; ordinary drop never silently detaches or cancels it. Detached tasks, when supplied, use a
 separate explicit operation and lifetime contract.
@@ -3724,6 +3725,11 @@ skip Terrane cleanup state: the compiler separates values required by active `fi
 enters those regions exactly once in innermost-first order, and drives their synchronous or
 asynchronous cleanup to completion before the task can be joined. Cleanup is shielded from the
 cancellation request that initiated it; a repeated request does not enter it twice.
+
+Compiler-owned asynchronous stream, TCP, UDP, and DNS operations suspend through the selected
+runtime. Where the current host ABI exposes an unavoidably blocking standard handle or socket,
+lowering delegates that operation to the runtime's blocking pool; it never runs the blocking call
+on an executor worker or creates a second runtime.
 
 A value needed by cancellation cleanup must therefore have one statically unambiguous owner. The
 compiler rejects a suspension where the in-flight operation and a reachable `finally` cleanup would

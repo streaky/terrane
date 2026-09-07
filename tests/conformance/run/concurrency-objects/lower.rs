@@ -845,7 +845,7 @@ fn main() {
             TerraneScopedTask::spawn(async move {
                 match __terrane_cancellable(
                         {
-                            let receiver = worker;
+                            let receiver = std::sync::Arc::new(worker);
                             std::sync::Arc::new(move || -> std::pin::Pin<
                                 Box<dyn Future<Output = _> + Send>,
                             > {

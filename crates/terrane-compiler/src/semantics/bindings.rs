@@ -967,11 +967,21 @@ pub(super) fn infer_task_transferability(package: &mut SemanticPackage) {
     }) {
         package.execution_requirements.wake_support = true;
     }
-    if package
-        .units
+    if package.units.iter().any(|unit| {
+        [
+            "host-read-async",
+            "host-tcp-connect-async",
+            "host-tcp-connect-host-async",
+            "host-tcp-accept-async",
+            "host-tcp-read-async",
+            "host-tcp-write-async",
+            "host-udp-send-to-async",
+            "host-udp-receive-from-async",
+            "host-dns-lookup-async",
+        ]
         .iter()
-        .any(|unit| unit.source.text().contains("host-read-async"))
-    {
+        .any(|name| unit.source.text().contains(name))
+    }) {
         package.execution_requirements.runtime_context = true;
         package.execution_requirements.wake_support = true;
         package.execution_requirements.blocking_delegation = true;
@@ -1052,13 +1062,12 @@ pub(super) fn validate_task_consumption(package: &SemanticPackage) -> Result<(),
     ) -> bool {
         let await_operand = node.kind == SyntaxKind::UnaryExpression
             && unary_operator_text(unit, node).as_deref() == Some("await");
-        let joined = node.kind == SyntaxKind::CallExpression
+        let task_consumer = node.kind == SyntaxKind::CallExpression
             && node.children.first().is_some_and(|callee| {
                 callee.kind == SyntaxKind::MemberExpression
-                    && callee
-                        .children
-                        .get(1)
-                        .is_some_and(|member| node_text(&unit.source, member) == "join")
+                    && callee.children.get(1).is_some_and(|member| {
+                        matches!(node_text(&unit.source, member), "join" | "spawn")
+                    })
             });
         if consuming
             && (!join_argument || moved)
@@ -1077,12 +1086,12 @@ pub(super) fn validate_task_consumption(package: &SemanticPackage) -> Result<(),
             return true;
         }
         node.children.iter().enumerate().any(|(index, child)| {
-            let child_join_argument = join_argument || (joined && index == 1);
+            let child_join_argument = join_argument || (task_consumer && index == 1);
             consumed(
                 unit,
                 child,
                 binding,
-                consuming || await_operand || (joined && index == 1),
+                consuming || await_operand || (task_consumer && index == 1),
                 child_join_argument,
                 moved
                     || (child_join_argument
@@ -1139,7 +1148,10 @@ pub(super) fn validate_task_transferability(
             let callable = argument.children.last().unwrap_or(argument);
             if matches!(
                 infer_value_type(unit, callable, &unit.typed_bindings)?,
-                Some(ValueType::AsyncFunction(_, _, TaskTransferability::Local))
+                Some(
+                    ValueType::AsyncFunction(_, _, TaskTransferability::Local)
+                        | ValueType::Task(_, TaskTransferability::Local)
+                )
             ) {
                 return Ok(Some(callable.span));
             }
