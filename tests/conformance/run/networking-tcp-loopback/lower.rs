@@ -1413,9 +1413,10 @@ fn main() {
             let __terrane_scope = scope.clone();
             let __terrane_cancel = __terrane_scope.cancellation();
             let __terrane_deadline = __terrane_scope.deadline;
+            let __terrane_spawned_task = input_task;
             TerraneScopedTask::spawn(async move {
                 match __terrane_cancellable(
-                        input_task,
+                        __terrane_spawned_task,
                         __terrane_cancel,
                         __terrane_deadline,
                     )
@@ -1430,9 +1431,10 @@ fn main() {
             let __terrane_scope = scope.clone();
             let __terrane_cancel = __terrane_scope.cancellation();
             let __terrane_deadline = __terrane_scope.deadline;
+            let __terrane_spawned_task = server_task;
             TerraneScopedTask::spawn(async move {
                 match __terrane_cancellable(
-                        server_task,
+                        __terrane_spawned_task,
                         __terrane_cancel,
                         __terrane_deadline,
                     )

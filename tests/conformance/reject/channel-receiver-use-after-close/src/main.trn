@@ -1,0 +1,7 @@
+namespace app
+from /core/concurrency import channel, channel-block
+async function main;
+  pair = channel; string, 1, channel-block
+  rx = pair.receiver
+  rx.close;
+  received = await rx.receive;

@@ -3799,24 +3799,40 @@ They do not expose thread creation, joining, grouping, affinity, or system-level
 They synchronise tasks or host threads supplied by the profile-selected executor/runtime boundary;
 the thread-local facility observes those existing host threads but cannot create or manage them.
 
-The version-one `/core/concurrency` surface contains integer-specialised synchronization cells:
-`int-channel`, `int-mutex`, `int-read-write-lock`, `atomic-int64`, and `thread-local-int`. An
-assignment or argument passage of one of these objects aliases the same opaque synchronized host
-identity; it does not copy the protected value into an independent object. This is the authored
-shared-identity contract required by §21.5, not a silent mutex inserted around an ordinary value.
+The version-one `/core/concurrency` surface contains compiler-owned typed channels alongside the
+integer-specialised synchronization cells `int-mutex`, `int-read-write-lock`, `atomic-int64`, and
+`thread-local-int`. `channel; Item, capacity, overflow-policy` creates
+`channel-pair of Item`, whose `sender` and `receiver` members are independently owned linear
+endpoints. `Item` is a concrete descriptor, and capacity is a positive constant integer.
+
+`channel-sender of Item.send(Item)` constructs a local task. Awaiting it returns
+`channel-send-outcome of Item` with separate `accepted`, `closed`, and `dropped` state.
+`rejected-value` returns an item refused by fail-send or receiver closure; `dropped-value` returns
+the submitted item under drop-newest or the evicted buffered item under drop-oldest.
+`channel-receiver of Item.receive` constructs a local task. Awaiting it returns
+`channel-receive-outcome of Item` with `available`, `closed`, and optional `value` state. Item type
+mismatches are source errors; channels do not erase values into a universal runtime box.
+
+The four overflow bindings are `channel-block`, `channel-fail-send`, `channel-drop-newest`, and
+`channel-drop-oldest`. Block suspends a full send without polling. Fail-send reports an unaccepted,
+open, undropped item and returns it as rejected. Drop-newest reports and returns the submitted item
+as dropped. Drop-oldest accepts the submitted item and returns the evicted buffered item. Storage
+never exceeds capacity.
+
+Closing either endpoint is explicit and consuming. After sender close, the receiver drains buffered
+items and then observes closed. Receiver close wakes pending sends, which report closed. Dropping an
+endpoint performs emergency close without claiming graceful protocol close. Cancelling or timing
+out a pending operation unregisters its waiter; it does not reclassify an already completed
+operation. Duplicate endpoint ownership, use after close, invalid capacities, and invalid overflow
+policies are source diagnostics. Sender and receiver operations construct local-only tasks in
+version one.
 
 `int-mutex` and `int-read-write-lock` expose individually synchronized integer load, store, and
-update operations. They do not expose a guard-scoped arbitrary critical section, and their names
-must not be read as promising non-integer generic storage. Guard lifetimes and additional concrete
-element types remain deferred until they can be represented without a universal boxed value or a
-second ownership model.
-
-Channel `send` and blocking `receive` take an explicit `concurrency-operation-options` object
-containing a positive deadline and `concurrency-cancellation-token`. `try-receive` is genuinely non-blocking and reports
-availability separately from failure. A zero-capacity channel is a rendezvous channel. The host
-boundary may report a disconnected peer as failure, but version one exposes no explicit channel
-close operation or closed-state descriptor; those remain deferred until the object surface defines
-which endpoint ownership transition closes the channel.
+update operations. An assignment or argument passage aliases the same opaque synchronized host
+identity; it does not copy the protected value into an independent object. They do not expose a
+guard-scoped arbitrary critical section, and their names do not promise non-integer generic
+storage. Guard lifetimes and additional concrete lock element types remain deferred until they can
+be represented without a universal boxed value or a second ownership model.
 
 Atomic operations take a `memory-order` object rather than a raw string. `/core/concurrency`
 supplies `relaxed-order`, `acquire-order`, `release-order`, `acquire-release-order`, and

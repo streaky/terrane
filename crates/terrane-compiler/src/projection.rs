@@ -624,6 +624,22 @@ impl Projection {
     }
 
     #[must_use]
+    pub(crate) fn has_borrowed_async_method_named(&self, name: &str) -> bool {
+        self.dependencies.iter().any(|dependency| {
+            dependency.items.iter().any(|item| {
+                matches!(&item.kind, ProjectedKind::ForeignType { methods, .. } if methods.iter().any(|method| {
+                    method.name == name
+                        && method.is_async
+                        && matches!(
+                            method.receiver,
+                            Some(Receiver::Borrow | Receiver::MutableBorrow)
+                        )
+                }))
+            })
+        })
+    }
+
+    #[must_use]
     pub(crate) fn is_unit_variant(&self, item: &ProjectedItem) -> bool {
         self.dependencies
             .iter()

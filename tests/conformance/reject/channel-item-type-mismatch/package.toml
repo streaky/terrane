@@ -1,0 +1,4 @@
+package = "channel-item-type-mismatch"
+executor = "cooperative"
+[namespaces]
+app = "src"

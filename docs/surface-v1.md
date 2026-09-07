@@ -865,7 +865,10 @@ structured task scope                              v1 language-level object, not
 +-- failure observation for a child that throws while siblings run
 
 profile library objects                              /core/concurrency; requires threads
-+-- int-channel                                      bounded, zero-capacity rendezvous; cancellable/deadline blocking operations
++-- channel; Item, capacity, overflow-policy         compiler-owned typed bounded pair
+|   +-- channel-sender of Item                       local-task send; accepted/closed/dropped
+|   +-- channel-receiver of Item                     local-task receive; available/value/closed
+|   +-- block / fail-send / drop-newest / drop-oldest explicit overflow policy
 +-- int-mutex                                        individually synchronized integer load/store/increase cell
 +-- int-read-write-lock                              integer shared-read/exclusive-write cell; no exposed guard
 +-- atomic-int64 + memory-order                      operation-specific typed ordering
@@ -876,8 +879,10 @@ The async callable type, the task object, the structured scope, and cancellation
 
 These are ordinary objects supplied by selected packages/profiles, not universal prelude names. Capabilities gate allocator, threads, filesystem, sockets, process spawning, dynamic loading, reflection, unwinding, clocks, entropy, floating point, Unicode data, exact-big-integer storage, and atomic widths. Unavailable semantics are rejected; profiles never quietly change a type's behaviour.
 
-The concurrency objects alias their synchronized identity when assigned or passed. Version one does
-not expose thread creation, explicit channel closure, arbitrary guard-scoped critical sections,
+Channel endpoints are linear rather than shared identities: close consumes one, receiver close
+wakes senders, sender close drains buffered items, and cancellation unregisters pending work.
+The lock, atomic, and thread-local objects alias their synchronized identity when assigned or
+passed. Version one does not expose thread creation, arbitrary guard-scoped critical sections,
 non-integer generic synchronization cells, or shared collection variants.
 
 ## 13. Version-one data, operating-system, and I/O objects

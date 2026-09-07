@@ -209,10 +209,11 @@ Terrane package
     │   ├── tls-stream                         negotiated-version plus deadline-aware read, write, shutdown, and close
     │   └── connect-tls                        validated TLS 1.3/1.2 client connection; no insecure ordinary option
     ├── /core/concurrency                      synchronization objects; requires `threads`
-    │   ├── concurrency-operation-result / concurrency-int-result explicit failure, deadline, availability, message, and value
-    │   ├── concurrency-cancellation-token     explicit shared cancellation with `concurrency-cancel-operation`
-    │   ├── concurrency-operation-options      positive deadline and cancellation token for blocking channel operations
-    │   ├── int-channel                        bounded integer send / receive / non-blocking try-receive; zero-capacity rendezvous
+    │   ├── concurrency-operation-result / concurrency-int-result explicit failure and integer value results for synchronization cells
+    │   ├── channel                            typed bounded sender/receiver pair factory; positive constant capacity
+    │   ├── channel-block / channel-fail-send / channel-drop-newest / channel-drop-oldest explicit overflow policies
+    │   ├── channel-pair / channel-sender / channel-receiver compiler-owned generic linear endpoint families
+    │   ├── channel-send-outcome / channel-receive-outcome compiler-owned accepted/dropped/closed, rejected/evicted item, and available/value/closed state
     │   ├── int-mutex                          individually synchronized integer load / store / increase cell
     │   ├── int-read-write-lock                integer shared read / exclusive write cell; no exposed guards
     │   ├── memory-order / five order factories typed atomic policy with operation-specific validation

@@ -23,7 +23,11 @@ pub(super) fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFa
         resource_objects: &BTreeSet<(u32, usize, usize)>,
     ) -> bool {
         match &unit.typed_bindings[binding].value_type {
-            ValueType::PlatformStreamHandle | ValueType::PlatformResourceHandle => true,
+            ValueType::PlatformStreamHandle
+            | ValueType::PlatformResourceHandle
+            | ValueType::ChannelPair(_)
+            | ValueType::ChannelSender(_)
+            | ValueType::ChannelReceiver(_) => true,
             ValueType::Object(name) => resolved_object_span(package, name)
                 .is_some_and(|span| resource_objects.contains(&span_key(span))),
             _ => false,
@@ -155,6 +159,27 @@ pub(super) fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFa
                 "a resource-consuming call requires a named binding; move the member into a binding first",
                 receiver.span,
             ));
+        }
+        if node.kind == SyntaxKind::CallExpression
+            && let Some(callee) = node.children.first()
+            && callee.kind == SyntaxKind::MemberExpression
+            && let [receiver, member, ..] = callee.children.as_slice()
+            && receiver.kind == SyntaxKind::Name
+            && node_text(&unit.source, member) == "close"
+            && matches!(
+                infer_value_type(unit, receiver, &unit.typed_bindings),
+                Ok(Some(
+                    ValueType::ChannelSender(_) | ValueType::ChannelReceiver(_)
+                ))
+            )
+            && let Some(binding) =
+                binding_at(unit, node_text(&unit.source, receiver), receiver.span.start)
+        {
+            for child in &node.children {
+                visit(package, unit, child, moved, false, resource_objects)?;
+            }
+            moved.insert(binding);
+            return Ok(());
         }
         if node.kind == SyntaxKind::CallExpression
             && let Some(callee) = node.children.first()

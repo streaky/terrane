@@ -1534,6 +1534,18 @@ consuming `split` transfers a duplex endpoint into independently owned source an
 close, split ownership, and a dissimilar synchronous queue sink; focused rejects cover use after
 split, use after close, duplicate ownership, and retaining a borrowed send across suspension.
 
+Phase C typed channels replace the integer-only channel object with
+`channel; Item, capacity, overflow-policy`, a compiler-owned generic pair of independently owned
+sender and receiver endpoints. The generated runtime stores concrete Rust values directly in a
+capacity-bounded queue. Block, fail-send, drop-newest, and drop-oldest have explicit deterministic
+send outcomes; receive distinguishes a value from drained closure. Send and receive operations are
+local tasks whose registered wakers are removed on completion or cancellation. Consuming close
+wakes the opposite endpoint, and the source ownership pass rejects duplicate endpoints and use
+after close. `typed-channels` exercises two item types, every policy, bounded backpressure,
+concurrent delivery, sender drain, receiver close, cancellation under pressure, and a 10,000-send
+bounded-capacity stress loop; focused rejects cover item mismatch, capacity, policy, ownership, and
+post-close use.
+
 Accepted and rejected conformance covers async/sync type incompatibility, task consumption,
 successful, throwing, cancelled, and sibling-cancelling children, statically resolvable nested
 deadline extension, a non-owning reference whose unchanged local owner is proven to remain in the
@@ -2176,17 +2188,15 @@ explicit operational contracts, deterministic lowering, and compiled and run evi
 standard or system capability is rejected with a Terrane diagnostic. No surface is represented as an
 empty compiler-owned name to make the map look complete.
 
-Implemented evidence: `/core/concurrency` provides zero-or-positive-capacity integer channels,
-integer mutex and read/write-lock cells, typed `atomic-int64` memory ordering, and per-existing-host-
-thread local integers over opaque shared host identities. Blocking channel send and receive carry
-explicit positive deadlines and cancellation tokens; `try-receive` is non-blocking. Generated Rust
-delegates synchronization and defensive operation-specific ordering validation to the support crate
-without exposing host handles. This is the host-synchronization ABI boundary permitted by delivery
-principle 9: `std::sync::mpsc::Receiver` is not shareable across threads, so the maintained layer
-uses `crossbeam-channel` for bounded parking sends and receives plus a genuinely non-blocking probe
-without a receiver mutex. Terrane retains the object model, deadline and cancellation policy, and
-error translation above that boundary. Explicit channel closure, arbitrary guard-scoped critical
-sections, and non-integer generic cells remain deferred rather than being implied by these names.
+Implemented evidence: `/core/concurrency` provides integer mutex and read/write-lock cells, typed
+`atomic-int64` memory ordering, and per-existing-host-thread local integers over opaque shared host
+identities. Generated Rust delegates synchronization and defensive operation-specific ordering
+validation to the support crate without exposing host handles. This is the host-synchronization ABI
+boundary permitted by delivery principle 9. Terrane retains the object model and error translation
+above that boundary. Arbitrary guard-scoped critical sections and non-integer generic cells remain
+deferred rather than being implied by these names. The milestone's earlier integer-only host
+channel has been removed and superseded by the compiler-owned typed async channel contract recorded
+under milestone 19 Phase C.
 
 Bundled core imports are checked against `[profile]`; `S2032` names the profile, forbidden
 capability, imported namespace, and importing namespace. The complete gate map is recorded in the
@@ -2196,9 +2206,8 @@ and preserves non-Unicode platform names in the existing `native-string` represe
 standard library has no portable host-name query, so its maintained layer uses the audited
 `hostname` crate only for host retrieval and non-Unicode OS-string conversion.
 Accepted canonical-Rust package cases compile and run both restricted-profile surfaces, focused
-rejected cases prove both gates and message metadata, and support tests exercise rendezvous channels
-through a Terrane task, cancellation/deadlines, cross-thread shared state, every atomic ordering
-class, and thread-local isolation plus stale-owner cleanup.
+rejected cases prove both gates and message metadata, and support tests exercise cross-thread shared
+state, every atomic ordering class, and thread-local isolation plus stale-owner cleanup.
 
 ### Milestone 26.1 — Structured error sites and compact values
 

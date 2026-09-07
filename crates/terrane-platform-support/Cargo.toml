@@ -7,7 +7,6 @@ rust-version.workspace = true
 
 [dependencies]
 base64 = "0.22"
-crossbeam-channel = "0.5"
 flate2 = "1"
 getrandom = "0.3"
 hickory-resolver = "0.25"

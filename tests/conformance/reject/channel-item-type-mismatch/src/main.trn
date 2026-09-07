@@ -1,0 +1,6 @@
+namespace app
+from /core/concurrency import channel, channel-block
+async function main;
+  pair = channel; string, 1, channel-block
+  tx = pair.sender
+  sent = await tx.send; 42

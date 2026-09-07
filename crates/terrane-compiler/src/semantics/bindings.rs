@@ -1494,11 +1494,45 @@ fn validate_projected_callback_contract(
     Ok(())
 }
 
-fn validate_projected_callback_node(
+fn validate_channel_endpoint_extraction(
+    unit: &SemanticUnit,
+    node: &SyntaxNode,
+    extracted: &mut BTreeSet<(u32, usize, usize, String)>,
+) -> Result<(), SemanticFailure> {
+    if node.kind == SyntaxKind::MemberExpression
+        && let [receiver, member] = node.children.as_slice()
+        && receiver.kind == SyntaxKind::Name
+        && matches!(node_text(&unit.source, member), "sender" | "receiver")
+        && let Some(binding) = unit.typed_bindings.iter().rev().find(|binding| {
+            binding.name == node_text(&unit.source, receiver)
+                && binding.is_visible_at(unit.source.id(), receiver.span.start)
+        })
+        && matches!(binding.value_type, ValueType::ChannelPair(_))
+        && !extracted.insert((
+            binding.span.file,
+            binding.span.start,
+            binding.span.end,
+            node_text(&unit.source, member).to_owned(),
+        ))
+    {
+        return Err(failure(
+            &unit.source,
+            "T0110",
+            format!(
+                "channel pair `{}` endpoint `{}` was already moved",
+                binding.name,
+                node_text(&unit.source, member)
+            ),
+            node.span,
+        ));
+    }
+    Ok(())
+}
+
+fn validate_projected_borrowed_async_call(
     package: &SemanticPackage,
     unit: &SemanticUnit,
     node: &SyntaxNode,
-    consumed_once: &mut BTreeSet<(u32, usize, usize)>,
     immediately_awaited: bool,
 ) -> Result<(), SemanticFailure> {
     if node.kind == SyntaxKind::CallExpression
@@ -1506,8 +1540,15 @@ fn validate_projected_callback_node(
         && let [callee, _] = node.children.as_slice()
         && callee.kind == SyntaxKind::MemberExpression
         && let [receiver, member] = callee.children.as_slice()
-        && let Ok(Some(ValueType::Object(identity))) =
-            infer_value_type(unit, receiver, &unit.typed_bindings)
+        && receiver.kind == SyntaxKind::Name
+        && package
+            .projection
+            .has_borrowed_async_method_named(node_text(&unit.source, member))
+        && let Some(binding) = unit.typed_bindings.iter().rev().find(|binding| {
+            binding.name == node_text(&unit.source, receiver)
+                && binding.is_visible_at(unit.source.id(), receiver.span.start)
+        })
+        && let ValueType::Object(identity) = &binding.value_type
         && let Some(method) = package.projection.method(
             &identity.namespace,
             &identity.name,
@@ -1526,6 +1567,19 @@ fn validate_projected_callback_node(
             node.span,
         ));
     }
+    Ok(())
+}
+
+fn validate_projected_callback_node(
+    package: &SemanticPackage,
+    unit: &SemanticUnit,
+    node: &SyntaxNode,
+    consumed_once: &mut BTreeSet<(u32, usize, usize)>,
+    extracted_channel_endpoints: &mut BTreeSet<(u32, usize, usize, String)>,
+    immediately_awaited: bool,
+) -> Result<(), SemanticFailure> {
+    validate_channel_endpoint_extraction(unit, node, extracted_channel_endpoints)?;
+    validate_projected_borrowed_async_call(package, unit, node, immediately_awaited)?;
     if node.kind == SyntaxKind::CallExpression
         && let [callee, arguments] = node.children.as_slice()
         && callee.kind == SyntaxKind::Name
@@ -1587,6 +1641,7 @@ fn validate_projected_callback_node(
             unit,
             child,
             consumed_once,
+            extracted_channel_endpoints,
             node.kind == SyntaxKind::UnaryExpression
                 && unary_operator_text(unit, node).as_deref() == Some("await")
                 || node.kind == SyntaxKind::GroupExpression && immediately_awaited,
@@ -1603,6 +1658,7 @@ pub(super) fn validate_projected_callback_arguments(
             package,
             unit,
             &unit.tree.root,
+            &mut BTreeSet::new(),
             &mut BTreeSet::new(),
             false,
         )?;

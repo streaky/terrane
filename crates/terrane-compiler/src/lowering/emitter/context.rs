@@ -1,4 +1,28 @@
 use super::super::prelude::*;
+use crate::Symbol;
+
+fn compiler_singleton_rust_name(symbol: Option<&Symbol>) -> Option<String> {
+    let symbol = symbol?;
+    if let Some(encoding) = symbol.identity.strip_prefix("/core/encodings::") {
+        let variant = match encoding {
+            "utf8" => "Utf8",
+            "utf16-le" => "Utf16Le",
+            "utf16-be" => "Utf16Be",
+            "utf32-le" => "Utf32Le",
+            "utf32-be" => "Utf32Be",
+            _ => return None,
+        };
+        return Some(format!("terrane_string_support::Encoding::{variant}"));
+    }
+    let policy = match symbol.compiler_identity() {
+        "/core/concurrency::channel-block" => "Block",
+        "/core/concurrency::channel-fail-send" => "FailSend",
+        "/core/concurrency::channel-drop-newest" => "DropNewest",
+        "/core/concurrency::channel-drop-oldest" => "DropOldest",
+        _ => return None,
+    };
+    Some(format!("TerraneChannelOverflow::{policy}"))
+}
 
 impl Emitter<'_> {
     pub(super) fn name(&self, node: &SyntaxNode) -> String {
@@ -48,18 +72,8 @@ impl Emitter<'_> {
         let resolved = self
             .package
             .resolve_name_at(self.unit, node.span.start, source_name);
-        let encoding = resolved
-            .and_then(|symbol| symbol.identity.strip_prefix("/core/encodings::"))
-            .and_then(|name| match name {
-                "utf8" => Some("Utf8"),
-                "utf16-le" => Some("Utf16Le"),
-                "utf16-be" => Some("Utf16Be"),
-                "utf32-le" => Some("Utf32Le"),
-                "utf32-be" => Some("Utf32Be"),
-                _ => None,
-            });
-        if let Some(encoding) = encoding {
-            return format!("terrane_string_support::Encoding::{encoding}");
+        if let Some(singleton) = compiler_singleton_rust_name(resolved) {
+            return singleton;
         }
         let Some(symbol) = self
             .package

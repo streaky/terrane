@@ -196,7 +196,11 @@ pub(super) fn value_type_owns_resource(
     resource_identities: &BTreeSet<String>,
 ) -> bool {
     match value_type {
-        ValueType::PlatformStreamHandle | ValueType::PlatformResourceHandle => true,
+        ValueType::PlatformStreamHandle
+        | ValueType::PlatformResourceHandle
+        | ValueType::ChannelPair(_)
+        | ValueType::ChannelSender(_)
+        | ValueType::ChannelReceiver(_) => true,
         ValueType::Object(identity) => resource_identities.contains(&identity.qualified()),
         ValueType::Optional(inner) => value_type_owns_resource(inner, resource_identities),
         ValueType::Iterator(item)
@@ -208,6 +212,8 @@ pub(super) fn value_type_owns_resource(
         | ValueType::Task(item, _)
         | ValueType::ScopedTask(item, _)
         | ValueType::TaskOutcome(item)
+        | ValueType::ChannelReceiveOutcome(item)
+        | ValueType::ChannelSendOutcome(item)
         | ValueType::Reference(item)
         | ValueType::SharedReference(item) => {
             value_type_owns_resource(&item.value_type(), resource_identities)

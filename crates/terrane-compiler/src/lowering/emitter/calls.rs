@@ -19,6 +19,23 @@ impl Emitter<'_> {
             );
             return format!("TerraneTaskScope::new({deadline})");
         }
+        if callee.kind == SyntaxKind::Name
+            && self
+                .package
+                .resolve_name_at(self.unit, callee.span.start, self.text(callee))
+                .is_some_and(|symbol| symbol.identity == "/core/concurrency::channel")
+        {
+            let values = arguments
+                .children
+                .iter()
+                .map(|argument| argument.children.last().unwrap_or(argument))
+                .collect::<Vec<_>>();
+            let capacity = self.expression_as(values[1], ValueType::Scalar(ScalarType::Int));
+            let overflow = self.expression(values[2]);
+            return format!(
+                "TerraneChannelPair::new(terrane_collection_support::index_from_int(&({capacity})).expect(\"semantic channel capacity\"), {overflow})"
+            );
+        }
         if callee.kind == SyntaxKind::MemberExpression
             && let [receiver, member] = callee.children.as_slice()
             && self.receiver_value_type(receiver) == Some(ValueType::TaskScope)
@@ -41,22 +58,26 @@ impl Emitter<'_> {
                     } else {
                         self.expression(callable)
                     };
-                    let invocation = if matches!(callable_type, Some(ValueType::Task(_, _))) {
-                        callable
-                    } else {
-                        format!("({callable})()")
-                    };
+                    let (task_setup, invocation) =
+                        if matches!(callable_type, Some(ValueType::Task(_, _))) {
+                            (
+                                format!("let __terrane_spawned_task = {callable}; "),
+                                "__terrane_spawned_task".to_owned(),
+                            )
+                        } else {
+                            (String::new(), format!("({callable})()"))
+                        };
                     if foreign_error {
                         format!(
-                            "{{ let __terrane_scope = ({receiver}).clone(); let __terrane_cancel = __terrane_scope.cancellation(); let __terrane_deadline = __terrane_scope.deadline; TerraneScopedTask::spawn(async move {{ match __terrane_cancellable({invocation}, __terrane_cancel, __terrane_deadline).await {{ Some(Ok(value)) => TerraneTaskResult::Completed(value), Some(Err(error)) => TerraneTaskResult::Failed(crate::TerraneRaised::raised(error, crate::TERRANE_NO_SITE)), None => TerraneTaskResult::Cancelled }} }}) }}"
+                            "{{ let __terrane_scope = ({receiver}).clone(); let __terrane_cancel = __terrane_scope.cancellation(); let __terrane_deadline = __terrane_scope.deadline; {task_setup}TerraneScopedTask::spawn(async move {{ match __terrane_cancellable({invocation}, __terrane_cancel, __terrane_deadline).await {{ Some(Ok(value)) => TerraneTaskResult::Completed(value), Some(Err(error)) => TerraneTaskResult::Failed(crate::TerraneRaised::raised(error, crate::TERRANE_NO_SITE)), None => TerraneTaskResult::Cancelled }} }}) }}"
                         )
                     } else if throws {
                         format!(
-                            "{{ let __terrane_scope = ({receiver}).clone(); let __terrane_cancel = __terrane_scope.cancellation(); let __terrane_deadline = __terrane_scope.deadline; TerraneScopedTask::spawn(async move {{ match __terrane_cancellable({invocation}, __terrane_cancel, __terrane_deadline).await {{ Some(Ok(value)) => TerraneTaskResult::Completed(value), Some(Err(error)) => TerraneTaskResult::Failed(error), None => TerraneTaskResult::Cancelled }} }}) }}"
+                            "{{ let __terrane_scope = ({receiver}).clone(); let __terrane_cancel = __terrane_scope.cancellation(); let __terrane_deadline = __terrane_scope.deadline; {task_setup}TerraneScopedTask::spawn(async move {{ match __terrane_cancellable({invocation}, __terrane_cancel, __terrane_deadline).await {{ Some(Ok(value)) => TerraneTaskResult::Completed(value), Some(Err(error)) => TerraneTaskResult::Failed(error), None => TerraneTaskResult::Cancelled }} }}) }}"
                         )
                     } else {
                         format!(
-                            "{{ let __terrane_scope = ({receiver}).clone(); let __terrane_cancel = __terrane_scope.cancellation(); let __terrane_deadline = __terrane_scope.deadline; TerraneScopedTask::spawn(async move {{ match __terrane_cancellable({invocation}, __terrane_cancel, __terrane_deadline).await {{ Some(value) => TerraneTaskResult::Completed(value), None => TerraneTaskResult::Cancelled }} }}) }}"
+                            "{{ let __terrane_scope = ({receiver}).clone(); let __terrane_cancel = __terrane_scope.cancellation(); let __terrane_deadline = __terrane_scope.deadline; {task_setup}TerraneScopedTask::spawn(async move {{ match __terrane_cancellable({invocation}, __terrane_cancel, __terrane_deadline).await {{ Some(value) => TerraneTaskResult::Completed(value), None => TerraneTaskResult::Cancelled }} }}) }}"
                         )
                     }
                 }),
@@ -69,6 +90,36 @@ impl Emitter<'_> {
                     let deadline = argument.children.last().unwrap_or(argument);
                     format!("({receiver}).child_scope(({}) as u64)", self.expression(deadline))
                 }),
+                _ => String::new(),
+            };
+        }
+        if callee.kind == SyntaxKind::MemberExpression
+            && let [receiver, member] = callee.children.as_slice()
+            && receiver.kind == SyntaxKind::Name
+            && let Some(receiver_type) = self.receiver_value_type(receiver)
+            && matches!(
+                receiver_type,
+                ValueType::ChannelSender(_) | ValueType::ChannelReceiver(_)
+            )
+        {
+            let receiver = self.expression(receiver);
+            return match (receiver_type, self.text(member)) {
+                (ValueType::ChannelSender(item), "send") => {
+                    let value = arguments
+                        .children
+                        .first()
+                        .map(|argument| argument.children.last().unwrap_or(argument))
+                        .map_or_else(String::new, |value| {
+                            self.expression_as(value, item.value_type())
+                        });
+                    format!("Box::pin(({receiver}).send({value}))")
+                }
+                (ValueType::ChannelReceiver(_), "receive") => {
+                    format!("Box::pin(({receiver}).receive())")
+                }
+                (ValueType::ChannelSender(_) | ValueType::ChannelReceiver(_), "close") => {
+                    format!("({receiver}).close()")
+                }
                 _ => String::new(),
             };
         }
@@ -626,13 +677,6 @@ impl Emitter<'_> {
         }
         let concurrency_call = [
             ("no-capability", "platform_no_resource"),
-            ("int-channel", "platform_int_channel"),
-            ("int-channel-send", "platform_int_channel_send"),
-            ("int-channel-receive", "platform_int_channel_receive"),
-            (
-                "int-channel-try-receive",
-                "platform_int_channel_try_receive",
-            ),
             ("int-mutex", "platform_int_mutex"),
             ("int-mutex-load", "platform_int_mutex_load"),
             ("int-mutex-store", "platform_int_mutex_store"),
@@ -663,18 +707,15 @@ impl Emitter<'_> {
                 .enumerate()
                 .map(|(index, value)| {
                     let value = self.expression(value);
-                    let borrowed = (index == 0
+                    let borrowed = index == 0
                         && (function.starts_with("platform_result_")
                             || !matches!(
                                 function,
-                                "platform_int_channel"
-                                    | "platform_int_mutex"
+                                "platform_int_mutex"
                                     | "platform_int_rw_lock"
                                     | "platform_atomic_int64"
                                     | "platform_thread_local_int"
-                            )))
-                        || (function == "platform_int_channel_send" && index == 3)
-                        || (function == "platform_int_channel_receive" && index == 2);
+                            ));
                     if borrowed {
                         format!("&({value})")
                     } else {

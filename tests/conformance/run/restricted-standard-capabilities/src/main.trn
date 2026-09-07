@@ -1,11 +1,11 @@
 namespace restricted-standard-capabilities
 
 from /core/output import print
-from /core/concurrency import int-channel
+from /core/concurrency import int-mutex
 from /core/process import process-host-name
 
 function main;
-    channel = instance int-channel; 1
-    print; channel.failed
+    cell = instance int-mutex; 1
+    print; cell.failed
     name = process-host-name;
     print; name.failed or name.available

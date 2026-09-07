@@ -1,6 +1,7 @@
 namespace core/concurrency
 
 
+
 class concurrency-operation-result
     failed bool = false
     deadline-exceeded bool = false
@@ -10,25 +11,6 @@ class concurrency-operation-result
         this.failed = did-fail
         this.deadline-exceeded = exceeded-deadline
         this.message = detail
-
-class concurrency-cancellation-token
-    private handle host-platform-capability = host-cancellation-token;
-
-    function cancel concurrency-operation-result;
-        raw = host-cancel; this.handle
-        return instance concurrency-operation-result; (host-result-failed; raw), (host-result-deadline-exceeded; raw), (host-result-message; raw)
-
-class concurrency-operation-options
-    deadline-ms int = 30000
-    cancellation concurrency-cancellation-token = instance concurrency-cancellation-token;
-
-    function construct; deadline-ms int, cancellation concurrency-cancellation-token
-        this.deadline-ms = deadline-ms
-        this.cancellation = cancellation
-
-function concurrency-cancel-operation concurrency-operation-result; cancellation concurrency-cancellation-token
-    raw = host-cancel; cancellation.handle
-    return instance concurrency-operation-result; (host-result-failed; raw), (host-result-deadline-exceeded; raw), (host-result-message; raw)
 
 class concurrency-int-result
     failed bool = false
@@ -44,28 +26,6 @@ class concurrency-int-result
         this.message = detail
         this.value = result-value
 
-class int-channel
-    failed bool = false
-    message string = ''
-    private handle host-platform-capability = host-no-capability;
-
-    function construct; capacity int
-        raw = host-int-channel; capacity
-        this.failed = host-result-failed; raw
-        this.message = host-result-message; raw
-        this.handle = host-result-capability; raw
-
-    function send concurrency-operation-result; value int, options concurrency-operation-options
-        raw = host-int-channel-send; this.handle, value, options.deadline-ms, options.cancellation.handle
-        return instance concurrency-operation-result; (host-result-failed; raw), (host-result-deadline-exceeded; raw), (host-result-message; raw)
-
-    function receive concurrency-int-result; options concurrency-operation-options
-        raw = host-int-channel-receive; this.handle, options.deadline-ms, options.cancellation.handle
-        return instance concurrency-int-result; (host-result-failed; raw), (host-result-deadline-exceeded; raw), (host-result-bool; raw), (host-result-message; raw), (host-result-int; raw)
-
-    function try-receive concurrency-int-result;
-        raw = host-int-channel-try-receive; this.handle
-        return instance concurrency-int-result; (host-result-failed; raw), (host-result-deadline-exceeded; raw), (host-result-bool; raw), (host-result-message; raw), (host-result-int; raw)
 
 class int-mutex
     failed bool = false

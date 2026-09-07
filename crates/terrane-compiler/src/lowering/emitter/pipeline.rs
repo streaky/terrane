@@ -37,6 +37,16 @@ pub(crate) fn lower(package: &SemanticPackage) -> Program {
         .iter()
         .flat_map(|unit| &unit.functions)
         .any(|function| function.name == "main" && function.is_async);
+    let has_channels = package.units.iter().any(|unit| {
+        unit.typed_bindings.iter().any(|binding| {
+            matches!(
+                binding.value_type,
+                ValueType::ChannelPair(_)
+                    | ValueType::ChannelSender(_)
+                    | ValueType::ChannelReceiver(_)
+            )
+        })
+    });
     let native_cancellation = package_uses_task_scope(package) && has_async_entry;
     let has_custom_throwable = has_dependency
         || package.units.iter().any(|unit| {
@@ -68,6 +78,9 @@ pub(crate) fn lower(package: &SemanticPackage) -> Program {
         }
         if has_async_dependency {
             support.push_str(include_str!("../../runtime/async_dependency.rs"));
+        }
+        if has_channels {
+            support.push_str(include_str!("../../runtime/channels.rs"));
         }
         if package_uses_task_scope(package) && !native_cancellation {
             support.push_str(include_str!("../../runtime/async_cancellable.rs"));

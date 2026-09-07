@@ -411,6 +411,31 @@ pub(super) fn rust_value_type(package: &SemanticPackage, ty: ValueType) -> Strin
             )
         }
         ValueType::AsyncSinkOutcome => "terrane_collection_support::AsyncSinkOutcome".to_owned(),
+        ValueType::ChannelPair(item) => {
+            format!("TerraneChannelPair<{}>", rust_element_type(package, item))
+        }
+        ValueType::ChannelSender(item) => {
+            format!("TerraneChannelSender<{}>", rust_element_type(package, item))
+        }
+        ValueType::ChannelReceiver(item) => {
+            format!(
+                "TerraneChannelReceiver<{}>",
+                rust_element_type(package, item)
+            )
+        }
+        ValueType::ChannelSendOutcome(item) => {
+            format!(
+                "TerraneChannelSendOutcome<{}>",
+                rust_element_type(package, item)
+            )
+        }
+        ValueType::ChannelReceiveOutcome(item) => {
+            format!(
+                "TerraneChannelReceiveOutcome<{}>",
+                rust_element_type(package, item)
+            )
+        }
+        ValueType::ChannelOverflowPolicy => "TerraneChannelOverflow".to_owned(),
         ValueType::List(item) => {
             format!(
                 "terrane_collection_support::List<{}>",

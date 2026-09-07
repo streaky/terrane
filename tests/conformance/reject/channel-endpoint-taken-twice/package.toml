@@ -1,0 +1,3 @@
+package = "channel-endpoint-taken-twice"
+[namespaces]
+app = "src"

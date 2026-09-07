@@ -16,9 +16,6 @@
 // Rust owns only irreducible OS boundaries, optimiser-sensitive guarantees, and audited
 // cryptographic/compression/TLS implementations. Terrane owns the public object model and policy.
 use base64::Engine as _;
-use crossbeam_channel::{
-    Receiver, RecvTimeoutError, SendTimeoutError, Sender, TryRecvError, bounded,
-};
 use hmac::Mac as _;
 use rand_core::{RngCore as _, SeedableRng as _};
 use sha2::Digest as _;
@@ -73,10 +70,6 @@ struct SecretState {
     bytes: Zeroizing<Vec<u8>>,
     destroyed: bool,
 }
-struct IntChannel {
-    sender: Sender<i128>,
-    receiver: Receiver<i128>,
-}
 struct ThreadLocalInt {
     id: u64,
     initial: i128,
@@ -102,7 +95,6 @@ enum CapabilityInner {
     Pseudo(Mutex<rand_chacha::ChaCha20Rng>),
     Secret(Mutex<SecretState>),
     Cancellation(CancellationState),
-    IntChannel(IntChannel),
     IntMutex(Mutex<i128>),
     IntRwLock(RwLock<i128>),
     AtomicI64(AtomicI64),
@@ -197,109 +189,6 @@ fn operation_deadline(milliseconds: i128, label: &str) -> Result<Instant, Result
     Instant::now()
         .checked_add(duration)
         .ok_or_else(|| ResultValue::error(format!("{label} is outside the platform time range")))
-}
-
-pub fn int_channel(capacity: i128) -> ResultValue {
-    let Ok(capacity) = usize::try_from(capacity) else {
-        return ResultValue::error(
-            "channel capacity must be a non-negative platform-sized integer",
-        );
-    };
-    let (sender, receiver) = bounded(capacity);
-    capability_result(Capability(Arc::new(CapabilityInner::IntChannel(
-        IntChannel { sender, receiver },
-    ))))
-}
-
-pub fn int_channel_send(
-    channel: &Capability,
-    value: i128,
-    deadline_ms: i128,
-    cancellation: &Capability,
-) -> ResultValue {
-    if let Some(error) = cancellation_error(cancellation) {
-        return error;
-    }
-    let deadline = match operation_deadline(deadline_ms, "channel send deadline") {
-        Ok(value) => value,
-        Err(error) => return error,
-    };
-    let CapabilityInner::IntChannel(channel) = channel.0.as_ref() else {
-        return capability_type_error(channel.0.as_ref(), "an int channel");
-    };
-    let mut value = value;
-    loop {
-        if let Some(error) = cancellation_error(cancellation) {
-            return error;
-        }
-        let now = Instant::now();
-        if now >= deadline {
-            return deadline_error("channel send deadline exceeded");
-        }
-        let wait = (deadline - now).min(CANCELLATION_QUANTUM);
-        match channel.sender.send_timeout(value, wait) {
-            Ok(()) => return ResultValue::default(),
-            Err(SendTimeoutError::Disconnected(_)) => {
-                return ResultValue::error("channel receiver is closed");
-            }
-            Err(SendTimeoutError::Timeout(returned)) => value = returned,
-        }
-    }
-}
-
-pub fn int_channel_receive(
-    channel: &Capability,
-    deadline_ms: i128,
-    cancellation: &Capability,
-) -> ResultValue {
-    if let Some(error) = cancellation_error(cancellation) {
-        return error;
-    }
-    let deadline = match operation_deadline(deadline_ms, "channel receive deadline") {
-        Ok(value) => value,
-        Err(error) => return error,
-    };
-    let CapabilityInner::IntChannel(channel) = channel.0.as_ref() else {
-        return capability_type_error(channel.0.as_ref(), "an int channel");
-    };
-    loop {
-        if let Some(error) = cancellation_error(cancellation) {
-            return error;
-        }
-        let now = Instant::now();
-        if now >= deadline {
-            return deadline_error("channel receive deadline exceeded");
-        }
-        let wait = (deadline - now).min(CANCELLATION_QUANTUM);
-        match channel.receiver.recv_timeout(wait) {
-            Ok(number) => {
-                return ResultValue {
-                    number,
-                    flag: true,
-                    ..ResultValue::default()
-                };
-            }
-            Err(RecvTimeoutError::Disconnected) => {
-                return ResultValue::error("channel sender is closed");
-            }
-            Err(RecvTimeoutError::Timeout) => {}
-        }
-    }
-}
-
-pub fn int_channel_try_receive(channel: &Capability) -> ResultValue {
-    let CapabilityInner::IntChannel(channel) = channel.0.as_ref() else {
-        return capability_type_error(channel.0.as_ref(), "an int channel");
-    };
-    match channel.receiver.try_recv() {
-        Ok(number) => ResultValue {
-            number,
-            flag: true,
-            ..ResultValue::default()
-        },
-        Err(TryRecvError::Empty) => ResultValue::default(),
-        Err(TryRecvError::Disconnected) => ResultValue::error("channel sender is closed"),
-    }
 }
 
 pub fn int_mutex(initial: i128) -> ResultValue {
@@ -2331,18 +2220,6 @@ mod tests {
 
     #[test]
     fn concurrency_capabilities_share_state_and_isolate_thread_locals() {
-        let channel = result_capability(int_channel(0));
-        let sender = channel.clone();
-        let sender_cancellation = cancellation_token();
-        let sender = std::thread::spawn(move || {
-            assert!(!int_channel_send(&sender, 17, 1_000, &sender_cancellation).failed);
-        });
-        let received = int_channel_receive(&channel, 1_000, &cancellation_token());
-        assert!(!received.failed);
-        assert!(received.flag);
-        assert_eq!(received.number, 17);
-        sender.join().unwrap();
-
         let mutex = result_capability(int_mutex(2));
         let shared_mutex = mutex.clone();
         std::thread::spawn(move || {
@@ -2422,10 +2299,7 @@ mod tests {
     }
 
     #[test]
-    fn concurrency_failures_preserve_messages_and_blocking_is_bounded() {
-        let invalid_channel = int_channel(-1);
-        assert!(invalid_channel.failed);
-        assert!(invalid_channel.message.contains("non-negative"));
+    fn concurrency_failures_preserve_messages() {
         let invalid_atomic = atomic_int64(i128::from(i64::MAX) + 1);
         assert!(invalid_atomic.failed);
         assert!(invalid_atomic.message.contains("out of range"));
@@ -2434,33 +2308,6 @@ mod tests {
         assert_eq!(
             int_mutex_load(&invalid).message,
             "missing platform capability"
-        );
-
-        let channel = result_capability(int_channel(1));
-        let probe = int_channel_try_receive(&channel);
-        assert!(!probe.failed);
-        assert!(!probe.flag);
-        assert!(!int_channel_send(&channel, 7, 100, &cancellation_token()).failed);
-        let probe = int_channel_try_receive(&channel);
-        assert!(!probe.failed);
-        assert!(probe.flag);
-        assert_eq!(probe.number, 7);
-
-        let cancellation = cancellation_token();
-        assert!(!int_channel_send(&channel, 1, 100, &cancellation).failed);
-        let timed_out = int_channel_send(&channel, 2, 5, &cancellation);
-        assert!(timed_out.failed);
-        assert!(timed_out.deadline_exceeded);
-
-        let empty = result_capability(int_channel(1));
-        let timed_out = int_channel_receive(&empty, 5, &cancellation);
-        assert!(timed_out.failed);
-        assert!(timed_out.deadline_exceeded);
-
-        assert!(!cancel(&cancellation).failed);
-        assert_eq!(
-            int_channel_receive(&empty, 100, &cancellation).message,
-            "operation cancelled"
         );
     }
 

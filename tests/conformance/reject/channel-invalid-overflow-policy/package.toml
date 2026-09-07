@@ -1,0 +1,3 @@
+package = "channel-invalid-overflow-policy"
+[namespaces]
+app = "src"

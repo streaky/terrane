@@ -578,39 +578,6 @@ fn terrane_platform_result_capability(
     result.capability.clone().unwrap_or_default()
 }
 #[allow(dead_code)]
-fn terrane_platform_int_channel(
-    capacity: terrane_int_support::Int,
-) -> TerranePlatformResult {
-    let capacity = terrane_platform_i128!(capacity, "channel capacity");
-    terrane_platform_support::int_channel(capacity)
-}
-#[allow(dead_code)]
-fn terrane_platform_int_channel_send(
-    channel: &TerranePlatformCapability,
-    value: terrane_int_support::Int,
-    deadline_ms: terrane_int_support::Int,
-    cancellation: &TerranePlatformCapability,
-) -> TerranePlatformResult {
-    let value = terrane_platform_i128!(value, "channel value");
-    let deadline_ms = terrane_platform_i128!(deadline_ms, "channel send deadline");
-    terrane_platform_support::int_channel_send(channel, value, deadline_ms, cancellation)
-}
-#[allow(dead_code)]
-fn terrane_platform_int_channel_receive(
-    channel: &TerranePlatformCapability,
-    deadline_ms: terrane_int_support::Int,
-    cancellation: &TerranePlatformCapability,
-) -> TerranePlatformResult {
-    let deadline_ms = terrane_platform_i128!(deadline_ms, "channel receive deadline");
-    terrane_platform_support::int_channel_receive(channel, deadline_ms, cancellation)
-}
-#[allow(dead_code)]
-fn terrane_platform_int_channel_try_receive(
-    channel: &TerranePlatformCapability,
-) -> TerranePlatformResult {
-    terrane_platform_support::int_channel_try_receive(channel)
-}
-#[allow(dead_code)]
 fn terrane_platform_int_mutex(
     initial: terrane_int_support::Int,
 ) -> TerranePlatformResult {
@@ -715,10 +682,10 @@ fn terrane_platform_thread_local_int_set(
 // Source: src/main.trn
 // Namespace: restricted-standard-capabilities
 fn main() {
-    let channel: IntChannel = IntChannel::terrane_construct(
+    let cell: IntMutex = IntMutex::terrane_construct(
         terrane_int_support::Int::from(1_i128),
     );
-    println!("{}", terrane_scalar_support::scalar_text(&channel.failed));
+    println!("{}", terrane_scalar_support::scalar_text(&cell.failed));
     let name: ProcessHostNameResult = process_host_name();
     println!(
         "{}", terrane_scalar_support::scalar_text(&(name.failed || name.available))
@@ -756,61 +723,6 @@ impl ConcurrencyOperationResult {
         self.deadline_exceeded = exceeded_deadline;
         self.message = detail;
     }
-}
-#[derive(Clone)]
-pub struct ConcurrencyCancellationToken {
-    pub handle: TerranePlatformCapability,
-}
-impl ConcurrencyCancellationToken {
-    pub fn terrane_construct() -> Self {
-        Self {
-            handle: terrane_platform_cancellation_token(),
-        }
-    }
-    pub fn cancel(&self) -> ConcurrencyOperationResult {
-        let raw: TerranePlatformResult = terrane_platform_cancel(&self.handle);
-        return ConcurrencyOperationResult::terrane_construct(
-            terrane_platform_result_failed(&raw),
-            terrane_platform_result_deadline_exceeded(&raw),
-            terrane_platform_result_message(&raw),
-        );
-    }
-}
-#[derive(Clone)]
-pub struct ConcurrencyOperationOptions {
-    pub deadline_ms: terrane_int_support::Int,
-    pub cancellation: ConcurrencyCancellationToken,
-}
-impl ConcurrencyOperationOptions {
-    pub fn terrane_construct(
-        deadline_ms: terrane_int_support::Int,
-        cancellation: ConcurrencyCancellationToken,
-    ) -> Self {
-        let mut value = Self {
-            deadline_ms: terrane_int_support::Int::from(30000_i128),
-            cancellation: ConcurrencyCancellationToken::terrane_construct(),
-        };
-        value.construct(deadline_ms, cancellation);
-        value
-    }
-    pub fn construct(
-        &mut self,
-        deadline_ms: terrane_int_support::Int,
-        cancellation: ConcurrencyCancellationToken,
-    ) {
-        self.deadline_ms = deadline_ms.clone();
-        self.cancellation = cancellation.clone();
-    }
-}
-pub fn concurrency_cancel_operation(
-    cancellation: ConcurrencyCancellationToken,
-) -> ConcurrencyOperationResult {
-    let raw: TerranePlatformResult = terrane_platform_cancel(&cancellation.handle);
-    return ConcurrencyOperationResult::terrane_construct(
-        terrane_platform_result_failed(&raw),
-        terrane_platform_result_deadline_exceeded(&raw),
-        terrane_platform_result_message(&raw),
-    );
 }
 #[derive(Clone)]
 pub struct ConcurrencyIntResult {
@@ -851,72 +763,6 @@ impl ConcurrencyIntResult {
         self.available = has_value;
         self.message = detail;
         self.value = result_value.clone();
-    }
-}
-#[derive(Clone)]
-pub struct IntChannel {
-    pub failed: bool,
-    pub message: String,
-    pub handle: TerranePlatformCapability,
-}
-impl IntChannel {
-    pub fn terrane_construct(capacity: terrane_int_support::Int) -> Self {
-        let mut value = Self {
-            failed: false,
-            message: String::from(""),
-            handle: terrane_platform_no_resource(),
-        };
-        value.construct(capacity);
-        value
-    }
-    pub fn construct(&mut self, capacity: terrane_int_support::Int) {
-        let raw: TerranePlatformResult = terrane_platform_int_channel(capacity);
-        self.failed = terrane_platform_result_failed(&raw);
-        self.message = terrane_platform_result_message(&raw);
-        self.handle = terrane_platform_result_capability(&raw);
-    }
-    pub fn send(
-        &self,
-        value: terrane_int_support::Int,
-        options: ConcurrencyOperationOptions,
-    ) -> ConcurrencyOperationResult {
-        let raw: TerranePlatformResult = terrane_platform_int_channel_send(
-            &self.handle,
-            value,
-            options.deadline_ms,
-            &options.cancellation.handle,
-        );
-        return ConcurrencyOperationResult::terrane_construct(
-            terrane_platform_result_failed(&raw),
-            terrane_platform_result_deadline_exceeded(&raw),
-            terrane_platform_result_message(&raw),
-        );
-    }
-    pub fn receive(&self, options: ConcurrencyOperationOptions) -> ConcurrencyIntResult {
-        let raw: TerranePlatformResult = terrane_platform_int_channel_receive(
-            &self.handle,
-            options.deadline_ms,
-            &options.cancellation.handle,
-        );
-        return ConcurrencyIntResult::terrane_construct(
-            terrane_platform_result_failed(&raw),
-            terrane_platform_result_deadline_exceeded(&raw),
-            terrane_platform_result_bool(&raw),
-            terrane_platform_result_message(&raw),
-            terrane_platform_result_int(&raw),
-        );
-    }
-    pub fn try_receive(&self) -> ConcurrencyIntResult {
-        let raw: TerranePlatformResult = terrane_platform_int_channel_try_receive(
-            &self.handle,
-        );
-        return ConcurrencyIntResult::terrane_construct(
-            terrane_platform_result_failed(&raw),
-            terrane_platform_result_deadline_exceeded(&raw),
-            terrane_platform_result_bool(&raw),
-            terrane_platform_result_message(&raw),
-            terrane_platform_result_int(&raw),
-        );
     }
 }
 #[derive(Clone)]

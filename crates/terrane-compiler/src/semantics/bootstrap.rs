@@ -49,10 +49,6 @@ pub(super) fn bootstrap_namespaces() -> BTreeMap<String, Namespace> {
             "platform-capability",
             "platform-result",
             "no-capability",
-            "int-channel",
-            "int-channel-send",
-            "int-channel-receive",
-            "int-channel-try-receive",
             "int-mutex",
             "int-mutex-load",
             "int-mutex-store",
@@ -84,6 +80,23 @@ pub(super) fn bootstrap_namespaces() -> BTreeMap<String, Namespace> {
             "result-capability",
         ],
     );
+    if let Some(concurrency) = namespaces.get_mut("/core/concurrency") {
+        concurrency.symbols.insert(
+            "channel".to_owned(),
+            compiler_owned_object("/core/concurrency", "channel", SymbolKind::Function),
+        );
+        for policy in [
+            "channel-block",
+            "channel-fail-send",
+            "channel-drop-newest",
+            "channel-drop-oldest",
+        ] {
+            let mut symbol =
+                compiler_owned_object("/core/concurrency", policy, SymbolKind::Binding);
+            symbol.constant = true;
+            concurrency.symbols.insert(policy.to_owned(), symbol);
+        }
+    }
     add_private_host_bindings(
         &mut namespaces,
         "/core/documents",
