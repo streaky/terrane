@@ -1,0 +1,4 @@
+namespace app
+from /core/concurrency import mutex
+function main;
+  state = mutex; string, 'value'

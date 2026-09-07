@@ -3827,12 +3827,21 @@ operation. Duplicate endpoint ownership, use after close, invalid capacities, an
 policies are source diagnostics. Sender and receiver operations construct local-only tasks in
 version one.
 
-`int-mutex` and `int-read-write-lock` expose individually synchronized integer load, store, and
-update operations. An assignment or argument passage aliases the same opaque synchronized host
-identity; it does not copy the protected value into an independent object. They do not expose a
-guard-scoped arbitrary critical section, and their names do not promise non-integer generic
-storage. Guard lifetimes and additional concrete lock element types remain deferred until they can
-be represented without a universal boxed value or a second ownership model.
+Version one deliberately does not provide generic shared mutable cells. Application state with one
+logical writer belongs to one owner task; other tasks send typed commands and receive typed results
+through bounded channels. This preserves one mutation authority, explicit backpressure and
+shutdown, and the ordinary task ownership model rather than adding guard lifetimes, suspendable
+critical sections, or a second shared-ownership model. Compiler-owned diagnostic names `mutex`,
+`read-write-lock`, and `shared-cell` reject construction with guidance toward that owner-task and
+channel pattern.
+
+`int-mutex` and `int-read-write-lock` remain low-level, integer-specialised facilities. They expose
+individually synchronized integer load, store, and update operations. Assignment or argument
+passage aliases the same opaque synchronized host identity; it does not copy the protected value
+into an independent object. They do not expose a guard-scoped arbitrary critical section, and
+their names do not promise non-integer generic storage. Generic cells and guard lifetimes are
+outside the version-one contract rather than deferred implementation of an otherwise promised
+surface.
 
 Atomic operations take a `memory-order` object rather than a raw string. `/core/concurrency`
 supplies `relaxed-order`, `acquire-order`, `release-order`, `acquire-release-order`, and

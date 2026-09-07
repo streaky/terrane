@@ -85,6 +85,12 @@ pub(super) fn bootstrap_namespaces() -> BTreeMap<String, Namespace> {
             "channel".to_owned(),
             compiler_owned_object("/core/concurrency", "channel", SymbolKind::Function),
         );
+        for name in ["mutex", "read-write-lock", "shared-cell"] {
+            concurrency.symbols.insert(
+                name.to_owned(),
+                compiler_owned_object("/core/concurrency", name, SymbolKind::Function),
+            );
+        }
         for policy in [
             "channel-block",
             "channel-fail-send",

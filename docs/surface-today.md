@@ -214,6 +214,7 @@ Terrane package
     │   ├── channel-block / channel-fail-send / channel-drop-newest / channel-drop-oldest explicit overflow policies
     │   ├── channel-pair / channel-sender / channel-receiver compiler-owned generic linear endpoint families
     │   ├── channel-send-outcome / channel-receive-outcome compiler-owned accepted/dropped/closed, rejected/evicted item, and available/value/closed state
+    │   ├── mutex / read-write-lock / shared-cell diagnostic-only names directing typed state to owner tasks and channels
     │   ├── int-mutex                          individually synchronized integer load / store / increase cell
     │   ├── int-read-write-lock                integer shared read / exclusive write cell; no exposed guards
     │   ├── memory-order / five order factories typed atomic policy with operation-specific validation
@@ -243,6 +244,12 @@ Terrane package
         └── binding                            local typed value, ref, or shared ref
 ```
 
+
+Version one intentionally has no generic shared mutable cell. Application state belongs to one
+owner task, and peers communicate through bounded typed channels. `mutex`, `read-write-lock`, and
+`shared-cell` are compiler-owned diagnostic-only names: invoking one emits `T0111` with that
+guidance. The integer-specialized synchronization objects below remain implemented low-level
+facilities rather than generic type constructors.
 
 ## Implemented value types
 

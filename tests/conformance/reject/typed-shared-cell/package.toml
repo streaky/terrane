@@ -1,0 +1,3 @@
+package = "typed-shared-cell"
+[namespaces]
+app = "src"

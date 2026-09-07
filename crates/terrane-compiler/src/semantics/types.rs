@@ -474,17 +474,66 @@ fn is_builtin_error_type(type_name: &str) -> bool {
     )
 }
 
+fn parse_single_argument_value_type(
+    type_name: &str,
+    aliases: &BTreeMap<String, ScalarType>,
+) -> Option<ValueType> {
+    for (constructor, construct) in [
+        ("list of ", ValueType::List as fn(ElementType) -> ValueType),
+        (
+            "tuple of ",
+            (|item| ValueType::Tuple(item, None)) as fn(ElementType) -> ValueType,
+        ),
+        ("set of ", ValueType::Set as fn(ElementType) -> ValueType),
+        (
+            "unordered-set of ",
+            ValueType::UnorderedSet as fn(ElementType) -> ValueType,
+        ),
+        (
+            "channel-sender of ",
+            ValueType::ChannelSender as fn(ElementType) -> ValueType,
+        ),
+        (
+            "channel-receiver of ",
+            ValueType::ChannelReceiver as fn(ElementType) -> ValueType,
+        ),
+        (
+            "iterator of ",
+            ValueType::Iterator as fn(ElementType) -> ValueType,
+        ),
+        (
+            "iteration-step of ",
+            ValueType::IterationStep as fn(ElementType) -> ValueType,
+        ),
+    ] {
+        if let Some(argument) = type_name.strip_prefix(constructor) {
+            let item = ElementType::new(parse_declared_value_type(argument, aliases)?);
+            if matches!(constructor, "set of " | "unordered-set of ") && item.scalar().is_none() {
+                return None;
+            }
+            return Some(construct(item));
+        }
+    }
+    None
+}
+
 pub(super) fn parse_declared_value_type(
     type_name: &str,
     aliases: &BTreeMap<String, ScalarType>,
 ) -> Option<ValueType> {
+    let type_name = type_name.trim();
+    if let Some(inner) = type_name
+        .strip_prefix('(')
+        .and_then(|type_name| type_name.strip_suffix(')'))
+    {
+        return parse_declared_value_type(inner, aliases);
+    }
     if is_builtin_error_type(type_name) {
         return Some(ValueType::Object(ObjectIdentity::new(
             "/core/errors",
             type_name,
         )));
     }
-    let type_name = type_name.trim();
     if let Some(scalar) = aliases
         .get(type_name)
         .copied()
@@ -519,33 +568,8 @@ pub(super) fn parse_declared_value_type(
             parse_declared_value_type(argument, aliases)?,
         )));
     }
-    for (constructor, construct) in [
-        ("list of ", ValueType::List as fn(ElementType) -> ValueType),
-        (
-            "tuple of ",
-            (|item| ValueType::Tuple(item, None)) as fn(ElementType) -> ValueType,
-        ),
-        ("set of ", ValueType::Set as fn(ElementType) -> ValueType),
-        (
-            "unordered-set of ",
-            ValueType::UnorderedSet as fn(ElementType) -> ValueType,
-        ),
-        (
-            "iterator of ",
-            ValueType::Iterator as fn(ElementType) -> ValueType,
-        ),
-        (
-            "iteration-step of ",
-            ValueType::IterationStep as fn(ElementType) -> ValueType,
-        ),
-    ] {
-        if let Some(argument) = type_name.strip_prefix(constructor) {
-            let item = ElementType::new(parse_declared_value_type(argument, aliases)?);
-            if matches!(constructor, "set of " | "unordered-set of ") && item.scalar().is_none() {
-                return None;
-            }
-            return Some(construct(item));
-        }
+    if let Some(value_type) = parse_single_argument_value_type(type_name, aliases) {
+        return Some(value_type);
     }
     for (constructor, construct) in [
         (

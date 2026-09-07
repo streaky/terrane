@@ -334,6 +334,23 @@ pub(super) fn infer_value_type(
                 };
             }
             if callee.kind == SyntaxKind::Name
+                && resolved_compiler_identity(unit, callee).is_some_and(|identity| {
+                    matches!(
+                        identity,
+                        "/core/concurrency::mutex"
+                            | "/core/concurrency::read-write-lock"
+                            | "/core/concurrency::shared-cell"
+                    )
+                })
+            {
+                return Err(failure(
+                    &unit.source,
+                    "T0111",
+                    "typed shared cells are unavailable; keep mutable state in one owner task and communicate through bounded typed channels",
+                    node.span,
+                ));
+            }
+            if callee.kind == SyntaxKind::Name
                 && resolved_compiler_identity(unit, callee)
                     .is_some_and(|identity| identity == "/core/concurrency::channel")
             {

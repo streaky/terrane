@@ -1,0 +1,4 @@
+package = "shared-state-owner"
+executor = "cooperative"
+[namespaces]
+app = "src"

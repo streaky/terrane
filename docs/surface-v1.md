@@ -869,6 +869,7 @@ profile library objects                              /core/concurrency; requires
 |   +-- channel-sender of Item                       local-task send; accepted/closed/dropped
 |   +-- channel-receiver of Item                     local-task receive; available/value/closed
 |   +-- block / fail-send / drop-newest / drop-oldest explicit overflow policy
++-- mutex / read-write-lock / shared-cell           diagnostic-only: use one owner task plus typed channels
 +-- int-mutex                                        individually synchronized integer load/store/increase cell
 +-- int-read-write-lock                              integer shared-read/exclusive-write cell; no exposed guard
 +-- atomic-int64 + memory-order                      operation-specific typed ordering
@@ -881,9 +882,12 @@ These are ordinary objects supplied by selected packages/profiles, not universal
 
 Channel endpoints are linear rather than shared identities: close consumes one, receiver close
 wakes senders, sender close drains buffered items, and cancellation unregisters pending work.
-The lock, atomic, and thread-local objects alias their synchronized identity when assigned or
-passed. Version one does not expose thread creation, arbitrary guard-scoped critical sections,
-non-integer generic synchronization cells, or shared collection variants.
+The integer lock, atomic, and thread-local objects alias their synchronized identity when assigned
+or passed. Version one deliberately does not expose generic shared mutable cells: application state
+has one owner task and peers exchange typed commands and results through bounded channels. The
+diagnostic-only `mutex`, `read-write-lock`, and `shared-cell` names make that decision discoverable.
+Version one also does not expose thread creation, arbitrary guard-scoped critical sections, or
+shared collection variants.
 
 ## 13. Version-one data, operating-system, and I/O objects
 

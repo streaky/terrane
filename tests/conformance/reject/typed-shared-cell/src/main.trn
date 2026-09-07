@@ -1,0 +1,4 @@
+namespace app
+from /core/concurrency import shared-cell
+function main;
+  state = shared-cell; string, 'value'

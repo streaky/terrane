@@ -1546,6 +1546,15 @@ concurrent delivery, sender drain, receiver close, cancellation under pressure, 
 bounded-capacity stress loop; focused rejects cover item mismatch, capacity, policy, ownership, and
 post-close use.
 
+Phase C records the version-one shared-state boundary as an intentional refusal rather than a
+missing generic-cell implementation. Mutable application state has one owner task; peers send
+typed commands and receive typed results over the bounded channels above. The existing
+`int-mutex`, `int-read-write-lock`, `atomic-int64`, and `thread-local-int` remain concrete low-level
+facilities. Compiler-owned names `mutex`, `read-write-lock`, and `shared-cell` emit `T0111` with the
+owner-task/channel guidance instead of falling through to an unresolved import or suggesting a
+universal boxed cell. `shared-state-owner` proves two scoped tasks coordinating around one mutable
+class through typed command and result channels; three focused rejects fix the guided diagnostic.
+
 Accepted and rejected conformance covers async/sync type incompatibility, task consumption,
 successful, throwing, cancelled, and sibling-cancelling children, statically resolvable nested
 deadline extension, a non-owning reference whose unchanged local owner is proven to remain in the

@@ -1,0 +1,66 @@
+namespace app
+from /core/output import print
+from /core/concurrency import channel, channel-block
+
+class counter
+  value int = 0
+
+  function increase int;
+    this.value = this.value + 1
+    return this.value
+
+async function own-state int; (
+  commands (channel-receiver of string),
+  responses (channel-sender of int)
+)
+  state = instance counter;
+  running bool = true
+  while running
+    received = await commands.receive;
+    command = received.value
+    if command != none
+      if command == 'increase'
+        state.increase;
+      else
+        sent = await responses.send; state.value
+        if not sent.accepted
+          return -1
+        running = false
+  commands.close;
+  responses.close;
+  return state.value
+
+async function use-state int; (
+  commands (channel-sender of string),
+  responses (channel-receiver of int)
+)
+  first = await commands.send; 'increase'
+  if not first.accepted
+    return -1
+  second = await commands.send; 'increase'
+  if not second.accepted
+    return -1
+  requested = await commands.send; 'read'
+  if not requested.accepted
+    return -1
+  received = await responses.receive;
+  value = received.value
+  commands.close;
+  responses.close;
+  if value != none
+    return value
+  return -1
+
+async function main;
+  command-pair = channel; string, 1, channel-block
+  response-pair = channel; int, 1, channel-block
+  scope = task-scope;
+  owner = scope.spawn; (own-state; command-pair.receiver, response-pair.sender)
+  client = scope.spawn; (use-state; command-pair.sender, response-pair.receiver)
+  owner-outcome = await scope.join; owner
+  client-outcome = await scope.join; client
+  owner-value = owner-outcome.value
+  client-value = client-outcome.value
+  if owner-value != none
+    if client-value != none
+      print; owner-value, client-value
