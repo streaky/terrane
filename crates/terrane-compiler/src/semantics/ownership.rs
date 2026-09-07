@@ -150,6 +150,14 @@ pub(super) fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFa
             && let Ok(Some(ValueType::Object(object_name))) =
                 infer_value_type(unit, receiver, &unit.typed_bindings)
             && method_consumes_receiver(package, &object_name, node_text(&unit.source, member))
+            && package
+                .projection
+                .method(
+                    &object_name.namespace,
+                    &object_name.name,
+                    node_text(&unit.source, member),
+                )
+                .is_none_or(|method| method.chain_role.is_none())
             && resolved_object_span(package, &object_name)
                 .is_some_and(|span| resource_objects.contains(&span_key(span)))
         {

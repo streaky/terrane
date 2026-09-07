@@ -1,0 +1,7 @@
+package = "projected-chain-binding"
+[namespaces]
+app = "src"
+[rust-dependencies.terrane-chain-witness]
+package = "terrane-chain-witness"
+version = "=0.1.0"
+effects = ["build"]

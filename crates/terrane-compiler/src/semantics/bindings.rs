@@ -1570,6 +1570,73 @@ fn validate_projected_borrowed_async_call(
     Ok(())
 }
 
+fn projected_chain_role(
+    package: &SemanticPackage,
+    unit: &SemanticUnit,
+    node: &SyntaxNode,
+) -> Option<crate::projection::ChainRole> {
+    if node.kind != SyntaxKind::CallExpression {
+        return None;
+    }
+    let [callee, _] = node.children.as_slice() else {
+        return None;
+    };
+    if callee.kind == SyntaxKind::Name {
+        let symbol =
+            package.resolve_name_at(unit, callee.span.start, node_text(&unit.source, callee))?;
+        let crate::projection::ProjectedKind::Function(function) = &package
+            .projection
+            .item(&symbol.namespace, &symbol.name)?
+            .kind
+        else {
+            return None;
+        };
+        return function.chain_role;
+    }
+    let [receiver, member] = callee.children.as_slice() else {
+        return None;
+    };
+    let Some(ValueType::Object(identity)) = infer_value_type(unit, receiver, &unit.typed_bindings)
+        .ok()
+        .flatten()
+    else {
+        return None;
+    };
+    package
+        .projection
+        .method(
+            &identity.namespace,
+            &identity.name,
+            node_text(&unit.source, member),
+        )
+        .and_then(|method| method.chain_role)
+}
+
+fn collect_chain_receivers(
+    package: &SemanticPackage,
+    unit: &SemanticUnit,
+    node: &SyntaxNode,
+    receivers: &mut BTreeSet<(u32, usize, usize)>,
+) {
+    if node.kind == SyntaxKind::CallExpression
+        && let [callee, _] = node.children.as_slice()
+        && callee.kind == SyntaxKind::MemberExpression
+        && let [receiver, _] = callee.children.as_slice()
+        && projected_chain_role(package, unit, node).is_some()
+    {
+        let mut receiver = receiver;
+        while receiver.kind == SyntaxKind::GroupExpression
+            && let [inner] = receiver.children.as_slice()
+        {
+            receiver = inner;
+        }
+        receivers.insert(span_key(receiver.span));
+    }
+    for child in &node.children {
+        collect_chain_receivers(package, unit, child, receivers);
+    }
+}
+
 fn validate_projected_callback_node(
     package: &SemanticPackage,
     unit: &SemanticUnit,
@@ -1577,7 +1644,20 @@ fn validate_projected_callback_node(
     consumed_once: &mut BTreeSet<(u32, usize, usize)>,
     extracted_channel_endpoints: &mut BTreeSet<(u32, usize, usize, String)>,
     immediately_awaited: bool,
+    chain_receivers: &BTreeSet<(u32, usize, usize)>,
 ) -> Result<(), SemanticFailure> {
+    if matches!(
+        projected_chain_role(package, unit, node),
+        Some(crate::projection::ChainRole::Root | crate::projection::ChainRole::Continue)
+    ) && !chain_receivers.contains(&span_key(node.span))
+    {
+        return Err(failure(
+            &unit.source,
+            "T0112",
+            "chain-only dependency value must terminate within one expression",
+            node.span,
+        ));
+    }
     validate_channel_endpoint_extraction(unit, node, extracted_channel_endpoints)?;
     validate_projected_borrowed_async_call(package, unit, node, immediately_awaited)?;
     if node.kind == SyntaxKind::CallExpression
@@ -1645,6 +1725,7 @@ fn validate_projected_callback_node(
             node.kind == SyntaxKind::UnaryExpression
                 && unary_operator_text(unit, node).as_deref() == Some("await")
                 || node.kind == SyntaxKind::GroupExpression && immediately_awaited,
+            chain_receivers,
         )?;
     }
     Ok(())
@@ -1654,6 +1735,8 @@ pub(super) fn validate_projected_callback_arguments(
     package: &SemanticPackage,
 ) -> Result<(), SemanticFailure> {
     for unit in &package.units {
+        let mut chain_receivers = BTreeSet::new();
+        collect_chain_receivers(package, unit, &unit.tree.root, &mut chain_receivers);
         validate_projected_callback_node(
             package,
             unit,
@@ -1661,6 +1744,7 @@ pub(super) fn validate_projected_callback_arguments(
             &mut BTreeSet::new(),
             &mut BTreeSet::new(),
             false,
+            &chain_receivers,
         )?;
     }
     Ok(())

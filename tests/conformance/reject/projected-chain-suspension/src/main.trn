@@ -1,0 +1,4 @@
+namespace app
+from /deps/terrane-chain-witness import query_scalar
+async function main;
+  query = await (query_scalar; 'select 1').pause;

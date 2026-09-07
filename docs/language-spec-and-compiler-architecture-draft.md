@@ -4324,6 +4324,20 @@ Projected sink operations participate in enclosing task cancellation and deadlin
 ordinary generated async boundary. Borrowed payloads, open associated payload types, and
 lifetime-dependent endpoints remain declined rather than copied or erased.
 
+A Rust value may project as **chain-only** when a projected root returns a concrete otherwise
+unnameable intermediate and its projected receiver methods can either continue with that same
+intermediate or terminate in an owned representable result. The intermediate may occur only as the
+receiver inside one nested Terrane expression. It cannot be bound, returned, captured, passed to
+Terrane code, or retained across `await`; all such escapes are one source error. A terminal method
+must produce an ordinary owned projected value.
+
+Lowering emits the root and continuing receiver calls as one Rust expression. Argument conversion,
+panic containment, asynchronous awaiting, dependency-error mapping, and result conversion occur at
+the terminal boundary rather than wrapping each intermediate separately. Projection schema 20
+records root, continuing, and terminal roles explicitly. Completion, signature help, and hover mark
+these values as chain-only and non-escaping. Methods that cannot continue the same concrete
+intermediate or terminate in an owned representable result remain declined.
+
 Cargo and rustc remain authoritative. Projection and editor information are advisory and derived from the resolved package rather than predefined by Terrane. The language server uses the shared artifact for completion, signature help, hover, exact Rust paths, and declined-item reasons. Projection executes under the build-script capability policy.
 
 The generated dependency crate graph preserves the manifest's selected features and default-feature policy, compiles offline and frozen after an online fetch, and records whether containment was enforced. Platforms with `bwrap` contain rustdoc and generated-crate compilation; platforms without it report the unavailable tier and continue under the declared host policy. Its cache identity covers the manifest, lock checksum, selected features, target triple, Rust toolchain, package source checksums, and sandbox tier. The project-local cache retains the current projection and at most three prior projection artifacts for ordinary rollback and editor churn. Machine-independent `terrane-projection.lock` history records projected members by resolved dependency version; a lock update that removes a crossed member produces `S2031` at the Terrane import with the member and version change.

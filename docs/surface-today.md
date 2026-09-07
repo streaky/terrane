@@ -848,6 +848,11 @@ multiplicity, retention, and `Send`/`Sync` requirements. Async producers and sin
 resource-owning linear endpoints: borrowed operations must be awaited directly, preserve protocol
 failure and task cancellation separately, and reborrow the endpoint for one suspension; consuming
 `close` or `split` makes later use of the transferred endpoint a source ownership error.
+Projection schema 20 also records concrete lifetime-bearing builders as chain-only roots,
+continuations, and terminals. Their intermediates may appear only as receiver subtrees inside one
+nested expression; binding, return, capture, argument escape, and suspension are rejected before
+lowering. The terminal must return an owned projectable value, and tooling marks the root as
+chain-only and non-escaping.
 Map keys and set items are limited to Terrane scalars. Cross-crate signature types
 are admitted only when their canonical owner is declared directly at one lock-resolved version;
 otherwise the member remains an explicit decline. Data-carrying enums remain opaque and use

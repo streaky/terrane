@@ -1555,6 +1555,16 @@ owner-task/channel guidance instead of falling through to an unresolved import o
 universal boxed cell. `shared-state-owner` proves two scoped tasks coordinating around one mutable
 class through typed command and result channels; three focused rejects fix the guided diagnostic.
 
+Phase C chain-only projection now admits concrete lifetime-bearing builder values that can be
+completed within one nested Terrane expression. Projection schema 20 records root, continuing, and
+terminal roles; only receiver-position intermediates are legal, while binding, return, capture, and
+suspension emit `T0112`. Lowering leaves roots and continuing calls inside one Rust expression and
+applies conversion, panic/error containment, and async awaiting only at the owned terminal.
+Language-server projection details expose the non-escaping constraint. `rust-dependency-chain-only`
+executes a real in-memory SQLx scalar query through a lifetime-bearing chain and a structurally
+dissimilar formatting chain; four focused rejects fix binding, return, capture, and suspension
+boundaries.
+
 Accepted and rejected conformance covers async/sync type incompatibility, task consumption,
 successful, throwing, cancelled, and sibling-cancelling children, statically resolvable nested
 deadline extension, a non-owning reference whose unchanged local owner is proven to remain in the

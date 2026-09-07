@@ -17,7 +17,7 @@ use sha2::{Digest, Sha256};
 use crate::RustDependency;
 
 pub use crate::RUSTDOC_TOOLCHAIN;
-const PROJECTION_SCHEMA: &str = "19";
+const PROJECTION_SCHEMA: &str = "20";
 const MAX_PROJECTION_CACHE_RECORDS: usize = 4;
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
@@ -216,6 +216,13 @@ pub enum ProjectedKind {
     },
 }
 
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
+pub enum ChainRole {
+    Root,
+    Continue,
+    Terminal,
+}
+
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub struct ProjectedFunction {
     pub name: String,
@@ -225,6 +232,8 @@ pub struct ProjectedFunction {
     pub is_async: bool,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub execution_requirements: Option<ProjectedExecutionRequirements>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub chain_role: Option<ChainRole>,
     pub receiver: Option<Receiver>,
 }
 
@@ -1999,9 +2008,21 @@ fn project_rustdoc(
         let mut rust_path = extern_rust_path(dependency, &public_rust_path);
         let docs = item.docs.clone();
         let projected = match &item.inner {
-            ItemEnum::Function(function) => {
-                project_function(function, index, paths, Some(&name)).map(ProjectedKind::Function)
-            }
+            ItemEnum::Function(function) => project_function(function, index, paths, Some(&name))
+                .map(|mut projected_function| {
+                    if let Some(chain_owner) = project_chain_owner(
+                        dependency,
+                        function,
+                        &projected_function.result,
+                        index,
+                        paths,
+                        &public_paths,
+                    ) {
+                        projected_function.chain_role = Some(ChainRole::Root);
+                        projected_associated_items.push(chain_owner);
+                    }
+                    ProjectedKind::Function(projected_function)
+                }),
             ItemEnum::Struct(structure) => {
                 let mut owner_generics =
                     match default_generic_instantiation(structure, index, paths) {
@@ -2124,6 +2145,7 @@ fn project_rustdoc(
                                     error: None,
                                     is_async: false,
                                     execution_requirements: None,
+                                    chain_role: None,
                                     receiver: None,
                                 }),
                             });
@@ -2144,13 +2166,29 @@ fn project_rustdoc(
             _ => Err("item kind has no Terrane projection".to_owned()),
         };
         match projected {
-            Ok(kind) => items.push(ProjectedItem {
-                namespace,
-                name,
-                rust_path,
-                docs,
-                kind,
-            }),
+            Ok(kind) => {
+                let docs = if matches!(
+                    &kind,
+                    ProjectedKind::Function(function) if function.chain_role == Some(ChainRole::Root)
+                ) {
+                    Some(match docs {
+                        Some(docs) => format!(
+                            "{docs}\n\nChain-only: this value must terminate within one expression."
+                        ),
+                        None => "Chain-only: this value must terminate within one expression."
+                            .to_owned(),
+                    })
+                } else {
+                    docs
+                };
+                items.push(ProjectedItem {
+                    namespace,
+                    name,
+                    rust_path,
+                    docs,
+                    kind,
+                });
+            }
             Err(reason) => declined.push(DeclinedItem { rust_path, reason }),
         }
     }
@@ -2441,6 +2479,91 @@ fn project_methods(
     methods.sort_by(|left, right| left.name.cmp(&right.name));
     (methods, trait_methods, declined)
 }
+fn project_chain_owner(
+    dependency: &RustDependency,
+    function: &Function,
+    result: &ProjectedType,
+    index: &HashMap<Id, Item>,
+    paths: &HashMap<Id, ItemSummary>,
+    public_paths: &BTreeMap<Id, String>,
+) -> Option<ProjectedItem> {
+    let output = function.sig.output.as_ref()?;
+    let Type::ResolvedPath(path) = output else {
+        return None;
+    };
+    let Item {
+        inner: ItemEnum::Struct(structure),
+        ..
+    } = index.get(&path.id)?
+    else {
+        return None;
+    };
+    if !structure
+        .generics
+        .params
+        .iter()
+        .any(|parameter| matches!(parameter.kind, GenericParamDefKind::Lifetime { .. }))
+    {
+        return None;
+    }
+    let ProjectedType::Foreign {
+        rust_path,
+        name,
+        base_rust_path: _,
+        arguments,
+    } = result
+    else {
+        return None;
+    };
+    let mut owner_generics = BTreeMap::new();
+    owner_generics.insert("Self".to_owned(), result.clone());
+    for (parameter, argument) in structure
+        .generics
+        .params
+        .iter()
+        .filter(|parameter| matches!(parameter.kind, GenericParamDefKind::Type { .. }))
+        .zip(arguments)
+    {
+        owner_generics.insert(parameter.name.clone(), argument.clone());
+    }
+    let (mut methods, _, _) = project_methods(
+        &structure.impls,
+        index,
+        paths,
+        public_paths,
+        rust_path,
+        &owner_generics,
+    );
+    methods.retain_mut(|method| {
+        if method.receiver.is_none() {
+            return false;
+        }
+        method.chain_role = Some(if method.result == *result {
+            ChainRole::Continue
+        } else {
+            ChainRole::Terminal
+        });
+        true
+    });
+    if methods
+        .iter()
+        .all(|method| method.chain_role != Some(ChainRole::Terminal))
+    {
+        return None;
+    }
+    let source_path = paths.get(&path.id)?.path.clone();
+    let namespace = dependency_namespace(
+        dependency,
+        &source_path[..source_path.len().saturating_sub(1)],
+    );
+    Some(ProjectedItem {
+        namespace,
+        name: name.clone(),
+        rust_path: rust_path.clone(),
+        docs: Some("chain-only; value must terminate within one expression".to_owned()),
+        kind: ProjectedKind::ForeignType { methods },
+    })
+}
 
 fn project_function_with_generics(
     function: &Function,
@@ -2538,6 +2661,7 @@ fn project_function_inner(
                 transfer: RequirementKnowledge::Unknown,
             },
         ),
+        chain_role: None,
         receiver,
     })
 }
@@ -2782,7 +2906,7 @@ fn generic_monomorphisations(
             continue;
         }
         let GenericParamDefKind::Type { bounds, .. } = &parameter.kind else {
-            return Err(format!("unbounded generic `{}`", parameter.name));
+            continue;
         };
         let Some(GenericBound::TraitBound { trait_, .. }) = bounds.first() else {
             return Err(format!("open generic `{}`", parameter.name));
@@ -3782,6 +3906,7 @@ mod tests {
                     error: None,
                     is_async: false,
                     execution_requirements: None,
+                    chain_role: None,
                     receiver: None,
                 }),
             }],
@@ -4115,6 +4240,7 @@ mod tests {
                 error: None,
                 is_async: false,
                 execution_requirements: None,
+                chain_role: None,
                 receiver: None,
             }),
         };

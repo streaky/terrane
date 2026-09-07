@@ -1,0 +1,10 @@
+namespace app
+from /deps/terrane-chain-witness import memory_database, query_scalar, line
+from /core/output import print
+
+async function main;
+  database = await memory_database;
+  answer int = await ((query_scalar; 'select ?1').bind; 42).fetch_one; database
+  rendered string = ((line; 'value=').number; answer).finish;
+  print; answer
+  print; rendered

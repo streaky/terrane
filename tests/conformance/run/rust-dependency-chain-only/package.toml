@@ -1,0 +1,12 @@
+package = "rust-dependency-chain-only"
+executor = "cooperative"
+[namespaces]
+app = "src"
+[rust-dependencies.terrane-chain-witness]
+package = "terrane-chain-witness"
+version = "=0.1.0"
+effects = ["build"]
+[rust-dependencies.sqlx-core]
+package = "sqlx-core"
+version = "=0.8.6"
+effects = ["build"]

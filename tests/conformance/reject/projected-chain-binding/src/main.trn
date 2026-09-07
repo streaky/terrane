@@ -1,0 +1,4 @@
+namespace app
+from /deps/terrane-chain-witness import query_scalar
+function main;
+  query = query_scalar; 'select 1'

@@ -30,6 +30,9 @@ pub(super) fn emit_dependency_imports(
 }
 
 pub(super) fn write_foreign_import(output: &mut String, path: &str, rust_name: &str) {
+    if path.contains("<'_>") {
+        return;
+    }
     if path.contains('<') || path.starts_with('(') || path.starts_with('[') {
         writeln!(output, "pub type {rust_name} = {path};")
             .expect("writing to a string cannot fail");
@@ -209,6 +212,19 @@ pub(super) fn projected_argument_expression(
     }
 }
 
+pub(super) fn projected_chain_argument_expression(
+    name: &str,
+    ty: &crate::projection::ProjectedType,
+) -> String {
+    if projected_type_is_identity(ty) {
+        return name.to_owned();
+    }
+    let converted = projected_argument_expression(name, ty);
+    format!(
+        "match (|| -> Result<_, crate::TerraneForeignError> {{ Ok({converted}) }})() {{ Ok(value) => value, Err(error) => std::panic::panic_any(error) }}"
+    )
+}
+
 pub(super) fn projected_result_expression(
     value: &str,
     ty: &crate::projection::ProjectedType,
@@ -304,6 +320,9 @@ pub(super) fn emit_dependency_unit(package: &SemanticPackage, unit: &SemanticUni
         let crate::projection::ProjectedKind::Function(projected) = &item.kind else {
             continue;
         };
+        if projected.chain_role == Some(crate::projection::ChainRole::Root) {
+            continue;
+        }
         let dependency_name = package
             .projection
             .dependency_name(&unit.namespace, &contract.name)

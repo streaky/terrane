@@ -524,19 +524,28 @@ impl Emitter<'_> {
         &self,
         callee: &SyntaxNode,
     ) -> Option<&crate::projection::ProjectedFunction> {
-        if callee.kind != SyntaxKind::Name {
-            return None;
+        if callee.kind == SyntaxKind::Name {
+            let symbol =
+                self.package
+                    .resolve_name_at(self.unit, callee.span.start, self.text(callee))?;
+            return self
+                .package
+                .projection
+                .item(&symbol.namespace, &symbol.name)
+                .and_then(|item| match &item.kind {
+                    crate::projection::ProjectedKind::Function(function) => Some(function),
+                    _ => None,
+                });
         }
-        let symbol =
-            self.package
-                .resolve_name_at(self.unit, callee.span.start, self.text(callee))?;
+        let [receiver, member] = callee.children.as_slice() else {
+            return None;
+        };
+        let ValueType::Object(identity) = self.value_type(receiver)? else {
+            return None;
+        };
         self.package
             .projection
-            .item(&symbol.namespace, &symbol.name)
-            .and_then(|item| match &item.kind {
-                crate::projection::ProjectedKind::Function(function) => Some(function),
-                _ => None,
-            })
+            .method(&identity.namespace, &identity.name, self.text(member))
     }
 
     pub(super) fn contract_for_call(&self, callee: &SyntaxNode) -> Option<&FunctionContract> {

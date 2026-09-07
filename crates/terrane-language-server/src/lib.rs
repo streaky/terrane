@@ -364,10 +364,22 @@ impl LanguageServer for Backend {
 }
 
 fn projected_item_detail(item: &terrane_compiler::projection::ProjectedItem) -> String {
-    projected_execution_requirements(item).map_or_else(
-        || item.rust_path.clone(),
-        |requirements| format!("{} — {requirements}", item.rust_path),
-    )
+    let mut details = vec![item.rust_path.clone()];
+    if matches!(
+        &item.kind,
+        terrane_compiler::projection::ProjectedKind::Function(function)
+            if function.chain_role.is_some()
+    ) || matches!(
+        &item.kind,
+        terrane_compiler::projection::ProjectedKind::ForeignType { methods }
+            if methods.iter().any(|method| method.chain_role.is_some())
+    ) {
+        details.push("chain-only; must terminate within one expression".to_owned());
+    }
+    if let Some(requirements) = projected_execution_requirements(item) {
+        details.push(requirements);
+    }
+    details.join(" — ")
 }
 
 fn projected_execution_requirements(
@@ -671,6 +683,7 @@ mod tests {
                     wake_support: RequirementKnowledge::Required,
                     transfer: RequirementKnowledge::Unknown,
                 }),
+                chain_role: None,
                 receiver: None,
             }),
         };
@@ -678,6 +691,35 @@ mod tests {
         assert_eq!(
             projected_item_detail(&item),
             "witness::wait — async Terrane task; runtime context unknown; wake support required; transfer unknown"
+        );
+    }
+
+    #[test]
+    fn projected_chain_completion_exposes_non_escaping_constraint() {
+        use terrane_compiler::projection::{
+            ChainRole, ProjectedFunction, ProjectedItem, ProjectedKind, ProjectedType,
+        };
+
+        let item = ProjectedItem {
+            namespace: "/deps/witness".to_owned(),
+            name: "builder".to_owned(),
+            rust_path: "witness::builder".to_owned(),
+            docs: None,
+            kind: ProjectedKind::Function(ProjectedFunction {
+                name: "builder".to_owned(),
+                parameters: Vec::new(),
+                result: ProjectedType::None,
+                error: None,
+                is_async: false,
+                execution_requirements: None,
+                chain_role: Some(ChainRole::Root),
+                receiver: None,
+            }),
+        };
+
+        assert_eq!(
+            projected_item_detail(&item),
+            "witness::builder — chain-only; must terminate within one expression"
         );
     }
 }

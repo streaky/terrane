@@ -1,0 +1,259 @@
+{
+  "format": 2,
+  "dependencies": [
+    {
+      "name": "sqlx-core",
+      "version": "0.8.6",
+      "members": [
+        [
+          "/deps/sqlx-core/connection",
+          "LogSettings"
+        ],
+        [
+          "/deps/sqlx-core/encode",
+          "IsNull"
+        ],
+        [
+          "/deps/sqlx-core/encode/isnull",
+          "No"
+        ],
+        [
+          "/deps/sqlx-core/encode/isnull",
+          "Yes"
+        ],
+        [
+          "/deps/sqlx-core/error",
+          "Error"
+        ],
+        [
+          "/deps/sqlx-core/error",
+          "ErrorKind"
+        ],
+        [
+          "/deps/sqlx-core/error",
+          "UnexpectedNullError"
+        ],
+        [
+          "/deps/sqlx-core/error/errorkind",
+          "CheckViolation"
+        ],
+        [
+          "/deps/sqlx-core/error/errorkind",
+          "ForeignKeyViolation"
+        ],
+        [
+          "/deps/sqlx-core/error/errorkind",
+          "NotNullViolation"
+        ],
+        [
+          "/deps/sqlx-core/error/errorkind",
+          "Other"
+        ],
+        [
+          "/deps/sqlx-core/error/errorkind",
+          "UniqueViolation"
+        ],
+        [
+          "/deps/sqlx-core/ext/ustr",
+          "UStr"
+        ],
+        [
+          "/deps/sqlx-core/fs",
+          "DirEntry"
+        ],
+        [
+          "/deps/sqlx-core/fs",
+          "ReadDir"
+        ],
+        [
+          "/deps/sqlx-core/fs",
+          "read_dir"
+        ],
+        [
+          "/deps/sqlx-core/logger",
+          "parse_query_summary"
+        ],
+        [
+          "/deps/sqlx-core/migrate/error",
+          "MigrateError"
+        ],
+        [
+          "/deps/sqlx-core/migrate/migration",
+          "AppliedMigration"
+        ],
+        [
+          "/deps/sqlx-core/migrate/migration",
+          "Migration"
+        ],
+        [
+          "/deps/sqlx-core/migrate/migration-type",
+          "MigrationType"
+        ],
+        [
+          "/deps/sqlx-core/migrate/migration-type/migrationtype",
+          "ReversibleDown"
+        ],
+        [
+          "/deps/sqlx-core/migrate/migration-type/migrationtype",
+          "ReversibleUp"
+        ],
+        [
+          "/deps/sqlx-core/migrate/migration-type/migrationtype",
+          "Simple"
+        ],
+        [
+          "/deps/sqlx-core/migrate/migrator",
+          "Migrator"
+        ],
+        [
+          "/deps/sqlx-core/migrate/source",
+          "ResolveError"
+        ],
+        [
+          "/deps/sqlx-core/net/socket",
+          "SocketIntoBox"
+        ],
+        [
+          "/deps/sqlx-core/net/socket/buffered",
+          "WriteBuffer"
+        ],
+        [
+          "/deps/sqlx-core/net/tls",
+          "CertificateInput"
+        ],
+        [
+          "/deps/sqlx-core/net/tls",
+          "available"
+        ],
+        [
+          "/deps/sqlx-core/net/tls",
+          "error_if_unavailable"
+        ],
+        [
+          "/deps/sqlx-core/pool",
+          "CloseEvent"
+        ],
+        [
+          "/deps/sqlx-core/pool/options",
+          "PoolConnectionMetadata"
+        ],
+        [
+          "/deps/sqlx-core/raw-sql",
+          "raw_sql"
+        ],
+        [
+          "/deps/sqlx-core/rt",
+          "TimeoutError"
+        ],
+        [
+          "/deps/sqlx-core/rt",
+          "sleep"
+        ],
+        [
+          "/deps/sqlx-core/rt",
+          "yield_now"
+        ],
+        [
+          "/deps/sqlx-core/rt/rt-tokio",
+          "available"
+        ],
+        [
+          "/deps/sqlx-core/sync",
+          "AsyncSemaphore"
+        ],
+        [
+          "/deps/sqlx-core/testing",
+          "TestArgs"
+        ],
+        [
+          "/deps/sqlx-core/testing",
+          "TestFixture"
+        ],
+        [
+          "/deps/sqlx-core/testing/fixtures",
+          "FixtureError"
+        ],
+        [
+          "/deps/sqlx-core/transaction",
+          "begin_ansi_transaction_sql"
+        ],
+        [
+          "/deps/sqlx-core/transaction",
+          "commit_ansi_transaction_sql"
+        ],
+        [
+          "/deps/sqlx-core/transaction",
+          "rollback_ansi_transaction_sql"
+        ],
+        [
+          "/deps/sqlx-core/type-checking",
+          "ParamChecking"
+        ],
+        [
+          "/deps/sqlx-core/type-checking/paramchecking",
+          "Strong"
+        ],
+        [
+          "/deps/sqlx-core/type-checking/paramchecking",
+          "Weak"
+        ]
+      ]
+    },
+    {
+      "name": "terrane-chain-witness",
+      "version": "0.1.0",
+      "members": [
+        [
+          "/deps/terrane-chain-witness",
+          "Database"
+        ],
+        [
+          "/deps/terrane-chain-witness",
+          "LineBuilder-1bf5e97dda63b759e6889407b3c8de74e59f9f630978c50dbf1dbe10394db4d9"
+        ],
+        [
+          "/deps/terrane-chain-witness",
+          "ScalarQuery-e710090c5b3f0f9340f463108e23c602f6b8f2b096a54c1630236732806533a8"
+        ],
+        [
+          "/deps/terrane-chain-witness",
+          "line"
+        ],
+        [
+          "/deps/terrane-chain-witness",
+          "memory_database"
+        ],
+        [
+          "/deps/terrane-chain-witness",
+          "query_scalar"
+        ]
+      ]
+    }
+  ],
+  "removed": [],
+  "cache_identity": "0a2b55dd1768ef8ca4cc26cf01622e8fbd0f60f9f6ba9356a02364114c00bcc4",
+  "source": "Local",
+  "rustdoc_format": 57,
+  "projection_schema": "20",
+  "content_hash": "d5f20385a1ad6268e3bf5dca3ba4d9a32bcd7c7cbf32b5339ca0c2d6dcf13211",
+  "resolution": {
+    "outcome": "LocalRustdoc",
+    "events": [
+      {
+        "source": "BundledArtifact",
+        "status": "Skipped",
+        "reason": "bundled projection distribution is deliberately deferred until Terrane has a release artifact channel"
+      },
+      {
+        "source": "PublishedArtifact",
+        "status": "Skipped",
+        "reason": "`TERRANE_PROJECTION_ARTIFACT_URL` is not configured"
+      },
+      {
+        "source": "LocalRustdoc",
+        "status": "Generated",
+        "reason": "no reusable exact artifact was available; generated with the pinned local rustdoc toolchain"
+      }
+    ]
+  }
+}

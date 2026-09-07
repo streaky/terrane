@@ -890,6 +890,10 @@ impl Emitter<'_> {
         let projected_parameters = self
             .projected_function_for_call(callee)
             .map(|function| function.parameters.clone());
+        let projected_chain_role = self
+            .projected_function_for_call(callee)
+            .and_then(|function| function.chain_role);
+        let projected_chain_root = projected_chain_role == Some(crate::projection::ChainRole::Root);
         let contract = self.contract_for_call(callee).cloned();
         if let Some(contract) = &contract {
             let mut ordered = vec![None; contract.parameters.len()];
@@ -920,16 +924,26 @@ impl Emitter<'_> {
                 } else {
                     self.expression(value)
                 };
+                let expression = if let Some(projected) = projected_parameters
+                    .as_ref()
+                    .and_then(|parameters| parameters.get(index))
+                    .filter(|_| projected_chain_role.is_some())
+                {
+                    projected_chain_argument_expression(&expression, &projected.ty)
+                } else {
+                    expression
+                };
                 ordered[index] = Some(
                     projected_parameters
                         .as_ref()
                         .and_then(|parameters| parameters.get(index))
                         .filter(|parameter| {
                             parameter.borrowed
-                                && matches!(
-                                    parameter.ty,
-                                    crate::projection::ProjectedType::Foreign { .. }
-                                )
+                                && (projected_chain_root
+                                    || matches!(
+                                        parameter.ty,
+                                        crate::projection::ProjectedType::Foreign { .. }
+                                    ))
                         })
                         .map_or(expression.clone(), |parameter| {
                             if parameter.mutable_borrow {
@@ -978,7 +992,24 @@ impl Emitter<'_> {
         } else if let Some(contract) = &contract
             && contract.owner.is_none()
         {
-            function_name(self.package, contract)
+            self.package
+                .resolve_name_at(self.unit, callee.span.start, self.text(callee))
+                .and_then(|symbol| {
+                    self.package
+                        .projection
+                        .item(&symbol.namespace, &symbol.name)
+                })
+                .filter(|item| {
+                    matches!(
+                        &item.kind,
+                        crate::projection::ProjectedKind::Function(function)
+                            if function.chain_role == Some(crate::projection::ChainRole::Root)
+                    )
+                })
+                .map_or_else(
+                    || function_name(self.package, contract),
+                    |item| item.rust_path.clone(),
+                )
         } else if contract
             .as_ref()
             .is_some_and(|contract| contract.owner.is_some())
@@ -1029,6 +1060,30 @@ impl Emitter<'_> {
                 .projection
                 .method(&identity.namespace, &identity.name, &contract.name)
         });
+        let chain_role = foreign_method
+            .and_then(|method| method.chain_role)
+            .or_else(|| {
+                if callee.kind != SyntaxKind::Name {
+                    return None;
+                }
+                self.package
+                    .resolve_name_at(self.unit, callee.span.start, self.text(callee))
+                    .and_then(|symbol| {
+                        self.package
+                            .projection
+                            .item(&symbol.namespace, &symbol.name)
+                    })
+                    .and_then(|item| match &item.kind {
+                        crate::projection::ProjectedKind::Function(function) => function.chain_role,
+                        _ => None,
+                    })
+            });
+        if matches!(
+            chain_role,
+            Some(crate::projection::ChainRole::Root | crate::projection::ChainRole::Continue)
+        ) {
+            return call;
+        }
         let foreign_error = foreign_method.is_some()
             || (callee.kind == SyntaxKind::Name
                 && self
