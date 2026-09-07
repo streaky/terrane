@@ -684,6 +684,8 @@ struct TerraneChannelState<T> {
     next_waiter: usize,
     sender_wakers: std::collections::BTreeMap<usize, std::task::Waker>,
     receiver_wakers: std::collections::BTreeMap<usize, std::task::Waker>,
+    rendezvous_values: std::collections::BTreeMap<usize, T>,
+    rendezvous_completed: std::collections::BTreeSet<usize>,
 }
 pub struct TerraneChannelSender<T> {
     state: std::sync::Arc<std::sync::Mutex<TerraneChannelState<T>>>,
@@ -707,6 +709,8 @@ impl<T> TerraneChannelPair<T> {
                 next_waiter: 0,
                 sender_wakers: std::collections::BTreeMap::new(),
                 receiver_wakers: std::collections::BTreeMap::new(),
+                rendezvous_values: std::collections::BTreeMap::new(),
+                rendezvous_completed: std::collections::BTreeSet::new(),
             }),
         );
         Self {
@@ -755,9 +759,25 @@ impl<T: Unpin> std::future::Future for TerraneChannelSend<T> {
     ) -> std::task::Poll<Self::Output> {
         let state_ref = self.state.clone();
         let mut state = state_ref.lock().expect("channel state lock poisoned");
+        if let Some(waiter_id) = self.waiter_id
+            && state.rendezvous_completed.remove(&waiter_id)
+        {
+            state.sender_wakers.remove(&waiter_id);
+            return std::task::Poll::Ready(TerraneChannelSendOutcome {
+                accepted: true,
+                closed: false,
+                dropped: false,
+                rejected_value: None,
+                dropped_value: None,
+            });
+        }
         if state.receiver_closed {
             if let Some(waiter_id) = self.waiter_id.take() {
                 state.sender_wakers.remove(&waiter_id);
+                if self.value.is_none() {
+                    self.value = state.rendezvous_values.remove(&waiter_id);
+                }
+                state.rendezvous_completed.remove(&waiter_id);
             }
             return std::task::Poll::Ready(TerraneChannelSendOutcome {
                 accepted: false,
@@ -766,6 +786,24 @@ impl<T: Unpin> std::future::Future for TerraneChannelSend<T> {
                 rejected_value: self.value.take(),
                 dropped_value: None,
             });
+        }
+        if state.capacity == 0 {
+            let waiter_id = self
+                .waiter_id
+                .unwrap_or_else(|| {
+                    let waiter_id = state.next_waiter;
+                    state.next_waiter += 1;
+                    self.waiter_id = Some(waiter_id);
+                    waiter_id
+                });
+            if let Some(value) = self.value.take() {
+                state.rendezvous_values.insert(waiter_id, value);
+            }
+            state.sender_wakers.insert(waiter_id, context.waker().clone());
+            for (_, waker) in std::mem::take(&mut state.receiver_wakers) {
+                waker.wake();
+            }
+            return std::task::Poll::Pending;
         }
         if state.values.len() < state.capacity {
             state
@@ -838,11 +876,10 @@ impl<T: Unpin> std::future::Future for TerraneChannelSend<T> {
 impl<T> Drop for TerraneChannelSend<T> {
     fn drop(&mut self) {
         if let Some(waiter_id) = self.waiter_id {
-            self.state
-                .lock()
-                .expect("channel state lock poisoned")
-                .sender_wakers
-                .remove(&waiter_id);
+            let mut state = self.state.lock().expect("channel state lock poisoned");
+            state.sender_wakers.remove(&waiter_id);
+            state.rendezvous_values.remove(&waiter_id);
+            state.rendezvous_completed.remove(&waiter_id);
         }
     }
 }
@@ -853,13 +890,16 @@ impl<T> TerraneChannelReceiver<T> {
             waiter_id: None,
         }
     }
-    pub fn close(self) {
+    pub fn close(self) -> terrane_collection_support::List<T> {
         let mut state = self.state.lock().expect("channel state lock poisoned");
         state.receiver_closed = true;
-        state.values.clear();
+        let remaining = terrane_collection_support::List::new(
+            state.values.drain(..).collect(),
+        );
         for (_, waker) in std::mem::take(&mut state.sender_wakers) {
             waker.wake();
         }
+        remaining
     }
 }
 impl<T> Drop for TerraneChannelReceiver<T> {
@@ -884,6 +924,26 @@ impl<T> std::future::Future for TerraneChannelReceive<T> {
     ) -> std::task::Poll<Self::Output> {
         let state_ref = self.state.clone();
         let mut state = state_ref.lock().expect("channel state lock poisoned");
+        if state.capacity == 0
+            && let Some(waiter_id) = state.rendezvous_values.keys().next().copied()
+        {
+            let value = state
+                .rendezvous_values
+                .remove(&waiter_id)
+                .expect("rendezvous value disappeared");
+            state.rendezvous_completed.insert(waiter_id);
+            if let Some(waker) = state.sender_wakers.remove(&waiter_id) {
+                waker.wake();
+            }
+            if let Some(receiver_waiter_id) = self.waiter_id.take() {
+                state.receiver_wakers.remove(&receiver_waiter_id);
+            }
+            return std::task::Poll::Ready(TerraneChannelReceiveOutcome {
+                available: true,
+                closed: false,
+                value: Some(value),
+            });
+        }
         if let Some(value) = state.values.pop_front() {
             if let Some(waiter_id) = self.waiter_id.take() {
                 state.receiver_wakers.remove(&waiter_id);
@@ -916,6 +976,9 @@ impl<T> std::future::Future for TerraneChannelReceive<T> {
                 waiter_id
             });
         state.receiver_wakers.insert(waiter_id, context.waker().clone());
+        for waker in state.sender_wakers.values() {
+            waker.wake_by_ref();
+        }
         std::task::Poll::Pending
     }
 }

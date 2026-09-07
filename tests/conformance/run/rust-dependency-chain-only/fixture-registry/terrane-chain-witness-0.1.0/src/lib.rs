@@ -7,16 +7,16 @@ pub async fn memory_database() -> Result<Database, sqlx::Error> {
 }
 
 pub struct ScalarQuery<'q> {
+    database: &'q Database,
     sql: String,
     value: i64,
-    marker: std::marker::PhantomData<&'q ()>,
 }
 
-pub fn query_scalar(sql: String) -> ScalarQuery<'static> {
+pub fn query_scalar(database: &Database, sql: String) -> ScalarQuery<'_> {
     ScalarQuery {
+        database,
         sql,
         value: 0,
-        marker: std::marker::PhantomData,
     }
 }
 
@@ -32,32 +32,32 @@ impl ScalarQuery<'_> {
         self
     }
 
-    pub async fn fetch_one(self, database: &Database) -> Result<i64, sqlx::Error> {
+    pub async fn fetch_one(self) -> Result<i64, sqlx::Error> {
         sqlx::query_scalar::<_, i64>(&self.sql)
             .bind(self.value)
-            .fetch_one(&database.0)
+            .fetch_one(&self.database.0)
             .await
     }
 }
 
 pub struct LineBuilder<'a> {
-    prefix: String,
+    prefix: &'a str,
     value: i64,
-    marker: std::marker::PhantomData<&'a ()>,
 }
 
-pub fn line(prefix: String) -> LineBuilder<'static> {
-    LineBuilder {
-        prefix,
-        value: 0,
-        marker: std::marker::PhantomData,
-    }
+pub fn line(prefix: &str) -> LineBuilder<'_> {
+    LineBuilder { prefix, value: 0 }
 }
 
 impl LineBuilder<'_> {
     #[must_use]
     pub fn number(mut self, value: i64) -> Self {
         self.value = value;
+        self
+    }
+
+    pub async fn pause(self) -> Self {
+        std::future::ready(()).await;
         self
     }
 

@@ -420,26 +420,37 @@ mod __terrane_trace {
     }
     pub static FILES: [&str; 1] = ["src/main.trn"];
     pub static FUNCTIONS: [&str; 1] = ["/app::main"];
-    pub static SITES: [Site; 2] = [
+    pub static SITES: [Site; 3] = [
         {
-            /* terrane-site-row: site 0: /app::main (src/main.trn:155:60-155:81) */
+            /* terrane-site-row: site 0: /app::main (src/main.trn:105:32-105:48) */
             Site {
                 function: 0,
                 file: 0,
-                line: 155,
+                line: 105,
+                column: 32,
+                end_line: 105,
+                end_column: 48,
+            }
+        },
+        {
+            /* terrane-site-row: site 1: /app::main (src/main.trn:173:60-173:81) */
+            Site {
+                function: 0,
+                file: 0,
+                line: 173,
                 column: 60,
-                end_line: 155,
+                end_line: 173,
                 end_column: 81,
             }
         },
         {
-            /* terrane-site-row: site 1: /app::main (src/main.trn:160:44-160:65) */
+            /* terrane-site-row: site 2: /app::main (src/main.trn:178:44-178:65) */
             Site {
                 function: 0,
                 file: 0,
-                line: 160,
+                line: 178,
                 column: 44,
-                end_line: 160,
+                end_line: 178,
                 end_column: 65,
             }
         },
@@ -764,6 +775,8 @@ struct TerraneChannelState<T> {
     next_waiter: usize,
     sender_wakers: std::collections::BTreeMap<usize, std::task::Waker>,
     receiver_wakers: std::collections::BTreeMap<usize, std::task::Waker>,
+    rendezvous_values: std::collections::BTreeMap<usize, T>,
+    rendezvous_completed: std::collections::BTreeSet<usize>,
 }
 pub struct TerraneChannelSender<T> {
     state: std::sync::Arc<std::sync::Mutex<TerraneChannelState<T>>>,
@@ -787,6 +800,8 @@ impl<T> TerraneChannelPair<T> {
                 next_waiter: 0,
                 sender_wakers: std::collections::BTreeMap::new(),
                 receiver_wakers: std::collections::BTreeMap::new(),
+                rendezvous_values: std::collections::BTreeMap::new(),
+                rendezvous_completed: std::collections::BTreeSet::new(),
             }),
         );
         Self {
@@ -835,9 +850,25 @@ impl<T: Unpin> std::future::Future for TerraneChannelSend<T> {
     ) -> std::task::Poll<Self::Output> {
         let state_ref = self.state.clone();
         let mut state = state_ref.lock().expect("channel state lock poisoned");
+        if let Some(waiter_id) = self.waiter_id
+            && state.rendezvous_completed.remove(&waiter_id)
+        {
+            state.sender_wakers.remove(&waiter_id);
+            return std::task::Poll::Ready(TerraneChannelSendOutcome {
+                accepted: true,
+                closed: false,
+                dropped: false,
+                rejected_value: None,
+                dropped_value: None,
+            });
+        }
         if state.receiver_closed {
             if let Some(waiter_id) = self.waiter_id.take() {
                 state.sender_wakers.remove(&waiter_id);
+                if self.value.is_none() {
+                    self.value = state.rendezvous_values.remove(&waiter_id);
+                }
+                state.rendezvous_completed.remove(&waiter_id);
             }
             return std::task::Poll::Ready(TerraneChannelSendOutcome {
                 accepted: false,
@@ -846,6 +877,24 @@ impl<T: Unpin> std::future::Future for TerraneChannelSend<T> {
                 rejected_value: self.value.take(),
                 dropped_value: None,
             });
+        }
+        if state.capacity == 0 {
+            let waiter_id = self
+                .waiter_id
+                .unwrap_or_else(|| {
+                    let waiter_id = state.next_waiter;
+                    state.next_waiter += 1;
+                    self.waiter_id = Some(waiter_id);
+                    waiter_id
+                });
+            if let Some(value) = self.value.take() {
+                state.rendezvous_values.insert(waiter_id, value);
+            }
+            state.sender_wakers.insert(waiter_id, context.waker().clone());
+            for (_, waker) in std::mem::take(&mut state.receiver_wakers) {
+                waker.wake();
+            }
+            return std::task::Poll::Pending;
         }
         if state.values.len() < state.capacity {
             state
@@ -918,11 +967,10 @@ impl<T: Unpin> std::future::Future for TerraneChannelSend<T> {
 impl<T> Drop for TerraneChannelSend<T> {
     fn drop(&mut self) {
         if let Some(waiter_id) = self.waiter_id {
-            self.state
-                .lock()
-                .expect("channel state lock poisoned")
-                .sender_wakers
-                .remove(&waiter_id);
+            let mut state = self.state.lock().expect("channel state lock poisoned");
+            state.sender_wakers.remove(&waiter_id);
+            state.rendezvous_values.remove(&waiter_id);
+            state.rendezvous_completed.remove(&waiter_id);
         }
     }
 }
@@ -933,13 +981,16 @@ impl<T> TerraneChannelReceiver<T> {
             waiter_id: None,
         }
     }
-    pub fn close(self) {
+    pub fn close(self) -> terrane_collection_support::List<T> {
         let mut state = self.state.lock().expect("channel state lock poisoned");
         state.receiver_closed = true;
-        state.values.clear();
+        let remaining = terrane_collection_support::List::new(
+            state.values.drain(..).collect(),
+        );
         for (_, waker) in std::mem::take(&mut state.sender_wakers) {
             waker.wake();
         }
+        remaining
     }
 }
 impl<T> Drop for TerraneChannelReceiver<T> {
@@ -964,6 +1015,26 @@ impl<T> std::future::Future for TerraneChannelReceive<T> {
     ) -> std::task::Poll<Self::Output> {
         let state_ref = self.state.clone();
         let mut state = state_ref.lock().expect("channel state lock poisoned");
+        if state.capacity == 0
+            && let Some(waiter_id) = state.rendezvous_values.keys().next().copied()
+        {
+            let value = state
+                .rendezvous_values
+                .remove(&waiter_id)
+                .expect("rendezvous value disappeared");
+            state.rendezvous_completed.insert(waiter_id);
+            if let Some(waker) = state.sender_wakers.remove(&waiter_id) {
+                waker.wake();
+            }
+            if let Some(receiver_waiter_id) = self.waiter_id.take() {
+                state.receiver_wakers.remove(&receiver_waiter_id);
+            }
+            return std::task::Poll::Ready(TerraneChannelReceiveOutcome {
+                available: true,
+                closed: false,
+                value: Some(value),
+            });
+        }
         if let Some(value) = state.values.pop_front() {
             if let Some(waiter_id) = self.waiter_id.take() {
                 state.receiver_wakers.remove(&waiter_id);
@@ -996,6 +1067,9 @@ impl<T> std::future::Future for TerraneChannelReceive<T> {
                 waiter_id
             });
         state.receiver_wakers.insert(waiter_id, context.waker().clone());
+        for waker in state.sender_wakers.values() {
+            waker.wake_by_ref();
+        }
         std::task::Poll::Pending
     }
 }
@@ -1632,7 +1706,7 @@ fn main() {
                 }
             })
         };
-        closed_rx.close();
+        let closed_values: terrane_collection_support::List<String> = closed_rx.close();
         let closed_outcome: TerraneTaskOutcome<TerraneChannelSendOutcome<String>> = __terrane_await(
                 closed_scope.join(closed_pending),
             )
@@ -1640,6 +1714,14 @@ fn main() {
         let closed_result: Option<TerraneChannelSendOutcome<String>> = closed_outcome
             .value
             .clone();
+        println!(
+            "{}{}",
+            terrane_scalar_support::scalar_text(&terrane_int_support::Int::from(closed_values
+            .length())),
+            terrane_scalar_support::scalar_text(&__terrane_raised(closed_values
+            .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
+            0 /* terrane-site: src/main.trn:105:32-105:48 */)), 0 /* terrane-site: src/main.trn:105:32-105:48 */))
+        );
         if closed_result.is_some() {
             println!(
                 "{}{}{}", terrane_scalar_support::scalar_text(&closed_fill.accepted),
@@ -1657,7 +1739,8 @@ fn main() {
         );
         let rejected_tx: TerraneChannelSender<String> = rejected_pair.sender;
         let rejected_rx: TerraneChannelReceiver<String> = rejected_pair.receiver;
-        rejected_rx.close();
+        let rejected_values: terrane_collection_support::List<String> = rejected_rx
+            .close();
         let rejected_send: TerraneChannelSendOutcome<String> = __terrane_await(
                 Box::pin(rejected_tx.send(String::from("blocked"))),
             )
@@ -1669,6 +1752,70 @@ fn main() {
                 .expect("semantic optional narrowing"))
             );
         }
+        println!(
+            "{}",
+            terrane_scalar_support::scalar_text(&terrane_int_support::Int::from(rejected_values
+            .length()))
+        );
+        let rendezvous_pair: TerraneChannelPair<String> = TerraneChannelPair::new(
+            terrane_collection_support::index_from_int(
+                    &terrane_int_support::Int::from(0_i128),
+                )
+                .expect("semantic channel capacity"),
+            TerraneChannelOverflow::Block,
+        );
+        let rendezvous_tx: TerraneChannelSender<String> = rendezvous_pair.sender;
+        let rendezvous_rx: TerraneChannelReceiver<String> = rendezvous_pair.receiver;
+        let rendezvous_scope: TerraneTaskScope = TerraneTaskScope::new(None);
+        let rendezvous_pending: TerraneScopedTask<TerraneChannelSendOutcome<String>> = {
+            let __terrane_scope = rendezvous_scope.clone();
+            let __terrane_cancel = __terrane_scope.cancellation();
+            let __terrane_deadline = __terrane_scope.deadline;
+            let __terrane_spawned_task = Box::pin(
+                rendezvous_tx.send(String::from("handed-over")),
+            );
+            TerraneScopedTask::spawn(async move {
+                match __terrane_cancellable(
+                        __terrane_spawned_task,
+                        __terrane_cancel,
+                        __terrane_deadline,
+                    )
+                    .await
+                {
+                    Some(value) => TerraneTaskResult::Completed(value),
+                    None => TerraneTaskResult::Cancelled,
+                }
+            })
+        };
+        let rendezvous_received: TerraneChannelReceiveOutcome<String> = __terrane_await(
+                Box::pin(rendezvous_rx.receive()),
+            )
+            .await;
+        let rendezvous_delivered: TerraneTaskOutcome<
+            TerraneChannelSendOutcome<String>,
+        > = __terrane_await(rendezvous_scope.join(rendezvous_pending)).await;
+        let rendezvous_value: Option<String> = rendezvous_received.value;
+        let rendezvous_outcome: Option<TerraneChannelSendOutcome<String>> = rendezvous_delivered
+            .value
+            .clone();
+        if rendezvous_value.is_some() {
+            if rendezvous_outcome.is_some() {
+                println!(
+                    "{}{}", terrane_scalar_support::scalar_text(&* rendezvous_value
+                    .as_ref().expect("semantic optional narrowing")),
+                    terrane_scalar_support::scalar_text(&rendezvous_outcome.as_ref()
+                    .expect("semantic optional narrowing").accepted)
+                );
+            }
+        }
+        rendezvous_tx.close();
+        let rendezvous_remaining: terrane_collection_support::List<String> = rendezvous_rx
+            .close();
+        println!(
+            "{}",
+            terrane_scalar_support::scalar_text(&terrane_int_support::Int::from(rendezvous_remaining
+            .length()))
+        );
         let stress_pair: TerraneChannelPair<terrane_int_support::Int> = TerraneChannelPair::new(
             terrane_collection_support::index_from_int(
                     &terrane_int_support::Int::from(4_i128),
@@ -1767,8 +1914,8 @@ fn main() {
                 terrane_scalar_support::scalar_text(&__terrane_raised(batch_value
                 .as_ref().expect("semantic optional narrowing").values
                 .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
-                0 /* terrane-site: src/main.trn:155:60-155:81 */)),
-                0 /* terrane-site: src/main.trn:155:60-155:81 */))
+                1 /* terrane-site: src/main.trn:173:60-173:81 */)),
+                1 /* terrane-site: src/main.trn:173:60-173:81 */))
             );
         }
         let resource_pair: TerraneChannelPair<Outgoing> = TerraneChannelPair::new(
@@ -1786,7 +1933,7 @@ fn main() {
                         .send(
                             __terrane_raised(
                                 remotely_closed_sink(),
-                                1 /* terrane-site: src/main.trn:160:44-160:65 */,
+                                2 /* terrane-site: src/main.trn:178:44-178:65 */,
                             ),
                         ),
                 ),

@@ -30,11 +30,11 @@ impl Outgoing {
     pub async fn send(&mut self, value: String) -> Result<bool, SinkError> {
         Ok(self.sender.send(value).await.is_ok())
     }
-    pub async fn flush(&mut self) -> Result<(), SinkError> {
-        Ok(())
+    pub async fn flush(&mut self) -> Result<bool, SinkError> {
+        Ok(true)
     }
-    pub async fn close(self) -> Result<(), SinkError> {
-        Ok(())
+    pub async fn close(self) -> Result<bool, SinkError> {
+        Ok(true)
     }
 }
 
@@ -72,13 +72,13 @@ pub fn duplex(capacity: i64) -> Duplex {
     }
 }
 
-pub async fn drain_slowly(mut incoming: Incoming) -> i64 {
-    let mut count = 0;
-    while let Some(_value) = incoming.receiver.recv().await {
-        count += 1;
+pub async fn drain_slowly(mut incoming: Incoming) -> String {
+    let mut values = Vec::new();
+    while let Some(value) = incoming.receiver.recv().await {
+        values.push(value);
         tokio::time::sleep(Duration::from_millis(20)).await;
     }
-    count
+    values.join("|")
 }
 
 pub fn remotely_closed_sink() -> Outgoing {
@@ -107,11 +107,11 @@ impl QueueSink {
         self.values.push_back(value);
         Ok(true)
     }
-    pub fn flush(&mut self) -> Result<(), SinkError> {
-        Ok(())
+    pub fn flush(&mut self) -> Result<i64, SinkError> {
+        Ok(self.values.len() as i64)
     }
-    pub fn close(self) -> Result<(), SinkError> {
-        Ok(())
+    pub fn close(self) -> Result<String, SinkError> {
+        Ok(self.values.into_iter().collect::<Vec<_>>().join("|"))
     }
 }
 pub fn queue_sink() -> QueueSink {

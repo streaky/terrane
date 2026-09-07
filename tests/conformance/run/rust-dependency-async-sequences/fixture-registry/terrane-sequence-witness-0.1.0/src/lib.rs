@@ -23,8 +23,8 @@ impl TokioSequence {
             None => Ok(None),
         }
     }
-    pub async fn close(self) -> Result<(), SequenceError> {
-        Ok(())
+    pub async fn close(self) -> Result<bool, SequenceError> {
+        Ok(true)
     }
 }
 
@@ -62,18 +62,42 @@ pub fn make_pending_tokio_sequence() -> TokioSequence {
 
 pub struct QueueSequence {
     values: VecDeque<String>,
+    failure: Option<SequenceError>,
+    pending: bool,
 }
 impl QueueSequence {
     pub async fn next(&mut self) -> Result<Option<String>, SequenceError> {
+        if self.pending {
+            return std::future::pending().await;
+        }
+        if let Some(error) = self.failure.take() {
+            return Err(error);
+        }
         Ok(self.values.pop_front())
     }
-    pub fn close(self) -> Result<(), SequenceError> {
-        Ok(())
+    pub fn close(self) -> Result<bool, SequenceError> {
+        Ok(true)
     }
 }
 pub fn make_queue_sequence() -> QueueSequence {
     QueueSequence {
-        values: VecDeque::from(["different".to_owned()]),
+        values: VecDeque::from(["different-one".to_owned(), "different-two".to_owned()]),
+        failure: None,
+        pending: false,
+    }
+}
+pub fn make_failing_queue_sequence() -> QueueSequence {
+    QueueSequence {
+        values: VecDeque::new(),
+        failure: Some(SequenceError("queue protocol failure")),
+        pending: false,
+    }
+}
+pub fn make_pending_queue_sequence() -> QueueSequence {
+    QueueSequence {
+        values: VecDeque::new(),
+        failure: None,
+        pending: true,
     }
 }
 
@@ -130,8 +154,8 @@ impl TcpSequence {
             .map_err(|_| SequenceError("invalid UTF-8"))
     }
 
-    pub async fn close(self) -> Result<(), SequenceError> {
-        Ok(())
+    pub async fn close(self) -> Result<bool, SequenceError> {
+        Ok(true)
     }
 }
 

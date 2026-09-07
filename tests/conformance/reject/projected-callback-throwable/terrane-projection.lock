@@ -11,6 +11,10 @@
         ],
         [
           "/deps/terrane-callback-witness",
+          "Registrar"
+        ],
+        [
+          "/deps/terrane-callback-witness",
           "apply_async"
         ],
         [
@@ -35,17 +39,17 @@
         ],
         [
           "/deps/terrane-callback-witness",
-          "open_callback"
+          "registrar"
         ]
       ]
     }
   ],
   "removed": [],
-  "cache_identity": "6cb433eeb7fa9a9f86971a6e74db16de17abb91ac06b1f3b642d1e8269e5bfdf",
+  "cache_identity": "a03cf0ebd3598d5f21155c19f57f8ff3df8f42bca2604c2eab2cc7ed42675d91",
   "source": "Local",
   "rustdoc_format": 57,
-  "projection_schema": "17",
-  "content_hash": "db3e4e80204e4afd71fd9f2c98db4a16e72c3de9a0e5a35e6c43935f06a48a21",
+  "projection_schema": "20",
+  "content_hash": "24afd4d37480fedef0db66612a6380c56651ed70f4f713e50536f86d8fdb5e52",
   "resolution": {
     "outcome": "LocalRustdoc",
     "events": [

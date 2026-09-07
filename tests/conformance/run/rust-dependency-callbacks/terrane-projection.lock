@@ -11,6 +11,14 @@
         ],
         [
           "/deps/terrane-callback-witness",
+          "Registrar"
+        ],
+        [
+          "/deps/terrane-callback-witness",
+          "active_retained_invocations"
+        ],
+        [
+          "/deps/terrane-callback-witness",
           "apply_async"
         ],
         [
@@ -31,7 +39,23 @@
         ],
         [
           "/deps/terrane-callback-witness",
+          "invoke_retained"
+        ],
+        [
+          "/deps/terrane-callback-witness",
           "make_marker"
+        ],
+        [
+          "/deps/terrane-callback-witness",
+          "pending_value"
+        ],
+        [
+          "/deps/terrane-callback-witness",
+          "registrar"
+        ],
+        [
+          "/deps/terrane-callback-witness",
+          "wait_until_retained_invocation_active"
         ]
       ]
     },
@@ -47,11 +71,11 @@
     }
   ],
   "removed": [],
-  "cache_identity": "0c119e6ab0936ce382213ab932d1ff7101d8da4953abf8731122b5774d0e4f94",
+  "cache_identity": "22a272fa9c433f5aeea29418ba894db3add01de5c9b037cf86fac01fb0a470fe",
   "source": "Local",
   "rustdoc_format": 57,
-  "projection_schema": "17",
-  "content_hash": "56791e4270586fb4f20897c0b5a6184b7f498b4cac04d187ed1e003d4a73b165",
+  "projection_schema": "20",
+  "content_hash": "d1ced28a5f502627edd3338d574aae484d31489df9d2b1a0d2bce5bc722c92a0",
   "resolution": {
     "outcome": "LocalRustdoc",
     "events": [

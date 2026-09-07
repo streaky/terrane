@@ -514,113 +514,113 @@ mod __terrane_trace {
             }
         },
         {
-            /* terrane-site-row: site 8: /app::main (src/main.trn:21:19-21:34) */
+            /* terrane-site-row: site 8: /app::main (src/main.trn:21:24-21:39) */
             Site {
                 function: 2,
                 file: 0,
                 line: 21,
-                column: 19,
+                column: 24,
                 end_line: 21,
-                end_column: 34,
-            }
-        },
-        {
-            /* terrane-site-row: site 9: /app::main (src/main.trn:22:18-22:33) */
-            Site {
-                function: 2,
-                file: 0,
-                line: 22,
-                column: 18,
-                end_line: 22,
-                end_column: 33,
-            }
-        },
-        {
-            /* terrane-site-row: site 10: /app::main (src/main.trn:26:12-26:33) */
-            Site {
-                function: 2,
-                file: 0,
-                line: 26,
-                column: 12,
-                end_line: 26,
-                end_column: 33,
-            }
-        },
-        {
-            /* terrane-site-row: site 11: /app::main (src/main.trn:27:20-27:39) */
-            Site {
-                function: 2,
-                file: 0,
-                line: 27,
-                column: 20,
-                end_line: 27,
                 end_column: 39,
             }
         },
         {
-            /* terrane-site-row: site 12: /app::main (src/main.trn:29:25-29:38) */
+            /* terrane-site-row: site 9: /app::main (src/main.trn:22:23-22:38) */
             Site {
                 function: 2,
                 file: 0,
-                line: 29,
-                column: 25,
-                end_line: 29,
+                line: 22,
+                column: 23,
+                end_line: 22,
                 end_column: 38,
             }
         },
         {
-            /* terrane-site-row: site 13: /app::main (src/main.trn:31:13-31:26) */
+            /* terrane-site-row: site 10: /app::main (src/main.trn:28:12-28:33) */
+            Site {
+                function: 2,
+                file: 0,
+                line: 28,
+                column: 12,
+                end_line: 28,
+                end_column: 33,
+            }
+        },
+        {
+            /* terrane-site-row: site 11: /app::main (src/main.trn:29:20-29:39) */
+            Site {
+                function: 2,
+                file: 0,
+                line: 29,
+                column: 20,
+                end_line: 29,
+                end_column: 39,
+            }
+        },
+        {
+            /* terrane-site-row: site 12: /app::main (src/main.trn:31:30-31:43) */
             Site {
                 function: 2,
                 file: 0,
                 line: 31,
-                column: 13,
+                column: 30,
                 end_line: 31,
+                end_column: 43,
+            }
+        },
+        {
+            /* terrane-site-row: site 13: /app::main (src/main.trn:33:13-33:26) */
+            Site {
+                function: 2,
+                file: 0,
+                line: 33,
+                column: 13,
+                end_line: 33,
                 end_column: 26,
             }
         },
         {
-            /* terrane-site-row: site 14: /app::main (src/main.trn:37:11-37:22) */
+            /* terrane-site-row: site 14: /app::main (src/main.trn:39:11-39:22) */
             Site {
                 function: 2,
                 file: 0,
-                line: 37,
+                line: 39,
                 column: 11,
-                end_line: 37,
+                end_line: 39,
                 end_column: 22,
             }
         },
         {
-            /* terrane-site-row: site 15: /app::main (src/main.trn:38:18-38:41) */
-            Site {
-                function: 2,
-                file: 0,
-                line: 38,
-                column: 18,
-                end_line: 38,
-                end_column: 41,
-            }
-        },
-        {
-            /* terrane-site-row: site 16: /app::main (src/main.trn:40:19-40:31) */
+            /* terrane-site-row: site 15: /app::main (src/main.trn:40:18-40:41) */
             Site {
                 function: 2,
                 file: 0,
                 line: 40,
-                column: 19,
+                column: 18,
                 end_line: 40,
-                end_column: 31,
+                end_column: 41,
             }
         },
         {
-            /* terrane-site-row: site 17: /app::main (src/main.trn:41:18-41:30) */
+            /* terrane-site-row: site 16: /app::main (src/main.trn:42:23-42:35) */
             Site {
                 function: 2,
                 file: 0,
-                line: 41,
-                column: 18,
-                end_line: 41,
-                end_column: 30,
+                line: 42,
+                column: 23,
+                end_line: 42,
+                end_column: 35,
+            }
+        },
+        {
+            /* terrane-site-row: site 17: /app::main (src/main.trn:44:25-44:37) */
+            Site {
+                function: 2,
+                file: 0,
+                line: 44,
+                column: 25,
+                end_line: 44,
+                end_column: 37,
             }
         },
     ];
@@ -1025,7 +1025,7 @@ pub struct TerraneTaskOutcome<T> {
 }
 // Source: src/main.trn
 // Namespace: app
-async fn consume(incoming: Incoming) -> terrane_int_support::Int {
+async fn consume(incoming: Incoming) -> String {
     return __terrane_traced(
         __terrane_await({
                 let __terrane_future = drain_slowly(incoming);
@@ -1191,7 +1191,7 @@ fn main() {
             5 /* terrane-site: src/main.trn:15:14-15:35 */,
         );
         let scope: TerraneTaskScope = TerraneTaskScope::new(None);
-        let consumer: TerraneScopedTask<terrane_int_support::Int> = {
+        let consumer: TerraneScopedTask<String> = {
             let __terrane_scope = scope.clone();
             let __terrane_cancel = __terrane_scope.cancellation();
             let __terrane_deadline = __terrane_scope.deadline;
@@ -1318,7 +1318,7 @@ fn main() {
             terrane_scalar_support::scalar_text(&first.closed),
             terrane_scalar_support::scalar_text(&second.accepted)
         );
-        let flushed: () = __terrane_traced(
+        let flushed: bool = __terrane_traced(
             __terrane_await({
                     let __terrane_future = {
                         let __terrane_call = (&mut outgoing).flush();
@@ -1357,14 +1357,14 @@ fn main() {
                     async move {
                         __terrane_raised_err(
                             __terrane_future.await,
-                            8 /* terrane-site: src/main.trn:21:19-21:34 */,
+                            8 /* terrane-site: src/main.trn:21:24-21:39 */,
                         )
                     }
                 })
                 .await,
-            8 /* terrane-site: src/main.trn:21:19-21:34 */,
+            8 /* terrane-site: src/main.trn:21:24-21:39 */,
         );
-        let closed: () = __terrane_traced(
+        let closed: bool = __terrane_traced(
             __terrane_await({
                     let __terrane_future = {
                         let __terrane_call = outgoing.close();
@@ -1403,25 +1403,30 @@ fn main() {
                     async move {
                         __terrane_raised_err(
                             __terrane_future.await,
-                            9 /* terrane-site: src/main.trn:22:18-22:33 */,
+                            9 /* terrane-site: src/main.trn:22:23-22:38 */,
                         )
                     }
                 })
                 .await,
-            9 /* terrane-site: src/main.trn:22:18-22:33 */,
+            9 /* terrane-site: src/main.trn:22:23-22:38 */,
         );
-        println!("{}", terrane_scalar_support::scalar_text(&(flushed == closed)));
-        let consumed: TerraneTaskOutcome<terrane_int_support::Int> = __terrane_await(
-                scope.join(consumer),
-            )
-            .await;
         println!(
-            "{}{}", terrane_scalar_support::scalar_text(&consumed.completed),
-            terrane_scalar_support::scalar_text(&consumed.value.clone().is_none())
+            "{}{}", terrane_scalar_support::scalar_text(&flushed),
+            terrane_scalar_support::scalar_text(&closed)
         );
+        let consumed: TerraneTaskOutcome<String> = __terrane_await(scope.join(consumer))
+            .await;
+        let consumed_value: Option<String> = consumed.value.clone();
+        if consumed_value.is_some() {
+            println!(
+                "{}{}", terrane_scalar_support::scalar_text(&consumed.completed),
+                terrane_scalar_support::scalar_text(&* consumed_value.as_ref()
+                .expect("semantic optional narrowing"))
+            );
+        }
         let mut remote: Outgoing = __terrane_raised(
             remotely_closed_sink(),
-            10 /* terrane-site: src/main.trn:26:12-26:33 */,
+            10 /* terrane-site: src/main.trn:28:12-28:33 */,
         );
         let rejected: terrane_collection_support::AsyncSinkOutcome = __terrane_traced(
             __terrane_await({
@@ -1468,18 +1473,18 @@ fn main() {
                     async move {
                         __terrane_raised_err(
                             __terrane_future.await,
-                            11 /* terrane-site: src/main.trn:27:20-27:39 */,
+                            11 /* terrane-site: src/main.trn:29:20-29:39 */,
                         )
                     }
                 })
                 .await,
-            11 /* terrane-site: src/main.trn:27:20-27:39 */,
+            11 /* terrane-site: src/main.trn:29:20-29:39 */,
         );
         println!(
             "{}{}", terrane_scalar_support::scalar_text(&rejected.accepted),
             terrane_scalar_support::scalar_text(&rejected.closed)
         );
-        let remote_closed: () = __terrane_traced(
+        let remote_closed: bool = __terrane_traced(
             __terrane_await({
                     let __terrane_future = {
                         let __terrane_call = remote.close();
@@ -1518,19 +1523,17 @@ fn main() {
                     async move {
                         __terrane_raised_err(
                             __terrane_future.await,
-                            12 /* terrane-site: src/main.trn:29:25-29:38 */,
+                            12 /* terrane-site: src/main.trn:31:30-31:43 */,
                         )
                     }
                 })
                 .await,
-            12 /* terrane-site: src/main.trn:29:25-29:38 */,
+            12 /* terrane-site: src/main.trn:31:30-31:43 */,
         );
-        println!(
-            "{}", terrane_scalar_support::scalar_text(&(remote_closed == remote_closed))
-        );
+        println!("{}", terrane_scalar_support::scalar_text(&remote_closed));
         let blocked: Outgoing = __terrane_raised(
             blocked_sink(),
-            13 /* terrane-site: src/main.trn:31:13-31:26 */,
+            13 /* terrane-site: src/main.trn:33:13-33:26 */,
         );
         let blocked_scope: TerraneTaskScope = TerraneTaskScope::new(None);
         let blocked_child: TerraneScopedTask<
@@ -1560,7 +1563,7 @@ fn main() {
         println!("{}", terrane_scalar_support::scalar_text(&cancelled.cancelled));
         let mut queue: QueueSink = __terrane_raised(
             queue_sink(),
-            14 /* terrane-site: src/main.trn:37:11-37:22 */,
+            14 /* terrane-site: src/main.trn:39:11-39:22 */,
         );
         let queued: terrane_collection_support::AsyncSinkOutcome = __terrane_traced(
             __terrane_await({
@@ -1608,22 +1611,22 @@ fn main() {
                     async move {
                         __terrane_raised_err(
                             __terrane_future.await,
-                            15 /* terrane-site: src/main.trn:38:18-38:41 */,
+                            15 /* terrane-site: src/main.trn:40:18-40:41 */,
                         )
                     }
                 })
                 .await,
-            15 /* terrane-site: src/main.trn:38:18-38:41 */,
+            15 /* terrane-site: src/main.trn:40:18-40:41 */,
         );
         println!(
             "{}{}", terrane_scalar_support::scalar_text(&queued.accepted),
             terrane_scalar_support::scalar_text(&queued.closed)
         );
-        let queue_flushed: () = __terrane_raised(
+        let queue_flushed: terrane_int_support::Int = __terrane_raised(
             match std::panic::catch_unwind(
                 std::panic::AssertUnwindSafe(|| queue.flush()),
             ) {
-                Ok(Ok(value)) => Ok(value),
+                Ok(Ok(value)) => Ok(terrane_int_support::Int::from(i128::from(value))),
                 Ok(Err(error)) => {
                     Err(
                         crate::TerraneForeignError(
@@ -1647,9 +1650,10 @@ fn main() {
                     )
                 }
             },
-            16 /* terrane-site: src/main.trn:40:19-40:31 */,
+            16 /* terrane-site: src/main.trn:42:23-42:35 */,
         );
-        let queue_closed: () = __terrane_raised(
+        println!("{}", terrane_scalar_support::scalar_text(&queue_flushed));
+        let queue_closed: String = __terrane_raised(
             match std::panic::catch_unwind(
                 std::panic::AssertUnwindSafe(|| queue.close()),
             ) {
@@ -1677,11 +1681,9 @@ fn main() {
                     )
                 }
             },
-            17 /* terrane-site: src/main.trn:41:18-41:30 */,
+            17 /* terrane-site: src/main.trn:44:25-44:37 */,
         );
-        println!(
-            "{}", terrane_scalar_support::scalar_text(&(queue_flushed == queue_closed))
-        );
+        println!("{}", terrane_scalar_support::scalar_text(&queue_closed));
     });
 }
 // Source: <terrane>/projected/deps/terrane-sink-witness.trn
@@ -1709,14 +1711,14 @@ pub fn blocked_sink() -> Result<Outgoing, crate::TerraneForeignError> {
 }
 pub async fn drain_slowly(
     incoming: Incoming,
-) -> Result<terrane_int_support::Int, crate::TerraneForeignError> {
+) -> Result<String, crate::TerraneForeignError> {
     let incoming = incoming;
     match crate::__terrane_dependency_await_unwind(
             terrane_sink_witness::drain_slowly(incoming),
         )
         .await
     {
-        Ok(value) => Ok(terrane_int_support::Int::from(i128::from(value))),
+        Ok(value) => Ok(value),
         Err(payload) => {
             Err(
                 crate::__terrane_dependency_panic(

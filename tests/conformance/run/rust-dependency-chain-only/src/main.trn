@@ -4,7 +4,8 @@ from /core/output import print
 
 async function main;
   database = await memory_database;
-  answer int = await ((query_scalar; 'select ?1').bind; 42).fetch_one; database
-  rendered string = ((line; 'value=').number; answer).finish;
+  answer int = await ((query_scalar; database, 'select ?1').bind; 42).fetch_one;
+  prefix string = 'value='
+  rendered string = ((line; prefix).number; answer).finish;
   print; answer
   print; rendered

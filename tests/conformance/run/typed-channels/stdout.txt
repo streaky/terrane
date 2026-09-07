@@ -13,8 +13,12 @@ truetruefalsetrue
 truenew
 truetrue
 truetrue
+1full
 truetruetrue
 blocked
+0
+handed-overtrue
+0
 9996
 9997
 9998

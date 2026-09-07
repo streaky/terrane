@@ -1,4 +1,5 @@
 namespace app
-from /deps/terrane-chain-witness import query_scalar
+from /deps/terrane-chain-witness import line
 async function main;
-  query = await (query_scalar; 'select 1').pause;
+  prefix string = 'value='
+  builder = await (line; prefix).pause;

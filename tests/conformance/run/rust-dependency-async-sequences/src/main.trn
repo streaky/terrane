@@ -1,34 +1,83 @@
 namespace app
-from /deps/terrane-sequence-witness import make_tcp_sequence, make_failing_tokio_sequence, make_pending_tokio_sequence, make_queue_sequence, TokioSequence, TcpSequence
+from /deps/terrane-sequence-witness import make_tcp_sequence, make_tokio_sequence, make_failing_tokio_sequence, make_pending_tokio_sequence, make_queue_sequence, make_failing_queue_sequence, make_pending_queue_sequence, TokioSequence, TcpSequence, QueueSequence
 from /core/output import print
 from /core/errors import dependency-error
 
-async function drain-network; sequence TcpSequence
+async function drain-network bool; sequence TcpSequence
   first = await sequence.next;
-  print; first.item, first.end, first.value == none
+  first-value = first.value
+  if first-value != none
+    print; first-value
   second = await sequence.next;
-  print; second.item, second.end, second.value == none
+  second-value = second.value
+  if second-value != none
+    print; second-value
   ended = await sequence.next;
-  print; ended.item, ended.end, ended.value == none
-  closed = await sequence.close;
+  print; ended.end
+  return await sequence.close;
 
-async function wait-pending; sequence TokioSequence
+async function drain-tokio bool; sequence TokioSequence
+  first = await sequence.next;
+  first-value = first.value
+  if first-value != none
+    print; first-value
+  second = await sequence.next;
+  second-value = second.value
+  if second-value != none
+    print; second-value
+  ended = await sequence.next;
+  print; ended.end
+  return await sequence.close;
+
+async function drain-queue bool; sequence QueueSequence
+  first = await sequence.next;
+  first-value = first.value
+  if first-value != none
+    print; first-value
+  second = await sequence.next;
+  second-value = second.value
+  if second-value != none
+    print; second-value
+  ended = await sequence.next;
+  print; ended.end
+  return sequence.close;
+
+async function wait-pending-tokio; sequence TokioSequence
   waiting = await sequence.next;
+  print; waiting.end
+
+async function wait-pending-queue; sequence QueueSequence
+  waiting = await sequence.next;
+  print; waiting.end
 
 async function main;
-  drained = await drain-network; (await make_tcp_sequence;)
-  queue = make_queue_sequence;
-  queued = await queue.next;
-  print; queued.item, queued.value == none
-  queue-closed = queue.close;
+  network-drained = await drain-network; (await make_tcp_sequence;)
+  print; network-drained
+  tokio-drained = await drain-tokio; (make_tokio_sequence;)
+  print; tokio-drained
+  queue-drained = await drain-queue; (make_queue_sequence;)
+  print; queue-drained
   try
     failing = make_failing_tokio_sequence;
     failed-step = await failing.next;
+    print; failed-step.end
   catch dependency-error as error
     print; error.message
-  scope = task-scope;
+  try
+    failing-queue = make_failing_queue_sequence;
+    failed-queue-step = await failing-queue.next;
+    print; failed-queue-step.end
+  catch dependency-error as error
+    print; error.message
+  tokio-scope = task-scope;
   pending = make_pending_tokio_sequence;
-  child = scope.spawn; (wait-pending; pending)
-  scope.cancel;
-  outcome = await scope.join; child
-  print; outcome.cancelled, outcome.value == none
+  tokio-child = tokio-scope.spawn; (wait-pending-tokio; pending)
+  tokio-scope.cancel;
+  tokio-outcome = await tokio-scope.join; tokio-child
+  print; tokio-outcome.cancelled
+  queue-scope = task-scope;
+  pending-queue = make_pending_queue_sequence;
+  queue-child = queue-scope.spawn; (wait-pending-queue; pending-queue)
+  queue-scope.cancel;
+  queue-outcome = await queue-scope.join; queue-child
+  print; queue-outcome.cancelled

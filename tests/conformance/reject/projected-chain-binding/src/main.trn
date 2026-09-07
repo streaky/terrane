@@ -1,4 +1,5 @@
 namespace app
-from /deps/terrane-chain-witness import query_scalar
+from /deps/terrane-chain-witness import line
 function main;
-  query = query_scalar; 'select 1'
+  prefix string = 'value='
+  builder = line; prefix

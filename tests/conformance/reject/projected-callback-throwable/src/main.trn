@@ -1,7 +1,8 @@
 namespace app
-from /deps/terrane-callback-witness import apply_shared
+from /deps/terrane-callback-witness import registrar
 from /core/errors import throwable, arithmetic-overflow
 function risky int throws throwable; value int
     throw arithmetic-overflow
 function main;
-    print; (apply_shared; 1, risky)
+    callback-registry = registrar;
+    print; (callback-registry.apply; 1, risky)

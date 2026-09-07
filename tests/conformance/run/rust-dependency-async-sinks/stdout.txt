@@ -1,8 +1,9 @@
 truefalsetrue
-true
-truefalse
+truetrue
+trueone|two
 falsetrue
 true
 true
 truefalse
-true
+1
+different

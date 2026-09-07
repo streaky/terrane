@@ -53,11 +53,11 @@
     }
   ],
   "removed": [],
-  "cache_identity": "a7994e2e76c7a1e29d837ab5fb37cda974082365f0297467cef961ef52d6757d",
+  "cache_identity": "0204f820e67f41277cc861775851e7cb75cd7b3ea1137634e8547897b121b0e7",
   "source": "Local",
   "rustdoc_format": 57,
-  "projection_schema": "19",
-  "content_hash": "e6cde88c55c12d2b489f0391cf586125387857e2a7f97922dc178272c7a1afd8",
+  "projection_schema": "20",
+  "content_hash": "5502e4b4254863b457c6e2edda85d22f0bb2b42411d938a518485c246cadd573",
   "resolution": {
     "outcome": "LocalRustdoc",
     "events": [

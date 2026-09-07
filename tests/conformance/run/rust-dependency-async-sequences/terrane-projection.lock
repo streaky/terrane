@@ -31,7 +31,15 @@
         ],
         [
           "/deps/terrane-sequence-witness",
+          "make_failing_queue_sequence"
+        ],
+        [
+          "/deps/terrane-sequence-witness",
           "make_failing_tokio_sequence"
+        ],
+        [
+          "/deps/terrane-sequence-witness",
+          "make_pending_queue_sequence"
         ],
         [
           "/deps/terrane-sequence-witness",
@@ -53,11 +61,11 @@
     }
   ],
   "removed": [],
-  "cache_identity": "3bb7c254faef26e6a93e26bfb7834ab2e4fff1125ad30b5169780ce263db11ba",
+  "cache_identity": "eccb4b7f93a0d1019ebb2cdd3927ea1ea15d9d2c949ce447af3a41e9ef6a4e17",
   "source": "Local",
   "rustdoc_format": 57,
-  "projection_schema": "18",
-  "content_hash": "e243f26163133be21bb32b26f8c171866a42cc800f2494c22e9aa0190120f9c4",
+  "projection_schema": "20",
+  "content_hash": "c034f914d6bee476537a9c88d0ede9c06989e454685f84dc3666c55e15ffa006",
   "resolution": {
     "outcome": "LocalRustdoc",
     "events": [

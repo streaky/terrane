@@ -209,11 +209,11 @@
         ],
         [
           "/deps/terrane-chain-witness",
-          "LineBuilder-1bf5e97dda63b759e6889407b3c8de74e59f9f630978c50dbf1dbe10394db4d9"
+          "LineBuilder-4238ef823949cfa637c551f98e17d5a5f719d9922de4352bd033e0d10027d69f"
         ],
         [
           "/deps/terrane-chain-witness",
-          "ScalarQuery-e710090c5b3f0f9340f463108e23c602f6b8f2b096a54c1630236732806533a8"
+          "ScalarQuery-b49daed6afc0d0674747dcee4bcef8e0297fff3ff34e4dfa1a1fda2cb9c3bdad"
         ],
         [
           "/deps/terrane-chain-witness",
@@ -235,7 +235,7 @@
   "source": "Local",
   "rustdoc_format": 57,
   "projection_schema": "20",
-  "content_hash": "d5f20385a1ad6268e3bf5dca3ba4d9a32bcd7c7cbf32b5339ca0c2d6dcf13211",
+  "content_hash": "638c1de124782a13cdc20788d28960e001badc3ede756abf5d8ec139d011b2f6",
   "resolution": {
     "outcome": "LocalRustdoc",
     "events": [

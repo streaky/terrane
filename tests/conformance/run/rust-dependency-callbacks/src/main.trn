@@ -1,6 +1,8 @@
 namespace app
 
-from /deps/terrane-callback-witness import apply_shared, apply_mutable, apply_once, apply_async, apply_async_concurrently
+from /deps/terrane-callback-witness import apply_shared, apply_mutable, apply_once, apply_async, apply_async_concurrently, registrar
+from /deps/terrane-callback-witness import invoke_retained, wait_until_retained_invocation_active, active_retained_invocations, pending_value
+from /core/errors import dependency-panic
 from /deps/terrane-dispatch-witness import dispatch
 
 function add-two int; value int
@@ -11,6 +13,16 @@ function keep-string string; value string
 
 async function keep-string-async string; value string
     return value
+
+async function stay-pending int; value int
+    result int = await pending_value; value
+    return result
+
+async function run-retained int;
+    try
+        return await invoke_retained; stay-pending
+    catch dependency-panic
+        return 0
 
 
 function render string; label string, enabled bool
@@ -29,5 +41,13 @@ async function main;
         return value + offset
     concurrent int = await apply_async_concurrently; 20, add-offset
     print; concurrent
+    callback-registry = registrar;
+    print; (callback-registry.apply; 5, add-two)
 
     print; (dispatch; 'dissimilar', true, render)
+    retained-scope = task-scope;
+    retained-child = retained-scope.spawn; run-retained
+    active bool = await wait_until_retained_invocation_active;
+    retained-scope.cancel;
+    retained-outcome = await retained-scope.join; retained-child
+    print; active, retained-outcome.cancelled, (active_retained_invocations;)

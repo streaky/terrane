@@ -433,25 +433,25 @@ mod __terrane_trace {
             }
         },
         {
-            /* terrane-site-row: site 1: /app::main (src/main.trn:7:22-7:80) */
+            /* terrane-site-row: site 1: /app::main (src/main.trn:7:22-7:81) */
             Site {
                 function: 0,
                 file: 0,
                 line: 7,
                 column: 22,
                 end_line: 7,
-                end_column: 80,
+                end_column: 81,
             }
         },
         {
-            /* terrane-site-row: site 2: /app::main (src/main.trn:8:21-8:62) */
+            /* terrane-site-row: site 2: /app::main (src/main.trn:9:21-9:60) */
             Site {
                 function: 0,
                 file: 0,
-                line: 8,
+                line: 9,
                 column: 21,
-                end_line: 8,
-                end_column: 62,
+                end_line: 9,
+                end_column: 60,
             }
         },
     ];
@@ -532,6 +532,7 @@ fn main() {
             __terrane_await({
                     let __terrane_future = {
                         let __terrane_call = terrane_chain_witness::query_scalar(
+                                &database,
                                 String::from("select ?1"),
                             )
                             .bind(
@@ -549,7 +550,7 @@ fn main() {
                                     Err(error) => std::panic::panic_any(error),
                                 },
                             )
-                            .fetch_one(&database);
+                            .fetch_one();
                         async move {
                             match crate::__terrane_dependency_await_unwind(
                                     __terrane_call,
@@ -565,7 +566,7 @@ fn main() {
                                             crate::TerraneError::custom_raised(
                                                 crate::TERRANE_DEPENDENCY_ERROR,
                                                 format!(
-                                                    "Rust dependency `terrane_chain_witness` member `terrane_chain_witness::ScalarQuery<'static>::fetch_one` failed: {error}"
+                                                    "Rust dependency `terrane_chain_witness` member `terrane_chain_witness::ScalarQuery<'_>::fetch_one` failed: {error}"
                                                 ),
                                                 crate::TERRANE_NO_SITE,
                                             ),
@@ -577,7 +578,7 @@ fn main() {
                                         crate::__terrane_dependency_panic(
                                             payload,
                                             "terrane_chain_witness",
-                                            "terrane_chain_witness::ScalarQuery<'static>::fetch_one",
+                                            "terrane_chain_witness::ScalarQuery<'_>::fetch_one",
                                         ),
                                     )
                                 }
@@ -587,17 +588,18 @@ fn main() {
                     async move {
                         __terrane_raised_err(
                             __terrane_future.await,
-                            1 /* terrane-site: src/main.trn:7:22-7:80 */,
+                            1 /* terrane-site: src/main.trn:7:22-7:81 */,
                         )
                     }
                 })
                 .await,
-            1 /* terrane-site: src/main.trn:7:22-7:80 */,
+            1 /* terrane-site: src/main.trn:7:22-7:81 */,
         );
+        let prefix: String = String::from("value=");
         let rendered: String = __terrane_raised(
             match std::panic::catch_unwind(
                 std::panic::AssertUnwindSafe(|| {
-                    terrane_chain_witness::line(String::from("value="))
+                    terrane_chain_witness::line(&prefix)
                         .number(
                             match || -> Result<_, crate::TerraneForeignError> {
                                 Ok(
@@ -620,12 +622,12 @@ fn main() {
                         crate::__terrane_dependency_panic(
                             payload,
                             "terrane_chain_witness",
-                            "terrane_chain_witness::LineBuilder<'static>::finish",
+                            "terrane_chain_witness::LineBuilder<'_>::finish",
                         ),
                     )
                 }
             },
-            2 /* terrane-site: src/main.trn:8:21-8:62 */,
+            2 /* terrane-site: src/main.trn:9:21-9:60 */,
         );
         println!("{}", terrane_scalar_support::scalar_text(&answer));
         println!("{}", terrane_scalar_support::scalar_text(&rendered));
@@ -634,12 +636,6 @@ fn main() {
 // Source: <terrane>/projected/deps/terrane-chain-witness.trn
 // Namespace: deps/terrane-chain-witness
 pub use terrane_chain_witness::Database;
-pub type LineBuilder1bf5e97dda63b759e6889407b3c8de74e59f9f630978c50dbf1dbe10394db4d9 = terrane_chain_witness::LineBuilder<
-    'static,
->;
-pub type ScalarQueryE710090c5b3f0f9340f463108e23c602f6b8f2b096a54c1630236732806533a8 = terrane_chain_witness::ScalarQuery<
-    'static,
->;
 pub async fn memory_database() -> Result<Database, crate::TerraneForeignError> {
     match crate::__terrane_dependency_await_unwind(
             terrane_chain_witness::memory_database(),

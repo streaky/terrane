@@ -99,20 +99,38 @@ async function main;
   closed-fill = await closed-tx.send; 'full'
   closed-scope = task-scope;
   closed-pending = closed-scope.spawn; (closed-tx.send; 'blocked')
-  closed-rx.close;
+  closed-values = closed-rx.close;
   closed-outcome = await closed-scope.join; closed-pending
   closed-result = closed-outcome.value
+  print; closed-values.length, closed-values[0]
   if closed-result != none
     print; closed-fill.accepted, closed-outcome.completed, closed-result.closed
 
   rejected-pair = channel; string, 1, channel-block
   rejected-tx = rejected-pair.sender
   rejected-rx = rejected-pair.receiver
-  rejected-rx.close;
+  rejected-values = rejected-rx.close;
   rejected-send = await rejected-tx.send; 'blocked'
   rejected-item = rejected-send.rejected-value
   if rejected-item != none
     print; rejected-item
+  print; rejected-values.length
+
+  rendezvous-pair = channel; string, 0, channel-block
+  rendezvous-tx = rendezvous-pair.sender
+  rendezvous-rx = rendezvous-pair.receiver
+  rendezvous-scope = task-scope;
+  rendezvous-pending = rendezvous-scope.spawn; (rendezvous-tx.send; 'handed-over')
+  rendezvous-received = await rendezvous-rx.receive;
+  rendezvous-delivered = await rendezvous-scope.join; rendezvous-pending
+  rendezvous-value = rendezvous-received.value
+  rendezvous-outcome = rendezvous-delivered.value
+  if rendezvous-value != none
+    if rendezvous-outcome != none
+      print; rendezvous-value, rendezvous-outcome.accepted
+  rendezvous-tx.close;
+  rendezvous-remaining = rendezvous-rx.close;
+  print; rendezvous-remaining.length
 
   stress-pair = channel; int, 4, channel-drop-oldest
   stress-tx = stress-pair.sender

@@ -2,7 +2,7 @@ namespace app
 from /deps/terrane-sink-witness import duplex, drain_slowly, remotely_closed_sink, blocked_sink, queue_sink, Outgoing, Incoming
 from /core/output import print
 
-async function consume int; incoming Incoming
+async function consume string; incoming Incoming
   return await drain_slowly; incoming
 
 async function send-blocked async-sink-outcome; sink Outgoing
@@ -18,16 +18,18 @@ async function main;
   first = await outgoing.send; 'one'
   second = await outgoing.send; 'two'
   print; first.accepted, first.closed, second.accepted
-  flushed = await outgoing.flush;
-  closed = await outgoing.close;
-  print; flushed == closed
+  flushed bool = await outgoing.flush;
+  closed bool = await outgoing.close;
+  print; flushed, closed
   consumed = await scope.join; consumer
-  print; consumed.completed, consumed.value == none
+  consumed-value = consumed.value
+  if consumed-value != none
+    print; consumed.completed, consumed-value
   remote = remotely_closed_sink;
   rejected = await remote.send; 'lost'
   print; rejected.accepted, rejected.closed
-  remote-closed = await remote.close;
-  print; remote-closed == remote-closed
+  remote-closed bool = await remote.close;
+  print; remote-closed
   blocked = blocked_sink;
   blocked-scope = task-scope;
   blocked-child = blocked-scope.spawn; (send-blocked; blocked)
@@ -37,6 +39,7 @@ async function main;
   queue = queue_sink;
   queued = await queue.send; 'different'
   print; queued.accepted, queued.closed
-  queue-flushed = queue.flush;
-  queue-closed = queue.close;
-  print; queue-flushed == queue-closed
+  queue-flushed int = queue.flush;
+  print; queue-flushed
+  queue-closed string = queue.close;
+  print; queue-closed
