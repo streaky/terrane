@@ -1502,15 +1502,17 @@ TLS transport is the required foundation for Phase C async sequence and sink loa
 surfaces must not route readiness-capable I/O back through universal blocking delegation.
 
 Phase C callback projection now admits concrete monomorphic Rust `Fn`, `FnMut`, `FnOnce`, and
-future-returning callback bounds. The transferable artifact records callable inputs/results,
-multiplicity, retention, and `Send`/`Sync`; generated shims construct the exact Rust closure and
-perform scalar conversion at invocation and result boundaries. Terrane synchronous and
-asynchronous anonymous functions can carry captured state into those shims. Semantic validation
-rejects mismatched sync/async signatures, wrong parameters or results, retained borrowed
-references and object receivers, local-only captures at transferable boundaries, escaping
-throwables, aliased mutable callback state, one-shot reuse, and open generic callback signatures.
-`rust-dependency-callbacks` exercises all three call traits plus concurrent future callbacks; the
-focused rejection corpus fixes the ownership and effect boundaries.
+future-returning callback bounds at projected free-function and method boundaries. The transferable
+artifact records callable inputs/results, multiplicity, retention, and `Send`/`Sync`; generated
+shims construct the exact Rust closure and perform scalar conversion at invocation and result
+boundaries. `FnMut` is callable multiplicity only: version-one anonymous functions capture
+ordinary values by value, do not gain mutable capture cells, and continue to reject aliased mutable
+state. Semantic validation rejects mismatched sync/async signatures, wrong parameters or results,
+retained borrowed references and object receivers, local-only captures at transferable boundaries,
+escaping throwables, aliased mutable callback state, one-shot reuse, and open generic callback
+signatures. `rust-dependency-callbacks` exercises all three call traits, a projected method callback,
+and a retained future callback whose active invocation is cancelled and observed to release its
+fixture state; the focused rejection corpus fixes the ownership and effect boundaries.
 
 Phase C async-sequence projection recognizes concrete owned producers with an asynchronous
 borrowed `next` returning `Result<Option<Item>, E>` and a consuming `close`. The projected
@@ -1519,9 +1521,11 @@ generated calls construct a reborrowed native future before the async wrapper so
 suspending reads do not move the producer. Borrowed operations must be awaited directly rather than
 retained as tasks. Producer objects are resource-owning and linear, consuming close participates in
 source ownership diagnostics, and borrowed or open-associated item shapes remain explicit
-declines. `rust-dependency-async-sequences` exercises a Tokio-backed producer and a dissimilar queue
-producer through normal items, end, protocol failure, close, and cancellation; focused rejects
-cover borrowed and open item shapes, duplicate transfer, use after close, and retained next tasks.
+declines. `rust-dependency-async-sequences` drives both a Tokio producer and a dissimilar queue
+producer through observable payloads, normal end, protocol failure, explicit close, and task
+cancellation; its TCP producer additionally proves readiness-backed network delivery. Focused
+rejects cover borrowed and open item shapes, duplicate transfer, use after close, and retained next
+tasks.
 
 Phase C async-sink projection recognizes concrete owned endpoints with an asynchronous borrowed
 `send(Item)` returning `Result<bool, E>`. The compiler-owned `async-sink-outcome` keeps accepted,
@@ -1530,21 +1534,25 @@ must be awaited directly and use the same native-future-before-wrapper reborrow 
 sequences. Synchronous and asynchronous `flush` preserve their projected failure contracts;
 consuming `close` performs graceful protocol close, while Drop remains emergency release. A
 consuming `split` transfers a duplex endpoint into independently owned source and sink halves.
-`rust-dependency-async-sinks` exercises bounded backpressure, remote closure, cancellation, flush,
-close, split ownership, and a dissimilar synchronous queue sink; focused rejects cover use after
-split, use after close, duplicate ownership, and retaining a borrowed send across suspension.
+`rust-dependency-async-sinks` observes every accepted payload at the consumer, distinguishes
+flush/close results, and exercises bounded backpressure, remote closure, cancellation, split
+ownership, and a dissimilar synchronous queue sink whose close returns its exact collected payload.
+Focused rejects cover use after split, use after close, duplicate ownership, and retaining a
+borrowed send across suspension.
 
 Phase C typed channels replace the integer-only channel object with
 `channel; Item, capacity, overflow-policy`, a compiler-owned generic pair of independently owned
-sender and receiver endpoints. The generated runtime stores concrete Rust values directly in a
-capacity-bounded queue. Block, fail-send, drop-newest, and drop-oldest have explicit deterministic
-send outcomes; receive distinguishes a value from drained closure. Send and receive operations are
-local tasks whose registered wakers are removed on completion or cancellation. Consuming close
-wakes the opposite endpoint, and the source ownership pass rejects duplicate endpoints and use
-after close. `typed-channels` exercises two item types, every policy, bounded backpressure,
-concurrent delivery, sender drain, receiver close, cancellation under pressure, and a 10,000-send
-bounded-capacity stress loop; focused rejects cover item mismatch, capacity, policy, ownership, and
-post-close use.
+sender and receiver endpoints. Capacity remains a compile-time source constant in version one.
+Positive capacities use a bounded concrete Rust queue. A zero-capacity block channel instead uses a
+rendezvous whose send completes only after receive accepts that value; fail-send and drop policies
+require positive capacity. Send and receive operations are local tasks whose registered wakers are
+removed on completion or cancellation. Consuming sender close permits a drain. Consuming receiver
+close returns every already-accepted buffered value as `list of Item`, rejects pending sends as
+closed, and leaves destructive cleanup to emergency Drop. The source ownership pass rejects
+duplicate endpoints and use after close. `typed-channels` observes exact values for every policy,
+rendezvous, bounded backpressure, concurrent delivery, sender drain, receiver-close preservation,
+cancellation under pressure, and a 10,000-send bounded-capacity stress loop; focused rejects cover
+item mismatch, capacity and zero-capacity policy, ownership, and post-close use.
 
 Phase C records the version-one shared-state boundary as an intentional refusal rather than a
 missing generic-cell implementation. Mutable application state has one owner task; peers send
@@ -1555,15 +1563,16 @@ owner-task/channel guidance instead of falling through to an unresolved import o
 universal boxed cell. `shared-state-owner` proves two scoped tasks coordinating around one mutable
 class through typed command and result channels; three focused rejects fix the guided diagnostic.
 
-Phase C chain-only projection now admits concrete lifetime-bearing builder values that can be
-completed within one nested Terrane expression. Projection schema 20 records root, continuing, and
-terminal roles; only receiver-position intermediates are legal, while binding, return, capture, and
-suspension emit `T0112`. Lowering leaves roots and continuing calls inside one Rust expression and
-applies conversion, panic/error containment, and async awaiting only at the owned terminal.
-Language-server projection details expose the non-escaping constraint. `rust-dependency-chain-only`
-executes a real in-memory SQLx scalar query through a lifetime-bearing chain and a structurally
-dissimilar formatting chain; four focused rejects fix binding, return, capture, and suspension
-boundaries.
+Phase C chain-only projection now admits concrete lifetime-bearing builder values that can retain a
+borrow from a named input and complete within one nested Terrane expression. Projection schema 20
+records root, continuing, and terminal roles; only receiver-position intermediates are legal, while
+binding, return, capture, and suspension emit `T0112`. Lowering leaves roots and continuing calls
+inside one Rust expression and applies conversion, panic/error containment, and async awaiting only
+at the owned terminal. Language-server projection details expose the non-escaping constraint.
+`rust-dependency-chain-only` executes an in-memory SQLx scalar query inside the terminal of a
+concrete adapter that borrows its database input, plus a structurally dissimilar formatting chain
+that borrows its prefix. Open `sqlx::Query` itself remains honestly declined. Four focused rejects
+fix binding, return, capture, and suspension boundaries.
 
 Accepted and rejected conformance covers async/sync type incompatibility, task consumption,
 successful, throwing, cancelled, and sibling-cancelling children, statically resolvable nested

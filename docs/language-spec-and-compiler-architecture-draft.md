@@ -3803,8 +3803,10 @@ The version-one `/core/concurrency` surface contains compiler-owned typed channe
 integer-specialised synchronization cells `int-mutex`, `int-read-write-lock`, `atomic-int64`, and
 `thread-local-int`. `channel; Item, capacity, overflow-policy` creates
 `channel-pair of Item`, whose `sender` and `receiver` members are independently owned linear
-endpoints. `Item` is a concrete descriptor, and capacity is a positive constant integer.
-
+endpoints. `Item` is a concrete descriptor, and capacity is a compile-time constant. A zero-capacity
+`channel-block` is a rendezvous: send remains pending until a receiver accepts that exact value.
+The other overflow policies require positive capacity because there is no buffered item to reject
+or evict against at capacity zero.
 `channel-sender of Item.send(Item)` constructs a local task. Awaiting it returns
 `channel-send-outcome of Item` with separate `accepted`, `closed`, and `dropped` state.
 `rejected-value` returns an item refused by fail-send or receiver closure; `dropped-value` returns
@@ -3820,12 +3822,14 @@ as dropped. Drop-oldest accepts the submitted item and returns the evicted buffe
 never exceeds capacity.
 
 Closing either endpoint is explicit and consuming. After sender close, the receiver drains buffered
-items and then observes closed. Receiver close wakes pending sends, which report closed. Dropping an
-endpoint performs emergency close without claiming graceful protocol close. Cancelling or timing
+items and then observes closed. Receiver close wakes pending sends, which report closed, and returns
+a concrete `list of Item` containing every value that had already been accepted into its buffer;
+it never silently destroys accepted application data. Dropping an endpoint is emergency close and
+may destroy retained values because no caller exists to receive a return value. Cancelling or timing
 out a pending operation unregisters its waiter; it does not reclassify an already completed
-operation. Duplicate endpoint ownership, use after close, invalid capacities, and invalid overflow
-policies are source diagnostics. Sender and receiver operations construct local-only tasks in
-version one.
+operation. Duplicate endpoint ownership, use after close, non-constant capacity, zero capacity with
+a non-block policy, and invalid overflow policies are source diagnostics. Sender and receiver
+operations construct local-only tasks in version one.
 
 Version one deliberately does not provide generic shared mutable cells. Application state with one
 logical writer belongs to one owner task; other tasks send typed commands and receive typed results
@@ -4206,8 +4210,12 @@ A concrete Rust callback bound projects when its complete callable contract is m
 `Fn`, `FnMut`, and `FnOnce` parenthesized bounds supply parameter and result types; a callback
 returning a bounded `Future` projects as a Terrane `async function`. The projection records call
 multiplicity, whether the dependency may retain the callback, and required `Send`/`Sync` bounds.
-Generated shims construct the exact Rust closure type at the call boundary, convert arguments and
-results there, and preserve captured Terrane state per invocation.
+Generated shims construct the exact Rust closure type at free-function or projected-method call
+boundaries, convert arguments and results there, and preserve captured Terrane state per invocation.
+`FnMut` records repeated mutable invocation by Rust; it does not introduce a mutable Terrane
+closure-capture cell. Version-one anonymous functions capture ordinary values by value, so mutation
+of aliased captured state remains rejected and stateful coordination uses an existing explicit
+owner such as an owner task with typed channels.
 
 Retention never weakens Terrane ownership. A retained callback may not capture a non-owning
 reference or borrowed object receiver, and a transferable callback may capture only transferable
@@ -4326,7 +4334,8 @@ lifetime-dependent endpoints remain declined rather than copied or erased.
 
 A Rust value may project as **chain-only** when a projected root returns a concrete otherwise
 unnameable intermediate and its projected receiver methods can either continue with that same
-intermediate or terminate in an owned representable result. The intermediate may occur only as the
+intermediate or terminate in an owned representable result. The intermediate may retain a borrow
+from an ordinary named input whose owner outlives the complete expression. It may occur only as the
 receiver inside one nested Terrane expression. It cannot be bound, returned, captured, passed to
 Terrane code, or retained across `await`; all such escapes are one source error. A terminal method
 must produce an ordinary owned projected value.
@@ -4336,7 +4345,9 @@ panic containment, asynchronous awaiting, dependency-error mapping, and result c
 the terminal boundary rather than wrapping each intermediate separately. Projection schema 20
 records root, continuing, and terminal roles explicitly. Completion, signature help, and hover mark
 these values as chain-only and non-escaping. Methods that cannot continue the same concrete
-intermediate or terminate in an owned representable result remain declined.
+intermediate or terminate in an owned representable result remain declined. This rule does not
+claim that an open generic such as SQLx's `Query<'q, DB, A>` projects directly: a concrete declared
+adapter may itself retain a borrow and execute the generic SQLx operation inside its terminal.
 
 Cargo and rustc remain authoritative. Projection and editor information are advisory and derived from the resolved package rather than predefined by Terrane. The language server uses the shared artifact for completion, signature help, hover, exact Rust paths, and declined-item reasons. Projection executes under the build-script capability policy.
 

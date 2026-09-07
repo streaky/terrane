@@ -210,9 +210,9 @@ Terrane package
     │   └── connect-tls                        validated TLS 1.3/1.2 client connection; no insecure ordinary option
     ├── /core/concurrency                      synchronization objects; requires `threads`
     │   ├── concurrency-operation-result / concurrency-int-result explicit failure and integer value results for synchronization cells
-    │   ├── channel                            typed bounded sender/receiver pair factory; positive constant capacity
-    │   ├── channel-block / channel-fail-send / channel-drop-newest / channel-drop-oldest explicit overflow policies
-    │   ├── channel-pair / channel-sender / channel-receiver compiler-owned generic linear endpoint families
+    │   ├── channel                            typed sender/receiver pair; compile-time capacity; zero-capacity block rendezvous
+    │   ├── channel-block / channel-fail-send / channel-drop-newest / channel-drop-oldest explicit overflow policies; non-block policies require positive capacity
+    │   ├── channel-pair / channel-sender / channel-receiver compiler-owned generic linear endpoint families; receiver close returns accepted buffered values
     │   ├── channel-send-outcome / channel-receive-outcome compiler-owned accepted/dropped/closed, rejected/evicted item, and available/value/closed state
     │   ├── mutex / read-write-lock / shared-cell diagnostic-only names directing typed state to owner tasks and channels
     │   ├── int-mutex                          individually synchronized integer load / store / increase cell
@@ -843,16 +843,21 @@ representable `Result` returns, arbitrary projected `Option<T>` values, all Rust
 `f32`, `char`, concrete representable type aliases, recursive standard sequence, map, set, and
 homogeneous tuple shapes, monomorphic concrete `Fn`, `FnMut`, `FnOnce`, and future-returning
 callback bounds, concrete owned asynchronous producers with typed item/end steps, and concrete
-owned asynchronous sinks with accepted/closed send outcomes. Callback metadata retains call
-multiplicity, retention, and `Send`/`Sync` requirements. Async producers and sinks are
+owned asynchronous sinks with accepted/close outcomes. Callback metadata retains multiplicity,
+retention, and `Send`/`Sync`; generated shims cover free-function and projected-method arguments.
+`FnMut` does not introduce mutable capture cells: version-one anonymous functions still capture
+ordinary values by value and aliased mutable capture is rejected.
+Async producers and sinks are
 resource-owning linear endpoints: borrowed operations must be awaited directly, preserve protocol
 failure and task cancellation separately, and reborrow the endpoint for one suspension; consuming
 `close` or `split` makes later use of the transferred endpoint a source ownership error.
 Projection schema 20 also records concrete lifetime-bearing builders as chain-only roots,
-continuations, and terminals. Their intermediates may appear only as receiver subtrees inside one
-nested expression; binding, return, capture, argument escape, and suspension are rejected before
-lowering. The terminal must return an owned projectable value, and tooling marks the root as
-chain-only and non-escaping.
+continuations, and terminals. Their intermediates may retain a borrow from a named input but may
+appear only as receiver subtrees inside one nested expression; binding, return, capture, argument
+escape, and suspension are rejected before lowering. The terminal must return an owned projectable
+value, and tooling marks the root as chain-only and non-escaping. The accepted SQLx witness projects
+a concrete borrow-retaining adapter that runs SQLx inside its terminal; open `sqlx::Query` remains
+declined rather than being described as directly projected.
 Map keys and set items are limited to Terrane scalars. Cross-crate signature types
 are admitted only when their canonical owner is declared directly at one lock-resolved version;
 otherwise the member remains an explicit decline. Data-carrying enums remain opaque and use
