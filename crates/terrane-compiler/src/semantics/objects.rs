@@ -1,5 +1,101 @@
 use super::prelude::*;
 
+fn field_metadata(
+    unit: &SemanticUnit,
+    field: &SyntaxNode,
+    field_name: &str,
+    value_type: &ValueType,
+    defaulted: bool,
+    is_static: bool,
+) -> Result<ObjectFieldMetadata, SemanticFailure> {
+    let Some(metadata) = field
+        .children
+        .iter()
+        .find(|child| child.kind == SyntaxKind::FieldMetadata)
+    else {
+        return Ok(ObjectFieldMetadata {
+            external_name: field_name.to_owned(),
+            defaulted,
+            optional: matches!(value_type, ValueType::Optional(_)),
+            secret: false,
+        });
+    };
+    if is_static {
+        return Err(failure(
+            &unit.source,
+            "T0113",
+            "field metadata is only valid on instance fields",
+            metadata.span,
+        ));
+    }
+    let mut external_name = field_name.to_owned();
+    let mut secret = false;
+    let mut seen = BTreeSet::new();
+    for entry in &metadata.children {
+        let text = node_text(&unit.source, entry);
+        let Some((name, value)) = text.split_once('=') else {
+            continue;
+        };
+        let name = name.trim();
+        let value = value.trim();
+        if !seen.insert(name) {
+            return Err(failure(
+                &unit.source,
+                "T0113",
+                format!("field metadata `{name}` is declared more than once"),
+                entry.span,
+            ));
+        }
+        match name {
+            "external-name" => {
+                if value.len() < 2
+                    || !matches!(
+                        (value.as_bytes().first(), value.as_bytes().last()),
+                        (Some(b'\''), Some(b'\'')) | (Some(b'"'), Some(b'"'))
+                    )
+                {
+                    return Err(failure(
+                        &unit.source,
+                        "T0113",
+                        "`external-name` metadata requires a string",
+                        entry.span,
+                    ));
+                }
+                let decoded = crate::lexer::unescape_bytes(&value[1..value.len() - 1])
+                    .expect("the lexer validated string escapes");
+                external_name =
+                    String::from_utf8(decoded).expect("Terrane source strings remain UTF-8");
+            }
+            "secret" => match value {
+                "true" => secret = true,
+                "false" => secret = false,
+                _ => {
+                    return Err(failure(
+                        &unit.source,
+                        "T0113",
+                        "`secret` metadata requires a boolean",
+                        entry.span,
+                    ));
+                }
+            },
+            _ => {
+                return Err(failure(
+                    &unit.source,
+                    "T0113",
+                    format!("unknown field metadata `{name}`"),
+                    entry.span,
+                ));
+            }
+        }
+    }
+    Ok(ObjectFieldMetadata {
+        external_name,
+        defaulted,
+        optional: matches!(value_type, ValueType::Optional(_)),
+        secret,
+    })
+}
+
 #[expect(
     clippy::too_many_lines,
     reason = "object analysis assembles one complete declaration contract"
@@ -71,13 +167,14 @@ pub(super) fn analyze_object_contracts(
                 else {
                     continue;
                 };
-                let initializer = field.children.last().filter(|child| {
+                let initializer = field.children.iter().rev().find(|child| {
                     child.span != field_name.span
                         && !matches!(
                             child.kind,
                             SyntaxKind::Visibility
                                 | SyntaxKind::DeclarationQualifier
                                 | SyntaxKind::TypeExpression
+                                | SyntaxKind::FieldMetadata
                         )
                 });
                 let value_type = if let Some(type_node) = field
@@ -127,15 +224,40 @@ pub(super) fn analyze_object_contracts(
                         field.span,
                     ));
                 }
+                let field_name = node_text(&unit.source, field_name).to_owned();
+                let is_static = field.children.iter().any(|child| {
+                    child.kind == SyntaxKind::DeclarationQualifier
+                        && node_text(&unit.source, child) == "static"
+                });
+                let metadata = field_metadata(
+                    unit,
+                    field,
+                    &field_name,
+                    &value_type,
+                    initializer.is_some(),
+                    is_static,
+                )?;
                 fields.push(ObjectField {
-                    name: node_text(&unit.source, field_name).to_owned(),
+                    name: field_name,
                     span: field.span,
                     value_type,
-                    is_static: field.children.iter().any(|child| {
-                        child.kind == SyntaxKind::DeclarationQualifier
-                            && node_text(&unit.source, child) == "static"
-                    }),
+                    is_static,
+                    metadata,
                 });
+            }
+        }
+        let mut external_names = BTreeSet::new();
+        for field in fields.iter().filter(|field| !field.is_static) {
+            if !external_names.insert(field.metadata.external_name.clone()) {
+                return Err(failure(
+                    &unit.source,
+                    "T0113",
+                    format!(
+                        "external field name `{}` is used by more than one field",
+                        field.metadata.external_name
+                    ),
+                    field.span,
+                ));
             }
         }
         let resource_owning = kind == ObjectKind::Class

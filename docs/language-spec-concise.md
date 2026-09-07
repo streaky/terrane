@@ -736,6 +736,16 @@ encoding: explicit utf8/utf16-le/utf16-be/utf32-le/utf32-be; encode total; decod
   compiler-owned, per-operation `LazyLock<Mutex<...>>` strategy as mutable globals: reads copy the
   Terrane value, poisoning is an internal runtime failure, and this implementation detail neither
   makes source operation sequences atomic nor replaces explicit concurrency objects.
+- Field metadata has one trailing clause:
+  `field T = value metadata (external-name = 'wireName', secret = true)`.
+  It is valid only on instance fields. `external-name` is a string, `secret` is a boolean, names
+  cannot repeat, and effective external names are unique per class. Defaults remain ordinary
+  initializers and optionality remains `T|none`; resolved field descriptors derive `defaulted` and
+  `optional` rather than duplicating either policy.
+- Class descriptor reflection exposes parallel declaration-ordered `field-names`,
+  `field-external-names`, `field-defaulted`, `field-optional`, and `field-secret` lists plus
+  `field-count`. Document mapping and redaction consume this same metadata; no facility-specific
+  annotation or generated-Rust field name participates.
 
 ## GLOBAL / BUILD
 

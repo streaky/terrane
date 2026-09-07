@@ -333,6 +333,7 @@ pub(super) fn binding_initializer(node: &SyntaxNode, name_index: usize) -> Optio
                     SyntaxKind::TypeExpression
                         | SyntaxKind::Visibility
                         | SyntaxKind::DeclarationQualifier
+                        | SyntaxKind::FieldMetadata
                 )
         })
         .map(|(_, child)| child)

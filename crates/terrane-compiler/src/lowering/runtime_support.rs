@@ -5,7 +5,21 @@ pub(super) fn descriptor_runtime_module() -> GeneratedModule {
         items: vec![Item::generated(
             "#[allow(dead_code)]\n\
              #[derive(Clone, Copy)]\n\
-             struct TerraneDescriptor { identity: &'static str, name: &'static str, kind: &'static str }\n",
+             struct TerraneFieldMetadata {\n\
+                 name: &'static str,\n\
+                 external_name: &'static str,\n\
+                 defaulted: bool,\n\
+                 optional: bool,\n\
+                 secret: bool,\n\
+             }\n\
+             #[allow(dead_code)]\n\
+             #[derive(Clone, Copy)]\n\
+             struct TerraneDescriptor {\n\
+                 identity: &'static str,\n\
+                 name: &'static str,\n\
+                 kind: &'static str,\n\
+                 fields: &'static [TerraneFieldMetadata],\n\
+             }\n",
         )],
     }
 }

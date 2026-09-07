@@ -565,6 +565,12 @@ For an ordinary typed scalar, both forms compare its resolved canonical Terrane 
 
 Descriptor names remain compile-time identities in ordinary type positions. When reflection or dynamic descriptor observation requires a value, the compiler materializes the canonical descriptor object; source bindings may retain and print that object, and `.name` exposes its canonical source spelling. An explicit import or constant alias retains the same descriptor identity rather than creating a new descriptor.
 
+Source-declared class instance fields accept one trailing `metadata (...)` clause. The implemented
+metadata names are string `external-name` and boolean `secret`; declared initializers and `T|none`
+derive the same field descriptor's `defaulted` and `optional` flags. Class descriptors expose
+declaration-ordered field names, external names, and all three flags as parallel reflected lists.
+Malformed, duplicate, static-field, non-field, and externally conflicting metadata is rejected.
+
 ## Functions
 
 ### Built-in `print`
@@ -764,6 +770,7 @@ change the generated manifest.
 | Receiver | Member | Kind | Result / effect |
 |---|---|---|---|
 | any implemented scalar value | `.type` | property | canonical scalar descriptor |
+| class descriptor | `.field-count`, `.field-names`, `.field-external-names`, `.field-defaulted`, `.field-optional`, `.field-secret` | properties | declaration-ordered resolved field metadata |
 | `string` | `.length` | property | adaptive `int` grapheme count |
 | `string` | `.concat; values...` | method | concatenated `string` using canonical display |
 | `string` | `.join; values...` | method | canonical displays interleaved with receiver separator |
@@ -888,7 +895,7 @@ The authoritative language draft proposes a much larger ontology. None of the fo
 
 ```text
 collection checked lookup children and source-visible typed lookup errors
-reflection inventories beyond retained callable contracts, throwable alternatives, and canonical descriptor identity
+reflection inventories beyond retained field metadata, callable contracts, throwable alternatives, and canonical descriptor identity
 bytes indexing and slicing
 user-authored implementations of general iteration protocols
 user-declared type parameters and generic application

@@ -3443,6 +3443,30 @@ private cache = map;
 protected state = none
 ```
 
+Field declarations have one extensible metadata clause:
+
+```terrane
+class service-options
+
+  internal-name string = 'primary' metadata (external-name = 'serviceName')
+  credential string = '' metadata (secret = true)
+```
+
+The clause follows the initializer and is valid only on instance fields. Version one defines
+`external-name`, whose value is a string, and `secret`, whose value is a boolean. A metadata name
+may occur at most once on a field, and two effective fields of one class may not expose the same
+external name. Unknown names, malformed values, metadata on static or non-field bindings, and
+conflicting external names are source errors.
+
+This is the single field-metadata mechanism used by document mapping, logging redaction, and
+reflection. A field default remains its ordinary initializer rather than a second metadata value,
+and optionality remains expressed by `T|none`; the resolved field descriptor records both derived
+facts alongside the external name and secrecy policy. Reflection on a class descriptor exposes the
+instance-field inventory through `field-count`, `field-names`, `field-external-names`,
+`field-defaulted`, `field-optional`, and `field-secret`. The parallel lists use declaration order
+after inherited-field replacement, retain semantic field names separately from external names, and
+do not expose generated Rust identifiers.
+
 ### 18.2 Inheritance
 
 Single class inheritance is supported:

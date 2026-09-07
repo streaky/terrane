@@ -222,6 +222,24 @@ impl Emitter<'_> {
                 "name" => format!("({receiver}).name.to_owned()"),
                 "kind" => format!("({receiver}).kind.to_owned()"),
                 "identity" => format!("({receiver}).identity.to_owned()"),
+                "field-count" => {
+                    format!("terrane_int_support::Int::from(({receiver}).fields.len() as i128)")
+                }
+                "field-names" => format!(
+                    "({receiver}).fields.iter().map(|field| field.name.to_owned()).collect::<Vec<String>>()"
+                ),
+                "field-external-names" => format!(
+                    "({receiver}).fields.iter().map(|field| field.external_name.to_owned()).collect::<Vec<String>>()"
+                ),
+                "field-defaulted" => format!(
+                    "terrane_collection_support::List::new(({receiver}).fields.iter().map(|field| field.defaulted).collect::<Vec<bool>>())"
+                ),
+                "field-optional" => format!(
+                    "terrane_collection_support::List::new(({receiver}).fields.iter().map(|field| field.optional).collect::<Vec<bool>>())"
+                ),
+                "field-secret" => format!(
+                    "terrane_collection_support::List::new(({receiver}).fields.iter().map(|field| field.secret).collect::<Vec<bool>>())"
+                ),
                 _ => String::new(),
             };
         }

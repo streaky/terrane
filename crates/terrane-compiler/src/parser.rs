@@ -419,14 +419,72 @@ impl Parser<'_> {
         if !self.at(TokenKind::Assign) && !self.at_line_end() {
             children.push(self.parse_type_expression());
         }
-        if self.eat(TokenKind::Assign) {
+        let initializer = if self.eat(TokenKind::Assign) {
             if self.at_line_end() {
                 self.error_here("S1004", "expected an initializer after `=`");
+                None
             } else {
-                children.push(self.parse_expression(0, true));
+                Some(self.parse_expression(0, true))
             }
+        } else {
+            None
+        };
+        if self.at_text("metadata") {
+            if self.block_depth != self.class_body_depth {
+                self.error_here("S1097", "field metadata is only valid on class fields");
+            }
+            children.push(self.parse_field_metadata());
+        }
+        if let Some(initializer) = initializer {
+            children.push(initializer);
         }
         self.node(SyntaxKind::Binding, start, self.position, children)
+    }
+    fn parse_field_metadata(&mut self) -> SyntaxNode {
+        let start = self.position;
+        self.bump();
+        self.expect(TokenKind::OpenParen, "S1097", "field metadata requires `(`");
+        let mut entries = Vec::new();
+        while !self.at(TokenKind::CloseParen) && !self.at_line_end() {
+            let entry_start = self.position;
+            if self.at(TokenKind::Identifier) {
+                self.bump();
+            } else {
+                self.error_here("S1097", "field metadata requires a metadata name");
+                self.recover_to_comma_or_text(")");
+            }
+            self.expect(
+                TokenKind::Assign,
+                "S1097",
+                "field metadata requires `=` after its name",
+            );
+            if matches!(
+                self.current().kind,
+                TokenKind::String | TokenKind::TailString | TokenKind::BlockString
+            ) || self.at_text("true")
+                || self.at_text("false")
+            {
+                self.bump();
+            } else {
+                self.error_here("S1097", "field metadata values must be strings or booleans");
+                self.recover_to_comma_or_text(")");
+            }
+            entries.push(self.node(
+                SyntaxKind::FieldMetadataEntry,
+                entry_start,
+                self.position,
+                Vec::new(),
+            ));
+            if !self.eat(TokenKind::Comma) {
+                break;
+            }
+        }
+        self.expect(
+            TokenKind::CloseParen,
+            "S1097",
+            "expected `)` after field metadata",
+        );
+        self.node(SyntaxKind::FieldMetadata, start, self.position, entries)
     }
 
     fn parse_function(&mut self) -> SyntaxNode {

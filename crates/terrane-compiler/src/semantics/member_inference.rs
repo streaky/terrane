@@ -157,6 +157,11 @@ pub(super) fn infer_member_value_type(
     if let Some(ValueType::Descriptor(_)) = &receiver_type {
         return match member_name {
             "name" | "kind" | "identity" => Ok(Some(ValueType::Scalar(ScalarType::String))),
+            "field-count" => Ok(Some(ValueType::Scalar(ScalarType::Int))),
+            "field-names" | "field-external-names" => Ok(Some(ValueType::StringList)),
+            "field-defaulted" | "field-optional" | "field-secret" => Ok(Some(ValueType::List(
+                ElementType::new(ValueType::Scalar(ScalarType::Bool)),
+            ))),
             _ => Err(failure(
                 &unit.source,
                 "T0071",

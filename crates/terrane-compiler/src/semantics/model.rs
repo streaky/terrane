@@ -684,11 +684,20 @@ pub enum ObjectKind {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ObjectFieldMetadata {
+    pub external_name: String,
+    pub defaulted: bool,
+    pub optional: bool,
+    pub secret: bool,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ObjectField {
     pub name: String,
     pub span: Span,
     pub value_type: ValueType,
     pub is_static: bool,
+    pub metadata: ObjectFieldMetadata,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]

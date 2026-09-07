@@ -1,0 +1,13 @@
+namespace class-field-metadata
+
+class service-options
+    internal-name string = 'primary' metadata (external-name = 'serviceName')
+    retry-limit int = 3
+    note string|none = none
+    credential string = 'hidden' metadata (secret = true)
+
+function main;
+    descriptor = service-options
+    print; descriptor.field-count
+    print; descriptor.field-names[0], ':', descriptor.field-external-names[0]
+    print; descriptor.field-defaulted[1], descriptor.field-optional[2], descriptor.field-secret[3]
