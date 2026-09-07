@@ -253,6 +253,9 @@ pub(super) fn infer_value_type(
         if let Some(value_type) = infer_typed_document_decode(unit, node, bindings)? {
             return Ok(Some(value_type));
         }
+        if let Some(value_type) = infer_structured_log_emit(unit, node, bindings)? {
+            return Ok(Some(value_type));
+        }
         if let [callee, arguments] = node.children.as_slice() {
             if callee.kind == SyntaxKind::ConstructionExpression {
                 let class = callee.children.first().ok_or_else(|| {
@@ -454,6 +457,28 @@ pub(super) fn infer_value_type(
                     | "intrinsic:streams::sync-all"
                     | "intrinsic:streams::close"
                     | "intrinsic:streams::release" => Some(ValueType::PlatformUnitResult),
+                    "intrinsic:logging::log-empty-fields" => {
+                        Some(ValueType::List(ElementType::new(ValueType::Object(
+                            ObjectIdentity::new("/core/logging", "log-field"),
+                        ))))
+                    }
+                    "intrinsic:logging::log-empty-spans"
+                    | "intrinsic:logging::log-result-entries" => Some(ValueType::List(
+                        ElementType::new(ValueType::Scalar(ScalarType::String)),
+                    )),
+                    "intrinsic:logging::log-no-sink"
+                    | "intrinsic:logging::log-result-capability" => {
+                        Some(ValueType::PlatformCapability)
+                    }
+                    "intrinsic:logging::log-memory-sink"
+                    | "intrinsic:logging::log-console-sink"
+                    | "intrinsic:logging::log-failing-sink"
+                    | "intrinsic:logging::log-write"
+                    | "intrinsic:logging::log-drain"
+                    | "intrinsic:logging::log-drain-fallback"
+                    | "intrinsic:logging::log-install-dependency-bridge" => {
+                        Some(ValueType::PlatformResult)
+                    }
                     "intrinsic:data::empty-document"
                     | "intrinsic:data::make-document-none"
                     | "intrinsic:data::make-document-bool"
@@ -563,7 +588,8 @@ pub(super) fn infer_value_type(
                     | "intrinsic:system::filesystem-remove" => {
                         Some(ValueType::PlatformFilesystemResult)
                     }
-                    "intrinsic:system::result-failed"
+                    "intrinsic:logging::log-result-failed"
+                    | "intrinsic:system::result-failed"
                     | "intrinsic:system::result-bool"
                     | "intrinsic:system::platform-value-is-text"
                     | "intrinsic:data::data-failed"
@@ -580,7 +606,8 @@ pub(super) fn infer_value_type(
                     | "intrinsic:adapters::result-bool" => {
                         Some(ValueType::Scalar(ScalarType::Bool))
                     }
-                    "intrinsic:system::result-message"
+                    "intrinsic:logging::log-result-message"
+                    | "intrinsic:system::result-message"
                     | "intrinsic:system::result-text"
                     | "intrinsic:system::result-detail"
                     | "intrinsic:system::platform-value-text"

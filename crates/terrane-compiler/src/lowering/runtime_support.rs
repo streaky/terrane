@@ -50,6 +50,31 @@ pub(super) fn package_uses_task_scope(package: &SemanticPackage) -> bool {
         .any(|unit| contains(package, unit, &unit.tree.root))
 }
 
+pub(super) fn package_uses_log_error(package: &SemanticPackage) -> bool {
+    fn contains(package: &SemanticPackage, unit: &SemanticUnit, node: &SyntaxNode) -> bool {
+        if node.kind == SyntaxKind::CallExpression
+            && let Some(callee) = node.children.first()
+            && callee.kind == SyntaxKind::Name
+            && package
+                .resolve_name_at(
+                    unit,
+                    callee.span.start,
+                    &unit.source.text()[callee.span.start..callee.span.end],
+                )
+                .is_some_and(|symbol| symbol.identity == "/core/logging::log-error")
+        {
+            return true;
+        }
+        node.children
+            .iter()
+            .any(|child| contains(package, unit, child))
+    }
+    package
+        .units
+        .iter()
+        .any(|unit| contains(package, unit, &unit.tree.root))
+}
+
 pub(super) fn package_uses_typed_documents(package: &SemanticPackage) -> bool {
     fn contains(package: &SemanticPackage, unit: &SemanticUnit, node: &SyntaxNode) -> bool {
         if node.kind == SyntaxKind::CallExpression

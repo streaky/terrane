@@ -1,0 +1,87 @@
+namespace structured-logging
+
+from /core/output import print
+from /core/collections import list
+from /core/documents import document-value, make-document-string
+from /core/logging import log-value, log-field, log-event, field, secret-field, log-text, log-error, memory-sink, console-sink, failing-sink, make-logger-options, make-logger, default-logger, with-field, with-span, make-event, write-event, emit, drain-memory, drain-fallback, debug-level, info-level, info
+from /core/logging/async import send-event
+from /core/concurrency import channel, channel-block
+from /core/errors import coercion-error
+
+
+class request-data
+    token string = '' metadata (secret = true)
+
+    function construct; token string
+        this.token = token
+
+class counted-value implements log-value
+    value string = ''
+
+    function construct; input string
+        this.value = input
+
+    function render document-value;
+        print; 'rendered:', this.value
+        return make-document-string; this.value
+
+async function main;
+    sink-result = memory-sink; 4, 'drop-oldest', 1000, 5, false
+    writer = make-logger; sink-result.value, (make-logger-options; (info-level;), 'service.', 'service.worker', 8, 4096)
+    writer = with-field; writer, (field; 'request', (log-text; 'r-1'))
+    writer = with-span; writer, 'serve'
+
+    lazy = instance counted-value; 'rendered'
+    token-field = field; 'token', (instance counted-value; 'raw-secret')
+    descriptor = request-data
+    if descriptor.field-secret[0]
+        token-field = secret-field; 'token', (instance counted-value; 'raw-secret')
+    additions = list; (field; 'value', lazy), token-field
+    filtered = emit; writer, (debug-level;), 'filtered', additions
+    print; filtered.filtered, filtered.failed
+
+    written = info; writer, 'handled', additions
+    print; written.filtered, written.failed
+
+    records = drain-memory; writer
+    print; records.length
+    print; (records[0].contains; '"timestamp":1000'), (records[0].contains; '"sequence":0'), (records[0].contains; '"severity":"info"')
+    print; (records[0].contains; '"target":"service.worker"'), (records[0].contains; '"message":"handled"'), (records[0].contains; '"serve"')
+    print; (records[0].contains; '"request"'), (records[0].contains; '"<redacted>"'), (records[0].contains; 'raw-secret')
+    print; (records[0].contains; 'case.trn'), (records[0].contains; '"origin":"terrane"')
+
+    other-sink = memory-sink; 2, 'drop-oldest', 2000, 1, false
+    other = make-logger; other-sink.value, (make-logger-options; (info-level;), 'service.', 'other.worker', 8, 4096)
+    target-filtered = emit; other, (info-level;), 'not-written', additions
+    print; target-filtered.filtered
+
+    empty-fields list of log-field = list;
+
+    try
+        throw coercion-error
+    catch coercion-error as caught
+        error-fields = list; (field; 'failure', (log-error; caught))
+        error-write = info; writer, 'failed-operation', error-fields
+        error-records = drain-memory; writer
+        print; error-write.failed, error-records.length, (error-records[0].contains; 'coercion-error')
+    failed-sink = failing-sink;
+    failed-logger = default-logger; failed-sink.value
+    failed-write = info; failed-logger, 'cannot-write', empty-fields
+    fallback = drain-fallback;
+    print; failed-write.failed, fallback.length, (fallback[0].contains; 'event rejected')
+
+    console-result = console-sink; false
+    console = default-logger; console-result.value
+    console-write = info; console, 'visible', empty-fields
+    print; console-write.failed
+
+    pair = channel; log-event, 1, channel-block
+    async-event = make-event; (info-level;), 'transported', empty-fields
+    sent = await send-event; pair.sender, async-event
+    received = await pair.receiver.receive;
+    transported = received.value
+    if transported != none
+        transported-write = write-event; writer, transported
+        print; sent, received.available, transported-write.failed
+    transported-records = drain-memory; writer
+    print; transported-records.length, (transported-records[0].contains; '"message":"transported"')

@@ -34,6 +34,37 @@ impl Emitter<'_> {
             "{{ let source = {source}; let options = {options}; let input = {parse}; match <{destination_type} as TerraneDocumentDecode>::terrane_decode_document(&input, \"$\", {allow_unknown}, {source_site:?}, {source_site:?}) {{ Ok(value) => TerraneDocumentDecodeOutcome {{ value, diagnostics: terrane_collection_support::List::new(Vec::new()) }}, Err(diagnostics) => TerraneDocumentDecodeOutcome {{ value: {destination_type}::terrane_construct(), diagnostics: terrane_collection_support::List::new(diagnostics) }} }} }}"
         )
     }
+    fn structured_log_emit_call(
+        &mut self,
+        node: &SyntaxNode,
+        identity: &str,
+        arguments: &SyntaxNode,
+    ) -> String {
+        let mut values = arguments
+            .children
+            .iter()
+            .map(|argument| {
+                let value = argument.children.last().unwrap_or(argument);
+                format!("({}).clone()", self.expression(value))
+            })
+            .collect::<Vec<_>>();
+        if identity != "/core/logging::emit" {
+            let level = identity
+                .rsplit_once("::")
+                .map(|(_, name)| name)
+                .expect("a structured log operation has a qualified identity");
+            values.insert(1, format!("{level}_level()"));
+        }
+        let (line, column) = self.source.line_column(node.span.start);
+        values.insert(
+            3,
+            format!(
+                "{:?}.to_owned()",
+                format!("{}:{line}:{column}", self.unit.source_path)
+            ),
+        );
+        format!("emit_at({})", values.join(", "))
+    }
 
     #[expect(
         clippy::too_many_lines,
@@ -55,6 +86,84 @@ impl Emitter<'_> {
             )
         {
             return self.typed_document_decode_call(node, &identity, arguments);
+        }
+        if callee.kind == SyntaxKind::Name
+            && let Some(identity) = self
+                .package
+                .resolve_name_at(self.unit, callee.span.start, self.text(callee))
+                .map(|symbol| symbol.identity.clone())
+            && matches!(
+                identity.as_str(),
+                "/core/logging::emit"
+                    | "/core/logging::debug"
+                    | "/core/logging::info"
+                    | "/core/logging::warning"
+                    | "/core/logging::error"
+            )
+        {
+            return self.structured_log_emit_call(node, &identity, arguments);
+        }
+        if callee.kind == SyntaxKind::Name
+            && let Some(identity) = self
+                .package
+                .resolve_name_at(self.unit, callee.span.start, self.text(callee))
+                .map(|symbol| symbol.identity.clone())
+            && matches!(
+                identity.as_str(),
+                "/core/logging::field" | "/core/logging::secret-field"
+            )
+        {
+            let values = arguments
+                .children
+                .iter()
+                .map(|argument| argument.children.last().unwrap_or(argument))
+                .collect::<Vec<_>>();
+            let name = format!("({}).clone()", self.expression(values[0]));
+            let value = self.expression_as(
+                values[1],
+                ValueType::Object(ObjectIdentity {
+                    namespace: "/core/logging".to_owned(),
+                    name: "log-value".to_owned(),
+                }),
+            );
+            let secret = identity.ends_with("::secret-field");
+            let (line, column) = self.source.line_column(node.span.start);
+            let source = format!("{}:{line}:{column}", self.unit.source_path);
+            return format!("field_at({name}, {value}, {secret}, {source:?}.to_owned())");
+        }
+        if callee.kind == SyntaxKind::Name
+            && self
+                .package
+                .resolve_name_at(self.unit, callee.span.start, self.text(callee))
+                .is_some_and(|symbol| symbol.identity == "/core/logging::make-event")
+        {
+            let values = arguments
+                .children
+                .iter()
+                .map(|argument| {
+                    let value = argument.children.last().unwrap_or(argument);
+                    format!("({}).clone()", self.expression(value))
+                })
+                .collect::<Vec<_>>();
+            let (line, column) = self.source.line_column(node.span.start);
+            let source = format!("{}:{line}:{column}", self.unit.source_path);
+            return format!(
+                "make_event_at({}, {}, {source:?}.to_owned(), {})",
+                values[0], values[1], values[2]
+            );
+        }
+        if callee.kind == SyntaxKind::Name
+            && self
+                .package
+                .resolve_name_at(self.unit, callee.span.start, self.text(callee))
+                .is_some_and(|symbol| symbol.identity == "/core/logging::log-error")
+        {
+            let argument = arguments
+                .children
+                .first()
+                .and_then(|argument| argument.children.last())
+                .expect("semantic logging error adapter has one argument");
+            return format!("terrane_log_error(({}).clone())", self.expression(argument));
         }
         if callee.kind == SyntaxKind::Name && self.text(callee) == "task-scope" {
             let deadline = arguments.children.first().map_or_else(
@@ -466,6 +575,85 @@ impl Emitter<'_> {
                 .collect::<Vec<_>>();
             let format = "{}".repeat(values.len());
             return format!("println!(\"{format}\", {})", values.join(", "));
+        }
+        if self.is_builtin(callee, "intrinsic:logging::log-empty-fields") {
+            return "terrane_collection_support::List::new(Vec::new())".to_owned();
+        }
+        if self.is_builtin(callee, "intrinsic:logging::log-empty-spans") {
+            return "terrane_collection_support::List::<String>::new(Vec::new())".to_owned();
+        }
+        if self.is_builtin(callee, "intrinsic:logging::log-no-sink") {
+            return "terrane_platform_support::logging_no_sink()".to_owned();
+        }
+        if self.is_builtin(callee, "intrinsic:logging::log-memory-sink") {
+            let integer = |emitter: &mut Self, index: usize| {
+                let value = emitter
+                    .expression_as(argument_values[index], ValueType::Scalar(ScalarType::Int));
+                format!("terrane_int_support::checked_coerce::<i128>(&({value}))")
+            };
+            let capacity = integer(self, 0);
+            let overflow = self.expression(argument_values[1]);
+            let start = integer(self, 2);
+            let step = integer(self, 3);
+            let reveal = self.expression(argument_values[4]);
+            return format!(
+                "terrane_platform_support::logging_memory_sink({capacity}, &({overflow}), {start}, {step}, {reveal})"
+            );
+        }
+        if self.is_builtin(callee, "intrinsic:logging::log-console-sink") {
+            let reveal = self.expression(argument_values[0]);
+            return format!("terrane_platform_support::logging_console_sink({reveal})");
+        }
+        if self.is_builtin(callee, "intrinsic:logging::log-failing-sink") {
+            return "terrane_platform_support::logging_failing_sink()".to_owned();
+        }
+        for (identity, function) in [
+            ("log-result-failed", "terrane_platform_result_failed"),
+            ("log-result-message", "terrane_platform_result_message"),
+            (
+                "log-result-capability",
+                "terrane_platform_result_capability",
+            ),
+        ] {
+            if self.is_builtin(callee, &format!("intrinsic:logging::{identity}")) {
+                let value = self.expression(argument_values[0]);
+                return format!("{function}(&({value}))");
+            }
+        }
+        if self.is_builtin(callee, "intrinsic:logging::log-result-entries") {
+            let value = self.expression(argument_values[0]);
+            return format!(
+                "terrane_collection_support::List::new(terrane_platform_result_entries(&({value})))"
+            );
+        }
+        if self.is_builtin(callee, "intrinsic:logging::log-drain") {
+            let sink = self.expression(argument_values[0]);
+            return format!("terrane_platform_support::logging_drain(&({sink}))");
+        }
+        if self.is_builtin(callee, "intrinsic:logging::log-drain-fallback") {
+            return "terrane_platform_support::logging_drain_fallback()".to_owned();
+        }
+        if self.is_builtin(callee, "intrinsic:logging::log-install-dependency-bridge") {
+            let sink = self.expression(argument_values[0]);
+            return format!(
+                "terrane_platform_support::logging_install_dependency_bridge(&({sink}))"
+            );
+        }
+        if self.is_builtin(callee, "intrinsic:logging::log-write") {
+            let sink = self.expression(argument_values[0]);
+            let severity = self.expression(argument_values[1]);
+            let target = self.expression(argument_values[2]);
+            let message = self.expression(argument_values[3]);
+            let fields = self.expression(argument_values[4]);
+            let source = self.expression(argument_values[5]);
+            let spans = self.expression(argument_values[6]);
+            let max_fields =
+                self.expression_as(argument_values[7], ValueType::Scalar(ScalarType::Int));
+            let max_bytes =
+                self.expression_as(argument_values[8], ValueType::Scalar(ScalarType::Int));
+            return format!(
+                "{{ let sink = {sink}; let severity = {severity}; let target = {target}; let message = {message}; let raw_fields = {fields}; let source = {source}; let spans = {spans}; let max_fields_value = {max_fields}; let max_bytes_value = {max_bytes}; match (terrane_collection_support::index_from_int(&max_fields_value), terrane_collection_support::index_from_int(&max_bytes_value)) {{ (Ok(max_fields), Ok(max_bytes)) => {{ let reveal_secrets = terrane_platform_support::logging_reveals_secrets(&sink); let fields = raw_fields.into_vec().into_iter().map(|field| {{ let value_json = if field.secret && !reveal_secrets {{ \"null\".to_owned() }} else {{ field.value.render().encoded.clone() }}; terrane_platform_support::LogFieldInput {{ name: field.name, value_json, secret: field.secret, source: field.source }} }}).collect::<Vec<_>>(); terrane_platform_support::logging_emit(&sink, terrane_platform_support::LogEventInput {{ severity, target, message, fields, source, spans: spans.into_vec(), max_fields, max_bytes, origin: \"terrane\".to_owned() }}) }}, (Err(_), _) => terrane_platform_support::ResultValue::error(\"logging field limit must be non-negative and fit this target\"), (_, Err(_)) => terrane_platform_support::ResultValue::error(\"logging byte limit must be non-negative and fit this target\") }} }}"
+            );
         }
         let data_call = [
             ("empty-document", "empty_document"),

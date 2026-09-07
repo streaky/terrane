@@ -1,0 +1,9 @@
+[package]
+name = "observability-witness"
+version = "0.1.1"
+edition = "2024"
+publish = false
+
+[dependencies]
+log = { version = "=0.4.34", features = ["kv"] }
+tracing = "=0.1.44"

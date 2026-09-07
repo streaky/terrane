@@ -1,0 +1,22 @@
+namespace app
+
+from /core/output import print
+from /core/logging import memory-sink, default-logger, install-dependency-bridge, drain-memory
+from /deps/observability-witness import emit_log_event, emit_tracing_event
+
+function main;
+    sink-result = memory-sink; 8, 'reject', 4000, 2, false
+    writer = default-logger; sink-result.value
+    installed = install-dependency-bridge; writer
+    print; installed.failed
+
+    emit_log_event;
+    emit_tracing_event;
+
+    records = drain-memory; writer
+    print; records.length
+    print; (records[0].contains; '"origin":"dependency"'), (records[0].contains; '"target":"dependency.log"'), (records[0].contains; 'cache miss')
+    print; (records[0].contains; 'observability_witness'), (records[0].contains; 'src/lib.rs:2')
+    print; (records[1].contains; '"origin":"dependency"'), (records[1].contains; '"target":"dependency.trace"'), (records[1].contains; 'loaded')
+    print; (records[1].contains; '"name":"item"'), (records[1].contains; '"value":7'), (records[1].contains; 'src/lib.rs:6')
+    print; (records[0].contains; 'case.trn'), (records[1].contains; 'case.trn')

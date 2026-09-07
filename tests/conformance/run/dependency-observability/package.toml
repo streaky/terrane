@@ -1,0 +1,13 @@
+package = "dependency-observability"
+
+[profile]
+name = "observability"
+capabilities = ["build", "logging", "process"]
+
+[namespaces]
+app = "src"
+
+[rust-dependencies.observability-witness]
+package = "observability-witness"
+version = "=0.1.1"
+effects = ["build", "process"]

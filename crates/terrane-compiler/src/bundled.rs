@@ -41,6 +41,16 @@ const SOURCES: &[BundledSource] = &[
         text: include_str!("core/yaml.trn"),
     },
     BundledSource {
+        namespace: "/core/logging",
+        path: "core/logging.trn",
+        text: include_str!("core/logging.trn"),
+    },
+    BundledSource {
+        namespace: "/core/logging/async",
+        path: "core/logging_async.trn",
+        text: include_str!("core/logging_async.trn"),
+    },
+    BundledSource {
         namespace: "/core/urls",
         path: "core/urls.trn",
         text: include_str!("core/urls.trn"),

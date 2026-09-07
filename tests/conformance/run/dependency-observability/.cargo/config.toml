@@ -1,0 +1,2 @@
+[patch.crates-io]
+observability-witness = { path = "fixture-registry/observability-witness-0.1.1" }

@@ -13,6 +13,7 @@ mod collections;
 mod contracts;
 mod documents;
 mod expressions;
+mod logging;
 mod member_inference;
 mod numeric;
 mod types;
@@ -48,6 +49,7 @@ mod prelude {
     pub(super) use super::diagnostics::*;
     pub(super) use super::documents::*;
     pub(super) use super::expressions::*;
+    pub(super) use super::logging::*;
     pub(super) use super::member_inference::*;
     pub(super) use super::model::*;
     pub(super) use super::namespaces::*;

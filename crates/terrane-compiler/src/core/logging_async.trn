@@ -1,0 +1,8 @@
+namespace core/logging/async
+
+from /core/logging import log-event
+from /core/concurrency import channel, channel-block
+
+async function send-event bool; sink (channel-sender of log-event), value log-event
+    outcome = await sink.send; value
+    return outcome.accepted

@@ -154,7 +154,20 @@ pub(super) fn infer_member_value_type(
     };
     let member_name = node_text(&unit.source, member);
     let receiver_type = infer_receiver_value_type(unit, receiver, bindings)?;
-    if let Some(ValueType::Descriptor(_)) = &receiver_type {
+    if let Some(ValueType::Descriptor(identity)) = &receiver_type {
+        if let Some(field) = unit
+            .objects
+            .iter()
+            .find(|object| object.name == *identity)
+            .and_then(|object| {
+                object
+                    .fields
+                    .iter()
+                    .find(|field| field.is_static && field.name == member_name)
+            })
+        {
+            return Ok(Some(field.value_type.clone()));
+        }
         return match member_name {
             "name" | "kind" | "identity" => Ok(Some(ValueType::Scalar(ScalarType::String))),
             "field-count" => Ok(Some(ValueType::Scalar(ScalarType::Int))),

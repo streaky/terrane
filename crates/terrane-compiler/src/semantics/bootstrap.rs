@@ -393,6 +393,28 @@ pub(super) fn bootstrap_namespaces() -> BTreeMap<String, Namespace> {
             ),
         );
     }
+    namespaces.insert("/core/logging".to_owned(), Namespace::default());
+    add_private_host_bindings(
+        &mut namespaces,
+        "/core/logging",
+        "logging",
+        [
+            "log-empty-fields",
+            "log-empty-spans",
+            "log-memory-sink",
+            "log-console-sink",
+            "log-failing-sink",
+            "log-no-sink",
+            "log-write",
+            "log-drain",
+            "log-drain-fallback",
+            "log-install-dependency-bridge",
+            "log-result-failed",
+            "log-result-message",
+            "log-result-entries",
+            "log-result-capability",
+        ],
+    );
     let mut types = vec![
         "int".to_owned(),
         "float".to_owned(),

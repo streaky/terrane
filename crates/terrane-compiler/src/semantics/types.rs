@@ -374,6 +374,11 @@ pub(super) fn declared_value_type_with_visible_objects(
         }
     }
     let type_name = node_text(&unit.source, type_node).trim();
+    let type_name = type_name
+        .strip_prefix('(')
+        .and_then(|value| value.strip_suffix(')'))
+        .unwrap_or(type_name)
+        .trim();
     let lexical_identity = lexical_scope_chain(unit, type_node.span.start).find_map(|scope| {
         scope.symbols.get(type_name).and_then(|symbols| {
             symbols.iter().rev().find_map(|symbol| {
@@ -401,6 +406,14 @@ pub(super) fn declared_value_type_with_visible_objects(
         (
             "tuple of ",
             (|item| ValueType::Tuple(item, None)) as fn(ElementType) -> ValueType,
+        ),
+        (
+            "channel-sender of ",
+            ValueType::ChannelSender as fn(ElementType) -> ValueType,
+        ),
+        (
+            "channel-receiver of ",
+            ValueType::ChannelReceiver as fn(ElementType) -> ValueType,
         ),
         (
             "iterator of ",
