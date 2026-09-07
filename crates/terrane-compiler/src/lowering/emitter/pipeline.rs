@@ -12,6 +12,10 @@ pub(super) fn module_destination(unit: &SemanticUnit) -> ModuleDestination {
     reason = "package lowering assembles one deterministic generated-crate prelude and unit set"
 )]
 pub(crate) fn lower(package: &SemanticPackage) -> Program {
+    debug_assert!(
+        package.execution_requirements.is_consistent(),
+        "semantic execution requirements must form a coherent strategy request"
+    );
     let mut runtime = Vec::new();
     let mut globals = String::new();
     let registry = LoweringRegistry::default();
@@ -20,6 +24,23 @@ pub(crate) fn lower(package: &SemanticPackage) -> Program {
         .units
         .iter()
         .any(|unit| unit.namespace.starts_with("/deps/") && !unit.functions.is_empty());
+    let has_async_dependency = package.units.iter().any(|unit| {
+        unit.namespace.starts_with("/deps/")
+            && unit
+                .functions
+                .iter()
+                .any(|function| function.is_async && package.function_is_referenced(function.span))
+    });
+    let has_async = package
+        .units
+        .iter()
+        .any(|unit| unit.functions.iter().any(|function| function.is_async));
+    let has_async_entry = package
+        .units
+        .iter()
+        .flat_map(|unit| &unit.functions)
+        .any(|function| function.name == "main" && function.is_async);
+    let native_cancellation = package_uses_task_scope(package) && has_async_entry;
     let has_custom_throwable = has_dependency
         || package.units.iter().any(|unit| {
             unit.objects.iter().any(|object| {
@@ -32,13 +53,26 @@ pub(crate) fn lower(package: &SemanticPackage) -> Program {
         registry.register_descriptor("/core/errors::dependency-error", "dependency-error");
         registry.register_descriptor("/core/errors::dependency-panic", "dependency-panic");
     }
-    if package
-        .units
-        .iter()
-        .any(|unit| unit.functions.iter().any(|function| function.is_async))
-    {
-        let mut support = include_str!("../../runtime/async.rs").to_owned();
-        if package_uses_task_scope(package) {
+    if has_async {
+        let mut support = if native_cancellation {
+            include_str!("../../runtime/async_native.rs").to_owned()
+        } else {
+            include_str!("../../runtime/async.rs").to_owned()
+        };
+        if has_async_entry {
+            support.push_str(match package.execution_strategy {
+                crate::execution::ExecutionStrategy::Local => {
+                    include_str!("../../runtime/executor_local.rs")
+                }
+                crate::execution::ExecutionStrategy::Parallel => {
+                    include_str!("../../runtime/executor_parallel.rs")
+                }
+            });
+        }
+        if has_async_dependency {
+            support.push_str(include_str!("../../runtime/async_dependency.rs"));
+        }
+        if package_uses_task_scope(package) && !native_cancellation {
             support.push_str(include_str!("../../runtime/async_cancellable.rs"));
         }
         runtime.push(GeneratedModule {
@@ -47,12 +81,23 @@ pub(crate) fn lower(package: &SemanticPackage) -> Program {
         });
     }
     if package_uses_task_scope(package) {
-        let support = match package.executor {
-            crate::package::ExecutorProfile::Cooperative => {
-                include_str!("../../runtime/tasks_cooperative.rs")
+        let support = if has_async_entry {
+            match package.execution_strategy {
+                crate::execution::ExecutionStrategy::Local => {
+                    include_str!("../../runtime/tasks_native_local.rs")
+                }
+                crate::execution::ExecutionStrategy::Parallel => {
+                    include_str!("../../runtime/tasks_native_parallel.rs")
+                }
             }
-            crate::package::ExecutorProfile::Threaded => {
-                include_str!("../../runtime/tasks_threaded.rs")
+        } else {
+            match package.execution_strategy {
+                crate::execution::ExecutionStrategy::Local => {
+                    include_str!("../../runtime/tasks_cooperative.rs")
+                }
+                crate::execution::ExecutionStrategy::Parallel => {
+                    include_str!("../../runtime/tasks_threaded.rs")
+                }
             }
         };
         runtime.push(GeneratedModule {
@@ -313,6 +358,7 @@ pub(crate) fn lower(package: &SemanticPackage) -> Program {
     Program {
         version: crate::VERSION,
         requires_platform_support,
+        requires_async_runtime: has_async_entry,
         runtime,
         globals: (!globals.is_empty())
             .then(|| Item::generated(&globals))

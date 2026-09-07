@@ -1,0 +1,5 @@
+package = "cancelled-task-progress"
+executor = "cooperative"
+
+[namespaces]
+app = "src"

@@ -1,0 +1,9 @@
+package = "rust-dependency-async-function"
+executor = "cooperative"
+
+[namespaces]
+app = "src"
+
+[rust-dependencies.async-witness]
+package = "terrane-async-witness"
+version = "=0.1.0"

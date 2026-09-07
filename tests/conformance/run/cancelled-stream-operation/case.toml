@@ -1,3 +1,4 @@
 phase = "run"
 status = "accept"
 canonical-rust = true
+hold-stdin-until-stdout = true

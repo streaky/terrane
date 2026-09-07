@@ -2,46 +2,48 @@ namespace app
 
 from /core/output import print
 from /core/encodings import utf8
+from /core/streams import stdin, byte-reader, read-result
 from /core/networking import ip-address-from-string, socket-address-from-ip, socket-address-from-string, network-cancellation-token, network-operation-options, tcp-listener, listener-result, stream-result, bind-tcp, connect-tcp
 
-class async-runner
-    callback function to none = function none;
-        return
+async function serve none; listener tcp-listener, options network-operation-options
+    accepted stream-result = await listener.accept; options
+    stream = move accepted.value
+    request = await stream.read; 7, options
+    if request.data == b'terrane'
+        written = await stream.write; b'reply', options
+        if not written.failed
+            stream.shutdown; 'both'
+    stream.close;
+    return none
 
-    function construct; callback function to none
-        this.callback = callback
+async function read-input read-result; input byte-reader
+    return await input.read-async; 1
 
-    async function run none;
-        callback = this.callback
-        callback;
 
-function main;
+async function main;
     loopback = ip-address-from-string; '127.0.0.1'
     bind-address = socket-address-from-ip; loopback.value, 0
     bound listener-result = bind-tcp; bind-address.value
     listener = move bound.value
     endpoint-text string = listener.local-address
     server-options = instance network-operation-options; 1000, (instance network-cancellation-token;)
-    serve = function none;
-        accepted stream-result = listener.accept; server-options
-        stream = move accepted.value
-        request = stream.read; 7, server-options
-        if request.data != b'terrane'
-            return
-        stream.write; b'reply', server-options
-        stream.shutdown; 'both'
-        stream.close;
-    server = instance async-runner; serve
+    server-task = serve; move listener, server-options
     scope = task-scope;
-    child = scope.spawn; server.run
+    input = stdin;
+    input-task = read-input; move input
+    input-child = scope.spawn; input-task
+    child = scope.spawn; server-task
     destination = socket-address-from-string; endpoint-text
     client-options = instance network-operation-options; 1000, (instance network-cancellation-token;)
-    connected stream-result = connect-tcp; destination.value, client-options
+    connected stream-result = await connect-tcp; destination.value, client-options
     client = move connected.value
-    sent = client.write; b'terrane', client-options
-    response = client.read; 5, client-options
-    outcome = scope.join; move child
+    sent = await client.write; b'terrane', client-options
+    response = await client.read; 5, client-options
+    outcome = await scope.join; child
     print; sent.completed
     print; (response.data.decode; utf8)
     print; outcome.completed
+    input-outcome = await scope.join; input-child
+    if not input-outcome.completed
+        print; 'stdin task did not complete'
     client.close;

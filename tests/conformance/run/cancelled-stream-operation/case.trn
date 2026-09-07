@@ -8,23 +8,9 @@ async function read-one read-result;
     input.close;
     return result
 
-function main;
-    completed-scope = task-scope;
-    completed-child = completed-scope.spawn; read-one
-    completed-outcome = completed-scope.join; move completed-child
-    completed-value = completed-outcome.value
-    consistent bool = completed-outcome.completed and completed-value != none
-    if completed-value != none
-        consistent = consistent and completed-value.completed == 1 and not completed-value.end and not completed-value.failed
-
-    cancelled-scope = task-scope;
-    cancelled-child = cancelled-scope.spawn; read-one
-    cancelled-scope.cancel;
-    cancelled-outcome = cancelled-scope.join; move cancelled-child
-    cancelled-value = cancelled-outcome.value
-    if cancelled-outcome.cancelled
-        consistent = consistent and cancelled-value == none
-    if cancelled-outcome.completed
-        if cancelled-value != none
-            consistent = consistent and cancelled-value.completed == 0 and cancelled-value.end and not cancelled-value.failed
-    print; consistent
+async function main;
+    scope = task-scope;
+    child = scope.spawn; read-one
+    scope.cancel;
+    outcome = await scope.join; child
+    print; outcome.cancelled, outcome.value == none

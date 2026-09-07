@@ -2234,11 +2234,11 @@
     }
   ],
   "removed": [],
-  "cache_identity": "b523b299cc585238a66f6b1df0c0339a850766e52024602edfe975bc2fcfe23b",
+  "cache_identity": "d9b510bc51a525228df3cf5d5539ae0e938f360339437ff7dc2ac1fe708bfcf6",
   "source": "Local",
   "rustdoc_format": 57,
-  "projection_schema": "15",
-  "content_hash": "3934b11b2fa7af5df35d67967ba9fb99c501d41d142d013266cae19942168378",
+  "projection_schema": "16",
+  "content_hash": "e00e29eef8a36e64a02cd18320262a46c99d380411d2f2d12f4d777d47c2dae0",
   "resolution": {
     "outcome": "LocalRustdoc",
     "events": [

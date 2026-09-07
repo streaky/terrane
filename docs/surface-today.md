@@ -681,19 +681,69 @@ An `async function` has a distinct callable type and invocation produces a linea
 source diagnostic. The compiler rejects sync/async callable substitutions and non-owning references
 whose owner is not proven across suspension.
 
+Async callable, task, and scoped-task types retain compiler-owned local-versus-transferable
+metadata. Authored callables infer it conservatively from parameters and values live across
+suspension; projected Rust async members are currently local because rustdoc alone does not prove
+their returned future transferable. The threaded scope rejects local callables, while the
+cooperative scope accepts them. Direct invocation and immediate await keep the concrete Rust future
+type; generated boxing/pinning remains only at erased callable or task ABI boundaries, with `Send`
+present only for transferable futures.
+
+The manifest's two executor profiles map to internal `local` and `parallel` strategies. Semantic
+analysis aggregates runtime-context, wake-support, task-mobility, and blocking-delegation
+requirements, including explicit requirements on referenced projected async members. Runtime
+selection is downstream of this generic model; compiler-owned semantic contracts do not contain
+Tokio or another executor crate name.
+
+An asynchronous entrypoint creates one selected wake-driven runtime and tears it down after the
+entry task and all linearly owned scopes finish. Projected Rust futures are constructed on first poll
+inside that context, so dependency timers, sockets, and other reactor-backed futures can suspend
+without a busy loop. The generated Cargo manifest includes the pinned runtime dependency only when
+semantic lowering requires async support. There is no fallback that catches missing runtime context
+and blocks instead. Cancellable legacy scope polling parks on real wakeups with bounded
+cancellation/deadline observation; concurrent runtime-native scope scheduling is not implemented
+yet.
+
+Projected async metadata records runtime-context, wake-support, and transfer knowledge separately.
+Rust `async fn` items currently mark wake support `required` and runtime context and transfer
+`unknown`; hover and completion expose those Terrane terms. Semantic lowering conservatively keeps
+such work local and never treats `unknown` as permission.
+
 `task-scope; deadline?` constructs a scope using the selected threaded or cooperative executor
 profile. `.spawn; callable` consumes an async callable invocation into a linear scoped task;
-`.join; move task` consumes it and returns a task outcome. `.child-scope; deadline` creates a child
+`.join; task` consumes it and returns a task of its outcome. `.child-scope; deadline` creates a child
 whose runtime effective deadline is the earlier of parent and requested deadlines; statically
 resolvable extension through local aliases and nested constant expressions is rejected. `.cancel;`
 records cancellation, and join waits for the selected executor's child operation.
+`task-scope.join; child` consumes the statically non-copyable scoped child automatically and returns
+an async task for its outcome, so callers write `await scope.join; child` in an async function.
+Lowered Rust still passes the task value by ownership; no source-level `move` is needed to express
+that compiler-owned representation detail. Native scope children are spawned onto the selected
+local or parallel runtime strategy; sibling work can make progress while a join is pending, and a
+failed child requests cancellation of its surviving siblings.
 
 The implemented task outcome exposes `completed bool`, `cancelled bool`, `value T or none`, and
 `error throwable or none`. Successful completion retains `value` even when cancellation was
 requested; failure sets `completed` false, leaves `value` absent, retains the typed child error, and
-requests cancellation of surviving siblings. The selected executor checks cancellation and
-deadline expiry while polling each child. Scoped tasks remain linear, so every child must be joined
-before function exit; no implicit detach or abandoned child path exists.
+requests cancellation of surviving siblings. Native scopes wake a suspended child when cancellation
+is requested or its deadline expires; they do not poll cancellation on a timer. Observation drops
+the in-flight operation, runs active `finally` regions exactly once in innermost-first order, and
+shields asynchronous cleanup from the initiating request before join completes. Scoped tasks remain
+linear, so every child must be joined before function exit; no implicit detach or abandoned child
+path exists.
+
+`/core/streams` `read-async` now performs its host read through the selected runtime's explicit
+blocking-delegation path and awaits that delegated operation. The source contract remains a task of
+the same read result, while the execution requirement records that the host-standard-stream read
+cannot yet use a readiness-native operation.
+
+TCP connect, listener accept, stream read/write, UDP send/receive, DNS lookup, and TLS
+handshake/read/write/shutdown are asynchronous. They await compiler-owned host intrinsics which
+explicitly delegate the current standard-handle and socket ABIs to the selected runtime's blocking
+pool. A scope may spawn either an async callable or an unpolled task moved into it; this permits
+resource-owning arguments to enter a child without borrowing them across suspension. The TCP
+loopback conformance witness proves a pending standard-input read and socket accept do not prevent
+client progress on a single executor worker.
 
 Task runtime support and its Cargo dependencies are selected from semantic lowering metadata, not
 from generated source-text searches. Merely spelling a runtime crate path in source text cannot
@@ -789,9 +839,13 @@ opaque and use projected crate accessors; every declined public item carries a r
 
 Semantic import resolution and the language server consume that same projection. Lowering emits only
 crossed-member Rust shims and generated Cargo dependencies; calls remain direct Rust calls inside one
-generated crate. Foreign receivers borrow, use `ref`, or require `move` according to their Rust
-receiver. Unwinding dependency panics enter the compiler-owned `dependency-panic` throwable path;
-abort profiles omit containment and generate Cargo `panic = "abort"`. Projection and generated-crate
+generated crate. A projected Rust `async fn` emits an async shim and constructs a Terrane task whose
+awaited result uses the same conversion, error, ownership, and panic boundary as a synchronous
+projected call. Self-contained dependency futures run under today's async driver; dependency
+operations requiring a reactor or other runtime context remain deferred to the wake-driven execution
+strategy. Foreign receivers borrow, use `ref`, or require `move` according to their Rust receiver.
+Unwinding dependency panics enter the compiler-owned `dependency-panic` throwable path; abort
+profiles omit containment and generate Cargo `panic = "abort"`. Projection and generated-crate
 compilation use `bwrap` containment where available and report the host tier otherwise.
 `terrane-projection.lock` format 2 retains machine-independent member/version history plus source,
 rustdoc format, projection schema, exact cache identity, content hash, and resolution events. `S2031`

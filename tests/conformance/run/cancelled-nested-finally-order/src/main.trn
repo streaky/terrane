@@ -1,0 +1,25 @@
+namespace app
+
+from /deps/async-witness import echo_after_yield, operation_drop_count, reset_operation_state, wait_forever, wait_until_operation_started
+
+async function blocked string;
+  try
+    try
+      return await wait_forever;
+    finally
+      inner string = await echo_after_yield; >inner
+      print; inner
+  finally
+    outer string = await echo_after_yield; >outer
+    print; outer
+
+async function main;
+  reset_operation_state;
+  scope = task-scope;
+  child = scope.spawn; blocked
+  started bool = await wait_until_operation_started;
+  scope.cancel;
+  outcome = await scope.join; child
+  print; started, outcome.cancelled
+  drops int = operation_drop_count;
+  print; drops

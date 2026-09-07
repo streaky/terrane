@@ -1,0 +1,11 @@
+namespace rejoined-task-scope-child
+
+async function answer int;
+  return 42
+
+async function main;
+  scope = task-scope;
+  child = scope.spawn; answer
+  first = await scope.join; child
+  second = await scope.join; child
+  print; first.completed, second.completed

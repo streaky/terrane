@@ -99,7 +99,27 @@ pub(super) fn infer_value_type(
                         .unwrap_or(ValueType::Scalar(ScalarType::None)),
                 );
                 return Ok(Some(if contract.is_async {
-                    ValueType::AsyncFunction(parameters, result)
+                    ValueType::AsyncFunction(parameters, result, contract.task_transferability)
+                } else {
+                    ValueType::Function(parameters, result)
+                }));
+            }
+        }
+        if let Some(contract) = resolved_function_contract(unit, name, node.span.start) {
+            let parameters = contract
+                .parameters
+                .iter()
+                .map(|parameter| parameter.value_type.clone().map(ElementType::new))
+                .collect::<Option<Vec<_>>>();
+            if let Some(parameters) = parameters {
+                let result = ElementType::new(
+                    contract
+                        .return_type
+                        .clone()
+                        .unwrap_or(ValueType::Scalar(ScalarType::None)),
+                );
+                return Ok(Some(if contract.is_async {
+                    ValueType::AsyncFunction(parameters, result, contract.task_transferability)
                 } else {
                     ValueType::Function(parameters, result)
                 }));
@@ -269,7 +289,9 @@ pub(super) fn infer_value_type(
                         .map_or(result, |_| ValueType::Object(identity));
                         Ok(Some(result))
                     }
-                    ValueType::AsyncFunction(_, result) => Ok(Some(ValueType::Task(result))),
+                    ValueType::AsyncFunction(_, result, transferability) => {
+                        Ok(Some(ValueType::Task(result, transferability)))
+                    }
                     _ => Err(failure(
                         &unit.source,
                         "T0039",
@@ -302,6 +324,12 @@ pub(super) fn infer_value_type(
                     | "intrinsic:streams::open-directory-beneath"
                     | "intrinsic:streams::open-file-beneath" => Some(ValueType::PlatformOpenResult),
                     "intrinsic:streams::read" => Some(ValueType::PlatformReadResult),
+                    "intrinsic:streams::read-async" => {
+                        return Ok(Some(ValueType::Task(
+                            ElementType::new(ValueType::PlatformReadResult),
+                            TaskTransferability::Local,
+                        )));
+                    }
                     "intrinsic:streams::write" => Some(ValueType::PlatformWriteResult),
                     "intrinsic:streams::flush"
                     | "intrinsic:streams::sync-data"
@@ -335,6 +363,23 @@ pub(super) fn infer_value_type(
                     "intrinsic:capabilities::result-resource"
                     | "intrinsic:capabilities::no-resource" => {
                         Some(ValueType::PlatformResourceHandle)
+                    }
+                    "intrinsic:capabilities::tcp-connect-async"
+                    | "intrinsic:capabilities::tcp-connect-host-async"
+                    | "intrinsic:capabilities::tcp-accept-async"
+                    | "intrinsic:capabilities::tcp-read-async"
+                    | "intrinsic:capabilities::tcp-write-async"
+                    | "intrinsic:capabilities::udp-send-to-async"
+                    | "intrinsic:capabilities::udp-receive-from-async"
+                    | "intrinsic:capabilities::dns-lookup-async"
+                    | "intrinsic:capabilities::tls-client-async"
+                    | "intrinsic:capabilities::tls-read-async"
+                    | "intrinsic:capabilities::tls-write-async"
+                    | "intrinsic:capabilities::tls-shutdown-async" => {
+                        return Ok(Some(ValueType::Task(
+                            ElementType::new(ValueType::PlatformResult),
+                            TaskTransferability::Local,
+                        )));
                     }
                     "intrinsic:capabilities::failed-result"
                     | "intrinsic:capabilities::random-bytes"
@@ -499,13 +544,14 @@ pub(super) fn infer_value_type(
                         };
                         let callable = callable.children.last().unwrap_or(callable);
                         match infer_value_type(unit, callable, bindings)? {
-                            Some(ValueType::AsyncFunction(_, result)) => {
-                                Ok(Some(ValueType::ScopedTask(result)))
-                            }
+                            Some(
+                                ValueType::AsyncFunction(_, result, transferability)
+                                | ValueType::Task(result, transferability),
+                            ) => Ok(Some(ValueType::ScopedTask(result, transferability))),
                             _ => Err(failure(
                                 &unit.source,
                                 "T0074",
-                                "`task-scope.spawn` requires an async callable value",
+                                "`task-scope.spawn` requires an async callable or task value",
                                 callable.span,
                             )),
                         }
@@ -521,9 +567,10 @@ pub(super) fn infer_value_type(
                         };
                         let task = task.children.last().unwrap_or(task);
                         match infer_value_type(unit, task, bindings)? {
-                            Some(ValueType::ScopedTask(result)) => {
-                                Ok(Some(ValueType::TaskOutcome(result)))
-                            }
+                            Some(ValueType::ScopedTask(result, _)) => Ok(Some(ValueType::Task(
+                                ElementType::new(ValueType::TaskOutcome(result)),
+                                TaskTransferability::Local,
+                            ))),
                             _ => Err(failure(
                                 &unit.source,
                                 "T0074",
@@ -622,7 +669,9 @@ pub(super) fn infer_value_type(
         {
             return match member_type {
                 ValueType::Function(_, result) => Ok(Some(result.value_type())),
-                ValueType::AsyncFunction(_, result) => Ok(Some(ValueType::Task(result))),
+                ValueType::AsyncFunction(_, result, transferability) => {
+                    Ok(Some(ValueType::Task(result, transferability)))
+                }
                 _ => Err(failure(
                     &unit.source,
                     "T0039",
@@ -661,7 +710,7 @@ pub(super) fn infer_value_type(
                         .unwrap_or(ValueType::Scalar(ScalarType::None)),
                 );
                 return Ok(Some(if contract.is_async {
-                    ValueType::Task(result)
+                    ValueType::Task(result, contract.task_transferability)
                 } else {
                     result.value_type()
                 }));
@@ -671,8 +720,8 @@ pub(super) fn infer_value_type(
             }) {
                 return match &binding.value_type {
                     ValueType::Function(_, result) => Ok(Some(result.value_type())),
-                    ValueType::AsyncFunction(_, result) => {
-                        Ok(Some(ValueType::Task(result.clone())))
+                    ValueType::AsyncFunction(_, result, transferability) => {
+                        Ok(Some(ValueType::Task(result.clone(), *transferability)))
                     }
                     _ => Err(failure(
                         &unit.source,

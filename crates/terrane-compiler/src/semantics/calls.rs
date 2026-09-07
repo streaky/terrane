@@ -429,7 +429,7 @@ pub(super) fn resolved_call_type(
             .unwrap_or(ValueType::Scalar(ScalarType::None)),
     );
     Some(if contract.is_async {
-        ValueType::Task(result)
+        ValueType::Task(result, contract.task_transferability)
     } else {
         result.value_type()
     })

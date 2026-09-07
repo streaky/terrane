@@ -3,10 +3,10 @@ namespace cooperative-task-scope
 async function work int;
   return 9
 
-function main;
+async function main;
   scope = task-scope;
   child = scope.spawn; work
-  outcome = scope.join; move child
+  outcome = await scope.join; child
   value = outcome.value
   if value != none
     print; outcome.completed, outcome.cancelled, value

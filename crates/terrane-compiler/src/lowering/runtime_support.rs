@@ -48,8 +48,8 @@ fn value_type_contains_throwable(value_type: &ValueType) -> bool {
         | ValueType::Set(inner)
         | ValueType::UnorderedSet(inner)
         | ValueType::Tuple(inner, _)
-        | ValueType::Task(inner)
-        | ValueType::ScopedTask(inner)
+        | ValueType::Task(inner, _)
+        | ValueType::ScopedTask(inner, _)
         | ValueType::TaskOutcome(inner)
         | ValueType::Reference(inner)
         | ValueType::SharedReference(inner) => {
@@ -61,7 +61,8 @@ fn value_type_contains_throwable(value_type: &ValueType) -> bool {
             value_type_contains_throwable(key.value_type_ref())
                 || value_type_contains_throwable(value.value_type_ref())
         }
-        ValueType::Function(parameters, result) | ValueType::AsyncFunction(parameters, result) => {
+        ValueType::Function(parameters, result)
+        | ValueType::AsyncFunction(parameters, result, _) => {
             parameters
                 .iter()
                 .any(|parameter| value_type_contains_throwable(parameter.value_type_ref()))

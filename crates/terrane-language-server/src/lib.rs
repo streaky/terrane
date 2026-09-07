@@ -192,7 +192,7 @@ impl LanguageServer for Backend {
                     }
                     _ => CompletionItemKind::CLASS,
                 }),
-                detail: Some(item.rust_path.clone()),
+                detail: Some(projected_item_detail(item)),
                 documentation: item.docs.clone().map(Documentation::String),
                 ..Default::default()
             })
@@ -251,6 +251,10 @@ impl LanguageServer for Backend {
             })
             .map(|item| {
                 let mut text = format!("`{}`", item.rust_path);
+                if let Some(requirements) = projected_execution_requirements(item) {
+                    text.push_str("\n\n");
+                    text.push_str(&requirements);
+                }
                 if let Some(docs) = &item.docs {
                     text.push_str("\n\n");
                     text.push_str(docs);
@@ -356,6 +360,38 @@ impl LanguageServer for Backend {
             active_signature: Some(0),
             active_parameter: Some(0),
         }))
+    }
+}
+
+fn projected_item_detail(item: &terrane_compiler::projection::ProjectedItem) -> String {
+    projected_execution_requirements(item).map_or_else(
+        || item.rust_path.clone(),
+        |requirements| format!("{} — {requirements}", item.rust_path),
+    )
+}
+
+fn projected_execution_requirements(
+    item: &terrane_compiler::projection::ProjectedItem,
+) -> Option<String> {
+    let terrane_compiler::projection::ProjectedKind::Function(function) = &item.kind else {
+        return None;
+    };
+    let requirements = function.execution_requirements?;
+    Some(format!(
+        "async Terrane task; runtime context {}; wake support {}; transfer {}",
+        requirement_knowledge(requirements.runtime_context),
+        requirement_knowledge(requirements.wake_support),
+        requirement_knowledge(requirements.transfer)
+    ))
+}
+
+fn requirement_knowledge(
+    knowledge: terrane_compiler::projection::RequirementKnowledge,
+) -> &'static str {
+    match knowledge {
+        terrane_compiler::projection::RequirementKnowledge::Required => "required",
+        terrane_compiler::projection::RequirementKnowledge::NotRequired => "not required",
+        terrane_compiler::projection::RequirementKnowledge::Unknown => "unknown",
     }
 }
 
@@ -610,5 +646,38 @@ mod tests {
         let converted = lsp_diagnostic(&source, &diagnostic);
 
         assert_eq!(converted.message, "invalid source\n\nhelp: replace it");
+    }
+
+    #[test]
+    fn projected_async_completion_describes_execution_requirements() {
+        use terrane_compiler::projection::{
+            ProjectedExecutionRequirements, ProjectedFunction, ProjectedItem, ProjectedKind,
+            ProjectedType, RequirementKnowledge,
+        };
+
+        let item = ProjectedItem {
+            namespace: "/deps/witness".to_owned(),
+            name: "wait".to_owned(),
+            rust_path: "witness::wait".to_owned(),
+            docs: None,
+            kind: ProjectedKind::Function(ProjectedFunction {
+                name: "wait".to_owned(),
+                parameters: Vec::new(),
+                result: ProjectedType::None,
+                error: None,
+                is_async: true,
+                execution_requirements: Some(ProjectedExecutionRequirements {
+                    runtime_context: RequirementKnowledge::Unknown,
+                    wake_support: RequirementKnowledge::Required,
+                    transfer: RequirementKnowledge::Unknown,
+                }),
+                receiver: None,
+            }),
+        };
+
+        assert_eq!(
+            projected_item_detail(&item),
+            "witness::wait — async Terrane task; runtime context unknown; wake support required; transfer unknown"
+        );
     }
 }

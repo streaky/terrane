@@ -391,6 +391,216 @@ mod __terrane_trace {
         )
     }
 }
+use std::future::Future;
+#[derive(Clone)]
+struct TerraneCancellation {
+    state: std::sync::Arc<TerraneCancellationState>,
+}
+struct TerraneCancellationState {
+    cancelled: std::sync::atomic::AtomicBool,
+    wakers: std::sync::Mutex<Vec<std::task::Waker>>,
+}
+impl TerraneCancellation {
+    fn new() -> Self {
+        Self {
+            state: std::sync::Arc::new(TerraneCancellationState {
+                cancelled: std::sync::atomic::AtomicBool::new(false),
+                wakers: std::sync::Mutex::new(Vec::new()),
+            }),
+        }
+    }
+    fn wake_waiters(&self) {
+        let wakers = std::mem::take(
+            &mut *self.state.wakers.lock().expect("cancellation waker lock poisoned"),
+        );
+        for waker in wakers {
+            waker.wake();
+        }
+    }
+    fn cancel(&self) {
+        if !self.state.cancelled.swap(true, std::sync::atomic::Ordering::AcqRel) {
+            self.wake_waiters();
+        }
+    }
+    fn is_cancelled(&self) -> bool {
+        self.state.cancelled.load(std::sync::atomic::Ordering::Acquire)
+    }
+    async fn cancelled(&self) {
+        std::future::poll_fn(|context| {
+                if self.is_cancelled() {
+                    return std::task::Poll::Ready(());
+                }
+                let mut wakers = self
+                    .state
+                    .wakers
+                    .lock()
+                    .expect("cancellation waker lock poisoned");
+                if self.is_cancelled() {
+                    return std::task::Poll::Ready(());
+                }
+                if !wakers.iter().any(|waker| waker.will_wake(context.waker())) {
+                    wakers.push(context.waker().clone());
+                }
+                std::task::Poll::Pending
+            })
+            .await
+    }
+}
+struct TerraneFinalizerState {
+    depth: std::sync::atomic::AtomicUsize,
+    wakers: std::sync::Mutex<Vec<std::task::Waker>>,
+}
+impl TerraneFinalizerState {
+    fn new() -> Self {
+        Self {
+            depth: std::sync::atomic::AtomicUsize::new(0),
+            wakers: std::sync::Mutex::new(Vec::new()),
+        }
+    }
+    #[allow(
+        dead_code,
+        reason = "native scope support is shared by packages without asynchronous finally"
+    )]
+    fn register(self: &std::sync::Arc<Self>) -> TerraneFinallyGuard {
+        let depth = self.depth.fetch_add(1, std::sync::atomic::Ordering::AcqRel) + 1;
+        TerraneFinallyGuard {
+            state: Some(self.clone()),
+            depth,
+        }
+    }
+    #[allow(
+        dead_code,
+        reason = "native scope support is shared by packages without asynchronous finally"
+    )]
+    fn unregister(&self, depth: usize) {
+        let current = self.depth.fetch_sub(1, std::sync::atomic::Ordering::AcqRel);
+        debug_assert_eq!(current, depth, "finally regions must leave innermost first");
+        let wakers = std::mem::take(
+            &mut *self.wakers.lock().expect("finalizer waker lock poisoned"),
+        );
+        for waker in wakers {
+            waker.wake();
+        }
+    }
+    async fn reaches(&self, depth: usize) {
+        std::future::poll_fn(|context| {
+                if self.depth.load(std::sync::atomic::Ordering::Acquire) == depth {
+                    return std::task::Poll::Ready(());
+                }
+                let mut wakers = self
+                    .wakers
+                    .lock()
+                    .expect("finalizer waker lock poisoned");
+                if self.depth.load(std::sync::atomic::Ordering::Acquire) == depth {
+                    return std::task::Poll::Ready(());
+                }
+                if !wakers.iter().any(|waker| waker.will_wake(context.waker())) {
+                    wakers.push(context.waker().clone());
+                }
+                std::task::Poll::Pending
+            })
+            .await
+    }
+}
+#[allow(
+    dead_code,
+    reason = "native scope support is shared by packages without asynchronous finally"
+)]
+struct TerraneCancellationContext {
+    cancellation: TerraneCancellation,
+    deadline: Option<std::time::Instant>,
+    finalizers: std::sync::Arc<TerraneFinalizerState>,
+}
+tokio::task_local! {
+    static TERRANE_CANCELLATION_CONTEXT : TerraneCancellationContext;
+}
+#[allow(
+    dead_code,
+    reason = "native scope support is shared by packages without asynchronous finally"
+)]
+struct TerraneFinallyGuard {
+    state: Option<std::sync::Arc<TerraneFinalizerState>>,
+    depth: usize,
+}
+#[allow(
+    dead_code,
+    reason = "native scope support is shared by packages without asynchronous finally"
+)]
+impl TerraneFinallyGuard {
+    fn finish(&mut self) {
+        if let Some(state) = self.state.take() {
+            state.unregister(self.depth);
+        }
+    }
+}
+impl Drop for TerraneFinallyGuard {
+    fn drop(&mut self) {
+        self.finish();
+    }
+}
+#[allow(
+    dead_code,
+    reason = "native scope support is shared by packages without asynchronous finally"
+)]
+fn __terrane_finally_guard() -> TerraneFinallyGuard {
+    TERRANE_CANCELLATION_CONTEXT
+        .try_with(|context| context.finalizers.register())
+        .unwrap_or(TerraneFinallyGuard {
+            state: None,
+            depth: 0,
+        })
+}
+async fn __terrane_cancellation_requested(
+    cancellation: TerraneCancellation,
+    deadline: Option<std::time::Instant>,
+) {
+    if let Some(deadline) = deadline {
+        tokio::select! {
+            () = cancellation.cancelled() => {} () =
+            tokio::time::sleep_until(tokio::time::Instant::from_std(deadline)) => {
+            cancellation.cancel(); }
+        }
+    } else {
+        cancellation.cancelled().await;
+    }
+}
+#[allow(
+    dead_code,
+    reason = "native scope support is shared by packages without asynchronous finally"
+)]
+async fn __terrane_cancel_operation<F: Future>(
+    guard: &TerraneFinallyGuard,
+    future: F,
+) -> Option<F::Output> {
+    let cancellation = TERRANE_CANCELLATION_CONTEXT
+        .try_with(|context| {
+            guard
+                .state
+                .as_ref()
+                .map(|state| {
+                    (context.cancellation.clone(), context.deadline, state.clone())
+                })
+        })
+        .ok()
+        .flatten();
+    if let Some((cancellation, deadline, finalizers)) = cancellation {
+        tokio::select! {
+            biased; () = async { __terrane_cancellation_requested(cancellation, deadline)
+            . await; finalizers.reaches(guard.depth). await; } => None, output = future
+            => Some(output),
+        }
+    } else {
+        Some(future.await)
+    }
+}
+#[allow(
+    dead_code,
+    reason = "native scope support is shared by packages without asynchronous finally"
+)]
+async fn __terrane_finish_cancelled_finally(mut guard: TerraneFinallyGuard) -> ! {
+    guard.finish();
+    std::future::pending().await
+}
 async fn __terrane_await<F: Future>(future: F) -> F::Output {
     struct YieldOnce(bool);
     impl Future for YieldOnce {
@@ -413,106 +623,86 @@ async fn __terrane_await<F: Future>(future: F) -> F::Output {
     YieldOnce(false).await;
     output
 }
-fn __terrane_block_on<F: Future>(future: F) -> F::Output {
-    struct Wake;
-    impl std::task::Wake for Wake {
-        fn wake(self: std::sync::Arc<Self>) {}
-    }
-    let waker = std::task::Waker::from(std::sync::Arc::new(Wake));
-    let mut context = std::task::Context::from_waker(&waker);
-    let mut future = std::pin::pin!(future);
-    loop {
-        match future.as_mut().poll(&mut context) {
-            std::task::Poll::Ready(value) => return value,
-            std::task::Poll::Pending => std::thread::yield_now(),
-        }
-    }
-}
-fn __terrane_block_on_cancellable<F: Future>(
+async fn __terrane_cancellable<F: Future>(
     future: F,
-    cancelled: impl Fn() -> bool,
+    cancellation: TerraneCancellation,
+    deadline: Option<std::time::Instant>,
 ) -> Option<F::Output> {
-    struct Wake;
-    impl std::task::Wake for Wake {
-        fn wake(self: std::sync::Arc<Self>) {}
-    }
-    let waker = std::task::Waker::from(std::sync::Arc::new(Wake));
-    let mut context = std::task::Context::from_waker(&waker);
-    let mut future = std::pin::pin!(future);
-    loop {
-        if cancelled() {
-            return None;
-        }
-        match future.as_mut().poll(&mut context) {
-            std::task::Poll::Ready(value) => return Some(value),
-            std::task::Poll::Pending => std::thread::yield_now(),
-        }
-    }
+    let finalizers = std::sync::Arc::new(TerraneFinalizerState::new());
+    let context = TerraneCancellationContext {
+        cancellation: cancellation.clone(),
+        deadline,
+        finalizers: finalizers.clone(),
+    };
+    TERRANE_CANCELLATION_CONTEXT
+        .scope(
+            context,
+            async {
+                tokio::select! {
+                    biased; () = async { __terrane_cancellation_requested(cancellation,
+                    deadline). await; finalizers.reaches(0). await; } => None, output =
+                    future => Some(output),
+                }
+            },
+        )
+        .await
+}
+fn __terrane_run<F: Future>(future: F) -> F::Output {
+    let runtime = tokio::runtime::Builder::new_current_thread()
+        .enable_all()
+        .build()
+        .expect("Terrane async runtime must initialize");
+    tokio::task::LocalSet::new().block_on(&runtime, future)
 }
 #[derive(Clone)]
 pub struct TerraneTaskScope {
-    cancelled: std::sync::Arc<std::sync::atomic::AtomicBool>,
+    cancellation: TerraneCancellation,
     deadline: Option<std::time::Instant>,
 }
 impl TerraneTaskScope {
     pub fn new(deadline_ms: Option<u64>) -> Self {
         Self {
-            cancelled: std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false)),
+            cancellation: TerraneCancellation::new(),
             deadline: deadline_ms
-                .map(|value| {
-                    std::time::Instant::now() + std::time::Duration::from_millis(value)
+                .map(|milliseconds| {
+                    std::time::Instant::now()
+                        + std::time::Duration::from_millis(milliseconds)
                 }),
         }
     }
     pub fn child_scope(&self, deadline_ms: u64) -> Self {
         let requested = std::time::Instant::now()
             + std::time::Duration::from_millis(deadline_ms);
-        let deadline = Some(
-            self.deadline.map_or(requested, |parent| std::cmp::min(parent, requested)),
-        );
         Self {
-            cancelled: self.cancelled.clone(),
-            deadline,
+            cancellation: self.cancellation.clone(),
+            deadline: Some(
+                self.deadline.map_or(requested, |parent| parent.min(requested)),
+            ),
         }
     }
     pub fn cancel(&self) {
-        self.cancelled.store(true, std::sync::atomic::Ordering::Release);
+        self.cancellation.cancel();
     }
     pub fn should_cancel(&self) -> bool {
-        self.cancelled.load(std::sync::atomic::Ordering::Acquire)
+        self.cancellation.is_cancelled()
             || self
                 .deadline
                 .is_some_and(|deadline| std::time::Instant::now() >= deadline)
     }
-    pub fn join<T>(&self, mut task: TerraneScopedTask<T>) -> TerraneTaskOutcome<T> {
-        let result = task.result.take().expect("scoped task joined once");
-        match result {
-            TerraneTaskResult::Completed(value) => {
-                TerraneTaskOutcome {
-                    completed: true,
-                    cancelled: self.should_cancel(),
-                    value: Some(value),
-                    error: None,
-                }
-            }
-            TerraneTaskResult::Failed(error) => {
-                self.cancel();
-                TerraneTaskOutcome {
-                    completed: false,
-                    cancelled: false,
-                    value: None,
-                    error: Some(error),
-                }
-            }
-            TerraneTaskResult::Cancelled => {
-                TerraneTaskOutcome {
-                    completed: false,
-                    cancelled: true,
-                    value: None,
-                    error: None,
-                }
-            }
-        }
+    fn cancellation(&self) -> TerraneCancellation {
+        self.cancellation.clone()
+    }
+    pub async fn join<T>(
+        &self,
+        mut task: TerraneScopedTask<T>,
+    ) -> TerraneTaskOutcome<T> {
+        let result = task
+            .handle
+            .take()
+            .expect("scoped task joined once")
+            .await
+            .expect("scoped task must not panic outside its Terrane boundary");
+        outcome_from_result(self, result)
     }
 }
 #[allow(
@@ -525,12 +715,46 @@ enum TerraneTaskResult<T> {
     Cancelled,
 }
 pub struct TerraneScopedTask<T> {
-    result: Option<TerraneTaskResult<T>>,
+    handle: Option<tokio::task::JoinHandle<TerraneTaskResult<T>>>,
 }
-impl<T> TerraneScopedTask<T> {
+impl<T: 'static> TerraneScopedTask<T> {
     #[allow(dead_code, reason = "task spawn ABI is emitted before usage shaping")]
-    fn spawn<F: FnOnce() -> TerraneTaskResult<T>>(work: F) -> Self {
-        Self { result: Some(work()) }
+    fn spawn<F: Future<Output = TerraneTaskResult<T>> + 'static>(work: F) -> Self {
+        Self {
+            handle: Some(tokio::task::spawn_local(work)),
+        }
+    }
+}
+fn outcome_from_result<T>(
+    scope: &TerraneTaskScope,
+    result: TerraneTaskResult<T>,
+) -> TerraneTaskOutcome<T> {
+    match result {
+        TerraneTaskResult::Completed(value) => {
+            TerraneTaskOutcome {
+                completed: true,
+                cancelled: scope.should_cancel(),
+                value: Some(value),
+                error: None,
+            }
+        }
+        TerraneTaskResult::Failed(error) => {
+            scope.cancel();
+            TerraneTaskOutcome {
+                completed: false,
+                cancelled: false,
+                value: None,
+                error: Some(error),
+            }
+        }
+        TerraneTaskResult::Cancelled => {
+            TerraneTaskOutcome {
+                completed: false,
+                cancelled: true,
+                value: None,
+                error: None,
+            }
+        }
     }
 }
 pub struct TerraneTaskOutcome<T> {
@@ -545,26 +769,33 @@ async fn work() -> terrane_int_support::Int {
     return terrane_int_support::Int::from(9_i128);
 }
 fn main() {
-    let scope: TerraneTaskScope = TerraneTaskScope::new(None);
-    let child: TerraneScopedTask<terrane_int_support::Int> = {
-        let __terrane_scope = scope.clone();
-        let __terrane_cancel = __terrane_scope.clone();
-        TerraneScopedTask::spawn(move || match __terrane_block_on_cancellable(
-            work(),
-            move || __terrane_cancel.should_cancel(),
-        ) {
-            Some(value) => TerraneTaskResult::Completed(value),
-            None => TerraneTaskResult::Cancelled,
-        })
-    };
-    let outcome: TerraneTaskOutcome<terrane_int_support::Int> = scope.join(child);
-    let value: Option<terrane_int_support::Int> = outcome.value.clone();
-    if value.is_some() {
-        println!(
-            "{}{}{}", terrane_scalar_support::scalar_text(&outcome.completed),
-            terrane_scalar_support::scalar_text(&outcome.cancelled),
-            terrane_scalar_support::scalar_text(&* value.as_ref()
-            .expect("semantic optional narrowing"))
-        );
-    }
+    __terrane_run(async move {
+        let scope: TerraneTaskScope = TerraneTaskScope::new(None);
+        let child: TerraneScopedTask<terrane_int_support::Int> = {
+            let __terrane_scope = scope.clone();
+            let __terrane_cancel = __terrane_scope.cancellation();
+            let __terrane_deadline = __terrane_scope.deadline;
+            TerraneScopedTask::spawn(async move {
+                match __terrane_cancellable(work(), __terrane_cancel, __terrane_deadline)
+                    .await
+                {
+                    Some(value) => TerraneTaskResult::Completed(value),
+                    None => TerraneTaskResult::Cancelled,
+                }
+            })
+        };
+        let outcome: TerraneTaskOutcome<terrane_int_support::Int> = __terrane_await(
+                scope.join(child),
+            )
+            .await;
+        let value: Option<terrane_int_support::Int> = outcome.value.clone();
+        if value.is_some() {
+            println!(
+                "{}{}{}", terrane_scalar_support::scalar_text(&outcome.completed),
+                terrane_scalar_support::scalar_text(&outcome.cancelled),
+                terrane_scalar_support::scalar_text(&* value.as_ref()
+                .expect("semantic optional narrowing"))
+            );
+        }
+    });
 }

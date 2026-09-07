@@ -141,10 +141,12 @@ fn run(arguments: &[OsString]) -> Result<ExitCode, CliFailure> {
     }
     ensure_rust_toolchain(package.build_toolchain)?;
     let uses_platform_support = compilation.requires_platform_support;
+    let uses_async_runtime = compilation.requires_async_runtime;
     let crate_dir = generated_crate_path(
         &package.root,
         &rust_files,
         uses_platform_support,
+        uses_async_runtime,
         &compilation.rust_dependencies,
         package.build_toolchain,
     )?;
@@ -153,9 +155,12 @@ fn run(arguments: &[OsString]) -> Result<ExitCode, CliFailure> {
         &rust_files,
         &package.units,
         &compilation.rust_dependencies,
-        package.profile.panic,
-        uses_platform_support,
-        package.build_toolchain,
+        GeneratedCrateOptions {
+            panic: package.profile.panic,
+            uses_platform_support,
+            uses_async_runtime,
+            build_toolchain: package.build_toolchain,
+        },
     )?;
     record_and_prune_generated_crates(&crate_dir)?;
     let target_dir = package.root.join(".trn/cache/target");
@@ -382,6 +387,7 @@ fn run_cargo(
         let fetch = fetch
             .args(["fetch", "--manifest-path"])
             .arg(crate_dir.join("Cargo.toml"))
+            .current_dir(crate_dir)
             .output()
             .map_err(|error| {
                 CliFailure::backend(format!("failed to fetch generated dependencies: {error}"))
@@ -544,6 +550,7 @@ fn generated_crate_path(
     package_root: &Path,
     rust_files: &[terrane_compiler::rust_ir::RenderedFile],
     uses_platform_support: bool,
+    uses_async_runtime: bool,
     rust_dependencies: &[terrane_compiler::RustDependency],
     build_toolchain: terrane_compiler::BuildToolchain,
 ) -> Result<PathBuf, CliFailure> {
@@ -554,7 +561,7 @@ fn generated_crate_path(
         ))
     })?;
     let mut hash = Sha256::new();
-    hash.update(b"terrane-generated-crate-v2\0");
+    hash.update(b"terrane-generated-crate-v3\0");
     hash.update(terrane_compiler::VERSION.as_bytes());
     for variable in [
         "CARGO_BUILD_TARGET",
@@ -569,6 +576,7 @@ fn generated_crate_path(
         hash.update(b"\0");
     }
     hash.update(format!("build-toolchain={build_toolchain:?}\0").as_bytes());
+    hash.update([u8::from(uses_async_runtime)]);
     hash.update(b"profile=debug\0");
     for file in rust_files {
         hash.update(file.path.as_bytes());
@@ -645,14 +653,20 @@ fn record_and_prune_generated_crates(active: &Path) -> Result<(), CliFailure> {
     Ok(())
 }
 
+#[derive(Clone, Copy)]
+struct GeneratedCrateOptions {
+    panic: terrane_compiler::PanicProfile,
+    uses_platform_support: bool,
+    uses_async_runtime: bool,
+    build_toolchain: terrane_compiler::BuildToolchain,
+}
+
 fn write_generated_crate(
     directory: &Path,
     rust_files: &[terrane_compiler::rust_ir::RenderedFile],
     units: &[terrane_compiler::SourceUnit],
     rust_dependencies: &[terrane_compiler::RustDependency],
-    panic: terrane_compiler::PanicProfile,
-    uses_platform_support: bool,
-    build_toolchain: terrane_compiler::BuildToolchain,
+    options: GeneratedCrateOptions,
 ) -> Result<(), CliFailure> {
     fs::create_dir_all(directory.join("src"))
         .map_err(|error| CliFailure::backend(format!("cannot create generated crate: {error}")))?;
@@ -667,9 +681,14 @@ fn write_generated_crate(
          terrane-stream-abi = {{ path = \"support/terrane-stream-abi\" }}\n",
         terrane_compiler::BUILD_TOOLCHAIN
     );
-    if uses_platform_support {
+    if options.uses_platform_support {
         manifest.push_str(
             "terrane-platform-support = { path = \"support/terrane-platform-support\" }\n",
+        );
+    }
+    if options.uses_async_runtime {
+        manifest.push_str(
+            "tokio = { version = \"=1.53.0\", features = [\"macros\", \"rt\", \"rt-multi-thread\", \"time\"] }\n",
         );
     }
     for dependency in rust_dependencies
@@ -692,7 +711,7 @@ fn write_generated_crate(
             write_rust_dependency(&mut manifest, dependency);
         }
     }
-    if panic == terrane_compiler::PanicProfile::Abort {
+    if options.panic == terrane_compiler::PanicProfile::Abort {
         manifest.push_str("\n[profile.dev]\npanic = \"abort\"\n");
     }
     manifest.push_str("\n[profile.release]\nopt-level = 3\nlto = \"fat\"\ncodegen-units = 1\n");
@@ -701,7 +720,7 @@ fn write_generated_crate(
         CliFailure::backend(format!("cannot write generated manifest: {error}"))
     })?;
     let toolchain_path = directory.join("rust-toolchain.toml");
-    if build_toolchain == terrane_compiler::BuildToolchain::Pinned {
+    if options.build_toolchain == terrane_compiler::BuildToolchain::Pinned {
         let toolchain = format!(
             "[toolchain]\nchannel = {:?}\nprofile = \"minimal\"\n",
             terrane_compiler::BUILD_TOOLCHAIN
@@ -714,7 +733,7 @@ fn write_generated_crate(
             CliFailure::backend(format!("cannot remove generated toolchain pin: {error}"))
         })?;
     }
-    write_generated_support(directory, uses_platform_support).map_err(|error| {
+    write_generated_support(directory, options.uses_platform_support).map_err(|error| {
         CliFailure::backend(format!("cannot write generated runtime support: {error}"))
     })?;
     for rust_file in rust_files {
@@ -740,7 +759,7 @@ fn write_generated_crate(
     writeln!(
         sources,
         "rust-toolchain = {:?}",
-        match build_toolchain {
+        match options.build_toolchain {
             terrane_compiler::BuildToolchain::Pinned => terrane_compiler::BUILD_TOOLCHAIN,
             terrane_compiler::BuildToolchain::System => "system",
         }
@@ -1088,7 +1107,7 @@ mod tests {
         fs::remove_dir_all(directory).unwrap();
     }
     #[test]
-    fn generated_cargo_manifest_configures_build_profiles() {
+    fn generated_cargo_manifest_configures_build_profiles_and_runtime() {
         let directory =
             std::env::temp_dir().join(format!("terrane-build-profiles-{}", std::process::id()));
         if directory.exists() {
@@ -1101,9 +1120,12 @@ mod tests {
                 &[],
                 &[],
                 &[],
-                terrane_compiler::PanicProfile::Abort,
-                false,
-                terrane_compiler::BuildToolchain::Pinned,
+                GeneratedCrateOptions {
+                    panic: terrane_compiler::PanicProfile::Abort,
+                    uses_platform_support: false,
+                    uses_async_runtime: true,
+                    build_toolchain: terrane_compiler::BuildToolchain::Pinned,
+                },
             )
             .is_ok()
         );
@@ -1115,10 +1137,31 @@ mod tests {
                 .contains("[profile.release]\nopt-level = 3\nlto = \"fat\"\ncodegen-units = 1\n")
         );
         assert!(manifest.contains("rust-version = \"1.93.1\""));
+        assert!(manifest.contains(
+            "tokio = { version = \"=1.53.0\", features = [\"macros\", \"rt\", \"rt-multi-thread\", \"time\"] }"
+        ));
         assert!(manifest.contains("[lints.rust]\nunsafe_code = \"forbid\""));
         assert!(directory.join("rust-toolchain.toml").is_file());
         let metadata = fs::read_to_string(directory.join("terrane-build.toml")).unwrap();
         assert!(metadata.contains("rust-toolchain = \"1.93.1\""));
+
+        assert!(
+            write_generated_crate(
+                &directory,
+                &[],
+                &[],
+                &[],
+                GeneratedCrateOptions {
+                    panic: terrane_compiler::PanicProfile::Abort,
+                    uses_platform_support: false,
+                    uses_async_runtime: false,
+                    build_toolchain: terrane_compiler::BuildToolchain::Pinned,
+                },
+            )
+            .is_ok()
+        );
+        let synchronous_manifest = fs::read_to_string(directory.join("Cargo.toml")).unwrap();
+        assert!(!synchronous_manifest.contains("\ntokio = "));
         fs::remove_dir_all(directory).unwrap();
     }
 }

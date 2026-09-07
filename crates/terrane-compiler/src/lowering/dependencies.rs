@@ -290,7 +290,8 @@ pub(super) fn emit_dependency_unit(package: &SemanticPackage, unit: &SemanticUni
         }
         writeln!(
             output,
-            "pub fn {}({}) -> {result} {{",
+            "pub {}fn {}({}) -> {result} {{",
+            if projected.is_async { "async " } else { "" },
             rust_name(&contract.name),
             parameters.join(", ")
         )
@@ -304,7 +305,14 @@ pub(super) fn emit_dependency_unit(package: &SemanticPackage, unit: &SemanticUni
         } else {
             format!("{value_path}({arguments})")
         };
-        let caught = if projected
+        let invocation = if projected.is_async {
+            format!("{call}.await")
+        } else {
+            call.clone()
+        };
+        let caught = if projected.is_async {
+            format!("crate::__terrane_dependency_await_unwind({call}).await")
+        } else if projected
             .parameters
             .iter()
             .any(|parameter| parameter.mutable_borrow)
@@ -317,13 +325,16 @@ pub(super) fn emit_dependency_unit(package: &SemanticPackage, unit: &SemanticUni
             if projected.error.is_some() {
                 writeln!(
                     output,
-                    "    match {call} {{\n        Ok(value) => Ok({converted_value}),\n        Err(error) => Err(crate::TerraneForeignError(crate::TerraneError::custom_raised(crate::TERRANE_DEPENDENCY_ERROR, format!(\"Rust dependency `{dependency_name}` member `{}` failed: {{error}}\"), crate::TERRANE_NO_SITE))),\n    }}",
+                    "    match {invocation} {{\n        Ok(value) => Ok({converted_value}),\n        Err(error) => Err(crate::TerraneForeignError(crate::TerraneError::custom_raised(crate::TERRANE_DEPENDENCY_ERROR, format!(\"Rust dependency `{dependency_name}` member `{}` failed: {{error}}\"), crate::TERRANE_NO_SITE))),\n    }}",
                     item.rust_path,
                 )
                 .expect("writing to a string cannot fail");
             } else {
-                writeln!(output, "    let value = {call};\n    Ok({converted_value})",)
-                    .expect("writing to a string cannot fail");
+                writeln!(
+                    output,
+                    "    let value = {invocation};\n    Ok({converted_value})",
+                )
+                .expect("writing to a string cannot fail");
             }
         } else if projected.error.is_some() {
             writeln!(

@@ -1,0 +1,20 @@
+namespace app
+
+from /core/errors import throwable, coercion-error
+from /deps/async-witness import reset_operation_state, wait_forever, wait_until_operation_started
+
+async function blocked string throws throwable;
+    try
+        return await wait_forever;
+    finally
+        throw coercion-error
+
+async function main;
+    reset_operation_state;
+    scope = task-scope;
+    child = scope.spawn; blocked
+    started bool = await wait_until_operation_started;
+    scope.cancel;
+    outcome = await scope.join; child
+    print; started, outcome.cancelled
+    print; outcome.error != none

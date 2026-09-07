@@ -104,7 +104,8 @@ class byte-reader
         return instance read-result; data, completed, end, failed, message
 
     async function read-async read-result; count int
-        return this.read; count
+        raw = await host-read-async; this.handle, count
+        return instance read-result; raw.data, raw.completed, raw.end, raw.failed, raw.message
 
     function text text-reader; codec encoding
         return instance text-reader; this.handle, codec
@@ -229,7 +230,9 @@ class text-reader
         return instance text-read-result; text, completed, end, failed, message
 
     async function read-async text-read-result throws decode-error; count int
-        return this.read; count
+        raw = await host-read-async; this.handle, count
+        text string = raw.data.decode; this.codec
+        return instance text-read-result; text, raw.completed, raw.end, raw.failed, raw.message
 
     function close stream-operation-result;
         raw = host-close; this.handle

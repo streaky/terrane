@@ -1393,16 +1393,109 @@ parser, semantic model, and Rust lowering. Presence comparisons on optional task
 type. Runtime and dependency inclusion is selected by lowering metadata rather than rendered-source
 scanning.
 
+The first async-execution-foundations increment also lowers projected Rust `async fn` members
+through the ordinary task path. Generated async dependency shims construct the Rust future at the
+Terrane call, await it inside the shim, and then apply the same conversion, `Result`, receiver, and
+panic boundary used for synchronous members. A controlled local fixture supplies a genuinely
+pending self-waking future plus typed success and failure results; accepted execution and the
+existing async-context and linear-task rejections cover the source contract without claiming a
+reactor-backed dependency runtime.
+
+The cancellation contract for the wake-driven replacement is now fixed before runtime selection:
+when cancellation is observed during suspension, the in-flight operation is dropped promptly, while
+compiler-separated `finally` state is retained and driven exactly once in innermost-first order.
+Cleanup is shielded from the initiating request and may suspend; deadlines do not hard-kill it, so a
+foreign cleanup future that never wakes can keep join pending. Lowering must reject captures that
+cannot split exclusive operation state from cleanup-owned state. Rust `Drop` runs for operation-only
+foreign values before Terrane cleanup, and cleanup-owned values survive through that cleanup. If
+cleanup fails, its error replaces pending cancellation in that child's outcome: `error` is present
+and `cancelled` is false for the child, while the scope's cancellation request remains in force and
+observable to its other children.
+
+Task representation now carries compiler-owned local-versus-transferable metadata through async
+callables, ordinary tasks, and scoped tasks. Authored task mobility is inferred conservatively from
+parameters and values live across suspension; projected Rust async members remain local until an
+admitted contract or exact probe proves their future transferable. Threaded scope spawn rejects a
+local callable in source terms, while the cooperative strategy admits it. Direct async calls retain
+their concrete Rust future type; boxing and pinning remain only at erased task/callable ABI
+boundaries, whose Rust `Send` bound is selected from the semantic transfer contract.
+
+The two source executor profiles now map through a compiler-owned execution-strategy model rather
+than selecting runtime templates directly throughout lowering. Semantic analysis aggregates generic
+requirements for runtime context, wake support, local or transferable work, and blocking delegation;
+projected async contracts request wake support and local execution while retaining `unknown` for
+runtime-context and transfer evidence the artifact does not establish. Entry, task-scope support,
+and transfer validation route through the strategy seam. The representation contains no Tokio or
+other runtime-specific name, preserving one place to select or replace the concrete executor in the
+following work unit.
+
+Wake-driven runtime integration now wraps an async entrypoint in exactly one generated selected
+runtime, constructs projected Rust futures when their Terrane task is first polled inside that
+context, and tears the runtime down deterministically after linearly owned scopes finish. The
+runtime Cargo dependency is exact and emitted only when semantic analysis requires async support.
+Cancellable legacy scope polling now parks on a real waker with bounded cancellation/deadline
+observation instead of busy-yielding. A controlled dependency witness awaits both a one-second Tokio
+timer and a loopback Tokio socket operation: each wakes correctly, the timer future is polled twice,
+and cached-executable timing records `0.02 s` user plus `0.04 s` system CPU over `1.02 s` elapsed.
+Generated lowering has no catch-and-block fallback for missing runtime context. Hover and completion
+surface the compiler-owned runtime-context, wake-support, and transfer requirement knowledge for
+projected async functions.
+
 Every lowered Terrane `await` yields to the executor before polling its operand and again after the
-operand completes. The cancellable executor checks the scope between those child polls, so even an
-immediately-ready awaited future cannot carry execution past the suspension point after cancellation
-or deadline expiry. A focused threaded-runtime harness coordinates cancellation while an awaited
-future is being polled and proves that the child is dropped before its post-`await` statement, then
-joins as cancelled. A failed child retains its typed throwable and requests cancellation through the
-scope's shared state, which surviving siblings observe at their next cancellation point. Linear
-scoped tasks must be joined before the enclosing function can exit, and join reports completed,
-cancelled, value, and typed error state. Child deadlines take the earlier of inherited and requested
-deadlines at runtime; statically resolvable extensions are additionally rejected in source.
+operand completes. Native scopes now publish cancellation through a wakeable compiler-owned signal;
+no fixed-interval timer polls scope state. A generated finalization guard keeps the cancellation
+boundary outside every active `finally`; the innermost guard first drops the pending operation, runs
+its cleanup, and then exposes the request to the next enclosing guard. Asynchronous cleanup remains
+protected from the initiating request until the outermost guard releases it to the task boundary.
+
+The `cancelled-foreign-await-runs-finally` witness holds a projected Rust future permanently
+pending, waits until it has actually started, cancels its scope, and proves that the future's
+operation-only owner is dropped before separately retained Terrane cleanup runs. Join does not
+complete until the cleanup's projected asynchronous yield finishes. The same single-worker runtime
+then completes a newly spawned task, proving cancellation released the executor rather than leaving
+the pending operation or a polling loop resident. `cancelled-nested-finally-order` holds the same
+foreign operation pending beneath two asynchronous `finally` blocks and proves inner cleanup,
+outer cleanup, cancelled join, and one operation drop in that order.
+`cancelled-finally-error-wins` proves that an ordinary cleanup failure replaces pending cancellation
+in the affected child's outcome without clearing the scope's cancellation request.
+`borrow-parameter-in-async-finally` retains the source rejection for cleanup state whose lender
+cannot survive the suspension.
+
+Native scope lowering now turns `spawn` into a task scheduled on the selected local or parallel
+runtime, rather than an OS thread that waits on a future. `join` is itself asynchronous and source
+uses `await scope.join; child`; the statically non-copyable child transfers into `join` without
+source-level move ceremony. Lowering still passes the generated Rust task by value. Direct
+interleaving evidence runs two projected child futures that must signal one another before either
+can be joined. Scope failure retains the typed error and requests sibling cancellation. Legacy
+synchronous scope fixtures retain their cancellable waker-polling implementation until their source
+path is migrated.
+
+The first B7 migration makes `/core/streams` byte and text `read-async` await a generated
+`spawn_blocking` delegation rather than call the synchronous read on an executor task. That
+delegation is recorded as a generic runtime requirement; its observable read result is unchanged.
+
+TCP connect/accept/read/write, UDP send/receive, and DNS lookup now expose async Terrane contracts
+backed by distinct async host intrinsics. Their current standard-socket ABI work is submitted through
+the selected runtime's blocking pool, while task-scope `spawn` can accept an already-constructed
+unpolled task so owned listener state moves safely into a concurrent server child. TCP, UDP, and
+cancelled-DNS conformance retain their prior observable results.
+
+TLS client handshake, encrypted read/write, and shutdown now follow the same asynchronous host
+contract and selected-runtime blocking delegation. Certificate-chain and hostname validation remain
+mandatory on the ordinary connector; this migration changes scheduling rather than trust semantics.
+
+The TCP loopback witness runs with `TOKIO_WORKER_THREADS=1` while one scoped standard-input read and
+one listener accept are both pending. The client still connects, writes, reads the reply, and prints
+before the harness releases standard input. That ordering cannot complete if either pending host
+operation occupies the sole executor worker.
+
+The blocking pool is a bounded compatibility bridge, not the final socket transport. Before Phase C
+adds async sequence or sink load, socket readiness, TCP and UDP reads/writes, listener acceptance,
+and TLS transport I/O must migrate to readiness-native polling on the selected runtime. Operations
+that are genuinely blocking, such as platform-specific resolver or file paths, may remain explicit
+blocking-delegation requirements. The prerequisite is complete only when concurrent backpressure,
+cancellation, and deadlines are exercised with pending operations exceeding both executor workers
+and blocking-pool capacity, so universal `spawn_blocking` offload cannot satisfy the witness.
 
 Accepted and rejected conformance covers async/sync type incompatibility, task consumption,
 successful, throwing, cancelled, and sibling-cancelling children, statically resolvable nested

@@ -1,0 +1,5 @@
+namespace app
+from /deps/async-witness import echo_after_yield
+
+async function main;
+  echo_after_yield; >discarded task

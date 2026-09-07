@@ -8,6 +8,7 @@ use crate::Span;
 pub struct Program {
     pub version: &'static str,
     pub requires_platform_support: bool,
+    pub requires_async_runtime: bool,
     pub runtime: Vec<GeneratedModule>,
     pub globals: Vec<Item>,
     pub modules: Vec<Module>,

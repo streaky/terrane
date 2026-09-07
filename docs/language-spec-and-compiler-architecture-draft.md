@@ -2348,11 +2348,14 @@ Ordinary assignment of a resource-owning value transfers ownership:
 b = a
 ```
 
-After the transfer, `a` is unavailable until rebound. The same assignment remains ordinary value
-assignment for copyable values, so ownership consequences follow the statically known value
-contract rather than call-site ceremony.
+After the transfer, `a` is unavailable until rebound. The same automatic transfer applies when a
+statically non-copyable value is passed to a by-value consuming parameter. Copyable values retain
+ordinary value semantics, so ownership consequences follow the statically known value contract
+rather than call-site ceremony.
 
-`move` remains an explicit request to transfer a value that would otherwise be copied:
+`move` remains an explicit request to transfer a value that would otherwise be copied. It may also
+make an already-required non-copyable transfer visible, but never changes whether that transfer
+occurs:
 
 ```terrane
 b = move a
@@ -3643,6 +3646,23 @@ response = await request.send;
 
 Values live across suspension are captures of the generated task. They follow ordinary value, `ref`, move, provenance, thread-transfer, and cancellation rules. A borrow may cross suspension only when its lender is proven to outlive the task and the selected executor's movement/thread requirements are satisfied; otherwise the compiler diagnoses the capture at the `await`. An async implementation may have fewer throwing effects than declared, but cannot implement a synchronous callable contract.
 
+Every async callable contract carries compiler-owned task transferability. A task is `transferable`
+only when each parameter, capture, and value retained across a suspension has a transferable
+contract and every invoked async boundary promises a transferable future; otherwise it is
+executor-local. A non-owning `ref` is local unless its separately proven lifetime and target
+execution strategy establish the required movement contract. A projected Rust async member is
+local unless its admitted contract or an exact compiler probe proves the returned future
+transferable; Rust crate names and runtime-specific trait names do not enter Terrane source.
+Callable compatibility preserves this distinction rather than erasing a local future into a
+transferable callable type.
+
+Lowering keeps the concrete Rust future type at direct invocation, local binding, immediate
+`await`, and other statically known positions. Type erasure and pinning occur only at an explicit
+heterogeneous storage or callable ABI boundary. A transferable erased task includes the selected
+strategy's transfer requirement; a local erased task does not acquire it silently. Before its first
+poll a linear task may be moved into its consuming `await` or scope operation. After advancement it
+is pinned inside compiler-owned executor state and cannot be moved through a source operation.
+
 ### 21.3 Runtime independence
 
 The source language should not hard-code one async executor.
@@ -3650,6 +3670,26 @@ The source language should not hard-code one async executor.
 A package/build profile selects the runtime implementation.
 
 The compiler lowers async code into Rust futures and target runtime integration.
+
+Source executor profiles map to compiler-owned execution strategies. Semantic lowering aggregates
+generic requirements including runtime context, wake support, local or transferable work, and
+blocking delegation; the later runtime-selection boundary satisfies those requirements with a
+concrete implementation. Semantic contracts and language diagnostics must not encode Tokio or
+another runtime crate by name.
+
+The current native backend creates exactly one selected wake-driven runtime around an asynchronous
+entrypoint and drops it only after the entry task and its owned scopes finish. A projected Rust
+future is constructed when its Terrane task is first polled inside that context. Runtime wakeups
+drive pending dependency futures and timers; lowering does not retry a failed runtime-context
+requirement by blocking the current thread. Cancellable legacy scope polling parks on its waker with
+a bounded deadline/cancellation check rather than spinning between polls; scope scheduling itself is
+specified separately below.
+
+Projection metadata represents runtime-context, wake-support, and transfer knowledge independently
+as `required`, `not required`, or `unknown`. Rust `async fn` projection currently records wake
+support as required and leaves runtime context and transfer unknown unless exact artifact evidence
+establishes more. Editor completion and hover present those Terrane execution requirements rather
+than Rust future internals.
 
 ### 21.4 Structured concurrency
 
@@ -3659,10 +3699,14 @@ timeout, stream-cancellation, and network-deadline contracts elsewhere in this d
 defined against it.
 
 An async invocation produces a linear `task of T`. `await` consumes that task exactly once. A scope's
-`spawn` method instead produces a linear `scoped-task of T` owned by that scope, and the scope's
-`join` method consumes it exactly once and returns `task-outcome of T`. Leaving either kind
-unconsumed is a compile-time error; ordinary drop never silently detaches or cancels it. Detached
-tasks, when supplied, use a separate explicit operation and lifetime contract.
+`spawn` method accepts either an async callable or an unpolled task; passing the linear task transfers
+it into the scope automatically. `spawn` produces a linear `scoped-task of T` owned by that scope.
+`join` takes that scoped task by value, consumes it exactly once, and constructs a
+`task of task-outcome of T`; `await scope.join; child` consumes both the child handle at the call
+boundary and the resulting join task at the `await`. Source-level `move` is not required for either
+statically non-copyable transfer even when lowering uses a Rust move. Leaving either kind unconsumed
+is a compile-time error; ordinary drop never silently detaches or cancels it. Detached tasks, when
+supplied, use a separate explicit operation and lifetime contract.
 
 `task-outcome of T` has these observations:
 
@@ -3671,12 +3715,49 @@ tasks, when supplied, use a separate explicit operation and lifetime contract.
 - `value T or none`: present exactly when `completed` is true;
 - `error throwable or none`: present exactly when the child failed.
 
-Cancellation is cooperative. `await`, scope join, and library operations explicitly documented as
-cancellable are cancellation points. A request stops new child admission, is observed at the next
-cancellation point, and never erases work or a value completed before observation; an outcome may
-therefore be both `completed` and `cancelled`. When one child fails, its scope requests cancellation
-of surviving siblings, continues to join them through cleanup, and retains each child's outcome.
-No child is abandoned and no failure is silently dropped.
+Cancellation is cooperative at defined observation points, but observation at a suspended operation
+has a prompt, drop-safe meaning. `await`, scope join, and library operations explicitly documented as
+cancellable are cancellation points. A request stops new child admission and is observed at the next
+cancellation point. If the task has already produced a value before observation, that value is never
+erased, so an outcome may be both `completed` and `cancelled`. When one child fails, its scope requests
+cancellation of surviving siblings, continues to join them through cleanup, and retains each child's
+outcome. No child is abandoned and no failure is silently dropped.
+
+When cancellation is observed while a task is suspended in a dependency or compiler-owned future,
+the executor stops polling and drops that in-flight future. Any foreign values owned only by that
+future run their Rust `Drop` implementations at this point. Dropping the operation must not drop or
+skip Terrane cleanup state: the compiler separates values required by active `finally` regions,
+enters those regions exactly once in innermost-first order, and drives their synchronous or
+asynchronous cleanup to completion before the task can be joined. Cleanup is shielded from the
+cancellation request that initiated it; a repeated request does not enter it twice.
+
+The native backend represents the request with a wakeable compiler-owned cancellation signal rather
+than periodic polling. Lowered async `try` regions with `finally` install nested finalization guards.
+Only the innermost active guard may observe the request; it drops its pending Rust future, runs
+generated `finally` dispatch, and then exposes cancellation to the next enclosing guard. Once the
+outermost guard finishes, the scoped-task boundary records cancellation. The guard state is not a
+catchable source throwable, requires no Rust panic or unwind control flow, and does not change the
+selected dependency-panic policy.
+
+Compiler-owned asynchronous stream, TCP, UDP, and DNS operations suspend through the selected
+runtime. Where the current host ABI exposes an unavoidably blocking standard handle or socket,
+lowering delegates that operation to the runtime's blocking pool; it never runs the blocking call
+on an executor worker or creates a second runtime.
+
+A value needed by cancellation cleanup must therefore have one statically unambiguous owner. The
+compiler rejects a suspension where the in-flight operation and a reachable `finally` cleanup would
+require overlapping exclusive ownership, a borrow whose lender does not outlive cleanup, or another
+capture arrangement that cannot be split into operation state and cleanup state. Shared ownership is
+valid only through its authored `shared ref` contract; cancellation never upgrades an ordinary
+value or `ref`.
+
+A deadline and sibling failure use this same cancellation transition; neither is a hard kill.
+Cleanup may itself suspend and the scope's join remains pending until it finishes. Consequently the
+language guarantees cleanup entry and executor driving, not progress from a foreign cleanup future
+that never wakes. If cleanup throws, its error replaces the pending cancellation completion under the
+ordinary `finally` rule while the outcome continues to record that cancellation was requested. A
+panic while dropping a dependency future follows the selected dependency-panic policy and does not
+silently suppress separately retained Terrane cleanup.
 
 Deadlines are explicit scope inputs, not ambient task-local state. A child inherits its parent's
 effective deadline. A requested child deadline is combined with that inherited value by taking the
@@ -4154,6 +4235,13 @@ Rust borrow and mutable binding. On unwinding profiles, a panic crossing a gener
 `panic = "abort"`. Receiver-bearing unwind shims use the compiler-owned
 `AssertUnwindSafe` invariant because the receiver is already governed by Terrane's ownership
 rules; receiver-free shims retain Rust's ordinary `UnwindSafe` proof.
+
+A projected Rust `async fn` remains asynchronous in its Terrane callable contract. Calling it
+constructs a Terrane task; awaiting that task polls the Rust future. Its generated async shim awaits
+the Rust operation before applying the same argument conversion, result conversion, `Result` error
+mapping, receiver ownership, and panic-containment rules as a synchronous projected member. The
+future is constructed when the Terrane call expression is evaluated rather than being deferred
+until a later `await`.
 
 Cargo and rustc remain authoritative. Projection and editor information are advisory and derived from the resolved package rather than predefined by Terrane. The language server uses the shared artifact for completion, signature help, hover, exact Rust paths, and declined-item reasons. Projection executes under the build-script capability policy.
 

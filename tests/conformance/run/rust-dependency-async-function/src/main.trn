@@ -1,0 +1,22 @@
+namespace app
+from /deps/async-witness import echo_after_yield, checked_echo, timer_poll_count, socket_round_trip, wait_for_sibling, signal_sibling
+from /core/errors import dependency-error
+
+async function main;
+  echoed string = await echo_after_yield; >projected async success
+  print; echoed
+  polls int = await timer_poll_count;
+  print; polls
+  message string = await socket_round_trip;
+  print; message
+  scope = task-scope;
+  waiting = scope.spawn; wait_for_sibling
+  signalling = scope.spawn; signal_sibling
+  waited = await scope.join; waiting
+  signalled = await scope.join; signalling
+  print; waited.completed, signalled.completed
+  try
+    rejected string = await checked_echo; >reject
+    print; rejected
+  catch dependency-error
+    print; 'caught projected async failure'

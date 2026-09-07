@@ -30,18 +30,33 @@ impl Emitter<'_> {
                     let throws = self
                         .contract_for_call(callable)
                         .is_some_and(|contract| contract.throws);
-                    let callable = if let Some(value_type) = self.value_type(callable) {
+                    let foreign_error = callable.kind == SyntaxKind::Name
+                        && self
+                            .package
+                            .resolve_name_at(self.unit, callable.span.start, self.text(callable))
+                            .is_some_and(|symbol| symbol.identity.starts_with("/deps/"));
+                    let callable_type = self.value_type(callable);
+                    let callable = if let Some(value_type) = callable_type.clone() {
                         self.expression_as(callable, value_type)
                     } else {
                         self.expression(callable)
                     };
-                    if throws {
+                    let invocation = if matches!(callable_type, Some(ValueType::Task(_, _))) {
+                        callable
+                    } else {
+                        format!("({callable})()")
+                    };
+                    if foreign_error {
                         format!(
-                            "{{ let __terrane_scope = ({receiver}).clone(); let __terrane_cancel = __terrane_scope.clone(); TerraneScopedTask::spawn(move || match __terrane_block_on_cancellable(({callable})(), move || __terrane_cancel.should_cancel()) {{ Some(Ok(value)) => TerraneTaskResult::Completed(value), Some(Err(error)) => TerraneTaskResult::Failed(error), None => TerraneTaskResult::Cancelled }}) }}"
+                            "{{ let __terrane_scope = ({receiver}).clone(); let __terrane_cancel = __terrane_scope.cancellation(); let __terrane_deadline = __terrane_scope.deadline; TerraneScopedTask::spawn(async move {{ match __terrane_cancellable({invocation}, __terrane_cancel, __terrane_deadline).await {{ Some(Ok(value)) => TerraneTaskResult::Completed(value), Some(Err(error)) => TerraneTaskResult::Failed(crate::TerraneRaised::raised(error, crate::TERRANE_NO_SITE)), None => TerraneTaskResult::Cancelled }} }}) }}"
+                        )
+                    } else if throws {
+                        format!(
+                            "{{ let __terrane_scope = ({receiver}).clone(); let __terrane_cancel = __terrane_scope.cancellation(); let __terrane_deadline = __terrane_scope.deadline; TerraneScopedTask::spawn(async move {{ match __terrane_cancellable({invocation}, __terrane_cancel, __terrane_deadline).await {{ Some(Ok(value)) => TerraneTaskResult::Completed(value), Some(Err(error)) => TerraneTaskResult::Failed(error), None => TerraneTaskResult::Cancelled }} }}) }}"
                         )
                     } else {
                         format!(
-                            "{{ let __terrane_scope = ({receiver}).clone(); let __terrane_cancel = __terrane_scope.clone(); TerraneScopedTask::spawn(move || match __terrane_block_on_cancellable(({callable})(), move || __terrane_cancel.should_cancel()) {{ Some(value) => TerraneTaskResult::Completed(value), None => TerraneTaskResult::Cancelled }}) }}"
+                            "{{ let __terrane_scope = ({receiver}).clone(); let __terrane_cancel = __terrane_scope.cancellation(); let __terrane_deadline = __terrane_scope.deadline; TerraneScopedTask::spawn(async move {{ match __terrane_cancellable({invocation}, __terrane_cancel, __terrane_deadline).await {{ Some(value) => TerraneTaskResult::Completed(value), None => TerraneTaskResult::Cancelled }} }}) }}"
                         )
                     }
                 }),
@@ -487,10 +502,22 @@ impl Emitter<'_> {
             ("udp-send-to", "platform_udp_send_to"),
             ("udp-receive-from", "platform_udp_receive_from"),
             ("dns-lookup", "platform_dns_lookup"),
+            ("tcp-connect-async", "platform_tcp_connect_async"),
+            ("tcp-connect-host-async", "platform_tcp_connect_host_async"),
+            ("tcp-accept-async", "platform_tcp_accept_async"),
+            ("tcp-read-async", "platform_tcp_read_async"),
+            ("tcp-write-async", "platform_tcp_write_async"),
+            ("udp-send-to-async", "platform_udp_send_to_async"),
+            ("udp-receive-from-async", "platform_udp_receive_from_async"),
+            ("dns-lookup-async", "platform_dns_lookup_async"),
             ("tls-client", "platform_tls_client"),
             ("tls-read", "platform_tls_read"),
             ("tls-write", "platform_tls_write"),
             ("tls-shutdown", "platform_tls_shutdown"),
+            ("tls-client-async", "platform_tls_client_async"),
+            ("tls-read-async", "platform_tls_read_async"),
+            ("tls-write-async", "platform_tls_write_async"),
+            ("tls-shutdown-async", "platform_tls_shutdown_async"),
             ("close", "platform_capability_close"),
             ("result-failed", "platform_result_failed"),
             ("result-resource-limit", "platform_result_resource_limit"),
@@ -529,17 +556,26 @@ impl Emitter<'_> {
                                 | "platform_uuid_v4"
                                 | "platform_uuid_v7"
                                 | "platform_tcp_accept"
+                                | "platform_tcp_accept_async"
                                 | "platform_tcp_read"
+                                | "platform_tcp_read_async"
                                 | "platform_tcp_write"
+                                | "platform_tcp_write_async"
                                 | "platform_tcp_shutdown"
                                 | "platform_tcp_configure"
                                 | "platform_udp_send_to"
+                                | "platform_udp_send_to_async"
                                 | "platform_udp_receive_from"
+                                | "platform_udp_receive_from_async"
                                 | "platform_udp_configure"
                                 | "platform_tls_client"
+                                | "platform_tls_client_async"
                                 | "platform_tls_read"
+                                | "platform_tls_read_async"
                                 | "platform_tls_write"
+                                | "platform_tls_write_async"
                                 | "platform_tls_shutdown"
+                                | "platform_tls_shutdown_async"
                                 | "platform_capability_close"
                                 | "platform_digest"
                                 | "platform_hmac"
@@ -550,22 +586,33 @@ impl Emitter<'_> {
                         ) | ("platform_parse_socket" | "platform_hmac", 1)
                             | (
                                 "platform_tcp_connect"
+                                    | "platform_tcp_connect_async"
                                     | "platform_tcp_accept"
-                                    | "platform_tls_shutdown",
+                                    | "platform_tcp_accept_async"
+                                    | "platform_tls_shutdown"
+                                    | "platform_tls_shutdown_async",
                                 2
                             )
                             | (
                                 "platform_tcp_connect_host"
+                                    | "platform_tcp_connect_host_async"
                                     | "platform_tcp_read"
+                                    | "platform_tcp_read_async"
                                     | "platform_tcp_write"
+                                    | "platform_tcp_write_async"
                                     | "platform_udp_receive_from"
+                                    | "platform_udp_receive_from_async"
                                     | "platform_dns_lookup"
+                                    | "platform_dns_lookup_async"
                                     | "platform_tls_client"
+                                    | "platform_tls_client_async"
                                     | "platform_tls_read"
-                                    | "platform_tls_write",
+                                    | "platform_tls_read_async"
+                                    | "platform_tls_write"
+                                    | "platform_tls_write_async",
                                 3,
                             )
-                            | ("platform_udp_send_to", 4)
+                            | ("platform_udp_send_to" | "platform_udp_send_to_async", 4)
                     ) || function.starts_with("platform_result_") && index == 0;
                     if borrowed {
                         format!("&({value})")
@@ -718,6 +765,7 @@ impl Emitter<'_> {
             ("open-directory-beneath", "open_directory_beneath"),
             ("open-file-beneath", "open_file_beneath"),
             ("read", "read"),
+            ("read-async", "read_async"),
             ("write", "write"),
             ("flush", "flush"),
             ("sync-data", "sync_data"),
@@ -939,59 +987,72 @@ impl Emitter<'_> {
                 .expect("foreign method owner has a projected Rust path");
             let dependency = type_path.split("::").next().unwrap_or("dependency");
             let member = format!("{type_path}::{}", method.name);
-            let catch_unwind = |body: &str| {
-                if method.receiver.is_some() {
-                    format!("std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {body}))")
-                } else {
-                    format!("std::panic::catch_unwind(|| {body})")
-                }
+            let invocation = if method.is_async {
+                format!("{call}.await")
+            } else {
+                call.clone()
             };
-            if self.package.profile.panic == crate::package::PanicProfile::Abort {
+            let unwind_call = if !method.is_async
+                && method.error.is_none()
+                && self.discarded_call == Some(node.span)
+            {
+                format!("{{ {call}; }}")
+            } else {
+                call.clone()
+            };
+            let caught = if method.is_async {
+                format!("crate::__terrane_dependency_await_unwind({call}).await")
+            } else if method.receiver.is_some() {
+                format!("std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {unwind_call}))")
+            } else {
+                format!("std::panic::catch_unwind(|| {unwind_call})")
+            };
+            let mapped = if self.package.profile.panic == crate::package::PanicProfile::Abort {
                 if method.error.is_some() {
                     format!(
-                        "match {call} {{ Ok(value) => Ok(value), Err(error) => Err(crate::TerraneForeignError(crate::TerraneError::custom_raised(crate::TERRANE_DEPENDENCY_ERROR, format!(\"Rust dependency `{dependency}` member `{member}` failed: {{error}}\"), crate::TERRANE_NO_SITE))) }}"
+                        "match {invocation} {{ Ok(value) => Ok(value), Err(error) => Err(crate::TerraneForeignError(crate::TerraneError::custom_raised(crate::TERRANE_DEPENDENCY_ERROR, format!(\"Rust dependency `{dependency}` member `{member}` failed: {{error}}\"), crate::TERRANE_NO_SITE))) }}"
                     )
                 } else if self.discarded_call == Some(node.span) {
-                    format!("{{ {call}; Ok(()) }}")
+                    format!("{{ {invocation}; Ok(()) }}")
                 } else {
-                    format!("Ok({call})")
+                    format!("Ok({invocation})")
                 }
             } else if method.error.is_some() {
-                let caught = catch_unwind(&call);
                 format!(
                     "match {caught} {{ Ok(Ok(value)) => Ok(value), Ok(Err(error)) => Err(crate::TerraneForeignError(crate::TerraneError::custom_raised(crate::TERRANE_DEPENDENCY_ERROR, format!(\"Rust dependency `{dependency}` member `{member}` failed: {{error}}\"), crate::TERRANE_NO_SITE))), Err(payload) => Err(crate::__terrane_dependency_panic(payload, {dependency:?}, {member:?})) }}"
                 )
             } else {
-                let unwind_body = if self.discarded_call == Some(node.span) {
-                    format!("{{ {call}; }}")
-                } else {
-                    call
-                };
-                let caught = catch_unwind(&unwind_body);
                 format!(
                     "match {caught} {{ Ok(value) => Ok(value), Err(payload) => Err(crate::__terrane_dependency_panic(payload, {dependency:?}, {member:?})) }}"
                 )
+            };
+            if method.is_async {
+                format!("async move {{ {mapped} }}")
+            } else {
+                mapped
             }
-        } else {
-            call
-        };
-        let call = if contract.as_ref().is_some_and(|contract| contract.is_async)
-            && matches!(self.value_type(node), Some(ValueType::Task(_)))
-        {
-            format!("Box::pin({call})")
         } else {
             call
         };
         let function_value_call = callee.kind == SyntaxKind::Name
             && contract.is_none()
             && matches!(self.value_type(callee), Some(ValueType::Function(_, _)));
-        if contract.is_some_and(|contract| contract.throws) || foreign_error || function_value_call
-        {
-            let site = self.error_site(node);
-            let dependency_boundary = self
-                .package
-                .resolve_name_at(self.unit, callee.span.start, self.text(callee))
-                .is_some_and(|symbol| symbol.identity.starts_with("/deps/"));
+        let needs_error_mapping = contract.as_ref().is_some_and(|contract| contract.throws)
+            || foreign_error
+            || function_value_call;
+        let site = if needs_error_mapping {
+            self.error_site(node)
+        } else {
+            String::new()
+        };
+        let dependency_boundary = self
+            .package
+            .resolve_name_at(self.unit, callee.span.start, self.text(callee))
+            .is_some_and(|symbol| symbol.identity.starts_with("/deps/"));
+        let map_errors = |call: &str| {
+            if !needs_error_mapping {
+                return call.to_owned();
+            }
             if foreign_error || dependency_boundary {
                 if self.try_completion {
                     format!("__terrane_raised_completion!({call}, {site})")
@@ -1007,8 +1068,18 @@ impl Emitter<'_> {
             } else {
                 format!("__terrane_traced({call}, {site})")
             }
+        };
+        if contract.as_ref().is_some_and(|contract| contract.is_async)
+            && matches!(self.value_type(node), Some(ValueType::Task(_, _)))
+        {
+            if foreign_error || dependency_boundary {
+                let completed = format!("__terrane_raised_err(__terrane_future.await, {site})");
+                format!("{{ let __terrane_future = {call}; async move {{ {completed} }} }}")
+            } else {
+                call
+            }
         } else {
-            call
+            map_errors(&call)
         }
     }
 }

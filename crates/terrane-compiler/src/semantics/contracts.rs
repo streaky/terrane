@@ -435,6 +435,16 @@ pub(super) fn analyze_function_contract(
         escaping_throwables: BTreeSet::new(),
         throws,
         is_async,
+        task_transferability: if unit.namespace.starts_with("/deps/") {
+            TaskTransferability::Local
+        } else {
+            TaskTransferability::Transferable
+        },
+        execution_requirements: if is_async {
+            crate::execution::ExecutionRequirements::for_async(unit.namespace.starts_with("/deps/"))
+        } else {
+            crate::execution::ExecutionRequirements::default()
+        },
         is_static,
         mutates_receiver: mutates_object_receiver(unit, node),
         consumes_receiver: false,

@@ -227,7 +227,7 @@ impl Emitter<'_> {
         }
         if matches!(
             receiver_type,
-            Some(ValueType::Function(_, _) | ValueType::AsyncFunction(_, _))
+            Some(ValueType::Function(_, _) | ValueType::AsyncFunction(_, _, _))
         ) && matches!(
             self.text(member),
             "contracts" | "throwable-contract" | "escaping-throwables"
@@ -315,7 +315,7 @@ impl Emitter<'_> {
         if self.text(member) == "length"
             && matches!(
                 self.value_type(node),
-                Some(ValueType::Function(_, _) | ValueType::AsyncFunction(_, _))
+                Some(ValueType::Function(_, _) | ValueType::AsyncFunction(_, _, _))
             )
         {
             return format!("({receiver}).length");

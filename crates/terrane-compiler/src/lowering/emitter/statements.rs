@@ -395,6 +395,14 @@ impl Emitter<'_> {
         }
     }
 
+    fn contains_await(&self, node: &SyntaxNode) -> bool {
+        (node.kind == SyntaxKind::UnaryExpression
+            && node.children.first().is_some_and(|operator| {
+                self.unit.source.text()[operator.span.start..operator.span.end].trim() == "await"
+            }))
+            || node.children.iter().any(|child| self.contains_await(child))
+    }
+
     #[expect(
         clippy::too_many_lines,
         reason = "the emitted try/catch/finally control flow is clearer as one auditable state machine"
@@ -403,27 +411,43 @@ impl Emitter<'_> {
         let Some(block) = node.children.first() else {
             return;
         };
+        let asynchronous = self.contains_await(node);
+        let has_finally = node
+            .children
+            .iter()
+            .any(|child| child.kind == SyntaxKind::FinallyClause);
+        let cancellation_aware = asynchronous
+            && has_finally
+            && package_uses_task_scope(self.package)
+            && self.package.units.iter().any(|unit| {
+                unit.functions
+                    .iter()
+                    .any(|function| function.name == "main" && function.is_async)
+            });
+        let closure_start = if asynchronous { "async {" } else { "(|| {" };
+        let closure_end = if asynchronous { "}.await;" } else { "})();" };
         let index = self.try_counter;
         self.try_counter += 1;
         let result = self.return_type.clone().map_or_else(
             || "()".to_owned(),
             |value_type| rust_value_type(self.package, value_type),
         );
-        let mutable = if node
-            .children
-            .iter()
-            .any(|child| child.kind == SyntaxKind::FinallyClause)
-        {
-            "mut "
+        let mutable = if has_finally { "mut " } else { "" };
+        if cancellation_aware {
+            self.line(&format!(
+                "let mut __terrane_finally_guard_{index} = __terrane_finally_guard();"
+            ));
+            self.line(&format!(
+                "let __terrane_maybe_completion_{index}: Option<TerraneCompletion<{result}>> = __terrane_cancel_operation(&__terrane_finally_guard_{index}, async {{"
+            ));
         } else {
-            ""
-        };
-        self.line(&format!(
-            "let {mutable}__terrane_completion_{index}: TerraneCompletion<{result}> = (|| {{"
-        ));
+            self.line(&format!(
+                "let {mutable}__terrane_completion_{index}: TerraneCompletion<{result}> = {closure_start}"
+            ));
+        }
         self.indent += 1;
         self.line(&format!(
-            "let __terrane_try_{index}: TerraneCompletion<{result}> = (|| {{"
+            "let __terrane_try_{index}: TerraneCompletion<{result}> = {closure_start}"
         ));
         self.indent += 1;
         let outer_completion = std::mem::replace(&mut self.try_completion, true);
@@ -436,7 +460,7 @@ impl Emitter<'_> {
         self.function_errors = outer_function_errors;
         self.propagate_errors = outer_propagation;
         self.indent -= 1;
-        self.line("})();");
+        self.line(closure_end);
         self.line(&format!("match __terrane_try_{index} {{"));
         self.indent += 1;
         self.line("TerraneCompletion::Return(value) => return TerraneCompletion::Return(value),");
@@ -509,15 +533,31 @@ impl Emitter<'_> {
         self.line("}");
         self.line("TerraneCompletion::Normal");
         self.indent -= 1;
-        self.line("})();");
+        if cancellation_aware {
+            self.line("}).await;");
+            self.line(&format!(
+                "let __terrane_cancelled_{index} = __terrane_maybe_completion_{index}.is_none();"
+            ));
+            self.line(&format!(
+                "let mut __terrane_completion_{index} = __terrane_maybe_completion_{index}.unwrap_or(TerraneCompletion::Normal);"
+            ));
+        } else {
+            self.line(closure_end);
+        }
         if let Some(finally) = node
             .children
             .iter()
             .find(|child| child.kind == SyntaxKind::FinallyClause)
             .and_then(|clause| clause.children.first())
         {
+            let finally_asynchronous = self.contains_await(finally);
+            let (finally_start, finally_end) = if finally_asynchronous {
+                ("async {", "}.await;")
+            } else {
+                ("(|| {", "})();")
+            };
             self.line(&format!(
-                "let __terrane_finally_{index}: TerraneCompletion<{result}> = (|| {{"
+                "let __terrane_finally_{index}: TerraneCompletion<{result}> = {finally_start}"
             ));
             self.indent += 1;
             let outer_completion = std::mem::replace(&mut self.try_completion, true);
@@ -531,7 +571,7 @@ impl Emitter<'_> {
             self.propagate_errors = outer_propagation;
             self.try_completion = outer_completion;
             self.indent -= 1;
-            self.line("})();");
+            self.line(finally_end);
             self.line(&format!("match __terrane_finally_{index} {{"));
             self.indent += 1;
             self.line("TerraneCompletion::Normal => {}");
@@ -540,6 +580,12 @@ impl Emitter<'_> {
             ));
             self.indent -= 1;
             self.line("}");
+        }
+        if cancellation_aware {
+            self.line(&format!(
+                "if __terrane_cancelled_{index} && matches!(&__terrane_completion_{index}, TerraneCompletion::Normal) {{ __terrane_finish_cancelled_finally(__terrane_finally_guard_{index}).await; }}"
+            ));
+            self.line(&format!("__terrane_finally_guard_{index}.finish();"));
         }
         self.line(&format!("match __terrane_completion_{index} {{"));
         self.indent += 1;
@@ -601,20 +647,22 @@ impl Emitter<'_> {
             .and_then(|binding| binding.storage_type)
             .filter(|_| !reference_backed)
             .filter(|_| !binding_span_is_mutated(self.package, self.unit, node.span, true));
-        let ty = binding.map(|binding| {
-            let value_type = if !binding.destination_arms.is_empty() {
-                union_type_name(binding)
-            } else if let Some(storage_type) = storage_type {
-                rust_type(storage_type).to_owned()
-            } else {
-                rust_value_type(self.package, binding.value_type.clone())
-            };
-            if reference_backed {
-                format!("std::sync::Arc<std::sync::Mutex<{value_type}>>")
-            } else {
-                value_type
-            }
-        });
+        let ty = binding
+            .filter(|binding| !matches!(binding.value_type, ValueType::Task(_, _)))
+            .map(|binding| {
+                let value_type = if !binding.destination_arms.is_empty() {
+                    union_type_name(binding)
+                } else if let Some(storage_type) = storage_type {
+                    rust_type(storage_type).to_owned()
+                } else {
+                    rust_value_type(self.package, binding.value_type.clone())
+                };
+                if reference_backed {
+                    format!("std::sync::Arc<std::sync::Mutex<{value_type}>>")
+                } else {
+                    value_type
+                }
+            });
         let initializer = binding_initializer(node, name_index);
         assert!(
             initializer.is_some() || !self.text(node).contains('='),

@@ -454,22 +454,32 @@ pub(super) fn rust_value_type(package: &SemanticPackage, ty: ValueType) -> Strin
                 .join(", "),
             rust_element_type(package, result)
         ),
-        ValueType::AsyncFunction(parameters, result) => format!(
-            "std::sync::Arc<dyn Fn({}) -> std::pin::Pin<Box<dyn Future<Output = {}>>> + Send + Sync>",
+        ValueType::AsyncFunction(parameters, result, transferability) => format!(
+            "std::sync::Arc<dyn Fn({}) -> std::pin::Pin<Box<dyn Future<Output = {}>{}>> + Send + Sync>",
             parameters
                 .into_iter()
                 .map(|parameter| rust_element_type(package, parameter))
                 .collect::<Vec<_>>()
                 .join(", "),
-            rust_element_type(package, result)
+            rust_element_type(package, result),
+            if transferability == TaskTransferability::Transferable {
+                " + Send"
+            } else {
+                ""
+            }
         ),
-        ValueType::Task(result) => {
+        ValueType::Task(result, transferability) => {
             format!(
-                "std::pin::Pin<Box<dyn Future<Output = {}>>>",
-                rust_element_type(package, result)
+                "std::pin::Pin<Box<dyn Future<Output = {}>{}>>",
+                rust_element_type(package, result),
+                if transferability == TaskTransferability::Transferable {
+                    " + Send"
+                } else {
+                    ""
+                }
             )
         }
-        ValueType::ScopedTask(result) => {
+        ValueType::ScopedTask(result, _) => {
             format!("TerraneScopedTask<{}>", rust_element_type(package, result))
         }
         ValueType::TaskScope => "TerraneTaskScope".to_owned(),

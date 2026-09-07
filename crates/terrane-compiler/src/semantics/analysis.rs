@@ -375,6 +375,8 @@ pub fn analyze(package: &Package) -> Result<SemanticPackage, SemanticFailure> {
         prelude: package.prelude,
         reflection: package.reflection,
         executor: package.executor,
+        execution_strategy: crate::execution::ExecutionStrategy::from_profile(package.executor),
+        execution_requirements: crate::execution::ExecutionRequirements::default(),
         profile: package.profile.clone(),
         namespaces,
         globals,
@@ -401,8 +403,10 @@ pub fn analyze(package: &Package) -> Result<SemanticPackage, SemanticFailure> {
     validate_calls(&semantic)?;
     validate_definite_assignment(&semantic)?;
     record_binding_events(&mut semantic);
+    infer_task_transferability(&mut semantic);
     validate_suspension_ownership(&semantic)?;
     validate_task_consumption(&semantic)?;
+    validate_task_transferability(&semantic)?;
     let unreachable_units = validate_control_flow(&semantic)?;
     for (unit, unreachable_spans) in semantic.units.iter_mut().zip(unreachable_units) {
         unit.unreachable_spans = unreachable_spans;

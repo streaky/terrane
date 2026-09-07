@@ -67,7 +67,7 @@ pub use model::{
     ArithmeticFamily, BOOTSTRAP_VERSION, BoundMethod, ElementType, EvaluationKind, EvaluationStep,
     FunctionContract, MemberFamily, Namespace, ObjectContract, ObjectField, ObjectIdentity,
     ObjectKind, ParameterContract, SemanticFailure, SemanticPackage, SemanticUnit, Symbol,
-    SymbolKind, TextUnit, TypedBinding, ValueType, Visibility,
+    SymbolKind, TaskTransferability, TextUnit, TypedBinding, ValueType, Visibility,
 };
 pub(crate) use model::{
     CoercionPolicy, ContextualConstant, FloatMemberOperation, StringFamily, float_member_contract,
