@@ -1499,7 +1499,33 @@ fn validate_projected_callback_node(
     unit: &SemanticUnit,
     node: &SyntaxNode,
     consumed_once: &mut BTreeSet<(u32, usize, usize)>,
+    immediately_awaited: bool,
 ) -> Result<(), SemanticFailure> {
+    if node.kind == SyntaxKind::CallExpression
+        && !immediately_awaited
+        && let [callee, _] = node.children.as_slice()
+        && callee.kind == SyntaxKind::MemberExpression
+        && let [receiver, member] = callee.children.as_slice()
+        && let Ok(Some(ValueType::Object(identity))) =
+            infer_value_type(unit, receiver, &unit.typed_bindings)
+        && let Some(method) = package.projection.method(
+            &identity.namespace,
+            &identity.name,
+            node_text(&unit.source, member),
+        )
+        && method.is_async
+        && matches!(
+            method.receiver,
+            Some(crate::projection::Receiver::Borrow | crate::projection::Receiver::MutableBorrow)
+        )
+    {
+        return Err(failure(
+            &unit.source,
+            "T0106",
+            "borrowed projected async operation must be awaited immediately",
+            node.span,
+        ));
+    }
     if node.kind == SyntaxKind::CallExpression
         && let [callee, arguments] = node.children.as_slice()
         && callee.kind == SyntaxKind::Name
@@ -1556,7 +1582,15 @@ fn validate_projected_callback_node(
         }
     }
     for child in &node.children {
-        validate_projected_callback_node(package, unit, child, consumed_once)?;
+        validate_projected_callback_node(
+            package,
+            unit,
+            child,
+            consumed_once,
+            node.kind == SyntaxKind::UnaryExpression
+                && unary_operator_text(unit, node).as_deref() == Some("await")
+                || node.kind == SyntaxKind::GroupExpression && immediately_awaited,
+        )?;
     }
     Ok(())
 }
@@ -1565,7 +1599,13 @@ pub(super) fn validate_projected_callback_arguments(
     package: &SemanticPackage,
 ) -> Result<(), SemanticFailure> {
     for unit in &package.units {
-        validate_projected_callback_node(package, unit, &unit.tree.root, &mut BTreeSet::new())?;
+        validate_projected_callback_node(
+            package,
+            unit,
+            &unit.tree.root,
+            &mut BTreeSet::new(),
+            false,
+        )?;
     }
     Ok(())
 }

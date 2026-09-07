@@ -17,7 +17,7 @@ use sha2::{Digest, Sha256};
 use crate::RustDependency;
 
 pub use crate::RUSTDOC_TOOLCHAIN;
-const PROJECTION_SCHEMA: &str = "18";
+const PROJECTION_SCHEMA: &str = "19";
 const MAX_PROJECTION_CACHE_RECORDS: usize = 4;
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
@@ -292,6 +292,7 @@ pub enum ProjectedType {
     },
     Tuple(Vec<ProjectedType>),
     AsyncIterationStep(Box<ProjectedType>),
+    AsyncSinkOutcome,
     Foreign {
         rust_path: String,
         name: String,
@@ -332,7 +333,7 @@ impl ProjectedType {
     pub(crate) fn rust_type(&self) -> String {
         match self {
             Self::None => "()".to_owned(),
-            Self::Bool => "bool".to_owned(),
+            Self::Bool | Self::AsyncSinkOutcome => "bool".to_owned(),
             Self::Int => "i64".to_owned(),
             Self::RustInt(name) => name.clone(),
             Self::Float => "f64".to_owned(),
@@ -424,6 +425,7 @@ impl ProjectedType {
             Self::AsyncIterationStep(inner) => {
                 format!("async-iteration-step of {}", inner.terrane_name())
             }
+            Self::AsyncSinkOutcome => "async-sink-outcome".to_owned(),
             Self::Optional(inner) => format!("{}|none", inner.terrane_name()),
         }
     }
@@ -613,9 +615,12 @@ impl Projection {
     }
 
     #[must_use]
-    pub(crate) fn foreign_is_async_sequence(&self, namespace: &str, name: &str) -> bool {
-        self.method(namespace, name, "next")
-            .is_some_and(|method| matches!(method.result, ProjectedType::AsyncIterationStep(_)))
+    pub(crate) fn foreign_owns_resource(&self, namespace: &str, name: &str) -> bool {
+        self.item(namespace, name).is_some_and(|item| {
+            matches!(&item.kind, ProjectedKind::ForeignType { methods, .. } if methods.iter().any(|method| {
+                method.is_async || matches!(method.receiver, Some(Receiver::Move))
+            }))
+        })
     }
 
     #[must_use]
@@ -2029,7 +2034,7 @@ fn project_rustdoc(
                         &rust_path,
                         &owner_generics,
                     );
-                    promote_async_sequence_methods(&mut methods);
+                    promote_async_endpoint_methods(&mut methods);
                     for method in methods.iter().filter(|method| method.receiver.is_none()) {
                         projected_associated_items.push(ProjectedItem {
                             namespace: namespace.clone(),
@@ -2521,23 +2526,38 @@ fn project_function_inner(
     })
 }
 
-fn promote_async_sequence_methods(methods: &mut [ProjectedFunction]) {
+fn promote_async_endpoint_methods(methods: &mut [ProjectedFunction]) {
     let has_consuming_close = methods
         .iter()
         .any(|method| method.name == "close" && method.receiver == Some(Receiver::Move));
     if !has_consuming_close {
         return;
     }
-    for method in methods {
+    for method in methods.iter_mut() {
         if method.name == "next"
             && method.is_async
             && matches!(
                 method.receiver,
                 Some(Receiver::Borrow | Receiver::MutableBorrow)
             )
+            && method.error.is_some()
             && let ProjectedType::Optional(item) = &method.result
         {
             method.result = ProjectedType::AsyncIterationStep(item.clone());
+        }
+    }
+    for method in methods {
+        if method.name == "send"
+            && method.is_async
+            && method.parameters.len() == 1
+            && matches!(
+                method.receiver,
+                Some(Receiver::Borrow | Receiver::MutableBorrow)
+            )
+            && method.error.is_some()
+            && method.result == ProjectedType::Bool
+        {
+            method.result = ProjectedType::AsyncSinkOutcome;
         }
     }
 }

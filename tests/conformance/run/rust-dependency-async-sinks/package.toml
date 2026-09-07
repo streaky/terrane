@@ -1,0 +1,8 @@
+package = "rust-dependency-async-sinks"
+executor = "cooperative"
+[namespaces]
+app = "src"
+[rust-dependencies.terrane-sink-witness]
+package = "terrane-sink-witness"
+version = "=0.1.0"
+effects = ["build"]

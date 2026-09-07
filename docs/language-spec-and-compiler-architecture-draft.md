@@ -4273,15 +4273,31 @@ borrowed `next` method returning `Result<Option<Item>, E>` and a consuming `clos
 `next` returns `async-iteration-step of Item`: `item` is true and `value` is present for one item;
 `end` is true and `value` is absent after exhaustion. A Rust `Err` remains the projected dependency
 throwable, while cancellation remains the enclosing task outcome, so item, end, protocol failure,
-and cancellation are distinct states. The native future is created before entering the generated
-async wrapper so a borrowed producer is reborrowed for exactly one suspension and remains usable by
-the next operation.
+and cancellation are distinct states. The borrowed operation must be awaited directly rather than
+retained as a task. The native future is created before entering the generated async wrapper so the
+producer is reborrowed for exactly one suspension and remains usable by the next operation.
 
 The producer is resource-owning and linear. `close` consumes it; transfer, duplicate ownership, use
-after close, and an unconsumed `next` task follow the ordinary ownership and task-consumption rules.
+after close, and retained `next` tasks follow the ordinary ownership and direct-await rules.
 Rust drop remains deterministic resource release but does not promise graceful protocol close.
 Borrowed items, open associated item types, and lifetime-dependent producer shapes are declined
 rather than converted into owned lookalikes.
+
+A concrete owned Rust sink projects as an async sink when it exposes an asynchronous borrowed
+`send(Item)` method returning `Result<bool, E>`. Awaiting `send` returns
+`async-sink-outcome`: `accepted` reports the Rust boolean and `closed` is its inverse. This keeps
+backpressure acceptance and remote closure distinct from dependency failure and task cancellation.
+The native future is created before the generated wrapper, and each borrowed sink operation must be
+awaited directly rather than retained as a task, so the mutable borrow spans exactly one suspension.
+
+Sinks are resource-owning and linear. A consuming `close` method performs graceful protocol close;
+a synchronous or asynchronous `flush` method retains its Rust failure contract; ordinary Rust drop
+still supplies deterministic emergency release. A consuming `split` operation transfers the whole
+duplex endpoint into independently owned source and sink halves. The whole endpoint is unavailable
+after splitting, and either half is unavailable after close or another ownership transfer.
+Projected sink operations participate in enclosing task cancellation and deadlines through the
+ordinary generated async boundary. Borrowed payloads, open associated payload types, and
+lifetime-dependent endpoints remain declined rather than copied or erased.
 
 Cargo and rustc remain authoritative. Projection and editor information are advisory and derived from the resolved package rather than predefined by Terrane. The language server uses the shared artifact for completion, signature help, hover, exact Rust paths, and declined-item reasons. Projection executes under the build-script capability policy.
 

@@ -37,6 +37,22 @@ impl<T> AsyncIterationStep<T> {
     }
 }
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct AsyncSinkOutcome {
+    pub accepted: bool,
+    pub closed: bool,
+}
+
+impl AsyncSinkOutcome {
+    #[must_use]
+    pub fn from_accepted(accepted: bool) -> Self {
+        Self {
+            accepted,
+            closed: !accepted,
+        }
+    }
+}
+
 #[derive(Clone, Debug)]
 pub struct Iterator<T> {
     items: Arc<Vec<T>>,

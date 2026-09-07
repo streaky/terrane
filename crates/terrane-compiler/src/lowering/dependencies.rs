@@ -238,6 +238,9 @@ pub(super) fn projected_result_expression(
                 "match {value} {{ Some(item) => terrane_collection_support::AsyncIterationStep::item({converted}), None => terrane_collection_support::AsyncIterationStep::end() }}"
             )
         }
+        crate::projection::ProjectedType::AsyncSinkOutcome => {
+            format!("terrane_collection_support::AsyncSinkOutcome::from_accepted({value})")
+        }
         crate::projection::ProjectedType::Sequence { item, .. } => {
             if projected_type_is_identity(item) {
                 format!("terrane_collection_support::List::new({value})")

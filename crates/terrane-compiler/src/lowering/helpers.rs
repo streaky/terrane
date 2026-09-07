@@ -410,6 +410,7 @@ pub(super) fn rust_value_type(package: &SemanticPackage, ty: ValueType) -> Strin
                 rust_element_type(package, item)
             )
         }
+        ValueType::AsyncSinkOutcome => "terrane_collection_support::AsyncSinkOutcome".to_owned(),
         ValueType::List(item) => {
             format!(
                 "terrane_collection_support::List<{}>",

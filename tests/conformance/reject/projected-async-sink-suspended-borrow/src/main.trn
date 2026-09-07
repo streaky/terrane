@@ -1,0 +1,7 @@
+namespace app
+from /deps/terrane-sink-witness import blocked_sink
+async function main;
+  sink = blocked_sink;
+  pending = sink.send; 'blocked'
+  flushed = await sink.flush;
+  sent = await pending

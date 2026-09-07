@@ -1018,7 +1018,7 @@ pub(super) fn analyze_types(package: &mut SemanticPackage) -> Result<(), Semanti
         for object in &mut unit.objects {
             if package
                 .projection
-                .foreign_is_async_sequence(&object.identity.namespace, &object.identity.name)
+                .foreign_owns_resource(&object.identity.namespace, &object.identity.name)
             {
                 object.resource_owning = true;
             }

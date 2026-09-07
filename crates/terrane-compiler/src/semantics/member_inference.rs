@@ -210,6 +210,17 @@ pub(super) fn infer_member_value_type(
             )),
         };
     }
+    if receiver_type == Some(ValueType::AsyncSinkOutcome) {
+        return match member_name {
+            "accepted" | "closed" => Ok(Some(ValueType::Scalar(ScalarType::Bool))),
+            _ => Err(failure(
+                &unit.source,
+                "T0088",
+                format!("async sink outcome has no member `{member_name}`"),
+                member.span,
+            )),
+        };
+    }
     if let Some(result) = &receiver_type
         && matches!(
             result,

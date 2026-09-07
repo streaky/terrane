@@ -834,10 +834,12 @@ functions, receiver ownership, opaque foreign types, data-free enum variant cons
 representable `Result` returns, arbitrary projected `Option<T>` values, all Rust integer widths,
 `f32`, `char`, concrete representable type aliases, recursive standard sequence, map, set, and
 homogeneous tuple shapes, monomorphic concrete `Fn`, `FnMut`, `FnOnce`, and future-returning
-callback bounds, and concrete owned asynchronous producers with typed item/end steps. Callback
-metadata retains call multiplicity, retention, and `Send`/`Sync` requirements. Async producers are
-resource-owning linear endpoints: borrowed `next` operations preserve protocol failure and task
-cancellation separately, and consuming `close` makes later use a source ownership error.
+callback bounds, concrete owned asynchronous producers with typed item/end steps, and concrete
+owned asynchronous sinks with accepted/closed send outcomes. Callback metadata retains call
+multiplicity, retention, and `Send`/`Sync` requirements. Async producers and sinks are
+resource-owning linear endpoints: borrowed operations must be awaited directly, preserve protocol
+failure and task cancellation separately, and reborrow the endpoint for one suspension; consuming
+`close` or `split` makes later use of the transferred endpoint a source ownership error.
 Map keys and set items are limited to Terrane scalars. Cross-crate signature types
 are admitted only when their canonical owner is declared directly at one lock-resolved version;
 otherwise the member remains an explicit decline. Data-carrying enums remain opaque and use

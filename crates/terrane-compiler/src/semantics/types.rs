@@ -511,6 +511,9 @@ pub(super) fn parse_declared_value_type(
             return Some(construct(scalar));
         }
     }
+    if type_name == "async-sink-outcome" {
+        return Some(ValueType::AsyncSinkOutcome);
+    }
     if let Some(argument) = type_name.strip_prefix("async-iteration-step of ") {
         return Some(ValueType::AsyncIterationStep(ElementType::new(
             parse_declared_value_type(argument, aliases)?,

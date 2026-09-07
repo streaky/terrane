@@ -1516,12 +1516,23 @@ Phase C async-sequence projection recognizes concrete owned producers with an as
 borrowed `next` returning `Result<Option<Item>, E>` and a consuming `close`. The projected
 `async-iteration-step of Item` keeps item, end, dependency failure, and task cancellation distinct;
 generated calls construct a reborrowed native future before the async wrapper so repeated
-suspending reads do not move the producer. Producer objects are resource-owning and linear,
-consuming close participates in source ownership diagnostics, and borrowed or open-associated item
-shapes remain explicit declines. `rust-dependency-async-sequences` exercises a Tokio-backed
-producer and a dissimilar queue producer through normal items, end, protocol failure, close, and
-cancellation; focused rejects cover borrowed and open item shapes, duplicate transfer, use after
-close, and unconsumed next tasks.
+suspending reads do not move the producer. Borrowed operations must be awaited directly rather than
+retained as tasks. Producer objects are resource-owning and linear, consuming close participates in
+source ownership diagnostics, and borrowed or open-associated item shapes remain explicit
+declines. `rust-dependency-async-sequences` exercises a Tokio-backed producer and a dissimilar queue
+producer through normal items, end, protocol failure, close, and cancellation; focused rejects
+cover borrowed and open item shapes, duplicate transfer, use after close, and retained next tasks.
+
+Phase C async-sink projection recognizes concrete owned endpoints with an asynchronous borrowed
+`send(Item)` returning `Result<bool, E>`. The compiler-owned `async-sink-outcome` keeps accepted,
+remote-closed, dependency-failure, cancellation, and deadline outcomes distinct. Borrowed sends
+must be awaited directly and use the same native-future-before-wrapper reborrow boundary as
+sequences. Synchronous and asynchronous `flush` preserve their projected failure contracts;
+consuming `close` performs graceful protocol close, while Drop remains emergency release. A
+consuming `split` transfers a duplex endpoint into independently owned source and sink halves.
+`rust-dependency-async-sinks` exercises bounded backpressure, remote closure, cancellation, flush,
+close, split ownership, and a dissimilar synchronous queue sink; focused rejects cover use after
+split, use after close, duplicate ownership, and retaining a borrowed send across suspension.
 
 Accepted and rejected conformance covers async/sync type incompatibility, task consumption,
 successful, throwing, cancelled, and sibling-cancelling children, statically resolvable nested

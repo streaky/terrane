@@ -233,6 +233,7 @@ pub enum ValueType {
     Iterator(ElementType),
     IterationStep(ElementType),
     AsyncIterationStep(ElementType),
+    AsyncSinkOutcome,
     List(ElementType),
     Map(ElementType, ElementType),
     Set(ElementType),
@@ -359,6 +360,7 @@ impl std::fmt::Display for ValueType {
             Self::AsyncIterationStep(item) => {
                 write!(formatter, "async-iteration-step of {}", item.value_type())
             }
+            Self::AsyncSinkOutcome => formatter.write_str("async-sink-outcome"),
             Self::List(item) => write!(formatter, "list of {}", item.value_type()),
             Self::Map(key, value) => write!(formatter, "map of {key}, {value}"),
             Self::Set(item) => write!(formatter, "set of {item}"),

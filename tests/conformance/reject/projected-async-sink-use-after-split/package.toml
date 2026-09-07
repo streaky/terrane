@@ -1,0 +1,7 @@
+package = "projected-async-sink-use-after-split"
+[namespaces]
+app = "src"
+[rust-dependencies.terrane-sink-witness]
+package = "terrane-sink-witness"
+version = "=0.1.0"
+effects = ["build"]

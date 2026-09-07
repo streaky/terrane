@@ -1,0 +1,6 @@
+namespace app
+from /deps/terrane-sink-witness import duplex
+function main;
+  whole = duplex; 1
+  halves = whole.split;
+  again = whole.split;
