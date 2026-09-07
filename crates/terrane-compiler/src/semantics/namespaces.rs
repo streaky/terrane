@@ -280,6 +280,8 @@ pub(super) fn namespace_capabilities(namespace: &str) -> &'static [&'static str]
         "/core/filesystem" => &["filesystem"],
         "/core/random" | "/core/random/uuid" => &["entropy"],
         "/core/networking" => &["networking"],
+        "/core/logging" => &["logging"],
+        "/core/logging/async" => &["logging", "threads"],
         "/core/networking/tls" => &["networking", "tls"],
         "/core/concurrency" => &["threads"],
         _ => &[],

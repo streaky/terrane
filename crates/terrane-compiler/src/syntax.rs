@@ -14,6 +14,8 @@ pub enum SyntaxKind {
     DeclarationQualifier,
     EffectClause,
     Binding,
+    FieldMetadata,
+    FieldMetadataEntry,
     FunctionDeclaration,
     AnonymousFunction,
     ClassDeclaration,

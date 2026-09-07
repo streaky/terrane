@@ -1,0 +1,271 @@
+namespace core/logging
+
+from /core/documents import document-value, make-document-none, make-document-string
+from /core/errors import throwable
+
+class log-level
+    name string = 'info'
+    rank int = 30
+
+    private function construct; name string, rank int
+        this.name = name
+        this.rank = rank
+
+function trace-level log-level;
+    return instance log-level; 'trace', 10
+function debug-level log-level;
+    return instance log-level; 'debug', 20
+function info-level log-level;
+    return instance log-level; 'info', 30
+function warning-level log-level;
+    return instance log-level; 'warning', 40
+function error-level log-level;
+    return instance log-level; 'error', 50
+function critical-level log-level;
+    return instance log-level; 'critical', 60
+
+interface log-value
+    function render document-value;
+
+class document-log-value implements log-value
+    value document-value = make-document-none;
+
+    private function construct; input document-value
+        this.value = input
+
+    function render document-value;
+        return this.value.to-document;
+
+class text-log-value implements log-value
+    value string = ''
+
+    private function construct; input string
+        this.value = input
+
+    function render document-value;
+        return make-document-string; this.value
+
+class error-log-value implements log-value
+    rendered string = ''
+
+    private function construct; rendered string
+        this.rendered = rendered
+
+    function render document-value;
+        return make-document-string; this.rendered
+
+
+function log-document log-value; value document-value
+    return instance document-log-value; value
+
+function log-text log-value; value string
+    return instance text-log-value; value
+
+
+function log-error log-value; value throwable
+    return instance error-log-value; (value.render;)
+
+class log-field
+    name string = ''
+    value log-value = instance text-log-value; ''
+    secret bool = false
+    source string = ''
+
+    private function construct; name string, input log-value, secret bool, source string
+        this.name = name
+        this.value = input
+        this.secret = secret
+        this.source = source
+
+private function field-at log-field; name string, value log-value, secret bool, source string
+    return instance log-field; name, value, secret, source
+
+function field log-field; name string, value log-value
+    return field-at; name, value, false, 'builtin://core/logging.trn'
+
+function secret-field log-field; name string, value log-value
+    return field-at; name, value, true, 'builtin://core/logging.trn'
+
+function empty-log-fields list of log-field;
+    return host-log-empty-fields;
+
+class log-sink
+    private handle host-platform-capability = host-log-no-sink;
+
+    private function construct; handle host-platform-capability
+        this.handle = handle
+
+class log-sink-result
+    failed bool = false
+    message string = ''
+    value log-sink = instance log-sink; (host-log-no-sink;)
+
+    private function construct; failed bool, message string, sink log-sink
+        this.failed = failed
+        this.message = message
+        this.value = sink
+
+function memory-sink log-sink-result; capacity int, overflow string, start int, step int, reveal bool
+    raw = host-log-memory-sink; capacity, overflow, start, step, reveal
+    sink = instance log-sink; (host-log-result-capability; raw)
+    return instance log-sink-result; (host-log-result-failed; raw), (host-log-result-message; raw), sink
+
+function console-sink log-sink-result; reveal bool
+    raw = host-log-console-sink; reveal
+    sink = instance log-sink; (host-log-result-capability; raw)
+    return instance log-sink-result; (host-log-result-failed; raw), (host-log-result-message; raw), sink
+
+function failing-sink log-sink-result;
+    raw = host-log-failing-sink;
+    sink = instance log-sink; (host-log-result-capability; raw)
+    return instance log-sink-result; (host-log-result-failed; raw), (host-log-result-message; raw), sink
+class logger-options
+    minimum log-level = info-level;
+    target-prefix string = ''
+    target string = 'application'
+    max-fields int = 64
+    max-bytes int = 65536
+
+    private function construct; minimum log-level, target-prefix string, target string, max-fields int, max-bytes int
+        this.minimum = minimum
+        this.target-prefix = target-prefix
+        this.target = target
+        this.max-fields = max-fields
+        this.max-bytes = max-bytes
+
+function make-logger-options logger-options; minimum log-level, target-prefix string, target string, max-fields int, max-bytes int
+    return instance logger-options; minimum, target-prefix, target, max-fields, max-bytes
+
+class log-context
+    fields list of log-field = host-log-empty-fields;
+    spans list of string = host-log-empty-spans;
+    private function append-field; item log-field
+        updated = host-log-empty-fields;
+        for existing in this.fields
+            updated.append; existing
+        updated.append; item
+        this.fields = updated
+
+    private function append-span; item string
+        updated = host-log-empty-spans;
+        for existing in this.spans
+            updated.append; existing
+        updated.append; item
+        this.spans = updated
+
+
+    function adding-field log-context; addition log-field
+        value = instance log-context;
+        for existing in this.fields
+            value.append-field; existing
+        value.append-field; addition
+        for existing in this.spans
+            value.append-span; existing
+        return value
+
+    function adding-span log-context; span string
+        value = instance log-context;
+        for existing in this.fields
+            value.append-field; existing
+        for existing in this.spans
+            value.append-span; existing
+        value.append-span; span
+        return value
+
+class logger
+    sink log-sink = instance log-sink; (host-log-no-sink;)
+    options logger-options = instance logger-options; (info-level;), '', 'application', 64, 65536
+    context log-context = instance log-context;
+
+    private function construct; sink log-sink, options logger-options, context log-context
+        this.sink = sink
+        this.options = options
+        this.context = context
+
+function make-logger logger; sink log-sink, options logger-options
+    return instance logger; sink, options, (instance log-context;)
+
+function default-logger logger; sink log-sink
+    return make-logger; sink, (make-logger-options; (info-level;), '', 'application', 64, 65536)
+
+function named-logger logger; sink log-sink, target string
+    return make-logger; sink, (make-logger-options; (info-level;), target, target, 64, 65536)
+
+function with-field logger; value logger, addition log-field
+    return instance logger; value.sink, value.options, (value.context.adding-field; addition)
+
+function with-span logger; value logger, span string
+    return instance logger; value.sink, value.options, (value.context.adding-span; span)
+
+class log-outcome
+    filtered bool = false
+    failed bool = false
+    message string = ''
+
+    private function construct; filtered bool, failed bool, message string
+        this.filtered = filtered
+        this.failed = failed
+        this.message = message
+
+class log-event
+    level log-level = info-level;
+    message string = ''
+    fields list of log-field = host-log-empty-fields;
+    source string = ''
+
+    private function construct; level log-level, message string, source string, fields list of log-field
+        this.level = level
+        this.message = message
+        this.fields = fields
+        this.source = source
+
+private function make-event-at log-event; level log-level, message string, source string, fields list of log-field
+    return instance log-event; level, message, source, fields
+
+function make-event log-event; level log-level, message string, fields list of log-field
+    return make-event-at; level, message, 'builtin://core/logging.trn', fields
+
+private function emit-at log-outcome; v logger, l log-level, m string, source string, f list of log-field
+    if l.rank < v.options.minimum.rank
+        return instance log-outcome; true, false, ''
+    if v.options.target-prefix != '' and not (v.options.target.contains.start; v.options.target-prefix)
+        return instance log-outcome; true, false, ''
+    combined = host-log-empty-fields;
+    for item in v.context.fields
+        combined.append; item
+    for item in f
+        combined.append; item
+    options = v.options
+    raw = host-log-write; v.sink.handle, l.name, options.target, m, combined, source, v.context.spans, options.max-fields, options.max-bytes
+    return instance log-outcome; false, (host-log-result-failed; raw), (host-log-result-message; raw)
+
+function emit log-outcome; value logger, level log-level, message string, fields list of log-field
+    return emit-at; value, level, message, 'builtin://core/logging.trn', fields
+
+function debug log-outcome; value logger, message string, fields list of log-field
+    return emit; value, (debug-level;), message, fields
+
+function write-event log-outcome; value logger, event log-event
+    return emit-at; value, event.level, event.message, event.source, event.fields
+
+function install-dependency-bridge log-outcome; value logger
+    raw = host-log-install-dependency-bridge; value.sink.handle
+    return instance log-outcome; false, (host-log-result-failed; raw), (host-log-result-message; raw)
+
+function info log-outcome; value logger, message string, fields list of log-field
+    return emit; value, (info-level;), message, fields
+
+function warning log-outcome; value logger, message string, fields list of log-field
+    return emit; value, (warning-level;), message, fields
+
+function error log-outcome; value logger, message string, fields list of log-field
+    return emit; value, (error-level;), message, fields
+
+function discarded-count int; value logger
+    return host-log-discarded-count; value.sink.handle
+
+function drain-memory list of string; value logger
+    return host-log-result-entries; (host-log-drain; value.sink.handle)
+
+function drain-fallback list of string;
+    return host-log-result-entries; (host-log-drain-fallback;)

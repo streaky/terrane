@@ -1,0 +1,11 @@
+namespace typed-document-unsupported-field
+
+from /core/documents import document-decodable
+from /core/documents/json import decode-typed-json, default-json-options
+from /core/collections import entry, map
+
+class settings implements document-decodable
+    values map of int, string = map; (entry; 1, '')
+
+function main;
+    result = decode-typed-json; '{}', settings, (default-json-options;), false

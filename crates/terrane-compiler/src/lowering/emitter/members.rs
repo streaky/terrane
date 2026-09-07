@@ -216,12 +216,56 @@ impl Emitter<'_> {
                 }
             };
         }
+        if matches!(receiver_type, Some(ValueType::DocumentDecodeOutcome(_))) {
+            let receiver = self.expression(receiver);
+            return match self.text(member) {
+                "failed" => format!("({receiver}).diagnostics.length() != 0"),
+                "value" => format!("({receiver}).value.clone()"),
+                "diagnostics" => format!("({receiver}).diagnostics.clone()"),
+                name => unreachable!(
+                    "semantic analysis admitted unknown document outcome member `{name}`"
+                ),
+            };
+        }
+        if receiver_type == Some(ValueType::DocumentDiagnostic) {
+            let receiver = self.expression(receiver);
+            return match self.text(member) {
+                "path" => format!("({receiver}).path.clone()"),
+                "expected" => format!("({receiver}).expected.clone()"),
+                "actual-kind" => format!("({receiver}).actual_kind.clone()"),
+                "reason" => format!("({receiver}).reason.to_owned()"),
+                "message" => format!("({receiver}).message.clone()"),
+                "source" => format!("({receiver}).source.clone()"),
+                "field-source" => format!("({receiver}).field_source.clone()"),
+                name => unreachable!(
+                    "semantic analysis admitted unknown document diagnostic member `{name}`"
+                ),
+            };
+        }
         if let Some(ValueType::Descriptor(_)) = &receiver_type {
             let receiver = self.expression(receiver);
             return match self.text(member) {
                 "name" => format!("({receiver}).name.to_owned()"),
                 "kind" => format!("({receiver}).kind.to_owned()"),
                 "identity" => format!("({receiver}).identity.to_owned()"),
+                "field-count" => {
+                    format!("terrane_int_support::Int::from(({receiver}).fields.len() as i128)")
+                }
+                "field-names" => format!(
+                    "({receiver}).fields.iter().map(|field| field.name.to_owned()).collect::<Vec<String>>()"
+                ),
+                "field-external-names" => format!(
+                    "({receiver}).fields.iter().map(|field| field.external_name.to_owned()).collect::<Vec<String>>()"
+                ),
+                "field-defaulted" => format!(
+                    "terrane_collection_support::List::new(({receiver}).fields.iter().map(|field| field.defaulted).collect::<Vec<bool>>())"
+                ),
+                "field-optional" => format!(
+                    "terrane_collection_support::List::new(({receiver}).fields.iter().map(|field| field.optional).collect::<Vec<bool>>())"
+                ),
+                "field-secret" => format!(
+                    "terrane_collection_support::List::new(({receiver}).fields.iter().map(|field| field.secret).collect::<Vec<bool>>())"
+                ),
                 _ => String::new(),
             };
         }

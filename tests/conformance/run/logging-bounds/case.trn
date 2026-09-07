@@ -1,0 +1,38 @@
+namespace logging-bounds
+
+from /core/output import print
+from /core/collections import list
+from /core/logging import log-field, log-text, field, memory-sink, make-logger-options, make-logger, default-logger, discarded-count, drain-memory, drain-fallback, info-level, info
+
+function main;
+    empty list of log-field = list;
+
+    dropping-sink = memory-sink; 1, 'drop-oldest', 10, 1, false
+    dropping = default-logger; dropping-sink.value
+    first = info; dropping, 'first', empty
+    second = info; dropping, 'second', empty
+    dropped-records = drain-memory; dropping
+    print; first.failed, second.failed, dropped-records.length, (discarded-count; dropping)
+    print; (dropped-records[0].contains; '"message":"second"'), (dropped-records[0].contains; '"message":"first"')
+
+    rejecting-sink = memory-sink; 1, 'reject', 20, 1, false
+    rejecting = default-logger; rejecting-sink.value
+    accepted = info; rejecting, 'accepted', empty
+    rejected = info; rejecting, 'rejected', empty
+    fallback = drain-fallback;
+    print; accepted.failed, rejected.failed, fallback.length
+
+    one-field = list; (field; 'value', (log-text; 'bounded'))
+    strict-fields = make-logger; (memory-sink; 2, 'reject', 30, 1, false).value, (make-logger-options; (info-level;), '', 'bounded.fields', 0, 4096)
+    too-many = info; strict-fields, 'too-many', one-field
+    strict-bytes = make-logger; (memory-sink; 2, 'reject', 40, 1, false).value, (make-logger-options; (info-level;), '', 'bounded.bytes', 4, 32)
+    too-large = info; strict-bytes, 'too-large', empty
+    print; too-many.failed, too-large.failed
+
+
+    invalid-sink = memory-sink; -1, 'reject', 0, 1, false
+    print; invalid-sink.failed
+    negative-sink = memory-sink; 1, 'reject', 50, 1, false
+    negative-limit = make-logger; negative-sink.value, (make-logger-options; (info-level;), '', 'bounded.negative', -1, 4096)
+    invalid-limit = info; negative-limit, 'invalid-limit', empty
+    print; invalid-limit.failed

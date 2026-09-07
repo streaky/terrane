@@ -10,6 +10,9 @@
     clippy::semicolon_if_nothing_returned,
     clippy::struct_excessive_bools
 )]
+mod observability;
+
+pub use observability::{LogEventInput, LogFieldInput};
 // The host ABI deliberately uses one flat result envelope and opaque heterogeneous capability
 // storage. These functions are generated-crate internals rather than a user-facing Rust API.
 
@@ -95,6 +98,7 @@ enum CapabilityInner {
     Pseudo(Mutex<rand_chacha::ChaCha20Rng>),
     Secret(Mutex<SecretState>),
     Cancellation(CancellationState),
+    LogSink(u64),
     IntMutex(Mutex<i128>),
     IntRwLock(RwLock<i128>),
     AtomicI64(AtomicI64),
@@ -166,6 +170,122 @@ fn capability_result(capability: Capability) -> ResultValue {
     }
 }
 
+pub fn logging_memory_sink(
+    capacity: Option<i128>,
+    overflow: &str,
+    start_timestamp: Option<i128>,
+    timestamp_step: Option<i128>,
+    reveal_secrets: bool,
+) -> ResultValue {
+    let Some(capacity) = capacity else {
+        return ResultValue::error("logging sink capacity must fit int128");
+    };
+    let Some(start_timestamp) = start_timestamp else {
+        return ResultValue::error("logging start timestamp must fit int128");
+    };
+    let Some(timestamp_step) = timestamp_step else {
+        return ResultValue::error("logging timestamp step must fit int128");
+    };
+    let capacity = match count(capacity, "logging sink capacity") {
+        Ok(value) => value,
+        Err(error) => return error,
+    };
+    let Ok(start_timestamp) = u64::try_from(start_timestamp) else {
+        return ResultValue::error("logging start timestamp must fit uint64");
+    };
+    let Ok(timestamp_step) = u64::try_from(timestamp_step) else {
+        return ResultValue::error("logging timestamp step must fit uint64");
+    };
+    match observability::memory_sink(
+        capacity,
+        overflow,
+        start_timestamp,
+        timestamp_step,
+        reveal_secrets,
+    ) {
+        Ok(id) => capability_result(Capability(Arc::new(CapabilityInner::LogSink(id)))),
+        Err(error) => ResultValue::error(error),
+    }
+}
+
+pub fn logging_console_sink(reveal_secrets: bool) -> ResultValue {
+    match observability::console_sink(reveal_secrets) {
+        Ok(id) => capability_result(Capability(Arc::new(CapabilityInner::LogSink(id)))),
+        Err(error) => ResultValue::error(error),
+    }
+}
+
+pub fn logging_failing_sink() -> ResultValue {
+    match observability::failing_sink() {
+        Ok(id) => capability_result(Capability(Arc::new(CapabilityInner::LogSink(id)))),
+        Err(error) => ResultValue::error(error),
+    }
+}
+
+pub fn logging_no_sink() -> Capability {
+    Capability(Arc::new(CapabilityInner::Invalid(
+        "missing logging sink".to_owned(),
+    )))
+}
+
+pub fn logging_emit(sink: &Capability, input: LogEventInput) -> ResultValue {
+    match sink.0.as_ref() {
+        CapabilityInner::LogSink(id) => match observability::emit(*id, input) {
+            Ok(()) => ResultValue::default(),
+            Err(error) => {
+                let _ = observability::record_fallback(format!("logging sink failure: {error}"));
+                ResultValue::error(error)
+            }
+        },
+        CapabilityInner::Invalid(message) => ResultValue::error(message.clone()),
+        _ => ResultValue::error("capability is not a logging sink"),
+    }
+}
+
+pub fn logging_reveals_secrets(sink: &Capability) -> bool {
+    match sink.0.as_ref() {
+        CapabilityInner::LogSink(id) => observability::reveals_secrets(*id),
+        _ => false,
+    }
+}
+
+pub fn logging_discarded_count(sink: &Capability) -> u64 {
+    match sink.0.as_ref() {
+        CapabilityInner::LogSink(id) => observability::discarded_count(*id),
+        _ => 0,
+    }
+}
+
+pub fn logging_drain(sink: &Capability) -> ResultValue {
+    match sink.0.as_ref() {
+        CapabilityInner::LogSink(id) => {
+            observability::drain_memory(*id).map_or_else(ResultValue::error, |entries| {
+                ResultValue {
+                    entries,
+                    ..ResultValue::default()
+                }
+            })
+        }
+        CapabilityInner::Invalid(message) => ResultValue::error(message.clone()),
+        _ => ResultValue::error("capability is not a logging sink"),
+    }
+}
+
+pub fn logging_drain_fallback() -> ResultValue {
+    observability::drain_fallback().map_or_else(ResultValue::error, |entries| ResultValue {
+        entries,
+        ..ResultValue::default()
+    })
+}
+
+pub fn logging_install_dependency_bridge(sink: &Capability) -> ResultValue {
+    match sink.0.as_ref() {
+        CapabilityInner::LogSink(id) => observability::install_dependency_bridge(*id)
+            .map_or_else(ResultValue::error, |()| ResultValue::default()),
+        CapabilityInner::Invalid(message) => ResultValue::error(message.clone()),
+        _ => ResultValue::error("capability is not a logging sink"),
+    }
+}
 fn capability_type_error(value: &CapabilityInner, expected: &str) -> ResultValue {
     match value {
         CapabilityInner::Invalid(message) => ResultValue::error(message.clone()),

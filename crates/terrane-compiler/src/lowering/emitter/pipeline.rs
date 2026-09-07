@@ -20,6 +20,8 @@ pub(crate) fn lower(package: &SemanticPackage) -> Program {
     let mut globals = String::new();
     let registry = LoweringRegistry::default();
     let uses_errors = package_uses_structured_errors(package) || package_uses_task_scope(package);
+    let uses_typed_documents = package_uses_typed_documents(package);
+    let uses_log_error = package_uses_log_error(package);
     let has_dependency = package
         .units
         .iter()
@@ -129,6 +131,7 @@ pub(crate) fn lower(package: &SemanticPackage) -> Program {
     let mut uses_networking = false;
     let mut uses_tls = false;
     let mut uses_concurrency = false;
+    let mut uses_logging = false;
     for unit in &package.units {
         match unit.namespace.as_str() {
             "/core/streams" => uses_streams = true,
@@ -145,6 +148,7 @@ pub(crate) fn lower(package: &SemanticPackage) -> Program {
             "/core/networking" => uses_networking = true,
             "/core/networking/tls" => uses_tls = true,
             "/core/concurrency" => uses_concurrency = true,
+            "/core/logging" | "/core/logging/async" => uses_logging = true,
             _ => {}
         }
     }
@@ -154,7 +158,8 @@ pub(crate) fn lower(package: &SemanticPackage) -> Program {
         || uses_uuid
         || uses_networking
         || uses_tls
-        || uses_concurrency;
+        || uses_concurrency
+        || uses_logging;
     let requires_platform_support = uses_streams
         || uses_filesystem
         || uses_process
@@ -234,6 +239,22 @@ pub(crate) fn lower(package: &SemanticPackage) -> Program {
         runtime.push(GeneratedModule {
             name: "platform_data",
             items,
+        });
+    }
+    if uses_typed_documents {
+        runtime.push(GeneratedModule {
+            name: "typed_documents",
+            items: vec![Item::generated(include_str!(
+                "../../runtime/typed_documents.rs"
+            ))],
+        });
+    }
+    if uses_log_error {
+        runtime.push(GeneratedModule {
+            name: "logging_values",
+            items: vec![Item::generated(include_str!(
+                "../../runtime/logging_values.rs"
+            ))],
         });
     }
     if uses_platform_capabilities {

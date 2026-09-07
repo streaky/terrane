@@ -736,6 +736,16 @@ encoding: explicit utf8/utf16-le/utf16-be/utf32-le/utf32-be; encode total; decod
   compiler-owned, per-operation `LazyLock<Mutex<...>>` strategy as mutable globals: reads copy the
   Terrane value, poisoning is an internal runtime failure, and this implementation detail neither
   makes source operation sequences atomic nor replaces explicit concurrency objects.
+- Field metadata has one trailing clause:
+  `field T = value metadata (external-name = 'wireName', secret = true)`.
+  It is valid only on instance fields. `external-name` is a string, `secret` is a boolean, names
+  cannot repeat, and effective external names are unique per class. Defaults remain ordinary
+  initializers and optionality remains `T|none`; resolved field descriptors derive `defaulted` and
+  `optional` rather than duplicating either policy.
+- Class descriptor reflection exposes parallel declaration-ordered `field-names`,
+  `field-external-names`, `field-defaulted`, `field-optional`, and `field-secret` lists plus
+  `field-count`. Document mapping and redaction consume this same metadata; no facility-specific
+  annotation or generated-Rust field name participates.
 
 ## GLOBAL / BUILD
 
@@ -767,6 +777,42 @@ encoding: explicit utf8/utf16-le/utf16-be/utf32-le/utf32-be; encode total; decod
 - `atomic-int64`: typed `memory-order`; load allows relaxed/acquire/seq-cst, store relaxed/release/seq-cst, increase all five; host validates mutable authored order objects defensively.
 - `thread-local-int`: one value per existing host thread and shared object identity; dropping last owner makes entries stale and later accesses sweep them.
 - Unavailable target capability rejects async or concurrency facilities statically.
+
+## DOCUMENTS
+
+```yaml
+opt_in: class implements /core/documents::document-decodable; no implicit class decoding
+entrypoints: /core/documents/json::decode-typed-json | /core/documents/yaml::decode-typed-yaml
+arguments: source string, concrete class descriptor, matching parser options, explicit allow-unknown bool
+result: document-decode-outcome of T; concrete initialized T value + typed list of every diagnostic; failed iff diagnostics nonempty
+fields: scalar | nested opted class | list | homogeneous tuple | map of string,V; all nested values decodable
+numeric: integers exact/range-checked; decimal/integer to float rounds to nearest finite destination value, ties-to-even; out-of-finite-range diagnoses
+absence: ordinary initializer is default; T|none may be absent; every other absent field diagnoses
+names: one OBJ field metadata record supplies semantic name, external-name, defaulted, optional, secret
+unknowns: rejected or recursively ignored only by explicit call policy
+diagnostic: deterministic path, expected, actual-kind, reason, message, decode-call source, field source
+validation: optional document-validatable.validate-document -> string|none after error-free field decoding
+ineligible: resource ownership | inheritance | custom construction | recursive value cycle | unsupported field -> implement deserializable manually
+boundary: generated Rust materializes statically known T; parser/metadata/default/validation/diagnostic policy remains Terrane; no universal boxed value
+```
+
+## LOGGING
+
+```yaml
+package: /core/logging; profile capability logging; /core/logging/async also requires threads
+levels: trace | debug | info | warning | error | critical
+logger: explicit sink + minimum severity + hierarchical target prefix + target + immutable fields/spans + field/byte bounds
+constructors: default-logger(sink) | named-logger(sink,target) | make-logger(sink,options); no ambient application logger
+event: controlled timestamp + per-sink sequence + severity + target + message + ordered fields + emission source + spans + origin
+field: key + log-value protocol renderer + field-call source + secret bit; field/secret-field call sites compiler-injected
+filter: severity/target policy runs in Terrane before renderer and sink; debug/info/warning/error operations preserve caller source
+value: log-value.render -> bounded document-value; scalar/document/error-chain/user wrappers; no universal debug formatter
+redaction: without explicit sink reveal permission, secret renderer is not called and sink receives only structured '<redacted>'
+sinks: explicit memory | console | failing; bounded capacity + named overflow + observable discarded-count; deterministic memory clock/drain; nonrecursive fallback
+async: send-event + consume-events reuse typed channel endpoints and their overflow/backpressure; no logging-specific queue
+dependency_bridge: explicit install into sink; preserve foreign event/log-kv/span fields (unsupported values become `<field>.debug`) plus target/module/file/line; normalize absolute Cargo files to stable crate-relative paths; no Terrane source claim; bridge layer separately composable, absent optional remote layer does no work
+rust_boundary: sink ID/synchronization/storage/clock/console I/O + foreign callback bridge only; policy/enrichment/filter/redaction/event API in Terrane
+```
 
 ## STREAMS
 

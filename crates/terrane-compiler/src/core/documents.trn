@@ -24,6 +24,11 @@ interface serializable
 interface deserializable
     function from-document document-result; value document-value
 
+interface document-decodable
+
+interface document-validatable
+    function validate-document string|none;
+
 class document-value implements serializable
     protected raw host-platform-data-result = host-empty-document;
     encoded string = ''

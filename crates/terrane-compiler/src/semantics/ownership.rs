@@ -745,6 +745,7 @@ pub(super) fn binding_initializer(node: &SyntaxNode) -> Option<&SyntaxNode> {
                     SyntaxKind::TypeExpression
                         | SyntaxKind::Visibility
                         | SyntaxKind::DeclarationQualifier
+                        | SyntaxKind::FieldMetadata
                 )
         })
         .map(|(_, child)| child)

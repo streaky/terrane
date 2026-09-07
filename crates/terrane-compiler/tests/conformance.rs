@@ -476,6 +476,11 @@ fn write_support_crates(directory: &Path) {
         include_bytes!("../../terrane-platform-support/src/lib.rs"),
     )
     .unwrap();
+    fs::write(
+        platform.join("src/observability.rs"),
+        include_bytes!("../../terrane-platform-support/src/observability.rs"),
+    )
+    .unwrap();
 }
 
 fn optional_bytes(path: PathBuf) -> Vec<u8> {

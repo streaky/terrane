@@ -46,10 +46,11 @@ pub enum BuildToolchain {
     System,
 }
 
-const CAPABILITY_NAMES: [&str; 7] = [
+const CAPABILITY_NAMES: [&str; 8] = [
     "build",
     "entropy",
     "filesystem",
+    "logging",
     "networking",
     "process",
     "threads",

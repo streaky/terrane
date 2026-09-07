@@ -3443,6 +3443,30 @@ private cache = map;
 protected state = none
 ```
 
+Field declarations have one extensible metadata clause:
+
+```terrane
+class service-options
+
+  internal-name string = 'primary' metadata (external-name = 'serviceName')
+  credential string = '' metadata (secret = true)
+```
+
+The clause follows the initializer and is valid only on instance fields. Version one defines
+`external-name`, whose value is a string, and `secret`, whose value is a boolean. A metadata name
+may occur at most once on a field, and two effective fields of one class may not expose the same
+external name. Unknown names, malformed values, metadata on static or non-field bindings, and
+conflicting external names are source errors.
+
+This is the single field-metadata mechanism used by document mapping, logging redaction, and
+reflection. A field default remains its ordinary initializer rather than a second metadata value,
+and optionality remains expressed by `T|none`; the resolved field descriptor records both derived
+facts alongside the external name and secrecy policy. Reflection on a class descriptor exposes the
+instance-field inventory through `field-count`, `field-names`, `field-external-names`,
+`field-defaulted`, `field-optional`, and `field-secret`. The parallel lists use declaration order
+after inherited-field replacement, retain semantic field names separately from external names, and
+do not expose generated Rust identifiers.
+
 ### 18.2 Inheritance
 
 Single class inheritance is supported:
@@ -6473,6 +6497,90 @@ An `exit-status` is constructed from an exact integer. Codes in `0..=255` are va
 outside that range produces an invalid status with sentinel code `255`; it does not terminate.
 `exit` is the sole terminating operation and passes the validated status code to the host process
 boundary.
+
+### 37.4 Typed document decoding
+
+`/core/documents` defines `document-decodable` as the explicit opt-in marker for compiler-derived
+fieldwise decoding. `/core/documents/json::decode-typed-json` and
+`/core/documents/yaml::decode-typed-yaml` each take source text, one concrete opted-in class
+descriptor, the corresponding parser options, and an explicit `allow-unknown` boolean. Their
+result contains a value of that concrete class and a typed list of every decode diagnostic;
+`failed` is true exactly when the list is non-empty. The value on failure is the class's ordinary
+initialized value and must not be mistaken for partial success.
+
+Derived decoding accepts scalars, nested opted-in classes, lists, homogeneous tuples, and maps with
+string keys when every nested value is itself decodable. Integer conversion is exact and
+range-checked. Decimal or integer input to `float32` or `float64` is rounded to the nearest
+representable finite value using IEEE 754 round-to-nearest, ties-to-even, consistently with an
+ordinary floating destination; input outside the destination's finite range is a numeric-conversion
+diagnostic. Classes with resource ownership, inheritance, custom construction, unsupported fields,
+or a recursive value cycle must implement `deserializable` manually rather than receiving an unsafe
+partial derivation.
+
+Missing fields use their ordinary declaration initializer. A `T|none` field may be absent and
+retains its initialized optional value. Other missing fields are errors. External document keys
+come only from the field metadata in §18.1. Unknown fields are rejected or ignored according to
+the explicit call policy, recursively. JSON and YAML parsing retain their existing depth, byte,
+and alias limits before typed conversion begins.
+
+Diagnostics are accumulated rather than stopped at the first malformed field. Their deterministic
+sequence carries the data path, expected type, actual document kind, reason, message, decode call
+source, and declared field source. An opted-in class may additionally implement
+`document-validatable`; its zero-argument `validate-document` method returns `string|none` and runs
+only after the complete value has decoded without mapping errors. A returned message becomes a
+validation diagnostic. Validation never receives or exposes a partially decoded value.
+
+Rust owns the generated, statically typed construction glue because it must materialize a concrete
+Rust representation selected by a Terrane class descriptor. Parser policy, field metadata,
+initializers, validation methods, diagnostics exposed to callers, and unknown-field policy remain
+Terrane contracts. No universal boxed runtime value is introduced.
+
+### 37.5 Structured logging and observability
+
+`/core/logging` is gated by the `logging` profile capability and is not implicitly imported. It
+defines the named levels `trace`, `debug`, `info`, `warning`, `error`, and `critical`; explicit
+memory, console, and failing sinks; default and named logger constructors; immutable field and span
+enrichment; and `debug`, `info`, `warning`, `error`, and general `emit` operations. A logger carries
+its sink, minimum severity, hierarchical target filter, target, context, active span names, maximum
+field count, and maximum encoded event size. There is no ambient application logger.
+
+A structured event retains timestamp, per-sink monotonic sequence, severity, target, message,
+ordered structured fields, call-site source, active spans, and origin. Each field retains its key,
+typed `log-value` renderer, field-construction source, and secrecy bit. `log-value.render` returns a
+bounded `document-value`; scalar, document, throwable-chain, and user-defined values participate
+through that one protocol instead of an unbounded universal debug formatter. Event values must
+remain within the logger's field and encoded-byte limits.
+
+Severity and hierarchical target filters run in Terrane before any field renderer or sink is
+called. `field` and `secret-field` preserve their call sites, and compiler lowering injects the
+user emission call site into the source-private Terrane `emit-at` policy function. Convenience
+level operations have the same injection rule. Their source-declared fallback remains accurate
+when the callable itself is passed as a value and therefore executes from the core wrapper.
+
+Secret values are not rendered unless the selected sink was explicitly created with reveal
+permission. Otherwise the dispatch boundary substitutes the structured string `"<redacted>"`
+before a sink sees the event. Sinks do not receive the raw secret. Class-field logging adapters use
+the same `secret` bit from §18.1; there is no facility-specific secrecy annotation.
+
+Memory sinks use an explicit deterministic clock origin and step and expose deterministic drains.
+Every sink is bounded and names its overflow policy. `discarded-count` makes `drop-newest` and
+`drop-oldest` loss observable without recursively logging. Console sinks produce a stable structured
+encoding. A failing sink records one minimal fallback diagnostic without recursively invoking the
+failed sink. `/core/logging/async` adapts the existing typed channel endpoints and their
+backpressure policies: `send-event` publishes and `consume-events` drains a receiver into an
+explicit sink until closure or sink failure. It does not define another queue.
+
+Rust owns sink IDs, synchronization, bounded storage, controlled clock/sequence assignment, console
+I/O, and the process-global `log`/`tracing` facade bridge. These satisfy host-resource and
+foreign-callback/runtime-model justifications. Filtering, enrichment, redaction policy, event
+construction, and logger APIs remain Terrane. The dependency bridge must be explicitly installed
+into a concrete sink. It preserves dependency target/module/file/line provenance, `log` key-value
+fields, active tracing span names and fields, and names an unsupported debug-rendered field
+`<field>.debug` rather than dropping it. It normalizes absolute Cargo source paths to stable
+crate-relative paths when possible and never labels a foreign event with a Terrane source
+location. Platform support exposes the bridge layer separately from global installation so an
+optional remote-reporting layer may be composed around the same subscriber; when absent it adds no
+layer or work.
 
 ---
 

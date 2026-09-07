@@ -1,0 +1,8 @@
+package = "logging-capability"
+
+[profile]
+name = "no-host-capabilities"
+capabilities = []
+
+[namespaces]
+logging-capability = "src"

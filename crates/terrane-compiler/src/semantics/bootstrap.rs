@@ -183,6 +183,16 @@ pub(super) fn bootstrap_namespaces() -> BTreeMap<String, Namespace> {
         "data",
         ["json-parse", "json-canonical"],
     );
+    if let Some(json) = namespaces.get_mut("/core/documents/json") {
+        json.symbols.insert(
+            "decode-typed-json".to_owned(),
+            compiler_owned_object(
+                "/core/documents/json",
+                "decode-typed-json",
+                SymbolKind::Function,
+            ),
+        );
+    }
     add_private_host_bindings(
         &mut namespaces,
         "/core/networking",
@@ -372,6 +382,39 @@ pub(super) fn bootstrap_namespaces() -> BTreeMap<String, Namespace> {
         "/core/documents/yaml",
         "data",
         ["yaml-parse", "json-canonical"],
+    );
+    if let Some(yaml) = namespaces.get_mut("/core/documents/yaml") {
+        yaml.symbols.insert(
+            "decode-typed-yaml".to_owned(),
+            compiler_owned_object(
+                "/core/documents/yaml",
+                "decode-typed-yaml",
+                SymbolKind::Function,
+            ),
+        );
+    }
+    namespaces.insert("/core/logging".to_owned(), Namespace::default());
+    add_private_host_bindings(
+        &mut namespaces,
+        "/core/logging",
+        "logging",
+        [
+            "log-empty-fields",
+            "log-empty-spans",
+            "log-memory-sink",
+            "log-console-sink",
+            "log-failing-sink",
+            "log-no-sink",
+            "log-write",
+            "log-drain",
+            "log-discarded-count",
+            "log-drain-fallback",
+            "log-install-dependency-bridge",
+            "log-result-failed",
+            "log-result-message",
+            "log-result-entries",
+            "log-result-capability",
+        ],
     );
     let mut types = vec![
         "int".to_owned(),

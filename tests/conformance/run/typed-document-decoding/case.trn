@@ -1,0 +1,57 @@
+namespace typed-document-decoding
+
+from /core/output import print
+from /core/documents import document-decodable, document-validatable
+from /core/documents/json import decode-typed-json, default-json-options
+from /core/documents/yaml import decode-typed-yaml, default-yaml-options
+from /core/collections import entry, list, map, tuple
+
+class endpoint implements document-decodable
+    host string = ''
+    port uint16 = 443
+
+class service-config implements document-decodable, document-validatable
+    service-name string = '' metadata (external-name = 'serviceName')
+    endpoint endpoint = instance endpoint;
+    note string|none = none
+    ports list of uint16 = list; 0
+    labels map of string, string = map; (entry; '', '')
+    coordinates tuple of int = tuple; 0
+    ratio float64 = 0.1
+
+    function validate-document string|none;
+        if this.service-name == 'reserved'
+            return 'service name is reserved'
+        return none
+
+class waypoint implements document-decodable
+    x float64 = 0.0
+    y float64 = 0.0
+
+class route implements document-decodable
+    name string = ''
+    points list of waypoint = list; (instance waypoint;)
+    active bool = false
+
+function main;
+    decoded = decode-typed-json; '{"serviceName":"api","endpoint":{"host":"localhost","port":8443},"ports":[80,443],"labels":{"tier":"edge"},"coordinates":[4,9],"ratio":0.1}', service-config, (default-json-options;), false
+    print; decoded.failed, decoded.value.service-name, decoded.value.endpoint.host, decoded.value.endpoint.port
+    print; decoded.value.ports[1], decoded.value.labels['tier'], decoded.value.coordinates[0], decoded.value.ratio
+
+    malformed = decode-typed-json; '{"serviceName":3,"endpoint":{"host":false},"ports":[1,70000],"ratio":0.1,"extra":true}', service-config, (default-json-options;), false
+    print; malformed.failed, malformed.diagnostics.length
+    for diagnostic in malformed.diagnostics
+        print; diagnostic.path, ':', diagnostic.reason
+    print; (malformed.diagnostics[1].source.contains; 'case.trn'), (malformed.diagnostics[1].field-source.contains; 'case.trn')
+
+    invalid = decode-typed-json; '{"serviceName":"reserved","endpoint":{"host":"ok"}}', service-config, (default-json-options;), false
+    print; invalid.failed, invalid.diagnostics[0].reason, invalid.diagnostics[0].message
+
+    permissive = decode-typed-json; '{"serviceName":"extra","endpoint":{"host":"ok"},"extra":true}', service-config, (default-json-options;), true
+    print; permissive.failed, permissive.value.endpoint.port
+
+    yaml = decode-typed-yaml; 'serviceName: yaml\nendpoint:\n  host: local', service-config, (default-yaml-options;), false
+    print; yaml.failed, yaml.value.service-name, yaml.value.endpoint.host
+
+    journey = decode-typed-json; '{"name":"coast","points":[{"x":1.25,"y":2.75},{"x":3.5,"y":4.5}],"active":true}', route, (default-json-options;), false
+    print; journey.failed, journey.value.name, journey.value.points[0].y, journey.value.active

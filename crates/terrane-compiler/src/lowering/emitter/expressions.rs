@@ -1,6 +1,44 @@
 use super::super::prelude::*;
 
 impl Emitter<'_> {
+    fn descriptor_expression(&self, source_name: &str) -> String {
+        let object = self
+            .unit
+            .objects
+            .iter()
+            .find(|object| object.name == source_name);
+        let identity = object.map_or_else(
+            || source_name.to_owned(),
+            |object| object.identity.to_string(),
+        );
+        let name = object.map_or(source_name, |object| object.name.as_str());
+        let kind = object.map_or("type", |object| match object.kind {
+            ObjectKind::Class => "class",
+            ObjectKind::Interface => "interface",
+            ObjectKind::Trait => "trait",
+        });
+        let fields = object.map_or_else(String::new, |object| {
+            effective_object_fields(self.unit, object)
+                .into_iter()
+                .filter(|field| !field.is_static)
+                .map(|field| {
+                    format!(
+                        "TerraneFieldMetadata {{ name: {:?}, external_name: {:?}, defaulted: {}, optional: {}, secret: {} }}",
+                        field.name,
+                        field.metadata.external_name,
+                        field.metadata.defaulted,
+                        field.metadata.optional,
+                        field.metadata.secret
+                    )
+                })
+                .collect::<Vec<_>>()
+                .join(", ")
+        });
+        format!(
+            "TerraneDescriptor {{ identity: {identity:?}, name: {name:?}, kind: {kind:?}, fields: &[{fields}] }}"
+        )
+    }
+
     fn await_expression(&mut self, operand: &SyntaxNode) -> String {
         let awaited = format!("__terrane_await({}).await", self.expression(operand));
         let callee = (operand.kind == SyntaxKind::CallExpression)
@@ -55,11 +93,7 @@ impl Emitter<'_> {
                     .current_object
                     .as_ref()
                     .expect("`self` is only lowered in an object method");
-                format!(
-                    "TerraneDescriptor {{ identity: {:?}, name: {:?}, kind: \"class\" }}",
-                    identity.to_string(),
-                    identity.name
-                )
+                self.descriptor_expression(&identity.name)
             }
             SyntaxKind::Name => {
                 let binding = self.unit.typed_bindings.iter().rev().find(|binding| {
@@ -70,9 +104,7 @@ impl Emitter<'_> {
                     Some(ValueType::Descriptor(identity))
                         if binding.is_none_or(|binding| binding.scope.is_none()) =>
                     {
-                        format!(
-                            "TerraneDescriptor {{ identity: {identity:?}, name: {identity:?}, kind: \"type\" }}"
-                        )
+                        self.descriptor_expression(&identity)
                     }
                     _ => self.name(node),
                 }

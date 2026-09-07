@@ -158,20 +158,39 @@ Terrane package
     │   ├── document-value                     none / bool / integer / decimal / string / list / map
     │   ├── document-result                    value or failed / message / path / expected diagnostic
     │   ├── document-mapping                   descriptor name, expected kind, fields, defaults, unknown-field policy
-    │   ├── serializable / deserializable      explicit typed conversion interfaces
+    │   ├── serializable / deserializable      explicit manual typed conversion interfaces
+    │   ├── document-decodable                 explicit compiler-derived fieldwise decoding opt-in
+    │   ├── document-validatable               optional post-decode `string|none` validation contract
+    │   ├── document-diagnostic                path / expected / actual kind / reason / message / decode and field source
+    │   ├── document-decode-outcome of T       initialized T value plus deterministic typed diagnostic list
     │   ├── exact scalar/list/map constructors programmatic document construction with duplicate rejection
-    │   └── decode-document                    descriptor-driven validation with document-path diagnostics
+    │   └── decode-document                    descriptor-driven document-shape validation
     ├── /core/documents/json                   JSON policy and document integration
     │   ├── json-options / default-json-options depth and byte limits; duplicates always rejected
     │   ├── parse-json / stringify-json / canonical-json
     │   │                                       JCS key ordering/escaping with exact, ECMAScript-shaped numbers
-    │   └── decode-json / encode-json
+    │   ├── decode-json / encode-json
+    │   └── decode-typed-json                  opted-in concrete class decoding with explicit unknown policy
     ├── /core/documents/yaml                   YAML policy and document integration
     │   ├── yaml-options / default-yaml-options / make-yaml-options
     │   │                                       depth (capped at 255), byte, and alias-expanded-node limits
     │   ├── parse-yaml                         JSON-shaped safe scalars; tags and duplicate keys rejected
     │   ├── stringify-yaml                     emits canonical JSON, a valid YAML 1.2 document
-    │   └── decode-yaml / encode-yaml
+    │   ├── decode-yaml / encode-yaml
+    │   └── decode-typed-yaml                  same typed conversion and diagnostics after safe YAML parsing
+    ├── /core/logging                          structured observability; requires `logging`
+    │   ├── log-level / *-level                trace through critical ordered severities
+    │   ├── log-value                          lazy document-value rendering protocol
+    │   ├── log-field / field / secret-field   key, renderer, secrecy, and compiler-injected field source
+    │   ├── log-sink / memory-sink / console-sink / failing-sink
+    │   │                                       explicit deterministic, host-console, and failure-witness sinks
+    │   ├── logger / logger-options             explicit sink, target hierarchy, limits, fields, and spans
+    │   ├── default-logger / named-logger       explicit nonambient construction helpers
+    │   ├── with-field / with-span              immutable context enrichment
+    │   ├── emit / debug / info / warning / error compiler-injected call source; filter before render
+    │   ├── discarded-count / drain-memory / drain-fallback observable drops, deterministic records, nonrecursive fallback
+    │   ├── install-dependency-bridge           explicit `log`/`tracing` event, key-value, and span routing with foreign provenance
+    │   └── /core/logging/async::send-event / consume-events existing typed-channel producer and sink consumer; requires `threads`
     ├── /core/urls                             URL and ordered-query model
     │   ├── url                                serialized / display / components / query / origin
     │   ├── url-query                          ordered duplicate-preserving query entries (read-only after parsing)
@@ -565,6 +584,12 @@ For an ordinary typed scalar, both forms compare its resolved canonical Terrane 
 
 Descriptor names remain compile-time identities in ordinary type positions. When reflection or dynamic descriptor observation requires a value, the compiler materializes the canonical descriptor object; source bindings may retain and print that object, and `.name` exposes its canonical source spelling. An explicit import or constant alias retains the same descriptor identity rather than creating a new descriptor.
 
+Source-declared class instance fields accept one trailing `metadata (...)` clause. The implemented
+metadata names are string `external-name` and boolean `secret`; declared initializers and `T|none`
+derive the same field descriptor's `defaulted` and `optional` flags. Class descriptors expose
+declaration-ordered field names, external names, and all three flags as parallel reflected lists.
+Malformed, duplicate, static-field, non-field, and externally conflicting metadata is rejected.
+
 ## Functions
 
 ### Built-in `print`
@@ -764,6 +789,7 @@ change the generated manifest.
 | Receiver | Member | Kind | Result / effect |
 |---|---|---|---|
 | any implemented scalar value | `.type` | property | canonical scalar descriptor |
+| class descriptor | `.field-count`, `.field-names`, `.field-external-names`, `.field-defaulted`, `.field-optional`, `.field-secret` | properties | declaration-ordered resolved field metadata |
 | `string` | `.length` | property | adaptive `int` grapheme count |
 | `string` | `.concat; values...` | method | concatenated `string` using canonical display |
 | `string` | `.join; values...` | method | canonical displays interleaved with receiver separator |
@@ -888,7 +914,7 @@ The authoritative language draft proposes a much larger ontology. None of the fo
 
 ```text
 collection checked lookup children and source-visible typed lookup errors
-reflection inventories beyond retained callable contracts, throwable alternatives, and canonical descriptor identity
+reflection inventories beyond retained field metadata, callable contracts, throwable alternatives, and canonical descriptor identity
 bytes indexing and slicing
 user-authored implementations of general iteration protocols
 user-declared type parameters and generic application

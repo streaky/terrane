@@ -1,0 +1,4 @@
+namespace duplicate-class-field-metadata
+
+class record
+    value string = '' metadata (secret = true, secret = false)

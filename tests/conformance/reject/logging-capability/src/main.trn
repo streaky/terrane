@@ -1,0 +1,5 @@
+namespace logging-capability
+
+from /core/logging import info
+
+function main;

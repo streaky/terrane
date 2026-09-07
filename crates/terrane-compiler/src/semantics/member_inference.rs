@@ -154,13 +154,58 @@ pub(super) fn infer_member_value_type(
     };
     let member_name = node_text(&unit.source, member);
     let receiver_type = infer_receiver_value_type(unit, receiver, bindings)?;
-    if let Some(ValueType::Descriptor(_)) = &receiver_type {
+    if let Some(ValueType::Descriptor(identity)) = &receiver_type {
+        if let Some(field) = unit
+            .objects
+            .iter()
+            .find(|object| object.name == *identity)
+            .and_then(|object| {
+                object
+                    .fields
+                    .iter()
+                    .find(|field| field.is_static && field.name == member_name)
+            })
+        {
+            return Ok(Some(field.value_type.clone()));
+        }
         return match member_name {
             "name" | "kind" | "identity" => Ok(Some(ValueType::Scalar(ScalarType::String))),
+            "field-count" => Ok(Some(ValueType::Scalar(ScalarType::Int))),
+            "field-names" | "field-external-names" => Ok(Some(ValueType::StringList)),
+            "field-defaulted" | "field-optional" | "field-secret" => Ok(Some(ValueType::List(
+                ElementType::new(ValueType::Scalar(ScalarType::Bool)),
+            ))),
             _ => Err(failure(
                 &unit.source,
                 "T0071",
                 format!("descriptor has no retained member `{member_name}`"),
+                member.span,
+            )),
+        };
+    }
+    if let Some(ValueType::DocumentDecodeOutcome(value)) = &receiver_type {
+        return match member_name {
+            "failed" => Ok(Some(ValueType::Scalar(ScalarType::Bool))),
+            "value" => Ok(Some(value.value_type())),
+            "diagnostics" => Ok(Some(ValueType::List(ElementType::new(
+                ValueType::DocumentDiagnostic,
+            )))),
+            _ => Err(failure(
+                &unit.source,
+                "T0115",
+                format!("document decode outcome has no member `{member_name}`"),
+                member.span,
+            )),
+        };
+    }
+    if receiver_type == Some(ValueType::DocumentDiagnostic) {
+        return match member_name {
+            "path" | "expected" | "actual-kind" | "reason" | "message" | "source"
+            | "field-source" => Ok(Some(ValueType::Scalar(ScalarType::String))),
+            _ => Err(failure(
+                &unit.source,
+                "T0115",
+                format!("document diagnostic has no member `{member_name}`"),
                 member.span,
             )),
         };

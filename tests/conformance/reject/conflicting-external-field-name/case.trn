@@ -1,0 +1,5 @@
+namespace conflicting-external-field-name
+
+class record
+    first string = '' metadata (external-name = 'value')
+    second string = '' metadata (external-name = 'value')

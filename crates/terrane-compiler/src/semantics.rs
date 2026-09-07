@@ -11,7 +11,9 @@ mod scopes;
 mod calls;
 mod collections;
 mod contracts;
+mod documents;
 mod expressions;
+mod logging;
 mod member_inference;
 mod numeric;
 mod types;
@@ -45,7 +47,9 @@ mod prelude {
     pub(super) use super::collections::*;
     pub(super) use super::contracts::*;
     pub(super) use super::diagnostics::*;
+    pub(super) use super::documents::*;
     pub(super) use super::expressions::*;
+    pub(super) use super::logging::*;
     pub(super) use super::member_inference::*;
     pub(super) use super::model::*;
     pub(super) use super::namespaces::*;
@@ -65,9 +69,9 @@ pub(crate) use diagnostics::{binding_span_is_mutated, warnings};
 pub(crate) use member_inference::string_call_selection;
 pub use model::{
     ArithmeticFamily, BOOTSTRAP_VERSION, BoundMethod, ElementType, EvaluationKind, EvaluationStep,
-    FunctionContract, MemberFamily, Namespace, ObjectContract, ObjectField, ObjectIdentity,
-    ObjectKind, ParameterContract, SemanticFailure, SemanticPackage, SemanticUnit, Symbol,
-    SymbolKind, TaskTransferability, TextUnit, TypedBinding, ValueType, Visibility,
+    FunctionContract, MemberFamily, Namespace, ObjectContract, ObjectField, ObjectFieldMetadata,
+    ObjectIdentity, ObjectKind, ParameterContract, SemanticFailure, SemanticPackage, SemanticUnit,
+    Symbol, SymbolKind, TaskTransferability, TextUnit, TypedBinding, ValueType, Visibility,
 };
 pub(crate) use model::{
     CoercionPolicy, ContextualConstant, FloatMemberOperation, StringFamily, float_member_contract,

@@ -611,6 +611,10 @@ fn generated_crate_path(
     if uses_platform_support {
         hash.update(include_bytes!("../../terrane-platform-support/src/lib.rs"));
         hash.update(b"\0");
+        hash.update(include_bytes!(
+            "../../terrane-platform-support/src/observability.rs"
+        ));
+        hash.update(b"\0");
     }
     Ok(root
         .join(".trn/build")
@@ -848,6 +852,10 @@ fn write_generated_support(directory: &Path, uses_platform_support: bool) -> std
         write_if_changed(
             &platform.join("src/lib.rs"),
             include_bytes!("../../terrane-platform-support/src/lib.rs"),
+        )?;
+        write_if_changed(
+            &platform.join("src/observability.rs"),
+            include_bytes!("../../terrane-platform-support/src/observability.rs"),
         )?;
     }
     Ok(())

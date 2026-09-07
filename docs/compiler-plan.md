@@ -1031,6 +1031,13 @@ bounds, widths, and signedness remain canonical `ScalarType` contracts rather th
 in the category schema. `/core/types` exports category descriptors as explicit-only names. Accepted
 and rejected conformance cases cover abstract membership and descriptor misuse.
 
+Phase D extended that same semantic descriptor model with one trailing class-field metadata clause.
+Resolved instance fields retain semantic and external names, initializer-derived default status,
+`T|none` optionality, and a secrecy bit in one extensible record. Descriptor reflection exposes the
+same ordered facts; duplicate, malformed, static-field, and colliding external-name declarations
+fail at source spans. `class-field-metadata` proves the complete reflected contract without adding
+facility-specific annotations or generated-Rust field identities.
+
 ### Milestone 8 — Callable signatures and bound-method families
 
 Milestone 4.5 delivered the `.coerce` family as a special case. This generalises that machinery so later families reuse it instead of adding parallel special cases.
@@ -1704,6 +1711,15 @@ scalar behavior, URL credential-safe display, duplicate ordered query entries, r
 and generated-Rust compilation and execution with warnings denied. Rejection cases prove that the
 old `/core/documents/json::platform-parse` implementation spelling is not exported.
 
+Phase D added explicit `document-decodable` opt-in and compiler-derived fieldwise conversion from
+the existing safe JSON/YAML document trees into statically known class values. Nested opted-in
+classes, lists including lists of classes, string-keyed maps, homogeneous tuples, defaults,
+optionals, external field names, strict/open unknown-field policy, and post-decode validation share
+one generated decoder contract. Integer fields remain exact and range checked; floating fields use
+ordinary IEEE round-to-nearest, ties-to-even destination semantics. `typed-document-decoding`
+exercises two structurally different class trees and accumulates deterministic source-mapped
+diagnostics, while focused rejected cases pin opt-in, construction, and unsupported-field rules.
+
 ### Milestone 23 — Randomness, codecs, digests, and compression
 
 Written in Terrane over the minimal Rust core, per delivery principle 9. Each layer implemented in Rust states which of the four justifications applies; everything above it is Terrane.
@@ -2331,6 +2347,30 @@ Deliver:
 - an in-memory deterministic test sink with logical sequence numbers and controlled timestamps.
 
 Exit criterion: structured fields survive to the sink unflattened, a secret-typed field is redacted by policy, and captured test output is byte-identical across runs.
+
+Implemented policy, sink, typed-transport, and dependency-observability slice: `/core/logging` is
+bundled behind the `logging` capability and supplies explicit logger construction, named
+severities, immutable enrichment, hierarchical pre-render filtering, lazy `log-value` conversion,
+secret-field redaction, compiler-injected event and field sources, controlled clocks, monotonic
+sequence numbers, bounded deterministic memory storage, host console output, and an explicit
+failing sink with nonrecursive fallback capture. Dropping policies expose their cumulative
+`discarded-count`. `/core/logging/async` requires `threads`; `send-event` and `consume-events`
+connect existing typed channel backpressure to an explicit sink consumer without adding a queue.
+`structured-logging` proves rejected lazy values are not rendered, fields remain structured,
+secrets are redacted before rendering, target and severity filters are independent, context copies
+do not contaminate one another, memory drains are stable, and asynchronous sink backpressure and
+failure terminate without recursive logging. `logging-bounds` proves observable drop-oldest and
+reject policy plus logger field-count and encoded-byte bounds. The main case additionally proves
+console selection is explicit.
+
+`dependency-observability` projects a representative Rust crate that emits through both `log` and
+`tracing`, installs their process-global bridge only through an explicit Terrane logger, and
+captures both events in that sink. Direct `log` key-value visitation prevents facade field loss;
+the tracing layer retains active span names and projected span fields; both retain dependency
+target, module, file, line, and origin without claiming a Terrane source. The bridge subscriber is
+available before global registration so an optional remote-reporting layer can share it, while an
+absent integration adds no layer or work. The generated crate names only the exact projected
+adapter dependency it calls directly. `logging-capability` proves profile denial.
 
 ### Milestone 28 — First-version hardening and release gate
 
