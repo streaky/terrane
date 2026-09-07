@@ -2,26 +2,52 @@ use crate::package::ExecutorProfile;
 
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub(crate) struct ExecutionRequirements {
-    pub runtime_context: bool,
+    pub runtime: RuntimeRequirements,
+    pub tasks: TaskRequirements,
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub(crate) struct RuntimeRequirements {
+    pub context: bool,
     pub wake_support: bool,
-    pub local_task: bool,
-    pub transferable_task: bool,
     pub blocking_delegation: bool,
 }
 
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub(crate) struct TaskRequirements {
+    pub local: bool,
+    pub transferable: bool,
+}
+
 impl ExecutionRequirements {
+    pub(crate) fn for_async(local: bool) -> Self {
+        Self {
+            runtime: RuntimeRequirements {
+                wake_support: true,
+                ..RuntimeRequirements::default()
+            },
+            tasks: TaskRequirements {
+                local,
+                transferable: !local,
+            },
+        }
+    }
+
     pub(crate) fn merge(&mut self, other: Self) {
-        self.runtime_context |= other.runtime_context;
-        self.wake_support |= other.wake_support;
-        self.local_task |= other.local_task;
-        self.transferable_task |= other.transferable_task;
-        self.blocking_delegation |= other.blocking_delegation;
+        self.runtime.context |= other.runtime.context;
+        self.runtime.wake_support |= other.runtime.wake_support;
+        self.runtime.blocking_delegation |= other.runtime.blocking_delegation;
+        self.tasks.local |= other.tasks.local;
+        self.tasks.transferable |= other.tasks.transferable;
     }
 
     pub(crate) fn is_consistent(self) -> bool {
-        (!self.runtime_context || self.wake_support)
-            && (!(self.local_task || self.transferable_task) || self.wake_support)
-            && (!self.blocking_delegation || self.runtime_context)
+        if (self.runtime.context || self.tasks.local || self.tasks.transferable)
+            && !self.runtime.wake_support
+        {
+            return false;
+        }
+        !self.runtime.blocking_delegation || self.runtime.context
     }
 }
 

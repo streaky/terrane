@@ -906,12 +906,16 @@ pub(super) fn infer_task_transferability(package: &mut SemanticPackage) {
             if !contract.is_async {
                 continue;
             }
-            contract.execution_requirements.local_task =
+            contract.execution_requirements.tasks.local =
                 contract.task_transferability == TaskTransferability::Local;
-            contract.execution_requirements.transferable_task =
+            contract.execution_requirements.tasks.transferable =
                 contract.task_transferability == TaskTransferability::Transferable;
         }
     }
+    synchronize_execution_requirements(package);
+}
+
+fn synchronize_execution_requirements(package: &mut SemanticPackage) {
     let contracts = package
         .units
         .iter()
@@ -957,15 +961,15 @@ pub(super) fn infer_task_transferability(package: &mut SemanticPackage) {
         .flat_map(|unit| &unit.functions)
         .any(|contract| contract.name == "main" && contract.is_async)
     {
-        package.execution_requirements.runtime_context = true;
-        package.execution_requirements.wake_support = true;
+        package.execution_requirements.runtime.context = true;
+        package.execution_requirements.runtime.wake_support = true;
     }
     if package.units.iter().any(|unit| {
         unit.typed_bindings
             .iter()
             .any(|binding| binding.value_type == ValueType::TaskScope)
     }) {
-        package.execution_requirements.wake_support = true;
+        package.execution_requirements.runtime.wake_support = true;
     }
     if package.units.iter().any(|unit| {
         [
@@ -986,9 +990,9 @@ pub(super) fn infer_task_transferability(package: &mut SemanticPackage) {
         .iter()
         .any(|name| unit.source.text().contains(name))
     }) {
-        package.execution_requirements.runtime_context = true;
-        package.execution_requirements.wake_support = true;
-        package.execution_requirements.blocking_delegation = true;
+        package.execution_requirements.runtime.context = true;
+        package.execution_requirements.runtime.wake_support = true;
+        package.execution_requirements.runtime.blocking_delegation = true;
     }
 }
 

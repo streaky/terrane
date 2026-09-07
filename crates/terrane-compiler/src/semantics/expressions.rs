@@ -544,10 +544,10 @@ pub(super) fn infer_value_type(
                         };
                         let callable = callable.children.last().unwrap_or(callable);
                         match infer_value_type(unit, callable, bindings)? {
-                            Some(ValueType::AsyncFunction(_, result, transferability))
-                            | Some(ValueType::Task(result, transferability)) => {
-                                Ok(Some(ValueType::ScopedTask(result, transferability)))
-                            }
+                            Some(
+                                ValueType::AsyncFunction(_, result, transferability)
+                                | ValueType::Task(result, transferability),
+                            ) => Ok(Some(ValueType::ScopedTask(result, transferability))),
                             _ => Err(failure(
                                 &unit.source,
                                 "T0074",

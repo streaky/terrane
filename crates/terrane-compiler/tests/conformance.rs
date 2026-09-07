@@ -303,78 +303,82 @@ fn compile_and_maybe_run(
     }
 
     if phase == "run" {
-        let mut command = Command::new(&binary_path);
-        if let Some(arguments) = optional_text(case.join("arguments.txt")) {
-            command.args(arguments.lines());
+        run_case(&binary_path, build_dir, case, manifest);
+    }
+}
+
+fn run_case(binary_path: &Path, build_dir: &Path, case: &Path, manifest: &str) {
+    let mut command = Command::new(binary_path);
+    if let Some(arguments) = optional_text(case.join("arguments.txt")) {
+        command.args(arguments.lines());
+    }
+    command.args(platform_arguments(case.join("arguments-raw.hex")));
+    if let Some(worker_threads) = field(manifest, "worker-threads") {
+        command.env("TOKIO_WORKER_THREADS", worker_threads);
+    }
+    if boolean_field(manifest, "isolated-working-directory") == Some(true) {
+        let working_directory = build_dir.join("run");
+        if working_directory.exists() {
+            fs::remove_dir_all(&working_directory).unwrap();
         }
-        command.args(platform_arguments(case.join("arguments-raw.hex")));
-        if let Some(worker_threads) = field(manifest, "worker-threads") {
-            command.env("TOKIO_WORKER_THREADS", worker_threads);
+        fs::create_dir(&working_directory).unwrap();
+        if let (Some(link), Some(target)) = (
+            field(manifest, "symlink-fixture"),
+            field(manifest, "symlink-target"),
+        ) {
+            create_file_symlink(target, working_directory.join(link));
         }
-        if boolean_field(manifest, "isolated-working-directory") == Some(true) {
-            let working_directory = build_dir.join("run");
-            if working_directory.exists() {
-                fs::remove_dir_all(&working_directory).unwrap();
-            }
-            fs::create_dir(&working_directory).unwrap();
-            if let (Some(link), Some(target)) = (
-                field(manifest, "symlink-fixture"),
-                field(manifest, "symlink-target"),
-            ) {
-                create_file_symlink(target, working_directory.join(link));
-            }
-            command.current_dir(working_directory);
-        }
-        let mut child = command
-            .stdin(Stdio::piped())
-            .stdout(Stdio::piped())
-            .stderr(Stdio::piped())
-            .spawn()
-            .unwrap();
-        let mut stdin = Some(child.stdin.take().unwrap());
-        if let Err(error) = stdin
-            .as_mut()
-            .unwrap()
-            .write_all(&optional_bytes(case.join("stdin.txt")))
-        {
-            assert_eq!(
-                error.kind(),
-                std::io::ErrorKind::BrokenPipe,
-                "{} could not receive conformance stdin",
-                case.display()
-            );
-        }
-        let hold_stdin = boolean_field(manifest, "hold-stdin-until-stdout") == Some(true);
-        if !hold_stdin {
-            drop(stdin.take());
-        }
-        let (status, stdout, stderr) = if hold_stdin {
-            let mut stdout = BufReader::new(child.stdout.take().unwrap());
-            let mut stdout_bytes = Vec::new();
-            stdout.read_until(b'\n', &mut stdout_bytes).unwrap();
-            drop(stdin.take());
-            stdout.read_to_end(&mut stdout_bytes).unwrap();
-            let mut stderr = child.stderr.take().unwrap();
-            let mut stderr_bytes = Vec::new();
-            stderr.read_to_end(&mut stderr_bytes).unwrap();
-            (child.wait().unwrap(), stdout_bytes, stderr_bytes)
-        } else {
-            let output = child.wait_with_output().unwrap();
-            (output.status, output.stdout, output.stderr)
-        };
-        let expected_stdout = fs::read(case.join("stdout.txt")).unwrap();
-        let expected_stderr = optional_bytes(case.join("stderr.txt"));
-        let expected_code = optional_text(case.join("exit-code.txt"))
-            .map_or(0, |text| text.trim().parse().unwrap());
-        assert_eq!(stdout, expected_stdout, "{} stdout", case.display());
-        assert_eq!(stderr, expected_stderr, "{} stderr", case.display());
+        command.current_dir(working_directory);
+    }
+    let mut child = command
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .unwrap();
+    let mut stdin = Some(child.stdin.take().unwrap());
+    if let Err(error) = stdin
+        .as_mut()
+        .unwrap()
+        .write_all(&optional_bytes(case.join("stdin.txt")))
+    {
         assert_eq!(
-            status.code(),
-            Some(expected_code),
-            "{} exit code",
+            error.kind(),
+            std::io::ErrorKind::BrokenPipe,
+            "{} could not receive conformance stdin",
             case.display()
         );
     }
+    let hold_stdin = boolean_field(manifest, "hold-stdin-until-stdout") == Some(true);
+    if !hold_stdin {
+        drop(stdin.take());
+    }
+    let (status, stdout, stderr) = if hold_stdin {
+        let mut stdout = BufReader::new(child.stdout.take().unwrap());
+        let mut stdout_bytes = Vec::new();
+        stdout.read_until(b'\n', &mut stdout_bytes).unwrap();
+        drop(stdin.take());
+        stdout.read_to_end(&mut stdout_bytes).unwrap();
+        let mut stderr = child.stderr.take().unwrap();
+        let mut stderr_bytes = Vec::new();
+        stderr.read_to_end(&mut stderr_bytes).unwrap();
+        (child.wait().unwrap(), stdout_bytes, stderr_bytes)
+    } else {
+        let output = child.wait_with_output().unwrap();
+        (output.status, output.stdout, output.stderr)
+    };
+    let expected_stdout = fs::read(case.join("stdout.txt")).unwrap();
+    let expected_stderr = optional_bytes(case.join("stderr.txt"));
+    let expected_code =
+        optional_text(case.join("exit-code.txt")).map_or(0, |text| text.trim().parse().unwrap());
+    assert_eq!(stdout, expected_stdout, "{} stdout", case.display());
+    assert_eq!(stderr, expected_stderr, "{} stderr", case.display());
+    assert_eq!(
+        status.code(),
+        Some(expected_code),
+        "{} exit code",
+        case.display()
+    );
 }
 
 #[cfg(unix)]

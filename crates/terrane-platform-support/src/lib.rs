@@ -102,7 +102,7 @@ enum CapabilityInner {
     IntRwLock(RwLock<i128>),
     AtomicI64(AtomicI64),
     ThreadLocalInt(ThreadLocalInt),
-    Listener(Mutex<Option<TcpListener>>),
+    Listener(RwLock<Option<TcpListener>>),
     Tcp(Mutex<Option<TcpStream>>),
     Udp(Mutex<Option<UdpSocket>>),
     Tls(Mutex<Option<rustls::StreamOwned<rustls::ClientConnection, TcpStream>>>),
@@ -1082,9 +1082,9 @@ pub fn tcp_bind(address: &str) -> ResultValue {
             }
             ResultValue {
                 text,
-                capability: Some(Capability(Arc::new(CapabilityInner::Listener(Mutex::new(
-                    Some(listener),
-                ))))),
+                capability: Some(Capability(Arc::new(CapabilityInner::Listener(
+                    RwLock::new(Some(listener)),
+                )))),
                 ..ResultValue::default()
             }
         }
@@ -1236,7 +1236,7 @@ pub fn tcp_accept(
         Ok(value) => value,
         Err(error) => return error,
     };
-    let guard = listener.lock().expect("listener lock poisoned");
+    let guard = listener.read().expect("listener lock poisoned");
     let Some(listener) = guard.as_ref() else {
         return ResultValue::error("listener is closed");
     };
@@ -1742,7 +1742,7 @@ pub fn tls_shutdown(
 pub fn close(capability: &Capability) -> ResultValue {
     match capability.0.as_ref() {
         CapabilityInner::Listener(value) => {
-            value.lock().expect("listener lock poisoned").take();
+            value.write().expect("listener lock poisoned").take();
             ResultValue::default()
         }
         CapabilityInner::Tcp(value) => {
@@ -1964,7 +1964,7 @@ mod tests {
             std::thread::spawn(move || tcp_accept(&second_listener, 1_000, &cancellation_token()));
         let address = match listener.0.as_ref() {
             CapabilityInner::Listener(listener) => listener
-                .lock()
+                .read()
                 .unwrap()
                 .as_ref()
                 .unwrap()
@@ -2124,7 +2124,7 @@ mod tests {
         let would_block = || match listener.0.as_ref() {
             CapabilityInner::Listener(listener) => {
                 listener
-                    .lock()
+                    .read()
                     .unwrap()
                     .as_ref()
                     .unwrap()

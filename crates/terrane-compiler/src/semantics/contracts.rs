@@ -441,13 +441,7 @@ pub(super) fn analyze_function_contract(
             TaskTransferability::Transferable
         },
         execution_requirements: if is_async {
-            crate::execution::ExecutionRequirements {
-                runtime_context: false,
-                wake_support: true,
-                local_task: unit.namespace.starts_with("/deps/"),
-                transferable_task: !unit.namespace.starts_with("/deps/"),
-                blocking_delegation: false,
-            }
+            crate::execution::ExecutionRequirements::for_async(unit.namespace.starts_with("/deps/"))
         } else {
             crate::execution::ExecutionRequirements::default()
         },

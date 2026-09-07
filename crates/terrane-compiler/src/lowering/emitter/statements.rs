@@ -395,6 +395,14 @@ impl Emitter<'_> {
         }
     }
 
+    fn contains_await(&self, node: &SyntaxNode) -> bool {
+        (node.kind == SyntaxKind::UnaryExpression
+            && node.children.first().is_some_and(|operator| {
+                self.unit.source.text()[operator.span.start..operator.span.end].trim() == "await"
+            }))
+            || node.children.iter().any(|child| self.contains_await(child))
+    }
+
     #[expect(
         clippy::too_many_lines,
         reason = "the emitted try/catch/finally control flow is clearer as one auditable state machine"
@@ -403,17 +411,7 @@ impl Emitter<'_> {
         let Some(block) = node.children.first() else {
             return;
         };
-        fn contains_await(unit: &SemanticUnit, node: &SyntaxNode) -> bool {
-            (node.kind == SyntaxKind::UnaryExpression
-                && node.children.first().is_some_and(|operator| {
-                    unit.source.text()[operator.span.start..operator.span.end].trim() == "await"
-                }))
-                || node
-                    .children
-                    .iter()
-                    .any(|child| contains_await(unit, child))
-        }
-        let asynchronous = contains_await(self.unit, node);
+        let asynchronous = self.contains_await(node);
         let closure_start = if asynchronous { "async {" } else { "(|| {" };
         let closure_end = if asynchronous { "}.await;" } else { "})();" };
         let index = self.try_counter;
@@ -529,7 +527,7 @@ impl Emitter<'_> {
             .find(|child| child.kind == SyntaxKind::FinallyClause)
             .and_then(|clause| clause.children.first())
         {
-            let finally_asynchronous = contains_await(self.unit, finally);
+            let finally_asynchronous = self.contains_await(finally);
             let finally_start = if finally_asynchronous {
                 "async {"
             } else {

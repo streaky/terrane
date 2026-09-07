@@ -1040,9 +1040,11 @@ impl Emitter<'_> {
         let needs_error_mapping = contract.as_ref().is_some_and(|contract| contract.throws)
             || foreign_error
             || function_value_call;
-        let site = needs_error_mapping
-            .then(|| self.error_site(node))
-            .unwrap_or_default();
+        let site = if needs_error_mapping {
+            self.error_site(node)
+        } else {
+            String::new()
+        };
         let dependency_boundary = self
             .package
             .resolve_name_at(self.unit, callee.span.start, self.text(callee))

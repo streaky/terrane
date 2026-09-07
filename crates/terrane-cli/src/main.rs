@@ -155,10 +155,12 @@ fn run(arguments: &[OsString]) -> Result<ExitCode, CliFailure> {
         &rust_files,
         &package.units,
         &compilation.rust_dependencies,
-        package.profile.panic,
-        uses_platform_support,
-        uses_async_runtime,
-        package.build_toolchain,
+        GeneratedCrateOptions {
+            panic: package.profile.panic,
+            uses_platform_support,
+            uses_async_runtime,
+            build_toolchain: package.build_toolchain,
+        },
     )?;
     record_and_prune_generated_crates(&crate_dir)?;
     let target_dir = package.root.join(".trn/cache/target");
@@ -651,15 +653,20 @@ fn record_and_prune_generated_crates(active: &Path) -> Result<(), CliFailure> {
     Ok(())
 }
 
+#[derive(Clone, Copy)]
+struct GeneratedCrateOptions {
+    panic: terrane_compiler::PanicProfile,
+    uses_platform_support: bool,
+    uses_async_runtime: bool,
+    build_toolchain: terrane_compiler::BuildToolchain,
+}
+
 fn write_generated_crate(
     directory: &Path,
     rust_files: &[terrane_compiler::rust_ir::RenderedFile],
     units: &[terrane_compiler::SourceUnit],
     rust_dependencies: &[terrane_compiler::RustDependency],
-    panic: terrane_compiler::PanicProfile,
-    uses_platform_support: bool,
-    uses_async_runtime: bool,
-    build_toolchain: terrane_compiler::BuildToolchain,
+    options: GeneratedCrateOptions,
 ) -> Result<(), CliFailure> {
     fs::create_dir_all(directory.join("src"))
         .map_err(|error| CliFailure::backend(format!("cannot create generated crate: {error}")))?;
@@ -674,12 +681,12 @@ fn write_generated_crate(
          terrane-stream-abi = {{ path = \"support/terrane-stream-abi\" }}\n",
         terrane_compiler::BUILD_TOOLCHAIN
     );
-    if uses_platform_support {
+    if options.uses_platform_support {
         manifest.push_str(
             "terrane-platform-support = { path = \"support/terrane-platform-support\" }\n",
         );
     }
-    if uses_async_runtime {
+    if options.uses_async_runtime {
         manifest.push_str(
             "tokio = { version = \"=1.53.0\", features = [\"rt\", \"rt-multi-thread\", \"time\"] }\n",
         );
@@ -704,7 +711,7 @@ fn write_generated_crate(
             write_rust_dependency(&mut manifest, dependency);
         }
     }
-    if panic == terrane_compiler::PanicProfile::Abort {
+    if options.panic == terrane_compiler::PanicProfile::Abort {
         manifest.push_str("\n[profile.dev]\npanic = \"abort\"\n");
     }
     manifest.push_str("\n[profile.release]\nopt-level = 3\nlto = \"fat\"\ncodegen-units = 1\n");
@@ -713,7 +720,7 @@ fn write_generated_crate(
         CliFailure::backend(format!("cannot write generated manifest: {error}"))
     })?;
     let toolchain_path = directory.join("rust-toolchain.toml");
-    if build_toolchain == terrane_compiler::BuildToolchain::Pinned {
+    if options.build_toolchain == terrane_compiler::BuildToolchain::Pinned {
         let toolchain = format!(
             "[toolchain]\nchannel = {:?}\nprofile = \"minimal\"\n",
             terrane_compiler::BUILD_TOOLCHAIN
@@ -726,7 +733,7 @@ fn write_generated_crate(
             CliFailure::backend(format!("cannot remove generated toolchain pin: {error}"))
         })?;
     }
-    write_generated_support(directory, uses_platform_support).map_err(|error| {
+    write_generated_support(directory, options.uses_platform_support).map_err(|error| {
         CliFailure::backend(format!("cannot write generated runtime support: {error}"))
     })?;
     for rust_file in rust_files {
@@ -752,7 +759,7 @@ fn write_generated_crate(
     writeln!(
         sources,
         "rust-toolchain = {:?}",
-        match build_toolchain {
+        match options.build_toolchain {
             terrane_compiler::BuildToolchain::Pinned => terrane_compiler::BUILD_TOOLCHAIN,
             terrane_compiler::BuildToolchain::System => "system",
         }
@@ -1113,10 +1120,12 @@ mod tests {
                 &[],
                 &[],
                 &[],
-                terrane_compiler::PanicProfile::Abort,
-                false,
-                true,
-                terrane_compiler::BuildToolchain::Pinned,
+                GeneratedCrateOptions {
+                    panic: terrane_compiler::PanicProfile::Abort,
+                    uses_platform_support: false,
+                    uses_async_runtime: true,
+                    build_toolchain: terrane_compiler::BuildToolchain::Pinned,
+                },
             )
             .is_ok()
         );
@@ -1142,10 +1151,12 @@ mod tests {
                 &[],
                 &[],
                 &[],
-                terrane_compiler::PanicProfile::Abort,
-                false,
-                false,
-                terrane_compiler::BuildToolchain::Pinned,
+                GeneratedCrateOptions {
+                    panic: terrane_compiler::PanicProfile::Abort,
+                    uses_platform_support: false,
+                    uses_async_runtime: false,
+                    build_toolchain: terrane_compiler::BuildToolchain::Pinned,
+                },
             )
             .is_ok()
         );
