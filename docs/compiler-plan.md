@@ -1470,32 +1470,36 @@ can be joined. Scope failure retains the typed error and requests sibling cancel
 synchronous scope fixtures retain their cancellable waker-polling implementation until their source
 path is migrated.
 
-The first B7 migration makes `/core/streams` byte and text `read-async` await a generated
-`spawn_blocking` delegation rather than call the synchronous read on an executor task. That
-delegation is recorded as a generic runtime requirement; its observable read result is unchanged.
+The first B7 migration made `/core/streams` byte and text `read-async` await a generated
+`spawn_blocking` delegation rather than call the synchronous read on an executor task. Standard
+input remains an explicitly delegated blocking host interface; its observable read result is
+unchanged.
 
-TCP connect/accept/read/write, UDP send/receive, and DNS lookup now expose async Terrane contracts
-backed by distinct async host intrinsics. Their current standard-socket ABI work is submitted through
-the selected runtime's blocking pool, while task-scope `spawn` can accept an already-constructed
-unpolled task so owned listener state moves safely into a concurrent server child. TCP, UDP, and
-cancelled-DNS conformance retain their prior observable results.
+TCP connect/accept/read/write and UDP send/receive now register nonblocking socket descriptors with
+the package's selected Tokio runtime and suspend on readiness. Host-name connection delegates only
+the resolver operation to the blocking pool, then races the returned socket candidates
+asynchronously. DNS lookup remains an explicit blocking-delegation requirement. Task-scope `spawn`
+can accept an already-constructed unpolled task so owned listener state moves safely into a
+concurrent server child. TCP, UDP, cancelled-DNS, deadline, and cancellation conformance retain
+their established result contracts.
 
-TLS client handshake, encrypted read/write, and shutdown now follow the same asynchronous host
-contract and selected-runtime blocking delegation. Certificate-chain and hostname validation remain
-mandatory on the ordinary connector; this migration changes scheduling rather than trust semantics.
+TLS client handshake, encrypted read/write, and shutdown now use `tokio-rustls` over the same
+readiness-native socket transport and selected runtime. Certificate-chain and hostname validation
+remain mandatory on the ordinary connector; this migration changes scheduling rather than trust
+semantics.
 
 The TCP loopback witness runs with `TOKIO_WORKER_THREADS=1` while one scoped standard-input read and
 one listener accept are both pending. The client still connects, writes, reads the reply, and prints
-before the harness releases standard input. That ordering cannot complete if either pending host
-operation occupies the sole executor worker.
+before the harness releases standard input. A platform-support saturation witness configures one
+executor worker and one blocking worker, then completes 32 concurrent accepts and connections,
+wakes a pending accept by cancellation, and observes a pending accept deadline. The corresponding
+TLS witness completes handshake, encrypted bidirectional I/O, and close-notify on the same
+single-worker runtime. These operations therefore cannot be universal `spawn_blocking` offloads.
 
-The blocking pool is a bounded compatibility bridge, not the final socket transport. Before Phase C
-adds async sequence or sink load, socket readiness, TCP and UDP reads/writes, listener acceptance,
-and TLS transport I/O must migrate to readiness-native polling on the selected runtime. Operations
-that are genuinely blocking, such as platform-specific resolver or file paths, may remain explicit
-blocking-delegation requirements. The prerequisite is complete only when concurrent backpressure,
-cancellation, and deadlines are exercised with pending operations exceeding both executor workers
-and blocking-pool capacity, so universal `spawn_blocking` offload cannot satisfy the witness.
+The blocking pool remains a bounded compatibility bridge for genuinely blocking platform APIs,
+such as standard streams, the current resolver, and file operations. Readiness-native socket and
+TLS transport is the required foundation for Phase C async sequence and sink load; new host
+surfaces must not route readiness-capable I/O back through universal blocking delegation.
 
 Accepted and rejected conformance covers async/sync type incompatibility, task consumption,
 successful, throwing, cancelled, and sibling-cancelling children, statically resolvable nested

@@ -24,6 +24,7 @@ use rand_core::{RngCore as _, SeedableRng as _};
 use sha2::Digest as _;
 use std::cell::RefCell;
 use std::collections::HashMap;
+use std::future::Future;
 use std::io::{Read, Write as _};
 use std::net::{IpAddr, Shutdown, SocketAddr, TcpListener, TcpStream, UdpSocket};
 use std::sync::{
@@ -81,6 +82,10 @@ struct ThreadLocalInt {
     initial: i128,
     owner: Arc<()>,
 }
+struct CancellationState {
+    cancelled: AtomicBool,
+    notify: tokio::sync::Notify,
+}
 
 static NEXT_THREAD_LOCAL_ID: AtomicU64 = AtomicU64::new(1);
 thread_local! {
@@ -96,11 +101,12 @@ enum CapabilityInner {
     Invalid(String),
     Pseudo(Mutex<rand_chacha::ChaCha20Rng>),
     Secret(Mutex<SecretState>),
-    Cancellation(AtomicBool),
+    Cancellation(CancellationState),
     IntChannel(IntChannel),
     IntMutex(Mutex<i128>),
     IntRwLock(RwLock<i128>),
     AtomicI64(AtomicI64),
+    AsyncTls(tokio::sync::Mutex<Option<tokio_rustls::client::TlsStream<tokio::net::TcpStream>>>),
     ThreadLocalInt(ThreadLocalInt),
     Listener(RwLock<Option<TcpListener>>),
     Tcp(Mutex<Option<TcpStream>>),
@@ -525,24 +531,26 @@ pub fn thread_local_int_set(value: &Capability, replacement: i128) -> ResultValu
 }
 
 pub fn cancellation_token() -> Capability {
-    Capability(Arc::new(CapabilityInner::Cancellation(AtomicBool::new(
-        false,
-    ))))
+    Capability(Arc::new(CapabilityInner::Cancellation(CancellationState {
+        cancelled: AtomicBool::new(false),
+        notify: tokio::sync::Notify::new(),
+    })))
 }
 
 pub fn cancel(token: &Capability) -> ResultValue {
-    let CapabilityInner::Cancellation(cancelled) = token.0.as_ref() else {
+    let CapabilityInner::Cancellation(state) = token.0.as_ref() else {
         return ResultValue::error("capability is not a cancellation token");
     };
-    cancelled.store(true, Ordering::Release);
+    state.cancelled.store(true, Ordering::Release);
+    state.notify.notify_waiters();
     ResultValue::default()
 }
 
 fn is_cancelled(token: &Capability) -> Result<bool, ResultValue> {
-    let CapabilityInner::Cancellation(cancelled) = token.0.as_ref() else {
+    let CapabilityInner::Cancellation(state) = token.0.as_ref() else {
         return Err(ResultValue::error("capability is not a cancellation token"));
     };
-    Ok(cancelled.load(Ordering::Acquire))
+    Ok(state.cancelled.load(Ordering::Acquire))
 }
 
 fn cancellation_error(token: &Capability) -> Option<ResultValue> {
@@ -550,6 +558,36 @@ fn cancellation_error(token: &Capability) -> Option<ResultValue> {
         Ok(true) => Some(ResultValue::error("operation cancelled")),
         Ok(false) => None,
         Err(error) => Some(error),
+    }
+}
+
+async fn cancellation_wait(token: &Capability) -> ResultValue {
+    let CapabilityInner::Cancellation(state) = token.0.as_ref() else {
+        return ResultValue::error("capability is not a cancellation token");
+    };
+    let notified = state.notify.notified();
+    if state.cancelled.load(Ordering::Acquire) {
+        return ResultValue::error("operation cancelled");
+    }
+    notified.await;
+    ResultValue::error("operation cancelled")
+}
+
+async fn readiness_operation(
+    operation: impl Future<Output = ResultValue>,
+    deadline_ms: i128,
+    deadline_message: &'static str,
+    cancellation: &Capability,
+) -> ResultValue {
+    let duration = match timeout(deadline_ms) {
+        Ok(value) => value,
+        Err(error) => return error,
+    };
+    tokio::select! {
+        biased;
+        cancelled = cancellation_wait(cancellation) => cancelled,
+        result = operation => result,
+        () = tokio::time::sleep(duration) => deadline_error(deadline_message),
     }
 }
 
@@ -1490,6 +1528,340 @@ pub fn udp_receive_from(
     }
 }
 
+fn readiness_tcp_stream(stream: &Capability) -> Result<tokio::net::TcpStream, ResultValue> {
+    let CapabilityInner::Tcp(stream) = stream.0.as_ref() else {
+        return Err(ResultValue::error("capability is not a TCP stream"));
+    };
+    let guard = stream.lock().expect("stream lock poisoned");
+    let Some(stream) = guard.as_ref() else {
+        return Err(ResultValue::error("stream is closed"));
+    };
+    let stream = stream
+        .try_clone()
+        .map_err(|error| io_error("TCP stream clone", &error))?;
+    stream
+        .set_nonblocking(true)
+        .map_err(|error| io_error("TCP readiness configuration", &error))?;
+    tokio::net::TcpStream::from_std(stream)
+        .map_err(|error| io_error("TCP readiness registration", &error))
+}
+
+fn readiness_listener(listener: &Capability) -> Result<tokio::net::TcpListener, ResultValue> {
+    let CapabilityInner::Listener(listener) = listener.0.as_ref() else {
+        return Err(ResultValue::error("capability is not a TCP listener"));
+    };
+    let guard = listener.read().expect("listener lock poisoned");
+    let Some(listener) = guard.as_ref() else {
+        return Err(ResultValue::error("listener is closed"));
+    };
+    let listener = listener
+        .try_clone()
+        .map_err(|error| io_error("TCP listener clone", &error))?;
+    listener
+        .set_nonblocking(true)
+        .map_err(|error| io_error("TCP listener readiness configuration", &error))?;
+    tokio::net::TcpListener::from_std(listener)
+        .map_err(|error| io_error("TCP listener readiness registration", &error))
+}
+
+fn readiness_udp_socket(socket: &Capability) -> Result<tokio::net::UdpSocket, ResultValue> {
+    let CapabilityInner::Udp(socket) = socket.0.as_ref() else {
+        return Err(ResultValue::error("capability is not a UDP socket"));
+    };
+    let guard = socket.lock().expect("socket lock poisoned");
+    let Some(socket) = guard.as_ref() else {
+        return Err(ResultValue::error("socket is closed"));
+    };
+    let socket = socket
+        .try_clone()
+        .map_err(|error| io_error("UDP socket clone", &error))?;
+    socket
+        .set_nonblocking(true)
+        .map_err(|error| io_error("UDP readiness configuration", &error))?;
+    tokio::net::UdpSocket::from_std(socket)
+        .map_err(|error| io_error("UDP readiness registration", &error))
+}
+
+pub async fn tcp_connect_async(
+    address: &str,
+    deadline_ms: i128,
+    cancellation: &Capability,
+) -> ResultValue {
+    let Ok(address) = address.parse::<SocketAddr>() else {
+        return ResultValue::error("invalid socket address");
+    };
+    readiness_operation(
+        async move {
+            match tokio::net::TcpStream::connect(address).await {
+                Ok(stream) => match stream.into_std() {
+                    Ok(stream) => {
+                        if let Err(error) = stream.set_nonblocking(false) {
+                            return io_error("TCP connect configuration", &error);
+                        }
+                        ResultValue {
+                            capability: Some(Capability(Arc::new(CapabilityInner::Tcp(
+                                Mutex::new(Some(stream)),
+                            )))),
+                            ..ResultValue::default()
+                        }
+                    }
+                    Err(error) => io_error("TCP connect", &error),
+                },
+                Err(error) => io_error("TCP connect", &error),
+            }
+        },
+        deadline_ms,
+        "TCP connect deadline exceeded",
+        cancellation,
+    )
+    .await
+}
+
+pub async fn tcp_connect_host_async(
+    host: &str,
+    port: i128,
+    deadline_ms: i128,
+    cancellation: &Capability,
+) -> ResultValue {
+    let Ok(port) = u16::try_from(port) else {
+        return ResultValue::error("port must be in 0..=65535");
+    };
+    if timeout(deadline_ms).is_err() {
+        return ResultValue::error("deadline must be positive");
+    }
+    let host = host.to_owned();
+    let cancellation_for_dns = cancellation.clone();
+    let resolved = tokio::task::spawn_blocking(move || {
+        dns_lookup(&host, i128::from(port), deadline_ms, &cancellation_for_dns)
+    })
+    .await
+    .expect("delegated DNS lookup must not panic");
+    if resolved.failed {
+        return resolved;
+    }
+    let candidates = resolved
+        .entries
+        .iter()
+        .filter_map(|entry| entry.parse::<SocketAddr>().ok())
+        .collect::<Vec<_>>();
+    if candidates.is_empty() {
+        return ResultValue::error("DNS lookup returned no usable addresses");
+    }
+    readiness_operation(
+        async move {
+            let mut tasks = tokio::task::JoinSet::new();
+            for (index, address) in candidates.into_iter().enumerate() {
+                tasks.spawn(async move {
+                    tokio::time::sleep(Duration::from_millis((index as u64).saturating_mul(250)))
+                        .await;
+                    tokio::net::TcpStream::connect(address)
+                        .await
+                        .ok()
+                        .map(|stream| (stream, address))
+                });
+            }
+            while let Some(joined) = tasks.join_next().await {
+                if let Ok(Some((stream, peer))) = joined {
+                    tasks.abort_all();
+                    return match stream.into_std() {
+                        Ok(stream) => {
+                            if let Err(error) = stream.set_nonblocking(false) {
+                                return io_error("TCP connect configuration", &error);
+                            }
+                            ResultValue {
+                                text: peer.to_string(),
+                                capability: Some(Capability(Arc::new(CapabilityInner::Tcp(
+                                    Mutex::new(Some(stream)),
+                                )))),
+                                ..ResultValue::default()
+                            }
+                        }
+                        Err(error) => io_error("TCP connect", &error),
+                    };
+                }
+            }
+            ResultValue::error("all TCP connection candidates failed")
+        },
+        deadline_ms,
+        "TCP connect deadline exceeded",
+        cancellation,
+    )
+    .await
+}
+
+pub async fn tcp_accept_async(
+    listener: &Capability,
+    deadline_ms: i128,
+    cancellation: &Capability,
+) -> ResultValue {
+    let listener = match readiness_listener(listener) {
+        Ok(value) => value,
+        Err(error) => return error,
+    };
+    readiness_operation(
+        async move {
+            match listener.accept().await {
+                Ok((stream, peer)) => match stream.into_std() {
+                    Ok(stream) => {
+                        if let Err(error) = stream.set_nonblocking(false) {
+                            return io_error("TCP accept configuration", &error);
+                        }
+                        ResultValue {
+                            text: peer.to_string(),
+                            capability: Some(Capability(Arc::new(CapabilityInner::Tcp(
+                                Mutex::new(Some(stream)),
+                            )))),
+                            ..ResultValue::default()
+                        }
+                    }
+                    Err(error) => io_error("TCP accept", &error),
+                },
+                Err(error) => io_error("TCP accept", &error),
+            }
+        },
+        deadline_ms,
+        "TCP accept deadline exceeded",
+        cancellation,
+    )
+    .await
+}
+
+pub async fn tcp_read_async(
+    stream: &Capability,
+    limit: i128,
+    deadline_ms: i128,
+    cancellation: &Capability,
+) -> ResultValue {
+    let size = match count(limit, "read limit") {
+        Ok(value) => value,
+        Err(error) => return error,
+    };
+    let mut stream = match readiness_tcp_stream(stream) {
+        Ok(value) => value,
+        Err(error) => return error,
+    };
+    readiness_operation(
+        async move {
+            use tokio::io::AsyncReadExt as _;
+            let mut data = vec![0; size];
+            match stream.read(&mut data).await {
+                Ok(count) => {
+                    data.truncate(count);
+                    ResultValue {
+                        data,
+                        number: count as i128,
+                        flag: count == 0,
+                        ..ResultValue::default()
+                    }
+                }
+                Err(error) => io_error("TCP read", &error),
+            }
+        },
+        deadline_ms,
+        "TCP read deadline exceeded",
+        cancellation,
+    )
+    .await
+}
+
+pub async fn tcp_write_async(
+    stream: &Capability,
+    data: &[u8],
+    deadline_ms: i128,
+    cancellation: &Capability,
+) -> ResultValue {
+    let mut stream = match readiness_tcp_stream(stream) {
+        Ok(value) => value,
+        Err(error) => return error,
+    };
+    let data = data.to_vec();
+    readiness_operation(
+        async move {
+            use tokio::io::AsyncWriteExt as _;
+            match stream.write(&data).await {
+                Ok(count) => ResultValue {
+                    number: count as i128,
+                    ..ResultValue::default()
+                },
+                Err(error) => io_error("TCP write", &error),
+            }
+        },
+        deadline_ms,
+        "TCP write deadline exceeded",
+        cancellation,
+    )
+    .await
+}
+
+pub async fn udp_send_to_async(
+    socket: &Capability,
+    data: &[u8],
+    address: &str,
+    deadline_ms: i128,
+    cancellation: &Capability,
+) -> ResultValue {
+    let socket = match readiness_udp_socket(socket) {
+        Ok(value) => value,
+        Err(error) => return error,
+    };
+    let data = data.to_vec();
+    let address = address.to_owned();
+    readiness_operation(
+        async move {
+            match socket.send_to(&data, &address).await {
+                Ok(count) => ResultValue {
+                    number: count as i128,
+                    ..ResultValue::default()
+                },
+                Err(error) => io_error("UDP send", &error),
+            }
+        },
+        deadline_ms,
+        "UDP send deadline exceeded",
+        cancellation,
+    )
+    .await
+}
+
+pub async fn udp_receive_from_async(
+    socket: &Capability,
+    limit: i128,
+    deadline_ms: i128,
+    cancellation: &Capability,
+) -> ResultValue {
+    let size = match count(limit, "datagram limit") {
+        Ok(value) => value,
+        Err(error) => return error,
+    };
+    let socket = match readiness_udp_socket(socket) {
+        Ok(value) => value,
+        Err(error) => return error,
+    };
+    readiness_operation(
+        async move {
+            let mut data = vec![0; size.saturating_add(1)];
+            match socket.recv_from(&mut data).await {
+                Ok((count, peer)) => {
+                    let truncated = count > size;
+                    data.truncate(count.min(size));
+                    ResultValue {
+                        data,
+                        text: peer.to_string(),
+                        number: count.min(size) as i128,
+                        truncated,
+                        ..ResultValue::default()
+                    }
+                }
+                Err(error) => io_error("UDP receive", &error),
+            }
+        },
+        deadline_ms,
+        "UDP receive deadline exceeded",
+        cancellation,
+    )
+    .await
+}
+
 fn ordered_socket_candidates(
     addresses: impl IntoIterator<Item = IpAddr>,
     port: u16,
@@ -1739,6 +2111,187 @@ pub fn tls_shutdown(
     }
 }
 
+fn take_readiness_tcp_stream(stream: &Capability) -> Result<tokio::net::TcpStream, ResultValue> {
+    let CapabilityInner::Tcp(stream) = stream.0.as_ref() else {
+        return Err(ResultValue::error("TLS requires a TCP stream"));
+    };
+    let mut guard = stream.lock().expect("stream lock poisoned");
+    let Some(stream) = guard.take() else {
+        return Err(ResultValue::error("stream is closed"));
+    };
+    stream
+        .set_nonblocking(true)
+        .map_err(|error| io_error("TLS readiness configuration", &error))?;
+    tokio::net::TcpStream::from_std(stream)
+        .map_err(|error| io_error("TLS readiness registration", &error))
+}
+
+pub async fn tls_client_async(
+    stream: &Capability,
+    server_name: &str,
+    deadline_ms: i128,
+    cancellation: &Capability,
+) -> ResultValue {
+    let roots = webpki_roots::TLS_SERVER_ROOTS
+        .iter()
+        .cloned()
+        .collect::<rustls::RootCertStore>();
+    let config = rustls::ClientConfig::builder()
+        .with_root_certificates(roots)
+        .with_no_client_auth();
+    tls_client_async_with_config(
+        stream,
+        server_name,
+        deadline_ms,
+        cancellation,
+        Arc::new(config),
+    )
+    .await
+}
+
+async fn tls_client_async_with_config(
+    stream: &Capability,
+    server_name: &str,
+    deadline_ms: i128,
+    cancellation: &Capability,
+    config: Arc<rustls::ClientConfig>,
+) -> ResultValue {
+    let stream = match take_readiness_tcp_stream(stream) {
+        Ok(value) => value,
+        Err(error) => return error,
+    };
+    let Ok(name) = rustls::pki_types::ServerName::try_from(server_name.to_owned()) else {
+        return ResultValue::error("invalid TLS server name");
+    };
+    readiness_operation(
+        async move {
+            match tokio_rustls::TlsConnector::from(config)
+                .connect(name, stream)
+                .await
+            {
+                Ok(stream) => {
+                    let version = match stream.get_ref().1.protocol_version() {
+                        Some(rustls::ProtocolVersion::TLSv1_3) => "TLS 1.3",
+                        Some(rustls::ProtocolVersion::TLSv1_2) => "TLS 1.2",
+                        Some(_) | None => "unknown",
+                    };
+                    ResultValue {
+                        text: version.to_owned(),
+                        capability: Some(Capability(Arc::new(CapabilityInner::AsyncTls(
+                            tokio::sync::Mutex::new(Some(stream)),
+                        )))),
+                        ..ResultValue::default()
+                    }
+                }
+                Err(error) => ResultValue::error(format!("TLS handshake failed: {error}")),
+            }
+        },
+        deadline_ms,
+        "TLS handshake deadline exceeded",
+        cancellation,
+    )
+    .await
+}
+
+pub async fn tls_read_async(
+    stream: &Capability,
+    limit: i128,
+    deadline_ms: i128,
+    cancellation: &Capability,
+) -> ResultValue {
+    let size = match count(limit, "TLS read limit") {
+        Ok(value) => value,
+        Err(error) => return error,
+    };
+    let CapabilityInner::AsyncTls(stream) = stream.0.as_ref() else {
+        return ResultValue::error("capability is not an asynchronous TLS stream");
+    };
+    let mut guard = stream.lock().await;
+    let Some(stream) = guard.as_mut() else {
+        return ResultValue::error("TLS stream is closed");
+    };
+    readiness_operation(
+        async {
+            use tokio::io::AsyncReadExt as _;
+            let mut data = vec![0; size];
+            match stream.read(&mut data).await {
+                Ok(count) => {
+                    data.truncate(count);
+                    ResultValue {
+                        data,
+                        number: count as i128,
+                        flag: count == 0,
+                        ..ResultValue::default()
+                    }
+                }
+                Err(error) => io_error("TLS read", &error),
+            }
+        },
+        deadline_ms,
+        "TLS read deadline exceeded",
+        cancellation,
+    )
+    .await
+}
+
+pub async fn tls_write_async(
+    stream: &Capability,
+    data: &[u8],
+    deadline_ms: i128,
+    cancellation: &Capability,
+) -> ResultValue {
+    let CapabilityInner::AsyncTls(stream) = stream.0.as_ref() else {
+        return ResultValue::error("capability is not an asynchronous TLS stream");
+    };
+    let mut guard = stream.lock().await;
+    let Some(stream) = guard.as_mut() else {
+        return ResultValue::error("TLS stream is closed");
+    };
+    readiness_operation(
+        async {
+            use tokio::io::AsyncWriteExt as _;
+            match stream.write(data).await {
+                Ok(count) => ResultValue {
+                    number: count as i128,
+                    ..ResultValue::default()
+                },
+                Err(error) => io_error("TLS write", &error),
+            }
+        },
+        deadline_ms,
+        "TLS write deadline exceeded",
+        cancellation,
+    )
+    .await
+}
+
+pub async fn tls_shutdown_async(
+    stream: &Capability,
+    deadline_ms: i128,
+    cancellation: &Capability,
+) -> ResultValue {
+    let CapabilityInner::AsyncTls(stream) = stream.0.as_ref() else {
+        return ResultValue::error("capability is not an asynchronous TLS stream");
+    };
+    let mut guard = stream.lock().await;
+    let Some(stream) = guard.as_mut() else {
+        return ResultValue::error("TLS stream is closed");
+    };
+    readiness_operation(
+        async {
+            use tokio::io::AsyncWriteExt as _;
+            match stream.shutdown().await {
+                Ok(()) => ResultValue::default(),
+                Err(error) => io_error("TLS shutdown", &error),
+            }
+        },
+        deadline_ms,
+        "TLS shutdown deadline exceeded",
+        cancellation,
+    )
+    .await
+}
+
 pub fn close(capability: &Capability) -> ResultValue {
     match capability.0.as_ref() {
         CapabilityInner::Listener(value) => {
@@ -1757,6 +2310,13 @@ pub fn close(capability: &Capability) -> ResultValue {
             value.lock().expect("TLS lock poisoned").take();
             ResultValue::default()
         }
+        CapabilityInner::AsyncTls(value) => match value.try_lock() {
+            Ok(mut value) => {
+                value.take();
+                ResultValue::default()
+            }
+            Err(_) => ResultValue::error("TLS stream is busy"),
+        },
         _ => ResultValue::error("capability is not a closeable resource"),
     }
 }
@@ -2303,6 +2863,129 @@ mod tests {
         let result = tls_client(&capability, "localhost", 1_000, &cancellation_token());
         assert!(result.failed);
         assert!(result.message.starts_with("TLS handshake failed:"));
+        server.join().unwrap();
+    }
+
+    #[test]
+    fn readiness_native_sockets_progress_beyond_worker_and_blocking_capacity() {
+        let runtime = tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .max_blocking_threads(1)
+            .build()
+            .unwrap();
+        runtime.block_on(async {
+            let bound = tcp_bind("127.0.0.1:0");
+            let listener = result_capability(bound);
+            let address = match listener.0.as_ref() {
+                CapabilityInner::Listener(listener) => listener
+                    .read()
+                    .unwrap()
+                    .as_ref()
+                    .unwrap()
+                    .local_addr()
+                    .unwrap()
+                    .to_string(),
+                _ => panic!("expected listener"),
+            };
+            let mut accepts = tokio::task::JoinSet::new();
+            let mut connects = tokio::task::JoinSet::new();
+            for _ in 0..32 {
+                let listener = listener.clone();
+                accepts.spawn(async move {
+                    tcp_accept_async(&listener, 5_000, &cancellation_token()).await
+                });
+                let address = address.clone();
+                connects.spawn(async move {
+                    tcp_connect_async(&address, 5_000, &cancellation_token()).await
+                });
+            }
+            while let Some(result) = connects.join_next().await {
+                let result = result.unwrap();
+                assert!(!result.failed, "{}", result.message);
+            }
+            while let Some(result) = accepts.join_next().await {
+                let result = result.unwrap();
+                assert!(!result.failed, "{}", result.message);
+            }
+
+            let pending = {
+                let listener = listener.clone();
+                let cancellation = cancellation_token();
+                let cancellation_for_task = cancellation.clone();
+                let task = tokio::spawn(async move {
+                    tcp_accept_async(&listener, 5_000, &cancellation_for_task).await
+                });
+                tokio::task::yield_now().await;
+                cancel(&cancellation);
+                task
+            };
+            let cancelled = tokio::time::timeout(Duration::from_secs(1), pending)
+                .await
+                .expect("cancellation must wake a pending accept")
+                .unwrap();
+            assert!(cancelled.failed);
+            assert_eq!(cancelled.message, "operation cancelled");
+
+            let deadline = tcp_accept_async(&listener, 1, &cancellation_token()).await;
+            assert!(deadline.failed);
+            assert!(deadline.deadline_exceeded);
+        });
+    }
+
+    #[test]
+    fn readiness_native_tls_handshake_and_io_share_the_selected_runtime() {
+        let rcgen::CertifiedKey { cert, signing_key } =
+            rcgen::generate_simple_self_signed(["localhost".to_owned()]).unwrap();
+        let server_config = rustls::ServerConfig::builder()
+            .with_no_client_auth()
+            .with_single_cert(
+                vec![cert.der().clone()],
+                rustls::pki_types::PrivatePkcs8KeyDer::from(signing_key.serialize_der()).into(),
+            )
+            .unwrap();
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let address = listener.local_addr().unwrap();
+        let server = std::thread::spawn(move || {
+            let (socket, _) = listener.accept().unwrap();
+            let connection = rustls::ServerConnection::new(Arc::new(server_config)).unwrap();
+            let mut stream = rustls::StreamOwned::new(connection, socket);
+            let mut byte = [0];
+            stream.read_exact(&mut byte).unwrap();
+            assert_eq!(byte, [b'x']);
+            stream.write_all(b"y").unwrap();
+            stream.flush().unwrap();
+            assert_eq!(stream.read(&mut byte).unwrap(), 0);
+        });
+        let mut roots = rustls::RootCertStore::empty();
+        roots.add(cert.der().clone()).unwrap();
+        let client_config = rustls::ClientConfig::builder()
+            .with_root_certificates(roots)
+            .with_no_client_auth();
+        let runtime = tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .max_blocking_threads(1)
+            .build()
+            .unwrap();
+        runtime.block_on(async {
+            let tcp = tcp_connect_async(&address.to_string(), 1_000, &cancellation_token()).await;
+            let tls = tls_client_async_with_config(
+                tcp.capability.as_ref().unwrap(),
+                "localhost",
+                1_000,
+                &cancellation_token(),
+                Arc::new(client_config),
+            )
+            .await;
+            assert!(!tls.failed, "{}", tls.message);
+            assert_eq!(tls.text, "TLS 1.3");
+            let tls = tls.capability.unwrap();
+            let write = tls_write_async(&tls, b"x", 1_000, &cancellation_token()).await;
+            assert_eq!(write.number, 1);
+            let read = tls_read_async(&tls, 1, 1_000, &cancellation_token()).await;
+            assert_eq!(read.data, b"y");
+            let shutdown = tls_shutdown_async(&tls, 1_000, &cancellation_token()).await;
+            assert!(!shutdown.failed, "{}", shutdown.message);
+        });
         server.join().unwrap();
     }
 }

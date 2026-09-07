@@ -795,46 +795,32 @@ pub async fn terrane_platform_dns_lookup_async(
 // Namespace: app
 fn main() {
     __terrane_run(async move {
-        let parsed: IpResult = ip_address_from_string(
-            String::from("2001:0db8:0:0:0:0:0:1"),
-        );
-        println!("{}", terrane_scalar_support::scalar_text(&parsed.value.value));
-        println!("{}", terrane_scalar_support::scalar_text(&parsed.value.version));
-        println!("{}", terrane_scalar_support::scalar_text(&parsed.value.is_loopback));
         let loopback: IpResult = ip_address_from_string(String::from("127.0.0.1"));
-        println!("{}", terrane_scalar_support::scalar_text(&loopback.value.version));
-        println!("{}", terrane_scalar_support::scalar_text(&loopback.value.is_loopback));
-        let invalid_ip: IpResult = ip_address_from_string(String::from("999.1.1.1"));
-        println!("{}", terrane_scalar_support::scalar_text(&invalid_ip.failed));
-        let scoped_ip: IpResult = ip_address_from_string(String::from("fe80::1%eth0"));
-        println!("{}", terrane_scalar_support::scalar_text(&scoped_ip.failed));
-        let international: NetworkHostNameResult = parse_host_name(
-            String::from("bücher.example"),
+        let bind_address: SocketResult = socket_address_from_ip(
+            loopback.value,
+            terrane_int_support::Int::from(0_i128),
         );
-        println!("{}", terrane_scalar_support::scalar_text(&international.value.value));
-        let invalid_host: NetworkHostNameResult = parse_host_name(
-            String::from("contains space.example"),
+        let bound: ListenerResult = bind_tcp(bind_address.value);
+        let listener: TcpListener = bound.value;
+        let deadline_options: NetworkOperationOptions = NetworkOperationOptions::terrane_construct(
+            terrane_int_support::Int::from(1_i128),
+            NetworkCancellationToken::terrane_construct(),
         );
-        println!("{}", terrane_scalar_support::scalar_text(&invalid_host.failed));
-        let port: i64 = 443;
-        let deadline: i64 = 1000;
+        let expired: StreamResult = __terrane_await(listener.accept(deadline_options))
+            .await;
+        println!("{}", terrane_scalar_support::scalar_text(&expired.failed));
+        println!("{}", terrane_scalar_support::scalar_text(&expired.deadline_exceeded));
         let cancellation: NetworkCancellationToken = NetworkCancellationToken::terrane_construct();
         network_cancel_operation(cancellation.clone());
-        let cancelled: NetworkOperationOptions = NetworkOperationOptions::terrane_construct(
-            terrane_int_support::Int::from(deadline as i128),
+        let cancelled_options: NetworkOperationOptions = NetworkOperationOptions::terrane_construct(
+            terrane_int_support::Int::from(1000_i128),
             cancellation.clone(),
         );
-        let host: NetworkHostNameResult = parse_host_name(String::from("localhost"));
-        let lookup: DnsResult = __terrane_await(
-                lookup_dns(
-                    host.value,
-                    terrane_int_support::Int::from(port as i128),
-                    cancelled,
-                ),
-            )
+        let cancelled: StreamResult = __terrane_await(listener.accept(cancelled_options))
             .await;
-        println!("{}", terrane_scalar_support::scalar_text(&lookup.failed));
-        println!("{}", terrane_scalar_support::scalar_text(&lookup.message));
+        println!("{}", terrane_scalar_support::scalar_text(&cancelled.failed));
+        println!("{}", terrane_scalar_support::scalar_text(&cancelled.message));
+        listener.close();
     });
 }
 // Source: core/networking.trn

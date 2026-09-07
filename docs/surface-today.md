@@ -732,18 +732,19 @@ shields asynchronous cleanup from the initiating request before join completes. 
 linear, so every child must be joined before function exit; no implicit detach or abandoned child
 path exists.
 
-`/core/streams` `read-async` now performs its host read through the selected runtime's explicit
-blocking-delegation path and awaits that delegated operation. The source contract remains a task of
-the same read result, while the execution requirement records that the host-standard-stream read
-cannot yet use a readiness-native operation.
+`/core/streams` `read-async` performs its standard-input host read through the selected runtime's
+explicit blocking-delegation path and awaits that delegated operation. The source contract remains
+a task of the same read result; the current standard-stream handle is not readiness-native.
 
-TCP connect, listener accept, stream read/write, UDP send/receive, DNS lookup, and TLS
-handshake/read/write/shutdown are asynchronous. They await compiler-owned host intrinsics which
-explicitly delegate the current standard-handle and socket ABIs to the selected runtime's blocking
-pool. A scope may spawn either an async callable or an unpolled task moved into it; this permits
+TCP connect, listener accept, stream read/write, and UDP send/receive register nonblocking socket
+descriptors with the selected runtime and await readiness directly. Host-name connection delegates
+only DNS resolution before asynchronously racing socket candidates; standalone DNS lookup remains
+explicitly delegated. TLS handshake/read/write/shutdown uses the same readiness-native transport.
+A scope may spawn either an async callable or an unpolled task moved into it, permitting
 resource-owning arguments to enter a child without borrowing them across suspension. The TCP
-loopback conformance witness proves a pending standard-input read and socket accept do not prevent
-client progress on a single executor worker.
+loopback conformance witness proves a pending standard-input read and readiness-native socket accept
+do not prevent client progress on a single executor worker. Separate outcome evidence covers socket
+deadlines and cancellation.
 
 Task runtime support and its Cargo dependencies are selected from semantic lowering metadata, not
 from generated source-text searches. Merely spelling a runtime crate path in source text cannot

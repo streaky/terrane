@@ -681,10 +681,11 @@ pub async fn terrane_platform_tcp_connect_async(
     deadline: terrane_int_support::Int,
     cancellation: &TerranePlatformCapability,
 ) -> TerranePlatformResult {
-    let cancellation = cancellation.clone();
-    terrane_platform_network_blocking(move || {
-            terrane_platform_tcp_connect(address, deadline, &cancellation)
-        })
+    terrane_platform_support::tcp_connect_async(
+            &address,
+            terrane_platform_i128!(deadline, "TCP connect deadline"),
+            cancellation,
+        )
         .await
 }
 pub async fn terrane_platform_tcp_connect_host_async(
@@ -693,10 +694,12 @@ pub async fn terrane_platform_tcp_connect_host_async(
     deadline: terrane_int_support::Int,
     cancellation: &TerranePlatformCapability,
 ) -> TerranePlatformResult {
-    let cancellation = cancellation.clone();
-    terrane_platform_network_blocking(move || {
-            terrane_platform_tcp_connect_host(host, port, deadline, &cancellation)
-        })
+    terrane_platform_support::tcp_connect_host_async(
+            &host,
+            terrane_platform_i128!(port, "TCP host port"),
+            terrane_platform_i128!(deadline, "TCP host connect deadline"),
+            cancellation,
+        )
         .await
 }
 pub async fn terrane_platform_tcp_accept_async(
@@ -704,11 +707,11 @@ pub async fn terrane_platform_tcp_accept_async(
     deadline: terrane_int_support::Int,
     cancellation: &TerranePlatformCapability,
 ) -> TerranePlatformResult {
-    let listener = listener.clone();
-    let cancellation = cancellation.clone();
-    terrane_platform_network_blocking(move || {
-            terrane_platform_tcp_accept(&listener, deadline, &cancellation)
-        })
+    terrane_platform_support::tcp_accept_async(
+            listener,
+            terrane_platform_i128!(deadline, "TCP accept deadline"),
+            cancellation,
+        )
         .await
 }
 pub async fn terrane_platform_tcp_read_async(
@@ -717,11 +720,12 @@ pub async fn terrane_platform_tcp_read_async(
     deadline: terrane_int_support::Int,
     cancellation: &TerranePlatformCapability,
 ) -> TerranePlatformResult {
-    let stream = stream.clone();
-    let cancellation = cancellation.clone();
-    terrane_platform_network_blocking(move || {
-            terrane_platform_tcp_read(&stream, limit, deadline, &cancellation)
-        })
+    terrane_platform_support::tcp_read_async(
+            stream,
+            terrane_platform_i128!(limit, "TCP read limit"),
+            terrane_platform_i128!(deadline, "TCP read deadline"),
+            cancellation,
+        )
         .await
 }
 pub async fn terrane_platform_tcp_write_async(
@@ -730,11 +734,12 @@ pub async fn terrane_platform_tcp_write_async(
     deadline: terrane_int_support::Int,
     cancellation: &TerranePlatformCapability,
 ) -> TerranePlatformResult {
-    let stream = stream.clone();
-    let cancellation = cancellation.clone();
-    terrane_platform_network_blocking(move || {
-            terrane_platform_tcp_write(&stream, data, deadline, &cancellation)
-        })
+    terrane_platform_support::tcp_write_async(
+            stream,
+            &data,
+            terrane_platform_i128!(deadline, "TCP write deadline"),
+            cancellation,
+        )
         .await
 }
 pub async fn terrane_platform_udp_send_to_async(
@@ -744,11 +749,13 @@ pub async fn terrane_platform_udp_send_to_async(
     deadline: terrane_int_support::Int,
     cancellation: &TerranePlatformCapability,
 ) -> TerranePlatformResult {
-    let socket = socket.clone();
-    let cancellation = cancellation.clone();
-    terrane_platform_network_blocking(move || {
-            terrane_platform_udp_send_to(&socket, data, address, deadline, &cancellation)
-        })
+    terrane_platform_support::udp_send_to_async(
+            socket,
+            &data,
+            &address,
+            terrane_platform_i128!(deadline, "UDP send deadline"),
+            cancellation,
+        )
         .await
 }
 pub async fn terrane_platform_udp_receive_from_async(
@@ -757,11 +764,12 @@ pub async fn terrane_platform_udp_receive_from_async(
     deadline: terrane_int_support::Int,
     cancellation: &TerranePlatformCapability,
 ) -> TerranePlatformResult {
-    let socket = socket.clone();
-    let cancellation = cancellation.clone();
-    terrane_platform_network_blocking(move || {
-            terrane_platform_udp_receive_from(&socket, limit, deadline, &cancellation)
-        })
+    terrane_platform_support::udp_receive_from_async(
+            socket,
+            terrane_platform_i128!(limit, "UDP receive limit"),
+            terrane_platform_i128!(deadline, "UDP receive deadline"),
+            cancellation,
+        )
         .await
 }
 pub async fn terrane_platform_dns_lookup_async(
@@ -826,24 +834,18 @@ pub fn terrane_platform_tls_shutdown(
         cancellation,
     )
 }
-async fn terrane_platform_tls_blocking(
-    work: impl FnOnce() -> TerranePlatformResult + Send + 'static,
-) -> TerranePlatformResult {
-    tokio::task::spawn_blocking(work)
-        .await
-        .expect("delegated TLS operation must not panic")
-}
 pub async fn terrane_platform_tls_client_async(
     stream: &TerranePlatformCapability,
     server: String,
     deadline: terrane_int_support::Int,
     cancellation: &TerranePlatformCapability,
 ) -> TerranePlatformResult {
-    let stream = stream.clone();
-    let cancellation = cancellation.clone();
-    terrane_platform_tls_blocking(move || {
-            terrane_platform_tls_client(&stream, server, deadline, &cancellation)
-        })
+    terrane_platform_support::tls_client_async(
+            stream,
+            &server,
+            terrane_platform_i128!(deadline, "TLS deadline"),
+            cancellation,
+        )
         .await
 }
 pub async fn terrane_platform_tls_read_async(
@@ -852,11 +854,12 @@ pub async fn terrane_platform_tls_read_async(
     deadline: terrane_int_support::Int,
     cancellation: &TerranePlatformCapability,
 ) -> TerranePlatformResult {
-    let stream = stream.clone();
-    let cancellation = cancellation.clone();
-    terrane_platform_tls_blocking(move || {
-            terrane_platform_tls_read(&stream, limit, deadline, &cancellation)
-        })
+    terrane_platform_support::tls_read_async(
+            stream,
+            terrane_platform_i128!(limit, "TLS read limit"),
+            terrane_platform_i128!(deadline, "TLS read deadline"),
+            cancellation,
+        )
         .await
 }
 pub async fn terrane_platform_tls_write_async(
@@ -865,11 +868,12 @@ pub async fn terrane_platform_tls_write_async(
     deadline: terrane_int_support::Int,
     cancellation: &TerranePlatformCapability,
 ) -> TerranePlatformResult {
-    let stream = stream.clone();
-    let cancellation = cancellation.clone();
-    terrane_platform_tls_blocking(move || {
-            terrane_platform_tls_write(&stream, data, deadline, &cancellation)
-        })
+    terrane_platform_support::tls_write_async(
+            stream,
+            &data,
+            terrane_platform_i128!(deadline, "TLS write deadline"),
+            cancellation,
+        )
         .await
 }
 pub async fn terrane_platform_tls_shutdown_async(
@@ -877,11 +881,11 @@ pub async fn terrane_platform_tls_shutdown_async(
     deadline: terrane_int_support::Int,
     cancellation: &TerranePlatformCapability,
 ) -> TerranePlatformResult {
-    let stream = stream.clone();
-    let cancellation = cancellation.clone();
-    terrane_platform_tls_blocking(move || {
-            terrane_platform_tls_shutdown(&stream, deadline, &cancellation)
-        })
+    terrane_platform_support::tls_shutdown_async(
+            stream,
+            terrane_platform_i128!(deadline, "TLS shutdown deadline"),
+            cancellation,
+        )
         .await
 }
 // Source: case.trn

@@ -1,0 +1,24 @@
+namespace app
+
+from /core/output import print
+from /core/networking import ip-address-from-string, socket-address-from-ip, network-cancellation-token, network-operation-options
+from /core/networking import tcp-listener, listener-result, stream-result, bind-tcp, network-cancel-operation
+
+async function main;
+    loopback = ip-address-from-string; '127.0.0.1'
+    bind-address = socket-address-from-ip; loopback.value, 0
+    bound listener-result = bind-tcp; bind-address.value
+    listener tcp-listener = move bound.value
+
+    deadline-options = instance network-operation-options; 1, (instance network-cancellation-token;)
+    expired stream-result = await listener.accept; deadline-options
+    print; expired.failed
+    print; expired.deadline-exceeded
+
+    cancellation = instance network-cancellation-token;
+    network-cancel-operation; cancellation
+    cancelled-options = instance network-operation-options; 1000, cancellation
+    cancelled stream-result = await listener.accept; cancelled-options
+    print; cancelled.failed
+    print; cancelled.message
+    listener.close;
