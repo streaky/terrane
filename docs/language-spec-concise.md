@@ -796,6 +796,24 @@ ineligible: resource ownership | inheritance | custom construction | recursive v
 boundary: generated Rust materializes statically known T; parser/metadata/default/validation/diagnostic policy remains Terrane; no universal boxed value
 ```
 
+## LOGGING
+
+```yaml
+package: /core/logging; profile capability logging; /core/logging/async also requires threads
+levels: trace | debug | info | warning | error | critical
+logger: explicit sink + minimum severity + hierarchical target prefix + target + immutable fields/spans + field/byte bounds
+constructors: default-logger(sink) | named-logger(sink,target) | make-logger(sink,options); no ambient application logger
+event: controlled timestamp + per-sink sequence + severity + target + message + ordered fields + emission source + spans + origin
+field: key + log-value protocol renderer + field-call source + secret bit; field/secret-field call sites compiler-injected
+filter: severity/target policy runs in Terrane before renderer and sink; debug/info/warning/error operations preserve caller source
+value: log-value.render -> bounded document-value; scalar/document/error-chain/user wrappers; no universal debug formatter
+redaction: without explicit sink reveal permission, secret renderer is not called and sink receives only structured '<redacted>'
+sinks: explicit memory | console | failing; bounded capacity + named overflow; deterministic memory clock/drain; nonrecursive fallback
+async: reuses typed channel endpoints and their overflow/backpressure; no logging-specific queue
+dependency_bridge: explicit install into sink; process-global only because log/tracing facades demand it; preserve foreign target/module/file/line; normalize absolute Cargo files to stable crate-relative paths; no Terrane source claim
+rust_boundary: sink ID/synchronization/storage/clock/console I/O + foreign callback bridge only; policy/enrichment/filter/redaction/event API in Terrane
+```
+
 ## STREAMS
 
 ```yaml

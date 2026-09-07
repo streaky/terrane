@@ -178,6 +178,19 @@ Terrane package
     │   ├── stringify-yaml                     emits canonical JSON, a valid YAML 1.2 document
     │   ├── decode-yaml / encode-yaml
     │   └── decode-typed-yaml                  same typed conversion and diagnostics after safe YAML parsing
+    ├── /core/logging                          structured observability; requires `logging`
+    │   ├── log-level / *-level                trace through critical ordered severities
+    │   ├── log-value                          lazy document-value rendering protocol
+    │   ├── log-field / field / secret-field   key, renderer, secrecy, and compiler-injected field source
+    │   ├── log-sink / memory-sink / console-sink / failing-sink
+    │   │                                       explicit deterministic, host-console, and failure-witness sinks
+    │   ├── logger / logger-options             explicit sink, target hierarchy, limits, fields, and spans
+    │   ├── default-logger / named-logger       explicit nonambient construction helpers
+    │   ├── with-field / with-span              immutable context enrichment
+    │   ├── emit / debug / info / warning / error compiler-injected call source; filter before render
+    │   ├── drain-memory / drain-fallback       deterministic canonical records and nonrecursive fallback diagnostics
+    │   ├── install-dependency-bridge           explicit `log`/`tracing` callback routing with foreign provenance
+    │   └── /core/logging/async::send-event     existing typed-channel transport; requires `threads`
     ├── /core/urls                             URL and ordered-query model
     │   ├── url                                serialized / display / components / query / origin
     │   ├── url-query                          ordered duplicate-preserving query entries (read-only after parsing)

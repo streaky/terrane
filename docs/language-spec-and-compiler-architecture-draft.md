@@ -6534,6 +6534,47 @@ Rust representation selected by a Terrane class descriptor. Parser policy, field
 initializers, validation methods, diagnostics exposed to callers, and unknown-field policy remain
 Terrane contracts. No universal boxed runtime value is introduced.
 
+### 37.5 Structured logging and observability
+
+`/core/logging` is gated by the `logging` profile capability and is not implicitly imported. It
+defines the named levels `trace`, `debug`, `info`, `warning`, `error`, and `critical`; explicit
+memory, console, and failing sinks; default and named logger constructors; immutable field and span
+enrichment; and `debug`, `info`, `warning`, `error`, and general `emit` operations. A logger carries
+its sink, minimum severity, hierarchical target filter, target, context, active span names, maximum
+field count, and maximum encoded event size. There is no ambient application logger.
+
+A structured event retains timestamp, per-sink monotonic sequence, severity, target, message,
+ordered structured fields, call-site source, active spans, and origin. Each field retains its key,
+typed `log-value` renderer, field-construction source, and secrecy bit. `log-value.render` returns a
+bounded `document-value`; scalar, document, throwable-chain, and user-defined values participate
+through that one protocol instead of an unbounded universal debug formatter. Event values must
+remain within the logger's field and encoded-byte limits.
+
+Severity and hierarchical target filters run in Terrane before any field renderer or sink is
+called. `field` and `secret-field` preserve their call sites, and compiler lowering injects the
+user emission call site into the source-private Terrane `emit-at` policy function. Convenience
+level operations have the same injection rule. Their source-declared fallback remains accurate
+when the callable itself is passed as a value and therefore executes from the core wrapper.
+
+Secret values are not rendered unless the selected sink was explicitly created with reveal
+permission. Otherwise the dispatch boundary substitutes the structured string `"<redacted>"`
+before a sink sees the event. Sinks do not receive the raw secret. Class-field logging adapters use
+the same `secret` bit from §18.1; there is no facility-specific secrecy annotation.
+
+Memory sinks use an explicit deterministic clock origin and step and expose deterministic drains.
+Every sink is bounded and names its overflow policy. Console sinks produce a stable structured
+encoding. A failing sink records one minimal fallback diagnostic without recursively invoking the
+failed sink. `/core/logging/async` adapts the existing typed channel endpoints and their
+backpressure policies; it does not define another queue.
+
+Rust owns sink IDs, synchronization, bounded storage, controlled clock/sequence assignment, console
+I/O, and the process-global `log`/`tracing` facade bridge. These satisfy host-resource and
+foreign-callback/runtime-model justifications. Filtering, enrichment, redaction policy, event
+construction, and logger APIs remain Terrane. The dependency bridge must be explicitly installed
+into a concrete sink, preserves dependency target/module/file/line provenance, normalizes absolute
+Cargo source paths to stable crate-relative paths when possible, and never labels a foreign event
+with a Terrane source location.
+
 ---
 
 ## 38. Implementation sequencing

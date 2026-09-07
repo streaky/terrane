@@ -1278,17 +1278,31 @@ Compression operates on bytes and explicit byte streams, never text implicitly. 
 ### 13.10 Structured logging
 
 ```text
-logging                                       imported standard/profile package
-+-- logger; name -> logger
-+-- default -> logger
-
-logger
-+-- debug / info / warning / error; message, fields/options -> none
-+-- with-fields; fields -> logger
-+-- with-context; context -> logger
+/core/logging                                imported standard package; requires logging
++-- log-level / trace-level / debug-level / info-level / warning-level / error-level / critical-level
++-- log-value                                render -> bounded document-value
++-- log-field / field / secret-field         key, renderer, construction source, secrecy
++-- log-event / make-event / write-event      typed transport value with emission source
++-- log-sink
+|   +-- memory-sink                          capacity, overflow, controlled clock, reveal policy
+|   +-- console-sink                         explicit stable host-console encoding
+|   +-- failing-sink                         deterministic failure witness
++-- logger / logger-options                  explicit sink, level/target policy, context, bounds
+|   +-- default-logger / named-logger / make-logger
+|   +-- with-field / with-span                immutable enrichment
+|   +-- emit / debug / info / warning / error filter before render and sink dispatch
++-- drain-memory / drain-fallback             deterministic capture
++-- install-dependency-bridge                 explicit Rust log/tracing facade routing
++-- /core/logging/async::send-event           existing typed channel-sender transport; also threads
 ```
 
-Logging is not a core-prelude replacement for `print`: it is a structured, capability/profile-gated application facility. Log fields retain their keys, values, source context, and severity for tracing and reflection rather than being eagerly formatted into an opaque string. Sink selection, level filtering, redaction, field-value serialization, buffering, failure behavior, and deterministic test capture require explicit profile contracts.
+Logging is not a core-prelude replacement for `print` and has no ambient application logger.
+Fields retain typed lazy renderers, construction source, and secrecy while events retain severity,
+target, emission source, span context, and origin. Sink choice, level and hierarchical target
+filtering, redaction before rendering, bounded storage, failure behavior, and deterministic test
+capture are explicit. Asynchronous transport reuses typed channels rather than defining another
+queue. The process-global dependency bridge is installed only into a selected sink and preserves
+foreign target/module/file/line provenance without inventing Terrane source.
 
 ## 14. Packages and native adapters
 

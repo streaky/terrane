@@ -2332,6 +2332,25 @@ Deliver:
 
 Exit criterion: structured fields survive to the sink unflattened, a secret-typed field is redacted by policy, and captured test output is byte-identical across runs.
 
+Implemented policy, sink, and typed-transport slice: `/core/logging` is bundled behind the
+`logging` capability and supplies explicit logger construction, named severities, immutable
+enrichment, hierarchical pre-render filtering, lazy `log-value` conversion, secret-field
+redaction, compiler-injected event and field sources, controlled clocks, monotonic sequence
+numbers, bounded deterministic memory storage, host console output, and an explicit failing sink
+with nonrecursive fallback capture. `/core/logging/async::send-event` requires `threads` and sends
+`log-event` values through the existing typed channel endpoints. `structured-logging` proves
+rejected lazy values are not rendered, fields remain structured, secrets are redacted before
+rendering, target and severity filters are independent, context copies do not contaminate one
+another and memory drains are stable. `logging-bounds` proves explicit drop-oldest and reject
+capacity policy plus logger field-count and encoded-byte bounds. The main case additionally proves
+failure fallback is finite, console selection is explicit, and typed-channel transport preserves
+the event. `dependency-observability` projects a representative
+Rust crate that emits through both `log` and `tracing`, installs their process-global bridge only
+through an explicit Terrane logger, captures both events in that sink, and retains dependency
+target, module, file, line, and origin without claiming a Terrane source. Its generated crate names
+only the exact projected adapter dependency it calls directly. `logging-capability` proves profile
+denial.
+
 ### Milestone 28 — First-version hardening and release gate
 
 Deliver:
