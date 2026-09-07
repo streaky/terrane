@@ -376,17 +376,28 @@ mod __terrane_trace {
         pub end_line: u32,
         pub end_column: u32,
     }
-    pub static FILES: [&str; 2] = ["case.trn", "core/networking.trn"];
-    pub static FUNCTIONS: [&str; 2] = ["/app::main", "/core/networking::lookup-dns"];
-    pub static SITES: [Site; 2] = [
+    pub static FILES: [&str; 3] = [
+        "case.trn",
+        "core/networking.trn",
+        "core/streams.trn",
+    ];
+    pub static FUNCTIONS: [&str; 6] = [
+        "/app::main",
+        "/core/networking::lookup-dns",
+        "/core/streams::read",
+        "/core/streams::read-exact",
+        "/core/streams::read-all",
+        "/core/streams::read-async",
+    ];
+    pub static SITES: [Site; 6] = [
         {
-            /* terrane-site-row: site 0: /app::main (case.trn:36:13-36:39) */
+            /* terrane-site-row: site 0: /app::main (case.trn:44:13-44:39) */
             Site {
                 function: 0,
                 file: 0,
-                line: 36,
+                line: 44,
                 column: 13,
-                end_line: 36,
+                end_line: 44,
                 end_column: 39,
             }
         },
@@ -399,6 +410,50 @@ mod __terrane_trace {
                 column: 28,
                 end_line: 319,
                 end_column: 49,
+            }
+        },
+        {
+            /* terrane-site-row: site 2: /core/streams::read (core/streams.trn:188:23-188:50) */
+            Site {
+                function: 2,
+                file: 2,
+                line: 188,
+                column: 23,
+                end_line: 188,
+                end_column: 50,
+            }
+        },
+        {
+            /* terrane-site-row: site 3: /core/streams::read-exact (core/streams.trn:210:23-210:46) */
+            Site {
+                function: 3,
+                file: 2,
+                line: 210,
+                column: 23,
+                end_line: 210,
+                end_column: 46,
+            }
+        },
+        {
+            /* terrane-site-row: site 4: /core/streams::read-all (core/streams.trn:229:23-229:46) */
+            Site {
+                function: 4,
+                file: 2,
+                line: 229,
+                column: 23,
+                end_line: 229,
+                end_column: 46,
+            }
+        },
+        {
+            /* terrane-site-row: site 5: /core/streams::read-async (core/streams.trn:234:23-234:50) */
+            Site {
+                function: 5,
+                file: 2,
+                line: 234,
+                column: 23,
+                end_line: 234,
+                end_column: 50,
             }
         },
     ];
@@ -565,6 +620,169 @@ pub struct TerraneTaskOutcome<T> {
     pub cancelled: bool,
     pub value: Option<T>,
     pub error: Option<TerraneError>,
+}
+#[derive(Clone)]
+pub struct TerranePlatformStreamHandle(std::sync::Arc<i64>);
+impl Default for TerranePlatformStreamHandle {
+    fn default() -> Self {
+        Self(std::sync::Arc::new(0))
+    }
+}
+impl TerranePlatformStreamHandle {
+    fn new(handle: terrane_stream_abi::StreamHandle) -> Self {
+        Self(std::sync::Arc::new(handle.id()))
+    }
+    fn abi_handle(&self) -> terrane_stream_abi::StreamHandle {
+        terrane_stream_abi::StreamHandle::from_id(*self.0)
+    }
+}
+#[derive(Clone)]
+pub struct TerranePlatformReadResult {
+    pub data: Vec<u8>,
+    pub completed: terrane_int_support::Int,
+    pub end: bool,
+    pub failed: bool,
+    pub message: String,
+}
+#[derive(Clone)]
+pub struct TerranePlatformWriteResult {
+    pub completed: terrane_int_support::Int,
+    pub failed: bool,
+    pub message: String,
+}
+#[derive(Clone)]
+pub struct TerranePlatformUnitResult {
+    pub failed: bool,
+    pub message: String,
+}
+pub fn terrane_platform_read(
+    handle: &TerranePlatformStreamHandle,
+    limit: terrane_int_support::Int,
+) -> TerranePlatformReadResult {
+    let Some(limit) = limit.as_usize() else {
+        return TerranePlatformReadResult {
+            data: Vec::new(),
+            completed: terrane_int_support::Int::from(0_i64),
+            end: false,
+            failed: true,
+            message: "stream read count is outside the supported size range".to_owned(),
+        };
+    };
+    match terrane_stream_abi::read(handle.abi_handle(), limit) {
+        Ok(outcome) => {
+            TerranePlatformReadResult {
+                completed: terrane_int_support::Int::from(outcome.data.len() as i128),
+                data: outcome.data,
+                end: outcome.end,
+                failed: false,
+                message: String::new(),
+            }
+        }
+        Err(error) => {
+            TerranePlatformReadResult {
+                data: Vec::new(),
+                completed: terrane_int_support::Int::from(0_i64),
+                end: false,
+                failed: true,
+                message: error.to_string(),
+            }
+        }
+    }
+}
+pub async fn terrane_platform_read_async(
+    handle: &TerranePlatformStreamHandle,
+    limit: terrane_int_support::Int,
+) -> TerranePlatformReadResult {
+    let handle = handle.clone();
+    tokio::task::spawn_blocking(move || terrane_platform_read(&handle, limit))
+        .await
+        .expect("delegated stream read must not panic")
+}
+pub fn terrane_platform_write(
+    handle: &TerranePlatformStreamHandle,
+    data: &[u8],
+    offset: terrane_int_support::Int,
+) -> TerranePlatformWriteResult {
+    let Some(offset) = offset.as_usize().filter(|offset| *offset <= data.len()) else {
+        return TerranePlatformWriteResult {
+            completed: terrane_int_support::Int::from(0_i64),
+            failed: true,
+            message: "stream write offset is outside the buffer".to_owned(),
+        };
+    };
+    match terrane_stream_abi::write(handle.abi_handle(), &data[offset..]) {
+        Ok(completed) => {
+            TerranePlatformWriteResult {
+                completed: terrane_int_support::Int::from(completed as i128),
+                failed: false,
+                message: String::new(),
+            }
+        }
+        Err(error) => {
+            TerranePlatformWriteResult {
+                completed: terrane_int_support::Int::from(0_i64),
+                failed: true,
+                message: error.to_string(),
+            }
+        }
+    }
+}
+pub fn terrane_platform_flush(
+    handle: &TerranePlatformStreamHandle,
+) -> TerranePlatformUnitResult {
+    terrane_platform_unit(terrane_stream_abi::flush(handle.abi_handle()))
+}
+pub fn terrane_platform_sync_data(
+    handle: &TerranePlatformStreamHandle,
+) -> TerranePlatformUnitResult {
+    terrane_platform_unit(terrane_stream_abi::sync_data(handle.abi_handle()))
+}
+pub fn terrane_platform_sync_all(
+    handle: &TerranePlatformStreamHandle,
+) -> TerranePlatformUnitResult {
+    terrane_platform_unit(terrane_stream_abi::sync_all(handle.abi_handle()))
+}
+pub fn terrane_platform_close(
+    handle: &TerranePlatformStreamHandle,
+) -> TerranePlatformUnitResult {
+    terrane_platform_unit(terrane_stream_abi::close(handle.abi_handle()))
+}
+pub fn terrane_platform_release(
+    handle: &TerranePlatformStreamHandle,
+) -> TerranePlatformUnitResult {
+    if std::sync::Arc::strong_count(&handle.0) == 1 {
+        terrane_platform_unit(terrane_stream_abi::release(handle.abi_handle()))
+    } else {
+        TerranePlatformUnitResult {
+            failed: false,
+            message: String::new(),
+        }
+    }
+}
+pub fn terrane_platform_unit(result: std::io::Result<()>) -> TerranePlatformUnitResult {
+    match result {
+        Ok(()) => {
+            TerranePlatformUnitResult {
+                failed: false,
+                message: String::new(),
+            }
+        }
+        Err(error) => {
+            TerranePlatformUnitResult {
+                failed: true,
+                message: error.to_string(),
+            }
+        }
+    }
+}
+pub fn terrane_platform_acquire_stdin() -> TerranePlatformStreamHandle {
+    TerranePlatformStreamHandle::new(terrane_stream_abi::acquire_stdin())
+}
+pub fn terrane_platform_acquire_stdout() -> TerranePlatformStreamHandle {
+    TerranePlatformStreamHandle::new(terrane_stream_abi::acquire_stdout())
+}
+pub fn terrane_platform_acquire_stderr() -> TerranePlatformStreamHandle {
+    TerranePlatformStreamHandle::new(terrane_stream_abi::acquire_stderr())
 }
 pub type TerranePlatformCapability = terrane_platform_support::Capability;
 pub type TerranePlatformResult = terrane_platform_support::ResultValue;
@@ -938,6 +1156,10 @@ async fn serve(listener: TcpListener, options: NetworkOperationOptions) {
     stream.close();
     return ();
 }
+async fn read_input(input: ByteReader) -> ReadResult {
+    return __terrane_await(input.read_async(terrane_int_support::Int::from(1_i128)))
+        .await;
+}
 fn main() {
     __terrane_run(async move {
         let loopback: IpResult = ip_address_from_string(String::from("127.0.0.1"));
@@ -954,6 +1176,23 @@ fn main() {
         );
         let server_task = serve(listener, server_options);
         let scope: TerraneTaskScope = TerraneTaskScope::new(None);
+        let input: ByteReader = stdin();
+        let input_task = read_input(input);
+        let input_child: TerraneScopedTask<ReadResult> = {
+            let __terrane_scope = scope.clone();
+            let __terrane_cancel = __terrane_scope.clone();
+            TerraneScopedTask::spawn(async move {
+                match __terrane_cancellable(
+                        input_task,
+                        move || __terrane_cancel.should_cancel(),
+                    )
+                    .await
+                {
+                    Some(value) => TerraneTaskResult::Completed(value),
+                    None => TerraneTaskResult::Cancelled,
+                }
+            })
+        };
         let child: TerraneScopedTask<()> = {
             let __terrane_scope = scope.clone();
             let __terrane_cancel = __terrane_scope.clone();
@@ -997,9 +1236,19 @@ fn main() {
         println!(
             "{}",
             terrane_scalar_support::scalar_text(&__terrane_raised(terrane_string_support::decode(&response
-            .data, terrane_string_support::Encoding::Utf8), 0 /* terrane-site: case.trn:36:13-36:39 */))
+            .data, terrane_string_support::Encoding::Utf8), 0 /* terrane-site: case.trn:44:13-44:39 */))
         );
         println!("{}", terrane_scalar_support::scalar_text(&outcome.completed));
+        let input_outcome: TerraneTaskOutcome<ReadResult> = __terrane_await(
+                scope.join(input_child),
+            )
+            .await;
+        if !input_outcome.completed {
+            println!(
+                "{}",
+                terrane_scalar_support::scalar_text(&String::from("stdin task did not complete"))
+            );
+        }
         client.close();
     });
 }
@@ -1927,4 +2176,713 @@ pub async fn lookup_dns(
         terrane_platform_result_bool(&raw),
         candidates.clone(),
     );
+}
+// Source: core/streams.trn
+// Namespace: core/streams
+#[derive(Clone)]
+pub struct StreamOperationResult {
+    pub failed: bool,
+    pub message: String,
+}
+impl StreamOperationResult {
+    pub fn terrane_construct(failed: bool, message: String) -> Self {
+        let mut value = Self {
+            failed: false,
+            message: String::from(""),
+        };
+        value.construct(failed, message);
+        value
+    }
+    pub fn construct(&mut self, failed: bool, message: String) {
+        self.failed = failed;
+        self.message = message;
+    }
+}
+#[derive(Clone)]
+pub struct ReadResult {
+    pub data: Vec<u8>,
+    pub completed: terrane_int_support::Int,
+    pub end: bool,
+    pub failed: bool,
+    pub message: String,
+}
+impl ReadResult {
+    pub fn terrane_construct(
+        data: Vec<u8>,
+        completed: terrane_int_support::Int,
+        end: bool,
+        failed: bool,
+        message: String,
+    ) -> Self {
+        let mut value = Self {
+            data: Vec::from([]),
+            completed: terrane_int_support::Int::from(0_i128),
+            end: false,
+            failed: false,
+            message: String::from(""),
+        };
+        value.construct(data, completed, end, failed, message);
+        value
+    }
+    pub fn construct(
+        &mut self,
+        data: Vec<u8>,
+        completed: terrane_int_support::Int,
+        end: bool,
+        failed: bool,
+        message: String,
+    ) {
+        self.data = data;
+        self.completed = completed.clone();
+        self.end = end;
+        self.failed = failed;
+        self.message = message;
+    }
+}
+#[derive(Clone)]
+pub struct TextReadResult {
+    pub text: String,
+    pub completed: terrane_int_support::Int,
+    pub end: bool,
+    pub failed: bool,
+    pub message: String,
+}
+impl TextReadResult {
+    pub fn terrane_construct(
+        text: String,
+        completed: terrane_int_support::Int,
+        end: bool,
+        failed: bool,
+        message: String,
+    ) -> Self {
+        let mut value = Self {
+            text: String::from(""),
+            completed: terrane_int_support::Int::from(0_i128),
+            end: false,
+            failed: false,
+            message: String::from(""),
+        };
+        value.construct(text, completed, end, failed, message);
+        value
+    }
+    pub fn construct(
+        &mut self,
+        text: String,
+        completed: terrane_int_support::Int,
+        end: bool,
+        failed: bool,
+        message: String,
+    ) {
+        self.text = text;
+        self.completed = completed.clone();
+        self.end = end;
+        self.failed = failed;
+        self.message = message;
+    }
+}
+#[derive(Clone)]
+pub struct WriteResult {
+    pub data: Vec<u8>,
+    pub completed: terrane_int_support::Int,
+    pub failed: bool,
+    pub message: String,
+}
+impl WriteResult {
+    pub fn terrane_construct(
+        data: Vec<u8>,
+        completed: terrane_int_support::Int,
+        failed: bool,
+        message: String,
+    ) -> Self {
+        let mut value = Self {
+            data: Vec::from([]),
+            completed: terrane_int_support::Int::from(0_i128),
+            failed: false,
+            message: String::from(""),
+        };
+        value.construct(data, completed, failed, message);
+        value
+    }
+    pub fn construct(
+        &mut self,
+        data: Vec<u8>,
+        completed: terrane_int_support::Int,
+        failed: bool,
+        message: String,
+    ) {
+        if completed.clone() == terrane_int_support::Int::from(data.len() as i128)
+            && !failed
+        {
+            self.data = Vec::from([]);
+        } else {
+            self.data = data;
+        }
+        self.completed = completed.clone();
+        self.failed = failed;
+        self.message = message;
+    }
+}
+pub struct ByteReader {
+    pub handle: TerranePlatformStreamHandle,
+}
+impl ByteReader {
+    pub fn terrane_construct(handle: TerranePlatformStreamHandle) -> Self {
+        let mut value = Self { handle: Default::default() };
+        value.construct(handle);
+        value
+    }
+    pub fn construct(&mut self, handle: TerranePlatformStreamHandle) {
+        self.handle = handle;
+    }
+    pub fn read(&self, count: terrane_int_support::Int) -> ReadResult {
+        let raw: TerranePlatformReadResult = terrane_platform_read(&self.handle, count);
+        return ReadResult::terrane_construct(
+            raw.data.clone().clone(),
+            raw.completed.clone(),
+            raw.end,
+            raw.failed,
+            raw.message.clone().clone(),
+        );
+    }
+    pub fn read_exact(&self, count: terrane_int_support::Int) -> ReadResult {
+        let mut data: Vec<u8> = Vec::from([]);
+        let mut completed: terrane_int_support::Int = terrane_int_support::Int::from(
+            0_i128,
+        );
+        let mut end: bool = false;
+        let mut failed: bool = false;
+        let mut message: String = String::from("");
+        while completed.clone() < count.clone() && !end && !failed {
+            let part: TerranePlatformReadResult = terrane_platform_read(
+                &self.handle,
+                count.clone() - completed.clone(),
+            );
+            data = {
+                let mut bytes = data;
+                bytes.extend(part.data.clone());
+                bytes
+            };
+            completed = completed.clone() + part.completed.clone();
+            end = part.end;
+            failed = part.failed;
+            message = part.message.clone().clone();
+            if part.completed.clone() == terrane_int_support::Int::from(0_i128)
+                && !part.end && !part.failed
+            {
+                failed = true;
+                message = String::from("stream read made no progress");
+            }
+        }
+        if end && completed.clone() < count.clone() && !failed {
+            failed = true;
+            message = String::from("stream ended before exact byte count");
+        }
+        return ReadResult::terrane_construct(
+            data,
+            completed.clone(),
+            end,
+            failed,
+            message,
+        );
+    }
+    pub fn read_all(&self, limit: terrane_int_support::Int) -> ReadResult {
+        let mut data: Vec<u8> = Vec::from([]);
+        let mut completed: terrane_int_support::Int = terrane_int_support::Int::from(
+            0_i128,
+        );
+        let mut end: bool = false;
+        let mut failed: bool = false;
+        let mut message: String = String::from("");
+        while completed.clone() < limit.clone() && !end && !failed {
+            let part: TerranePlatformReadResult = terrane_platform_read(
+                &self.handle,
+                limit.clone() - completed.clone(),
+            );
+            data = {
+                let mut bytes = data;
+                bytes.extend(part.data.clone());
+                bytes
+            };
+            completed = completed.clone() + part.completed.clone();
+            end = part.end;
+            failed = part.failed;
+            message = part.message.clone().clone();
+            if part.completed.clone() == terrane_int_support::Int::from(0_i128)
+                && !part.end && !part.failed
+            {
+                failed = true;
+                message = String::from("stream read made no progress");
+            }
+        }
+        return ReadResult::terrane_construct(
+            data,
+            completed.clone(),
+            end,
+            failed,
+            message,
+        );
+    }
+    pub async fn read_async(&self, count: terrane_int_support::Int) -> ReadResult {
+        let raw: TerranePlatformReadResult = __terrane_await(
+                terrane_platform_read_async(&self.handle, count),
+            )
+            .await;
+        return ReadResult::terrane_construct(
+            raw.data.clone().clone(),
+            raw.completed.clone(),
+            raw.end,
+            raw.failed,
+            raw.message.clone().clone(),
+        );
+    }
+    pub fn text(&self, codec: terrane_string_support::Encoding) -> TextReader {
+        return TextReader::terrane_construct(self.handle.clone(), codec);
+    }
+    pub fn close(self) -> StreamOperationResult {
+        let raw: TerranePlatformUnitResult = terrane_platform_close(&self.handle);
+        return StreamOperationResult::terrane_construct(
+            raw.failed,
+            raw.message.clone().clone(),
+        );
+    }
+    pub fn destruct(&self) {
+        terrane_platform_release(&self.handle);
+    }
+}
+impl Drop for ByteReader {
+    fn drop(&mut self) {
+        self.destruct();
+    }
+}
+pub struct ByteWriter {
+    pub handle: TerranePlatformStreamHandle,
+}
+impl ByteWriter {
+    pub fn terrane_construct(handle: TerranePlatformStreamHandle) -> Self {
+        let mut value = Self { handle: Default::default() };
+        value.construct(handle);
+        value
+    }
+    pub fn construct(&mut self, handle: TerranePlatformStreamHandle) {
+        self.handle = handle;
+    }
+    pub fn write(&self, data: Vec<u8>) -> WriteResult {
+        let offset: i64 = 0;
+        let raw: TerranePlatformWriteResult = terrane_platform_write(
+            &self.handle,
+            &data,
+            terrane_int_support::Int::from(offset.clone()),
+        );
+        return WriteResult::terrane_construct(
+            data,
+            raw.completed.clone(),
+            raw.failed,
+            raw.message.clone().clone(),
+        );
+    }
+    pub fn write_all(&self, data: Vec<u8>) -> WriteResult {
+        let mut completed: terrane_int_support::Int = terrane_int_support::Int::from(
+            0_i128,
+        );
+        let mut failed: bool = false;
+        let mut message: String = String::from("");
+        while completed.clone() < terrane_int_support::Int::from(data.len() as i128)
+            && !failed
+        {
+            let part: TerranePlatformWriteResult = terrane_platform_write(
+                &self.handle,
+                &data,
+                terrane_int_support::Int::from(completed.clone()),
+            );
+            completed = completed.clone() + part.completed.clone();
+            failed = part.failed;
+            message = part.message.clone().clone();
+            if part.completed.clone() == terrane_int_support::Int::from(0_i128)
+                && !part.failed
+            {
+                failed = true;
+                message = String::from("stream write made no progress");
+            }
+        }
+        return WriteResult::terrane_construct(data, completed.clone(), failed, message);
+    }
+    pub fn resume(&self, prior: WriteResult) -> WriteResult {
+        if terrane_int_support::Int::from(prior.data.len() as i128)
+            == terrane_int_support::Int::from(0_i128)
+        {
+            return prior.clone();
+        }
+        let raw: TerranePlatformWriteResult = terrane_platform_write(
+            &self.handle,
+            &prior.data,
+            terrane_int_support::Int::from(prior.completed.clone()),
+        );
+        return WriteResult::terrane_construct(
+            prior.data.clone(),
+            prior.completed.clone() + raw.completed.clone(),
+            raw.failed,
+            raw.message.clone().clone(),
+        );
+    }
+    pub async fn write_async(&self, data: Vec<u8>) -> WriteResult {
+        return self.write(data);
+    }
+    pub fn text(&self, codec: terrane_string_support::Encoding) -> TextWriter {
+        return TextWriter::terrane_construct(self.handle.clone(), codec);
+    }
+    pub fn flush(&self) -> StreamOperationResult {
+        let raw: TerranePlatformUnitResult = terrane_platform_flush(&self.handle);
+        return StreamOperationResult::terrane_construct(
+            raw.failed,
+            raw.message.clone().clone(),
+        );
+    }
+    pub fn sync_data(&self) -> StreamOperationResult {
+        let raw: TerranePlatformUnitResult = terrane_platform_sync_data(&self.handle);
+        return StreamOperationResult::terrane_construct(
+            raw.failed,
+            raw.message.clone().clone(),
+        );
+    }
+    pub fn sync_all(&self) -> StreamOperationResult {
+        let raw: TerranePlatformUnitResult = terrane_platform_sync_all(&self.handle);
+        return StreamOperationResult::terrane_construct(
+            raw.failed,
+            raw.message.clone().clone(),
+        );
+    }
+    pub fn close(self) -> StreamOperationResult {
+        let raw: TerranePlatformUnitResult = terrane_platform_close(&self.handle);
+        return StreamOperationResult::terrane_construct(
+            raw.failed,
+            raw.message.clone().clone(),
+        );
+    }
+    pub fn destruct(&self) {
+        terrane_platform_release(&self.handle);
+    }
+}
+impl Drop for ByteWriter {
+    fn drop(&mut self) {
+        self.destruct();
+    }
+}
+pub struct TextReader {
+    pub handle: TerranePlatformStreamHandle,
+    pub codec: terrane_string_support::Encoding,
+}
+impl TextReader {
+    pub fn terrane_construct(
+        handle: TerranePlatformStreamHandle,
+        codec: terrane_string_support::Encoding,
+    ) -> Self {
+        let mut value = Self {
+            handle: Default::default(),
+            codec: terrane_string_support::Encoding::Utf8,
+        };
+        value.construct(handle, codec);
+        value
+    }
+    pub fn construct(
+        &mut self,
+        handle: TerranePlatformStreamHandle,
+        codec: terrane_string_support::Encoding,
+    ) {
+        self.handle = handle;
+        self.codec = codec;
+    }
+    pub fn read(
+        &self,
+        count: terrane_int_support::Int,
+    ) -> Result<TextReadResult, TerraneError> {
+        let raw: TerranePlatformReadResult = terrane_platform_read(&self.handle, count);
+        let text: String = __terrane_raised_err(
+            terrane_string_support::decode(&raw.data.clone(), self.codec),
+            2 /* terrane-site: core/streams.trn:188:23-188:50 */,
+        )?;
+        return Ok(
+            TextReadResult::terrane_construct(
+                text,
+                raw.completed.clone(),
+                raw.end,
+                raw.failed,
+                raw.message.clone().clone(),
+            ),
+        );
+    }
+    pub fn read_exact(
+        &self,
+        count: terrane_int_support::Int,
+    ) -> Result<TextReadResult, TerraneError> {
+        let mut data: Vec<u8> = Vec::from([]);
+        let mut completed: terrane_int_support::Int = terrane_int_support::Int::from(
+            0_i128,
+        );
+        let mut end: bool = false;
+        let mut failed: bool = false;
+        let mut message: String = String::from("");
+        while completed.clone() < count.clone() && !end && !failed {
+            let part: TerranePlatformReadResult = terrane_platform_read(
+                &self.handle,
+                count.clone() - completed.clone(),
+            );
+            data = {
+                let mut bytes = data;
+                bytes.extend(part.data.clone());
+                bytes
+            };
+            completed = completed.clone() + part.completed.clone();
+            end = part.end;
+            failed = part.failed;
+            message = part.message.clone().clone();
+            if part.completed.clone() == terrane_int_support::Int::from(0_i128)
+                && !part.end && !part.failed
+            {
+                failed = true;
+                message = String::from("stream read made no progress");
+            }
+        }
+        if end && completed.clone() < count.clone() && !failed {
+            failed = true;
+            message = String::from("stream ended before exact byte count");
+        }
+        let text: String = __terrane_raised_err(
+            terrane_string_support::decode(&data, self.codec),
+            3 /* terrane-site: core/streams.trn:210:23-210:46 */,
+        )?;
+        return Ok(
+            TextReadResult::terrane_construct(
+                text,
+                completed.clone(),
+                end,
+                failed,
+                message,
+            ),
+        );
+    }
+    pub fn read_all(
+        &self,
+        limit: terrane_int_support::Int,
+    ) -> Result<TextReadResult, TerraneError> {
+        let mut data: Vec<u8> = Vec::from([]);
+        let mut completed: terrane_int_support::Int = terrane_int_support::Int::from(
+            0_i128,
+        );
+        let mut end: bool = false;
+        let mut failed: bool = false;
+        let mut message: String = String::from("");
+        while completed.clone() < limit.clone() && !end && !failed {
+            let part: TerranePlatformReadResult = terrane_platform_read(
+                &self.handle,
+                limit.clone() - completed.clone(),
+            );
+            data = {
+                let mut bytes = data;
+                bytes.extend(part.data.clone());
+                bytes
+            };
+            completed = completed.clone() + part.completed.clone();
+            end = part.end;
+            failed = part.failed;
+            message = part.message.clone().clone();
+            if part.completed.clone() == terrane_int_support::Int::from(0_i128)
+                && !part.end && !part.failed
+            {
+                failed = true;
+                message = String::from("stream read made no progress");
+            }
+        }
+        let text: String = __terrane_raised_err(
+            terrane_string_support::decode(&data, self.codec),
+            4 /* terrane-site: core/streams.trn:229:23-229:46 */,
+        )?;
+        return Ok(
+            TextReadResult::terrane_construct(
+                text,
+                completed.clone(),
+                end,
+                failed,
+                message,
+            ),
+        );
+    }
+    pub async fn read_async(
+        &self,
+        count: terrane_int_support::Int,
+    ) -> Result<TextReadResult, TerraneError> {
+        let raw: TerranePlatformReadResult = __terrane_await(
+                terrane_platform_read_async(&self.handle, count),
+            )
+            .await;
+        let text: String = __terrane_raised_err(
+            terrane_string_support::decode(&raw.data.clone(), self.codec),
+            5 /* terrane-site: core/streams.trn:234:23-234:50 */,
+        )?;
+        return Ok(
+            TextReadResult::terrane_construct(
+                text,
+                raw.completed.clone(),
+                raw.end,
+                raw.failed,
+                raw.message.clone().clone(),
+            ),
+        );
+    }
+    pub fn close(self) -> StreamOperationResult {
+        let raw: TerranePlatformUnitResult = terrane_platform_close(&self.handle);
+        return StreamOperationResult::terrane_construct(
+            raw.failed,
+            raw.message.clone().clone(),
+        );
+    }
+    pub fn destruct(&self) {
+        terrane_platform_release(&self.handle);
+    }
+}
+impl Drop for TextReader {
+    fn drop(&mut self) {
+        self.destruct();
+    }
+}
+pub struct TextWriter {
+    pub handle: TerranePlatformStreamHandle,
+    pub codec: terrane_string_support::Encoding,
+}
+impl TextWriter {
+    pub fn terrane_construct(
+        handle: TerranePlatformStreamHandle,
+        codec: terrane_string_support::Encoding,
+    ) -> Self {
+        let mut value = Self {
+            handle: Default::default(),
+            codec: terrane_string_support::Encoding::Utf8,
+        };
+        value.construct(handle, codec);
+        value
+    }
+    pub fn construct(
+        &mut self,
+        handle: TerranePlatformStreamHandle,
+        codec: terrane_string_support::Encoding,
+    ) {
+        self.handle = handle;
+        self.codec = codec;
+    }
+    pub fn write(&self, text: String) -> WriteResult {
+        let data: Vec<u8> = terrane_string_support::encode(&text, self.codec);
+        let offset: i64 = 0;
+        let raw: TerranePlatformWriteResult = terrane_platform_write(
+            &self.handle,
+            &data,
+            terrane_int_support::Int::from(offset.clone()),
+        );
+        return WriteResult::terrane_construct(
+            data,
+            raw.completed.clone(),
+            raw.failed,
+            raw.message.clone().clone(),
+        );
+    }
+    pub fn write_all(&self, text: String) -> WriteResult {
+        let data: Vec<u8> = terrane_string_support::encode(&text, self.codec);
+        let mut completed: terrane_int_support::Int = terrane_int_support::Int::from(
+            0_i128,
+        );
+        let mut failed: bool = false;
+        let mut message: String = String::from("");
+        while completed.clone() < terrane_int_support::Int::from(data.len() as i128)
+            && !failed
+        {
+            let part: TerranePlatformWriteResult = terrane_platform_write(
+                &self.handle,
+                &data,
+                terrane_int_support::Int::from(completed.clone()),
+            );
+            completed = completed.clone() + part.completed.clone();
+            failed = part.failed;
+            message = part.message.clone().clone();
+            if part.completed.clone() == terrane_int_support::Int::from(0_i128)
+                && !part.failed
+            {
+                failed = true;
+                message = String::from("stream write made no progress");
+            }
+        }
+        return WriteResult::terrane_construct(data, completed.clone(), failed, message);
+    }
+    pub fn resume(&self, prior: WriteResult) -> WriteResult {
+        if terrane_int_support::Int::from(prior.data.len() as i128)
+            == terrane_int_support::Int::from(0_i128)
+        {
+            return prior.clone();
+        }
+        let raw: TerranePlatformWriteResult = terrane_platform_write(
+            &self.handle,
+            &prior.data,
+            terrane_int_support::Int::from(prior.completed.clone()),
+        );
+        return WriteResult::terrane_construct(
+            prior.data.clone(),
+            prior.completed.clone() + raw.completed.clone(),
+            raw.failed,
+            raw.message.clone().clone(),
+        );
+    }
+    pub fn line(&self, text: String) -> WriteResult {
+        return self
+            .write_all(
+                format!(
+                    "{}{}", terrane_scalar_support::scalar_text(&text),
+                    terrane_scalar_support::scalar_text(&String::from("\n"))
+                ),
+            );
+    }
+    pub async fn write_async(&self, text: String) -> WriteResult {
+        return self.write(text);
+    }
+    pub fn flush(&self) -> StreamOperationResult {
+        let raw: TerranePlatformUnitResult = terrane_platform_flush(&self.handle);
+        return StreamOperationResult::terrane_construct(
+            raw.failed,
+            raw.message.clone().clone(),
+        );
+    }
+    pub fn sync_data(&self) -> StreamOperationResult {
+        let raw: TerranePlatformUnitResult = terrane_platform_sync_data(&self.handle);
+        return StreamOperationResult::terrane_construct(
+            raw.failed,
+            raw.message.clone().clone(),
+        );
+    }
+    pub fn sync_all(&self) -> StreamOperationResult {
+        let raw: TerranePlatformUnitResult = terrane_platform_sync_all(&self.handle);
+        return StreamOperationResult::terrane_construct(
+            raw.failed,
+            raw.message.clone().clone(),
+        );
+    }
+    pub fn close(self) -> StreamOperationResult {
+        let raw: TerranePlatformUnitResult = terrane_platform_close(&self.handle);
+        return StreamOperationResult::terrane_construct(
+            raw.failed,
+            raw.message.clone().clone(),
+        );
+    }
+    pub fn destruct(&self) {
+        terrane_platform_release(&self.handle);
+    }
+}
+impl Drop for TextWriter {
+    fn drop(&mut self) {
+        self.destruct();
+    }
+}
+pub fn stdin() -> ByteReader {
+    return ByteReader::terrane_construct(terrane_platform_acquire_stdin());
+}
+pub fn stdout() -> ByteWriter {
+    return ByteWriter::terrane_construct(terrane_platform_acquire_stdout());
+}
+pub fn stderr() -> ByteWriter {
+    return ByteWriter::terrane_construct(terrane_platform_acquire_stderr());
 }

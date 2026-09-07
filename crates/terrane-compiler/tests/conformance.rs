@@ -1,7 +1,7 @@
 use std::collections::BTreeSet;
 use std::fmt::Write as _;
 use std::fs;
-use std::io::Write as _;
+use std::io::{BufRead as _, BufReader, Read as _, Write as _};
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 
@@ -308,6 +308,9 @@ fn compile_and_maybe_run(
             command.args(arguments.lines());
         }
         command.args(platform_arguments(case.join("arguments-raw.hex")));
+        if let Some(worker_threads) = field(manifest, "worker-threads") {
+            command.env("TOKIO_WORKER_THREADS", worker_threads);
+        }
         if boolean_field(manifest, "isolated-working-directory") == Some(true) {
             let working_directory = build_dir.join("run");
             if working_directory.exists() {
@@ -328,9 +331,9 @@ fn compile_and_maybe_run(
             .stderr(Stdio::piped())
             .spawn()
             .unwrap();
-        if let Err(error) = child
-            .stdin
-            .take()
+        let mut stdin = Some(child.stdin.take().unwrap());
+        if let Err(error) = stdin
+            .as_mut()
             .unwrap()
             .write_all(&optional_bytes(case.join("stdin.txt")))
         {
@@ -341,15 +344,32 @@ fn compile_and_maybe_run(
                 case.display()
             );
         }
-        let output = child.wait_with_output().unwrap();
+        let hold_stdin = boolean_field(manifest, "hold-stdin-until-stdout") == Some(true);
+        if !hold_stdin {
+            drop(stdin.take());
+        }
+        let (status, stdout, stderr) = if hold_stdin {
+            let mut stdout = BufReader::new(child.stdout.take().unwrap());
+            let mut stdout_bytes = Vec::new();
+            stdout.read_until(b'\n', &mut stdout_bytes).unwrap();
+            drop(stdin.take());
+            stdout.read_to_end(&mut stdout_bytes).unwrap();
+            let mut stderr = child.stderr.take().unwrap();
+            let mut stderr_bytes = Vec::new();
+            stderr.read_to_end(&mut stderr_bytes).unwrap();
+            (child.wait().unwrap(), stdout_bytes, stderr_bytes)
+        } else {
+            let output = child.wait_with_output().unwrap();
+            (output.status, output.stdout, output.stderr)
+        };
         let expected_stdout = fs::read(case.join("stdout.txt")).unwrap();
         let expected_stderr = optional_bytes(case.join("stderr.txt"));
         let expected_code = optional_text(case.join("exit-code.txt"))
             .map_or(0, |text| text.trim().parse().unwrap());
-        assert_eq!(output.stdout, expected_stdout, "{} stdout", case.display());
-        assert_eq!(output.stderr, expected_stderr, "{} stderr", case.display());
+        assert_eq!(stdout, expected_stdout, "{} stdout", case.display());
+        assert_eq!(stderr, expected_stderr, "{} stderr", case.display());
         assert_eq!(
-            output.status.code(),
+            status.code(),
             Some(expected_code),
             "{} exit code",
             case.display()

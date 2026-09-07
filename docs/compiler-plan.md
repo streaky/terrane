@@ -1472,6 +1472,11 @@ TLS client handshake, encrypted read/write, and shutdown now follow the same asy
 contract and selected-runtime blocking delegation. Certificate-chain and hostname validation remain
 mandatory on the ordinary connector; this migration changes scheduling rather than trust semantics.
 
+The TCP loopback witness runs with `TOKIO_WORKER_THREADS=1` while one scoped standard-input read and
+one listener accept are both pending. The client still connects, writes, reads the reply, and prints
+before the harness releases standard input. That ordering cannot complete if either pending host
+operation occupies the sole executor worker.
+
 Accepted and rejected conformance covers async/sync type incompatibility, task consumption,
 successful, throwing, cancelled, and sibling-cancelling children, statically resolvable nested
 deadline extension, a non-owning reference whose unchanged local owner is proven to remain in the

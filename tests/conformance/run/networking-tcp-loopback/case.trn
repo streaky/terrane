@@ -2,6 +2,7 @@ namespace app
 
 from /core/output import print
 from /core/encodings import utf8
+from /core/streams import stdin, byte-reader, read-result
 from /core/networking import ip-address-from-string, socket-address-from-ip, socket-address-from-string, network-cancellation-token, network-operation-options, tcp-listener, listener-result, stream-result, bind-tcp, connect-tcp
 
 async function serve none; listener tcp-listener, options network-operation-options
@@ -15,6 +16,10 @@ async function serve none; listener tcp-listener, options network-operation-opti
     stream.close;
     return none
 
+async function read-input read-result; input byte-reader
+    return await input.read-async; 1
+
+
 async function main;
     loopback = ip-address-from-string; '127.0.0.1'
     bind-address = socket-address-from-ip; loopback.value, 0
@@ -24,6 +29,9 @@ async function main;
     server-options = instance network-operation-options; 1000, (instance network-cancellation-token;)
     server-task = serve; move listener, server-options
     scope = task-scope;
+    input = stdin;
+    input-task = read-input; move input
+    input-child = scope.spawn; move input-task
     child = scope.spawn; move server-task
     destination = socket-address-from-string; endpoint-text
     client-options = instance network-operation-options; 1000, (instance network-cancellation-token;)
@@ -35,4 +43,7 @@ async function main;
     print; sent.completed
     print; (response.data.decode; utf8)
     print; outcome.completed
+    input-outcome = await scope.join; move input-child
+    if not input-outcome.completed
+        print; 'stdin task did not complete'
     client.close;
