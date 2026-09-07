@@ -1544,15 +1544,19 @@ Phase C typed channels replace the integer-only channel object with
 `channel; Item, capacity, overflow-policy`, a compiler-owned generic pair of independently owned
 sender and receiver endpoints. Capacity remains a compile-time source constant in version one.
 Positive capacities use a bounded concrete Rust queue. A zero-capacity block channel instead uses a
-rendezvous whose send completes only after receive accepts that value; fail-send and drop policies
-require positive capacity. Send and receive operations are local tasks whose registered wakers are
-removed on completion or cancellation. Consuming sender close permits a drain. Consuming receiver
-close returns every already-accepted buffered value as `list of Item`, rejects pending sends as
-closed, and leaves destructive cleanup to emergency Drop. The source ownership pass rejects
-duplicate endpoints and use after close. `typed-channels` observes exact values for every policy,
-rendezvous, bounded backpressure, concurrent delivery, sender drain, receiver-close preservation,
-cancellation under pressure, and a 10,000-send bounded-capacity stress loop; focused rejects cover
-item mismatch, capacity and zero-capacity policy, ownership, and post-close use.
+rendezvous whose send completes when receive accepts that value; an accepted handoff remains a
+completed send when cancellation is simultaneously ready on sender resumption. Fail-send and drop
+policies require positive capacity. Send and receive operations are local tasks whose registered
+wakers are removed on completion or cancellation. Consuming sender close permits a drain. Consuming
+receiver close returns every already-accepted buffered value as `list of Item`, rejects pending
+sends as closed, and leaves destructive cleanup to emergency Drop. The source ownership pass
+rejects duplicate endpoints and use after close while reinitializing declarations made inside a
+loop body at each back-edge. `typed-channels` observes exact values for every policy, deterministic
+rendezvous completion/cancellation precedence, bounded backpressure, concurrent delivery, sender
+drain, receiver-close preservation, cancellation under pressure, and a 10,000-send bounded-capacity
+stress loop. `loop-local-channel-resources` consumes a newly declared pair and both endpoints on
+each iteration. Focused rejects cover item mismatch, capacity and zero-capacity policy, ownership,
+and post-close use.
 
 Phase C records the version-one shared-state boundary as an intentional refusal rather than a
 missing generic-cell implementation. Mutable application state has one owner task; peers send

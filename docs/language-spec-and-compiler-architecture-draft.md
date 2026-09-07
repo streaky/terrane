@@ -2353,6 +2353,12 @@ statically non-copyable value is passed to a by-value consuming parameter. Copya
 ordinary value semantics, so ownership consequences follow the statically known value contract
 rather than call-site ceremony.
 
+A declaration inside a loop body establishes a fresh initialized binding value on every iteration.
+Moving or consuming that value makes it unavailable only for the remainder of that iteration; the
+next iteration's declaration reinitializes it. Move state for a binding declared outside the loop
+does cross the back-edge, so consuming such a value in one iteration makes a later iteration's use
+invalid unless an assignment explicitly rebinds it.
+
 `move` remains an explicit request to transfer a value that would otherwise be copied. It may also
 make an already-required non-copyable transfer visible, but never changes whether that transfer
 occurs:
@@ -3826,8 +3832,11 @@ items and then observes closed. Receiver close wakes pending sends, which report
 a concrete `list of Item` containing every value that had already been accepted into its buffer;
 it never silently destroys accepted application data. Dropping an endpoint is emergency close and
 may destroy retained values because no caller exists to receive a return value. Cancelling or timing
-out a pending operation unregisters its waiter; it does not reclassify an already completed
-operation. Duplicate endpoint ownership, use after close, non-constant capacity, zero capacity with
+out a pending operation unregisters its waiter. Once a receiver accepts a zero-capacity rendezvous
+value, the matching send is complete: if that completion and cancellation are both ready when the
+sender task resumes, the completed send outcome wins and remains accepted rather than being
+reclassified as cancelled. The cancellation request may remain observable independently. Duplicate
+endpoint ownership, use after close, non-constant capacity, zero capacity with
 a non-block policy, and invalid overflow policies are source diagnostics. Sender and receiver
 operations construct local-only tasks in version one.
 

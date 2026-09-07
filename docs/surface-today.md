@@ -210,7 +210,7 @@ Terrane package
     │   └── connect-tls                        validated TLS 1.3/1.2 client connection; no insecure ordinary option
     ├── /core/concurrency                      synchronization objects; requires `threads`
     │   ├── concurrency-operation-result / concurrency-int-result explicit failure and integer value results for synchronization cells
-    │   ├── channel                            typed sender/receiver pair; compile-time capacity; zero-capacity block rendezvous
+    │   ├── channel                            typed sender/receiver pair; compile-time capacity; zero-capacity block rendezvous whose accepted handoff completion outranks simultaneous cancellation
     │   ├── channel-block / channel-fail-send / channel-drop-newest / channel-drop-oldest explicit overflow policies; non-block policies require positive capacity
     │   ├── channel-pair / channel-sender / channel-receiver compiler-owned generic linear endpoint families; receiver close returns accepted buffered values
     │   ├── channel-send-outcome / channel-receive-outcome compiler-owned accepted/dropped/closed, rejected/evicted item, and available/value/closed state
@@ -657,8 +657,9 @@ does not convert the reference at assignment, parameter, or return boundaries; t
 continue to distinguish `T`, `ref T`, and `shared ref T`. A `ref` currently requires a local named
 binding with reference-backed storage; parameters and temporary values are
 rejected because the compiler does not yet prove their owner lifetimes. Move provenance
-rejects later reads until the binding is rebound, including conditional paths. Replacing a binding
-ends the old identity's lifetime: a later non-owning-reference use is rejected, while a `shared ref`
+rejects later reads until the binding is rebound, including conditional paths and loop back-edges;
+a declaration inside the loop body initializes a fresh binding value for each iteration.
+Replacing a binding ends the old identity's lifetime: a later non-owning-reference use is rejected, while a `shared ref`
 continues to own and observe the old identity.
 
 The source interface now matches the settled version-one ownership vocabulary. Milestone 17 remains
