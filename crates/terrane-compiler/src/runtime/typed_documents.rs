@@ -113,71 +113,9 @@ impl TerraneDocumentDecode for bool {
     }
 }
 
-fn __terrane_document_float_is_exact(
-    input: &terrane_document_support::DataResult,
-    mantissa: u128,
-    binary_exponent: i32,
-    negative: bool,
-) -> bool {
-    let kind = terrane_document_support::document_kind(input);
-    let (coefficient, decimal_exponent) = if kind == "integer" {
-        (terrane_document_support::document_text(input), 0_i64)
-    } else if kind == "decimal" {
-        (
-            terrane_document_support::document_coefficient(input),
-            terrane_document_support::document_exponent(input),
-        )
-    } else {
-        return false;
-    };
-    let Ok(coefficient) = coefficient.parse::<i128>() else {
-        return false;
-    };
-    if (coefficient < 0) != negative {
-        return coefficient == 0 && mantissa == 0;
-    }
-    let mut decimal_numerator = coefficient.unsigned_abs();
-    let mut decimal_denominator = 1_u128;
-    if decimal_exponent >= 0 {
-        let Ok(exponent) = u32::try_from(decimal_exponent) else {
-            return false;
-        };
-        let Some(power) = 10_u128.checked_pow(exponent) else {
-            return false;
-        };
-        let Some(value) = decimal_numerator.checked_mul(power) else {
-            return false;
-        };
-        decimal_numerator = value;
-    } else {
-        let Ok(exponent) = u32::try_from(decimal_exponent.unsigned_abs()) else {
-            return false;
-        };
-        let Some(power) = 10_u128.checked_pow(exponent) else {
-            return false;
-        };
-        decimal_denominator = power;
-    }
-    let (binary_numerator, binary_denominator) = if binary_exponent >= 0 {
-        let Ok(exponent) = u32::try_from(binary_exponent) else {
-            return false;
-        };
-        let Some(value) = mantissa.checked_shl(exponent) else {
-            return false;
-        };
-        (value, 1_u128)
-    } else {
-        let Some(denominator) = 1_u128.checked_shl(binary_exponent.unsigned_abs()) else {
-            return false;
-        };
-        (mantissa, denominator)
-    };
-    decimal_numerator.checked_mul(binary_denominator)
-        == binary_numerator.checked_mul(decimal_denominator)
-}
 
 macro_rules! __terrane_document_float {
-    ($type:ty, $bits:ty, $mantissa_bits:expr, $bias:expr) => {
+    ($type:ty) => {
         impl TerraneDocumentDecode for $type {
             fn terrane_decode_document(
                 input: &terrane_document_support::DataResult,
@@ -197,55 +135,27 @@ macro_rules! __terrane_document_float {
                     );
                 }
                 let text = terrane_document_support::document_text(input);
-                let parsed = text.parse::<$type>().ok();
-                let exact = parsed.filter(|value| {
-                    if !value.is_finite() {
-                        return false;
-                    }
-                    let bits: $bits = value.to_bits();
-                    let sign = (bits >> (<$bits>::BITS - 1)) != 0;
-                    let exponent_mask: $bits =
-                        ((1 as $bits) << (<$bits>::BITS - 1 - $mantissa_bits)) - 1;
-                    let exponent =
-                        ((bits >> $mantissa_bits) & exponent_mask) as i32;
-                    let fraction_mask: $bits = ((1 as $bits) << $mantissa_bits) - 1;
-                    let fraction = bits & fraction_mask;
-                    let (mantissa, binary_exponent) = if exponent == 0 {
-                        (
-                            fraction as u128,
-                            1 - $bias - $mantissa_bits as i32,
-                        )
-                    } else {
-                        (
-                            (((1 as $bits) << $mantissa_bits) | fraction) as u128,
-                            exponent - $bias - $mantissa_bits as i32,
-                        )
-                    };
-                    __terrane_document_float_is_exact(
-                        input,
-                        mantissa,
-                        binary_exponent,
-                        sign,
-                    )
-                });
-                exact.ok_or_else(|| {
-                    vec![__terrane_document_diagnostic(
-                        path,
-                        stringify!($type),
-                        kind,
-                        "numeric-conversion",
-                        "document number is not exactly representable by the destination float",
-                        source,
-                        field_source,
-                    )]
-                })
+                text.parse::<$type>()
+                    .ok()
+                    .filter(|value| value.is_finite())
+                    .ok_or_else(|| {
+                        vec![__terrane_document_diagnostic(
+                            path,
+                            stringify!($type),
+                            kind,
+                            "numeric-conversion",
+                            "document number is outside the finite range of the destination float",
+                            source,
+                            field_source,
+                        )]
+                    })
             }
         }
     };
 }
 
-__terrane_document_float!(f32, u32, 23, 127);
-__terrane_document_float!(f64, u64, 52, 1023);
+__terrane_document_float!(f32);
+__terrane_document_float!(f64);
 
 impl TerraneDocumentDecode for terrane_int_support::Int {
     fn terrane_decode_document(
