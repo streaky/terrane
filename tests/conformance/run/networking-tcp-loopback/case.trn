@@ -15,7 +15,7 @@ class async-runner
         callback = this.callback
         callback;
 
-function main;
+async function main;
     loopback = ip-address-from-string; '127.0.0.1'
     bind-address = socket-address-from-ip; loopback.value, 0
     bound listener-result = bind-tcp; bind-address.value
@@ -40,7 +40,7 @@ function main;
     client = move connected.value
     sent = client.write; b'terrane', client-options
     response = client.read; 5, client-options
-    outcome = scope.join; move child
+    outcome = await scope.join; move child
     print; sent.completed
     print; (response.data.decode; utf8)
     print; outcome.completed

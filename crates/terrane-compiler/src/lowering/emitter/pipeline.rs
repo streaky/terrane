@@ -68,7 +68,11 @@ pub(crate) fn lower(package: &SemanticPackage) -> Program {
             support.push_str(include_str!("../../runtime/async_dependency.rs"));
         }
         if package_uses_task_scope(package) {
-            support.push_str(include_str!("../../runtime/async_cancellable.rs"));
+            support.push_str(if has_async_entry {
+                include_str!("../../runtime/async_cancellable_native.rs")
+            } else {
+                include_str!("../../runtime/async_cancellable.rs")
+            });
         }
         runtime.push(GeneratedModule {
             name: "async",
@@ -76,12 +80,23 @@ pub(crate) fn lower(package: &SemanticPackage) -> Program {
         });
     }
     if package_uses_task_scope(package) {
-        let support = match package.execution_strategy {
-            crate::execution::ExecutionStrategy::Local => {
-                include_str!("../../runtime/tasks_cooperative.rs")
+        let support = if has_async_entry {
+            match package.execution_strategy {
+                crate::execution::ExecutionStrategy::Local => {
+                    include_str!("../../runtime/tasks_native_local.rs")
+                }
+                crate::execution::ExecutionStrategy::Parallel => {
+                    include_str!("../../runtime/tasks_native_parallel.rs")
+                }
             }
-            crate::execution::ExecutionStrategy::Parallel => {
-                include_str!("../../runtime/tasks_threaded.rs")
+        } else {
+            match package.execution_strategy {
+                crate::execution::ExecutionStrategy::Local => {
+                    include_str!("../../runtime/tasks_cooperative.rs")
+                }
+                crate::execution::ExecutionStrategy::Parallel => {
+                    include_str!("../../runtime/tasks_threaded.rs")
+                }
             }
         };
         runtime.push(GeneratedModule {

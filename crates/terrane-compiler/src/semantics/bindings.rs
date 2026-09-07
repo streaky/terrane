@@ -1037,7 +1037,9 @@ pub(super) fn validate_task_consumption(package: &SemanticPackage) -> Result<(),
         unit: &SemanticUnit,
         node: &SyntaxNode,
         binding: &TypedBinding,
+        consuming: bool,
         join_argument: bool,
+        moved: bool,
     ) -> bool {
         let await_operand = node.kind == SyntaxKind::UnaryExpression
             && unary_operator_text(unit, node).as_deref() == Some("await");
@@ -1049,7 +1051,8 @@ pub(super) fn validate_task_consumption(package: &SemanticPackage) -> Result<(),
                         .get(1)
                         .is_some_and(|member| node_text(&unit.source, member) == "join")
             });
-        if join_argument
+        if consuming
+            && (!join_argument || moved)
             && node.kind == SyntaxKind::Name
             && node_text(&unit.source, node) == binding.name
             && unit
@@ -1065,11 +1068,17 @@ pub(super) fn validate_task_consumption(package: &SemanticPackage) -> Result<(),
             return true;
         }
         node.children.iter().enumerate().any(|(index, child)| {
+            let child_join_argument = join_argument || (joined && index == 1);
             consumed(
                 unit,
                 child,
                 binding,
-                join_argument || await_operand || (joined && index == 1),
+                consuming || await_operand || (joined && index == 1),
+                child_join_argument,
+                moved
+                    || (child_join_argument
+                        && node.kind == SyntaxKind::UnaryExpression
+                        && unary_operator_text(unit, node).as_deref() == Some("move")),
             )
         })
     }
@@ -1089,7 +1098,7 @@ pub(super) fn validate_task_consumption(package: &SemanticPackage) -> Result<(),
                 ValueType::Task(_, _) | ValueType::ScopedTask(_, _)
             )
         }) {
-            if !consumed(unit, &unit.tree.root, binding, false) {
+            if !consumed(unit, &unit.tree.root, binding, false, false, false) {
                 return Err(failure(
                     &unit.source,
                     "T0076",

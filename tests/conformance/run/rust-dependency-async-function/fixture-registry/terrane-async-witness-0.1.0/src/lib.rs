@@ -88,3 +88,22 @@ pub async fn socket_round_trip() -> String {
     let ((), message) = tokio::join!(client, server);
     message
 }
+
+static SIBLING_PROGRESS: std::sync::atomic::AtomicU8 =
+    std::sync::atomic::AtomicU8::new(0);
+
+pub async fn wait_for_sibling() -> String {
+    SIBLING_PROGRESS.store(1, std::sync::atomic::Ordering::Release);
+    while SIBLING_PROGRESS.load(std::sync::atomic::Ordering::Acquire) != 2 {
+        YieldOnce(false).await;
+    }
+    "interleaved".to_owned()
+}
+
+pub async fn signal_sibling() -> String {
+    while SIBLING_PROGRESS.load(std::sync::atomic::Ordering::Acquire) != 1 {
+        YieldOnce(false).await;
+    }
+    SIBLING_PROGRESS.store(2, std::sync::atomic::Ordering::Release);
+    "signalled".to_owned()
+}

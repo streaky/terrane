@@ -425,46 +425,25 @@ async fn __terrane_await<F: Future>(future: F) -> F::Output {
     YieldOnce(false).await;
     output
 }
-fn __terrane_block_on_cancellable<F: Future>(
+fn __terrane_run<F: Future>(future: F) -> F::Output {
+    tokio::runtime::Builder::new_multi_thread()
+        .enable_all()
+        .build()
+        .expect("Terrane async runtime must initialize")
+        .block_on(future)
+}
+async fn __terrane_cancellable<F: Future>(
     future: F,
     cancelled: impl Fn() -> bool,
 ) -> Option<F::Output> {
-    #[derive(Default)]
-    struct Wake {
-        ready: std::sync::Mutex<bool>,
-        available: std::sync::Condvar,
-    }
-    impl std::task::Wake for Wake {
-        fn wake(self: std::sync::Arc<Self>) {
-            self.wake_by_ref();
-        }
-        fn wake_by_ref(self: &std::sync::Arc<Self>) {
-            let mut ready = self.ready.lock().expect("task wake state must lock");
-            *ready = true;
-            self.available.notify_one();
-        }
-    }
-    let wake = std::sync::Arc::new(Wake::default());
-    let waker = std::task::Waker::from(wake.clone());
-    let mut context = std::task::Context::from_waker(&waker);
     let mut future = std::pin::pin!(future);
     loop {
         if cancelled() {
             return None;
         }
-        match future.as_mut().poll(&mut context) {
-            std::task::Poll::Ready(value) => return Some(value),
-            std::task::Poll::Pending => {
-                let mut ready = wake.ready.lock().expect("task wake state must lock");
-                if !*ready {
-                    let (next_ready, _) = wake
-                        .available
-                        .wait_timeout(ready, std::time::Duration::from_millis(1))
-                        .expect("task wake wait must remain valid");
-                    ready = next_ready;
-                }
-                *ready = false;
-            }
+        tokio::select! {
+            output = & mut future => return Some(output), () =
+            tokio::time::sleep(std::time::Duration::from_millis(1)) => {}
         }
     }
 }
@@ -478,20 +457,20 @@ impl TerraneTaskScope {
         Self {
             cancelled: std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false)),
             deadline: deadline_ms
-                .map(|value| {
-                    std::time::Instant::now() + std::time::Duration::from_millis(value)
+                .map(|milliseconds| {
+                    std::time::Instant::now()
+                        + std::time::Duration::from_millis(milliseconds)
                 }),
         }
     }
     pub fn child_scope(&self, deadline_ms: u64) -> Self {
         let requested = std::time::Instant::now()
             + std::time::Duration::from_millis(deadline_ms);
-        let deadline = Some(
-            self.deadline.map_or(requested, |parent| std::cmp::min(parent, requested)),
-        );
         Self {
             cancelled: self.cancelled.clone(),
-            deadline,
+            deadline: Some(
+                self.deadline.map_or(requested, |parent| parent.min(requested)),
+            ),
         }
     }
     pub fn cancel(&self) {
@@ -503,40 +482,17 @@ impl TerraneTaskScope {
                 .deadline
                 .is_some_and(|deadline| std::time::Instant::now() >= deadline)
     }
-    pub fn join<T>(&self, mut task: TerraneScopedTask<T>) -> TerraneTaskOutcome<T> {
+    pub async fn join<T>(
+        &self,
+        mut task: TerraneScopedTask<T>,
+    ) -> TerraneTaskOutcome<T> {
         let result = task
             .handle
             .take()
             .expect("scoped task joined once")
-            .join()
-            .expect("task worker panicked");
-        match result {
-            TerraneTaskResult::Completed(value) => {
-                TerraneTaskOutcome {
-                    completed: true,
-                    cancelled: self.should_cancel(),
-                    value: Some(value),
-                    error: None,
-                }
-            }
-            TerraneTaskResult::Failed(error) => {
-                self.cancel();
-                TerraneTaskOutcome {
-                    completed: false,
-                    cancelled: false,
-                    value: None,
-                    error: Some(error),
-                }
-            }
-            TerraneTaskResult::Cancelled => {
-                TerraneTaskOutcome {
-                    completed: false,
-                    cancelled: true,
-                    value: None,
-                    error: None,
-                }
-            }
-        }
+            .await
+            .expect("scoped task must not panic outside its Terrane boundary");
+        outcome_from_result(self, result)
     }
 }
 #[allow(
@@ -549,13 +505,47 @@ enum TerraneTaskResult<T> {
     Cancelled,
 }
 pub struct TerraneScopedTask<T> {
-    handle: Option<std::thread::JoinHandle<TerraneTaskResult<T>>>,
+    handle: Option<tokio::task::JoinHandle<TerraneTaskResult<T>>>,
 }
 impl<T: Send + 'static> TerraneScopedTask<T> {
     #[allow(dead_code, reason = "task spawn ABI is emitted before usage shaping")]
-    fn spawn<F: FnOnce() -> TerraneTaskResult<T> + Send + 'static>(work: F) -> Self {
+    fn spawn<F: Future<Output = TerraneTaskResult<T>> + Send + 'static>(
+        work: F,
+    ) -> Self {
         Self {
-            handle: Some(std::thread::spawn(work)),
+            handle: Some(tokio::spawn(work)),
+        }
+    }
+}
+fn outcome_from_result<T>(
+    scope: &TerraneTaskScope,
+    result: TerraneTaskResult<T>,
+) -> TerraneTaskOutcome<T> {
+    match result {
+        TerraneTaskResult::Completed(value) => {
+            TerraneTaskOutcome {
+                completed: true,
+                cancelled: scope.should_cancel(),
+                value: Some(value),
+                error: None,
+            }
+        }
+        TerraneTaskResult::Failed(error) => {
+            scope.cancel();
+            TerraneTaskOutcome {
+                completed: false,
+                cancelled: false,
+                value: None,
+                error: Some(error),
+            }
+        }
+        TerraneTaskResult::Cancelled => {
+            TerraneTaskOutcome {
+                completed: false,
+                cancelled: true,
+                value: None,
+                error: None,
+            }
         }
     }
 }
@@ -826,102 +816,111 @@ impl AsyncRunner {
     }
 }
 fn main() {
-    let options: ConcurrencyOperationOptions = ConcurrencyOperationOptions::terrane_construct(
-        terrane_int_support::Int::from(30000_i128),
-        ConcurrencyCancellationToken::terrane_construct(),
-    );
-    let messages: IntChannel = IntChannel::terrane_construct(
-        terrane_int_support::Int::from(0_i128),
-    );
-    let counter: IntMutex = IntMutex::terrane_construct(
-        terrane_int_support::Int::from(4_i128),
-    );
-    let work: std::sync::Arc<dyn Fn() -> Result<(), TerraneError> + Send + Sync> = {
-        let counter = counter.clone();
-        let messages = messages.clone();
-        let options = options.clone();
-        std::sync::Arc::new(move || -> Result<(), TerraneError> {
-            messages.send(terrane_int_support::Int::from(11_i128), options.clone());
-            counter.increase(terrane_int_support::Int::from(3_i128));
-            Ok(())
-        })
-    };
-    let worker: AsyncRunner = AsyncRunner::terrane_construct(work.clone());
-    let scope: TerraneTaskScope = TerraneTaskScope::new(None);
-    let child: TerraneScopedTask<()> = {
-        let __terrane_scope = scope.clone();
-        let __terrane_cancel = __terrane_scope.clone();
-        TerraneScopedTask::spawn(move || match __terrane_block_on_cancellable(
-            {
-                let receiver = worker;
-                std::sync::Arc::new(move || -> std::pin::Pin<
-                    Box<dyn Future<Output = _>>,
-                > {
-                    let receiver = receiver.clone();
-                    Box::pin(async move { receiver.run().await })
-                })
-            }(),
-            move || __terrane_cancel.should_cancel(),
-        ) {
-            Some(Ok(value)) => TerraneTaskResult::Completed(value),
-            Some(Err(error)) => TerraneTaskResult::Failed(error),
-            None => TerraneTaskResult::Cancelled,
-        })
-    };
-    let received: ConcurrencyIntResult = messages.receive(options.clone());
-    let outcome: TerraneTaskOutcome<()> = scope.join(child);
-    println!("{}", terrane_scalar_support::scalar_text(&messages.failed));
-    let invalid_channel: IntChannel = IntChannel::terrane_construct(
-        terrane_int_support::Int::from(-1_i128),
-    );
-    println!("{}", terrane_scalar_support::scalar_text(&invalid_channel.failed));
-    let cancelled: ConcurrencyCancellationToken = ConcurrencyCancellationToken::terrane_construct();
-    cancelled.cancel();
-    let cancelled_options: ConcurrencyOperationOptions = ConcurrencyOperationOptions::terrane_construct(
-        terrane_int_support::Int::from(1000_i128),
-        cancelled.clone(),
-    );
-    let cancelled_channel: IntChannel = IntChannel::terrane_construct(
-        terrane_int_support::Int::from(1_i128),
-    );
-    let cancelled_receive: ConcurrencyIntResult = cancelled_channel
-        .receive(cancelled_options);
-    println!("{}", terrane_scalar_support::scalar_text(&cancelled_receive.failed));
-    let timeout_options: ConcurrencyOperationOptions = ConcurrencyOperationOptions::terrane_construct(
-        terrane_int_support::Int::from(1_i128),
-        ConcurrencyCancellationToken::terrane_construct(),
-    );
-    let timeout_channel: IntChannel = IntChannel::terrane_construct(
-        terrane_int_support::Int::from(1_i128),
-    );
-    let timed_out: ConcurrencyIntResult = timeout_channel.receive(timeout_options);
-    println!("{}", terrane_scalar_support::scalar_text(&timed_out.deadline_exceeded));
-    println!("{}", terrane_scalar_support::scalar_text(&received.available));
-    println!("{}", terrane_scalar_support::scalar_text(&received.value));
-    println!("{}", terrane_scalar_support::scalar_text(&outcome.completed));
-    println!("{}", terrane_scalar_support::scalar_text(&counter.load().value));
-    let shared: IntReadWriteLock = IntReadWriteLock::terrane_construct(
-        terrane_int_support::Int::from(8_i128),
-    );
-    shared.write(terrane_int_support::Int::from(9_i128));
-    println!("{}", terrane_scalar_support::scalar_text(&shared.read().value));
-    let atomic: AtomicInt64 = AtomicInt64::terrane_construct(10);
-    let updated: ConcurrencyIntResult = atomic.increase(5, acquire_release_order());
-    println!("{}", terrane_scalar_support::scalar_text(&updated.failed));
-    println!(
-        "{}", terrane_scalar_support::scalar_text(&atomic.load(acquire_order()).value)
-    );
-    let invalid_store: ConcurrencyOperationResult = atomic
-        .store(16, acquire_release_order());
-    println!("{}", terrane_scalar_support::scalar_text(&invalid_store.failed));
-    let invalid_ordering: ConcurrencyIntResult = atomic.load(release_order());
-    println!("{}", terrane_scalar_support::scalar_text(&invalid_ordering.failed));
-    println!("{}", terrane_scalar_support::scalar_text(&invalid_ordering.available));
-    let local: ThreadLocalInt = ThreadLocalInt::terrane_construct(
-        terrane_int_support::Int::from(20_i128),
-    );
-    local.write(terrane_int_support::Int::from(21_i128));
-    println!("{}", terrane_scalar_support::scalar_text(&local.get().value));
+    __terrane_run(async move {
+        let options: ConcurrencyOperationOptions = ConcurrencyOperationOptions::terrane_construct(
+            terrane_int_support::Int::from(30000_i128),
+            ConcurrencyCancellationToken::terrane_construct(),
+        );
+        let messages: IntChannel = IntChannel::terrane_construct(
+            terrane_int_support::Int::from(0_i128),
+        );
+        let counter: IntMutex = IntMutex::terrane_construct(
+            terrane_int_support::Int::from(4_i128),
+        );
+        let work: std::sync::Arc<dyn Fn() -> Result<(), TerraneError> + Send + Sync> = {
+            let counter = counter.clone();
+            let messages = messages.clone();
+            let options = options.clone();
+            std::sync::Arc::new(move || -> Result<(), TerraneError> {
+                messages.send(terrane_int_support::Int::from(11_i128), options.clone());
+                counter.increase(terrane_int_support::Int::from(3_i128));
+                Ok(())
+            })
+        };
+        let worker: AsyncRunner = AsyncRunner::terrane_construct(work.clone());
+        let scope: TerraneTaskScope = TerraneTaskScope::new(None);
+        let child: TerraneScopedTask<()> = {
+            let __terrane_scope = scope.clone();
+            let __terrane_cancel = __terrane_scope.clone();
+            TerraneScopedTask::spawn(async move {
+                match __terrane_cancellable(
+                        {
+                            let receiver = worker;
+                            std::sync::Arc::new(move || -> std::pin::Pin<
+                                Box<dyn Future<Output = _> + Send>,
+                            > {
+                                let receiver = receiver.clone();
+                                Box::pin(async move { receiver.run().await })
+                            })
+                        }(),
+                        move || __terrane_cancel.should_cancel(),
+                    )
+                    .await
+                {
+                    Some(Ok(value)) => TerraneTaskResult::Completed(value),
+                    Some(Err(error)) => TerraneTaskResult::Failed(error),
+                    None => TerraneTaskResult::Cancelled,
+                }
+            })
+        };
+        let received: ConcurrencyIntResult = messages.receive(options.clone());
+        let outcome: TerraneTaskOutcome<()> = __terrane_await(scope.join(child)).await;
+        println!("{}", terrane_scalar_support::scalar_text(&messages.failed));
+        let invalid_channel: IntChannel = IntChannel::terrane_construct(
+            terrane_int_support::Int::from(-1_i128),
+        );
+        println!("{}", terrane_scalar_support::scalar_text(&invalid_channel.failed));
+        let cancelled: ConcurrencyCancellationToken = ConcurrencyCancellationToken::terrane_construct();
+        cancelled.cancel();
+        let cancelled_options: ConcurrencyOperationOptions = ConcurrencyOperationOptions::terrane_construct(
+            terrane_int_support::Int::from(1000_i128),
+            cancelled.clone(),
+        );
+        let cancelled_channel: IntChannel = IntChannel::terrane_construct(
+            terrane_int_support::Int::from(1_i128),
+        );
+        let cancelled_receive: ConcurrencyIntResult = cancelled_channel
+            .receive(cancelled_options);
+        println!("{}", terrane_scalar_support::scalar_text(&cancelled_receive.failed));
+        let timeout_options: ConcurrencyOperationOptions = ConcurrencyOperationOptions::terrane_construct(
+            terrane_int_support::Int::from(1_i128),
+            ConcurrencyCancellationToken::terrane_construct(),
+        );
+        let timeout_channel: IntChannel = IntChannel::terrane_construct(
+            terrane_int_support::Int::from(1_i128),
+        );
+        let timed_out: ConcurrencyIntResult = timeout_channel.receive(timeout_options);
+        println!(
+            "{}", terrane_scalar_support::scalar_text(&timed_out.deadline_exceeded)
+        );
+        println!("{}", terrane_scalar_support::scalar_text(&received.available));
+        println!("{}", terrane_scalar_support::scalar_text(&received.value));
+        println!("{}", terrane_scalar_support::scalar_text(&outcome.completed));
+        println!("{}", terrane_scalar_support::scalar_text(&counter.load().value));
+        let shared: IntReadWriteLock = IntReadWriteLock::terrane_construct(
+            terrane_int_support::Int::from(8_i128),
+        );
+        shared.write(terrane_int_support::Int::from(9_i128));
+        println!("{}", terrane_scalar_support::scalar_text(&shared.read().value));
+        let atomic: AtomicInt64 = AtomicInt64::terrane_construct(10);
+        let updated: ConcurrencyIntResult = atomic.increase(5, acquire_release_order());
+        println!("{}", terrane_scalar_support::scalar_text(&updated.failed));
+        println!(
+            "{}", terrane_scalar_support::scalar_text(&atomic.load(acquire_order())
+            .value)
+        );
+        let invalid_store: ConcurrencyOperationResult = atomic
+            .store(16, acquire_release_order());
+        println!("{}", terrane_scalar_support::scalar_text(&invalid_store.failed));
+        let invalid_ordering: ConcurrencyIntResult = atomic.load(release_order());
+        println!("{}", terrane_scalar_support::scalar_text(&invalid_ordering.failed));
+        println!("{}", terrane_scalar_support::scalar_text(&invalid_ordering.available));
+        let local: ThreadLocalInt = ThreadLocalInt::terrane_construct(
+            terrane_int_support::Int::from(20_i128),
+        );
+        local.write(terrane_int_support::Int::from(21_i128));
+        println!("{}", terrane_scalar_support::scalar_text(&local.get().value));
+    });
 }
 // Source: core/concurrency.trn
 // Namespace: core/concurrency

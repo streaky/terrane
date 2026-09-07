@@ -1450,6 +1450,14 @@ scoped tasks must be joined before the enclosing function can exit, and join rep
 cancelled, value, and typed error state. Child deadlines take the earlier of inherited and requested
 deadlines at runtime; statically resolvable extensions are additionally rejected in source.
 
+Native scope lowering now turns `spawn` into a task scheduled on the selected local or parallel
+runtime, rather than an OS thread that waits on a future. `join` is itself asynchronous and source
+uses `await scope.join; move child`; direct interleaving evidence runs two projected child futures
+that must signal one another before either can be joined. Scope failure retains the typed error and
+requests sibling cancellation, while explicit task movement remains required to consume a scoped
+child. Legacy synchronous scope fixtures retain their cancellable waker-polling implementation
+until their source path is migrated.
+
 Accepted and rejected conformance covers async/sync type incompatibility, task consumption,
 successful, throwing, cancelled, and sibling-cancelling children, statically resolvable nested
 deadline extension, a non-owning reference whose unchanged local owner is proven to remain in the

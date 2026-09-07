@@ -1,0 +1,4 @@
+phase = "check"
+status = "reject"
+code = "T0076"
+contains = "must be awaited"

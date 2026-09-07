@@ -8,10 +8,10 @@ async function read-one read-result;
     input.close;
     return result
 
-function main;
+async function main;
     completed-scope = task-scope;
     completed-child = completed-scope.spawn; read-one
-    completed-outcome = completed-scope.join; move completed-child
+    completed-outcome = await completed-scope.join; move completed-child
     completed-value = completed-outcome.value
     consistent bool = completed-outcome.completed and completed-value != none
     if completed-value != none
@@ -20,7 +20,7 @@ function main;
     cancelled-scope = task-scope;
     cancelled-child = cancelled-scope.spawn; read-one
     cancelled-scope.cancel;
-    cancelled-outcome = cancelled-scope.join; move cancelled-child
+    cancelled-outcome = await cancelled-scope.join; move cancelled-child
     cancelled-value = cancelled-outcome.value
     if cancelled-outcome.cancelled
         consistent = consistent and cancelled-value == none

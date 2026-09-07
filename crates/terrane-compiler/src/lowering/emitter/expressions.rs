@@ -529,7 +529,7 @@ impl Emitter<'_> {
             {
                 self.expression(node)
             }
-            ValueType::AsyncFunction(parameters, _, _)
+            ValueType::AsyncFunction(parameters, _, transferability)
                 if node.kind == SyntaxKind::MemberExpression =>
             {
                 let [receiver, member] = node.children.as_slice() else {
@@ -550,12 +550,17 @@ impl Emitter<'_> {
                     })
                     .collect::<Vec<_>>()
                     .join(", ");
+                let send = if transferability == TaskTransferability::Transferable {
+                    " + Send"
+                } else {
+                    ""
+                };
                 let arguments = (0..parameters.len())
                     .map(|index| format!("argument_{index}"))
                     .collect::<Vec<_>>()
                     .join(", ");
                 format!(
-                    "{{ let receiver = {receiver}; std::sync::Arc::new(move |{declarations}| -> std::pin::Pin<Box<dyn Future<Output = _>>> {{ let receiver = receiver.clone(); Box::pin(async move {{ receiver.{}({arguments}).await }}) }}) }}",
+                    "{{ let receiver = {receiver}; std::sync::Arc::new(move |{declarations}| -> std::pin::Pin<Box<dyn Future<Output = _>{send}>> {{ let receiver = receiver.clone(); Box::pin(async move {{ receiver.{}({arguments}).await }}) }}) }}",
                     rust_name(self.text(member))
                 )
             }

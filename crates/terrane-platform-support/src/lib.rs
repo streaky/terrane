@@ -1019,6 +1019,18 @@ fn timeout(milliseconds: i128) -> Result<Duration, ResultValue> {
     Ok(Duration::from_millis(value))
 }
 
+fn network_block_on<F: std::future::Future>(future: F) -> Result<F::Output, ResultValue> {
+    if let Ok(handle) = tokio::runtime::Handle::try_current() {
+        if handle.runtime_flavor() == tokio::runtime::RuntimeFlavor::MultiThread {
+            return Ok(tokio::task::block_in_place(|| handle.block_on(future)));
+        }
+        return Err(ResultValue::error(
+            "network operation requires explicit blocking delegation on the local executor",
+        ));
+    }
+    Ok(network_runtime()?.block_on(future))
+}
+
 fn network_runtime() -> Result<&'static tokio::runtime::Runtime, ResultValue> {
     static RUNTIME: LazyLock<Result<tokio::runtime::Runtime, String>> = LazyLock::new(|| {
         tokio::runtime::Builder::new_multi_thread()
@@ -1147,18 +1159,11 @@ pub fn tcp_connect_host(
             ..ResultValue::default()
         };
     }
-    let runtime = match network_runtime() {
-        Ok(value) => value,
-        Err(error) => return error,
-    };
-    let outcome = runtime.block_on(async {
+    let outcome = match network_block_on(async {
         let mut tasks = tokio::task::JoinSet::new();
         for (index, address) in candidates.into_iter().enumerate() {
             tasks.spawn(async move {
-                tokio::time::sleep(Duration::from_millis(
-                    (index as u64).saturating_mul(250),
-                ))
-                .await;
+                tokio::time::sleep(Duration::from_millis((index as u64).saturating_mul(250))).await;
                 tokio::net::TcpStream::connect(address)
                     .await
                     .ok()
@@ -1193,7 +1198,10 @@ pub fn tcp_connect_host(
         tasks.abort_all();
         while tasks.join_next().await.is_some() {}
         result
-    });
+    }) {
+        Ok(value) => value,
+        Err(error) => return error,
+    };
     let (stream, peer) = match outcome {
         Ok(value) => value,
         Err(error) => return error,
@@ -1224,70 +1232,37 @@ pub fn tcp_accept(
     let CapabilityInner::Listener(listener) = listener.0.as_ref() else {
         return ResultValue::error("capability is not a TCP listener");
     };
-    let duration = match timeout(deadline_ms) {
+    let deadline = match operation_deadline(deadline_ms, "TCP accept deadline") {
         Ok(value) => value,
         Err(error) => return error,
     };
-    let listener = {
-        let guard = listener.lock().expect("listener lock poisoned");
-        let Some(listener) = guard.as_ref() else {
-            return ResultValue::error("listener is closed");
-        };
-        match listener.try_clone() {
-            Ok(value) => value,
-            Err(error) => return io_error("TCP listener clone", &error),
+    let guard = listener.lock().expect("listener lock poisoned");
+    let Some(listener) = guard.as_ref() else {
+        return ResultValue::error("listener is closed");
+    };
+    loop {
+        if let Some(error) = cancellation_error(cancellation) {
+            return error;
         }
-    };
-    let runtime = match network_runtime() {
-        Ok(value) => value,
-        Err(error) => return error,
-    };
-    let enter = runtime.enter();
-    let listener = match tokio::net::TcpListener::from_std(listener) {
-        Ok(value) => value,
-        Err(error) => return io_error("TCP accept configuration", &error),
-    };
-    drop(enter);
-    let accepted = runtime.block_on(async {
-        let cancellation_wait = async {
-            loop {
-                if is_cancelled(cancellation).unwrap_or(true) {
-                    break;
-                }
-                tokio::time::sleep(Duration::from_millis(10)).await;
+        match listener.accept() {
+            Ok((stream, peer)) => {
+                return ResultValue {
+                    text: peer.to_string(),
+                    capability: Some(Capability(Arc::new(CapabilityInner::Tcp(Mutex::new(
+                        Some(stream),
+                    ))))),
+                    ..ResultValue::default()
+                };
             }
-        };
-        tokio::select! {
-            result = tokio::time::timeout(duration, listener.accept()) => Some(result),
-            () = cancellation_wait => None,
+            Err(error) if error.kind() == std::io::ErrorKind::WouldBlock => {
+                let now = Instant::now();
+                if now >= deadline {
+                    return deadline_error("TCP accept deadline exceeded");
+                }
+                std::thread::sleep((deadline - now).min(CANCELLATION_QUANTUM));
+            }
+            Err(error) => return io_error("TCP accept", &error),
         }
-    });
-    let (stream, peer) = match accepted {
-        None => return ResultValue::error("operation cancelled"),
-        Some(Err(_)) => {
-            return ResultValue {
-                failed: true,
-                deadline_exceeded: true,
-                message: "TCP accept deadline exceeded".to_owned(),
-                ..ResultValue::default()
-            };
-        }
-        Some(Ok(Err(error))) => return io_error("TCP accept", &error),
-        Some(Ok(Ok(value))) => value,
-    };
-    let stream = match stream.into_std() {
-        Ok(value) => value,
-        Err(error) => return io_error("TCP accept", &error),
-    };
-    if let Err(error) = stream.set_nonblocking(false) {
-        return io_error("TCP accept configuration", &error);
-    }
-    ResultValue {
-        text: peer.to_string(),
-        capability: Some(Capability(Arc::new(CapabilityInner::Tcp(Mutex::new(
-            Some(stream),
-        ))))),
-        ..ResultValue::default()
     }
 }
 pub fn tcp_read(
@@ -1544,15 +1519,11 @@ pub fn dns_lookup(
     let Ok(port) = u16::try_from(port) else {
         return ResultValue::error("port must be in 0..=65535");
     };
-    let runtime = match network_runtime() {
-        Ok(value) => value,
-        Err(error) => return error,
-    };
     let resolver = match dns_resolver() {
         Ok(value) => value,
         Err(error) => return error,
     };
-    let lookup = runtime.block_on(async {
+    let lookup = match network_block_on(async {
         let cancellation_wait = async {
             loop {
                 if is_cancelled(cancellation).unwrap_or(true) {
@@ -1565,7 +1536,10 @@ pub fn dns_lookup(
             result = tokio::time::timeout(duration, resolver.lookup_ip(host)) => Some(result),
             () = cancellation_wait => None,
         }
-    });
+    }) {
+        Ok(value) => value,
+        Err(error) => return error,
+    };
     match lookup {
         None => ResultValue::error("operation cancelled"),
         Some(Ok(Ok(values))) => {

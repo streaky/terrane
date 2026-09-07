@@ -8,10 +8,10 @@ class point
 async function make point;
   return instance point; 5
 
-function main;
+async function main;
   scope = task-scope;
   child = scope.spawn; make
-  outcome = scope.join; move child
+  outcome = await scope.join; move child
   value = outcome.value
   if value != none
     print; 'present'

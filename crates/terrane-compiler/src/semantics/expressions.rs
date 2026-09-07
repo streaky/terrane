@@ -543,9 +543,10 @@ pub(super) fn infer_value_type(
                         };
                         let task = task.children.last().unwrap_or(task);
                         match infer_value_type(unit, task, bindings)? {
-                            Some(ValueType::ScopedTask(result, _)) => {
-                                Ok(Some(ValueType::TaskOutcome(result)))
-                            }
+                            Some(ValueType::ScopedTask(result, _)) => Ok(Some(ValueType::Task(
+                                ElementType::new(ValueType::TaskOutcome(result)),
+                                TaskTransferability::Local,
+                            ))),
                             _ => Err(failure(
                                 &unit.source,
                                 "T0074",

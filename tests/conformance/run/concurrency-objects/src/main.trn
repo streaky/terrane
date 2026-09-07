@@ -14,7 +14,7 @@ class async-runner
         callback = this.callback
         callback;
 
-function main;
+async function main;
     options = instance concurrency-operation-options; 30_000, (instance concurrency-cancellation-token;)
     messages = instance int-channel; 0
     counter = instance int-mutex; 4
@@ -25,7 +25,7 @@ function main;
     scope = task-scope;
     child = scope.spawn; worker.run
     received = messages.receive; options
-    outcome = scope.join; move child
+    outcome = await scope.join; move child
     print; messages.failed
     invalid-channel = instance int-channel; -1
     print; invalid-channel.failed

@@ -30,18 +30,27 @@ impl Emitter<'_> {
                     let throws = self
                         .contract_for_call(callable)
                         .is_some_and(|contract| contract.throws);
+                    let foreign_error = callable.kind == SyntaxKind::Name
+                        && self
+                            .package
+                            .resolve_name_at(self.unit, callable.span.start, self.text(callable))
+                            .is_some_and(|symbol| symbol.identity.starts_with("/deps/"));
                     let callable = if let Some(value_type) = self.value_type(callable) {
                         self.expression_as(callable, value_type)
                     } else {
                         self.expression(callable)
                     };
-                    if throws {
+                    if foreign_error {
                         format!(
-                            "{{ let __terrane_scope = ({receiver}).clone(); let __terrane_cancel = __terrane_scope.clone(); TerraneScopedTask::spawn(move || match __terrane_block_on_cancellable(({callable})(), move || __terrane_cancel.should_cancel()) {{ Some(Ok(value)) => TerraneTaskResult::Completed(value), Some(Err(error)) => TerraneTaskResult::Failed(error), None => TerraneTaskResult::Cancelled }}) }}"
+                            "{{ let __terrane_scope = ({receiver}).clone(); let __terrane_cancel = __terrane_scope.clone(); TerraneScopedTask::spawn(async move {{ match __terrane_cancellable(({callable})(), move || __terrane_cancel.should_cancel()).await {{ Some(Ok(value)) => TerraneTaskResult::Completed(value), Some(Err(error)) => TerraneTaskResult::Failed(crate::TerraneRaised::raised(error, crate::TERRANE_NO_SITE)), None => TerraneTaskResult::Cancelled }} }}) }}"
+                        )
+                    } else if throws {
+                        format!(
+                            "{{ let __terrane_scope = ({receiver}).clone(); let __terrane_cancel = __terrane_scope.clone(); TerraneScopedTask::spawn(async move {{ match __terrane_cancellable(({callable})(), move || __terrane_cancel.should_cancel()).await {{ Some(Ok(value)) => TerraneTaskResult::Completed(value), Some(Err(error)) => TerraneTaskResult::Failed(error), None => TerraneTaskResult::Cancelled }} }}) }}"
                         )
                     } else {
                         format!(
-                            "{{ let __terrane_scope = ({receiver}).clone(); let __terrane_cancel = __terrane_scope.clone(); TerraneScopedTask::spawn(move || match __terrane_block_on_cancellable(({callable})(), move || __terrane_cancel.should_cancel()) {{ Some(value) => TerraneTaskResult::Completed(value), None => TerraneTaskResult::Cancelled }}) }}"
+                            "{{ let __terrane_scope = ({receiver}).clone(); let __terrane_cancel = __terrane_scope.clone(); TerraneScopedTask::spawn(async move {{ match __terrane_cancellable(({callable})(), move || __terrane_cancel.should_cancel()).await {{ Some(value) => TerraneTaskResult::Completed(value), None => TerraneTaskResult::Cancelled }} }}) }}"
                         )
                     }
                 }),

@@ -455,13 +455,13 @@ mod __terrane_trace {
             }
         },
         {
-            /* terrane-site-row: site 3: /app::main (src/main.trn:13:29-13:50) */
+            /* terrane-site-row: site 3: /app::main (src/main.trn:19:29-19:50) */
             Site {
                 function: 0,
                 file: 0,
-                line: 13,
+                line: 19,
                 column: 29,
-                end_line: 13,
+                end_line: 19,
                 end_column: 50,
             }
         },
@@ -501,11 +501,11 @@ async fn __terrane_await<F: Future>(future: F) -> F::Output {
     output
 }
 fn __terrane_run<F: Future>(future: F) -> F::Output {
-    tokio::runtime::Builder::new_current_thread()
+    let runtime = tokio::runtime::Builder::new_current_thread()
         .enable_all()
         .build()
-        .expect("Terrane async runtime must initialize")
-        .block_on(future)
+        .expect("Terrane async runtime must initialize");
+    tokio::task::LocalSet::new().block_on(&runtime, future)
 }
 async fn __terrane_dependency_await_unwind<F: Future>(
     future: F,
@@ -521,6 +521,127 @@ async fn __terrane_dependency_await_unwind<F: Future>(
             }
         })
         .await
+}
+async fn __terrane_cancellable<F: Future>(
+    future: F,
+    cancelled: impl Fn() -> bool,
+) -> Option<F::Output> {
+    let mut future = std::pin::pin!(future);
+    loop {
+        if cancelled() {
+            return None;
+        }
+        tokio::select! {
+            output = & mut future => return Some(output), () =
+            tokio::time::sleep(std::time::Duration::from_millis(1)) => {}
+        }
+    }
+}
+#[derive(Clone)]
+pub struct TerraneTaskScope {
+    cancelled: std::sync::Arc<std::sync::atomic::AtomicBool>,
+    deadline: Option<std::time::Instant>,
+}
+impl TerraneTaskScope {
+    pub fn new(deadline_ms: Option<u64>) -> Self {
+        Self {
+            cancelled: std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false)),
+            deadline: deadline_ms
+                .map(|milliseconds| {
+                    std::time::Instant::now()
+                        + std::time::Duration::from_millis(milliseconds)
+                }),
+        }
+    }
+    pub fn child_scope(&self, deadline_ms: u64) -> Self {
+        let requested = std::time::Instant::now()
+            + std::time::Duration::from_millis(deadline_ms);
+        Self {
+            cancelled: self.cancelled.clone(),
+            deadline: Some(
+                self.deadline.map_or(requested, |parent| parent.min(requested)),
+            ),
+        }
+    }
+    pub fn cancel(&self) {
+        self.cancelled.store(true, std::sync::atomic::Ordering::Release);
+    }
+    pub fn should_cancel(&self) -> bool {
+        self.cancelled.load(std::sync::atomic::Ordering::Acquire)
+            || self
+                .deadline
+                .is_some_and(|deadline| std::time::Instant::now() >= deadline)
+    }
+    pub async fn join<T>(
+        &self,
+        mut task: TerraneScopedTask<T>,
+    ) -> TerraneTaskOutcome<T> {
+        let result = task
+            .handle
+            .take()
+            .expect("scoped task joined once")
+            .await
+            .expect("scoped task must not panic outside its Terrane boundary");
+        outcome_from_result(self, result)
+    }
+}
+#[allow(
+    dead_code,
+    reason = "task result ABI is emitted before per-variant usage shaping"
+)]
+enum TerraneTaskResult<T> {
+    Completed(T),
+    Failed(TerraneError),
+    Cancelled,
+}
+pub struct TerraneScopedTask<T> {
+    handle: Option<tokio::task::JoinHandle<TerraneTaskResult<T>>>,
+}
+impl<T: 'static> TerraneScopedTask<T> {
+    #[allow(dead_code, reason = "task spawn ABI is emitted before usage shaping")]
+    fn spawn<F: Future<Output = TerraneTaskResult<T>> + 'static>(work: F) -> Self {
+        Self {
+            handle: Some(tokio::task::spawn_local(work)),
+        }
+    }
+}
+fn outcome_from_result<T>(
+    scope: &TerraneTaskScope,
+    result: TerraneTaskResult<T>,
+) -> TerraneTaskOutcome<T> {
+    match result {
+        TerraneTaskResult::Completed(value) => {
+            TerraneTaskOutcome {
+                completed: true,
+                cancelled: scope.should_cancel(),
+                value: Some(value),
+                error: None,
+            }
+        }
+        TerraneTaskResult::Failed(error) => {
+            scope.cancel();
+            TerraneTaskOutcome {
+                completed: false,
+                cancelled: false,
+                value: None,
+                error: Some(error),
+            }
+        }
+        TerraneTaskResult::Cancelled => {
+            TerraneTaskOutcome {
+                completed: false,
+                cancelled: true,
+                value: None,
+                error: None,
+            }
+        }
+    }
+}
+pub struct TerraneTaskOutcome<T> {
+    pub completed: bool,
+    pub cancelled: bool,
+    pub value: Option<T>,
+    pub error: Option<TerraneError>,
 }
 // Source: src/main.trn
 // Namespace: app
@@ -570,12 +691,63 @@ fn main() {
             2 /* terrane-site: src/main.trn:10:26-10:44 */,
         );
         println!("{}", terrane_scalar_support::scalar_text(&message));
+        let scope: TerraneTaskScope = TerraneTaskScope::new(None);
+        let waiting: TerraneScopedTask<String> = {
+            let __terrane_scope = scope.clone();
+            let __terrane_cancel = __terrane_scope.clone();
+            TerraneScopedTask::spawn(async move {
+                match __terrane_cancellable(
+                        wait_for_sibling(),
+                        move || __terrane_cancel.should_cancel(),
+                    )
+                    .await
+                {
+                    Some(Ok(value)) => TerraneTaskResult::Completed(value),
+                    Some(Err(error)) => {
+                        TerraneTaskResult::Failed(
+                            crate::TerraneRaised::raised(error, crate::TERRANE_NO_SITE),
+                        )
+                    }
+                    None => TerraneTaskResult::Cancelled,
+                }
+            })
+        };
+        let signalling: TerraneScopedTask<String> = {
+            let __terrane_scope = scope.clone();
+            let __terrane_cancel = __terrane_scope.clone();
+            TerraneScopedTask::spawn(async move {
+                match __terrane_cancellable(
+                        signal_sibling(),
+                        move || __terrane_cancel.should_cancel(),
+                    )
+                    .await
+                {
+                    Some(Ok(value)) => TerraneTaskResult::Completed(value),
+                    Some(Err(error)) => {
+                        TerraneTaskResult::Failed(
+                            crate::TerraneRaised::raised(error, crate::TERRANE_NO_SITE),
+                        )
+                    }
+                    None => TerraneTaskResult::Cancelled,
+                }
+            })
+        };
+        let waited: TerraneTaskOutcome<String> = __terrane_await(scope.join(waiting))
+            .await;
+        let signalled: TerraneTaskOutcome<String> = __terrane_await(
+                scope.join(signalling),
+            )
+            .await;
+        println!(
+            "{}{}", terrane_scalar_support::scalar_text(&waited.completed),
+            terrane_scalar_support::scalar_text(&signalled.completed)
+        );
         let __terrane_completion_0: TerraneCompletion<()> = async {
             let __terrane_try_0: TerraneCompletion<()> = async {
                 let rejected: String = __terrane_traced_completion!(
                     __terrane_await({ let __terrane_future =
                     checked_echo(String::from("reject")); async move {
-                    __terrane_raised_err(__terrane_future. await, 3 /* terrane-site: src/main.trn:13:29-13:50 */) } }). await, 3 /* terrane-site: src/main.trn:13:29-13:50 */
+                    __terrane_raised_err(__terrane_future. await, 3 /* terrane-site: src/main.trn:19:29-19:50 */) } }). await, 3 /* terrane-site: src/main.trn:19:29-19:50 */
                 );
                 println!("{}", terrane_scalar_support::scalar_text(&rejected));
                 TerraneCompletion::Normal
@@ -671,6 +843,21 @@ pub async fn echo_after_yield(
         }
     }
 }
+pub async fn signal_sibling() -> Result<String, crate::TerraneForeignError> {
+    match crate::__terrane_dependency_await_unwind(async_witness::signal_sibling()).await
+    {
+        Ok(value) => Ok(value),
+        Err(payload) => {
+            Err(
+                crate::__terrane_dependency_panic(
+                    payload,
+                    "async-witness",
+                    "async_witness::signal_sibling",
+                ),
+            )
+        }
+    }
+}
 pub async fn socket_round_trip() -> Result<String, crate::TerraneForeignError> {
     match crate::__terrane_dependency_await_unwind(async_witness::socket_round_trip())
         .await
@@ -701,6 +888,22 @@ pub async fn timer_poll_count() -> Result<
                     payload,
                     "async-witness",
                     "async_witness::timer_poll_count",
+                ),
+            )
+        }
+    }
+}
+pub async fn wait_for_sibling() -> Result<String, crate::TerraneForeignError> {
+    match crate::__terrane_dependency_await_unwind(async_witness::wait_for_sibling())
+        .await
+    {
+        Ok(value) => Ok(value),
+        Err(payload) => {
+            Err(
+                crate::__terrane_dependency_panic(
+                    payload,
+                    "async-witness",
+                    "async_witness::wait_for_sibling",
                 ),
             )
         }

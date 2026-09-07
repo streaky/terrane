@@ -3696,10 +3696,11 @@ timeout, stream-cancellation, and network-deadline contracts elsewhere in this d
 defined against it.
 
 An async invocation produces a linear `task of T`. `await` consumes that task exactly once. A scope's
-`spawn` method instead produces a linear `scoped-task of T` owned by that scope, and the scope's
-`join` method consumes it exactly once and returns `task-outcome of T`. Leaving either kind
-unconsumed is a compile-time error; ordinary drop never silently detaches or cancels it. Detached
-tasks, when supplied, use a separate explicit operation and lifetime contract.
+`spawn` method instead produces a linear `scoped-task of T` owned by that scope. `join` consumes the
+scoped task exactly once and constructs a `task of task-outcome of T`; `await scope.join; move child`
+consumes that join task and observes the outcome. Leaving either kind unconsumed is a compile-time
+error; ordinary drop never silently detaches or cancels it. Detached tasks, when supplied, use a
+separate explicit operation and lifetime contract.
 
 `task-outcome of T` has these observations:
 
