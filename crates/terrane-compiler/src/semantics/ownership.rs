@@ -318,7 +318,13 @@ pub(super) fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFa
             if let Some(binding) = transferred {
                 moved.insert(binding);
             }
-            if node.kind == SyntaxKind::Assignment
+            if let Some(binding) = unit
+                .typed_bindings
+                .iter()
+                .position(|binding| binding.span == node.span)
+            {
+                moved.remove(&binding);
+            } else if node.kind == SyntaxKind::Assignment
                 && let Some(name) = node
                     .children
                     .iter()

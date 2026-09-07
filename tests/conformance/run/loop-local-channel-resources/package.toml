@@ -1,0 +1,5 @@
+package = "loop-local-channel-resources"
+executor = "cooperative"
+
+[namespaces]
+app = "src"

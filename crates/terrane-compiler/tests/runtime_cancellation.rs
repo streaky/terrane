@@ -42,8 +42,42 @@ impl Future for ReadyAfterCancellation {
     }
 }
 
+struct ReadyOnRePoll {
+    polled: bool,
+    cancelled: Arc<AtomicBool>,
+}
+
+impl Future for ReadyOnRePoll {
+    type Output = i32;
+
+    fn poll(mut self: Pin<&mut Self>, context: &mut Context<'_>) -> Poll<Self::Output> {
+        if self.polled {
+            Poll::Ready(7)
+        } else {
+            self.polled = true;
+            self.cancelled.store(true, Ordering::Release);
+            context.waker().wake_by_ref();
+            Poll::Pending
+        }
+    }
+}
+
 #[test]
-fn running_child_stops_at_await_after_scope_cancellation() {
+fn ready_woken_completion_wins_over_cancellation_before_repoll() {
+    let cancelled = Arc::new(AtomicBool::new(false));
+    let future = ReadyOnRePoll {
+        polled: false,
+        cancelled: cancelled.clone(),
+    };
+
+    assert_eq!(
+        __terrane_block_on_cancellable(future, || cancelled.load(Ordering::Acquire)),
+        Some(7)
+    );
+}
+
+#[test]
+fn running_child_keeps_ready_await_completion_after_scope_cancellation() {
     let scope = TerraneTaskScope::new(None);
     let cancelled = scope.cancelled.clone();
     let (reached_await, child_is_waiting) = mpsc::channel();
@@ -72,9 +106,9 @@ fn running_child_stops_at_await_after_scope_cancellation() {
     scope.cancel();
     let outcome = scope.join(child);
 
-    assert!(!outcome.completed);
+    assert!(outcome.completed);
     assert!(outcome.cancelled);
-    assert!(outcome.value.is_none());
+    assert!(outcome.value.is_some());
     assert!(outcome.error.is_none());
-    assert!(!progressed_after_await.load(Ordering::Acquire));
+    assert!(progressed_after_await.load(Ordering::Acquire));
 }

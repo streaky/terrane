@@ -433,24 +433,24 @@ mod __terrane_trace {
             }
         },
         {
-            /* terrane-site-row: site 1: /app::main (src/main.trn:173:60-173:81) */
+            /* terrane-site-row: site 1: /app::main (src/main.trn:174:60-174:81) */
             Site {
                 function: 0,
                 file: 0,
-                line: 173,
+                line: 174,
                 column: 60,
-                end_line: 173,
+                end_line: 174,
                 end_column: 81,
             }
         },
         {
-            /* terrane-site-row: site 2: /app::main (src/main.trn:178:44-178:65) */
+            /* terrane-site-row: site 2: /app::main (src/main.trn:179:44-179:65) */
             Site {
                 function: 0,
                 file: 0,
-                line: 178,
+                line: 179,
                 column: 44,
-                end_line: 178,
+                end_line: 179,
                 end_column: 65,
             }
         },
@@ -661,9 +661,9 @@ async fn __terrane_cancel_operation<F: Future>(
         .flatten();
     if let Some((cancellation, deadline, finalizers)) = cancellation {
         tokio::select! {
-            biased; () = async { __terrane_cancellation_requested(cancellation, deadline)
-            . await; finalizers.reaches(guard.depth). await; } => None, output = future
-            => Some(output),
+            biased; output = future => Some(output), () = async {
+            __terrane_cancellation_requested(cancellation, deadline). await; finalizers
+            .reaches(guard.depth). await; } => None,
         }
     } else {
         Some(future.await)
@@ -715,9 +715,9 @@ async fn __terrane_cancellable<F: Future>(
             context,
             async {
                 tokio::select! {
-                    biased; () = async { __terrane_cancellation_requested(cancellation,
-                    deadline). await; finalizers.reaches(0). await; } => None, output =
-                    future => Some(output),
+                    biased; output = future => Some(output), () = async {
+                    __terrane_cancellation_requested(cancellation, deadline). await;
+                    finalizers.reaches(0). await; } => None,
                 }
             },
         )
@@ -1791,6 +1791,7 @@ fn main() {
                 Box::pin(rendezvous_rx.receive()),
             )
             .await;
+        rendezvous_scope.cancel();
         let rendezvous_delivered: TerraneTaskOutcome<
             TerraneChannelSendOutcome<String>,
         > = __terrane_await(rendezvous_scope.join(rendezvous_pending)).await;
@@ -1801,8 +1802,10 @@ fn main() {
         if rendezvous_value.is_some() {
             if rendezvous_outcome.is_some() {
                 println!(
-                    "{}{}", terrane_scalar_support::scalar_text(&* rendezvous_value
+                    "{}{}{}{}", terrane_scalar_support::scalar_text(&* rendezvous_value
                     .as_ref().expect("semantic optional narrowing")),
+                    terrane_scalar_support::scalar_text(&rendezvous_delivered.completed),
+                    terrane_scalar_support::scalar_text(&rendezvous_delivered.cancelled),
                     terrane_scalar_support::scalar_text(&rendezvous_outcome.as_ref()
                     .expect("semantic optional narrowing").accepted)
                 );
@@ -1914,8 +1917,8 @@ fn main() {
                 terrane_scalar_support::scalar_text(&__terrane_raised(batch_value
                 .as_ref().expect("semantic optional narrowing").values
                 .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
-                1 /* terrane-site: src/main.trn:173:60-173:81 */)),
-                1 /* terrane-site: src/main.trn:173:60-173:81 */))
+                1 /* terrane-site: src/main.trn:174:60-174:81 */)),
+                1 /* terrane-site: src/main.trn:174:60-174:81 */))
             );
         }
         let resource_pair: TerraneChannelPair<Outgoing> = TerraneChannelPair::new(
@@ -1933,7 +1936,7 @@ fn main() {
                         .send(
                             __terrane_raised(
                                 remotely_closed_sink(),
-                                2 /* terrane-site: src/main.trn:178:44-178:65 */,
+                                2 /* terrane-site: src/main.trn:179:44-179:65 */,
                             ),
                         ),
                 ),

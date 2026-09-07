@@ -122,12 +122,13 @@ async function main;
   rendezvous-scope = task-scope;
   rendezvous-pending = rendezvous-scope.spawn; (rendezvous-tx.send; 'handed-over')
   rendezvous-received = await rendezvous-rx.receive;
+  rendezvous-scope.cancel;
   rendezvous-delivered = await rendezvous-scope.join; rendezvous-pending
   rendezvous-value = rendezvous-received.value
   rendezvous-outcome = rendezvous-delivered.value
   if rendezvous-value != none
     if rendezvous-outcome != none
-      print; rendezvous-value, rendezvous-outcome.accepted
+      print; rendezvous-value, rendezvous-delivered.completed, rendezvous-delivered.cancelled, rendezvous-outcome.accepted
   rendezvous-tx.close;
   rendezvous-remaining = rendezvous-rx.close;
   print; rendezvous-remaining.length
