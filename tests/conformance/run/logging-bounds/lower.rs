@@ -762,10 +762,11 @@ fn main() {
         dropping.clone(),
     );
     println!(
-        "{}{}{}", terrane_scalar_support::scalar_text(&first.failed),
+        "{}{}{}{}", terrane_scalar_support::scalar_text(&first.failed),
         terrane_scalar_support::scalar_text(&second.failed),
         terrane_scalar_support::scalar_text(&terrane_int_support::Int::from(dropped_records
-        .length()))
+        .length())), terrane_scalar_support::scalar_text(&discarded_count(dropping
+        .clone()))
     );
     println!(
         "{}{}", terrane_scalar_support::scalar_text(&__terrane_raised(dropped_records
@@ -955,7 +956,7 @@ pub fn critical_level() -> LogLevel {
         terrane_int_support::Int::from(60_i128),
     );
 }
-pub trait LogValueProtocol {
+pub trait LogValueProtocol: Send + Sync {
     fn clone_box(&self) -> Box<dyn LogValueProtocol>;
     fn separate_box(&self) -> Box<dyn LogValueProtocol>;
     fn render(&self) -> DocumentValue;
@@ -1749,6 +1750,11 @@ pub fn error(
         message.clone(),
         "core/logging.trn:262:12".to_owned(),
         fields.clone(),
+    );
+}
+pub fn discarded_count(value: Logger) -> terrane_int_support::Int {
+    return terrane_int_support::Int::from(
+        i128::from(terrane_platform_support::logging_discarded_count(&value.sink.handle)),
     );
 }
 pub fn drain_memory(value: Logger) -> terrane_collection_support::List<String> {

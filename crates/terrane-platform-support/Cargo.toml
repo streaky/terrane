@@ -11,7 +11,7 @@ flate2 = "1"
 getrandom = "0.3"
 hickory-resolver = "0.25"
 hostname = "0.4"
-log = "0.4"
+log = { version = "0.4", features = ["kv_serde"] }
 idna = "1"
 hmac = "0.12"
 rand_chacha = "0.9"
@@ -23,7 +23,6 @@ tokio = { version = "1", features = ["io-util", "net", "rt-multi-thread", "sync"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 tracing = "0.1"
-tracing-log = "0.2"
 tracing-subscriber = { version = "0.3", default-features = false, features = ["registry"] }
 tokio-rustls = "0.26"
 uuid = "1"

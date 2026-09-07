@@ -4,7 +4,7 @@ from /core/output import print
 from /core/collections import list
 from /core/documents import document-value, make-document-string
 from /core/logging import log-value, log-field, log-event, field, secret-field, log-text, log-error, memory-sink, console-sink, failing-sink, make-logger-options, make-logger, default-logger, with-field, with-span, make-event, write-event, emit, drain-memory, drain-fallback, debug-level, info-level, info
-from /core/logging/async import send-event
+from /core/logging/async import send-event, consume-events
 from /core/concurrency import channel, channel-block
 from /core/errors import coercion-error
 
@@ -65,7 +65,8 @@ async function main;
         error-records = drain-memory; writer
         print; error-write.failed, error-records.length, (error-records[0].contains; 'coercion-error')
     failed-sink = failing-sink;
-    failed-logger = default-logger; failed-sink.value
+    failed-target = failed-sink.value
+    failed-logger = default-logger; failed-target
     failed-write = info; failed-logger, 'cannot-write', empty-fields
     fallback = drain-fallback;
     print; failed-write.failed, fallback.length, (fallback[0].contains; 'event rejected')
@@ -75,13 +76,41 @@ async function main;
     console-write = info; console, 'visible', empty-fields
     print; console-write.failed
 
+    adapter-pair = channel; log-event, 1, channel-block
+    adapter-producer = adapter-pair.sender
+    adapter-receiver = adapter-pair.receiver
+    adapter-sent = await send-event; adapter-producer, (make-event; (info-level;), 'adapter', empty-fields)
+    adapter-received = await adapter-receiver.receive;
+    print; adapter-sent, adapter-received.available
+
+    async-sink = memory-sink; 4, 'reject', 3000, 1, false
+    async-target = async-sink.value
+    async-writer = default-logger; async-target
     pair = channel; log-event, 1, channel-block
-    async-event = make-event; (info-level;), 'transported', empty-fields
-    sent = await send-event; pair.sender, async-event
-    received = await pair.receiver.receive;
-    transported = received.value
-    if transported != none
-        transported-write = write-event; writer, transported
-        print; sent, received.available, transported-write.failed
-    transported-records = drain-memory; writer
-    print; transported-records.length, (transported-records[0].contains; '"message":"transported"')
+    producer = pair.sender
+    receiver = pair.receiver
+    consumer-scope = task-scope;
+    consumer = consumer-scope.spawn; (consume-events; async-target, receiver)
+    first-sent = await producer.send; (make-event; (info-level;), 'transported-one', empty-fields)
+    second-sent = await producer.send; (make-event; (info-level;), 'transported-two', empty-fields)
+    producer.close;
+    consumed = await consumer-scope.join; consumer
+    consumed-value = consumed.value
+    if consumed-value != none
+        print; first-sent.accepted, second-sent.accepted, consumed.completed, consumed-value
+    transported-records = drain-memory; async-writer
+    print; transported-records.length, (transported-records[0].contains; '"message":"transported-one"'), (transported-records[1].contains; '"message":"transported-two"')
+
+    failing-pair = channel; log-event, 1, channel-block
+    failing-producer = failing-pair.sender
+    failing-receiver = failing-pair.receiver
+    failing-scope = task-scope;
+    failing-consumer = failing-scope.spawn; (consume-events; failed-target, failing-receiver)
+    failing-sent = await failing-producer.send; (make-event; (info-level;), 'transport-failure', empty-fields)
+    failing-producer.close;
+    failing-consumed = await failing-scope.join; failing-consumer
+    failing-consumed-value = failing-consumed.value
+    if failing-consumed-value != none
+        print; failing-sent.accepted, failing-consumed.completed, failing-consumed-value
+    async-fallback = drain-fallback;
+    print; async-fallback.length, (async-fallback[0].contains; 'event rejected')

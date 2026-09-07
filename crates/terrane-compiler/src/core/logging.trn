@@ -261,6 +261,9 @@ function warning log-outcome; value logger, message string, fields list of log-f
 function error log-outcome; value logger, message string, fields list of log-field
     return emit; value, (error-level;), message, fields
 
+function discarded-count int; value logger
+    return host-log-discarded-count; value.sink.handle
+
 function drain-memory list of string; value logger
     return host-log-result-entries; (host-log-drain; value.sink.handle)
 

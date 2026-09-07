@@ -7,8 +7,13 @@ use std::sync::{
 use tracing::{
     Event, Subscriber,
     field::{Field, Visit},
+    span::{Attributes, Id, Record},
 };
-use tracing_subscriber::{Layer, layer::Context, layer::SubscriberExt};
+use tracing_subscriber::{
+    Layer, Registry,
+    layer::{Context, SubscriberExt},
+    registry::LookupSpan,
+};
 
 #[derive(Clone, Debug)]
 pub struct LogFieldInput {
@@ -83,6 +88,7 @@ struct LogSink {
     next_timestamp: u64,
     timestamp_step: u64,
     next_sequence: u64,
+    discarded_count: u64,
     reveal_secrets: bool,
 }
 
@@ -118,6 +124,7 @@ pub fn memory_sink(
         next_timestamp: start_timestamp,
         timestamp_step,
         next_sequence: 0,
+        discarded_count: 0,
         reveal_secrets,
     })
 }
@@ -130,6 +137,7 @@ pub fn console_sink(reveal_secrets: bool) -> Result<u64, String> {
         next_timestamp: 0,
         timestamp_step: 1,
         next_sequence: 0,
+        discarded_count: 0,
         reveal_secrets,
     })
 }
@@ -142,6 +150,7 @@ pub fn failing_sink() -> Result<u64, String> {
         next_timestamp: 0,
         timestamp_step: 1,
         next_sequence: 0,
+        discarded_count: 0,
         reveal_secrets: false,
     })
 }
@@ -203,9 +212,13 @@ pub fn emit(id: u64, input: LogEventInput) -> Result<(), String> {
         SinkKind::Memory(events) => {
             if events.len() == sink.capacity {
                 match sink.overflow {
-                    OverflowPolicy::DropNewest => return Ok(()),
+                    OverflowPolicy::DropNewest => {
+                        sink.discarded_count = sink.discarded_count.saturating_add(1);
+                        return Ok(());
+                    }
                     OverflowPolicy::DropOldest => {
                         events.pop_front();
+                        sink.discarded_count = sink.discarded_count.saturating_add(1);
                     }
                     OverflowPolicy::Reject => {
                         return Err("logging sink capacity is exhausted".to_owned());
@@ -233,6 +246,14 @@ pub fn drain_memory(id: u64) -> Result<Vec<String>, String> {
         SinkKind::Memory(events) => Ok(events.drain(..).collect()),
         _ => Err("logging sink is not a memory sink".to_owned()),
     }
+}
+
+pub fn discarded_count(id: u64) -> u64 {
+    SINKS
+        .lock()
+        .ok()
+        .and_then(|sinks| sinks.get(&id).map(|sink| sink.discarded_count))
+        .unwrap_or(0)
 }
 
 pub fn drain_fallback() -> Result<Vec<String>, String> {
@@ -263,11 +284,21 @@ struct DependencyVisitor {
     message: Option<String>,
     fields: Vec<LogFieldInput>,
     source: String,
+    capture_message: bool,
 }
 
 impl DependencyVisitor {
+    fn new(source: String, capture_message: bool) -> Self {
+        Self {
+            message: None,
+            fields: Vec::new(),
+            source,
+            capture_message,
+        }
+    }
+
     fn record_value(&mut self, field: &Field, value: serde_json::Value) {
-        if field.name() == "message" {
+        if self.capture_message && field.name() == "message" {
             self.message = Some(match value {
                 serde_json::Value::String(value) => value,
                 value => value.to_string(),
@@ -297,10 +328,16 @@ impl Visit for DependencyVisitor {
     }
 
     fn record_f64(&mut self, field: &Field, value: f64) {
-        self.record_value(
-            field,
-            serde_json::Number::from_f64(value).map_or(serde_json::Value::Null, Into::into),
-        );
+        if let Some(value) = serde_json::Number::from_f64(value) {
+            self.record_value(field, value.into());
+        } else {
+            self.fields.push(LogFieldInput {
+                name: format!("{}.debug", field.name()),
+                value_json: serde_json::Value::String(value.to_string()).to_string(),
+                secret: false,
+                source: self.source.clone(),
+            });
+        }
     }
 
     fn record_str(&mut self, field: &Field, value: &str) {
@@ -308,11 +345,27 @@ impl Visit for DependencyVisitor {
     }
 
     fn record_debug(&mut self, field: &Field, value: &dyn std::fmt::Debug) {
-        self.record_value(field, serde_json::Value::String(format!("{value:?}")));
+        if self.capture_message && field.name() == "message" {
+            self.message = Some(format!("{value:?}"));
+        } else {
+            self.fields.push(LogFieldInput {
+                name: format!("{}.debug", field.name()),
+                value_json: serde_json::Value::String(format!("{value:?}")).to_string(),
+                secret: false,
+                source: self.source.clone(),
+            });
+        }
     }
 }
 
-struct DependencySinkLayer {
+#[derive(Clone, Debug)]
+struct DependencySpan {
+    name: String,
+    source: String,
+    fields: Vec<LogFieldInput>,
+}
+
+pub struct DependencySinkLayer {
     sink: u64,
 }
 
@@ -337,14 +390,63 @@ fn stable_dependency_file(value: &str) -> String {
         .unwrap_or_else(|| "<unknown-file>".to_owned())
 }
 
-impl<S: Subscriber> Layer<S> for DependencySinkLayer {
-    fn on_event(&self, event: &Event<'_>, _context: Context<'_, S>) {
-        let metadata = event.metadata();
-        let mut visitor = DependencyVisitor {
-            message: None,
-            fields: Vec::new(),
-            source: String::new(),
+fn dependency_source(module: Option<&str>, file: Option<&str>, line: Option<u32>) -> String {
+    let module = module.unwrap_or("<unknown-module>");
+    let file = stable_dependency_file(file.unwrap_or("<unknown-file>"));
+    let line = line.unwrap_or(0);
+    format!("dependency://{module}@{file}:{line}")
+}
+
+fn emit_dependency(sink: u64, input: LogEventInput) {
+    if let Err(error) = emit(sink, input) {
+        let _ = record_fallback(format!("dependency log event rejected: {error}"));
+    }
+}
+
+impl<S> Layer<S> for DependencySinkLayer
+where
+    S: Subscriber + for<'lookup> LookupSpan<'lookup>,
+{
+    fn on_new_span(&self, attrs: &Attributes<'_>, id: &Id, context: Context<'_, S>) {
+        let metadata = attrs.metadata();
+        let source = dependency_source(metadata.module_path(), metadata.file(), metadata.line());
+        let mut visitor = DependencyVisitor::new(source.clone(), false);
+        attrs.record(&mut visitor);
+        if let Some(span) = context.span(id) {
+            span.extensions_mut().insert(DependencySpan {
+                name: metadata.name().to_owned(),
+                source,
+                fields: visitor.fields,
+            });
+        }
+    }
+
+    fn on_record(&self, id: &Id, values: &Record<'_>, context: Context<'_, S>) {
+        let Some(span) = context.span(id) else {
+            return;
         };
+        let mut extensions = span.extensions_mut();
+        let Some(stored) = extensions.get_mut::<DependencySpan>() else {
+            return;
+        };
+        let mut visitor = DependencyVisitor::new(stored.source.clone(), false);
+        values.record(&mut visitor);
+        for field in visitor.fields {
+            if let Some(existing) = stored
+                .fields
+                .iter_mut()
+                .find(|existing| existing.name == field.name)
+            {
+                *existing = field;
+            } else {
+                stored.fields.push(field);
+            }
+        }
+    }
+
+    fn on_event(&self, event: &Event<'_>, context: Context<'_, S>) {
+        let metadata = event.metadata();
+        let mut visitor = DependencyVisitor::new(String::new(), true);
         event.record(&mut visitor);
         let string_field = |name: &str| {
             visitor
@@ -376,36 +478,146 @@ impl<S: Subscriber> Layer<S> for DependencySinkLayer {
             }
             field.source.clone_from(&source);
         }
-        let input = LogEventInput {
-            severity: metadata.level().as_str().to_ascii_lowercase(),
-            target,
-            message: visitor.message.unwrap_or_default(),
-            fields: visitor.fields,
-            source,
-            spans: Vec::new(),
-            max_fields: 64,
-            max_bytes: 65_536,
-            origin: "dependency".to_owned(),
-        };
-        if let Err(error) = emit(self.sink, input) {
-            let _ = record_fallback(format!("dependency log event rejected: {error}"));
+        let mut spans = Vec::new();
+        if let Some(scope) = context.event_scope(event) {
+            for span in scope.from_root() {
+                let extensions = span.extensions();
+                let Some(stored) = extensions.get::<DependencySpan>() else {
+                    continue;
+                };
+                spans.push(stored.name.clone());
+                visitor
+                    .fields
+                    .extend(stored.fields.iter().cloned().map(|mut field| {
+                        field.name = format!("span.{}.{}", stored.name, field.name);
+                        field
+                    }));
+            }
         }
+        emit_dependency(
+            self.sink,
+            LogEventInput {
+                severity: metadata.level().as_str().to_ascii_lowercase(),
+                target,
+                message: visitor.message.unwrap_or_default(),
+                fields: visitor.fields,
+                source,
+                spans,
+                max_fields: 64,
+                max_bytes: 65_536,
+                origin: "dependency".to_owned(),
+            },
+        );
     }
 }
 
-pub fn install_dependency_bridge(id: u64) -> Result<(), String> {
-    if !SINKS
+struct DependencyLogBridge {
+    sink: u64,
+}
+
+struct DependencyLogVisitor {
+    fields: Vec<LogFieldInput>,
+    source: String,
+}
+
+impl<'kvs> log::kv::VisitSource<'kvs> for DependencyLogVisitor {
+    fn visit_pair(
+        &mut self,
+        key: log::kv::Key<'kvs>,
+        value: log::kv::Value<'kvs>,
+    ) -> Result<(), log::kv::Error> {
+        let (name, value) = match serde_json::to_value(&value) {
+            Ok(value) => (key.as_str().to_owned(), value),
+            Err(_) => (
+                format!("{}.debug", key.as_str()),
+                serde_json::Value::String(format!("{value:?}")),
+            ),
+        };
+        self.fields.push(LogFieldInput {
+            name,
+            value_json: value.to_string(),
+            secret: false,
+            source: self.source.clone(),
+        });
+        Ok(())
+    }
+}
+
+impl log::Log for DependencyLogBridge {
+    fn enabled(&self, _metadata: &log::Metadata<'_>) -> bool {
+        true
+    }
+
+    fn log(&self, record: &log::Record<'_>) {
+        if !self.enabled(record.metadata()) {
+            return;
+        }
+        let source = dependency_source(record.module_path(), record.file(), record.line());
+        let mut visitor = DependencyLogVisitor {
+            fields: Vec::new(),
+            source: source.clone(),
+        };
+        if let Err(error) = record.key_values().visit(&mut visitor) {
+            visitor.fields.push(LogFieldInput {
+                name: "log.key-value-error".to_owned(),
+                value_json: serde_json::Value::String(error.to_string()).to_string(),
+                secret: false,
+                source: source.clone(),
+            });
+        }
+        emit_dependency(
+            self.sink,
+            LogEventInput {
+                severity: record.level().as_str().to_ascii_lowercase(),
+                target: record.target().to_owned(),
+                message: record.args().to_string(),
+                fields: visitor.fields,
+                source,
+                spans: Vec::new(),
+                max_fields: 64,
+                max_bytes: 65_536,
+                origin: "dependency".to_owned(),
+            },
+        );
+    }
+
+    fn flush(&self) {}
+}
+
+fn validate_dependency_sink(id: u64) -> Result<(), String> {
+    if SINKS
         .lock()
         .map_err(|_| "logging sink registry is poisoned".to_owned())?
         .contains_key(&id)
     {
-        return Err("logging sink is closed or unknown".to_owned());
+        Ok(())
+    } else {
+        Err("logging sink is closed or unknown".to_owned())
     }
-    tracing_log::LogTracer::init()
+}
+
+pub fn dependency_sink_layer(id: u64) -> Result<DependencySinkLayer, String> {
+    validate_dependency_sink(id)?;
+    Ok(DependencySinkLayer { sink: id })
+}
+
+pub fn dependency_subscriber(
+    id: u64,
+) -> Result<impl for<'lookup> LookupSpan<'lookup> + Subscriber + Send + Sync + 'static, String> {
+    Ok(Registry::default().with(dependency_sink_layer(id)?))
+}
+
+pub fn install_dependency_log_bridge(id: u64) -> Result<(), String> {
+    validate_dependency_sink(id)?;
+    log::set_boxed_logger(Box::new(DependencyLogBridge { sink: id }))
         .map_err(|error| format!("cannot install dependency log bridge: {error}"))?;
     log::set_max_level(log::LevelFilter::Trace);
-    tracing::subscriber::set_global_default(
-        tracing_subscriber::registry().with(DependencySinkLayer { sink: id }),
-    )
-    .map_err(|error| format!("cannot install dependency tracing bridge: {error}"))
+    Ok(())
+}
+
+pub fn install_dependency_bridge(id: u64) -> Result<(), String> {
+    let subscriber = dependency_subscriber(id)?;
+    install_dependency_log_bridge(id)?;
+    tracing::subscriber::set_global_default(subscriber)
+        .map_err(|error| format!("cannot install dependency tracing bridge: {error}"))
 }

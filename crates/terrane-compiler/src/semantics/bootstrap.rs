@@ -407,6 +407,7 @@ pub(super) fn bootstrap_namespaces() -> BTreeMap<String, Namespace> {
             "log-no-sink",
             "log-write",
             "log-drain",
+            "log-discarded-count",
             "log-drain-fallback",
             "log-install-dependency-bridge",
             "log-result-failed",

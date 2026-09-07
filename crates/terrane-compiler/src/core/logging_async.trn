@@ -1,8 +1,22 @@
 namespace core/logging/async
 
-from /core/logging import log-event
-from /core/concurrency import channel, channel-block
+from /core/logging import log-event, log-sink, default-logger, write-event
 
 async function send-event bool; sink (channel-sender of log-event), value log-event
     outcome = await sink.send; value
     return outcome.accepted
+
+async function consume-events bool; target log-sink, source (channel-receiver of log-event)
+    open = true
+    succeeded = true
+    while open
+        received = await source.receive;
+        event = received.value
+        if event != none
+            written = write-event; (default-logger; target), event
+            if written.failed
+                succeeded = false
+                open = false
+        if received.closed
+            open = false
+    return succeeded

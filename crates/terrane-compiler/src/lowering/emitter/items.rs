@@ -358,7 +358,14 @@ impl Emitter<'_> {
                 let name = rust_object_type_name(self.package, &object.identity);
                 let protocol = format!("{name}Protocol");
                 let methods = effective_object_methods(self.unit, object);
-                self.line(&format!("pub trait {protocol} {{"));
+                let transfer_bounds = if object.identity.namespace == "/core/logging"
+                    && object.identity.name == "log-value"
+                {
+                    " : Send + Sync"
+                } else {
+                    ""
+                };
+                self.line(&format!("pub trait {protocol}{transfer_bounds} {{"));
                 self.indent += 1;
                 self.line(&format!("fn clone_box(&self) -> Box<dyn {protocol}>;"));
                 self.line(&format!("fn separate_box(&self) -> Box<dyn {protocol}>;"));

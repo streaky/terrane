@@ -383,7 +383,7 @@ mod __terrane_trace {
         "/core/documents::mapping-required-fields",
         "/core/documents::decode-document",
     ];
-    pub static SITES: [Site; 25] = [
+    pub static SITES: [Site; 27] = [
         {
             /* terrane-site-row: site 0: /structured-logging::main (case.trn:37:8-37:34) */
             Site {
@@ -539,29 +539,51 @@ mod __terrane_trace {
             }
         },
         {
-            /* terrane-site-row: site 14: /structured-logging::main (case.trn:71:51-71:62) */
+            /* terrane-site-row: site 14: /structured-logging::main (case.trn:72:51-72:62) */
             Site {
                 function: 0,
                 file: 0,
-                line: 71,
+                line: 72,
                 column: 51,
-                end_line: 71,
+                end_line: 72,
                 end_column: 62,
             }
         },
         {
-            /* terrane-site-row: site 15: /structured-logging::main (case.trn:87:41-87:63) */
+            /* terrane-site-row: site 15: /structured-logging::main (case.trn:102:41-102:63) */
             Site {
                 function: 0,
                 file: 0,
-                line: 87,
+                line: 102,
                 column: 41,
-                end_line: 87,
+                end_line: 102,
                 end_column: 63,
             }
         },
         {
-            /* terrane-site-row: site 16: /core/documents::make-document-list (core/documents.trn:140:47-140:60) */
+            /* terrane-site-row: site 16: /structured-logging::main (case.trn:102:107-102:129) */
+            Site {
+                function: 0,
+                file: 0,
+                line: 102,
+                column: 107,
+                end_line: 102,
+                end_column: 129,
+            }
+        },
+        {
+            /* terrane-site-row: site 17: /structured-logging::main (case.trn:116:36-116:53) */
+            Site {
+                function: 0,
+                file: 0,
+                line: 116,
+                column: 36,
+                end_line: 116,
+                end_column: 53,
+            }
+        },
+        {
+            /* terrane-site-row: site 18: /core/documents::make-document-list (core/documents.trn:140:47-140:60) */
             Site {
                 function: 1,
                 file: 1,
@@ -572,7 +594,7 @@ mod __terrane_trace {
             }
         },
         {
-            /* terrane-site-row: site 17: /core/documents::mapping-required-fields (core/documents.trn:153:17-153:30) */
+            /* terrane-site-row: site 19: /core/documents::mapping-required-fields (core/documents.trn:153:17-153:30) */
             Site {
                 function: 2,
                 file: 1,
@@ -583,7 +605,7 @@ mod __terrane_trace {
             }
         },
         {
-            /* terrane-site-row: site 18: /core/documents::mapping-required-fields (core/documents.trn:157:16-157:47) */
+            /* terrane-site-row: site 20: /core/documents::mapping-required-fields (core/documents.trn:157:16-157:47) */
             Site {
                 function: 2,
                 file: 1,
@@ -594,7 +616,7 @@ mod __terrane_trace {
             }
         },
         {
-            /* terrane-site-row: site 19: /core/documents::mapping-required-fields (core/documents.trn:163:16-163:45) */
+            /* terrane-site-row: site 21: /core/documents::mapping-required-fields (core/documents.trn:163:16-163:45) */
             Site {
                 function: 2,
                 file: 1,
@@ -605,7 +627,7 @@ mod __terrane_trace {
             }
         },
         {
-            /* terrane-site-row: site 20: /core/documents::decode-document (core/documents.trn:176:12-176:44) */
+            /* terrane-site-row: site 22: /core/documents::decode-document (core/documents.trn:176:12-176:44) */
             Site {
                 function: 3,
                 file: 1,
@@ -616,7 +638,7 @@ mod __terrane_trace {
             }
         },
         {
-            /* terrane-site-row: site 21: /core/documents::decode-document (core/documents.trn:177:37-177:69) */
+            /* terrane-site-row: site 23: /core/documents::decode-document (core/documents.trn:177:37-177:69) */
             Site {
                 function: 3,
                 file: 1,
@@ -627,7 +649,7 @@ mod __terrane_trace {
             }
         },
         {
-            /* terrane-site-row: site 22: /core/documents::decode-document (core/documents.trn:183:12-183:49) */
+            /* terrane-site-row: site 24: /core/documents::decode-document (core/documents.trn:183:12-183:49) */
             Site {
                 function: 3,
                 file: 1,
@@ -638,7 +660,7 @@ mod __terrane_trace {
             }
         },
         {
-            /* terrane-site-row: site 23: /core/documents::decode-document (core/documents.trn:184:36-184:73) */
+            /* terrane-site-row: site 25: /core/documents::decode-document (core/documents.trn:184:36-184:73) */
             Site {
                 function: 3,
                 file: 1,
@@ -649,7 +671,7 @@ mod __terrane_trace {
             }
         },
         {
-            /* terrane-site-row: site 24: /core/documents::decode-document (core/documents.trn:185:36-185:73) */
+            /* terrane-site-row: site 26: /core/documents::decode-document (core/documents.trn:185:36-185:73) */
             Site {
                 function: 3,
                 file: 1,
@@ -672,6 +694,216 @@ mod __terrane_trace {
         )
     }
 }
+use std::future::Future;
+#[derive(Clone)]
+struct TerraneCancellation {
+    state: std::sync::Arc<TerraneCancellationState>,
+}
+struct TerraneCancellationState {
+    cancelled: std::sync::atomic::AtomicBool,
+    wakers: std::sync::Mutex<Vec<std::task::Waker>>,
+}
+impl TerraneCancellation {
+    fn new() -> Self {
+        Self {
+            state: std::sync::Arc::new(TerraneCancellationState {
+                cancelled: std::sync::atomic::AtomicBool::new(false),
+                wakers: std::sync::Mutex::new(Vec::new()),
+            }),
+        }
+    }
+    fn wake_waiters(&self) {
+        let wakers = std::mem::take(
+            &mut *self.state.wakers.lock().expect("cancellation waker lock poisoned"),
+        );
+        for waker in wakers {
+            waker.wake();
+        }
+    }
+    fn cancel(&self) {
+        if !self.state.cancelled.swap(true, std::sync::atomic::Ordering::AcqRel) {
+            self.wake_waiters();
+        }
+    }
+    fn is_cancelled(&self) -> bool {
+        self.state.cancelled.load(std::sync::atomic::Ordering::Acquire)
+    }
+    async fn cancelled(&self) {
+        std::future::poll_fn(|context| {
+                if self.is_cancelled() {
+                    return std::task::Poll::Ready(());
+                }
+                let mut wakers = self
+                    .state
+                    .wakers
+                    .lock()
+                    .expect("cancellation waker lock poisoned");
+                if self.is_cancelled() {
+                    return std::task::Poll::Ready(());
+                }
+                if !wakers.iter().any(|waker| waker.will_wake(context.waker())) {
+                    wakers.push(context.waker().clone());
+                }
+                std::task::Poll::Pending
+            })
+            .await
+    }
+}
+struct TerraneFinalizerState {
+    depth: std::sync::atomic::AtomicUsize,
+    wakers: std::sync::Mutex<Vec<std::task::Waker>>,
+}
+impl TerraneFinalizerState {
+    fn new() -> Self {
+        Self {
+            depth: std::sync::atomic::AtomicUsize::new(0),
+            wakers: std::sync::Mutex::new(Vec::new()),
+        }
+    }
+    #[allow(
+        dead_code,
+        reason = "native scope support is shared by packages without asynchronous finally"
+    )]
+    fn register(self: &std::sync::Arc<Self>) -> TerraneFinallyGuard {
+        let depth = self.depth.fetch_add(1, std::sync::atomic::Ordering::AcqRel) + 1;
+        TerraneFinallyGuard {
+            state: Some(self.clone()),
+            depth,
+        }
+    }
+    #[allow(
+        dead_code,
+        reason = "native scope support is shared by packages without asynchronous finally"
+    )]
+    fn unregister(&self, depth: usize) {
+        let current = self.depth.fetch_sub(1, std::sync::atomic::Ordering::AcqRel);
+        debug_assert_eq!(current, depth, "finally regions must leave innermost first");
+        let wakers = std::mem::take(
+            &mut *self.wakers.lock().expect("finalizer waker lock poisoned"),
+        );
+        for waker in wakers {
+            waker.wake();
+        }
+    }
+    async fn reaches(&self, depth: usize) {
+        std::future::poll_fn(|context| {
+                if self.depth.load(std::sync::atomic::Ordering::Acquire) == depth {
+                    return std::task::Poll::Ready(());
+                }
+                let mut wakers = self
+                    .wakers
+                    .lock()
+                    .expect("finalizer waker lock poisoned");
+                if self.depth.load(std::sync::atomic::Ordering::Acquire) == depth {
+                    return std::task::Poll::Ready(());
+                }
+                if !wakers.iter().any(|waker| waker.will_wake(context.waker())) {
+                    wakers.push(context.waker().clone());
+                }
+                std::task::Poll::Pending
+            })
+            .await
+    }
+}
+#[allow(
+    dead_code,
+    reason = "native scope support is shared by packages without asynchronous finally"
+)]
+struct TerraneCancellationContext {
+    cancellation: TerraneCancellation,
+    deadline: Option<std::time::Instant>,
+    finalizers: std::sync::Arc<TerraneFinalizerState>,
+}
+tokio::task_local! {
+    static TERRANE_CANCELLATION_CONTEXT : TerraneCancellationContext;
+}
+#[allow(
+    dead_code,
+    reason = "native scope support is shared by packages without asynchronous finally"
+)]
+struct TerraneFinallyGuard {
+    state: Option<std::sync::Arc<TerraneFinalizerState>>,
+    depth: usize,
+}
+#[allow(
+    dead_code,
+    reason = "native scope support is shared by packages without asynchronous finally"
+)]
+impl TerraneFinallyGuard {
+    fn finish(&mut self) {
+        if let Some(state) = self.state.take() {
+            state.unregister(self.depth);
+        }
+    }
+}
+impl Drop for TerraneFinallyGuard {
+    fn drop(&mut self) {
+        self.finish();
+    }
+}
+#[allow(
+    dead_code,
+    reason = "native scope support is shared by packages without asynchronous finally"
+)]
+fn __terrane_finally_guard() -> TerraneFinallyGuard {
+    TERRANE_CANCELLATION_CONTEXT
+        .try_with(|context| context.finalizers.register())
+        .unwrap_or(TerraneFinallyGuard {
+            state: None,
+            depth: 0,
+        })
+}
+async fn __terrane_cancellation_requested(
+    cancellation: TerraneCancellation,
+    deadline: Option<std::time::Instant>,
+) {
+    if let Some(deadline) = deadline {
+        tokio::select! {
+            () = cancellation.cancelled() => {} () =
+            tokio::time::sleep_until(tokio::time::Instant::from_std(deadline)) => {
+            cancellation.cancel(); }
+        }
+    } else {
+        cancellation.cancelled().await;
+    }
+}
+#[allow(
+    dead_code,
+    reason = "native scope support is shared by packages without asynchronous finally"
+)]
+async fn __terrane_cancel_operation<F: Future>(
+    guard: &TerraneFinallyGuard,
+    future: F,
+) -> Option<F::Output> {
+    let cancellation = TERRANE_CANCELLATION_CONTEXT
+        .try_with(|context| {
+            guard
+                .state
+                .as_ref()
+                .map(|state| {
+                    (context.cancellation.clone(), context.deadline, state.clone())
+                })
+        })
+        .ok()
+        .flatten();
+    if let Some((cancellation, deadline, finalizers)) = cancellation {
+        tokio::select! {
+            biased; output = future => Some(output), () = async {
+            __terrane_cancellation_requested(cancellation, deadline). await; finalizers
+            .reaches(guard.depth). await; } => None,
+        }
+    } else {
+        Some(future.await)
+    }
+}
+#[allow(
+    dead_code,
+    reason = "native scope support is shared by packages without asynchronous finally"
+)]
+async fn __terrane_finish_cancelled_finally(mut guard: TerraneFinallyGuard) -> ! {
+    guard.finish();
+    std::future::pending().await
+}
 async fn __terrane_await<F: Future>(future: F) -> F::Output {
     struct YieldOnce(bool);
     impl Future for YieldOnce {
@@ -693,6 +925,30 @@ async fn __terrane_await<F: Future>(future: F) -> F::Output {
     let output = future.await;
     YieldOnce(false).await;
     output
+}
+async fn __terrane_cancellable<F: Future>(
+    future: F,
+    cancellation: TerraneCancellation,
+    deadline: Option<std::time::Instant>,
+) -> Option<F::Output> {
+    let finalizers = std::sync::Arc::new(TerraneFinalizerState::new());
+    let context = TerraneCancellationContext {
+        cancellation: cancellation.clone(),
+        deadline,
+        finalizers: finalizers.clone(),
+    };
+    TERRANE_CANCELLATION_CONTEXT
+        .scope(
+            context,
+            async {
+                tokio::select! {
+                    biased; output = future => Some(output), () = async {
+                    __terrane_cancellation_requested(cancellation, deadline). await;
+                    finalizers.reaches(0). await; } => None,
+                }
+            },
+        )
+        .await
 }
 fn __terrane_run<F: Future>(future: F) -> F::Output {
     tokio::runtime::Builder::new_multi_thread()
@@ -1040,6 +1296,117 @@ impl<T> Drop for TerraneChannelReceive<T> {
                 .remove(&waiter_id);
         }
     }
+}
+#[derive(Clone)]
+pub struct TerraneTaskScope {
+    cancellation: TerraneCancellation,
+    deadline: Option<std::time::Instant>,
+}
+impl TerraneTaskScope {
+    pub fn new(deadline_ms: Option<u64>) -> Self {
+        Self {
+            cancellation: TerraneCancellation::new(),
+            deadline: deadline_ms
+                .map(|milliseconds| {
+                    std::time::Instant::now()
+                        + std::time::Duration::from_millis(milliseconds)
+                }),
+        }
+    }
+    pub fn child_scope(&self, deadline_ms: u64) -> Self {
+        let requested = std::time::Instant::now()
+            + std::time::Duration::from_millis(deadline_ms);
+        Self {
+            cancellation: self.cancellation.clone(),
+            deadline: Some(
+                self.deadline.map_or(requested, |parent| parent.min(requested)),
+            ),
+        }
+    }
+    pub fn cancel(&self) {
+        self.cancellation.cancel();
+    }
+    pub fn should_cancel(&self) -> bool {
+        self.cancellation.is_cancelled()
+            || self
+                .deadline
+                .is_some_and(|deadline| std::time::Instant::now() >= deadline)
+    }
+    fn cancellation(&self) -> TerraneCancellation {
+        self.cancellation.clone()
+    }
+    pub async fn join<T>(
+        &self,
+        mut task: TerraneScopedTask<T>,
+    ) -> TerraneTaskOutcome<T> {
+        let result = task
+            .handle
+            .take()
+            .expect("scoped task joined once")
+            .await
+            .expect("scoped task must not panic outside its Terrane boundary");
+        outcome_from_result(self, result)
+    }
+}
+#[allow(
+    dead_code,
+    reason = "task result ABI is emitted before per-variant usage shaping"
+)]
+enum TerraneTaskResult<T> {
+    Completed(T),
+    Failed(TerraneError),
+    Cancelled,
+}
+pub struct TerraneScopedTask<T> {
+    handle: Option<tokio::task::JoinHandle<TerraneTaskResult<T>>>,
+}
+impl<T: Send + 'static> TerraneScopedTask<T> {
+    #[allow(dead_code, reason = "task spawn ABI is emitted before usage shaping")]
+    fn spawn<F: Future<Output = TerraneTaskResult<T>> + Send + 'static>(
+        work: F,
+    ) -> Self {
+        Self {
+            handle: Some(tokio::spawn(work)),
+        }
+    }
+}
+fn outcome_from_result<T>(
+    scope: &TerraneTaskScope,
+    result: TerraneTaskResult<T>,
+) -> TerraneTaskOutcome<T> {
+    match result {
+        TerraneTaskResult::Completed(value) => {
+            TerraneTaskOutcome {
+                completed: true,
+                cancelled: scope.should_cancel(),
+                value: Some(value),
+                error: None,
+            }
+        }
+        TerraneTaskResult::Failed(error) => {
+            scope.cancel();
+            TerraneTaskOutcome {
+                completed: false,
+                cancelled: false,
+                value: None,
+                error: Some(error),
+            }
+        }
+        TerraneTaskResult::Cancelled => {
+            TerraneTaskOutcome {
+                completed: false,
+                cancelled: true,
+                value: None,
+                error: None,
+            }
+        }
+    }
+}
+pub struct TerraneTaskOutcome<T> {
+    pub completed: bool,
+    pub cancelled: bool,
+    pub value: Option<T>,
+    pub error: Option<TerraneError>,
 }
 pub fn terrane_limit(value: &terrane_int_support::Int) -> usize {
     value.as_usize().unwrap_or(0)
@@ -1715,12 +2082,13 @@ fn main() {
             }
         }
         let failed_sink: LogSinkResult = failing_sink();
-        let failed_logger: Logger = default_logger(failed_sink.value);
+        let failed_target: LogSink = failed_sink.value;
+        let failed_logger: Logger = default_logger(failed_target.clone());
         let failed_write: LogOutcome = emit_at(
             failed_logger.clone(),
             info_level(),
             String::from("cannot-write").clone(),
-            "case.trn:69:20".to_owned(),
+            "case.trn:70:20".to_owned(),
             empty_fields.clone(),
         );
         let fallback: terrane_collection_support::List<String> = drain_fallback();
@@ -1729,7 +2097,7 @@ fn main() {
             terrane_scalar_support::scalar_text(&terrane_int_support::Int::from(fallback
             .length())), terrane_scalar_support::scalar_text(&__terrane_raised(fallback
             .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
-            14 /* terrane-site: case.trn:71:51-71:62 */)), 14 /* terrane-site: case.trn:71:51-71:62 */).contains(&String::from("event rejected")))
+            14 /* terrane-site: case.trn:72:51-72:62 */)), 14 /* terrane-site: case.trn:72:51-72:62 */).contains(&String::from("event rejected")))
         );
         let console_result: LogSinkResult = console_sink(false);
         let console: Logger = default_logger(console_result.value);
@@ -1737,10 +2105,48 @@ fn main() {
             console.clone(),
             info_level(),
             String::from("visible").clone(),
-            "case.trn:75:21".to_owned(),
+            "case.trn:76:21".to_owned(),
             empty_fields.clone(),
         );
         println!("{}", terrane_scalar_support::scalar_text(&console_write.failed));
+        let adapter_pair: TerraneChannelPair<LogEvent> = TerraneChannelPair::new(
+            terrane_collection_support::index_from_int(
+                    &terrane_int_support::Int::from(1_i128),
+                )
+                .expect("semantic channel capacity"),
+            TerraneChannelOverflow::Block,
+        );
+        let adapter_producer: TerraneChannelSender<LogEvent> = adapter_pair.sender;
+        let adapter_receiver: TerraneChannelReceiver<LogEvent> = adapter_pair.receiver;
+        let adapter_sent: bool = __terrane_await(
+                send_event(
+                    adapter_producer,
+                    make_event_at(
+                        info_level().clone(),
+                        String::from("adapter").clone(),
+                        "case.trn:82:57".to_owned(),
+                        empty_fields.clone(),
+                    ),
+                ),
+            )
+            .await;
+        let adapter_received: TerraneChannelReceiveOutcome<LogEvent> = __terrane_await(
+                Box::pin(adapter_receiver.receive()),
+            )
+            .await;
+        println!(
+            "{}{}", terrane_scalar_support::scalar_text(&adapter_sent),
+            terrane_scalar_support::scalar_text(&adapter_received.available)
+        );
+        let async_sink: LogSinkResult = memory_sink(
+            terrane_int_support::Int::from(4_i128),
+            String::from("reject"),
+            terrane_int_support::Int::from(3000_i128),
+            terrane_int_support::Int::from(1_i128),
+            false,
+        );
+        let async_target: LogSink = async_sink.value;
+        let async_writer: Logger = default_logger(async_target.clone());
         let pair: TerraneChannelPair<LogEvent> = TerraneChannelPair::new(
             terrane_collection_support::index_from_int(
                     &terrane_int_support::Int::from(1_i128),
@@ -1748,40 +2154,153 @@ fn main() {
                 .expect("semantic channel capacity"),
             TerraneChannelOverflow::Block,
         );
-        let async_event: LogEvent = make_event_at(
-            info_level().clone(),
-            String::from("transported").clone(),
-            "case.trn:79:19".to_owned(),
-            empty_fields.clone(),
-        );
-        let sent: bool = __terrane_await(send_event(pair.sender, async_event)).await;
-        let received: TerraneChannelReceiveOutcome<LogEvent> = __terrane_await(
-                pair.receiver.receive(),
+        let producer: TerraneChannelSender<LogEvent> = pair.sender;
+        let receiver: TerraneChannelReceiver<LogEvent> = pair.receiver;
+        let consumer_scope: TerraneTaskScope = TerraneTaskScope::new(None);
+        let consumer: TerraneScopedTask<bool> = {
+            let __terrane_scope = consumer_scope.clone();
+            let __terrane_cancel = __terrane_scope.cancellation();
+            let __terrane_deadline = __terrane_scope.deadline;
+            let __terrane_spawned_task = consume_events(async_target.clone(), receiver);
+            TerraneScopedTask::spawn(async move {
+                match __terrane_cancellable(
+                        __terrane_spawned_task,
+                        __terrane_cancel,
+                        __terrane_deadline,
+                    )
+                    .await
+                {
+                    Some(value) => TerraneTaskResult::Completed(value),
+                    None => TerraneTaskResult::Cancelled,
+                }
+            })
+        };
+        let first_sent: TerraneChannelSendOutcome<LogEvent> = __terrane_await(
+                Box::pin(
+                    producer
+                        .send(
+                            make_event_at(
+                                info_level().clone(),
+                                String::from("transported-one").clone(),
+                                "case.trn:94:40".to_owned(),
+                                empty_fields.clone(),
+                            ),
+                        ),
+                ),
             )
             .await;
-        let transported: Option<LogEvent> = received.value;
-        if transported.is_some() {
-            let transported_write: LogOutcome = write_event(
-                writer.clone(),
-                transported.as_ref().expect("semantic optional narrowing").clone(),
-            );
+        let second_sent: TerraneChannelSendOutcome<LogEvent> = __terrane_await(
+                Box::pin(
+                    producer
+                        .send(
+                            make_event_at(
+                                info_level().clone(),
+                                String::from("transported-two").clone(),
+                                "case.trn:95:41".to_owned(),
+                                empty_fields.clone(),
+                            ),
+                        ),
+                ),
+            )
+            .await;
+        producer.close();
+        let consumed: TerraneTaskOutcome<bool> = __terrane_await(
+                consumer_scope.join(consumer),
+            )
+            .await;
+        let consumed_value: Option<bool> = consumed.value.clone();
+        if consumed_value.is_some() {
             println!(
-                "{}{}{}", terrane_scalar_support::scalar_text(&sent),
-                terrane_scalar_support::scalar_text(&received.available),
-                terrane_scalar_support::scalar_text(&transported_write.failed)
+                "{}{}{}{}", terrane_scalar_support::scalar_text(&first_sent.accepted),
+                terrane_scalar_support::scalar_text(&second_sent.accepted),
+                terrane_scalar_support::scalar_text(&consumed.completed),
+                terrane_scalar_support::scalar_text(&* consumed_value.as_ref()
+                .expect("semantic optional narrowing"))
             );
         }
         let transported_records: terrane_collection_support::List<String> = drain_memory(
-            writer.clone(),
+            async_writer,
         );
         println!(
-            "{}{}",
+            "{}{}{}",
             terrane_scalar_support::scalar_text(&terrane_int_support::Int::from(transported_records
             .length())),
             terrane_scalar_support::scalar_text(&__terrane_raised(transported_records
             .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
-            15 /* terrane-site: case.trn:87:41-87:63 */)), 15 /* terrane-site: case.trn:87:41-87:63 */)
-            .contains(&String::from("\"message\":\"transported\"")))
+            15 /* terrane-site: case.trn:102:41-102:63 */)), 15 /* terrane-site: case.trn:102:41-102:63 */)
+            .contains(&String::from("\"message\":\"transported-one\""))),
+            terrane_scalar_support::scalar_text(&__terrane_raised(transported_records
+            .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(1_i128)),
+            16 /* terrane-site: case.trn:102:107-102:129 */)), 16 /* terrane-site: case.trn:102:107-102:129 */)
+            .contains(&String::from("\"message\":\"transported-two\"")))
+        );
+        let failing_pair: TerraneChannelPair<LogEvent> = TerraneChannelPair::new(
+            terrane_collection_support::index_from_int(
+                    &terrane_int_support::Int::from(1_i128),
+                )
+                .expect("semantic channel capacity"),
+            TerraneChannelOverflow::Block,
+        );
+        let failing_producer: TerraneChannelSender<LogEvent> = failing_pair.sender;
+        let failing_receiver: TerraneChannelReceiver<LogEvent> = failing_pair.receiver;
+        let failing_scope: TerraneTaskScope = TerraneTaskScope::new(None);
+        let failing_consumer: TerraneScopedTask<bool> = {
+            let __terrane_scope = failing_scope.clone();
+            let __terrane_cancel = __terrane_scope.cancellation();
+            let __terrane_deadline = __terrane_scope.deadline;
+            let __terrane_spawned_task = consume_events(
+                failed_target.clone(),
+                failing_receiver,
+            );
+            TerraneScopedTask::spawn(async move {
+                match __terrane_cancellable(
+                        __terrane_spawned_task,
+                        __terrane_cancel,
+                        __terrane_deadline,
+                    )
+                    .await
+                {
+                    Some(value) => TerraneTaskResult::Completed(value),
+                    None => TerraneTaskResult::Cancelled,
+                }
+            })
+        };
+        let failing_sent: TerraneChannelSendOutcome<LogEvent> = __terrane_await(
+                Box::pin(
+                    failing_producer
+                        .send(
+                            make_event_at(
+                                info_level().clone(),
+                                String::from("transport-failure").clone(),
+                                "case.trn:109:50".to_owned(),
+                                empty_fields.clone(),
+                            ),
+                        ),
+                ),
+            )
+            .await;
+        failing_producer.close();
+        let failing_consumed: TerraneTaskOutcome<bool> = __terrane_await(
+                failing_scope.join(failing_consumer),
+            )
+            .await;
+        let failing_consumed_value: Option<bool> = failing_consumed.value.clone();
+        if failing_consumed_value.is_some() {
+            println!(
+                "{}{}{}", terrane_scalar_support::scalar_text(&failing_sent.accepted),
+                terrane_scalar_support::scalar_text(&failing_consumed.completed),
+                terrane_scalar_support::scalar_text(&* failing_consumed_value.as_ref()
+                .expect("semantic optional narrowing"))
+            );
+        }
+        let async_fallback: terrane_collection_support::List<String> = drain_fallback();
+        println!(
+            "{}{}",
+            terrane_scalar_support::scalar_text(&terrane_int_support::Int::from(async_fallback
+            .length())),
+            terrane_scalar_support::scalar_text(&__terrane_raised(async_fallback
+            .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
+            17 /* terrane-site: case.trn:116:36-116:53 */)), 17 /* terrane-site: case.trn:116:36-116:53 */).contains(&String::from("event rejected")))
         );
     });
 }
@@ -2483,10 +3002,10 @@ pub fn make_document_list(
                         .get_or_error(
                             __terrane_raised(
                                 terrane_collection_support::index_from_int(&index.clone()),
-                                16 /* terrane-site: core/documents.trn:140:47-140:60 */,
+                                18 /* terrane-site: core/documents.trn:140:47-140:60 */,
                             ),
                         ),
-                    16 /* terrane-site: core/documents.trn:140:47-140:60 */,
+                    18 /* terrane-site: core/documents.trn:140:47-140:60 */,
                 )
                 .raw,
         );
@@ -2521,10 +3040,10 @@ pub fn mapping_required_fields(
                     .get_or_error(
                         __terrane_raised(
                             terrane_collection_support::index_from_int(&index.clone()),
-                            17 /* terrane-site: core/documents.trn:153:17-153:30 */,
+                            19 /* terrane-site: core/documents.trn:153:17-153:30 */,
                         ),
                     ),
-                17 /* terrane-site: core/documents.trn:153:17-153:30 */,
+                19 /* terrane-site: core/documents.trn:153:17-153:30 */,
             );
             let mut optional: bool = false;
             let mut optional_index: terrane_int_support::Int = terrane_int_support::Int::from(
@@ -2542,10 +3061,10 @@ pub fn mapping_required_fields(
                                 terrane_collection_support::index_from_int(
                                     &optional_index.clone(),
                                 ),
-                                18 /* terrane-site: core/documents.trn:157:16-157:47 */,
+                                20 /* terrane-site: core/documents.trn:157:16-157:47 */,
                             ),
                         ),
-                    18 /* terrane-site: core/documents.trn:157:16-157:47 */,
+                    20 /* terrane-site: core/documents.trn:157:16-157:47 */,
                 ) == field
                 {
                     optional = true;
@@ -2569,10 +3088,10 @@ pub fn mapping_required_fields(
                                 terrane_collection_support::index_from_int(
                                     &default_index.clone(),
                                 ),
-                                19 /* terrane-site: core/documents.trn:163:16-163:45 */,
+                                21 /* terrane-site: core/documents.trn:163:16-163:45 */,
                             ),
                         ),
-                    19 /* terrane-site: core/documents.trn:163:16-163:45 */,
+                    21 /* terrane-site: core/documents.trn:163:16-163:45 */,
                 ) == field
                 {
                     defaulted = true;
@@ -2616,10 +3135,10 @@ pub fn decode_document(
                             terrane_collection_support::index_from_int(
                                 &field_index.clone(),
                             ),
-                            20 /* terrane-site: core/documents.trn:176:12-176:44 */,
+                            22 /* terrane-site: core/documents.trn:176:12-176:44 */,
                         ),
                     ),
-                20 /* terrane-site: core/documents.trn:176:12-176:44 */,
+                22 /* terrane-site: core/documents.trn:176:12-176:44 */,
             ) != String::from("")
             {
                 __terrane_list_append_1
@@ -2632,10 +3151,10 @@ pub fn decode_document(
                                         terrane_collection_support::index_from_int(
                                             &field_index.clone(),
                                         ),
-                                        21 /* terrane-site: core/documents.trn:177:37-177:69 */,
+                                        23 /* terrane-site: core/documents.trn:177:37-177:69 */,
                                     ),
                                 ),
-                            21 /* terrane-site: core/documents.trn:177:37-177:69 */,
+                            23 /* terrane-site: core/documents.trn:177:37-177:69 */,
                         ),
                     );
             }
@@ -2668,10 +3187,10 @@ pub fn decode_document(
                         terrane_collection_support::index_from_int(
                             &default_index.clone(),
                         ),
-                        22 /* terrane-site: core/documents.trn:183:12-183:49 */,
+                        24 /* terrane-site: core/documents.trn:183:12-183:49 */,
                     ),
                 ),
-            22 /* terrane-site: core/documents.trn:183:12-183:49 */,
+            24 /* terrane-site: core/documents.trn:183:12-183:49 */,
         ) != String::from("")
         {
             default_fields
@@ -2684,10 +3203,10 @@ pub fn decode_document(
                                     terrane_collection_support::index_from_int(
                                         &default_index.clone(),
                                     ),
-                                    23 /* terrane-site: core/documents.trn:184:36-184:73 */,
+                                    25 /* terrane-site: core/documents.trn:184:36-184:73 */,
                                 ),
                             ),
-                        23 /* terrane-site: core/documents.trn:184:36-184:73 */,
+                        25 /* terrane-site: core/documents.trn:184:36-184:73 */,
                     ),
                 );
             default_values
@@ -2700,10 +3219,10 @@ pub fn decode_document(
                                     terrane_collection_support::index_from_int(
                                         &default_index.clone(),
                                     ),
-                                    24 /* terrane-site: core/documents.trn:185:36-185:73 */,
+                                    26 /* terrane-site: core/documents.trn:185:36-185:73 */,
                                 ),
                             ),
-                        24 /* terrane-site: core/documents.trn:185:36-185:73 */,
+                        26 /* terrane-site: core/documents.trn:185:36-185:73 */,
                     ),
                 );
         }
@@ -2781,7 +3300,7 @@ pub fn critical_level() -> LogLevel {
         terrane_int_support::Int::from(60_i128),
     );
 }
-pub trait LogValueProtocol {
+pub trait LogValueProtocol: Send + Sync {
     fn clone_box(&self) -> Box<dyn LogValueProtocol>;
     fn separate_box(&self) -> Box<dyn LogValueProtocol>;
     fn render(&self) -> DocumentValue;
@@ -3577,6 +4096,11 @@ pub fn error(
         fields.clone(),
     );
 }
+pub fn discarded_count(value: Logger) -> terrane_int_support::Int {
+    return terrane_int_support::Int::from(
+        i128::from(terrane_platform_support::logging_discarded_count(&value.sink.handle)),
+    );
+}
 pub fn drain_memory(value: Logger) -> terrane_collection_support::List<String> {
     return terrane_collection_support::List::new(
         terrane_platform_result_entries(
@@ -3599,4 +4123,32 @@ pub async fn send_event(sink: TerraneChannelSender<LogEvent>, value: LogEvent) -
         )
         .await;
     return outcome.accepted;
+}
+pub async fn consume_events(
+    target: LogSink,
+    source: TerraneChannelReceiver<LogEvent>,
+) -> bool {
+    let mut open: bool = true;
+    let mut succeeded: bool = true;
+    while open {
+        let received: TerraneChannelReceiveOutcome<LogEvent> = __terrane_await(
+                Box::pin(source.receive()),
+            )
+            .await;
+        let event: Option<LogEvent> = received.value;
+        if event.is_some() {
+            let written: LogOutcome = write_event(
+                default_logger(target.clone()),
+                event.as_ref().expect("semantic optional narrowing").clone(),
+            );
+            if written.failed {
+                succeeded = false;
+                open = false;
+            }
+        }
+        if received.closed {
+            open = false;
+        }
+    }
+    return succeeded;
 }

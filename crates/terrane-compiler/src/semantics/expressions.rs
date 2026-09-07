@@ -647,7 +647,8 @@ pub(super) fn infer_value_type(
                     | "intrinsic:capabilities::result-bytes" => {
                         Some(ValueType::Scalar(ScalarType::Bytes))
                     }
-                    "intrinsic:system::result-int"
+                    "intrinsic:logging::log-discarded-count"
+                    | "intrinsic:system::result-int"
                     | "intrinsic:data::document-exponent"
                     | "intrinsic:data::document-length"
                     | "intrinsic:data::url-query-length"

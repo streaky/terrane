@@ -2,7 +2,7 @@ namespace logging-bounds
 
 from /core/output import print
 from /core/collections import list
-from /core/logging import log-field, log-text, field, memory-sink, make-logger-options, make-logger, default-logger, drain-memory, drain-fallback, info-level, info
+from /core/logging import log-field, log-text, field, memory-sink, make-logger-options, make-logger, default-logger, discarded-count, drain-memory, drain-fallback, info-level, info
 
 function main;
     empty list of log-field = list;
@@ -12,7 +12,7 @@ function main;
     first = info; dropping, 'first', empty
     second = info; dropping, 'second', empty
     dropped-records = drain-memory; dropping
-    print; first.failed, second.failed, dropped-records.length
+    print; first.failed, second.failed, dropped-records.length, (discarded-count; dropping)
     print; (dropped-records[0].contains; '"message":"second"'), (dropped-records[0].contains; '"message":"first"')
 
     rejecting-sink = memory-sink; 1, 'reject', 20, 1, false

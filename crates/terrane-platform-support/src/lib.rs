@@ -249,6 +249,13 @@ pub fn logging_reveals_secrets(sink: &Capability) -> bool {
     }
 }
 
+pub fn logging_discarded_count(sink: &Capability) -> u64 {
+    match sink.0.as_ref() {
+        CapabilityInner::LogSink(id) => observability::discarded_count(*id),
+        _ => 0,
+    }
+}
+
 pub fn logging_drain(sink: &Capability) -> ResultValue {
     match sink.0.as_ref() {
         CapabilityInner::LogSink(id) => {

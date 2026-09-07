@@ -626,6 +626,12 @@ impl Emitter<'_> {
                 "terrane_collection_support::List::new(terrane_platform_result_entries(&({value})))"
             );
         }
+        if self.is_builtin(callee, "intrinsic:logging::log-discarded-count") {
+            let sink = self.expression(argument_values[0]);
+            return format!(
+                "terrane_int_support::Int::from(i128::from(terrane_platform_support::logging_discarded_count(&({sink}))))"
+            );
+        }
         if self.is_builtin(callee, "intrinsic:logging::log-drain") {
             let sink = self.expression(argument_values[0]);
             return format!("terrane_platform_support::logging_drain(&({sink}))");

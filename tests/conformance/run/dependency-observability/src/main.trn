@@ -16,7 +16,7 @@ function main;
     records = drain-memory; writer
     print; records.length
     print; (records[0].contains; '"origin":"dependency"'), (records[0].contains; '"target":"dependency.log"'), (records[0].contains; 'cache miss')
-    print; (records[0].contains; 'observability_witness'), (records[0].contains; 'src/lib.rs:2')
+    print; (records[0].contains; '"name":"item"'), (records[0].contains; '"value":3'), (records[0].contains; 'observability_witness'), (records[0].contains; 'src/lib.rs:2')
     print; (records[1].contains; '"origin":"dependency"'), (records[1].contains; '"target":"dependency.trace"'), (records[1].contains; 'loaded')
-    print; (records[1].contains; '"name":"item"'), (records[1].contains; '"value":7'), (records[1].contains; 'src/lib.rs:6')
+    print; (records[1].contains; '"name":"item"'), (records[1].contains; '"value":7'), (records[1].contains; '"spans":["load_batch"]'), (records[1].contains; '"name":"span.load_batch.batch"'), (records[1].contains; '"value":11'), (records[1].contains; 'src/lib.rs:8')
     print; (records[0].contains; 'case.trn'), (records[1].contains; 'case.trn')
