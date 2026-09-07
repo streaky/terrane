@@ -188,9 +188,9 @@ Terrane package
     │   ├── default-logger / named-logger       explicit nonambient construction helpers
     │   ├── with-field / with-span              immutable context enrichment
     │   ├── emit / debug / info / warning / error compiler-injected call source; filter before render
-    │   ├── drain-memory / drain-fallback       deterministic canonical records and nonrecursive fallback diagnostics
-    │   ├── install-dependency-bridge           explicit `log`/`tracing` callback routing with foreign provenance
-    │   └── /core/logging/async::send-event     existing typed-channel transport; requires `threads`
+    │   ├── discarded-count / drain-memory / drain-fallback observable drops, deterministic records, nonrecursive fallback
+    │   ├── install-dependency-bridge           explicit `log`/`tracing` event, key-value, and span routing with foreign provenance
+    │   └── /core/logging/async::send-event / consume-events existing typed-channel producer and sink consumer; requires `threads`
     ├── /core/urls                             URL and ordered-query model
     │   ├── url                                serialized / display / components / query / origin
     │   ├── url-query                          ordered duplicate-preserving query entries (read-only after parsing)

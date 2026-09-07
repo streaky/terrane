@@ -1,3 +1,4 @@
 phase = "check"
 status = "reject"
 code = "T0114"
+contains = "must explicitly implement `document-decodable`"

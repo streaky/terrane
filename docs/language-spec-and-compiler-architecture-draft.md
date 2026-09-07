@@ -6510,10 +6510,11 @@ initialized value and must not be mistaken for partial success.
 
 Derived decoding accepts scalars, nested opted-in classes, lists, homogeneous tuples, and maps with
 string keys when every nested value is itself decodable. Integer conversion is exact and
-range-checked. Decimal or integer input to a binary float succeeds only when the mathematical
-document number is exactly representable in the destination width; the decoder never rounds.
-Classes with resource ownership, inheritance, custom construction, unsupported fields, or a
-recursive value cycle must implement `deserializable` manually rather than receiving an unsafe
+range-checked. Decimal or integer input to `float32` or `float64` is rounded to the nearest
+representable finite value using IEEE 754 round-to-nearest, ties-to-even, consistently with an
+ordinary floating destination; input outside the destination's finite range is a numeric-conversion
+diagnostic. Classes with resource ownership, inheritance, custom construction, unsupported fields,
+or a recursive value cycle must implement `deserializable` manually rather than receiving an unsafe
 partial derivation.
 
 Missing fields use their ordinary declaration initializer. A `T|none` field may be absent and
@@ -6562,18 +6563,24 @@ before a sink sees the event. Sinks do not receive the raw secret. Class-field l
 the same `secret` bit from §18.1; there is no facility-specific secrecy annotation.
 
 Memory sinks use an explicit deterministic clock origin and step and expose deterministic drains.
-Every sink is bounded and names its overflow policy. Console sinks produce a stable structured
+Every sink is bounded and names its overflow policy. `discarded-count` makes `drop-newest` and
+`drop-oldest` loss observable without recursively logging. Console sinks produce a stable structured
 encoding. A failing sink records one minimal fallback diagnostic without recursively invoking the
 failed sink. `/core/logging/async` adapts the existing typed channel endpoints and their
-backpressure policies; it does not define another queue.
+backpressure policies: `send-event` publishes and `consume-events` drains a receiver into an
+explicit sink until closure or sink failure. It does not define another queue.
 
 Rust owns sink IDs, synchronization, bounded storage, controlled clock/sequence assignment, console
 I/O, and the process-global `log`/`tracing` facade bridge. These satisfy host-resource and
 foreign-callback/runtime-model justifications. Filtering, enrichment, redaction policy, event
 construction, and logger APIs remain Terrane. The dependency bridge must be explicitly installed
-into a concrete sink, preserves dependency target/module/file/line provenance, normalizes absolute
-Cargo source paths to stable crate-relative paths when possible, and never labels a foreign event
-with a Terrane source location.
+into a concrete sink. It preserves dependency target/module/file/line provenance, `log` key-value
+fields, active tracing span names and fields, and names an unsupported debug-rendered field
+`<field>.debug` rather than dropping it. It normalizes absolute Cargo source paths to stable
+crate-relative paths when possible and never labels a foreign event with a Terrane source
+location. Platform support exposes the bridge layer separately from global installation so an
+optional remote-reporting layer may be composed around the same subscriber; when absent it adds no
+layer or work.
 
 ---
 

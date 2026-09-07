@@ -786,7 +786,7 @@ entrypoints: /core/documents/json::decode-typed-json | /core/documents/yaml::dec
 arguments: source string, concrete class descriptor, matching parser options, explicit allow-unknown bool
 result: document-decode-outcome of T; concrete initialized T value + typed list of every diagnostic; failed iff diagnostics nonempty
 fields: scalar | nested opted class | list | homogeneous tuple | map of string,V; all nested values decodable
-numeric: integers exact/range-checked; decimal/integer to float only when mathematically exact in destination width
+numeric: integers exact/range-checked; decimal/integer to float rounds to nearest finite destination value, ties-to-even; out-of-finite-range diagnoses
 absence: ordinary initializer is default; T|none may be absent; every other absent field diagnoses
 names: one OBJ field metadata record supplies semantic name, external-name, defaulted, optional, secret
 unknowns: rejected or recursively ignored only by explicit call policy
@@ -808,9 +808,9 @@ field: key + log-value protocol renderer + field-call source + secret bit; field
 filter: severity/target policy runs in Terrane before renderer and sink; debug/info/warning/error operations preserve caller source
 value: log-value.render -> bounded document-value; scalar/document/error-chain/user wrappers; no universal debug formatter
 redaction: without explicit sink reveal permission, secret renderer is not called and sink receives only structured '<redacted>'
-sinks: explicit memory | console | failing; bounded capacity + named overflow; deterministic memory clock/drain; nonrecursive fallback
-async: reuses typed channel endpoints and their overflow/backpressure; no logging-specific queue
-dependency_bridge: explicit install into sink; process-global only because log/tracing facades demand it; preserve foreign target/module/file/line; normalize absolute Cargo files to stable crate-relative paths; no Terrane source claim
+sinks: explicit memory | console | failing; bounded capacity + named overflow + observable discarded-count; deterministic memory clock/drain; nonrecursive fallback
+async: send-event + consume-events reuse typed channel endpoints and their overflow/backpressure; no logging-specific queue
+dependency_bridge: explicit install into sink; preserve foreign event/log-kv/span fields (unsupported values become `<field>.debug`) plus target/module/file/line; normalize absolute Cargo files to stable crate-relative paths; no Terrane source claim; bridge layer separately composable, absent optional remote layer does no work
 rust_boundary: sink ID/synchronization/storage/clock/console I/O + foreign callback bridge only; policy/enrichment/filter/redaction/event API in Terrane
 ```
 

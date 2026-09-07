@@ -1291,9 +1291,9 @@ Compression operates on bytes and explicit byte streams, never text implicitly. 
 |   +-- default-logger / named-logger / make-logger
 |   +-- with-field / with-span                immutable enrichment
 |   +-- emit / debug / info / warning / error filter before render and sink dispatch
-+-- drain-memory / drain-fallback             deterministic capture
++-- discarded-count / drain-memory / drain-fallback observable drops and deterministic capture
 +-- install-dependency-bridge                 explicit Rust log/tracing facade routing
-+-- /core/logging/async::send-event           existing typed channel-sender transport; also threads
++-- /core/logging/async::send-event / consume-events existing typed channel transport and sink consumer; also threads
 ```
 
 Logging is not a core-prelude replacement for `print` and has no ambient application logger.
@@ -1301,8 +1301,10 @@ Fields retain typed lazy renderers, construction source, and secrecy while event
 target, emission source, span context, and origin. Sink choice, level and hierarchical target
 filtering, redaction before rendering, bounded storage, failure behavior, and deterministic test
 capture are explicit. Asynchronous transport reuses typed channels rather than defining another
-queue. The process-global dependency bridge is installed only into a selected sink and preserves
-foreign target/module/file/line provenance without inventing Terrane source.
+queue and includes both producer and sink-consumer paths. The process-global dependency bridge is
+installed only into a selected sink, preserves foreign event, key-value, span, target/module/file/
+line provenance without inventing Terrane source, and exposes its subscriber layer for optional
+single-subscriber composition.
 
 ## 14. Packages and native adapters
 
