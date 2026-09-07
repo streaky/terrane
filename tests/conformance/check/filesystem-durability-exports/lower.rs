@@ -599,6 +599,15 @@ pub fn terrane_platform_read(
         }
     }
 }
+pub async fn terrane_platform_read_async(
+    handle: &TerranePlatformStreamHandle,
+    limit: terrane_int_support::Int,
+) -> TerranePlatformReadResult {
+    let handle = handle.clone();
+    tokio::task::spawn_blocking(move || terrane_platform_read(&handle, limit))
+        .await
+        .expect("delegated stream read must not panic")
+}
 pub fn terrane_platform_write(
     handle: &TerranePlatformStreamHandle,
     data: &[u8],

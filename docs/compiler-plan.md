@@ -1458,6 +1458,10 @@ requests sibling cancellation, while explicit task movement remains required to 
 child. Legacy synchronous scope fixtures retain their cancellable waker-polling implementation
 until their source path is migrated.
 
+The first B7 migration makes `/core/streams` byte and text `read-async` await a generated
+`spawn_blocking` delegation rather than call the synchronous read on an executor task. That
+delegation is recorded as a generic runtime requirement; its observable read result is unchanged.
+
 Accepted and rejected conformance covers async/sync type incompatibility, task consumption,
 successful, throwing, cancelled, and sibling-cancelling children, statically resolvable nested
 deadline extension, a non-owning reference whose unchanged local owner is proven to remain in the

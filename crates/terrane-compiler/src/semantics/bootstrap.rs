@@ -266,6 +266,7 @@ pub(super) fn bootstrap_namespaces() -> BTreeMap<String, Namespace> {
             "acquire-stdout",
             "acquire-stderr",
             "read",
+            "read-async",
             "write",
             "flush",
             "sync-data",

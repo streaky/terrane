@@ -728,6 +728,11 @@ requests cancellation of surviving siblings. The selected executor checks cancel
 deadline expiry while polling each child. Scoped tasks remain linear, so every child must be joined
 before function exit; no implicit detach or abandoned child path exists.
 
+`/core/streams` `read-async` now performs its host read through the selected runtime's explicit
+blocking-delegation path and awaits that delegated operation. The source contract remains a task of
+the same read result, while the execution requirement records that the host-standard-stream read
+cannot yet use a readiness-native operation.
+
 Task runtime support and its Cargo dependencies are selected from semantic lowering metadata, not
 from generated source-text searches. Merely spelling a runtime crate path in source text cannot
 change the generated manifest.

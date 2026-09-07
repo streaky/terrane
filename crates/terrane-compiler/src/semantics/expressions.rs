@@ -324,6 +324,12 @@ pub(super) fn infer_value_type(
                     | "intrinsic:streams::open-directory-beneath"
                     | "intrinsic:streams::open-file-beneath" => Some(ValueType::PlatformOpenResult),
                     "intrinsic:streams::read" => Some(ValueType::PlatformReadResult),
+                    "intrinsic:streams::read-async" => {
+                        return Ok(Some(ValueType::Task(
+                            ElementType::new(ValueType::PlatformReadResult),
+                            TaskTransferability::Local,
+                        )));
+                    }
                     "intrinsic:streams::write" => Some(ValueType::PlatformWriteResult),
                     "intrinsic:streams::flush"
                     | "intrinsic:streams::sync-data"

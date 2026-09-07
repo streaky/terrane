@@ -727,6 +727,7 @@ impl Emitter<'_> {
             ("open-directory-beneath", "open_directory_beneath"),
             ("open-file-beneath", "open_file_beneath"),
             ("read", "read"),
+            ("read-async", "read_async"),
             ("write", "write"),
             ("flush", "flush"),
             ("sync-data", "sync_data"),

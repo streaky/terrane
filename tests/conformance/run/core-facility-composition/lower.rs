@@ -391,47 +391,47 @@ mod __terrane_trace {
     ];
     pub static SITES: [Site; 16] = [
         {
-            /* terrane-site-row: site 0: /core/streams::read (core/streams.trn:187:23-187:50) */
+            /* terrane-site-row: site 0: /core/streams::read (core/streams.trn:188:23-188:50) */
             Site {
                 function: 0,
                 file: 0,
-                line: 187,
+                line: 188,
                 column: 23,
-                end_line: 187,
+                end_line: 188,
                 end_column: 50,
             }
         },
         {
-            /* terrane-site-row: site 1: /core/streams::read-exact (core/streams.trn:209:23-209:46) */
+            /* terrane-site-row: site 1: /core/streams::read-exact (core/streams.trn:210:23-210:46) */
             Site {
                 function: 1,
                 file: 0,
-                line: 209,
+                line: 210,
                 column: 23,
-                end_line: 209,
+                end_line: 210,
                 end_column: 46,
             }
         },
         {
-            /* terrane-site-row: site 2: /core/streams::read-all (core/streams.trn:228:23-228:46) */
+            /* terrane-site-row: site 2: /core/streams::read-all (core/streams.trn:229:23-229:46) */
             Site {
                 function: 2,
                 file: 0,
-                line: 228,
+                line: 229,
                 column: 23,
-                end_line: 228,
+                end_line: 229,
                 end_column: 46,
             }
         },
         {
-            /* terrane-site-row: site 3: /core/streams::read-async (core/streams.trn:232:16-232:32) */
+            /* terrane-site-row: site 3: /core/streams::read-async (core/streams.trn:234:23-234:50) */
             Site {
                 function: 3,
                 file: 0,
-                line: 232,
-                column: 16,
-                end_line: 232,
-                end_column: 32,
+                line: 234,
+                column: 23,
+                end_line: 234,
+                end_column: 50,
             }
         },
         {
@@ -668,6 +668,15 @@ pub fn terrane_platform_read(
             }
         }
     }
+}
+pub async fn terrane_platform_read_async(
+    handle: &TerranePlatformStreamHandle,
+    limit: terrane_int_support::Int,
+) -> TerranePlatformReadResult {
+    let handle = handle.clone();
+    tokio::task::spawn_blocking(move || terrane_platform_read(&handle, limit))
+        .await
+        .expect("delegated stream read must not panic")
 }
 pub fn terrane_platform_write(
     handle: &TerranePlatformStreamHandle,
@@ -1907,7 +1916,17 @@ impl ByteReader {
         );
     }
     pub async fn read_async(&self, count: terrane_int_support::Int) -> ReadResult {
-        return self.read(count.clone());
+        let raw: TerranePlatformReadResult = __terrane_await(
+                terrane_platform_read_async(&self.handle, count),
+            )
+            .await;
+        return ReadResult::terrane_construct(
+            raw.data.clone().clone(),
+            raw.completed.clone(),
+            raw.end,
+            raw.failed,
+            raw.message.clone().clone(),
+        );
     }
     pub fn text(&self, codec: terrane_string_support::Encoding) -> TextReader {
         return TextReader::terrane_construct(self.handle.clone(), codec);
@@ -2072,7 +2091,7 @@ impl TextReader {
         let raw: TerranePlatformReadResult = terrane_platform_read(&self.handle, count);
         let text: String = __terrane_raised_err(
             terrane_string_support::decode(&raw.data.clone(), self.codec),
-            0 /* terrane-site: core/streams.trn:187:23-187:50 */,
+            0 /* terrane-site: core/streams.trn:188:23-188:50 */,
         )?;
         return Ok(
             TextReadResult::terrane_construct(
@@ -2122,7 +2141,7 @@ impl TextReader {
         }
         let text: String = __terrane_raised_err(
             terrane_string_support::decode(&data, self.codec),
-            1 /* terrane-site: core/streams.trn:209:23-209:46 */,
+            1 /* terrane-site: core/streams.trn:210:23-210:46 */,
         )?;
         return Ok(
             TextReadResult::terrane_construct(
@@ -2168,7 +2187,7 @@ impl TextReader {
         }
         let text: String = __terrane_raised_err(
             terrane_string_support::decode(&data, self.codec),
-            2 /* terrane-site: core/streams.trn:228:23-228:46 */,
+            2 /* terrane-site: core/streams.trn:229:23-229:46 */,
         )?;
         return Ok(
             TextReadResult::terrane_construct(
@@ -2184,11 +2203,22 @@ impl TextReader {
         &self,
         count: terrane_int_support::Int,
     ) -> Result<TextReadResult, TerraneError> {
+        let raw: TerranePlatformReadResult = __terrane_await(
+                terrane_platform_read_async(&self.handle, count),
+            )
+            .await;
+        let text: String = __terrane_raised_err(
+            terrane_string_support::decode(&raw.data.clone(), self.codec),
+            3 /* terrane-site: core/streams.trn:234:23-234:50 */,
+        )?;
         return Ok(
-            __terrane_traced_err(
-                self.read(count.clone()),
-                3 /* terrane-site: core/streams.trn:232:16-232:32 */,
-            )?,
+            TextReadResult::terrane_construct(
+                text,
+                raw.completed.clone(),
+                raw.end,
+                raw.failed,
+                raw.message.clone().clone(),
+            ),
         );
     }
     pub fn close(self) -> StreamOperationResult {

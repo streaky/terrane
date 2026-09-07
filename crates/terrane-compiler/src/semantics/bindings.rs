@@ -967,6 +967,15 @@ pub(super) fn infer_task_transferability(package: &mut SemanticPackage) {
     }) {
         package.execution_requirements.wake_support = true;
     }
+    if package
+        .units
+        .iter()
+        .any(|unit| unit.source.text().contains("host-read-async"))
+    {
+        package.execution_requirements.runtime_context = true;
+        package.execution_requirements.wake_support = true;
+        package.execution_requirements.blocking_delegation = true;
+    }
 }
 
 pub(super) fn validate_suspension_ownership(
