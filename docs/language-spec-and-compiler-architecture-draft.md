@@ -3731,6 +3731,14 @@ enters those regions exactly once in innermost-first order, and drives their syn
 asynchronous cleanup to completion before the task can be joined. Cleanup is shielded from the
 cancellation request that initiated it; a repeated request does not enter it twice.
 
+The native backend represents the request with a wakeable compiler-owned cancellation signal rather
+than periodic polling. Lowered async `try` regions with `finally` install nested finalization guards.
+Only the innermost active guard may observe the request; it drops its pending Rust future, runs
+generated `finally` dispatch, and then exposes cancellation to the next enclosing guard. Once the
+outermost guard finishes, the scoped-task boundary records cancellation. The guard state is not a
+catchable source throwable, requires no Rust panic or unwind control flow, and does not change the
+selected dependency-panic policy.
+
 Compiler-owned asynchronous stream, TCP, UDP, and DNS operations suspend through the selected
 runtime. Where the current host ABI exposes an unavoidably blocking standard handle or socket,
 lowering delegates that operation to the runtime's blocking pool; it never runs the blocking call

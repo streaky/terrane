@@ -725,9 +725,12 @@ failed child requests cancellation of its surviving siblings.
 The implemented task outcome exposes `completed bool`, `cancelled bool`, `value T or none`, and
 `error throwable or none`. Successful completion retains `value` even when cancellation was
 requested; failure sets `completed` false, leaves `value` absent, retains the typed child error, and
-requests cancellation of surviving siblings. The selected executor checks cancellation and
-deadline expiry while polling each child. Scoped tasks remain linear, so every child must be joined
-before function exit; no implicit detach or abandoned child path exists.
+requests cancellation of surviving siblings. Native scopes wake a suspended child when cancellation
+is requested or its deadline expires; they do not poll cancellation on a timer. Observation drops
+the in-flight operation, runs active `finally` regions exactly once in innermost-first order, and
+shields asynchronous cleanup from the initiating request before join completes. Scoped tasks remain
+linear, so every child must be joined before function exit; no implicit detach or abandoned child
+path exists.
 
 `/core/streams` `read-async` now performs its host read through the selected runtime's explicit
 blocking-delegation path and awaits that delegated operation. The source contract remains a task of

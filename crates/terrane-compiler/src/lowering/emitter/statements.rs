@@ -412,6 +412,18 @@ impl Emitter<'_> {
             return;
         };
         let asynchronous = self.contains_await(node);
+        let has_finally = node
+            .children
+            .iter()
+            .any(|child| child.kind == SyntaxKind::FinallyClause);
+        let cancellation_aware = asynchronous
+            && has_finally
+            && package_uses_task_scope(self.package)
+            && self.package.units.iter().any(|unit| {
+                unit.functions
+                    .iter()
+                    .any(|function| function.name == "main" && function.is_async)
+            });
         let closure_start = if asynchronous { "async {" } else { "(|| {" };
         let closure_end = if asynchronous { "}.await;" } else { "})();" };
         let index = self.try_counter;
@@ -420,18 +432,19 @@ impl Emitter<'_> {
             || "()".to_owned(),
             |value_type| rust_value_type(self.package, value_type),
         );
-        let mutable = if node
-            .children
-            .iter()
-            .any(|child| child.kind == SyntaxKind::FinallyClause)
-        {
-            "mut "
+        let mutable = if has_finally { "mut " } else { "" };
+        if cancellation_aware {
+            self.line(&format!(
+                "let mut __terrane_finally_guard_{index} = __terrane_finally_guard();"
+            ));
+            self.line(&format!(
+                "let __terrane_maybe_completion_{index}: Option<TerraneCompletion<{result}>> = __terrane_cancel_operation(&__terrane_finally_guard_{index}, async {{"
+            ));
         } else {
-            ""
-        };
-        self.line(&format!(
-            "let {mutable}__terrane_completion_{index}: TerraneCompletion<{result}> = {closure_start}"
-        ));
+            self.line(&format!(
+                "let {mutable}__terrane_completion_{index}: TerraneCompletion<{result}> = {closure_start}"
+            ));
+        }
         self.indent += 1;
         self.line(&format!(
             "let __terrane_try_{index}: TerraneCompletion<{result}> = {closure_start}"
@@ -520,7 +533,17 @@ impl Emitter<'_> {
         self.line("}");
         self.line("TerraneCompletion::Normal");
         self.indent -= 1;
-        self.line(closure_end);
+        if cancellation_aware {
+            self.line("}).await;");
+            self.line(&format!(
+                "let __terrane_cancelled_{index} = __terrane_maybe_completion_{index}.is_none();"
+            ));
+            self.line(&format!(
+                "let mut __terrane_completion_{index} = __terrane_maybe_completion_{index}.unwrap_or(TerraneCompletion::Normal);"
+            ));
+        } else {
+            self.line(closure_end);
+        }
         if let Some(finally) = node
             .children
             .iter()
@@ -528,15 +551,10 @@ impl Emitter<'_> {
             .and_then(|clause| clause.children.first())
         {
             let finally_asynchronous = self.contains_await(finally);
-            let finally_start = if finally_asynchronous {
-                "async {"
+            let (finally_start, finally_end) = if finally_asynchronous {
+                ("async {", "}.await;")
             } else {
-                "(|| {"
-            };
-            let finally_end = if finally_asynchronous {
-                "}.await;"
-            } else {
-                "})();"
+                ("(|| {", "})();")
             };
             self.line(&format!(
                 "let __terrane_finally_{index}: TerraneCompletion<{result}> = {finally_start}"
@@ -562,6 +580,12 @@ impl Emitter<'_> {
             ));
             self.indent -= 1;
             self.line("}");
+        }
+        if cancellation_aware {
+            self.line(&format!(
+                "if __terrane_cancelled_{index} && matches!(&__terrane_completion_{index}, TerraneCompletion::Normal) {{ __terrane_finish_cancelled_finally(__terrane_finally_guard_{index}).await; }}"
+            ));
+            self.line(&format!("__terrane_finally_guard_{index}.finish();"));
         }
         self.line(&format!("match __terrane_completion_{index} {{"));
         self.indent += 1;

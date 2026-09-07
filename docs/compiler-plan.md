@@ -1440,15 +1440,21 @@ surface the compiler-owned runtime-context, wake-support, and transfer requireme
 projected async functions.
 
 Every lowered Terrane `await` yields to the executor before polling its operand and again after the
-operand completes. The cancellable executor checks the scope between those child polls, so even an
-immediately-ready awaited future cannot carry execution past the suspension point after cancellation
-or deadline expiry. A focused threaded-runtime harness coordinates cancellation while an awaited
-future is being polled and proves that the child is dropped before its post-`await` statement, then
-joins as cancelled. A failed child retains its typed throwable and requests cancellation through the
-scope's shared state, which surviving siblings observe at their next cancellation point. Linear
-scoped tasks must be joined before the enclosing function can exit, and join reports completed,
-cancelled, value, and typed error state. Child deadlines take the earlier of inherited and requested
-deadlines at runtime; statically resolvable extensions are additionally rejected in source.
+operand completes. Native scopes now publish cancellation through a wakeable compiler-owned signal;
+no fixed-interval timer polls scope state. A generated finalization guard keeps the cancellation
+boundary outside every active `finally`; the innermost guard first drops the pending operation, runs
+its cleanup, and then exposes the request to the next enclosing guard. Asynchronous cleanup remains
+protected from the initiating request until the outermost guard releases it to the task boundary.
+
+The `cancelled-foreign-await-runs-finally` witness holds a projected Rust future permanently
+pending, waits until it has actually started, cancels its scope, and proves that the future's
+operation-only owner is dropped before separately retained Terrane cleanup runs. Join does not
+complete until the cleanup's projected asynchronous yield finishes. The same single-worker runtime
+then completes a newly spawned task, proving cancellation released the executor rather than leaving
+the pending operation or a polling loop resident. `cancelled-finally-error-wins` proves that an
+ordinary cleanup failure replaces pending cancellation rather than being discarded.
+`borrow-parameter-in-async-finally` retains the source rejection for cleanup state whose lender
+cannot survive the suspension.
 
 Native scope lowering now turns `spawn` into a task scheduled on the selected local or parallel
 runtime, rather than an OS thread that waits on a future. `join` is itself asynchronous and source

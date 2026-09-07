@@ -40,6 +40,7 @@ pub(crate) fn lower(package: &SemanticPackage) -> Program {
         .iter()
         .flat_map(|unit| &unit.functions)
         .any(|function| function.name == "main" && function.is_async);
+    let native_cancellation = package_uses_task_scope(package) && has_async_entry;
     let has_custom_throwable = has_dependency
         || package.units.iter().any(|unit| {
             unit.objects.iter().any(|object| {
@@ -53,7 +54,11 @@ pub(crate) fn lower(package: &SemanticPackage) -> Program {
         registry.register_descriptor("/core/errors::dependency-panic", "dependency-panic");
     }
     if has_async {
-        let mut support = include_str!("../../runtime/async.rs").to_owned();
+        let mut support = if native_cancellation {
+            include_str!("../../runtime/async_native.rs").to_owned()
+        } else {
+            include_str!("../../runtime/async.rs").to_owned()
+        };
         if has_async_entry {
             support.push_str(match package.execution_strategy {
                 crate::execution::ExecutionStrategy::Local => {
@@ -67,12 +72,8 @@ pub(crate) fn lower(package: &SemanticPackage) -> Program {
         if has_async_dependency {
             support.push_str(include_str!("../../runtime/async_dependency.rs"));
         }
-        if package_uses_task_scope(package) {
-            support.push_str(if has_async_entry {
-                include_str!("../../runtime/async_cancellable_native.rs")
-            } else {
-                include_str!("../../runtime/async_cancellable.rs")
-            });
+        if package_uses_task_scope(package) && !native_cancellation {
+            support.push_str(include_str!("../../runtime/async_cancellable.rs"));
         }
         runtime.push(GeneratedModule {
             name: "async",

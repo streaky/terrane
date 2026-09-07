@@ -21,6 +21,7 @@ enum TerraneErrorKind {
     MissingKey,
     ResourceError,
     SourceError,
+    Custom(DescriptorId),
 }
 impl TerraneErrorKind {
     fn display_name(self) -> &'static str {
@@ -35,6 +36,9 @@ impl TerraneErrorKind {
             Self::MissingKey => "missing-key",
             Self::ResourceError => "resource-error",
             Self::SourceError => "error",
+            Self::Custom(descriptor) => {
+                __terrane_error_registry::DESCRIPTORS[usize::from(descriptor.0)]
+            }
         }
     }
     fn default_message(self) -> &'static str {
@@ -51,6 +55,7 @@ impl TerraneErrorKind {
                 "integer shift count cannot be represented on this target"
             }
             Self::SourceError => "source error",
+            Self::Custom(_) => "source error",
         }
     }
 }
@@ -98,6 +103,15 @@ impl TerraneError {
                 }),
             ),
         }
+    }
+    #[cold]
+    #[inline(never)]
+    fn custom_raised(
+        descriptor: DescriptorId,
+        message: impl Into<String>,
+        origin: TerraneSite,
+    ) -> Self {
+        Self::raised_with_message(TerraneErrorKind::Custom(descriptor), message, origin)
     }
     #[cold]
     #[inline(never)]
@@ -363,9 +377,37 @@ enum TerraneCompletion<T> {
     Break,
     Continue,
 }
+#[allow(dead_code, reason = "a projected dependency may expose no Result members")]
+const TERRANE_DEPENDENCY_ERROR: DescriptorId = DescriptorId(0);
+#[allow(dead_code, reason = "panic catching may be disabled or not crossed")]
+const TERRANE_DEPENDENCY_PANIC: DescriptorId = DescriptorId(1);
+#[allow(
+    dead_code,
+    reason = "projected type methods may be imported without being crossed"
+)]
+fn __terrane_dependency_panic(
+    payload: Box<dyn std::any::Any + Send>,
+    crate_name: &'static str,
+    member: &'static str,
+) -> TerraneForeignError {
+    let detail = payload
+        .downcast_ref::<&str>()
+        .copied()
+        .or_else(|| payload.downcast_ref::<String>().map(String::as_str))
+        .unwrap_or("non-string panic payload");
+    TerraneForeignError(
+        TerraneError::custom_raised(
+            TERRANE_DEPENDENCY_PANIC,
+            format!(
+                "Rust dependency `{crate_name}` member `{member}` panicked: {detail}"
+            ),
+            TERRANE_NO_SITE,
+        ),
+    )
+}
 mod __terrane_error_registry {
     #[allow(dead_code, reason = "custom descriptors are absent from some programs")]
-    pub static DESCRIPTORS: [&str; 0] = [];
+    pub static DESCRIPTORS: [&str; 2] = ["dependency-error", "dependency-panic"];
 }
 mod __terrane_trace {
     pub struct Site {
@@ -376,9 +418,65 @@ mod __terrane_trace {
         pub end_line: u32,
         pub end_column: u32,
     }
-    pub static FILES: [&str; 0] = [];
-    pub static FUNCTIONS: [&str; 0] = [];
-    pub static SITES: [Site; 0] = [];
+    pub static FILES: [&str; 1] = ["src/main.trn"];
+    pub static FUNCTIONS: [&str; 2] = ["/app::blocked", "/app::main"];
+    pub static SITES: [Site; 5] = [
+        {
+            /* terrane-site-row: site 0: /app::blocked (src/main.trn:8:22-8:35) */
+            Site {
+                function: 0,
+                file: 0,
+                line: 8,
+                column: 22,
+                end_line: 8,
+                end_column: 35,
+            }
+        },
+        {
+            /* terrane-site-row: site 1: /app::blocked (src/main.trn:10:33-10:58) */
+            Site {
+                function: 0,
+                file: 0,
+                line: 10,
+                column: 33,
+                end_line: 10,
+                end_column: 58,
+            }
+        },
+        {
+            /* terrane-site-row: site 2: /app::main (src/main.trn:17:5-17:27) */
+            Site {
+                function: 1,
+                file: 0,
+                line: 17,
+                column: 5,
+                end_line: 17,
+                end_column: 27,
+            }
+        },
+        {
+            /* terrane-site-row: site 3: /app::main (src/main.trn:20:26-20:55) */
+            Site {
+                function: 1,
+                file: 0,
+                line: 20,
+                column: 26,
+                end_line: 20,
+                end_column: 55,
+            }
+        },
+        {
+            /* terrane-site-row: site 4: /app::main (src/main.trn:30:17-30:38) */
+            Site {
+                function: 1,
+                file: 0,
+                line: 30,
+                column: 17,
+                end_line: 30,
+                end_column: 38,
+            }
+        },
+    ];
     #[cold]
     #[inline(never)]
     pub fn render(site: u32) -> String {
@@ -648,11 +746,26 @@ async fn __terrane_cancellable<F: Future>(
         .await
 }
 fn __terrane_run<F: Future>(future: F) -> F::Output {
-    tokio::runtime::Builder::new_multi_thread()
+    let runtime = tokio::runtime::Builder::new_current_thread()
         .enable_all()
         .build()
-        .expect("Terrane async runtime must initialize")
-        .block_on(future)
+        .expect("Terrane async runtime must initialize");
+    tokio::task::LocalSet::new().block_on(&runtime, future)
+}
+async fn __terrane_dependency_await_unwind<F: Future>(
+    future: F,
+) -> Result<F::Output, Box<dyn std::any::Any + Send>> {
+    let mut future = std::pin::pin!(future);
+    std::future::poll_fn(|context| {
+            match std::panic::catch_unwind(
+                std::panic::AssertUnwindSafe(|| { future.as_mut().poll(context) }),
+            ) {
+                Ok(std::task::Poll::Ready(value)) => std::task::Poll::Ready(Ok(value)),
+                Ok(std::task::Poll::Pending) => std::task::Poll::Pending,
+                Err(payload) => std::task::Poll::Ready(Err(payload)),
+            }
+        })
+        .await
 }
 #[derive(Clone)]
 pub struct TerraneTaskScope {
@@ -717,13 +830,11 @@ enum TerraneTaskResult<T> {
 pub struct TerraneScopedTask<T> {
     handle: Option<tokio::task::JoinHandle<TerraneTaskResult<T>>>,
 }
-impl<T: Send + 'static> TerraneScopedTask<T> {
+impl<T: 'static> TerraneScopedTask<T> {
     #[allow(dead_code, reason = "task spawn ABI is emitted before usage shaping")]
-    fn spawn<F: Future<Output = TerraneTaskResult<T>> + Send + 'static>(
-        work: F,
-    ) -> Self {
+    fn spawn<F: Future<Output = TerraneTaskResult<T>> + 'static>(work: F) -> Self {
         Self {
-            handle: Some(tokio::spawn(work)),
+            handle: Some(tokio::task::spawn_local(work)),
         }
     }
 }
@@ -765,20 +876,96 @@ pub struct TerraneTaskOutcome<T> {
     pub value: Option<T>,
     pub error: Option<TerraneError>,
 }
-// Source: case.trn
-// Namespace: cancelled-task-progress
-async fn work() -> terrane_int_support::Int {
-    return terrane_int_support::Int::from(7_i128);
+// Source: src/main.trn
+// Namespace: app
+async fn blocked() -> String {
+    let cleanup: String = String::from("cleanup");
+    let mut __terrane_finally_guard_0 = __terrane_finally_guard();
+    let __terrane_maybe_completion_0: Option<TerraneCompletion<String>> = __terrane_cancel_operation(
+            &__terrane_finally_guard_0,
+            async {
+                let __terrane_try_0: TerraneCompletion<String> = async {
+                    return TerraneCompletion::Return(
+                        __terrane_traced_completion!(
+                            __terrane_await({ let __terrane_future = wait_forever();
+                            async move { __terrane_raised_err(__terrane_future. await,
+                            0 /* terrane-site: src/main.trn:8:22-8:35 */) } }). await,
+                            0 /* terrane-site: src/main.trn:8:22-8:35 */
+                        ),
+                    );
+                }
+                    .await;
+                match __terrane_try_0 {
+                    TerraneCompletion::Return(value) => {
+                        return TerraneCompletion::Return(value);
+                    }
+                    TerraneCompletion::Break => return TerraneCompletion::Break,
+                    TerraneCompletion::Continue => return TerraneCompletion::Continue,
+                    TerraneCompletion::Normal => {}
+                    TerraneCompletion::Error(__terrane_error_0) => {
+                        let mut __terrane_handled_0 = false;
+                        if !__terrane_handled_0 {
+                            return TerraneCompletion::Error(__terrane_error_0);
+                        }
+                    }
+                }
+                TerraneCompletion::Normal
+            },
+        )
+        .await;
+    let __terrane_cancelled_0 = __terrane_maybe_completion_0.is_none();
+    let mut __terrane_completion_0 = __terrane_maybe_completion_0
+        .unwrap_or(TerraneCompletion::Normal);
+    let __terrane_finally_0: TerraneCompletion<String> = async {
+        let observed: String = __terrane_traced_completion!(
+            __terrane_await({ let __terrane_future = echo_after_yield(cleanup); async
+            move { __terrane_raised_err(__terrane_future. await, 1 /* terrane-site: src/main.trn:10:33-10:58 */) } }). await, 1 /* terrane-site: src/main.trn:10:33-10:58 */
+        );
+        println!("{}", terrane_scalar_support::scalar_text(&observed));
+        TerraneCompletion::Normal
+    }
+        .await;
+    match __terrane_finally_0 {
+        TerraneCompletion::Normal => {}
+        replacement => __terrane_completion_0 = replacement,
+    }
+    if __terrane_cancelled_0
+        && matches!(&__terrane_completion_0, TerraneCompletion::Normal)
+    {
+        __terrane_finish_cancelled_finally(__terrane_finally_guard_0).await;
+    }
+    __terrane_finally_guard_0.finish();
+    match __terrane_completion_0 {
+        TerraneCompletion::Normal => {
+            __terrane_generated_defect("non-fallthrough try completed normally")
+        }
+        TerraneCompletion::Return(value) => return value,
+        TerraneCompletion::Error(error) => __terrane_uncaught(error),
+        TerraneCompletion::Break | TerraneCompletion::Continue => {
+            __terrane_generated_defect("loop control escaped a non-loop try")
+        }
+    }
+}
+async fn after_cancellation() -> terrane_int_support::Int {
+    return terrane_int_support::Int::from(9_i128);
 }
 fn main() {
     __terrane_run(async move {
+        __terrane_raised(
+            reset_operation_state(),
+            2 /* terrane-site: src/main.trn:17:5-17:27 */,
+        );
         let scope: TerraneTaskScope = TerraneTaskScope::new(None);
-        let child: TerraneScopedTask<terrane_int_support::Int> = {
+        let child: TerraneScopedTask<String> = {
             let __terrane_scope = scope.clone();
             let __terrane_cancel = __terrane_scope.cancellation();
             let __terrane_deadline = __terrane_scope.deadline;
             TerraneScopedTask::spawn(async move {
-                match __terrane_cancellable(work(), __terrane_cancel, __terrane_deadline)
+                match __terrane_cancellable(
+                        blocked(),
+                        __terrane_cancel,
+                        __terrane_deadline,
+                    )
                     .await
                 {
                     Some(value) => TerraneTaskResult::Completed(value),
@@ -786,13 +973,145 @@ fn main() {
                 }
             })
         };
+        let started: bool = __terrane_traced(
+            __terrane_await({
+                    let __terrane_future = wait_until_operation_started();
+                    async move {
+                        __terrane_raised_err(
+                            __terrane_future.await,
+                            3 /* terrane-site: src/main.trn:20:26-20:55 */,
+                        )
+                    }
+                })
+                .await,
+            3 /* terrane-site: src/main.trn:20:26-20:55 */,
+        );
         scope.cancel();
-        let outcome: TerraneTaskOutcome<terrane_int_support::Int> = __terrane_await(
-                scope.join(child),
+        let outcome: TerraneTaskOutcome<String> = __terrane_await(scope.join(child))
+            .await;
+        println!(
+            "{}{}", terrane_scalar_support::scalar_text(&started),
+            terrane_scalar_support::scalar_text(&outcome.cancelled)
+        );
+        let next_scope: TerraneTaskScope = TerraneTaskScope::new(None);
+        let next_child: TerraneScopedTask<terrane_int_support::Int> = {
+            let __terrane_scope = next_scope.clone();
+            let __terrane_cancel = __terrane_scope.cancellation();
+            let __terrane_deadline = __terrane_scope.deadline;
+            TerraneScopedTask::spawn(async move {
+                match __terrane_cancellable(
+                        after_cancellation(),
+                        __terrane_cancel,
+                        __terrane_deadline,
+                    )
+                    .await
+                {
+                    Some(value) => TerraneTaskResult::Completed(value),
+                    None => TerraneTaskResult::Cancelled,
+                }
+            })
+        };
+        let next_outcome: TerraneTaskOutcome<terrane_int_support::Int> = __terrane_await(
+                next_scope.join(next_child),
             )
             .await;
-        let consistent: bool = outcome.cancelled && outcome.value.clone().is_none()
-            || outcome.completed && outcome.value.clone().is_some();
-        println!("{}", terrane_scalar_support::scalar_text(&consistent));
+        let next_value: Option<terrane_int_support::Int> = next_outcome.value.clone();
+        if next_value.is_some() {
+            println!(
+                "{}", terrane_scalar_support::scalar_text(&* next_value.as_ref()
+                .expect("semantic optional narrowing"))
+            );
+        }
+        let drops: terrane_int_support::Int = __terrane_raised(
+            operation_drop_count(),
+            4 /* terrane-site: src/main.trn:30:17-30:38 */,
+        );
+        println!("{}", terrane_scalar_support::scalar_text(&drops));
     });
+}
+// Source: <terrane>/projected/deps/async-witness.trn
+// Namespace: deps/async-witness
+pub async fn echo_after_yield(
+    value: String,
+) -> Result<String, crate::TerraneForeignError> {
+    let value = value;
+    match crate::__terrane_dependency_await_unwind(
+            async_witness::echo_after_yield(value),
+        )
+        .await
+    {
+        Ok(value) => Ok(value),
+        Err(payload) => {
+            Err(
+                crate::__terrane_dependency_panic(
+                    payload,
+                    "async-witness",
+                    "async_witness::echo_after_yield",
+                ),
+            )
+        }
+    }
+}
+pub fn operation_drop_count() -> Result<
+    terrane_int_support::Int,
+    crate::TerraneForeignError,
+> {
+    match std::panic::catch_unwind(|| async_witness::operation_drop_count()) {
+        Ok(value) => Ok(terrane_int_support::Int::from_u128(value as u128)),
+        Err(payload) => {
+            Err(
+                crate::__terrane_dependency_panic(
+                    payload,
+                    "async-witness",
+                    "async_witness::operation_drop_count",
+                ),
+            )
+        }
+    }
+}
+pub fn reset_operation_state() -> Result<(), crate::TerraneForeignError> {
+    match std::panic::catch_unwind(|| async_witness::reset_operation_state()) {
+        Ok(value) => Ok(value),
+        Err(payload) => {
+            Err(
+                crate::__terrane_dependency_panic(
+                    payload,
+                    "async-witness",
+                    "async_witness::reset_operation_state",
+                ),
+            )
+        }
+    }
+}
+pub async fn wait_forever() -> Result<String, crate::TerraneForeignError> {
+    match crate::__terrane_dependency_await_unwind(async_witness::wait_forever()).await {
+        Ok(value) => Ok(value),
+        Err(payload) => {
+            Err(
+                crate::__terrane_dependency_panic(
+                    payload,
+                    "async-witness",
+                    "async_witness::wait_forever",
+                ),
+            )
+        }
+    }
+}
+pub async fn wait_until_operation_started() -> Result<bool, crate::TerraneForeignError> {
+    match crate::__terrane_dependency_await_unwind(
+            async_witness::wait_until_operation_started(),
+        )
+        .await
+    {
+        Ok(value) => Ok(value),
+        Err(payload) => {
+            Err(
+                crate::__terrane_dependency_panic(
+                    payload,
+                    "async-witness",
+                    "async_witness::wait_until_operation_started",
+                ),
+            )
+        }
+    }
 }

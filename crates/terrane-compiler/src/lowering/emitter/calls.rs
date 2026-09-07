@@ -48,15 +48,15 @@ impl Emitter<'_> {
                     };
                     if foreign_error {
                         format!(
-                            "{{ let __terrane_scope = ({receiver}).clone(); let __terrane_cancel = __terrane_scope.clone(); TerraneScopedTask::spawn(async move {{ match __terrane_cancellable({invocation}, move || __terrane_cancel.should_cancel()).await {{ Some(Ok(value)) => TerraneTaskResult::Completed(value), Some(Err(error)) => TerraneTaskResult::Failed(crate::TerraneRaised::raised(error, crate::TERRANE_NO_SITE)), None => TerraneTaskResult::Cancelled }} }}) }}"
+                            "{{ let __terrane_scope = ({receiver}).clone(); let __terrane_cancel = __terrane_scope.cancellation(); let __terrane_deadline = __terrane_scope.deadline; TerraneScopedTask::spawn(async move {{ match __terrane_cancellable({invocation}, __terrane_cancel, __terrane_deadline).await {{ Some(Ok(value)) => TerraneTaskResult::Completed(value), Some(Err(error)) => TerraneTaskResult::Failed(crate::TerraneRaised::raised(error, crate::TERRANE_NO_SITE)), None => TerraneTaskResult::Cancelled }} }}) }}"
                         )
                     } else if throws {
                         format!(
-                            "{{ let __terrane_scope = ({receiver}).clone(); let __terrane_cancel = __terrane_scope.clone(); TerraneScopedTask::spawn(async move {{ match __terrane_cancellable({invocation}, move || __terrane_cancel.should_cancel()).await {{ Some(Ok(value)) => TerraneTaskResult::Completed(value), Some(Err(error)) => TerraneTaskResult::Failed(error), None => TerraneTaskResult::Cancelled }} }}) }}"
+                            "{{ let __terrane_scope = ({receiver}).clone(); let __terrane_cancel = __terrane_scope.cancellation(); let __terrane_deadline = __terrane_scope.deadline; TerraneScopedTask::spawn(async move {{ match __terrane_cancellable({invocation}, __terrane_cancel, __terrane_deadline).await {{ Some(Ok(value)) => TerraneTaskResult::Completed(value), Some(Err(error)) => TerraneTaskResult::Failed(error), None => TerraneTaskResult::Cancelled }} }}) }}"
                         )
                     } else {
                         format!(
-                            "{{ let __terrane_scope = ({receiver}).clone(); let __terrane_cancel = __terrane_scope.clone(); TerraneScopedTask::spawn(async move {{ match __terrane_cancellable({invocation}, move || __terrane_cancel.should_cancel()).await {{ Some(value) => TerraneTaskResult::Completed(value), None => TerraneTaskResult::Cancelled }} }}) }}"
+                            "{{ let __terrane_scope = ({receiver}).clone(); let __terrane_cancel = __terrane_scope.cancellation(); let __terrane_deadline = __terrane_scope.deadline; TerraneScopedTask::spawn(async move {{ match __terrane_cancellable({invocation}, __terrane_cancel, __terrane_deadline).await {{ Some(value) => TerraneTaskResult::Completed(value), None => TerraneTaskResult::Cancelled }} }}) }}"
                         )
                     }
                 }),

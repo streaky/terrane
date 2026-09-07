@@ -1,0 +1,85 @@
+{
+  "format": 2,
+  "dependencies": [
+    {
+      "name": "async-witness",
+      "version": "0.1.0",
+      "members": [
+        [
+          "/deps/async-witness",
+          "ValidationError"
+        ],
+        [
+          "/deps/async-witness",
+          "checked_echo"
+        ],
+        [
+          "/deps/async-witness",
+          "echo_after_yield"
+        ],
+        [
+          "/deps/async-witness",
+          "operation_drop_count"
+        ],
+        [
+          "/deps/async-witness",
+          "ready_after_yield"
+        ],
+        [
+          "/deps/async-witness",
+          "reset_operation_state"
+        ],
+        [
+          "/deps/async-witness",
+          "signal_sibling"
+        ],
+        [
+          "/deps/async-witness",
+          "socket_round_trip"
+        ],
+        [
+          "/deps/async-witness",
+          "timer_poll_count"
+        ],
+        [
+          "/deps/async-witness",
+          "wait_for_sibling"
+        ],
+        [
+          "/deps/async-witness",
+          "wait_forever"
+        ],
+        [
+          "/deps/async-witness",
+          "wait_until_operation_started"
+        ]
+      ]
+    }
+  ],
+  "removed": [],
+  "cache_identity": "0a5e2a20f5ab0495b92352e42dfae59c71af5e179db5b7a55361471d0308ab28",
+  "source": "Local",
+  "rustdoc_format": 57,
+  "projection_schema": "16",
+  "content_hash": "449036edbdcdeab4adec8714aad6ab553d819cd6acba6f1e4189bf2af7cb81ed",
+  "resolution": {
+    "outcome": "LocalRustdoc",
+    "events": [
+      {
+        "source": "BundledArtifact",
+        "status": "Skipped",
+        "reason": "bundled projection distribution is deliberately deferred until Terrane has a release artifact channel"
+      },
+      {
+        "source": "PublishedArtifact",
+        "status": "Skipped",
+        "reason": "`TERRANE_PROJECTION_ARTIFACT_URL` is not configured"
+      },
+      {
+        "source": "LocalRustdoc",
+        "status": "Generated",
+        "reason": "no reusable exact artifact was available; generated with the pinned local rustdoc toolchain"
+      }
+    ]
+  }
+}
