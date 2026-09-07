@@ -920,7 +920,9 @@ fn main() {
             let __terrane_deadline = __terrane_scope.deadline;
             TerraneScopedTask::spawn(async move {
                 match __terrane_cancellable(
-                        wait_for_sibling(),
+                        std::sync::Arc::new(move || -> std::pin::Pin<
+                            Box<dyn Future<Output = _>>,
+                        > { Box::pin(wait_for_sibling()) })(),
                         __terrane_cancel,
                         __terrane_deadline,
                     )
@@ -942,7 +944,9 @@ fn main() {
             let __terrane_deadline = __terrane_scope.deadline;
             TerraneScopedTask::spawn(async move {
                 match __terrane_cancellable(
-                        signal_sibling(),
+                        std::sync::Arc::new(move || -> std::pin::Pin<
+                            Box<dyn Future<Output = _>>,
+                        > { Box::pin(signal_sibling()) })(),
                         __terrane_cancel,
                         __terrane_deadline,
                     )

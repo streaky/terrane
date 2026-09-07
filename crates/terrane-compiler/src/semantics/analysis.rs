@@ -404,6 +404,7 @@ pub fn analyze(package: &Package) -> Result<SemanticPackage, SemanticFailure> {
     validate_definite_assignment(&semantic)?;
     record_binding_events(&mut semantic);
     infer_task_transferability(&mut semantic);
+    validate_projected_callback_arguments(&semantic)?;
     validate_suspension_ownership(&semantic)?;
     validate_task_consumption(&semantic)?;
     validate_task_transferability(&semantic)?;

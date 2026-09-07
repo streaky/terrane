@@ -832,19 +832,23 @@ Declared crates are projected from typed rustdoc metadata into reserved
 canonical Rust paths, documentation, representable free and inherent methods, receiver-first trait
 functions, receiver ownership, opaque foreign types, data-free enum variant constructors, directly
 representable `Result` returns, arbitrary projected `Option<T>` values, all Rust integer widths,
-`f32`, `char`, concrete representable type aliases, and recursive standard sequence, map, set, and
-homogeneous tuple shapes. Map keys and set items are limited to Terrane scalars. Cross-crate
-signature types are admitted only when their canonical owner is declared directly at one
-lock-resolved version; otherwise the member remains an explicit decline. Data-carrying enums remain
-opaque and use projected crate accessors; every declined public item carries a reason.
+`f32`, `char`, concrete representable type aliases, recursive standard sequence, map, set, and
+homogeneous tuple shapes, and monomorphic concrete `Fn`, `FnMut`, `FnOnce`, and future-returning
+callback bounds. Callback metadata retains call multiplicity, retention, and `Send`/`Sync`
+requirements. Map keys and set items are limited to Terrane scalars. Cross-crate signature types
+are admitted only when their canonical owner is declared directly at one lock-resolved version;
+otherwise the member remains an explicit decline. Data-carrying enums remain opaque and use
+projected crate accessors; every declined public item carries a reason.
 
 Semantic import resolution and the language server consume that same projection. Lowering emits only
 crossed-member Rust shims and generated Cargo dependencies; calls remain direct Rust calls inside one
 generated crate. A projected Rust `async fn` emits an async shim and constructs a Terrane task whose
 awaited result uses the same conversion, error, ownership, and panic boundary as a synchronous
-projected call. Self-contained dependency futures run under today's async driver; dependency
-operations requiring a reactor or other runtime context remain deferred to the wake-driven execution
-strategy. Foreign receivers borrow, use `ref`, or require `move` according to their Rust receiver.
+projected call. Concrete Rust callback parameters accept matching Terrane function values; lowering
+constructs the required Rust closure, converts its inputs and result, and preserves per-invocation
+captured state. Retained or transferable bounds are checked against the callback's receiver,
+captures, throwable contract, and async transferability before lowering. Foreign receivers borrow,
+use `ref`, or require `move` according to their Rust receiver.
 Unwinding dependency panics enter the compiler-owned `dependency-panic` throwable path; abort
 profiles omit containment and generate Cargo `panic = "abort"`. Projection and generated-crate
 compilation use `bwrap` containment where available and report the host tier otherwise.

@@ -42,7 +42,11 @@ pub(super) fn infer_value_type(
                 .clone()
                 .unwrap_or(ValueType::Scalar(ScalarType::None)),
         );
-        return Ok(Some(ValueType::Function(parameters, result)));
+        return Ok(Some(if contract.is_async {
+            ValueType::AsyncFunction(parameters, result, contract.task_transferability)
+        } else {
+            ValueType::Function(parameters, result)
+        }));
     }
     if node.kind == SyntaxKind::GroupExpression {
         return match node.children.first() {

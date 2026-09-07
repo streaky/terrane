@@ -1,0 +1,9 @@
+namespace app
+from /deps/terrane-callback-witness import apply_shared
+class worker
+    value int = 2
+    function run int; input int
+        return input + this.value
+function main;
+    item = instance worker;
+    print; (apply_shared; 1, item.run)

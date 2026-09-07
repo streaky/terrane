@@ -1,0 +1,7 @@
+namespace app
+from /deps/terrane-callback-witness import apply_once
+function main;
+    callback = function string; value string
+        return value.upper;
+    print; (apply_once; 'first', callback)
+    print; (apply_once; 'second', callback)

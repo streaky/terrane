@@ -1,0 +1,33 @@
+namespace app
+
+from /deps/terrane-callback-witness import apply_shared, apply_mutable, apply_once, apply_async, apply_async_concurrently
+from /deps/terrane-dispatch-witness import dispatch
+
+function add-two int; value int
+    return value + 2
+
+function keep-string string; value string
+    return value
+
+async function keep-string-async string; value string
+    return value
+
+
+function render string; label string, enabled bool
+    if enabled
+        return label.upper;
+    return label
+
+async function main;
+    print; (apply_shared; 40, add-two)
+    print; (apply_mutable; 10, add-two)
+    print; (apply_once; 'HELLO', keep-string)
+    changed string = await apply_async; 'hello', keep-string-async
+    print; changed
+    offset int = 10
+    add-offset = async function int; value int
+        return value + offset
+    concurrent int = await apply_async_concurrently; 20, add-offset
+    print; concurrent
+
+    print; (dispatch; 'dissimilar', true, render)

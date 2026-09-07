@@ -962,7 +962,9 @@ fn main() {
             let __terrane_deadline = __terrane_scope.deadline;
             TerraneScopedTask::spawn(async move {
                 match __terrane_cancellable(
-                        blocked(),
+                        std::sync::Arc::new(move || -> std::pin::Pin<
+                            Box<dyn Future<Output = _> + Send>,
+                        > { Box::pin(blocked()) })(),
                         __terrane_cancel,
                         __terrane_deadline,
                     )
@@ -1000,7 +1002,9 @@ fn main() {
             let __terrane_deadline = __terrane_scope.deadline;
             TerraneScopedTask::spawn(async move {
                 match __terrane_cancellable(
-                        after_cancellation(),
+                        std::sync::Arc::new(move || -> std::pin::Pin<
+                            Box<dyn Future<Output = _> + Send>,
+                        > { Box::pin(after_cancellation()) })(),
                         __terrane_cancel,
                         __terrane_deadline,
                     )
@@ -1056,7 +1060,9 @@ pub fn operation_drop_count() -> Result<
     terrane_int_support::Int,
     crate::TerraneForeignError,
 > {
-    match std::panic::catch_unwind(|| async_witness::operation_drop_count()) {
+    match std::panic::catch_unwind(
+        std::panic::AssertUnwindSafe(|| async_witness::operation_drop_count()),
+    ) {
         Ok(value) => Ok(terrane_int_support::Int::from_u128(value as u128)),
         Err(payload) => {
             Err(
@@ -1070,7 +1076,9 @@ pub fn operation_drop_count() -> Result<
     }
 }
 pub fn reset_operation_state() -> Result<(), crate::TerraneForeignError> {
-    match std::panic::catch_unwind(|| async_witness::reset_operation_state()) {
+    match std::panic::catch_unwind(
+        std::panic::AssertUnwindSafe(|| async_witness::reset_operation_state()),
+    ) {
         Ok(value) => Ok(value),
         Err(payload) => {
             Err(

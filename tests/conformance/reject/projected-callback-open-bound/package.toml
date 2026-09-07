@@ -1,0 +1,10 @@
+package = "projected-callback-open-bound"
+executor = "cooperative"
+
+[namespaces]
+app = "src"
+
+[rust-dependencies.terrane-callback-witness]
+package = "terrane-callback-witness"
+version = "=0.1.0"
+effects = ["build"]

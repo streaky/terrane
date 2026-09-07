@@ -1501,6 +1501,17 @@ such as standard streams, the current resolver, and file operations. Readiness-n
 TLS transport is the required foundation for Phase C async sequence and sink load; new host
 surfaces must not route readiness-capable I/O back through universal blocking delegation.
 
+Phase C callback projection now admits concrete monomorphic Rust `Fn`, `FnMut`, `FnOnce`, and
+future-returning callback bounds. The transferable artifact records callable inputs/results,
+multiplicity, retention, and `Send`/`Sync`; generated shims construct the exact Rust closure and
+perform scalar conversion at invocation and result boundaries. Terrane synchronous and
+asynchronous anonymous functions can carry captured state into those shims. Semantic validation
+rejects mismatched sync/async signatures, wrong parameters or results, retained borrowed
+references and object receivers, local-only captures at transferable boundaries, escaping
+throwables, aliased mutable callback state, one-shot reuse, and open generic callback signatures.
+`rust-dependency-callbacks` exercises all three call traits plus concurrent future callbacks; the
+focused rejection corpus fixes the ownership and effect boundaries.
+
 Accepted and rejected conformance covers async/sync type incompatibility, task consumption,
 successful, throwing, cancelled, and sibling-cancelling children, statically resolvable nested
 deadline extension, a non-owning reference whose unchanged local owner is proven to remain in the

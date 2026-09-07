@@ -2663,6 +2663,17 @@ If the closure must keep that mutable identity alive independently, the author c
 `shared ref counter` instead. An escaping closure never silently promotes a captured `ref` to shared
 ownership.
 
+An anonymous asynchronous function writes the qualifier before `function`:
+
+```terrane
+handler = async function response; request request
+  return await process; request
+```
+
+Its value has an `async function from request to response` contract. Each invocation gets its own
+future and its own copies of captured shareable state. A transferable async closure may capture
+only values that can cross the selected executor boundary.
+
 ### 13.9 Recursion
 
 A named function may refer to its own binding.
@@ -4165,6 +4176,20 @@ default instantiation, and `Self` in its methods resolves to that concrete ident
 dependency modules lower instantiated spellings as Rust type aliases rather than invalid `use`
 paths. Lifetime-parameterized types and generic parameters without defaults remain explicit
 declines until a call-directed or non-escaping-chain rule proves a concrete use.
+
+A concrete Rust callback bound projects when its complete callable contract is monomorphic.
+`Fn`, `FnMut`, and `FnOnce` parenthesized bounds supply parameter and result types; a callback
+returning a bounded `Future` projects as a Terrane `async function`. The projection records call
+multiplicity, whether the dependency may retain the callback, and required `Send`/`Sync` bounds.
+Generated shims construct the exact Rust closure type at the call boundary, convert arguments and
+results there, and preserve captured Terrane state per invocation.
+
+Retention never weakens Terrane ownership. A retained callback may not capture a non-owning
+reference or borrowed object receiver, and a transferable callback may capture only transferable
+values. Mutable callback state may not be aliased, and a one-shot callable may not be reused after
+ownership transfer. An escaping throwable is incompatible unless the projected Rust callback
+result explicitly represents that failure. Open generic, higher-ranked, or lifetime-dependent
+callback shapes remain declined rather than being erased or boxed speculatively.
 
 Before running local rustdoc, the projector may request an artifact from the trusted HTTPS
 repository. The response is accepted only when its envelope matches the complete cache identity:

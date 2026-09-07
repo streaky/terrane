@@ -778,7 +778,13 @@ fn main() {
             let __terrane_cancel = __terrane_scope.cancellation();
             let __terrane_deadline = __terrane_scope.deadline;
             TerraneScopedTask::spawn(async move {
-                match __terrane_cancellable(work(), __terrane_cancel, __terrane_deadline)
+                match __terrane_cancellable(
+                        std::sync::Arc::new(move || -> std::pin::Pin<
+                            Box<dyn Future<Output = _> + Send>,
+                        > { Box::pin(work()) })(),
+                        __terrane_cancel,
+                        __terrane_deadline,
+                    )
                     .await
                 {
                     Some(value) => TerraneTaskResult::Completed(value),

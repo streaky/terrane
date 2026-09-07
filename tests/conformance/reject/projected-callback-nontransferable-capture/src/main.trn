@@ -1,0 +1,8 @@
+namespace app
+from /deps/terrane-callback-witness import apply_async_concurrently, make_marker
+async function main;
+    marker = make_marker; 2
+    callback = async function int; input int
+        observed int = (marker.value;)
+        return input
+    print; await apply_async_concurrently; 1, callback

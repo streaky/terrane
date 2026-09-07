@@ -946,7 +946,9 @@ fn main() {
             let __terrane_deadline = __terrane_scope.deadline;
             TerraneScopedTask::spawn(async move {
                 match __terrane_cancellable(
-                        blocked(),
+                        std::sync::Arc::new(move || -> std::pin::Pin<
+                            Box<dyn Future<Output = _> + Send>,
+                        > { Box::pin(blocked()) })(),
                         __terrane_cancel,
                         __terrane_deadline,
                     )
@@ -984,7 +986,9 @@ fn main() {
 // Source: <terrane>/projected/deps/async-witness.trn
 // Namespace: deps/async-witness
 pub fn reset_operation_state() -> Result<(), crate::TerraneForeignError> {
-    match std::panic::catch_unwind(|| async_witness::reset_operation_state()) {
+    match std::panic::catch_unwind(
+        std::panic::AssertUnwindSafe(|| async_witness::reset_operation_state()),
+    ) {
         Ok(value) => Ok(value),
         Err(payload) => {
             Err(

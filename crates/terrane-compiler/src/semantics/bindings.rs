@@ -1329,3 +1329,243 @@ pub(crate) fn binding_store_value_is_read(
                 .any(|store_loop| read_loops.contains(store_loop))
         })
 }
+
+fn node_with_span(node: &SyntaxNode, span: Span) -> Option<&SyntaxNode> {
+    if node.span == span {
+        return Some(node);
+    }
+    node.children
+        .iter()
+        .find_map(|child| node_with_span(child, span))
+}
+
+fn declaration_node_with_name_span(node: &SyntaxNode, span: Span) -> Option<&SyntaxNode> {
+    if matches!(node.kind, SyntaxKind::Binding | SyntaxKind::Assignment)
+        && node.children.iter().any(|child| child.span == span)
+    {
+        return Some(node);
+    }
+    node.children
+        .iter()
+        .find_map(|child| declaration_node_with_name_span(child, span))
+}
+
+fn callback_contract<'a>(
+    package: &SemanticPackage,
+    unit: &'a SemanticUnit,
+    value: &SyntaxNode,
+) -> Option<&'a FunctionContract> {
+    if value.kind == SyntaxKind::Name {
+        if let Some(contract) =
+            resolved_function_contract(unit, node_text(&unit.source, value), value.span.start)
+        {
+            return Some(contract);
+        }
+        let declaration = package
+            .resolve_name_at(unit, value.span.start, node_text(&unit.source, value))?
+            .declaration_span?;
+        let declaration_node = declaration_node_with_name_span(&unit.tree.root, declaration)
+            .or_else(|| node_with_span(&unit.tree.root, declaration))?;
+        return declaration_node
+            .children
+            .iter()
+            .find_map(|child| callback_contract(package, unit, child));
+    }
+    if value.kind == SyntaxKind::MemberExpression
+        && let [receiver, member] = value.children.as_slice()
+        && let Ok(Some(ValueType::Object(owner))) =
+            infer_value_type(unit, receiver, &unit.typed_bindings)
+    {
+        return unit.functions.iter().find(|contract| {
+            contract.owner.as_deref() == Some(owner.name.as_str())
+                && contract.name == node_text(&unit.source, member)
+        });
+    }
+    unit.functions
+        .iter()
+        .find(|contract| contract.span == value.span)
+}
+
+fn captured_binding<'a>(
+    package: &'a SemanticPackage,
+    unit: &'a SemanticUnit,
+    contract: &FunctionContract,
+    name: &str,
+) -> Option<&'a TypedBinding> {
+    let declaration = package
+        .resolve_name_at(unit, contract.span.start, name)?
+        .declaration_span?;
+    unit.typed_bindings
+        .iter()
+        .find(|binding| binding.span == declaration)
+}
+fn validate_projected_callback_contract(
+    package: &SemanticPackage,
+    unit: &SemanticUnit,
+    value: &SyntaxNode,
+    contract: &FunctionContract,
+    callback: &crate::projection::ProjectedType,
+    consumed_once: &mut BTreeSet<(u32, usize, usize)>,
+) -> Result<(), SemanticFailure> {
+    let crate::projection::ProjectedType::Callback {
+        kind,
+        retained,
+        send,
+        ..
+    } = callback
+    else {
+        unreachable!("callback validation requires callback metadata");
+    };
+    let reject = |code, message| Err(failure(&unit.source, code, message, value.span));
+    if contract.throws {
+        return reject(
+            "T0080",
+            "projected Rust callback cannot receive a callable with an escaping throwable",
+        );
+    }
+    if *send && contract.task_transferability == TaskTransferability::Local {
+        return reject(
+            "T0081",
+            "projected callback requires a transferable callable",
+        );
+    }
+    if *retained && contract.owner.is_some() && !contract.is_static {
+        return reject(
+            "T0082",
+            "retained callback cannot borrow an object receiver",
+        );
+    }
+    if *retained
+        && contract.captures.iter().any(|capture| {
+            captured_binding(package, unit, contract, capture)
+                .is_some_and(|binding| matches!(binding.value_type, ValueType::Reference(_)))
+        })
+    {
+        return reject("T0083", "retained callback cannot capture a borrowed value");
+    }
+    if *send
+        && contract.captures.iter().any(|capture| {
+            captured_binding(package, unit, contract, capture)
+                .is_some_and(|binding| !value_type_is_task_transferable(&binding.value_type))
+        })
+    {
+        return reject(
+            "T0084",
+            "projected callback requires transferable captured values",
+        );
+    }
+    if matches!(kind, crate::projection::CallbackKind::Mutable)
+        && contract.captures.iter().any(|capture| {
+            captured_binding(package, unit, contract, capture).is_some_and(|binding| {
+                package
+                    .binding_events
+                    .get(&span_key(binding.span))
+                    .is_some_and(|events| {
+                        events.iter().any(|event| {
+                            matches!(
+                                event,
+                                BindingEvent::Write { span, .. }
+                                    if span.start >= contract.span.start
+                                        && span.end <= contract.span.end
+                            )
+                        })
+                    })
+            })
+        })
+    {
+        return reject(
+            "T0085",
+            "projected mutable callback cannot alias captured mutable state",
+        );
+    }
+    if matches!(kind, crate::projection::CallbackKind::Once)
+        && value.kind == SyntaxKind::Name
+        && let Some(declaration) = package
+            .resolve_name_at(unit, value.span.start, node_text(&unit.source, value))
+            .and_then(|symbol| symbol.declaration_span)
+        && unit
+            .typed_bindings
+            .iter()
+            .any(|binding| binding.span == declaration)
+        && !consumed_once.insert(span_key(declaration))
+    {
+        return reject("T0086", "one-shot projected callback was already consumed");
+    }
+    Ok(())
+}
+
+fn validate_projected_callback_node(
+    package: &SemanticPackage,
+    unit: &SemanticUnit,
+    node: &SyntaxNode,
+    consumed_once: &mut BTreeSet<(u32, usize, usize)>,
+) -> Result<(), SemanticFailure> {
+    if node.kind == SyntaxKind::CallExpression
+        && let [callee, arguments] = node.children.as_slice()
+        && callee.kind == SyntaxKind::Name
+        && let Some(symbol) =
+            package.resolve_name_at(unit, callee.span.start, node_text(&unit.source, callee))
+        && let Some(crate::projection::ProjectedKind::Function(function)) = package
+            .projection
+            .item(&symbol.namespace, &symbol.name)
+            .map(|item| &item.kind)
+    {
+        for (index, parameter) in function.parameters.iter().enumerate() {
+            let crate::projection::ProjectedType::Callback { .. } = &parameter.ty else {
+                continue;
+            };
+            let value = {
+                let mut positional = 0;
+                arguments.children.iter().find_map(|argument| {
+                    let named = argument.children.first().filter(|child| {
+                        child.kind == SyntaxKind::Name && argument.children.len() > 1
+                    });
+                    let argument_index = named.map_or_else(
+                        || {
+                            let current = positional;
+                            positional += 1;
+                            current
+                        },
+                        |name| {
+                            function
+                                .parameters
+                                .iter()
+                                .position(|candidate| {
+                                    candidate.name == node_text(&unit.source, name)
+                                })
+                                .unwrap_or(usize::MAX)
+                        },
+                    );
+                    (argument_index == index).then(|| argument.children.last().unwrap_or(argument))
+                })
+            };
+            let Some(value) = value else {
+                continue;
+            };
+            let Some(contract) = callback_contract(package, unit, value) else {
+                continue;
+            };
+            validate_projected_callback_contract(
+                package,
+                unit,
+                value,
+                contract,
+                &parameter.ty,
+                consumed_once,
+            )?;
+        }
+    }
+    for child in &node.children {
+        validate_projected_callback_node(package, unit, child, consumed_once)?;
+    }
+    Ok(())
+}
+
+pub(super) fn validate_projected_callback_arguments(
+    package: &SemanticPackage,
+) -> Result<(), SemanticFailure> {
+    for unit in &package.units {
+        validate_projected_callback_node(package, unit, &unit.tree.root, &mut BTreeSet::new())?;
+    }
+    Ok(())
+}

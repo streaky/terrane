@@ -524,9 +524,11 @@ fn main() {
 pub fn remaining_mut(
     receiver: &BytesMut,
 ) -> Result<terrane_int_support::Int, crate::TerraneForeignError> {
-    match std::panic::catch_unwind(|| <bytes::BytesMut as bytes::BufMut>::remaining_mut(
-        receiver,
-    )) {
+    match std::panic::catch_unwind(
+        std::panic::AssertUnwindSafe(|| <bytes::BytesMut as bytes::BufMut>::remaining_mut(
+            receiver,
+        )),
+    ) {
         Ok(value) => Ok(terrane_int_support::Int::from_u128(value as u128)),
         Err(payload) => {
             Err(
@@ -552,7 +554,9 @@ pub fn with_capacity(
         .map_err(|error| crate::TerraneForeignError(
             crate::TerraneRaised::raised(error, crate::TERRANE_NO_SITE),
         ))?;
-    match std::panic::catch_unwind(|| bytes::BytesMut::with_capacity(capacity)) {
+    match std::panic::catch_unwind(
+        std::panic::AssertUnwindSafe(|| bytes::BytesMut::with_capacity(capacity)),
+    ) {
         Ok(value) => Ok(value),
         Err(payload) => {
             Err(
@@ -572,7 +576,9 @@ pub use serde_json::error::Category;
 // Namespace: deps/serde-json/error/category
 /// Projected enum variant constructor for `serde_json::error::Category::Data`.
 pub fn __trn_44617461() -> Result<Category, crate::TerraneForeignError> {
-    match std::panic::catch_unwind(|| serde_json::error::Category::Data) {
+    match std::panic::catch_unwind(
+        std::panic::AssertUnwindSafe(|| serde_json::error::Category::Data),
+    ) {
         Ok(value) => Ok(value),
         Err(payload) => {
             Err(
@@ -587,7 +593,9 @@ pub fn __trn_44617461() -> Result<Category, crate::TerraneForeignError> {
 }
 /// Projected enum variant constructor for `serde_json::error::Category::Io`.
 pub fn __trn_496f() -> Result<Category, crate::TerraneForeignError> {
-    match std::panic::catch_unwind(|| serde_json::error::Category::Io) {
+    match std::panic::catch_unwind(
+        std::panic::AssertUnwindSafe(|| serde_json::error::Category::Io),
+    ) {
         Ok(value) => Ok(value),
         Err(payload) => {
             Err(
@@ -610,7 +618,9 @@ pub fn from_u128(
         .map_err(|error| crate::TerraneForeignError(
             crate::TerraneRaised::raised(error, crate::TERRANE_NO_SITE),
         ))?;
-    match std::panic::catch_unwind(|| serde_json::Number::from_u128(i)) {
+    match std::panic::catch_unwind(
+        std::panic::AssertUnwindSafe(|| serde_json::Number::from_u128(i)),
+    ) {
         Ok(value) => Ok(value),
         Err(payload) => {
             Err(

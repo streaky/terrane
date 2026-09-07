@@ -1,0 +1,7 @@
+namespace app
+from /deps/terrane-callback-witness import apply_shared
+from /core/errors import throwable, arithmetic-overflow
+function risky int throws throwable; value int
+    throw arithmetic-overflow
+function main;
+    print; (apply_shared; 1, risky)

@@ -1,0 +1,6 @@
+namespace app
+from /deps/terrane-callback-witness import apply_shared
+async function wrong int; value int
+    return value
+function main;
+    print; (apply_shared; 1, wrong)
