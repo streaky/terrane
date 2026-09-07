@@ -12,8 +12,8 @@ async function main;
   scope = task-scope;
   waiting = scope.spawn; wait_for_sibling
   signalling = scope.spawn; signal_sibling
-  waited = await scope.join; move waiting
-  signalled = await scope.join; move signalling
+  waited = await scope.join; waiting
+  signalled = await scope.join; signalling
   print; waited.completed, signalled.completed
   try
     rejected string = await checked_echo; >reject

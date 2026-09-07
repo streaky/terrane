@@ -30,6 +30,18 @@ pub(super) fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFa
         }
     }
 
+    fn noncopyable_binding(
+        package: &SemanticPackage,
+        unit: &SemanticUnit,
+        binding: usize,
+        resource_objects: &BTreeSet<(u32, usize, usize)>,
+    ) -> bool {
+        matches!(
+            unit.typed_bindings[binding].value_type,
+            ValueType::Task(_, _) | ValueType::ScopedTask(_, _)
+        ) || resource_binding(package, unit, binding, resource_objects)
+    }
+
     fn method_consumes_receiver(
         package: &SemanticPackage,
         object_identity: &ObjectIdentity,
@@ -67,6 +79,53 @@ pub(super) fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFa
                     ));
                 }
             }
+            return Ok(());
+        }
+        if node.kind == SyntaxKind::UnaryExpression
+            && let Some(operand) = node.children.last()
+            && unary_operator_text(unit, node).as_deref() == Some("await")
+            && operand.kind == SyntaxKind::Name
+            && let Some(binding) =
+                binding_at(unit, node_text(&unit.source, operand), operand.span.start)
+            && matches!(
+                unit.typed_bindings[binding].value_type,
+                ValueType::Task(_, _)
+            )
+        {
+            visit(package, unit, operand, moved, false, resource_objects)?;
+            moved.insert(binding);
+            return Ok(());
+        }
+        if node.kind == SyntaxKind::CallExpression
+            && let [callee, arguments] = node.children.as_slice()
+            && callee.kind == SyntaxKind::MemberExpression
+            && let [receiver, member] = callee.children.as_slice()
+            && matches!(
+                infer_value_type(unit, receiver, &unit.typed_bindings),
+                Ok(Some(ValueType::TaskScope))
+            )
+            && matches!(node_text(&unit.source, member), "spawn" | "join")
+            && let Some(argument) = arguments.children.first()
+            && let value = argument.children.last().unwrap_or(argument)
+            && value.kind == SyntaxKind::Name
+            && let Some(binding) =
+                binding_at(unit, node_text(&unit.source, value), value.span.start)
+            && match node_text(&unit.source, member) {
+                "spawn" => matches!(
+                    unit.typed_bindings[binding].value_type,
+                    ValueType::Task(_, _)
+                ),
+                "join" => matches!(
+                    unit.typed_bindings[binding].value_type,
+                    ValueType::ScopedTask(_, _)
+                ),
+                _ => false,
+            }
+        {
+            for child in &node.children {
+                visit(package, unit, child, moved, false, resource_objects)?;
+            }
+            moved.insert(binding);
             return Ok(());
         }
         if node.kind == SyntaxKind::CallExpression
@@ -119,14 +178,14 @@ pub(super) fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFa
                 let Some(expected) = parameter.value_type.as_ref() else {
                     continue;
                 };
-                let expects_resource = match expected {
+                let expects_named_resource = match expected {
                     ValueType::PlatformStreamHandle | ValueType::PlatformResourceHandle => true,
                     ValueType::Object(name) => resolved_object_span(package, name)
                         .is_some_and(|span| resource_objects.contains(&span_key(span))),
                     _ => false,
                 };
                 let value = argument.children.last().unwrap_or(argument);
-                if expects_resource
+                if expects_named_resource
                     && matches!(
                         value.kind,
                         SyntaxKind::MemberExpression | SyntaxKind::IndexExpression
@@ -158,6 +217,8 @@ pub(super) fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFa
                                 ValueType::PlatformStreamHandle
                                     | ValueType::PlatformResourceHandle
                                     | ValueType::Object(_)
+                                    | ValueType::Task(_, _)
+                                    | ValueType::ScopedTask(_, _)
                             )
                         })
                         .and_then(|_| argument.children.last())
@@ -166,7 +227,7 @@ pub(super) fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFa
                             binding_at(unit, node_text(&unit.source, value), value.span.start)
                         })
                         .filter(|binding| {
-                            resource_binding(package, unit, *binding, resource_objects)
+                            noncopyable_binding(package, unit, *binding, resource_objects)
                         })
                 })
                 .collect::<Vec<_>>();
@@ -202,7 +263,7 @@ pub(super) fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFa
                         initializer.span.start,
                     )
                 })
-                .filter(|binding| resource_binding(package, unit, *binding, resource_objects));
+                .filter(|binding| noncopyable_binding(package, unit, *binding, resource_objects));
             let mut skipped_name = false;
             for child in &node.children {
                 if !skipped_name && child.kind == SyntaxKind::Name {

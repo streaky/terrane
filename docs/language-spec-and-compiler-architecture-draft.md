@@ -2348,11 +2348,14 @@ Ordinary assignment of a resource-owning value transfers ownership:
 b = a
 ```
 
-After the transfer, `a` is unavailable until rebound. The same assignment remains ordinary value
-assignment for copyable values, so ownership consequences follow the statically known value
-contract rather than call-site ceremony.
+After the transfer, `a` is unavailable until rebound. The same automatic transfer applies when a
+statically non-copyable value is passed to a by-value consuming parameter. Copyable values retain
+ordinary value semantics, so ownership consequences follow the statically known value contract
+rather than call-site ceremony.
 
-`move` remains an explicit request to transfer a value that would otherwise be copied:
+`move` remains an explicit request to transfer a value that would otherwise be copied. It may also
+make an already-required non-copyable transfer visible, but never changes whether that transfer
+occurs:
 
 ```terrane
 b = move a
@@ -3696,12 +3699,14 @@ timeout, stream-cancellation, and network-deadline contracts elsewhere in this d
 defined against it.
 
 An async invocation produces a linear `task of T`. `await` consumes that task exactly once. A scope's
-`spawn` method accepts either an async callable or an unpolled task moved into the scope, and
-produces a linear `scoped-task of T` owned by that scope. `join` consumes the scoped task exactly
-once and constructs a `task of task-outcome of T`; `await scope.join; move child`
-consumes that join task and observes the outcome. Leaving either kind unconsumed is a compile-time
-error; ordinary drop never silently detaches or cancels it. Detached tasks, when supplied, use a
-separate explicit operation and lifetime contract.
+`spawn` method accepts either an async callable or an unpolled task; passing the linear task transfers
+it into the scope automatically. `spawn` produces a linear `scoped-task of T` owned by that scope.
+`join` takes that scoped task by value, consumes it exactly once, and constructs a
+`task of task-outcome of T`; `await scope.join; child` consumes both the child handle at the call
+boundary and the resulting join task at the `await`. Source-level `move` is not required for either
+statically non-copyable transfer even when lowering uses a Rust move. Leaving either kind unconsumed
+is a compile-time error; ordinary drop never silently detaches or cancels it. Detached tasks, when
+supplied, use a separate explicit operation and lifetime contract.
 
 `task-outcome of T` has these observations:
 

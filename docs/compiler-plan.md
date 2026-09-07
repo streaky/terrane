@@ -1452,11 +1452,12 @@ deadlines at runtime; statically resolvable extensions are additionally rejected
 
 Native scope lowering now turns `spawn` into a task scheduled on the selected local or parallel
 runtime, rather than an OS thread that waits on a future. `join` is itself asynchronous and source
-uses `await scope.join; move child`; direct interleaving evidence runs two projected child futures
-that must signal one another before either can be joined. Scope failure retains the typed error and
-requests sibling cancellation, while explicit task movement remains required to consume a scoped
-child. Legacy synchronous scope fixtures retain their cancellable waker-polling implementation
-until their source path is migrated.
+uses `await scope.join; child`; the statically non-copyable child transfers into `join` without
+source-level move ceremony. Lowering still passes the generated Rust task by value. Direct
+interleaving evidence runs two projected child futures that must signal one another before either
+can be joined. Scope failure retains the typed error and requests sibling cancellation. Legacy
+synchronous scope fixtures retain their cancellable waker-polling implementation until their source
+path is migrated.
 
 The first B7 migration makes `/core/streams` byte and text `read-async` await a generated
 `spawn_blocking` delegation rather than call the synchronous read on an executor task. That

@@ -1,9 +1,0 @@
-namespace unmoved-task-scope-join
-
-async function answer int;
-  return 42
-
-async function main;
-  scope = task-scope;
-  child = scope.spawn; answer
-  outcome = await scope.join; child

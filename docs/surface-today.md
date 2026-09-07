@@ -711,15 +711,16 @@ such work local and never treats `unknown` as permission.
 
 `task-scope; deadline?` constructs a scope using the selected threaded or cooperative executor
 profile. `.spawn; callable` consumes an async callable invocation into a linear scoped task;
-`.join; move task` consumes it and returns a task of its outcome. `.child-scope; deadline` creates a child
-
+`.join; task` consumes it and returns a task of its outcome. `.child-scope; deadline` creates a child
 whose runtime effective deadline is the earlier of parent and requested deadlines; statically
 resolvable extension through local aliases and nested constant expressions is rejected. `.cancel;`
 records cancellation, and join waits for the selected executor's child operation.
-`task-scope.join; move child` consumes the linear scoped child and returns an async task for its
-outcome, so callers write `await scope.join; move child` in an async function. Native scope children
-are spawned onto the selected local or parallel runtime strategy; sibling work can make progress
-while a join is pending, and a failed child requests cancellation of its surviving siblings.
+`task-scope.join; child` consumes the statically non-copyable scoped child automatically and returns
+an async task for its outcome, so callers write `await scope.join; child` in an async function.
+Lowered Rust still passes the task value by ownership; no source-level `move` is needed to express
+that compiler-owned representation detail. Native scope children are spawned onto the selected
+local or parallel runtime strategy; sibling work can make progress while a join is pending, and a
+failed child requests cancellation of its surviving siblings.
 
 The implemented task outcome exposes `completed bool`, `cancelled bool`, `value T or none`, and
 `error throwable or none`. Successful completion retains `value` even when cancellation was

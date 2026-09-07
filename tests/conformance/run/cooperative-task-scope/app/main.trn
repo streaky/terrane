@@ -6,7 +6,7 @@ async function work int;
 async function main;
   scope = task-scope;
   child = scope.spawn; work
-  outcome = await scope.join; move child
+  outcome = await scope.join; child
   value = outcome.value
   if value != none
     print; outcome.completed, outcome.cancelled, value

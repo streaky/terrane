@@ -31,19 +31,19 @@ async function main;
     scope = task-scope;
     input = stdin;
     input-task = read-input; move input
-    input-child = scope.spawn; move input-task
-    child = scope.spawn; move server-task
+    input-child = scope.spawn; input-task
+    child = scope.spawn; server-task
     destination = socket-address-from-string; endpoint-text
     client-options = instance network-operation-options; 1000, (instance network-cancellation-token;)
     connected stream-result = await connect-tcp; destination.value, client-options
     client = move connected.value
     sent = await client.write; b'terrane', client-options
     response = await client.read; 5, client-options
-    outcome = await scope.join; move child
+    outcome = await scope.join; child
     print; sent.completed
     print; (response.data.decode; utf8)
     print; outcome.completed
-    input-outcome = await scope.join; move input-child
+    input-outcome = await scope.join; input-child
     if not input-outcome.completed
         print; 'stdin task did not complete'
     client.close;

@@ -512,7 +512,8 @@ reference_provenance: compiler-tracked; derived references may narrow, never wid
 interior_ref: separates COW, pins path, cannot escape/replace/remove while live
 resource_ownership: inferred transitively from compiler-known noncopyable fields; no 'linear class' qualifier
 resource_assignment: transfers identity and makes source unavailable; no 'move' ceremony required
-move: explicit transfer request for a value ordinary assignment would copy
+resource_argument: a statically non-copyable value passed by value transfers automatically; lowering may use a target-language move
+move: explicit transfer request for a value ordinary assignment would copy; optional emphasis for an already-required non-copyable transfer
 constants: cannot rebind
 constant_scope: rejects reassignment regardless of lexical, namespace-local, or program-global identity tier
 shadowing: a namespace-local binding may shadow a distinct program-global constant; writes resolve to the local identity
@@ -747,7 +748,7 @@ encoding: explicit utf8/utf16-le/utf16-be/utf32-le/utf32-be; encode total; decod
 ## ASYNC
 
 - `async function` has a distinct async callable type; `await` is valid only in async context, and sync/async callable types require an explicit adapter.
-- Async invocation returns a linear `task of T`; `await` consumes it exactly once. Scope `spawn` accepts an async callable or an unpolled task moved into the scope and returns a linear `scoped-task of T`; `join` consumes that scoped task and creates `task of task-outcome of T`, so `await scope.join; move child` observes it. Unconsumed tasks are compile-time errors, never implicit detach/cancel.
+- Async invocation returns a linear `task of T`; `await` consumes it exactly once. Scope `spawn` accepts an async callable or an unpolled task transferred automatically by its non-copyable contract and returns a linear `scoped-task of T`; `join` consumes that scoped task by value and creates `task of task-outcome of T`, so `await scope.join; child` consumes the child at the call boundary and the join task at `await`. Neither transfer requires source-level `move`; unconsumed tasks are compile-time errors, never implicit detach/cancel.
 - Every async callable/task carries inferred `local` or `transferable` execution metadata from parameters, captures, live-across-suspension values, and invoked async boundaries. Projected Rust futures are local unless their admitted contract or an exact probe proves transfer. Callable compatibility preserves the distinction; a threaded spawn rejects local work.
 - Direct calls, local bindings, and immediate await keep concrete Rust future types. Pin/box erasure appears only at heterogeneous storage or callable ABI boundaries, and only transferable erased futures receive the strategy's transfer bound. A task may move before first poll; after advancement it is pinned in executor-owned state.
 - Source executor profiles map to compiler-owned execution strategies. Semantic lowering records generic requirements—runtime context, wake support, local/transferable work, blocking delegation—and chooses a runtime later; language contracts never name a runtime crate.

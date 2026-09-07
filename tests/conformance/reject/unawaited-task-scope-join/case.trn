@@ -6,4 +6,4 @@ async function answer int;
 async function main;
   scope = task-scope;
   child = scope.spawn; answer
-  scope.join; move child
+  scope.join; child

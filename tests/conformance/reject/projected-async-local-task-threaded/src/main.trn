@@ -4,5 +4,5 @@ from /deps/async-witness import ready_after_yield
 async function main;
   scope = task-scope;
   child = scope.spawn; ready_after_yield
-  outcome = await scope.join; move child
+  outcome = await scope.join; child
   print; outcome.completed

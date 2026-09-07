@@ -1065,20 +1065,25 @@ pub(super) fn validate_task_consumption(package: &SemanticPackage) -> Result<(),
         node: &SyntaxNode,
         binding: &TypedBinding,
         consuming: bool,
-        join_argument: bool,
-        moved: bool,
     ) -> bool {
+        let move_operand = node.kind == SyntaxKind::UnaryExpression
+            && unary_operator_text(unit, node).as_deref() == Some("move");
         let await_operand = node.kind == SyntaxKind::UnaryExpression
             && unary_operator_text(unit, node).as_deref() == Some("await");
+        let assignment_value = node.kind == SyntaxKind::Assignment;
         let task_consumer = node.kind == SyntaxKind::CallExpression
             && node.children.first().is_some_and(|callee| {
+                let [receiver, member] = callee.children.as_slice() else {
+                    return false;
+                };
                 callee.kind == SyntaxKind::MemberExpression
-                    && callee.children.get(1).is_some_and(|member| {
-                        matches!(node_text(&unit.source, member), "join" | "spawn")
-                    })
+                    && matches!(
+                        infer_value_type(unit, receiver, &unit.typed_bindings),
+                        Ok(Some(ValueType::TaskScope))
+                    )
+                    && matches!(node_text(&unit.source, member), "join" | "spawn")
             });
         if consuming
-            && (!join_argument || moved)
             && node.kind == SyntaxKind::Name
             && node_text(&unit.source, node) == binding.name
             && unit
@@ -1094,17 +1099,15 @@ pub(super) fn validate_task_consumption(package: &SemanticPackage) -> Result<(),
             return true;
         }
         node.children.iter().enumerate().any(|(index, child)| {
-            let child_join_argument = join_argument || (task_consumer && index == 1);
             consumed(
                 unit,
                 child,
                 binding,
-                consuming || await_operand || (task_consumer && index == 1),
-                child_join_argument,
-                moved
-                    || (child_join_argument
-                        && node.kind == SyntaxKind::UnaryExpression
-                        && unary_operator_text(unit, node).as_deref() == Some("move")),
+                consuming
+                    || move_operand
+                    || await_operand
+                    || (assignment_value && index == 1)
+                    || (task_consumer && index == 1),
             )
         })
     }
@@ -1124,7 +1127,7 @@ pub(super) fn validate_task_consumption(package: &SemanticPackage) -> Result<(),
                 ValueType::Task(_, _) | ValueType::ScopedTask(_, _)
             )
         }) {
-            if !consumed(unit, &unit.tree.root, binding, false, false, false) {
+            if !consumed(unit, &unit.tree.root, binding, false) {
                 return Err(failure(
                     &unit.source,
                     "T0076",

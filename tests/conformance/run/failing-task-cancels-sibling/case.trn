@@ -11,7 +11,7 @@ async function main;
   scope = task-scope;
   failing = scope.spawn; fail
   sibling = scope.spawn; survive
-  failed = await scope.join; move failing
-  survived = await scope.join; move sibling
+  failed = await scope.join; failing
+  survived = await scope.join; sibling
   print; failed.completed, failed.cancelled
   print; survived.cancelled

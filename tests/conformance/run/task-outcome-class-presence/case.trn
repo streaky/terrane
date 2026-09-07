@@ -11,7 +11,7 @@ async function make point;
 async function main;
   scope = task-scope;
   child = scope.spawn; make
-  outcome = await scope.join; move child
+  outcome = await scope.join; child
   value = outcome.value
   if value != none
     print; 'present'
