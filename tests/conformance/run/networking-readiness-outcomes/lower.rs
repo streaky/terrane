@@ -806,7 +806,7 @@ fn main() {
             terrane_int_support::Int::from(1_i128),
             NetworkCancellationToken::terrane_construct(),
         );
-        let expired: StreamResult = __terrane_await(listener.accept(deadline_options))
+        let expired: StreamResult = __terrane_await((&listener).accept(deadline_options))
             .await;
         println!("{}", terrane_scalar_support::scalar_text(&expired.failed));
         println!("{}", terrane_scalar_support::scalar_text(&expired.deadline_exceeded));
@@ -816,7 +816,9 @@ fn main() {
             terrane_int_support::Int::from(1000_i128),
             cancellation.clone(),
         );
-        let cancelled: StreamResult = __terrane_await(listener.accept(cancelled_options))
+        let cancelled: StreamResult = __terrane_await(
+                (&listener).accept(cancelled_options),
+            )
             .await;
         println!("{}", terrane_scalar_support::scalar_text(&cancelled.failed));
         println!("{}", terrane_scalar_support::scalar_text(&cancelled.message));

@@ -156,7 +156,6 @@ pub(super) fn parse_units(
         }
         index += 1;
     }
-    apply_projected_method_contracts(&mut units, projection);
     Ok(units)
 }
 pub(super) fn apply_projected_method_contracts(
@@ -171,7 +170,12 @@ pub(super) fn apply_projected_method_contracts(
             let Some(owner) = contract.owner.as_deref() else {
                 continue;
             };
-            let Some(method) = projection.method(&unit.namespace, owner, &contract.name) else {
+            let type_name = unit
+                .objects
+                .iter()
+                .find(|object| object.identity.name == owner)
+                .map_or(owner, |object| object.name.as_str());
+            let Some(method) = projection.method(&unit.namespace, type_name, &contract.name) else {
                 continue;
             };
             contract.throws = true;
@@ -368,6 +372,7 @@ pub fn analyze(package: &Package) -> Result<SemanticPackage, SemanticFailure> {
                 .flat_map(|scope| scope.import_warnings.iter().cloned()),
         );
     }
+    apply_projected_method_contracts(&mut units, &projection);
     let descriptor_constructs = bootstrap_descriptor_constructs();
 
     let mut semantic = SemanticPackage {

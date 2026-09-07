@@ -982,7 +982,7 @@ pub fn terrane_platform_acquire_stderr() -> TerranePlatformStreamHandle {
 // Namespace: cancelled-stream-operation
 async fn read_one() -> ReadResult {
     let input: ByteReader = stdin();
-    let pending = input.read_async(terrane_int_support::Int::from(2_i128));
+    let pending = (&input).read_async(terrane_int_support::Int::from(2_i128));
     let result: ReadResult = __terrane_await(pending).await;
     input.close();
     return result;

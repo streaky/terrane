@@ -943,11 +943,36 @@ impl Emitter<'_> {
             .is_some_and(|contract| contract.owner.is_some())
             && let [receiver, member] = callee.children.as_slice()
         {
-            format!(
-                "({}).{}",
-                self.receiver_expression(receiver),
-                rust_name(self.text(member))
-            )
+            let contract = contract.as_ref().expect("method contract exists");
+            let receiver_expression = self.receiver_expression(receiver);
+            let projected_receiver = self.value_type(receiver).and_then(|value_type| {
+                let ValueType::Object(identity) = value_type else {
+                    return None;
+                };
+                self.package
+                    .projection
+                    .method(&identity.namespace, &identity.name, &contract.name)
+                    .and_then(|method| method.receiver)
+            });
+            let receiver = if contract.is_async {
+                match projected_receiver {
+                    Some(crate::projection::Receiver::MutableBorrow) => {
+                        format!("&mut {receiver_expression}")
+                    }
+                    Some(crate::projection::Receiver::Borrow) => {
+                        format!("&{receiver_expression}")
+                    }
+                    Some(crate::projection::Receiver::Move) => receiver_expression,
+                    _ if !contract.consumes_receiver && contract.mutates_receiver => {
+                        format!("&mut {receiver_expression}")
+                    }
+                    _ if !contract.consumes_receiver => format!("&{receiver_expression}"),
+                    _ => receiver_expression,
+                }
+            } else {
+                receiver_expression
+            };
+            format!("({receiver}).{}", rust_name(self.text(member)))
         } else {
             self.expression(callee)
         };
@@ -988,7 +1013,7 @@ impl Emitter<'_> {
             let dependency = type_path.split("::").next().unwrap_or("dependency");
             let member = format!("{type_path}::{}", method.name);
             let invocation = if method.is_async {
-                format!("{call}.await")
+                "__terrane_call.await".to_owned()
             } else {
                 call.clone()
             };
@@ -1001,33 +1026,37 @@ impl Emitter<'_> {
                 call.clone()
             };
             let caught = if method.is_async {
-                format!("crate::__terrane_dependency_await_unwind({call}).await")
+                "crate::__terrane_dependency_await_unwind(__terrane_call).await".to_owned()
             } else if method.receiver.is_some() {
                 format!("std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {unwind_call}))")
             } else {
                 format!("std::panic::catch_unwind(|| {unwind_call})")
             };
+            let converted = projected_result_expression("value", &method.result);
             let mapped = if self.package.profile.panic == crate::package::PanicProfile::Abort {
                 if method.error.is_some() {
                     format!(
-                        "match {invocation} {{ Ok(value) => Ok(value), Err(error) => Err(crate::TerraneForeignError(crate::TerraneError::custom_raised(crate::TERRANE_DEPENDENCY_ERROR, format!(\"Rust dependency `{dependency}` member `{member}` failed: {{error}}\"), crate::TERRANE_NO_SITE))) }}"
+                        "match {invocation} {{ Ok(value) => Ok({converted}), Err(error) => Err(crate::TerraneForeignError(crate::TerraneError::custom_raised(crate::TERRANE_DEPENDENCY_ERROR, format!(\"Rust dependency `{dependency}` member `{member}` failed: {{error}}\"), crate::TERRANE_NO_SITE))) }}"
                     )
                 } else if self.discarded_call == Some(node.span) {
                     format!("{{ {invocation}; Ok(()) }}")
                 } else {
-                    format!("Ok({invocation})")
+                    format!(
+                        "Ok({})",
+                        projected_result_expression(&invocation, &method.result)
+                    )
                 }
             } else if method.error.is_some() {
                 format!(
-                    "match {caught} {{ Ok(Ok(value)) => Ok(value), Ok(Err(error)) => Err(crate::TerraneForeignError(crate::TerraneError::custom_raised(crate::TERRANE_DEPENDENCY_ERROR, format!(\"Rust dependency `{dependency}` member `{member}` failed: {{error}}\"), crate::TERRANE_NO_SITE))), Err(payload) => Err(crate::__terrane_dependency_panic(payload, {dependency:?}, {member:?})) }}"
+                    "match {caught} {{ Ok(Ok(value)) => Ok({converted}), Ok(Err(error)) => Err(crate::TerraneForeignError(crate::TerraneError::custom_raised(crate::TERRANE_DEPENDENCY_ERROR, format!(\"Rust dependency `{dependency}` member `{member}` failed: {{error}}\"), crate::TERRANE_NO_SITE))), Err(payload) => Err(crate::__terrane_dependency_panic(payload, {dependency:?}, {member:?})) }}"
                 )
             } else {
                 format!(
-                    "match {caught} {{ Ok(value) => Ok(value), Err(payload) => Err(crate::__terrane_dependency_panic(payload, {dependency:?}, {member:?})) }}"
+                    "match {caught} {{ Ok(value) => Ok({converted}), Err(payload) => Err(crate::__terrane_dependency_panic(payload, {dependency:?}, {member:?})) }}"
                 )
             };
             if method.is_async {
-                format!("async move {{ {mapped} }}")
+                format!("{{ let __terrane_call = {call}; async move {{ {mapped} }} }}")
             } else {
                 mapped
             }

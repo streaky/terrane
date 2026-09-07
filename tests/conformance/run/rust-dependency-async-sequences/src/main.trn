@@ -1,0 +1,34 @@
+namespace app
+from /deps/terrane-sequence-witness import make_tcp_sequence, make_failing_tokio_sequence, make_pending_tokio_sequence, make_queue_sequence, TokioSequence, TcpSequence
+from /core/output import print
+from /core/errors import dependency-error
+
+async function drain-network; sequence TcpSequence
+  first = await sequence.next;
+  print; first.item, first.end, first.value == none
+  second = await sequence.next;
+  print; second.item, second.end, second.value == none
+  ended = await sequence.next;
+  print; ended.item, ended.end, ended.value == none
+  closed = await sequence.close;
+
+async function wait-pending; sequence TokioSequence
+  waiting = await sequence.next;
+
+async function main;
+  drained = await drain-network; (await make_tcp_sequence;)
+  queue = make_queue_sequence;
+  queued = await queue.next;
+  print; queued.item, queued.value == none
+  queue-closed = queue.close;
+  try
+    failing = make_failing_tokio_sequence;
+    failed-step = await failing.next;
+  catch dependency-error as error
+    print; error.message
+  scope = task-scope;
+  pending = make_pending_tokio_sequence;
+  child = scope.spawn; (wait-pending; pending)
+  scope.cancel;
+  outcome = await scope.join; child
+  print; outcome.cancelled, outcome.value == none

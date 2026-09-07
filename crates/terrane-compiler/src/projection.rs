@@ -17,7 +17,7 @@ use sha2::{Digest, Sha256};
 use crate::RustDependency;
 
 pub use crate::RUSTDOC_TOOLCHAIN;
-const PROJECTION_SCHEMA: &str = "17";
+const PROJECTION_SCHEMA: &str = "18";
 const MAX_PROJECTION_CACHE_RECORDS: usize = 4;
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
@@ -291,6 +291,7 @@ pub enum ProjectedType {
         ordered: bool,
     },
     Tuple(Vec<ProjectedType>),
+    AsyncIterationStep(Box<ProjectedType>),
     Foreign {
         rust_path: String,
         name: String,
@@ -343,6 +344,9 @@ impl ProjectedType {
             | Self::Mapping { rust_path, .. }
             | Self::Set { rust_path, .. }
             | Self::Foreign { rust_path, .. } => rust_path.clone(),
+            Self::AsyncIterationStep(item) => {
+                format!("Option<{}>", item.rust_type())
+            }
             Self::Callback { rust_name, .. } => rust_name.clone(),
             Self::Tuple(items) => format!(
                 "({},)",
@@ -416,6 +420,9 @@ impl ProjectedType {
                 write!(name, " to {}", result.terrane_name())
                     .expect("writing to a string cannot fail");
                 name
+            }
+            Self::AsyncIterationStep(inner) => {
+                format!("async-iteration-step of {}", inner.terrane_name())
             }
             Self::Optional(inner) => format!("{}|none", inner.terrane_name()),
         }
@@ -606,6 +613,12 @@ impl Projection {
     }
 
     #[must_use]
+    pub(crate) fn foreign_is_async_sequence(&self, namespace: &str, name: &str) -> bool {
+        self.method(namespace, name, "next")
+            .is_some_and(|method| matches!(method.result, ProjectedType::AsyncIterationStep(_)))
+    }
+
+    #[must_use]
     pub(crate) fn is_unit_variant(&self, item: &ProjectedItem) -> bool {
         self.dependencies
             .iter()
@@ -767,6 +780,7 @@ fn collect_foreign_type(ty: &ProjectedType, foreign: &mut BTreeMap<String, Strin
             foreign.insert(rust_path.clone(), name.clone());
         }
         ProjectedType::Optional(inner)
+        | ProjectedType::AsyncIterationStep(inner)
         | ProjectedType::Sequence { item: inner, .. }
         | ProjectedType::Set { item: inner, .. } => collect_foreign_type(inner, foreign),
         ProjectedType::Mapping { key, value, .. } => {
@@ -796,6 +810,7 @@ fn foreign_type_name(ty: &ProjectedType) -> Option<&str> {
     match ty {
         ProjectedType::Foreign { name, .. } => Some(name),
         ProjectedType::Optional(inner)
+        | ProjectedType::AsyncIterationStep(inner)
         | ProjectedType::Sequence { item: inner, .. }
         | ProjectedType::Set { item: inner, .. } => foreign_type_name(inner),
         ProjectedType::Mapping { key, value, .. } => {
@@ -864,6 +879,12 @@ fn projected_type_name(ty: &ProjectedType, foreign_aliases: &BTreeMap<String, St
             .unwrap_or_else(|| name.clone()),
         ProjectedType::Optional(inner) => {
             format!("{}|none", projected_type_name(inner, foreign_aliases))
+        }
+        ProjectedType::AsyncIterationStep(inner) => {
+            format!(
+                "async-iteration-step of {}",
+                projected_type_name(inner, foreign_aliases)
+            )
         }
         ProjectedType::Sequence { item, .. } => {
             format!("list of {}", projected_type_name(item, foreign_aliases))
@@ -2000,7 +2021,7 @@ fn project_rustdoc(
                     );
                 }
                 {
-                    let (methods, trait_methods, method_declines) = project_methods(
+                    let (mut methods, trait_methods, method_declines) = project_methods(
                         &structure.impls,
                         index,
                         paths,
@@ -2008,6 +2029,7 @@ fn project_rustdoc(
                         &rust_path,
                         &owner_generics,
                     );
+                    promote_async_sequence_methods(&mut methods);
                     for method in methods.iter().filter(|method| method.receiver.is_none()) {
                         projected_associated_items.push(ProjectedItem {
                             namespace: namespace.clone(),
@@ -2460,6 +2482,9 @@ fn project_function_inner(
             let value = arguments
                 .first()
                 .ok_or_else(|| "Result has no value type".to_owned())?;
+            if render_rust_type(value, index, paths, &generic_types)?.contains('&') {
+                return Err("borrowed result values cannot cross a projected boundary".to_owned());
+            }
             error = arguments
                 .get(1)
                 .and_then(|ty| resolved_name(ty, paths))
@@ -2494,6 +2519,27 @@ fn project_function_inner(
         ),
         receiver,
     })
+}
+
+fn promote_async_sequence_methods(methods: &mut [ProjectedFunction]) {
+    let has_consuming_close = methods
+        .iter()
+        .any(|method| method.name == "close" && method.receiver == Some(Receiver::Move));
+    if !has_consuming_close {
+        return;
+    }
+    for method in methods {
+        if method.name == "next"
+            && method.is_async
+            && matches!(
+                method.receiver,
+                Some(Receiver::Borrow | Receiver::MutableBorrow)
+            )
+            && let ProjectedType::Optional(item) = &method.result
+        {
+            method.result = ProjectedType::AsyncIterationStep(item.clone());
+        }
+    }
 }
 
 fn trait_bound_name(bound: &GenericBound) -> Option<(&RustdocPath, &[GenericParamDef])> {

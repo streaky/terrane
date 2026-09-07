@@ -232,6 +232,7 @@ pub enum ValueType {
     TextRangeList,
     Iterator(ElementType),
     IterationStep(ElementType),
+    AsyncIterationStep(ElementType),
     List(ElementType),
     Map(ElementType, ElementType),
     Set(ElementType),
@@ -354,6 +355,9 @@ impl std::fmt::Display for ValueType {
             Self::Iterator(item) => write!(formatter, "iterator of {}", item.value_type()),
             Self::IterationStep(item) => {
                 write!(formatter, "iteration-step of {}", item.value_type())
+            }
+            Self::AsyncIterationStep(item) => {
+                write!(formatter, "async-iteration-step of {}", item.value_type())
             }
             Self::List(item) => write!(formatter, "list of {}", item.value_type()),
             Self::Map(key, value) => write!(formatter, "map of {key}, {value}"),

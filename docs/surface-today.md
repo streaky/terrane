@@ -833,9 +833,12 @@ canonical Rust paths, documentation, representable free and inherent methods, re
 functions, receiver ownership, opaque foreign types, data-free enum variant constructors, directly
 representable `Result` returns, arbitrary projected `Option<T>` values, all Rust integer widths,
 `f32`, `char`, concrete representable type aliases, recursive standard sequence, map, set, and
-homogeneous tuple shapes, and monomorphic concrete `Fn`, `FnMut`, `FnOnce`, and future-returning
-callback bounds. Callback metadata retains call multiplicity, retention, and `Send`/`Sync`
-requirements. Map keys and set items are limited to Terrane scalars. Cross-crate signature types
+homogeneous tuple shapes, monomorphic concrete `Fn`, `FnMut`, `FnOnce`, and future-returning
+callback bounds, and concrete owned asynchronous producers with typed item/end steps. Callback
+metadata retains call multiplicity, retention, and `Send`/`Sync` requirements. Async producers are
+resource-owning linear endpoints: borrowed `next` operations preserve protocol failure and task
+cancellation separately, and consuming `close` makes later use a source ownership error.
+Map keys and set items are limited to Terrane scalars. Cross-crate signature types
 are admitted only when their canonical owner is declared directly at one lock-resolved version;
 otherwise the member remains an explicit decline. Data-carrying enums remain opaque and use
 projected crate accessors; every declined public item carries a reason.

@@ -1014,6 +1014,16 @@ pub(super) fn analyze_types(package: &mut SemanticPackage) -> Result<(), Semanti
         package.units[index].objects = objects;
     }
     populate_object_aliases(package);
+    for unit in &mut package.units {
+        for object in &mut unit.objects {
+            if package
+                .projection
+                .foreign_is_async_sequence(&object.identity.namespace, &object.identity.name)
+            {
+                object.resource_owning = true;
+            }
+        }
+    }
     propagate_resource_ownership(package)?;
     for index in 0..package.units.len() {
         let unit = &package.units[index];

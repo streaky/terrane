@@ -47,8 +47,18 @@ pub(super) fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFa
         object_identity: &ObjectIdentity,
         method_name: &str,
     ) -> bool {
-        method_contract(package, object_identity, method_name, false)
-            .is_some_and(|method| method.consumes_receiver)
+        package
+            .projection
+            .method(
+                &object_identity.namespace,
+                &object_identity.name,
+                method_name,
+            )
+            .is_some_and(|method| {
+                matches!(method.receiver, Some(crate::projection::Receiver::Move))
+            })
+            || method_contract(package, object_identity, method_name, false)
+                .is_some_and(|method| method.consumes_receiver)
     }
 
     #[expect(

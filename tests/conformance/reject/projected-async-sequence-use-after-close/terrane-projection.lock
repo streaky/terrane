@@ -1,0 +1,73 @@
+{
+  "format": 2,
+  "dependencies": [
+    {
+      "name": "terrane-sequence-witness",
+      "version": "0.1.0",
+      "members": [
+        [
+          "/deps/terrane-sequence-witness",
+          "BorrowedSequence"
+        ],
+        [
+          "/deps/terrane-sequence-witness",
+          "QueueSequence"
+        ],
+        [
+          "/deps/terrane-sequence-witness",
+          "SequenceError"
+        ],
+        [
+          "/deps/terrane-sequence-witness",
+          "TokioSequence"
+        ],
+        [
+          "/deps/terrane-sequence-witness",
+          "make_borrowed_sequence"
+        ],
+        [
+          "/deps/terrane-sequence-witness",
+          "make_failing_tokio_sequence"
+        ],
+        [
+          "/deps/terrane-sequence-witness",
+          "make_pending_tokio_sequence"
+        ],
+        [
+          "/deps/terrane-sequence-witness",
+          "make_queue_sequence"
+        ],
+        [
+          "/deps/terrane-sequence-witness",
+          "make_tokio_sequence"
+        ]
+      ]
+    }
+  ],
+  "removed": [],
+  "cache_identity": "67ead72f9878bf2d074c945a129a101ac34d8d57f64b3d14693e17ef60465e40",
+  "source": "Local",
+  "rustdoc_format": 57,
+  "projection_schema": "17",
+  "content_hash": "a96901e24ec213c036c843d548d650d4e1ec63f07bed44d77018144e5e9711c0",
+  "resolution": {
+    "outcome": "LocalRustdoc",
+    "events": [
+      {
+        "source": "BundledArtifact",
+        "status": "Skipped",
+        "reason": "bundled projection distribution is deliberately deferred until Terrane has a release artifact channel"
+      },
+      {
+        "source": "PublishedArtifact",
+        "status": "Skipped",
+        "reason": "`TERRANE_PROJECTION_ARTIFACT_URL` is not configured"
+      },
+      {
+        "source": "LocalRustdoc",
+        "status": "Generated",
+        "reason": "no reusable exact artifact was available; generated with the pinned local rustdoc toolchain"
+      }
+    ]
+  }
+}

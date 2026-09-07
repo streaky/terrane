@@ -1,0 +1,81 @@
+{
+  "format": 2,
+  "dependencies": [
+    {
+      "name": "terrane-sequence-witness",
+      "version": "0.1.0",
+      "members": [
+        [
+          "/deps/terrane-sequence-witness",
+          "BorrowedSequence"
+        ],
+        [
+          "/deps/terrane-sequence-witness",
+          "QueueSequence"
+        ],
+        [
+          "/deps/terrane-sequence-witness",
+          "SequenceError"
+        ],
+        [
+          "/deps/terrane-sequence-witness",
+          "TcpSequence"
+        ],
+        [
+          "/deps/terrane-sequence-witness",
+          "TokioSequence"
+        ],
+        [
+          "/deps/terrane-sequence-witness",
+          "make_borrowed_sequence"
+        ],
+        [
+          "/deps/terrane-sequence-witness",
+          "make_failing_tokio_sequence"
+        ],
+        [
+          "/deps/terrane-sequence-witness",
+          "make_pending_tokio_sequence"
+        ],
+        [
+          "/deps/terrane-sequence-witness",
+          "make_queue_sequence"
+        ],
+        [
+          "/deps/terrane-sequence-witness",
+          "make_tcp_sequence"
+        ],
+        [
+          "/deps/terrane-sequence-witness",
+          "make_tokio_sequence"
+        ]
+      ]
+    }
+  ],
+  "removed": [],
+  "cache_identity": "3bb7c254faef26e6a93e26bfb7834ab2e4fff1125ad30b5169780ce263db11ba",
+  "source": "Local",
+  "rustdoc_format": 57,
+  "projection_schema": "18",
+  "content_hash": "e243f26163133be21bb32b26f8c171866a42cc800f2494c22e9aa0190120f9c4",
+  "resolution": {
+    "outcome": "LocalRustdoc",
+    "events": [
+      {
+        "source": "BundledArtifact",
+        "status": "Skipped",
+        "reason": "bundled projection distribution is deliberately deferred until Terrane has a release artifact channel"
+      },
+      {
+        "source": "PublishedArtifact",
+        "status": "Skipped",
+        "reason": "`TERRANE_PROJECTION_ARTIFACT_URL` is not configured"
+      },
+      {
+        "source": "LocalRustdoc",
+        "status": "Generated",
+        "reason": "no reusable exact artifact was available; generated with the pinned local rustdoc toolchain"
+      }
+    ]
+  }
+}

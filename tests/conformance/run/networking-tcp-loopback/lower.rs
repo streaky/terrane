@@ -1368,15 +1368,16 @@ pub async fn terrane_platform_dns_lookup_async(
 // Source: case.trn
 // Namespace: app
 async fn serve(listener: TcpListener, options: NetworkOperationOptions) {
-    let accepted: StreamResult = __terrane_await(listener.accept(options.clone())).await;
+    let accepted: StreamResult = __terrane_await((&listener).accept(options.clone()))
+        .await;
     let stream: TcpStream = accepted.value;
     let request: IoResult = __terrane_await(
-            stream.read(terrane_int_support::Int::from(7_i128), options.clone()),
+            (&stream).read(terrane_int_support::Int::from(7_i128), options.clone()),
         )
         .await;
     if request.data == Vec::from([116, 101, 114, 114, 97, 110, 101]) {
         let written: IoResult = __terrane_await(
-                stream.write(Vec::from([114, 101, 112, 108, 121]), options.clone()),
+                (&stream).write(Vec::from([114, 101, 112, 108, 121]), options.clone()),
             )
             .await;
         if !written.failed {
@@ -1387,7 +1388,7 @@ async fn serve(listener: TcpListener, options: NetworkOperationOptions) {
     return ();
 }
 async fn read_input(input: ByteReader) -> ReadResult {
-    return __terrane_await(input.read_async(terrane_int_support::Int::from(1_i128)))
+    return __terrane_await((&input).read_async(terrane_int_support::Int::from(1_i128)))
         .await;
 }
 fn main() {
@@ -1453,7 +1454,7 @@ fn main() {
             .await;
         let client: TcpStream = connected.value;
         let sent: IoResult = __terrane_await(
-                client
+                (&client)
                     .write(
                         Vec::from([116, 101, 114, 114, 97, 110, 101]),
                         client_options.clone(),
@@ -1461,7 +1462,7 @@ fn main() {
             )
             .await;
         let response: IoResult = __terrane_await(
-                client
+                (&client)
                     .read(terrane_int_support::Int::from(5_i128), client_options.clone()),
             )
             .await;

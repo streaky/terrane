@@ -404,6 +404,12 @@ pub(super) fn rust_value_type(package: &SemanticPackage, ty: ValueType) -> Strin
                 rust_element_type(package, item)
             )
         }
+        ValueType::AsyncIterationStep(item) => {
+            format!(
+                "terrane_collection_support::AsyncIterationStep<{}>",
+                rust_element_type(package, item)
+            )
+        }
         ValueType::List(item) => {
             format!(
                 "terrane_collection_support::List<{}>",

@@ -1512,6 +1512,17 @@ throwables, aliased mutable callback state, one-shot reuse, and open generic cal
 `rust-dependency-callbacks` exercises all three call traits plus concurrent future callbacks; the
 focused rejection corpus fixes the ownership and effect boundaries.
 
+Phase C async-sequence projection recognizes concrete owned producers with an asynchronous
+borrowed `next` returning `Result<Option<Item>, E>` and a consuming `close`. The projected
+`async-iteration-step of Item` keeps item, end, dependency failure, and task cancellation distinct;
+generated calls construct a reborrowed native future before the async wrapper so repeated
+suspending reads do not move the producer. Producer objects are resource-owning and linear,
+consuming close participates in source ownership diagnostics, and borrowed or open-associated item
+shapes remain explicit declines. `rust-dependency-async-sequences` exercises a Tokio-backed
+producer and a dissimilar queue producer through normal items, end, protocol failure, close, and
+cancellation; focused rejects cover borrowed and open item shapes, duplicate transfer, use after
+close, and unconsumed next tasks.
+
 Accepted and rejected conformance covers async/sync type incompatibility, task consumption,
 successful, throwing, cancelled, and sibling-cancelling children, statically resolvable nested
 deadline extension, a non-owning reference whose unchanged local owner is proven to remain in the

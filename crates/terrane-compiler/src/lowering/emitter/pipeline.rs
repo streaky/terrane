@@ -26,10 +26,7 @@ pub(crate) fn lower(package: &SemanticPackage) -> Program {
         .any(|unit| unit.namespace.starts_with("/deps/") && !unit.functions.is_empty());
     let has_async_dependency = package.units.iter().any(|unit| {
         unit.namespace.starts_with("/deps/")
-            && unit
-                .functions
-                .iter()
-                .any(|function| function.is_async && package.function_is_referenced(function.span))
+            && unit.functions.iter().any(|function| function.is_async)
     });
     let has_async = package
         .units

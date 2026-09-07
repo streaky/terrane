@@ -457,11 +457,8 @@ pub(super) fn declared_value_type_with_visible_objects(
     })
 }
 
-pub(super) fn parse_declared_value_type(
-    type_name: &str,
-    aliases: &BTreeMap<String, ScalarType>,
-) -> Option<ValueType> {
-    if matches!(
+fn is_builtin_error_type(type_name: &str) -> bool {
+    matches!(
         type_name,
         "throwable"
             | "arithmetic-overflow"
@@ -474,7 +471,14 @@ pub(super) fn parse_declared_value_type(
             | "missing-key"
             | "dependency-error"
             | "dependency-panic"
-    ) {
+    )
+}
+
+pub(super) fn parse_declared_value_type(
+    type_name: &str,
+    aliases: &BTreeMap<String, ScalarType>,
+) -> Option<ValueType> {
+    if is_builtin_error_type(type_name) {
         return Some(ValueType::Object(ObjectIdentity::new(
             "/core/errors",
             type_name,
@@ -506,6 +510,11 @@ pub(super) fn parse_declared_value_type(
         {
             return Some(construct(scalar));
         }
+    }
+    if let Some(argument) = type_name.strip_prefix("async-iteration-step of ") {
+        return Some(ValueType::AsyncIterationStep(ElementType::new(
+            parse_declared_value_type(argument, aliases)?,
+        )));
     }
     for (constructor, construct) in [
         ("list of ", ValueType::List as fn(ElementType) -> ValueType),
@@ -727,6 +736,9 @@ pub(super) fn diagnostic_value_type(objects: &[ObjectContract], value_type: &Val
         ValueType::Object(identity) => diagnostic_object_identity(objects, identity),
         ValueType::Iterator(item) => format!("iterator of {}", nested(item)),
         ValueType::IterationStep(item) => format!("iteration-step of {}", nested(item)),
+        ValueType::AsyncIterationStep(item) => {
+            format!("async-iteration-step of {}", nested(item))
+        }
         ValueType::List(item) => format!("list of {}", nested(item)),
         ValueType::Map(key, value) => format!("map of {}, {}", nested(key), nested(value)),
         ValueType::Set(item) => format!("set of {}", nested(item)),
@@ -841,9 +853,9 @@ pub(super) fn value_types_compatible(
         }
         (ValueType::List(expected), ValueType::List(actual))
         | (ValueType::Set(expected), ValueType::Set(actual))
-        | (ValueType::UnorderedSet(expected), ValueType::UnorderedSet(actual))
         | (ValueType::Iterator(expected), ValueType::Iterator(actual))
-        | (ValueType::IterationStep(expected), ValueType::IterationStep(actual)) => {
+        | (ValueType::IterationStep(expected), ValueType::IterationStep(actual))
+        | (ValueType::AsyncIterationStep(expected), ValueType::AsyncIterationStep(actual)) => {
             value_types_compatible(objects, &expected.value_type(), &actual.value_type())
         }
         (

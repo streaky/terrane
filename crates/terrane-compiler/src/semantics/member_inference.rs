@@ -198,6 +198,18 @@ pub(super) fn infer_member_value_type(
             )),
         };
     }
+    if let Some(ValueType::AsyncIterationStep(item)) = &receiver_type {
+        return match member_name {
+            "item" | "end" => Ok(Some(ValueType::Scalar(ScalarType::Bool))),
+            "value" => Ok(Some(ValueType::Optional(Box::new(item.value_type())))),
+            _ => Err(failure(
+                &unit.source,
+                "T0087",
+                format!("async iteration step has no member `{member_name}`"),
+                member.span,
+            )),
+        };
+    }
     if let Some(result) = &receiver_type
         && matches!(
             result,

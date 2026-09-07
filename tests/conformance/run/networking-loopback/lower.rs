@@ -1047,7 +1047,7 @@ fn main() {
             cancellation,
         );
         let sent: IoResult = __terrane_await(
-                socket
+                (&socket)
                     .send_to(
                         Vec::from([116, 101, 114, 114, 97, 110, 101]),
                         destination.value,
@@ -1056,7 +1056,7 @@ fn main() {
             )
             .await;
         let received: IoResult = __terrane_await(
-                socket
+                (&socket)
                     .receive_from(
                         terrane_int_support::Int::from(32_i128),
                         options.clone(),

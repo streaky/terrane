@@ -232,6 +232,12 @@ pub(super) fn projected_result_expression(
                 format!("{value}.map(|value| {converted})")
             }
         }
+        crate::projection::ProjectedType::AsyncIterationStep(item) => {
+            let converted = projected_result_expression("item", item);
+            format!(
+                "match {value} {{ Some(item) => terrane_collection_support::AsyncIterationStep::item({converted}), None => terrane_collection_support::AsyncIterationStep::end() }}"
+            )
+        }
         crate::projection::ProjectedType::Sequence { item, .. } => {
             if projected_type_is_identity(item) {
                 format!("terrane_collection_support::List::new({value})")

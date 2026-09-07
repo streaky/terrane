@@ -1,0 +1,10 @@
+package = "rust-dependency-async-sequences"
+executor = "cooperative"
+
+[namespaces]
+app = "src"
+
+[rust-dependencies.terrane-sequence-witness]
+package = "terrane-sequence-witness"
+version = "=0.1.0"
+effects = ["build"]
