@@ -1637,6 +1637,38 @@ fn collect_chain_receivers(
     }
 }
 
+fn projected_function_for_call<'a>(
+    package: &'a SemanticPackage,
+    unit: &SemanticUnit,
+    callee: &SyntaxNode,
+) -> Option<&'a crate::projection::ProjectedFunction> {
+    if callee.kind == SyntaxKind::Name {
+        let symbol =
+            package.resolve_name_at(unit, callee.span.start, node_text(&unit.source, callee))?;
+        return package
+            .projection
+            .item(&symbol.namespace, &symbol.name)
+            .and_then(|item| match &item.kind {
+                crate::projection::ProjectedKind::Function(function) => Some(function),
+                _ => None,
+            });
+    }
+    let [receiver, member] = callee.children.as_slice() else {
+        return None;
+    };
+    let Some(ValueType::Object(identity)) = infer_value_type(unit, receiver, &unit.typed_bindings)
+        .ok()
+        .flatten()
+    else {
+        return None;
+    };
+    package.projection.method(
+        &identity.namespace,
+        &identity.name,
+        node_text(&unit.source, member),
+    )
+}
+
 fn validate_projected_callback_node(
     package: &SemanticPackage,
     unit: &SemanticUnit,
@@ -1662,13 +1694,7 @@ fn validate_projected_callback_node(
     validate_projected_borrowed_async_call(package, unit, node, immediately_awaited)?;
     if node.kind == SyntaxKind::CallExpression
         && let [callee, arguments] = node.children.as_slice()
-        && callee.kind == SyntaxKind::Name
-        && let Some(symbol) =
-            package.resolve_name_at(unit, callee.span.start, node_text(&unit.source, callee))
-        && let Some(crate::projection::ProjectedKind::Function(function)) = package
-            .projection
-            .item(&symbol.namespace, &symbol.name)
-            .map(|item| &item.kind)
+        && let Some(function) = projected_function_for_call(package, unit, callee)
     {
         for (index, parameter) in function.parameters.iter().enumerate() {
             let crate::projection::ProjectedType::Callback { .. } = &parameter.ty else {

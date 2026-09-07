@@ -108,9 +108,9 @@ fn projected_callback_argument(
         .join(", ");
     let converted_result = projected_callback_output_expression("callback_value", result);
     let invoke = if is_async {
-        format!("({name})({terrane_arguments}).await")
+        format!("(callback)({terrane_arguments}).await")
     } else {
-        format!("({name})({terrane_arguments})")
+        format!("(callback)({terrane_arguments})")
     };
     let fallible_body = if is_async {
         format!(
@@ -126,10 +126,10 @@ fn projected_callback_argument(
     );
     if is_async {
         format!(
-            "{{ let callback = {name}.clone(); move |{rust_parameters}| {{ let {name} = callback.clone(); Box::pin(async move {{ {body} }}) }} }}"
+            "{{ let callback = {name}.clone(); move |{rust_parameters}| {{ let callback = callback.clone(); Box::pin(async move {{ {body} }}) }} }}"
         )
     } else {
-        format!("{{ let {name} = {name}.clone(); move |{rust_parameters}| {{ {body} }} }}")
+        format!("{{ let callback = {name}.clone(); move |{rust_parameters}| {{ {body} }} }}")
     }
 }
 

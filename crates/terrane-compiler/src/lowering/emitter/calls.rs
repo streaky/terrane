@@ -927,8 +927,10 @@ impl Emitter<'_> {
                 let expression = if let Some(projected) = projected_parameters
                     .as_ref()
                     .and_then(|parameters| parameters.get(index))
-                    .filter(|_| projected_chain_role.is_some())
-                {
+                    .filter(|_| {
+                        projected_chain_role.is_some()
+                            || callee.kind == SyntaxKind::MemberExpression
+                    }) {
                     projected_chain_argument_expression(&expression, &projected.ty)
                 } else {
                     expression

@@ -363,7 +363,7 @@ pub(super) fn infer_value_type(
                     return Err(failure(
                         &unit.source,
                         "T0107",
-                        "`channel` requires an item descriptor, positive constant capacity, and overflow policy",
+                        "`channel` requires an item descriptor, constant capacity, and overflow policy",
                         node.span,
                     ));
                 };
@@ -386,16 +386,16 @@ pub(super) fn infer_value_type(
                             descriptor.span,
                         )
                     })?;
-                if constant_deadline_ms(unit, capacity, bindings, &mut BTreeSet::new())
-                    .is_none_or(|capacity| capacity == 0)
-                {
+                let Some(capacity_value) =
+                    constant_deadline_ms(unit, capacity, bindings, &mut BTreeSet::new())
+                else {
                     return Err(failure(
                         &unit.source,
                         "T0107",
-                        "`channel` capacity must be a positive constant integer",
+                        "`channel` capacity must be a nonnegative constant integer",
                         capacity.span,
                     ));
-                }
+                };
                 if infer_value_type(unit, overflow, bindings)?
                     != Some(ValueType::ChannelOverflowPolicy)
                 {
@@ -403,6 +403,17 @@ pub(super) fn infer_value_type(
                         &unit.source,
                         "T0107",
                         "`channel` overflow argument must be a channel overflow policy",
+                        overflow.span,
+                    ));
+                }
+                if capacity_value == 0
+                    && resolved_compiler_identity(unit, overflow)
+                        .is_none_or(|identity| identity != "/core/concurrency::channel-block")
+                {
+                    return Err(failure(
+                        &unit.source,
+                        "T0107",
+                        "zero-capacity channels require the `channel-block` rendezvous policy",
                         overflow.span,
                     ));
                 }
@@ -680,10 +691,11 @@ pub(super) fn infer_value_type(
                             TaskTransferability::Local,
                         )))
                     }
-                    (ValueType::ChannelSender(_) | ValueType::ChannelReceiver(_), "close")
-                        if values.is_empty() =>
-                    {
+                    (ValueType::ChannelSender(_), "close") if values.is_empty() => {
                         Ok(Some(ValueType::Scalar(ScalarType::None)))
+                    }
+                    (ValueType::ChannelReceiver(item), "close") if values.is_empty() => {
+                        Ok(Some(ValueType::List(item)))
                     }
                     (_, operation) => Err(failure(
                         &unit.source,

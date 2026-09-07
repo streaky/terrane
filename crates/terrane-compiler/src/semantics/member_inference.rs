@@ -238,7 +238,7 @@ pub(super) fn infer_member_value_type(
             ))),
             "close" => Ok(Some(ValueType::Function(
                 Vec::new(),
-                ElementType::new(ValueType::Scalar(ScalarType::None)),
+                ElementType::new(ValueType::List(item.clone())),
             ))),
             _ => Err(failure(
                 &unit.source,
