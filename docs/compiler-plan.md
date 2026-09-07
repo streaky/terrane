@@ -1407,8 +1407,10 @@ compiler-separated `finally` state is retained and driven exactly once in innerm
 Cleanup is shielded from the initiating request and may suspend; deadlines do not hard-kill it, so a
 foreign cleanup future that never wakes can keep join pending. Lowering must reject captures that
 cannot split exclusive operation state from cleanup-owned state. Rust `Drop` runs for operation-only
-foreign values before Terrane cleanup, cleanup-owned values survive through that cleanup, and a
-cleanup error replaces pending cancellation without erasing the cancellation observation.
+foreign values before Terrane cleanup, and cleanup-owned values survive through that cleanup. If
+cleanup fails, its error replaces pending cancellation in that child's outcome: `error` is present
+and `cancelled` is false for the child, while the scope's cancellation request remains in force and
+observable to its other children.
 
 Task representation now carries compiler-owned local-versus-transferable metadata through async
 callables, ordinary tasks, and scoped tasks. Authored task mobility is inferred conservatively from
@@ -1451,8 +1453,11 @@ pending, waits until it has actually started, cancels its scope, and proves that
 operation-only owner is dropped before separately retained Terrane cleanup runs. Join does not
 complete until the cleanup's projected asynchronous yield finishes. The same single-worker runtime
 then completes a newly spawned task, proving cancellation released the executor rather than leaving
-the pending operation or a polling loop resident. `cancelled-finally-error-wins` proves that an
-ordinary cleanup failure replaces pending cancellation rather than being discarded.
+the pending operation or a polling loop resident. `cancelled-nested-finally-order` holds the same
+foreign operation pending beneath two asynchronous `finally` blocks and proves inner cleanup,
+outer cleanup, cancelled join, and one operation drop in that order.
+`cancelled-finally-error-wins` proves that an ordinary cleanup failure replaces pending cancellation
+in the affected child's outcome without clearing the scope's cancellation request.
 `borrow-parameter-in-async-finally` retains the source rejection for cleanup state whose lender
 cannot survive the suspension.
 
@@ -1483,6 +1488,14 @@ The TCP loopback witness runs with `TOKIO_WORKER_THREADS=1` while one scoped sta
 one listener accept are both pending. The client still connects, writes, reads the reply, and prints
 before the harness releases standard input. That ordering cannot complete if either pending host
 operation occupies the sole executor worker.
+
+The blocking pool is a bounded compatibility bridge, not the final socket transport. Before Phase C
+adds async sequence or sink load, socket readiness, TCP and UDP reads/writes, listener acceptance,
+and TLS transport I/O must migrate to readiness-native polling on the selected runtime. Operations
+that are genuinely blocking, such as platform-specific resolver or file paths, may remain explicit
+blocking-delegation requirements. The prerequisite is complete only when concurrent backpressure,
+cancellation, and deadlines are exercised with pending operations exceeding both executor workers
+and blocking-pool capacity, so universal `spawn_blocking` offload cannot satisfy the witness.
 
 Accepted and rejected conformance covers async/sync type incompatibility, task consumption,
 successful, throwing, cancelled, and sibling-cancelling children, statically resolvable nested

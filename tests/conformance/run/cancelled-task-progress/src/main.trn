@@ -1,0 +1,11 @@
+namespace app
+
+async function work int;
+  return 7
+
+async function main;
+  scope = task-scope;
+  child = scope.spawn; work
+  scope.cancel;
+  outcome = await scope.join; child
+  print; outcome.cancelled, outcome.value == none

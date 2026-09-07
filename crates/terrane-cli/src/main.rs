@@ -561,7 +561,7 @@ fn generated_crate_path(
         ))
     })?;
     let mut hash = Sha256::new();
-    hash.update(b"terrane-generated-crate-v2\0");
+    hash.update(b"terrane-generated-crate-v3\0");
     hash.update(terrane_compiler::VERSION.as_bytes());
     for variable in [
         "CARGO_BUILD_TARGET",
@@ -688,7 +688,7 @@ fn write_generated_crate(
     }
     if options.uses_async_runtime {
         manifest.push_str(
-            "tokio = { version = \"=1.53.0\", features = [\"rt\", \"rt-multi-thread\", \"time\"] }\n",
+            "tokio = { version = \"=1.53.0\", features = [\"macros\", \"rt\", \"rt-multi-thread\", \"time\"] }\n",
         );
     }
     for dependency in rust_dependencies
@@ -1138,7 +1138,7 @@ mod tests {
         );
         assert!(manifest.contains("rust-version = \"1.93.1\""));
         assert!(manifest.contains(
-            "tokio = { version = \"=1.53.0\", features = [\"rt\", \"rt-multi-thread\", \"time\"] }"
+            "tokio = { version = \"=1.53.0\", features = [\"macros\", \"rt\", \"rt-multi-thread\", \"time\"] }"
         ));
         assert!(manifest.contains("[lints.rust]\nunsafe_code = \"forbid\""));
         assert!(directory.join("rust-toolchain.toml").is_file());

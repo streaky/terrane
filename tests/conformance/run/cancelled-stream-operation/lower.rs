@@ -989,9 +989,9 @@ async fn read_one() -> ReadResult {
 }
 fn main() {
     __terrane_run(async move {
-        let completed_scope: TerraneTaskScope = TerraneTaskScope::new(None);
-        let completed_child: TerraneScopedTask<ReadResult> = {
-            let __terrane_scope = completed_scope.clone();
+        let scope: TerraneTaskScope = TerraneTaskScope::new(None);
+        let child: TerraneScopedTask<ReadResult> = {
+            let __terrane_scope = scope.clone();
             let __terrane_cancel = __terrane_scope.cancellation();
             let __terrane_deadline = __terrane_scope.deadline;
             TerraneScopedTask::spawn(async move {
@@ -1007,69 +1007,13 @@ fn main() {
                 }
             })
         };
-        let completed_outcome: TerraneTaskOutcome<ReadResult> = __terrane_await(
-                completed_scope.join(completed_child),
-            )
+        scope.cancel();
+        let outcome: TerraneTaskOutcome<ReadResult> = __terrane_await(scope.join(child))
             .await;
-        let completed_value: Option<ReadResult> = completed_outcome.value.clone();
-        let mut consistent: bool = completed_outcome.completed
-            && completed_value.is_some();
-        if completed_value.is_some() {
-            consistent = consistent
-                && completed_value
-                    .as_ref()
-                    .expect("semantic optional narrowing")
-                    .completed
-                    .clone() == terrane_int_support::Int::from(1_i128)
-                && !completed_value.as_ref().expect("semantic optional narrowing").end
-                && !completed_value
-                    .as_ref()
-                    .expect("semantic optional narrowing")
-                    .failed;
-        }
-        let cancelled_scope: TerraneTaskScope = TerraneTaskScope::new(None);
-        let cancelled_child: TerraneScopedTask<ReadResult> = {
-            let __terrane_scope = cancelled_scope.clone();
-            let __terrane_cancel = __terrane_scope.cancellation();
-            let __terrane_deadline = __terrane_scope.deadline;
-            TerraneScopedTask::spawn(async move {
-                match __terrane_cancellable(
-                        read_one(),
-                        __terrane_cancel,
-                        __terrane_deadline,
-                    )
-                    .await
-                {
-                    Some(value) => TerraneTaskResult::Completed(value),
-                    None => TerraneTaskResult::Cancelled,
-                }
-            })
-        };
-        cancelled_scope.cancel();
-        let cancelled_outcome: TerraneTaskOutcome<ReadResult> = __terrane_await(
-                cancelled_scope.join(cancelled_child),
-            )
-            .await;
-        let cancelled_value: Option<ReadResult> = cancelled_outcome.value.clone();
-        if cancelled_outcome.cancelled {
-            consistent = consistent && cancelled_value.is_none();
-        }
-        if cancelled_outcome.completed {
-            if cancelled_value.is_some() {
-                consistent = consistent
-                    && cancelled_value
-                        .as_ref()
-                        .expect("semantic optional narrowing")
-                        .completed
-                        .clone() == terrane_int_support::Int::from(0_i128)
-                    && cancelled_value.as_ref().expect("semantic optional narrowing").end
-                    && !cancelled_value
-                        .as_ref()
-                        .expect("semantic optional narrowing")
-                        .failed;
-            }
-        }
-        println!("{}", terrane_scalar_support::scalar_text(&consistent));
+        println!(
+            "{}{}", terrane_scalar_support::scalar_text(&outcome.cancelled),
+            terrane_scalar_support::scalar_text(&outcome.value.clone().is_none())
+        );
     });
 }
 // Source: core/streams.trn
