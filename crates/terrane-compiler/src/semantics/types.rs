@@ -457,11 +457,8 @@ pub(super) fn declared_value_type_with_visible_objects(
     })
 }
 
-pub(super) fn parse_declared_value_type(
-    type_name: &str,
-    aliases: &BTreeMap<String, ScalarType>,
-) -> Option<ValueType> {
-    if matches!(
+fn is_builtin_error_type(type_name: &str) -> bool {
+    matches!(
         type_name,
         "throwable"
             | "arithmetic-overflow"
@@ -474,13 +471,69 @@ pub(super) fn parse_declared_value_type(
             | "missing-key"
             | "dependency-error"
             | "dependency-panic"
-    ) {
+    )
+}
+
+fn parse_single_argument_value_type(
+    type_name: &str,
+    aliases: &BTreeMap<String, ScalarType>,
+) -> Option<ValueType> {
+    for (constructor, construct) in [
+        ("list of ", ValueType::List as fn(ElementType) -> ValueType),
+        (
+            "tuple of ",
+            (|item| ValueType::Tuple(item, None)) as fn(ElementType) -> ValueType,
+        ),
+        ("set of ", ValueType::Set as fn(ElementType) -> ValueType),
+        (
+            "unordered-set of ",
+            ValueType::UnorderedSet as fn(ElementType) -> ValueType,
+        ),
+        (
+            "channel-sender of ",
+            ValueType::ChannelSender as fn(ElementType) -> ValueType,
+        ),
+        (
+            "channel-receiver of ",
+            ValueType::ChannelReceiver as fn(ElementType) -> ValueType,
+        ),
+        (
+            "iterator of ",
+            ValueType::Iterator as fn(ElementType) -> ValueType,
+        ),
+        (
+            "iteration-step of ",
+            ValueType::IterationStep as fn(ElementType) -> ValueType,
+        ),
+    ] {
+        if let Some(argument) = type_name.strip_prefix(constructor) {
+            let item = ElementType::new(parse_declared_value_type(argument, aliases)?);
+            if matches!(constructor, "set of " | "unordered-set of ") && item.scalar().is_none() {
+                return None;
+            }
+            return Some(construct(item));
+        }
+    }
+    None
+}
+
+pub(super) fn parse_declared_value_type(
+    type_name: &str,
+    aliases: &BTreeMap<String, ScalarType>,
+) -> Option<ValueType> {
+    let type_name = type_name.trim();
+    if let Some(inner) = type_name
+        .strip_prefix('(')
+        .and_then(|type_name| type_name.strip_suffix(')'))
+    {
+        return parse_declared_value_type(inner, aliases);
+    }
+    if is_builtin_error_type(type_name) {
         return Some(ValueType::Object(ObjectIdentity::new(
             "/core/errors",
             type_name,
         )));
     }
-    let type_name = type_name.trim();
     if let Some(scalar) = aliases
         .get(type_name)
         .copied()
@@ -507,33 +560,16 @@ pub(super) fn parse_declared_value_type(
             return Some(construct(scalar));
         }
     }
-    for (constructor, construct) in [
-        ("list of ", ValueType::List as fn(ElementType) -> ValueType),
-        (
-            "tuple of ",
-            (|item| ValueType::Tuple(item, None)) as fn(ElementType) -> ValueType,
-        ),
-        ("set of ", ValueType::Set as fn(ElementType) -> ValueType),
-        (
-            "unordered-set of ",
-            ValueType::UnorderedSet as fn(ElementType) -> ValueType,
-        ),
-        (
-            "iterator of ",
-            ValueType::Iterator as fn(ElementType) -> ValueType,
-        ),
-        (
-            "iteration-step of ",
-            ValueType::IterationStep as fn(ElementType) -> ValueType,
-        ),
-    ] {
-        if let Some(argument) = type_name.strip_prefix(constructor) {
-            let item = ElementType::new(parse_declared_value_type(argument, aliases)?);
-            if matches!(constructor, "set of " | "unordered-set of ") && item.scalar().is_none() {
-                return None;
-            }
-            return Some(construct(item));
-        }
+    if type_name == "async-sink-outcome" {
+        return Some(ValueType::AsyncSinkOutcome);
+    }
+    if let Some(argument) = type_name.strip_prefix("async-iteration-step of ") {
+        return Some(ValueType::AsyncIterationStep(ElementType::new(
+            parse_declared_value_type(argument, aliases)?,
+        )));
+    }
+    if let Some(value_type) = parse_single_argument_value_type(type_name, aliases) {
+        return Some(value_type);
     }
     for (constructor, construct) in [
         (
@@ -727,6 +763,9 @@ pub(super) fn diagnostic_value_type(objects: &[ObjectContract], value_type: &Val
         ValueType::Object(identity) => diagnostic_object_identity(objects, identity),
         ValueType::Iterator(item) => format!("iterator of {}", nested(item)),
         ValueType::IterationStep(item) => format!("iteration-step of {}", nested(item)),
+        ValueType::AsyncIterationStep(item) => {
+            format!("async-iteration-step of {}", nested(item))
+        }
         ValueType::List(item) => format!("list of {}", nested(item)),
         ValueType::Map(key, value) => format!("map of {}, {}", nested(key), nested(value)),
         ValueType::Set(item) => format!("set of {}", nested(item)),
@@ -841,9 +880,9 @@ pub(super) fn value_types_compatible(
         }
         (ValueType::List(expected), ValueType::List(actual))
         | (ValueType::Set(expected), ValueType::Set(actual))
-        | (ValueType::UnorderedSet(expected), ValueType::UnorderedSet(actual))
         | (ValueType::Iterator(expected), ValueType::Iterator(actual))
-        | (ValueType::IterationStep(expected), ValueType::IterationStep(actual)) => {
+        | (ValueType::IterationStep(expected), ValueType::IterationStep(actual))
+        | (ValueType::AsyncIterationStep(expected), ValueType::AsyncIterationStep(actual)) => {
             value_types_compatible(objects, &expected.value_type(), &actual.value_type())
         }
         (

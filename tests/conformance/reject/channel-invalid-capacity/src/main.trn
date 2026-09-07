@@ -1,0 +1,4 @@
+namespace app
+from /core/concurrency import channel, channel-fail-send
+function main;
+  pair = channel; string, 0, channel-fail-send

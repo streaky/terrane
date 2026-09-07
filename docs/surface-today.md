@@ -209,10 +209,12 @@ Terrane package
     │   ├── tls-stream                         negotiated-version plus deadline-aware read, write, shutdown, and close
     │   └── connect-tls                        validated TLS 1.3/1.2 client connection; no insecure ordinary option
     ├── /core/concurrency                      synchronization objects; requires `threads`
-    │   ├── concurrency-operation-result / concurrency-int-result explicit failure, deadline, availability, message, and value
-    │   ├── concurrency-cancellation-token     explicit shared cancellation with `concurrency-cancel-operation`
-    │   ├── concurrency-operation-options      positive deadline and cancellation token for blocking channel operations
-    │   ├── int-channel                        bounded integer send / receive / non-blocking try-receive; zero-capacity rendezvous
+    │   ├── concurrency-operation-result / concurrency-int-result explicit failure and integer value results for synchronization cells
+    │   ├── channel                            typed sender/receiver pair; compile-time capacity; zero-capacity block rendezvous whose accepted handoff completion outranks simultaneous cancellation
+    │   ├── channel-block / channel-fail-send / channel-drop-newest / channel-drop-oldest explicit overflow policies; non-block policies require positive capacity
+    │   ├── channel-pair / channel-sender / channel-receiver compiler-owned generic linear endpoint families; receiver close returns accepted buffered values
+    │   ├── channel-send-outcome / channel-receive-outcome compiler-owned accepted/dropped/closed, rejected/evicted item, and available/value/closed state
+    │   ├── mutex / read-write-lock / shared-cell diagnostic-only names directing typed state to owner tasks and channels
     │   ├── int-mutex                          individually synchronized integer load / store / increase cell
     │   ├── int-read-write-lock                integer shared read / exclusive write cell; no exposed guards
     │   ├── memory-order / five order factories typed atomic policy with operation-specific validation
@@ -242,6 +244,12 @@ Terrane package
         └── binding                            local typed value, ref, or shared ref
 ```
 
+
+Version one intentionally has no generic shared mutable cell. Application state belongs to one
+owner task, and peers communicate through bounded typed channels. `mutex`, `read-write-lock`, and
+`shared-cell` are compiler-owned diagnostic-only names: invoking one emits `T0111` with that
+guidance. The integer-specialized synchronization objects below remain implemented low-level
+facilities rather than generic type constructors.
 
 ## Implemented value types
 
@@ -649,8 +657,9 @@ does not convert the reference at assignment, parameter, or return boundaries; t
 continue to distinguish `T`, `ref T`, and `shared ref T`. A `ref` currently requires a local named
 binding with reference-backed storage; parameters and temporary values are
 rejected because the compiler does not yet prove their owner lifetimes. Move provenance
-rejects later reads until the binding is rebound, including conditional paths. Replacing a binding
-ends the old identity's lifetime: a later non-owning-reference use is rejected, while a `shared ref`
+rejects later reads until the binding is rebound, including conditional paths and loop back-edges;
+a declaration inside the loop body initializes a fresh binding value for each iteration.
+Replacing a binding ends the old identity's lifetime: a later non-owning-reference use is rejected, while a `shared ref`
 continues to own and observe the old identity.
 
 The source interface now matches the settled version-one ownership vocabulary. Milestone 17 remains
@@ -732,18 +741,19 @@ shields asynchronous cleanup from the initiating request before join completes. 
 linear, so every child must be joined before function exit; no implicit detach or abandoned child
 path exists.
 
-`/core/streams` `read-async` now performs its host read through the selected runtime's explicit
-blocking-delegation path and awaits that delegated operation. The source contract remains a task of
-the same read result, while the execution requirement records that the host-standard-stream read
-cannot yet use a readiness-native operation.
+`/core/streams` `read-async` performs its standard-input host read through the selected runtime's
+explicit blocking-delegation path and awaits that delegated operation. The source contract remains
+a task of the same read result; the current standard-stream handle is not readiness-native.
 
-TCP connect, listener accept, stream read/write, UDP send/receive, DNS lookup, and TLS
-handshake/read/write/shutdown are asynchronous. They await compiler-owned host intrinsics which
-explicitly delegate the current standard-handle and socket ABIs to the selected runtime's blocking
-pool. A scope may spawn either an async callable or an unpolled task moved into it; this permits
+TCP connect, listener accept, stream read/write, and UDP send/receive register nonblocking socket
+descriptors with the selected runtime and await readiness directly. Host-name connection delegates
+only DNS resolution before asynchronously racing socket candidates; standalone DNS lookup remains
+explicitly delegated. TLS handshake/read/write/shutdown uses the same readiness-native transport.
+A scope may spawn either an async callable or an unpolled task moved into it, permitting
 resource-owning arguments to enter a child without borrowing them across suspension. The TCP
-loopback conformance witness proves a pending standard-input read and socket accept do not prevent
-client progress on a single executor worker.
+loopback conformance witness proves a pending standard-input read and readiness-native socket accept
+do not prevent client progress on a single executor worker. Separate outcome evidence covers socket
+deadlines and cancellation.
 
 Task runtime support and its Cargo dependencies are selected from semantic lowering metadata, not
 from generated source-text searches. Merely spelling a runtime crate path in source text cannot
@@ -831,19 +841,38 @@ Declared crates are projected from typed rustdoc metadata into reserved
 canonical Rust paths, documentation, representable free and inherent methods, receiver-first trait
 functions, receiver ownership, opaque foreign types, data-free enum variant constructors, directly
 representable `Result` returns, arbitrary projected `Option<T>` values, all Rust integer widths,
-`f32`, `char`, concrete representable type aliases, and recursive standard sequence, map, set, and
-homogeneous tuple shapes. Map keys and set items are limited to Terrane scalars. Cross-crate
-signature types are admitted only when their canonical owner is declared directly at one
-lock-resolved version; otherwise the member remains an explicit decline. Data-carrying enums remain
-opaque and use projected crate accessors; every declined public item carries a reason.
+`f32`, `char`, concrete representable type aliases, recursive standard sequence, map, set, and
+homogeneous tuple shapes, monomorphic concrete `Fn`, `FnMut`, `FnOnce`, and future-returning
+callback bounds, concrete owned asynchronous producers with typed item/end steps, and concrete
+owned asynchronous sinks with accepted/close outcomes. Callback metadata retains multiplicity,
+retention, and `Send`/`Sync`; generated shims cover free-function and projected-method arguments.
+`FnMut` does not introduce mutable capture cells: version-one anonymous functions still capture
+ordinary values by value and aliased mutable capture is rejected.
+Async producers and sinks are
+resource-owning linear endpoints: borrowed operations must be awaited directly, preserve protocol
+failure and task cancellation separately, and reborrow the endpoint for one suspension; consuming
+`close` or `split` makes later use of the transferred endpoint a source ownership error.
+Projection schema 20 also records concrete lifetime-bearing builders as chain-only roots,
+continuations, and terminals. Their intermediates may retain a borrow from a named input but may
+appear only as receiver subtrees inside one nested expression; binding, return, capture, argument
+escape, and suspension are rejected before lowering. The terminal must return an owned projectable
+value, and tooling marks the root as chain-only and non-escaping. The accepted SQLx witness projects
+a concrete borrow-retaining adapter that runs SQLx inside its terminal; open `sqlx::Query` remains
+declined rather than being described as directly projected.
+Map keys and set items are limited to Terrane scalars. Cross-crate signature types
+are admitted only when their canonical owner is declared directly at one lock-resolved version;
+otherwise the member remains an explicit decline. Data-carrying enums remain opaque and use
+projected crate accessors; every declined public item carries a reason.
 
 Semantic import resolution and the language server consume that same projection. Lowering emits only
 crossed-member Rust shims and generated Cargo dependencies; calls remain direct Rust calls inside one
 generated crate. A projected Rust `async fn` emits an async shim and constructs a Terrane task whose
 awaited result uses the same conversion, error, ownership, and panic boundary as a synchronous
-projected call. Self-contained dependency futures run under today's async driver; dependency
-operations requiring a reactor or other runtime context remain deferred to the wake-driven execution
-strategy. Foreign receivers borrow, use `ref`, or require `move` according to their Rust receiver.
+projected call. Concrete Rust callback parameters accept matching Terrane function values; lowering
+constructs the required Rust closure, converts its inputs and result, and preserves per-invocation
+captured state. Retained or transferable bounds are checked against the callback's receiver,
+captures, throwable contract, and async transferability before lowering. Foreign receivers borrow,
+use `ref`, or require `move` according to their Rust receiver.
 Unwinding dependency panics enter the compiler-owned `dependency-panic` throwable path; abort
 profiles omit containment and generate Cargo `panic = "abort"`. Projection and generated-crate
 compilation use `bwrap` containment where available and report the host tier otherwise.

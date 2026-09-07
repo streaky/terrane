@@ -1,0 +1,8 @@
+42
+12
+HELLO
+hello
+61
+7
+DISSIMILAR
+truetrue0

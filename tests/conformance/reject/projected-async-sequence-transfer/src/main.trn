@@ -1,0 +1,9 @@
+namespace app
+from /deps/terrane-sequence-witness import make_pending_tokio_sequence, TokioSequence
+async function wait-next; sequence TokioSequence
+  step = await sequence.next;
+async function main;
+  scope = task-scope;
+  sequence = make_pending_tokio_sequence;
+  child = scope.spawn; (wait-next; sequence)
+  outcome = await scope.join; child

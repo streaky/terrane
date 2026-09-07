@@ -1,0 +1,3 @@
+package = "channel-duplicate-pair"
+[namespaces]
+app = "src"

@@ -1,0 +1,182 @@
+namespace app
+from /core/output import print
+from /core/concurrency import channel, channel-block, channel-fail-send, channel-drop-newest, channel-drop-oldest
+from /core/collections import list
+from /deps/terrane-sink-witness import remotely_closed_sink, Outgoing
+
+class message
+  text string = ''
+
+  function construct; text string
+    this.text = text
+
+class string-batch
+  values list of string = list; ''
+
+  function construct; values list of string
+    this.values = values
+
+
+async function main;
+  pair = channel; string, 1, channel-block
+  tx = pair.sender
+  rx = pair.receiver
+  first = await tx.send; 'one'
+  print; first.accepted, first.closed, first.dropped
+  scope = task-scope;
+  blocked = scope.spawn; (tx.send; 'two')
+  received-first = await rx.receive;
+  received-first-value = received-first.value
+  if received-first-value != none
+    print; received-first.available, received-first-value
+  delivered = await scope.join; blocked
+  delivered-value = delivered.value
+  if delivered-value != none
+    print; delivered.completed, delivered-value.accepted
+  tx.close;
+  end = await rx.receive;
+  print; end.available, end.closed
+
+  failing-pair = channel; string, 1, channel-fail-send
+  failing-tx = failing-pair.sender
+  failing-rx = failing-pair.receiver
+  accepted = await failing-tx.send; 'kept'
+  refused = await failing-tx.send; 'refused'
+  print; accepted.accepted, refused.accepted, refused.closed, refused.dropped
+  rejected-value = refused.rejected-value
+  if rejected-value != none
+    print; rejected-value
+  failing-tx.close;
+  kept = await failing-rx.receive;
+  failed-end = await failing-rx.receive;
+  print; kept.available, failed-end.closed
+
+  newest-pair = channel; string, 1, channel-drop-newest
+  newest-tx = newest-pair.sender
+  newest-rx = newest-pair.receiver
+  newest-first = await newest-tx.send; 'kept'
+  newest-drop = await newest-tx.send; 'dropped'
+  newest-dropped-value = newest-drop.dropped-value
+  if newest-dropped-value != none
+    print; newest-dropped-value
+  print; newest-first.accepted, newest-drop.accepted, newest-drop.closed, newest-drop.dropped
+  newest-value = await newest-rx.receive;
+  newest-result = newest-value.value
+  if newest-result != none
+    print; newest-value.available, newest-result
+
+  oldest-pair = channel; string, 1, channel-drop-oldest
+  oldest-tx = oldest-pair.sender
+  oldest-rx = oldest-pair.receiver
+  oldest-first = await oldest-tx.send; 'old'
+  oldest-drop = await oldest-tx.send; 'new'
+  oldest-dropped-value = oldest-drop.dropped-value
+  if oldest-dropped-value != none
+    print; oldest-dropped-value
+  print; oldest-first.accepted, oldest-drop.accepted, oldest-drop.closed, oldest-drop.dropped
+  oldest-value = await oldest-rx.receive;
+  oldest-result = oldest-value.value
+  if oldest-result != none
+    print; oldest-value.available, oldest-result
+
+  cancelled-pair = channel; string, 1, channel-block
+  cancelled-tx = cancelled-pair.sender
+  cancelled-rx = cancelled-pair.receiver
+  fill = await cancelled-tx.send; 'full'
+  cancel-scope = task-scope;
+  pending = cancel-scope.spawn; (cancelled-tx.send; 'blocked')
+  cancel-scope.cancel;
+  cancelled = await cancel-scope.join; pending
+  print; fill.accepted, cancelled.cancelled
+  cancelled-tx.close;
+  drained = await cancelled-rx.receive;
+  cancelled-end = await cancelled-rx.receive;
+  print; drained.available, cancelled-end.closed
+
+  closed-pair = channel; string, 1, channel-block
+  closed-tx = closed-pair.sender
+  closed-rx = closed-pair.receiver
+  closed-fill = await closed-tx.send; 'full'
+  closed-scope = task-scope;
+  closed-pending = closed-scope.spawn; (closed-tx.send; 'blocked')
+  closed-values = closed-rx.close;
+  closed-outcome = await closed-scope.join; closed-pending
+  closed-result = closed-outcome.value
+  print; closed-values.length, closed-values[0]
+  if closed-result != none
+    print; closed-fill.accepted, closed-outcome.completed, closed-result.closed
+
+  rejected-pair = channel; string, 1, channel-block
+  rejected-tx = rejected-pair.sender
+  rejected-rx = rejected-pair.receiver
+  rejected-values = rejected-rx.close;
+  rejected-send = await rejected-tx.send; 'blocked'
+  rejected-item = rejected-send.rejected-value
+  if rejected-item != none
+    print; rejected-item
+  print; rejected-values.length
+
+  rendezvous-pair = channel; string, 0, channel-block
+  rendezvous-tx = rendezvous-pair.sender
+  rendezvous-rx = rendezvous-pair.receiver
+  rendezvous-scope = task-scope;
+  rendezvous-pending = rendezvous-scope.spawn; (rendezvous-tx.send; 'handed-over')
+  rendezvous-received = await rendezvous-rx.receive;
+  rendezvous-scope.cancel;
+  rendezvous-delivered = await rendezvous-scope.join; rendezvous-pending
+  rendezvous-value = rendezvous-received.value
+  rendezvous-outcome = rendezvous-delivered.value
+  if rendezvous-value != none
+    if rendezvous-outcome != none
+      print; rendezvous-value, rendezvous-delivered.completed, rendezvous-delivered.cancelled, rendezvous-outcome.accepted
+  rendezvous-tx.close;
+  rendezvous-remaining = rendezvous-rx.close;
+  print; rendezvous-remaining.length
+
+  stress-pair = channel; int, 4, channel-drop-oldest
+  stress-tx = stress-pair.sender
+  stress-rx = stress-pair.receiver
+  index int = 0
+  while index < 10000
+    stress-send = await stress-tx.send; index
+    index++
+    if stress-send.closed
+      print; false
+  stress-tx.close;
+  remaining int = 4
+  while remaining > 0
+    stress-received = await stress-rx.receive;
+    stress-value = stress-received.value
+    if stress-value != none
+      print; stress-value
+    remaining--
+
+  message-pair = channel; message, 1, channel-block
+  message-tx = message-pair.sender
+  message-rx = message-pair.receiver
+  message-send = await message-tx.send; (instance message; 'typed')
+  message-tx.close;
+  message-receive = await message-rx.receive;
+  message-value = message-receive.value
+  if message-value != none
+    print; message-send.accepted, message-value.text
+
+  values list of string = list;
+  values.append; 'collection'
+  batch-pair = channel; string-batch, 1, channel-block
+  batch-tx = batch-pair.sender
+  batch-rx = batch-pair.receiver
+  batch-send = await batch-tx.send; (instance string-batch; values)
+  batch-tx.close;
+  batch-receive = await batch-rx.receive;
+  batch-value = batch-receive.value
+  if batch-value != none
+    print; batch-send.accepted, batch-value.values.length, batch-value.values[0]
+
+  resource-pair = channel; Outgoing, 1, channel-block
+  resource-tx = resource-pair.sender
+  resource-rx = resource-pair.receiver
+  resource-send = await resource-tx.send; (remotely_closed_sink;)
+  resource-tx.close;
+  resource-receive = await resource-rx.receive;
+  print; resource-send.accepted, resource-receive.available

@@ -1,0 +1,65 @@
+{
+  "format": 2,
+  "dependencies": [
+    {
+      "name": "terrane-callback-witness",
+      "version": "0.1.0",
+      "members": [
+        [
+          "/deps/terrane-callback-witness",
+          "Marker"
+        ],
+        [
+          "/deps/terrane-callback-witness",
+          "apply_async"
+        ],
+        [
+          "/deps/terrane-callback-witness",
+          "apply_async_concurrently"
+        ],
+        [
+          "/deps/terrane-callback-witness",
+          "apply_mutable"
+        ],
+        [
+          "/deps/terrane-callback-witness",
+          "apply_once"
+        ],
+        [
+          "/deps/terrane-callback-witness",
+          "apply_shared"
+        ],
+        [
+          "/deps/terrane-callback-witness",
+          "make_marker"
+        ]
+      ]
+    }
+  ],
+  "removed": [],
+  "cache_identity": "315426544af698cf5d9a9d3f54d5a22d378cf3751fa3f6ee2e2ee1156c092510",
+  "source": "Local",
+  "rustdoc_format": 57,
+  "projection_schema": "17",
+  "content_hash": "239a0ced7c113aabc4fce71d354268875772ef06a0818333f7d631e8da352441",
+  "resolution": {
+    "outcome": "LocalRustdoc",
+    "events": [
+      {
+        "source": "BundledArtifact",
+        "status": "Skipped",
+        "reason": "bundled projection distribution is deliberately deferred until Terrane has a release artifact channel"
+      },
+      {
+        "source": "PublishedArtifact",
+        "status": "Skipped",
+        "reason": "`TERRANE_PROJECTION_ARTIFACT_URL` is not configured"
+      },
+      {
+        "source": "LocalRustdoc",
+        "status": "Generated",
+        "reason": "no reusable exact artifact was available; generated with the pinned local rustdoc toolchain"
+      }
+    ]
+  }
+}

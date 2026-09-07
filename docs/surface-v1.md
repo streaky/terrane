@@ -865,7 +865,11 @@ structured task scope                              v1 language-level object, not
 +-- failure observation for a child that throws while siblings run
 
 profile library objects                              /core/concurrency; requires threads
-+-- int-channel                                      bounded, zero-capacity rendezvous; cancellable/deadline blocking operations
++-- channel; Item, constant-capacity, overflow-policy compiler-owned typed pair
+|   +-- channel-sender of Item                       local-task send; accepted/closed/dropped
+|   +-- channel-receiver of Item                     local-task receive; available/value/closed; close returns buffered list
+|   +-- block / fail-send / drop-newest / drop-oldest explicit overflow policy; zero capacity only for block rendezvous
++-- mutex / read-write-lock / shared-cell           diagnostic-only: use one owner task plus typed channels
 +-- int-mutex                                        individually synchronized integer load/store/increase cell
 +-- int-read-write-lock                              integer shared-read/exclusive-write cell; no exposed guard
 +-- atomic-int64 + memory-order                      operation-specific typed ordering
@@ -876,9 +880,17 @@ The async callable type, the task object, the structured scope, and cancellation
 
 These are ordinary objects supplied by selected packages/profiles, not universal prelude names. Capabilities gate allocator, threads, filesystem, sockets, process spawning, dynamic loading, reflection, unwinding, clocks, entropy, floating point, Unicode data, exact-big-integer storage, and atomic widths. Unavailable semantics are rejected; profiles never quietly change a type's behaviour.
 
-The concurrency objects alias their synchronized identity when assigned or passed. Version one does
-not expose thread creation, explicit channel closure, arbitrary guard-scoped critical sections,
-non-integer generic synchronization cells, or shared collection variants.
+Channel endpoints are linear rather than shared identities: close consumes one; receiver close
+returns every accepted buffered value and wakes pending senders as closed; sender close drains
+buffered items; cancellation unregisters pending work. Capacity is a compile-time source constant.
+A zero-capacity block channel rendezvous each send with a receive; non-block policies require
+positive capacity.
+The integer lock, atomic, and thread-local objects alias their synchronized identity when assigned
+or passed. Version one deliberately does not expose generic shared mutable cells: application state
+has one owner task and peers exchange typed commands and results through bounded channels. The
+diagnostic-only `mutex`, `read-write-lock`, and `shared-cell` names make that decision discoverable.
+Version one also does not expose thread creation, arbitrary guard-scoped critical sections, or
+shared collection variants.
 
 ## 13. Version-one data, operating-system, and I/O objects
 

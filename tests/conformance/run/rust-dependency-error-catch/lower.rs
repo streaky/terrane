@@ -493,7 +493,9 @@ fn main() {
 pub use std::time::SystemTime;
 pub fn parse_http_date(s: String) -> Result<SystemTime, crate::TerraneForeignError> {
     let s = s;
-    match std::panic::catch_unwind(|| httpdate::parse_http_date(&s)) {
+    match std::panic::catch_unwind(
+        std::panic::AssertUnwindSafe(|| httpdate::parse_http_date(&s)),
+    ) {
         Ok(Ok(value)) => Ok(value),
         Ok(Err(error)) => {
             Err(

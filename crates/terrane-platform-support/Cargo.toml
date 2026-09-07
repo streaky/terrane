@@ -7,7 +7,6 @@ rust-version.workspace = true
 
 [dependencies]
 base64 = "0.22"
-crossbeam-channel = "0.5"
 flate2 = "1"
 getrandom = "0.3"
 hickory-resolver = "0.25"
@@ -19,7 +18,8 @@ rand_core = "0.9"
 rustls = { version = "0.23", default-features = false, features = ["aws_lc_rs", "std", "tls12"] }
 sha2 = "0.10"
 subtle = "2"
-tokio = { version = "1", features = ["net", "rt-multi-thread", "time"] }
+tokio = { version = "1", features = ["io-util", "net", "rt-multi-thread", "sync", "time"] }
+tokio-rustls = "0.26"
 uuid = "1"
 webpki-roots = "1"
 zeroize = "1"

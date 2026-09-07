@@ -502,8 +502,11 @@ impl Parser<'_> {
 
     fn parse_anonymous_function(&mut self) -> SyntaxNode {
         let start = self.position;
-        self.expect_text("function", "S1005", "expected `function`");
         let mut children = Vec::new();
+        if self.at_text("async") {
+            children.push(self.leaf(SyntaxKind::DeclarationQualifier));
+        }
+        self.expect_text("function", "S1005", "expected `function`");
         if !self.at(TokenKind::Semicolon) && !self.at_line_end() {
             children.push(self.parse_type_expression());
         }
@@ -1059,7 +1062,12 @@ impl Parser<'_> {
             TokenKind::Identifier if self.at_text("true") || self.at_text("false") => {
                 self.leaf(SyntaxKind::Literal)
             }
-            TokenKind::Identifier if self.at_text("function") => self.parse_anonymous_function(),
+            TokenKind::Identifier
+                if self.at_text("function")
+                    || self.at_text("async") && self.peek_text(1) == Some("function") =>
+            {
+                self.parse_anonymous_function()
+            }
             TokenKind::Identifier if self.at_text("instance") => {
                 let start = self.position;
                 self.bump();

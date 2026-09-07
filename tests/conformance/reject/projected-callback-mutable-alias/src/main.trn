@@ -1,0 +1,8 @@
+namespace app
+from /deps/terrane-callback-witness import apply_mutable
+function main;
+    total int = 0
+    callback = function int; value int
+        total = total + value
+        return total
+    print; (apply_mutable; 1, callback)

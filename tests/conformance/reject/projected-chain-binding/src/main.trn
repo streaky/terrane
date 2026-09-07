@@ -1,0 +1,5 @@
+namespace app
+from /deps/terrane-chain-witness import line
+function main;
+  prefix string = 'value='
+  builder = line; prefix

@@ -11,6 +11,48 @@ pub enum IterationStep<T> {
     End,
 }
 
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct AsyncIterationStep<T> {
+    pub item: bool,
+    pub end: bool,
+    pub value: Option<T>,
+}
+
+impl<T> AsyncIterationStep<T> {
+    pub fn item(value: T) -> Self {
+        Self {
+            item: true,
+            end: false,
+            value: Some(value),
+        }
+    }
+
+    #[must_use]
+    pub fn end() -> Self {
+        Self {
+            item: false,
+            end: true,
+            value: None,
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct AsyncSinkOutcome {
+    pub accepted: bool,
+    pub closed: bool,
+}
+
+impl AsyncSinkOutcome {
+    #[must_use]
+    pub fn from_accepted(accepted: bool) -> Self {
+        Self {
+            accepted,
+            closed: !accepted,
+        }
+    }
+}
+
 #[derive(Clone, Debug)]
 pub struct Iterator<T> {
     items: Arc<Vec<T>>,

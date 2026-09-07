@@ -228,11 +228,11 @@ async fn __terrane_cancel_operation<F: Future>(
     if let Some((cancellation, deadline, finalizers)) = cancellation {
         tokio::select! {
             biased;
+            output = future => Some(output),
             () = async {
                 __terrane_cancellation_requested(cancellation, deadline).await;
                 finalizers.reaches(guard.depth).await;
             } => None,
-            output = future => Some(output),
         }
     } else {
         Some(future.await)
@@ -288,11 +288,11 @@ async fn __terrane_cancellable<F: Future>(
         .scope(context, async {
             tokio::select! {
                 biased;
+                output = future => Some(output),
                 () = async {
                     __terrane_cancellation_requested(cancellation, deadline).await;
                     finalizers.reaches(0).await;
                 } => None,
-                output = future => Some(output),
             }
         })
         .await

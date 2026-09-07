@@ -585,9 +585,9 @@ async fn __terrane_cancel_operation<F: Future>(
         .flatten();
     if let Some((cancellation, deadline, finalizers)) = cancellation {
         tokio::select! {
-            biased; () = async { __terrane_cancellation_requested(cancellation, deadline)
-            . await; finalizers.reaches(guard.depth). await; } => None, output = future
-            => Some(output),
+            biased; output = future => Some(output), () = async {
+            __terrane_cancellation_requested(cancellation, deadline). await; finalizers
+            .reaches(guard.depth). await; } => None,
         }
     } else {
         Some(future.await)
@@ -639,9 +639,9 @@ async fn __terrane_cancellable<F: Future>(
             context,
             async {
                 tokio::select! {
-                    biased; () = async { __terrane_cancellation_requested(cancellation,
-                    deadline). await; finalizers.reaches(0). await; } => None, output =
-                    future => Some(output),
+                    biased; output = future => Some(output), () = async {
+                    __terrane_cancellation_requested(cancellation, deadline). await;
+                    finalizers.reaches(0). await; } => None,
                 }
             },
         )
@@ -794,7 +794,13 @@ fn main() {
             let __terrane_cancel = __terrane_scope.cancellation();
             let __terrane_deadline = __terrane_scope.deadline;
             TerraneScopedTask::spawn(async move {
-                match __terrane_cancellable(make(), __terrane_cancel, __terrane_deadline)
+                match __terrane_cancellable(
+                        std::sync::Arc::new(move || -> std::pin::Pin<
+                            Box<dyn Future<Output = _> + Send>,
+                        > { Box::pin(make()) })(),
+                        __terrane_cancel,
+                        __terrane_deadline,
+                    )
                     .await
                 {
                     Some(value) => TerraneTaskResult::Completed(value),

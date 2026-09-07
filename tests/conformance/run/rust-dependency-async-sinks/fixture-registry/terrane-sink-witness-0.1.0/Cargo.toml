@@ -1,0 +1,8 @@
+[package]
+name = "terrane-sink-witness"
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+[dependencies]
+tokio = { version = "1", features = ["macros", "rt", "sync", "time"] }

@@ -1,0 +1,4 @@
+package = "channel-duplicate-endpoint"
+executor = "cooperative"
+[namespaces]
+app = "src"

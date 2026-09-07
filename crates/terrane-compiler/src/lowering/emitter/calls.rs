@@ -19,6 +19,23 @@ impl Emitter<'_> {
             );
             return format!("TerraneTaskScope::new({deadline})");
         }
+        if callee.kind == SyntaxKind::Name
+            && self
+                .package
+                .resolve_name_at(self.unit, callee.span.start, self.text(callee))
+                .is_some_and(|symbol| symbol.identity == "/core/concurrency::channel")
+        {
+            let values = arguments
+                .children
+                .iter()
+                .map(|argument| argument.children.last().unwrap_or(argument))
+                .collect::<Vec<_>>();
+            let capacity = self.expression_as(values[1], ValueType::Scalar(ScalarType::Int));
+            let overflow = self.expression(values[2]);
+            return format!(
+                "TerraneChannelPair::new(terrane_collection_support::index_from_int(&({capacity})).expect(\"semantic channel capacity\"), {overflow})"
+            );
+        }
         if callee.kind == SyntaxKind::MemberExpression
             && let [receiver, member] = callee.children.as_slice()
             && self.receiver_value_type(receiver) == Some(ValueType::TaskScope)
@@ -41,22 +58,26 @@ impl Emitter<'_> {
                     } else {
                         self.expression(callable)
                     };
-                    let invocation = if matches!(callable_type, Some(ValueType::Task(_, _))) {
-                        callable
-                    } else {
-                        format!("({callable})()")
-                    };
+                    let (task_setup, invocation) =
+                        if matches!(callable_type, Some(ValueType::Task(_, _))) {
+                            (
+                                format!("let __terrane_spawned_task = {callable}; "),
+                                "__terrane_spawned_task".to_owned(),
+                            )
+                        } else {
+                            (String::new(), format!("({callable})()"))
+                        };
                     if foreign_error {
                         format!(
-                            "{{ let __terrane_scope = ({receiver}).clone(); let __terrane_cancel = __terrane_scope.cancellation(); let __terrane_deadline = __terrane_scope.deadline; TerraneScopedTask::spawn(async move {{ match __terrane_cancellable({invocation}, __terrane_cancel, __terrane_deadline).await {{ Some(Ok(value)) => TerraneTaskResult::Completed(value), Some(Err(error)) => TerraneTaskResult::Failed(crate::TerraneRaised::raised(error, crate::TERRANE_NO_SITE)), None => TerraneTaskResult::Cancelled }} }}) }}"
+                            "{{ let __terrane_scope = ({receiver}).clone(); let __terrane_cancel = __terrane_scope.cancellation(); let __terrane_deadline = __terrane_scope.deadline; {task_setup}TerraneScopedTask::spawn(async move {{ match __terrane_cancellable({invocation}, __terrane_cancel, __terrane_deadline).await {{ Some(Ok(value)) => TerraneTaskResult::Completed(value), Some(Err(error)) => TerraneTaskResult::Failed(crate::TerraneRaised::raised(error, crate::TERRANE_NO_SITE)), None => TerraneTaskResult::Cancelled }} }}) }}"
                         )
                     } else if throws {
                         format!(
-                            "{{ let __terrane_scope = ({receiver}).clone(); let __terrane_cancel = __terrane_scope.cancellation(); let __terrane_deadline = __terrane_scope.deadline; TerraneScopedTask::spawn(async move {{ match __terrane_cancellable({invocation}, __terrane_cancel, __terrane_deadline).await {{ Some(Ok(value)) => TerraneTaskResult::Completed(value), Some(Err(error)) => TerraneTaskResult::Failed(error), None => TerraneTaskResult::Cancelled }} }}) }}"
+                            "{{ let __terrane_scope = ({receiver}).clone(); let __terrane_cancel = __terrane_scope.cancellation(); let __terrane_deadline = __terrane_scope.deadline; {task_setup}TerraneScopedTask::spawn(async move {{ match __terrane_cancellable({invocation}, __terrane_cancel, __terrane_deadline).await {{ Some(Ok(value)) => TerraneTaskResult::Completed(value), Some(Err(error)) => TerraneTaskResult::Failed(error), None => TerraneTaskResult::Cancelled }} }}) }}"
                         )
                     } else {
                         format!(
-                            "{{ let __terrane_scope = ({receiver}).clone(); let __terrane_cancel = __terrane_scope.cancellation(); let __terrane_deadline = __terrane_scope.deadline; TerraneScopedTask::spawn(async move {{ match __terrane_cancellable({invocation}, __terrane_cancel, __terrane_deadline).await {{ Some(value) => TerraneTaskResult::Completed(value), None => TerraneTaskResult::Cancelled }} }}) }}"
+                            "{{ let __terrane_scope = ({receiver}).clone(); let __terrane_cancel = __terrane_scope.cancellation(); let __terrane_deadline = __terrane_scope.deadline; {task_setup}TerraneScopedTask::spawn(async move {{ match __terrane_cancellable({invocation}, __terrane_cancel, __terrane_deadline).await {{ Some(value) => TerraneTaskResult::Completed(value), None => TerraneTaskResult::Cancelled }} }}) }}"
                         )
                     }
                 }),
@@ -69,6 +90,36 @@ impl Emitter<'_> {
                     let deadline = argument.children.last().unwrap_or(argument);
                     format!("({receiver}).child_scope(({}) as u64)", self.expression(deadline))
                 }),
+                _ => String::new(),
+            };
+        }
+        if callee.kind == SyntaxKind::MemberExpression
+            && let [receiver, member] = callee.children.as_slice()
+            && receiver.kind == SyntaxKind::Name
+            && let Some(receiver_type) = self.receiver_value_type(receiver)
+            && matches!(
+                receiver_type,
+                ValueType::ChannelSender(_) | ValueType::ChannelReceiver(_)
+            )
+        {
+            let receiver = self.expression(receiver);
+            return match (receiver_type, self.text(member)) {
+                (ValueType::ChannelSender(item), "send") => {
+                    let value = arguments
+                        .children
+                        .first()
+                        .map(|argument| argument.children.last().unwrap_or(argument))
+                        .map_or_else(String::new, |value| {
+                            self.expression_as(value, item.value_type())
+                        });
+                    format!("Box::pin(({receiver}).send({value}))")
+                }
+                (ValueType::ChannelReceiver(_), "receive") => {
+                    format!("Box::pin(({receiver}).receive())")
+                }
+                (ValueType::ChannelSender(_) | ValueType::ChannelReceiver(_), "close") => {
+                    format!("({receiver}).close()")
+                }
                 _ => String::new(),
             };
         }
@@ -626,13 +677,6 @@ impl Emitter<'_> {
         }
         let concurrency_call = [
             ("no-capability", "platform_no_resource"),
-            ("int-channel", "platform_int_channel"),
-            ("int-channel-send", "platform_int_channel_send"),
-            ("int-channel-receive", "platform_int_channel_receive"),
-            (
-                "int-channel-try-receive",
-                "platform_int_channel_try_receive",
-            ),
             ("int-mutex", "platform_int_mutex"),
             ("int-mutex-load", "platform_int_mutex_load"),
             ("int-mutex-store", "platform_int_mutex_store"),
@@ -663,18 +707,15 @@ impl Emitter<'_> {
                 .enumerate()
                 .map(|(index, value)| {
                     let value = self.expression(value);
-                    let borrowed = (index == 0
+                    let borrowed = index == 0
                         && (function.starts_with("platform_result_")
                             || !matches!(
                                 function,
-                                "platform_int_channel"
-                                    | "platform_int_mutex"
+                                "platform_int_mutex"
                                     | "platform_int_rw_lock"
                                     | "platform_atomic_int64"
                                     | "platform_thread_local_int"
-                            )))
-                        || (function == "platform_int_channel_send" && index == 3)
-                        || (function == "platform_int_channel_receive" && index == 2);
+                            ));
                     if borrowed {
                         format!("&({value})")
                     } else {
@@ -849,6 +890,10 @@ impl Emitter<'_> {
         let projected_parameters = self
             .projected_function_for_call(callee)
             .map(|function| function.parameters.clone());
+        let projected_chain_role = self
+            .projected_function_for_call(callee)
+            .and_then(|function| function.chain_role);
+        let projected_chain_root = projected_chain_role == Some(crate::projection::ChainRole::Root);
         let contract = self.contract_for_call(callee).cloned();
         if let Some(contract) = &contract {
             let mut ordered = vec![None; contract.parameters.len()];
@@ -879,16 +924,28 @@ impl Emitter<'_> {
                 } else {
                     self.expression(value)
                 };
+                let expression = if let Some(projected) = projected_parameters
+                    .as_ref()
+                    .and_then(|parameters| parameters.get(index))
+                    .filter(|_| {
+                        projected_chain_role.is_some()
+                            || callee.kind == SyntaxKind::MemberExpression
+                    }) {
+                    projected_chain_argument_expression(&expression, &projected.ty)
+                } else {
+                    expression
+                };
                 ordered[index] = Some(
                     projected_parameters
                         .as_ref()
                         .and_then(|parameters| parameters.get(index))
                         .filter(|parameter| {
                             parameter.borrowed
-                                && matches!(
-                                    parameter.ty,
-                                    crate::projection::ProjectedType::Foreign { .. }
-                                )
+                                && (projected_chain_root
+                                    || matches!(
+                                        parameter.ty,
+                                        crate::projection::ProjectedType::Foreign { .. }
+                                    ))
                         })
                         .map_or(expression.clone(), |parameter| {
                             if parameter.mutable_borrow {
@@ -937,17 +994,59 @@ impl Emitter<'_> {
         } else if let Some(contract) = &contract
             && contract.owner.is_none()
         {
-            function_name(self.package, contract)
+            self.package
+                .resolve_name_at(self.unit, callee.span.start, self.text(callee))
+                .and_then(|symbol| {
+                    self.package
+                        .projection
+                        .item(&symbol.namespace, &symbol.name)
+                })
+                .filter(|item| {
+                    matches!(
+                        &item.kind,
+                        crate::projection::ProjectedKind::Function(function)
+                            if function.chain_role == Some(crate::projection::ChainRole::Root)
+                    )
+                })
+                .map_or_else(
+                    || function_name(self.package, contract),
+                    |item| item.rust_path.clone(),
+                )
         } else if contract
             .as_ref()
             .is_some_and(|contract| contract.owner.is_some())
             && let [receiver, member] = callee.children.as_slice()
         {
-            format!(
-                "({}).{}",
-                self.receiver_expression(receiver),
-                rust_name(self.text(member))
-            )
+            let contract = contract.as_ref().expect("method contract exists");
+            let receiver_expression = self.receiver_expression(receiver);
+            let projected_receiver = self.value_type(receiver).and_then(|value_type| {
+                let ValueType::Object(identity) = value_type else {
+                    return None;
+                };
+                self.package
+                    .projection
+                    .method(&identity.namespace, &identity.name, &contract.name)
+                    .and_then(|method| method.receiver)
+            });
+            let receiver = if contract.is_async {
+                match projected_receiver {
+                    Some(crate::projection::Receiver::MutableBorrow) => {
+                        format!("&mut {receiver_expression}")
+                    }
+                    Some(crate::projection::Receiver::Borrow) => {
+                        format!("&{receiver_expression}")
+                    }
+                    Some(crate::projection::Receiver::Move) => receiver_expression,
+                    _ if !contract.consumes_receiver && contract.mutates_receiver => {
+                        format!("&mut {receiver_expression}")
+                    }
+                    _ if !contract.consumes_receiver => format!("&{receiver_expression}"),
+                    _ => receiver_expression,
+                }
+            } else {
+                receiver_expression
+            };
+            format!("({receiver}).{}", rust_name(self.text(member)))
         } else {
             self.expression(callee)
         };
@@ -963,6 +1062,30 @@ impl Emitter<'_> {
                 .projection
                 .method(&identity.namespace, &identity.name, &contract.name)
         });
+        let chain_role = foreign_method
+            .and_then(|method| method.chain_role)
+            .or_else(|| {
+                if callee.kind != SyntaxKind::Name {
+                    return None;
+                }
+                self.package
+                    .resolve_name_at(self.unit, callee.span.start, self.text(callee))
+                    .and_then(|symbol| {
+                        self.package
+                            .projection
+                            .item(&symbol.namespace, &symbol.name)
+                    })
+                    .and_then(|item| match &item.kind {
+                        crate::projection::ProjectedKind::Function(function) => function.chain_role,
+                        _ => None,
+                    })
+            });
+        if matches!(
+            chain_role,
+            Some(crate::projection::ChainRole::Root | crate::projection::ChainRole::Continue)
+        ) {
+            return call;
+        }
         let foreign_error = foreign_method.is_some()
             || (callee.kind == SyntaxKind::Name
                 && self
@@ -988,7 +1111,7 @@ impl Emitter<'_> {
             let dependency = type_path.split("::").next().unwrap_or("dependency");
             let member = format!("{type_path}::{}", method.name);
             let invocation = if method.is_async {
-                format!("{call}.await")
+                "__terrane_call.await".to_owned()
             } else {
                 call.clone()
             };
@@ -1001,33 +1124,37 @@ impl Emitter<'_> {
                 call.clone()
             };
             let caught = if method.is_async {
-                format!("crate::__terrane_dependency_await_unwind({call}).await")
+                "crate::__terrane_dependency_await_unwind(__terrane_call).await".to_owned()
             } else if method.receiver.is_some() {
                 format!("std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {unwind_call}))")
             } else {
                 format!("std::panic::catch_unwind(|| {unwind_call})")
             };
+            let converted = projected_result_expression("value", &method.result);
             let mapped = if self.package.profile.panic == crate::package::PanicProfile::Abort {
                 if method.error.is_some() {
                     format!(
-                        "match {invocation} {{ Ok(value) => Ok(value), Err(error) => Err(crate::TerraneForeignError(crate::TerraneError::custom_raised(crate::TERRANE_DEPENDENCY_ERROR, format!(\"Rust dependency `{dependency}` member `{member}` failed: {{error}}\"), crate::TERRANE_NO_SITE))) }}"
+                        "match {invocation} {{ Ok(value) => Ok({converted}), Err(error) => Err(crate::TerraneForeignError(crate::TerraneError::custom_raised(crate::TERRANE_DEPENDENCY_ERROR, format!(\"Rust dependency `{dependency}` member `{member}` failed: {{error}}\"), crate::TERRANE_NO_SITE))) }}"
                     )
                 } else if self.discarded_call == Some(node.span) {
                     format!("{{ {invocation}; Ok(()) }}")
                 } else {
-                    format!("Ok({invocation})")
+                    format!(
+                        "Ok({})",
+                        projected_result_expression(&invocation, &method.result)
+                    )
                 }
             } else if method.error.is_some() {
                 format!(
-                    "match {caught} {{ Ok(Ok(value)) => Ok(value), Ok(Err(error)) => Err(crate::TerraneForeignError(crate::TerraneError::custom_raised(crate::TERRANE_DEPENDENCY_ERROR, format!(\"Rust dependency `{dependency}` member `{member}` failed: {{error}}\"), crate::TERRANE_NO_SITE))), Err(payload) => Err(crate::__terrane_dependency_panic(payload, {dependency:?}, {member:?})) }}"
+                    "match {caught} {{ Ok(Ok(value)) => Ok({converted}), Ok(Err(error)) => Err(crate::TerraneForeignError(crate::TerraneError::custom_raised(crate::TERRANE_DEPENDENCY_ERROR, format!(\"Rust dependency `{dependency}` member `{member}` failed: {{error}}\"), crate::TERRANE_NO_SITE))), Err(payload) => Err(crate::__terrane_dependency_panic(payload, {dependency:?}, {member:?})) }}"
                 )
             } else {
                 format!(
-                    "match {caught} {{ Ok(value) => Ok(value), Err(payload) => Err(crate::__terrane_dependency_panic(payload, {dependency:?}, {member:?})) }}"
+                    "match {caught} {{ Ok(value) => Ok({converted}), Err(payload) => Err(crate::__terrane_dependency_panic(payload, {dependency:?}, {member:?})) }}"
                 )
             };
             if method.is_async {
-                format!("async move {{ {mapped} }}")
+                format!("{{ let __terrane_call = {call}; async move {{ {mapped} }} }}")
             } else {
                 mapped
             }

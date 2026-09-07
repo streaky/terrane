@@ -30,6 +30,9 @@ fn __terrane_block_on_cancellable<F: Future>(
             std::task::Poll::Ready(value) => return Some(value),
             std::task::Poll::Pending => {
                 let mut ready = wake.ready.lock().expect("task wake state must lock");
+                if !*ready && cancelled() {
+                    return None;
+                }
                 if !*ready {
                     let (next_ready, _) = wake
                         .available
@@ -37,7 +40,18 @@ fn __terrane_block_on_cancellable<F: Future>(
                         .expect("task wake wait must remain valid");
                     ready = next_ready;
                 }
+                let was_ready = *ready;
                 *ready = false;
+                drop(ready);
+                if cancelled() {
+                    if !was_ready {
+                        return None;
+                    }
+                    return match future.as_mut().poll(&mut context) {
+                        std::task::Poll::Ready(value) => Some(value),
+                        std::task::Poll::Pending => None,
+                    };
+                }
             }
         }
     }

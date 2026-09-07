@@ -2353,6 +2353,12 @@ statically non-copyable value is passed to a by-value consuming parameter. Copya
 ordinary value semantics, so ownership consequences follow the statically known value contract
 rather than call-site ceremony.
 
+A declaration inside a loop body establishes a fresh initialized binding value on every iteration.
+Moving or consuming that value makes it unavailable only for the remainder of that iteration; the
+next iteration's declaration reinitializes it. Move state for a binding declared outside the loop
+does cross the back-edge, so consuming such a value in one iteration makes a later iteration's use
+invalid unless an assignment explicitly rebinds it.
+
 `move` remains an explicit request to transfer a value that would otherwise be copied. It may also
 make an already-required non-copyable transfer visible, but never changes whether that transfer
 occurs:
@@ -2662,6 +2668,17 @@ handler = function;
 If the closure must keep that mutable identity alive independently, the author captures
 `shared ref counter` instead. An escaping closure never silently promotes a captured `ref` to shared
 ownership.
+
+An anonymous asynchronous function writes the qualifier before `function`:
+
+```terrane
+handler = async function response; request request
+  return await process; request
+```
+
+Its value has an `async function from request to response` contract. Each invocation gets its own
+future and its own copies of captured shareable state. A transferable async closure may capture
+only values that can cross the selected executor boundary.
 
 ### 13.9 Recursion
 
@@ -3788,24 +3805,56 @@ They do not expose thread creation, joining, grouping, affinity, or system-level
 They synchronise tasks or host threads supplied by the profile-selected executor/runtime boundary;
 the thread-local facility observes those existing host threads but cannot create or manage them.
 
-The version-one `/core/concurrency` surface contains integer-specialised synchronization cells:
-`int-channel`, `int-mutex`, `int-read-write-lock`, `atomic-int64`, and `thread-local-int`. An
-assignment or argument passage of one of these objects aliases the same opaque synchronized host
-identity; it does not copy the protected value into an independent object. This is the authored
-shared-identity contract required by §21.5, not a silent mutex inserted around an ordinary value.
+The version-one `/core/concurrency` surface contains compiler-owned typed channels alongside the
+integer-specialised synchronization cells `int-mutex`, `int-read-write-lock`, `atomic-int64`, and
+`thread-local-int`. `channel; Item, capacity, overflow-policy` creates
+`channel-pair of Item`, whose `sender` and `receiver` members are independently owned linear
+endpoints. `Item` is a concrete descriptor, and capacity is a compile-time constant. A zero-capacity
+`channel-block` is a rendezvous: send remains pending until a receiver accepts that exact value.
+The other overflow policies require positive capacity because there is no buffered item to reject
+or evict against at capacity zero.
+`channel-sender of Item.send(Item)` constructs a local task. Awaiting it returns
+`channel-send-outcome of Item` with separate `accepted`, `closed`, and `dropped` state.
+`rejected-value` returns an item refused by fail-send or receiver closure; `dropped-value` returns
+the submitted item under drop-newest or the evicted buffered item under drop-oldest.
+`channel-receiver of Item.receive` constructs a local task. Awaiting it returns
+`channel-receive-outcome of Item` with `available`, `closed`, and optional `value` state. Item type
+mismatches are source errors; channels do not erase values into a universal runtime box.
 
-`int-mutex` and `int-read-write-lock` expose individually synchronized integer load, store, and
-update operations. They do not expose a guard-scoped arbitrary critical section, and their names
-must not be read as promising non-integer generic storage. Guard lifetimes and additional concrete
-element types remain deferred until they can be represented without a universal boxed value or a
-second ownership model.
+The four overflow bindings are `channel-block`, `channel-fail-send`, `channel-drop-newest`, and
+`channel-drop-oldest`. Block suspends a full send without polling. Fail-send reports an unaccepted,
+open, undropped item and returns it as rejected. Drop-newest reports and returns the submitted item
+as dropped. Drop-oldest accepts the submitted item and returns the evicted buffered item. Storage
+never exceeds capacity.
 
-Channel `send` and blocking `receive` take an explicit `concurrency-operation-options` object
-containing a positive deadline and `concurrency-cancellation-token`. `try-receive` is genuinely non-blocking and reports
-availability separately from failure. A zero-capacity channel is a rendezvous channel. The host
-boundary may report a disconnected peer as failure, but version one exposes no explicit channel
-close operation or closed-state descriptor; those remain deferred until the object surface defines
-which endpoint ownership transition closes the channel.
+Closing either endpoint is explicit and consuming. After sender close, the receiver drains buffered
+items and then observes closed. Receiver close wakes pending sends, which report closed, and returns
+a concrete `list of Item` containing every value that had already been accepted into its buffer;
+it never silently destroys accepted application data. Dropping an endpoint is emergency close and
+may destroy retained values because no caller exists to receive a return value. Cancelling or timing
+out a pending operation unregisters its waiter. Once a receiver accepts a zero-capacity rendezvous
+value, the matching send is complete: if that completion and cancellation are both ready when the
+sender task resumes, the completed send outcome wins and remains accepted rather than being
+reclassified as cancelled. The cancellation request may remain observable independently. Duplicate
+endpoint ownership, use after close, non-constant capacity, zero capacity with
+a non-block policy, and invalid overflow policies are source diagnostics. Sender and receiver
+operations construct local-only tasks in version one.
+
+Version one deliberately does not provide generic shared mutable cells. Application state with one
+logical writer belongs to one owner task; other tasks send typed commands and receive typed results
+through bounded channels. This preserves one mutation authority, explicit backpressure and
+shutdown, and the ordinary task ownership model rather than adding guard lifetimes, suspendable
+critical sections, or a second shared-ownership model. Compiler-owned diagnostic names `mutex`,
+`read-write-lock`, and `shared-cell` reject construction with guidance toward that owner-task and
+channel pattern.
+
+`int-mutex` and `int-read-write-lock` remain low-level, integer-specialised facilities. They expose
+individually synchronized integer load, store, and update operations. Assignment or argument
+passage aliases the same opaque synchronized host identity; it does not copy the protected value
+into an independent object. They do not expose a guard-scoped arbitrary critical section, and
+their names do not promise non-integer generic storage. Generic cells and guard lifetimes are
+outside the version-one contract rather than deferred implementation of an otherwise promised
+surface.
 
 Atomic operations take a `memory-order` object rather than a raw string. `/core/concurrency`
 supplies `relaxed-order`, `acquire-order`, `release-order`, `acquire-release-order`, and
@@ -4166,6 +4215,24 @@ dependency modules lower instantiated spellings as Rust type aliases rather than
 paths. Lifetime-parameterized types and generic parameters without defaults remain explicit
 declines until a call-directed or non-escaping-chain rule proves a concrete use.
 
+A concrete Rust callback bound projects when its complete callable contract is monomorphic.
+`Fn`, `FnMut`, and `FnOnce` parenthesized bounds supply parameter and result types; a callback
+returning a bounded `Future` projects as a Terrane `async function`. The projection records call
+multiplicity, whether the dependency may retain the callback, and required `Send`/`Sync` bounds.
+Generated shims construct the exact Rust closure type at free-function or projected-method call
+boundaries, convert arguments and results there, and preserve captured Terrane state per invocation.
+`FnMut` records repeated mutable invocation by Rust; it does not introduce a mutable Terrane
+closure-capture cell. Version-one anonymous functions capture ordinary values by value, so mutation
+of aliased captured state remains rejected and stateful coordination uses an existing explicit
+owner such as an owner task with typed channels.
+
+Retention never weakens Terrane ownership. A retained callback may not capture a non-owning
+reference or borrowed object receiver, and a transferable callback may capture only transferable
+values. Mutable callback state may not be aliased, and a one-shot callable may not be reused after
+ownership transfer. An escaping throwable is incompatible unless the projected Rust callback
+result explicitly represents that failure. Open generic, higher-ranked, or lifetime-dependent
+callback shapes remain declined rather than being erased or boxed speculatively.
+
 Before running local rustdoc, the projector may request an artifact from the trusted HTTPS
 repository. The response is accepted only when its envelope matches the complete cache identity:
 dependencies, exact versions, default-feature switches, feature sets, target conditions, selected
@@ -4242,6 +4309,54 @@ the Rust operation before applying the same argument conversion, result conversi
 mapping, receiver ownership, and panic-containment rules as a synchronous projected member. The
 future is constructed when the Terrane call expression is evaluated rather than being deferred
 until a later `await`.
+
+A concrete owned Rust producer projects as an async sequence when it exposes an asynchronous
+borrowed `next` method returning `Result<Option<Item>, E>` and a consuming `close` method. Awaiting
+`next` returns `async-iteration-step of Item`: `item` is true and `value` is present for one item;
+`end` is true and `value` is absent after exhaustion. A Rust `Err` remains the projected dependency
+throwable, while cancellation remains the enclosing task outcome, so item, end, protocol failure,
+and cancellation are distinct states. The borrowed operation must be awaited directly rather than
+retained as a task. The native future is created before entering the generated async wrapper so the
+producer is reborrowed for exactly one suspension and remains usable by the next operation.
+
+The producer is resource-owning and linear. `close` consumes it; transfer, duplicate ownership, use
+after close, and retained `next` tasks follow the ordinary ownership and direct-await rules.
+Rust drop remains deterministic resource release but does not promise graceful protocol close.
+Borrowed items, open associated item types, and lifetime-dependent producer shapes are declined
+rather than converted into owned lookalikes.
+
+A concrete owned Rust sink projects as an async sink when it exposes an asynchronous borrowed
+`send(Item)` method returning `Result<bool, E>`. Awaiting `send` returns
+`async-sink-outcome`: `accepted` reports the Rust boolean and `closed` is its inverse. This keeps
+backpressure acceptance and remote closure distinct from dependency failure and task cancellation.
+The native future is created before the generated wrapper, and each borrowed sink operation must be
+awaited directly rather than retained as a task, so the mutable borrow spans exactly one suspension.
+
+Sinks are resource-owning and linear. A consuming `close` method performs graceful protocol close;
+a synchronous or asynchronous `flush` method retains its Rust failure contract; ordinary Rust drop
+still supplies deterministic emergency release. A consuming `split` operation transfers the whole
+duplex endpoint into independently owned source and sink halves. The whole endpoint is unavailable
+after splitting, and either half is unavailable after close or another ownership transfer.
+Projected sink operations participate in enclosing task cancellation and deadlines through the
+ordinary generated async boundary. Borrowed payloads, open associated payload types, and
+lifetime-dependent endpoints remain declined rather than copied or erased.
+
+A Rust value may project as **chain-only** when a projected root returns a concrete otherwise
+unnameable intermediate and its projected receiver methods can either continue with that same
+intermediate or terminate in an owned representable result. The intermediate may retain a borrow
+from an ordinary named input whose owner outlives the complete expression. It may occur only as the
+receiver inside one nested Terrane expression. It cannot be bound, returned, captured, passed to
+Terrane code, or retained across `await`; all such escapes are one source error. A terminal method
+must produce an ordinary owned projected value.
+
+Lowering emits the root and continuing receiver calls as one Rust expression. Argument conversion,
+panic containment, asynchronous awaiting, dependency-error mapping, and result conversion occur at
+the terminal boundary rather than wrapping each intermediate separately. Projection schema 20
+records root, continuing, and terminal roles explicitly. Completion, signature help, and hover mark
+these values as chain-only and non-escaping. Methods that cannot continue the same concrete
+intermediate or terminate in an owned representable result remain declined. This rule does not
+claim that an open generic such as SQLx's `Query<'q, DB, A>` projects directly: a concrete declared
+adapter may itself retain a borrow and execute the generic SQLx operation inside its terminal.
 
 Cargo and rustc remain authoritative. Projection and editor information are advisory and derived from the resolved package rather than predefined by Terrane. The language server uses the shared artifact for completion, signature help, hover, exact Rust paths, and declined-item reasons. Projection executes under the build-script capability policy.
 

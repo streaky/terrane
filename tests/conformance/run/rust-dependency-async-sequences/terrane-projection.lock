@@ -1,0 +1,89 @@
+{
+  "format": 2,
+  "dependencies": [
+    {
+      "name": "terrane-sequence-witness",
+      "version": "0.1.0",
+      "members": [
+        [
+          "/deps/terrane-sequence-witness",
+          "BorrowedSequence"
+        ],
+        [
+          "/deps/terrane-sequence-witness",
+          "QueueSequence"
+        ],
+        [
+          "/deps/terrane-sequence-witness",
+          "SequenceError"
+        ],
+        [
+          "/deps/terrane-sequence-witness",
+          "TcpSequence"
+        ],
+        [
+          "/deps/terrane-sequence-witness",
+          "TokioSequence"
+        ],
+        [
+          "/deps/terrane-sequence-witness",
+          "make_borrowed_sequence"
+        ],
+        [
+          "/deps/terrane-sequence-witness",
+          "make_failing_queue_sequence"
+        ],
+        [
+          "/deps/terrane-sequence-witness",
+          "make_failing_tokio_sequence"
+        ],
+        [
+          "/deps/terrane-sequence-witness",
+          "make_pending_queue_sequence"
+        ],
+        [
+          "/deps/terrane-sequence-witness",
+          "make_pending_tokio_sequence"
+        ],
+        [
+          "/deps/terrane-sequence-witness",
+          "make_queue_sequence"
+        ],
+        [
+          "/deps/terrane-sequence-witness",
+          "make_tcp_sequence"
+        ],
+        [
+          "/deps/terrane-sequence-witness",
+          "make_tokio_sequence"
+        ]
+      ]
+    }
+  ],
+  "removed": [],
+  "cache_identity": "eccb4b7f93a0d1019ebb2cdd3927ea1ea15d9d2c949ce447af3a41e9ef6a4e17",
+  "source": "Local",
+  "rustdoc_format": 57,
+  "projection_schema": "20",
+  "content_hash": "c034f914d6bee476537a9c88d0ede9c06989e454685f84dc3666c55e15ffa006",
+  "resolution": {
+    "outcome": "LocalRustdoc",
+    "events": [
+      {
+        "source": "BundledArtifact",
+        "status": "Skipped",
+        "reason": "bundled projection distribution is deliberately deferred until Terrane has a release artifact channel"
+      },
+      {
+        "source": "PublishedArtifact",
+        "status": "Skipped",
+        "reason": "`TERRANE_PROJECTION_ARTIFACT_URL` is not configured"
+      },
+      {
+        "source": "LocalRustdoc",
+        "status": "Generated",
+        "reason": "no reusable exact artifact was available; generated with the pinned local rustdoc toolchain"
+      }
+    ]
+  }
+}

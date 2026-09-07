@@ -1,0 +1,6 @@
+namespace app
+from /deps/terrane-callback-witness import open_callback
+function identity int; value int
+    return value
+function main;
+    print; (open_callback; 1, identity)

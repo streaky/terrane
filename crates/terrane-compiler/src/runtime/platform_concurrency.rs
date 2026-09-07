@@ -1,30 +1,5 @@
 // Delivery principle 9: synchronization primitives require optimiser-visible ordering and host
 // thread integration. Public object policy remains in `/core/concurrency`.
-#[allow(dead_code)] fn terrane_platform_int_channel(capacity: terrane_int_support::Int) -> TerranePlatformResult {
-    let capacity = terrane_platform_i128!(capacity, "channel capacity");
-    terrane_platform_support::int_channel(capacity)
-}
-#[allow(dead_code)] fn terrane_platform_int_channel_send(
-    channel: &TerranePlatformCapability,
-    value: terrane_int_support::Int,
-    deadline_ms: terrane_int_support::Int,
-    cancellation: &TerranePlatformCapability,
-) -> TerranePlatformResult {
-    let value = terrane_platform_i128!(value, "channel value");
-    let deadline_ms = terrane_platform_i128!(deadline_ms, "channel send deadline");
-    terrane_platform_support::int_channel_send(channel, value, deadline_ms, cancellation)
-}
-#[allow(dead_code)] fn terrane_platform_int_channel_receive(
-    channel: &TerranePlatformCapability,
-    deadline_ms: terrane_int_support::Int,
-    cancellation: &TerranePlatformCapability,
-) -> TerranePlatformResult {
-    let deadline_ms = terrane_platform_i128!(deadline_ms, "channel receive deadline");
-    terrane_platform_support::int_channel_receive(channel, deadline_ms, cancellation)
-}
-#[allow(dead_code)] fn terrane_platform_int_channel_try_receive(channel: &TerranePlatformCapability) -> TerranePlatformResult {
-    terrane_platform_support::int_channel_try_receive(channel)
-}
 #[allow(dead_code)] fn terrane_platform_int_mutex(initial: terrane_int_support::Int) -> TerranePlatformResult {
     let initial = terrane_platform_i128!(initial, "mutex initial value");
     terrane_platform_support::int_mutex(initial)

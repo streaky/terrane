@@ -1,0 +1,4 @@
+namespace app
+from /core/concurrency import channel
+function main;
+  pair = channel; string, 1, 'block'

@@ -1329,3 +1329,449 @@ pub(crate) fn binding_store_value_is_read(
                 .any(|store_loop| read_loops.contains(store_loop))
         })
 }
+
+fn node_with_span(node: &SyntaxNode, span: Span) -> Option<&SyntaxNode> {
+    if node.span == span {
+        return Some(node);
+    }
+    node.children
+        .iter()
+        .find_map(|child| node_with_span(child, span))
+}
+
+fn declaration_node_with_name_span(node: &SyntaxNode, span: Span) -> Option<&SyntaxNode> {
+    if matches!(node.kind, SyntaxKind::Binding | SyntaxKind::Assignment)
+        && node.children.iter().any(|child| child.span == span)
+    {
+        return Some(node);
+    }
+    node.children
+        .iter()
+        .find_map(|child| declaration_node_with_name_span(child, span))
+}
+
+fn callback_contract<'a>(
+    package: &SemanticPackage,
+    unit: &'a SemanticUnit,
+    value: &SyntaxNode,
+) -> Option<&'a FunctionContract> {
+    if value.kind == SyntaxKind::Name {
+        if let Some(contract) =
+            resolved_function_contract(unit, node_text(&unit.source, value), value.span.start)
+        {
+            return Some(contract);
+        }
+        let declaration = package
+            .resolve_name_at(unit, value.span.start, node_text(&unit.source, value))?
+            .declaration_span?;
+        let declaration_node = declaration_node_with_name_span(&unit.tree.root, declaration)
+            .or_else(|| node_with_span(&unit.tree.root, declaration))?;
+        return declaration_node
+            .children
+            .iter()
+            .find_map(|child| callback_contract(package, unit, child));
+    }
+    if value.kind == SyntaxKind::MemberExpression
+        && let [receiver, member] = value.children.as_slice()
+        && let Ok(Some(ValueType::Object(owner))) =
+            infer_value_type(unit, receiver, &unit.typed_bindings)
+    {
+        return unit.functions.iter().find(|contract| {
+            contract.owner.as_deref() == Some(owner.name.as_str())
+                && contract.name == node_text(&unit.source, member)
+        });
+    }
+    unit.functions
+        .iter()
+        .find(|contract| contract.span == value.span)
+}
+
+fn captured_binding<'a>(
+    package: &'a SemanticPackage,
+    unit: &'a SemanticUnit,
+    contract: &FunctionContract,
+    name: &str,
+) -> Option<&'a TypedBinding> {
+    let declaration = package
+        .resolve_name_at(unit, contract.span.start, name)?
+        .declaration_span?;
+    unit.typed_bindings
+        .iter()
+        .find(|binding| binding.span == declaration)
+}
+fn validate_projected_callback_contract(
+    package: &SemanticPackage,
+    unit: &SemanticUnit,
+    value: &SyntaxNode,
+    contract: &FunctionContract,
+    callback: &crate::projection::ProjectedType,
+    consumed_once: &mut BTreeSet<(u32, usize, usize)>,
+) -> Result<(), SemanticFailure> {
+    let crate::projection::ProjectedType::Callback {
+        kind,
+        retained,
+        send,
+        ..
+    } = callback
+    else {
+        unreachable!("callback validation requires callback metadata");
+    };
+    let reject = |code, message| Err(failure(&unit.source, code, message, value.span));
+    if contract.throws {
+        return reject(
+            "T0080",
+            "projected Rust callback cannot receive a callable with an escaping throwable",
+        );
+    }
+    if *send && contract.task_transferability == TaskTransferability::Local {
+        return reject(
+            "T0081",
+            "projected callback requires a transferable callable",
+        );
+    }
+    if *retained && contract.owner.is_some() && !contract.is_static {
+        return reject(
+            "T0082",
+            "retained callback cannot borrow an object receiver",
+        );
+    }
+    if *retained
+        && contract.captures.iter().any(|capture| {
+            captured_binding(package, unit, contract, capture)
+                .is_some_and(|binding| matches!(binding.value_type, ValueType::Reference(_)))
+        })
+    {
+        return reject("T0083", "retained callback cannot capture a borrowed value");
+    }
+    if *send
+        && contract.captures.iter().any(|capture| {
+            captured_binding(package, unit, contract, capture)
+                .is_some_and(|binding| !value_type_is_task_transferable(&binding.value_type))
+        })
+    {
+        return reject(
+            "T0084",
+            "projected callback requires transferable captured values",
+        );
+    }
+    if matches!(kind, crate::projection::CallbackKind::Mutable)
+        && contract.captures.iter().any(|capture| {
+            captured_binding(package, unit, contract, capture).is_some_and(|binding| {
+                package
+                    .binding_events
+                    .get(&span_key(binding.span))
+                    .is_some_and(|events| {
+                        events.iter().any(|event| {
+                            matches!(
+                                event,
+                                BindingEvent::Write { span, .. }
+                                    if span.start >= contract.span.start
+                                        && span.end <= contract.span.end
+                            )
+                        })
+                    })
+            })
+        })
+    {
+        return reject(
+            "T0085",
+            "projected mutable callback cannot alias captured mutable state",
+        );
+    }
+    if matches!(kind, crate::projection::CallbackKind::Once)
+        && value.kind == SyntaxKind::Name
+        && let Some(declaration) = package
+            .resolve_name_at(unit, value.span.start, node_text(&unit.source, value))
+            .and_then(|symbol| symbol.declaration_span)
+        && unit
+            .typed_bindings
+            .iter()
+            .any(|binding| binding.span == declaration)
+        && !consumed_once.insert(span_key(declaration))
+    {
+        return reject("T0086", "one-shot projected callback was already consumed");
+    }
+    Ok(())
+}
+
+fn validate_channel_endpoint_extraction(
+    unit: &SemanticUnit,
+    node: &SyntaxNode,
+    extracted: &mut BTreeSet<(u32, usize, usize, String)>,
+) -> Result<(), SemanticFailure> {
+    if node.kind == SyntaxKind::MemberExpression
+        && let [receiver, member] = node.children.as_slice()
+        && receiver.kind == SyntaxKind::Name
+        && matches!(node_text(&unit.source, member), "sender" | "receiver")
+        && let Some(binding) = unit.typed_bindings.iter().rev().find(|binding| {
+            binding.name == node_text(&unit.source, receiver)
+                && binding.is_visible_at(unit.source.id(), receiver.span.start)
+        })
+        && matches!(binding.value_type, ValueType::ChannelPair(_))
+        && !extracted.insert((
+            binding.span.file,
+            binding.span.start,
+            binding.span.end,
+            node_text(&unit.source, member).to_owned(),
+        ))
+    {
+        return Err(failure(
+            &unit.source,
+            "T0110",
+            format!(
+                "channel pair `{}` endpoint `{}` was already moved",
+                binding.name,
+                node_text(&unit.source, member)
+            ),
+            node.span,
+        ));
+    }
+    Ok(())
+}
+
+fn validate_projected_borrowed_async_call(
+    package: &SemanticPackage,
+    unit: &SemanticUnit,
+    node: &SyntaxNode,
+    immediately_awaited: bool,
+) -> Result<(), SemanticFailure> {
+    if node.kind == SyntaxKind::CallExpression
+        && !immediately_awaited
+        && let [callee, _] = node.children.as_slice()
+        && callee.kind == SyntaxKind::MemberExpression
+        && let [receiver, member] = callee.children.as_slice()
+        && receiver.kind == SyntaxKind::Name
+        && package
+            .projection
+            .has_borrowed_async_method_named(node_text(&unit.source, member))
+        && let Some(binding) = unit.typed_bindings.iter().rev().find(|binding| {
+            binding.name == node_text(&unit.source, receiver)
+                && binding.is_visible_at(unit.source.id(), receiver.span.start)
+        })
+        && let ValueType::Object(identity) = &binding.value_type
+        && let Some(method) = package.projection.method(
+            &identity.namespace,
+            &identity.name,
+            node_text(&unit.source, member),
+        )
+        && method.is_async
+        && matches!(
+            method.receiver,
+            Some(crate::projection::Receiver::Borrow | crate::projection::Receiver::MutableBorrow)
+        )
+    {
+        return Err(failure(
+            &unit.source,
+            "T0106",
+            "borrowed projected async operation must be awaited immediately",
+            node.span,
+        ));
+    }
+    Ok(())
+}
+
+fn projected_chain_role(
+    package: &SemanticPackage,
+    unit: &SemanticUnit,
+    node: &SyntaxNode,
+) -> Option<crate::projection::ChainRole> {
+    if node.kind != SyntaxKind::CallExpression {
+        return None;
+    }
+    let [callee, _] = node.children.as_slice() else {
+        return None;
+    };
+    if callee.kind == SyntaxKind::Name {
+        let symbol =
+            package.resolve_name_at(unit, callee.span.start, node_text(&unit.source, callee))?;
+        let crate::projection::ProjectedKind::Function(function) = &package
+            .projection
+            .item(&symbol.namespace, &symbol.name)?
+            .kind
+        else {
+            return None;
+        };
+        return function.chain_role;
+    }
+    let [receiver, member] = callee.children.as_slice() else {
+        return None;
+    };
+    let Some(ValueType::Object(identity)) = infer_value_type(unit, receiver, &unit.typed_bindings)
+        .ok()
+        .flatten()
+    else {
+        return None;
+    };
+    package
+        .projection
+        .method(
+            &identity.namespace,
+            &identity.name,
+            node_text(&unit.source, member),
+        )
+        .and_then(|method| method.chain_role)
+}
+
+fn collect_chain_receivers(
+    package: &SemanticPackage,
+    unit: &SemanticUnit,
+    node: &SyntaxNode,
+    receivers: &mut BTreeSet<(u32, usize, usize)>,
+) {
+    if node.kind == SyntaxKind::CallExpression
+        && let [callee, _] = node.children.as_slice()
+        && callee.kind == SyntaxKind::MemberExpression
+        && let [receiver, _] = callee.children.as_slice()
+        && projected_chain_role(package, unit, node).is_some()
+    {
+        let mut receiver = receiver;
+        while receiver.kind == SyntaxKind::GroupExpression
+            && let [inner] = receiver.children.as_slice()
+        {
+            receiver = inner;
+        }
+        receivers.insert(span_key(receiver.span));
+    }
+    for child in &node.children {
+        collect_chain_receivers(package, unit, child, receivers);
+    }
+}
+
+fn projected_function_for_call<'a>(
+    package: &'a SemanticPackage,
+    unit: &SemanticUnit,
+    callee: &SyntaxNode,
+) -> Option<&'a crate::projection::ProjectedFunction> {
+    if callee.kind == SyntaxKind::Name {
+        let symbol =
+            package.resolve_name_at(unit, callee.span.start, node_text(&unit.source, callee))?;
+        return package
+            .projection
+            .item(&symbol.namespace, &symbol.name)
+            .and_then(|item| match &item.kind {
+                crate::projection::ProjectedKind::Function(function) => Some(function),
+                _ => None,
+            });
+    }
+    let [receiver, member] = callee.children.as_slice() else {
+        return None;
+    };
+    let Some(ValueType::Object(identity)) = infer_value_type(unit, receiver, &unit.typed_bindings)
+        .ok()
+        .flatten()
+    else {
+        return None;
+    };
+    package.projection.method(
+        &identity.namespace,
+        &identity.name,
+        node_text(&unit.source, member),
+    )
+}
+
+fn validate_projected_callback_node(
+    package: &SemanticPackage,
+    unit: &SemanticUnit,
+    node: &SyntaxNode,
+    consumed_once: &mut BTreeSet<(u32, usize, usize)>,
+    extracted_channel_endpoints: &mut BTreeSet<(u32, usize, usize, String)>,
+    immediately_awaited: bool,
+    chain_receivers: &BTreeSet<(u32, usize, usize)>,
+) -> Result<(), SemanticFailure> {
+    if matches!(
+        projected_chain_role(package, unit, node),
+        Some(crate::projection::ChainRole::Root | crate::projection::ChainRole::Continue)
+    ) && !chain_receivers.contains(&span_key(node.span))
+    {
+        return Err(failure(
+            &unit.source,
+            "T0112",
+            "chain-only dependency value must terminate within one expression",
+            node.span,
+        ));
+    }
+    validate_channel_endpoint_extraction(unit, node, extracted_channel_endpoints)?;
+    validate_projected_borrowed_async_call(package, unit, node, immediately_awaited)?;
+    if node.kind == SyntaxKind::CallExpression
+        && let [callee, arguments] = node.children.as_slice()
+        && let Some(function) = projected_function_for_call(package, unit, callee)
+    {
+        for (index, parameter) in function.parameters.iter().enumerate() {
+            let crate::projection::ProjectedType::Callback { .. } = &parameter.ty else {
+                continue;
+            };
+            let value = {
+                let mut positional = 0;
+                arguments.children.iter().find_map(|argument| {
+                    let named = argument.children.first().filter(|child| {
+                        child.kind == SyntaxKind::Name && argument.children.len() > 1
+                    });
+                    let argument_index = named.map_or_else(
+                        || {
+                            let current = positional;
+                            positional += 1;
+                            current
+                        },
+                        |name| {
+                            function
+                                .parameters
+                                .iter()
+                                .position(|candidate| {
+                                    candidate.name == node_text(&unit.source, name)
+                                })
+                                .unwrap_or(usize::MAX)
+                        },
+                    );
+                    (argument_index == index).then(|| argument.children.last().unwrap_or(argument))
+                })
+            };
+            let Some(value) = value else {
+                continue;
+            };
+            let Some(contract) = callback_contract(package, unit, value) else {
+                continue;
+            };
+            validate_projected_callback_contract(
+                package,
+                unit,
+                value,
+                contract,
+                &parameter.ty,
+                consumed_once,
+            )?;
+        }
+    }
+    for child in &node.children {
+        validate_projected_callback_node(
+            package,
+            unit,
+            child,
+            consumed_once,
+            extracted_channel_endpoints,
+            node.kind == SyntaxKind::UnaryExpression
+                && unary_operator_text(unit, node).as_deref() == Some("await")
+                || node.kind == SyntaxKind::GroupExpression && immediately_awaited,
+            chain_receivers,
+        )?;
+    }
+    Ok(())
+}
+
+pub(super) fn validate_projected_callback_arguments(
+    package: &SemanticPackage,
+) -> Result<(), SemanticFailure> {
+    for unit in &package.units {
+        let mut chain_receivers = BTreeSet::new();
+        collect_chain_receivers(package, unit, &unit.tree.root, &mut chain_receivers);
+        validate_projected_callback_node(
+            package,
+            unit,
+            &unit.tree.root,
+            &mut BTreeSet::new(),
+            &mut BTreeSet::new(),
+            false,
+            &chain_receivers,
+        )?;
+    }
+    Ok(())
+}

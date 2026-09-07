@@ -1,0 +1,5 @@
+phase = "check"
+status = "reject"
+entrypoint = "package.toml"
+code = "T0107"
+contains = "zero-capacity channels require the `channel-block` rendezvous policy"

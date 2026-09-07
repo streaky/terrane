@@ -196,7 +196,11 @@ pub(super) fn value_type_owns_resource(
     resource_identities: &BTreeSet<String>,
 ) -> bool {
     match value_type {
-        ValueType::PlatformStreamHandle | ValueType::PlatformResourceHandle => true,
+        ValueType::PlatformStreamHandle
+        | ValueType::PlatformResourceHandle
+        | ValueType::ChannelPair(_)
+        | ValueType::ChannelSender(_)
+        | ValueType::ChannelReceiver(_) => true,
         ValueType::Object(identity) => resource_identities.contains(&identity.qualified()),
         ValueType::Optional(inner) => value_type_owns_resource(inner, resource_identities),
         ValueType::Iterator(item)
@@ -208,6 +212,8 @@ pub(super) fn value_type_owns_resource(
         | ValueType::Task(item, _)
         | ValueType::ScopedTask(item, _)
         | ValueType::TaskOutcome(item)
+        | ValueType::ChannelReceiveOutcome(item)
+        | ValueType::ChannelSendOutcome(item)
         | ValueType::Reference(item)
         | ValueType::SharedReference(item) => {
             value_type_owns_resource(&item.value_type(), resource_identities)
@@ -1014,6 +1020,16 @@ pub(super) fn analyze_types(package: &mut SemanticPackage) -> Result<(), Semanti
         package.units[index].objects = objects;
     }
     populate_object_aliases(package);
+    for unit in &mut package.units {
+        for object in &mut unit.objects {
+            if package
+                .projection
+                .foreign_owns_resource(&object.identity.namespace, &object.identity.name)
+            {
+                object.resource_owning = true;
+            }
+        }
+    }
     propagate_resource_ownership(package)?;
     for index in 0..package.units.len() {
         let unit = &package.units[index];

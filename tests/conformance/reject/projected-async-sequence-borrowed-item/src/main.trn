@@ -1,0 +1,5 @@
+namespace app
+from /deps/terrane-sequence-witness import make_borrowed_sequence
+async function main;
+  sequence = make_borrowed_sequence;
+  step = await sequence.next;

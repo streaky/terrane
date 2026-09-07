@@ -1109,14 +1109,19 @@ impl Emitter<'_> {
             .return_type
             .clone()
             .unwrap_or(ValueType::Scalar(ScalarType::None));
-        let result_type = format!(
-            "Result<{}, TerraneError>",
+        let result_type = if contract.is_async {
             rust_value_type(self.package, result.clone())
-        );
+        } else {
+            format!(
+                "Result<{}, TerraneError>",
+                rust_value_type(self.package, result.clone())
+            )
+        };
         let outer_output = std::mem::take(&mut self.output);
         let outer_indent = self.indent;
         let outer_return_type = self.return_type.replace(result.clone());
-        let outer_function_errors = std::mem::replace(&mut self.function_errors, true);
+        let outer_function_errors =
+            std::mem::replace(&mut self.function_errors, !contract.is_async);
         let outer_propagation = std::mem::replace(&mut self.propagate_errors, contract.throws);
         let outer_parameter_types = std::mem::replace(
             &mut self.parameter_types,
@@ -1150,7 +1155,27 @@ impl Emitter<'_> {
         self.function_errors = outer_function_errors;
         self.propagate_errors = outer_propagation;
         self.parameter_types = outer_parameter_types;
+        let (captures, invocation_captures) = self.anonymous_function_captures(node, contract);
+        if contract.is_async {
+            format!(
+                "{{ {captures}std::sync::Arc::new(move |{parameters}| -> std::pin::Pin<Box<dyn Future<Output = {result_type}> + Send>> {{ {invocation_captures}Box::pin(async move {{\n{body}{}}}) }}) }}",
+                "    ".repeat(outer_indent)
+            )
+        } else {
+            format!(
+                "{{ {captures}std::sync::Arc::new(move |{parameters}| -> {result_type} {{\n{body}{}}}) }}",
+                "    ".repeat(outer_indent)
+            )
+        }
+    }
+
+    fn anonymous_function_captures(
+        &self,
+        node: &SyntaxNode,
+        contract: &FunctionContract,
+    ) -> (String, String) {
         let mut captures = String::new();
+        let mut invocation_captures = String::new();
         for capture in &contract.captures {
             let name = rust_name(capture);
             let source = if capture == "this" { "self" } else { &name };
@@ -1171,11 +1196,10 @@ impl Emitter<'_> {
                 write!(captures, "let {name} = {source}.clone(); ")
                     .expect("writing to a String cannot fail");
             }
+            write!(invocation_captures, "let {name} = {name}.clone(); ")
+                .expect("writing to a String cannot fail");
         }
-        format!(
-            "{{ {captures}std::sync::Arc::new(move |{parameters}| -> {result_type} {{\n{body}{}}}) }}",
-            "    ".repeat(outer_indent)
-        )
+        (captures, invocation_captures)
     }
 
     pub(super) fn block(&mut self, block: &SyntaxNode) {

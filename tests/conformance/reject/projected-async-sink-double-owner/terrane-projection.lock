@@ -1,0 +1,81 @@
+{
+  "format": 2,
+  "dependencies": [
+    {
+      "name": "terrane-sink-witness",
+      "version": "0.1.0",
+      "members": [
+        [
+          "/deps/terrane-sink-witness",
+          "Duplex"
+        ],
+        [
+          "/deps/terrane-sink-witness",
+          "Incoming"
+        ],
+        [
+          "/deps/terrane-sink-witness",
+          "Outgoing"
+        ],
+        [
+          "/deps/terrane-sink-witness",
+          "QueueSink"
+        ],
+        [
+          "/deps/terrane-sink-witness",
+          "SinkError"
+        ],
+        [
+          "/deps/terrane-sink-witness",
+          "SplitEndpoints"
+        ],
+        [
+          "/deps/terrane-sink-witness",
+          "blocked_sink"
+        ],
+        [
+          "/deps/terrane-sink-witness",
+          "drain_slowly"
+        ],
+        [
+          "/deps/terrane-sink-witness",
+          "duplex"
+        ],
+        [
+          "/deps/terrane-sink-witness",
+          "queue_sink"
+        ],
+        [
+          "/deps/terrane-sink-witness",
+          "remotely_closed_sink"
+        ]
+      ]
+    }
+  ],
+  "removed": [],
+  "cache_identity": "32c83b92c7a3ec63f25d5f92dba03df7bb8ac2f1ab2f6aeb8a96e0b534f712e6",
+  "source": "Local",
+  "rustdoc_format": 57,
+  "projection_schema": "19",
+  "content_hash": "2f9662220cc40817512fa48b70f44f94b526b1539e63edc6eade88f61d53ea6d",
+  "resolution": {
+    "outcome": "LocalRustdoc",
+    "events": [
+      {
+        "source": "BundledArtifact",
+        "status": "Skipped",
+        "reason": "bundled projection distribution is deliberately deferred until Terrane has a release artifact channel"
+      },
+      {
+        "source": "PublishedArtifact",
+        "status": "Skipped",
+        "reason": "`TERRANE_PROJECTION_ARTIFACT_URL` is not configured"
+      },
+      {
+        "source": "LocalRustdoc",
+        "status": "Generated",
+        "reason": "no reusable exact artifact was available; generated with the pinned local rustdoc toolchain"
+      }
+    ]
+  }
+}

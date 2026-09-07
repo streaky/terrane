@@ -1,0 +1,4 @@
+namespace app
+from /core/concurrency import read-write-lock
+function main;
+  state = read-write-lock; string, 'value'

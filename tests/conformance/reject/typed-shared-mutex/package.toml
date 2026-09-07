@@ -1,0 +1,3 @@
+package = "typed-shared-mutex"
+[namespaces]
+app = "src"

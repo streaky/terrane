@@ -1,0 +1,7 @@
+namespace app
+from /deps/terrane-chain-witness import line
+function make-builder;
+  prefix string = 'value='
+  return line; prefix
+function main;
+  builder = make-builder;

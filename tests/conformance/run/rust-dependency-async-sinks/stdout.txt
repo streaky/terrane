@@ -1,0 +1,9 @@
+truefalsetrue
+truetrue
+trueone|two
+falsetrue
+true
+true
+truefalse
+1
+different

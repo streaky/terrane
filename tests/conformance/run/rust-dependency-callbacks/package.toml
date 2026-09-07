@@ -1,0 +1,15 @@
+package = "rust-dependency-callbacks"
+executor = "cooperative"
+
+[namespaces]
+app = "src"
+
+[rust-dependencies.terrane-callback-witness]
+package = "terrane-callback-witness"
+version = "=0.1.0"
+effects = ["build"]
+
+[rust-dependencies.terrane-dispatch-witness]
+package = "terrane-dispatch-witness"
+version = "=0.1.0"
+effects = ["build"]

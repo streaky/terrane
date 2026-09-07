@@ -1,0 +1,4 @@
+package = "channel-receiver-use-after-close"
+executor = "cooperative"
+[namespaces]
+app = "src"

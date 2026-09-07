@@ -232,6 +232,14 @@ pub enum ValueType {
     TextRangeList,
     Iterator(ElementType),
     IterationStep(ElementType),
+    AsyncIterationStep(ElementType),
+    AsyncSinkOutcome,
+    ChannelPair(ElementType),
+    ChannelSender(ElementType),
+    ChannelReceiver(ElementType),
+    ChannelSendOutcome(ElementType),
+    ChannelReceiveOutcome(ElementType),
+    ChannelOverflowPolicy,
     List(ElementType),
     Map(ElementType, ElementType),
     Set(ElementType),
@@ -355,6 +363,28 @@ impl std::fmt::Display for ValueType {
             Self::IterationStep(item) => {
                 write!(formatter, "iteration-step of {}", item.value_type())
             }
+            Self::AsyncIterationStep(item) => {
+                write!(formatter, "async-iteration-step of {}", item.value_type())
+            }
+            Self::AsyncSinkOutcome => formatter.write_str("async-sink-outcome"),
+            Self::ChannelPair(item) => write!(formatter, "channel-pair of {}", item.value_type()),
+            Self::ChannelSender(item) => {
+                write!(formatter, "channel-sender of {}", item.value_type())
+            }
+            Self::ChannelReceiver(item) => {
+                write!(formatter, "channel-receiver of {}", item.value_type())
+            }
+            Self::ChannelSendOutcome(item) => {
+                write!(formatter, "channel-send-outcome of {}", item.value_type())
+            }
+            Self::ChannelReceiveOutcome(item) => {
+                write!(
+                    formatter,
+                    "channel-receive-outcome of {}",
+                    item.value_type()
+                )
+            }
+            Self::ChannelOverflowPolicy => formatter.write_str("channel-overflow-policy"),
             Self::List(item) => write!(formatter, "list of {}", item.value_type()),
             Self::Map(key, value) => write!(formatter, "map of {key}, {value}"),
             Self::Set(item) => write!(formatter, "set of {item}"),

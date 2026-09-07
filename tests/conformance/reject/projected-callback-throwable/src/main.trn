@@ -1,0 +1,8 @@
+namespace app
+from /deps/terrane-callback-witness import registrar
+from /core/errors import throwable, arithmetic-overflow
+function risky int throws throwable; value int
+    throw arithmetic-overflow
+function main;
+    callback-registry = registrar;
+    print; (callback-registry.apply; 1, risky)

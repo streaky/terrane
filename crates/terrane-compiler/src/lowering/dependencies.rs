@@ -30,6 +30,9 @@ pub(super) fn emit_dependency_imports(
 }
 
 pub(super) fn write_foreign_import(output: &mut String, path: &str, rust_name: &str) {
+    if path.contains("<'_>") {
+        return;
+    }
     if path.contains('<') || path.starts_with('(') || path.starts_with('[') {
         writeln!(output, "pub type {rust_name} = {path};")
             .expect("writing to a string cannot fail");
@@ -46,7 +49,6 @@ fn projected_type_is_identity(ty: &crate::projection::ProjectedType) -> bool {
         crate::projection::ProjectedType::Optional(inner) => projected_type_is_identity(inner),
         crate::projection::ProjectedType::None
         | crate::projection::ProjectedType::Bool
-        | crate::projection::ProjectedType::Int
         | crate::projection::ProjectedType::Float
         | crate::projection::ProjectedType::Float32
         | crate::projection::ProjectedType::String
@@ -60,17 +62,97 @@ fn projected_sequence_is_vec(path: &str) -> bool {
     path.starts_with("alloc::vec::Vec<") || path.starts_with("std::vec::Vec<")
 }
 
+fn projected_callback_input_expression(
+    value: &str,
+    ty: &crate::projection::ProjectedType,
+) -> String {
+    match ty {
+        crate::projection::ProjectedType::Int => {
+            format!("terrane_int_support::Int::from(i128::from({value}))")
+        }
+        _ => projected_result_expression(value, ty),
+    }
+}
+
+fn projected_callback_output_expression(
+    value: &str,
+    ty: &crate::projection::ProjectedType,
+) -> String {
+    match ty {
+        crate::projection::ProjectedType::Int => format!(
+            "terrane_int_support::coerce::<i64>(&{value}).map_err(|error| crate::TerraneForeignError(crate::TerraneRaised::raised(error, crate::TERRANE_NO_SITE)))?"
+        ),
+        _ => projected_argument_expression(value, ty),
+    }
+}
+
+fn projected_callback_argument(
+    name: &str,
+    parameters: &[crate::projection::ProjectedType],
+    result: &crate::projection::ProjectedType,
+    is_async: bool,
+) -> String {
+    let rust_parameters = parameters
+        .iter()
+        .enumerate()
+        .map(|(index, parameter)| format!("callback_argument_{index}: {}", parameter.rust_type()))
+        .collect::<Vec<_>>()
+        .join(", ");
+    let terrane_arguments = parameters
+        .iter()
+        .enumerate()
+        .map(|(index, parameter)| {
+            projected_callback_input_expression(&format!("callback_argument_{index}"), parameter)
+        })
+        .collect::<Vec<_>>()
+        .join(", ");
+    let converted_result = projected_callback_output_expression("callback_value", result);
+    let invoke = if is_async {
+        format!("(callback)({terrane_arguments}).await")
+    } else {
+        format!("(callback)({terrane_arguments})")
+    };
+    let fallible_body = if is_async {
+        format!(
+            "async {{ let callback_value = {invoke}; Ok::<_, crate::TerraneForeignError>({converted_result}) }}.await"
+        )
+    } else {
+        format!(
+            "(|| -> Result<_, crate::TerraneForeignError> {{ let callback_value = {invoke}.map_err(crate::TerraneForeignError)?; Ok({converted_result}) }})()"
+        )
+    };
+    let body = format!(
+        "match {fallible_body} {{ Ok(value) => value, Err(error) => std::panic::panic_any(error.0) }}"
+    );
+    if is_async {
+        format!(
+            "{{ let callback = {name}.clone(); move |{rust_parameters}| {{ let callback = callback.clone(); Box::pin(async move {{ {body} }}) }} }}"
+        )
+    } else {
+        format!("{{ let callback = {name}.clone(); move |{rust_parameters}| {{ {body} }} }}")
+    }
+}
+
 pub(super) fn projected_argument_expression(
     name: &str,
     ty: &crate::projection::ProjectedType,
 ) -> String {
     match ty {
+        crate::projection::ProjectedType::Int => format!(
+            "terrane_int_support::coerce::<i64>(&{name}).map_err(|error| crate::TerraneForeignError(crate::TerraneRaised::raised(error, crate::TERRANE_NO_SITE)))?"
+        ),
         crate::projection::ProjectedType::RustInt(rust_type) => format!(
             "terrane_int_support::coerce::<{rust_type}>(&{name}).map_err(|error| crate::TerraneForeignError(crate::TerraneRaised::raised(error, crate::TERRANE_NO_SITE)))?"
         ),
         crate::projection::ProjectedType::Char => format!(
             "{name}.parse::<char>().map_err(|_| crate::TerraneForeignError(crate::TerraneError::raised_with_message(crate::TerraneErrorKind::CoercionError, \"projected `char` requires exactly one Unicode scalar\", crate::TERRANE_NO_SITE)))?"
         ),
+        crate::projection::ProjectedType::Callback {
+            parameters,
+            result,
+            is_async,
+            ..
+        } => projected_callback_argument(name, parameters, result, *is_async),
         crate::projection::ProjectedType::Optional(inner) => {
             if projected_type_is_identity(inner) {
                 name.to_owned()
@@ -130,11 +212,27 @@ pub(super) fn projected_argument_expression(
     }
 }
 
+pub(super) fn projected_chain_argument_expression(
+    name: &str,
+    ty: &crate::projection::ProjectedType,
+) -> String {
+    if projected_type_is_identity(ty) {
+        return name.to_owned();
+    }
+    let converted = projected_argument_expression(name, ty);
+    format!(
+        "match (|| -> Result<_, crate::TerraneForeignError> {{ Ok({converted}) }})() {{ Ok(value) => value, Err(error) => std::panic::panic_any(error) }}"
+    )
+}
+
 pub(super) fn projected_result_expression(
     value: &str,
     ty: &crate::projection::ProjectedType,
 ) -> String {
     match ty {
+        crate::projection::ProjectedType::Int => {
+            format!("terrane_int_support::Int::from(i128::from({value}))")
+        }
         crate::projection::ProjectedType::RustInt(rust_type) if rust_type.starts_with('u') => {
             format!("terrane_int_support::Int::from_u128({value} as u128)")
         }
@@ -149,6 +247,15 @@ pub(super) fn projected_result_expression(
                 let converted = projected_result_expression("value", inner);
                 format!("{value}.map(|value| {converted})")
             }
+        }
+        crate::projection::ProjectedType::AsyncIterationStep(item) => {
+            let converted = projected_result_expression("item", item);
+            format!(
+                "match {value} {{ Some(item) => terrane_collection_support::AsyncIterationStep::item({converted}), None => terrane_collection_support::AsyncIterationStep::end() }}"
+            )
+        }
+        crate::projection::ProjectedType::AsyncSinkOutcome => {
+            format!("terrane_collection_support::AsyncSinkOutcome::from_accepted({value})")
         }
         crate::projection::ProjectedType::Sequence { item, .. } => {
             if projected_type_is_identity(item) {
@@ -213,6 +320,9 @@ pub(super) fn emit_dependency_unit(package: &SemanticPackage, unit: &SemanticUni
         let crate::projection::ProjectedKind::Function(projected) = &item.kind else {
             continue;
         };
+        if projected.chain_role == Some(crate::projection::ChainRole::Root) {
+            continue;
+        }
         let dependency_name = package
             .projection
             .dependency_name(&unit.namespace, &contract.name)
@@ -312,14 +422,8 @@ pub(super) fn emit_dependency_unit(package: &SemanticPackage, unit: &SemanticUni
         };
         let caught = if projected.is_async {
             format!("crate::__terrane_dependency_await_unwind({call}).await")
-        } else if projected
-            .parameters
-            .iter()
-            .any(|parameter| parameter.mutable_borrow)
-        {
-            format!("std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {call}))")
         } else {
-            format!("std::panic::catch_unwind(|| {call})")
+            format!("std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {call}))")
         };
         if package.profile.panic == crate::package::PanicProfile::Abort {
             if projected.error.is_some() {

@@ -1,0 +1,11 @@
+namespace app
+from /deps/terrane-callback-witness import apply_shared
+function observe; value ref int
+    return
+function main;
+    value int = 2
+    borrowed ref int = ref value
+    callback = function int; input int
+        observe; borrowed
+        return input
+    print; (apply_shared; 1, callback)

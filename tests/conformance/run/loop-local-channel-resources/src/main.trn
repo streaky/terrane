@@ -1,0 +1,18 @@
+namespace app
+from /core/output import print
+from /core/concurrency import channel, channel-block
+
+async function main;
+  index int = 0
+  while index < 2
+    pair = channel; int, 1, channel-block
+    sender = pair.sender
+    receiver = pair.receiver
+    sent = await sender.send; index
+    sender.close;
+    received = await receiver.receive;
+    value = received.value
+    remaining = receiver.close;
+    if value != none
+      print; sent.accepted, value, remaining.length
+    index++

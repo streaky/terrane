@@ -1,5 +1,19 @@
 use super::prelude::*;
 
+fn channel_item_descriptor_type(unit: &SemanticUnit, name: &str) -> Option<ValueType> {
+    if let Some(scalar) = ScalarType::from_source_name(name) {
+        return Some(ValueType::Scalar(scalar));
+    }
+    if let Some(item) = name.strip_prefix("list of ") {
+        return channel_item_descriptor_type(unit, item)
+            .map(|item| ValueType::List(ElementType::new(item)));
+    }
+    unit.objects
+        .iter()
+        .find(|object| object.name == name)
+        .map(|object| ValueType::Object(object.identity.clone()))
+}
+
 #[expect(
     clippy::too_many_lines,
     reason = "value inference centralizes the precedence among syntax forms and typed member families"
@@ -42,7 +56,11 @@ pub(super) fn infer_value_type(
                 .clone()
                 .unwrap_or(ValueType::Scalar(ScalarType::None)),
         );
-        return Ok(Some(ValueType::Function(parameters, result)));
+        return Ok(Some(if contract.is_async {
+            ValueType::AsyncFunction(parameters, result, contract.task_transferability)
+        } else {
+            ValueType::Function(parameters, result)
+        }));
     }
     if node.kind == SyntaxKind::GroupExpression {
         return match node.children.first() {
@@ -63,6 +81,17 @@ pub(super) fn infer_value_type(
         let name = node_text(&unit.source, node);
         if name == "none" {
             return Ok(Some(ValueType::Scalar(ScalarType::None)));
+        }
+        if resolved_compiler_identity(unit, node).is_some_and(|identity| {
+            matches!(
+                identity,
+                "/core/concurrency::channel-block"
+                    | "/core/concurrency::channel-fail-send"
+                    | "/core/concurrency::channel-drop-newest"
+                    | "/core/concurrency::channel-drop-oldest"
+            )
+        }) {
+            return Ok(Some(ValueType::ChannelOverflowPolicy));
         }
         if let Some(scalar) = ScalarType::from_source_name(name).or_else(|| {
             visible_descriptor_aliases(&unit.descriptor_aliases, unit.source.id(), node.span.start)
@@ -305,6 +334,92 @@ pub(super) fn infer_value_type(
                 };
             }
             if callee.kind == SyntaxKind::Name
+                && resolved_compiler_identity(unit, callee).is_some_and(|identity| {
+                    matches!(
+                        identity,
+                        "/core/concurrency::mutex"
+                            | "/core/concurrency::read-write-lock"
+                            | "/core/concurrency::shared-cell"
+                    )
+                })
+            {
+                return Err(failure(
+                    &unit.source,
+                    "T0111",
+                    "typed shared cells are unavailable; keep mutable state in one owner task and communicate through bounded typed channels",
+                    node.span,
+                ));
+            }
+            if callee.kind == SyntaxKind::Name
+                && resolved_compiler_identity(unit, callee)
+                    .is_some_and(|identity| identity == "/core/concurrency::channel")
+            {
+                let values = arguments
+                    .children
+                    .iter()
+                    .map(|argument| argument.children.last().unwrap_or(argument))
+                    .collect::<Vec<_>>();
+                let [descriptor, capacity, overflow] = values.as_slice() else {
+                    return Err(failure(
+                        &unit.source,
+                        "T0107",
+                        "`channel` requires an item descriptor, constant capacity, and overflow policy",
+                        node.span,
+                    ));
+                };
+                let Some(ValueType::Descriptor(item_name)) =
+                    infer_value_type(unit, descriptor, bindings)?
+                else {
+                    return Err(failure(
+                        &unit.source,
+                        "T0107",
+                        "`channel` item must be a concrete type descriptor",
+                        descriptor.span,
+                    ));
+                };
+                let item_type =
+                    channel_item_descriptor_type(unit, &item_name).ok_or_else(|| {
+                        failure(
+                            &unit.source,
+                            "T0107",
+                            "`channel` item descriptor must name a concrete transferable type",
+                            descriptor.span,
+                        )
+                    })?;
+                let Some(capacity_value) =
+                    constant_deadline_ms(unit, capacity, bindings, &mut BTreeSet::new())
+                else {
+                    return Err(failure(
+                        &unit.source,
+                        "T0107",
+                        "`channel` capacity must be a nonnegative constant integer",
+                        capacity.span,
+                    ));
+                };
+                if infer_value_type(unit, overflow, bindings)?
+                    != Some(ValueType::ChannelOverflowPolicy)
+                {
+                    return Err(failure(
+                        &unit.source,
+                        "T0107",
+                        "`channel` overflow argument must be a channel overflow policy",
+                        overflow.span,
+                    ));
+                }
+                if capacity_value == 0
+                    && resolved_compiler_identity(unit, overflow)
+                        .is_none_or(|identity| identity != "/core/concurrency::channel-block")
+                {
+                    return Err(failure(
+                        &unit.source,
+                        "T0107",
+                        "zero-capacity channels require the `channel-block` rendezvous policy",
+                        overflow.span,
+                    ));
+                }
+                return Ok(Some(ValueType::ChannelPair(ElementType::new(item_type))));
+            }
+            if callee.kind == SyntaxKind::Name
                 && resolved_compiler_identity(unit, callee)
                     .is_some_and(|identity| identity == "/core/async::task-scope")
             {
@@ -419,14 +534,10 @@ pub(super) fn infer_value_type(
                     | "intrinsic:capabilities::cancel"
                     | "intrinsic:capabilities::close"
                     | "intrinsic:concurrency::platform-result"
-                    | "intrinsic:concurrency::int-channel"
                     | "intrinsic:concurrency::int-mutex"
                     | "intrinsic:concurrency::int-read-write-lock"
                     | "intrinsic:concurrency::atomic-int64"
                     | "intrinsic:concurrency::thread-local-int"
-                    | "intrinsic:concurrency::int-channel-send"
-                    | "intrinsic:concurrency::int-channel-receive"
-                    | "intrinsic:concurrency::int-channel-try-receive"
                     | "intrinsic:concurrency::int-mutex-load"
                     | "intrinsic:concurrency::int-mutex-store"
                     | "intrinsic:concurrency::int-mutex-add"
@@ -523,6 +634,76 @@ pub(super) fn infer_value_type(
                 if platform_result.is_some() {
                     return Ok(platform_result);
                 }
+            }
+            if callee.kind == SyntaxKind::MemberExpression
+                && let [receiver, member] = callee.children.as_slice()
+                && receiver.kind == SyntaxKind::Name
+                && let Some(receiver_type) = bindings.iter().rev().find_map(|binding| {
+                    (binding.name == node_text(&unit.source, receiver)
+                        && binding.is_visible_at(unit.source.id(), receiver.span.start))
+                    .then(|| binding.value_type.clone())
+                })
+                && matches!(
+                    receiver_type,
+                    ValueType::ChannelSender(_) | ValueType::ChannelReceiver(_)
+                )
+            {
+                let values = arguments
+                    .children
+                    .iter()
+                    .map(|argument| argument.children.last().unwrap_or(argument))
+                    .collect::<Vec<_>>();
+                return match (receiver_type, node_text(&unit.source, member)) {
+                    (ValueType::ChannelSender(item), "send") => {
+                        let [value] = values.as_slice() else {
+                            return Err(failure(
+                                &unit.source,
+                                "T0109",
+                                "`channel-sender.send` requires one item",
+                                node.span,
+                            ));
+                        };
+                        let actual = infer_value_type(unit, value, bindings)?.ok_or_else(|| {
+                            failure(
+                                &unit.source,
+                                "T0109",
+                                "channel item type cannot be inferred",
+                                value.span,
+                            )
+                        })?;
+                        validate_value_destination(
+                            &unit.source,
+                            &unit.objects,
+                            "channel-sender.send",
+                            item.value_type(),
+                            actual,
+                            value,
+                            "T0109",
+                        )?;
+                        Ok(Some(ValueType::Task(
+                            ElementType::new(ValueType::ChannelSendOutcome(item)),
+                            TaskTransferability::Local,
+                        )))
+                    }
+                    (ValueType::ChannelReceiver(item), "receive") if values.is_empty() => {
+                        Ok(Some(ValueType::Task(
+                            ElementType::new(ValueType::ChannelReceiveOutcome(item)),
+                            TaskTransferability::Local,
+                        )))
+                    }
+                    (ValueType::ChannelSender(_), "close") if values.is_empty() => {
+                        Ok(Some(ValueType::Scalar(ScalarType::None)))
+                    }
+                    (ValueType::ChannelReceiver(item), "close") if values.is_empty() => {
+                        Ok(Some(ValueType::List(item)))
+                    }
+                    (_, operation) => Err(failure(
+                        &unit.source,
+                        "T0109",
+                        format!("invalid channel `{operation}` invocation"),
+                        node.span,
+                    )),
+                };
             }
             if callee.kind == SyntaxKind::MemberExpression
                 && let [receiver, member] = callee.children.as_slice()

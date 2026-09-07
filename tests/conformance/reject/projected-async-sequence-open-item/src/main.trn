@@ -1,0 +1,4 @@
+namespace app
+from /deps/terrane-sequence-witness import OpenSequence
+function main;
+  print; OpenSequence

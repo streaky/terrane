@@ -1,0 +1,5 @@
+namespace app
+from /deps/terrane-chain-witness import line
+async function main;
+  prefix string = 'value='
+  builder = await (line; prefix).pause;

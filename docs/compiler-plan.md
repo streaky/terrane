@@ -1470,32 +1470,113 @@ can be joined. Scope failure retains the typed error and requests sibling cancel
 synchronous scope fixtures retain their cancellable waker-polling implementation until their source
 path is migrated.
 
-The first B7 migration makes `/core/streams` byte and text `read-async` await a generated
-`spawn_blocking` delegation rather than call the synchronous read on an executor task. That
-delegation is recorded as a generic runtime requirement; its observable read result is unchanged.
+The first B7 migration made `/core/streams` byte and text `read-async` await a generated
+`spawn_blocking` delegation rather than call the synchronous read on an executor task. Standard
+input remains an explicitly delegated blocking host interface; its observable read result is
+unchanged.
 
-TCP connect/accept/read/write, UDP send/receive, and DNS lookup now expose async Terrane contracts
-backed by distinct async host intrinsics. Their current standard-socket ABI work is submitted through
-the selected runtime's blocking pool, while task-scope `spawn` can accept an already-constructed
-unpolled task so owned listener state moves safely into a concurrent server child. TCP, UDP, and
-cancelled-DNS conformance retain their prior observable results.
+TCP connect/accept/read/write and UDP send/receive now register nonblocking socket descriptors with
+the package's selected Tokio runtime and suspend on readiness. Host-name connection delegates only
+the resolver operation to the blocking pool, then races the returned socket candidates
+asynchronously. DNS lookup remains an explicit blocking-delegation requirement. Task-scope `spawn`
+can accept an already-constructed unpolled task so owned listener state moves safely into a
+concurrent server child. TCP, UDP, cancelled-DNS, deadline, and cancellation conformance retain
+their established result contracts.
 
-TLS client handshake, encrypted read/write, and shutdown now follow the same asynchronous host
-contract and selected-runtime blocking delegation. Certificate-chain and hostname validation remain
-mandatory on the ordinary connector; this migration changes scheduling rather than trust semantics.
+TLS client handshake, encrypted read/write, and shutdown now use `tokio-rustls` over the same
+readiness-native socket transport and selected runtime. Certificate-chain and hostname validation
+remain mandatory on the ordinary connector; this migration changes scheduling rather than trust
+semantics.
 
 The TCP loopback witness runs with `TOKIO_WORKER_THREADS=1` while one scoped standard-input read and
 one listener accept are both pending. The client still connects, writes, reads the reply, and prints
-before the harness releases standard input. That ordering cannot complete if either pending host
-operation occupies the sole executor worker.
+before the harness releases standard input. A platform-support saturation witness configures one
+executor worker and one blocking worker, then completes 32 concurrent accepts and connections,
+wakes a pending accept by cancellation, and observes a pending accept deadline. The corresponding
+TLS witness completes handshake, encrypted bidirectional I/O, and close-notify on the same
+single-worker runtime. These operations therefore cannot be universal `spawn_blocking` offloads.
 
-The blocking pool is a bounded compatibility bridge, not the final socket transport. Before Phase C
-adds async sequence or sink load, socket readiness, TCP and UDP reads/writes, listener acceptance,
-and TLS transport I/O must migrate to readiness-native polling on the selected runtime. Operations
-that are genuinely blocking, such as platform-specific resolver or file paths, may remain explicit
-blocking-delegation requirements. The prerequisite is complete only when concurrent backpressure,
-cancellation, and deadlines are exercised with pending operations exceeding both executor workers
-and blocking-pool capacity, so universal `spawn_blocking` offload cannot satisfy the witness.
+The blocking pool remains a bounded compatibility bridge for genuinely blocking platform APIs,
+such as standard streams, the current resolver, and file operations. Readiness-native socket and
+TLS transport is the required foundation for Phase C async sequence and sink load; new host
+surfaces must not route readiness-capable I/O back through universal blocking delegation.
+
+Phase C callback projection now admits concrete monomorphic Rust `Fn`, `FnMut`, `FnOnce`, and
+future-returning callback bounds at projected free-function and method boundaries. The transferable
+artifact records callable inputs/results, multiplicity, retention, and `Send`/`Sync`; generated
+shims construct the exact Rust closure and perform scalar conversion at invocation and result
+boundaries. `FnMut` is callable multiplicity only: version-one anonymous functions capture
+ordinary values by value, do not gain mutable capture cells, and continue to reject aliased mutable
+state. Semantic validation rejects mismatched sync/async signatures, wrong parameters or results,
+retained borrowed references and object receivers, local-only captures at transferable boundaries,
+escaping throwables, aliased mutable callback state, one-shot reuse, and open generic callback
+signatures. `rust-dependency-callbacks` exercises all three call traits, a projected method callback,
+and a retained future callback whose active invocation is cancelled and observed to release its
+fixture state; the focused rejection corpus fixes the ownership and effect boundaries.
+
+Phase C async-sequence projection recognizes concrete owned producers with an asynchronous
+borrowed `next` returning `Result<Option<Item>, E>` and a consuming `close`. The projected
+`async-iteration-step of Item` keeps item, end, dependency failure, and task cancellation distinct;
+generated calls construct a reborrowed native future before the async wrapper so repeated
+suspending reads do not move the producer. Borrowed operations must be awaited directly rather than
+retained as tasks. Producer objects are resource-owning and linear, consuming close participates in
+source ownership diagnostics, and borrowed or open-associated item shapes remain explicit
+declines. `rust-dependency-async-sequences` drives both a Tokio producer and a dissimilar queue
+producer through observable payloads, normal end, protocol failure, explicit close, and task
+cancellation; its TCP producer additionally proves readiness-backed network delivery. Focused
+rejects cover borrowed and open item shapes, duplicate transfer, use after close, and retained next
+tasks.
+
+Phase C async-sink projection recognizes concrete owned endpoints with an asynchronous borrowed
+`send(Item)` returning `Result<bool, E>`. The compiler-owned `async-sink-outcome` keeps accepted,
+remote-closed, dependency-failure, cancellation, and deadline outcomes distinct. Borrowed sends
+must be awaited directly and use the same native-future-before-wrapper reborrow boundary as
+sequences. Synchronous and asynchronous `flush` preserve their projected failure contracts;
+consuming `close` performs graceful protocol close, while Drop remains emergency release. A
+consuming `split` transfers a duplex endpoint into independently owned source and sink halves.
+`rust-dependency-async-sinks` observes every accepted payload at the consumer, distinguishes
+flush/close results, and exercises bounded backpressure, remote closure, cancellation, split
+ownership, and a dissimilar synchronous queue sink whose close returns its exact collected payload.
+Focused rejects cover use after split, use after close, duplicate ownership, and retaining a
+borrowed send across suspension.
+
+Phase C typed channels replace the integer-only channel object with
+`channel; Item, capacity, overflow-policy`, a compiler-owned generic pair of independently owned
+sender and receiver endpoints. Capacity remains a compile-time source constant in version one.
+Positive capacities use a bounded concrete Rust queue. A zero-capacity block channel instead uses a
+rendezvous whose send completes when receive accepts that value; an accepted handoff remains a
+completed send when cancellation is simultaneously ready on sender resumption. Fail-send and drop
+policies require positive capacity. Send and receive operations are local tasks whose registered
+wakers are removed on completion or cancellation. Consuming sender close permits a drain. Consuming
+receiver close returns every already-accepted buffered value as `list of Item`, rejects pending
+sends as closed, and leaves destructive cleanup to emergency Drop. The source ownership pass
+rejects duplicate endpoints and use after close while reinitializing declarations made inside a
+loop body at each back-edge. `typed-channels` observes exact values for every policy, deterministic
+rendezvous completion/cancellation precedence, bounded backpressure, concurrent delivery, sender
+drain, receiver-close preservation, cancellation under pressure, and a 10,000-send bounded-capacity
+stress loop. `loop-local-channel-resources` consumes a newly declared pair and both endpoints on
+each iteration. Focused rejects cover item mismatch, capacity and zero-capacity policy, ownership,
+and post-close use.
+
+Phase C records the version-one shared-state boundary as an intentional refusal rather than a
+missing generic-cell implementation. Mutable application state has one owner task; peers send
+typed commands and receive typed results over the bounded channels above. The existing
+`int-mutex`, `int-read-write-lock`, `atomic-int64`, and `thread-local-int` remain concrete low-level
+facilities. Compiler-owned names `mutex`, `read-write-lock`, and `shared-cell` emit `T0111` with the
+owner-task/channel guidance instead of falling through to an unresolved import or suggesting a
+universal boxed cell. `shared-state-owner` proves two scoped tasks coordinating around one mutable
+class through typed command and result channels; three focused rejects fix the guided diagnostic.
+
+Phase C chain-only projection now admits concrete lifetime-bearing builder values that can retain a
+borrow from a named input and complete within one nested Terrane expression. Projection schema 20
+records root, continuing, and terminal roles; only receiver-position intermediates are legal, while
+binding, return, capture, and suspension emit `T0112`. Lowering leaves roots and continuing calls
+inside one Rust expression and applies conversion, panic/error containment, and async awaiting only
+at the owned terminal. Language-server projection details expose the non-escaping constraint.
+`rust-dependency-chain-only` executes an in-memory SQLx scalar query inside the terminal of a
+concrete adapter that borrows its database input, plus a structurally dissimilar formatting chain
+that borrows its prefix. Open `sqlx::Query` itself remains honestly declined. Four focused rejects
+fix binding, return, capture, and suspension boundaries.
 
 Accepted and rejected conformance covers async/sync type incompatibility, task consumption,
 successful, throwing, cancelled, and sibling-cancelling children, statically resolvable nested
@@ -2139,17 +2220,15 @@ explicit operational contracts, deterministic lowering, and compiled and run evi
 standard or system capability is rejected with a Terrane diagnostic. No surface is represented as an
 empty compiler-owned name to make the map look complete.
 
-Implemented evidence: `/core/concurrency` provides zero-or-positive-capacity integer channels,
-integer mutex and read/write-lock cells, typed `atomic-int64` memory ordering, and per-existing-host-
-thread local integers over opaque shared host identities. Blocking channel send and receive carry
-explicit positive deadlines and cancellation tokens; `try-receive` is non-blocking. Generated Rust
-delegates synchronization and defensive operation-specific ordering validation to the support crate
-without exposing host handles. This is the host-synchronization ABI boundary permitted by delivery
-principle 9: `std::sync::mpsc::Receiver` is not shareable across threads, so the maintained layer
-uses `crossbeam-channel` for bounded parking sends and receives plus a genuinely non-blocking probe
-without a receiver mutex. Terrane retains the object model, deadline and cancellation policy, and
-error translation above that boundary. Explicit channel closure, arbitrary guard-scoped critical
-sections, and non-integer generic cells remain deferred rather than being implied by these names.
+Implemented evidence: `/core/concurrency` provides integer mutex and read/write-lock cells, typed
+`atomic-int64` memory ordering, and per-existing-host-thread local integers over opaque shared host
+identities. Generated Rust delegates synchronization and defensive operation-specific ordering
+validation to the support crate without exposing host handles. This is the host-synchronization ABI
+boundary permitted by delivery principle 9. Terrane retains the object model and error translation
+above that boundary. Arbitrary guard-scoped critical sections and non-integer generic cells remain
+deferred rather than being implied by these names. The milestone's earlier integer-only host
+channel has been removed and superseded by the compiler-owned typed async channel contract recorded
+under milestone 19 Phase C.
 
 Bundled core imports are checked against `[profile]`; `S2032` names the profile, forbidden
 capability, imported namespace, and importing namespace. The complete gate map is recorded in the
@@ -2159,9 +2238,8 @@ and preserves non-Unicode platform names in the existing `native-string` represe
 standard library has no portable host-name query, so its maintained layer uses the audited
 `hostname` crate only for host retrieval and non-Unicode OS-string conversion.
 Accepted canonical-Rust package cases compile and run both restricted-profile surfaces, focused
-rejected cases prove both gates and message metadata, and support tests exercise rendezvous channels
-through a Terrane task, cancellation/deadlines, cross-thread shared state, every atomic ordering
-class, and thread-local isolation plus stale-owner cleanup.
+rejected cases prove both gates and message metadata, and support tests exercise cross-thread shared
+state, every atomic ordering class, and thread-local isolation plus stale-owner cleanup.
 
 ### Milestone 26.1 — Structured error sites and compact values
 

@@ -2227,6 +2227,10 @@
           "SyntaxHighlight"
         ],
         [
+          "/deps/utoipa-swagger-ui",
+          "serve"
+        ],
+        [
           "/deps/utoipa-swagger-ui/oauth",
           "Config"
         ]
@@ -2234,11 +2238,11 @@
     }
   ],
   "removed": [],
-  "cache_identity": "d9b510bc51a525228df3cf5d5539ae0e938f360339437ff7dc2ac1fe708bfcf6",
+  "cache_identity": "cb9721951430b9b2bbdacde39adbb199d9f436885520bc570ba6e67f34f5f7d1",
   "source": "Local",
   "rustdoc_format": 57,
-  "projection_schema": "16",
-  "content_hash": "e00e29eef8a36e64a02cd18320262a46c99d380411d2f2d12f4d777d47c2dae0",
+  "projection_schema": "20",
+  "content_hash": "747764ed3c5a62de420e5e5845531b71656f0fc4fc2b47918b043b6999539aa6",
   "resolution": {
     "outcome": "LocalRustdoc",
     "events": [

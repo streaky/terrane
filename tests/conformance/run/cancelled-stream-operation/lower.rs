@@ -635,9 +635,9 @@ async fn __terrane_cancel_operation<F: Future>(
         .flatten();
     if let Some((cancellation, deadline, finalizers)) = cancellation {
         tokio::select! {
-            biased; () = async { __terrane_cancellation_requested(cancellation, deadline)
-            . await; finalizers.reaches(guard.depth). await; } => None, output = future
-            => Some(output),
+            biased; output = future => Some(output), () = async {
+            __terrane_cancellation_requested(cancellation, deadline). await; finalizers
+            .reaches(guard.depth). await; } => None,
         }
     } else {
         Some(future.await)
@@ -689,9 +689,9 @@ async fn __terrane_cancellable<F: Future>(
             context,
             async {
                 tokio::select! {
-                    biased; () = async { __terrane_cancellation_requested(cancellation,
-                    deadline). await; finalizers.reaches(0). await; } => None, output =
-                    future => Some(output),
+                    biased; output = future => Some(output), () = async {
+                    __terrane_cancellation_requested(cancellation, deadline). await;
+                    finalizers.reaches(0). await; } => None,
                 }
             },
         )
@@ -982,7 +982,7 @@ pub fn terrane_platform_acquire_stderr() -> TerranePlatformStreamHandle {
 // Namespace: cancelled-stream-operation
 async fn read_one() -> ReadResult {
     let input: ByteReader = stdin();
-    let pending = input.read_async(terrane_int_support::Int::from(2_i128));
+    let pending = (&input).read_async(terrane_int_support::Int::from(2_i128));
     let result: ReadResult = __terrane_await(pending).await;
     input.close();
     return result;
@@ -996,7 +996,9 @@ fn main() {
             let __terrane_deadline = __terrane_scope.deadline;
             TerraneScopedTask::spawn(async move {
                 match __terrane_cancellable(
-                        read_one(),
+                        std::sync::Arc::new(move || -> std::pin::Pin<
+                            Box<dyn Future<Output = _> + Send>,
+                        > { Box::pin(read_one()) })(),
                         __terrane_cancel,
                         __terrane_deadline,
                     )

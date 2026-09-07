@@ -198,6 +198,105 @@ pub(super) fn infer_member_value_type(
             )),
         };
     }
+    if let Some(ValueType::ChannelPair(item)) = &receiver_type {
+        return match member_name {
+            "sender" => Ok(Some(ValueType::ChannelSender(item.clone()))),
+            "receiver" => Ok(Some(ValueType::ChannelReceiver(item.clone()))),
+            _ => Err(failure(
+                &unit.source,
+                "T0108",
+                format!("channel pair has no member `{member_name}`"),
+                member.span,
+            )),
+        };
+    }
+    if let Some(ValueType::ChannelSender(item)) = &receiver_type {
+        return match member_name {
+            "send" => Ok(Some(ValueType::AsyncFunction(
+                vec![item.clone()],
+                ElementType::new(ValueType::ChannelSendOutcome(item.clone())),
+                TaskTransferability::Local,
+            ))),
+            "close" => Ok(Some(ValueType::Function(
+                Vec::new(),
+                ElementType::new(ValueType::Scalar(ScalarType::None)),
+            ))),
+            _ => Err(failure(
+                &unit.source,
+                "T0108",
+                format!("channel sender has no member `{member_name}`"),
+                member.span,
+            )),
+        };
+    }
+    if let Some(ValueType::ChannelReceiver(item)) = &receiver_type {
+        return match member_name {
+            "receive" => Ok(Some(ValueType::AsyncFunction(
+                Vec::new(),
+                ElementType::new(ValueType::ChannelReceiveOutcome(item.clone())),
+                TaskTransferability::Local,
+            ))),
+            "close" => Ok(Some(ValueType::Function(
+                Vec::new(),
+                ElementType::new(ValueType::List(item.clone())),
+            ))),
+            _ => Err(failure(
+                &unit.source,
+                "T0108",
+                format!("channel receiver has no member `{member_name}`"),
+                member.span,
+            )),
+        };
+    }
+    if let Some(ValueType::ChannelSendOutcome(item)) = &receiver_type {
+        return match member_name {
+            "accepted" | "closed" | "dropped" => Ok(Some(ValueType::Scalar(ScalarType::Bool))),
+            "rejected-value" | "dropped-value" => {
+                Ok(Some(ValueType::Optional(Box::new(item.value_type()))))
+            }
+            _ => Err(failure(
+                &unit.source,
+                "T0108",
+                format!("channel send outcome has no member `{member_name}`"),
+                member.span,
+            )),
+        };
+    }
+    if let Some(ValueType::ChannelReceiveOutcome(item)) = &receiver_type {
+        return match member_name {
+            "available" | "closed" => Ok(Some(ValueType::Scalar(ScalarType::Bool))),
+            "value" => Ok(Some(ValueType::Optional(Box::new(item.value_type())))),
+            _ => Err(failure(
+                &unit.source,
+                "T0108",
+                format!("channel receive outcome has no member `{member_name}`"),
+                member.span,
+            )),
+        };
+    }
+    if let Some(ValueType::AsyncIterationStep(item)) = &receiver_type {
+        return match member_name {
+            "item" | "end" => Ok(Some(ValueType::Scalar(ScalarType::Bool))),
+            "value" => Ok(Some(ValueType::Optional(Box::new(item.value_type())))),
+            _ => Err(failure(
+                &unit.source,
+                "T0087",
+                format!("async iteration step has no member `{member_name}`"),
+                member.span,
+            )),
+        };
+    }
+    if receiver_type == Some(ValueType::AsyncSinkOutcome) {
+        return match member_name {
+            "accepted" | "closed" => Ok(Some(ValueType::Scalar(ScalarType::Bool))),
+            _ => Err(failure(
+                &unit.source,
+                "T0088",
+                format!("async sink outcome has no member `{member_name}`"),
+                member.span,
+            )),
+        };
+    }
     if let Some(result) = &receiver_type
         && matches!(
             result,

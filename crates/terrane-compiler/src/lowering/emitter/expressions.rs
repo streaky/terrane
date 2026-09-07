@@ -530,6 +530,38 @@ impl Emitter<'_> {
                 self.expression(node)
             }
             ValueType::AsyncFunction(parameters, _, transferability)
+                if node.kind == SyntaxKind::Name =>
+            {
+                if let Some(contract) = self.contract_for_call(node) {
+                    let declarations = parameters
+                        .iter()
+                        .enumerate()
+                        .map(|(index, parameter)| {
+                            format!(
+                                "argument_{index}: {}",
+                                rust_element_type(self.package, parameter.clone())
+                            )
+                        })
+                        .collect::<Vec<_>>()
+                        .join(", ");
+                    let arguments = (0..parameters.len())
+                        .map(|index| format!("argument_{index}"))
+                        .collect::<Vec<_>>()
+                        .join(", ");
+                    let send = if transferability == TaskTransferability::Transferable {
+                        " + Send"
+                    } else {
+                        ""
+                    };
+                    format!(
+                        "std::sync::Arc::new(move |{declarations}| -> std::pin::Pin<Box<dyn Future<Output = _>{send}>> {{ Box::pin({}({arguments})) }})",
+                        function_name(self.package, contract)
+                    )
+                } else {
+                    format!("({}).clone()", self.expression(node))
+                }
+            }
+            ValueType::AsyncFunction(parameters, _, transferability)
                 if node.kind == SyntaxKind::MemberExpression =>
             {
                 let [receiver, member] = node.children.as_slice() else {

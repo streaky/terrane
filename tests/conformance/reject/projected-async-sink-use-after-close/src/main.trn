@@ -1,0 +1,6 @@
+namespace app
+from /deps/terrane-sink-witness import remotely_closed_sink
+async function main;
+  sink = remotely_closed_sink;
+  closed = await sink.close;
+  sent = await sink.send; 'late'

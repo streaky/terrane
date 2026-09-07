@@ -7,9 +7,9 @@ use std::sync::LazyLock;
 use std::time::Duration;
 
 use rustdoc_types::{
-    Crate as RustdocCrate, Function, GenericArg, GenericArgs, GenericBound, GenericParamDefKind,
-    Id, Impl, Item, ItemEnum, ItemSummary, Path as RustdocPath, Struct, Type, VariantKind,
-    Visibility,
+    AssocItemConstraintKind, Crate as RustdocCrate, Function, GenericArg, GenericArgs,
+    GenericBound, GenericParamDef, GenericParamDefKind, Id, Impl, Item, ItemEnum, ItemSummary,
+    Path as RustdocPath, Struct, Term, Type, VariantKind, Visibility, WherePredicate,
 };
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
@@ -17,7 +17,7 @@ use sha2::{Digest, Sha256};
 use crate::RustDependency;
 
 pub use crate::RUSTDOC_TOOLCHAIN;
-const PROJECTION_SCHEMA: &str = "16";
+const PROJECTION_SCHEMA: &str = "20";
 const MAX_PROJECTION_CACHE_RECORDS: usize = 4;
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
@@ -216,6 +216,13 @@ pub enum ProjectedKind {
     },
 }
 
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
+pub enum ChainRole {
+    Root,
+    Continue,
+    Terminal,
+}
+
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub struct ProjectedFunction {
     pub name: String,
@@ -225,6 +232,8 @@ pub struct ProjectedFunction {
     pub is_async: bool,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub execution_requirements: Option<ProjectedExecutionRequirements>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub chain_role: Option<ChainRole>,
     pub receiver: Option<Receiver>,
 }
 
@@ -257,6 +266,13 @@ pub enum Receiver {
     Move,
 }
 
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
+pub enum CallbackKind {
+    Shared,
+    Mutable,
+    Once,
+}
+
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub enum ProjectedType {
     None,
@@ -284,6 +300,8 @@ pub enum ProjectedType {
         ordered: bool,
     },
     Tuple(Vec<ProjectedType>),
+    AsyncIterationStep(Box<ProjectedType>),
+    AsyncSinkOutcome,
     Foreign {
         rust_path: String,
         name: String,
@@ -291,6 +309,16 @@ pub enum ProjectedType {
         base_rust_path: String,
         #[serde(default)]
         arguments: Vec<ProjectedType>,
+    },
+    Callback {
+        rust_name: String,
+        parameters: Vec<ProjectedType>,
+        result: Box<ProjectedType>,
+        kind: CallbackKind,
+        is_async: bool,
+        retained: bool,
+        send: bool,
+        sync: bool,
     },
     Optional(Box<ProjectedType>),
 }
@@ -311,10 +339,10 @@ impl ProjectedType {
         )
     }
 
-    fn rust_type(&self) -> String {
+    pub(crate) fn rust_type(&self) -> String {
         match self {
             Self::None => "()".to_owned(),
-            Self::Bool => "bool".to_owned(),
+            Self::Bool | Self::AsyncSinkOutcome => "bool".to_owned(),
             Self::Int => "i64".to_owned(),
             Self::RustInt(name) => name.clone(),
             Self::Float => "f64".to_owned(),
@@ -326,6 +354,10 @@ impl ProjectedType {
             | Self::Mapping { rust_path, .. }
             | Self::Set { rust_path, .. }
             | Self::Foreign { rust_path, .. } => rust_path.clone(),
+            Self::AsyncIterationStep(item) => {
+                format!("Option<{}>", item.rust_type())
+            }
+            Self::Callback { rust_name, .. } => rust_name.clone(),
             Self::Tuple(items) => format!(
                 "({},)",
                 items
@@ -372,6 +404,37 @@ impl ProjectedType {
             }
             Self::Tuple(_) => "heterogeneous tuple".to_owned(),
             Self::Foreign { name, .. } => name.clone(),
+            Self::Callback {
+                parameters,
+                result,
+                is_async,
+                ..
+            } => {
+                let mut name = if *is_async {
+                    "async function".to_owned()
+                } else {
+                    "function".to_owned()
+                };
+                if !parameters.is_empty() {
+                    write!(
+                        name,
+                        " from {}",
+                        parameters
+                            .iter()
+                            .map(Self::terrane_name)
+                            .collect::<Vec<_>>()
+                            .join(", ")
+                    )
+                    .expect("writing to a string cannot fail");
+                }
+                write!(name, " to {}", result.terrane_name())
+                    .expect("writing to a string cannot fail");
+                name
+            }
+            Self::AsyncIterationStep(inner) => {
+                format!("async-iteration-step of {}", inner.terrane_name())
+            }
+            Self::AsyncSinkOutcome => "async-sink-outcome".to_owned(),
             Self::Optional(inner) => format!("{}|none", inner.terrane_name()),
         }
     }
@@ -561,6 +624,31 @@ impl Projection {
     }
 
     #[must_use]
+    pub(crate) fn foreign_owns_resource(&self, namespace: &str, name: &str) -> bool {
+        self.item(namespace, name).is_some_and(|item| {
+            matches!(&item.kind, ProjectedKind::ForeignType { methods, .. } if methods.iter().any(|method| {
+                method.is_async || matches!(method.receiver, Some(Receiver::Move))
+            }))
+        })
+    }
+
+    #[must_use]
+    pub(crate) fn has_borrowed_async_method_named(&self, name: &str) -> bool {
+        self.dependencies.iter().any(|dependency| {
+            dependency.items.iter().any(|item| {
+                matches!(&item.kind, ProjectedKind::ForeignType { methods, .. } if methods.iter().any(|method| {
+                    method.name == name
+                        && method.is_async
+                        && matches!(
+                            method.receiver,
+                            Some(Receiver::Borrow | Receiver::MutableBorrow)
+                        )
+                }))
+            })
+        })
+    }
+
+    #[must_use]
     pub(crate) fn is_unit_variant(&self, item: &ProjectedItem) -> bool {
         self.dependencies
             .iter()
@@ -722,6 +810,7 @@ fn collect_foreign_type(ty: &ProjectedType, foreign: &mut BTreeMap<String, Strin
             foreign.insert(rust_path.clone(), name.clone());
         }
         ProjectedType::Optional(inner)
+        | ProjectedType::AsyncIterationStep(inner)
         | ProjectedType::Sequence { item: inner, .. }
         | ProjectedType::Set { item: inner, .. } => collect_foreign_type(inner, foreign),
         ProjectedType::Mapping { key, value, .. } => {
@@ -751,6 +840,7 @@ fn foreign_type_name(ty: &ProjectedType) -> Option<&str> {
     match ty {
         ProjectedType::Foreign { name, .. } => Some(name),
         ProjectedType::Optional(inner)
+        | ProjectedType::AsyncIterationStep(inner)
         | ProjectedType::Sequence { item: inner, .. }
         | ProjectedType::Set { item: inner, .. } => foreign_type_name(inner),
         ProjectedType::Mapping { key, value, .. } => {
@@ -820,6 +910,12 @@ fn projected_type_name(ty: &ProjectedType, foreign_aliases: &BTreeMap<String, St
         ProjectedType::Optional(inner) => {
             format!("{}|none", projected_type_name(inner, foreign_aliases))
         }
+        ProjectedType::AsyncIterationStep(inner) => {
+            format!(
+                "async-iteration-step of {}",
+                projected_type_name(inner, foreign_aliases)
+            )
+        }
         ProjectedType::Sequence { item, .. } => {
             format!("list of {}", projected_type_name(item, foreign_aliases))
         }
@@ -843,6 +939,37 @@ fn projected_type_name(ty: &ProjectedType, foreign_aliases: &BTreeMap<String, St
             "tuple of {}",
             projected_type_name(&items[0], foreign_aliases)
         ),
+        ProjectedType::Callback {
+            parameters,
+            result,
+            is_async,
+            ..
+        } => {
+            let mut rendered = if *is_async {
+                "async function".to_owned()
+            } else {
+                "function".to_owned()
+            };
+            if !parameters.is_empty() {
+                write!(
+                    rendered,
+                    " from {}",
+                    parameters
+                        .iter()
+                        .map(|parameter| projected_type_name(parameter, foreign_aliases))
+                        .collect::<Vec<_>>()
+                        .join(", ")
+                )
+                .expect("writing to a string cannot fail");
+            }
+            write!(
+                rendered,
+                " to {}",
+                projected_type_name(result, foreign_aliases)
+            )
+            .expect("writing to a string cannot fail");
+            rendered
+        }
         _ => ty.terrane_name(),
     }
 }
@@ -1881,9 +2008,21 @@ fn project_rustdoc(
         let mut rust_path = extern_rust_path(dependency, &public_rust_path);
         let docs = item.docs.clone();
         let projected = match &item.inner {
-            ItemEnum::Function(function) => {
-                project_function(function, index, paths, Some(&name)).map(ProjectedKind::Function)
-            }
+            ItemEnum::Function(function) => project_function(function, index, paths, Some(&name))
+                .map(|mut projected_function| {
+                    if let Some(chain_owner) = project_chain_owner(
+                        dependency,
+                        function,
+                        &projected_function.result,
+                        index,
+                        paths,
+                        &public_paths,
+                    ) {
+                        projected_function.chain_role = Some(ChainRole::Root);
+                        projected_associated_items.push(chain_owner);
+                    }
+                    ProjectedKind::Function(projected_function)
+                }),
             ItemEnum::Struct(structure) => {
                 let mut owner_generics =
                     match default_generic_instantiation(structure, index, paths) {
@@ -1924,7 +2063,7 @@ fn project_rustdoc(
                     );
                 }
                 {
-                    let (methods, trait_methods, method_declines) = project_methods(
+                    let (mut methods, trait_methods, method_declines) = project_methods(
                         &structure.impls,
                         index,
                         paths,
@@ -1932,6 +2071,7 @@ fn project_rustdoc(
                         &rust_path,
                         &owner_generics,
                     );
+                    promote_async_endpoint_methods(&mut methods);
                     for method in methods.iter().filter(|method| method.receiver.is_none()) {
                         projected_associated_items.push(ProjectedItem {
                             namespace: namespace.clone(),
@@ -2005,6 +2145,7 @@ fn project_rustdoc(
                                     error: None,
                                     is_async: false,
                                     execution_requirements: None,
+                                    chain_role: None,
                                     receiver: None,
                                 }),
                             });
@@ -2025,13 +2166,29 @@ fn project_rustdoc(
             _ => Err("item kind has no Terrane projection".to_owned()),
         };
         match projected {
-            Ok(kind) => items.push(ProjectedItem {
-                namespace,
-                name,
-                rust_path,
-                docs,
-                kind,
-            }),
+            Ok(kind) => {
+                let docs = if matches!(
+                    &kind,
+                    ProjectedKind::Function(function) if function.chain_role == Some(ChainRole::Root)
+                ) {
+                    Some(match docs {
+                        Some(docs) => format!(
+                            "{docs}\n\nChain-only: this value must terminate within one expression."
+                        ),
+                        None => "Chain-only: this value must terminate within one expression."
+                            .to_owned(),
+                    })
+                } else {
+                    docs
+                };
+                items.push(ProjectedItem {
+                    namespace,
+                    name,
+                    rust_path,
+                    docs,
+                    kind,
+                });
+            }
             Err(reason) => declined.push(DeclinedItem { rust_path, reason }),
         }
     }
@@ -2322,6 +2479,91 @@ fn project_methods(
     methods.sort_by(|left, right| left.name.cmp(&right.name));
     (methods, trait_methods, declined)
 }
+fn project_chain_owner(
+    dependency: &RustDependency,
+    function: &Function,
+    result: &ProjectedType,
+    index: &HashMap<Id, Item>,
+    paths: &HashMap<Id, ItemSummary>,
+    public_paths: &BTreeMap<Id, String>,
+) -> Option<ProjectedItem> {
+    let output = function.sig.output.as_ref()?;
+    let Type::ResolvedPath(path) = output else {
+        return None;
+    };
+    let Item {
+        inner: ItemEnum::Struct(structure),
+        ..
+    } = index.get(&path.id)?
+    else {
+        return None;
+    };
+    if !structure
+        .generics
+        .params
+        .iter()
+        .any(|parameter| matches!(parameter.kind, GenericParamDefKind::Lifetime { .. }))
+    {
+        return None;
+    }
+    let ProjectedType::Foreign {
+        rust_path,
+        name,
+        base_rust_path: _,
+        arguments,
+    } = result
+    else {
+        return None;
+    };
+    let mut owner_generics = BTreeMap::new();
+    owner_generics.insert("Self".to_owned(), result.clone());
+    for (parameter, argument) in structure
+        .generics
+        .params
+        .iter()
+        .filter(|parameter| matches!(parameter.kind, GenericParamDefKind::Type { .. }))
+        .zip(arguments)
+    {
+        owner_generics.insert(parameter.name.clone(), argument.clone());
+    }
+    let (mut methods, _, _) = project_methods(
+        &structure.impls,
+        index,
+        paths,
+        public_paths,
+        rust_path,
+        &owner_generics,
+    );
+    methods.retain_mut(|method| {
+        if method.receiver.is_none() {
+            return false;
+        }
+        method.chain_role = Some(if method.result == *result {
+            ChainRole::Continue
+        } else {
+            ChainRole::Terminal
+        });
+        true
+    });
+    if methods
+        .iter()
+        .all(|method| method.chain_role != Some(ChainRole::Terminal))
+    {
+        return None;
+    }
+    let source_path = paths.get(&path.id)?.path.clone();
+    let namespace = dependency_namespace(
+        dependency,
+        &source_path[..source_path.len().saturating_sub(1)],
+    );
+    Some(ProjectedItem {
+        namespace,
+        name: name.clone(),
+        rust_path: rust_path.clone(),
+        docs: Some("chain-only; value must terminate within one expression".to_owned()),
+        kind: ProjectedKind::ForeignType { methods },
+    })
+}
 
 fn project_function_with_generics(
     function: &Function,
@@ -2384,6 +2626,9 @@ fn project_function_inner(
             let value = arguments
                 .first()
                 .ok_or_else(|| "Result has no value type".to_owned())?;
+            if render_rust_type(value, index, paths, &generic_types)?.contains('&') {
+                return Err("borrowed result values cannot cross a projected boundary".to_owned());
+            }
             error = arguments
                 .get(1)
                 .and_then(|ty| resolved_name(ty, paths))
@@ -2416,7 +2661,219 @@ fn project_function_inner(
                 transfer: RequirementKnowledge::Unknown,
             },
         ),
+        chain_role: None,
         receiver,
+    })
+}
+
+fn promote_async_endpoint_methods(methods: &mut [ProjectedFunction]) {
+    let has_consuming_close = methods
+        .iter()
+        .any(|method| method.name == "close" && method.receiver == Some(Receiver::Move));
+    if !has_consuming_close {
+        return;
+    }
+    for method in methods.iter_mut() {
+        if method.name == "next"
+            && method.is_async
+            && matches!(
+                method.receiver,
+                Some(Receiver::Borrow | Receiver::MutableBorrow)
+            )
+            && method.error.is_some()
+            && let ProjectedType::Optional(item) = &method.result
+        {
+            method.result = ProjectedType::AsyncIterationStep(item.clone());
+        }
+    }
+    for method in methods {
+        if method.name == "send"
+            && method.is_async
+            && method.parameters.len() == 1
+            && matches!(
+                method.receiver,
+                Some(Receiver::Borrow | Receiver::MutableBorrow)
+            )
+            && method.error.is_some()
+            && method.result == ProjectedType::Bool
+        {
+            method.result = ProjectedType::AsyncSinkOutcome;
+        }
+    }
+}
+
+fn trait_bound_name(bound: &GenericBound) -> Option<(&RustdocPath, &[GenericParamDef])> {
+    let GenericBound::TraitBound {
+        trait_,
+        generic_params,
+        ..
+    } = bound
+    else {
+        return None;
+    };
+    Some((trait_, generic_params))
+}
+
+fn generic_bounds(parameter: &GenericParamDef, function: &Function) -> Vec<GenericBound> {
+    let mut bounds = match &parameter.kind {
+        GenericParamDefKind::Type { bounds, .. } => bounds.clone(),
+        _ => Vec::new(),
+    };
+    for predicate in &function.generics.where_predicates {
+        let WherePredicate::BoundPredicate {
+            type_: Type::Generic(name),
+            bounds: predicate_bounds,
+            generic_params,
+        } = predicate
+        else {
+            continue;
+        };
+        if name == &parameter.name {
+            if !generic_params.is_empty() {
+                bounds.push(GenericBound::Outlives("__higher_ranked__".to_owned()));
+            }
+            bounds.extend(predicate_bounds.iter().cloned());
+        }
+    }
+    bounds
+}
+
+fn future_output(
+    name: &str,
+    function: &Function,
+    index: &HashMap<Id, Item>,
+    paths: &HashMap<Id, ItemSummary>,
+    generics: &BTreeMap<String, ProjectedType>,
+) -> Result<Option<ProjectedType>, String> {
+    let Some(parameter) = function
+        .generics
+        .params
+        .iter()
+        .find(|parameter| parameter.name == name)
+    else {
+        return Ok(None);
+    };
+    let bounds = generic_bounds(parameter, function);
+    for bound in bounds {
+        let Some((trait_, generic_params)) = trait_bound_name(&bound) else {
+            continue;
+        };
+        if !trait_.path.ends_with("Future") {
+            continue;
+        }
+        if !generic_params.is_empty() {
+            return Err("higher-ranked callback future is not projectable".to_owned());
+        }
+        let Some(GenericArgs::AngleBracketed { constraints, .. }) = trait_.args.as_deref() else {
+            return Err("callback future has no concrete Output type".to_owned());
+        };
+        let output = constraints.iter().find_map(|constraint| {
+            if constraint.name != "Output" {
+                return None;
+            }
+            let AssocItemConstraintKind::Equality(Term::Type(output)) = &constraint.binding else {
+                return None;
+            };
+            Some(output)
+        });
+        return output
+            .map(|output| project_type(output, index, paths, generics))
+            .transpose();
+    }
+    Ok(None)
+}
+
+fn project_callback_generic(
+    parameter: &GenericParamDef,
+    function: &Function,
+    index: &HashMap<Id, Item>,
+    paths: &HashMap<Id, ItemSummary>,
+    known: &BTreeMap<String, ProjectedType>,
+) -> Result<Option<ProjectedType>, String> {
+    let bounds = generic_bounds(parameter, function);
+    let callback = bounds.iter().find_map(|bound| {
+        let (trait_, generic_params) = trait_bound_name(bound)?;
+        let kind = if trait_.path.ends_with("FnOnce") {
+            CallbackKind::Once
+        } else if trait_.path.ends_with("FnMut") {
+            CallbackKind::Mutable
+        } else if trait_.path.ends_with("Fn") {
+            CallbackKind::Shared
+        } else {
+            return None;
+        };
+        Some((trait_, generic_params, kind))
+    });
+    let Some((trait_, generic_params, kind)) = callback else {
+        return Ok(None);
+    };
+    if !generic_params.is_empty() {
+        return Err(format!(
+            "callback generic `{}` uses a higher-ranked lifetime",
+            parameter.name
+        ));
+    }
+    let Some(GenericArgs::Parenthesized { inputs, output }) = trait_.args.as_deref() else {
+        return Err(format!(
+            "callback generic `{}` has no concrete call signature",
+            parameter.name
+        ));
+    };
+    let parameters = inputs
+        .iter()
+        .map(|input| project_type(input, index, paths, known))
+        .collect::<Result<Vec<_>, _>>()?;
+    let direct_output = output.clone().unwrap_or(Type::Tuple(Vec::new()));
+    let (result, is_async) = if let Type::Generic(future) = &direct_output {
+        if let Some(output) = future_output(future, function, index, paths, known)? {
+            (output, true)
+        } else {
+            (project_type(&direct_output, index, paths, known)?, false)
+        }
+    } else {
+        (project_type(&direct_output, index, paths, known)?, false)
+    };
+    let has_trait = |suffix: &str| {
+        bounds.iter().any(|bound| {
+            trait_bound_name(bound).is_some_and(|(trait_, _)| trait_.path.ends_with(suffix))
+        })
+    };
+    let retained = bounds
+        .iter()
+        .any(|bound| matches!(bound, GenericBound::Outlives(name) if name == "'static" || name == "static"));
+    Ok(Some(ProjectedType::Callback {
+        rust_name: parameter.name.clone(),
+        parameters,
+        result: Box::new(result),
+        kind,
+        is_async,
+        retained,
+        send: has_trait("Send"),
+        sync: has_trait("Sync"),
+    }))
+}
+
+fn is_callback_future_parameter(name: &str, function: &Function) -> bool {
+    function.generics.params.iter().any(|parameter| {
+        let bounds = generic_bounds(parameter, function);
+        bounds.iter().any(|bound| {
+            let Some((trait_, _)) = trait_bound_name(bound) else {
+                return false;
+            };
+            if !matches!(
+                trait_.path.rsplit("::").next(),
+                Some("Fn" | "FnMut" | "FnOnce")
+            ) {
+                return false;
+            }
+            matches!(
+                trait_.args.as_deref(),
+                Some(GenericArgs::Parenthesized {
+                    output: Some(Type::Generic(output)),
+                    ..
+                }) if output == name
+            )
+        })
     })
 }
 
@@ -2427,12 +2884,29 @@ fn generic_monomorphisations(
     supplied: &BTreeMap<String, ProjectedType>,
 ) -> Result<BTreeMap<String, ProjectedType>, String> {
     let mut result = supplied.clone();
+    // Resolve callable parameters before unrelated generic parameters. A callback whose
+    // signature mentions an open `T` must decline; it must not inherit a guessed closed
+    // implementation selected while monomorphising `T`.
+    for parameter in &function.generics.params {
+        if let Some(callback) =
+            project_callback_generic(parameter, function, index, paths, &result)?
+        {
+            result.insert(parameter.name.clone(), callback);
+        }
+    }
     for parameter in &function.generics.params {
         if result.contains_key(&parameter.name) {
             continue;
         }
+        if project_callback_generic(parameter, function, index, paths, &result)?.is_some() {
+            unreachable!("callback parameters were resolved in the first pass");
+        }
+        if is_callback_future_parameter(&parameter.name, function) {
+            result.insert(parameter.name.clone(), ProjectedType::None);
+            continue;
+        }
         let GenericParamDefKind::Type { bounds, .. } = &parameter.kind else {
-            return Err(format!("unbounded generic `{}`", parameter.name));
+            continue;
         };
         let Some(GenericBound::TraitBound { trait_, .. }) = bounds.first() else {
             return Err(format!("open generic `{}`", parameter.name));
@@ -3078,9 +3552,9 @@ mod tests {
     use serde_json::json;
 
     use super::{
-        ArtifactDependency, Containment, ProjectedDependency, ProjectedFunction, ProjectedItem,
-        ProjectedKind, ProjectedType, Projection, ProjectionArtifact, ProjectionHistory,
-        ProjectionResolution, ProjectionSource, Receiver, ResolutionOutcome,
+        ArtifactDependency, CallbackKind, Containment, ProjectedDependency, ProjectedFunction,
+        ProjectedItem, ProjectedKind, ProjectedType, Projection, ProjectionArtifact,
+        ProjectionHistory, ProjectionResolution, ProjectionSource, Receiver, ResolutionOutcome,
         apply_projection_history, enforce_transitive_reachability, has_type_parameters,
         prefer_public_path, project_rustdoc, project_type, projection_content_hash,
         prune_projection_cache, receiver_kind, resolve, selected_target,
@@ -3127,6 +3601,24 @@ mod tests {
             .is_terrane_scalar()
         );
         assert!(!ProjectedType::Tuple(vec![ProjectedType::String]).is_terrane_scalar());
+    }
+
+    #[test]
+    fn projected_callback_name_is_the_language_server_signature() {
+        let callback = ProjectedType::Callback {
+            rust_name: "F".to_owned(),
+            parameters: vec![ProjectedType::String, ProjectedType::Bool],
+            result: Box::new(ProjectedType::Int),
+            kind: CallbackKind::Shared,
+            is_async: true,
+            retained: true,
+            send: true,
+            sync: true,
+        };
+        assert_eq!(
+            callback.terrane_name(),
+            "async function from string, bool to int"
+        );
     }
 
     #[test]
@@ -3414,6 +3906,7 @@ mod tests {
                     error: None,
                     is_async: false,
                     execution_requirements: None,
+                    chain_role: None,
                     receiver: None,
                 }),
             }],
@@ -3747,6 +4240,7 @@ mod tests {
                 error: None,
                 is_async: false,
                 execution_requirements: None,
+                chain_role: None,
                 receiver: None,
             }),
         };

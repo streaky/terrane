@@ -1,0 +1,6 @@
+namespace app
+from /deps/terrane-sequence-witness import make_tokio_sequence
+async function main;
+  sequence = make_tokio_sequence;
+  step-task = sequence.next;
+  print; 1
