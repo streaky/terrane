@@ -514,6 +514,10 @@ impl Emitter<'_> {
             ("tls-read", "platform_tls_read"),
             ("tls-write", "platform_tls_write"),
             ("tls-shutdown", "platform_tls_shutdown"),
+            ("tls-client-async", "platform_tls_client_async"),
+            ("tls-read-async", "platform_tls_read_async"),
+            ("tls-write-async", "platform_tls_write_async"),
+            ("tls-shutdown-async", "platform_tls_shutdown_async"),
             ("close", "platform_capability_close"),
             ("result-failed", "platform_result_failed"),
             ("result-resource-limit", "platform_result_resource_limit"),
@@ -565,9 +569,13 @@ impl Emitter<'_> {
                                 | "platform_udp_receive_from_async"
                                 | "platform_udp_configure"
                                 | "platform_tls_client"
+                                | "platform_tls_client_async"
                                 | "platform_tls_read"
+                                | "platform_tls_read_async"
                                 | "platform_tls_write"
+                                | "platform_tls_write_async"
                                 | "platform_tls_shutdown"
+                                | "platform_tls_shutdown_async"
                                 | "platform_capability_close"
                                 | "platform_digest"
                                 | "platform_hmac"
@@ -581,7 +589,8 @@ impl Emitter<'_> {
                                     | "platform_tcp_connect_async"
                                     | "platform_tcp_accept"
                                     | "platform_tcp_accept_async"
-                                    | "platform_tls_shutdown",
+                                    | "platform_tls_shutdown"
+                                    | "platform_tls_shutdown_async",
                                 2
                             )
                             | (
@@ -596,8 +605,11 @@ impl Emitter<'_> {
                                     | "platform_dns_lookup"
                                     | "platform_dns_lookup_async"
                                     | "platform_tls_client"
+                                    | "platform_tls_client_async"
                                     | "platform_tls_read"
-                                    | "platform_tls_write",
+                                    | "platform_tls_read_async"
+                                    | "platform_tls_write"
+                                    | "platform_tls_write_async",
                                 3,
                             )
                             | ("platform_udp_send_to" | "platform_udp_send_to_async", 4)

@@ -978,6 +978,10 @@ pub(super) fn infer_task_transferability(package: &mut SemanticPackage) {
             "host-udp-send-to-async",
             "host-udp-receive-from-async",
             "host-dns-lookup-async",
+            "host-tls-client-async",
+            "host-tls-read-async",
+            "host-tls-write-async",
+            "host-tls-shutdown-async",
         ]
         .iter()
         .any(|name| unit.source.text().contains(name))

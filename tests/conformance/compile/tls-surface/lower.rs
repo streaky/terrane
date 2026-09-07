@@ -826,6 +826,64 @@ pub fn terrane_platform_tls_shutdown(
         cancellation,
     )
 }
+async fn terrane_platform_tls_blocking(
+    work: impl FnOnce() -> TerranePlatformResult + Send + 'static,
+) -> TerranePlatformResult {
+    tokio::task::spawn_blocking(work)
+        .await
+        .expect("delegated TLS operation must not panic")
+}
+pub async fn terrane_platform_tls_client_async(
+    stream: &TerranePlatformCapability,
+    server: String,
+    deadline: terrane_int_support::Int,
+    cancellation: &TerranePlatformCapability,
+) -> TerranePlatformResult {
+    let stream = stream.clone();
+    let cancellation = cancellation.clone();
+    terrane_platform_tls_blocking(move || {
+            terrane_platform_tls_client(&stream, server, deadline, &cancellation)
+        })
+        .await
+}
+pub async fn terrane_platform_tls_read_async(
+    stream: &TerranePlatformCapability,
+    limit: terrane_int_support::Int,
+    deadline: terrane_int_support::Int,
+    cancellation: &TerranePlatformCapability,
+) -> TerranePlatformResult {
+    let stream = stream.clone();
+    let cancellation = cancellation.clone();
+    terrane_platform_tls_blocking(move || {
+            terrane_platform_tls_read(&stream, limit, deadline, &cancellation)
+        })
+        .await
+}
+pub async fn terrane_platform_tls_write_async(
+    stream: &TerranePlatformCapability,
+    data: Vec<u8>,
+    deadline: terrane_int_support::Int,
+    cancellation: &TerranePlatformCapability,
+) -> TerranePlatformResult {
+    let stream = stream.clone();
+    let cancellation = cancellation.clone();
+    terrane_platform_tls_blocking(move || {
+            terrane_platform_tls_write(&stream, data, deadline, &cancellation)
+        })
+        .await
+}
+pub async fn terrane_platform_tls_shutdown_async(
+    stream: &TerranePlatformCapability,
+    deadline: terrane_int_support::Int,
+    cancellation: &TerranePlatformCapability,
+) -> TerranePlatformResult {
+    let stream = stream.clone();
+    let cancellation = cancellation.clone();
+    terrane_platform_tls_blocking(move || {
+            terrane_platform_tls_shutdown(&stream, deadline, &cancellation)
+        })
+        .await
+}
 // Source: case.trn
 // Namespace: app
 fn main() {
@@ -849,7 +907,7 @@ impl TlsStream {
     pub fn construct(&mut self, resource: TerranePlatformCapability) {
         self.handle = resource;
     }
-    pub fn read(
+    pub async fn read(
         &self,
         limit: terrane_int_support::Int,
         options: NetworkOperationOptions,
@@ -857,12 +915,15 @@ impl TlsStream {
         let cancellation: TerranePlatformCapability = operation_cancellation(
             options.clone(),
         );
-        let raw: TerranePlatformResult = terrane_platform_tls_read(
-            &self.handle,
-            limit,
-            options.deadline_ms,
-            &cancellation,
-        );
+        let raw: TerranePlatformResult = __terrane_await(
+                terrane_platform_tls_read_async(
+                    &self.handle,
+                    limit,
+                    options.deadline_ms,
+                    &cancellation,
+                ),
+            )
+            .await;
         return IoResult::terrane_construct(
             terrane_platform_result_failed(&raw),
             false,
@@ -874,16 +935,23 @@ impl TlsStream {
             terrane_platform_result_bool(&raw),
         );
     }
-    pub fn write(&self, data: Vec<u8>, options: NetworkOperationOptions) -> IoResult {
+    pub async fn write(
+        &self,
+        data: Vec<u8>,
+        options: NetworkOperationOptions,
+    ) -> IoResult {
         let cancellation: TerranePlatformCapability = operation_cancellation(
             options.clone(),
         );
-        let raw: TerranePlatformResult = terrane_platform_tls_write(
-            &self.handle,
-            data,
-            options.deadline_ms,
-            &cancellation,
-        );
+        let raw: TerranePlatformResult = __terrane_await(
+                terrane_platform_tls_write_async(
+                    &self.handle,
+                    data,
+                    options.deadline_ms,
+                    &cancellation,
+                ),
+            )
+            .await;
         return IoResult::terrane_construct(
             terrane_platform_result_failed(&raw),
             false,
@@ -903,15 +971,21 @@ impl TlsStream {
             terrane_platform_result_message(&raw),
         );
     }
-    pub fn shutdown(&self, options: NetworkOperationOptions) -> NetworkOperationResult {
+    pub async fn shutdown(
+        &self,
+        options: NetworkOperationOptions,
+    ) -> NetworkOperationResult {
         let cancellation: TerranePlatformCapability = operation_cancellation(
             options.clone(),
         );
-        let raw: TerranePlatformResult = terrane_platform_tls_shutdown(
-            &self.handle,
-            options.deadline_ms,
-            &cancellation,
-        );
+        let raw: TerranePlatformResult = __terrane_await(
+                terrane_platform_tls_shutdown_async(
+                    &self.handle,
+                    options.deadline_ms,
+                    &cancellation,
+                ),
+            )
+            .await;
         return NetworkOperationResult::terrane_construct(
             terrane_platform_result_failed(&raw),
             terrane_platform_result_deadline_exceeded(&raw),
@@ -962,7 +1036,7 @@ impl TlsResult {
         self.value = stream;
     }
 }
-pub fn connect_tls(
+pub async fn connect_tls(
     stream: TcpStream,
     server_name: NetworkHostName,
     options: NetworkOperationOptions,
@@ -970,12 +1044,15 @@ pub fn connect_tls(
     let cancellation: TerranePlatformCapability = operation_cancellation(
         options.clone(),
     );
-    let raw: TerranePlatformResult = terrane_platform_tls_client(
-        &stream.handle,
-        server_name.value,
-        options.deadline_ms,
-        &cancellation,
-    );
+    let raw: TerranePlatformResult = __terrane_await(
+            terrane_platform_tls_client_async(
+                &stream.handle,
+                server_name.value,
+                options.deadline_ms,
+                &cancellation,
+            ),
+        )
+        .await;
     let mut value: TlsStream = TlsStream::terrane_construct(
         terrane_platform_result_capability(&raw),
     );

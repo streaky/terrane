@@ -371,7 +371,11 @@ pub(super) fn infer_value_type(
                     | "intrinsic:capabilities::tcp-write-async"
                     | "intrinsic:capabilities::udp-send-to-async"
                     | "intrinsic:capabilities::udp-receive-from-async"
-                    | "intrinsic:capabilities::dns-lookup-async" => {
+                    | "intrinsic:capabilities::dns-lookup-async"
+                    | "intrinsic:capabilities::tls-client-async"
+                    | "intrinsic:capabilities::tls-read-async"
+                    | "intrinsic:capabilities::tls-write-async"
+                    | "intrinsic:capabilities::tls-shutdown-async" => {
                         return Ok(Some(ValueType::Task(
                             ElementType::new(ValueType::PlatformResult),
                             TaskTransferability::Local,

@@ -1468,6 +1468,10 @@ the selected runtime's blocking pool, while task-scope `spawn` can accept an alr
 unpolled task so owned listener state moves safely into a concurrent server child. TCP, UDP, and
 cancelled-DNS conformance retain their prior observable results.
 
+TLS client handshake, encrypted read/write, and shutdown now follow the same asynchronous host
+contract and selected-runtime blocking delegation. Certificate-chain and hostname validation remain
+mandatory on the ordinary connector; this migration changes scheduling rather than trust semantics.
+
 Accepted and rejected conformance covers async/sync type incompatibility, task consumption,
 successful, throwing, cancelled, and sibling-cancelling children, statically resolvable nested
 deadline extension, a non-owning reference whose unchanged local owner is proven to remain in the
