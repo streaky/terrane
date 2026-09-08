@@ -334,10 +334,27 @@ impl Emitter<'_> {
         {
             return self.expression(node);
         }
-        if matches!(value_type, ValueType::SharedReference(_))
-            && self.value_type(node) == Some(value_type.clone())
-        {
-            return format!("({}).clone()", self.expression(node));
+        if matches!(value_type, ValueType::SharedReference(_)) {
+            if node.kind == SyntaxKind::UnaryExpression {
+                return self.expression(node);
+            }
+            let existing_storage = match node.kind {
+                SyntaxKind::Name
+                | SyntaxKind::MemberExpression
+                | SyntaxKind::StaticMemberExpression
+                | SyntaxKind::IndexExpression
+                | SyntaxKind::CallExpression => self.value_type(node) == Some(value_type.clone()),
+                SyntaxKind::GroupExpression => node
+                    .children
+                    .first()
+                    .is_some_and(|child| self.value_type(child) == Some(value_type.clone())),
+                _ => false,
+            };
+            return if existing_storage {
+                format!("({}).clone()", self.expression(node))
+            } else {
+                self.reference_storage_expression(node)
+            };
         }
         if let ValueType::Object(expected) = &value_type
             && self.text(node) == "this"

@@ -60,6 +60,7 @@ pub(super) fn parse_unit(
         typed_bindings: Vec::new(),
         functions: Vec::new(),
         reference_provenance: BTreeMap::new(),
+        reference_return_lenders: BTreeMap::new(),
         descriptors: Vec::new(),
         comparable_foreign_objects: BTreeSet::new(),
         function_aliases: BTreeMap::new(),
@@ -453,6 +454,7 @@ pub fn analyze(package: &Package) -> Result<SemanticPackage, SemanticFailure> {
     validate_references(&semantic)?;
     validate_projected_static_declines(&semantic)?;
     analyze_types(&mut semantic)?;
+    validate_shared_ownership_cycles(&semantic)?;
     validate_error_clauses(&semantic)?;
     validate_moves(&semantic)?;
     analyze_reference_provenance(&mut semantic)?;

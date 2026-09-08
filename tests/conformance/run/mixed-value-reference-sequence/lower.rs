@@ -451,7 +451,7 @@ fn main() {
     > = numbers.clone();
     let number_observer: std::sync::Weak<
         std::sync::Mutex<terrane_collection_support::List<terrane_int_support::Int>>,
-    > = std::sync::Arc::downgrade(&numbers);
+    > = std::sync::Arc::downgrade(&numbers.clone());
     number_owner
         .lock()
         .expect("shared reference lock poisoned")
@@ -486,7 +486,7 @@ fn main() {
     > = words.clone();
     let word_observer: std::sync::Weak<
         std::sync::Mutex<terrane_collection_support::List<String>>,
-    > = std::sync::Arc::downgrade(&words);
+    > = std::sync::Arc::downgrade(&words.clone());
     word_owner.lock().expect("shared reference lock poisoned").append(String::from("c"));
     println!(
         "{}{}{}", terrane_scalar_support::scalar_text(&__terrane_raised(word_snapshot

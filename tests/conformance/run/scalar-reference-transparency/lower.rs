@@ -470,7 +470,7 @@ fn main() {
         std::sync::Mutex::new(7),
     );
     let observed: std::sync::Weak<std::sync::Mutex<i8>> = std::sync::Arc::downgrade(
-        &number,
+        &number.clone(),
     );
     println!(
         "{}", terrane_scalar_support::scalar_text(&{ let __terrane_owner = observed

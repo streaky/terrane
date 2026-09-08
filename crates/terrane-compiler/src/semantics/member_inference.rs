@@ -64,19 +64,14 @@ pub(super) fn object_method_contract<'a>(
                     .and_then(|base| resolve(unit, base, member, is_static, visited))
             })
             .or_else(|| {
-                object.interfaces.iter().find_map(|interface| {
-                    resolve(unit, interface, member, is_static, visited)
-                })
+                object
+                    .interfaces
+                    .iter()
+                    .find_map(|interface| resolve(unit, interface, member, is_static, visited))
             })
     }
 
-    resolve(
-        unit,
-        identity,
-        member,
-        is_static,
-        &mut BTreeSet::new(),
-    )
+    resolve(unit, identity, member, is_static, &mut BTreeSet::new())
 }
 
 pub(super) fn object_field_type(

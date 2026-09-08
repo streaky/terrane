@@ -592,27 +592,32 @@ This appendix keeps delivered milestone contracts and evidence out of the active
 ### Milestone 17 — Complete references, provenance, and lowering
 
 Every ordinary reference now has a compiler-owned `ReferenceProvenance` record containing its
-originating owner, external-lender status, ordered field/element/call-result projections, and first
-lifetime-ending operation. That proof flows through reference bindings, parameters and unique-
-lender call results, returns, member and index derivation, borrowed collection iteration, closure
-capture checks, and async liveness. A returned reference is admitted when it reaches an external
-lender; local-owner return, ambiguous lender flow, owner invalidation followed by observer use, and
-non-owning-to-shared promotion are rejected in source terms.
+originating owner, external-lender parameter, ordered field/element/call-result projections, and
+first lifetime-ending operation. That proof flows through parentheses, reference bindings,
+parameters, calls and returns, member and supported list/map/unordered-map index derivation,
+borrowed collection iteration, closure captures, and async liveness. Reference-return lender
+contracts are inferred from actual return flow to exactly one reference parameter and propagated
+to a fixed point through calls; parameter arity never selects a lender. Local or by-value parameter
+return, ambiguous lender flow, unsupported indexed borrow, owner invalidation followed by observer
+use, and non-owning-to-shared promotion are rejected in source terms.
 
-Native lowering emits a proved bounded reference as a Rust borrow. Field and element derivation and
-borrowed list iteration preserve that borrow, so ordinary reads do not upgrade, lock, or clone the
-owner. Explicit `shared ref` continues to use synchronized reference-counted ownership, with a weak
-non-owning observer only when an ordinary reference intentionally observes the same shared
-identity. Provable initialization ownership cycles are rejected; ordinary reference back-edges do
-not create ownership edges, and runtime-created native shared cycles are documented as
-non-collecting and must be broken explicitly.
+Native lowering emits a proved bounded reference as a Rust borrow. Selected lender contracts become
+explicit Rust lifetimes on reference-returning functions. Field and element derivation and borrowed
+list iteration preserve that borrow, so ordinary reads do not upgrade, lock, or clone the owner.
+Explicit `shared ref` continues to use synchronized reference-counted ownership, with a weak
+non-owning observer only when an ordinary reference intentionally observes that shared identity.
+The native target rejects statically provable strong `shared ref` cycles in descriptor field graphs,
+including through collection element types, while admitting acyclic shared fields. Ordinary
+reference back-edges do not create ownership edges; later mutation-created cycles outside the
+descriptor proof are non-collecting and must be broken explicitly.
 
-Evidence: `references-derived-provenance` runs field, element, returned-call-result, and borrowed-
-iteration paths with canonical Rust; `reference-derived-owner-replacement` rejects post-lifetime-
-end use and `reference-shared-promotion` rejects silent ownership promotion. Existing return,
-capture, identity, shared-reference, replacement, ownership-cycle, and `borrow-across-await`
-conformance cases remain the boundary corpus. The reviewed `references-derived-provenance`
-lowering contains direct Rust borrows for the bounded owner, field, and element paths.
+Evidence: `references-derived-provenance` covers direct field, element, capture, returned-call-
+result, and borrowed-iteration paths; `reference-return-selected-lender` proves a two-hop selected
+lender and its generated Rust lifetime; `reference-group-map` covers grouped list, map, and
+unordered-map element borrows; and `reference-shared-acyclic` proves an admitted acyclic shared
+field. Rejection cases cover call-result and same-type owner invalidation, map mutation, by-value
+parameter escape, unsupported indexing, non-owning promotion, and a descriptor-level shared cycle.
+Every accepted case carries canonical generated Rust.
 
 ### Milestone 15 — Caller-supplied conversion callbacks
 

@@ -702,24 +702,29 @@ interfaces check complete method signatures, infer required receiver mutability 
 implementations, and lower as typed dispatch contracts. Traits reuse declared fields and methods,
 with unresolved multi-trait member conflicts rejected.
 
-`ref T` values carry compiler-owned whole-path provenance: their originating owner, field/element/
-call-result projections, external-lender status, and first lifetime-ending mutation, move, or
-replacement. Member access, list indexing, unique-lender calls and returns, reference bindings,
-borrowed collection iteration, captures, and async liveness preserve or narrow that proof.
-Returning a reference is accepted only when it reaches an external lender; local-owner return,
-ambiguous lender flow, and post-lifetime-end use are rejected in source terms.
+`ref T` values carry compiler-owned whole-path provenance: their originating owner, selected
+external-lender parameter, field/element/call-result projections, and first lifetime-ending
+mutation, move, or replacement. Parentheses, member access, supported list/map/unordered-map
+indexing, uniquely selected lender calls and returns, reference bindings, borrowed collection
+iteration, captures, and async liveness preserve or narrow that proof. Lender selection follows
+actual return flow through calls to a fixed point; parameter count never chooses it. Returning a
+reference is accepted only when it reaches exactly one reference parameter. Local or by-value
+parameter return, ambiguous lender flow, unsupported indexed borrow, and post-lifetime-end use are
+rejected in source terms.
 
-A provenance-bounded native `ref T` lowers to a Rust borrow. Reads do not upgrade, lock, or clone
-the owner. `shared ref T` remains explicit synchronized reference-counted ownership; an ordinary
-observer of that same explicitly shared identity uses a non-owning weak handle. Prefix `ref`,
-`shared ref`, and `move` construct those respective ownership forms, and an ordinary reference
-cannot be promoted into shared ownership. Transparent observation does not erase the distinction
-among `T`, `ref T`, and `shared ref T` at storage, parameter, or return boundaries.
+A provenance-bounded native `ref T` lowers to a Rust borrow, including explicit result lifetimes
+for reference-returning functions. Reads do not upgrade, lock, or clone the owner. `shared ref T`
+remains explicit synchronized reference-counted ownership; an ordinary observer of that same
+explicitly shared identity uses a non-owning weak handle. Prefix `ref`, `shared ref`, and `move`
+construct those respective ownership forms, and an ordinary reference cannot be promoted into
+shared ownership. Transparent observation does not erase the distinction among `T`, `ref T`, and
+`shared ref T` at storage, parameter, or return boundaries.
 
-The native target rejects statically provable initialization ownership cycles. Runtime-created
-shared cycles are not traced and must be broken explicitly; ordinary `ref` back-edges are excluded
-from ownership-cycle edges. References may cross async suspension only while the owner proof
-remains complete.
+The native target rejects statically provable strong `shared ref` cycles in descriptor fields,
+including through collection element types, while admitting acyclic shared fields. Later cycles
+assembled outside that descriptor proof are not traced and must be broken explicitly; ordinary
+`ref` back-edges are excluded from ownership edges. References may cross async suspension only
+while the owner proof remains complete.
 
 ## Callable contracts and reflection
 

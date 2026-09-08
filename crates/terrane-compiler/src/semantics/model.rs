@@ -129,6 +129,7 @@ pub enum ReferenceProjection {
 pub struct ReferenceProvenance {
     pub owner: Span,
     pub external_lender: bool,
+    pub lender_parameter: Option<Span>,
     pub path: Vec<ReferenceProjection>,
     pub lifetime_end: Option<Span>,
 }
@@ -868,6 +869,8 @@ pub struct SemanticUnit {
     pub typed_bindings: Vec<TypedBinding>,
     /// Proven owners and projections for non-owning reference expressions and bindings.
     pub reference_provenance: BTreeMap<(usize, usize), ReferenceProvenance>,
+    /// Reference-returning callable contract to the exact lender parameter index.
+    pub reference_return_lenders: BTreeMap<(u32, usize, usize), usize>,
     /// Function contracts declared by every source unit in this unit's namespace.
     pub functions: Vec<FunctionContract>,
     pub descriptors: Vec<DescriptorContract>,

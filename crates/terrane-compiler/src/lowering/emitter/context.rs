@@ -751,13 +751,21 @@ impl Emitter<'_> {
 
     pub(super) fn reference_storage_expression(&mut self, operand: &SyntaxNode) -> String {
         if self.reference_backed_name(operand).is_some() {
-            rust_name(self.text(operand))
+            format!("({}).clone()", rust_name(self.text(operand)))
         } else {
-            self.expression(operand)
+            format!(
+                "std::sync::Arc::new(std::sync::Mutex::new({}))",
+                self.expression(operand)
+            )
         }
     }
 
     pub(super) fn reference_address_expression(&mut self, operand: &SyntaxNode) -> String {
+        if operand.kind == SyntaxKind::GroupExpression
+            && let Some(inner) = operand.children.first()
+        {
+            return self.reference_address_expression(inner);
+        }
         if self.reference_backed_name(operand).is_some() {
             return format!(
                 "std::sync::Arc::downgrade(&{})",
@@ -799,6 +807,18 @@ impl Emitter<'_> {
                 operand,
             );
             return format!("{{ let __terrane_index = {converted_index}; {item} }}");
+        }
+        if operand.kind == SyntaxKind::IndexExpression
+            && let [receiver, key] = operand.children.as_slice()
+            && let Some(ValueType::Map(key_type, _) | ValueType::UnorderedMap(key_type, _)) =
+                self.receiver_value_type(receiver)
+        {
+            let receiver = self.expression(receiver);
+            let key = self.expression_as(key, key_type.value_type());
+            return self.fallible(
+                format!("({receiver}).get(&({key})).ok_or(terrane_collection_support::MissingKey)"),
+                operand,
+            );
         }
         unreachable!("validated reference provenance has a lowerable owner path")
     }

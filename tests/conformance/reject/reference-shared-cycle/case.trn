@@ -1,0 +1,7 @@
+namespace reference-shared-cycle
+
+class node
+  next shared ref node = shared ref (instance node;)
+
+function main;
+  print; 'unreachable'

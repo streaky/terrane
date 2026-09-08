@@ -1035,7 +1035,7 @@ features:
     state: documented
     paths:
     - manual/reference/records/language/types/references.yaml
-  notes: Owner spans, external lenders, field/element/call-result projections, and lifetime ends flow through bindings, calls, returns, borrowed iteration, capture, and async checks.
+  notes: Owner spans, selected external lenders, field/element/call-result projections, and lifetime ends flow through parentheses, bindings, calls, returns, supported list/map indexing, borrowed iteration, capture, and async checks.
   sources:
   - docs/compiler-plan.md#Milestone 17
 - id: reference-cost-model
@@ -1048,8 +1048,22 @@ features:
     state: documented
     paths:
     - manual/reference/records/internals/reference-provenance.yaml
-  notes: Proven bounded native refs lower to Rust borrows; only explicit shared ownership and its observers retain strong/weak synchronized handles.
+  notes: Proven bounded native refs and selected return lifetimes lower to Rust borrows; only explicit shared ownership and its observers retain strong/weak synchronized handles.
   sources:
+  - docs/compiler-plan.md#Milestone 17
+- id: shared-reference-cycles
+  name: Target-aware shared ownership cycle diagnostics
+  category: objects
+  status: done
+  completion: 100
+  milestone: '17'
+  reference:
+    state: documented
+    paths:
+    - manual/reference/records/language/types/references.yaml
+  notes: The native target rejects statically provable strong shared-ref cycles in descriptor field graphs, including collection-contained edges; acyclic shared fields are admitted, ordinary ref back-edges are excluded, and later unproved cycles are documented as non-collecting.
+  sources:
+  - docs/language-spec-concise.md#VALUE / REF / MOVE / LIFETIME
   - docs/compiler-plan.md#Milestone 17
 - id: async-functions
   name: Async functions and await

@@ -903,12 +903,8 @@ pub(super) fn infer_throwing_effects(package: &mut SemanticPackage) -> Result<()
             && let [receiver, member] = callable.children.as_slice()
             && let Ok(Some(ValueType::Object(identity))) =
                 infer_receiver_value_type(unit, receiver, &unit.typed_bindings)
-            && let Some(contract) = object_method_contract(
-                unit,
-                &identity,
-                node_text(&unit.source, member),
-                false,
-            )
+            && let Some(contract) =
+                object_method_contract(unit, &identity, node_text(&unit.source, member), false)
         {
             return inferred
                 .get(&key(contract.span))
@@ -917,7 +913,9 @@ pub(super) fn infer_throwing_effects(package: &mut SemanticPackage) -> Result<()
         }
         if matches!(
             infer_value_type(unit, callable, &unit.typed_bindings),
-            Ok(Some(ValueType::Function(_, _) | ValueType::AsyncFunction(_, _, _)))
+            Ok(Some(
+                ValueType::Function(_, _) | ValueType::AsyncFunction(_, _, _)
+            ))
         ) {
             return BTreeSet::from(["/core/errors::throwable".to_owned()]);
         }

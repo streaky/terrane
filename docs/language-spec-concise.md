@@ -512,9 +512,11 @@ ref: explicit non-owning source-visible identity; does not extend lifetime
 shared_ref: explicit shared identity plus shared ownership; extends lifetime
 reference_provenance: compiler-tracked; derived references may narrow, never widen lifetime
 interior_ref: separates COW, pins path, cannot escape/replace/remove while live
-reference_provenance_shape: owner source span + external-lender flag + ordered Field/Element/CallResult projections + first mutation/move/replacement lifetime end; copied through reference bindings, arguments/results, and borrowed iteration targets
-reference_lowering: a provenance-bounded ordinary ref lowers to a target borrow and reads without owner upgrade/lock/clone; shared ref alone keeps Arc/Mutex ownership, while an ordinary observer of the same explicitly shared owner uses a non-owning weak handle
-reference_escape: returns are accepted only when provenance reaches an external lender; ambiguous call-result lender paths, local-owner return, post-lifetime-end use, and ref-to-shared-ref promotion are source errors
+reference_provenance_shape: owner source span + external-lender parameter span + ordered Field/Element/CallResult projections + first mutation/move/replacement lifetime end; parentheses preserve it and bindings, arguments/results, captures, and borrowed iteration copy or narrow it
+reference_lender_inference: a reference-returning callable must select exactly one reference parameter by return-flow analysis, including fixed-point propagation through calls; parameter count never chooses, and by-value/local/ambiguous origins reject
+reference_elements: list/map/unordered-map element borrows are supported; owner mutation that can invalidate storage ends the element path; unsupported index owners reject before lowering
+reference_lowering: a provenance-bounded ordinary ref lowers to a target borrow and reads without owner upgrade/lock/clone; selected reference-return lenders become explicit Rust lifetimes; shared ref alone keeps Arc/Mutex ownership, while an ordinary observer of the same explicitly shared owner uses a non-owning weak handle
+reference_escape: returns are accepted only when provenance reaches the selected external lender; ambiguous call-result lender paths, local or by-value-parameter return, post-lifetime-end use, and ref-to-shared-ref promotion are source errors
 resource_ownership: inferred transitively from compiler-known noncopyable fields; no 'linear class' qualifier
 resource_assignment: transfers identity and makes source unavailable; no 'move' ceremony required; loop-body declarations initialize a fresh binding value on every iteration, so their consumed state does not cross the back-edge, while moved bindings originating outside the loop remain unavailable on later iterations until explicitly rebound
 resource_argument: a statically non-copyable value passed by value transfers automatically; lowering may use a target-language move
@@ -525,7 +527,7 @@ shadowing: a namespace-local binding may shadow a distinct program-global consta
 parameter_and_for_target_reassignment: allowed within lexical scope; value semantics preserve caller arguments and iterated collections
 lowering_mutability: emit mutable target storage only when resolver-backed write analysis finds a reassignment
 cleanup: deterministic lexical destruction; each independently owned source value has one lifecycle lineage and invokes each applicable `destruct` once when that lineage ends, ordered most-derived class to root base; value separation copies state into a fresh lineage, compiler representation clones cannot multiply the hook, transfer moves it, and `ref` never delays it
-cycles: only `shared ref` can form ownership cycles; never promise deterministic collection; reject provable cycles or diagnose/document leak
+cycles: only `shared ref` forms ownership edges; the native target rejects statically provable strong cycles in descriptor fields, including through collection element types, while acyclic shared fields remain valid; later mutation-created cycles not visible in that graph are not collected and must be broken explicitly; ordinary `ref` back-edges are excluded
 ```
 
 Reference choice, in expected order of frequency:

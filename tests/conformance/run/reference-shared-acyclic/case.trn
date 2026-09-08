@@ -1,0 +1,14 @@
+namespace reference-shared-acyclic
+
+class leaf
+  value int = 7
+
+function make-leaf shared ref leaf;
+  return shared ref (instance leaf;)
+
+class holder
+  child shared ref leaf = make-leaf;
+
+function main;
+  owner = instance holder;
+  print; owner.child.value

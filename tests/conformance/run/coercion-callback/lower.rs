@@ -1,10 +1,7 @@
-// Generated deterministically by Terrane 0.1.0.
+// Generated deterministically by Terrane <version>.
 type TerraneSite = u32;
 const TERRANE_NO_SITE: TerraneSite = u32::MAX;
-#[allow(
-    dead_code,
-    reason = "custom descriptors are absent from some lowered programs"
-)]
+#[allow(dead_code, reason = "custom descriptors are absent from some lowered programs")]
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 struct DescriptorId(u16);
 #[allow(
@@ -50,7 +47,9 @@ impl TerraneErrorKind {
             Self::DecodeError => "invalid byte sequence for selected encoding",
             Self::IndexError => "collection index is out of range",
             Self::MissingKey => "collection key is absent",
-            Self::ResourceError => "integer shift count cannot be represented on this target",
+            Self::ResourceError => {
+                "integer shift count cannot be represented on this target"
+            }
             Self::SourceError => "source error",
         }
     }
@@ -68,9 +67,9 @@ pub struct TerraneError {
     detail: Option<Box<TerraneErrorDetail>>,
 }
 #[cfg(target_pointer_width = "64")]
-const _: () = assert!(std::mem::size_of::<TerraneError>() == 16);
+const _: () = assert!(std::mem::size_of::< TerraneError > () == 16);
 #[cfg(target_pointer_width = "64")]
-const _: () = assert!(std::mem::size_of::<Result<i64, TerraneError>>() == 16);
+const _: () = assert!(std::mem::size_of::< Result < i64, TerraneError >> () == 16);
 #[allow(
     dead_code,
     reason = "one canonical runtime implementation serves every lowered error shape"
@@ -79,11 +78,7 @@ impl TerraneError {
     #[cold]
     #[inline(never)]
     fn raised(kind: TerraneErrorKind, origin: TerraneSite) -> Self {
-        Self {
-            kind,
-            origin,
-            detail: None,
-        }
+        Self { kind, origin, detail: None }
     }
     #[cold]
     #[inline(never)]
@@ -95,17 +90,20 @@ impl TerraneError {
         Self {
             kind,
             origin,
-            detail: Some(Box::new(TerraneErrorDetail {
-                message: Some(message.into()),
-                cause: None,
-                frames: Vec::new(),
-            })),
+            detail: Some(
+                Box::new(TerraneErrorDetail {
+                    message: Some(message.into()),
+                    cause: None,
+                    frames: Vec::new(),
+                }),
+            ),
         }
     }
     #[cold]
     #[inline(never)]
     fn with_cause(mut self, cause: TerraneError) -> Self {
-        self.detail
+        self
+            .detail
             .get_or_insert_with(|| {
                 Box::new(TerraneErrorDetail {
                     message: None,
@@ -216,7 +214,8 @@ impl TerraneRaised for terrane_int_support::ArithmeticError {
                     origin,
                 )
             }
-            error @ (ArithmeticError::InvalidRadix | ArithmeticError::InvalidRadixText) => {
+            error @ (ArithmeticError::InvalidRadix
+            | ArithmeticError::InvalidRadixText) => {
                 TerraneError::raised_with_message(
                     TerraneErrorKind::CoercionError,
                     error.to_string(),
@@ -228,22 +227,38 @@ impl TerraneRaised for terrane_int_support::ArithmeticError {
 }
 impl TerraneRaised for terrane_string_support::DecodeError {
     fn raised(self, origin: TerraneSite) -> TerraneError {
-        TerraneError::raised_with_message(TerraneErrorKind::DecodeError, self.to_string(), origin)
+        TerraneError::raised_with_message(
+            TerraneErrorKind::DecodeError,
+            self.to_string(),
+            origin,
+        )
     }
 }
 impl TerraneRaised for terrane_collection_support::IndexError {
     fn raised(self, origin: TerraneSite) -> TerraneError {
-        TerraneError::raised_with_message(TerraneErrorKind::IndexError, self.to_string(), origin)
+        TerraneError::raised_with_message(
+            TerraneErrorKind::IndexError,
+            self.to_string(),
+            origin,
+        )
     }
 }
 impl TerraneRaised for terrane_collection_support::MissingKey {
     fn raised(self, origin: TerraneSite) -> TerraneError {
-        TerraneError::raised_with_message(TerraneErrorKind::MissingKey, self.to_string(), origin)
+        TerraneError::raised_with_message(
+            TerraneErrorKind::MissingKey,
+            self.to_string(),
+            origin,
+        )
     }
 }
 impl TerraneRaised for terrane_collection_support::RangeStepError {
     fn raised(self, origin: TerraneSite) -> TerraneError {
-        TerraneError::raised_with_message(TerraneErrorKind::SourceError, self.to_string(), origin)
+        TerraneError::raised_with_message(
+            TerraneErrorKind::SourceError,
+            self.to_string(),
+            origin,
+        )
     }
 }
 #[allow(
@@ -269,7 +284,10 @@ fn __terrane_trace_error(error: TerraneError, frame: TerraneSite) -> TerraneErro
     reason = "terminating fresh failures are absent from some lowered programs"
 )]
 #[inline]
-fn __terrane_raised<T, E: TerraneRaised>(result: Result<T, E>, origin: TerraneSite) -> T {
+fn __terrane_raised<T, E: TerraneRaised>(
+    result: Result<T, E>,
+    origin: TerraneSite,
+) -> T {
     result.unwrap_or_else(|error| __terrane_raise(error, origin))
 }
 #[allow(
@@ -278,7 +296,10 @@ fn __terrane_raised<T, E: TerraneRaised>(result: Result<T, E>, origin: TerraneSi
 )]
 #[cold]
 #[inline(never)]
-fn __terrane_fresh_error<E: TerraneRaised>(error: E, origin: TerraneSite) -> TerraneError {
+fn __terrane_fresh_error<E: TerraneRaised>(
+    error: E,
+    origin: TerraneSite,
+) -> TerraneError {
     error.raised(origin)
 }
 #[allow(
@@ -294,12 +315,8 @@ fn __terrane_raised_err<T, E: TerraneRaised>(
 }
 macro_rules! __terrane_raised_completion {
     ($result:expr, $origin:expr) => {
-        match $result {
-            Ok(value) => value,
-            Err(error) => {
-                return TerraneCompletion::Error(__terrane_fresh_error(error, $origin));
-            }
-        }
+        match $result { Ok(value) => value, Err(error) => { return
+        TerraneCompletion::Error(__terrane_fresh_error(error, $origin)); } }
     };
 }
 #[allow(
@@ -308,7 +325,8 @@ macro_rules! __terrane_raised_completion {
 )]
 #[inline]
 fn __terrane_traced<T>(result: Result<T, TerraneError>, frame: TerraneSite) -> T {
-    result.unwrap_or_else(|error| __terrane_uncaught(__terrane_trace_error(error, frame)))
+    result
+        .unwrap_or_else(|error| __terrane_uncaught(__terrane_trace_error(error, frame)))
 }
 #[allow(
     dead_code,
@@ -323,12 +341,8 @@ fn __terrane_traced_err<T>(
 }
 macro_rules! __terrane_traced_completion {
     ($result:expr, $frame:expr) => {
-        match $result {
-            Ok(value) => value,
-            Err(error) => {
-                return TerraneCompletion::Error(__terrane_trace_error(error, $frame));
-            }
-        }
+        match $result { Ok(value) => value, Err(error) => { return
+        TerraneCompletion::Error(__terrane_trace_error(error, $frame)); } }
     };
 }
 fn __terrane_uncaught(error: TerraneError) -> ! {
@@ -441,12 +455,9 @@ mod __terrane_trace {
     pub fn render(site: u32) -> String {
         let site = &SITES[usize::try_from(site).expect("site id must fit usize")];
         format!(
-            "{} ({}:{}:{}-{}:{})",
-            FUNCTIONS[usize::try_from(site.function).expect("function id must fit usize")],
-            FILES[usize::try_from(site.file).expect("file id must fit usize")],
-            site.line,
-            site.column,
-            site.end_line,
+            "{} ({}:{}:{}-{}:{})", FUNCTIONS[usize::try_from(site.function)
+            .expect("function id must fit usize")], FILES[usize::try_from(site.file)
+            .expect("file id must fit usize")], site.line, site.column, site.end_line,
             site.end_column,
         )
     }
@@ -454,10 +465,7 @@ mod __terrane_trace {
 // Source: case.trn
 // Namespace: coercion-callback
 fn source() -> terrane_int_support::Int {
-    println!(
-        "{}",
-        terrane_scalar_support::scalar_text(&String::from("source"))
-    );
+    println!("{}", terrane_scalar_support::scalar_text(&String::from("source")));
     return terrane_int_support::Int::from(7_i128);
 }
 fn render(__trn_5f76616c7565: terrane_int_support::Int) -> String {
@@ -477,67 +485,60 @@ impl Renderer {
 }
 fn fail(__trn_5f76616c7565: terrane_int_support::Int) -> Result<String, TerraneError> {
     let _ = &__trn_5f76616c7565;
-    return Err(TerraneError::raised(
-        TerraneErrorKind::CoercionError,
-        0, /* terrane-site: case.trn:17:3-17:23 */
-    ));
+    return Err(
+        TerraneError::raised(
+            TerraneErrorKind::CoercionError,
+            0 /* terrane-site: case.trn:17:3-17:23 */,
+        ),
+    );
 }
 fn wrap() -> Result<String, TerraneError> {
-    return Ok(__terrane_traced_err(
-        std::sync::Arc::new(fail)(terrane_int_support::Int::from(7_i128)),
-        1, /* terrane-site: case.trn:20:11-20:19 */
-    )?);
+    return Ok(
+        __terrane_traced_err(
+            std::sync::Arc::new(fail)(terrane_int_support::Int::from(7_i128)),
+            1 /* terrane-site: case.trn:20:11-20:19 */,
+        )?,
+    );
 }
 fn main() {
     println!(
         "{}",
-        terrane_scalar_support::scalar_text(&__terrane_traced(
-            std::sync::Arc::new(move |argument_0: terrane_int_support::Int| Ok(render(argument_0)))(
-                source()
-            ),
-            2 /* terrane-site: case.trn:23:11-23:27 */
-        ))
+        terrane_scalar_support::scalar_text(&__terrane_traced(std::sync::Arc::new(move |
+        argument_0 : terrane_int_support::Int | Ok(render(argument_0))) (source()),
+        2 /* terrane-site: case.trn:23:11-23:27 */))
     );
     let closure: std::sync::Arc<
         dyn Fn(terrane_int_support::Int) -> Result<String, TerraneError> + Send + Sync,
     > = {
-        std::sync::Arc::new(
-            move |__trn_5f76616c7565: terrane_int_support::Int| -> Result<String, TerraneError> {
-                return Ok(String::from("closure"));
-            },
-        )
+        std::sync::Arc::new(move |
+            __trn_5f76616c7565: terrane_int_support::Int,
+        | -> Result<String, TerraneError> {
+            return Ok(String::from("closure"));
+        })
     };
     let service: Renderer = Renderer::terrane_construct();
     let bound: std::sync::Arc<
         dyn Fn(terrane_int_support::Int) -> Result<String, TerraneError> + Send + Sync,
     > = {
         let receiver = service;
-        std::sync::Arc::new(move |argument_0: terrane_int_support::Int| {
-            Ok(receiver.render(argument_0))
-        })
+        std::sync::Arc::new(move |argument_0: terrane_int_support::Int| Ok(
+            receiver.render(argument_0),
+        ))
     };
     println!(
-        "{}",
-        terrane_scalar_support::scalar_text(&__terrane_traced(
-            closure.clone()(terrane_int_support::Int::from(8_i128)),
-            3 /* terrane-site: case.trn:28:11-28:19 */
-        ))
+        "{}", terrane_scalar_support::scalar_text(&__terrane_traced(closure.clone()
+        (terrane_int_support::Int::from(8_i128)), 3 /* terrane-site: case.trn:28:11-28:19 */))
     );
     println!(
-        "{}",
-        terrane_scalar_support::scalar_text(&__terrane_traced(
-            bound.clone()(terrane_int_support::Int::from(9_i128)),
-            4 /* terrane-site: case.trn:29:11-29:19 */
-        ))
+        "{}", terrane_scalar_support::scalar_text(&__terrane_traced(bound.clone()
+        (terrane_int_support::Int::from(9_i128)), 4 /* terrane-site: case.trn:29:11-29:19 */))
     );
     let __terrane_completion_0: TerraneCompletion<()> = (|| {
         let __terrane_try_0: TerraneCompletion<()> = (|| {
             println!(
                 "{}",
-                terrane_scalar_support::scalar_text(&__terrane_traced_completion!(
-                    wrap(),
-                    5 /* terrane-site: case.trn:31:13-31:18 */
-                ))
+                terrane_scalar_support::scalar_text(&__terrane_traced_completion!(wrap(),
+                5 /* terrane-site: case.trn:31:13-31:18 */))
             );
             TerraneCompletion::Normal
         })();
@@ -548,7 +549,8 @@ fn main() {
             TerraneCompletion::Normal => {}
             TerraneCompletion::Error(__terrane_error_0) => {
                 let mut __terrane_handled_0 = false;
-                if !__terrane_handled_0 && __terrane_error_0.kind == TerraneErrorKind::CoercionError
+                if !__terrane_handled_0
+                    && __terrane_error_0.kind == TerraneErrorKind::CoercionError
                 {
                     __terrane_handled_0 = true;
                     println!(
@@ -572,5 +574,3 @@ fn main() {
         }
     }
 }
-// Generated Rust form: standalone
-// Vendored support crates: terrane-int-support, terrane-scalar-support, terrane-string-support, terrane-stream-abi

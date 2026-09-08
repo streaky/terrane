@@ -432,7 +432,7 @@ impl Holder {
         self.value = amount.clone();
     }
 }
-fn pass(value: &terrane_int_support::Int) -> &terrane_int_support::Int {
+fn pass<'a>(value: &'a terrane_int_support::Int) -> &'a terrane_int_support::Int {
     return value;
 }
 fn consume(__trn_5f76616c7565: &terrane_int_support::Int) {

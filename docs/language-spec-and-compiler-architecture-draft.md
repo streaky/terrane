@@ -2268,6 +2268,23 @@ observed by `alias`. Rebinding or destroying `copy` ends that identity's lifetim
 retain it. The compiler rejects any later direct use of `alias` and identifies the originating
 binding and lifetime-ending operation.
 
+The compiler represents that proof as one whole-path provenance record: the originating owner,
+whether the path reaches a reference parameter supplied by the caller, ordered field, collection-
+element, and call-result projections, and the first later operation that can end the path's
+lifetime. Parentheses preserve the same path. List, map, and unordered-map element borrows are
+admitted because their storage access has a lowering with a stable borrow for the proven lifetime;
+an index form without such a contract is rejected rather than copied or reinterpreted. Mutating a
+collection through an ordinary owner can invalidate its element paths and ends those borrows.
+Binding, passing, returning, closure capture, borrowed iteration, and an allowed async suspension
+copy or narrow the proof; none may widen it.
+
+A reference-returning callable has a lender contract derived from its body, not from parameter
+count. Its return flow must select exactly one reference parameter, including through another
+reference-returning call; analysis reaches a fixed point across such calls. A by-value parameter,
+local value, or branch that can select more than one lender cannot supply a returned reference.
+Native lowering assigns the selected parameter lifetime to the result and leaves unrelated
+reference parameters independent.
+
 `ref` aliases a logical value identity, not a lexical binding slot. Rebinding `a` does not retarget
 an existing reference to the replacement value. Binding-slot aliases are deliberately not part of
 the core language because they complicate closures, concurrency, and source reasoning.
@@ -2283,11 +2300,13 @@ remains alive until its final ordinary or shared owner is released. This lifetim
 the possibility of shared-ownership cycles, is why `shared` appears at the construction site
 rather than being implicit in `ref`.
 
-For the current native target, `shared ref` uses reference-counted synchronized ownership.
-Statically provable initialization ownership cycles are rejected. A cycle assembled later through
-authored mutation is not traced or collected automatically and may retain its members until process
-exit; applications must break such a cycle explicitly. Ordinary `ref` projections and back-edges
-are non-owning and are excluded from ownership-cycle edges.
+For the current native target, `shared ref` uses reference-counted synchronized ownership. The
+compiler rejects a descriptor field graph containing a statically provable strong `shared ref`
+cycle, including a cycle through collection element types, and reports the field that closes the
+cycle. An acyclic shared field remains valid. A cycle assembled later through authored mutation
+that is not visible in the descriptor graph is not traced or collected automatically and may retain
+its members until process exit; applications must break such a cycle explicitly. Ordinary `ref`
+projections and back-edges are non-owning and are excluded from ownership-cycle edges.
 
 ### 12.5 Reference type contracts
 

@@ -1,4 +1,4 @@
-// Generated deterministically by Terrane 0.1.0.
+// Generated deterministically by Terrane <version>.
 // Source: case.trn
 // Namespace: structural-protocol-composition
 #[derive(Clone)]
@@ -17,7 +17,9 @@ impl Cursor {
     pub fn terrane_construct() -> Self {
         Self {}
     }
-    pub fn next(&self) -> terrane_collection_support::IterationStep<terrane_int_support::Int> {
+    pub fn next(
+        &self,
+    ) -> terrane_collection_support::IterationStep<terrane_int_support::Int> {
         return terrane_collection_support::IterationStep::End;
     }
 }
@@ -34,10 +36,7 @@ impl Values {
 fn main() {
     let value: Gate = Gate::terrane_construct();
     if value.truth() {
-        println!(
-            "{}",
-            terrane_scalar_support::scalar_text(&String::from("truth"))
-        );
+        println!("{}", terrane_scalar_support::scalar_text(&String::from("truth")));
     }
     let source: Values = Values::terrane_construct();
     let mut __terrane_iterator_0 = source.iterator();
@@ -48,10 +47,5 @@ fn main() {
         };
         println!("{}", terrane_scalar_support::scalar_text(&item));
     }
-    println!(
-        "{}",
-        terrane_scalar_support::scalar_text(&String::from("end"))
-    );
+    println!("{}", terrane_scalar_support::scalar_text(&String::from("end")));
 }
-// Generated Rust form: standalone
-// Vendored support crates: terrane-int-support, terrane-scalar-support, terrane-string-support, terrane-stream-abi

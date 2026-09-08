@@ -377,28 +377,39 @@ mod __terrane_trace {
         pub end_column: u32,
     }
     pub static FILES: [&str; 1] = ["case.trn"];
-    pub static FUNCTIONS: [&str; 1] = ["/references-provenance::main"];
-    pub static SITES: [Site; 2] = [
+    pub static FUNCTIONS: [&str; 1] = ["/reference-group-map::main"];
+    pub static SITES: [Site; 3] = [
         {
-            /* terrane-site-row: site 0: /references-provenance::main (case.trn:10:25-10:36) */
+            /* terrane-site-row: site 0: /reference-group-map::main (case.trn:6:26-6:35) */
+            Site {
+                function: 0,
+                file: 0,
+                line: 6,
+                column: 26,
+                end_line: 6,
+                end_column: 35,
+            }
+        },
+        {
+            /* terrane-site-row: site 1: /reference-group-map::main (case.trn:8:31-8:48) */
+            Site {
+                function: 0,
+                file: 0,
+                line: 8,
+                column: 31,
+                end_line: 8,
+                end_column: 48,
+            }
+        },
+        {
+            /* terrane-site-row: site 2: /reference-group-map::main (case.trn:10:33-10:52) */
             Site {
                 function: 0,
                 file: 0,
                 line: 10,
-                column: 25,
+                column: 33,
                 end_line: 10,
-                end_column: 36,
-            }
-        },
-        {
-            /* terrane-site-row: site 1: /references-provenance::main (case.trn:13:10-13:24) */
-            Site {
-                function: 0,
-                file: 0,
-                line: 13,
-                column: 10,
-                end_line: 13,
-                end_column: 24,
+                end_column: 52,
             }
         },
     ];
@@ -415,45 +426,63 @@ mod __terrane_trace {
     }
 }
 // Source: case.trn
-// Namespace: references-provenance
+// Namespace: reference-group-map
 fn main() {
-    let values: std::sync::Arc<
-        std::sync::Mutex<terrane_collection_support::List<terrane_int_support::Int>>,
-    > = std::sync::Arc::new(
-        std::sync::Mutex::new(
-            terrane_collection_support::List::<
-                terrane_int_support::Int,
-            >::new(vec![terrane_int_support::Int::from(1_i128)]),
-        ),
-    );
-    let owner: std::sync::Arc<
-        std::sync::Mutex<terrane_collection_support::List<terrane_int_support::Int>>,
-    > = values.clone();
-    let observer: std::sync::Weak<
-        std::sync::Mutex<terrane_collection_support::List<terrane_int_support::Int>>,
-    > = std::sync::Arc::downgrade(&values.clone());
-    owner
-        .lock()
-        .expect("shared reference lock poisoned")
-        .append(terrane_int_support::Int::from(2_i128));
-    println!(
-        "{}{}", terrane_scalar_support::scalar_text(&terrane_int_support::Int::from({ let
-        __terrane_value = values.lock().expect("reference lock poisoned").clone();
-        __terrane_value } .length())),
-        terrane_scalar_support::scalar_text(&__terrane_raised({ let __terrane_owner =
-        observer.upgrade().expect("reference expired"); let __terrane_value =
-        __terrane_owner.lock().expect("reference lock poisoned").clone(); __terrane_value
-        }
-        .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(1_i128)),
-        0 /* terrane-site: case.trn:10:25-10:36 */)), 0 /* terrane-site: case.trn:10:25-10:36 */))
-    );
-    let owned: terrane_collection_support::List<terrane_int_support::Int> = terrane_collection_support::List::<
+    let values: terrane_collection_support::List<terrane_int_support::Int> = terrane_collection_support::List::<
         terrane_int_support::Int,
-    >::new(vec![terrane_int_support::Int::from(9_i128)]);
-    let transferred: terrane_collection_support::List<terrane_int_support::Int> = owned;
+    >::new(vec![terrane_int_support::Int::from(7_i128)]);
+    let grouped: &terrane_int_support::Int = {
+        let __terrane_index = __terrane_raised(
+            terrane_collection_support::index_from_int(
+                &terrane_int_support::Int::from(0_i128),
+            ),
+            0 /* terrane-site: case.trn:6:26-6:35 */,
+        );
+        __terrane_raised(
+            values
+                .get(__terrane_index)
+                .ok_or_else(|| terrane_collection_support::IndexError::from_usize(
+                    __terrane_index,
+                )),
+            0 /* terrane-site: case.trn:6:26-6:35 */,
+        )
+    };
+    let ordered: terrane_collection_support::Map<String, terrane_int_support::Int> = terrane_collection_support::Map::<
+        String,
+        terrane_int_support::Int,
+    >::new(
+        vec![
+            terrane_collection_support::Entry::new(String::from("answer"),
+            terrane_int_support::Int::from(42_i128))
+        ],
+    );
+    let ordered_value: &terrane_int_support::Int = __terrane_raised(
+        ordered
+            .get(&String::from("answer"))
+            .ok_or(terrane_collection_support::MissingKey),
+        1 /* terrane-site: case.trn:8:31-8:48 */,
+    );
+    let unordered: terrane_collection_support::UnorderedMap<
+        String,
+        terrane_int_support::Int,
+    > = terrane_collection_support::UnorderedMap::<
+        String,
+        terrane_int_support::Int,
+    >::new(
+        vec![
+            terrane_collection_support::Entry::new(String::from("answer"),
+            terrane_int_support::Int::from(43_i128))
+        ],
+    );
+    let unordered_value: &terrane_int_support::Int = __terrane_raised(
+        unordered
+            .get(&String::from("answer"))
+            .ok_or(terrane_collection_support::MissingKey),
+        2 /* terrane-site: case.trn:10:33-10:52 */,
+    );
     println!(
-        "{}", terrane_scalar_support::scalar_text(&__terrane_raised(transferred
-        .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
-        1 /* terrane-site: case.trn:13:10-13:24 */)), 1 /* terrane-site: case.trn:13:10-13:24 */))
+        "{}{}{}", terrane_scalar_support::scalar_text(&grouped.clone()),
+        terrane_scalar_support::scalar_text(&ordered_value.clone()),
+        terrane_scalar_support::scalar_text(&unordered_value.clone())
     );
 }

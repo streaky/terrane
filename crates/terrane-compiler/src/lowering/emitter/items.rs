@@ -1116,6 +1116,11 @@ impl Emitter<'_> {
                 return_type
             }
         });
+        let reference_lender = self
+            .unit
+            .reference_return_lenders
+            .get(&(contract.span.file, contract.span.start, contract.span.end))
+            .copied();
         if receiver.is_none()
             && contract.owner.is_none()
             && contract.name != "main"
@@ -1130,7 +1135,7 @@ impl Emitter<'_> {
         let async_main = contract.is_async && contract.name == "main" && receiver.is_none();
         write!(
             self.output,
-            "{}{}fn {name}(",
+            "{}{}fn {name}{}(",
             if contract.owner.is_some() || (receiver.is_none() && self.unit.bundled) {
                 "pub "
             } else {
@@ -1140,7 +1145,12 @@ impl Emitter<'_> {
                 "async "
             } else {
                 ""
-            }
+            },
+            if reference_lender.is_some() {
+                "<'a>"
+            } else {
+                ""
+            },
         )
         .unwrap();
         if let Some(receiver) = receiver {
@@ -1150,10 +1160,15 @@ impl Emitter<'_> {
             if receiver.is_some() || index != 0 {
                 self.output.push_str(", ");
             }
-            let ty = parameter.value_type.clone().map_or_else(
-                || "i128".to_owned(),
-                |value_type| rust_value_type(self.package, value_type),
-            );
+            let ty = match (&parameter.value_type, reference_lender == Some(index)) {
+                (Some(ValueType::Reference(item)), true) => {
+                    format!("&'a {}", rust_element_type(self.package, item.clone()))
+                }
+                _ => parameter.value_type.clone().map_or_else(
+                    || "i128".to_owned(),
+                    |value_type| rust_value_type(self.package, value_type),
+                ),
+            };
             let mutable = if parameter.mutable { "mut " } else { "" };
             write!(self.output, "{mutable}{}: {ty}", rust_name(&parameter.name)).unwrap();
         }
@@ -1162,18 +1177,24 @@ impl Emitter<'_> {
         if function_errors {
             let result = return_type.clone().map_or_else(
                 || "()".to_owned(),
-                |value_type| rust_value_type(self.package, value_type),
+                |value_type| match value_type {
+                    ValueType::Reference(item) if reference_lender.is_some() => {
+                        format!("&'a {}", rust_element_type(self.package, item))
+                    }
+                    value_type => rust_value_type(self.package, value_type),
+                },
             );
             write!(self.output, " -> Result<{result}, TerraneError>").unwrap();
         } else if let Some(return_type) = return_type.clone()
             && return_type != ValueType::Scalar(ScalarType::None)
         {
-            write!(
-                self.output,
-                " -> {}",
-                rust_value_type(self.package, return_type)
-            )
-            .unwrap();
+            let return_type = match return_type {
+                ValueType::Reference(item) if reference_lender.is_some() => {
+                    format!("&'a {}", rust_element_type(self.package, item))
+                }
+                return_type => rust_value_type(self.package, return_type),
+            };
+            write!(self.output, " -> {return_type}").unwrap();
         }
         let block = node
             .children
