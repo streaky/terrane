@@ -218,28 +218,34 @@ Exit criterion: accepted cases convert an otherwise undeclared pair through name
 
 ### Milestone 16 — Unify objects with the descriptor model
 
-Classes, inheritance, explicitly declared nominal interfaces, traits, lifecycle methods, and typed dynamic dispatch are complete. The earlier plan's “structural named interfaces” wording is superseded: the settled language makes class, interface, and trait types nominal, while protocols are the structural layer. It is not remaining work.
+Classes, inheritance, explicitly declared nominal interfaces, traits, lifecycle methods, and typed dynamic dispatch are complete, and the settled nominal/structural split — class, interface, and trait types nominal, protocols structural — supersedes the earlier plan’s “structural named interfaces” wording rather than remaining work.
+
+What remains is this milestone’s fourth original requirement, dispatch and compatibility over the descriptor model rather than a parallel class table, which did not ship alongside the class work. Source objects are described by a compiler-owned object contract table that semantic analysis and lowering read directly at every member, conformance, dispatch, and emission site. The descriptor model it was meant to defer to admits only the built-in `/core/types` descriptors and nothing declared in source, and structural satisfaction exists only as per-protocol special cases such as the iteration check. The canonical model therefore has to be built before object semantics can be routed through it; this is a deferred design constraint being paid back, not new source-visible capability beyond general protocol satisfaction.
 
 Deliver:
 
-- replace the compiler-owned parallel class/object contract table with the semantic descriptor and protocol model used by the rest of the language;
-- route member lookup, compatibility, interface declarations, protocol satisfaction, dispatch metadata, and reflection through that single model; and
-- preserve namespace-qualified nominal identity, inherited dynamic state, receiver mutability, lifecycle composition, and explicit trait conflict resolution during the cutover.
+- a canonical descriptor representation for source-declared classes, interfaces, and traits, admitting declared objects into the same model that today holds only built-in descriptors;
+- structural protocol satisfaction as a general query over that model, with the existing iteration protocol re-expressed as one instance of it rather than a hardcoded result-shape check;
+- member lookup, type compatibility, interface conformance, dispatch metadata, and reflection answered from the canonical model, retiring the compiler-owned object contract table from semantic analysis and lowering rather than maintaining it alongside them; and
+- namespace-qualified nominal identity, inherited dynamic state, receiver mutability, lifecycle composition, and explicit trait conflict resolution preserved across the cutover.
 
-Exit criterion: no parallel object contract table decides source semantics; existing class/interface/trait conformance remains executable unchanged; protocol satisfaction and descriptor reflection observe the same canonical contracts; rejected cases retain source-oriented diagnostics.
+Exit criterion: a source class satisfies a structural protocol other than iteration without declaring an interface; no parallel object contract table decides source semantics; existing class/interface/trait conformance remains executable unchanged; protocol satisfaction and descriptor reflection answer from the same canonical contracts; rejected cases retain source-oriented diagnostics.
 
 ### Milestone 17 — Complete references, provenance, and lowering
 
-The source forms `ref`, `shared ref`, and `move`, replacement invalidation, explicit ownership transfer, basic escape checking, reference-backed storage, and directly provable async-local ownership are complete. The remaining work is whole-path provenance and the intended cost model.
+The source forms `ref`, `shared ref`, and `move`, replacement invalidation, explicit ownership transfer, reference-backed storage, and directly provable async-local ownership are complete. The remaining work is whole-path provenance and the intended cost model, neither of which exists yet in partial form.
+
+Provenance has no representation today: a reference type carries its pointee type and nothing about where it came from. In place of a proof, `ref` is admitted only where provenance is trivial — a plain name bound to a local binding — and every other origin is refused, as is every returned reference. The narrow accepted set is not a partial analysis to extend but a stand-in for the analysis, so the proof has to be introduced before the constructs below can be admitted at all. The representation is likewise provisional rather than incomplete: `ref` and `shared ref` lower uniformly to weak and strong reference-counted handles under a mutex, every read upgrades, locks, and clones the owner, and an expired reference panics at run time where the language promises a source-level rejection.
 
 Deliver:
 
-- complete lifetime proof for non-owning references through parameters, returns, fields, member access, indexing, iteration, destructuring, calls, capture, and async suspension;
-- preserve or narrow provenance for every derived reference and diagnose release/escape at the originating owner and lifetime-ending operation;
-- implement the settled target-aware shared-cycle rule: reject provable cycles where the target contract requires it, never mistake ordinary `ref` back-edges for ownership cycles, and diagnose or document runtime-created uncollectable shared cycles according to the selected target; and
-- replace clone-per-read correctness lowering with borrow-oriented or target-specific non-owning handles wherever provenance proves them sound, without silently promoting `ref` to shared ownership or introducing universal locking.
+- a provenance representation in the semantic model, recording each non-owning reference’s originating owner and the operations that end its lifetime;
+- admission of derived references as that proof covers them — through parameters, returns, fields, member access, indexing, iteration, destructuring, calls, capture, and async suspension — replacing the present blanket refusal of every origin other than a local named binding;
+- release and escape diagnosed at the originating owner and the lifetime-ending operation, moving expiry from a runtime panic to a source-level rejection;
+- the settled target-aware shared-cycle rule: reject provable ownership cycles where the target contract requires it, never mistake ordinary `ref` back-edges for ownership cycles, and diagnose or document runtime-created uncollectable shared cycles according to the selected target; and
+- borrow-oriented or target-specific non-owning handles wherever provenance proves them sound, retiring the uniform reference counting, locking, and clone-per-read rather than only declining to add more, and without silently promoting `ref` to shared ownership.
 
-Exit criterion: bounded borrows and derived references execute without extending owner lifetime; every escape and post-release use is rejected in source terms; async crossings are accepted only with a complete lender proof; cycle cases match the target contract; reviewed generated Rust no longer clones each referenced value merely to read it.
+Exit criterion: references derived from fields, elements, and call results are accepted under a complete owner proof, and returned references are decided by that proof rather than uniformly refused; every escape and post-release use is rejected in source terms instead of panicking at run time; async crossings are accepted only with a complete lender proof; cycle cases match the target contract; reviewed generated Rust reads a bounded reference without upgrading, locking, or cloning its owner.
 
 ### Milestone 25.3 — Finish the foundational floating-point surface
 
