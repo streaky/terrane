@@ -1,0 +1,8 @@
+namespace builtin-iterator-reuse
+from /core/collections import iterator
+function main;
+  items = iterator; 1, 2
+  for first in items
+    print; first
+  for repeated in items
+    print; repeated

@@ -4,18 +4,18 @@ use unicode_normalization::UnicodeNormalization;
 use unicode_segmentation::UnicodeSegmentation;
 
 /// Unicode Character Database version shared by text segmentation, normalization, and folding.
-pub const UNICODE_DATA_VERSION: (u8, u8, u8) = (16, 0, 0);
+pub const UNICODE_DATA_VERSION: (u64, u64, u64) = (16, 0, 0);
 
 const _: () = {
-    assert!(caseless::UNICODE_VERSION.0 == 16);
-    assert!(caseless::UNICODE_VERSION.1 == 0);
-    assert!(caseless::UNICODE_VERSION.2 == 0);
-    assert!(unicode_normalization::UNICODE_VERSION.0 == 16);
-    assert!(unicode_normalization::UNICODE_VERSION.1 == 0);
-    assert!(unicode_normalization::UNICODE_VERSION.2 == 0);
-    assert!(unicode_segmentation::UNICODE_VERSION.0 == 16);
-    assert!(unicode_segmentation::UNICODE_VERSION.1 == 0);
-    assert!(unicode_segmentation::UNICODE_VERSION.2 == 0);
+    assert!(caseless::UNICODE_VERSION.0 == UNICODE_DATA_VERSION.0);
+    assert!(caseless::UNICODE_VERSION.1 == UNICODE_DATA_VERSION.1);
+    assert!(caseless::UNICODE_VERSION.2 == UNICODE_DATA_VERSION.2);
+    assert!(unicode_normalization::UNICODE_VERSION.0 as u64 == UNICODE_DATA_VERSION.0);
+    assert!(unicode_normalization::UNICODE_VERSION.1 as u64 == UNICODE_DATA_VERSION.1);
+    assert!(unicode_normalization::UNICODE_VERSION.2 as u64 == UNICODE_DATA_VERSION.2);
+    assert!(unicode_segmentation::UNICODE_VERSION.0 == UNICODE_DATA_VERSION.0);
+    assert!(unicode_segmentation::UNICODE_VERSION.1 == UNICODE_DATA_VERSION.1);
+    assert!(unicode_segmentation::UNICODE_VERSION.2 == UNICODE_DATA_VERSION.2);
 };
 
 /// Returns the number of user-perceived characters using Unicode extended

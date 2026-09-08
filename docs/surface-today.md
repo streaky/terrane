@@ -513,12 +513,10 @@ none value
 ### `bytes`
 
 `bytes` is an implemented sequence value with `b'...'` literals and `.length`. It has no
-blanket scalar-display implementation, so raw bytes cannot reach `print`. `.decode;
-encoding` validates input and reports `decode-error` with its canonical encoding and byte
-offset. The canonical `utf8`, `utf16-le`, `utf16-be`, `utf32-le`, and `utf32-be` encoding
-objects are compiler-owned values; string `.encode` is total for each one. Built-in `for`
-iteration yields `uint8` values. General bytes indexing and slicing remain deferred until
-the range/index contract is implemented.
+scalar display. Integer indexing yields `uint8`; range indexing yields new `bytes` while honoring
+half-open or inclusive endpoints and authored steps. Invalid selected indices throw
+`index-error` with the authored adaptive integer retained in its message. Iteration yields
+`uint8` values.
 
 ### Collection types
 
@@ -544,6 +542,8 @@ boundaries.
 Iteration takes a value snapshot of its source collection. Mutating or replacing the source binding
 inside a `for` does not change the items remaining in that traversal; copy-on-write separates the
 mutated value while the iterator retains the original shared storage.
+Only lists currently expose `.clear`; map and set mutation intentionally use their documented
+member sets rather than inheriting a speculative uniform clear operation.
 
 ## Type descriptor objects
 
@@ -583,10 +583,13 @@ value is a D
 
 For an ordinary typed scalar, both forms compare its resolved canonical Terrane type with `D`. For a numeric constant, `value is a D` tests whether the constant is exactly admissible by `D`; for a numeric union binding, it tests the current runtime arm. The right-hand descriptor is resolved statically, and an unresolvable name fails with `T0001`. Scalar values themselves are identity-less: `is` between ordinary scalar values is false even when their values and types are equal. Operand expressions are still evaluated for their effects.
 
-Descriptor names remain compile-time identities in ordinary type positions. When reflection or dynamic descriptor observation requires a value, the compiler materializes the canonical descriptor object; source bindings may retain and print that object, and `.name` exposes its canonical source spelling. An explicit import or constant alias retains the same descriptor identity rather than creating a new descriptor.
-
-Every materialized descriptor exposes `inherently-identity-bearing`. It is true for reference and
-resource-owning type contracts and false for ordinary value types, including collections.
+Descriptor names remain compile-time identities in ordinary type positions. When reflection or
+dynamic descriptor observation requires a value, the compiler materializes the canonical
+descriptor object, including for an inline `.type` expression. Source-declared object descriptors
+retain namespace-qualified identity. A declared object field or method named `type` takes
+precedence over the universal reflection property. Every materialized descriptor exposes
+`inherently-identity-bearing`: it is true for reference and resource-owning type contracts and
+false for ordinary value types, including collections.
 
 Source-declared class instance fields accept one trailing `metadata (...)` clause. The implemented
 metadata names are string `external-name` and boolean `secret`; declared initializers and `T|none`
@@ -812,14 +815,14 @@ change the generated manifest.
 | `bytes` | `.length` | property | byte count |
 | `bytes` | `.decode; encoding` | method | validated `string` or deterministic decode error |
 | `bytes` | `[index]`, `[range]` | lookup/slice | `uint8` or new `bytes`; invalid selected index throws `index-error` |
-| collection iterator | `.next` (compiler protocol) | method | typed `item` or sticky `end` step |
-| source-defined iterable | `.iterator`, iterator `.next` | structural protocol | authored typed `iteration-step` state machine |
+| collection iterator | `.next` (compiler protocol) | method | typed item or dedicated sticky `end` step, distinct from `none` |
+| source-defined iterable | `.iterator`, iterator `.next` | structural protocol | authored typed `iteration-step` state machine with targeted malformed-contract diagnostics |
 | list / tuple | `[index]` | lookup | value or `index-error`; `.get.checked; index` returns value or `none` |
 | map / unordered map | `[key]` | lookup | value or `missing-key`; `.get.checked; key` returns value or `none` |
 | list / map / set / tuple / unordered variants | `.length` | property | adaptive `int` count |
-| list | `.append`, `.set`, `.remove`, `.clear` | methods | copy-on-write mutation with observable release points |
-| map / unordered map | `.set`, `.keys`, `.values`, `.entries` | methods | deterministic mutation/views |
-| set / unordered set | `.contains`, `.add`, `.remove` | methods | deterministic membership/mutation |
+| list | `.append`, `.set`, `.remove`, `.clear` | methods | copy-on-write mutation with observable release points; `.clear` is intentionally list-only |
+| map / unordered map | `.set`, `.keys`, `.values`, `.entries` | methods | deterministic mutation/views; no `.clear` in the current surface |
+| set / unordered set | `.contains`, `.add`, `.remove` | methods | deterministic membership/mutation; no `.clear` in the current surface |
 | entry | `.key`, `.value` | properties | cloned key/value |
 | byte reader | `.read`, `.read-exact`, `.read-all`, `.read-async` | methods | partial/exact/bounded/async byte read results |
 | byte writer | `.write`, `.write-all`, `.resume`, `.write-async` | methods | partial/complete/resumed/async byte write results |

@@ -405,6 +405,9 @@ pub(super) fn rust_value_type(package: &SemanticPackage, ty: ValueType) -> Strin
                 rust_element_type(package, item)
             )
         }
+        ValueType::IterationEnd => {
+            unreachable!("iteration-step.end is contextual and has no standalone Rust type")
+        }
         ValueType::AsyncIterationStep(item) => {
             format!(
                 "terrane_collection_support::AsyncIterationStep<{}>",

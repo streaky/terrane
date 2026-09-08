@@ -27,7 +27,7 @@ impl AnimalStorage {
     }
     pub fn class_name(&self) -> String {
         return TerraneDescriptor {
-            identity: "animal",
+            identity: "/inherited-static-factory::animal",
             name: "animal",
             kind: "class",
             inherently_identity_bearing: false,
@@ -64,7 +64,7 @@ impl Dog {
     }
     pub fn class_name(&self) -> String {
         return TerraneDescriptor {
-            identity: "dog",
+            identity: "/inherited-static-factory::dog",
             name: "dog",
             kind: "class",
             inherently_identity_bearing: false,

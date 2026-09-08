@@ -1,0 +1,9 @@
+namespace optional-member-post-if-return
+class holder
+  private static value int|none = none
+  static function initialized int;
+    if self::value == none
+      self::value = 7
+    return self::value
+function main;
+  print; (holder::initialized;)

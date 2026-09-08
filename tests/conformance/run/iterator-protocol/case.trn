@@ -4,6 +4,11 @@ function main;
   values = iterator; none, none
   for value in values
     print; value
+  exhausted = iterator; 1
+  exhausted.next;
+  exhausted.next;
+  exhausted.next;
+  print; 'end'
   text = 'A👍🏽'
   for grapheme in text
     print; grapheme

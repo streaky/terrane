@@ -1,0 +1,9 @@
+namespace source-iterator-missing-next
+class cursor
+class values
+  function iterator cursor;
+    return instance cursor;
+function main;
+  source values = instance values;
+  for item in source
+    print; item

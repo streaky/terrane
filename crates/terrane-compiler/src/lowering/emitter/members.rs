@@ -79,7 +79,7 @@ impl Emitter<'_> {
                 if receiver_type == Some(ValueType::StringList) {
                     self.fallible(
                         format!(
-                            "({receiver}).get({index}).cloned().ok_or(terrane_collection_support::IndexError {{ index: {index} }})"
+                            "({receiver}).get({index}).cloned().ok_or_else(|| terrane_collection_support::IndexError::from_usize({index}))"
                         ),
                         node,
                     )
@@ -270,11 +270,17 @@ impl Emitter<'_> {
                 ),
             };
         }
-        if self.text(member) == "type" {
+        let declared_object_member = match &receiver_type {
+            Some(ValueType::Object(identity)) => {
+                object_member_type(self.unit, identity, self.text(member), false).is_some()
+            }
+            _ => false,
+        };
+        if self.text(member) == "type" && !declared_object_member {
             let value_type = self
                 .value_type(receiver)
                 .expect("type reflection requires a known receiver type");
-            let descriptor = self.descriptor_expression(&value_type.to_string());
+            let descriptor = self.descriptor_expression(&value_type);
             let receiver = self.expression(receiver);
             return format!("{{ let _ = &({receiver}); {descriptor} }}");
         }

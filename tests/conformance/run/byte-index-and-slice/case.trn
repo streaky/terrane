@@ -23,3 +23,7 @@ function main;
     print; data[range; 0, 6].length
   catch index-error
     print; 'slice'
+  try
+    print; data[ -1]
+  catch index-error as failure
+    print; failure.message

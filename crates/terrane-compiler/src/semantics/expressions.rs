@@ -10,7 +10,7 @@ fn channel_item_descriptor_type(unit: &SemanticUnit, name: &str) -> Option<Value
     }
     unit.objects
         .iter()
-        .find(|object| object.name == name)
+        .find(|object| object.name == name || object.identity.qualified() == name)
         .map(|object| ValueType::Object(object.identity.clone()))
 }
 
@@ -100,8 +100,8 @@ pub(super) fn infer_value_type(
         }) {
             return Ok(Some(ValueType::Descriptor(scalar.source_name().to_owned())));
         }
-        if unit.objects.iter().any(|object| object.name == name) {
-            return Ok(Some(ValueType::Descriptor(name.to_owned())));
+        if let Some(object) = unit.objects.iter().find(|object| object.name == name) {
+            return Ok(Some(ValueType::Descriptor(object.identity.qualified())));
         }
         if let Some(binding) = bindings.iter().rev().find(|binding| {
             binding.name == name && binding.is_visible_at(unit.source.id(), node.span.start)

@@ -339,6 +339,14 @@ impl Emitter<'_> {
                         .collect::<Vec<_>>();
                     self.float_call(receiver_type, operation, &receiver_value, &arguments, node)
                 }
+                (ValueType::Iterator(_), "next") => {
+                    let call = format!("({receiver_value}).next()");
+                    Some(if self.discarded_call == Some(node.span) {
+                        format!("{{ let _ = {call}; }}")
+                    } else {
+                        call
+                    })
+                }
                 (ValueType::List(item), "append") => Some(format!(
                     "({{ let collection = &mut ({receiver_value}); collection.append({}); collection.clone() }})",
                     self.expression_as(values[0], item.value_type())

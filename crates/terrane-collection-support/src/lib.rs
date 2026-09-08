@@ -11,10 +11,13 @@ pub enum IterationStep<T> {
     End,
 }
 
+/// Unicode Character Database version used for collection grapheme iteration.
+pub const UNICODE_DATA_VERSION: (u64, u64, u64) = (16, 0, 0);
+
 const _: () = {
-    assert!(unicode_segmentation::UNICODE_VERSION.0 == 16);
-    assert!(unicode_segmentation::UNICODE_VERSION.1 == 0);
-    assert!(unicode_segmentation::UNICODE_VERSION.2 == 0);
+    assert!(unicode_segmentation::UNICODE_VERSION.0 == UNICODE_DATA_VERSION.0);
+    assert!(unicode_segmentation::UNICODE_VERSION.1 == UNICODE_DATA_VERSION.1);
+    assert!(unicode_segmentation::UNICODE_VERSION.2 == UNICODE_DATA_VERSION.2);
 };
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -183,7 +186,10 @@ impl<T> List<T> {
     where
         T: Clone,
     {
-        self.0.get(index).cloned().ok_or(IndexError { index })
+        self.0
+            .get(index)
+            .cloned()
+            .ok_or_else(|| IndexError::from_usize(index))
     }
     /// Returns exclusive access to the backing vector after separating shared storage.
     ///
@@ -217,7 +223,7 @@ impl<T: Clone> List<T> {
     #[inline]
     pub fn set(&mut self, index: usize, value: T) -> Result<(), IndexError> {
         let Some(slot) = self.make_unique().get_mut(index) else {
-            return Err(IndexError { index });
+            return Err(IndexError::from_usize(index));
         };
         *slot = value;
         Ok(())
@@ -230,7 +236,7 @@ impl<T: Clone> List<T> {
     #[inline]
     pub fn remove(&mut self, index: usize) -> Result<T, IndexError> {
         if index >= self.0.len() {
-            return Err(IndexError { index });
+            return Err(IndexError::from_usize(index));
         }
         Ok(self.make_unique().remove(index))
     }
@@ -292,7 +298,10 @@ impl<T> Tuple<T> {
     where
         T: Clone,
     {
-        self.0.get(index).cloned().ok_or(IndexError { index })
+        self.0
+            .get(index)
+            .cloned()
+            .ok_or_else(|| IndexError::from_usize(index))
     }
 }
 impl<T: Clone + 'static> IndexedIteration for Tuple<T> {
@@ -702,9 +711,17 @@ impl Iterable for Range {
     }
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct IndexError {
-    pub index: usize,
+    pub index: Int,
+}
+impl IndexError {
+    #[must_use]
+    pub fn from_usize(index: usize) -> Self {
+        Self {
+            index: Int::from_u128(index as u128),
+        }
+    }
 }
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct MissingKey;
@@ -737,14 +754,19 @@ impl std::error::Error for RangeStepError {}
 /// # Errors
 /// Returns [`IndexError`] when `index` is negative or does not fit in `usize`.
 pub fn index_from_int(index: &Int) -> Result<usize, IndexError> {
-    index.as_usize().ok_or(IndexError { index: usize::MAX })
+    index.as_usize().ok_or_else(|| IndexError {
+        index: index.clone(),
+    })
 }
 /// Returns one byte from a byte sequence.
 ///
 /// # Errors
 /// Returns [`IndexError`] when `index` is outside the sequence.
 pub fn byte_at(value: &[u8], index: usize) -> Result<u8, IndexError> {
-    value.get(index).copied().ok_or(IndexError { index })
+    value
+        .get(index)
+        .copied()
+        .ok_or_else(|| IndexError::from_usize(index))
 }
 
 /// Returns the bytes selected by a Terrane range.

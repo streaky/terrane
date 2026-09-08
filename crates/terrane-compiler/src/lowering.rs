@@ -27,8 +27,8 @@ mod prelude {
             TaskTransferability, TypedBinding, ValueType, binding_read_value_is_reused,
             binding_span_is_mutated, binding_store_value_is_read, bound_method,
             contextual_constant, descriptor_binding_is_materialized, float_member_contract,
-            is_numeric, narrowed_optional_type, narrowed_value_type, promoted_integer_type,
-            string_call_selection,
+            is_numeric, narrowed_optional_type, narrowed_value_type, object_member_type,
+            promoted_integer_type, string_call_selection,
         },
         syntax::{SyntaxKind, SyntaxNode},
     };

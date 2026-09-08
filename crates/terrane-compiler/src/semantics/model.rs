@@ -117,53 +117,75 @@ impl std::fmt::Display for ElementType {
         self.0.fmt(formatter)
     }
 }
-pub(super) fn iterable_item_type(unit: &SemanticUnit, value_type: ValueType) -> Option<ValueType> {
+pub(super) fn iterable_item_type(
+    unit: &SemanticUnit,
+    value_type: ValueType,
+) -> Result<ValueType, (&'static str, Option<Span>)> {
     match value_type {
         ValueType::Scalar(ScalarType::String) | ValueType::StringList => {
-            Some(ValueType::Scalar(ScalarType::String))
+            Ok(ValueType::Scalar(ScalarType::String))
         }
-        ValueType::Scalar(ScalarType::Bytes) => Some(ValueType::Scalar(ScalarType::Uint8)),
+        ValueType::Scalar(ScalarType::Bytes) => Ok(ValueType::Scalar(ScalarType::Uint8)),
         ValueType::Iterator(item)
         | ValueType::List(item)
         | ValueType::Set(item)
         | ValueType::UnorderedSet(item)
-        | ValueType::Tuple(item, _) => Some(item.value_type()),
+        | ValueType::Tuple(item, _) => Ok(item.value_type()),
         ValueType::Map(key, value) | ValueType::UnorderedMap(key, value) => {
-            Some(ValueType::Entry(key, value))
+            Ok(ValueType::Entry(key, value))
         }
-        ValueType::Range => Some(ValueType::Scalar(ScalarType::Int)),
+        ValueType::Range => Ok(ValueType::Scalar(ScalarType::Int)),
         ValueType::Object(identity) => {
-            let iterator = super::member_inference::object_method_contract(
-                unit, &identity, "iterator", false,
-            )?;
+            let iterator =
+                super::member_inference::object_method_contract(unit, &identity, "iterator", false)
+                    .ok_or((
+                        "source iterable must define a non-static `iterator` method",
+                        None,
+                    ))?;
             if iterator.is_async
                 || iterator.throws
                 || iterator.mutates_receiver
                 || !iterator.parameters.is_empty()
             {
-                return None;
+                return Err((
+                    "source iterable `iterator` must be synchronous, non-throwing, non-mutating, and parameterless",
+                    Some(iterator.span),
+                ));
             }
-            match iterator.return_type.as_ref()? {
-                ValueType::Iterator(item) => Some(item.value_type()),
-                ValueType::Object(iterator_identity) => {
+            match iterator.return_type.as_ref() {
+                Some(ValueType::Iterator(item)) => Ok(item.value_type()),
+                Some(ValueType::Object(iterator_identity)) => {
                     let next = super::member_inference::object_method_contract(
                         unit,
                         iterator_identity,
                         "next",
                         false,
-                    )?;
+                    )
+                    .ok_or((
+                        "source iterator must define a non-static `next` method",
+                        Some(iterator.span),
+                    ))?;
                     if next.is_async || next.throws || !next.parameters.is_empty() {
-                        return None;
+                        return Err((
+                            "source iterator `next` must be synchronous, non-throwing, and parameterless",
+                            Some(next.span),
+                        ));
                     }
-                    match next.return_type.as_ref()? {
-                        ValueType::IterationStep(item) => Some(item.value_type()),
-                        _ => None,
+                    match next.return_type.as_ref() {
+                        Some(ValueType::IterationStep(item)) => Ok(item.value_type()),
+                        _ => Err((
+                            "source iterator `next` must return `iteration-step of T`",
+                            Some(next.span),
+                        )),
                     }
                 }
-                _ => None,
+                _ => Err((
+                    "source iterable `iterator` must return a built-in iterator or source iterator object",
+                    Some(iterator.span),
+                )),
             }
         }
-        _ => None,
+        _ => Err(("collection iteration requires an iterable value", None)),
     }
 }
 
@@ -233,7 +255,7 @@ impl ObjectIdentity {
         }
     }
 
-    pub(super) fn qualified(&self) -> String {
+    pub(crate) fn qualified(&self) -> String {
         format!("{}::{}", self.namespace, self.name)
     }
 }
@@ -263,6 +285,7 @@ pub enum ValueType {
     TextRangeList,
     Iterator(ElementType),
     IterationStep(ElementType),
+    IterationEnd,
     AsyncIterationStep(ElementType),
     AsyncSinkOutcome,
     ChannelPair(ElementType),
@@ -400,6 +423,7 @@ impl std::fmt::Display for ValueType {
             Self::IterationStep(item) => {
                 write!(formatter, "iteration-step of {}", item.value_type())
             }
+            Self::IterationEnd => formatter.write_str("iteration-step.end"),
             Self::AsyncIterationStep(item) => {
                 write!(formatter, "async-iteration-step of {}", item.value_type())
             }

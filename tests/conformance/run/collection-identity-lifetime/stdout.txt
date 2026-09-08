@@ -7,9 +7,10 @@ remove-index
 drop-clear-first
 drop-clear-second
 after-clear
-drop-cow-original
+cow-originalcow-replacement
 after-cow
 drop-cow-replacement
+drop-cow-original
 drop-replacement
 drop-destroy-last
 falsefalse
@@ -17,6 +18,7 @@ truefalse
 true
 false
 true
+/collection-identity-lifetime::marker
 false
 true
 false

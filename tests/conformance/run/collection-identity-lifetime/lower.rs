@@ -378,7 +378,7 @@ mod __terrane_trace {
     }
     pub static FILES: [&str; 1] = ["case.trn"];
     pub static FUNCTIONS: [&str; 1] = ["/collection-identity-lifetime::release-order"];
-    pub static SITES: [Site; 4] = [
+    pub static SITES: [Site; 6] = [
         {
             /* terrane-site-row: site 0: /collection-identity-lifetime::release-order (case.trn:18:3-18:50) */
             Site {
@@ -421,6 +421,28 @@ mod __terrane_trace {
                 column: 3,
                 end_line: 34,
                 end_column: 57,
+            }
+        },
+        {
+            /* terrane-site-row: site 4: /collection-identity-lifetime::release-order (case.trn:35:10-35:21) */
+            Site {
+                function: 0,
+                file: 0,
+                line: 35,
+                column: 10,
+                end_line: 35,
+                end_column: 21,
+            }
+        },
+        {
+            /* terrane-site-row: site 5: /collection-identity-lifetime::release-order (case.trn:35:28-35:40) */
+            Site {
+                function: 0,
+                file: 0,
+                line: 35,
+                column: 28,
+                end_line: 35,
+                end_column: 40,
             }
         },
     ];
@@ -588,7 +610,7 @@ fn release_order() {
     let original: terrane_collection_support::List<Marker> = terrane_collection_support::List::<
         Marker,
     >::new(vec![Marker::terrane_construct(String::from("cow-original"))]);
-    let mut separated: terrane_collection_support::List<Marker> = original;
+    let mut separated: terrane_collection_support::List<Marker> = original.clone();
     __terrane_raised(
         separated
             .set(
@@ -601,6 +623,14 @@ fn release_order() {
                 Marker::terrane_construct(String::from("cow-replacement")),
             ),
         3 /* terrane-site: case.trn:34:3-34:57 */,
+    );
+    println!(
+        "{}{}", terrane_scalar_support::scalar_text(&__terrane_raised(original
+        .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
+        4 /* terrane-site: case.trn:35:10-35:21 */)), 4 /* terrane-site: case.trn:35:10-35:21 */).name),
+        terrane_scalar_support::scalar_text(&__terrane_raised(separated
+        .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
+        5 /* terrane-site: case.trn:35:28-35:40 */)), 5 /* terrane-site: case.trn:35:28-35:40 */).name)
     );
     println!("{}", terrane_scalar_support::scalar_text(&String::from("after-cow")));
 }
@@ -682,7 +712,7 @@ fn main() {
             __terrane_value
         };
         TerraneDescriptor {
-            identity: "marker",
+            identity: "/collection-identity-lifetime::marker",
             name: "marker",
             kind: "class",
             inherently_identity_bearing: false,
@@ -723,6 +753,9 @@ fn main() {
             fields: &[],
         }
     };
+    println!(
+        "{}", terrane_scalar_support::scalar_text(&marker_type.identity.to_owned())
+    );
     println!(
         "{}", terrane_scalar_support::scalar_text(&marker_type
         .inherently_identity_bearing)

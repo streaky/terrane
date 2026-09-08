@@ -790,6 +790,7 @@ pub(super) fn diagnostic_value_type(objects: &[ObjectContract], value_type: &Val
         ValueType::Object(identity) => diagnostic_object_identity(objects, identity),
         ValueType::Iterator(item) => format!("iterator of {}", nested(item)),
         ValueType::IterationStep(item) => format!("iteration-step of {}", nested(item)),
+        ValueType::IterationEnd => "iteration-step.end".to_owned(),
         ValueType::AsyncIterationStep(item) => {
             format!("async-iteration-step of {}", nested(item))
         }
@@ -905,11 +906,7 @@ pub(super) fn value_types_compatible(
                     &actual_item.value_type(),
                 )
         }
-        (ValueType::IterationStep(_), ValueType::IterationStep(actual))
-            if actual.value_type() == ValueType::Scalar(ScalarType::None) =>
-        {
-            true
-        }
+        (ValueType::IterationStep(_), ValueType::IterationEnd) => true,
         (ValueType::List(expected), ValueType::List(actual))
         | (ValueType::Set(expected), ValueType::Set(actual))
         | (ValueType::Iterator(expected), ValueType::Iterator(actual))

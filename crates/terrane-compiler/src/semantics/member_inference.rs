@@ -82,7 +82,7 @@ fn optional_object_inner_has_member(
         || object_member_type(unit, identity, member, false).is_some()
 }
 
-pub(super) fn object_member_type(
+pub(crate) fn object_member_type(
     unit: &SemanticUnit,
     object_identity: &ObjectIdentity,
     member: &str,
@@ -158,7 +158,7 @@ pub(super) fn infer_member_value_type(
         if let Some(field) = unit
             .objects
             .iter()
-            .find(|object| object.name == *identity)
+            .find(|object| object.name == *identity || object.identity.qualified() == *identity)
             .and_then(|object| {
                 object
                     .fields
@@ -411,31 +411,32 @@ pub(super) fn infer_member_value_type(
             )),
         };
     }
+    if let Some(ValueType::Object(object_name)) = &receiver_type
+        && let Some(member_type) = object_member_type(unit, object_name, member_name, false)
+    {
+        return Ok(Some(member_type));
+    }
     if member_name == "type" {
         return Ok(receiver_type.map(|value_type| {
             ValueType::Descriptor(diagnostic_value_type(&unit.objects, &value_type))
         }));
     }
     if let Some(ValueType::Object(object_name)) = &receiver_type {
-        return object_member_type(unit, object_name, member_name, false)
-            .map(Some)
-            .ok_or_else(|| {
-                failure(
-                    &unit.source,
-                    "T0055",
-                    format!(
-                        "`{}` has no instance member `{member_name}`",
-                        unit.objects
-                            .iter()
-                            .find(|object| object.identity == *object_name)
-                            .map_or_else(
-                                || diagnostic_object_identity(&unit.objects, object_name),
-                                |object| object.name.clone()
-                            )
-                    ),
-                    member.span,
-                )
-            });
+        return Err(failure(
+            &unit.source,
+            "T0055",
+            format!(
+                "`{}` has no instance member `{member_name}`",
+                unit.objects
+                    .iter()
+                    .find(|object| object.identity == *object_name)
+                    .map_or_else(
+                        || diagnostic_object_identity(&unit.objects, object_name),
+                        |object| object.name.clone()
+                    )
+            ),
+            member.span,
+        ));
     }
     let collection_method = matches!(
         (&receiver_type, member_name),

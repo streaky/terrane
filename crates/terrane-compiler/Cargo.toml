@@ -23,3 +23,7 @@ rustls.workspace = true
 toml = "0.8"
 [lints]
 workspace = true
+
+[dev-dependencies]
+terrane-collection-support = { path = "../terrane-collection-support" }
+terrane-string-support = { path = "../terrane-string-support" }

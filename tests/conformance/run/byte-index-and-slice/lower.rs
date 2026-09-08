@@ -378,7 +378,7 @@ mod __terrane_trace {
     }
     pub static FILES: [&str; 1] = ["case.trn"];
     pub static FUNCTIONS: [&str; 1] = ["/byte-index-and-slice::main"];
-    pub static SITES: [Site; 18] = [
+    pub static SITES: [Site; 19] = [
         {
             /* terrane-site-row: site 0: /byte-index-and-slice::main (case.trn:9:10-9:17) */
             Site {
@@ -577,6 +577,17 @@ mod __terrane_trace {
                 end_column: 29,
             }
         },
+        {
+            /* terrane-site-row: site 18: /byte-index-and-slice::main (case.trn:27:12-27:21) */
+            Site {
+                function: 0,
+                file: 0,
+                line: 27,
+                column: 12,
+                end_line: 27,
+                end_column: 21,
+            }
+        },
     ];
     #[cold]
     #[inline(never)]
@@ -761,6 +772,49 @@ fn main() {
         TerraneCompletion::Normal
     })();
     match __terrane_completion_1 {
+        TerraneCompletion::Normal => {}
+        TerraneCompletion::Return(value) => return value,
+        TerraneCompletion::Error(error) => __terrane_uncaught(error),
+        TerraneCompletion::Break | TerraneCompletion::Continue => {
+            __terrane_generated_defect("loop control escaped a non-loop try")
+        }
+    }
+    let __terrane_completion_2: TerraneCompletion<()> = (|| {
+        let __terrane_try_2: TerraneCompletion<()> = (|| {
+            println!(
+                "{}",
+                terrane_scalar_support::scalar_text(&__terrane_raised_completion!(terrane_collection_support::byte_at(&data,
+                __terrane_raised_completion!(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(-
+                1_i128)), 18 /* terrane-site: case.trn:27:12-27:21 */)),
+                18 /* terrane-site: case.trn:27:12-27:21 */))
+            );
+            TerraneCompletion::Normal
+        })();
+        match __terrane_try_2 {
+            TerraneCompletion::Return(value) => return TerraneCompletion::Return(value),
+            TerraneCompletion::Break => return TerraneCompletion::Break,
+            TerraneCompletion::Continue => return TerraneCompletion::Continue,
+            TerraneCompletion::Normal => {}
+            TerraneCompletion::Error(__terrane_error_2) => {
+                let mut __terrane_handled_2 = false;
+                if !__terrane_handled_2
+                    && __terrane_error_2.kind == TerraneErrorKind::IndexError
+                {
+                    __terrane_handled_2 = true;
+                    let failure = __terrane_error_2.clone();
+                    println!(
+                        "{}", terrane_scalar_support::scalar_text(&failure.message()
+                        .to_owned())
+                    );
+                }
+                if !__terrane_handled_2 {
+                    return TerraneCompletion::Error(__terrane_error_2);
+                }
+            }
+        }
+        TerraneCompletion::Normal
+    })();
+    match __terrane_completion_2 {
         TerraneCompletion::Normal => {}
         TerraneCompletion::Return(value) => return value,
         TerraneCompletion::Error(error) => __terrane_uncaught(error),

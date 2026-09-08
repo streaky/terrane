@@ -330,9 +330,23 @@ pub(super) fn infer_collection_call_type(
                 arguments.span,
             ));
         }
-        return Ok(Some(ValueType::IterationStep(ElementType::new(
-            ValueType::Scalar(ScalarType::None),
-        ))));
+        return Ok(Some(ValueType::IterationEnd));
+    }
+    if callee.kind == SyntaxKind::MemberExpression
+        && let [receiver, member] = callee.children.as_slice()
+        && node_text(&unit.source, member) == "next"
+        && let Some(ValueType::Iterator(item)) =
+            infer_receiver_value_type(unit, receiver, bindings)?
+    {
+        if !arguments.children.is_empty() {
+            return Err(failure(
+                &unit.source,
+                "T0045",
+                "iterator `.next` accepts no arguments",
+                arguments.span,
+            ));
+        }
+        return Ok(Some(ValueType::IterationStep(item)));
     }
     if callee.kind == SyntaxKind::MemberExpression
         && let [receiver, member] = callee.children.as_slice()

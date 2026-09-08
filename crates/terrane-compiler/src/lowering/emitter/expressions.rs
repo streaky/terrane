@@ -1,25 +1,46 @@
 use super::super::prelude::*;
 
 impl Emitter<'_> {
-    pub(super) fn descriptor_expression(&self, source_name: &str) -> String {
-        let object = self
-            .unit
-            .objects
-            .iter()
-            .find(|object| object.name == source_name);
-        let identity = object.map_or_else(
-            || source_name.to_owned(),
-            |object| object.identity.to_string(),
+    pub(super) fn descriptor_expression(&self, value_type: &ValueType) -> String {
+        let source_name = value_type.to_string();
+        let object = match value_type {
+            ValueType::Object(identity) => self
+                .unit
+                .objects
+                .iter()
+                .find(|object| object.identity == *identity),
+            ValueType::Descriptor(identity) => self.unit.objects.iter().find(|object| {
+                object.name == *identity || object.identity.qualified() == *identity
+            }),
+            _ => None,
+        };
+        let identity = match value_type {
+            ValueType::Object(identity) => identity.qualified(),
+            ValueType::Descriptor(identity) => {
+                object.map_or_else(|| identity.clone(), |object| object.identity.qualified())
+            }
+            _ => source_name.clone(),
+        };
+        let name = object.map_or_else(
+            || match value_type {
+                ValueType::Descriptor(identity) => identity
+                    .rsplit_once("::")
+                    .map_or(identity.as_str(), |(_, name)| name)
+                    .to_owned(),
+                _ => source_name.clone(),
+            },
+            |object| object.name.clone(),
         );
-        let name = object.map_or(source_name, |object| object.name.as_str());
         let kind = object.map_or("type", |object| match object.kind {
             ObjectKind::Class => "class",
             ObjectKind::Interface => "interface",
             ObjectKind::Trait => "trait",
         });
         let inherently_identity_bearing = object.is_some_and(|object| object.resource_owning)
-            || source_name.starts_with("ref ")
-            || source_name.starts_with("shared ref ");
+            || matches!(
+                value_type,
+                ValueType::Reference(_) | ValueType::SharedReference(_)
+            );
         let fields = object.map_or_else(String::new, |object| {
             effective_object_fields(self.unit, object)
                 .into_iter()
@@ -96,7 +117,7 @@ impl Emitter<'_> {
                     .current_object
                     .as_ref()
                     .expect("`self` is only lowered in an object method");
-                self.descriptor_expression(&identity.name)
+                self.descriptor_expression(&ValueType::Object(identity.clone()))
             }
             SyntaxKind::Name => {
                 let binding = self.unit.typed_bindings.iter().rev().find(|binding| {
@@ -104,10 +125,10 @@ impl Emitter<'_> {
                         && binding.is_visible_at(self.unit.source.id(), node.span.start)
                 });
                 match self.value_type(node) {
-                    Some(ValueType::Descriptor(identity))
+                    Some(value_type @ ValueType::Descriptor(_))
                         if binding.is_none_or(|binding| binding.scope.is_none()) =>
                     {
-                        self.descriptor_expression(&identity)
+                        self.descriptor_expression(&value_type)
                     }
                     _ => self.name(node),
                 }

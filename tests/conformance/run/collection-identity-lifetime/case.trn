@@ -32,6 +32,7 @@ function release-order;
   original list of marker = list; (instance marker; 'cow-original')
   separated list of marker = original
   separated.set; 0, (instance marker; 'cow-replacement')
+  print; original[0].name, separated[0].name
   print; 'after-cow'
 
 function main;
@@ -56,6 +57,7 @@ function main;
   marker-type = left.type
   reference-type = left-reference.type
   collection-type = references.type
+  print; marker-type.identity
   print; marker-type.inherently-identity-bearing
   print; reference-type.inherently-identity-bearing
   print; collection-type.inherently-identity-bearing

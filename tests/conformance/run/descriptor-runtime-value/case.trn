@@ -2,3 +2,4 @@ namespace descriptor-runtime-value
 constant target = int8
 function main;
   print; target
+  print; (1).type.name, (1).type.identity

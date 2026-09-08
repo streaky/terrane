@@ -30,7 +30,7 @@ impl Widget {
     }
     pub fn class_name(&self) -> String {
         return TerraneDescriptor {
-            identity: "widget",
+            identity: "/static-class-singleton::widget",
             name: "widget",
             kind: "class",
             inherently_identity_bearing: false,

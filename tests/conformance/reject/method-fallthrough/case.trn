@@ -1,0 +1,7 @@
+namespace method-fallthrough
+class incomplete
+  function value int; enabled bool
+    if enabled
+      return 1
+function main;
+  item incomplete = instance incomplete;

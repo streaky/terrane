@@ -1,4 +1,22 @@
 // Generated deterministically by Terrane <version>.
+#[allow(dead_code)]
+#[derive(Clone, Copy)]
+struct TerraneFieldMetadata {
+    name: &'static str,
+    external_name: &'static str,
+    defaulted: bool,
+    optional: bool,
+    secret: bool,
+}
+#[allow(dead_code)]
+#[derive(Clone, Copy)]
+struct TerraneDescriptor {
+    identity: &'static str,
+    name: &'static str,
+    kind: &'static str,
+    inherently_identity_bearing: bool,
+    fields: &'static [TerraneFieldMetadata],
+}
 // Source: case.trn
 // Namespace: identity-evaluation
 fn observed(item: terrane_int_support::Int) -> terrane_int_support::Int {

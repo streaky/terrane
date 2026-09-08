@@ -665,7 +665,7 @@ struct GeneratedCrateOptions {
     build_toolchain: terrane_compiler::BuildToolchain,
 }
 
-fn base_generated_manifest(options: GeneratedCrateOptions) -> String {
+fn base_generated_manifest() -> String {
     format!(
         "[package]\nname = \"terrane_program\"\nversion = \"0.0.0\"\nedition = \"2024\"\nrust-version = {:?}\n\n\
          [package.metadata.terrane]\nunicode-data-version = {:?}\n\n\
@@ -677,7 +677,7 @@ fn base_generated_manifest(options: GeneratedCrateOptions) -> String {
          terrane-document-support = {{ path = \"support/terrane-document-support\" }}\n\
          terrane-stream-abi = {{ path = \"support/terrane-stream-abi\" }}\n",
         terrane_compiler::BUILD_TOOLCHAIN,
-        options.build_toolchain.unicode_data_version()
+        terrane_compiler::UNICODE_DATA_VERSION
     )
 }
 
@@ -690,7 +690,7 @@ fn write_generated_crate(
 ) -> Result<(), CliFailure> {
     fs::create_dir_all(directory.join("src"))
         .map_err(|error| CliFailure::backend(format!("cannot create generated crate: {error}")))?;
-    let mut manifest = base_generated_manifest(options);
+    let mut manifest = base_generated_manifest();
     if options.uses_platform_support {
         manifest.push_str(
             "terrane-platform-support = { path = \"support/terrane-platform-support\" }\n",

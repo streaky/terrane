@@ -203,9 +203,8 @@ pub(super) fn collect_typed_bindings(
         && target.kind == SyntaxKind::ForTarget
     {
         collect_typed_bindings(unit, collection, visible_bindings, bindings, scope)?;
-        let item_type = infer_value_type(unit, collection, visible_bindings)?
-            .and_then(|value_type| iterable_item_type(unit, value_type))
-            .ok_or_else(|| {
+        let collection_type =
+            infer_value_type(unit, collection, visible_bindings)?.ok_or_else(|| {
                 failure(
                     &unit.source,
                     "T0016",
@@ -213,6 +212,14 @@ pub(super) fn collect_typed_bindings(
                     collection.span,
                 )
             })?;
+        let item_type = iterable_item_type(unit, collection_type).map_err(|(message, span)| {
+            failure(
+                &unit.source,
+                "T0016",
+                message,
+                span.unwrap_or(collection.span),
+            )
+        })?;
         let loop_bindings =
             iteration_target_bindings(unit, target, collection.span.end, block.span, item_type)?;
         bindings.extend(loop_bindings.iter().cloned());

@@ -1568,6 +1568,8 @@ dependencies = [
  "serde_json",
  "sha2",
  "syn 2.0.119",
+ "terrane-collection-support",
+ "terrane-string-support",
  "toml",
  "ureq",
 ]

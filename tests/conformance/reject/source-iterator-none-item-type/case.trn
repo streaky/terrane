@@ -1,0 +1,11 @@
+namespace source-iterator-none-item-type
+from /core/collections import iteration-step
+class broken-iterator
+  function iterator broken-iterator;
+    return this
+  function next iteration-step of int;
+    return iteration-step; none
+function main;
+  values broken-iterator = instance broken-iterator;
+  for value in values
+    print; value

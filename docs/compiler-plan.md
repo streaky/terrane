@@ -1528,9 +1528,11 @@ Exit criterion: byte indexing and slicing have accepted, boundary, and rejected 
 
 Status: implemented on `byte-indexing-source-iterators-collection-identity`. Evidence:
 `byte-index-and-slice` and `byte-index-type` cover scalar byte results, stepped and inclusive
-`bytes` slices, valid empty boundaries, runtime bounds failures, and source type diagnostics.
-Compiler and generated support manifests pin the single Unicode 16.0.0 profile, and the generated
-manifest records that profile independently of the selected Rust installation.
+`bytes` slices, valid empty boundaries, positive and authored-negative runtime bounds failures, and
+source type diagnostics. Compiler and generated support manifests pin the single Unicode 16.0.0
+profile independently of the selected Rust installation. Compiler tests mechanically compare that
+profile with the public string- and collection-support versions, while each support crate asserts
+the Unicode version embedded by its table providers.
 
 ### Milestone 12 — String transformation and search families
 
@@ -1566,10 +1568,17 @@ Exit criterion: a user-defined iterator drives `for`, a yielded `none` remains d
 
 Status: implemented on `byte-indexing-source-iterators-collection-identity`. Evidence:
 `source-defined-iterator` drives `for` through authored structural methods, yields `none` as an
-item, and observes sticky exhaustion; `source-iterator-next-contract` rejects the wrong advancing
-shape, `source-iterator-item-type` rejects an incompatible yielded type at the method return span,
-and `source-iterator-reuse` rejects reuse after transfer. Their reviewed lowerings use the same loop
-protocol path as compiler-owned iterables.
+item, and directly observes repeated sticky exhaustion; `iterator-protocol` directly advances a
+built-in iterator repeatedly after end, and `package-source-iterator` proves the source protocol
+across namespace files. `iteration-end-is-not-none` and `source-iterator-none-item-type` prove the
+dedicated end sentinel is distinct from a genuine `none` item. Targeted malformed-protocol cases
+distinguish a missing, parameterized, or wrongly typed `next` and a mutating iterator constructor;
+`method-fallthrough` extends source control-flow diagnostics to ordinary methods, while
+`ordinary-method-wrong-return` validates their returned values before lowering and
+`optional-member-post-if-return` pins the conservative initialized-static-member proof needed by
+the existing singleton pattern. `source-iterator-reuse` and `builtin-iterator-reuse` reject linear
+iterator reuse after transfer. Their reviewed lowerings use the same loop protocol path as
+compiler-owned iterables.
 
 ### Milestone 14 — Complete collection lifetime and identity semantics
 
@@ -1585,10 +1594,13 @@ Deliver:
 Exit criterion: executable cases observe deterministic release through collection-held values and prove collection `is` behavior before and after explicit references; descriptor/reflection evidence reports the identity-bearing contract; generated Rust remains deterministic and warning-free.
 
 Status: implemented on `byte-indexing-source-iterators-collection-identity`. Evidence:
-`collection-identity-lifetime` observes replacement, removal, clear, copy-on-write separation, and
-ordered destruction release points; proves identity-less collection/value behavior and same- versus
-different-referent `ref` behavior; and reflects `inherently-identity-bearing` on materialized type
-descriptors. Its canonical generated crate compiles and runs with warnings denied.
+`collection-identity-lifetime` observes replacement, removal, list clear, copy-on-write separation,
+and ordered destruction release points; reads both the preserved original and mutated copy; proves
+identity-less collection/value behavior and same- versus different-referent `ref` behavior; and
+reflects qualified semantic identity plus `inherently-identity-bearing` on materialized type
+descriptors. `descriptor-runtime-value` exercises inline `.type` materialization, and
+`type-named-field` proves declared object members take precedence over universal reflection. Their
+canonical generated crates compile and run with warnings denied.
 
 
 ### Completed portion of Milestone 15 — Function values and closures
