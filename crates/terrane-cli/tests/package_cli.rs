@@ -249,6 +249,7 @@ fn assert_reviewed_classification(package: &Path, fixture: &Path) {
         .unwrap()
         .parse::<toml::Value>()
         .unwrap();
+    assert_classification_context(&classification);
     let artifact = fs::read_dir(package.join(".trn/dependencies"))
         .unwrap()
         .filter_map(Result::ok)
@@ -271,6 +272,9 @@ fn assert_reviewed_classification(package: &Path, fixture: &Path) {
             .iter()
             .find(|dependency| dependency["name"] == name)
             .unwrap();
+        assert_eq!(actual["version"], expected["version"].as_str().unwrap());
+        assert!(!expected["classification"].as_str().unwrap().is_empty());
+        assert!(expected["required-gaps"].is_array());
         let projected_count =
             usize::try_from(expected["projected-count"].as_integer().unwrap()).unwrap();
         let declined_count =
@@ -324,6 +328,24 @@ fn assert_reviewed_classification(package: &Path, fixture: &Path) {
                 );
             }
         }
+    }
+}
+
+fn assert_classification_context(classification: &toml::Value) {
+    assert_eq!(classification["format"].as_integer(), Some(2));
+    assert_eq!(
+        classification["projection-source"].as_str(),
+        Some("local-rustdoc")
+    );
+    let cost = &classification["cost"];
+    for field in ["cold-wall-seconds", "warm-wall-seconds"] {
+        assert!(cost[field].as_float().is_some_and(|value| value > 0.0));
+    }
+    for field in ["generated-rust-lines", "generated-rust-bytes"] {
+        assert!(cost[field].as_integer().is_some_and(|value| value > 0));
+    }
+    for field in ["observed-on", "host", "method"] {
+        assert!(!cost[field].as_str().unwrap().is_empty());
     }
 }
 

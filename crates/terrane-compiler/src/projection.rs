@@ -1240,6 +1240,7 @@ pub fn resolve(
         .collect::<Vec<_>>();
     enforce_transitive_reachability(&mut projected, dependencies, &workspace)?;
     canonicalize_projected_type_names(&mut projected);
+    validate_unique_projected_type_identities(&projected)?;
     resolution_events.push(ResolutionEvent {
         source: ResolutionSource::LocalRustdoc,
         status: ResolutionStatus::Generated,
@@ -1953,6 +1954,30 @@ fn canonicalize_projected_type_name(ty: &mut ProjectedType, names: &BTreeMap<Str
         }
         _ => {}
     }
+}
+
+fn validate_unique_projected_type_identities(
+    projected: &[ProjectedDependency],
+) -> Result<(), ProjectionError> {
+    let mut identities = BTreeMap::new();
+    for item in projected
+        .iter()
+        .flat_map(|dependency| &dependency.items)
+        .filter(|item| matches!(item.kind, ProjectedKind::ForeignType { .. }))
+    {
+        let key = (item.namespace.as_str(), item.name.as_str());
+        if let Some(previous) = identities.insert(key, item.rust_path.as_str())
+            && previous != item.rust_path
+        {
+            return Err(ProjectionError {
+                message: format!(
+                    "projected foreign types `{previous}` and `{}` collide at `{}::{}`; distinct concrete instantiations require distinct projected names",
+                    item.rust_path, item.namespace, item.name
+                ),
+            });
+        }
+    }
+    Ok(())
 }
 
 fn resolved_package_versions(
@@ -3772,7 +3797,7 @@ mod tests {
         ResolutionOutcome, apply_projection_history, enforce_transitive_reachability,
         has_type_parameters, parse_rustdoc, prefer_public_path, project_type,
         projection_content_hash, prune_projection_cache, receiver_kind, resolve, selected_target,
-        validate_projection_artifact,
+        validate_projection_artifact, validate_unique_projected_type_identities,
     };
     use crate::RustDependency;
 
@@ -3882,6 +3907,32 @@ mod tests {
             Projection::unique_declined_reason(&dependencies, None, "::build"),
             None
         );
+    }
+
+    #[test]
+    fn colliding_projected_type_identities_fail_explicitly() {
+        let dependency = |name: &str, rust_path: &str| ProjectedDependency {
+            name: name.to_owned(),
+            package: name.to_owned(),
+            version: "1.0.0".to_owned(),
+            items: vec![ProjectedItem {
+                namespace: "/deps/shared".to_owned(),
+                name: "Generic".to_owned(),
+                rust_path: rust_path.to_owned(),
+                docs: None,
+                kind: ProjectedKind::ForeignType {
+                    methods: Vec::new(),
+                    static_methods: Vec::new(),
+                },
+            }],
+            declined: Vec::new(),
+        };
+        let error = validate_unique_projected_type_identities(&[
+            dependency("one", "one::Generic<A>"),
+            dependency("two", "two::Generic<B>"),
+        ])
+        .expect_err("distinct concrete identities cannot share one projected name");
+        assert!(error.message.contains("distinct concrete instantiations"));
     }
 
     #[test]

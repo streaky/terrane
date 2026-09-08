@@ -248,6 +248,12 @@ The native Rust body remains the escape hatch for everything below.
 - anything returning a borrow that cannot be cloned at the edge;
 - macro-only APIs.
 
+Current recorded example: projection schema 24 deliberately declines
+`numr::autograd::NoOpHook::on_leaf_grad_ready` because
+`impl<R: Runtime> BackwardHook<R> for NoOpHook` leaves `R` unbounded and the method exposes
+`Tensor<R>` in its parameter contract. The earlier benchmark lock entry was not lowerable; its
+removal is a representability correction, not a missing trait namespace.
+
 ## 7. The projection
 
 Input: the lock-resolved package, its enabled features, the target, and rustdoc JSON for those exact
@@ -255,7 +261,7 @@ versions. No package code is executed. Output: a namespace model.
 
 Mechanical rules:
 
-- module paths become namespace paths under `/deps/<crate>`;
+- the selected canonical public path becomes the namespace under `/deps/<crate>`: substantive paths outrank convenience paths beneath `prelude`, then shortest depth and lexical ordering break ties;
 - `async fn` projects as an async Terrane function; the existing async model applies, with tokio
   already in the generated crate;
 - **bound-driven monomorphisation**: for a generic parameter with a closed, inspectable bound, the

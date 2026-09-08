@@ -890,9 +890,10 @@ Async producers and sinks are
 resource-owning linear endpoints: borrowed operations must be awaited directly, preserve protocol
 failure and task cancellation separately, and reborrow the endpoint for one suspension; consuming
 `close` or `split` makes later use of the transferred endpoint a source ownership error.
-Projection schema 20 also records concrete lifetime-bearing builders as chain-only roots,
-continuations, and terminals. Their intermediates may retain a borrow from a named input but may
-appear only as receiver subtrees inside one nested expression; binding, return, capture, argument
+Projection schema 20 introduced explicit root, continuation, and terminal roles for concrete
+lifetime-bearing builders represented as chain-only values. Their intermediates may retain
+a borrow from a named input but may appear only as receiver subtrees inside one nested expression;
+binding, return, capture, argument
 escape, and suspension are rejected before lowering. The terminal must return an owned projectable
 value, and tooling marks the root as chain-only and non-escaping. The accepted SQLx witness projects
 a concrete borrow-retaining adapter that runs SQLx inside its terminal; open `sqlx::Query` remains

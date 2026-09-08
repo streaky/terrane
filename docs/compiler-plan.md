@@ -1878,8 +1878,9 @@ class through typed command and result channels; three focused rejects fix the g
 
 Phase C chain-only projection now admits concrete lifetime-bearing builder values that can retain a
 borrow from a named input and complete within one nested Terrane expression. Projection schema 20
-records root, continuing, and terminal roles; only receiver-position intermediates are legal, while
-binding, return, capture, and suspension emit `T0112`. Lowering leaves roots and continuing calls
+introduced the root, continuing, and terminal roles retained by later schemas; only
+receiver-position intermediates are legal, while binding, return, capture, and suspension emit
+`T0112`. Lowering leaves roots and continuing calls
 inside one Rust expression and applies conversion, panic/error containment, and async awaiting only
 at the owned terminal. Language-server projection details expose the non-escaping constraint.
 `rust-dependency-chain-only` executes an in-memory SQLx scalar query inside the terminal of a
@@ -2156,8 +2157,9 @@ verbatim projected name. External-network tests do not prove the contract.
 Implemented on `rust-dependency-projection`. Manifest-declared Rust packages resolve through one
 lock-derived rustdoc projection shared by compilation and editor tooling. The compiler projects
 verbatim functions, inherent methods, receiver ownership, opaque foreign values, enums, and
-`Result`; it records `Option` signatures and trait methods as declined until general `T|none`
-semantic types and receiver-first trait namespaces arrive in milestone 25.2. It generates only
+`Result`. Later work delivered arbitrary foreign-object `Option<T>` values, receiver-first trait
+namespaces, static associated members, and the wider primitive and alias surface originally staged
+for milestone 25.2. It generates only
 crossed shims, pins generated Cargo dependencies to the projected versions, and translates dependency
 failures and unwinding panics into distinct Terrane throwable completion. A projected mutable-borrow
 method makes the receiver binding mutable; while object identity remains name-only, conflicting
@@ -2288,72 +2290,28 @@ for cross-dependency identities and item projection. Durable history and the rep
 classification now cover instance/static members, concrete canonical names, recorded decline
 reasons, and aggregate counts.
 
-### Milestone 25.2 — Deferred projection surface and dependency capability
+### Milestone 25.2 — Dependency build-capability grant
 
-Milestone 25 delivered a projection that declines more than it admits, deliberately: every construct it
-could not represent is recorded with a reason that reaches the author as `S2029` rather than as a rustc
-error. `docs/rust-deps.md` records each decision beside the design it defers. This milestone is where
-those deferrals are staged, so a decline recorded in a working note has a milestone that removes it
-rather than remaining a permanent shape of the language.
+The deferred projection surface originally staged here has shipped: arbitrary foreign-object
+`Option<T>`, receiver-first trait namespaces, data-free enum variants and comparison, wider
+primitives and aliases, profile-aware panic containment, portable containment reporting, residual
+foreign aliases, and durable member-level projection history all have implemented evidence below.
+Open generics and other deliberately unrepresentable shapes remain explicit declines governed by
+the projection rules rather than pending deliverables of this milestone.
 
-Nothing here reopens a settled decision. The designs in §6.3, §7.3, and §7.4 of `docs/rust-deps.md`
-stand as written; what they lack is a delivery point.
+This milestone now owns one remaining contract:
 
-Deliver:
+- **the build-capability grant and profile-based rejection.** §23.1 and `docs/rust-deps.md` A6a
+  require projection to run under the same explicit build capability as a build script. Manifest
+  profiles and dependency effects are validated, but `dependency_projection` is still invoked
+  unconditionally from semantic analysis rather than being authorized by a shared capability
+  grant. Milestone 26 applies that capability model to the remaining standard and system
+  facilities; both paths must use one model rather than growing parallel checks.
 
-- **`Option<T>` as `T|none` for projected values.** The projector currently declines every `Option`
-  parameter and result because the semantic model has optional variants only for selected built-in
-  value families, not arbitrary foreign objects. Generalising that union to a foreign object type is
-  the prerequisite, and it is a language change rather than a projector change. The decline reason and
-  its `docs/rust-deps.md` §7.4 note are removed with it;
-- **receiver-first trait namespaces.** Trait methods are declined today with an explicit deferral
-  reason. §7.3 specifies the form: a trait method projects into the trait's own canonical namespace as
-  a free function taking the receiver first, so two traits are two namespaces and a collision is not
-  representable, and choosing between them is an import rather than a heuristic. Delivering it retires
-  both the decline and the merged-inherent alternative that was rejected;
-- **enum variants, constants, and comparison.** Projected enums are opaque values today. §7.4 asks for
-  data-free enums to carry projected constants and comparison, and data-carrying enums to expose
-  whatever accessors the crate provides, with no destructuring form offered until general pattern
-  matching exists;
-- **a wider representable primitive and alias set.** `project_type` admits `bool`, `i64`, `f64`, `str`,
-  and unit, and declines everything else rather than narrowing silently. The remaining integer widths,
-  `f32`, and `char` want edge coercion with an explicit contract at the boundary, matching the rule the
-  hand-written support crates already follow. Type aliases resolve only when rustdoc supplies a
-  concrete directly representable target; the unresolved cases are declined and want the same
-  treatment;
-- **the build-capability grant and profile-based rejection.** §23.1 and `docs/rust-deps.md` A6a require
-  the projection pass to run under the same explicit build capability as a build script, and §8
-  requires a profile forbidding an effect to reject the dependency at manifest resolution rather than
-  at a call site. Neither exists: `dependency_projection` runs unconditionally from `analyze`, and
-  nothing reads a profile. Milestone 26 applies the shared capability model to the remaining standard
-  and system facilities; this milestone owns the dependency-side half, and the two must agree on one
-  model rather than growing two;
-- **containment of the generated-crate build, and a tier for platforms without `bwrap`.** Today only
-  the rustdoc pass is contained, and it is contained by requiring Linux bubblewrap outright — so
-  `[rust-dependencies]` is unusable on macOS, on Windows, and on any Linux without it. Both halves are
-  wrong in the same direction: the pass that matters most is uncontained, and the pass that is
-  contained refuses rather than degrading. §8.1 already states the rule — a platform that cannot
-  enforce containment says so — which is a declaration, not a refusal;
-- **profile-aware panic containment and a proven unwind-safety boundary.** §6.3 defers both: unwinding
-  profiles contain a crossing panic and convert it to `dependency-panic`, aborting profiles do not
-  claim containment, and the blanket `AssertUnwindSafe` at every crossing is replaced by a stated
-  contract. Build profiles must be represented by the compiler before either is expressible;
-- **unrepresented residual foreign imports.** A foreign type that has no projected item still enters a
-  generated dependency unit as a direct Rust re-export. Before widening the representable type surface,
-  those imports must use their computed aliases so same-named residual types cannot collide in the
-  generated root scope. Canonical-path deduplication remains required for repeated re-exports;
-- **durable projection history.** A lock update that removes a crossed member is diagnosed as a missing
-  member today. §9 defers distinguishing that from a member that never existed, and naming the version
-  change, until projection history has a durable, machine-independent home. The project-local cache is
-  not that home, and §23.8 says so.
-
-Exit criterion: a crate whose public surface uses `Option`, trait methods, a data-free enum, and an
-integer width outside the current set is projected and called from Terrane with no decline for those
-constructs, and the corresponding `docs/rust-deps.md` deferral notes are removed rather than reworded.
-A profile forbidding an effect rejects its dependency at manifest resolution with a Terrane diagnostic
-naming the profile and the effect. The generated crate builds contained on a platform that can enforce
-it and reports the tier it used on one that cannot, rather than refusing. A lock update that removes a
-crossed member names the member and the version change.
+Exit criterion: a profile that does not grant dependency build execution rejects projection before
+rustdoc, Cargo, or a fetched projection artifact can execute, with a Terrane diagnostic naming the
+profile and missing capability. A granting profile reaches the existing contained projection
+pipeline unchanged.
 
 Implemented evidence: arbitrary foreign-object optionals are semantic values and lower recursively;
 receiver-first trait methods, data-free enum variants, wider primitives, `char`, and transparent
