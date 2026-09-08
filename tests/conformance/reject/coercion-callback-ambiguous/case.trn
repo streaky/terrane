@@ -1,0 +1,10 @@
+namespace coercion-callback-ambiguous
+
+function first string; value int
+  return 'first'
+
+function second string; value int
+  return 'second'
+
+function main;
+  converted = 7.coerce; string, first, second

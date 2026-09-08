@@ -325,7 +325,8 @@ int value
 │   └── int >= int -> bool
 ├── coercion family
 │   ├── .coerce; Destination -> Destination
-│   └── .coerce.checked; Destination -> Destination or none
+│   ├── .coerce.checked; Destination -> Destination or none
+│   └── .coerce; Destination, function from int to Destination -> Destination
 └── descriptor relation
     └── value is an int -> bool
 ```
@@ -378,7 +379,8 @@ fixed-width integer value T
 │   ├── .coerce; Destination -> Destination
 │   ├── .coerce.checked; Destination -> Destination or none
 │   ├── .coerce.wrap; Destination -> Destination
-│   └── .coerce.saturate; Destination -> Destination
+│   ├── .coerce.saturate; Destination -> Destination
+│   └── .coerce; Destination, function from T to Destination -> Destination
 └── descriptor relation
     └── value is a descriptor T -> bool
 ```
@@ -392,6 +394,13 @@ and `--` remain statement-only spellings of the default add/subtract policy.
 
 
 Declared numeric binding, assignment, parameter-default, argument, and return destinations admit numeric values exactly or fail with `integer-conversion-overflow`. Range-contained fixed-width widening emits only a representation change; other typed numeric pairs retain a runtime representability check. Integer values of different concrete types promote to the smallest implemented integer type containing both source ranges, or to `int`. Local adaptive-`int` bindings proven to remain in `int64` range lower directly to `i64`; conversion to the erased adaptive ABI occurs only where an operation or call requires it.
+
+Any statically typed source value may use bare `.coerce; Destination, converter` when the
+compiler declares no conversion for that source/destination pair. The second positional argument
+must be one synchronous function from the source's exact static type to the concrete destination;
+it is invoked once after the source evaluates once. Named or multiple callbacks, signature
+mismatches, asynchronous callbacks, and callback use on a policy child are rejected. A callback's
+declared throwables propagate through the ordinary call ABI.
 
 Checked fixed-width integer-to-floating arrivals use allocation-free native magnitude and bit
 checks before the primitive conversion. Only adaptive `int` enters the arbitrary-precision

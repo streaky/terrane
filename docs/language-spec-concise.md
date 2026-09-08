@@ -455,7 +455,7 @@ excluded: Bessel, incomplete gamma, distributions, linear algebra, arrays
 ## COERCION
 
 ```yaml
-form: receiver family/policy; 'value.coerce; destination-type' | 'value.coerce.checked; destination-type'
+form: receiver family/policy; 'value.coerce; destination-type' | 'value.coerce.checked; destination-type' | 'value.coerce; destination-type, converter'
 family: invocation is the throwing default | coerce.checked | coerce.wrap | coerce.saturate
 default_child: 'default' exists in compiler metadata for reflection only; source lookup of 'default' is rejected
 implicit_numeric_destination: assignment/argument/return/element/field accepts exactly or throws; no written coerce required
@@ -471,7 +471,7 @@ float_rounding_methods: round (ties-to-even) | floor | ceiling | truncate; each 
 float_out_of_range: written coerce throws coercion-error; never yields an infinity
 float_nonfinite_written: floating-to-floating coerce preserves signed infinity and NaN category; these are not finite-overflow failures
 string_parse: accepts exactly the destination's canonical text-display spelling
-coerce_options: NONE - coerce takes only its destination; it must never grow radix or format arguments
+coerce_options: NONE - compiler-declared coerce takes only its destination; the optional second positional argument on bare coerce is the complete caller-supplied converter, never a radix or format option
 parse_family: 'value.parse; callback' - the callback is REQUIRED; there is no built-in destination-owned parse
 parse_result: result type comes from the callback's declared return, not from a destination descriptor
 parse_checked: 'parse.checked; callback' catches a throwing callback and yields absence
@@ -484,7 +484,7 @@ bool_to_int: declared, total, lossless (false 0, true 1)
 int_to_bool: NOT a conversion; use an explicit comparison
 failure_value: default child throws, checked returns none; neither substitutes a value
 lenient_child: a total 'substitute on failure' conversion (PHP intval style, 0 for unparseable) is allowed ONLY as a separately named child, never as plain coerce; optional and unspecified in v1
-callback: caller-supplied conversion callback admitted for undeclared pairs; requires function values, so later than version-one scalars
+callback: "'value.coerce; Destination, converter' admits an otherwise undeclared pair; converter is an ordinary synchronous 'function from Source to Destination', both arguments must be positional, exactly one callback is invoked exactly once, and ordinary declared throws propagate"
 locale_parse: imported formatting facilities only, never coerce
 universality: no guarantee any type coerces to any other
 destination: version-one destinations resolve to finite compiler-known descriptors

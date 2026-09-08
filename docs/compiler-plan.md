@@ -202,20 +202,6 @@ Lower the semantic model to a small Rust-oriented IR before rendering text. The 
 This section contains only work that remains required by the settled version-one design. For a partially delivered milestone, its heading and exit criterion have been rewritten around the unfinished capability rather than repeating already implemented work. Requirements superseded by later language decisions are called out and excluded. Completely delivered milestones and completed portions of split milestones are retained in Appendix A.
 
 
-### Milestone 15 — Caller-supplied conversion callbacks
-
-First-class synchronous function values, closures, throwing callable values, and stored bound methods are complete. The only remaining milestone-15 surface is conversion for a source/destination pair that no descriptor declares.
-
-Deliver:
-
-- settle the source form that supplies a typed conversion callback to the existing conversion protocol;
-- require an exact callable input and declared result compatible with the requested destination;
-- evaluate the source value and callback exactly once, preserving the callback's throwable contract;
-- lower through the existing statically typed callable ABI without a universal boxed value; and
-- reject ambiguous, incompatible, or unavailable callbacks at the source boundary rather than turning an undeclared pair into a runtime lookup failure.
-
-Exit criterion: accepted cases convert an otherwise undeclared pair through named, closure, and bound-method callbacks; rejected cases cover input, result, effect, and ambiguity boundaries; generated Rust proves single evaluation and uses the ordinary callable protocol.
-
 ### Milestone 16 — Unify objects with the descriptor model
 
 Classes, inheritance, explicitly declared nominal interfaces, traits, lifecycle methods, and typed dynamic dispatch are complete, and the settled nominal/structural split — class, interface, and trait types nominal, protocols structural — supersedes the earlier plan’s “structural named interfaces” wording rather than remaining work.
@@ -611,6 +597,20 @@ The first-version compiler is done only when:
 ## Appendix A. Completed milestone record
 
 This appendix keeps delivered milestone contracts and evidence out of the active roadmap. Full milestone records below are preserved as completed implementation history. Entries titled “Completed portion” contain only the delivered side of a milestone whose remaining work appears in section 7; superseded requirements are recorded as such rather than carried forward.
+
+### Milestone 15 — Caller-supplied conversion callbacks
+
+Bare `value.coerce; Destination, converter` now admits an otherwise undeclared pair through one
+ordinary synchronous callable value with the exact source parameter and destination result.
+Named functions, closures, stored bound methods, and throwing function values share the existing
+typed callable ABI; the receiver and callback each evaluate once, and declared throwables follow
+ordinary raised-result propagation. Semantic rejection covers source and result mismatch,
+asynchronous or policy-child use, named arguments, and multiple callbacks before lowering.
+
+Evidence: `coercion-callback` runs named, closure, stored-bound-method, throwing, and
+single-evaluation paths with canonical generated Rust; `coercion-callback-source`,
+`coercion-callback-result`, and `coercion-callback-ambiguous` reject the principal compatibility
+and ambiguity boundaries.
 
 ### Milestone 0 — Toolchain skeleton and executable corpus
 

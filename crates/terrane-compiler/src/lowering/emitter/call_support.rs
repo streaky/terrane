@@ -365,6 +365,29 @@ impl Emitter<'_> {
         callee: &SyntaxNode,
         arguments: &SyntaxNode,
     ) -> String {
+        if arguments.children.len() == 2 {
+            let callback = arguments.children[1]
+                .children
+                .last()
+                .unwrap_or(&arguments.children[1]);
+            let source_type = self
+                .receiver_value_type(receiver)
+                .expect("validated conversion callback source has a static type");
+            let callback_type = self
+                .value_type(callback)
+                .expect("validated conversion callback has a static function type");
+            let source = self.expression_as(receiver, source_type);
+            let callback_expression = self.expression_as(callback, callback_type);
+            let invocation = format!("({callback_expression})({source})");
+            let site = self.error_site(callee);
+            return if self.try_completion {
+                format!("__terrane_traced_completion!({invocation}, {site})")
+            } else if self.propagate_errors {
+                format!("__terrane_traced_err({invocation}, {site})?")
+            } else {
+                format!("__terrane_traced({invocation}, {site})")
+            };
+        }
         let policy = match method.child {
             "default" => CoercionPolicy::Default,
             child => CoercionPolicy::from_member(child)
@@ -571,8 +594,7 @@ impl Emitter<'_> {
                     let ValueType::Object(identity) = value_type else {
                         return None;
                     };
-                    self.unit
-                        .objects
+                    self.unit.objects
                         .iter()
                         .find(|object| object.identity == identity)
                 })
