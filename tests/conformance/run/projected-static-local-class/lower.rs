@@ -21,7 +21,6 @@ enum TerraneErrorKind {
     MissingKey,
     ResourceError,
     SourceError,
-    Custom(DescriptorId),
 }
 impl TerraneErrorKind {
     fn display_name(self) -> &'static str {
@@ -36,9 +35,6 @@ impl TerraneErrorKind {
             Self::MissingKey => "missing-key",
             Self::ResourceError => "resource-error",
             Self::SourceError => "error",
-            Self::Custom(descriptor) => {
-                __terrane_error_registry::DESCRIPTORS[usize::from(descriptor.0)]
-            }
         }
     }
     fn default_message(self) -> &'static str {
@@ -55,7 +51,6 @@ impl TerraneErrorKind {
                 "integer shift count cannot be represented on this target"
             }
             Self::SourceError => "source error",
-            Self::Custom(_) => "source error",
         }
     }
 }
@@ -103,15 +98,6 @@ impl TerraneError {
                 }),
             ),
         }
-    }
-    #[cold]
-    #[inline(never)]
-    fn custom_raised(
-        descriptor: DescriptorId,
-        message: impl Into<String>,
-        origin: TerraneSite,
-    ) -> Self {
-        Self::raised_with_message(TerraneErrorKind::Custom(descriptor), message, origin)
     }
     #[cold]
     #[inline(never)]
@@ -377,37 +363,9 @@ enum TerraneCompletion<T> {
     Break,
     Continue,
 }
-#[allow(dead_code, reason = "a projected dependency may expose no Result members")]
-const TERRANE_DEPENDENCY_ERROR: DescriptorId = DescriptorId(0);
-#[allow(dead_code, reason = "panic catching may be disabled or not crossed")]
-const TERRANE_DEPENDENCY_PANIC: DescriptorId = DescriptorId(1);
-#[allow(
-    dead_code,
-    reason = "projected type methods may be imported without being crossed"
-)]
-fn __terrane_dependency_panic(
-    payload: Box<dyn std::any::Any + Send>,
-    crate_name: &'static str,
-    member: &'static str,
-) -> TerraneForeignError {
-    let detail = payload
-        .downcast_ref::<&str>()
-        .copied()
-        .or_else(|| payload.downcast_ref::<String>().map(String::as_str))
-        .unwrap_or("non-string panic payload");
-    TerraneForeignError(
-        TerraneError::custom_raised(
-            TERRANE_DEPENDENCY_PANIC,
-            format!(
-                "Rust dependency `{crate_name}` member `{member}` panicked: {detail}"
-            ),
-            TERRANE_NO_SITE,
-        ),
-    )
-}
 mod __terrane_error_registry {
     #[allow(dead_code, reason = "custom descriptors are absent from some programs")]
-    pub static DESCRIPTORS: [&str; 2] = ["dependency-error", "dependency-panic"];
+    pub static DESCRIPTORS: [&str; 0] = [];
 }
 mod __terrane_trace {
     pub struct Site {
@@ -418,65 +376,9 @@ mod __terrane_trace {
         pub end_line: u32,
         pub end_column: u32,
     }
-    pub static FILES: [&str; 1] = ["src/main.trn"];
-    pub static FUNCTIONS: [&str; 1] = ["/app::main"];
-    pub static SITES: [Site; 5] = [
-        {
-            /* terrane-site-row: site 0: /app::main (src/main.trn:5:16-5:45) */
-            Site {
-                function: 0,
-                file: 0,
-                line: 5,
-                column: 16,
-                end_line: 5,
-                end_column: 45,
-            }
-        },
-        {
-            /* terrane-site-row: site 1: /app::main (src/main.trn:6:5-6:26) */
-            Site {
-                function: 0,
-                file: 0,
-                line: 6,
-                column: 5,
-                end_line: 6,
-                end_column: 26,
-            }
-        },
-        {
-            /* terrane-site-row: site 2: /app::main (src/main.trn:7:34-7:50) */
-            Site {
-                function: 0,
-                file: 0,
-                line: 7,
-                column: 34,
-                end_line: 7,
-                end_column: 50,
-            }
-        },
-        {
-            /* terrane-site-row: site 3: /app::main (src/main.trn:8:13-8:40) */
-            Site {
-                function: 0,
-                file: 0,
-                line: 8,
-                column: 13,
-                end_line: 8,
-                end_column: 40,
-            }
-        },
-        {
-            /* terrane-site-row: site 4: /app::main (src/main.trn:9:19-9:33) */
-            Site {
-                function: 0,
-                file: 0,
-                line: 9,
-                column: 19,
-                end_line: 9,
-                end_column: 33,
-            }
-        },
-    ];
+    pub static FILES: [&str; 0] = [];
+    pub static FUNCTIONS: [&str; 0] = [];
+    pub static SITES: [Site; 0] = [];
     #[cold]
     #[inline(never)]
     pub fn render(site: u32) -> String {
@@ -491,163 +393,18 @@ mod __terrane_trace {
 }
 // Source: src/main.trn
 // Namespace: app
+#[derive(Clone)]
+pub struct BytesMut {}
+impl BytesMut {
+    pub fn terrane_construct() -> Self {
+        Self {}
+    }
+    pub fn terrane_static_from_iter() -> terrane_int_support::Int {
+        return terrane_int_support::Int::from(7_i128);
+    }
+}
 fn main() {
-    let mut response: Response = __terrane_raised(
-        get(String::from("http://127.0.0.1:38125/")),
-        0 /* terrane-site: src/main.trn:5:16-5:45 */,
-    );
-    __terrane_raised(
-        match std::panic::catch_unwind(
-            std::panic::AssertUnwindSafe(|| {
-                response.headers_mut();
-            }),
-        ) {
-            Ok(value) => Ok(value),
-            Err(payload) => {
-                Err(
-                    crate::__terrane_dependency_panic(
-                        payload,
-                        "reqwest",
-                        "reqwest::blocking::Response::headers_mut",
-                    ),
-                )
-            }
-        },
-        1 /* terrane-site: src/main.trn:6:5-6:26 */,
-    );
-    let response_status: StatusCode = __terrane_raised(
-        match std::panic::catch_unwind(
-            std::panic::AssertUnwindSafe(|| response.status()),
-        ) {
-            Ok(value) => Ok(value),
-            Err(payload) => {
-                Err(
-                    crate::__terrane_dependency_panic(
-                        payload,
-                        "reqwest",
-                        "reqwest::blocking::Response::status",
-                    ),
-                )
-            }
-        },
-        2 /* terrane-site: src/main.trn:7:34-7:50 */,
-    );
     println!(
-        "{}", terrane_scalar_support::scalar_text(&__terrane_raised(match
-        std::panic::catch_unwind(std::panic::AssertUnwindSafe(| | response_status
-        .is_success())) { Ok(value) => Ok(value), Err(payload) => Err(crate
-        ::__terrane_dependency_panic(payload, "http", "http::StatusCode::is_success")) },
-        3 /* terrane-site: src/main.trn:8:13-8:40 */))
+        "{}", terrane_scalar_support::scalar_text(&BytesMut::terrane_static_from_iter())
     );
-    let body: String = __terrane_raised(
-        match std::panic::catch_unwind(
-            std::panic::AssertUnwindSafe(|| response.text()),
-        ) {
-            Ok(Ok(value)) => Ok(value),
-            Ok(Err(error)) => {
-                Err(
-                    crate::TerraneForeignError(
-                        crate::TerraneError::custom_raised(
-                            crate::TERRANE_DEPENDENCY_ERROR,
-                            format!(
-                                "Rust dependency `reqwest` member `reqwest::blocking::Response::text` failed: {error}"
-                            ),
-                            crate::TERRANE_NO_SITE,
-                        ),
-                    ),
-                )
-            }
-            Err(payload) => {
-                Err(
-                    crate::__terrane_dependency_panic(
-                        payload,
-                        "reqwest",
-                        "reqwest::blocking::Response::text",
-                    ),
-                )
-            }
-        },
-        4 /* terrane-site: src/main.trn:9:19-9:33 */,
-    );
-    println!("{}", terrane_scalar_support::scalar_text(&body));
-}
-// Source: <terrane>/projected/deps/http.trn
-// Namespace: deps/http
-pub use http::Extensions;
-pub use http::StatusCode;
-pub use http::Version;
-pub fn terrane_static_trn_457874656e73696f6e73_new() -> Result<
-    Extensions,
-    crate::TerraneForeignError,
-> {
-    match std::panic::catch_unwind(
-        std::panic::AssertUnwindSafe(|| http::Extensions::new()),
-    ) {
-        Ok(value) => Ok(value),
-        Err(payload) => {
-            Err(crate::__terrane_dependency_panic(payload, "http", "http::Extensions"))
-        }
-    }
-}
-pub fn terrane_static_trn_537461747573436f6465_from_u16(
-    src: terrane_int_support::Int,
-) -> Result<StatusCode, crate::TerraneForeignError> {
-    let src = terrane_int_support::coerce::<u16>(&src)
-        .map_err(|error| crate::TerraneForeignError(
-            crate::TerraneRaised::raised(error, crate::TERRANE_NO_SITE),
-        ))?;
-    match std::panic::catch_unwind(
-        std::panic::AssertUnwindSafe(|| http::StatusCode::from_u16(src)),
-    ) {
-        Ok(Ok(value)) => Ok(value),
-        Ok(Err(error)) => {
-            Err(
-                crate::TerraneForeignError(
-                    crate::TerraneError::custom_raised(
-                        crate::TERRANE_DEPENDENCY_ERROR,
-                        format!(
-                            "Rust dependency `http` member `http::StatusCode` failed: {error}"
-                        ),
-                        crate::TERRANE_NO_SITE,
-                    ),
-                ),
-            )
-        }
-        Err(payload) => {
-            Err(crate::__terrane_dependency_panic(payload, "http", "http::StatusCode"))
-        }
-    }
-}
-// Source: <terrane>/projected/deps/reqwest/blocking.trn
-// Namespace: deps/reqwest/blocking
-pub use reqwest::blocking::Response;
-pub fn get(url: String) -> Result<Response, crate::TerraneForeignError> {
-    let url = url;
-    match std::panic::catch_unwind(
-        std::panic::AssertUnwindSafe(|| reqwest::blocking::get(url)),
-    ) {
-        Ok(Ok(value)) => Ok(value),
-        Ok(Err(error)) => {
-            Err(
-                crate::TerraneForeignError(
-                    crate::TerraneError::custom_raised(
-                        crate::TERRANE_DEPENDENCY_ERROR,
-                        format!(
-                            "Rust dependency `reqwest` member `reqwest::blocking::get` failed: {error}"
-                        ),
-                        crate::TERRANE_NO_SITE,
-                    ),
-                ),
-            )
-        }
-        Err(payload) => {
-            Err(
-                crate::__terrane_dependency_panic(
-                    payload,
-                    "reqwest",
-                    "reqwest::blocking::get",
-                ),
-            )
-        }
-    }
 }

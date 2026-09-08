@@ -2280,6 +2280,13 @@ warning-free under canonical Rust validation. Conformance cases cover accepted a
 Terrane-declared collisions, inherited `this` return lowering across a colliding type name, imported
 methods on aliased classes, canonical projected-source re-export resolution, and authored function
 boundaries carrying both the async and blocking `reqwest::Response` types.
+Projection schema 24 completes that canonicalization for associated functions, convenience
+preludes, and default generic instantiations: associated functions are static members of their
+owning projected class, substantive public paths outrank paths beneath `prelude`, a single admitted
+generic instantiation keeps its readable type name, and one discovered public-path graph is reused
+for cross-dependency identities and item projection. Durable history and the representative
+classification now cover instance/static members, concrete canonical names, recorded decline
+reasons, and aggregate counts.
 
 ### Milestone 25.2 — Deferred projection surface and dependency capability
 
@@ -2373,11 +2380,13 @@ expanded public API through rustdoc. No production projector path creates questi
 transferable artifacts honestly retain empty evidence and zero wall time rather than claiming an
 unused report was recorded.
 Concrete generic arguments and Rust type-alias substitutions now participate in projected foreign
-identity. Compiler names retain the readable short type name plus the full SHA-256 of the canonical
-instantiated path, so collision handling is deterministic and does not depend on projection order.
-Lowering emits instantiated Rust spellings as deterministic type aliases so distinct
-instantiations cannot collapse onto one semantic object. Generic declarations whose type
-parameters all have defaults now project their default concrete identity, including `Self`
+identity. A generic declaration with one admitted concrete instantiation retains its readable Rust
+type name; additional distinct instantiations use the readable short name plus the full SHA-256 of
+the canonical instantiated path. Collision handling therefore remains deterministic and
+projection-order independent without forcing the ordinary single-instantiation import through a
+hash-suffixed spelling. Lowering emits instantiated Rust spellings as deterministic type aliases so
+distinct instantiations cannot collapse onto one semantic object. Generic declarations whose type
+parameters all have defaults project their default concrete identity, including `Self`
 substitution in methods. Standard sequence, map, set, optional, and homogeneous-tuple shapes
 project recursively; map keys and set items are scalar-only. Lowering elides identity-element
 vector mapping and moves uniquely owned tuple elements without cloning or panic, while retaining

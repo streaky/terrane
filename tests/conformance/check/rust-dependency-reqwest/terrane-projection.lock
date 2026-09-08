@@ -15,7 +15,87 @@
         ],
         [
           "/deps/http",
-          "HeaderMap-58e43e777dcb514a092981c67c61d59343fe2175cf2bff51b56a8b5dab852a51"
+          "Extensions.clear"
+        ],
+        [
+          "/deps/http",
+          "Extensions.is_empty"
+        ],
+        [
+          "/deps/http",
+          "Extensions.len"
+        ],
+        [
+          "/deps/http",
+          "Extensions::new"
+        ],
+        [
+          "/deps/http",
+          "HeaderMap"
+        ],
+        [
+          "/deps/http",
+          "HeaderMap.capacity"
+        ],
+        [
+          "/deps/http",
+          "HeaderMap.clear"
+        ],
+        [
+          "/deps/http",
+          "HeaderMap.drain"
+        ],
+        [
+          "/deps/http",
+          "HeaderMap.is_empty"
+        ],
+        [
+          "/deps/http",
+          "HeaderMap.iter"
+        ],
+        [
+          "/deps/http",
+          "HeaderMap.iter_mut"
+        ],
+        [
+          "/deps/http",
+          "HeaderMap.keys"
+        ],
+        [
+          "/deps/http",
+          "HeaderMap.keys_len"
+        ],
+        [
+          "/deps/http",
+          "HeaderMap.len"
+        ],
+        [
+          "/deps/http",
+          "HeaderMap.reserve"
+        ],
+        [
+          "/deps/http",
+          "HeaderMap.try_reserve"
+        ],
+        [
+          "/deps/http",
+          "HeaderMap.values"
+        ],
+        [
+          "/deps/http",
+          "HeaderMap.values_mut"
+        ],
+        [
+          "/deps/http",
+          "HeaderMap::new"
+        ],
+        [
+          "/deps/http",
+          "HeaderMap::try_with_capacity"
+        ],
+        [
+          "/deps/http",
+          "HeaderMap::with_capacity"
         ],
         [
           "/deps/http",
@@ -23,7 +103,43 @@
         ],
         [
           "/deps/http",
+          "HeaderName.as_str"
+        ],
+        [
+          "/deps/http",
+          "HeaderName::from_static"
+        ],
+        [
+          "/deps/http",
           "HeaderValue"
+        ],
+        [
+          "/deps/http",
+          "HeaderValue.is_empty"
+        ],
+        [
+          "/deps/http",
+          "HeaderValue.is_sensitive"
+        ],
+        [
+          "/deps/http",
+          "HeaderValue.len"
+        ],
+        [
+          "/deps/http",
+          "HeaderValue.set_sensitive"
+        ],
+        [
+          "/deps/http",
+          "HeaderValue::from_name"
+        ],
+        [
+          "/deps/http",
+          "HeaderValue::from_static"
+        ],
+        [
+          "/deps/http",
+          "HeaderValue::from_str"
         ],
         [
           "/deps/http",
@@ -31,7 +147,55 @@
         ],
         [
           "/deps/http",
+          "Method.as_str"
+        ],
+        [
+          "/deps/http",
+          "Method.is_idempotent"
+        ],
+        [
+          "/deps/http",
+          "Method.is_safe"
+        ],
+        [
+          "/deps/http",
           "StatusCode"
+        ],
+        [
+          "/deps/http",
+          "StatusCode.as_str"
+        ],
+        [
+          "/deps/http",
+          "StatusCode.as_u16"
+        ],
+        [
+          "/deps/http",
+          "StatusCode.canonical_reason"
+        ],
+        [
+          "/deps/http",
+          "StatusCode.is_client_error"
+        ],
+        [
+          "/deps/http",
+          "StatusCode.is_informational"
+        ],
+        [
+          "/deps/http",
+          "StatusCode.is_redirection"
+        ],
+        [
+          "/deps/http",
+          "StatusCode.is_server_error"
+        ],
+        [
+          "/deps/http",
+          "StatusCode.is_success"
+        ],
+        [
+          "/deps/http",
+          "StatusCode::from_u16"
         ],
         [
           "/deps/http",
@@ -39,35 +203,55 @@
         ],
         [
           "/deps/http",
+          "Uri.authority"
+        ],
+        [
+          "/deps/http",
+          "Uri.host"
+        ],
+        [
+          "/deps/http",
+          "Uri.into_parts"
+        ],
+        [
+          "/deps/http",
+          "Uri.path"
+        ],
+        [
+          "/deps/http",
+          "Uri.path_and_query"
+        ],
+        [
+          "/deps/http",
+          "Uri.port"
+        ],
+        [
+          "/deps/http",
+          "Uri.port_u16"
+        ],
+        [
+          "/deps/http",
+          "Uri.query"
+        ],
+        [
+          "/deps/http",
+          "Uri.scheme"
+        ],
+        [
+          "/deps/http",
+          "Uri.scheme_str"
+        ],
+        [
+          "/deps/http",
+          "Uri::builder"
+        ],
+        [
+          "/deps/http",
+          "Uri::from_parts"
+        ],
+        [
+          "/deps/http",
           "Version"
-        ],
-        [
-          "/deps/http",
-          "builder"
-        ],
-        [
-          "/deps/http",
-          "from_name"
-        ],
-        [
-          "/deps/http",
-          "from_parts"
-        ],
-        [
-          "/deps/http",
-          "from_str"
-        ],
-        [
-          "/deps/http",
-          "from_u16"
-        ],
-        [
-          "/deps/http",
-          "try_with_capacity"
-        ],
-        [
-          "/deps/http",
-          "with_capacity"
         ],
         [
           "/deps/http/header",
@@ -99,11 +283,43 @@
         ],
         [
           "/deps/http/request",
-          "Parts"
+          "Builder.extensions_mut"
         ],
         [
           "/deps/http/request",
-          "new"
+          "Builder.extensions_ref"
+        ],
+        [
+          "/deps/http/request",
+          "Builder.headers_mut"
+        ],
+        [
+          "/deps/http/request",
+          "Builder.headers_ref"
+        ],
+        [
+          "/deps/http/request",
+          "Builder.method_ref"
+        ],
+        [
+          "/deps/http/request",
+          "Builder.uri_ref"
+        ],
+        [
+          "/deps/http/request",
+          "Builder.version"
+        ],
+        [
+          "/deps/http/request",
+          "Builder.version_ref"
+        ],
+        [
+          "/deps/http/request",
+          "Builder::new"
+        ],
+        [
+          "/deps/http/request",
+          "Parts"
         ],
         [
           "/deps/http/response",
@@ -111,11 +327,31 @@
         ],
         [
           "/deps/http/response",
-          "Parts"
+          "Builder.extensions_mut"
         ],
         [
           "/deps/http/response",
-          "new"
+          "Builder.extensions_ref"
+        ],
+        [
+          "/deps/http/response",
+          "Builder.headers_mut"
+        ],
+        [
+          "/deps/http/response",
+          "Builder.headers_ref"
+        ],
+        [
+          "/deps/http/response",
+          "Builder.version"
+        ],
+        [
+          "/deps/http/response",
+          "Builder::new"
+        ],
+        [
+          "/deps/http/response",
+          "Parts"
         ],
         [
           "/deps/http/status",
@@ -127,7 +363,31 @@
         ],
         [
           "/deps/http/uri",
+          "Authority.as_str"
+        ],
+        [
+          "/deps/http/uri",
+          "Authority.host"
+        ],
+        [
+          "/deps/http/uri",
+          "Authority.port"
+        ],
+        [
+          "/deps/http/uri",
+          "Authority.port_u16"
+        ],
+        [
+          "/deps/http/uri",
           "Builder"
+        ],
+        [
+          "/deps/http/uri",
+          "Builder.build"
+        ],
+        [
+          "/deps/http/uri",
+          "Builder::new"
         ],
         [
           "/deps/http/uri",
@@ -147,11 +407,23 @@
         ],
         [
           "/deps/http/uri",
+          "PathAndQuery.as_str"
+        ],
+        [
+          "/deps/http/uri",
+          "PathAndQuery.path"
+        ],
+        [
+          "/deps/http/uri",
+          "PathAndQuery.query"
+        ],
+        [
+          "/deps/http/uri",
           "Scheme"
         ],
         [
           "/deps/http/uri",
-          "new"
+          "Scheme.as_str"
         ]
       ]
     },
@@ -173,11 +445,239 @@
         ],
         [
           "/deps/reqwest",
+          "Client.delete"
+        ],
+        [
+          "/deps/reqwest",
+          "Client.get"
+        ],
+        [
+          "/deps/reqwest",
+          "Client.head"
+        ],
+        [
+          "/deps/reqwest",
+          "Client.patch"
+        ],
+        [
+          "/deps/reqwest",
+          "Client.post"
+        ],
+        [
+          "/deps/reqwest",
+          "Client.put"
+        ],
+        [
+          "/deps/reqwest",
+          "Client.request"
+        ],
+        [
+          "/deps/reqwest",
+          "Client::builder"
+        ],
+        [
+          "/deps/reqwest",
+          "Client::new"
+        ],
+        [
+          "/deps/reqwest",
           "ClientBuilder"
         ],
         [
           "/deps/reqwest",
+          "ClientBuilder.add_crl"
+        ],
+        [
+          "/deps/reqwest",
+          "ClientBuilder.add_root_certificate"
+        ],
+        [
+          "/deps/reqwest",
+          "ClientBuilder.build"
+        ],
+        [
+          "/deps/reqwest",
+          "ClientBuilder.connect_timeout"
+        ],
+        [
+          "/deps/reqwest",
+          "ClientBuilder.connection_verbose"
+        ],
+        [
+          "/deps/reqwest",
+          "ClientBuilder.danger_accept_invalid_certs"
+        ],
+        [
+          "/deps/reqwest",
+          "ClientBuilder.danger_accept_invalid_hostnames"
+        ],
+        [
+          "/deps/reqwest",
+          "ClientBuilder.default_headers"
+        ],
+        [
+          "/deps/reqwest",
+          "ClientBuilder.http09_responses"
+        ],
+        [
+          "/deps/reqwest",
+          "ClientBuilder.http1_allow_obsolete_multiline_headers_in_responses"
+        ],
+        [
+          "/deps/reqwest",
+          "ClientBuilder.http1_allow_spaces_after_header_name_in_responses"
+        ],
+        [
+          "/deps/reqwest",
+          "ClientBuilder.http1_ignore_invalid_headers_in_responses"
+        ],
+        [
+          "/deps/reqwest",
+          "ClientBuilder.http1_only"
+        ],
+        [
+          "/deps/reqwest",
+          "ClientBuilder.http1_title_case_headers"
+        ],
+        [
+          "/deps/reqwest",
+          "ClientBuilder.https_only"
+        ],
+        [
+          "/deps/reqwest",
+          "ClientBuilder.identity"
+        ],
+        [
+          "/deps/reqwest",
+          "ClientBuilder.interface"
+        ],
+        [
+          "/deps/reqwest",
+          "ClientBuilder.max_tls_version"
+        ],
+        [
+          "/deps/reqwest",
+          "ClientBuilder.min_tls_version"
+        ],
+        [
+          "/deps/reqwest",
+          "ClientBuilder.no_brotli"
+        ],
+        [
+          "/deps/reqwest",
+          "ClientBuilder.no_deflate"
+        ],
+        [
+          "/deps/reqwest",
+          "ClientBuilder.no_gzip"
+        ],
+        [
+          "/deps/reqwest",
+          "ClientBuilder.no_hickory_dns"
+        ],
+        [
+          "/deps/reqwest",
+          "ClientBuilder.no_proxy"
+        ],
+        [
+          "/deps/reqwest",
+          "ClientBuilder.no_zstd"
+        ],
+        [
+          "/deps/reqwest",
+          "ClientBuilder.pool_max_idle_per_host"
+        ],
+        [
+          "/deps/reqwest",
+          "ClientBuilder.proxy"
+        ],
+        [
+          "/deps/reqwest",
+          "ClientBuilder.read_timeout"
+        ],
+        [
+          "/deps/reqwest",
+          "ClientBuilder.redirect"
+        ],
+        [
+          "/deps/reqwest",
+          "ClientBuilder.referer"
+        ],
+        [
+          "/deps/reqwest",
+          "ClientBuilder.resolve"
+        ],
+        [
+          "/deps/reqwest",
+          "ClientBuilder.retry"
+        ],
+        [
+          "/deps/reqwest",
+          "ClientBuilder.tcp_nodelay"
+        ],
+        [
+          "/deps/reqwest",
+          "ClientBuilder.timeout"
+        ],
+        [
+          "/deps/reqwest",
+          "ClientBuilder.tls_built_in_root_certs"
+        ],
+        [
+          "/deps/reqwest",
+          "ClientBuilder.tls_built_in_webpki_certs"
+        ],
+        [
+          "/deps/reqwest",
+          "ClientBuilder.tls_info"
+        ],
+        [
+          "/deps/reqwest",
+          "ClientBuilder.tls_sni"
+        ],
+        [
+          "/deps/reqwest",
+          "ClientBuilder.use_rustls_tls"
+        ],
+        [
+          "/deps/reqwest",
           "Error"
+        ],
+        [
+          "/deps/reqwest",
+          "Error.is_body"
+        ],
+        [
+          "/deps/reqwest",
+          "Error.is_builder"
+        ],
+        [
+          "/deps/reqwest",
+          "Error.is_connect"
+        ],
+        [
+          "/deps/reqwest",
+          "Error.is_decode"
+        ],
+        [
+          "/deps/reqwest",
+          "Error.is_redirect"
+        ],
+        [
+          "/deps/reqwest",
+          "Error.is_request"
+        ],
+        [
+          "/deps/reqwest",
+          "Error.is_status"
+        ],
+        [
+          "/deps/reqwest",
+          "Error.is_timeout"
+        ],
+        [
+          "/deps/reqwest",
+          "Error.status"
         ],
         [
           "/deps/reqwest",
@@ -189,7 +689,27 @@
         ],
         [
           "/deps/reqwest",
+          "NoProxy::from_env"
+        ],
+        [
+          "/deps/reqwest",
           "Proxy"
+        ],
+        [
+          "/deps/reqwest",
+          "Proxy.basic_auth"
+        ],
+        [
+          "/deps/reqwest",
+          "Proxy.custom_http_auth"
+        ],
+        [
+          "/deps/reqwest",
+          "Proxy.headers"
+        ],
+        [
+          "/deps/reqwest",
+          "Proxy.no_proxy"
         ],
         [
           "/deps/reqwest",
@@ -197,7 +717,75 @@
         ],
         [
           "/deps/reqwest",
+          "Request.body"
+        ],
+        [
+          "/deps/reqwest",
+          "Request.body_mut"
+        ],
+        [
+          "/deps/reqwest",
+          "Request.headers"
+        ],
+        [
+          "/deps/reqwest",
+          "Request.headers_mut"
+        ],
+        [
+          "/deps/reqwest",
+          "Request.method"
+        ],
+        [
+          "/deps/reqwest",
+          "Request.method_mut"
+        ],
+        [
+          "/deps/reqwest",
+          "Request.timeout"
+        ],
+        [
+          "/deps/reqwest",
+          "Request.timeout_mut"
+        ],
+        [
+          "/deps/reqwest",
+          "Request.try_clone"
+        ],
+        [
+          "/deps/reqwest",
+          "Request.version"
+        ],
+        [
+          "/deps/reqwest",
+          "Request.version_mut"
+        ],
+        [
+          "/deps/reqwest",
           "RequestBuilder"
+        ],
+        [
+          "/deps/reqwest",
+          "RequestBuilder.build"
+        ],
+        [
+          "/deps/reqwest",
+          "RequestBuilder.headers"
+        ],
+        [
+          "/deps/reqwest",
+          "RequestBuilder.timeout"
+        ],
+        [
+          "/deps/reqwest",
+          "RequestBuilder.try_clone"
+        ],
+        [
+          "/deps/reqwest",
+          "RequestBuilder.version"
+        ],
+        [
+          "/deps/reqwest",
+          "RequestBuilder::from_parts"
         ],
         [
           "/deps/reqwest",
@@ -205,27 +793,51 @@
         ],
         [
           "/deps/reqwest",
+          "Response.content_length"
+        ],
+        [
+          "/deps/reqwest",
+          "Response.extensions"
+        ],
+        [
+          "/deps/reqwest",
+          "Response.extensions_mut"
+        ],
+        [
+          "/deps/reqwest",
+          "Response.headers"
+        ],
+        [
+          "/deps/reqwest",
+          "Response.headers_mut"
+        ],
+        [
+          "/deps/reqwest",
+          "Response.remote_addr"
+        ],
+        [
+          "/deps/reqwest",
+          "Response.status"
+        ],
+        [
+          "/deps/reqwest",
+          "Response.text"
+        ],
+        [
+          "/deps/reqwest",
+          "Response.upgrade"
+        ],
+        [
+          "/deps/reqwest",
+          "Response.version"
+        ],
+        [
+          "/deps/reqwest",
           "Upgraded"
         ],
         [
           "/deps/reqwest",
-          "builder"
-        ],
-        [
-          "/deps/reqwest",
-          "from_env"
-        ],
-        [
-          "/deps/reqwest",
-          "from_parts"
-        ],
-        [
-          "/deps/reqwest",
           "get"
-        ],
-        [
-          "/deps/reqwest",
-          "new"
         ],
         [
           "/deps/reqwest/async-impl/client",
@@ -241,7 +853,195 @@
         ],
         [
           "/deps/reqwest/blocking",
+          "Client.delete"
+        ],
+        [
+          "/deps/reqwest/blocking",
+          "Client.execute"
+        ],
+        [
+          "/deps/reqwest/blocking",
+          "Client.get"
+        ],
+        [
+          "/deps/reqwest/blocking",
+          "Client.head"
+        ],
+        [
+          "/deps/reqwest/blocking",
+          "Client.patch"
+        ],
+        [
+          "/deps/reqwest/blocking",
+          "Client.post"
+        ],
+        [
+          "/deps/reqwest/blocking",
+          "Client.put"
+        ],
+        [
+          "/deps/reqwest/blocking",
+          "Client.request"
+        ],
+        [
+          "/deps/reqwest/blocking",
+          "Client::builder"
+        ],
+        [
+          "/deps/reqwest/blocking",
+          "Client::new"
+        ],
+        [
+          "/deps/reqwest/blocking",
           "ClientBuilder"
+        ],
+        [
+          "/deps/reqwest/blocking",
+          "ClientBuilder.add_crl"
+        ],
+        [
+          "/deps/reqwest/blocking",
+          "ClientBuilder.add_root_certificate"
+        ],
+        [
+          "/deps/reqwest/blocking",
+          "ClientBuilder.build"
+        ],
+        [
+          "/deps/reqwest/blocking",
+          "ClientBuilder.connection_verbose"
+        ],
+        [
+          "/deps/reqwest/blocking",
+          "ClientBuilder.danger_accept_invalid_certs"
+        ],
+        [
+          "/deps/reqwest/blocking",
+          "ClientBuilder.danger_accept_invalid_hostnames"
+        ],
+        [
+          "/deps/reqwest/blocking",
+          "ClientBuilder.default_headers"
+        ],
+        [
+          "/deps/reqwest/blocking",
+          "ClientBuilder.http09_responses"
+        ],
+        [
+          "/deps/reqwest/blocking",
+          "ClientBuilder.http1_allow_obsolete_multiline_headers_in_responses"
+        ],
+        [
+          "/deps/reqwest/blocking",
+          "ClientBuilder.http1_allow_spaces_after_header_name_in_responses"
+        ],
+        [
+          "/deps/reqwest/blocking",
+          "ClientBuilder.http1_ignore_invalid_headers_in_responses"
+        ],
+        [
+          "/deps/reqwest/blocking",
+          "ClientBuilder.http1_only"
+        ],
+        [
+          "/deps/reqwest/blocking",
+          "ClientBuilder.http1_title_case_headers"
+        ],
+        [
+          "/deps/reqwest/blocking",
+          "ClientBuilder.https_only"
+        ],
+        [
+          "/deps/reqwest/blocking",
+          "ClientBuilder.identity"
+        ],
+        [
+          "/deps/reqwest/blocking",
+          "ClientBuilder.interface"
+        ],
+        [
+          "/deps/reqwest/blocking",
+          "ClientBuilder.max_tls_version"
+        ],
+        [
+          "/deps/reqwest/blocking",
+          "ClientBuilder.min_tls_version"
+        ],
+        [
+          "/deps/reqwest/blocking",
+          "ClientBuilder.no_brotli"
+        ],
+        [
+          "/deps/reqwest/blocking",
+          "ClientBuilder.no_deflate"
+        ],
+        [
+          "/deps/reqwest/blocking",
+          "ClientBuilder.no_gzip"
+        ],
+        [
+          "/deps/reqwest/blocking",
+          "ClientBuilder.no_hickory_dns"
+        ],
+        [
+          "/deps/reqwest/blocking",
+          "ClientBuilder.no_proxy"
+        ],
+        [
+          "/deps/reqwest/blocking",
+          "ClientBuilder.no_trust_dns"
+        ],
+        [
+          "/deps/reqwest/blocking",
+          "ClientBuilder.no_zstd"
+        ],
+        [
+          "/deps/reqwest/blocking",
+          "ClientBuilder.pool_max_idle_per_host"
+        ],
+        [
+          "/deps/reqwest/blocking",
+          "ClientBuilder.proxy"
+        ],
+        [
+          "/deps/reqwest/blocking",
+          "ClientBuilder.redirect"
+        ],
+        [
+          "/deps/reqwest/blocking",
+          "ClientBuilder.referer"
+        ],
+        [
+          "/deps/reqwest/blocking",
+          "ClientBuilder.resolve"
+        ],
+        [
+          "/deps/reqwest/blocking",
+          "ClientBuilder.retry"
+        ],
+        [
+          "/deps/reqwest/blocking",
+          "ClientBuilder.tcp_nodelay"
+        ],
+        [
+          "/deps/reqwest/blocking",
+          "ClientBuilder.tls_built_in_root_certs"
+        ],
+        [
+          "/deps/reqwest/blocking",
+          "ClientBuilder.tls_built_in_webpki_certs"
+        ],
+        [
+          "/deps/reqwest/blocking",
+          "ClientBuilder.tls_info"
+        ],
+        [
+          "/deps/reqwest/blocking",
+          "ClientBuilder.tls_sni"
+        ],
+        [
+          "/deps/reqwest/blocking",
+          "ClientBuilder.use_rustls_tls"
         ],
         [
           "/deps/reqwest/blocking",
@@ -249,7 +1049,79 @@
         ],
         [
           "/deps/reqwest/blocking",
+          "Request.body"
+        ],
+        [
+          "/deps/reqwest/blocking",
+          "Request.body_mut"
+        ],
+        [
+          "/deps/reqwest/blocking",
+          "Request.headers"
+        ],
+        [
+          "/deps/reqwest/blocking",
+          "Request.headers_mut"
+        ],
+        [
+          "/deps/reqwest/blocking",
+          "Request.method"
+        ],
+        [
+          "/deps/reqwest/blocking",
+          "Request.method_mut"
+        ],
+        [
+          "/deps/reqwest/blocking",
+          "Request.timeout"
+        ],
+        [
+          "/deps/reqwest/blocking",
+          "Request.timeout_mut"
+        ],
+        [
+          "/deps/reqwest/blocking",
+          "Request.try_clone"
+        ],
+        [
+          "/deps/reqwest/blocking",
+          "Request.version"
+        ],
+        [
+          "/deps/reqwest/blocking",
+          "Request.version_mut"
+        ],
+        [
+          "/deps/reqwest/blocking",
           "RequestBuilder"
+        ],
+        [
+          "/deps/reqwest/blocking",
+          "RequestBuilder.build"
+        ],
+        [
+          "/deps/reqwest/blocking",
+          "RequestBuilder.headers"
+        ],
+        [
+          "/deps/reqwest/blocking",
+          "RequestBuilder.send"
+        ],
+        [
+          "/deps/reqwest/blocking",
+          "RequestBuilder.timeout"
+        ],
+        [
+          "/deps/reqwest/blocking",
+          "RequestBuilder.try_clone"
+        ],
+        [
+          "/deps/reqwest/blocking",
+          "RequestBuilder.version"
+        ],
+        [
+          "/deps/reqwest/blocking",
+          "RequestBuilder::from_parts"
         ],
         [
           "/deps/reqwest/blocking",
@@ -257,19 +1129,43 @@
         ],
         [
           "/deps/reqwest/blocking",
-          "builder"
+          "Response.content_length"
         ],
         [
           "/deps/reqwest/blocking",
-          "from_parts"
+          "Response.extensions"
+        ],
+        [
+          "/deps/reqwest/blocking",
+          "Response.extensions_mut"
+        ],
+        [
+          "/deps/reqwest/blocking",
+          "Response.headers"
+        ],
+        [
+          "/deps/reqwest/blocking",
+          "Response.headers_mut"
+        ],
+        [
+          "/deps/reqwest/blocking",
+          "Response.remote_addr"
+        ],
+        [
+          "/deps/reqwest/blocking",
+          "Response.status"
+        ],
+        [
+          "/deps/reqwest/blocking",
+          "Response.text"
+        ],
+        [
+          "/deps/reqwest/blocking",
+          "Response.version"
         ],
         [
           "/deps/reqwest/blocking",
           "get"
-        ],
-        [
-          "/deps/reqwest/blocking",
-          "new"
         ],
         [
           "/deps/reqwest/connect/sealed",
@@ -288,6 +1184,10 @@
           "Name"
         ],
         [
+          "/deps/reqwest/dns",
+          "Name.as_str"
+        ],
+        [
           "/deps/reqwest/dns/resolve/sealed",
           "InvalidNameError"
         ],
@@ -298,6 +1198,10 @@
         [
           "/deps/reqwest/redirect",
           "Policy"
+        ],
+        [
+          "/deps/reqwest/redirect",
+          "Policy.redirect"
         ],
         [
           "/deps/reqwest/retry",
@@ -335,11 +1239,11 @@
     }
   ],
   "removed": [],
-  "cache_identity": "0d039bcd9b18a23dfe2b503a62c96c704c9117bba09ce6d714374baf224a9515",
+  "cache_identity": "fdc61a9286ce9fa01260ba7d57075fbd3803d1c8f73c1a58cae13ba3fa5fa98d",
   "source": "Local",
   "rustdoc_format": 57,
-  "projection_schema": "21",
-  "content_hash": "9916284f2cc23b70676d13287514fc32450e15a871d5e1fe07d9631e9a22bf3d",
+  "projection_schema": "24",
+  "content_hash": "07d24dbe4b2f79c1ed1a8d1d34c4f7d665da85d24455fa864cb27893e220b702",
   "resolution": {
     "outcome": "LocalRustdoc",
     "events": [

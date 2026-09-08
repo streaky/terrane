@@ -15,6 +15,14 @@
         ],
         [
           "/deps/numr/algorithm",
+          "TileConfig.threads_per_block"
+        ],
+        [
+          "/deps/numr/algorithm",
+          "TileConfig.validate"
+        ],
+        [
+          "/deps/numr/algorithm",
           "linalg_working_dtype"
         ],
         [
@@ -32,6 +40,14 @@
         [
           "/deps/numr/algorithm",
           "validate_special_dtype"
+        ],
+        [
+          "/deps/numr/algorithm/fft",
+          "FftDirection"
+        ],
+        [
+          "/deps/numr/algorithm/fft",
+          "FftNormalization"
         ],
         [
           "/deps/numr/algorithm/fft",
@@ -71,11 +87,51 @@
         ],
         [
           "/deps/numr/algorithm/fft-bluestein",
+          "BluesteinTables.chirp_f32"
+        ],
+        [
+          "/deps/numr/algorithm/fft-bluestein",
+          "BluesteinTables.chirp_f64"
+        ],
+        [
+          "/deps/numr/algorithm/fft-bluestein",
+          "BluesteinTables.kernel_spectrum_f32"
+        ],
+        [
+          "/deps/numr/algorithm/fft-bluestein",
+          "BluesteinTables.kernel_spectrum_f64"
+        ],
+        [
+          "/deps/numr/algorithm/fft-bluestein",
           "cached_tables"
         ],
         [
           "/deps/numr/algorithm/fft-bluestein",
           "chirp_sequence"
+        ],
+        [
+          "/deps/numr/algorithm/fft/fftdirection",
+          "Forward"
+        ],
+        [
+          "/deps/numr/algorithm/fft/fftdirection",
+          "Inverse"
+        ],
+        [
+          "/deps/numr/algorithm/fft/fftnormalization",
+          "Backward"
+        ],
+        [
+          "/deps/numr/algorithm/fft/fftnormalization",
+          "Forward"
+        ],
+        [
+          "/deps/numr/algorithm/fft/fftnormalization",
+          "None"
+        ],
+        [
+          "/deps/numr/algorithm/fft/fftnormalization",
+          "Ortho"
         ],
         [
           "/deps/numr/algorithm/linalg",
@@ -140,6 +196,10 @@
         [
           "/deps/numr/algorithm/polynomial/core",
           "DTypeSupport"
+        ],
+        [
+          "/deps/numr/algorithm/polynomial/core",
+          "DTypeSupport.check"
         ],
         [
           "/deps/numr/algorithm/special",
@@ -279,6 +339,14 @@
         ],
         [
           "/deps/numr/autograd",
+          "TensorId.as_u64"
+        ],
+        [
+          "/deps/numr/autograd",
+          "TensorId.raw"
+        ],
+        [
+          "/deps/numr/autograd",
           "var_narrow"
         ],
         [
@@ -291,7 +359,31 @@
         ],
         [
           "/deps/numr/dtype",
+          "Complex128.magnitude"
+        ],
+        [
+          "/deps/numr/dtype",
+          "Complex128.magnitude_squared"
+        ],
+        [
+          "/deps/numr/dtype",
+          "Complex128.phase"
+        ],
+        [
+          "/deps/numr/dtype",
           "Complex64"
+        ],
+        [
+          "/deps/numr/dtype",
+          "Complex64.magnitude"
+        ],
+        [
+          "/deps/numr/dtype",
+          "Complex64.magnitude_squared"
+        ],
+        [
+          "/deps/numr/dtype",
+          "Complex64.phase"
         ],
         [
           "/deps/numr/dtype",
@@ -307,11 +399,87 @@
         ],
         [
           "/deps/numr/dtype",
+          "DTypeSet.contains"
+        ],
+        [
+          "/deps/numr/dtype",
+          "DTypeSet.is_empty"
+        ],
+        [
+          "/deps/numr/dtype",
           "FP8E4M3"
         ],
         [
           "/deps/numr/dtype",
+          "FP8E4M3.is_nan"
+        ],
+        [
+          "/deps/numr/dtype",
+          "FP8E4M3.is_negative"
+        ],
+        [
+          "/deps/numr/dtype",
+          "FP8E4M3.is_zero"
+        ],
+        [
+          "/deps/numr/dtype",
+          "FP8E4M3.to_bits"
+        ],
+        [
+          "/deps/numr/dtype",
+          "FP8E4M3.to_f32"
+        ],
+        [
+          "/deps/numr/dtype",
+          "FP8E4M3.to_f64"
+        ],
+        [
+          "/deps/numr/dtype",
+          "FP8E4M3::max_value"
+        ],
+        [
+          "/deps/numr/dtype",
+          "FP8E4M3::min_value"
+        ],
+        [
+          "/deps/numr/dtype",
           "FP8E5M2"
+        ],
+        [
+          "/deps/numr/dtype",
+          "FP8E5M2.is_infinite"
+        ],
+        [
+          "/deps/numr/dtype",
+          "FP8E5M2.is_nan"
+        ],
+        [
+          "/deps/numr/dtype",
+          "FP8E5M2.is_negative"
+        ],
+        [
+          "/deps/numr/dtype",
+          "FP8E5M2.is_zero"
+        ],
+        [
+          "/deps/numr/dtype",
+          "FP8E5M2.to_bits"
+        ],
+        [
+          "/deps/numr/dtype",
+          "FP8E5M2.to_f32"
+        ],
+        [
+          "/deps/numr/dtype",
+          "FP8E5M2.to_f64"
+        ],
+        [
+          "/deps/numr/dtype",
+          "FP8E5M2::max_value"
+        ],
+        [
+          "/deps/numr/dtype",
+          "FP8E5M2::min_value"
         ],
         [
           "/deps/numr/dtype",
@@ -444,6 +612,10 @@
         [
           "/deps/numr/ops",
           "MatmulParams"
+        ],
+        [
+          "/deps/numr/ops",
+          "MatmulParams.output_shape"
         ],
         [
           "/deps/numr/ops",
@@ -814,82 +986,6 @@
           "Trunc"
         ],
         [
-          "/deps/numr/prelude",
-          "CpuClient"
-        ],
-        [
-          "/deps/numr/prelude",
-          "CpuDevice"
-        ],
-        [
-          "/deps/numr/prelude",
-          "CpuRuntime"
-        ],
-        [
-          "/deps/numr/prelude",
-          "FftDirection"
-        ],
-        [
-          "/deps/numr/prelude",
-          "FftNormalization"
-        ],
-        [
-          "/deps/numr/prelude",
-          "Layout"
-        ],
-        [
-          "/deps/numr/prelude",
-          "NoOpGraph"
-        ],
-        [
-          "/deps/numr/prelude",
-          "ParallelismConfig"
-        ],
-        [
-          "/deps/numr/prelude",
-          "Shape"
-        ],
-        [
-          "/deps/numr/prelude",
-          "Strides"
-        ],
-        [
-          "/deps/numr/prelude/device",
-          "id"
-        ],
-        [
-          "/deps/numr/prelude/device",
-          "name"
-        ],
-        [
-          "/deps/numr/prelude/fftdirection",
-          "Forward"
-        ],
-        [
-          "/deps/numr/prelude/fftdirection",
-          "Inverse"
-        ],
-        [
-          "/deps/numr/prelude/fftnormalization",
-          "Backward"
-        ],
-        [
-          "/deps/numr/prelude/fftnormalization",
-          "Forward"
-        ],
-        [
-          "/deps/numr/prelude/fftnormalization",
-          "None"
-        ],
-        [
-          "/deps/numr/prelude/fftnormalization",
-          "Ortho"
-        ],
-        [
-          "/deps/numr/prelude/graph",
-          "launch"
-        ],
-        [
           "/deps/numr/runtime",
           "AllocationStats"
         ],
@@ -900,6 +996,10 @@
         [
           "/deps/numr/runtime",
           "NoOpCommunicator"
+        ],
+        [
+          "/deps/numr/runtime",
+          "NoOpGraph"
         ],
         [
           "/deps/numr/runtime",
@@ -926,8 +1026,32 @@
           "world_size"
         ],
         [
+          "/deps/numr/runtime/cpu",
+          "CpuClient"
+        ],
+        [
+          "/deps/numr/runtime/cpu",
+          "CpuClient.parallelism"
+        ],
+        [
+          "/deps/numr/runtime/cpu",
+          "CpuDevice"
+        ],
+        [
+          "/deps/numr/runtime/cpu",
+          "CpuRuntime"
+        ],
+        [
+          "/deps/numr/runtime/cpu",
+          "ParallelismConfig"
+        ],
+        [
           "/deps/numr/runtime/cpu/jacobi",
           "JacobiRotation"
+        ],
+        [
+          "/deps/numr/runtime/cpu/jacobi",
+          "JacobiRotation.typed"
         ],
         [
           "/deps/numr/runtime/cpu/jacobi",
@@ -956,6 +1080,18 @@
         [
           "/deps/numr/runtime/cpu/kernels/sobol-data",
           "SobolPolynomialResolver"
+        ],
+        [
+          "/deps/numr/runtime/device",
+          "id"
+        ],
+        [
+          "/deps/numr/runtime/device",
+          "name"
+        ],
+        [
+          "/deps/numr/runtime/graph",
+          "launch"
         ],
         [
           "/deps/numr/runtime/paralleldim",
@@ -990,6 +1126,126 @@
           "Sum"
         ],
         [
+          "/deps/numr/tensor",
+          "Layout"
+        ],
+        [
+          "/deps/numr/tensor",
+          "Layout.broadcast_shape"
+        ],
+        [
+          "/deps/numr/tensor",
+          "Layout.dim"
+        ],
+        [
+          "/deps/numr/tensor",
+          "Layout.elem_count"
+        ],
+        [
+          "/deps/numr/tensor",
+          "Layout.is_contiguous"
+        ],
+        [
+          "/deps/numr/tensor",
+          "Layout.is_empty"
+        ],
+        [
+          "/deps/numr/tensor",
+          "Layout.is_scalar"
+        ],
+        [
+          "/deps/numr/tensor",
+          "Layout.ndim"
+        ],
+        [
+          "/deps/numr/tensor",
+          "Layout.normalize_dim"
+        ],
+        [
+          "/deps/numr/tensor",
+          "Layout.offset"
+        ],
+        [
+          "/deps/numr/tensor",
+          "Layout.offset_to_index"
+        ],
+        [
+          "/deps/numr/tensor",
+          "Layout.rank"
+        ],
+        [
+          "/deps/numr/tensor",
+          "Layout.storage_size"
+        ],
+        [
+          "/deps/numr/tensor",
+          "Layout.stride"
+        ],
+        [
+          "/deps/numr/tensor",
+          "Shape"
+        ],
+        [
+          "/deps/numr/tensor",
+          "Shape.insert"
+        ],
+        [
+          "/deps/numr/tensor",
+          "Shape.is_empty"
+        ],
+        [
+          "/deps/numr/tensor",
+          "Shape.len"
+        ],
+        [
+          "/deps/numr/tensor",
+          "Shape.ndim"
+        ],
+        [
+          "/deps/numr/tensor",
+          "Shape.push"
+        ],
+        [
+          "/deps/numr/tensor",
+          "Shape.remove"
+        ],
+        [
+          "/deps/numr/tensor",
+          "Shape.swap"
+        ],
+        [
+          "/deps/numr/tensor",
+          "Strides"
+        ],
+        [
+          "/deps/numr/tensor",
+          "Strides.insert"
+        ],
+        [
+          "/deps/numr/tensor",
+          "Strides.is_empty"
+        ],
+        [
+          "/deps/numr/tensor",
+          "Strides.len"
+        ],
+        [
+          "/deps/numr/tensor",
+          "Strides.push"
+        ],
+        [
+          "/deps/numr/tensor",
+          "Strides.remove"
+        ],
+        [
+          "/deps/numr/tensor",
+          "Strides.reverse"
+        ],
+        [
+          "/deps/numr/tensor",
+          "Strides.swap"
+        ],
+        [
           "/deps/numr/tensor/storage",
           "RawBuffer"
         ]
@@ -997,11 +1253,11 @@
     }
   ],
   "removed": [],
-  "cache_identity": "e0348324c20a7f181b70f1f3b0536e3224a5dba07fb432f53504b86a9a2e7bf5",
+  "cache_identity": "b64bf22f17a2709f349c1b4ae90ea53f8527891740f3e296d44d45109f630430",
   "source": "Local",
   "rustdoc_format": 57,
-  "projection_schema": "22",
-  "content_hash": "e6d55fa14c857456294a76563a2b529c568db53d90943fc2cee8bf6171bc3461",
+  "projection_schema": "24",
+  "content_hash": "07f9aca7c6c5a70b9bf72667a727dc1b1b596d972e20d64aef4984ea94454a5b",
   "resolution": {
     "outcome": "LocalRustdoc",
     "events": [

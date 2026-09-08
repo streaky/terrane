@@ -557,6 +557,19 @@ pub(super) fn infer_member_value_type(
             receiver.span,
         ));
     }
+    if let Some(ValueType::Object(identity)) = &receiver_type
+        && let Some(removed) = unit.removed_projected_member(identity, member_name, false)
+    {
+        return Err(failure(
+            &unit.source,
+            "S2031",
+            format!(
+                "Rust dependency member `{}.{member_name}` was projected by version {} but is absent from version {}",
+                identity.name, removed.previous_version, removed.current_version
+            ),
+            member.span,
+        ));
+    }
     if member_name != "length" {
         return match receiver_type {
             Some(receiver_type) => {

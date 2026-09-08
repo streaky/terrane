@@ -126,6 +126,21 @@ from /deps/reqwest import get as reqwest-get
 foo = await reqwest-get; >https://httpbin.org/ip
 ```
 
+Projection follows the Rust crate's canonical public surface rather than exposing private defining
+modules or convenience preludes as competing namespaces. A substantive re-export wins over a path
+beneath `prelude`; among otherwise equivalent public paths, the shortest path wins and lexical
+ordering breaks ties. Associated Rust functions stay attached to their projected class:
+
+```terrane
+from /deps/bytes import BytesMut
+
+function reserve-buffer BytesMut;
+    return BytesMut::with_capacity; 4096
+```
+
+`with_capacity` is therefore a static member of `BytesMut`, not an independent function imported
+from `/deps/bytes`.
+
 ## 6. The boundary rules
 
 ### 6.1 Free
@@ -406,8 +421,8 @@ compiler compute the same model or neither does.
 The project-local cache retains the current projection and at most three prior projection artifacts.
 This bounded history avoids repeated rustdoc work during ordinary lockfile rollback and editor churn
 without allowing one project directory to grow indefinitely. Durable, machine-independent
-`terrane-projection.lock` history records projected namespace/member pairs by resolved dependency
-version.
+`terrane-projection.lock` history records top-level projected members plus instance members as
+`Type.member` and static members as `Type::member`, keyed by resolved dependency version.
 
 The projection pass and generated-crate compilation use the build capability policy: fetch may run
 online, then rustdoc and compilation run offline and frozen inside `bwrap` where available. A platform

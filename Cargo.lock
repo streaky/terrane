@@ -1541,6 +1541,7 @@ dependencies = [
  "serde_json",
  "sha2",
  "terrane-compiler",
+ "toml",
 ]
 
 [[package]]

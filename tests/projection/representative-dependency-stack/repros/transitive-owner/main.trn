@@ -1,8 +1,8 @@
 namespace repro
-from /deps/reqwest/async-impl/response import Response, status
+from /deps/reqwest import Response
 
 function inspect-status; response Response;
-    value = status; move response
+    value = response.status;
     print; value
 
 function main;

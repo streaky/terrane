@@ -858,6 +858,7 @@ pub struct SemanticUnit {
     pub(super) function_contracts_by_span: BTreeMap<(u32, usize, usize), FunctionContract>,
     pub(super) enclosing_function_spans: BTreeMap<usize, Option<Span>>,
     pub(super) descriptor_aliases: BTreeMap<String, Vec<DescriptorAlias>>,
+    pub(super) projected_removals: Vec<crate::projection::RemovedItem>,
     pub unreachable_spans: Vec<Span>,
     pub evaluation_steps: Vec<EvaluationStep>,
 }
@@ -878,6 +879,18 @@ impl SemanticUnit {
                 .find(|alias| alias.is_visible_at(self.source.id(), position))
                 .map(|alias| alias.value_type)
         })
+    }
+    pub(super) fn removed_projected_member(
+        &self,
+        identity: &ObjectIdentity,
+        member: &str,
+        is_static: bool,
+    ) -> Option<&crate::projection::RemovedItem> {
+        let separator = if is_static { "::" } else { "." };
+        let name = format!("{}{separator}{member}", identity.name);
+        self.projected_removals
+            .iter()
+            .find(|removed| removed.namespace == identity.namespace && removed.name == name)
     }
 }
 

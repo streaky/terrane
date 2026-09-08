@@ -4330,13 +4330,18 @@ admit or decline members; transferable projections currently record an empty pro
 probe wall time. A future consumer must serialize the reports it actually uses.
 
 Projected type identity follows the Rust item rather than the importing module alone. Public path
-selection is deterministic: prefer the shortest reachable path, then lexical order for equal-depth
-re-exports. A public re-export is resolved through that rule before the Terrane namespace and object
-identity are recorded, so importing a type through its re-export and through its defining module
-does not create two Terrane types. Concrete instantiations append the complete lowercase SHA-256
-of their canonical instantiated Rust path to the readable short name; no truncated hash or
-order-dependent suffix is used. Distinct same-named sibling types and distinct instantiations
-therefore remain distinct.
+selection is deterministic: prefer reachable substantive paths over paths beneath a `prelude`
+module, then choose the shortest path and lexical order at equal depth. A prelude path remains
+available when it is the item's only public path. A public re-export is resolved through that rule
+before the Terrane namespace and object identity are recorded, so importing a type through its
+re-export and through its defining module does not create two Terrane types. A projected Rust
+associated function belongs to that projected type and is called with Terrane static-member syntax,
+`Class::function`; it is not independently imported as a namespace function. A generic declaration
+with one admitted concrete instantiation retains its readable short type name. When multiple
+concrete instantiations of that declaration are admitted, their names append the complete lowercase
+SHA-256 of each canonical instantiated Rust path; no truncated hash or order-dependent suffix is
+used. Distinct same-named sibling types and distinct instantiations therefore remain distinct
+without burdening the ordinary single-instantiation import.
 A signature type owned by an undeclared transitive crate is not projected as a memberless
 lookalike: the member declines with an actionable reason naming the owning crate and its
 lock-resolved version. Declaring that owner

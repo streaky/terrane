@@ -7,11 +7,35 @@
       "members": [
         [
           "/deps/axum",
-          "Router-3d09c110110da8e67659905c6f5d403a6c123f684c35f4b5944072f063cef466"
+          "Router"
         ],
         [
           "/deps/axum",
-          "new"
+          "Router.has_routes"
+        ],
+        [
+          "/deps/axum",
+          "Router.into_make_service"
+        ],
+        [
+          "/deps/axum",
+          "Router.nest"
+        ],
+        [
+          "/deps/axum",
+          "Router.reset_fallback"
+        ],
+        [
+          "/deps/axum",
+          "Router.route"
+        ],
+        [
+          "/deps/axum",
+          "Router.without_v07_checks"
+        ],
+        [
+          "/deps/axum",
+          "Router::new"
         ],
         [
           "/deps/axum/error-handling/future",
@@ -23,6 +47,10 @@
         ],
         [
           "/deps/axum/extract",
+          "NestedPath.as_str"
+        ],
+        [
+          "/deps/axum/extract",
           "RawForm"
         ],
         [
@@ -31,11 +59,47 @@
         ],
         [
           "/deps/axum/extract",
+          "RawPathParams.iter"
+        ],
+        [
+          "/deps/axum/extract",
           "RawQuery"
         ],
         [
           "/deps/axum/extract",
-          "WebSocketUpgrade-df61bc54c4179bc27abbb03902230a8779598b8d3015ad0f8f3c9e7a5b396147"
+          "WebSocketUpgrade"
+        ],
+        [
+          "/deps/axum/extract",
+          "WebSocketUpgrade.accept_unmasked_frames"
+        ],
+        [
+          "/deps/axum/extract",
+          "WebSocketUpgrade.max_frame_size"
+        ],
+        [
+          "/deps/axum/extract",
+          "WebSocketUpgrade.max_message_size"
+        ],
+        [
+          "/deps/axum/extract",
+          "WebSocketUpgrade.max_write_buffer_size"
+        ],
+        [
+          "/deps/axum/extract",
+          "WebSocketUpgrade.read_buffer_size"
+        ],
+        [
+          "/deps/axum/extract",
+          "WebSocketUpgrade.selected_protocol"
+        ],
+        [
+          "/deps/axum/extract",
+          "WebSocketUpgrade.set_selected_protocol"
+        ],
+        [
+          "/deps/axum/extract",
+          "WebSocketUpgrade.write_buffer_size"
         ],
         [
           "/deps/axum/extract/path",
@@ -47,7 +111,31 @@
         ],
         [
           "/deps/axum/extract/path",
+          "FailedToDeserializePathParams.body_text"
+        ],
+        [
+          "/deps/axum/extract/path",
+          "FailedToDeserializePathParams.into_kind"
+        ],
+        [
+          "/deps/axum/extract/path",
+          "FailedToDeserializePathParams.kind"
+        ],
+        [
+          "/deps/axum/extract/path",
+          "FailedToDeserializePathParams.status"
+        ],
+        [
+          "/deps/axum/extract/path",
           "InvalidUtf8InPathParam"
+        ],
+        [
+          "/deps/axum/extract/path",
+          "InvalidUtf8InPathParam.body_text"
+        ],
+        [
+          "/deps/axum/extract/path",
+          "InvalidUtf8InPathParam.status"
         ],
         [
           "/deps/axum/extract/rejection",
@@ -59,11 +147,35 @@
         ],
         [
           "/deps/axum/extract/rejection",
+          "FailedToDeserializeForm.body_text"
+        ],
+        [
+          "/deps/axum/extract/rejection",
+          "FailedToDeserializeForm.status"
+        ],
+        [
+          "/deps/axum/extract/rejection",
           "FailedToDeserializeFormBody"
         ],
         [
           "/deps/axum/extract/rejection",
+          "FailedToDeserializeFormBody.body_text"
+        ],
+        [
+          "/deps/axum/extract/rejection",
+          "FailedToDeserializeFormBody.status"
+        ],
+        [
+          "/deps/axum/extract/rejection",
           "FailedToDeserializeQueryString"
+        ],
+        [
+          "/deps/axum/extract/rejection",
+          "FailedToDeserializeQueryString.body_text"
+        ],
+        [
+          "/deps/axum/extract/rejection",
+          "FailedToDeserializeQueryString.status"
         ],
         [
           "/deps/axum/extract/rejection",
@@ -75,7 +187,23 @@
         ],
         [
           "/deps/axum/extract/rejection",
+          "InvalidFormContentType.body_text"
+        ],
+        [
+          "/deps/axum/extract/rejection",
+          "InvalidFormContentType.status"
+        ],
+        [
+          "/deps/axum/extract/rejection",
           "JsonDataError"
+        ],
+        [
+          "/deps/axum/extract/rejection",
+          "JsonDataError.body_text"
+        ],
+        [
+          "/deps/axum/extract/rejection",
+          "JsonDataError.status"
         ],
         [
           "/deps/axum/extract/rejection",
@@ -87,7 +215,23 @@
         ],
         [
           "/deps/axum/extract/rejection",
+          "JsonSyntaxError.body_text"
+        ],
+        [
+          "/deps/axum/extract/rejection",
+          "JsonSyntaxError.status"
+        ],
+        [
+          "/deps/axum/extract/rejection",
           "MissingExtension"
+        ],
+        [
+          "/deps/axum/extract/rejection",
+          "MissingExtension.body_text"
+        ],
+        [
+          "/deps/axum/extract/rejection",
+          "MissingExtension.status"
         ],
         [
           "/deps/axum/extract/rejection",
@@ -95,11 +239,35 @@
         ],
         [
           "/deps/axum/extract/rejection",
+          "MissingJsonContentType.body_text"
+        ],
+        [
+          "/deps/axum/extract/rejection",
+          "MissingJsonContentType.status"
+        ],
+        [
+          "/deps/axum/extract/rejection",
           "MissingPathParams"
         ],
         [
           "/deps/axum/extract/rejection",
+          "MissingPathParams.body_text"
+        ],
+        [
+          "/deps/axum/extract/rejection",
+          "MissingPathParams.status"
+        ],
+        [
+          "/deps/axum/extract/rejection",
           "NestedPathRejection"
+        ],
+        [
+          "/deps/axum/extract/rejection",
+          "NestedPathRejection.body_text"
+        ],
+        [
+          "/deps/axum/extract/rejection",
+          "NestedPathRejection.status"
         ],
         [
           "/deps/axum/extract/rejection",
@@ -135,7 +303,19 @@
         ],
         [
           "/deps/axum/extract/ws",
+          "Utf8Bytes.as_str"
+        ],
+        [
+          "/deps/axum/extract/ws",
           "WebSocket"
+        ],
+        [
+          "/deps/axum/extract/ws",
+          "WebSocket.protocol"
+        ],
+        [
+          "/deps/axum/extract/ws",
+          "WebSocket.send"
         ],
         [
           "/deps/axum/extract/ws/rejection",
@@ -143,7 +323,23 @@
         ],
         [
           "/deps/axum/extract/ws/rejection",
+          "ConnectionNotUpgradable.body_text"
+        ],
+        [
+          "/deps/axum/extract/ws/rejection",
+          "ConnectionNotUpgradable.status"
+        ],
+        [
+          "/deps/axum/extract/ws/rejection",
           "InvalidConnectionHeader"
+        ],
+        [
+          "/deps/axum/extract/ws/rejection",
+          "InvalidConnectionHeader.body_text"
+        ],
+        [
+          "/deps/axum/extract/ws/rejection",
+          "InvalidConnectionHeader.status"
         ],
         [
           "/deps/axum/extract/ws/rejection",
@@ -151,7 +347,23 @@
         ],
         [
           "/deps/axum/extract/ws/rejection",
+          "InvalidProtocolPseudoheader.body_text"
+        ],
+        [
+          "/deps/axum/extract/ws/rejection",
+          "InvalidProtocolPseudoheader.status"
+        ],
+        [
+          "/deps/axum/extract/ws/rejection",
           "InvalidUpgradeHeader"
+        ],
+        [
+          "/deps/axum/extract/ws/rejection",
+          "InvalidUpgradeHeader.body_text"
+        ],
+        [
+          "/deps/axum/extract/ws/rejection",
+          "InvalidUpgradeHeader.status"
         ],
         [
           "/deps/axum/extract/ws/rejection",
@@ -159,7 +371,23 @@
         ],
         [
           "/deps/axum/extract/ws/rejection",
+          "InvalidWebSocketVersionHeader.body_text"
+        ],
+        [
+          "/deps/axum/extract/ws/rejection",
+          "InvalidWebSocketVersionHeader.status"
+        ],
+        [
+          "/deps/axum/extract/ws/rejection",
           "MethodNotConnect"
+        ],
+        [
+          "/deps/axum/extract/ws/rejection",
+          "MethodNotConnect.body_text"
+        ],
+        [
+          "/deps/axum/extract/ws/rejection",
+          "MethodNotConnect.status"
         ],
         [
           "/deps/axum/extract/ws/rejection",
@@ -167,7 +395,23 @@
         ],
         [
           "/deps/axum/extract/ws/rejection",
+          "MethodNotGet.body_text"
+        ],
+        [
+          "/deps/axum/extract/ws/rejection",
+          "MethodNotGet.status"
+        ],
+        [
+          "/deps/axum/extract/ws/rejection",
           "WebSocketKeyHeaderMissing"
+        ],
+        [
+          "/deps/axum/extract/ws/rejection",
+          "WebSocketKeyHeaderMissing.body_text"
+        ],
+        [
+          "/deps/axum/extract/ws/rejection",
+          "WebSocketKeyHeaderMissing.status"
         ],
         [
           "/deps/axum/extract/ws/rejection",
@@ -206,12 +450,32 @@
           "Redirect"
         ],
         [
+          "/deps/axum/response",
+          "Redirect.location"
+        ],
+        [
+          "/deps/axum/response",
+          "Redirect.status_code"
+        ],
+        [
           "/deps/axum/response/sse",
           "Event"
         ],
         [
           "/deps/axum/response/sse",
+          "Event.into_data_writer"
+        ],
+        [
+          "/deps/axum/response/sse",
+          "Event.retry"
+        ],
+        [
+          "/deps/axum/response/sse",
           "EventDataWriter"
+        ],
+        [
+          "/deps/axum/response/sse",
+          "EventDataWriter.into_event"
         ],
         [
           "/deps/axum/response/sse",
@@ -223,15 +487,23 @@
         ],
         [
           "/deps/axum/routing",
-          "MethodRouter-00ebd944b5e1ef51fc9dffef1365fd1a6f37c5c8536b597785ecf5835d5aed29"
+          "MethodRouter"
         ],
         [
           "/deps/axum/routing",
-          "Route-b940c910788559dcee57f9a9558dc26e0896f3158833a06405b732a9eb2d2772"
+          "MethodRouter.into_make_service"
         ],
         [
           "/deps/axum/routing",
-          "new"
+          "MethodRouter.merge"
+        ],
+        [
+          "/deps/axum/routing",
+          "MethodRouter::new"
+        ],
+        [
+          "/deps/axum/routing",
+          "Route"
         ],
         [
           "/deps/axum/routing/future",
@@ -261,7 +533,87 @@
         ],
         [
           "/deps/http",
-          "HeaderMap-58e43e777dcb514a092981c67c61d59343fe2175cf2bff51b56a8b5dab852a51"
+          "Extensions.clear"
+        ],
+        [
+          "/deps/http",
+          "Extensions.is_empty"
+        ],
+        [
+          "/deps/http",
+          "Extensions.len"
+        ],
+        [
+          "/deps/http",
+          "Extensions::new"
+        ],
+        [
+          "/deps/http",
+          "HeaderMap"
+        ],
+        [
+          "/deps/http",
+          "HeaderMap.capacity"
+        ],
+        [
+          "/deps/http",
+          "HeaderMap.clear"
+        ],
+        [
+          "/deps/http",
+          "HeaderMap.drain"
+        ],
+        [
+          "/deps/http",
+          "HeaderMap.is_empty"
+        ],
+        [
+          "/deps/http",
+          "HeaderMap.iter"
+        ],
+        [
+          "/deps/http",
+          "HeaderMap.iter_mut"
+        ],
+        [
+          "/deps/http",
+          "HeaderMap.keys"
+        ],
+        [
+          "/deps/http",
+          "HeaderMap.keys_len"
+        ],
+        [
+          "/deps/http",
+          "HeaderMap.len"
+        ],
+        [
+          "/deps/http",
+          "HeaderMap.reserve"
+        ],
+        [
+          "/deps/http",
+          "HeaderMap.try_reserve"
+        ],
+        [
+          "/deps/http",
+          "HeaderMap.values"
+        ],
+        [
+          "/deps/http",
+          "HeaderMap.values_mut"
+        ],
+        [
+          "/deps/http",
+          "HeaderMap::new"
+        ],
+        [
+          "/deps/http",
+          "HeaderMap::try_with_capacity"
+        ],
+        [
+          "/deps/http",
+          "HeaderMap::with_capacity"
         ],
         [
           "/deps/http",
@@ -269,7 +621,43 @@
         ],
         [
           "/deps/http",
+          "HeaderName.as_str"
+        ],
+        [
+          "/deps/http",
+          "HeaderName::from_static"
+        ],
+        [
+          "/deps/http",
           "HeaderValue"
+        ],
+        [
+          "/deps/http",
+          "HeaderValue.is_empty"
+        ],
+        [
+          "/deps/http",
+          "HeaderValue.is_sensitive"
+        ],
+        [
+          "/deps/http",
+          "HeaderValue.len"
+        ],
+        [
+          "/deps/http",
+          "HeaderValue.set_sensitive"
+        ],
+        [
+          "/deps/http",
+          "HeaderValue::from_name"
+        ],
+        [
+          "/deps/http",
+          "HeaderValue::from_static"
+        ],
+        [
+          "/deps/http",
+          "HeaderValue::from_str"
         ],
         [
           "/deps/http",
@@ -277,7 +665,55 @@
         ],
         [
           "/deps/http",
+          "Method.as_str"
+        ],
+        [
+          "/deps/http",
+          "Method.is_idempotent"
+        ],
+        [
+          "/deps/http",
+          "Method.is_safe"
+        ],
+        [
+          "/deps/http",
           "StatusCode"
+        ],
+        [
+          "/deps/http",
+          "StatusCode.as_str"
+        ],
+        [
+          "/deps/http",
+          "StatusCode.as_u16"
+        ],
+        [
+          "/deps/http",
+          "StatusCode.canonical_reason"
+        ],
+        [
+          "/deps/http",
+          "StatusCode.is_client_error"
+        ],
+        [
+          "/deps/http",
+          "StatusCode.is_informational"
+        ],
+        [
+          "/deps/http",
+          "StatusCode.is_redirection"
+        ],
+        [
+          "/deps/http",
+          "StatusCode.is_server_error"
+        ],
+        [
+          "/deps/http",
+          "StatusCode.is_success"
+        ],
+        [
+          "/deps/http",
+          "StatusCode::from_u16"
         ],
         [
           "/deps/http",
@@ -285,35 +721,55 @@
         ],
         [
           "/deps/http",
+          "Uri.authority"
+        ],
+        [
+          "/deps/http",
+          "Uri.host"
+        ],
+        [
+          "/deps/http",
+          "Uri.into_parts"
+        ],
+        [
+          "/deps/http",
+          "Uri.path"
+        ],
+        [
+          "/deps/http",
+          "Uri.path_and_query"
+        ],
+        [
+          "/deps/http",
+          "Uri.port"
+        ],
+        [
+          "/deps/http",
+          "Uri.port_u16"
+        ],
+        [
+          "/deps/http",
+          "Uri.query"
+        ],
+        [
+          "/deps/http",
+          "Uri.scheme"
+        ],
+        [
+          "/deps/http",
+          "Uri.scheme_str"
+        ],
+        [
+          "/deps/http",
+          "Uri::builder"
+        ],
+        [
+          "/deps/http",
+          "Uri::from_parts"
+        ],
+        [
+          "/deps/http",
           "Version"
-        ],
-        [
-          "/deps/http",
-          "builder"
-        ],
-        [
-          "/deps/http",
-          "from_name"
-        ],
-        [
-          "/deps/http",
-          "from_parts"
-        ],
-        [
-          "/deps/http",
-          "from_str"
-        ],
-        [
-          "/deps/http",
-          "from_u16"
-        ],
-        [
-          "/deps/http",
-          "try_with_capacity"
-        ],
-        [
-          "/deps/http",
-          "with_capacity"
         ],
         [
           "/deps/http/header",
@@ -345,11 +801,43 @@
         ],
         [
           "/deps/http/request",
-          "Parts"
+          "Builder.extensions_mut"
         ],
         [
           "/deps/http/request",
-          "new"
+          "Builder.extensions_ref"
+        ],
+        [
+          "/deps/http/request",
+          "Builder.headers_mut"
+        ],
+        [
+          "/deps/http/request",
+          "Builder.headers_ref"
+        ],
+        [
+          "/deps/http/request",
+          "Builder.method_ref"
+        ],
+        [
+          "/deps/http/request",
+          "Builder.uri_ref"
+        ],
+        [
+          "/deps/http/request",
+          "Builder.version"
+        ],
+        [
+          "/deps/http/request",
+          "Builder.version_ref"
+        ],
+        [
+          "/deps/http/request",
+          "Builder::new"
+        ],
+        [
+          "/deps/http/request",
+          "Parts"
         ],
         [
           "/deps/http/response",
@@ -357,11 +845,31 @@
         ],
         [
           "/deps/http/response",
-          "Parts"
+          "Builder.extensions_mut"
         ],
         [
           "/deps/http/response",
-          "new"
+          "Builder.extensions_ref"
+        ],
+        [
+          "/deps/http/response",
+          "Builder.headers_mut"
+        ],
+        [
+          "/deps/http/response",
+          "Builder.headers_ref"
+        ],
+        [
+          "/deps/http/response",
+          "Builder.version"
+        ],
+        [
+          "/deps/http/response",
+          "Builder::new"
+        ],
+        [
+          "/deps/http/response",
+          "Parts"
         ],
         [
           "/deps/http/status",
@@ -373,7 +881,31 @@
         ],
         [
           "/deps/http/uri",
+          "Authority.as_str"
+        ],
+        [
+          "/deps/http/uri",
+          "Authority.host"
+        ],
+        [
+          "/deps/http/uri",
+          "Authority.port"
+        ],
+        [
+          "/deps/http/uri",
+          "Authority.port_u16"
+        ],
+        [
+          "/deps/http/uri",
           "Builder"
+        ],
+        [
+          "/deps/http/uri",
+          "Builder.build"
+        ],
+        [
+          "/deps/http/uri",
+          "Builder::new"
         ],
         [
           "/deps/http/uri",
@@ -393,11 +925,23 @@
         ],
         [
           "/deps/http/uri",
+          "PathAndQuery.as_str"
+        ],
+        [
+          "/deps/http/uri",
+          "PathAndQuery.path"
+        ],
+        [
+          "/deps/http/uri",
+          "PathAndQuery.query"
+        ],
+        [
+          "/deps/http/uri",
           "Scheme"
         ],
         [
           "/deps/http/uri",
-          "new"
+          "Scheme.as_str"
         ]
       ]
     },
@@ -419,11 +963,243 @@
         ],
         [
           "/deps/reqwest",
+          "Client.delete"
+        ],
+        [
+          "/deps/reqwest",
+          "Client.get"
+        ],
+        [
+          "/deps/reqwest",
+          "Client.head"
+        ],
+        [
+          "/deps/reqwest",
+          "Client.patch"
+        ],
+        [
+          "/deps/reqwest",
+          "Client.post"
+        ],
+        [
+          "/deps/reqwest",
+          "Client.put"
+        ],
+        [
+          "/deps/reqwest",
+          "Client.request"
+        ],
+        [
+          "/deps/reqwest",
+          "Client::builder"
+        ],
+        [
+          "/deps/reqwest",
+          "Client::new"
+        ],
+        [
+          "/deps/reqwest",
           "ClientBuilder"
         ],
         [
           "/deps/reqwest",
+          "ClientBuilder.add_crl"
+        ],
+        [
+          "/deps/reqwest",
+          "ClientBuilder.add_root_certificate"
+        ],
+        [
+          "/deps/reqwest",
+          "ClientBuilder.build"
+        ],
+        [
+          "/deps/reqwest",
+          "ClientBuilder.connect_timeout"
+        ],
+        [
+          "/deps/reqwest",
+          "ClientBuilder.connection_verbose"
+        ],
+        [
+          "/deps/reqwest",
+          "ClientBuilder.danger_accept_invalid_certs"
+        ],
+        [
+          "/deps/reqwest",
+          "ClientBuilder.danger_accept_invalid_hostnames"
+        ],
+        [
+          "/deps/reqwest",
+          "ClientBuilder.default_headers"
+        ],
+        [
+          "/deps/reqwest",
+          "ClientBuilder.http09_responses"
+        ],
+        [
+          "/deps/reqwest",
+          "ClientBuilder.http1_allow_obsolete_multiline_headers_in_responses"
+        ],
+        [
+          "/deps/reqwest",
+          "ClientBuilder.http1_allow_spaces_after_header_name_in_responses"
+        ],
+        [
+          "/deps/reqwest",
+          "ClientBuilder.http1_ignore_invalid_headers_in_responses"
+        ],
+        [
+          "/deps/reqwest",
+          "ClientBuilder.http1_only"
+        ],
+        [
+          "/deps/reqwest",
+          "ClientBuilder.http1_title_case_headers"
+        ],
+        [
+          "/deps/reqwest",
+          "ClientBuilder.https_only"
+        ],
+        [
+          "/deps/reqwest",
+          "ClientBuilder.identity"
+        ],
+        [
+          "/deps/reqwest",
+          "ClientBuilder.interface"
+        ],
+        [
+          "/deps/reqwest",
+          "ClientBuilder.max_tls_version"
+        ],
+        [
+          "/deps/reqwest",
+          "ClientBuilder.min_tls_version"
+        ],
+        [
+          "/deps/reqwest",
+          "ClientBuilder.no_brotli"
+        ],
+        [
+          "/deps/reqwest",
+          "ClientBuilder.no_deflate"
+        ],
+        [
+          "/deps/reqwest",
+          "ClientBuilder.no_gzip"
+        ],
+        [
+          "/deps/reqwest",
+          "ClientBuilder.no_hickory_dns"
+        ],
+        [
+          "/deps/reqwest",
+          "ClientBuilder.no_proxy"
+        ],
+        [
+          "/deps/reqwest",
+          "ClientBuilder.no_zstd"
+        ],
+        [
+          "/deps/reqwest",
+          "ClientBuilder.pool_max_idle_per_host"
+        ],
+        [
+          "/deps/reqwest",
+          "ClientBuilder.proxy"
+        ],
+        [
+          "/deps/reqwest",
+          "ClientBuilder.read_timeout"
+        ],
+        [
+          "/deps/reqwest",
+          "ClientBuilder.redirect"
+        ],
+        [
+          "/deps/reqwest",
+          "ClientBuilder.referer"
+        ],
+        [
+          "/deps/reqwest",
+          "ClientBuilder.resolve"
+        ],
+        [
+          "/deps/reqwest",
+          "ClientBuilder.retry"
+        ],
+        [
+          "/deps/reqwest",
+          "ClientBuilder.tcp_nodelay"
+        ],
+        [
+          "/deps/reqwest",
+          "ClientBuilder.timeout"
+        ],
+        [
+          "/deps/reqwest",
+          "ClientBuilder.tls_built_in_root_certs"
+        ],
+        [
+          "/deps/reqwest",
+          "ClientBuilder.tls_built_in_webpki_certs"
+        ],
+        [
+          "/deps/reqwest",
+          "ClientBuilder.tls_info"
+        ],
+        [
+          "/deps/reqwest",
+          "ClientBuilder.tls_sni"
+        ],
+        [
+          "/deps/reqwest",
+          "ClientBuilder.use_rustls_tls"
+        ],
+        [
+          "/deps/reqwest",
           "Error"
+        ],
+        [
+          "/deps/reqwest",
+          "Error.is_body"
+        ],
+        [
+          "/deps/reqwest",
+          "Error.is_builder"
+        ],
+        [
+          "/deps/reqwest",
+          "Error.is_connect"
+        ],
+        [
+          "/deps/reqwest",
+          "Error.is_decode"
+        ],
+        [
+          "/deps/reqwest",
+          "Error.is_redirect"
+        ],
+        [
+          "/deps/reqwest",
+          "Error.is_request"
+        ],
+        [
+          "/deps/reqwest",
+          "Error.is_status"
+        ],
+        [
+          "/deps/reqwest",
+          "Error.is_timeout"
+        ],
+        [
+          "/deps/reqwest",
+          "Error.is_upgrade"
+        ],
+        [
+          "/deps/reqwest",
+          "Error.status"
         ],
         [
           "/deps/reqwest",
@@ -435,7 +1211,27 @@
         ],
         [
           "/deps/reqwest",
+          "NoProxy::from_env"
+        ],
+        [
+          "/deps/reqwest",
           "Proxy"
+        ],
+        [
+          "/deps/reqwest",
+          "Proxy.basic_auth"
+        ],
+        [
+          "/deps/reqwest",
+          "Proxy.custom_http_auth"
+        ],
+        [
+          "/deps/reqwest",
+          "Proxy.headers"
+        ],
+        [
+          "/deps/reqwest",
+          "Proxy.no_proxy"
         ],
         [
           "/deps/reqwest",
@@ -443,7 +1239,75 @@
         ],
         [
           "/deps/reqwest",
+          "Request.body"
+        ],
+        [
+          "/deps/reqwest",
+          "Request.body_mut"
+        ],
+        [
+          "/deps/reqwest",
+          "Request.headers"
+        ],
+        [
+          "/deps/reqwest",
+          "Request.headers_mut"
+        ],
+        [
+          "/deps/reqwest",
+          "Request.method"
+        ],
+        [
+          "/deps/reqwest",
+          "Request.method_mut"
+        ],
+        [
+          "/deps/reqwest",
+          "Request.timeout"
+        ],
+        [
+          "/deps/reqwest",
+          "Request.timeout_mut"
+        ],
+        [
+          "/deps/reqwest",
+          "Request.try_clone"
+        ],
+        [
+          "/deps/reqwest",
+          "Request.version"
+        ],
+        [
+          "/deps/reqwest",
+          "Request.version_mut"
+        ],
+        [
+          "/deps/reqwest",
           "RequestBuilder"
+        ],
+        [
+          "/deps/reqwest",
+          "RequestBuilder.build"
+        ],
+        [
+          "/deps/reqwest",
+          "RequestBuilder.headers"
+        ],
+        [
+          "/deps/reqwest",
+          "RequestBuilder.timeout"
+        ],
+        [
+          "/deps/reqwest",
+          "RequestBuilder.try_clone"
+        ],
+        [
+          "/deps/reqwest",
+          "RequestBuilder.version"
+        ],
+        [
+          "/deps/reqwest",
+          "RequestBuilder::from_parts"
         ],
         [
           "/deps/reqwest",
@@ -451,27 +1315,51 @@
         ],
         [
           "/deps/reqwest",
+          "Response.content_length"
+        ],
+        [
+          "/deps/reqwest",
+          "Response.extensions"
+        ],
+        [
+          "/deps/reqwest",
+          "Response.extensions_mut"
+        ],
+        [
+          "/deps/reqwest",
+          "Response.headers"
+        ],
+        [
+          "/deps/reqwest",
+          "Response.headers_mut"
+        ],
+        [
+          "/deps/reqwest",
+          "Response.remote_addr"
+        ],
+        [
+          "/deps/reqwest",
+          "Response.status"
+        ],
+        [
+          "/deps/reqwest",
+          "Response.text"
+        ],
+        [
+          "/deps/reqwest",
+          "Response.upgrade"
+        ],
+        [
+          "/deps/reqwest",
+          "Response.version"
+        ],
+        [
+          "/deps/reqwest",
           "Upgraded"
         ],
         [
           "/deps/reqwest",
-          "builder"
-        ],
-        [
-          "/deps/reqwest",
-          "from_env"
-        ],
-        [
-          "/deps/reqwest",
-          "from_parts"
-        ],
-        [
-          "/deps/reqwest",
           "get"
-        ],
-        [
-          "/deps/reqwest",
-          "new"
         ],
         [
           "/deps/reqwest/async-impl/client",
@@ -487,7 +1375,195 @@
         ],
         [
           "/deps/reqwest/blocking",
+          "Client.delete"
+        ],
+        [
+          "/deps/reqwest/blocking",
+          "Client.execute"
+        ],
+        [
+          "/deps/reqwest/blocking",
+          "Client.get"
+        ],
+        [
+          "/deps/reqwest/blocking",
+          "Client.head"
+        ],
+        [
+          "/deps/reqwest/blocking",
+          "Client.patch"
+        ],
+        [
+          "/deps/reqwest/blocking",
+          "Client.post"
+        ],
+        [
+          "/deps/reqwest/blocking",
+          "Client.put"
+        ],
+        [
+          "/deps/reqwest/blocking",
+          "Client.request"
+        ],
+        [
+          "/deps/reqwest/blocking",
+          "Client::builder"
+        ],
+        [
+          "/deps/reqwest/blocking",
+          "Client::new"
+        ],
+        [
+          "/deps/reqwest/blocking",
           "ClientBuilder"
+        ],
+        [
+          "/deps/reqwest/blocking",
+          "ClientBuilder.add_crl"
+        ],
+        [
+          "/deps/reqwest/blocking",
+          "ClientBuilder.add_root_certificate"
+        ],
+        [
+          "/deps/reqwest/blocking",
+          "ClientBuilder.build"
+        ],
+        [
+          "/deps/reqwest/blocking",
+          "ClientBuilder.connection_verbose"
+        ],
+        [
+          "/deps/reqwest/blocking",
+          "ClientBuilder.danger_accept_invalid_certs"
+        ],
+        [
+          "/deps/reqwest/blocking",
+          "ClientBuilder.danger_accept_invalid_hostnames"
+        ],
+        [
+          "/deps/reqwest/blocking",
+          "ClientBuilder.default_headers"
+        ],
+        [
+          "/deps/reqwest/blocking",
+          "ClientBuilder.http09_responses"
+        ],
+        [
+          "/deps/reqwest/blocking",
+          "ClientBuilder.http1_allow_obsolete_multiline_headers_in_responses"
+        ],
+        [
+          "/deps/reqwest/blocking",
+          "ClientBuilder.http1_allow_spaces_after_header_name_in_responses"
+        ],
+        [
+          "/deps/reqwest/blocking",
+          "ClientBuilder.http1_ignore_invalid_headers_in_responses"
+        ],
+        [
+          "/deps/reqwest/blocking",
+          "ClientBuilder.http1_only"
+        ],
+        [
+          "/deps/reqwest/blocking",
+          "ClientBuilder.http1_title_case_headers"
+        ],
+        [
+          "/deps/reqwest/blocking",
+          "ClientBuilder.https_only"
+        ],
+        [
+          "/deps/reqwest/blocking",
+          "ClientBuilder.identity"
+        ],
+        [
+          "/deps/reqwest/blocking",
+          "ClientBuilder.interface"
+        ],
+        [
+          "/deps/reqwest/blocking",
+          "ClientBuilder.max_tls_version"
+        ],
+        [
+          "/deps/reqwest/blocking",
+          "ClientBuilder.min_tls_version"
+        ],
+        [
+          "/deps/reqwest/blocking",
+          "ClientBuilder.no_brotli"
+        ],
+        [
+          "/deps/reqwest/blocking",
+          "ClientBuilder.no_deflate"
+        ],
+        [
+          "/deps/reqwest/blocking",
+          "ClientBuilder.no_gzip"
+        ],
+        [
+          "/deps/reqwest/blocking",
+          "ClientBuilder.no_hickory_dns"
+        ],
+        [
+          "/deps/reqwest/blocking",
+          "ClientBuilder.no_proxy"
+        ],
+        [
+          "/deps/reqwest/blocking",
+          "ClientBuilder.no_trust_dns"
+        ],
+        [
+          "/deps/reqwest/blocking",
+          "ClientBuilder.no_zstd"
+        ],
+        [
+          "/deps/reqwest/blocking",
+          "ClientBuilder.pool_max_idle_per_host"
+        ],
+        [
+          "/deps/reqwest/blocking",
+          "ClientBuilder.proxy"
+        ],
+        [
+          "/deps/reqwest/blocking",
+          "ClientBuilder.redirect"
+        ],
+        [
+          "/deps/reqwest/blocking",
+          "ClientBuilder.referer"
+        ],
+        [
+          "/deps/reqwest/blocking",
+          "ClientBuilder.resolve"
+        ],
+        [
+          "/deps/reqwest/blocking",
+          "ClientBuilder.retry"
+        ],
+        [
+          "/deps/reqwest/blocking",
+          "ClientBuilder.tcp_nodelay"
+        ],
+        [
+          "/deps/reqwest/blocking",
+          "ClientBuilder.tls_built_in_root_certs"
+        ],
+        [
+          "/deps/reqwest/blocking",
+          "ClientBuilder.tls_built_in_webpki_certs"
+        ],
+        [
+          "/deps/reqwest/blocking",
+          "ClientBuilder.tls_info"
+        ],
+        [
+          "/deps/reqwest/blocking",
+          "ClientBuilder.tls_sni"
+        ],
+        [
+          "/deps/reqwest/blocking",
+          "ClientBuilder.use_rustls_tls"
         ],
         [
           "/deps/reqwest/blocking",
@@ -495,7 +1571,79 @@
         ],
         [
           "/deps/reqwest/blocking",
+          "Request.body"
+        ],
+        [
+          "/deps/reqwest/blocking",
+          "Request.body_mut"
+        ],
+        [
+          "/deps/reqwest/blocking",
+          "Request.headers"
+        ],
+        [
+          "/deps/reqwest/blocking",
+          "Request.headers_mut"
+        ],
+        [
+          "/deps/reqwest/blocking",
+          "Request.method"
+        ],
+        [
+          "/deps/reqwest/blocking",
+          "Request.method_mut"
+        ],
+        [
+          "/deps/reqwest/blocking",
+          "Request.timeout"
+        ],
+        [
+          "/deps/reqwest/blocking",
+          "Request.timeout_mut"
+        ],
+        [
+          "/deps/reqwest/blocking",
+          "Request.try_clone"
+        ],
+        [
+          "/deps/reqwest/blocking",
+          "Request.version"
+        ],
+        [
+          "/deps/reqwest/blocking",
+          "Request.version_mut"
+        ],
+        [
+          "/deps/reqwest/blocking",
           "RequestBuilder"
+        ],
+        [
+          "/deps/reqwest/blocking",
+          "RequestBuilder.build"
+        ],
+        [
+          "/deps/reqwest/blocking",
+          "RequestBuilder.headers"
+        ],
+        [
+          "/deps/reqwest/blocking",
+          "RequestBuilder.send"
+        ],
+        [
+          "/deps/reqwest/blocking",
+          "RequestBuilder.timeout"
+        ],
+        [
+          "/deps/reqwest/blocking",
+          "RequestBuilder.try_clone"
+        ],
+        [
+          "/deps/reqwest/blocking",
+          "RequestBuilder.version"
+        ],
+        [
+          "/deps/reqwest/blocking",
+          "RequestBuilder::from_parts"
         ],
         [
           "/deps/reqwest/blocking",
@@ -503,19 +1651,43 @@
         ],
         [
           "/deps/reqwest/blocking",
-          "builder"
+          "Response.content_length"
         ],
         [
           "/deps/reqwest/blocking",
-          "from_parts"
+          "Response.extensions"
+        ],
+        [
+          "/deps/reqwest/blocking",
+          "Response.extensions_mut"
+        ],
+        [
+          "/deps/reqwest/blocking",
+          "Response.headers"
+        ],
+        [
+          "/deps/reqwest/blocking",
+          "Response.headers_mut"
+        ],
+        [
+          "/deps/reqwest/blocking",
+          "Response.remote_addr"
+        ],
+        [
+          "/deps/reqwest/blocking",
+          "Response.status"
+        ],
+        [
+          "/deps/reqwest/blocking",
+          "Response.text"
+        ],
+        [
+          "/deps/reqwest/blocking",
+          "Response.version"
         ],
         [
           "/deps/reqwest/blocking",
           "get"
-        ],
-        [
-          "/deps/reqwest/blocking",
-          "new"
         ],
         [
           "/deps/reqwest/connect/sealed",
@@ -534,6 +1706,10 @@
           "Name"
         ],
         [
+          "/deps/reqwest/dns",
+          "Name.as_str"
+        ],
+        [
           "/deps/reqwest/dns/resolve/sealed",
           "InvalidNameError"
         ],
@@ -544,6 +1720,10 @@
         [
           "/deps/reqwest/redirect",
           "Policy"
+        ],
+        [
+          "/deps/reqwest/redirect",
+          "Policy.redirect"
         ],
         [
           "/deps/reqwest/retry",
@@ -588,6 +1768,10 @@
           "ClientInitGuard"
         ],
         [
+          "/deps/sentry",
+          "ClientInitGuard.is_enabled"
+        ],
+        [
           "/deps/sentry/transports",
           "DefaultTransportFactory"
         ],
@@ -616,7 +1800,75 @@
         ],
         [
           "/deps/tokio/fs",
+          "DirEntry.file_name"
+        ],
+        [
+          "/deps/tokio/fs",
+          "DirEntry.file_type"
+        ],
+        [
+          "/deps/tokio/fs",
+          "DirEntry.ino"
+        ],
+        [
+          "/deps/tokio/fs",
+          "DirEntry.metadata"
+        ],
+        [
+          "/deps/tokio/fs",
+          "DirEntry.path"
+        ],
+        [
+          "/deps/tokio/fs",
           "File"
+        ],
+        [
+          "/deps/tokio/fs",
+          "File.into_std"
+        ],
+        [
+          "/deps/tokio/fs",
+          "File.max_buf_size"
+        ],
+        [
+          "/deps/tokio/fs",
+          "File.metadata"
+        ],
+        [
+          "/deps/tokio/fs",
+          "File.set_len"
+        ],
+        [
+          "/deps/tokio/fs",
+          "File.set_max_buf_size"
+        ],
+        [
+          "/deps/tokio/fs",
+          "File.set_permissions"
+        ],
+        [
+          "/deps/tokio/fs",
+          "File.sync_all"
+        ],
+        [
+          "/deps/tokio/fs",
+          "File.sync_data"
+        ],
+        [
+          "/deps/tokio/fs",
+          "File.try_clone"
+        ],
+        [
+          "/deps/tokio/fs",
+          "File.try_into_std"
+        ],
+        [
+          "/deps/tokio/fs",
+          "File::from_std"
+        ],
+        [
+          "/deps/tokio/fs",
+          "File::options"
         ],
         [
           "/deps/tokio/fs",
@@ -624,19 +1876,51 @@
         ],
         [
           "/deps/tokio/fs",
+          "OpenOptions.append"
+        ],
+        [
+          "/deps/tokio/fs",
+          "OpenOptions.create"
+        ],
+        [
+          "/deps/tokio/fs",
+          "OpenOptions.create_new"
+        ],
+        [
+          "/deps/tokio/fs",
+          "OpenOptions.custom_flags"
+        ],
+        [
+          "/deps/tokio/fs",
+          "OpenOptions.mode"
+        ],
+        [
+          "/deps/tokio/fs",
+          "OpenOptions.read"
+        ],
+        [
+          "/deps/tokio/fs",
+          "OpenOptions.truncate"
+        ],
+        [
+          "/deps/tokio/fs",
+          "OpenOptions.write"
+        ],
+        [
+          "/deps/tokio/fs",
+          "OpenOptions::new"
+        ],
+        [
+          "/deps/tokio/fs",
           "ReadDir"
         ],
         [
           "/deps/tokio/fs",
-          "from_std"
+          "ReadDir.next_entry"
         ],
         [
           "/deps/tokio/fs",
-          "new"
-        ],
-        [
-          "/deps/tokio/fs",
-          "options"
+          "ReadDir.poll_next_entry"
         ],
         [
           "/deps/tokio/io",
@@ -652,7 +1936,59 @@
         ],
         [
           "/deps/tokio/io",
+          "Interest.add"
+        ],
+        [
+          "/deps/tokio/io",
+          "Interest.is_error"
+        ],
+        [
+          "/deps/tokio/io",
+          "Interest.is_priority"
+        ],
+        [
+          "/deps/tokio/io",
+          "Interest.is_readable"
+        ],
+        [
+          "/deps/tokio/io",
+          "Interest.is_writable"
+        ],
+        [
+          "/deps/tokio/io",
+          "Interest.remove"
+        ],
+        [
+          "/deps/tokio/io",
           "Ready"
+        ],
+        [
+          "/deps/tokio/io",
+          "Ready.is_empty"
+        ],
+        [
+          "/deps/tokio/io",
+          "Ready.is_error"
+        ],
+        [
+          "/deps/tokio/io",
+          "Ready.is_priority"
+        ],
+        [
+          "/deps/tokio/io",
+          "Ready.is_read_closed"
+        ],
+        [
+          "/deps/tokio/io",
+          "Ready.is_readable"
+        ],
+        [
+          "/deps/tokio/io",
+          "Ready.is_writable"
+        ],
+        [
+          "/deps/tokio/io",
+          "Ready.is_write_closed"
         ],
         [
           "/deps/tokio/io",
@@ -661,6 +1997,10 @@
         [
           "/deps/tokio/io",
           "SimplexStream"
+        ],
+        [
+          "/deps/tokio/io",
+          "SimplexStream::new_unsplit"
         ],
         [
           "/deps/tokio/io",
@@ -673,10 +2013,6 @@
         [
           "/deps/tokio/io",
           "empty"
-        ],
-        [
-          "/deps/tokio/io",
-          "new_unsplit"
         ],
         [
           "/deps/tokio/io",
@@ -700,7 +2036,143 @@
         ],
         [
           "/deps/tokio/net",
+          "TcpListener.into_std"
+        ],
+        [
+          "/deps/tokio/net",
+          "TcpListener.local_addr"
+        ],
+        [
+          "/deps/tokio/net",
+          "TcpListener.set_ttl"
+        ],
+        [
+          "/deps/tokio/net",
+          "TcpListener.ttl"
+        ],
+        [
+          "/deps/tokio/net",
+          "TcpListener::bind"
+        ],
+        [
+          "/deps/tokio/net",
+          "TcpListener::from_std"
+        ],
+        [
+          "/deps/tokio/net",
           "TcpSocket"
+        ],
+        [
+          "/deps/tokio/net",
+          "TcpSocket.bind"
+        ],
+        [
+          "/deps/tokio/net",
+          "TcpSocket.connect"
+        ],
+        [
+          "/deps/tokio/net",
+          "TcpSocket.device"
+        ],
+        [
+          "/deps/tokio/net",
+          "TcpSocket.keepalive"
+        ],
+        [
+          "/deps/tokio/net",
+          "TcpSocket.linger"
+        ],
+        [
+          "/deps/tokio/net",
+          "TcpSocket.listen"
+        ],
+        [
+          "/deps/tokio/net",
+          "TcpSocket.local_addr"
+        ],
+        [
+          "/deps/tokio/net",
+          "TcpSocket.nodelay"
+        ],
+        [
+          "/deps/tokio/net",
+          "TcpSocket.recv_buffer_size"
+        ],
+        [
+          "/deps/tokio/net",
+          "TcpSocket.reuseaddr"
+        ],
+        [
+          "/deps/tokio/net",
+          "TcpSocket.reuseport"
+        ],
+        [
+          "/deps/tokio/net",
+          "TcpSocket.send_buffer_size"
+        ],
+        [
+          "/deps/tokio/net",
+          "TcpSocket.set_keepalive"
+        ],
+        [
+          "/deps/tokio/net",
+          "TcpSocket.set_linger"
+        ],
+        [
+          "/deps/tokio/net",
+          "TcpSocket.set_nodelay"
+        ],
+        [
+          "/deps/tokio/net",
+          "TcpSocket.set_recv_buffer_size"
+        ],
+        [
+          "/deps/tokio/net",
+          "TcpSocket.set_reuseaddr"
+        ],
+        [
+          "/deps/tokio/net",
+          "TcpSocket.set_reuseport"
+        ],
+        [
+          "/deps/tokio/net",
+          "TcpSocket.set_send_buffer_size"
+        ],
+        [
+          "/deps/tokio/net",
+          "TcpSocket.set_tclass_v6"
+        ],
+        [
+          "/deps/tokio/net",
+          "TcpSocket.set_tos_v4"
+        ],
+        [
+          "/deps/tokio/net",
+          "TcpSocket.set_zero_linger"
+        ],
+        [
+          "/deps/tokio/net",
+          "TcpSocket.take_error"
+        ],
+        [
+          "/deps/tokio/net",
+          "TcpSocket.tclass_v6"
+        ],
+        [
+          "/deps/tokio/net",
+          "TcpSocket.tos_v4"
+        ],
+        [
+          "/deps/tokio/net",
+          "TcpSocket::from_std_stream"
+        ],
+        [
+          "/deps/tokio/net",
+          "TcpSocket::new_v4"
+        ],
+        [
+          "/deps/tokio/net",
+          "TcpSocket::new_v6"
         ],
         [
           "/deps/tokio/net",
@@ -708,7 +2180,243 @@
         ],
         [
           "/deps/tokio/net",
+          "TcpStream.into_std"
+        ],
+        [
+          "/deps/tokio/net",
+          "TcpStream.linger"
+        ],
+        [
+          "/deps/tokio/net",
+          "TcpStream.local_addr"
+        ],
+        [
+          "/deps/tokio/net",
+          "TcpStream.nodelay"
+        ],
+        [
+          "/deps/tokio/net",
+          "TcpStream.peer_addr"
+        ],
+        [
+          "/deps/tokio/net",
+          "TcpStream.poll_peek"
+        ],
+        [
+          "/deps/tokio/net",
+          "TcpStream.poll_read_ready"
+        ],
+        [
+          "/deps/tokio/net",
+          "TcpStream.poll_write_ready"
+        ],
+        [
+          "/deps/tokio/net",
+          "TcpStream.quickack"
+        ],
+        [
+          "/deps/tokio/net",
+          "TcpStream.readable"
+        ],
+        [
+          "/deps/tokio/net",
+          "TcpStream.ready"
+        ],
+        [
+          "/deps/tokio/net",
+          "TcpStream.set_linger"
+        ],
+        [
+          "/deps/tokio/net",
+          "TcpStream.set_nodelay"
+        ],
+        [
+          "/deps/tokio/net",
+          "TcpStream.set_quickack"
+        ],
+        [
+          "/deps/tokio/net",
+          "TcpStream.set_ttl"
+        ],
+        [
+          "/deps/tokio/net",
+          "TcpStream.set_zero_linger"
+        ],
+        [
+          "/deps/tokio/net",
+          "TcpStream.take_error"
+        ],
+        [
+          "/deps/tokio/net",
+          "TcpStream.ttl"
+        ],
+        [
+          "/deps/tokio/net",
+          "TcpStream.writable"
+        ],
+        [
+          "/deps/tokio/net",
+          "TcpStream::connect"
+        ],
+        [
+          "/deps/tokio/net",
+          "TcpStream::from_std"
+        ],
+        [
+          "/deps/tokio/net",
           "UdpSocket"
+        ],
+        [
+          "/deps/tokio/net",
+          "UdpSocket.broadcast"
+        ],
+        [
+          "/deps/tokio/net",
+          "UdpSocket.connect"
+        ],
+        [
+          "/deps/tokio/net",
+          "UdpSocket.device"
+        ],
+        [
+          "/deps/tokio/net",
+          "UdpSocket.into_std"
+        ],
+        [
+          "/deps/tokio/net",
+          "UdpSocket.join_multicast_v4"
+        ],
+        [
+          "/deps/tokio/net",
+          "UdpSocket.join_multicast_v6"
+        ],
+        [
+          "/deps/tokio/net",
+          "UdpSocket.leave_multicast_v4"
+        ],
+        [
+          "/deps/tokio/net",
+          "UdpSocket.leave_multicast_v6"
+        ],
+        [
+          "/deps/tokio/net",
+          "UdpSocket.local_addr"
+        ],
+        [
+          "/deps/tokio/net",
+          "UdpSocket.multicast_loop_v4"
+        ],
+        [
+          "/deps/tokio/net",
+          "UdpSocket.multicast_loop_v6"
+        ],
+        [
+          "/deps/tokio/net",
+          "UdpSocket.multicast_ttl_v4"
+        ],
+        [
+          "/deps/tokio/net",
+          "UdpSocket.peek_sender"
+        ],
+        [
+          "/deps/tokio/net",
+          "UdpSocket.peer_addr"
+        ],
+        [
+          "/deps/tokio/net",
+          "UdpSocket.poll_peek"
+        ],
+        [
+          "/deps/tokio/net",
+          "UdpSocket.poll_peek_from"
+        ],
+        [
+          "/deps/tokio/net",
+          "UdpSocket.poll_peek_sender"
+        ],
+        [
+          "/deps/tokio/net",
+          "UdpSocket.poll_recv"
+        ],
+        [
+          "/deps/tokio/net",
+          "UdpSocket.poll_recv_from"
+        ],
+        [
+          "/deps/tokio/net",
+          "UdpSocket.poll_recv_ready"
+        ],
+        [
+          "/deps/tokio/net",
+          "UdpSocket.poll_send_ready"
+        ],
+        [
+          "/deps/tokio/net",
+          "UdpSocket.readable"
+        ],
+        [
+          "/deps/tokio/net",
+          "UdpSocket.ready"
+        ],
+        [
+          "/deps/tokio/net",
+          "UdpSocket.set_broadcast"
+        ],
+        [
+          "/deps/tokio/net",
+          "UdpSocket.set_multicast_loop_v4"
+        ],
+        [
+          "/deps/tokio/net",
+          "UdpSocket.set_multicast_loop_v6"
+        ],
+        [
+          "/deps/tokio/net",
+          "UdpSocket.set_multicast_ttl_v4"
+        ],
+        [
+          "/deps/tokio/net",
+          "UdpSocket.set_tclass_v6"
+        ],
+        [
+          "/deps/tokio/net",
+          "UdpSocket.set_tos_v4"
+        ],
+        [
+          "/deps/tokio/net",
+          "UdpSocket.set_ttl"
+        ],
+        [
+          "/deps/tokio/net",
+          "UdpSocket.take_error"
+        ],
+        [
+          "/deps/tokio/net",
+          "UdpSocket.tclass_v6"
+        ],
+        [
+          "/deps/tokio/net",
+          "UdpSocket.tos_v4"
+        ],
+        [
+          "/deps/tokio/net",
+          "UdpSocket.try_peek_sender"
+        ],
+        [
+          "/deps/tokio/net",
+          "UdpSocket.ttl"
+        ],
+        [
+          "/deps/tokio/net",
+          "UdpSocket.writable"
+        ],
+        [
+          "/deps/tokio/net",
+          "UdpSocket::bind"
+        ],
+        [
+          "/deps/tokio/net",
+          "UdpSocket::from_std"
         ],
         [
           "/deps/tokio/net",
@@ -716,7 +2424,39 @@
         ],
         [
           "/deps/tokio/net",
+          "UnixListener.into_std"
+        ],
+        [
+          "/deps/tokio/net",
+          "UnixListener.local_addr"
+        ],
+        [
+          "/deps/tokio/net",
+          "UnixListener.take_error"
+        ],
+        [
+          "/deps/tokio/net",
+          "UnixListener::bind_addr"
+        ],
+        [
+          "/deps/tokio/net",
+          "UnixListener::from_std"
+        ],
+        [
+          "/deps/tokio/net",
           "UnixSocket"
+        ],
+        [
+          "/deps/tokio/net",
+          "UnixSocket.listen"
+        ],
+        [
+          "/deps/tokio/net",
+          "UnixSocket::new_datagram"
+        ],
+        [
+          "/deps/tokio/net",
+          "UnixSocket::new_stream"
         ],
         [
           "/deps/tokio/net",
@@ -724,39 +2464,55 @@
         ],
         [
           "/deps/tokio/net",
-          "bind_addr"
+          "UnixStream.into_std"
         ],
         [
           "/deps/tokio/net",
-          "connect"
+          "UnixStream.local_addr"
         ],
         [
           "/deps/tokio/net",
-          "connect_addr"
+          "UnixStream.peer_addr"
         ],
         [
           "/deps/tokio/net",
-          "from_std_stream"
+          "UnixStream.peer_cred"
         ],
         [
           "/deps/tokio/net",
-          "new_datagram"
+          "UnixStream.poll_read_ready"
         ],
         [
           "/deps/tokio/net",
-          "new_stream"
+          "UnixStream.poll_write_ready"
         ],
         [
           "/deps/tokio/net",
-          "new_v4"
+          "UnixStream.readable"
         ],
         [
           "/deps/tokio/net",
-          "new_v6"
+          "UnixStream.ready"
         ],
         [
           "/deps/tokio/net",
-          "pair"
+          "UnixStream.take_error"
+        ],
+        [
+          "/deps/tokio/net",
+          "UnixStream.writable"
+        ],
+        [
+          "/deps/tokio/net",
+          "UnixStream::connect_addr"
+        ],
+        [
+          "/deps/tokio/net",
+          "UnixStream::from_std"
+        ],
+        [
+          "/deps/tokio/net",
+          "UnixStream::pair"
         ],
         [
           "/deps/tokio/net/addr/sealed",
@@ -768,7 +2524,55 @@
         ],
         [
           "/deps/tokio/net/tcp",
+          "OwnedReadHalf.local_addr"
+        ],
+        [
+          "/deps/tokio/net/tcp",
+          "OwnedReadHalf.peer_addr"
+        ],
+        [
+          "/deps/tokio/net/tcp",
+          "OwnedReadHalf.poll_peek"
+        ],
+        [
+          "/deps/tokio/net/tcp",
+          "OwnedReadHalf.readable"
+        ],
+        [
+          "/deps/tokio/net/tcp",
+          "OwnedReadHalf.ready"
+        ],
+        [
+          "/deps/tokio/net/tcp",
+          "OwnedReadHalf.reunite"
+        ],
+        [
+          "/deps/tokio/net/tcp",
           "OwnedWriteHalf"
+        ],
+        [
+          "/deps/tokio/net/tcp",
+          "OwnedWriteHalf.forget"
+        ],
+        [
+          "/deps/tokio/net/tcp",
+          "OwnedWriteHalf.local_addr"
+        ],
+        [
+          "/deps/tokio/net/tcp",
+          "OwnedWriteHalf.peer_addr"
+        ],
+        [
+          "/deps/tokio/net/tcp",
+          "OwnedWriteHalf.ready"
+        ],
+        [
+          "/deps/tokio/net/tcp",
+          "OwnedWriteHalf.reunite"
+        ],
+        [
+          "/deps/tokio/net/tcp",
+          "OwnedWriteHalf.writable"
         ],
         [
           "/deps/tokio/net/tcp",
@@ -780,7 +2584,51 @@
         ],
         [
           "/deps/tokio/net/unix",
+          "OwnedReadHalf.local_addr"
+        ],
+        [
+          "/deps/tokio/net/unix",
+          "OwnedReadHalf.peer_addr"
+        ],
+        [
+          "/deps/tokio/net/unix",
+          "OwnedReadHalf.readable"
+        ],
+        [
+          "/deps/tokio/net/unix",
+          "OwnedReadHalf.ready"
+        ],
+        [
+          "/deps/tokio/net/unix",
+          "OwnedReadHalf.reunite"
+        ],
+        [
+          "/deps/tokio/net/unix",
           "OwnedWriteHalf"
+        ],
+        [
+          "/deps/tokio/net/unix",
+          "OwnedWriteHalf.forget"
+        ],
+        [
+          "/deps/tokio/net/unix",
+          "OwnedWriteHalf.local_addr"
+        ],
+        [
+          "/deps/tokio/net/unix",
+          "OwnedWriteHalf.peer_addr"
+        ],
+        [
+          "/deps/tokio/net/unix",
+          "OwnedWriteHalf.ready"
+        ],
+        [
+          "/deps/tokio/net/unix",
+          "OwnedWriteHalf.reunite"
+        ],
+        [
+          "/deps/tokio/net/unix",
+          "OwnedWriteHalf.writable"
         ],
         [
           "/deps/tokio/net/unix",
@@ -792,7 +2640,27 @@
         ],
         [
           "/deps/tokio/net/unix",
+          "SocketAddr.as_pathname"
+        ],
+        [
+          "/deps/tokio/net/unix",
+          "SocketAddr.is_unnamed"
+        ],
+        [
+          "/deps/tokio/net/unix",
           "UCred"
+        ],
+        [
+          "/deps/tokio/net/unix",
+          "UCred.gid"
+        ],
+        [
+          "/deps/tokio/net/unix",
+          "UCred.pid"
+        ],
+        [
+          "/deps/tokio/net/unix",
+          "UCred.uid"
         ],
         [
           "/deps/tokio/net/unix/pipe",
@@ -800,7 +2668,47 @@
         ],
         [
           "/deps/tokio/net/unix/pipe",
+          "OpenOptions::new"
+        ],
+        [
+          "/deps/tokio/net/unix/pipe",
           "Receiver"
+        ],
+        [
+          "/deps/tokio/net/unix/pipe",
+          "Receiver.into_blocking_fd"
+        ],
+        [
+          "/deps/tokio/net/unix/pipe",
+          "Receiver.into_nonblocking_fd"
+        ],
+        [
+          "/deps/tokio/net/unix/pipe",
+          "Receiver.poll_read_ready"
+        ],
+        [
+          "/deps/tokio/net/unix/pipe",
+          "Receiver.readable"
+        ],
+        [
+          "/deps/tokio/net/unix/pipe",
+          "Receiver.ready"
+        ],
+        [
+          "/deps/tokio/net/unix/pipe",
+          "Receiver::from_file"
+        ],
+        [
+          "/deps/tokio/net/unix/pipe",
+          "Receiver::from_file_unchecked"
+        ],
+        [
+          "/deps/tokio/net/unix/pipe",
+          "Receiver::from_owned_fd"
+        ],
+        [
+          "/deps/tokio/net/unix/pipe",
+          "Receiver::from_owned_fd_unchecked"
         ],
         [
           "/deps/tokio/net/unix/pipe",
@@ -808,7 +2716,39 @@
         ],
         [
           "/deps/tokio/net/unix/pipe",
-          "new"
+          "Sender.into_blocking_fd"
+        ],
+        [
+          "/deps/tokio/net/unix/pipe",
+          "Sender.into_nonblocking_fd"
+        ],
+        [
+          "/deps/tokio/net/unix/pipe",
+          "Sender.poll_write_ready"
+        ],
+        [
+          "/deps/tokio/net/unix/pipe",
+          "Sender.ready"
+        ],
+        [
+          "/deps/tokio/net/unix/pipe",
+          "Sender.writable"
+        ],
+        [
+          "/deps/tokio/net/unix/pipe",
+          "Sender::from_file"
+        ],
+        [
+          "/deps/tokio/net/unix/pipe",
+          "Sender::from_file_unchecked"
+        ],
+        [
+          "/deps/tokio/net/unix/pipe",
+          "Sender::from_owned_fd"
+        ],
+        [
+          "/deps/tokio/net/unix/pipe",
+          "Sender::from_owned_fd_unchecked"
         ],
         [
           "/deps/tokio/runtime",
@@ -816,7 +2756,43 @@
         ],
         [
           "/deps/tokio/runtime",
+          "Builder.build"
+        ],
+        [
+          "/deps/tokio/runtime",
+          "Builder.build_local"
+        ],
+        [
+          "/deps/tokio/runtime",
+          "Builder::new_current_thread"
+        ],
+        [
+          "/deps/tokio/runtime",
+          "Builder::new_multi_thread"
+        ],
+        [
+          "/deps/tokio/runtime",
           "Handle"
+        ],
+        [
+          "/deps/tokio/runtime",
+          "Handle.enter"
+        ],
+        [
+          "/deps/tokio/runtime",
+          "Handle.id"
+        ],
+        [
+          "/deps/tokio/runtime",
+          "Handle.metrics"
+        ],
+        [
+          "/deps/tokio/runtime",
+          "Handle.name"
+        ],
+        [
+          "/deps/tokio/runtime",
+          "Handle.runtime_flavor"
         ],
         [
           "/deps/tokio/runtime",
@@ -832,7 +2808,55 @@
         ],
         [
           "/deps/tokio/runtime",
+          "LocalRuntime.enter"
+        ],
+        [
+          "/deps/tokio/runtime",
+          "LocalRuntime.handle"
+        ],
+        [
+          "/deps/tokio/runtime",
+          "LocalRuntime.metrics"
+        ],
+        [
+          "/deps/tokio/runtime",
+          "LocalRuntime.shutdown_background"
+        ],
+        [
+          "/deps/tokio/runtime",
+          "LocalRuntime.shutdown_timeout"
+        ],
+        [
+          "/deps/tokio/runtime",
+          "LocalRuntime::new"
+        ],
+        [
+          "/deps/tokio/runtime",
           "Runtime"
+        ],
+        [
+          "/deps/tokio/runtime",
+          "Runtime.enter"
+        ],
+        [
+          "/deps/tokio/runtime",
+          "Runtime.handle"
+        ],
+        [
+          "/deps/tokio/runtime",
+          "Runtime.metrics"
+        ],
+        [
+          "/deps/tokio/runtime",
+          "Runtime.shutdown_background"
+        ],
+        [
+          "/deps/tokio/runtime",
+          "Runtime.shutdown_timeout"
+        ],
+        [
+          "/deps/tokio/runtime",
+          "Runtime::new"
         ],
         [
           "/deps/tokio/runtime",
@@ -844,19 +2868,43 @@
         ],
         [
           "/deps/tokio/runtime",
+          "RuntimeMetrics.global_queue_depth"
+        ],
+        [
+          "/deps/tokio/runtime",
+          "RuntimeMetrics.num_alive_tasks"
+        ],
+        [
+          "/deps/tokio/runtime",
+          "RuntimeMetrics.num_workers"
+        ],
+        [
+          "/deps/tokio/runtime",
+          "RuntimeMetrics.worker_park_count"
+        ],
+        [
+          "/deps/tokio/runtime",
+          "RuntimeMetrics.worker_park_unpark_count"
+        ],
+        [
+          "/deps/tokio/runtime",
+          "RuntimeMetrics.worker_total_busy_duration"
+        ],
+        [
+          "/deps/tokio/runtime",
           "TryCurrentError"
         ],
         [
           "/deps/tokio/runtime",
+          "TryCurrentError.is_missing_context"
+        ],
+        [
+          "/deps/tokio/runtime",
+          "TryCurrentError.is_thread_local_destroyed"
+        ],
+        [
+          "/deps/tokio/runtime",
           "is_rt_shutdown_err"
-        ],
-        [
-          "/deps/tokio/runtime",
-          "new_current_thread"
-        ],
-        [
-          "/deps/tokio/runtime",
-          "new_multi_thread"
         ],
         [
           "/deps/tokio/runtime/runtimeflavor",
@@ -876,7 +2924,19 @@
         ],
         [
           "/deps/tokio/signal/unix",
+          "Signal.poll_recv"
+        ],
+        [
+          "/deps/tokio/signal/unix",
+          "Signal.recv"
+        ],
+        [
+          "/deps/tokio/signal/unix",
           "SignalKind"
+        ],
+        [
+          "/deps/tokio/signal/unix",
+          "SignalKind.as_raw_value"
         ],
         [
           "/deps/tokio/signal/unix",
@@ -892,7 +2952,19 @@
         ],
         [
           "/deps/tokio/sync",
+          "Barrier.wait"
+        ],
+        [
+          "/deps/tokio/sync",
+          "Barrier::new"
+        ],
+        [
+          "/deps/tokio/sync",
           "BarrierWaitResult"
+        ],
+        [
+          "/deps/tokio/sync",
+          "BarrierWaitResult.is_leader"
         ],
         [
           "/deps/tokio/sync",
@@ -900,11 +2972,103 @@
         ],
         [
           "/deps/tokio/sync",
+          "Notify.notified"
+        ],
+        [
+          "/deps/tokio/sync",
+          "Notify.notified_owned"
+        ],
+        [
+          "/deps/tokio/sync",
+          "Notify.notify_last"
+        ],
+        [
+          "/deps/tokio/sync",
+          "Notify.notify_one"
+        ],
+        [
+          "/deps/tokio/sync",
+          "Notify.notify_waiters"
+        ],
+        [
+          "/deps/tokio/sync",
+          "Notify::const_new"
+        ],
+        [
+          "/deps/tokio/sync",
+          "Notify::new"
+        ],
+        [
+          "/deps/tokio/sync",
           "OwnedSemaphorePermit"
         ],
         [
           "/deps/tokio/sync",
+          "OwnedSemaphorePermit.forget"
+        ],
+        [
+          "/deps/tokio/sync",
+          "OwnedSemaphorePermit.num_permits"
+        ],
+        [
+          "/deps/tokio/sync",
+          "OwnedSemaphorePermit.semaphore"
+        ],
+        [
+          "/deps/tokio/sync",
           "Semaphore"
+        ],
+        [
+          "/deps/tokio/sync",
+          "Semaphore.acquire"
+        ],
+        [
+          "/deps/tokio/sync",
+          "Semaphore.acquire_many"
+        ],
+        [
+          "/deps/tokio/sync",
+          "Semaphore.acquire_many_owned"
+        ],
+        [
+          "/deps/tokio/sync",
+          "Semaphore.acquire_owned"
+        ],
+        [
+          "/deps/tokio/sync",
+          "Semaphore.add_permits"
+        ],
+        [
+          "/deps/tokio/sync",
+          "Semaphore.available_permits"
+        ],
+        [
+          "/deps/tokio/sync",
+          "Semaphore.close"
+        ],
+        [
+          "/deps/tokio/sync",
+          "Semaphore.forget_permits"
+        ],
+        [
+          "/deps/tokio/sync",
+          "Semaphore.is_closed"
+        ],
+        [
+          "/deps/tokio/sync",
+          "Semaphore.try_acquire"
+        ],
+        [
+          "/deps/tokio/sync",
+          "Semaphore.try_acquire_many"
+        ],
+        [
+          "/deps/tokio/sync",
+          "Semaphore.try_acquire_many_owned"
+        ],
+        [
+          "/deps/tokio/sync",
+          "Semaphore.try_acquire_owned"
         ],
         [
           "/deps/tokio/sync",
@@ -913,10 +3077,6 @@
         [
           "/deps/tokio/sync",
           "TryLockError"
-        ],
-        [
-          "/deps/tokio/sync",
-          "const_new"
         ],
         [
           "/deps/tokio/sync/broadcast/error",
@@ -929,6 +3089,10 @@
         [
           "/deps/tokio/sync/futures",
           "OwnedNotified"
+        ],
+        [
+          "/deps/tokio/sync/futures",
+          "OwnedNotified.enable"
         ],
         [
           "/deps/tokio/sync/mpsc/error",
@@ -976,11 +3140,35 @@
         ],
         [
           "/deps/tokio/task",
+          "AbortHandle.abort"
+        ],
+        [
+          "/deps/tokio/task",
+          "AbortHandle.id"
+        ],
+        [
+          "/deps/tokio/task",
+          "AbortHandle.is_finished"
+        ],
+        [
+          "/deps/tokio/task",
           "Id"
         ],
         [
           "/deps/tokio/task",
           "JoinError"
+        ],
+        [
+          "/deps/tokio/task",
+          "JoinError.id"
+        ],
+        [
+          "/deps/tokio/task",
+          "JoinError.is_cancelled"
+        ],
+        [
+          "/deps/tokio/task",
+          "JoinError.is_panic"
         ],
         [
           "/deps/tokio/task",
@@ -992,11 +3180,19 @@
         ],
         [
           "/deps/tokio/task",
-          "id"
+          "LocalSet.enter"
         ],
         [
           "/deps/tokio/task",
-          "new"
+          "LocalSet.id"
+        ],
+        [
+          "/deps/tokio/task",
+          "LocalSet::new"
+        ],
+        [
+          "/deps/tokio/task",
+          "id"
         ],
         [
           "/deps/tokio/task",
@@ -1009,6 +3205,10 @@
         [
           "/deps/tokio/task/coop",
           "RestoreOnPending"
+        ],
+        [
+          "/deps/tokio/task/coop",
+          "RestoreOnPending.made_progress"
         ],
         [
           "/deps/tokio/task/coop",
@@ -1032,7 +3232,79 @@
         ],
         [
           "/deps/tokio/time",
+          "Instant.checked_add"
+        ],
+        [
+          "/deps/tokio/time",
+          "Instant.checked_duration_since"
+        ],
+        [
+          "/deps/tokio/time",
+          "Instant.checked_sub"
+        ],
+        [
+          "/deps/tokio/time",
+          "Instant.duration_since"
+        ],
+        [
+          "/deps/tokio/time",
+          "Instant.elapsed"
+        ],
+        [
+          "/deps/tokio/time",
+          "Instant.into_std"
+        ],
+        [
+          "/deps/tokio/time",
+          "Instant.saturating_duration_since"
+        ],
+        [
+          "/deps/tokio/time",
+          "Instant::from_std"
+        ],
+        [
+          "/deps/tokio/time",
+          "Instant::now"
+        ],
+        [
+          "/deps/tokio/time",
           "Interval"
+        ],
+        [
+          "/deps/tokio/time",
+          "Interval.missed_tick_behavior"
+        ],
+        [
+          "/deps/tokio/time",
+          "Interval.period"
+        ],
+        [
+          "/deps/tokio/time",
+          "Interval.poll_tick"
+        ],
+        [
+          "/deps/tokio/time",
+          "Interval.reset"
+        ],
+        [
+          "/deps/tokio/time",
+          "Interval.reset_after"
+        ],
+        [
+          "/deps/tokio/time",
+          "Interval.reset_at"
+        ],
+        [
+          "/deps/tokio/time",
+          "Interval.reset_immediately"
+        ],
+        [
+          "/deps/tokio/time",
+          "Interval.set_missed_tick_behavior"
+        ],
+        [
+          "/deps/tokio/time",
+          "Interval.tick"
         ],
         [
           "/deps/tokio/time",
@@ -1044,7 +3316,15 @@
         ],
         [
           "/deps/tokio/time",
-          "from_std"
+          "Sleep.deadline"
+        ],
+        [
+          "/deps/tokio/time",
+          "Sleep.is_elapsed"
+        ],
+        [
+          "/deps/tokio/time",
+          "Sleep.reset"
         ],
         [
           "/deps/tokio/time",
@@ -1053,10 +3333,6 @@
         [
           "/deps/tokio/time",
           "interval_at"
-        ],
-        [
-          "/deps/tokio/time",
-          "now"
         ],
         [
           "/deps/tokio/time",
@@ -1076,15 +3352,27 @@
         ],
         [
           "/deps/tokio/time/error",
-          "at_capacity"
+          "Error.is_at_capacity"
         ],
         [
           "/deps/tokio/time/error",
-          "invalid"
+          "Error.is_invalid"
         ],
         [
           "/deps/tokio/time/error",
-          "shutdown"
+          "Error.is_shutdown"
+        ],
+        [
+          "/deps/tokio/time/error",
+          "Error::at_capacity"
+        ],
+        [
+          "/deps/tokio/time/error",
+          "Error::invalid"
+        ],
+        [
+          "/deps/tokio/time/error",
+          "Error::shutdown"
         ],
         [
           "/deps/tokio/time/missedtickbehavior",
@@ -1132,19 +3420,19 @@
         ],
         [
           "/deps/tower/retry/backoff",
-          "ExponentialBackoff-e2a82020178f1a5387e2e31c5e8fb74f1d65a5d1e906682f12d1de55b7f45733"
+          "ExponentialBackoff"
         ],
         [
           "/deps/tower/retry/backoff",
-          "ExponentialBackoffMaker-b603f65576c693b7e43b4b61cd23a5030addc69a80057e63f529a0a8382cc88c"
+          "ExponentialBackoffMaker"
+        ],
+        [
+          "/deps/tower/retry/backoff",
+          "ExponentialBackoffMaker::new"
         ],
         [
           "/deps/tower/retry/backoff",
           "InvalidBackoff"
-        ],
-        [
-          "/deps/tower/retry/backoff",
-          "new"
         ],
         [
           "/deps/tower/retry/budget",
@@ -1172,15 +3460,15 @@
         ],
         [
           "/deps/tower/util/rng",
-          "HasherRng-d250ece96d434c53bb6f7d2c1a93595ecb3ee3b237b65cd5acf21fca24f1a212"
+          "HasherRng"
         ],
         [
           "/deps/tower/util/rng",
-          "new"
+          "HasherRng::new"
         ],
         [
           "/deps/tower/util/rng",
-          "with_hasher"
+          "HasherRng::with_hasher"
         ],
         [
           "/deps/tower/util/rng/rng",
@@ -1306,19 +3594,19 @@
         ],
         [
           "/deps/tower-http/follow-redirect",
-          "FollowRedirectLayer-4a80b571535e29a2affd61646bae45c07f732fc62d09d9f78de7bb5da6f328d3"
+          "FollowRedirectLayer"
+        ],
+        [
+          "/deps/tower-http/follow-redirect",
+          "FollowRedirectLayer::new"
+        ],
+        [
+          "/deps/tower-http/follow-redirect",
+          "FollowRedirectLayer::with_policy"
         ],
         [
           "/deps/tower-http/follow-redirect",
           "RequestUri"
-        ],
-        [
-          "/deps/tower-http/follow-redirect",
-          "new"
-        ],
-        [
-          "/deps/tower-http/follow-redirect",
-          "with_policy"
         ],
         [
           "/deps/tower-http/follow-redirect/policy",
@@ -1377,6 +3665,14 @@
           "RequestId"
         ],
         [
+          "/deps/tower-http/request-id",
+          "RequestId.header_value"
+        ],
+        [
+          "/deps/tower-http/request-id",
+          "RequestId.into_header_value"
+        ],
+        [
           "/deps/tower-http/timeout",
           "RequestBodyTimeoutLayer"
         ],
@@ -1432,15 +3728,39 @@
         ],
         [
           "/deps/tracing",
-          "current"
+          "Span.enter"
         ],
         [
           "/deps/tracing",
-          "none"
+          "Span.entered"
+        ],
+        [
+          "/deps/tracing",
+          "Span.has_field"
+        ],
+        [
+          "/deps/tracing",
+          "Span.is_disabled"
+        ],
+        [
+          "/deps/tracing",
+          "Span.is_none"
+        ],
+        [
+          "/deps/tracing",
+          "Span::current"
+        ],
+        [
+          "/deps/tracing",
+          "Span::none"
         ],
         [
           "/deps/tracing/span",
           "EnteredSpan"
+        ],
+        [
+          "/deps/tracing/span",
+          "EnteredSpan.exit"
         ]
       ]
     },
@@ -1458,7 +3778,23 @@
         ],
         [
           "/deps/utoipa/openapi",
+          "AllOf::builder"
+        ],
+        [
+          "/deps/utoipa/openapi",
           "AllOfBuilder"
+        ],
+        [
+          "/deps/utoipa/openapi",
+          "AllOfBuilder.build"
+        ],
+        [
+          "/deps/utoipa/openapi",
+          "AllOfBuilder.to_array_builder"
+        ],
+        [
+          "/deps/utoipa/openapi",
+          "AllOfBuilder::new"
         ],
         [
           "/deps/utoipa/openapi",
@@ -1466,7 +3802,23 @@
         ],
         [
           "/deps/utoipa/openapi",
+          "Array::builder"
+        ],
+        [
+          "/deps/utoipa/openapi",
           "ArrayBuilder"
+        ],
+        [
+          "/deps/utoipa/openapi",
+          "ArrayBuilder.build"
+        ],
+        [
+          "/deps/utoipa/openapi",
+          "ArrayBuilder.to_array_builder"
+        ],
+        [
+          "/deps/utoipa/openapi",
+          "ArrayBuilder::new"
         ],
         [
           "/deps/utoipa/openapi",
@@ -1474,7 +3826,19 @@
         ],
         [
           "/deps/utoipa/openapi",
+          "Components::builder"
+        ],
+        [
+          "/deps/utoipa/openapi",
           "ComponentsBuilder"
+        ],
+        [
+          "/deps/utoipa/openapi",
+          "ComponentsBuilder.build"
+        ],
+        [
+          "/deps/utoipa/openapi",
+          "ComponentsBuilder::new"
         ],
         [
           "/deps/utoipa/openapi",
@@ -1482,7 +3846,19 @@
         ],
         [
           "/deps/utoipa/openapi",
+          "Contact::builder"
+        ],
+        [
+          "/deps/utoipa/openapi",
           "ContactBuilder"
+        ],
+        [
+          "/deps/utoipa/openapi",
+          "ContactBuilder.build"
+        ],
+        [
+          "/deps/utoipa/openapi",
+          "ContactBuilder::new"
         ],
         [
           "/deps/utoipa/openapi",
@@ -1490,7 +3866,19 @@
         ],
         [
           "/deps/utoipa/openapi",
+          "Content::builder"
+        ],
+        [
+          "/deps/utoipa/openapi",
           "ContentBuilder"
+        ],
+        [
+          "/deps/utoipa/openapi",
+          "ContentBuilder.build"
+        ],
+        [
+          "/deps/utoipa/openapi",
+          "ContentBuilder::new"
         ],
         [
           "/deps/utoipa/openapi",
@@ -1506,11 +3894,27 @@
         ],
         [
           "/deps/utoipa/openapi",
+          "ExternalDocs::builder"
+        ],
+        [
+          "/deps/utoipa/openapi",
           "Header"
         ],
         [
           "/deps/utoipa/openapi",
+          "Header::builder"
+        ],
+        [
+          "/deps/utoipa/openapi",
           "HeaderBuilder"
+        ],
+        [
+          "/deps/utoipa/openapi",
+          "HeaderBuilder.build"
+        ],
+        [
+          "/deps/utoipa/openapi",
+          "HeaderBuilder::new"
         ],
         [
           "/deps/utoipa/openapi",
@@ -1522,7 +3926,19 @@
         ],
         [
           "/deps/utoipa/openapi",
+          "Info::builder"
+        ],
+        [
+          "/deps/utoipa/openapi",
           "InfoBuilder"
+        ],
+        [
+          "/deps/utoipa/openapi",
+          "InfoBuilder.build"
+        ],
+        [
+          "/deps/utoipa/openapi",
+          "InfoBuilder::new"
         ],
         [
           "/deps/utoipa/openapi",
@@ -1534,7 +3950,19 @@
         ],
         [
           "/deps/utoipa/openapi",
+          "License::builder"
+        ],
+        [
+          "/deps/utoipa/openapi",
           "LicenseBuilder"
+        ],
+        [
+          "/deps/utoipa/openapi",
+          "LicenseBuilder.build"
+        ],
+        [
+          "/deps/utoipa/openapi",
+          "LicenseBuilder::new"
         ],
         [
           "/deps/utoipa/openapi",
@@ -1542,7 +3970,23 @@
         ],
         [
           "/deps/utoipa/openapi",
+          "Object::builder"
+        ],
+        [
+          "/deps/utoipa/openapi",
           "ObjectBuilder"
+        ],
+        [
+          "/deps/utoipa/openapi",
+          "ObjectBuilder.build"
+        ],
+        [
+          "/deps/utoipa/openapi",
+          "ObjectBuilder.to_array_builder"
+        ],
+        [
+          "/deps/utoipa/openapi",
+          "ObjectBuilder::new"
         ],
         [
           "/deps/utoipa/openapi",
@@ -1550,7 +3994,23 @@
         ],
         [
           "/deps/utoipa/openapi",
+          "OneOf::builder"
+        ],
+        [
+          "/deps/utoipa/openapi",
           "OneOfBuilder"
+        ],
+        [
+          "/deps/utoipa/openapi",
+          "OneOfBuilder.build"
+        ],
+        [
+          "/deps/utoipa/openapi",
+          "OneOfBuilder.to_array_builder"
+        ],
+        [
+          "/deps/utoipa/openapi",
+          "OneOfBuilder::new"
         ],
         [
           "/deps/utoipa/openapi",
@@ -1558,7 +4018,35 @@
         ],
         [
           "/deps/utoipa/openapi",
+          "OpenApi.merge"
+        ],
+        [
+          "/deps/utoipa/openapi",
+          "OpenApi.merge_from"
+        ],
+        [
+          "/deps/utoipa/openapi",
+          "OpenApi.to_json"
+        ],
+        [
+          "/deps/utoipa/openapi",
+          "OpenApi.to_pretty_json"
+        ],
+        [
+          "/deps/utoipa/openapi",
+          "OpenApi::builder"
+        ],
+        [
+          "/deps/utoipa/openapi",
           "OpenApiBuilder"
+        ],
+        [
+          "/deps/utoipa/openapi",
+          "OpenApiBuilder.build"
+        ],
+        [
+          "/deps/utoipa/openapi",
+          "OpenApiBuilder::new"
         ],
         [
           "/deps/utoipa/openapi",
@@ -1570,7 +4058,23 @@
         ],
         [
           "/deps/utoipa/openapi",
+          "PathItem.merge_operations"
+        ],
+        [
+          "/deps/utoipa/openapi",
+          "PathItem::builder"
+        ],
+        [
+          "/deps/utoipa/openapi",
           "Paths"
+        ],
+        [
+          "/deps/utoipa/openapi",
+          "Paths.merge"
+        ],
+        [
+          "/deps/utoipa/openapi",
+          "Paths::builder"
         ],
         [
           "/deps/utoipa/openapi",
@@ -1578,7 +4082,23 @@
         ],
         [
           "/deps/utoipa/openapi",
+          "PathsBuilder.build"
+        ],
+        [
+          "/deps/utoipa/openapi",
+          "PathsBuilder::new"
+        ],
+        [
+          "/deps/utoipa/openapi",
           "Ref"
+        ],
+        [
+          "/deps/utoipa/openapi",
+          "Ref.to_array_builder"
+        ],
+        [
+          "/deps/utoipa/openapi",
+          "Ref::builder"
         ],
         [
           "/deps/utoipa/openapi",
@@ -1590,7 +4110,19 @@
         ],
         [
           "/deps/utoipa/openapi",
+          "Response::builder"
+        ],
+        [
+          "/deps/utoipa/openapi",
           "ResponseBuilder"
+        ],
+        [
+          "/deps/utoipa/openapi",
+          "ResponseBuilder.build"
+        ],
+        [
+          "/deps/utoipa/openapi",
+          "ResponseBuilder::new"
         ],
         [
           "/deps/utoipa/openapi",
@@ -1598,7 +4130,19 @@
         ],
         [
           "/deps/utoipa/openapi",
+          "Responses::builder"
+        ],
+        [
+          "/deps/utoipa/openapi",
           "ResponsesBuilder"
+        ],
+        [
+          "/deps/utoipa/openapi",
+          "ResponsesBuilder.build"
+        ],
+        [
+          "/deps/utoipa/openapi",
+          "ResponsesBuilder::new"
         ],
         [
           "/deps/utoipa/openapi",
@@ -1618,7 +4162,19 @@
         ],
         [
           "/deps/utoipa/openapi",
+          "Server::builder"
+        ],
+        [
+          "/deps/utoipa/openapi",
           "ServerBuilder"
+        ],
+        [
+          "/deps/utoipa/openapi",
+          "ServerBuilder.build"
+        ],
+        [
+          "/deps/utoipa/openapi",
+          "ServerBuilder::new"
         ],
         [
           "/deps/utoipa/openapi",
@@ -1626,11 +4182,27 @@
         ],
         [
           "/deps/utoipa/openapi",
+          "ServerVariable::builder"
+        ],
+        [
+          "/deps/utoipa/openapi",
           "ServerVariableBuilder"
         ],
         [
           "/deps/utoipa/openapi",
+          "ServerVariableBuilder.build"
+        ],
+        [
+          "/deps/utoipa/openapi",
+          "ServerVariableBuilder::new"
+        ],
+        [
+          "/deps/utoipa/openapi",
           "Tag"
+        ],
+        [
+          "/deps/utoipa/openapi",
+          "Tag::builder"
         ],
         [
           "/deps/utoipa/openapi",
@@ -1650,15 +4222,19 @@
         ],
         [
           "/deps/utoipa/openapi/encoding",
+          "Encoding::builder"
+        ],
+        [
+          "/deps/utoipa/openapi/encoding",
           "EncodingBuilder"
         ],
         [
           "/deps/utoipa/openapi/encoding",
-          "builder"
+          "EncodingBuilder.build"
         ],
         [
           "/deps/utoipa/openapi/encoding",
-          "new"
+          "EncodingBuilder::new"
         ],
         [
           "/deps/utoipa/openapi/example",
@@ -1666,15 +4242,19 @@
         ],
         [
           "/deps/utoipa/openapi/example",
+          "Example::builder"
+        ],
+        [
+          "/deps/utoipa/openapi/example",
           "ExampleBuilder"
         ],
         [
           "/deps/utoipa/openapi/example",
-          "builder"
+          "ExampleBuilder.build"
         ],
         [
           "/deps/utoipa/openapi/example",
-          "new"
+          "ExampleBuilder::new"
         ],
         [
           "/deps/utoipa/openapi/extensions",
@@ -1682,15 +4262,23 @@
         ],
         [
           "/deps/utoipa/openapi/extensions",
+          "Extensions.merge"
+        ],
+        [
+          "/deps/utoipa/openapi/extensions",
+          "Extensions::builder"
+        ],
+        [
+          "/deps/utoipa/openapi/extensions",
           "ExtensionsBuilder"
         ],
         [
           "/deps/utoipa/openapi/extensions",
-          "builder"
+          "ExtensionsBuilder.build"
         ],
         [
           "/deps/utoipa/openapi/extensions",
-          "new"
+          "ExtensionsBuilder::new"
         ],
         [
           "/deps/utoipa/openapi/external-docs",
@@ -1698,7 +4286,11 @@
         ],
         [
           "/deps/utoipa/openapi/external-docs",
-          "new"
+          "ExternalDocsBuilder.build"
+        ],
+        [
+          "/deps/utoipa/openapi/external-docs",
+          "ExternalDocsBuilder::new"
         ],
         [
           "/deps/utoipa/openapi/httpmethod",
@@ -1826,15 +4418,19 @@
         ],
         [
           "/deps/utoipa/openapi/link",
+          "Link::builder"
+        ],
+        [
+          "/deps/utoipa/openapi/link",
           "LinkBuilder"
         ],
         [
           "/deps/utoipa/openapi/link",
-          "builder"
+          "LinkBuilder.build"
         ],
         [
           "/deps/utoipa/openapi/link",
-          "new"
+          "LinkBuilder::new"
         ],
         [
           "/deps/utoipa/openapi/openapiversion",
@@ -1846,7 +4442,19 @@
         ],
         [
           "/deps/utoipa/openapi/path",
+          "Operation::builder"
+        ],
+        [
+          "/deps/utoipa/openapi/path",
           "OperationBuilder"
+        ],
+        [
+          "/deps/utoipa/openapi/path",
+          "OperationBuilder.build"
+        ],
+        [
+          "/deps/utoipa/openapi/path",
+          "OperationBuilder::new"
         ],
         [
           "/deps/utoipa/openapi/path",
@@ -1854,7 +4462,19 @@
         ],
         [
           "/deps/utoipa/openapi/path",
+          "Parameter::builder"
+        ],
+        [
+          "/deps/utoipa/openapi/path",
           "ParameterBuilder"
+        ],
+        [
+          "/deps/utoipa/openapi/path",
+          "ParameterBuilder.build"
+        ],
+        [
+          "/deps/utoipa/openapi/path",
+          "ParameterBuilder::new"
         ],
         [
           "/deps/utoipa/openapi/path",
@@ -1867,6 +4487,14 @@
         [
           "/deps/utoipa/openapi/path",
           "PathItemBuilder"
+        ],
+        [
+          "/deps/utoipa/openapi/path",
+          "PathItemBuilder.build"
+        ],
+        [
+          "/deps/utoipa/openapi/path",
+          "PathItemBuilder::new"
         ],
         [
           "/deps/utoipa/openapi/path/parameterin",
@@ -1918,15 +4546,19 @@
         ],
         [
           "/deps/utoipa/openapi/request-body",
+          "RequestBody::builder"
+        ],
+        [
+          "/deps/utoipa/openapi/request-body",
           "RequestBodyBuilder"
         ],
         [
           "/deps/utoipa/openapi/request-body",
-          "builder"
+          "RequestBodyBuilder.build"
         ],
         [
           "/deps/utoipa/openapi/request-body",
-          "new"
+          "RequestBodyBuilder::new"
         ],
         [
           "/deps/utoipa/openapi/required",
@@ -1942,7 +4574,23 @@
         ],
         [
           "/deps/utoipa/openapi/schema",
+          "AnyOf::builder"
+        ],
+        [
+          "/deps/utoipa/openapi/schema",
           "AnyOfBuilder"
+        ],
+        [
+          "/deps/utoipa/openapi/schema",
+          "AnyOfBuilder.build"
+        ],
+        [
+          "/deps/utoipa/openapi/schema",
+          "AnyOfBuilder.to_array_builder"
+        ],
+        [
+          "/deps/utoipa/openapi/schema",
+          "AnyOfBuilder::new"
         ],
         [
           "/deps/utoipa/openapi/schema",
@@ -1954,11 +4602,15 @@
         ],
         [
           "/deps/utoipa/openapi/schema",
-          "SchemaType"
+          "RefBuilder.build"
         ],
         [
           "/deps/utoipa/openapi/schema",
-          "builder"
+          "RefBuilder::new"
+        ],
+        [
+          "/deps/utoipa/openapi/schema",
+          "SchemaType"
         ],
         [
           "/deps/utoipa/openapi/schema",
@@ -1990,11 +4642,23 @@
         ],
         [
           "/deps/utoipa/openapi/security",
+          "Http::builder"
+        ],
+        [
+          "/deps/utoipa/openapi/security",
           "HttpAuthScheme"
         ],
         [
           "/deps/utoipa/openapi/security",
           "HttpBuilder"
+        ],
+        [
+          "/deps/utoipa/openapi/security",
+          "HttpBuilder.build"
+        ],
+        [
+          "/deps/utoipa/openapi/security",
+          "HttpBuilder::new"
         ],
         [
           "/deps/utoipa/openapi/security",
@@ -2019,14 +4683,6 @@
         [
           "/deps/utoipa/openapi/security",
           "SecurityScheme"
-        ],
-        [
-          "/deps/utoipa/openapi/security",
-          "builder"
-        ],
-        [
-          "/deps/utoipa/openapi/security",
-          "new"
         ],
         [
           "/deps/utoipa/openapi/security/httpauthscheme",
@@ -2074,7 +4730,11 @@
         ],
         [
           "/deps/utoipa/openapi/tag",
-          "new"
+          "TagBuilder.build"
+        ],
+        [
+          "/deps/utoipa/openapi/tag",
+          "TagBuilder::new"
         ],
         [
           "/deps/utoipa/openapi/type",
@@ -2110,15 +4770,19 @@
         ],
         [
           "/deps/utoipa/openapi/xml",
+          "Xml::builder"
+        ],
+        [
+          "/deps/utoipa/openapi/xml",
           "XmlBuilder"
         ],
         [
           "/deps/utoipa/openapi/xml",
-          "builder"
+          "XmlBuilder.build"
         ],
         [
           "/deps/utoipa/openapi/xml",
-          "new"
+          "XmlBuilder::new"
         ]
       ]
     },
@@ -2150,11 +4814,11 @@
     }
   ],
   "removed": [],
-  "cache_identity": "2e06fb9c36842b4343b8213e5cc2a42b68b5651d733b63a45af30ba381eaae4b",
+  "cache_identity": "c43a51fdbd0f99715349396056904304fbc5fe4f3f923f3d80321b92e834a013",
   "source": "Local",
   "rustdoc_format": 57,
-  "projection_schema": "22",
-  "content_hash": "3177b66b82bedefa63801ca0e99c6ce22f65edb1fa6b5e245e39c873ef58d8e0",
+  "projection_schema": "24",
+  "content_hash": "6ff0fe06c3fd8bbd16feee0430f90e678996ce3ca8b43a147a57e990848a8995",
   "resolution": {
     "outcome": "LocalRustdoc",
     "events": [

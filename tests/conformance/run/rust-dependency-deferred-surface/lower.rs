@@ -422,14 +422,14 @@ mod __terrane_trace {
     pub static FUNCTIONS: [&str; 1] = ["/app::main"];
     pub static SITES: [Site; 5] = [
         {
-            /* terrane-site-row: site 0: /app::main (src/main.trn:8:23-8:39) */
+            /* terrane-site-row: site 0: /app::main (src/main.trn:8:23-8:49) */
             Site {
                 function: 0,
                 file: 0,
                 line: 8,
                 column: 23,
                 end_line: 8,
-                end_column: 39,
+                end_column: 49,
             }
         },
         {
@@ -444,14 +444,14 @@ mod __terrane_trace {
             }
         },
         {
-            /* terrane-site-row: site 2: /app::main (src/main.trn:10:29-10:42) */
+            /* terrane-site-row: site 2: /app::main (src/main.trn:10:29-10:50) */
             Site {
                 function: 0,
                 file: 0,
                 line: 10,
                 column: 29,
                 end_line: 10,
-                end_column: 42,
+                end_column: 50,
             }
         },
         {
@@ -493,16 +493,20 @@ mod __terrane_trace {
 // Namespace: app
 fn main() {
     let buffer: BytesMut = __terrane_raised(
-        with_capacity(terrane_int_support::Int::from(8_i128)),
-        0 /* terrane-site: src/main.trn:8:23-8:39 */,
+        terrane_static_trn_42797465734d7574_with_capacity(
+            terrane_int_support::Int::from(8_i128),
+        ),
+        0 /* terrane-site: src/main.trn:8:23-8:49 */,
     );
     let remaining: terrane_int_support::Int = __terrane_raised(
         remaining_mut(&buffer),
         1 /* terrane-site: src/main.trn:9:21-9:42 */,
     );
     let candidate: Option<Number> = __terrane_raised(
-        from_u128(terrane_int_support::Int::from(42_i128)),
-        2 /* terrane-site: src/main.trn:10:29-10:42 */,
+        terrane_static_trn_4e756d626572_from_u128(
+            terrane_int_support::Int::from(42_i128),
+        ),
+        2 /* terrane-site: src/main.trn:10:29-10:50 */,
     );
     let data: Category = __terrane_raised(
         __trn_44617461(),
@@ -523,7 +527,20 @@ fn main() {
 // Namespace: deps/bytes
 pub use bytes::Bytes;
 pub use bytes::BytesMut;
-pub fn with_capacity(
+pub fn terrane_static_trn_42797465734d7574_new() -> Result<
+    BytesMut,
+    crate::TerraneForeignError,
+> {
+    match std::panic::catch_unwind(
+        std::panic::AssertUnwindSafe(|| bytes::BytesMut::new()),
+    ) {
+        Ok(value) => Ok(value),
+        Err(payload) => {
+            Err(crate::__terrane_dependency_panic(payload, "bytes", "bytes::BytesMut"))
+        }
+    }
+}
+pub fn terrane_static_trn_42797465734d7574_with_capacity(
     capacity: terrane_int_support::Int,
 ) -> Result<BytesMut, crate::TerraneForeignError> {
     let capacity = terrane_int_support::coerce::<usize>(&capacity)
@@ -535,13 +552,23 @@ pub fn with_capacity(
     ) {
         Ok(value) => Ok(value),
         Err(payload) => {
-            Err(
-                crate::__terrane_dependency_panic(
-                    payload,
-                    "bytes",
-                    "bytes::BytesMut::with_capacity",
-                ),
-            )
+            Err(crate::__terrane_dependency_panic(payload, "bytes", "bytes::BytesMut"))
+        }
+    }
+}
+pub fn terrane_static_trn_42797465734d7574_zeroed(
+    len: terrane_int_support::Int,
+) -> Result<BytesMut, crate::TerraneForeignError> {
+    let len = terrane_int_support::coerce::<usize>(&len)
+        .map_err(|error| crate::TerraneForeignError(
+            crate::TerraneRaised::raised(error, crate::TERRANE_NO_SITE),
+        ))?;
+    match std::panic::catch_unwind(
+        std::panic::AssertUnwindSafe(|| bytes::BytesMut::zeroed(len)),
+    ) {
+        Ok(value) => Ok(value),
+        Err(payload) => {
+            Err(crate::__terrane_dependency_panic(payload, "bytes", "bytes::BytesMut"))
         }
     }
 }
@@ -570,7 +597,48 @@ pub fn remaining_mut(
 // Source: <terrane>/projected/deps/serde-json.trn
 // Namespace: deps/serde-json
 pub use serde_json::Number;
-pub fn from_u128(
+pub fn terrane_static_trn_4e756d626572_from_f64(
+    f: f64,
+) -> Result<Option<Number>, crate::TerraneForeignError> {
+    let f = f;
+    match std::panic::catch_unwind(
+        std::panic::AssertUnwindSafe(|| serde_json::Number::from_f64(f)),
+    ) {
+        Ok(value) => Ok(value),
+        Err(payload) => {
+            Err(
+                crate::__terrane_dependency_panic(
+                    payload,
+                    "serde-json",
+                    "serde_json::Number",
+                ),
+            )
+        }
+    }
+}
+pub fn terrane_static_trn_4e756d626572_from_i128(
+    i: terrane_int_support::Int,
+) -> Result<Option<Number>, crate::TerraneForeignError> {
+    let i = terrane_int_support::coerce::<i128>(&i)
+        .map_err(|error| crate::TerraneForeignError(
+            crate::TerraneRaised::raised(error, crate::TERRANE_NO_SITE),
+        ))?;
+    match std::panic::catch_unwind(
+        std::panic::AssertUnwindSafe(|| serde_json::Number::from_i128(i)),
+    ) {
+        Ok(value) => Ok(value),
+        Err(payload) => {
+            Err(
+                crate::__terrane_dependency_panic(
+                    payload,
+                    "serde-json",
+                    "serde_json::Number",
+                ),
+            )
+        }
+    }
+}
+pub fn terrane_static_trn_4e756d626572_from_u128(
     i: terrane_int_support::Int,
 ) -> Result<Option<Number>, crate::TerraneForeignError> {
     let i = terrane_int_support::coerce::<u128>(&i)
@@ -586,7 +654,7 @@ pub fn from_u128(
                 crate::__terrane_dependency_panic(
                     payload,
                     "serde-json",
-                    "serde_json::Number::from_u128",
+                    "serde_json::Number",
                 ),
             )
         }

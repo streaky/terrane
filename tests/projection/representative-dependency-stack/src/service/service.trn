@@ -1,6 +1,6 @@
 namespace projection-probe/service
-from /deps/axum import new
+from /deps/axum import Router
 
 function router-empty bool;
-    router = new;
+    router = Router::new;
     return not (router.has_routes;)
