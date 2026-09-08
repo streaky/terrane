@@ -970,17 +970,17 @@ features:
   - docs/language-spec-concise.md#OBJECT_MODEL
   - docs/compiler-plan.md#Completed portion of Milestone 16
 - id: canonical-object-descriptors
-  name: Unified source object descriptors
+  name: Canonical descriptor unification
   category: objects
-  status: done
-  completion: 100
+  status: partial
+  completion: 40
   milestone: '16'
   reference:
-    state: documented
+    state: partial
     paths:
     - manual/reference/records/language/types/descriptors.yaml
     - manual/reference/records/language/classes/protocols.yaml
-  notes: Source class, interface, and trait contracts now use the canonical descriptor model; iteration and truth resolve through its general structural-member query.
+  notes: Source class, interface, and trait contracts plus composed structural protocols use DescriptorContract; built-in scalar aliases and numeric, string, and collection family dispatch remain separate.
   sources:
   - docs/compiler-plan.md#Milestone 16
 - id: value-copy-semantics

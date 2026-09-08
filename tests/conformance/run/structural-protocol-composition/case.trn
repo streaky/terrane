@@ -1,0 +1,27 @@
+namespace structural-protocol-composition
+from /core/collections import iteration-step
+
+trait truthful
+  function truth bool;
+    return true
+
+class gate uses truthful
+
+trait ending
+  function next iteration-step of int;
+    return iteration-step.end;
+
+class cursor uses ending
+
+class values
+  function iterator cursor;
+    return instance cursor;
+
+function main;
+  value gate = instance gate;
+  if value
+    print; 'truth'
+  source values = instance values;
+  for item in source
+    print; item
+  print; 'end'

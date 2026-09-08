@@ -202,6 +202,28 @@ Lower the semantic model to a small Rust-oriented IR before rendering text. The 
 This section contains only work that remains required by the settled version-one design. For a partially delivered milestone, its heading and exit criterion have been rewritten around the unfinished capability rather than repeating already implemented work. Requirements superseded by later language decisions are called out and excluded. Completely delivered milestones and completed portions of split milestones are retained in Appendix A.
 
 
+### Milestone 16 — Finish canonical descriptor unification
+
+The source-object portion is delivered: classes, interfaces, and traits use
+`DescriptorContract`; their member lookup, nominal relations, conformance, dispatch, reflection,
+and structural protocol lookup consume that source contract. Iteration and `truth` now resolve
+required members through the same recursive protocol-member query, including members inherited
+from a base or supplied by trait/interface composition.
+
+Remaining work:
+
+- replace the separate built-in scalar descriptor aliases, numeric contracts, string-family
+  tables, collection-family tables, and other receiver-specific dispatch with the same canonical
+  descriptor representation;
+- make built-in reflection and source-object reflection query that representation rather than
+  parallel special cases; and
+- delete the residual per-family method switches only after equivalent descriptor-driven
+  conformance and generated-Rust coverage exists.
+
+Exit criterion: built-ins and source-declared classes/interfaces/traits inhabit one canonical
+descriptor model; member lookup, compatibility, reflection, dispatch, and structural protocols
+consume that model; iteration plus `truth` prove direct, inherited, and composed protocol
+satisfaction; generated Rust remains deterministic and warning-free.
 ### Milestone 25.3 — Finish the foundational floating-point surface
 
 The first two increments delivered square root, sine, cosine, sine-cosine, natural logarithm, exponential, absolute value, finite/infinite/NaN classification, minimum, maximum, and fused multiply-add for both floating widths. Complete the remaining non-scientific scalar surface.
@@ -591,26 +613,6 @@ end use and `reference-shared-promotion` rejects silent ownership promotion. Exi
 capture, identity, shared-reference, replacement, ownership-cycle, and `borrow-across-await`
 conformance cases remain the boundary corpus. The reviewed `references-derived-provenance`
 lowering contains direct Rust borrows for the bounded owner, field, and element paths.
-
-### Milestone 16 — Unified object descriptors and structural protocols
-
-Source-declared classes, interfaces, and traits now enter semantic analysis as
-`DescriptorContract` records in each unit's canonical descriptor collection. Member lookup,
-nominal compatibility and interface conformance, dispatch metadata, reflection, and lowering use
-that representation; the former `ObjectContract`/`objects` model has been removed. Namespace
-identity, inheritance, receiver mutability, lifecycle composition, and explicit trait resolution
-remain covered by the unchanged object corpus.
-
-Structural protocol satisfaction resolves required members through
-`descriptor_protocol_method`. Existing iteration analysis now uses that general query. The
-non-iteration `truth` protocol accepts a source class without a nominal interface when its
-descriptor provides a synchronous, non-throwing, non-mutating, parameterless `truth bool` method;
-conditions with missing or malformed contracts retain source-oriented `T0014` diagnostics.
-
-Evidence: `truth-protocol` executes class instances as conditions with canonical generated Rust,
-`truth-protocol-signature` rejects a malformed protocol member, and the existing
-`iterator-protocol`, class/interface/trait, dispatch, lifecycle, nominal-identity, and
-`descriptor-reflection` conformance cases remain the regression contract.
 
 ### Milestone 15 — Caller-supplied conversion callbacks
 

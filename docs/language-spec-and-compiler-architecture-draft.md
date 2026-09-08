@@ -1989,7 +1989,7 @@ These are interface and category contracts used for member attachment, compatibi
 
 Type objects are canonical compiler-owned descriptors with stable type identity. They are semantic objects rather than ordinary values: the backing object is real — `.type` returns it, `is a` compares it, canonical identity survives rebinding under another name, and reflection exposes it — but it is never independently constructed by source and never occupies an ordinary variable slot. Source-observable behavior must remain the same as naming the descriptor directly: `.type`, identity, compatibility queries, and operations such as `coerce` all consult the same canonical descriptor. Version one does not accept an arbitrary runtime value as a type expression or coercion destination; the value must resolve to a finite, compiler-known descriptor alternative so lowering remains statically representable.
 
-Built-in and source-declared descriptors use one compiler-owned contract representation. A source
+The settled version-one architecture requires built-in and source-declared descriptors to use one compiler-owned contract representation. A source
 class, interface, or trait enters that model under its namespace-qualified nominal identity; the
 same contract answers member lookup, nominal compatibility and conformance, dispatch metadata,
 reflection, and structural protocol queries. Structural protocols are requirements over descriptor
