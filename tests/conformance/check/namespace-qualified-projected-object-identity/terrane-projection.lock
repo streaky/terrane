@@ -1,5 +1,5 @@
 {
-  "format": 1,
+  "format": 2,
   "dependencies": [
     {
       "name": "reqwest",
@@ -7,91 +7,599 @@
       "members": [
         [
           "/deps/reqwest",
-          "get"
-        ],
-        [
-          "/deps/reqwest/async-impl/body",
           "Body"
         ],
         [
-          "/deps/reqwest/async-impl/client",
+          "/deps/reqwest",
+          "Certificate"
+        ],
+        [
+          "/deps/reqwest",
           "Client"
         ],
         [
-          "/deps/reqwest/async-impl/client",
+          "/deps/reqwest",
+          "Client.delete"
+        ],
+        [
+          "/deps/reqwest",
+          "Client.get"
+        ],
+        [
+          "/deps/reqwest",
+          "Client.head"
+        ],
+        [
+          "/deps/reqwest",
+          "Client.patch"
+        ],
+        [
+          "/deps/reqwest",
+          "Client.post"
+        ],
+        [
+          "/deps/reqwest",
+          "Client.put"
+        ],
+        [
+          "/deps/reqwest",
+          "Client::builder"
+        ],
+        [
+          "/deps/reqwest",
+          "Client::new"
+        ],
+        [
+          "/deps/reqwest",
           "ClientBuilder"
+        ],
+        [
+          "/deps/reqwest",
+          "ClientBuilder.add_crl"
+        ],
+        [
+          "/deps/reqwest",
+          "ClientBuilder.add_root_certificate"
+        ],
+        [
+          "/deps/reqwest",
+          "ClientBuilder.build"
+        ],
+        [
+          "/deps/reqwest",
+          "ClientBuilder.connect_timeout"
+        ],
+        [
+          "/deps/reqwest",
+          "ClientBuilder.connection_verbose"
+        ],
+        [
+          "/deps/reqwest",
+          "ClientBuilder.danger_accept_invalid_certs"
+        ],
+        [
+          "/deps/reqwest",
+          "ClientBuilder.danger_accept_invalid_hostnames"
+        ],
+        [
+          "/deps/reqwest",
+          "ClientBuilder.http09_responses"
+        ],
+        [
+          "/deps/reqwest",
+          "ClientBuilder.http1_allow_obsolete_multiline_headers_in_responses"
+        ],
+        [
+          "/deps/reqwest",
+          "ClientBuilder.http1_allow_spaces_after_header_name_in_responses"
+        ],
+        [
+          "/deps/reqwest",
+          "ClientBuilder.http1_ignore_invalid_headers_in_responses"
+        ],
+        [
+          "/deps/reqwest",
+          "ClientBuilder.http1_only"
+        ],
+        [
+          "/deps/reqwest",
+          "ClientBuilder.http1_title_case_headers"
+        ],
+        [
+          "/deps/reqwest",
+          "ClientBuilder.https_only"
+        ],
+        [
+          "/deps/reqwest",
+          "ClientBuilder.identity"
+        ],
+        [
+          "/deps/reqwest",
+          "ClientBuilder.interface"
+        ],
+        [
+          "/deps/reqwest",
+          "ClientBuilder.max_tls_version"
+        ],
+        [
+          "/deps/reqwest",
+          "ClientBuilder.min_tls_version"
+        ],
+        [
+          "/deps/reqwest",
+          "ClientBuilder.no_brotli"
+        ],
+        [
+          "/deps/reqwest",
+          "ClientBuilder.no_deflate"
+        ],
+        [
+          "/deps/reqwest",
+          "ClientBuilder.no_gzip"
+        ],
+        [
+          "/deps/reqwest",
+          "ClientBuilder.no_hickory_dns"
+        ],
+        [
+          "/deps/reqwest",
+          "ClientBuilder.no_proxy"
+        ],
+        [
+          "/deps/reqwest",
+          "ClientBuilder.no_zstd"
+        ],
+        [
+          "/deps/reqwest",
+          "ClientBuilder.pool_max_idle_per_host"
+        ],
+        [
+          "/deps/reqwest",
+          "ClientBuilder.proxy"
+        ],
+        [
+          "/deps/reqwest",
+          "ClientBuilder.read_timeout"
+        ],
+        [
+          "/deps/reqwest",
+          "ClientBuilder.redirect"
+        ],
+        [
+          "/deps/reqwest",
+          "ClientBuilder.referer"
+        ],
+        [
+          "/deps/reqwest",
+          "ClientBuilder.resolve"
+        ],
+        [
+          "/deps/reqwest",
+          "ClientBuilder.retry"
+        ],
+        [
+          "/deps/reqwest",
+          "ClientBuilder.tcp_nodelay"
+        ],
+        [
+          "/deps/reqwest",
+          "ClientBuilder.timeout"
+        ],
+        [
+          "/deps/reqwest",
+          "ClientBuilder.tls_built_in_root_certs"
+        ],
+        [
+          "/deps/reqwest",
+          "ClientBuilder.tls_built_in_webpki_certs"
+        ],
+        [
+          "/deps/reqwest",
+          "ClientBuilder.tls_info"
+        ],
+        [
+          "/deps/reqwest",
+          "ClientBuilder.tls_sni"
+        ],
+        [
+          "/deps/reqwest",
+          "ClientBuilder.use_rustls_tls"
+        ],
+        [
+          "/deps/reqwest",
+          "Error"
+        ],
+        [
+          "/deps/reqwest",
+          "Error.is_body"
+        ],
+        [
+          "/deps/reqwest",
+          "Error.is_builder"
+        ],
+        [
+          "/deps/reqwest",
+          "Error.is_connect"
+        ],
+        [
+          "/deps/reqwest",
+          "Error.is_decode"
+        ],
+        [
+          "/deps/reqwest",
+          "Error.is_redirect"
+        ],
+        [
+          "/deps/reqwest",
+          "Error.is_request"
+        ],
+        [
+          "/deps/reqwest",
+          "Error.is_status"
+        ],
+        [
+          "/deps/reqwest",
+          "Error.is_timeout"
+        ],
+        [
+          "/deps/reqwest",
+          "Identity"
+        ],
+        [
+          "/deps/reqwest",
+          "NoProxy"
+        ],
+        [
+          "/deps/reqwest",
+          "NoProxy::from_env"
+        ],
+        [
+          "/deps/reqwest",
+          "Proxy"
+        ],
+        [
+          "/deps/reqwest",
+          "Proxy.basic_auth"
+        ],
+        [
+          "/deps/reqwest",
+          "Proxy.no_proxy"
+        ],
+        [
+          "/deps/reqwest",
+          "Request"
+        ],
+        [
+          "/deps/reqwest",
+          "Request.body"
+        ],
+        [
+          "/deps/reqwest",
+          "Request.body_mut"
+        ],
+        [
+          "/deps/reqwest",
+          "Request.timeout"
+        ],
+        [
+          "/deps/reqwest",
+          "Request.timeout_mut"
+        ],
+        [
+          "/deps/reqwest",
+          "Request.try_clone"
+        ],
+        [
+          "/deps/reqwest",
+          "RequestBuilder"
+        ],
+        [
+          "/deps/reqwest",
+          "RequestBuilder.build"
+        ],
+        [
+          "/deps/reqwest",
+          "RequestBuilder.timeout"
+        ],
+        [
+          "/deps/reqwest",
+          "RequestBuilder.try_clone"
+        ],
+        [
+          "/deps/reqwest",
+          "RequestBuilder::from_parts"
+        ],
+        [
+          "/deps/reqwest",
+          "Response"
+        ],
+        [
+          "/deps/reqwest",
+          "Response.content_length"
+        ],
+        [
+          "/deps/reqwest",
+          "Response.remote_addr"
+        ],
+        [
+          "/deps/reqwest",
+          "Response.text"
+        ],
+        [
+          "/deps/reqwest",
+          "Response.upgrade"
+        ],
+        [
+          "/deps/reqwest",
+          "Upgraded"
+        ],
+        [
+          "/deps/reqwest",
+          "get"
         ],
         [
           "/deps/reqwest/async-impl/client",
           "Pending"
         ],
         [
-          "/deps/reqwest/async-impl/client",
-          "builder"
+          "/deps/reqwest/blocking",
+          "Body"
         ],
         [
-          "/deps/reqwest/async-impl/client",
-          "new"
+          "/deps/reqwest/blocking",
+          "Client"
         ],
         [
-          "/deps/reqwest/async-impl/request",
+          "/deps/reqwest/blocking",
+          "Client.delete"
+        ],
+        [
+          "/deps/reqwest/blocking",
+          "Client.execute"
+        ],
+        [
+          "/deps/reqwest/blocking",
+          "Client.get"
+        ],
+        [
+          "/deps/reqwest/blocking",
+          "Client.head"
+        ],
+        [
+          "/deps/reqwest/blocking",
+          "Client.patch"
+        ],
+        [
+          "/deps/reqwest/blocking",
+          "Client.post"
+        ],
+        [
+          "/deps/reqwest/blocking",
+          "Client.put"
+        ],
+        [
+          "/deps/reqwest/blocking",
+          "Client::builder"
+        ],
+        [
+          "/deps/reqwest/blocking",
+          "Client::new"
+        ],
+        [
+          "/deps/reqwest/blocking",
+          "ClientBuilder"
+        ],
+        [
+          "/deps/reqwest/blocking",
+          "ClientBuilder.add_crl"
+        ],
+        [
+          "/deps/reqwest/blocking",
+          "ClientBuilder.add_root_certificate"
+        ],
+        [
+          "/deps/reqwest/blocking",
+          "ClientBuilder.build"
+        ],
+        [
+          "/deps/reqwest/blocking",
+          "ClientBuilder.connection_verbose"
+        ],
+        [
+          "/deps/reqwest/blocking",
+          "ClientBuilder.danger_accept_invalid_certs"
+        ],
+        [
+          "/deps/reqwest/blocking",
+          "ClientBuilder.danger_accept_invalid_hostnames"
+        ],
+        [
+          "/deps/reqwest/blocking",
+          "ClientBuilder.http09_responses"
+        ],
+        [
+          "/deps/reqwest/blocking",
+          "ClientBuilder.http1_allow_obsolete_multiline_headers_in_responses"
+        ],
+        [
+          "/deps/reqwest/blocking",
+          "ClientBuilder.http1_allow_spaces_after_header_name_in_responses"
+        ],
+        [
+          "/deps/reqwest/blocking",
+          "ClientBuilder.http1_ignore_invalid_headers_in_responses"
+        ],
+        [
+          "/deps/reqwest/blocking",
+          "ClientBuilder.http1_only"
+        ],
+        [
+          "/deps/reqwest/blocking",
+          "ClientBuilder.http1_title_case_headers"
+        ],
+        [
+          "/deps/reqwest/blocking",
+          "ClientBuilder.https_only"
+        ],
+        [
+          "/deps/reqwest/blocking",
+          "ClientBuilder.identity"
+        ],
+        [
+          "/deps/reqwest/blocking",
+          "ClientBuilder.interface"
+        ],
+        [
+          "/deps/reqwest/blocking",
+          "ClientBuilder.max_tls_version"
+        ],
+        [
+          "/deps/reqwest/blocking",
+          "ClientBuilder.min_tls_version"
+        ],
+        [
+          "/deps/reqwest/blocking",
+          "ClientBuilder.no_brotli"
+        ],
+        [
+          "/deps/reqwest/blocking",
+          "ClientBuilder.no_deflate"
+        ],
+        [
+          "/deps/reqwest/blocking",
+          "ClientBuilder.no_gzip"
+        ],
+        [
+          "/deps/reqwest/blocking",
+          "ClientBuilder.no_hickory_dns"
+        ],
+        [
+          "/deps/reqwest/blocking",
+          "ClientBuilder.no_proxy"
+        ],
+        [
+          "/deps/reqwest/blocking",
+          "ClientBuilder.no_trust_dns"
+        ],
+        [
+          "/deps/reqwest/blocking",
+          "ClientBuilder.no_zstd"
+        ],
+        [
+          "/deps/reqwest/blocking",
+          "ClientBuilder.pool_max_idle_per_host"
+        ],
+        [
+          "/deps/reqwest/blocking",
+          "ClientBuilder.proxy"
+        ],
+        [
+          "/deps/reqwest/blocking",
+          "ClientBuilder.redirect"
+        ],
+        [
+          "/deps/reqwest/blocking",
+          "ClientBuilder.referer"
+        ],
+        [
+          "/deps/reqwest/blocking",
+          "ClientBuilder.resolve"
+        ],
+        [
+          "/deps/reqwest/blocking",
+          "ClientBuilder.retry"
+        ],
+        [
+          "/deps/reqwest/blocking",
+          "ClientBuilder.tcp_nodelay"
+        ],
+        [
+          "/deps/reqwest/blocking",
+          "ClientBuilder.tls_built_in_root_certs"
+        ],
+        [
+          "/deps/reqwest/blocking",
+          "ClientBuilder.tls_built_in_webpki_certs"
+        ],
+        [
+          "/deps/reqwest/blocking",
+          "ClientBuilder.tls_info"
+        ],
+        [
+          "/deps/reqwest/blocking",
+          "ClientBuilder.tls_sni"
+        ],
+        [
+          "/deps/reqwest/blocking",
+          "ClientBuilder.use_rustls_tls"
+        ],
+        [
+          "/deps/reqwest/blocking",
           "Request"
         ],
         [
-          "/deps/reqwest/async-impl/request",
+          "/deps/reqwest/blocking",
+          "Request.body"
+        ],
+        [
+          "/deps/reqwest/blocking",
+          "Request.body_mut"
+        ],
+        [
+          "/deps/reqwest/blocking",
+          "Request.timeout"
+        ],
+        [
+          "/deps/reqwest/blocking",
+          "Request.timeout_mut"
+        ],
+        [
+          "/deps/reqwest/blocking",
+          "Request.try_clone"
+        ],
+        [
+          "/deps/reqwest/blocking",
           "RequestBuilder"
         ],
         [
-          "/deps/reqwest/async-impl/request",
-          "from_parts"
+          "/deps/reqwest/blocking",
+          "RequestBuilder.build"
         ],
         [
-          "/deps/reqwest/async-impl/response",
+          "/deps/reqwest/blocking",
+          "RequestBuilder.send"
+        ],
+        [
+          "/deps/reqwest/blocking",
+          "RequestBuilder.timeout"
+        ],
+        [
+          "/deps/reqwest/blocking",
+          "RequestBuilder.try_clone"
+        ],
+        [
+          "/deps/reqwest/blocking",
+          "RequestBuilder::from_parts"
+        ],
+        [
+          "/deps/reqwest/blocking",
           "Response"
         ],
         [
-          "/deps/reqwest/async-impl/upgrade",
-          "Upgraded"
+          "/deps/reqwest/blocking",
+          "Response.content_length"
+        ],
+        [
+          "/deps/reqwest/blocking",
+          "Response.remote_addr"
+        ],
+        [
+          "/deps/reqwest/blocking",
+          "Response.text"
         ],
         [
           "/deps/reqwest/blocking",
           "get"
-        ],
-        [
-          "/deps/reqwest/blocking/body",
-          "Body"
-        ],
-        [
-          "/deps/reqwest/blocking/client",
-          "Client"
-        ],
-        [
-          "/deps/reqwest/blocking/client",
-          "ClientBuilder"
-        ],
-        [
-          "/deps/reqwest/blocking/client",
-          "builder"
-        ],
-        [
-          "/deps/reqwest/blocking/client",
-          "new"
-        ],
-        [
-          "/deps/reqwest/blocking/request",
-          "Request"
-        ],
-        [
-          "/deps/reqwest/blocking/request",
-          "RequestBuilder"
-        ],
-        [
-          "/deps/reqwest/blocking/request",
-          "from_parts"
-        ],
-        [
-          "/deps/reqwest/blocking/response",
-          "Response"
         ],
         [
           "/deps/reqwest/connect/sealed",
@@ -106,28 +614,16 @@
           "Internal"
         ],
         [
-          "/deps/reqwest/dns/resolve",
+          "/deps/reqwest/dns",
           "Name"
+        ],
+        [
+          "/deps/reqwest/dns",
+          "Name.as_str"
         ],
         [
           "/deps/reqwest/dns/resolve/sealed",
           "InvalidNameError"
-        ],
-        [
-          "/deps/reqwest/error",
-          "Error"
-        ],
-        [
-          "/deps/reqwest/proxy",
-          "NoProxy"
-        ],
-        [
-          "/deps/reqwest/proxy",
-          "Proxy"
-        ],
-        [
-          "/deps/reqwest/proxy",
-          "from_env"
         ],
         [
           "/deps/reqwest/redirect",
@@ -136,6 +632,10 @@
         [
           "/deps/reqwest/redirect",
           "Policy"
+        ],
+        [
+          "/deps/reqwest/redirect",
+          "Policy.redirect"
         ],
         [
           "/deps/reqwest/retry",
@@ -159,15 +659,7 @@
         ],
         [
           "/deps/reqwest/tls",
-          "Certificate"
-        ],
-        [
-          "/deps/reqwest/tls",
           "CertificateRevocationList"
-        ],
-        [
-          "/deps/reqwest/tls",
-          "Identity"
         ],
         [
           "/deps/reqwest/tls",
@@ -180,5 +672,30 @@
       ]
     }
   ],
-  "removed": []
+  "removed": [],
+  "cache_identity": "bed812609f72d1b1847b76bb7e28397bde04b04c5126071ac979ccb18aa2b7e9",
+  "source": "Local",
+  "rustdoc_format": 57,
+  "projection_schema": "24",
+  "content_hash": "80e24dc7d38439b67d4251c79ee13aa8e130f21fc69538ab4613b18c2776f90e",
+  "resolution": {
+    "outcome": "LocalRustdoc",
+    "events": [
+      {
+        "source": "BundledArtifact",
+        "status": "Skipped",
+        "reason": "bundled projection distribution is deliberately deferred until Terrane has a release artifact channel"
+      },
+      {
+        "source": "PublishedArtifact",
+        "status": "Skipped",
+        "reason": "`TERRANE_PROJECTION_ARTIFACT_URL` is not configured"
+      },
+      {
+        "source": "LocalRustdoc",
+        "status": "Generated",
+        "reason": "no reusable exact artifact was available; generated with the pinned local rustdoc toolchain"
+      }
+    ]
+  }
 }

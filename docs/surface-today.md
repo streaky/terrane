@@ -872,9 +872,12 @@ stable toolchain; `system` explicitly opts into the caller's active Rust toolcha
 effect is rejected during manifest resolution.
 
 Declared crates are projected from typed rustdoc metadata into reserved
-`/deps/<manifest-name>/...` namespaces. The shared projection records verbatim public names,
-canonical Rust paths, documentation, representable free and inherent methods, receiver-first trait
-functions, receiver ownership, opaque foreign types, data-free enum variant constructors, directly
+`/deps/<manifest-name>/...` namespaces. Canonical public-path selection prefers substantive paths
+over convenience paths beneath `prelude`, then shortest depth and lexical ordering. The shared
+projection records verbatim public names, canonical Rust paths, documentation, representable free
+functions, associated functions as `Class::function` static members, inherent instance methods,
+receiver-first trait functions, receiver ownership, opaque foreign types, data-free enum variant
+constructors, directly
 representable `Result` returns, arbitrary projected `Option<T>` values, all Rust integer widths,
 `f32`, `char`, concrete representable type aliases, recursive standard sequence, map, set, and
 homogeneous tuple shapes, monomorphic concrete `Fn`, `FnMut`, `FnOnce`, and future-returning
@@ -887,9 +890,10 @@ Async producers and sinks are
 resource-owning linear endpoints: borrowed operations must be awaited directly, preserve protocol
 failure and task cancellation separately, and reborrow the endpoint for one suspension; consuming
 `close` or `split` makes later use of the transferred endpoint a source ownership error.
-Projection schema 20 also records concrete lifetime-bearing builders as chain-only roots,
-continuations, and terminals. Their intermediates may retain a borrow from a named input but may
-appear only as receiver subtrees inside one nested expression; binding, return, capture, argument
+Projection schema 20 introduced explicit root, continuation, and terminal roles for concrete
+lifetime-bearing builders represented as chain-only values. Their intermediates may retain
+a borrow from a named input but may appear only as receiver subtrees inside one nested expression;
+binding, return, capture, argument
 escape, and suspension are rejected before lowering. The terminal must return an owned projectable
 value, and tooling marks the root as chain-only and non-escaping. The accepted SQLx witness projects
 a concrete borrow-retaining adapter that runs SQLx inside its terminal; open `sqlx::Query` remains
@@ -911,11 +915,13 @@ use `ref`, or require `move` according to their Rust receiver.
 Unwinding dependency panics enter the compiler-owned `dependency-panic` throwable path; abort
 profiles omit containment and generate Cargo `panic = "abort"`. Projection and generated-crate
 compilation use `bwrap` containment where available and report the host tier otherwise.
-`terrane-projection.lock` format 2 retains machine-independent member/version history plus source,
-rustdoc format, projection schema, exact cache identity, content hash, and resolution events. `S2031`
-names removed members and their version change; a changed payload under one exact cache identity is
-rejected as replay drift. Completion, signature help, and hover remain advisory; Cargo and rustc are
-authoritative.
+`terrane-projection.lock` format 2 retains machine-independent top-level members, instance members
+as `Type.member`, static members as `Type::member`, dependency versions, source, rustdoc format,
+projection schema, exact cache identity, content hash, and resolution events. A single admitted
+concrete generic instantiation keeps its readable Rust type name; hash suffixes are reserved for
+multiple admitted instantiations. `S2031` names removed members and their version change; a changed
+payload under one exact cache identity is rejected as replay drift. Completion, signature help, and
+hover remain advisory; Cargo and rustc are authoritative.
 
 ## Major planned surface absent today
 

@@ -311,6 +311,7 @@ pub(super) fn object_method_mutates(
             &object_identity.namespace,
             &object_identity.name,
             method_name,
+            false,
         )
         .is_some_and(|method| {
             matches!(

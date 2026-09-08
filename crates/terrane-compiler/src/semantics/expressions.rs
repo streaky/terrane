@@ -256,18 +256,7 @@ pub(super) fn infer_value_type(
         })?;
         return object_member_type(unit, &identity, node_text(&unit.source, member), true)
             .map(Some)
-            .ok_or_else(|| {
-                failure(
-                    &unit.source,
-                    "T0105",
-                    format!(
-                        "class `{}` has no static member `{}`",
-                        identity.name,
-                        node_text(&unit.source, member)
-                    ),
-                    member.span,
-                )
-            });
+            .ok_or_else(|| missing_static_member_failure(unit, &identity, member));
     }
     if node.kind == SyntaxKind::CallExpression {
         if let Some(value_type) = infer_typed_document_decode(unit, node, bindings)? {
@@ -313,18 +302,7 @@ pub(super) fn infer_value_type(
                 })?;
                 let member_type =
                     object_member_type(unit, &identity, node_text(&unit.source, member), true)
-                        .ok_or_else(|| {
-                            failure(
-                                &unit.source,
-                                "T0105",
-                                format!(
-                                    "class `{}` has no static member `{}`",
-                                    identity.name,
-                                    node_text(&unit.source, member)
-                                ),
-                                member.span,
-                            )
-                        })?;
+                        .ok_or_else(|| missing_static_member_failure(unit, &identity, member))?;
                 return match member_type {
                     ValueType::Function(_, result) => {
                         let result = result.value_type();
@@ -968,4 +946,31 @@ pub(super) fn infer_value_type(
         return Ok(None);
     }
     Ok(None)
+}
+fn missing_static_member_failure(
+    unit: &SemanticUnit,
+    identity: &ObjectIdentity,
+    member: &SyntaxNode,
+) -> SemanticFailure {
+    let member_name = node_text(&unit.source, member);
+    if let Some(removed) = unit.removed_projected_member(identity, member_name, true) {
+        return failure(
+            &unit.source,
+            "S2031",
+            format!(
+                "Rust dependency member `{}::{member_name}` was projected by version {} but is absent from version {}",
+                identity.name, removed.previous_version, removed.current_version
+            ),
+            member.span,
+        );
+    }
+    failure(
+        &unit.source,
+        "T0105",
+        format!(
+            "class `{}` has no static member `{member_name}`",
+            identity.name
+        ),
+        member.span,
+    )
 }

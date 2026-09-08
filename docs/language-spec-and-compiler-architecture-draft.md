@@ -4262,7 +4262,7 @@ A Rust crate dependency is declared in `package.toml` with its package name, ver
 reqwest = { version = "0.12", default-features = false, features = ["blocking", "rustls-tls-webpki-roots"] }
 ```
 
-Resolution and Cargo's lockfile determine the exact package interface. The build runs rustdoc for that resolved graph and produces one projection artifact shared by compiler and language server. Rust module paths become `/deps/<manifest-name>/...` namespaces; public names remain verbatim. The projection admits directly representable functions, inherent methods, receiver-first trait functions, opaque foreign types, and data-free or data-carrying enums. It records a reason for every public item it declines.
+Resolution and Cargo's lockfile determine the exact package interface. The build runs rustdoc for that resolved graph and produces one projection artifact shared by compiler and language server. Each item's selected canonical public path becomes its `/deps/<manifest-name>/...` namespace; substantive paths outrank paths beneath `prelude`, then shortest depth and lexical ordering break ties. Public names remain verbatim. The projection admits directly representable functions, inherent methods, static associated functions, receiver-first trait functions, opaque foreign types, and data-free or data-carrying enums. It records a reason for every public item it declines.
 
 The projector deserializes the complete rustdoc document through the version-matched
 `rustdoc-types` schema before traversing it. It does not infer item kinds or type shapes from
@@ -4275,11 +4275,14 @@ Projected foreign identity includes every concrete generic argument. Two instant
 generic declaration are distinct Terrane object identities; one may not be passed where the other
 is expected. The projector renders a deterministic full Rust type spelling, applies generic
 arguments through Rust type aliases, and assigns each instantiated spelling a stable compiler-owned
-Terrane name. A generic foreign type whose every type parameter has a default is projected at that
-default instantiation, and `Self` in its methods resolves to that concrete identity. Generated
-dependency modules lower instantiated spellings as Rust type aliases rather than invalid `use`
-paths. Lifetime-parameterized types and generic parameters without defaults remain explicit
-declines until a call-directed or non-escaping-chain rule proves a concrete use.
+Terrane name. A generic declaration with one admitted concrete instantiation retains its readable
+Rust name; if multiple concrete instantiations are admitted, their canonical identities must receive
+distinct projected names or projection fails explicitly before namespace construction. A generic
+foreign type whose every type parameter has a default is projected at that default instantiation,
+and `Self` in its methods resolves to that concrete identity. Generated dependency modules lower
+instantiated spellings as Rust type aliases rather than invalid `use` paths.
+Lifetime-parameterized types and generic parameters without defaults remain explicit declines until
+a call-directed or non-escaping-chain rule proves a concrete use.
 
 A concrete Rust callback bound projects when its complete callable contract is monomorphic.
 `Fn`, `FnMut`, and `FnOnce` parenthesized bounds supply parameter and result types; a callback
@@ -4330,13 +4333,18 @@ admit or decline members; transferable projections currently record an empty pro
 probe wall time. A future consumer must serialize the reports it actually uses.
 
 Projected type identity follows the Rust item rather than the importing module alone. Public path
-selection is deterministic: prefer the shortest reachable path, then lexical order for equal-depth
-re-exports. A public re-export is resolved through that rule before the Terrane namespace and object
-identity are recorded, so importing a type through its re-export and through its defining module
-does not create two Terrane types. Concrete instantiations append the complete lowercase SHA-256
-of their canonical instantiated Rust path to the readable short name; no truncated hash or
-order-dependent suffix is used. Distinct same-named sibling types and distinct instantiations
-therefore remain distinct.
+selection is deterministic: prefer reachable substantive paths over paths beneath a `prelude`
+module, then choose the shortest path and lexical order at equal depth. A prelude path remains
+available when it is the item's only public path. A public re-export is resolved through that rule
+before the Terrane namespace and object identity are recorded, so importing a type through its
+re-export and through its defining module does not create two Terrane types. A projected Rust
+associated function belongs to that projected type and is called with Terrane static-member syntax,
+`Class::function`; it is not independently imported as a namespace function. A generic declaration
+with one admitted concrete instantiation retains its readable short type name. When multiple
+concrete instantiations of that declaration are admitted, their names append the complete lowercase
+SHA-256 of each canonical instantiated Rust path; no truncated hash or order-dependent suffix is
+used. Distinct same-named sibling types and distinct instantiations therefore remain distinct
+without burdening the ordinary single-instantiation import.
 A signature type owned by an undeclared transitive crate is not projected as a memberless
 lookalike: the member declines with an actionable reason naming the owning crate and its
 lock-resolved version. Declaring that owner
@@ -4418,8 +4426,9 @@ must produce an ordinary owned projected value.
 Lowering emits the root and continuing receiver calls as one Rust expression. Argument conversion,
 panic containment, asynchronous awaiting, dependency-error mapping, and result conversion occur at
 the terminal boundary rather than wrapping each intermediate separately. Projection schema 20
-records root, continuing, and terminal roles explicitly. Completion, signature help, and hover mark
-these values as chain-only and non-escaping. Methods that cannot continue the same concrete
+introduced the explicit root, continuing, and terminal roles retained by later schemas.
+Completion, signature help, and hover mark these values as chain-only and non-escaping. Methods
+that cannot continue the same concrete
 intermediate or terminate in an owned representable result remain declined. This rule does not
 claim that an open generic such as SQLx's `Query<'q, DB, A>` projects directly: a concrete declared
 adapter may itself retain a borrow and execute the generic SQLx operation inside its terminal.

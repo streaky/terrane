@@ -540,12 +540,20 @@ impl Emitter<'_> {
         let [receiver, member] = callee.children.as_slice() else {
             return None;
         };
-        let ValueType::Object(identity) = self.value_type(receiver)? else {
-            return None;
+        let (identity, is_static) = if callee.kind == SyntaxKind::StaticMemberExpression {
+            (self.class_designator(receiver)?.identity.clone(), true)
+        } else {
+            let ValueType::Object(identity) = self.value_type(receiver)? else {
+                return None;
+            };
+            (identity, false)
         };
-        self.package
-            .projection
-            .method(&identity.namespace, &identity.name, self.text(member))
+        self.package.projection.method(
+            &identity.namespace,
+            &identity.name,
+            self.text(member),
+            is_static,
+        )
     }
 
     pub(super) fn contract_for_call(&self, callee: &SyntaxNode) -> Option<&FunctionContract> {

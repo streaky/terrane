@@ -1,0 +1,8 @@
+namespace app
+
+class BytesMut
+    static function from_iter int;
+        return 7
+
+function main;
+    print; (BytesMut::from_iter;)

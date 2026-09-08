@@ -91,7 +91,7 @@ impl Emitter<'_> {
             };
             self.package
                 .projection
-                .method(&identity.namespace, &identity.name, &contract.name)
+                .method(&identity.namespace, &identity.name, &contract.name, false)
                 .is_some()
         });
         let throws = projected || contract.is_some_and(|contract| contract.throws);

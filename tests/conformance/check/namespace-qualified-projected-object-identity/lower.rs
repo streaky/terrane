@@ -472,23 +472,21 @@ async fn __terrane_dependency_await_unwind<F: Future>(
 }
 // Source: src/main.trn
 // Namespace: app
-fn cross_async(value: TerraneNs4Deps7Reqwest10AsyncImpl8ResponseResponse) {
+fn cross_async(value: TerraneNs4Deps7ReqwestResponse) {
     let _ = &value;
     return ();
 }
-fn cross_blocking(value: TerraneNs4Deps7Reqwest8Blocking8ResponseResponse) {
+fn cross_blocking(value: TerraneNs4Deps7Reqwest8BlockingResponse) {
     let _ = &value;
     return ();
 }
 fn keep_crossings(
     async_crossing: std::sync::Arc<
-        dyn Fn(
-            TerraneNs4Deps7Reqwest10AsyncImpl8ResponseResponse,
-        ) -> Result<(), TerraneError> + Send + Sync,
+        dyn Fn(TerraneNs4Deps7ReqwestResponse) -> Result<(), TerraneError> + Send + Sync,
     >,
     blocking_crossing: std::sync::Arc<
         dyn Fn(
-            TerraneNs4Deps7Reqwest8Blocking8ResponseResponse,
+            TerraneNs4Deps7Reqwest8BlockingResponse,
         ) -> Result<(), TerraneError> + Send + Sync,
     >,
 ) {
@@ -497,20 +495,18 @@ fn keep_crossings(
 }
 fn main() {
     keep_crossings(
-        std::sync::Arc::new(move |
-            argument_0: TerraneNs4Deps7Reqwest10AsyncImpl8ResponseResponse|
-        Ok(cross_async(argument_0))),
-        std::sync::Arc::new(move |
-            argument_0: TerraneNs4Deps7Reqwest8Blocking8ResponseResponse|
-        Ok(cross_blocking(argument_0))),
+        std::sync::Arc::new(move |argument_0: TerraneNs4Deps7ReqwestResponse| Ok(
+            cross_async(argument_0),
+        )),
+        std::sync::Arc::new(move |argument_0: TerraneNs4Deps7Reqwest8BlockingResponse| Ok(
+            cross_blocking(argument_0),
+        )),
     );
 }
-// Source: <terrane>/projected/deps/reqwest/async-impl/response.trn
-// Namespace: deps/reqwest/async-impl/response
-pub use reqwest::Response as TerraneNs4Deps7Reqwest10AsyncImpl8ResponseResponse;
-// Source: <terrane>/projected/deps/reqwest/async-impl/upgrade.trn
-// Namespace: deps/reqwest/async-impl/upgrade
+// Source: <terrane>/projected/deps/reqwest.trn
+// Namespace: deps/reqwest
 pub use reqwest::Upgraded;
-// Source: <terrane>/projected/deps/reqwest/blocking/response.trn
-// Namespace: deps/reqwest/blocking/response
-pub use reqwest::blocking::Response as TerraneNs4Deps7Reqwest8Blocking8ResponseResponse;
+pub use reqwest::Response as TerraneNs4Deps7ReqwestResponse;
+// Source: <terrane>/projected/deps/reqwest/blocking.trn
+// Namespace: deps/reqwest/blocking
+pub use reqwest::blocking::Response as TerraneNs4Deps7Reqwest8BlockingResponse;

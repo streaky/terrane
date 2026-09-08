@@ -371,7 +371,7 @@ fn projected_item_detail(item: &terrane_compiler::projection::ProjectedItem) -> 
             if function.chain_role.is_some()
     ) || matches!(
         &item.kind,
-        terrane_compiler::projection::ProjectedKind::ForeignType { methods }
+        terrane_compiler::projection::ProjectedKind::ForeignType { methods, .. }
             if methods.iter().any(|method| method.chain_role.is_some())
     ) {
         details.push("chain-only; must terminate within one expression".to_owned());

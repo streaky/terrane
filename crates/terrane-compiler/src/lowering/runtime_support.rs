@@ -204,7 +204,10 @@ pub(super) fn package_uses_structured_errors(package: &SemanticPackage) -> bool 
     }) || package.projection.dependencies.iter().any(|dependency| {
         dependency.items.iter().any(|item| match &item.kind {
             crate::projection::ProjectedKind::Function(_) => true,
-            crate::projection::ProjectedKind::ForeignType { methods } => !methods.is_empty(),
+            crate::projection::ProjectedKind::ForeignType {
+                methods,
+                static_methods,
+            } => !methods.is_empty() || !static_methods.is_empty(),
             crate::projection::ProjectedKind::Enum { .. } => false,
         })
     })

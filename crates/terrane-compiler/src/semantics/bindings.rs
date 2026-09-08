@@ -1553,6 +1553,7 @@ fn validate_projected_borrowed_async_call(
             &identity.namespace,
             &identity.name,
             node_text(&unit.source, member),
+            false,
         )
         && method.is_async
         && matches!(
@@ -1608,6 +1609,7 @@ fn projected_chain_role(
             &identity.namespace,
             &identity.name,
             node_text(&unit.source, member),
+            false,
         )
         .and_then(|method| method.chain_role)
 }
@@ -1666,6 +1668,7 @@ fn projected_function_for_call<'a>(
         &identity.namespace,
         &identity.name,
         node_text(&unit.source, member),
+        false,
     )
 }
 
