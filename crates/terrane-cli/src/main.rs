@@ -665,16 +665,8 @@ struct GeneratedCrateOptions {
     build_toolchain: terrane_compiler::BuildToolchain,
 }
 
-fn write_generated_crate(
-    directory: &Path,
-    rust_files: &[terrane_compiler::rust_ir::RenderedFile],
-    units: &[terrane_compiler::SourceUnit],
-    rust_dependencies: &[terrane_compiler::RustDependency],
-    options: GeneratedCrateOptions,
-) -> Result<(), CliFailure> {
-    fs::create_dir_all(directory.join("src"))
-        .map_err(|error| CliFailure::backend(format!("cannot create generated crate: {error}")))?;
-    let mut manifest = format!(
+fn base_generated_manifest(options: GeneratedCrateOptions) -> String {
+    format!(
         "[package]\nname = \"terrane_program\"\nversion = \"0.0.0\"\nedition = \"2024\"\nrust-version = {:?}\n\n\
          [package.metadata.terrane]\nunicode-data-version = {:?}\n\n\
          [lints.rust]\nunsafe_code = \"forbid\"\n\n\
@@ -686,7 +678,19 @@ fn write_generated_crate(
          terrane-stream-abi = {{ path = \"support/terrane-stream-abi\" }}\n",
         terrane_compiler::BUILD_TOOLCHAIN,
         options.build_toolchain.unicode_data_version()
-    );
+    )
+}
+
+fn write_generated_crate(
+    directory: &Path,
+    rust_files: &[terrane_compiler::rust_ir::RenderedFile],
+    units: &[terrane_compiler::SourceUnit],
+    rust_dependencies: &[terrane_compiler::RustDependency],
+    options: GeneratedCrateOptions,
+) -> Result<(), CliFailure> {
+    fs::create_dir_all(directory.join("src"))
+        .map_err(|error| CliFailure::backend(format!("cannot create generated crate: {error}")))?;
+    let mut manifest = base_generated_manifest(options);
     if options.uses_platform_support {
         manifest.push_str(
             "terrane-platform-support = { path = \"support/terrane-platform-support\" }\n",
