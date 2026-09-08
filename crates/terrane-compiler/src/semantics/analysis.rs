@@ -176,7 +176,8 @@ pub(super) fn apply_projected_method_contracts(
                 continue;
             };
             contract.throws = true;
-            let type_name = unit.descriptors
+            let type_name = unit
+                .descriptors
                 .iter()
                 .find(|object| object.identity.name == owner)
                 .map_or(owner, |object| object.name.as_str());
@@ -700,7 +701,8 @@ pub(super) fn populate_object_aliases(package: &mut SemanticPackage) {
             })
             .collect::<Vec<_>>();
         aliases.retain(|alias| {
-            !unit.descriptors
+            !unit
+                .descriptors
                 .iter()
                 .any(|contract| contract.name == alias.name)
         });
@@ -855,7 +857,8 @@ pub(super) fn populate_function_type_dependencies(package: &mut SemanticPackage)
                     }
                 }
             }
-            if !unit.descriptors
+            if !unit
+                .descriptors
                 .iter()
                 .any(|candidate| candidate.name == object.name)
             {

@@ -348,7 +348,8 @@ impl Emitter<'_> {
     )]
     pub(super) fn object(&mut self, node: &SyntaxNode) {
         let object = self
-            .unit.descriptors
+            .unit
+            .descriptors
             .iter()
             .find(|object| object.span == node.span)
             .expect("analyzed object declaration must have a semantic contract");
@@ -925,7 +926,8 @@ impl Emitter<'_> {
                         .iter()
                         .find(|candidate| candidate.namespace == interface_identity.namespace)
                         .expect("resolved interface namespace");
-                    let interface = interface_unit.descriptors
+                    let interface = interface_unit
+                        .descriptors
                         .iter()
                         .find(|candidate| candidate.identity == *interface_identity)
                         .expect("validated interface contract");
@@ -1358,25 +1360,35 @@ impl Emitter<'_> {
         for capture in &contract.captures {
             let name = rust_name(capture);
             let source = if capture == "this" { "self" } else { &name };
-            let transfer = self
-                .unit
-                .typed_bindings
-                .iter()
-                .rev()
-                .find(|binding| {
-                    binding.name == *capture
-                        && binding.is_visible_at(self.source.id(), node.span.start)
-                })
-                .is_some_and(|binding| self.value_type_owns_resource(&binding.value_type));
-            if transfer {
+            let binding = self.unit.typed_bindings.iter().rev().find(|binding| {
+                binding.name == *capture && binding.is_visible_at(self.source.id(), node.span.start)
+            });
+            let transfer =
+                binding.is_some_and(|binding| self.value_type_owns_resource(&binding.value_type));
+            let borrowed = binding.is_some_and(|binding| {
+                matches!(binding.value_type, ValueType::Reference(_))
+                    && self
+                        .unit
+                        .reference_provenance
+                        .get(&(binding.span.start, binding.span.end))
+                        .is_some_and(|provenance| {
+                            !self.reference_owner_uses_shared_storage(provenance.owner)
+                        })
+            });
+            if transfer || borrowed {
                 write!(captures, "let {name} = {source}; ")
                     .expect("writing to a String cannot fail");
             } else {
                 write!(captures, "let {name} = {source}.clone(); ")
                     .expect("writing to a String cannot fail");
             }
-            write!(invocation_captures, "let {name} = {name}.clone(); ")
-                .expect("writing to a String cannot fail");
+            if borrowed {
+                write!(invocation_captures, "let {name} = {name}; ")
+                    .expect("writing to a String cannot fail");
+            } else {
+                write!(invocation_captures, "let {name} = {name}.clone(); ")
+                    .expect("writing to a String cannot fail");
+            }
         }
         (captures, invocation_captures)
     }

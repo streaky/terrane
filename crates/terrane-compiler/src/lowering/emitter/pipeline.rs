@@ -73,7 +73,7 @@ pub(crate) fn lower(package: &SemanticPackage) -> Program {
     let native_cancellation = package_uses_task_scope(package) && has_async_entry;
     let has_custom_throwable = has_dependency
         || package.units.iter().any(|unit| {
-            unit.objects.iter().any(|object| {
+            unit.descriptors.iter().any(|object| {
                 object.interfaces.iter().any(|interface| {
                     interface.namespace == "/core/errors" && interface.name == "throwable"
                 })

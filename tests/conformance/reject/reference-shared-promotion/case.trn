@@ -1,0 +1,6 @@
+namespace reference-shared-promotion
+
+function main;
+  value = 1
+  borrowed ref int = ref value
+  promoted shared ref int = shared ref borrowed

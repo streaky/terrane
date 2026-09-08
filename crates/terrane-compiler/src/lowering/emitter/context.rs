@@ -640,7 +640,8 @@ impl Emitter<'_> {
         let Some(ValueType::Object(identity)) = self.receiver_value_type(receiver) else {
             return false;
         };
-        self.unit.descriptors
+        self.unit
+            .descriptors
             .iter()
             .find(|object| object.identity == identity)
             .is_some_and(|object| {
@@ -654,7 +655,8 @@ impl Emitter<'_> {
         let Some(ValueType::Object(identity)) = self.receiver_value_type(receiver) else {
             return false;
         };
-        self.unit.descriptors
+        self.unit
+            .descriptors
             .iter()
             .find(|object| object.identity == identity)
             .is_some_and(|object| {
@@ -678,7 +680,8 @@ impl Emitter<'_> {
             return false;
         };
         let Some(object) = self
-            .unit.descriptors
+            .unit
+            .descriptors
             .iter()
             .find(|object| object.identity == identity)
         else {
@@ -713,7 +716,8 @@ impl Emitter<'_> {
 
     pub(super) fn object_requires_separation(&self, identity: &ObjectIdentity) -> bool {
         let Some(object) = self
-            .unit.descriptors
+            .unit
+            .descriptors
             .iter()
             .find(|object| object.identity == *identity)
         else {
@@ -753,6 +757,52 @@ impl Emitter<'_> {
         }
     }
 
+    pub(super) fn reference_address_expression(&mut self, operand: &SyntaxNode) -> String {
+        if self.reference_backed_name(operand).is_some() {
+            return format!(
+                "std::sync::Arc::downgrade(&{})",
+                self.reference_storage_expression(operand)
+            );
+        }
+        if matches!(
+            self.value_type(operand),
+            Some(ValueType::SharedReference(_))
+        ) {
+            return format!("std::sync::Arc::downgrade(&{})", self.expression(operand));
+        }
+        if operand.kind == SyntaxKind::Name {
+            return format!("&{}", self.expression(operand));
+        }
+        if operand.kind == SyntaxKind::MemberExpression
+            && let [receiver, member] = operand.children.as_slice()
+        {
+            let receiver = self.expression(receiver);
+            return format!("&({receiver}).{}", rust_name(self.text(member)));
+        }
+        if operand.kind == SyntaxKind::IndexExpression
+            && let [receiver, index] = operand.children.as_slice()
+            && matches!(
+                self.receiver_value_type(receiver),
+                Some(ValueType::List(_) | ValueType::Tuple(_, _))
+            )
+        {
+            let receiver = self.expression(receiver);
+            let index = self.expression_as(index, ValueType::Scalar(ScalarType::Int));
+            let converted_index = self.fallible(
+                format!("terrane_collection_support::index_from_int(&({index}))"),
+                operand,
+            );
+            let item = self.fallible(
+                format!(
+                    "({receiver}).get(__terrane_index).ok_or_else(|| terrane_collection_support::IndexError::from_usize(__terrane_index))"
+                ),
+                operand,
+            );
+            return format!("{{ let __terrane_index = {converted_index}; {item} }}");
+        }
+        unreachable!("validated reference provenance has a lowerable owner path")
+    }
+
     pub(super) fn reference_backed_name(&self, node: &SyntaxNode) -> Option<&TypedBinding> {
         if node.kind != SyntaxKind::Name {
             return None;
@@ -777,16 +827,47 @@ impl Emitter<'_> {
         self.node_references_binding(&self.unit.tree.root, binding)
     }
 
+    pub(super) fn reference_uses_shared_storage(&self, node: &SyntaxNode) -> bool {
+        let provenance = self
+            .unit
+            .reference_provenance
+            .get(&(node.span.start, node.span.end))
+            .or_else(|| {
+                self.local_typed_binding(node).and_then(|binding| {
+                    self.unit
+                        .reference_provenance
+                        .get(&(binding.span.start, binding.span.end))
+                })
+            });
+        provenance
+            .is_some_and(|provenance| self.reference_owner_uses_shared_storage(provenance.owner))
+    }
+
+    pub(super) fn reference_owner_uses_shared_storage(&self, owner: crate::Span) -> bool {
+        self.unit
+            .typed_bindings
+            .iter()
+            .find(|binding| binding.span == owner)
+            .is_some_and(|binding| {
+                matches!(binding.value_type, ValueType::SharedReference(_))
+                    || self.reference_backed(binding)
+            })
+    }
+
+    pub(super) fn binding_is_reference_owner(&self, binding: &TypedBinding) -> bool {
+        self.unit
+            .reference_provenance
+            .values()
+            .any(|provenance| provenance.owner == binding.span)
+    }
+
     pub(super) fn node_references_binding(
         &self,
         node: &SyntaxNode,
         binding: &TypedBinding,
     ) -> bool {
         if node.kind == SyntaxKind::UnaryExpression
-            && matches!(
-                self.unary_operator(node).as_deref(),
-                Some("ref" | "shared ref")
-            )
+            && self.unary_operator(node).as_deref() == Some("shared ref")
             && let Some(operand) = node.children.last()
             && operand.kind == SyntaxKind::Name
             && self

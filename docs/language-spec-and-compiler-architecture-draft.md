@@ -2283,6 +2283,12 @@ remains alive until its final ordinary or shared owner is released. This lifetim
 the possibility of shared-ownership cycles, is why `shared` appears at the construction site
 rather than being implicit in `ref`.
 
+For the current native target, `shared ref` uses reference-counted synchronized ownership.
+Statically provable initialization ownership cycles are rejected. A cycle assembled later through
+authored mutation is not traced or collected automatically and may retain its members until process
+exit; applications must break such a cycle explicitly. Ordinary `ref` projections and back-edges
+are non-owning and are excluded from ownership-cycle edges.
+
 ### 12.5 Reference type contracts
 
 `ref` and `shared ref` are prefix type constructors symmetric with their value operations:

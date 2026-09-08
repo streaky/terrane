@@ -23,7 +23,7 @@ pub(super) fn invalid_name_style_declarations(unit: &SemanticUnit) -> Vec<(&str,
                 .map(|function| (function.name.as_str(), function.span)),
         )
         .chain(
-            unit.objects
+            unit.descriptors
                 .iter()
                 .map(|object| (object.name.as_str(), object.span)),
         )
@@ -287,17 +287,21 @@ pub(super) fn object_method_mutates(
         }) {
             return method.mutates_receiver;
         }
-        unit.objects
+        unit.descriptors
             .iter()
             .find(|object| object.name == object_name)
             .and_then(|object| object.base.as_ref())
-            .and_then(|base| unit.objects.iter().find(|object| object.identity == *base))
+            .and_then(|base| {
+                unit.descriptors
+                    .iter()
+                    .find(|object| object.identity == *base)
+            })
             .is_some_and(|base| contract_mutates(unit, &base.name, method_name))
     }
 
     if package.units.iter().any(|candidate| {
         candidate
-            .objects
+            .descriptors
             .iter()
             .find(|object| object.identity == *object_identity)
             .is_some_and(|object| contract_mutates(candidate, &object.name, method_name))

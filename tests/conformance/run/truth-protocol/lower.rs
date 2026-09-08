@@ -1,4 +1,4 @@
-// Generated deterministically by Terrane 0.1.0.
+// Generated deterministically by Terrane <version>.
 // Source: case.trn
 // Namespace: truth-protocol
 #[derive(Clone)]
@@ -30,5 +30,3 @@ fn main() {
         println!("{}", terrane_scalar_support::scalar_text(&String::from("disabled")));
     }
 }
-// Generated Rust form: standalone
-// Vendored support crates: terrane-int-support, terrane-scalar-support, terrane-string-support, terrane-stream-abi

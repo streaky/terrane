@@ -1,7 +1,0 @@
-namespace reference-parameter-requires-storage
-
-function observe; value int8
-    observer ref int8 = ref value
-
-function main;
-    observe; 7

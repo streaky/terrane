@@ -119,6 +119,40 @@ impl<C: IndexedIteration> CollectionIterator<C> {
     }
 }
 
+#[derive(Clone, Debug)]
+pub struct BorrowingIterator<'a, T> {
+    items: &'a [T],
+    index: usize,
+    ended: bool,
+}
+
+impl<'a, T> BorrowingIterator<'a, T> {
+    fn new(items: &'a [T]) -> Self {
+        Self {
+            items,
+            index: 0,
+            ended: false,
+        }
+    }
+
+    #[must_use]
+    #[expect(
+        clippy::should_implement_trait,
+        reason = "Terrane iteration returns an explicit typed step rather than Rust Option"
+    )]
+    pub fn next(&mut self) -> IterationStep<&'a T> {
+        if self.ended {
+            return IterationStep::End;
+        }
+        let Some(item) = self.items.get(self.index) else {
+            self.ended = true;
+            return IterationStep::End;
+        };
+        self.index += 1;
+        IterationStep::Item(item)
+    }
+}
+
 fn next_indexed<S, T>(source: &S, index: &mut usize, ended: &mut bool) -> IterationStep<T>
 where
     S: IndexedIteration<Item = T>,
@@ -177,6 +211,10 @@ impl<T> List<T> {
     #[must_use]
     pub fn get(&self, index: usize) -> Option<&T> {
         self.0.get(index)
+    }
+    #[must_use]
+    pub fn terrane_borrowing_iterator(&self) -> BorrowingIterator<'_, T> {
+        BorrowingIterator::new(&self.0)
     }
     /// Returns the indexed item or an error when the index is outside the list.
     ///
@@ -280,6 +318,10 @@ impl<T> Tuple<T> {
     #[must_use]
     pub fn get(&self, index: usize) -> Option<&T> {
         self.0.get(index)
+    }
+    #[must_use]
+    pub fn terrane_borrowing_iterator(&self) -> BorrowingIterator<'_, T> {
+        BorrowingIterator::new(&self.0)
     }
     /// Consumes a uniquely owned tuple without cloning its elements.
     ///

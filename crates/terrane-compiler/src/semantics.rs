@@ -68,10 +68,11 @@ pub(crate) use contracts::{descriptor_expression_category, descriptor_expression
 pub(crate) use diagnostics::{binding_span_is_mutated, warnings};
 pub(crate) use member_inference::{object_member_type, string_call_selection};
 pub use model::{
-    ArithmeticFamily, BOOTSTRAP_VERSION, BoundMethod, ElementType, EvaluationKind, EvaluationStep,
-    FunctionContract, MemberFamily, Namespace, ObjectContract, ObjectField, ObjectFieldMetadata,
-    ObjectIdentity, ObjectKind, ParameterContract, SemanticFailure, SemanticPackage, SemanticUnit,
-    Symbol, SymbolKind, TaskTransferability, TextUnit, TypedBinding, ValueType, Visibility,
+    ArithmeticFamily, BOOTSTRAP_VERSION, BoundMethod, DescriptorContract, ElementType,
+    EvaluationKind, EvaluationStep, FunctionContract, MemberFamily, Namespace, ObjectField,
+    ObjectFieldMetadata, ObjectIdentity, ObjectKind, ParameterContract, SemanticFailure,
+    SemanticPackage, SemanticUnit, Symbol, SymbolKind, TaskTransferability, TextUnit, TypedBinding,
+    ValueType, Visibility,
 };
 pub(crate) use model::{
     CoercionPolicy, ContextualConstant, FloatMemberOperation, StringFamily, float_member_contract,

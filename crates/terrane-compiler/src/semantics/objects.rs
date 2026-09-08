@@ -555,7 +555,8 @@ pub(super) fn validate_object_conformance(
     }
 
     for unit in &package.units {
-        for object in unit.descriptors
+        for object in unit
+            .descriptors
             .iter()
             .filter(|object| object.kind == ObjectKind::Class)
         {
@@ -564,7 +565,8 @@ pub(super) fn validate_object_conformance(
                 .iter()
                 .find(|candidate| candidate.source.id() == object.span.file)
                 .expect("object declaration source must belong to the semantic package");
-            let object = declaration_unit.descriptors
+            let object = declaration_unit
+                .descriptors
                 .iter()
                 .find(|candidate| candidate.identity == object.identity)
                 .expect("object identity must resolve in its declaration unit");
@@ -655,7 +657,8 @@ pub(super) fn validate_object_conformance(
                             })
                     })
                     .expect("resolved interface must have a semantic declaration");
-                let interface = interface_unit.descriptors
+                let interface = interface_unit
+                    .descriptors
                     .iter()
                     .find(|candidate| candidate.name == resolved_interface.name)
                     .expect("resolved interface must have an object contract");
@@ -703,7 +706,8 @@ pub(super) fn validate_object_conformance(
                 .collect::<BTreeSet<_>>();
             let mut providers = BTreeMap::<&str, Vec<&str>>::new();
             for trait_name in &object.traits {
-                let used_trait = declaration_unit.descriptors
+                let used_trait = declaration_unit
+                    .descriptors
                     .iter()
                     .find(|candidate| candidate.identity == *trait_name)
                     .expect("object-kind validation must resolve used traits");
@@ -777,12 +781,14 @@ pub(super) fn propagate_interface_receiver_mutability(package: &mut SemanticPack
 
     let mut mutating = BTreeSet::<(u32, usize, usize, String)>::new();
     for unit in &package.units {
-        for class in unit.descriptors
+        for class in unit
+            .descriptors
             .iter()
             .filter(|object| object.kind == ObjectKind::Class)
         {
             for interface_name in &class.interfaces {
-                let Some(interface) = unit.descriptors
+                let Some(interface) = unit
+                    .descriptors
                     .iter()
                     .find(|candidate| candidate.identity == *interface_name)
                 else {
@@ -813,7 +819,8 @@ pub(super) fn propagate_interface_receiver_mutability(package: &mut SemanticPack
             let Some(owner) = method.owner.as_deref() else {
                 continue;
             };
-            let Some(interface) = unit.descriptors
+            let Some(interface) = unit
+                .descriptors
                 .iter()
                 .find(|object| object.kind == ObjectKind::Interface && object.name == owner)
             else {
@@ -866,7 +873,11 @@ pub(super) fn infer_receiver_consumption(package: &mut SemanticPackage) {
                     .iter()
                     .find(|object| object.name == object_name)
                     .and_then(|object| object.base.as_ref())
-                    .and_then(|base| unit.descriptors.iter().find(|object| object.identity == *base))
+                    .and_then(|base| {
+                        unit.descriptors
+                            .iter()
+                            .find(|object| object.identity == *base)
+                    })
                     .and_then(|base| effective_method(unit, &base.name, method_name))
             })
     }
@@ -1052,7 +1063,8 @@ pub(super) fn infer_receiver_consumption(package: &mut SemanticPackage) {
 
     let mut consuming_interfaces = BTreeSet::<((u32, usize, usize), String)>::new();
     for unit in &package.units {
-        for class in unit.descriptors
+        for class in unit
+            .descriptors
             .iter()
             .filter(|object| object.kind == ObjectKind::Class)
         {

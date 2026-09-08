@@ -185,82 +185,21 @@ pub(super) fn infer_numeric_coercion_type(
         }
         return Ok(None);
     };
-    let arguments = node.children.get(1).map_or(&[][..], |arguments| {
-        arguments.children.as_slice()
-    });
+    let arguments = node
+        .children
+        .get(1)
+        .map_or(&[][..], |arguments| arguments.children.as_slice());
     if arguments.len() == 2 {
-        if policy != CoercionPolicy::Default {
-            return Err(failure(
-                &unit.source,
-                "T0008",
-                "caller-supplied conversion callbacks are available only on `.coerce`",
-                callee.span,
-            ));
-        }
-        if arguments.iter().any(|argument| argument.children.len() > 1) {
-            return Err(failure(
-                &unit.source,
-                "T0008",
-                "caller-supplied conversion requires positional destination and callback arguments",
-                node.span,
-            ));
-        }
-        let destination_node = arguments[0].children.last().unwrap_or(&arguments[0]);
-        let callback_node = arguments[1].children.last().unwrap_or(&arguments[1]);
-        let source_type = infer_receiver_value_type(unit, source_node, bindings)?.ok_or_else(|| {
-            failure(
-                &unit.source,
-                "T0009",
-                "caller-supplied conversion requires a statically known source type",
-                source_node.span,
-            )
-        })?;
-        let destination = coercion_destination_type(unit, destination_node).ok_or_else(|| {
-            failure(
-                &unit.source,
-                "T0008",
-                "caller-supplied conversion destination must be a concrete type descriptor",
-                destination_node.span,
-            )
-        })?;
-        let callback = infer_value_type(unit, callback_node, bindings)?.ok_or_else(|| {
-            failure(
-                &unit.source,
-                "T0008",
-                "caller-supplied conversion callback must have a statically known function type",
-                callback_node.span,
-            )
-        })?;
-        let ValueType::Function(parameters, result) = callback else {
-            return Err(failure(
-                &unit.source,
-                "T0008",
-                "caller-supplied conversion callback must be synchronous",
-                callback_node.span,
-            ));
-        };
-        if parameters.len() != 1 || parameters[0].value_type_ref() != &source_type {
-            return Err(failure(
-                &unit.source,
-                "T0008",
-                format!(
-                    "conversion callback must accept exactly one `{source_type}` parameter"
-                ),
-                callback_node.span,
-            ));
-        }
-        if result.value_type_ref() != &destination {
-            return Err(failure(
-                &unit.source,
-                "T0008",
-                format!(
-                    "conversion callback must return `{destination}`, found `{}`",
-                    result.value_type_ref()
-                ),
-                callback_node.span,
-            ));
-        }
-        return Ok(Some(destination));
+        return infer_callback_coercion_type(
+            unit,
+            node,
+            callee,
+            source_node,
+            policy,
+            arguments,
+            bindings,
+        )
+        .map(Some);
     }
     if arguments.len() > 2 {
         return Err(failure(
@@ -270,6 +209,17 @@ pub(super) fn infer_numeric_coercion_type(
             node.span,
         ));
     }
+    infer_declared_numeric_coercion_type(unit, node, source_node, policy, arguments, bindings)
+}
+
+fn infer_declared_numeric_coercion_type(
+    unit: &SemanticUnit,
+    node: &SyntaxNode,
+    source_node: &SyntaxNode,
+    policy: CoercionPolicy,
+    arguments: &[SyntaxNode],
+    bindings: &[TypedBinding],
+) -> Result<Option<ValueType>, SemanticFailure> {
     let Some(ValueType::Scalar(source_type)) =
         infer_receiver_value_type(unit, source_node, bindings)?
     else {
@@ -335,10 +285,88 @@ pub(super) fn infer_numeric_coercion_type(
     Ok(Some(result))
 }
 
-fn coercion_destination_type(
+fn infer_callback_coercion_type(
     unit: &SemanticUnit,
-    destination: &SyntaxNode,
-) -> Option<ValueType> {
+    node: &SyntaxNode,
+    callee: &SyntaxNode,
+    source_node: &SyntaxNode,
+    policy: CoercionPolicy,
+    arguments: &[SyntaxNode],
+    bindings: &[TypedBinding],
+) -> Result<ValueType, SemanticFailure> {
+    if policy != CoercionPolicy::Default {
+        return Err(failure(
+            &unit.source,
+            "T0008",
+            "caller-supplied conversion callbacks are available only on `.coerce`",
+            callee.span,
+        ));
+    }
+    if arguments.iter().any(|argument| argument.children.len() > 1) {
+        return Err(failure(
+            &unit.source,
+            "T0008",
+            "caller-supplied conversion requires positional destination and callback arguments",
+            node.span,
+        ));
+    }
+    let destination_node = arguments[0].children.last().unwrap_or(&arguments[0]);
+    let callback_node = arguments[1].children.last().unwrap_or(&arguments[1]);
+    let source_type = infer_receiver_value_type(unit, source_node, bindings)?.ok_or_else(|| {
+        failure(
+            &unit.source,
+            "T0009",
+            "caller-supplied conversion requires a statically known source type",
+            source_node.span,
+        )
+    })?;
+    let destination = coercion_destination_type(unit, destination_node).ok_or_else(|| {
+        failure(
+            &unit.source,
+            "T0008",
+            "caller-supplied conversion destination must be a concrete type descriptor",
+            destination_node.span,
+        )
+    })?;
+    let callback = infer_value_type(unit, callback_node, bindings)?.ok_or_else(|| {
+        failure(
+            &unit.source,
+            "T0008",
+            "caller-supplied conversion callback must have a statically known function type",
+            callback_node.span,
+        )
+    })?;
+    let ValueType::Function(parameters, result) = callback else {
+        return Err(failure(
+            &unit.source,
+            "T0008",
+            "caller-supplied conversion callback must be synchronous",
+            callback_node.span,
+        ));
+    };
+    if parameters.len() != 1 || parameters[0].value_type_ref() != &source_type {
+        return Err(failure(
+            &unit.source,
+            "T0008",
+            format!("conversion callback must accept exactly one `{source_type}` parameter"),
+            callback_node.span,
+        ));
+    }
+    if result.value_type_ref() != &destination {
+        return Err(failure(
+            &unit.source,
+            "T0008",
+            format!(
+                "conversion callback must return `{destination}`, found `{}`",
+                result.value_type_ref()
+            ),
+            callback_node.span,
+        ));
+    }
+    Ok(destination)
+}
+
+fn coercion_destination_type(unit: &SemanticUnit, destination: &SyntaxNode) -> Option<ValueType> {
     let name = node_text(&unit.source, destination);
     unit.descriptor_alias_at(name, destination.span.start)
         .map(ValueType::Scalar)

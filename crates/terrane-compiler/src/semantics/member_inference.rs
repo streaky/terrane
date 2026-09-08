@@ -165,7 +165,8 @@ pub(super) fn infer_member_value_type(
     let member_name = node_text(&unit.source, member);
     let receiver_type = infer_receiver_value_type(unit, receiver, bindings)?;
     if let Some(ValueType::Descriptor(identity)) = &receiver_type {
-        if let Some(field) = unit.descriptors
+        if let Some(field) = unit
+            .descriptors
             .iter()
             .find(|object| object.name == *identity || object.identity.qualified() == *identity)
             .and_then(|object| {
@@ -850,9 +851,7 @@ pub(super) fn infer_unary_type(
                 value_type => ValueType::Reference(ElementType::new(value_type)),
             },
             "shared ref" => match operand {
-                ValueType::Reference(item) | ValueType::SharedReference(item) => {
-                    ValueType::SharedReference(item)
-                }
+                ValueType::SharedReference(item) => ValueType::SharedReference(item),
                 value_type => ValueType::SharedReference(ElementType::new(value_type)),
             },
             "move" => operand,

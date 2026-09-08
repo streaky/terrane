@@ -376,7 +376,7 @@ pub(super) fn analyze_function_contract(
                     })?;
                 validate_value_destination(
                     &unit.source,
-                    &unit.objects,
+                    &unit.descriptors,
                     node_text(&unit.source, parameter_name),
                     expected,
                     actual,

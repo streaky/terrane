@@ -34,18 +34,10 @@ async fn answer() -> terrane_int_support::Int {
     return terrane_int_support::Int::from(42_i128);
 }
 async fn inspect() -> terrane_int_support::Int {
-    let value: std::sync::Arc<std::sync::Mutex<terrane_int_support::Int>> = std::sync::Arc::new(
-        std::sync::Mutex::new(terrane_int_support::Int::from(7_i128)),
-    );
-    let observed: std::sync::Weak<std::sync::Mutex<terrane_int_support::Int>> = std::sync::Arc::downgrade(
-        &value,
-    );
+    let value: terrane_int_support::Int = terrane_int_support::Int::from(7_i128);
+    let observed: &terrane_int_support::Int = &value;
     let result: terrane_int_support::Int = __terrane_await(answer()).await;
-    println!(
-        "{}", terrane_scalar_support::scalar_text(&{ let __terrane_owner = observed
-        .upgrade().expect("reference expired"); let __terrane_value = __terrane_owner
-        .lock().expect("reference lock poisoned").clone(); __terrane_value })
-    );
+    println!("{}", terrane_scalar_support::scalar_text(&observed.clone()));
     return result.clone();
 }
 fn main() {

@@ -440,7 +440,7 @@ pub(super) fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFa
     let resource_objects = package
         .units
         .iter()
-        .flat_map(|unit| unit.objects.iter())
+        .flat_map(|unit| unit.descriptors.iter())
         .filter(|object| object.resource_owning)
         .map(|object| span_key(object.span))
         .collect();
@@ -457,111 +457,361 @@ pub(super) fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFa
     Ok(())
 }
 
-pub(super) fn validate_reference_origins(package: &SemanticPackage) -> Result<(), SemanticFailure> {
-    fn visit(unit: &SemanticUnit, node: &SyntaxNode) -> Result<(), SemanticFailure> {
-        if node.kind == SyntaxKind::UnaryExpression
-            && let Some(operand) = node.children.last()
-            && unary_operator_text(unit, node).as_deref() == Some("ref")
-        {
-            let valid_origin = operand.kind == SyntaxKind::Name
-                && unit.typed_bindings.iter().rev().any(|binding| {
-                    binding.name == node_text(&unit.source, operand)
-                        && binding.is_visible_at(unit.source.id(), operand.span.start)
-                        && binding.scope.is_some()
-                        && find_node_by_span(&unit.tree.root, binding.span)
-                            .is_some_and(|origin| origin.kind == SyntaxKind::Binding)
-                });
-            if !valid_origin {
-                return Err(failure(
-                    &unit.source,
-                    "T0064",
-                    "`ref` requires a named binding with reference-backed storage",
-                    operand.span,
-                ));
-            }
+fn binding_at<'a>(unit: &'a SemanticUnit, node: &SyntaxNode) -> Option<&'a TypedBinding> {
+    (node.kind == SyntaxKind::Name).then_some(())?;
+    unit.typed_bindings.iter().rev().find(|binding| {
+        binding.name == node_text(&unit.source, node)
+            && binding.is_visible_at(unit.source.id(), node.span.start)
+    })
+}
+
+fn span_is_parameter(node: &SyntaxNode, span: Span) -> bool {
+    (node.kind == SyntaxKind::Parameter
+        && node.span.start <= span.start
+        && node.span.end >= span.end)
+        || node
+            .children
+            .iter()
+            .any(|child| span_is_parameter(child, span))
+}
+
+fn first_owner_lifetime_end(
+    unit: &SemanticUnit,
+    node: &SyntaxNode,
+    owner: Span,
+    after: usize,
+) -> Option<Span> {
+    fn root_name(mut node: &SyntaxNode) -> Option<&SyntaxNode> {
+        while matches!(
+            node.kind,
+            SyntaxKind::MemberExpression | SyntaxKind::IndexExpression
+        ) {
+            node = node.children.first()?;
         }
-        if node.kind == SyntaxKind::ReturnStatement
-            && let Some(value) = node.children.first()
-            && matches!(
-                infer_value_type(unit, value, &unit.typed_bindings)?,
-                Some(ValueType::Reference(_))
-            )
+        (node.kind == SyntaxKind::Name).then_some(node)
+    }
+
+    let target = match node.kind {
+        SyntaxKind::Assignment | SyntaxKind::PostfixExpression => node.children.first(),
+        SyntaxKind::UnaryExpression
+            if unary_operator_text(unit, node).as_deref() == Some("move") =>
         {
+            node.children.last()
+        }
+        _ => None,
+    };
+    if node.span.start > after
+        && target
+            .and_then(root_name)
+            .and_then(|target| binding_at(unit, target))
+            .is_some_and(|binding| binding.span == owner)
+    {
+        return Some(node.span);
+    }
+    node.children
+        .iter()
+        .find_map(|child| first_owner_lifetime_end(unit, child, owner, after))
+}
+
+fn expression_provenance(
+    unit: &SemanticUnit,
+    node: &SyntaxNode,
+    proven: &BTreeMap<(usize, usize), ReferenceProvenance>,
+) -> Option<ReferenceProvenance> {
+    if let Some(binding) = binding_at(unit, node) {
+        return proven.get(&(binding.span.start, binding.span.end)).cloned();
+    }
+    if node.kind == SyntaxKind::GroupExpression {
+        return node
+            .children
+            .first()
+            .and_then(|child| expression_provenance(unit, child, proven));
+    }
+    if node.kind == SyntaxKind::CallExpression {
+        let arguments = node.children.get(1)?;
+        let mut candidates = arguments
+            .children
+            .iter()
+            .filter_map(|argument| argument.children.last().or(Some(argument)))
+            .filter_map(|argument| expression_provenance(unit, argument, proven));
+        let mut provenance = candidates.next()?;
+        if candidates.next().is_some() {
+            return None;
+        }
+        provenance.path.push(ReferenceProjection::CallResult);
+        return Some(provenance);
+    }
+    None
+}
+
+fn borrow_origin(
+    unit: &SemanticUnit,
+    node: &SyntaxNode,
+    proven: &BTreeMap<(usize, usize), ReferenceProvenance>,
+) -> Option<ReferenceProvenance> {
+    if let Some(existing) = expression_provenance(unit, node, proven) {
+        return Some(existing);
+    }
+    if let Some(binding) = binding_at(unit, node) {
+        return Some(ReferenceProvenance {
+            owner: binding.span,
+            external_lender: span_is_parameter(&unit.tree.root, binding.span),
+            path: Vec::new(),
+            lifetime_end: None,
+        });
+    }
+    match node.kind {
+        SyntaxKind::MemberExpression => {
+            let [receiver, member] = node.children.as_slice() else {
+                return None;
+            };
+            let mut provenance = borrow_origin(unit, receiver, proven)?;
+            provenance.path.push(ReferenceProjection::Field(
+                node_text(&unit.source, member).to_owned(),
+            ));
+            Some(provenance)
+        }
+        SyntaxKind::IndexExpression => {
+            let receiver = node.children.first()?;
+            let mut provenance = borrow_origin(unit, receiver, proven)?;
+            provenance.path.push(ReferenceProjection::Element);
+            Some(provenance)
+        }
+        SyntaxKind::GroupExpression => node
+            .children
+            .first()
+            .and_then(|child| borrow_origin(unit, child, proven)),
+        _ => None,
+    }
+}
+
+fn visit(
+    unit: &SemanticUnit,
+    node: &SyntaxNode,
+    proven: &mut BTreeMap<(usize, usize), ReferenceProvenance>,
+) -> Result<(), SemanticFailure> {
+    if node.kind == SyntaxKind::UnaryExpression
+        && let Some(operand) = node.children.last()
+        && unary_operator_text(unit, node).as_deref() == Some("ref")
+    {
+        let Some(provenance) = borrow_origin(unit, operand, proven) else {
+            return Err(failure(
+                &unit.source,
+                "T0064",
+                "`ref` requires an owner-proven name, field, element, or reference result",
+                operand.span,
+            ));
+        };
+        proven.insert((node.span.start, node.span.end), provenance);
+    }
+    if node.kind == SyntaxKind::Binding
+        && let Some(binding) = unit
+            .typed_bindings
+            .iter()
+            .find(|binding| binding.span == node.span)
+        && matches!(binding.value_type, ValueType::Reference(_))
+        && let Some(initializer) = node
+            .children
+            .last()
+            .filter(|child| child.kind != SyntaxKind::TypeExpression)
+        && let Some(provenance) = expression_provenance(unit, initializer, proven)
+            .or_else(|| {
+                proven
+                    .get(&(initializer.span.start, initializer.span.end))
+                    .cloned()
+            })
+            .or_else(|| {
+                (initializer.kind == SyntaxKind::UnaryExpression
+                    && unary_operator_text(unit, initializer).as_deref() == Some("ref"))
+                .then(|| initializer.children.last())
+                .flatten()
+                .and_then(|operand| borrow_origin(unit, operand, proven))
+            })
+    {
+        proven.insert((binding.span.start, binding.span.end), provenance);
+    }
+    if node.kind == SyntaxKind::ReturnStatement
+        && let Some(value) = node.children.first()
+        && matches!(
+            infer_value_type(unit, value, &unit.typed_bindings)?,
+            Some(ValueType::Reference(_))
+        )
+    {
+        let lender_count = unit
+            .functions
+            .iter()
+            .filter(|contract| {
+                contract.span.start <= value.span.start && contract.span.end >= value.span.end
+            })
+            .min_by_key(|contract| contract.span.end - contract.span.start)
+            .map_or(0, |contract| {
+                contract
+                    .parameters
+                    .iter()
+                    .filter(|parameter| {
+                        matches!(parameter.value_type, Some(ValueType::Reference(_)))
+                    })
+                    .count()
+            });
+        if lender_count != 1 {
             return Err(failure(
                 &unit.source,
                 "T0068",
-                "a non-owning reference cannot escape its proven source lifetime",
+                "returned reference requires exactly one reference-parameter lender",
                 value.span,
             ));
         }
-        for child in &node.children {
-            visit(unit, child)?;
+        let provenance = expression_provenance(unit, value, proven);
+        if provenance.is_none_or(|provenance| !provenance.external_lender) {
+            return Err(failure(
+                &unit.source,
+                "T0068",
+                "returned reference is not proven to originate from an external lender",
+                value.span,
+            ));
         }
-        Ok(())
     }
-
-    for unit in &package.units {
-        visit(unit, &unit.tree.root)?;
+    if node.kind == SyntaxKind::ForStatement
+        && let [target, collection, _block] = node.children.as_slice()
+        && let Some(mut provenance) = expression_provenance(unit, collection, proven)
+    {
+        provenance.path.push(ReferenceProjection::Element);
+        for binding in unit.typed_bindings.iter().filter(|binding| {
+            binding.span.start >= target.span.start
+                && binding.span.end <= target.span.end
+                && matches!(binding.value_type, ValueType::Reference(_))
+        }) {
+            proven.insert((binding.span.start, binding.span.end), provenance.clone());
+        }
+    }
+    for child in &node.children {
+        visit(unit, child, proven)?;
+    }
+    Ok(())
+}
+pub(super) fn analyze_reference_provenance(
+    package: &mut SemanticPackage,
+) -> Result<(), SemanticFailure> {
+    for unit in &mut package.units {
+        let mut proven = unit
+            .typed_bindings
+            .iter()
+            .filter(|binding| matches!(binding.value_type, ValueType::Reference(_)))
+            .filter(|binding| span_is_parameter(&unit.tree.root, binding.span))
+            .map(|binding| {
+                (
+                    (binding.span.start, binding.span.end),
+                    ReferenceProvenance {
+                        owner: binding.span,
+                        external_lender: true,
+                        path: Vec::new(),
+                        lifetime_end: None,
+                    },
+                )
+            })
+            .collect();
+        visit(unit, &unit.tree.root, &mut proven)?;
+        for (&(created_at, _), provenance) in &mut proven {
+            provenance.lifetime_end =
+                first_owner_lifetime_end(unit, &unit.tree.root, provenance.owner, created_at);
+        }
+        unit.reference_provenance = proven;
     }
     Ok(())
 }
 
+fn collect_origins(
+    unit: &SemanticUnit,
+    node: &SyntaxNode,
+    observer: Option<Span>,
+    origins: &mut Vec<(Span, Span)>,
+) {
+    let observer = if node.kind == SyntaxKind::Binding {
+        unit.typed_bindings
+            .iter()
+            .find(|binding| binding.span == node.span)
+            .map(|binding| binding.span)
+            .or(observer)
+    } else {
+        observer
+    };
+    if node.kind == SyntaxKind::UnaryExpression
+        && unary_operator_text(unit, node).as_deref() == Some("ref")
+        && let Some(observer) = observer
+        && let Some(provenance) = unit
+            .reference_provenance
+            .get(&(node.span.start, node.span.end))
+    {
+        origins.push((provenance.owner, observer));
+    }
+    for child in &node.children {
+        collect_origins(unit, child, observer, origins);
+    }
+}
+
+fn first_use_after(
+    package: &SemanticPackage,
+    unit: &SemanticUnit,
+    node: &SyntaxNode,
+    declaration: Span,
+    position: usize,
+) -> Option<Span> {
+    if node.kind == SyntaxKind::Name
+        && node.span.start > position
+        && package
+            .resolve_name_at(unit, node.span.start, node_text(&unit.source, node))
+            .and_then(|symbol| symbol.declaration_span)
+            == Some(declaration)
+    {
+        return Some(node.span);
+    }
+    node.children
+        .iter()
+        .find_map(|child| first_use_after(package, unit, child, declaration, position))
+}
+
+fn first_lifetime_end(
+    package: &SemanticPackage,
+    unit: &SemanticUnit,
+    node: &SyntaxNode,
+    owner: Span,
+    after: usize,
+) -> Option<Span> {
+    fn root_name(mut node: &SyntaxNode) -> Option<&SyntaxNode> {
+        while matches!(
+            node.kind,
+            SyntaxKind::MemberExpression | SyntaxKind::IndexExpression
+        ) {
+            node = node.children.first()?;
+        }
+        (node.kind == SyntaxKind::Name).then_some(node)
+    }
+
+    let target = match node.kind {
+        SyntaxKind::Assignment | SyntaxKind::PostfixExpression => node.children.first(),
+        SyntaxKind::UnaryExpression
+            if unary_operator_text(unit, node).as_deref() == Some("move") =>
+        {
+            node.children.last()
+        }
+        _ => None,
+    };
+    if node.span.start > after
+        && let Some(target) = target.and_then(root_name)
+        && package
+            .resolve_name_at(unit, target.span.start, node_text(&unit.source, target))
+            .and_then(|symbol| symbol.declaration_span)
+            == Some(owner)
+    {
+        return Some(node.span);
+    }
+    node.children
+        .iter()
+        .find_map(|child| first_lifetime_end(package, unit, child, owner, after))
+}
 pub(super) fn validate_referenced_replacements(
     package: &SemanticPackage,
 ) -> Result<(), SemanticFailure> {
-    fn collect_origins(
-        unit: &SemanticUnit,
-        node: &SyntaxNode,
-        observer: Option<Span>,
-        origins: &mut Vec<(Span, Span)>,
-    ) {
-        let observer = if node.kind == SyntaxKind::Binding {
-            unit.typed_bindings
-                .iter()
-                .find(|binding| binding.span == node.span)
-                .map(|binding| binding.span)
-                .or(observer)
-        } else {
-            observer
-        };
-        if node.kind == SyntaxKind::UnaryExpression
-            && unary_operator_text(unit, node).as_deref() == Some("ref")
-            && let Some(observer) = observer
-            && let Some(operand) = node.children.last()
-            && operand.kind == SyntaxKind::Name
-            && let Some(binding) = unit.typed_bindings.iter().rev().find(|binding| {
-                binding.name == node_text(&unit.source, operand)
-                    && binding.is_visible_at(unit.source.id(), operand.span.start)
-            })
-        {
-            origins.push((binding.span, observer));
-        }
-        for child in &node.children {
-            collect_origins(unit, child, observer, origins);
-        }
-    }
-
-    fn first_use_after(
-        package: &SemanticPackage,
-        unit: &SemanticUnit,
-        node: &SyntaxNode,
-        declaration: Span,
-        position: usize,
-    ) -> Option<Span> {
-        if node.kind == SyntaxKind::Name
-            && node.span.start > position
-            && package
-                .resolve_name_at(unit, node.span.start, node_text(&unit.source, node))
-                .and_then(|symbol| symbol.declaration_span)
-                == Some(declaration)
-        {
-            return Some(node.span);
-        }
-        node.children
-            .iter()
-            .find_map(|child| first_use_after(package, unit, child, declaration, position))
-    }
-
     for unit in &package.units {
         let mut origins = Vec::new();
         collect_origins(unit, &unit.tree.root, None, &mut origins);
@@ -576,7 +826,6 @@ pub(super) fn validate_referenced_replacements(
                 })
                 .max_by_key(|binding| binding.visible_from);
             if let Some(previous) = previous
-                && previous.value_type != replacement.value_type
                 && let Some(use_span) = origins
                     .iter()
                     .filter(|(origin, _)| *origin == previous.span)
@@ -598,6 +847,27 @@ pub(super) fn validate_referenced_replacements(
                         replacement.name
                     ),
                     use_span,
+                ));
+            }
+        }
+        for &(owner, observer) in &origins {
+            if let Some(lifetime_end) =
+                first_lifetime_end(package, unit, &unit.tree.root, owner, observer.end)
+                && first_use_after(package, unit, &unit.tree.root, observer, lifetime_end.end)
+                    .is_some()
+            {
+                let owner_name = unit
+                    .typed_bindings
+                    .iter()
+                    .find(|binding| binding.span == owner)
+                    .map_or("<unknown>", |binding| binding.name.as_str());
+                return Err(failure(
+                    &unit.source,
+                    "T0059",
+                    format!(
+                        "reference to owner `{owner_name}` remains in use after this mutation, move, or replacement"
+                    ),
+                    lifetime_end,
                 ));
             }
         }

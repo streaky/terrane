@@ -5,20 +5,20 @@ function source int;
   print; 'source'
   return 7
 
-function render string; value int
+function render string; _value int
   return 'converted'
 
 
 class renderer
-  function render string; value int
+  function render string; _value int
     return 'bound'
 
-function fail string throws coercion-error; value int
+function fail string throws coercion-error; _value int
   throw coercion-error
 
 function main;
   print; ((source;).coerce; string, render)
-  closure = function string; value int
+  closure = function string; _value int
     return 'closure'
   service renderer = instance renderer;
   bound function from int to string = service.render

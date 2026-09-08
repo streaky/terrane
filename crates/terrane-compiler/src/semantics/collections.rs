@@ -120,7 +120,7 @@ pub(super) fn validate_collection_constructor_items(
                 if argument.children.len() >= 2 {
                     validate_value_destination(
                         &unit.source,
-                        &unit.objects,
+                        &unit.descriptors,
                         &format!("{label} key"),
                         key.value_type(),
                         ValueType::Scalar(ScalarType::String),
@@ -218,7 +218,7 @@ pub(super) fn validate_collection_constructor_value(
     if let Some(actual) = infer_value_type(unit, value, bindings)? {
         validate_value_destination(
             &unit.source,
-            &unit.objects,
+            &unit.descriptors,
             destination,
             expected.clone(),
             actual,

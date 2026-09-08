@@ -700,25 +700,24 @@ interfaces check complete method signatures, infer required receiver mutability 
 implementations, and lower as typed dispatch contracts. Traits reuse declared fields and methods,
 with unresolved multi-trait member conflicts rejected.
 
-`ref T` values are non-owning aliases backed by synchronized weak storage; member use and scalar
-consumers such as `print` transparently observe the referenced value, upgrading the target or
-failing deterministically if it has expired. `shared ref T` values are cloneable shared owners
-backed by synchronized strong storage and have the same transparent observation behavior. Prefix
-`ref`, `shared ref`, and `move` construct those respective ownership forms. Transparent observation
-does not convert the reference at assignment, parameter, or return boundaries; those positions
-continue to distinguish `T`, `ref T`, and `shared ref T`. A `ref` currently requires a local named
-binding with reference-backed storage; parameters and temporary values are
-rejected because the compiler does not yet prove their owner lifetimes. Move provenance
-rejects later reads until the binding is rebound, including conditional paths and loop back-edges;
-a declaration inside the loop body initializes a fresh binding value for each iteration.
-Replacing a binding ends the old identity's lifetime: a later non-owning-reference use is rejected, while a `shared ref`
-continues to own and observe the old identity.
+`ref T` values carry compiler-owned whole-path provenance: their originating owner, field/element/
+call-result projections, external-lender status, and first lifetime-ending mutation, move, or
+replacement. Member access, list indexing, unique-lender calls and returns, reference bindings,
+borrowed collection iteration, captures, and async liveness preserve or narrow that proof.
+Returning a reference is accepted only when it reaches an external lender; local-owner return,
+ambiguous lender flow, and post-lifetime-end use are rejected in source terms.
 
-The source interface now matches the settled version-one ownership vocabulary. Milestone 17 remains
-open for compile-time lifetime and escape analysis, including proof across async suspension,
-release invalidation, shared-ownership cycle analysis, and the remaining provenance paths; runtime
-expiry checking is still the implemented fallback where a non-owning reference's validity is not
-statically proven.
+A provenance-bounded native `ref T` lowers to a Rust borrow. Reads do not upgrade, lock, or clone
+the owner. `shared ref T` remains explicit synchronized reference-counted ownership; an ordinary
+observer of that same explicitly shared identity uses a non-owning weak handle. Prefix `ref`,
+`shared ref`, and `move` construct those respective ownership forms, and an ordinary reference
+cannot be promoted into shared ownership. Transparent observation does not erase the distinction
+among `T`, `ref T`, and `shared ref T` at storage, parameter, or return boundaries.
+
+The native target rejects statically provable initialization ownership cycles. Runtime-created
+shared cycles are not traced and must be broken explicitly; ordinary `ref` back-edges are excluded
+from ownership-cycle edges. References may cross async suspension only while the owner proof
+remains complete.
 
 ## Callable contracts and reflection
 

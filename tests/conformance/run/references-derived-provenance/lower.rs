@@ -377,17 +377,28 @@ mod __terrane_trace {
         pub end_column: u32,
     }
     pub static FILES: [&str; 1] = ["case.trn"];
-    pub static FUNCTIONS: [&str; 1] = ["/non-owning-reference-release::main"];
-    pub static SITES: [Site; 1] = [
+    pub static FUNCTIONS: [&str; 1] = ["/references-derived-provenance::main"];
+    pub static SITES: [Site; 2] = [
         {
-            /* terrane-site-row: site 0: /non-owning-reference-release::main (case.trn:8:12-8:23) */
+            /* terrane-site-row: site 0: /references-derived-provenance::main (case.trn:21:3-21:14) */
             Site {
                 function: 0,
                 file: 0,
-                line: 8,
-                column: 12,
-                end_line: 8,
-                end_column: 23,
+                line: 21,
+                column: 3,
+                end_line: 21,
+                end_column: 14,
+            }
+        },
+        {
+            /* terrane-site-row: site 1: /references-derived-provenance::main (case.trn:23:25-23:34) */
+            Site {
+                function: 0,
+                file: 0,
+                line: 23,
+                column: 25,
+                end_line: 23,
+                end_column: 34,
             }
         },
     ];
@@ -404,18 +415,82 @@ mod __terrane_trace {
     }
 }
 // Source: case.trn
-// Namespace: non-owning-reference-release
+// Namespace: references-derived-provenance
+#[derive(Clone)]
+pub struct Holder {
+    pub value: terrane_int_support::Int,
+}
+impl Holder {
+    pub fn terrane_construct(amount: terrane_int_support::Int) -> Self {
+        let mut value = Self {
+            value: terrane_int_support::Int::from(0_i128),
+        };
+        value.construct(amount);
+        value
+    }
+    pub fn construct(&mut self, amount: terrane_int_support::Int) {
+        self.value = amount.clone();
+    }
+}
+fn pass(value: &terrane_int_support::Int) -> &terrane_int_support::Int {
+    return value;
+}
+fn consume(__trn_5f76616c7565: &terrane_int_support::Int) {
+    let _ = &__trn_5f76616c7565;
+}
 fn main() {
-    let value: terrane_collection_support::List<terrane_int_support::Int> = terrane_collection_support::List::<
-        terrane_int_support::Int,
-    >::new(vec![terrane_int_support::Int::from(12_i128)]);
-    let observer: &terrane_collection_support::List<terrane_int_support::Int> = &value;
-    println!(
-        "{}", terrane_scalar_support::scalar_text(&__terrane_raised(observer.clone()
-        .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
-        0 /* terrane-site: case.trn:8:12-8:23 */)), 0 /* terrane-site: case.trn:8:12-8:23 */))
+    let owner: Holder = Holder::terrane_construct(
+        terrane_int_support::Int::from(41_i128),
     );
-    let _ = &value;
-    let value: String = String::from("replacement");
-    println!("{}", terrane_scalar_support::scalar_text(&value));
+    let field: &terrane_int_support::Int = &owner.value;
+    let show_field: std::sync::Arc<dyn Fn() -> Result<(), TerraneError> + Send + Sync> = {
+        let field = field;
+        std::sync::Arc::new(move || -> Result<(), TerraneError> {
+            consume(field);
+            println!(
+                "{}", terrane_scalar_support::scalar_text(&String::from("captured"))
+            );
+            Ok(())
+        })
+    };
+    __terrane_traced(show_field(), 0 /* terrane-site: case.trn:21:3-21:14 */);
+    let values: terrane_collection_support::List<terrane_int_support::Int> = terrane_collection_support::List::<
+        terrane_int_support::Int,
+    >::new(
+        vec![
+            terrane_int_support::Int::from(1_i128),
+            terrane_int_support::Int::from(42_i128)
+        ],
+    );
+    let element: &terrane_int_support::Int = {
+        let __terrane_index = __terrane_raised(
+            terrane_collection_support::index_from_int(
+                &terrane_int_support::Int::from(1_i128),
+            ),
+            1 /* terrane-site: case.trn:23:25-23:34 */,
+        );
+        __terrane_raised(
+            values
+                .get(__terrane_index)
+                .ok_or_else(|| terrane_collection_support::IndexError::from_usize(
+                    __terrane_index,
+                )),
+            1 /* terrane-site: case.trn:23:25-23:34 */,
+        )
+    };
+    let returned: &terrane_int_support::Int = pass(element);
+    println!(
+        "{}{}{}", terrane_scalar_support::scalar_text(&field.clone()),
+        terrane_scalar_support::scalar_text(&element.clone()),
+        terrane_scalar_support::scalar_text(&returned.clone())
+    );
+    let borrowed: &terrane_collection_support::List<terrane_int_support::Int> = &values;
+    let mut __terrane_iterator_0 = borrowed.terrane_borrowing_iterator();
+    loop {
+        let item = match __terrane_iterator_0.next() {
+            terrane_collection_support::IterationStep::Item(item) => item,
+            terrane_collection_support::IterationStep::End => break,
+        };
+        println!("{}", terrane_scalar_support::scalar_text(&item.clone()));
+    }
 }

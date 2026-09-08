@@ -1039,22 +1039,10 @@ pub fn terrane_path_text(path: std::path::PathBuf) -> std::io::Result<String> {
 }
 // Source: case.trn
 // Namespace: conformance/filesystem-facilities
-fn sync_file(
-    capability: Filesystem,
-    output: std::sync::Weak<std::sync::Mutex<FileHandle>>,
-) -> bool {
-    let flushed: FilesystemOperationResult = file_flush(
-        capability.clone(),
-        output.clone(),
-    );
-    let data: FilesystemOperationResult = file_sync_data(
-        capability.clone(),
-        output.clone(),
-    );
-    let all: FilesystemOperationResult = file_sync_all(
-        capability.clone(),
-        output.clone(),
-    );
+fn sync_file(capability: Filesystem, output: &FileHandle) -> bool {
+    let flushed: FilesystemOperationResult = file_flush(capability.clone(), output);
+    let data: FilesystemOperationResult = file_sync_data(capability.clone(), output);
+    let all: FilesystemOperationResult = file_sync_all(capability.clone(), output);
     return flushed.failed || data.failed || all.failed;
 }
 fn main() {
@@ -1091,14 +1079,17 @@ fn main() {
         "{}{}", terrane_scalar_support::scalar_text(&data.failed),
         terrane_scalar_support::scalar_text(&data.completed)
     );
-    let opened: std::sync::Arc<std::sync::Mutex<FileHandle>> = std::sync::Arc::new(
-        std::sync::Mutex::new(
-            open_file(fs.clone(), target.clone(), true, false, false, false),
-        ),
+    let opened: FileHandle = open_file(
+        fs.clone(),
+        target.clone(),
+        true,
+        false,
+        false,
+        false,
     );
     let streamed: FileData = file_read(
         fs.clone(),
-        std::sync::Arc::downgrade(&opened),
+        &opened,
         terrane_int_support::Int::from(16_i128),
     );
     println!(
@@ -1172,44 +1163,44 @@ fn main() {
     );
     println!("{}", terrane_scalar_support::scalar_text(&escaped.failed));
     let current: Path = Path::terrane_construct(String::from("."));
-    let root: std::sync::Arc<std::sync::Mutex<DirectoryHandle>> = std::sync::Arc::new(
-        std::sync::Mutex::new(
-            filesystem_open_beneath(fs.clone(), base.clone(), current, false),
-        ),
+    let root: DirectoryHandle = filesystem_open_beneath(
+        fs.clone(),
+        base.clone(),
+        current,
+        false,
     );
     let manifest: Path = Path::terrane_construct(
         String::from("terrane-filesystem-case.txt"),
     );
-    let relative_file: std::sync::Arc<std::sync::Mutex<FileHandle>> = std::sync::Arc::new(
-        std::sync::Mutex::new(
-            open_file_beneath(
-                fs.clone(),
-                std::sync::Arc::downgrade(&root),
-                manifest,
-                true,
-                false,
-                false,
-                false,
-            ),
-        ),
+    let relative_file: FileHandle = open_file_beneath(
+        fs.clone(),
+        &root,
+        manifest,
+        true,
+        false,
+        false,
+        false,
     );
     let relative_data: FileData = file_read(
         fs.clone(),
-        std::sync::Arc::downgrade(&relative_file),
+        &relative_file,
         terrane_int_support::Int::from(8_i128),
     );
     println!(
         "{}{}", terrane_scalar_support::scalar_text(&relative_data.failed),
         terrane_scalar_support::scalar_text(&relative_data.completed)
     );
-    let partial_target: std::sync::Arc<std::sync::Mutex<FileHandle>> = std::sync::Arc::new(
-        std::sync::Mutex::new(
-            open_file(fs.clone(), target.clone(), false, true, false, true),
-        ),
+    let partial_target: FileHandle = open_file(
+        fs.clone(),
+        target.clone(),
+        false,
+        true,
+        false,
+        true,
     );
     let partial: FileData = file_write(
         fs.clone(),
-        std::sync::Arc::downgrade(&partial_target),
+        &partial_target,
         Vec::from([97, 98, 99]),
         terrane_int_support::Int::from(1_i128),
     );
@@ -1226,15 +1217,15 @@ fn main() {
         "{}{}", terrane_scalar_support::scalar_text(&partial_read.failed),
         terrane_scalar_support::scalar_text(&partial_read.completed)
     );
-    let durable_target: std::sync::Arc<std::sync::Mutex<FileHandle>> = std::sync::Arc::new(
-        std::sync::Mutex::new(
-            open_file(fs.clone(), target.clone(), false, true, false, false),
-        ),
-    );
-    let sync_failed: bool = sync_file(
+    let durable_target: FileHandle = open_file(
         fs.clone(),
-        std::sync::Arc::downgrade(&durable_target),
+        target.clone(),
+        false,
+        true,
+        false,
+        false,
     );
+    let sync_failed: bool = sync_file(fs.clone(), &durable_target);
     println!("{}", terrane_scalar_support::scalar_text(&sync_failed));
     let link_removed: FilesystemOperationResult = filesystem_remove(
         fs.clone(),
@@ -1498,15 +1489,12 @@ pub fn open_file(
 }
 pub fn file_read(
     capability: Filesystem,
-    file: std::sync::Weak<std::sync::Mutex<FileHandle>>,
+    file: &FileHandle,
     limit: terrane_int_support::Int,
 ) -> FileData {
     let _ = &capability;
     let raw: TerranePlatformReadResult = terrane_platform_read(
-        &{
-            let __terrane_owner = file.upgrade().expect("reference expired");
-            __terrane_owner.lock().expect("reference lock poisoned").handle.clone()
-        },
+        &file.handle.clone(),
         limit,
     );
     return FileData::terrane_construct(
@@ -1519,16 +1507,13 @@ pub fn file_read(
 }
 pub fn file_write(
     capability: Filesystem,
-    file: std::sync::Weak<std::sync::Mutex<FileHandle>>,
+    file: &FileHandle,
     data: Vec<u8>,
     offset: terrane_int_support::Int,
 ) -> FileData {
     let _ = &capability;
     let raw: TerranePlatformWriteResult = terrane_platform_write(
-        &{
-            let __terrane_owner = file.upgrade().expect("reference expired");
-            __terrane_owner.lock().expect("reference lock poisoned").handle.clone()
-        },
+        &file.handle.clone(),
         &data,
         terrane_int_support::Int::from(offset.clone()),
     );
@@ -1542,15 +1527,10 @@ pub fn file_write(
 }
 pub fn file_flush(
     capability: Filesystem,
-    file: std::sync::Weak<std::sync::Mutex<FileHandle>>,
+    file: &FileHandle,
 ) -> FilesystemOperationResult {
     let _ = &capability;
-    let raw: TerranePlatformUnitResult = terrane_platform_flush(
-        &{
-            let __terrane_owner = file.upgrade().expect("reference expired");
-            __terrane_owner.lock().expect("reference lock poisoned").handle.clone()
-        },
-    );
+    let raw: TerranePlatformUnitResult = terrane_platform_flush(&file.handle.clone());
     return FilesystemOperationResult::terrane_construct(
         raw.failed,
         raw.message.clone().clone(),
@@ -1558,14 +1538,11 @@ pub fn file_flush(
 }
 pub fn file_sync_data(
     capability: Filesystem,
-    file: std::sync::Weak<std::sync::Mutex<FileHandle>>,
+    file: &FileHandle,
 ) -> FilesystemOperationResult {
     let _ = &capability;
     let raw: TerranePlatformUnitResult = terrane_platform_sync_data(
-        &{
-            let __terrane_owner = file.upgrade().expect("reference expired");
-            __terrane_owner.lock().expect("reference lock poisoned").handle.clone()
-        },
+        &file.handle.clone(),
     );
     return FilesystemOperationResult::terrane_construct(
         raw.failed,
@@ -1574,15 +1551,10 @@ pub fn file_sync_data(
 }
 pub fn file_sync_all(
     capability: Filesystem,
-    file: std::sync::Weak<std::sync::Mutex<FileHandle>>,
+    file: &FileHandle,
 ) -> FilesystemOperationResult {
     let _ = &capability;
-    let raw: TerranePlatformUnitResult = terrane_platform_sync_all(
-        &{
-            let __terrane_owner = file.upgrade().expect("reference expired");
-            __terrane_owner.lock().expect("reference lock poisoned").handle.clone()
-        },
-    );
+    let raw: TerranePlatformUnitResult = terrane_platform_sync_all(&file.handle.clone());
     return FilesystemOperationResult::terrane_construct(
         raw.failed,
         raw.message.clone().clone(),
@@ -1702,7 +1674,7 @@ pub fn filesystem_open_beneath(
 }
 pub fn open_file_beneath(
     capability: Filesystem,
-    directory: std::sync::Weak<std::sync::Mutex<DirectoryHandle>>,
+    directory: &DirectoryHandle,
     relative: Path,
     readable: bool,
     writable: bool,
@@ -1711,10 +1683,7 @@ pub fn open_file_beneath(
 ) -> FileHandle {
     let _ = &capability;
     let raw: TerranePlatformOpenResult = terrane_platform_open_file_beneath(
-        &{
-            let __terrane_owner = directory.upgrade().expect("reference expired");
-            __terrane_owner.lock().expect("reference lock poisoned").handle.clone()
-        },
+        &directory.handle.clone(),
         relative.text,
         readable,
         writable,

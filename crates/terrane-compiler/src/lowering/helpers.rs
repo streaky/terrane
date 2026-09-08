@@ -178,7 +178,8 @@ pub(super) fn effective_object_fields<'a>(
             collect(unit, base, fields);
         }
         for reused in &object.traits {
-            if let Some(reused) = unit.descriptors
+            if let Some(reused) = unit
+                .descriptors
                 .iter()
                 .find(|candidate| candidate.identity == *reused)
             {
@@ -212,7 +213,8 @@ pub(super) fn object_descendants<'a>(
                 if identity == &object.identity {
                     return true;
                 }
-                base = unit.descriptors
+                base = unit
+                    .descriptors
                     .iter()
                     .find(|candidate| candidate.identity == *identity)
                     .and_then(|candidate| candidate.base.as_ref());
@@ -281,7 +283,8 @@ pub(super) fn effective_object_methods<'a>(
             collect(unit, base, methods);
         }
         for reused in &object.traits {
-            if let Some(reused) = unit.descriptors
+            if let Some(reused) = unit
+                .descriptors
                 .iter()
                 .find(|candidate| candidate.identity == *reused)
             {
@@ -548,10 +551,9 @@ pub(super) fn rust_value_type(package: &SemanticPackage, ty: ValueType) -> Strin
             "std::sync::Arc<std::sync::Mutex<{}>>",
             rust_element_type(package, item)
         ),
-        ValueType::Reference(item) => format!(
-            "std::sync::Weak<std::sync::Mutex<{}>>",
-            rust_element_type(package, item)
-        ),
+        ValueType::Reference(item) => {
+            format!("&{}", rust_element_type(package, item))
+        }
     }
 }
 

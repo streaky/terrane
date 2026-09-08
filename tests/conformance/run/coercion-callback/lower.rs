@@ -1,4 +1,4 @@
-// Generated deterministically by Terrane 0.1.0.
+// Generated deterministically by Terrane <version>.
 type TerraneSite = u32;
 const TERRANE_NO_SITE: TerraneSite = u32::MAX;
 #[allow(dead_code, reason = "custom descriptors are absent from some lowered programs")]
@@ -456,8 +456,8 @@ fn source() -> terrane_int_support::Int {
     println!("{}", terrane_scalar_support::scalar_text(&String::from("source")));
     return terrane_int_support::Int::from(7_i128);
 }
-fn render(value: terrane_int_support::Int) -> String {
-    let _ = &value;
+fn render(__trn_5f76616c7565: terrane_int_support::Int) -> String {
+    let _ = &__trn_5f76616c7565;
     return String::from("converted");
 }
 #[derive(Clone)]
@@ -466,13 +466,13 @@ impl Renderer {
     pub fn terrane_construct() -> Self {
         Self {}
     }
-    pub fn render(&self, value: terrane_int_support::Int) -> String {
-        let _ = &value;
+    pub fn render(&self, __trn_5f76616c7565: terrane_int_support::Int) -> String {
+        let _ = &__trn_5f76616c7565;
         return String::from("bound");
     }
 }
-fn fail(value: terrane_int_support::Int) -> Result<String, TerraneError> {
-    let _ = &value;
+fn fail(__trn_5f76616c7565: terrane_int_support::Int) -> Result<String, TerraneError> {
+    let _ = &__trn_5f76616c7565;
     return Err(
         TerraneError::raised(
             TerraneErrorKind::CoercionError,
@@ -491,7 +491,7 @@ fn main() {
         dyn Fn(terrane_int_support::Int) -> Result<String, TerraneError> + Send + Sync,
     > = {
         std::sync::Arc::new(move |
-            value: terrane_int_support::Int,
+            __trn_5f76616c7565: terrane_int_support::Int,
         | -> Result<String, TerraneError> {
             return Ok(String::from("closure"));
         })
@@ -554,5 +554,3 @@ fn main() {
         }
     }
 }
-// Generated Rust form: standalone
-// Vendored support crates: terrane-int-support, terrane-scalar-support, terrane-string-support, terrane-stream-abi

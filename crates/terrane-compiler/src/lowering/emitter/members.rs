@@ -109,10 +109,13 @@ impl Emitter<'_> {
                 "({{ let __terrane_value = {}.lock().expect(\"shared reference lock poisoned\").clone(); __terrane_value }})",
                 self.expression(receiver)
             ),
-            Some(ValueType::Reference(_)) => format!(
-                "({{ let __terrane_owner = {}.upgrade().expect(\"reference expired\"); let __terrane_value = __terrane_owner.lock().expect(\"reference lock poisoned\").clone(); __terrane_value }})",
-                self.expression(receiver)
-            ),
+            Some(ValueType::Reference(_)) if self.reference_uses_shared_storage(receiver) => {
+                format!(
+                    "({{ let __terrane_owner = {}.upgrade().expect(\"reference expired\"); let __terrane_value = __terrane_owner.lock().expect(\"reference lock poisoned\").clone(); __terrane_value }})",
+                    self.expression(receiver)
+                )
+            }
+            Some(ValueType::Reference(_)) => format!("({}).clone()", self.expression(receiver)),
             _ => self.expression(receiver),
         }
     }
@@ -123,9 +126,10 @@ impl Emitter<'_> {
                 "{}.lock().expect(\"shared reference lock poisoned\")",
                 self.expression(receiver)
             ),
-            Some(ValueType::Reference(_)) => {
+            Some(ValueType::Reference(_)) if self.reference_uses_shared_storage(receiver) => {
                 "__terrane_owner.lock().expect(\"reference lock poisoned\")".to_owned()
             }
+            Some(ValueType::Reference(_)) => self.expression(receiver),
             _ if self.reference_backed_name(receiver).is_some() => {
                 format!(
                     "{}.lock().expect(\"reference lock poisoned\")",
@@ -141,7 +145,7 @@ impl Emitter<'_> {
         receiver: &SyntaxNode,
         expression: String,
     ) -> String {
-        if matches!(self.value_type(receiver), Some(ValueType::Reference(_))) {
+        if self.reference_uses_shared_storage(receiver) {
             format!(
                 "({{ let __terrane_owner = {}.upgrade().expect(\"reference expired\"); {expression} }})",
                 self.expression(receiver)
@@ -180,7 +184,8 @@ impl Emitter<'_> {
         if name == "self" {
             let identity = self.current_object.as_ref()?;
             return self
-                .unit.descriptors
+                .unit
+                .descriptors
                 .iter()
                 .find(|object| object.identity == *identity && object.kind == ObjectKind::Class);
         }
@@ -189,7 +194,8 @@ impl Emitter<'_> {
         }) {
             return None;
         }
-        self.unit.descriptors
+        self.unit
+            .descriptors
             .iter()
             .find(|object| object.name == name && object.kind == ObjectKind::Class)
     }

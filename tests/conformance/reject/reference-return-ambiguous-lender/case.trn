@@ -1,0 +1,11 @@
+namespace reference-return-ambiguous-lender
+
+function choose ref int; left ref int, right ref int
+  return left
+
+function main;
+  left-value = 1
+  right-value = 2
+  left ref int = ref left-value
+  right ref int = ref right-value
+  chosen ref int = choose; left, right

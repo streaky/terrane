@@ -202,22 +202,6 @@ Lower the semantic model to a small Rust-oriented IR before rendering text. The 
 This section contains only work that remains required by the settled version-one design. For a partially delivered milestone, its heading and exit criterion have been rewritten around the unfinished capability rather than repeating already implemented work. Requirements superseded by later language decisions are called out and excluded. Completely delivered milestones and completed portions of split milestones are retained in Appendix A.
 
 
-### Milestone 17 — Complete references, provenance, and lowering
-
-The source forms `ref`, `shared ref`, and `move`, replacement invalidation, explicit ownership transfer, reference-backed storage, and directly provable async-local ownership are complete. The remaining work is whole-path provenance and the intended cost model, neither of which exists yet in partial form.
-
-Provenance has no representation today: a reference type carries its pointee type and nothing about where it came from. In place of a proof, `ref` is admitted only where provenance is trivial — a plain name bound to a local binding — and every other origin is refused, as is every returned reference. The narrow accepted set is not a partial analysis to extend but a stand-in for the analysis, so the proof has to be introduced before the constructs below can be admitted at all. The representation is likewise provisional rather than incomplete: `ref` and `shared ref` lower uniformly to weak and strong reference-counted handles under a mutex, every read upgrades, locks, and clones the owner, and an expired reference panics at run time where the language promises a source-level rejection.
-
-Deliver:
-
-- a provenance representation in the semantic model, recording each non-owning reference’s originating owner and the operations that end its lifetime;
-- admission of derived references as that proof covers them — through parameters, returns, fields, member access, indexing, iteration, destructuring, calls, capture, and async suspension — replacing the present blanket refusal of every origin other than a local named binding;
-- release and escape diagnosed at the originating owner and the lifetime-ending operation, moving expiry from a runtime panic to a source-level rejection;
-- the settled target-aware shared-cycle rule: reject provable ownership cycles where the target contract requires it, never mistake ordinary `ref` back-edges for ownership cycles, and diagnose or document runtime-created uncollectable shared cycles according to the selected target; and
-- borrow-oriented or target-specific non-owning handles wherever provenance proves them sound, retiring the uniform reference counting, locking, and clone-per-read rather than only declining to add more, and without silently promoting `ref` to shared ownership.
-
-Exit criterion: references derived from fields, elements, and call results are accepted under a complete owner proof, and returned references are decided by that proof rather than uniformly refused; every escape and post-release use is rejected in source terms instead of panicking at run time; async crossings are accepted only with a complete lender proof; cycle cases match the target contract; reviewed generated Rust reads a bounded reference without upgrading, locking, or cloning its owner.
-
 ### Milestone 25.3 — Finish the foundational floating-point surface
 
 The first two increments delivered square root, sine, cosine, sine-cosine, natural logarithm, exponential, absolute value, finite/infinite/NaN classification, minimum, maximum, and fused multiply-add for both floating widths. Complete the remaining non-scientific scalar surface.
@@ -582,6 +566,31 @@ The first-version compiler is done only when:
 ## Appendix A. Completed milestone record
 
 This appendix keeps delivered milestone contracts and evidence out of the active roadmap. Full milestone records below are preserved as completed implementation history. Entries titled “Completed portion” contain only the delivered side of a milestone whose remaining work appears in section 7; superseded requirements are recorded as such rather than carried forward.
+
+### Milestone 17 — Complete references, provenance, and lowering
+
+Every ordinary reference now has a compiler-owned `ReferenceProvenance` record containing its
+originating owner, external-lender status, ordered field/element/call-result projections, and first
+lifetime-ending operation. That proof flows through reference bindings, parameters and unique-
+lender call results, returns, member and index derivation, borrowed collection iteration, closure
+capture checks, and async liveness. A returned reference is admitted when it reaches an external
+lender; local-owner return, ambiguous lender flow, owner invalidation followed by observer use, and
+non-owning-to-shared promotion are rejected in source terms.
+
+Native lowering emits a proved bounded reference as a Rust borrow. Field and element derivation and
+borrowed list iteration preserve that borrow, so ordinary reads do not upgrade, lock, or clone the
+owner. Explicit `shared ref` continues to use synchronized reference-counted ownership, with a weak
+non-owning observer only when an ordinary reference intentionally observes the same shared
+identity. Provable initialization ownership cycles are rejected; ordinary reference back-edges do
+not create ownership edges, and runtime-created native shared cycles are documented as
+non-collecting and must be broken explicitly.
+
+Evidence: `references-derived-provenance` runs field, element, returned-call-result, and borrowed-
+iteration paths with canonical Rust; `reference-derived-owner-replacement` rejects post-lifetime-
+end use and `reference-shared-promotion` rejects silent ownership promotion. Existing return,
+capture, identity, shared-reference, replacement, ownership-cycle, and `borrow-across-await`
+conformance cases remain the boundary corpus. The reviewed `references-derived-provenance`
+lowering contains direct Rust borrows for the bounded owner, field, and element paths.
 
 ### Milestone 16 — Unified object descriptors and structural protocols
 
@@ -1613,41 +1622,6 @@ descriptors. `descriptor-runtime-value` exercises inline `.type` materialization
 `type-named-field` proves declared object members take precedence over universal reflection. Their
 canonical generated crates compile and run with warnings denied.
 
-
-### Completed portion of Milestone 15 — Function values and closures
-
-Typed synchronous function values cross binding and parameter boundaries; anonymous functions capture resolver-selected outer values once; stored bound methods capture their receiver once. Throwing and non-throwing callables use one statically typed result-bearing ABI, with `Arc<dyn Fn>` only at erased callable boundaries rather than a universal runtime value. Conformance executes closures, bound methods, and a named throwing function passed through a higher-order function.
-
-### Completed portion of Milestone 16 — Classes, nominal interfaces, and traits
-
-Source classes implement typed instance/static fields and methods, explicit construction, independently stored state, lifecycle hooks, mutating and immutable receivers, deep single inheritance, late-bound `self`, inherited interface conformance, declared nominal interfaces, typed dispatch wrappers, and trait reuse with explicit conflicts. Value copies create fresh lifecycle lineages while transfers preserve one lineage. The settled specification supersedes the original “structural named interfaces” phrase: named class/interface/trait identity is nominal and namespace-qualified; structural satisfaction belongs to protocols.
-
-Construct/destruct contract:
-
-```markdown
-Ordinary declared methods with compiler-recognized lifecycle roles. That preserves the object model while still letting the compiler guarantee invocation at the right times.
-
-`construct`
-
-- called only by the explicit `instance class; arguments` operation;
-- may take parameters (though it does not have to);
-- runs after storage exists but before the instance becomes externally observable;
-- if it throws, partially initialized state is cleaned up deterministically.
-
-`destruct`
-
-- zero-argument;
-- invoked exactly once for an owned instance when its lifetime ends;
-- is not invoked automatically on a value whose ownership was moved away;
-- cannot throw in version one, because destruction during an active error path must not replace or obscure that error.
-
-`construct` / `destruct` are ordinary declared methods with compiler-recognized lifecycle roles.
-The paired Terrane terminology is retained instead of Rust's `drop`.
-```
-
-### Completed portion of Milestone 17 — Reference and ownership foundation
-
-The typed pipeline exposes non-owning `ref T`, owning `shared ref T`, and explicit `move`. Conformance covers local-owner references, scalar/member access, shared mutation, ownership transfer, temporary and parameter-source rejection, return escape, replacement invalidation, shared-owner survival after replacement, and reference-backed collection storage. Direct async-local owners are accepted when they remain in the task frame without replacement or transfer. The current clone-per-read representation is a correctness foundation, not the final cost model.
 
 ### Milestone 18 — Callable contracts, errors, and reflection
 

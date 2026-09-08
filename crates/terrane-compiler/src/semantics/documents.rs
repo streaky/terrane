@@ -29,7 +29,7 @@ fn supported_document_field(
                 return false;
             }
             let supported = unit
-                .objects
+                .descriptors
                 .iter()
                 .find(|object| object.identity == *identity)
                 .is_some_and(|object| {
@@ -127,7 +127,7 @@ pub(super) fn infer_typed_document_decode(
         ));
     };
     let object = unit
-        .objects
+        .descriptors
         .iter()
         .find(|object| object.identity == class_identity)
         .expect("a class designator resolves to its object contract");

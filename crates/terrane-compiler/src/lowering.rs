@@ -21,9 +21,9 @@ mod prelude {
         ScalarType, SourceFile, TypeCategory,
         rust_ir::{GeneratedModule, Item, Module, ModuleDestination, Program},
         semantics::{
-            ArithmeticFamily, CoercionPolicy, ContextualConstant, ElementType,
-            FloatMemberOperation, FunctionContract, MemberFamily, ObjectContract, ObjectField,
-            ObjectIdentity, ObjectKind, SemanticPackage, SemanticUnit, StringFamily, SymbolKind,
+            ArithmeticFamily, CoercionPolicy, ContextualConstant, DescriptorContract, ElementType,
+            FloatMemberOperation, FunctionContract, MemberFamily, ObjectField, ObjectIdentity,
+            ObjectKind, SemanticPackage, SemanticUnit, StringFamily, SymbolKind,
             TaskTransferability, TypedBinding, ValueType, binding_read_value_is_reused,
             binding_span_is_mutated, binding_store_value_is_read, bound_method,
             contextual_constant, descriptor_binding_is_materialized, float_member_contract,

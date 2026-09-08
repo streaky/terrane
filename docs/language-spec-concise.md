@@ -512,6 +512,9 @@ ref: explicit non-owning source-visible identity; does not extend lifetime
 shared_ref: explicit shared identity plus shared ownership; extends lifetime
 reference_provenance: compiler-tracked; derived references may narrow, never widen lifetime
 interior_ref: separates COW, pins path, cannot escape/replace/remove while live
+reference_provenance_shape: owner source span + external-lender flag + ordered Field/Element/CallResult projections + first mutation/move/replacement lifetime end; copied through reference bindings, arguments/results, and borrowed iteration targets
+reference_lowering: a provenance-bounded ordinary ref lowers to a target borrow and reads without owner upgrade/lock/clone; shared ref alone keeps Arc/Mutex ownership, while an ordinary observer of the same explicitly shared owner uses a non-owning weak handle
+reference_escape: returns are accepted only when provenance reaches an external lender; ambiguous call-result lender paths, local-owner return, post-lifetime-end use, and ref-to-shared-ref promotion are source errors
 resource_ownership: inferred transitively from compiler-known noncopyable fields; no 'linear class' qualifier
 resource_assignment: transfers identity and makes source unavailable; no 'move' ceremony required; loop-body declarations initialize a fresh binding value on every iteration, so their consumed state does not cross the back-edge, while moved bindings originating outside the loop remain unavailable on later iterations until explicitly rebound
 resource_argument: a statically non-copyable value passed by value transfers automatically; lowering may use a target-language move

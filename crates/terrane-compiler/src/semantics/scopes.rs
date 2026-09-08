@@ -780,9 +780,7 @@ pub(super) fn validate_bool_condition(
     match infer_value_type(unit, condition, bindings)? {
         Some(ValueType::Scalar(ScalarType::Bool)) => return Ok(()),
         Some(ValueType::Object(identity)) => {
-            let Some(truth) =
-                descriptor_protocol_method(unit, &identity, "truth")
-            else {
+            let Some(truth) = descriptor_protocol_method(unit, &identity, "truth") else {
                 return Err(failure(
                     &unit.source,
                     "T0014",

@@ -781,7 +781,10 @@ pub(super) fn diagnostic_object_identity(
     }
 }
 
-pub(super) fn diagnostic_value_type(objects: &[DescriptorContract], value_type: &ValueType) -> String {
+pub(super) fn diagnostic_value_type(
+    objects: &[DescriptorContract],
+    value_type: &ValueType,
+) -> String {
     let nested = |item: &ElementType| diagnostic_value_type(objects, &item.value_type());
     match value_type {
         ValueType::Optional(inner) => {

@@ -16,7 +16,7 @@ impl Emitter<'_> {
         let destination = self.text(values[1]);
         let object = self
             .unit
-            .objects
+            .descriptors
             .iter()
             .find(|object| object.name == destination)
             .expect("typed document semantics retained the destination class");
@@ -1263,7 +1263,7 @@ impl Emitter<'_> {
                 unit.source.id() == contract.span.file && unit.namespace.starts_with("/deps/")
             })?;
             Some(
-                unit.objects
+                unit.descriptors
                     .iter()
                     .find(|object| object.identity.name == owner)
                     .map_or(owner, |object| object.name.as_str()),

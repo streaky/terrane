@@ -1014,44 +1014,41 @@ features:
 - id: references-foundation
   name: Ref and shared ref foundation
   category: objects
-  status: partial
-  completion: 45
+  status: done
+  completion: 100
   milestone: '17'
   reference:
-    state: planned
+    state: documented
     paths:
-    - manual/reference/records/language/ownership/references.yaml
-  notes: Local-owner references, shared survival, reference-backed storage, and simple async-local cases work; origins
-    remain intentionally narrow.
+    - manual/reference/records/language/types/references.yaml
+  notes: Explicit ordinary and shared references retain distinct non-owning and owning contracts, including replacement and async liveness.
   sources:
   - docs/language-spec-concise.md#VALUE / REF / MOVE / LIFETIME
-  - docs/compiler-plan.md#Completed portion of Milestone 17
   - docs/compiler-plan.md#Milestone 17
 - id: reference-provenance
   name: Whole-path reference provenance
   category: objects
-  status: planned
-  completion: 0
+  status: done
+  completion: 100
   milestone: '17'
   reference:
-    state: planned
+    state: documented
     paths:
-    - manual/reference/records/language/ownership/references.yaml
-  notes: Will prove derived, returned, captured, iterated, and suspended references against their originating owner.
+    - manual/reference/records/language/types/references.yaml
+  notes: Owner spans, external lenders, field/element/call-result projections, and lifetime ends flow through bindings, calls, returns, borrowed iteration, capture, and async checks.
   sources:
   - docs/compiler-plan.md#Milestone 17
 - id: reference-cost-model
   name: Borrow-oriented reference lowering
   category: objects
-  status: planned
-  completion: 0
+  status: done
+  completion: 100
   milestone: '17'
   reference:
-    state: planned
+    state: documented
     paths:
-    - manual/reference/records/internals/ownership/reference-lowering.yaml
-  notes: Will replace uniform ref-counting, locking, clone-per-read, and runtime expiry with proved target-aware
-    representations.
+    - manual/reference/records/internals/reference-provenance.yaml
+  notes: Proven bounded native refs lower to Rust borrows; only explicit shared ownership and its observers retain strong/weak synchronized handles.
   sources:
   - docs/compiler-plan.md#Milestone 17
 - id: async-functions

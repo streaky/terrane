@@ -150,16 +150,15 @@ pub(super) fn iterable_item_type(
             Ok(ValueType::Entry(key, value))
         }
         ValueType::Range => Ok(ValueType::Scalar(ScalarType::Int)),
+        ValueType::Reference(item) => iterable_item_type(unit, item.value_type())
+            .map(|item| ValueType::Reference(ElementType::new(item))),
         ValueType::Object(identity) => {
-            let iterator = super::member_inference::descriptor_protocol_method(
-                unit,
-                &identity,
-                "iterator",
-            )
-            .ok_or((
-                "source iterable must define a non-static `iterator` method",
-                None,
-            ))?;
+            let iterator =
+                super::member_inference::descriptor_protocol_method(unit, &identity, "iterator")
+                    .ok_or((
+                        "source iterable must define a non-static `iterator` method",
+                        None,
+                    ))?;
             if iterator.is_async
                 || iterator.throws
                 || iterator.mutates_receiver
@@ -888,6 +887,11 @@ impl SemanticUnit {
         infer_value_type(self, node, &self.typed_bindings)
             .ok()
             .flatten()
+    }
+
+    pub(crate) fn function_contract_at(&self, node: &SyntaxNode) -> Option<&FunctionContract> {
+        self.function_contracts_by_span
+            .get(&(node.span.file, node.span.start, node.span.end))
     }
 
     pub(super) fn descriptor_alias_at(&self, name: &str, position: usize) -> Option<ScalarType> {

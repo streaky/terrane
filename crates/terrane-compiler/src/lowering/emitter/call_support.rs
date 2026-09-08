@@ -594,7 +594,8 @@ impl Emitter<'_> {
                     let ValueType::Object(identity) = value_type else {
                         return None;
                     };
-                    self.unit.objects
+                    self.unit
+                        .descriptors
                         .iter()
                         .find(|object| object.identity == identity)
                 })

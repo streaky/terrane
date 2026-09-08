@@ -1,6 +1,6 @@
 use super::prelude::*;
 fn logging_object(unit: &SemanticUnit, name: &str) -> ObjectIdentity {
-    unit.objects
+    unit.descriptors
         .iter()
         .find(|object| object.name == name)
         .map_or_else(
