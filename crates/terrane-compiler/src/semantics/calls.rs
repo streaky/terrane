@@ -182,7 +182,7 @@ pub(super) fn validate_call_nodes<'a>(
             if let Some(actual) = infer_value_type(unit, value, scoped_bindings)? {
                 validate_value_destination(
                     &unit.source,
-                    &unit.objects,
+                    &unit.descriptors,
                     "callable argument",
                     expected.value_type(),
                     actual,
@@ -398,7 +398,7 @@ pub(super) fn validate_resolved_assignment(
     };
     validate_value_destination(
         &unit.source,
-        &unit.objects,
+        &unit.descriptors,
         name,
         expected,
         actual,
@@ -515,7 +515,7 @@ pub(super) fn validate_call_arguments(
             } else if let Some(actual) = infer_value_type(unit, value, bindings)? {
                 validate_value_destination(
                     &unit.source,
-                    &unit.objects,
+                    &unit.descriptors,
                     &parameter.name,
                     expected,
                     actual,

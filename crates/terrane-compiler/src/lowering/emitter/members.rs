@@ -175,13 +175,12 @@ impl Emitter<'_> {
         }
     }
 
-    pub(super) fn class_designator(&self, node: &SyntaxNode) -> Option<&ObjectContract> {
+    pub(super) fn class_designator(&self, node: &SyntaxNode) -> Option<&DescriptorContract> {
         let name = self.text(node);
         if name == "self" {
             let identity = self.current_object.as_ref()?;
             return self
-                .unit
-                .objects
+                .unit.descriptors
                 .iter()
                 .find(|object| object.identity == *identity && object.kind == ObjectKind::Class);
         }
@@ -190,8 +189,7 @@ impl Emitter<'_> {
         }) {
             return None;
         }
-        self.unit
-            .objects
+        self.unit.descriptors
             .iter()
             .find(|object| object.name == name && object.kind == ObjectKind::Class)
     }

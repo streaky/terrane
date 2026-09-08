@@ -163,23 +163,22 @@ pub(super) fn unescape(value: &str) -> String {
 
 pub(super) fn effective_object_fields<'a>(
     unit: &'a SemanticUnit,
-    object: &'a ObjectContract,
+    object: &'a DescriptorContract,
 ) -> Vec<&'a ObjectField> {
     fn collect<'a>(
         unit: &'a SemanticUnit,
-        object: &'a ObjectContract,
+        object: &'a DescriptorContract,
         fields: &mut Vec<&'a ObjectField>,
     ) {
         if let Some(base) = object.base.as_ref().and_then(|identity| {
-            unit.objects
+            unit.descriptors
                 .iter()
                 .find(|object| object.identity == *identity)
         }) {
             collect(unit, base, fields);
         }
         for reused in &object.traits {
-            if let Some(reused) = unit
-                .objects
+            if let Some(reused) = unit.descriptors
                 .iter()
                 .find(|candidate| candidate.identity == *reused)
             {
@@ -203,9 +202,9 @@ pub(super) fn effective_object_fields<'a>(
 
 pub(super) fn object_descendants<'a>(
     unit: &'a SemanticUnit,
-    object: &ObjectContract,
-) -> Vec<&'a ObjectContract> {
-    unit.objects
+    object: &DescriptorContract,
+) -> Vec<&'a DescriptorContract> {
+    unit.descriptors
         .iter()
         .filter(|candidate| {
             let mut base = candidate.base.as_ref();
@@ -213,8 +212,7 @@ pub(super) fn object_descendants<'a>(
                 if identity == &object.identity {
                     return true;
                 }
-                base = unit
-                    .objects
+                base = unit.descriptors
                     .iter()
                     .find(|candidate| candidate.identity == *identity)
                     .and_then(|candidate| candidate.base.as_ref());
@@ -226,13 +224,13 @@ pub(super) fn object_descendants<'a>(
 
 pub(super) fn effective_object_interfaces<'a>(
     unit: &'a SemanticUnit,
-    object: &'a ObjectContract,
+    object: &'a DescriptorContract,
 ) -> Vec<&'a ObjectIdentity> {
     let mut interfaces = object
         .base
         .as_ref()
         .and_then(|identity| {
-            unit.objects
+            unit.descriptors
                 .iter()
                 .find(|candidate| candidate.identity == *identity)
         })
@@ -247,13 +245,13 @@ pub(super) fn effective_object_interfaces<'a>(
 
 pub(super) fn object_destructor_chain<'a>(
     unit: &'a SemanticUnit,
-    object: &'a ObjectContract,
+    object: &'a DescriptorContract,
 ) -> Vec<&'a FunctionContract> {
     let mut destructors = object
         .base
         .as_ref()
         .and_then(|identity| {
-            unit.objects
+            unit.descriptors
                 .iter()
                 .find(|candidate| candidate.identity == *identity)
         })
@@ -268,23 +266,22 @@ pub(super) fn object_destructor_chain<'a>(
 
 pub(super) fn effective_object_methods<'a>(
     unit: &'a SemanticUnit,
-    object: &'a ObjectContract,
+    object: &'a DescriptorContract,
 ) -> Vec<&'a FunctionContract> {
     fn collect<'a>(
         unit: &'a SemanticUnit,
-        object: &'a ObjectContract,
+        object: &'a DescriptorContract,
         methods: &mut Vec<&'a FunctionContract>,
     ) {
         if let Some(base) = object.base.as_ref().and_then(|identity| {
-            unit.objects
+            unit.descriptors
                 .iter()
                 .find(|object| object.identity == *identity)
         }) {
             collect(unit, base, methods);
         }
         for reused in &object.traits {
-            if let Some(reused) = unit
-                .objects
+            if let Some(reused) = unit.descriptors
                 .iter()
                 .find(|candidate| candidate.identity == *reused)
             {
@@ -760,7 +757,7 @@ pub(super) fn rust_object_type_name(
     let collides = package
         .units
         .iter()
-        .flat_map(|unit| &unit.objects)
+        .flat_map(|unit| &unit.descriptors)
         .filter(|object| object.identity.name == identity.name)
         .map(|object| &object.identity)
         .collect::<std::collections::BTreeSet<_>>()

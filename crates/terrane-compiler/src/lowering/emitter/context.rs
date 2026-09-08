@@ -640,8 +640,7 @@ impl Emitter<'_> {
         let Some(ValueType::Object(identity)) = self.receiver_value_type(receiver) else {
             return false;
         };
-        self.unit
-            .objects
+        self.unit.descriptors
             .iter()
             .find(|object| object.identity == identity)
             .is_some_and(|object| {
@@ -655,8 +654,7 @@ impl Emitter<'_> {
         let Some(ValueType::Object(identity)) = self.receiver_value_type(receiver) else {
             return false;
         };
-        self.unit
-            .objects
+        self.unit.descriptors
             .iter()
             .find(|object| object.identity == identity)
             .is_some_and(|object| {
@@ -680,8 +678,7 @@ impl Emitter<'_> {
             return false;
         };
         let Some(object) = self
-            .unit
-            .objects
+            .unit.descriptors
             .iter()
             .find(|object| object.identity == identity)
         else {
@@ -701,7 +698,7 @@ impl Emitter<'_> {
         self.package
             .units
             .iter()
-            .flat_map(|unit| &unit.objects)
+            .flat_map(|unit| &unit.descriptors)
             .any(|object| object.identity == *identity && object.resource_owning)
     }
 
@@ -709,15 +706,14 @@ impl Emitter<'_> {
         self.package
             .units
             .iter()
-            .flat_map(|unit| &unit.objects)
+            .flat_map(|unit| &unit.descriptors)
             .find(|object| object.identity == *identity)
             .is_some_and(|object| object.resource_owning)
     }
 
     pub(super) fn object_requires_separation(&self, identity: &ObjectIdentity) -> bool {
         let Some(object) = self
-            .unit
-            .objects
+            .unit.descriptors
             .iter()
             .find(|object| object.identity == *identity)
         else {
@@ -734,7 +730,7 @@ impl Emitter<'_> {
                         .any(|method| method.name == "destruct")
                 })
             || (object.kind == ObjectKind::Interface
-                && self.unit.objects.iter().any(|candidate| {
+                && self.unit.descriptors.iter().any(|candidate| {
                     candidate.interfaces.contains(&object.identity)
                         && (effective_object_methods(self.unit, candidate)
                             .iter()
@@ -816,8 +812,11 @@ impl Emitter<'_> {
         {
             node = grouped;
         }
+        let object_truth = matches!(self.value_type(node), Some(ValueType::Object(_)));
         let expression = self.expression(node);
-        if node.kind == SyntaxKind::BinaryExpression {
+        if object_truth {
+            format!("({expression}).truth()")
+        } else if node.kind == SyntaxKind::BinaryExpression {
             Self::unwrapped_expression(expression)
         } else {
             expression

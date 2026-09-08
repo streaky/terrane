@@ -202,21 +202,6 @@ Lower the semantic model to a small Rust-oriented IR before rendering text. The 
 This section contains only work that remains required by the settled version-one design. For a partially delivered milestone, its heading and exit criterion have been rewritten around the unfinished capability rather than repeating already implemented work. Requirements superseded by later language decisions are called out and excluded. Completely delivered milestones and completed portions of split milestones are retained in Appendix A.
 
 
-### Milestone 16 — Unify objects with the descriptor model
-
-Classes, inheritance, explicitly declared nominal interfaces, traits, lifecycle methods, and typed dynamic dispatch are complete, and the settled nominal/structural split — class, interface, and trait types nominal, protocols structural — supersedes the earlier plan’s “structural named interfaces” wording rather than remaining work.
-
-What remains is this milestone’s fourth original requirement, dispatch and compatibility over the descriptor model rather than a parallel class table, which did not ship alongside the class work. Source objects are described by a compiler-owned object contract table that semantic analysis and lowering read directly at every member, conformance, dispatch, and emission site. The descriptor model it was meant to defer to admits only the built-in `/core/types` descriptors and nothing declared in source, and structural satisfaction exists only as per-protocol special cases such as the iteration check. The canonical model therefore has to be built before object semantics can be routed through it; this is a deferred design constraint being paid back, not new source-visible capability beyond general protocol satisfaction.
-
-Deliver:
-
-- a canonical descriptor representation for source-declared classes, interfaces, and traits, admitting declared objects into the same model that today holds only built-in descriptors;
-- structural protocol satisfaction as a general query over that model, with the existing iteration protocol re-expressed as one instance of it rather than a hardcoded result-shape check;
-- member lookup, type compatibility, interface conformance, dispatch metadata, and reflection answered from the canonical model, retiring the compiler-owned object contract table from semantic analysis and lowering rather than maintaining it alongside them; and
-- namespace-qualified nominal identity, inherited dynamic state, receiver mutability, lifecycle composition, and explicit trait conflict resolution preserved across the cutover.
-
-Exit criterion: a source class satisfies a structural protocol other than iteration without declaring an interface; no parallel object contract table decides source semantics; existing class/interface/trait conformance remains executable unchanged; protocol satisfaction and descriptor reflection answer from the same canonical contracts; rejected cases retain source-oriented diagnostics.
-
 ### Milestone 17 — Complete references, provenance, and lowering
 
 The source forms `ref`, `shared ref`, and `move`, replacement invalidation, explicit ownership transfer, reference-backed storage, and directly provable async-local ownership are complete. The remaining work is whole-path provenance and the intended cost model, neither of which exists yet in partial form.
@@ -597,6 +582,26 @@ The first-version compiler is done only when:
 ## Appendix A. Completed milestone record
 
 This appendix keeps delivered milestone contracts and evidence out of the active roadmap. Full milestone records below are preserved as completed implementation history. Entries titled “Completed portion” contain only the delivered side of a milestone whose remaining work appears in section 7; superseded requirements are recorded as such rather than carried forward.
+
+### Milestone 16 — Unified object descriptors and structural protocols
+
+Source-declared classes, interfaces, and traits now enter semantic analysis as
+`DescriptorContract` records in each unit's canonical descriptor collection. Member lookup,
+nominal compatibility and interface conformance, dispatch metadata, reflection, and lowering use
+that representation; the former `ObjectContract`/`objects` model has been removed. Namespace
+identity, inheritance, receiver mutability, lifecycle composition, and explicit trait resolution
+remain covered by the unchanged object corpus.
+
+Structural protocol satisfaction resolves required members through
+`descriptor_protocol_method`. Existing iteration analysis now uses that general query. The
+non-iteration `truth` protocol accepts a source class without a nominal interface when its
+descriptor provides a synchronous, non-throwing, non-mutating, parameterless `truth bool` method;
+conditions with missing or malformed contracts retain source-oriented `T0014` diagnostics.
+
+Evidence: `truth-protocol` executes class instances as conditions with canonical generated Rust,
+`truth-protocol-signature` rejects a malformed protocol member, and the existing
+`iterator-protocol`, class/interface/trait, dispatch, lifecycle, nominal-identity, and
+`descriptor-reflection` conformance cases remain the regression contract.
 
 ### Milestone 15 — Caller-supplied conversion callbacks
 

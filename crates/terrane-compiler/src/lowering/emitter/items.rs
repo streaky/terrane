@@ -191,7 +191,7 @@ impl Emitter<'_> {
     )]
     fn object_document_decoder(
         &mut self,
-        object: &ObjectContract,
+        object: &DescriptorContract,
         class_type: &str,
         fields: &[&ObjectField],
     ) {
@@ -348,8 +348,7 @@ impl Emitter<'_> {
     )]
     pub(super) fn object(&mut self, node: &SyntaxNode) {
         let object = self
-            .unit
-            .objects
+            .unit.descriptors
             .iter()
             .find(|object| object.span == node.span)
             .expect("analyzed object declaration must have a semantic contract");
@@ -868,7 +867,7 @@ impl Emitter<'_> {
                         for descendant in &descendants {
                             let descendant_type =
                                 rust_object_type_name(self.package, &descendant.identity);
-                            if self.unit.objects.iter().any(|candidate| {
+                            if self.unit.descriptors.iter().any(|candidate| {
                                 candidate.base.as_ref() == Some(&descendant.identity)
                             }) {
                                 self.line(&format!(
@@ -894,7 +893,7 @@ impl Emitter<'_> {
                         for descendant in &descendants {
                             let descendant_type =
                                 rust_object_type_name(self.package, &descendant.identity);
-                            if self.unit.objects.iter().any(|candidate| {
+                            if self.unit.descriptors.iter().any(|candidate| {
                                 candidate.base.as_ref() == Some(&descendant.identity)
                             }) {
                                 self.line(&format!(
@@ -926,8 +925,7 @@ impl Emitter<'_> {
                         .iter()
                         .find(|candidate| candidate.namespace == interface_identity.namespace)
                         .expect("resolved interface namespace");
-                    let interface = interface_unit
-                        .objects
+                    let interface = interface_unit.descriptors
                         .iter()
                         .find(|candidate| candidate.identity == *interface_identity)
                         .expect("validated interface contract");

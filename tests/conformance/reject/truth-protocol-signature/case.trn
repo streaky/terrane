@@ -1,0 +1,10 @@
+namespace truth-protocol-signature
+
+class gate
+  function truth int;
+    return 1
+
+function main;
+  value gate = instance gate;
+  if value
+    print; 'invalid'

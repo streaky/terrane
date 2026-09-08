@@ -5,11 +5,10 @@ impl Emitter<'_> {
         let source_name = value_type.to_string();
         let object = match value_type {
             ValueType::Object(identity) => self
-                .unit
-                .objects
+                .unit.descriptors
                 .iter()
                 .find(|object| object.identity == *identity),
-            ValueType::Descriptor(identity) => self.unit.objects.iter().find(|object| {
+            ValueType::Descriptor(identity) => self.unit.descriptors.iter().find(|object| {
                 object.name == *identity || object.identity.qualified() == *identity
             }),
             _ => None,
@@ -346,8 +345,7 @@ impl Emitter<'_> {
             && self.text(node) == "this"
             && let Some(actual) = &self.current_object
             && let Some(destination) = self
-                .unit
-                .objects
+                .unit.descriptors
                 .iter()
                 .find(|object| object.identity == *expected)
         {
@@ -377,8 +375,7 @@ impl Emitter<'_> {
             && let Some(ValueType::Object(actual)) = self.value_type(node)
             && actual != *expected
             && let Some(destination) = self
-                .unit
-                .objects
+                .unit.descriptors
                 .iter()
                 .find(|object| object.identity == *expected)
                 .or_else(|| {
@@ -390,7 +387,7 @@ impl Emitter<'_> {
                                 .iter()
                                 .find(|unit| unit.namespace == symbol.namespace)
                                 .and_then(|unit| {
-                                    unit.objects
+                                    unit.descriptors
                                         .iter()
                                         .find(|object| object.name == symbol.name)
                                 })
@@ -398,7 +395,7 @@ impl Emitter<'_> {
                 })
                 .or_else(|| {
                     self.package.units.iter().find_map(|unit| {
-                        unit.objects.iter().find(|object| {
+                        unit.descriptors.iter().find(|object| {
                             object.identity == *expected && object.kind == ObjectKind::Interface
                         })
                     })

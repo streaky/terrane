@@ -117,6 +117,21 @@ impl std::fmt::Display for ElementType {
         self.0.fmt(formatter)
     }
 }
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum ReferenceProjection {
+    Field(String),
+    Element,
+    CallResult,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ReferenceProvenance {
+    pub owner: Span,
+    pub external_lender: bool,
+    pub path: Vec<ReferenceProjection>,
+    pub lifetime_end: Option<Span>,
+}
 pub(super) fn iterable_item_type(
     unit: &SemanticUnit,
     value_type: ValueType,
@@ -136,12 +151,15 @@ pub(super) fn iterable_item_type(
         }
         ValueType::Range => Ok(ValueType::Scalar(ScalarType::Int)),
         ValueType::Object(identity) => {
-            let iterator =
-                super::member_inference::object_method_contract(unit, &identity, "iterator", false)
-                    .ok_or((
-                        "source iterable must define a non-static `iterator` method",
-                        None,
-                    ))?;
+            let iterator = super::member_inference::descriptor_protocol_method(
+                unit,
+                &identity,
+                "iterator",
+            )
+            .ok_or((
+                "source iterable must define a non-static `iterator` method",
+                None,
+            ))?;
             if iterator.is_async
                 || iterator.throws
                 || iterator.mutates_receiver
@@ -155,11 +173,10 @@ pub(super) fn iterable_item_type(
             match iterator.return_type.as_ref() {
                 Some(ValueType::Iterator(item)) => Ok(item.value_type()),
                 Some(ValueType::Object(iterator_identity)) => {
-                    let next = super::member_inference::object_method_contract(
+                    let next = super::member_inference::descriptor_protocol_method(
                         unit,
                         iterator_identity,
                         "next",
-                        false,
                     )
                     .ok_or((
                         "source iterator must define a non-static `next` method",
@@ -766,7 +783,7 @@ pub struct ObjectField {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub struct ObjectContract {
+pub struct DescriptorContract {
     /// Name visible in this unit; imported contracts carry their local alias here.
     pub name: String,
     /// Stable declaration identity used for semantic equality and cross-unit lookup.
@@ -850,9 +867,11 @@ pub struct SemanticUnit {
     pub(crate) bundled: bool,
     pub scopes: Vec<LexicalScope>,
     pub typed_bindings: Vec<TypedBinding>,
+    /// Proven owners and projections for non-owning reference expressions and bindings.
+    pub reference_provenance: BTreeMap<(usize, usize), ReferenceProvenance>,
     /// Function contracts declared by every source unit in this unit's namespace.
     pub functions: Vec<FunctionContract>,
-    pub objects: Vec<ObjectContract>,
+    pub descriptors: Vec<DescriptorContract>,
     pub(super) comparable_foreign_objects: BTreeSet<ObjectIdentity>,
     pub(super) function_aliases: BTreeMap<String, FunctionContract>,
     pub(super) function_contracts_by_span: BTreeMap<(u32, usize, usize), FunctionContract>,

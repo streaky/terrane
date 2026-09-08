@@ -972,16 +972,15 @@ features:
 - id: canonical-object-descriptors
   name: Unified source object descriptors
   category: objects
-  status: planned
-  completion: 0
+  status: done
+  completion: 100
   milestone: '16'
   reference:
-    state: planned
+    state: documented
     paths:
     - manual/reference/records/language/types/descriptors.yaml
     - manual/reference/records/language/classes/protocols.yaml
-  notes: Will replace the parallel object contract table with one descriptor model for lookup, conformance, dispatch,
-    and reflection.
+  notes: Source class, interface, and trait contracts now use the canonical descriptor model; iteration and truth resolve through its general structural-member query.
   sources:
   - docs/compiler-plan.md#Milestone 16
 - id: value-copy-semantics
