@@ -17,7 +17,7 @@ use sha2::{Digest, Sha256};
 use crate::RustDependency;
 
 pub use crate::RUSTDOC_TOOLCHAIN;
-const PROJECTION_SCHEMA: &str = "20";
+const PROJECTION_SCHEMA: &str = "22";
 const MAX_PROJECTION_CACHE_RECORDS: usize = 4;
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
@@ -1103,7 +1103,7 @@ pub fn resolve(
         PublishedProjection::Event(event) => resolution_events.push(event),
     }
 
-    let mut projected = Vec::new();
+    let mut rustdocs = Vec::new();
     for dependency in dependencies {
         let package_spec = dependency.version.strip_prefix('=').map_or_else(
             || dependency.package.clone(),
@@ -1142,8 +1142,26 @@ pub fn resolve(
                 rustdoc_path.display()
             ),
         })?;
-        projected.push(project_rustdoc(dependency, &bytes)?);
+        rustdocs.push((dependency, parse_rustdoc(dependency, &bytes)?));
     }
+    let mut canonical_public_paths = BTreeMap::new();
+    for (_, document) in &rustdocs {
+        for (id, public_path) in rustdoc_public_paths(document) {
+            if let Some(summary) = document
+                .paths
+                .get(&id)
+                .filter(|summary| summary.crate_id == 0)
+            {
+                canonical_public_paths.insert(summary.path.join("::"), public_path);
+            }
+        }
+    }
+    let mut projected = rustdocs
+        .iter()
+        .map(|(dependency, document)| {
+            project_rustdoc(dependency, document, &canonical_public_paths)
+        })
+        .collect::<Vec<_>>();
     enforce_transitive_reachability(&mut projected, dependencies, &workspace)?;
     resolution_events.push(ResolutionEvent {
         source: ResolutionSource::LocalRustdoc,
@@ -1932,14 +1950,10 @@ fn undeclared_owner_reason(owner: &str, versions: &BTreeMap<String, BTreeSet<Str
     )
 }
 
-#[expect(
-    clippy::too_many_lines,
-    reason = "one rustdoc item pass records admitted and declined public items together"
-)]
-fn project_rustdoc(
+fn parse_rustdoc(
     dependency: &RustDependency,
     bytes: &[u8],
-) -> Result<ProjectedDependency, ProjectionError> {
+) -> Result<RustdocCrate, ProjectionError> {
     let document: RustdocCrate =
         serde_json::from_slice(bytes).map_err(|error| ProjectionError {
             message: format!(
@@ -1958,34 +1972,56 @@ fn project_rustdoc(
             ),
         });
     }
-    let index = &document.index;
-    let paths = &document.paths;
-    let mut public_paths = BTreeMap::<Id, String>::new();
-    for (module_id, summary) in paths {
+    Ok(document)
+}
+
+fn rustdoc_public_paths(document: &RustdocCrate) -> BTreeMap<Id, String> {
+    let mut public_paths = BTreeMap::new();
+    for (module_id, summary) in &document.paths {
         if summary.crate_id != 0
             || !matches!(
-                index.get(module_id).map(|item| &item.inner),
+                document.index.get(module_id).map(|item| &item.inner),
                 Some(ItemEnum::Module(_))
             )
         {
             continue;
         }
         record_public_module_items(
-            index,
+            &document.index,
             *module_id,
             &summary.path,
             &mut public_paths,
             &mut BTreeSet::new(),
         );
     }
+    public_paths
+}
+
+#[expect(
+    clippy::too_many_lines,
+    reason = "one rustdoc item pass records admitted and declined public items together"
+)]
+fn project_rustdoc(
+    dependency: &RustDependency,
+    document: &RustdocCrate,
+    canonical_public_paths: &BTreeMap<String, String>,
+) -> ProjectedDependency {
+    let index = &document.index;
+    let original_paths = &document.paths;
+    let public_paths = rustdoc_public_paths(document);
+    let mut canonical_paths = original_paths.clone();
+    for summary in canonical_paths.values_mut() {
+        if let Some(public_path) = canonical_public_paths.get(&summary.path.join("::")) {
+            summary.path = public_path.split("::").map(str::to_owned).collect();
+        }
+    }
+    let paths = &canonical_paths;
     let mut candidates = BTreeMap::<Id, Vec<String>>::new();
     for (id, summary) in paths.iter().filter(|(_, summary)| summary.crate_id == 0) {
         candidates.insert(*id, summary.path.clone());
     }
     for (id, public_path) in &public_paths {
-        candidates
-            .entry(*id)
-            .or_insert_with(|| public_path.split("::").map(str::to_owned).collect());
+        candidates.insert(*id, public_path.split("::").map(str::to_owned).collect());
     }
     let mut items = Vec::new();
     let mut projected_enum_items = Vec::new();
@@ -2279,15 +2315,16 @@ fn project_rustdoc(
     declined.sort_by(|left, right| {
         (&left.rust_path, &left.reason).cmp(&(&right.rust_path, &right.reason))
     });
-    Ok(ProjectedDependency {
+    ProjectedDependency {
         name: dependency.name.clone(),
         package: dependency.package.clone(),
         version: document
             .crate_version
+            .clone()
             .unwrap_or_else(|| dependency.version.clone()),
         items,
         declined,
-    })
+    }
 }
 
 fn default_generic_instantiation(
@@ -3556,7 +3593,7 @@ mod tests {
         ProjectedItem, ProjectedKind, ProjectedType, Projection, ProjectionArtifact,
         ProjectionHistory, ProjectionResolution, ProjectionSource, Receiver, ResolutionOutcome,
         apply_projection_history, enforce_transitive_reachability, has_type_parameters,
-        prefer_public_path, project_rustdoc, project_type, projection_content_hash,
+        parse_rustdoc, prefer_public_path, project_type, projection_content_hash,
         prune_projection_cache, receiver_kind, resolve, selected_target,
         validate_projection_artifact,
     };
@@ -4072,7 +4109,7 @@ mod tests {
             effects: Vec::new(),
         };
 
-        let error = project_rustdoc(&dependency, &serde_json::to_vec(&document).unwrap())
+        let error = parse_rustdoc(&dependency, &serde_json::to_vec(&document).unwrap())
             .expect_err("an unsupported rustdoc schema must fail");
 
         assert!(error.message.contains("schema mismatch"));
@@ -4100,7 +4137,7 @@ mod tests {
         };
         let malformed = format!(r#"{{"format_version":{}}}"#, rustdoc_types::FORMAT_VERSION);
 
-        let error = project_rustdoc(&dependency, malformed.as_bytes())
+        let error = parse_rustdoc(&dependency, malformed.as_bytes())
             .expect_err("malformed rustdoc JSON must fail");
 
         assert!(error.message.contains("schema mismatch"));

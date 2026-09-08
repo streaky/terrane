@@ -519,8 +519,34 @@ fn main() {
     println!("{}", terrane_scalar_support::scalar_text(&candidate.is_some()));
     println!("{}", terrane_scalar_support::scalar_text(&(data != io)));
 }
-// Source: <terrane>/projected/deps/bytes/buf/buf-mut/bufmut.trn
-// Namespace: deps/bytes/buf/buf-mut/bufmut
+// Source: <terrane>/projected/deps/bytes.trn
+// Namespace: deps/bytes
+pub use bytes::Bytes;
+pub use bytes::BytesMut;
+pub fn with_capacity(
+    capacity: terrane_int_support::Int,
+) -> Result<BytesMut, crate::TerraneForeignError> {
+    let capacity = terrane_int_support::coerce::<usize>(&capacity)
+        .map_err(|error| crate::TerraneForeignError(
+            crate::TerraneRaised::raised(error, crate::TERRANE_NO_SITE),
+        ))?;
+    match std::panic::catch_unwind(
+        std::panic::AssertUnwindSafe(|| bytes::BytesMut::with_capacity(capacity)),
+    ) {
+        Ok(value) => Ok(value),
+        Err(payload) => {
+            Err(
+                crate::__terrane_dependency_panic(
+                    payload,
+                    "bytes",
+                    "bytes::BytesMut::with_capacity",
+                ),
+            )
+        }
+    }
+}
+// Source: <terrane>/projected/deps/bytes/bufmut.trn
+// Namespace: deps/bytes/bufmut
 pub fn remaining_mut(
     receiver: &BytesMut,
 ) -> Result<terrane_int_support::Int, crate::TerraneForeignError> {
@@ -541,29 +567,26 @@ pub fn remaining_mut(
         }
     }
 }
-// Source: <terrane>/projected/deps/bytes/bytes.trn
-// Namespace: deps/bytes/bytes
-pub use bytes::Bytes;
-// Source: <terrane>/projected/deps/bytes/bytes-mut.trn
-// Namespace: deps/bytes/bytes-mut
-pub use bytes::BytesMut;
-pub fn with_capacity(
-    capacity: terrane_int_support::Int,
-) -> Result<BytesMut, crate::TerraneForeignError> {
-    let capacity = terrane_int_support::coerce::<usize>(&capacity)
+// Source: <terrane>/projected/deps/serde-json.trn
+// Namespace: deps/serde-json
+pub use serde_json::Number;
+pub fn from_u128(
+    i: terrane_int_support::Int,
+) -> Result<Option<Number>, crate::TerraneForeignError> {
+    let i = terrane_int_support::coerce::<u128>(&i)
         .map_err(|error| crate::TerraneForeignError(
             crate::TerraneRaised::raised(error, crate::TERRANE_NO_SITE),
         ))?;
     match std::panic::catch_unwind(
-        std::panic::AssertUnwindSafe(|| bytes::BytesMut::with_capacity(capacity)),
+        std::panic::AssertUnwindSafe(|| serde_json::Number::from_u128(i)),
     ) {
         Ok(value) => Ok(value),
         Err(payload) => {
             Err(
                 crate::__terrane_dependency_panic(
                     payload,
-                    "bytes",
-                    "bytes::BytesMut::with_capacity",
+                    "serde-json",
+                    "serde_json::Number::from_u128",
                 ),
             )
         }
@@ -603,31 +626,6 @@ pub fn __trn_496f() -> Result<Category, crate::TerraneForeignError> {
                     payload,
                     "serde-json",
                     "serde_json::error::Category::Io",
-                ),
-            )
-        }
-    }
-}
-// Source: <terrane>/projected/deps/serde-json/number.trn
-// Namespace: deps/serde-json/number
-pub use serde_json::Number;
-pub fn from_u128(
-    i: terrane_int_support::Int,
-) -> Result<Option<Number>, crate::TerraneForeignError> {
-    let i = terrane_int_support::coerce::<u128>(&i)
-        .map_err(|error| crate::TerraneForeignError(
-            crate::TerraneRaised::raised(error, crate::TERRANE_NO_SITE),
-        ))?;
-    match std::panic::catch_unwind(
-        std::panic::AssertUnwindSafe(|| serde_json::Number::from_u128(i)),
-    ) {
-        Ok(value) => Ok(value),
-        Err(payload) => {
-            Err(
-                crate::__terrane_dependency_panic(
-                    payload,
-                    "serde-json",
-                    "serde_json::Number::from_u128",
                 ),
             )
         }

@@ -1,97 +1,275 @@
 {
-  "format": 1,
+  "format": 2,
   "dependencies": [
+    {
+      "name": "http",
+      "version": "1.3.1",
+      "members": [
+        [
+          "/deps/http",
+          "Error"
+        ],
+        [
+          "/deps/http",
+          "Extensions"
+        ],
+        [
+          "/deps/http",
+          "HeaderMap-58e43e777dcb514a092981c67c61d59343fe2175cf2bff51b56a8b5dab852a51"
+        ],
+        [
+          "/deps/http",
+          "HeaderName"
+        ],
+        [
+          "/deps/http",
+          "HeaderValue"
+        ],
+        [
+          "/deps/http",
+          "Method"
+        ],
+        [
+          "/deps/http",
+          "StatusCode"
+        ],
+        [
+          "/deps/http",
+          "Uri"
+        ],
+        [
+          "/deps/http",
+          "Version"
+        ],
+        [
+          "/deps/http",
+          "builder"
+        ],
+        [
+          "/deps/http",
+          "from_name"
+        ],
+        [
+          "/deps/http",
+          "from_parts"
+        ],
+        [
+          "/deps/http",
+          "from_str"
+        ],
+        [
+          "/deps/http",
+          "from_u16"
+        ],
+        [
+          "/deps/http",
+          "try_with_capacity"
+        ],
+        [
+          "/deps/http",
+          "with_capacity"
+        ],
+        [
+          "/deps/http/header",
+          "InvalidHeaderName"
+        ],
+        [
+          "/deps/http/header",
+          "InvalidHeaderValue"
+        ],
+        [
+          "/deps/http/header",
+          "MaxSizeReached"
+        ],
+        [
+          "/deps/http/header",
+          "ToStrError"
+        ],
+        [
+          "/deps/http/header/map/as-header-name",
+          "TryEntryError"
+        ],
+        [
+          "/deps/http/method",
+          "InvalidMethod"
+        ],
+        [
+          "/deps/http/request",
+          "Builder"
+        ],
+        [
+          "/deps/http/request",
+          "Parts"
+        ],
+        [
+          "/deps/http/request",
+          "new"
+        ],
+        [
+          "/deps/http/response",
+          "Builder"
+        ],
+        [
+          "/deps/http/response",
+          "Parts"
+        ],
+        [
+          "/deps/http/response",
+          "new"
+        ],
+        [
+          "/deps/http/status",
+          "InvalidStatusCode"
+        ],
+        [
+          "/deps/http/uri",
+          "Authority"
+        ],
+        [
+          "/deps/http/uri",
+          "Builder"
+        ],
+        [
+          "/deps/http/uri",
+          "InvalidUri"
+        ],
+        [
+          "/deps/http/uri",
+          "InvalidUriParts"
+        ],
+        [
+          "/deps/http/uri",
+          "Parts"
+        ],
+        [
+          "/deps/http/uri",
+          "PathAndQuery"
+        ],
+        [
+          "/deps/http/uri",
+          "Scheme"
+        ],
+        [
+          "/deps/http/uri",
+          "new"
+        ]
+      ]
+    },
     {
       "name": "reqwest",
       "version": "0.12.23",
       "members": [
         [
           "/deps/reqwest",
-          "get"
-        ],
-        [
-          "/deps/reqwest/async-impl/body",
           "Body"
         ],
         [
-          "/deps/reqwest/async-impl/client",
+          "/deps/reqwest",
+          "Certificate"
+        ],
+        [
+          "/deps/reqwest",
           "Client"
         ],
         [
-          "/deps/reqwest/async-impl/client",
+          "/deps/reqwest",
           "ClientBuilder"
+        ],
+        [
+          "/deps/reqwest",
+          "Error"
+        ],
+        [
+          "/deps/reqwest",
+          "Identity"
+        ],
+        [
+          "/deps/reqwest",
+          "NoProxy"
+        ],
+        [
+          "/deps/reqwest",
+          "Proxy"
+        ],
+        [
+          "/deps/reqwest",
+          "Request"
+        ],
+        [
+          "/deps/reqwest",
+          "RequestBuilder"
+        ],
+        [
+          "/deps/reqwest",
+          "Response"
+        ],
+        [
+          "/deps/reqwest",
+          "Upgraded"
+        ],
+        [
+          "/deps/reqwest",
+          "builder"
+        ],
+        [
+          "/deps/reqwest",
+          "from_env"
+        ],
+        [
+          "/deps/reqwest",
+          "from_parts"
+        ],
+        [
+          "/deps/reqwest",
+          "get"
+        ],
+        [
+          "/deps/reqwest",
+          "new"
         ],
         [
           "/deps/reqwest/async-impl/client",
           "Pending"
         ],
         [
-          "/deps/reqwest/async-impl/client",
-          "builder"
+          "/deps/reqwest/blocking",
+          "Body"
         ],
         [
-          "/deps/reqwest/async-impl/client",
-          "new"
+          "/deps/reqwest/blocking",
+          "Client"
         ],
         [
-          "/deps/reqwest/async-impl/request",
+          "/deps/reqwest/blocking",
+          "ClientBuilder"
+        ],
+        [
+          "/deps/reqwest/blocking",
           "Request"
         ],
         [
-          "/deps/reqwest/async-impl/request",
+          "/deps/reqwest/blocking",
           "RequestBuilder"
         ],
         [
-          "/deps/reqwest/async-impl/request",
-          "from_parts"
-        ],
-        [
-          "/deps/reqwest/async-impl/response",
+          "/deps/reqwest/blocking",
           "Response"
         ],
         [
-          "/deps/reqwest/async-impl/upgrade",
-          "Upgraded"
+          "/deps/reqwest/blocking",
+          "builder"
+        ],
+        [
+          "/deps/reqwest/blocking",
+          "from_parts"
         ],
         [
           "/deps/reqwest/blocking",
           "get"
         ],
         [
-          "/deps/reqwest/blocking/body",
-          "Body"
-        ],
-        [
-          "/deps/reqwest/blocking/client",
-          "Client"
-        ],
-        [
-          "/deps/reqwest/blocking/client",
-          "ClientBuilder"
-        ],
-        [
-          "/deps/reqwest/blocking/client",
-          "builder"
-        ],
-        [
-          "/deps/reqwest/blocking/client",
+          "/deps/reqwest/blocking",
           "new"
-        ],
-        [
-          "/deps/reqwest/blocking/request",
-          "Request"
-        ],
-        [
-          "/deps/reqwest/blocking/request",
-          "RequestBuilder"
-        ],
-        [
-          "/deps/reqwest/blocking/request",
-          "from_parts"
-        ],
-        [
-          "/deps/reqwest/blocking/response",
-          "Response"
         ],
         [
           "/deps/reqwest/connect/sealed",
@@ -106,28 +284,12 @@
           "Internal"
         ],
         [
-          "/deps/reqwest/dns/resolve",
+          "/deps/reqwest/dns",
           "Name"
         ],
         [
           "/deps/reqwest/dns/resolve/sealed",
           "InvalidNameError"
-        ],
-        [
-          "/deps/reqwest/error",
-          "Error"
-        ],
-        [
-          "/deps/reqwest/proxy",
-          "NoProxy"
-        ],
-        [
-          "/deps/reqwest/proxy",
-          "Proxy"
-        ],
-        [
-          "/deps/reqwest/proxy",
-          "from_env"
         ],
         [
           "/deps/reqwest/redirect",
@@ -159,15 +321,7 @@
         ],
         [
           "/deps/reqwest/tls",
-          "Certificate"
-        ],
-        [
-          "/deps/reqwest/tls",
           "CertificateRevocationList"
-        ],
-        [
-          "/deps/reqwest/tls",
-          "Identity"
         ],
         [
           "/deps/reqwest/tls",
@@ -180,5 +334,30 @@
       ]
     }
   ],
-  "removed": []
+  "removed": [],
+  "cache_identity": "0d039bcd9b18a23dfe2b503a62c96c704c9117bba09ce6d714374baf224a9515",
+  "source": "Local",
+  "rustdoc_format": 57,
+  "projection_schema": "21",
+  "content_hash": "9916284f2cc23b70676d13287514fc32450e15a871d5e1fe07d9631e9a22bf3d",
+  "resolution": {
+    "outcome": "LocalRustdoc",
+    "events": [
+      {
+        "source": "BundledArtifact",
+        "status": "Skipped",
+        "reason": "bundled projection distribution is deliberately deferred until Terrane has a release artifact channel"
+      },
+      {
+        "source": "PublishedArtifact",
+        "status": "Skipped",
+        "reason": "`TERRANE_PROJECTION_ARTIFACT_URL` is not configured"
+      },
+      {
+        "source": "LocalRustdoc",
+        "status": "Generated",
+        "reason": "no reusable exact artifact was available; generated with the pinned local rustdoc toolchain"
+      }
+    ]
+  }
 }

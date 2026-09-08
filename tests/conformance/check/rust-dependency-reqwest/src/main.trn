@@ -1,6 +1,6 @@
 namespace app
 from /deps/reqwest/blocking import get
-from /deps/http/status import StatusCode
+from /deps/http import StatusCode
 function main;
     response = get; >http://127.0.0.1:38125/
     response.headers_mut;

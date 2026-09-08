@@ -1,5 +1,5 @@
 {
-  "format": 1,
+  "format": 2,
   "dependencies": [
     {
       "name": "numr",
@@ -22,6 +22,18 @@
           "machine_epsilon"
         ],
         [
+          "/deps/numr/algorithm",
+          "validate_linalg_dtype"
+        ],
+        [
+          "/deps/numr/algorithm",
+          "validate_polynomial_dtype"
+        ],
+        [
+          "/deps/numr/algorithm",
+          "validate_special_dtype"
+        ],
+        [
           "/deps/numr/algorithm/fft",
           "complex_dtype_for_real"
         ],
@@ -40,6 +52,18 @@
         [
           "/deps/numr/algorithm/fft",
           "real_dtype_for_complex"
+        ],
+        [
+          "/deps/numr/algorithm/fft",
+          "validate_fft_complex_dtype"
+        ],
+        [
+          "/deps/numr/algorithm/fft",
+          "validate_fft_size"
+        ],
+        [
+          "/deps/numr/algorithm/fft",
+          "validate_rfft_real_dtype"
         ],
         [
           "/deps/numr/algorithm/fft-bluestein",
@@ -239,6 +263,10 @@
         ],
         [
           "/deps/numr/algorithm/special",
+          "sph_harm_complex_scalar"
+        ],
+        [
+          "/deps/numr/algorithm/special",
           "sph_harm_scalar"
         ],
         [
@@ -256,10 +284,6 @@
         [
           "/deps/numr/autograd",
           "var_transpose"
-        ],
-        [
-          "/deps/numr/autograd/backwardhook",
-          "on_leaf_grad_ready"
         ],
         [
           "/deps/numr/dtype",
@@ -811,7 +835,31 @@
         ],
         [
           "/deps/numr/prelude",
+          "Layout"
+        ],
+        [
+          "/deps/numr/prelude",
+          "NoOpGraph"
+        ],
+        [
+          "/deps/numr/prelude",
           "ParallelismConfig"
+        ],
+        [
+          "/deps/numr/prelude",
+          "Shape"
+        ],
+        [
+          "/deps/numr/prelude",
+          "Strides"
+        ],
+        [
+          "/deps/numr/prelude/device",
+          "id"
+        ],
+        [
+          "/deps/numr/prelude/device",
+          "name"
         ],
         [
           "/deps/numr/prelude/fftdirection",
@@ -838,6 +886,10 @@
           "Ortho"
         ],
         [
+          "/deps/numr/prelude/graph",
+          "launch"
+        ],
+        [
           "/deps/numr/runtime",
           "AllocationStats"
         ],
@@ -851,10 +903,6 @@
         ],
         [
           "/deps/numr/runtime",
-          "NoOpGraph"
-        ],
-        [
-          "/deps/numr/runtime",
           "ParallelDim"
         ],
         [
@@ -863,7 +911,15 @@
         ],
         [
           "/deps/numr/runtime/communicator",
+          "barrier"
+        ],
+        [
+          "/deps/numr/runtime/communicator",
           "rank"
+        ],
+        [
+          "/deps/numr/runtime/communicator",
+          "sync"
         ],
         [
           "/deps/numr/runtime/communicator",
@@ -902,14 +958,6 @@
           "SobolPolynomialResolver"
         ],
         [
-          "/deps/numr/runtime/device",
-          "id"
-        ],
-        [
-          "/deps/numr/runtime/device",
-          "name"
-        ],
-        [
           "/deps/numr/runtime/paralleldim",
           "Data"
         ],
@@ -942,23 +990,36 @@
           "Sum"
         ],
         [
-          "/deps/numr/tensor",
-          "Layout"
-        ],
-        [
-          "/deps/numr/tensor",
-          "Shape"
-        ],
-        [
-          "/deps/numr/tensor",
-          "Strides"
-        ],
-        [
           "/deps/numr/tensor/storage",
           "RawBuffer"
         ]
       ]
     }
   ],
-  "removed": []
+  "removed": [],
+  "cache_identity": "92e09d0fa9f4320cddbde7030cfb8ff8c1fdf6d2017ee2dd80916235f7ddf54c",
+  "source": "Local",
+  "rustdoc_format": 57,
+  "projection_schema": "22",
+  "content_hash": "b1cb1f52eec811c274dad514b1556446b1ebd0590fdbc5f395620a669b2f8c9b",
+  "resolution": {
+    "outcome": "LocalRustdoc",
+    "events": [
+      {
+        "source": "BundledArtifact",
+        "status": "Skipped",
+        "reason": "bundled projection distribution is deliberately deferred until Terrane has a release artifact channel"
+      },
+      {
+        "source": "PublishedArtifact",
+        "status": "Skipped",
+        "reason": "`TERRANE_PROJECTION_ARTIFACT_URL` is not configured"
+      },
+      {
+        "source": "LocalRustdoc",
+        "status": "Generated",
+        "reason": "no reusable exact artifact was available; generated with the pinned local rustdoc toolchain"
+      }
+    ]
+  }
 }

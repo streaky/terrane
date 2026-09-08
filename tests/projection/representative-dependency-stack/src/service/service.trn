@@ -1,5 +1,5 @@
 namespace projection-probe/service
-from /deps/axum/routing import new
+from /deps/axum import new
 
 function router-empty bool;
     router = new;
