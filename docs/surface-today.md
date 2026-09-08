@@ -669,6 +669,12 @@ the current instance in instance methods; late-bound `self` denotes the effectiv
 and static methods, including inherited static factories using `instance self;`. Instance state is
 independent for every constructed value. Static state is shared by one effective class but separate
 between a base class and each subclass; nested member writes mutate that shared storage directly.
+Return validation recognizes one static-only postcondition used by lazy initialization: an exact
+`T|none` static member returned as `T` is proven present only after a preceding sibling absence
+guard with no `else`, exactly one direct compatible assignment to that same textual target, no
+other branch write, and no intervening write. This does not narrow the member inside the block,
+does not apply to instance members, and falls back to the ordinary optional-type diagnostic when
+any precondition is absent.
 Destruction is ordered from the most-derived class toward the root base. Value separation copies
 class and interface-typed state into a fresh lifecycle lineage, while compiler-introduced Rust
 clones remain within one lineage and cannot multiply the hook. Subclass values retain inherited and

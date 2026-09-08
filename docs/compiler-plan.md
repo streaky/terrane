@@ -2363,12 +2363,14 @@ terminates in an async operation and therefore cannot become executable before t
 lowering contract. The probe inventory records both decisions and their exact witnesses.
 `terrane-projection.lock` format 2 provides deterministic machine-independent history, records
 projection provenance and content identity, migrates format 1 on the next successful projection,
-and rejects same-input replay drift with both hashes. `S2031` names a removed member and its
-resolved version transition. The accepted
-`rust-dependency-deferred-surface` execution case crosses a `bytes` receiver-first trait method and
-uses `serde_json`'s `Option<Number>`, `u128` edge coercion, data-free enum variants, and enum
-comparison; focused package, projection, semantic, generated-Rust, and rejection checks cover the
-remaining contracts.
+and rejects same-input replay drift with both hashes. `S2031` names a removed top-level, static, or
+instance member and its resolved version transition; `removed-rust-dependency-member` and
+`removed-rust-dependency-instance-member` pin import-time and receiver-member lookup respectively.
+Declared projected members still resolve before history, while never-present object members retain
+the ordinary `T0055` diagnostic. The accepted `rust-dependency-deferred-surface` execution case
+crosses a `bytes` receiver-first trait method and uses `serde_json`'s `Option<Number>`, `u128` edge
+coercion, data-free enum variants, and enum comparison; focused package, projection, semantic,
+generated-Rust, and rejection checks cover the remaining contracts.
 
 ### Completed portion of Milestone 25.3 — Floating-point foundation
 

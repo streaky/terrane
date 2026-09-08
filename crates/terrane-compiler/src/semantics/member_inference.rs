@@ -416,6 +416,19 @@ pub(super) fn infer_member_value_type(
     {
         return Ok(Some(member_type));
     }
+    if let Some(ValueType::Object(identity)) = &receiver_type
+        && let Some(removed) = unit.removed_projected_member(identity, member_name, false)
+    {
+        return Err(failure(
+            &unit.source,
+            "S2031",
+            format!(
+                "Rust dependency member `{}.{member_name}` was projected by version {} but is absent from version {}",
+                identity.name, removed.previous_version, removed.current_version
+            ),
+            member.span,
+        ));
+    }
     if member_name == "type" {
         return Ok(receiver_type.map(|value_type| {
             ValueType::Descriptor(diagnostic_value_type(&unit.objects, &value_type))
@@ -555,19 +568,6 @@ pub(super) fn infer_member_value_type(
             "T0013",
             format!("`.{member_name}` requires a floating receiver"),
             receiver.span,
-        ));
-    }
-    if let Some(ValueType::Object(identity)) = &receiver_type
-        && let Some(removed) = unit.removed_projected_member(identity, member_name, false)
-    {
-        return Err(failure(
-            &unit.source,
-            "S2031",
-            format!(
-                "Rust dependency member `{}.{member_name}` was projected by version {} but is absent from version {}",
-                identity.name, removed.previous_version, removed.current_version
-            ),
-            member.span,
         ));
     }
     if member_name != "length" {

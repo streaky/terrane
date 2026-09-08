@@ -379,6 +379,7 @@ backing_object: real - type returns it, 'is a' compares it, identity survives re
 
 - Union destinations choose an exact type match first, otherwise the unique arm admitted by contextual constant typing or numeric destination conversion. Multiple admitted arms are a compile-time ambiguity; arm order never decides. Repeated arms normalize by canonical semantic identity and each authored duplicate reports `W4003`; aliases of one descriptor are duplicates.
 - `T|none` is a declared type anywhere a source type is accepted: bindings, parameters, and returns. A direct guard `value != none`, `none != value`, or `not (value is a none)` narrows that named binding to `T` in the guarded block; `and`/`or` combinations do not, and assignment invalidates the fact. Member/index/call expressions are not narrowing subjects because repeated evaluation may change; bind once, then guard and use the stable name.
+- Static optional return postcondition (distinct from block narrowing): a concrete `T`-returning function or method may return an exact static `T|none` member after a preceding sibling `if member == none` / `if none == member` with no `else`, exactly one direct compatible assignment to the same textual member in that body, no other body write, and no intervening write. Every unmet condition leaves the return expression `T|none`; instance members and other member expressions never receive this proof.
 
 ## INTEGER
 
@@ -981,7 +982,7 @@ lint_policy: user builds inherit RUSTFLAGS and generated manifests forbid only c
 cargo_cache_wrapper: sccache only when TERRANE_SCCACHE=1; choice participates in generated-crate cache identity
 toolchain_report: terrane toolchains lists only stable pins Terrane requested; reports current/not-current use, never removes or says safe
 containment: bwrap-capable hosts contain compilation; other hosts report the unavailable tier and continue under declared host policy
-lock_change_diagnostic: machine-independent terrane-projection.lock history distinguishes a removed crossed member from a never-present member; S2031 names the member and dependency version change
+lock_change_diagnostic: machine-independent terrane-projection.lock history records top-level names, static Type::member, and instance Type.member; after declared resolution fails, matching removal history emits S2031 at the import/member selection with the dependency version change, while a never-present name keeps its ordinary missing-member diagnostic
 ```
 
 ## RUST
