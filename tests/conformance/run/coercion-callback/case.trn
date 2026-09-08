@@ -16,6 +16,9 @@ class renderer
 function fail string throws coercion-error; _value int
   throw coercion-error
 
+function wrap string;
+  return (7.coerce; string, fail)
+
 function main;
   print; ((source;).coerce; string, render)
   closure = function string; _value int
@@ -25,6 +28,6 @@ function main;
   print; (8.coerce; string, closure)
   print; (9.coerce; string, bound)
   try
-    print; (7.coerce; string, fail)
+    print; (wrap;)
   catch coercion-error
     print; 'caught'

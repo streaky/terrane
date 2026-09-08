@@ -617,14 +617,15 @@ Evidence: `truth-protocol` executes class instances as conditions with canonical
 Bare `value.coerce; Destination, converter` now admits an otherwise undeclared pair through one
 ordinary synchronous callable value with the exact source parameter and destination result.
 Named functions, closures, stored bound methods, and throwing function values share the existing
-typed callable ABI; the receiver and callback each evaluate once, and declared throwables follow
-ordinary raised-result propagation. Semantic rejection covers source and result mismatch,
-asynchronous or policy-child use, named arguments, and multiple callbacks before lowering.
+typed callable ABI; the receiver and callback each evaluate once. Callback throwables participate
+in the same fixed-point inference as an ordinary call, so an undeclared `wrap` function that calls
+a throwing converter lowers to the raised-result ABI and its caller can catch the error.
+Semantic rejection assigns distinct diagnostics to arity, policy-child use, named arguments,
+non-callable values, asynchronous callbacks, source mismatch, and result mismatch.
 
-Evidence: `coercion-callback` runs named, closure, stored-bound-method, throwing, and
-single-evaluation paths with canonical generated Rust; `coercion-callback-source`,
-`coercion-callback-result`, and `coercion-callback-ambiguous` reject the principal compatibility
-and ambiguity boundaries.
+Evidence: `coercion-callback` runs named, closure, stored-bound-method, inferred-throwing wrapper,
+and single-evaluation paths with canonical generated Rust. The `coercion-callback-*` rejection
+cases cover every callback boundary above, including named and non-callable arguments.
 
 ### Milestone 0 — Toolchain skeleton and executable corpus
 

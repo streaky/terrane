@@ -204,7 +204,7 @@ pub(super) fn infer_numeric_coercion_type(
     if arguments.len() > 2 {
         return Err(failure(
             &unit.source,
-            "T0008",
+            "T0099",
             "`.coerce` accepts one destination, or a destination and one conversion callback",
             node.span,
         ));
@@ -297,7 +297,7 @@ fn infer_callback_coercion_type(
     if policy != CoercionPolicy::Default {
         return Err(failure(
             &unit.source,
-            "T0008",
+            "T0100",
             "caller-supplied conversion callbacks are available only on `.coerce`",
             callee.span,
         ));
@@ -305,7 +305,7 @@ fn infer_callback_coercion_type(
     if arguments.iter().any(|argument| argument.children.len() > 1) {
         return Err(failure(
             &unit.source,
-            "T0008",
+            "T0101",
             "caller-supplied conversion requires positional destination and callback arguments",
             node.span,
         ));
@@ -323,31 +323,35 @@ fn infer_callback_coercion_type(
     let destination = coercion_destination_type(unit, destination_node).ok_or_else(|| {
         failure(
             &unit.source,
-            "T0008",
+            "T0102",
             "caller-supplied conversion destination must be a concrete type descriptor",
             destination_node.span,
         )
     })?;
-    let callback = infer_value_type(unit, callback_node, bindings)?.ok_or_else(|| {
-        failure(
-            &unit.source,
-            "T0008",
-            "caller-supplied conversion callback must have a statically known function type",
-            callback_node.span,
-        )
-    })?;
-    let ValueType::Function(parameters, result) = callback else {
-        return Err(failure(
-            &unit.source,
-            "T0008",
-            "caller-supplied conversion callback must be synchronous",
-            callback_node.span,
-        ));
+    let callback = infer_value_type(unit, callback_node, bindings)?;
+    let (parameters, result) = match callback {
+        Some(ValueType::Function(parameters, result)) => (parameters, result),
+        Some(ValueType::AsyncFunction(_, _, _)) => {
+            return Err(failure(
+                &unit.source,
+                "T0104",
+                "caller-supplied conversion callback must be synchronous",
+                callback_node.span,
+            ));
+        }
+        _ => {
+            return Err(failure(
+                &unit.source,
+                "T0103",
+                "caller-supplied conversion callback must be a callable value",
+                callback_node.span,
+            ));
+        }
     };
     if parameters.len() != 1 || parameters[0].value_type_ref() != &source_type {
         return Err(failure(
             &unit.source,
-            "T0008",
+            "T0105",
             format!("conversion callback must accept exactly one `{source_type}` parameter"),
             callback_node.span,
         ));
@@ -355,7 +359,7 @@ fn infer_callback_coercion_type(
     if result.value_type_ref() != &destination {
         return Err(failure(
             &unit.source,
-            "T0008",
+            "T0106",
             format!(
                 "conversion callback must return `{destination}`, found `{}`",
                 result.value_type_ref()
