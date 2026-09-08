@@ -676,6 +676,7 @@ fn write_generated_crate(
         .map_err(|error| CliFailure::backend(format!("cannot create generated crate: {error}")))?;
     let mut manifest = format!(
         "[package]\nname = \"terrane_program\"\nversion = \"0.0.0\"\nedition = \"2024\"\nrust-version = {:?}\n\n\
+         [package.metadata.terrane]\nunicode-data-version = {:?}\n\n\
          [lints.rust]\nunsafe_code = \"forbid\"\n\n\
          [dependencies]\nterrane-int-support = {{ path = \"support/terrane-int-support\" }}\n\
          terrane-collection-support = {{ path = \"support/terrane-collection-support\" }}\n\
@@ -683,7 +684,8 @@ fn write_generated_crate(
          terrane-string-support = {{ path = \"support/terrane-string-support\" }}\n\
          terrane-document-support = {{ path = \"support/terrane-document-support\" }}\n\
          terrane-stream-abi = {{ path = \"support/terrane-stream-abi\" }}\n",
-        terrane_compiler::BUILD_TOOLCHAIN
+        terrane_compiler::BUILD_TOOLCHAIN,
+        options.build_toolchain.unicode_data_version()
     );
     if options.uses_platform_support {
         manifest.push_str(
@@ -802,7 +804,7 @@ fn write_generated_support(directory: &Path, uses_platform_support: bool) -> std
     )?;
     write_if_changed(
         &collection.join("Cargo.toml"),
-        format!("[package]\nname = \"terrane-collection-support\"\nversion = \"0.1.0\"\nedition = \"2024\"\nrust-version = {:?}\n\n[dependencies]\nindexmap = \"2\"\nterrane-int-support = {{ path = \"../terrane-int-support\" }}\nunicode-segmentation = \"1\"\n", terrane_compiler::BUILD_TOOLCHAIN).as_bytes(),
+        format!("[package]\nname = \"terrane-collection-support\"\nversion = \"0.1.0\"\nedition = \"2024\"\nrust-version = {:?}\n\n[dependencies]\nindexmap = \"2\"\nterrane-int-support = {{ path = \"../terrane-int-support\" }}\nunicode-segmentation = \"=1.12.0\"\n", terrane_compiler::BUILD_TOOLCHAIN).as_bytes(),
     )?;
     write_if_changed(
         &collection.join("src/lib.rs"),
@@ -822,7 +824,7 @@ fn write_generated_support(directory: &Path, uses_platform_support: bool) -> std
     )?;
     write_if_changed(
         &string.join("Cargo.toml"),
-        format!("[package]\nname = \"terrane-string-support\"\nversion = \"0.1.0\"\nedition = \"2024\"\nrust-version = {:?}\n\n[dependencies]\n# unicode-normalization permits tinyvec 1.13, whose alloc-only build fails on Rust 1.93.\ntinyvec = {{ version = \"=1.12.0\", features = [\"std\"] }}\nunicode-casefold = \"0.2\"\nunicode-normalization = \"0.1\"\nunicode-segmentation = \"1\"\n", terrane_compiler::BUILD_TOOLCHAIN).as_bytes(),
+        format!("[package]\nname = \"terrane-string-support\"\nversion = \"0.1.0\"\nedition = \"2024\"\nrust-version = {:?}\n\n[dependencies]\n# Unicode 16.0 profile: case folding, normalization, and segmentation move together.\ncaseless = \"=0.2.2\"\n# unicode-normalization permits tinyvec 1.13, whose alloc-only build fails on Rust 1.93.\ntinyvec = {{ version = \"=1.12.0\", features = [\"std\"] }}\nunicode-normalization = \"=0.1.24\"\nunicode-segmentation = \"=1.12.0\"\n", terrane_compiler::BUILD_TOOLCHAIN).as_bytes(),
     )?;
     write_if_changed(
         &string.join("src/lib.rs"),
@@ -1145,10 +1147,17 @@ mod tests {
                 .contains("[profile.release]\nopt-level = 3\nlto = \"fat\"\ncodegen-units = 1\n")
         );
         assert!(manifest.contains("rust-version = \"1.93.1\""));
+        assert!(manifest.contains("unicode-data-version = \"16.0.0\""));
         assert!(manifest.contains(
             "tokio = { version = \"=1.53.0\", features = [\"macros\", \"rt\", \"rt-multi-thread\", \"time\"] }"
         ));
         assert!(manifest.contains("[lints.rust]\nunsafe_code = \"forbid\""));
+        let string_support =
+            fs::read_to_string(directory.join("support/terrane-string-support/Cargo.toml"))
+                .unwrap();
+        assert!(string_support.contains("caseless = \"=0.2.2\""));
+        assert!(string_support.contains("unicode-normalization = \"=0.1.24\""));
+        assert!(string_support.contains("unicode-segmentation = \"=1.12.0\""));
         assert!(directory.join("rust-toolchain.toml").is_file());
         let metadata = fs::read_to_string(directory.join("terrane-build.toml")).unwrap();
         assert!(metadata.contains("rust-toolchain = \"1.93.1\""));

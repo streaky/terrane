@@ -37,6 +37,8 @@ pub use semantics::{
 };
 pub use source::{SourceFile, Span};
 pub use types::{DescriptorSchema, ScalarType, TypeCategory};
+/// Unicode Character Database version selected by the compiler toolchain profile.
+pub const UNICODE_DATA_VERSION: &str = "16.0.0";
 
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 pub const BUILD_TOOLCHAIN: &str = "1.93.1";

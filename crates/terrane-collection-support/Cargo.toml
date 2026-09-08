@@ -8,7 +8,7 @@ rust-version.workspace = true
 [dependencies]
 indexmap = "2"
 terrane-int-support = { path = "../terrane-int-support" }
-unicode-segmentation = "1"
+unicode-segmentation = "=1.12.0"
 
 [lints]
 workspace = true

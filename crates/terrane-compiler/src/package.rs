@@ -46,6 +46,14 @@ pub enum BuildToolchain {
     System,
 }
 
+impl BuildToolchain {
+    /// Unicode Character Database version selected for every compiler-owned text operation.
+    #[must_use]
+    pub const fn unicode_data_version(self) -> &'static str {
+        crate::UNICODE_DATA_VERSION
+    }
+}
+
 const CAPABILITY_NAMES: [&str; 8] = [
     "build",
     "entropy",
