@@ -1,0 +1,25 @@
+namespace byte-index-and-slice
+from /core/collections import range
+from /core/encodings import utf8
+from /core/errors import index-error
+from /core/output import print
+
+function main;
+  data bytes = 'A👍'.encode; utf8
+  print; data[0], data[1]
+  middle bytes = data[range; 1, 5]
+  print; (middle.decode; utf8)
+  stepped bytes = data[range; 0, 5, 2]
+  print; stepped[0], stepped[1], stepped[2]
+  empty bytes = data[range; data.length, data.length]
+  print; empty.length
+  final bytes = data[range.through; 4, 4]
+  print; final[0]
+  try
+    print; data[data.length]
+  catch index-error
+    print; 'index'
+  try
+    print; data[range; 0, 6].length
+  catch index-error
+    print; 'slice'

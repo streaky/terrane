@@ -14,6 +14,7 @@ struct TerraneDescriptor {
     identity: &'static str,
     name: &'static str,
     kind: &'static str,
+    inherently_identity_bearing: bool,
     fields: &'static [TerraneFieldMetadata],
 }
 // Source: case.trn
@@ -32,6 +33,7 @@ impl Widget {
             identity: "widget",
             name: "widget",
             kind: "class",
+            inherently_identity_bearing: false,
             fields: &[],
         }
             .name

@@ -1,0 +1,54 @@
+namespace source-defined-iterator
+from /core/collections import iteration-step
+from /core/output import print
+
+class counter
+  current int = 0
+  stop int = 0
+  ended bool = false
+  advances int = 0
+
+  function construct; stop int
+    this.stop = stop
+
+  function iterator counter;
+    return this
+
+  function next iteration-step of int;
+    if this.ended
+      return iteration-step.end;
+    this.advances = this.advances + 1
+    if this.current >= this.stop
+      this.ended = true
+      return iteration-step.end;
+    item int = this.current
+    this.current = this.current + 1
+    return iteration-step; item
+
+class none-once
+  emitted bool = false
+
+  function iterator none-once;
+    return this
+
+  function next iteration-step of none;
+    if this.emitted
+      return iteration-step.end;
+    this.emitted = true
+    return iteration-step; none
+
+
+function main;
+  values counter = instance counter; 3
+  for value in values
+    print; value
+
+  probe counter = instance counter; 3
+  probe.next;
+  probe.next;
+  probe.next;
+  fourth iteration-step of int = probe.next;
+  fifth iteration-step of int = probe.next;
+  print; fourth.end, fifth.end, probe.advances
+  for missing in (instance none-once;)
+    print; missing

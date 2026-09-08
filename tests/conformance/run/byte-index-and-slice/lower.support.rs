@@ -1,4 +1,3 @@
-// Generated deterministically by Terrane <version>.
 type TerraneSite = u32;
 const TERRANE_NO_SITE: TerraneSite = u32::MAX;
 #[allow(dead_code, reason = "custom descriptors are absent from some lowered programs")]
@@ -377,61 +376,204 @@ mod __terrane_trace {
         pub end_column: u32,
     }
     pub static FILES: [&str; 1] = ["case.trn"];
-    pub static FUNCTIONS: [&str; 1] = ["/class-field-metadata::main"];
-    pub static SITES: [Site; 5] = [
+    pub static FUNCTIONS: [&str; 1] = ["/byte-index-and-slice::main"];
+    pub static SITES: [Site; 18] = [
         {
-            /* terrane-site-row: site 0: /class-field-metadata::main (case.trn:12:12-12:37) */
+            /* terrane-site-row: site 0: /byte-index-and-slice::main (case.trn:9:10-9:17) */
+            Site {
+                function: 0,
+                file: 0,
+                line: 9,
+                column: 10,
+                end_line: 9,
+                end_column: 17,
+            }
+        },
+        {
+            /* terrane-site-row: site 1: /byte-index-and-slice::main (case.trn:9:19-9:26) */
+            Site {
+                function: 0,
+                file: 0,
+                line: 9,
+                column: 19,
+                end_line: 9,
+                end_column: 26,
+            }
+        },
+        {
+            /* terrane-site-row: site 2: /byte-index-and-slice::main (case.trn:10:23-10:34) */
+            Site {
+                function: 0,
+                file: 0,
+                line: 10,
+                column: 23,
+                end_line: 10,
+                end_column: 34,
+            }
+        },
+        {
+            /* terrane-site-row: site 3: /byte-index-and-slice::main (case.trn:10:18-10:35) */
+            Site {
+                function: 0,
+                file: 0,
+                line: 10,
+                column: 18,
+                end_line: 10,
+                end_column: 35,
+            }
+        },
+        {
+            /* terrane-site-row: site 4: /byte-index-and-slice::main (case.trn:11:11-11:30) */
+            Site {
+                function: 0,
+                file: 0,
+                line: 11,
+                column: 11,
+                end_line: 11,
+                end_column: 30,
+            }
+        },
+        {
+            /* terrane-site-row: site 5: /byte-index-and-slice::main (case.trn:12:24-12:38) */
             Site {
                 function: 0,
                 file: 0,
                 line: 12,
-                column: 12,
+                column: 24,
                 end_line: 12,
-                end_column: 37,
+                end_column: 38,
             }
         },
         {
-            /* terrane-site-row: site 1: /class-field-metadata::main (case.trn:12:44-12:78) */
+            /* terrane-site-row: site 6: /byte-index-and-slice::main (case.trn:12:19-12:39) */
             Site {
                 function: 0,
                 file: 0,
                 line: 12,
-                column: 44,
+                column: 19,
                 end_line: 12,
-                end_column: 78,
+                end_column: 39,
             }
         },
         {
-            /* terrane-site-row: site 2: /class-field-metadata::main (case.trn:13:12-13:41) */
+            /* terrane-site-row: site 7: /byte-index-and-slice::main (case.trn:13:10-13:20) */
             Site {
                 function: 0,
                 file: 0,
                 line: 13,
-                column: 12,
+                column: 10,
                 end_line: 13,
+                end_column: 20,
+            }
+        },
+        {
+            /* terrane-site-row: site 8: /byte-index-and-slice::main (case.trn:13:22-13:32) */
+            Site {
+                function: 0,
+                file: 0,
+                line: 13,
+                column: 22,
+                end_line: 13,
+                end_column: 32,
+            }
+        },
+        {
+            /* terrane-site-row: site 9: /byte-index-and-slice::main (case.trn:13:34-13:44) */
+            Site {
+                function: 0,
+                file: 0,
+                line: 13,
+                column: 34,
+                end_line: 13,
+                end_column: 44,
+            }
+        },
+        {
+            /* terrane-site-row: site 10: /byte-index-and-slice::main (case.trn:14:22-14:53) */
+            Site {
+                function: 0,
+                file: 0,
+                line: 14,
+                column: 22,
+                end_line: 14,
+                end_column: 53,
+            }
+        },
+        {
+            /* terrane-site-row: site 11: /byte-index-and-slice::main (case.trn:14:17-14:54) */
+            Site {
+                function: 0,
+                file: 0,
+                line: 14,
+                column: 17,
+                end_line: 14,
+                end_column: 54,
+            }
+        },
+        {
+            /* terrane-site-row: site 12: /byte-index-and-slice::main (case.trn:16:22-16:41) */
+            Site {
+                function: 0,
+                file: 0,
+                line: 16,
+                column: 22,
+                end_line: 16,
                 end_column: 41,
             }
         },
         {
-            /* terrane-site-row: site 3: /class-field-metadata::main (case.trn:13:43-13:71) */
+            /* terrane-site-row: site 13: /byte-index-and-slice::main (case.trn:16:17-16:42) */
             Site {
                 function: 0,
                 file: 0,
-                line: 13,
-                column: 43,
-                end_line: 13,
-                end_column: 71,
+                line: 16,
+                column: 17,
+                end_line: 16,
+                end_column: 42,
             }
         },
         {
-            /* terrane-site-row: site 4: /class-field-metadata::main (case.trn:13:73-13:99) */
+            /* terrane-site-row: site 14: /byte-index-and-slice::main (case.trn:17:10-17:18) */
             Site {
                 function: 0,
                 file: 0,
-                line: 13,
-                column: 73,
-                end_line: 13,
-                end_column: 99,
+                line: 17,
+                column: 10,
+                end_line: 17,
+                end_column: 18,
+            }
+        },
+        {
+            /* terrane-site-row: site 15: /byte-index-and-slice::main (case.trn:19:12-19:29) */
+            Site {
+                function: 0,
+                file: 0,
+                line: 19,
+                column: 12,
+                end_line: 19,
+                end_column: 29,
+            }
+        },
+        {
+            /* terrane-site-row: site 16: /byte-index-and-slice::main (case.trn:23:17-23:28) */
+            Site {
+                function: 0,
+                file: 0,
+                line: 23,
+                column: 17,
+                end_line: 23,
+                end_column: 28,
+            }
+        },
+        {
+            /* terrane-site-row: site 17: /byte-index-and-slice::main (case.trn:23:12-23:29) */
+            Site {
+                function: 0,
+                file: 0,
+                line: 23,
+                column: 12,
+                end_line: 23,
+                end_column: 29,
             }
         },
     ];
@@ -446,116 +588,4 @@ mod __terrane_trace {
             site.end_column,
         )
     }
-}
-#[allow(dead_code)]
-#[derive(Clone, Copy)]
-struct TerraneFieldMetadata {
-    name: &'static str,
-    external_name: &'static str,
-    defaulted: bool,
-    optional: bool,
-    secret: bool,
-}
-#[allow(dead_code)]
-#[derive(Clone, Copy)]
-struct TerraneDescriptor {
-    identity: &'static str,
-    name: &'static str,
-    kind: &'static str,
-    inherently_identity_bearing: bool,
-    fields: &'static [TerraneFieldMetadata],
-}
-// Source: case.trn
-// Namespace: class-field-metadata
-#[derive(Clone)]
-pub struct ServiceOptions {
-    pub internal_name: String,
-    pub retry_limit: terrane_int_support::Int,
-    pub note: Option<String>,
-    pub credential: String,
-}
-impl ServiceOptions {
-    pub fn terrane_construct() -> Self {
-        Self {
-            internal_name: String::from("primary"),
-            retry_limit: terrane_int_support::Int::from(3_i128),
-            note: None,
-            credential: String::from("hidden"),
-        }
-    }
-}
-fn main() {
-    let descriptor: TerraneDescriptor = TerraneDescriptor {
-        identity: "service-options",
-        name: "service-options",
-        kind: "class",
-        inherently_identity_bearing: false,
-        fields: &[
-            TerraneFieldMetadata {
-                name: "internal-name",
-                external_name: "serviceName",
-                defaulted: true,
-                optional: false,
-                secret: false,
-            },
-            TerraneFieldMetadata {
-                name: "retry-limit",
-                external_name: "retry-limit",
-                defaulted: true,
-                optional: false,
-                secret: false,
-            },
-            TerraneFieldMetadata {
-                name: "note",
-                external_name: "note",
-                defaulted: true,
-                optional: true,
-                secret: false,
-            },
-            TerraneFieldMetadata {
-                name: "credential",
-                external_name: "credential",
-                defaulted: true,
-                optional: false,
-                secret: true,
-            },
-        ],
-    };
-    println!(
-        "{}",
-        terrane_scalar_support::scalar_text(&terrane_int_support::Int::from(descriptor
-        .fields.len() as i128))
-    );
-    println!(
-        "{}{}{}", terrane_scalar_support::scalar_text(&__terrane_raised(descriptor.fields
-        .iter().map(| field | field.name.to_owned()).collect:: < Vec < String > > ()
-        .get(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
-        0 /* terrane-site: case.trn:12:12-12:37 */)).cloned()
-        .ok_or(terrane_collection_support::IndexError { index :
-        __terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
-        0 /* terrane-site: case.trn:12:12-12:37 */) }), 0 /* terrane-site: case.trn:12:12-12:37 */)),
-        terrane_scalar_support::scalar_text(&String::from(":")),
-        terrane_scalar_support::scalar_text(&__terrane_raised(descriptor.fields.iter()
-        .map(| field | field.external_name.to_owned()).collect:: < Vec < String > > ()
-        .get(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
-        1 /* terrane-site: case.trn:12:44-12:78 */)).cloned()
-        .ok_or(terrane_collection_support::IndexError { index :
-        __terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
-        1 /* terrane-site: case.trn:12:44-12:78 */) }), 1 /* terrane-site: case.trn:12:44-12:78 */))
-    );
-    println!(
-        "{}{}{}",
-        terrane_scalar_support::scalar_text(&__terrane_raised(terrane_collection_support::List::new(descriptor
-        .fields.iter().map(| field | field.defaulted).collect:: < Vec < bool > > ())
-        .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(1_i128)),
-        2 /* terrane-site: case.trn:13:12-13:41 */)), 2 /* terrane-site: case.trn:13:12-13:41 */)),
-        terrane_scalar_support::scalar_text(&__terrane_raised(terrane_collection_support::List::new(descriptor
-        .fields.iter().map(| field | field.optional).collect:: < Vec < bool > > ())
-        .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(2_i128)),
-        3 /* terrane-site: case.trn:13:43-13:71 */)), 3 /* terrane-site: case.trn:13:43-13:71 */)),
-        terrane_scalar_support::scalar_text(&__terrane_raised(terrane_collection_support::List::new(descriptor
-        .fields.iter().map(| field | field.secret).collect:: < Vec < bool > > ())
-        .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(3_i128)),
-        4 /* terrane-site: case.trn:13:73-13:99 */)), 4 /* terrane-site: case.trn:13:73-13:99 */))
-    );
 }

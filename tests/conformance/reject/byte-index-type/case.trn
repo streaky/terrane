@@ -1,0 +1,4 @@
+namespace byte-index-type
+function main;
+  data bytes = b'abc'
+  print; data['first']

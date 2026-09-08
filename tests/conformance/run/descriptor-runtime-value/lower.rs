@@ -14,6 +14,7 @@ struct TerraneDescriptor {
     identity: &'static str,
     name: &'static str,
     kind: &'static str,
+    inherently_identity_bearing: bool,
     fields: &'static [TerraneFieldMetadata],
 }
 // Source: case.trn
@@ -21,6 +22,7 @@ struct TerraneDescriptor {
 fn main() {
     println!(
         "{}", terrane_scalar_support::scalar_text(&TerraneDescriptor { identity : "int8",
-        name : "int8", kind : "type", fields : &[] } .name)
+        name : "int8", kind : "type", inherently_identity_bearing : false, fields : &[] }
+        .name)
     );
 }

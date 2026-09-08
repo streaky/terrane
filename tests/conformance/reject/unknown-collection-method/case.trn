@@ -1,5 +1,0 @@
-namespace unknown-collection-method
-from /core/collections import list
-function main;
-  items list of int = list; 1
-  items.remove; 0

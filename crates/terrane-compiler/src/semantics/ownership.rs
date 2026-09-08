@@ -34,6 +34,12 @@ pub(super) fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFa
         }
     }
 
+    fn source_iterator_object(unit: &SemanticUnit, identity: &ObjectIdentity) -> bool {
+        object_method_contract(unit, identity, "next", false).is_some_and(|function| {
+            matches!(function.return_type, Some(ValueType::IterationStep(_)))
+        })
+    }
+
     fn noncopyable_binding(
         package: &SemanticPackage,
         unit: &SemanticUnit,
@@ -41,9 +47,13 @@ pub(super) fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFa
         resource_objects: &BTreeSet<(u32, usize, usize)>,
     ) -> bool {
         matches!(
-            unit.typed_bindings[binding].value_type,
-            ValueType::Task(_, _) | ValueType::ScopedTask(_, _)
+            &unit.typed_bindings[binding].value_type,
+            ValueType::Task(_, _) | ValueType::ScopedTask(_, _) | ValueType::Iterator(_)
         ) || resource_binding(package, unit, binding, resource_objects)
+            || matches!(
+                &unit.typed_bindings[binding].value_type,
+                ValueType::Object(identity) if source_iterator_object(unit, identity)
+            )
     }
 
     fn method_consumes_receiver(
@@ -369,10 +379,29 @@ pub(super) fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFa
                 .children
                 .iter()
                 .find(|child| child.kind == SyntaxKind::Block);
+            let collection = (node.kind == SyntaxKind::ForStatement)
+                .then(|| {
+                    node.children
+                        .iter()
+                        .rev()
+                        .find(|child| child.kind != SyntaxKind::Block)
+                })
+                .flatten();
             for child in &node.children {
                 if Some(child) != body {
                     visit(package, unit, child, &mut entry, false, resource_objects)?;
                 }
+            }
+            if let Some(collection) = collection
+                && collection.kind == SyntaxKind::Name
+                && let Some(binding) = binding_at(
+                    unit,
+                    node_text(&unit.source, collection),
+                    collection.span.start,
+                )
+                && noncopyable_binding(package, unit, binding, resource_objects)
+            {
+                entry.insert(binding);
             }
             if let Some(body) = body {
                 let mut after_iteration = entry.clone();

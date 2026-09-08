@@ -1,0 +1,4 @@
+phase = "check"
+status = "reject"
+code = "T0016"
+contains = "requires an iterable value"

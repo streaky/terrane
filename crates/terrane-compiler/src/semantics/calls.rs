@@ -249,7 +249,7 @@ pub(super) fn validate_call_nodes<'a>(
             scoped_bindings,
         )?;
         let item_type = infer_value_type(unit, collection, scoped_bindings)?
-            .and_then(iterable_item_type)
+            .and_then(|value_type| iterable_item_type(unit, value_type))
             .ok_or_else(|| {
                 failure(
                     &unit.source,

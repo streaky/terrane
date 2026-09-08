@@ -1,0 +1,61 @@
+namespace collection-identity-lifetime
+from /core/collections import list
+from /core/errors import index-error
+from /core/output import print
+
+class marker
+  name string = ''
+
+  function construct; name string
+    this.name = name
+
+  function destruct;
+    print; 'drop-', this.name
+
+
+function release-order;
+  values list of marker = list; (instance marker; 'replace-old'), (instance marker; 'remove-me'), (instance marker; 'destroy-last')
+  values.set; 0, (instance marker; 'replacement')
+  print; 'after-set'
+  if true
+    removed marker = values.remove; 1
+    print; 'after-remove-', removed.name
+  print; 'after-block'
+  try
+    values.remove; 9
+  catch index-error
+    print; 'remove-index'
+  cleared list of marker = list; (instance marker; 'clear-first'), (instance marker; 'clear-second')
+  cleared.clear;
+  print; 'after-clear'
+
+  original list of marker = list; (instance marker; 'cow-original')
+  separated list of marker = original
+  separated.set; 0, (instance marker; 'cow-replacement')
+  print; 'after-cow'
+
+function main;
+  release-order;
+
+  left marker = instance marker; 'left'
+  right marker = left
+  print; left is left, left is right
+
+  left-reference shared ref marker = shared ref left
+  same-reference shared ref marker = left-reference
+  other-reference shared ref marker = shared ref right
+  print; left-reference is same-reference, left-reference is other-reference
+  left-weak ref marker = ref left-reference
+  print; left-weak is left-reference
+
+  references list of shared ref marker = list; left-reference, same-reference
+  print; references is references
+  collection-reference shared ref list of shared ref marker = shared ref references
+  collection-alias shared ref list of shared ref marker = collection-reference
+  print; collection-reference is collection-alias
+  marker-type = left.type
+  reference-type = left-reference.type
+  collection-type = references.type
+  print; marker-type.inherently-identity-bearing
+  print; reference-type.inherently-identity-bearing
+  print; collection-type.inherently-identity-bearing

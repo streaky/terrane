@@ -355,6 +355,17 @@ impl Emitter<'_> {
                         "({{ let collection = &mut ({receiver_value}); {mutation}; collection.clone() }})"
                     ))
                 }
+                (ValueType::List(_), "clear") => Some(format!(
+                    "({{ let collection = &mut ({receiver_value}); collection.clear(); collection.clone() }})"
+                )),
+                (ValueType::List(_), "remove") => {
+                    let index = self.expression_as(values[0], ValueType::Scalar(ScalarType::Int));
+                    let index = self.fallible(
+                        format!("terrane_collection_support::index_from_int(&({index}))"),
+                        node,
+                    );
+                    Some(self.fallible(format!("({receiver_value}).remove({index})"), node))
+                }
                 (ValueType::Map(key, value) | ValueType::UnorderedMap(key, value), "set") => {
                     Some(format!(
                         "({{ let collection = &mut ({receiver_value}); collection.set({}, {}); collection.clone() }})",
@@ -445,6 +456,32 @@ impl Emitter<'_> {
             } else {
                 self.fallible(call, node)
             };
+        }
+        if callee.kind == SyntaxKind::MemberExpression
+            && let [receiver, member] = callee.children.as_slice()
+            && self.text(member) == "end"
+            && self.is_builtin(receiver, "/core/collections::iteration-step")
+        {
+            return "terrane_collection_support::IterationStep::End".to_owned();
+        }
+        if self.is_builtin(callee, "/core/collections::iteration-step") {
+            let item_type = self
+                .value_type(node)
+                .and_then(|ty| match ty {
+                    ValueType::IterationStep(item) => Some(item),
+                    _ => None,
+                })
+                .expect("validated iteration-step constructor has an item type");
+            let argument = arguments
+                .children
+                .first()
+                .expect("validated iteration-step constructor has one argument");
+            let item = argument.children.last().unwrap_or(argument);
+            return format!(
+                "terrane_collection_support::IterationStep::<{}>::Item({})",
+                rust_element_type(self.package, item_type.clone()),
+                self.expression_as(item, item_type.value_type())
+            );
         }
         if self.is_builtin(callee, "/core/collections::iterator") {
             let item_type = self

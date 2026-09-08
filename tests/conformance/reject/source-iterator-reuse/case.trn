@@ -1,0 +1,13 @@
+namespace source-iterator-reuse
+from /core/collections import iteration-step
+class counter
+  function iterator counter;
+    return this
+  function next iteration-step of int;
+    return iteration-step.end;
+function main;
+  values counter = instance counter;
+  for value in values
+    print; value
+  for repeated in values
+    print; repeated

@@ -13,19 +13,10 @@ fn main() {
         };
         println!("{}", terrane_scalar_support::scalar_text(&value));
     }
-    let mut __terrane_iterator_1 = &mut values;
-    loop {
-        let revisited = match __terrane_iterator_1.next() {
-            terrane_collection_support::IterationStep::Item(item) => item,
-            terrane_collection_support::IterationStep::End => break,
-        };
-        let _ = &revisited;
-        println!("{}", terrane_scalar_support::scalar_text(&String::from("revisited")));
-    }
     let text: String = String::from("A👍🏽");
-    let mut __terrane_iterator_2 = terrane_collection_support::string_iterator(&text);
+    let mut __terrane_iterator_1 = terrane_collection_support::string_iterator(&text);
     loop {
-        let grapheme = match __terrane_iterator_2.next() {
+        let grapheme = match __terrane_iterator_1.next() {
             terrane_collection_support::IterationStep::Item(item) => item,
             terrane_collection_support::IterationStep::End => break,
         };

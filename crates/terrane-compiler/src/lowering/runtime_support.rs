@@ -18,6 +18,7 @@ pub(super) fn descriptor_runtime_module() -> GeneratedModule {
                  identity: &'static str,\n\
                  name: &'static str,\n\
                  kind: &'static str,\n\
+                 inherently_identity_bearing: bool,\n\
                  fields: &'static [TerraneFieldMetadata],\n\
              }\n",
         )],

@@ -14,6 +14,7 @@ struct TerraneDescriptor {
     identity: &'static str,
     name: &'static str,
     kind: &'static str,
+    inherently_identity_bearing: bool,
     fields: &'static [TerraneFieldMetadata],
 }
 // Source: case.trn
@@ -29,6 +30,7 @@ impl AnimalStorage {
             identity: "animal",
             name: "animal",
             kind: "class",
+            inherently_identity_bearing: false,
             fields: &[],
         }
             .name
@@ -65,6 +67,7 @@ impl Dog {
             identity: "dog",
             name: "dog",
             kind: "class",
+            inherently_identity_bearing: false,
             fields: &[],
         }
             .name

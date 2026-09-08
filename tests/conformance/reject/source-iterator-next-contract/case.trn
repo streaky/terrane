@@ -1,0 +1,10 @@
+namespace source-iterator-next-contract
+class broken-iterator
+  function iterator broken-iterator;
+    return this
+  function next int;
+    return 1
+function main;
+  values broken-iterator = instance broken-iterator;
+  for value in values
+    print; value

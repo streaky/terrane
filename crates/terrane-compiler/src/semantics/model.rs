@@ -117,7 +117,7 @@ impl std::fmt::Display for ElementType {
         self.0.fmt(formatter)
     }
 }
-pub(super) fn iterable_item_type(value_type: ValueType) -> Option<ValueType> {
+pub(super) fn iterable_item_type(unit: &SemanticUnit, value_type: ValueType) -> Option<ValueType> {
     match value_type {
         ValueType::Scalar(ScalarType::String) | ValueType::StringList => {
             Some(ValueType::Scalar(ScalarType::String))
@@ -132,6 +132,37 @@ pub(super) fn iterable_item_type(value_type: ValueType) -> Option<ValueType> {
             Some(ValueType::Entry(key, value))
         }
         ValueType::Range => Some(ValueType::Scalar(ScalarType::Int)),
+        ValueType::Object(identity) => {
+            let iterator = super::member_inference::object_method_contract(
+                unit, &identity, "iterator", false,
+            )?;
+            if iterator.is_async
+                || iterator.throws
+                || iterator.mutates_receiver
+                || !iterator.parameters.is_empty()
+            {
+                return None;
+            }
+            match iterator.return_type.as_ref()? {
+                ValueType::Iterator(item) => Some(item.value_type()),
+                ValueType::Object(iterator_identity) => {
+                    let next = super::member_inference::object_method_contract(
+                        unit,
+                        iterator_identity,
+                        "next",
+                        false,
+                    )?;
+                    if next.is_async || next.throws || !next.parameters.is_empty() {
+                        return None;
+                    }
+                    match next.return_type.as_ref()? {
+                        ValueType::IterationStep(item) => Some(item.value_type()),
+                        _ => None,
+                    }
+                }
+                _ => None,
+            }
+        }
         _ => None,
     }
 }

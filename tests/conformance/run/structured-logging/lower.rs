@@ -1770,6 +1770,7 @@ struct TerraneDescriptor {
     identity: &'static str,
     name: &'static str,
     kind: &'static str,
+    inherently_identity_bearing: bool,
     fields: &'static [TerraneFieldMetadata],
 }
 // Source: case.trn
@@ -1867,6 +1868,7 @@ fn main() {
             identity: "request-data",
             name: "request-data",
             kind: "class",
+            inherently_identity_bearing: false,
             fields: &[
                 TerraneFieldMetadata {
                     name: "token",

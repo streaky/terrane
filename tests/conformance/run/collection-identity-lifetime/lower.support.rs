@@ -1,4 +1,3 @@
-// Generated deterministically by Terrane <version>.
 type TerraneSite = u32;
 const TERRANE_NO_SITE: TerraneSite = u32::MAX;
 #[allow(dead_code, reason = "custom descriptors are absent from some lowered programs")]
@@ -377,61 +376,39 @@ mod __terrane_trace {
         pub end_column: u32,
     }
     pub static FILES: [&str; 1] = ["case.trn"];
-    pub static FUNCTIONS: [&str; 1] = ["/class-field-metadata::main"];
-    pub static SITES: [Site; 5] = [
+    pub static FUNCTIONS: [&str; 1] = ["/collection-identity-lifetime::release-order"];
+    pub static SITES: [Site; 3] = [
         {
-            /* terrane-site-row: site 0: /class-field-metadata::main (case.trn:12:12-12:37) */
+            /* terrane-site-row: site 0: /collection-identity-lifetime::release-order (case.trn:18:3-18:50) */
             Site {
                 function: 0,
                 file: 0,
-                line: 12,
-                column: 12,
-                end_line: 12,
-                end_column: 37,
+                line: 18,
+                column: 3,
+                end_line: 18,
+                end_column: 50,
             }
         },
         {
-            /* terrane-site-row: site 1: /class-field-metadata::main (case.trn:12:44-12:78) */
+            /* terrane-site-row: site 1: /collection-identity-lifetime::release-order (case.trn:21:22-21:38) */
             Site {
                 function: 0,
                 file: 0,
-                line: 12,
-                column: 44,
-                end_line: 12,
-                end_column: 78,
+                line: 21,
+                column: 22,
+                end_line: 21,
+                end_column: 38,
             }
         },
         {
-            /* terrane-site-row: site 2: /class-field-metadata::main (case.trn:13:12-13:41) */
+            /* terrane-site-row: site 2: /collection-identity-lifetime::release-order (case.trn:25:5-25:21) */
             Site {
                 function: 0,
                 file: 0,
-                line: 13,
-                column: 12,
-                end_line: 13,
-                end_column: 41,
-            }
-        },
-        {
-            /* terrane-site-row: site 3: /class-field-metadata::main (case.trn:13:43-13:71) */
-            Site {
-                function: 0,
-                file: 0,
-                line: 13,
-                column: 43,
-                end_line: 13,
-                end_column: 71,
-            }
-        },
-        {
-            /* terrane-site-row: site 4: /class-field-metadata::main (case.trn:13:73-13:99) */
-            Site {
-                function: 0,
-                file: 0,
-                line: 13,
-                column: 73,
-                end_line: 13,
-                end_column: 99,
+                line: 25,
+                column: 5,
+                end_line: 25,
+                end_column: 21,
             }
         },
     ];
@@ -464,98 +441,4 @@ struct TerraneDescriptor {
     kind: &'static str,
     inherently_identity_bearing: bool,
     fields: &'static [TerraneFieldMetadata],
-}
-// Source: case.trn
-// Namespace: class-field-metadata
-#[derive(Clone)]
-pub struct ServiceOptions {
-    pub internal_name: String,
-    pub retry_limit: terrane_int_support::Int,
-    pub note: Option<String>,
-    pub credential: String,
-}
-impl ServiceOptions {
-    pub fn terrane_construct() -> Self {
-        Self {
-            internal_name: String::from("primary"),
-            retry_limit: terrane_int_support::Int::from(3_i128),
-            note: None,
-            credential: String::from("hidden"),
-        }
-    }
-}
-fn main() {
-    let descriptor: TerraneDescriptor = TerraneDescriptor {
-        identity: "service-options",
-        name: "service-options",
-        kind: "class",
-        inherently_identity_bearing: false,
-        fields: &[
-            TerraneFieldMetadata {
-                name: "internal-name",
-                external_name: "serviceName",
-                defaulted: true,
-                optional: false,
-                secret: false,
-            },
-            TerraneFieldMetadata {
-                name: "retry-limit",
-                external_name: "retry-limit",
-                defaulted: true,
-                optional: false,
-                secret: false,
-            },
-            TerraneFieldMetadata {
-                name: "note",
-                external_name: "note",
-                defaulted: true,
-                optional: true,
-                secret: false,
-            },
-            TerraneFieldMetadata {
-                name: "credential",
-                external_name: "credential",
-                defaulted: true,
-                optional: false,
-                secret: true,
-            },
-        ],
-    };
-    println!(
-        "{}",
-        terrane_scalar_support::scalar_text(&terrane_int_support::Int::from(descriptor
-        .fields.len() as i128))
-    );
-    println!(
-        "{}{}{}", terrane_scalar_support::scalar_text(&__terrane_raised(descriptor.fields
-        .iter().map(| field | field.name.to_owned()).collect:: < Vec < String > > ()
-        .get(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
-        0 /* terrane-site: case.trn:12:12-12:37 */)).cloned()
-        .ok_or(terrane_collection_support::IndexError { index :
-        __terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
-        0 /* terrane-site: case.trn:12:12-12:37 */) }), 0 /* terrane-site: case.trn:12:12-12:37 */)),
-        terrane_scalar_support::scalar_text(&String::from(":")),
-        terrane_scalar_support::scalar_text(&__terrane_raised(descriptor.fields.iter()
-        .map(| field | field.external_name.to_owned()).collect:: < Vec < String > > ()
-        .get(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
-        1 /* terrane-site: case.trn:12:44-12:78 */)).cloned()
-        .ok_or(terrane_collection_support::IndexError { index :
-        __terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
-        1 /* terrane-site: case.trn:12:44-12:78 */) }), 1 /* terrane-site: case.trn:12:44-12:78 */))
-    );
-    println!(
-        "{}{}{}",
-        terrane_scalar_support::scalar_text(&__terrane_raised(terrane_collection_support::List::new(descriptor
-        .fields.iter().map(| field | field.defaulted).collect:: < Vec < bool > > ())
-        .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(1_i128)),
-        2 /* terrane-site: case.trn:13:12-13:41 */)), 2 /* terrane-site: case.trn:13:12-13:41 */)),
-        terrane_scalar_support::scalar_text(&__terrane_raised(terrane_collection_support::List::new(descriptor
-        .fields.iter().map(| field | field.optional).collect:: < Vec < bool > > ())
-        .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(2_i128)),
-        3 /* terrane-site: case.trn:13:43-13:71 */)), 3 /* terrane-site: case.trn:13:43-13:71 */)),
-        terrane_scalar_support::scalar_text(&__terrane_raised(terrane_collection_support::List::new(descriptor
-        .fields.iter().map(| field | field.secret).collect:: < Vec < bool > > ())
-        .get_or_error(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(3_i128)),
-        4 /* terrane-site: case.trn:13:73-13:99 */)), 4 /* terrane-site: case.trn:13:73-13:99 */))
-    );
 }

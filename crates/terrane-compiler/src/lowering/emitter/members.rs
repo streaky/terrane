@@ -38,6 +38,34 @@ impl Emitter<'_> {
         let receiver_type = self.receiver_value_type(receiver);
         let receiver = self.receiver_expression(receiver);
         match receiver_type {
+            Some(ValueType::Scalar(ScalarType::Bytes)) => {
+                if self.value_type(index) == Some(ValueType::Range) {
+                    let range = self.expression(index);
+                    self.fallible(
+                        format!(
+                            "terrane_collection_support::byte_slice(&({receiver}), &({range}))"
+                        ),
+                        node,
+                    )
+                } else {
+                    let index = if self.value_type(index)
+                        == Some(ValueType::Scalar(ScalarType::Int))
+                    {
+                        let index_value =
+                            self.expression_as(index, ValueType::Scalar(ScalarType::Int));
+                        self.fallible(
+                            format!("terrane_collection_support::index_from_int(&({index_value}))"),
+                            node,
+                        )
+                    } else {
+                        format!("({}) as usize", self.expression(index))
+                    };
+                    self.fallible(
+                        format!("terrane_collection_support::byte_at(&({receiver}), {index})"),
+                        node,
+                    )
+                }
+            }
             Some(ValueType::List(_) | ValueType::Tuple(_, _) | ValueType::StringList) => {
                 let index = if self.value_type(index) == Some(ValueType::Scalar(ScalarType::Int)) {
                     let index_value = self.expression_as(index, ValueType::Scalar(ScalarType::Int));
@@ -242,12 +270,23 @@ impl Emitter<'_> {
                 ),
             };
         }
+        if self.text(member) == "type" {
+            let value_type = self
+                .value_type(receiver)
+                .expect("type reflection requires a known receiver type");
+            let descriptor = self.descriptor_expression(&value_type.to_string());
+            let receiver = self.expression(receiver);
+            return format!("{{ let _ = &({receiver}); {descriptor} }}");
+        }
         if let Some(ValueType::Descriptor(_)) = &receiver_type {
             let receiver = self.expression(receiver);
             return match self.text(member) {
                 "name" => format!("({receiver}).name.to_owned()"),
                 "kind" => format!("({receiver}).kind.to_owned()"),
                 "identity" => format!("({receiver}).identity.to_owned()"),
+                "inherently-identity-bearing" => {
+                    format!("({receiver}).inherently_identity_bearing")
+                }
                 "field-count" => {
                     format!("terrane_int_support::Int::from(({receiver}).fields.len() as i128)")
                 }
@@ -316,6 +355,21 @@ impl Emitter<'_> {
                 "value" => format!("({receiver}).value.clone()"),
                 "error" => format!("({receiver}).error"),
                 _ => String::new(),
+            };
+        }
+        if matches!(receiver_type, Some(ValueType::IterationStep(_))) {
+            let receiver = self.expression(receiver);
+            return match self.text(member) {
+                "item" => format!(
+                    "matches!(&({receiver}), terrane_collection_support::IterationStep::Item(_))"
+                ),
+                "end" => format!(
+                    "matches!(&({receiver}), terrane_collection_support::IterationStep::End)"
+                ),
+                "value" => format!(
+                    "match &({receiver}) {{ terrane_collection_support::IterationStep::Item(value) => Some(value.clone()), terrane_collection_support::IterationStep::End => None }}"
+                ),
+                _ => unreachable!("semantic analysis admitted unknown iteration step member"),
             };
         }
         if matches!(
@@ -441,7 +495,6 @@ impl Emitter<'_> {
             "value" if matches!(receiver_type, Some(ValueType::Entry(_, _))) => {
                 format!("({receiver}).value.clone()")
             }
-            "type" => "()".to_owned(),
             name if matches!(
                 receiver_type,
                 Some(ValueType::Scalar(ScalarType::Float32 | ScalarType::Float64))

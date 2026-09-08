@@ -445,6 +445,20 @@ pub(super) fn declared_value_type_with_visible_objects(
             if let Some(identity) = object_identity {
                 return Ok(construct(ElementType::new(ValueType::Object(identity))));
             }
+            if let Some(inner_name) = argument.strip_prefix("shared ref ") {
+                let inner_name = inner_name.trim();
+                let identity = visible_objects.get(inner_name).cloned().or_else(|| {
+                    unit.objects
+                        .iter()
+                        .find(|object| object.name == inner_name)
+                        .map(|object| object.identity.clone())
+                });
+                if let Some(identity) = identity {
+                    return Ok(construct(ElementType::new(ValueType::SharedReference(
+                        ElementType::new(ValueType::Object(identity)),
+                    ))));
+                }
+            }
         }
     }
     match type_name {
@@ -890,6 +904,11 @@ pub(super) fn value_types_compatible(
                     &expected_item.value_type(),
                     &actual_item.value_type(),
                 )
+        }
+        (ValueType::IterationStep(_), ValueType::IterationStep(actual))
+            if actual.value_type() == ValueType::Scalar(ScalarType::None) =>
+        {
+            true
         }
         (ValueType::List(expected), ValueType::List(actual))
         | (ValueType::Set(expected), ValueType::Set(actual))

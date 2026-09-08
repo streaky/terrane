@@ -190,15 +190,35 @@ pub(super) fn infer_value_type(
         ));
     }
     if node.kind == SyntaxKind::IndexExpression {
-        let Some(receiver) = node.children.first() else {
+        let [receiver, index] = node.children.as_slice() else {
             return Ok(None);
         };
-        return match infer_receiver_value_type(unit, receiver, bindings)? {
+        let receiver_type = infer_receiver_value_type(unit, receiver, bindings)?;
+        let index_type = infer_value_type(unit, index, bindings)?;
+        return match receiver_type {
             Some(ValueType::List(item) | ValueType::Tuple(item, _)) => Ok(Some(item.value_type())),
             Some(ValueType::StringList) => Ok(Some(ValueType::Scalar(ScalarType::String))),
             Some(ValueType::Map(_, value) | ValueType::UnorderedMap(_, value)) => {
                 Ok(Some(value.value_type()))
             }
+            Some(ValueType::Scalar(ScalarType::Bytes)) => match index_type {
+                Some(ValueType::Scalar(index)) if index.is_integer() => {
+                    Ok(Some(ValueType::Scalar(ScalarType::Uint8)))
+                }
+                Some(ValueType::Range) => Ok(Some(ValueType::Scalar(ScalarType::Bytes))),
+                Some(other) => Err(failure(
+                    &unit.source,
+                    "T0050",
+                    format!("bytes require an integer index or range, found `{other}`"),
+                    index.span,
+                )),
+                None => Err(failure(
+                    &unit.source,
+                    "T0050",
+                    "byte indexing requires a statically known integer index or range",
+                    index.span,
+                )),
+            },
             Some(ValueType::Scalar(ScalarType::String)) => Err(failure(
                 &unit.source,
                 "T0050",

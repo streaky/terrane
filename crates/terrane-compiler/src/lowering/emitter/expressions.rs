@@ -1,7 +1,7 @@
 use super::super::prelude::*;
 
 impl Emitter<'_> {
-    fn descriptor_expression(&self, source_name: &str) -> String {
+    pub(super) fn descriptor_expression(&self, source_name: &str) -> String {
         let object = self
             .unit
             .objects
@@ -17,6 +17,9 @@ impl Emitter<'_> {
             ObjectKind::Interface => "interface",
             ObjectKind::Trait => "trait",
         });
+        let inherently_identity_bearing = object.is_some_and(|object| object.resource_owning)
+            || source_name.starts_with("ref ")
+            || source_name.starts_with("shared ref ");
         let fields = object.map_or_else(String::new, |object| {
             effective_object_fields(self.unit, object)
                 .into_iter()
@@ -35,7 +38,7 @@ impl Emitter<'_> {
                 .join(", ")
         });
         format!(
-            "TerraneDescriptor {{ identity: {identity:?}, name: {name:?}, kind: {kind:?}, fields: &[{fields}] }}"
+            "TerraneDescriptor {{ identity: {identity:?}, name: {name:?}, kind: {kind:?}, inherently_identity_bearing: {inherently_identity_bearing}, fields: &[{fields}] }}"
         )
     }
 
@@ -921,6 +924,34 @@ impl Emitter<'_> {
         };
         let source_operator = self.source.text()[left.span.end..right.span.start].trim();
         if source_operator == "is" {
+            let left_type = self.value_type(left);
+            let right_type = self.value_type(right);
+            let reference_items = match (&left_type, &right_type) {
+                (
+                    Some(ValueType::Reference(left) | ValueType::SharedReference(left)),
+                    Some(ValueType::Reference(right) | ValueType::SharedReference(right)),
+                ) => Some((left, right)),
+                _ => None,
+            };
+            if let Some((left_item, right_item)) = reference_items
+                && left_item == right_item
+            {
+                let left_expression = self.expression(left);
+                let right_expression = self.expression(right);
+                let left_pointer = if matches!(left_type, Some(ValueType::Reference(_))) {
+                    "std::sync::Weak::as_ptr(__terrane_identity_left)"
+                } else {
+                    "std::sync::Arc::as_ptr(__terrane_identity_left)"
+                };
+                let right_pointer = if matches!(right_type, Some(ValueType::Reference(_))) {
+                    "std::sync::Weak::as_ptr(__terrane_identity_right)"
+                } else {
+                    "std::sync::Arc::as_ptr(__terrane_identity_right)"
+                };
+                return format!(
+                    "{{ let __terrane_identity_left = &({left_expression}); let __terrane_identity_right = &({right_expression}); std::ptr::eq({left_pointer}, {right_pointer}) }}"
+                );
+            }
             let result = matches!(
                 (
                     self.descriptor_identity(left),

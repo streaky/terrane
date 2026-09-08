@@ -359,7 +359,7 @@ pub(crate) fn binding_span_is_mutated(
                 callee.kind == SyntaxKind::MemberExpression
                     && (matches!(
                         node_text(&unit.source, member),
-                        "append" | "set" | "add" | "remove"
+                        "append" | "set" | "add" | "remove" | "clear"
                     ) || matches!(
                         infer_value_type(unit, receiver, &unit.typed_bindings),
                         Ok(Some(ValueType::Object(object)))

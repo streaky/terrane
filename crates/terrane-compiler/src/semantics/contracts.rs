@@ -204,7 +204,7 @@ pub(super) fn collect_typed_bindings(
     {
         collect_typed_bindings(unit, collection, visible_bindings, bindings, scope)?;
         let item_type = infer_value_type(unit, collection, visible_bindings)?
-            .and_then(iterable_item_type)
+            .and_then(|value_type| iterable_item_type(unit, value_type))
             .ok_or_else(|| {
                 failure(
                     &unit.source,

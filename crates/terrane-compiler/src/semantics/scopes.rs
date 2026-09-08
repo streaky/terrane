@@ -546,30 +546,37 @@ pub(super) fn validate_assigned_reads(
 pub(super) fn validate_control_flow(
     package: &SemanticPackage,
 ) -> Result<Vec<Vec<Span>>, SemanticFailure> {
+    fn function_declarations<'a>(node: &'a SyntaxNode, declarations: &mut Vec<&'a SyntaxNode>) {
+        if node.kind == SyntaxKind::FunctionDeclaration {
+            declarations.push(node);
+            return;
+        }
+        for child in &node.children {
+            function_declarations(child, declarations);
+        }
+    }
     let mut unreachable_units = Vec::with_capacity(package.units.len());
     for unit in &package.units {
         let mut unreachable = Vec::new();
-        for function in unit
-            .tree
-            .root
-            .children
-            .iter()
-            .filter(|node| node.kind == SyntaxKind::FunctionDeclaration)
-        {
-            let Some(name_node) = function
-                .children
-                .iter()
-                .find(|child| child.kind == SyntaxKind::Name)
-            else {
-                continue;
-            };
+        let mut declarations = Vec::new();
+        function_declarations(&unit.tree.root, &mut declarations);
+        for function in declarations {
             let Some(contract) = unit
                 .functions
                 .iter()
-                .find(|contract| contract.name == node_text(&unit.source, name_node))
+                .find(|contract| contract.span == function.span)
             else {
                 continue;
             };
+            let top_level = unit
+                .tree
+                .root
+                .children
+                .iter()
+                .any(|candidate| std::ptr::eq(candidate, function));
+            if !top_level && !matches!(contract.return_type, Some(ValueType::IterationStep(_))) {
+                continue;
+            }
             let Some(block) = function
                 .children
                 .iter()
@@ -710,7 +717,9 @@ pub(super) fn validate_flow_statement(
                 validate_bool_condition(unit, &statement.children[1], bindings)?;
             } else if let [target, collection, block] = statement.children.as_slice() {
                 let collection_type = infer_value_type(unit, collection, bindings)?;
-                let Some(item_type) = collection_type.and_then(iterable_item_type) else {
+                let Some(item_type) =
+                    collection_type.and_then(|value_type| iterable_item_type(unit, value_type))
+                else {
                     return Err(failure(
                         &unit.source,
                         "T0016",

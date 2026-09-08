@@ -117,6 +117,7 @@ impl Emitter<'_> {
                 let value = self.expression_as(values[1], item.value_type());
                 Some(self.fallible(format!("({receiver_value}).set({index}, {value})"), node))
             }
+            (ValueType::List(_), "clear") => Some(format!("({receiver_value}).clear()")),
             (ValueType::Map(key, value) | ValueType::UnorderedMap(key, value), "set") => {
                 Some(format!(
                     "({receiver_value}).set({}, {})",
@@ -942,6 +943,7 @@ impl Emitter<'_> {
                     ) => format!(
                         "terrane_collection_support::Iterable::terrane_iterator(&({collection}))"
                     ),
+                    Some(ValueType::Object(_)) => format!("({collection}).iterator()"),
                     _ => format!("terrane_collection_support::string_iterator(&({collection}))"),
                 };
                 self.line(&format!("let mut {iterator} = {constructor};"));
