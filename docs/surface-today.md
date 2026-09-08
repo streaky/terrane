@@ -78,6 +78,7 @@ Terrane package
 │   │   │   └── utf32-be                       encoding object
 │   │   ├── /core/collections
 │   │   │   ├── iterator                       typed linear iterator constructor
+│   │   │   ├── iteration-step                 typed item/end result constructor; `.end` constructs exhaustion
 │   │   │   ├── list                           insertion-ordered sequence constructor
 │   │   │   ├── map                            insertion-ordered key/value constructor
 │   │   │   ├── set                            insertion-ordered unique-value constructor
@@ -584,6 +585,9 @@ For an ordinary typed scalar, both forms compare its resolved canonical Terrane 
 
 Descriptor names remain compile-time identities in ordinary type positions. When reflection or dynamic descriptor observation requires a value, the compiler materializes the canonical descriptor object; source bindings may retain and print that object, and `.name` exposes its canonical source spelling. An explicit import or constant alias retains the same descriptor identity rather than creating a new descriptor.
 
+Every materialized descriptor exposes `inherently-identity-bearing`. It is true for reference and
+resource-owning type contracts and false for ordinary value types, including collections.
+
 Source-declared class instance fields accept one trailing `metadata (...)` clause. The implemented
 metadata names are string `external-name` and boolean `secret`; declared initializers and `T|none`
 derive the same field descriptor's `defaulted` and `optional` flags. Class descriptors expose
@@ -807,11 +811,13 @@ change the generated manifest.
 | `string` | `.encode; encoding` | method | encoded `bytes` |
 | `bytes` | `.length` | property | byte count |
 | `bytes` | `.decode; encoding` | method | validated `string` or deterministic decode error |
+| `bytes` | `[index]`, `[range]` | lookup/slice | `uint8` or new `bytes`; invalid selected index throws `index-error` |
 | collection iterator | `.next` (compiler protocol) | method | typed `item` or sticky `end` step |
+| source-defined iterable | `.iterator`, iterator `.next` | structural protocol | authored typed `iteration-step` state machine |
 | list / tuple | `[index]` | lookup | value or `index-error`; `.get.checked; index` returns value or `none` |
 | map / unordered map | `[key]` | lookup | value or `missing-key`; `.get.checked; key` returns value or `none` |
 | list / map / set / tuple / unordered variants | `.length` | property | adaptive `int` count |
-| list | `.append`, `.set` | methods | copy-on-write mutation |
+| list | `.append`, `.set`, `.remove`, `.clear` | methods | copy-on-write mutation with observable release points |
 | map / unordered map | `.set`, `.keys`, `.values`, `.entries` | methods | deterministic mutation/views |
 | set / unordered set | `.contains`, `.add`, `.remove` | methods | deterministic membership/mutation |
 | entry | `.key`, `.value` | properties | cloned key/value |

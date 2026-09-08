@@ -2133,7 +2133,7 @@ The following values carry source-visible identity without requiring a new `ref`
 - uniquely owned resource objects, such as device handles, capabilities, and guards;
 - canonical semantic descriptor objects whose contract defines one identity, including type, namespace, package, and declared-function descriptors.
 
-Other ordinary values—including scalars, strings, collections, non-resource-owning class instances, closures, and bound methods—have no source-visible identity merely because an implementation boxes, interns, caches, or shares them. Their type may expose identity only through `ref` or by carrying an inherently identity-bearing resource/descriptor contract. Whether a type is inherently identity-bearing is reflected in its public type metadata and cannot vary secretly by representation or instance.
+Other ordinary values—including scalars, strings, collections, non-resource-owning class instances, closures, and bound methods—have no source-visible identity merely because an implementation boxes, interns, caches, or shares them. Their type may expose identity only through `ref` or by carrying an inherently identity-bearing resource/descriptor contract. The boolean descriptor member `inherently-identity-bearing` reports that type contract and cannot vary secretly by representation or instance. A `ref T` or `shared ref T` descriptor therefore reports true, while `T` and `list of T` report false unless those types themselves carry an inherent resource/descriptor identity contract.
 
 Exact runtime type is expressed through the value’s `type` descriptor. Requiring both exact type and value equality remains an explicit conjunction:
 
@@ -3144,6 +3144,13 @@ maybe = mapping.get.checked; key     # V|none
 first = items[0]                     # throws index-error when out of range
 ```
 
+Byte sequences use this same index contract without acquiring string semantics. An integer index
+selects one `uint8`; a range index selects a new `bytes` value. Range slicing visits the range's
+integer indices in order, including its authored step and inclusive/half-open choice. A negative,
+unrepresentable, or out-of-bounds selected index throws `index-error`. An empty range at a valid
+boundary returns empty bytes, and slicing never decodes or validates the selected octets as text.
+
+
 Absence is always the `checked` spelling. No lookup returns absence by default, and there is no separately named required-lookup operation: a default that throws and a child that does not is the same shape used by `coerce` and the arithmetic families, and introducing a second mechanism for one container would make the convention unreliable everywhere else.
 
 ### 16.6 Slices and ranges
@@ -3164,15 +3171,31 @@ inclusive = range.through; 0, 10     # 0 through 10
 
 The step defaults to `1` and must be non-zero. A step whose direction is inconsistent with the endpoints yields an empty range rather than an error or an unbounded sequence, so a computed step cannot accidentally produce a non-terminating loop.
 
-Slicing should use range objects rather than accumulating multiple special colon grammars:
+Slicing uses range objects rather than accumulating multiple special colon grammars:
 
 ```terrane
 part = items[range; 10, 20]
+packet = encoded[range.through; 4, 7]
 ```
 
 ### 16.7 Collection contracts
 
 These contracts apply across the collection types above.
+
+Replacement releases the displaced logical element before the mutating operation returns, once no
+other owner retains that element. Copy-on-write separation preserves the unmutated collection and
+does not turn shared backing storage into shared source identity. Removal instead transfers the
+removed element to the caller; its lifetime continues until that returned value is released (or
+ends immediately when the result is discarded). Clearing releases elements in collection iteration
+order before returning. Destruction of an ordered collection releases its remaining elements in
+collection iteration order. These points are source-observable through element destructors and are
+not left to unspecified behavior of the generated backing container.
+
+A collection remains identity-less even when copy-on-write storage is shared or its elements are
+identity-bearing. Reference values stored in a collection preserve their referent identities:
+`is` is true exactly when both reference operands denote the same referent, including a weak/strong
+pair, and false for distinct referents. Releasing a stored shared reference releases that owner;
+the referent is destroyed only after its final owner is released.
 
 **Ordering.** Maps and sets preserve insertion order, and that order is an observable part of their contract rather than an implementation accident. Iteration, rendering, and serialisation are therefore reproducible without the program sorting defensively.
 
@@ -3188,13 +3211,26 @@ A separate unordered map and set type exists for cases where the index-map layou
 
 ### 16.8 Iteration protocol
 
-`for ... in ...` invokes the iteration protocol.
+`for ... in ...` invokes the iteration protocol. An iterable object satisfies the protocol
+structurally when it has a non-throwing, non-async, zero-argument `iterator` method that does not
+mutate its receiver. That method returns either `iterator of Item` or an iterator object with a
+non-throwing, non-async, zero-argument `next` method returning `iteration-step of Item`. No
+inheritance declaration or named-interface annotation is required.
 
-An iterator's advancing operation returns a dedicated finite result, `iteration-step of Item`, with `item of Item` and `end` alternatives. The item may itself be a tuple or destructurable object.
+An iterator's advancing operation returns a dedicated finite result, `iteration-step of Item`, with
+`item of Item` and `end` alternatives. Source constructs those alternatives with
+`iteration-step; value` and `iteration-step.end;`. The item may itself be a tuple or destructurable
+object.
 
-Exhaustion is `end`, never `none`, because `none` may be a legitimate item. Iterators are stateful linear objects; `end` is sticky, and advancing after `end` returns `end` without consulting the source again. `for` desugars through this protocol and neither exposes nor synthesises a sentinel value.
+Exhaustion is `end`, never `none`, because `none` may be a legitimate item. Iterator objects are
+stateful linear values: transferring a named iterator into `for` makes that binding unavailable.
+An implementation must retain exhaustion so `end` is sticky, and advancing after `end` returns
+`end` without consulting the source again. `for` desugars through this protocol and neither exposes
+nor synthesises a sentinel value.
 
-The compiler may statically lower standard iterators to native Rust iterator chains.
+The compiler may statically lower standard iterators to native Rust iterator chains. Source-defined
+iterators lower through their authored `iterator` and `next` methods; the compiler does not replace
+their state machine with a collection-specific loop.
 
 ### 16.9 String iteration
 
@@ -3231,6 +3267,12 @@ Non-empty literal search compares the stored Unicode scalar sequence and is not 
 `trim` removes Unicode whitespace from both ends by default; `trim.start` and `trim.end` select one logical end. When supplied a literal argument, the selected operation removes exactly one matching prefix or suffix and otherwise returns the receiver unchanged.
 
 `upper` and `lower` are locale-independent Unicode mappings. Their `first` children change the first cased scalar, and `upper.words` changes the first cased scalar in each Unicode word-boundary segment. Locale-sensitive casing requires an explicit policy object and never consults process locale. `case-fold` is the explicitly named locale-independent Unicode case-folding operation; search has no hidden case-insensitive child. `normalise.nfc`, `.nfd`, `.nfkc`, and `.nfkd` apply the named Unicode normalization form.
+
+Version one pins case folding, normalization, Unicode word and grapheme segmentation, and every
+other compiler-owned Unicode table to Unicode 16.0.0 as one toolchain profile. The generated
+manifest records that data version. Switching between the pinned and explicitly requested system
+Rust toolchains does not change the Unicode contract; changing the Unicode profile is a compiler
+toolchain change that must update every affected support component together.
 
 `split` and `replace` use literal patterns and return new values. A non-empty pattern is matched left to right and the next search begins after the complete preceding match, so matches do not overlap. An empty `split` pattern returns one string per extended grapheme cluster, with no synthetic empty elements. An empty `replace` pattern inserts the replacement at every extended-grapheme boundary, including both ends. These grapheme-boundary rules prevent decomposed text from being split inside a user-perceived character.
 

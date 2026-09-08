@@ -201,44 +201,6 @@ Lower the semantic model to a small Rust-oriented IR before rendering text. The 
 
 This section contains only work that remains required by the settled version-one design. For a partially delivered milestone, its heading and exit criterion have been rewritten around the unfinished capability rather than repeating already implemented work. Requirements superseded by later language decisions are called out and excluded. Completely delivered milestones and completed portions of split milestones are retained in Appendix A.
 
-### Milestone 11 — Finish byte indexing and pin Unicode data
-
-The byte-sequence, string-view, and encoding-object slices are complete. Two contracts remain.
-
-Deliver:
-
-- settle and implement byte indexing and slicing against the collection range/index contract, including bounds failures and the exact slice result type; and
-- pin one Unicode data version through the compiler toolchain profile so grapheme segmentation and every other Unicode-dependent support component cannot drift independently through Cargo resolution.
-
-Do not silently assign string-index semantics to bytes, and do not treat the package lock as the compiler-wide Unicode contract.
-
-Exit criterion: byte indexing and slicing have accepted, boundary, and rejected conformance cases with source-oriented failures; a toolchain-profile change deterministically selects the Unicode data contract used by every affected support component; and generated crates remain reproducible under that pin.
-
-### Milestone 13 — Source-defined iterator protocol
-
-Built-in strings, bytes, ranges, and collections already use the compiler-owned iterator protocol. The remaining work is to let source objects satisfy the same structural protocol.
-
-Deliver:
-
-- semantic recognition of a source-defined advancing operation returning `iteration-step of Item`;
-- stateful, linear source iterator ownership with sticky `end`;
-- `for` dispatch through the same protocol path used by built-in iterables, without a parallel class-only lowering; and
-- source diagnostics for malformed result shape, incompatible item type, reuse after transfer, and invalid iterator state contracts.
-
-Exit criterion: a user-defined iterator drives `for`, a yielded `none` remains distinct from exhaustion, advancing after `end` does not consult the source again, and accepted and rejected cases exercise the shared semantic and lowering path.
-
-### Milestone 14 — Complete collection lifetime and identity semantics
-
-Collection construction, mutation, lookup, ordering, iteration, ranges, copy-on-write separation, and deterministic unordered storage are complete. The remaining work is the observable lifetime and identity boundary.
-
-Deliver:
-
-- deterministic release order for owned values held by collections, including replacement, removal, clearing, copy-on-write separation, and collection destruction;
-- type metadata that states whether a value is inherently identity-bearing;
-- the settled `is` behavior for ordinary collections: representation sharing is never source identity, ordinary collection values are identity-less, and only an explicit reference can create or preserve a source-visible identity; and
-- generated lowering that preserves those contracts without exposing Rust allocation or pointer identity.
-
-Exit criterion: executable cases observe deterministic release through collection-held values and prove collection `is` behavior before and after explicit references; descriptor/reflection evidence reports the identity-bearing contract; generated Rust remains deterministic and warning-free.
 
 ### Milestone 15 — Caller-supplied conversion callbacks
 
@@ -1551,6 +1513,25 @@ paths, and the reviewed `div-rem` golden contains one combined support operation
 
 Bytes literals preserve arbitrary byte values, expose byte length, iterate as `uint8`, and deliberately lack scalar display. Explicit UTF-8 byte, scalar, and grapheme views produce distinct counts for a multi-scalar grapheme. Compiler-owned UTF-8, UTF-16 little-/big-endian, and UTF-32 little-/big-endian encoding objects round-trip through generated crates, while invalid input exits through a typed `decode-error` carrying its byte offset.
 
+### Milestone 11 — Finish byte indexing and pin Unicode data
+
+The byte-sequence, string-view, and encoding-object slices are complete. Two contracts remain.
+
+Deliver:
+
+- settle and implement byte indexing and slicing against the collection range/index contract, including bounds failures and the exact slice result type; and
+- pin one Unicode data version through the compiler toolchain profile so grapheme segmentation and every other Unicode-dependent support component cannot drift independently through Cargo resolution.
+
+Do not silently assign string-index semantics to bytes, and do not treat the package lock as the compiler-wide Unicode contract.
+
+Exit criterion: byte indexing and slicing have accepted, boundary, and rejected conformance cases with source-oriented failures; a toolchain-profile change deterministically selects the Unicode data contract used by every affected support component; and generated crates remain reproducible under that pin.
+
+Status: implemented on `byte-indexing-source-iterators-collection-identity`. Evidence:
+`byte-index-and-slice` and `byte-index-type` cover scalar byte results, stepped and inclusive
+`bytes` slices, valid empty boundaries, runtime bounds failures, and source type diagnostics.
+Compiler and generated support manifests pin the single Unicode 16.0.0 profile, and the generated
+manifest records that profile independently of the selected Rust installation.
+
 ### Milestone 12 — String transformation and search families
 
 Deliver:
@@ -1570,13 +1551,45 @@ empty-pattern grapheme-boundary rule: `find.all` includes both ends, `split` emi
 graphemes without synthetic empties, and `replace` inserts at each boundary. Text ranges
 retain immutable source text and expose byte, scalar, and grapheme boundary views.
 
-### Completed portion of Milestone 13 — Iterator protocol foundation
+### Milestone 13 — Source-defined iterator protocol
 
-`iteration-step` is a compiler-owned typed result with distinct `item` and sticky `end` alternatives. Compiler-owned iterator values, strings, bytes, ranges, and every collection enter `for` through the same support protocol. Conformance distinguishes a yielded `none` from exhaustion and advances again after exhaustion.
+Built-in strings, bytes, ranges, and collections already use the compiler-owned iterator protocol. The remaining work is to let source objects satisfy the same structural protocol.
 
-### Completed portion of Milestone 14 — Collection values
+Deliver:
 
-Compiler-owned descriptors construct typed copy-on-write lists, insertion-ordered maps and sets, homogeneous tuples, ranges, entries, and deterministic fixed-seed unordered maps and sets. Lookup, mutation, range behavior, typed iteration/destructuring, assignment separation, and loop-region list lowering execute through conformance. Generated lowering performs bounded preallocation and one copy-on-write split around qualifying mutation regions without changing source collection semantics.
+- semantic recognition of a source-defined advancing operation returning `iteration-step of Item`;
+- stateful, linear source iterator ownership with sticky `end`;
+- `for` dispatch through the same protocol path used by built-in iterables, without a parallel class-only lowering; and
+- source diagnostics for malformed result shape, incompatible item type, reuse after transfer, and invalid iterator state contracts.
+
+Exit criterion: a user-defined iterator drives `for`, a yielded `none` remains distinct from exhaustion, advancing after `end` does not consult the source again, and accepted and rejected cases exercise the shared semantic and lowering path.
+
+Status: implemented on `byte-indexing-source-iterators-collection-identity`. Evidence:
+`source-defined-iterator` drives `for` through authored structural methods, yields `none` as an
+item, and observes sticky exhaustion; `source-iterator-next-contract` rejects the wrong advancing
+shape, `source-iterator-item-type` rejects an incompatible yielded type at the method return span,
+and `source-iterator-reuse` rejects reuse after transfer. Their reviewed lowerings use the same loop
+protocol path as compiler-owned iterables.
+
+### Milestone 14 — Complete collection lifetime and identity semantics
+
+Collection construction, mutation, lookup, ordering, iteration, ranges, copy-on-write separation, and deterministic unordered storage are complete. The remaining work is the observable lifetime and identity boundary.
+
+Deliver:
+
+- deterministic release order for owned values held by collections, including replacement, removal, clearing, copy-on-write separation, and collection destruction;
+- type metadata that states whether a value is inherently identity-bearing;
+- the settled `is` behavior for ordinary collections: representation sharing is never source identity, ordinary collection values are identity-less, and only an explicit reference can create or preserve a source-visible identity; and
+- generated lowering that preserves those contracts without exposing Rust allocation or pointer identity.
+
+Exit criterion: executable cases observe deterministic release through collection-held values and prove collection `is` behavior before and after explicit references; descriptor/reflection evidence reports the identity-bearing contract; generated Rust remains deterministic and warning-free.
+
+Status: implemented on `byte-indexing-source-iterators-collection-identity`. Evidence:
+`collection-identity-lifetime` observes replacement, removal, clear, copy-on-write separation, and
+ordered destruction release points; proves identity-less collection/value behavior and same- versus
+different-referent `ref` behavior; and reflects `inherently-identity-bearing` on materialized type
+descriptors. Its canonical generated crate compiles and runs with warnings denied.
+
 
 ### Completed portion of Milestone 15 — Function values and closures
 

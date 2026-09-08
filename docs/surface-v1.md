@@ -1344,7 +1344,7 @@ Editor package knowledge is an optional, light-touch index over the same resolve
 When the profile retains reflection metadata, descriptors expose:
 
 ```text
-type: identity, compatibility, protocols, members, ownership, capabilities
+type: identity, compatibility, protocols, members, ownership, capabilities, inherently-identity-bearing
 callable: parameters, return, contracts, receiver, source identity
 namespace/package: children, visibility, origin/version
 value: source type, identity category, storage/copy facts where permitted

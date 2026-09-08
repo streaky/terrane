@@ -359,7 +359,7 @@ function_type: 'function from A, B to R'; associates right
 - Conditions invoke truth protocol.
 - `==` value equality; `is` source-visible identity; `is a` type membership, not numeric destination convertibility. A typed `int8` value is not an `int`; a numeric constant uses the queried type as context, so `42 is a int8` is true and an inadmissible constant answers false rather than failing. `===` invalid.
 - `c is a` is identity against binding `a`; `c is a widget` is membership when complete type follows.
-- Ordinary scalars/strings/collections are identity-less: `is` is false even for `x is x` and `42 is 42`. Only explicit refs, linear resources, and canonical descriptors carry identity. Exact-type-and-value comparison is `left == right and left.type is right.type`.
+- Ordinary scalars/strings/collections are identity-less: `is` is false even for `x is x` and `42 is 42`. Explicit refs, linear resources, and canonical descriptors carry identity; ref/shared-ref pairs compare true exactly when both denote the same referent. Descriptor metadata exposes the boolean `inherently-identity-bearing`; it is true for ref types/resources/descriptors and false for ordinary values and collections. Exact-type-and-value comparison is `left == right and left.type is right.type`.
 - Type descriptors are language constructs backed by canonical compiler-owned objects, not independently instantiated values.
 - Class, interface, and trait identity is nominal and namespace-qualified: `(declaring namespace, declared name)`. Import aliases change spelling, not identity; same-named declarations in different namespaces are unrelated types, and diagnostics qualify them when the short form is ambiguous.
 
@@ -670,17 +670,28 @@ Core environment provides object protocols/facilities for list, map, set, tuple,
 ```yaml
 lookup: default child THROWS (missing-key for map, index-error for sequence); checked returns V|none
 lookup_rule: absence is always the checked spelling; no operation returns absence by default
+byte_index: integer index -> uint8; negative/unrepresentable/out-of-bounds throws index-error
+byte_slice: range index -> new bytes; visits authored half-open/inclusive range and step in order; any invalid selected index throws index-error; valid empty boundary -> empty bytes; never text-decodes
 mutators: return the resulting collection for value/COW collections; none for in-place resource mutators unless a removed/replaced value is meaningful
+release_replacement: displaced logical element released before mutation returns once no owner retains it; COW separation preserves unmutated collection without creating shared source identity
+release_removal: removed element transferred to caller; released when returned value is released (immediately if discarded)
+release_clearing: elements released in collection iteration order before clear returns
+release_destruction: ordered collection releases remaining elements in iteration order
+collection_identity: collection remains identity-less even when COW storage is shared or elements carry identity
+stored_reference_identity: ref/shared-ref operands compare true iff same referent (including weak/strong pair); releasing stored shared ref destroys referent only after final owner
 order: map and set preserve insertion order as an observable contract
 unordered_variant: a separate unordered map/set type exists for layout cost; it is DETERMINISTIC (fixed hash seed), not merely unordered
 unordered_rule: the performance option must never be the nondeterministic option; it is a distinct type, not a flag
+source_iterable: structural; nonthrowing nonasync zero-arg nonmutating iterator -> iterator of Item OR object whose nonthrowing nonasync zero-arg next -> iteration-step of Item; no interface annotation required
+iteration_step_construct: iteration-step; value -> item; iteration-step.end; -> end
+iteration_end: dedicated end, never none (none may be an item); source iterator retains exhaustion and post-end next does not consult source
+iterator_transfer: iterator objects are stateful linear values; transferring a named iterator into for makes its binding unavailable
+source_iterator_lowering: for calls authored iterator then next; compiler does not synthesize a collection-specific loop
 range: half-open by default; explicit 'through' constructor for inclusive ends
 range_step: defaults to 1, must be non-zero; direction inconsistent with endpoints yields an empty range
 inference: homogeneous literals infer the narrowest common declared type; heterogeneous require explicit union or annotation
 cow: separation at first mutation visible through a non-unique value handle
 hash_keys: mutable values and identity-bearing resources cannot be hash keys
-iteration_step: advancing returns 'iteration-step of Item' with 'item of Item' and 'end' alternatives
-iteration_end: exhaustion is NOT none, because none may be a valid item; end is sticky; advancing after end returns end
 ```
 
 String members follow the same callable-family shape:
@@ -704,6 +715,7 @@ literal_search_boundary: non-empty find/contains operate on scalar sequences, no
 trim_modes: default Unicode whitespace; literal argument removes exactly one matching selected prefix/suffix
 case_mapping: upper/lower default, .first, and upper.words are locale-independent Unicode operations; case-fold is explicit and locale-independent
 normalise: explicit nfc/nfd/nfkc/nfkd children
+unicode_profile: version one pins every compiler-owned Unicode table to Unicode 16.0.0; case folding, normalization, word/grapheme segmentation, and affected support crates update together; generated manifest records version; pinned/system Rust choice does not alter it
 split_replace: literal, left-to-right, non-overlapping; empty split -> grapheme list without synthetic empties; empty replace -> insert at every grapheme boundary including ends
 family_rule: a family is modes of ONE operation, not a bucket of related operations; group by subject uses a namespace instead
 case_search: no case-insensitive child; apply explicit case-fold to both operands
