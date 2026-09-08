@@ -1,0 +1,10 @@
+package = "removed-dependency-instance-member"
+
+[profile]
+capabilities = ["build"]
+
+[namespaces]
+app = "src"
+
+[rust-dependencies.httpdate]
+version = "=1.0.3"

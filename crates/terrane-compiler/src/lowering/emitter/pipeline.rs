@@ -7,6 +7,27 @@ pub(super) fn module_destination(unit: &SemanticUnit) -> ModuleDestination {
         ModuleDestination::Application
     }
 }
+fn package_uses_descriptor_runtime(package: &SemanticPackage) -> bool {
+    fn contains_type_member(unit: &SemanticUnit, node: &SyntaxNode) -> bool {
+        (node.kind == SyntaxKind::MemberExpression
+            && node.children.get(1).is_some_and(|member| {
+                &unit.source.text()[member.span.start..member.span.end] == "type"
+            }))
+            || node
+                .children
+                .iter()
+                .any(|child| contains_type_member(unit, child))
+    }
+
+    package.units.iter().any(|unit| {
+        contains_type_member(unit, &unit.tree.root)
+            || unit.typed_bindings.iter().any(|binding| {
+                matches!(binding.value_type, ValueType::Descriptor(_))
+                    && descriptor_binding_is_materialized(package, unit, binding.span)
+            })
+    })
+}
+
 #[expect(
     clippy::too_many_lines,
     reason = "package lowering assembles one deterministic generated-crate prelude and unit set"
@@ -316,12 +337,7 @@ pub(crate) fn lower(package: &SemanticPackage) -> Program {
             items,
         });
     }
-    if package.units.iter().any(|unit| {
-        unit.typed_bindings.iter().any(|binding| {
-            matches!(binding.value_type, ValueType::Descriptor(_))
-                && descriptor_binding_is_materialized(package, unit, binding.span)
-        })
-    }) {
+    if package_uses_descriptor_runtime(package) {
         runtime.push(descriptor_runtime_module());
     }
     emit_global_storage(package, &registry, &mut globals);

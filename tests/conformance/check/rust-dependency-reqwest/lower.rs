@@ -571,17 +571,56 @@ fn main() {
     );
     println!("{}", terrane_scalar_support::scalar_text(&body));
 }
-// Source: <terrane>/projected/deps/http/extensions.trn
-// Namespace: deps/http/extensions
+// Source: <terrane>/projected/deps/http.trn
+// Namespace: deps/http
 pub use http::Extensions;
-// Source: <terrane>/projected/deps/http/status.trn
-// Namespace: deps/http/status
 pub use http::StatusCode;
-// Source: <terrane>/projected/deps/http/version.trn
-// Namespace: deps/http/version
 pub use http::Version;
+pub fn terrane_static_trn_457874656e73696f6e73_new() -> Result<
+    Extensions,
+    crate::TerraneForeignError,
+> {
+    match std::panic::catch_unwind(
+        std::panic::AssertUnwindSafe(|| http::Extensions::new()),
+    ) {
+        Ok(value) => Ok(value),
+        Err(payload) => {
+            Err(crate::__terrane_dependency_panic(payload, "http", "http::Extensions"))
+        }
+    }
+}
+pub fn terrane_static_trn_537461747573436f6465_from_u16(
+    src: terrane_int_support::Int,
+) -> Result<StatusCode, crate::TerraneForeignError> {
+    let src = terrane_int_support::coerce::<u16>(&src)
+        .map_err(|error| crate::TerraneForeignError(
+            crate::TerraneRaised::raised(error, crate::TERRANE_NO_SITE),
+        ))?;
+    match std::panic::catch_unwind(
+        std::panic::AssertUnwindSafe(|| http::StatusCode::from_u16(src)),
+    ) {
+        Ok(Ok(value)) => Ok(value),
+        Ok(Err(error)) => {
+            Err(
+                crate::TerraneForeignError(
+                    crate::TerraneError::custom_raised(
+                        crate::TERRANE_DEPENDENCY_ERROR,
+                        format!(
+                            "Rust dependency `http` member `http::StatusCode` failed: {error}"
+                        ),
+                        crate::TERRANE_NO_SITE,
+                    ),
+                ),
+            )
+        }
+        Err(payload) => {
+            Err(crate::__terrane_dependency_panic(payload, "http", "http::StatusCode"))
+        }
+    }
+}
 // Source: <terrane>/projected/deps/reqwest/blocking.trn
 // Namespace: deps/reqwest/blocking
+pub use reqwest::blocking::Response;
 pub fn get(url: String) -> Result<Response, crate::TerraneForeignError> {
     let url = url;
     match std::panic::catch_unwind(
@@ -612,6 +651,3 @@ pub fn get(url: String) -> Result<Response, crate::TerraneForeignError> {
         }
     }
 }
-// Source: <terrane>/projected/deps/reqwest/blocking/response.trn
-// Namespace: deps/reqwest/blocking/response
-pub use reqwest::blocking::Response;

@@ -311,6 +311,7 @@ pub(super) fn object_method_mutates(
             &object_identity.namespace,
             &object_identity.name,
             method_name,
+            false,
         )
         .is_some_and(|method| {
             matches!(
@@ -359,16 +360,21 @@ pub(crate) fn binding_span_is_mutated(
                 callee.kind == SyntaxKind::MemberExpression
                     && (matches!(
                         node_text(&unit.source, member),
-                        "append" | "set" | "add" | "remove"
-                    ) || matches!(
-                        infer_value_type(unit, receiver, &unit.typed_bindings),
-                        Ok(Some(ValueType::Object(object)))
-                            if object_method_mutates(
-                                package,
-                                &object,
-                                node_text(&unit.source, member)
-                            )
-                    ))
+                        "append" | "set" | "add" | "remove" | "clear"
+                    ) || (node_text(&unit.source, member) == "next"
+                        && matches!(
+                            infer_value_type(unit, receiver, &unit.typed_bindings),
+                            Ok(Some(ValueType::Iterator(_)))
+                        ))
+                        || matches!(
+                            infer_value_type(unit, receiver, &unit.typed_bindings),
+                            Ok(Some(ValueType::Object(object)))
+                                if object_method_mutates(
+                                    package,
+                                    &object,
+                                    node_text(&unit.source, member)
+                                )
+                        ))
                     && resolves_to_binding(receiver)
             });
         let iterator_advance = iterator_binding

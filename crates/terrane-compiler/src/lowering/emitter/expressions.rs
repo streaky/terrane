@@ -1,22 +1,46 @@
 use super::super::prelude::*;
 
 impl Emitter<'_> {
-    fn descriptor_expression(&self, source_name: &str) -> String {
-        let object = self
-            .unit
-            .objects
-            .iter()
-            .find(|object| object.name == source_name);
-        let identity = object.map_or_else(
-            || source_name.to_owned(),
-            |object| object.identity.to_string(),
+    pub(super) fn descriptor_expression(&self, value_type: &ValueType) -> String {
+        let source_name = value_type.to_string();
+        let object = match value_type {
+            ValueType::Object(identity) => self
+                .unit
+                .objects
+                .iter()
+                .find(|object| object.identity == *identity),
+            ValueType::Descriptor(identity) => self.unit.objects.iter().find(|object| {
+                object.name == *identity || object.identity.qualified() == *identity
+            }),
+            _ => None,
+        };
+        let identity = match value_type {
+            ValueType::Object(identity) => identity.qualified(),
+            ValueType::Descriptor(identity) => {
+                object.map_or_else(|| identity.clone(), |object| object.identity.qualified())
+            }
+            _ => source_name.clone(),
+        };
+        let name = object.map_or_else(
+            || match value_type {
+                ValueType::Descriptor(identity) => identity
+                    .rsplit_once("::")
+                    .map_or(identity.as_str(), |(_, name)| name)
+                    .to_owned(),
+                _ => source_name.clone(),
+            },
+            |object| object.name.clone(),
         );
-        let name = object.map_or(source_name, |object| object.name.as_str());
         let kind = object.map_or("type", |object| match object.kind {
             ObjectKind::Class => "class",
             ObjectKind::Interface => "interface",
             ObjectKind::Trait => "trait",
         });
+        let inherently_identity_bearing = object.is_some_and(|object| object.resource_owning)
+            || matches!(
+                value_type,
+                ValueType::Reference(_) | ValueType::SharedReference(_)
+            );
         let fields = object.map_or_else(String::new, |object| {
             effective_object_fields(self.unit, object)
                 .into_iter()
@@ -35,7 +59,7 @@ impl Emitter<'_> {
                 .join(", ")
         });
         format!(
-            "TerraneDescriptor {{ identity: {identity:?}, name: {name:?}, kind: {kind:?}, fields: &[{fields}] }}"
+            "TerraneDescriptor {{ identity: {identity:?}, name: {name:?}, kind: {kind:?}, inherently_identity_bearing: {inherently_identity_bearing}, fields: &[{fields}] }}"
         )
     }
 
@@ -67,7 +91,7 @@ impl Emitter<'_> {
             };
             self.package
                 .projection
-                .method(&identity.namespace, &identity.name, &contract.name)
+                .method(&identity.namespace, &identity.name, &contract.name, false)
                 .is_some()
         });
         let throws = projected || contract.is_some_and(|contract| contract.throws);
@@ -93,7 +117,7 @@ impl Emitter<'_> {
                     .current_object
                     .as_ref()
                     .expect("`self` is only lowered in an object method");
-                self.descriptor_expression(&identity.name)
+                self.descriptor_expression(&ValueType::Object(identity.clone()))
             }
             SyntaxKind::Name => {
                 let binding = self.unit.typed_bindings.iter().rev().find(|binding| {
@@ -101,10 +125,10 @@ impl Emitter<'_> {
                         && binding.is_visible_at(self.unit.source.id(), node.span.start)
                 });
                 match self.value_type(node) {
-                    Some(ValueType::Descriptor(identity))
+                    Some(value_type @ ValueType::Descriptor(_))
                         if binding.is_none_or(|binding| binding.scope.is_none()) =>
                     {
-                        self.descriptor_expression(&identity)
+                        self.descriptor_expression(&value_type)
                     }
                     _ => self.name(node),
                 }
@@ -921,6 +945,34 @@ impl Emitter<'_> {
         };
         let source_operator = self.source.text()[left.span.end..right.span.start].trim();
         if source_operator == "is" {
+            let left_type = self.value_type(left);
+            let right_type = self.value_type(right);
+            let reference_items = match (&left_type, &right_type) {
+                (
+                    Some(ValueType::Reference(left) | ValueType::SharedReference(left)),
+                    Some(ValueType::Reference(right) | ValueType::SharedReference(right)),
+                ) => Some((left, right)),
+                _ => None,
+            };
+            if let Some((left_item, right_item)) = reference_items
+                && left_item == right_item
+            {
+                let left_expression = self.expression(left);
+                let right_expression = self.expression(right);
+                let left_pointer = if matches!(left_type, Some(ValueType::Reference(_))) {
+                    "std::sync::Weak::as_ptr(__terrane_identity_left)"
+                } else {
+                    "std::sync::Arc::as_ptr(__terrane_identity_left)"
+                };
+                let right_pointer = if matches!(right_type, Some(ValueType::Reference(_))) {
+                    "std::sync::Weak::as_ptr(__terrane_identity_right)"
+                } else {
+                    "std::sync::Arc::as_ptr(__terrane_identity_right)"
+                };
+                return format!(
+                    "{{ let __terrane_identity_left = &({left_expression}); let __terrane_identity_right = &({right_expression}); std::ptr::eq({left_pointer}, {right_pointer}) }}"
+                );
+            }
             let result = matches!(
                 (
                     self.descriptor_identity(left),

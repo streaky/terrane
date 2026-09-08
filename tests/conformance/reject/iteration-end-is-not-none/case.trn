@@ -1,0 +1,4 @@
+namespace iteration-end-is-not-none
+from /core/collections import iteration-step
+function main;
+  absent none = iteration-step.end;

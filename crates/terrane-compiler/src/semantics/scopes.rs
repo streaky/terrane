@@ -546,27 +546,25 @@ pub(super) fn validate_assigned_reads(
 pub(super) fn validate_control_flow(
     package: &SemanticPackage,
 ) -> Result<Vec<Vec<Span>>, SemanticFailure> {
+    fn function_declarations<'a>(node: &'a SyntaxNode, declarations: &mut Vec<&'a SyntaxNode>) {
+        if node.kind == SyntaxKind::FunctionDeclaration {
+            declarations.push(node);
+            return;
+        }
+        for child in &node.children {
+            function_declarations(child, declarations);
+        }
+    }
     let mut unreachable_units = Vec::with_capacity(package.units.len());
     for unit in &package.units {
         let mut unreachable = Vec::new();
-        for function in unit
-            .tree
-            .root
-            .children
-            .iter()
-            .filter(|node| node.kind == SyntaxKind::FunctionDeclaration)
-        {
-            let Some(name_node) = function
-                .children
-                .iter()
-                .find(|child| child.kind == SyntaxKind::Name)
-            else {
-                continue;
-            };
+        let mut declarations = Vec::new();
+        function_declarations(&unit.tree.root, &mut declarations);
+        for function in declarations {
             let Some(contract) = unit
                 .functions
                 .iter()
-                .find(|contract| contract.name == node_text(&unit.source, name_node))
+                .find(|contract| contract.span == function.span)
             else {
                 continue;
             };
@@ -709,15 +707,24 @@ pub(super) fn validate_flow_statement(
             if statement.children.len() == 4 {
                 validate_bool_condition(unit, &statement.children[1], bindings)?;
             } else if let [target, collection, block] = statement.children.as_slice() {
-                let collection_type = infer_value_type(unit, collection, bindings)?;
-                let Some(item_type) = collection_type.and_then(iterable_item_type) else {
-                    return Err(failure(
-                        &unit.source,
-                        "T0016",
-                        "collection iteration requires an iterable value",
-                        collection.span,
-                    ));
-                };
+                let collection_type =
+                    infer_value_type(unit, collection, bindings)?.ok_or_else(|| {
+                        failure(
+                            &unit.source,
+                            "T0016",
+                            "collection iteration requires an iterable value",
+                            collection.span,
+                        )
+                    })?;
+                let item_type =
+                    iterable_item_type(unit, collection_type).map_err(|(message, span)| {
+                        failure(
+                            &unit.source,
+                            "T0016",
+                            message,
+                            span.unwrap_or(collection.span),
+                        )
+                    })?;
                 loop_bindings.extend(iteration_target_bindings(
                     unit,
                     target,
@@ -835,6 +842,136 @@ pub(super) fn validate_if_flow(
     Ok(!has_else || branch_falls_through.into_iter().any(|branch| branch))
 }
 
+fn condition_proves_absent_member(
+    source: &SourceFile,
+    condition: &SyntaxNode,
+    target_name: &str,
+) -> bool {
+    let condition = super::types::ungrouped_expression(condition);
+    if condition.kind != SyntaxKind::BinaryExpression {
+        return false;
+    }
+    let [left, right] = condition.children.as_slice() else {
+        return false;
+    };
+    let operator = source.text()[left.span.end..right.span.start].trim();
+    let left = super::types::ungrouped_expression(left);
+    let right = super::types::ungrouped_expression(right);
+    operator == "=="
+        && matches!(
+            (node_text(source, left), node_text(source, right)),
+            (target, "none") | ("none", target) if target == target_name
+        )
+}
+
+fn writes_exact_target(source: &SourceFile, node: &SyntaxNode, target_name: &str) -> bool {
+    if matches!(
+        node.kind,
+        SyntaxKind::Assignment | SyntaxKind::PostfixExpression
+    ) && node
+        .children
+        .first()
+        .is_some_and(|target| node_text(source, target) == target_name)
+    {
+        return true;
+    }
+    node.children
+        .iter()
+        .any(|child| writes_exact_target(source, child, target_name))
+}
+
+fn enclosing_block(node: &SyntaxNode, position: usize) -> Option<&SyntaxNode> {
+    if !(node.span.start <= position && position <= node.span.end) {
+        return None;
+    }
+    node.children
+        .iter()
+        .find_map(|child| enclosing_block(child, position))
+        .or_else(|| (node.kind == SyntaxKind::Block).then_some(node))
+}
+
+fn post_if_initialized_member_type(
+    unit: &SemanticUnit,
+    returned: &SyntaxNode,
+    actual: &ValueType,
+    bindings: &[TypedBinding],
+) -> Result<Option<ValueType>, SemanticFailure> {
+    let ValueType::Optional(inner) = actual else {
+        return Ok(None);
+    };
+    let returned = super::types::ungrouped_expression(returned);
+    if returned.kind != SyntaxKind::StaticMemberExpression {
+        return Ok(None);
+    }
+    let target_name = node_text(&unit.source, returned);
+    let Some(block) = enclosing_block(&unit.tree.root, returned.span.start) else {
+        return Ok(None);
+    };
+    let Some(return_index) = block.children.iter().position(|statement| {
+        statement.span.file == returned.span.file
+            && statement.span.start <= returned.span.start
+            && returned.span.end <= statement.span.end
+    }) else {
+        return Ok(None);
+    };
+    for (candidate_index, candidate) in block.children[..return_index].iter().enumerate().rev() {
+        if candidate.kind != SyntaxKind::IfStatement
+            || candidate
+                .children
+                .iter()
+                .any(|child| child.kind == SyntaxKind::ElseClause)
+        {
+            continue;
+        }
+        let Some(condition) = candidate.children.first() else {
+            continue;
+        };
+        if !condition_proves_absent_member(&unit.source, condition, target_name)
+            || block.children[candidate_index + 1..return_index]
+                .iter()
+                .any(|statement| writes_exact_target(&unit.source, statement, target_name))
+        {
+            continue;
+        }
+        let Some(body) = candidate
+            .children
+            .iter()
+            .find(|child| child.kind == SyntaxKind::Block)
+        else {
+            continue;
+        };
+        let mut assignments = body.children.iter().filter(|statement| {
+            statement.kind == SyntaxKind::Assignment
+                && statement
+                    .children
+                    .first()
+                    .is_some_and(|target| node_text(&unit.source, target) == target_name)
+        });
+        let Some(assignment) = assignments.next() else {
+            continue;
+        };
+        if assignments.next().is_some() {
+            continue;
+        }
+        if body.children.iter().any(|statement| {
+            statement.span != assignment.span
+                && writes_exact_target(&unit.source, statement, target_name)
+        }) {
+            continue;
+        }
+        let Some(value) = assignment.children.get(1) else {
+            continue;
+        };
+        let Some(assigned_type) = infer_value_type(unit, value, bindings)? else {
+            continue;
+        };
+        if super::types::value_types_compatible(&unit.objects, inner, &assigned_type) {
+            return Ok(Some(inner.as_ref().clone()));
+        }
+    }
+    Ok(None)
+}
+
 pub(super) fn validate_return(
     unit: &SemanticUnit,
     statement: &SyntaxNode,
@@ -882,6 +1019,8 @@ pub(super) fn validate_return(
                     value.span,
                 ));
             };
+            let actual =
+                post_if_initialized_member_type(unit, value, &actual, bindings)?.unwrap_or(actual);
             validate_value_destination(
                 &unit.source,
                 &unit.objects,

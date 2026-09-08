@@ -64,6 +64,7 @@ pub(super) fn parse_unit(
         function_aliases: BTreeMap::new(),
         function_contracts_by_span: BTreeMap::new(),
         descriptor_aliases: BTreeMap::new(),
+        projected_removals: Vec::new(),
         enclosing_function_spans,
         unreachable_spans: Vec::new(),
         evaluation_steps: Vec::new(),
@@ -156,6 +157,9 @@ pub(super) fn parse_units(
         }
         index += 1;
     }
+    for unit in &mut units {
+        unit.projected_removals.clone_from(&projection.removed);
+    }
     Ok(units)
 }
 pub(super) fn apply_projected_method_contracts(
@@ -170,12 +174,18 @@ pub(super) fn apply_projected_method_contracts(
             let Some(owner) = contract.owner.as_deref() else {
                 continue;
             };
+            contract.throws = true;
             let type_name = unit
                 .objects
                 .iter()
                 .find(|object| object.identity.name == owner)
                 .map_or(owner, |object| object.name.as_str());
-            let Some(method) = projection.method(&unit.namespace, type_name, &contract.name) else {
+            let Some(method) = projection.method(
+                &unit.namespace,
+                type_name,
+                &contract.name,
+                contract.is_static,
+            ) else {
                 continue;
             };
             contract.throws = true;
@@ -187,6 +197,50 @@ pub(super) fn apply_projected_method_contracts(
                 matches!(method.receiver, Some(crate::projection::Receiver::Move));
         }
     }
+}
+fn validate_projected_static_declines(package: &SemanticPackage) -> Result<(), SemanticFailure> {
+    fn visit(
+        package: &SemanticPackage,
+        unit: &SemanticUnit,
+        node: &SyntaxNode,
+    ) -> Result<(), SemanticFailure> {
+        if node.kind == SyntaxKind::StaticMemberExpression
+            && let [receiver, member] = node.children.as_slice()
+            && let Some(owner) = package.resolve_name_at(
+                unit,
+                receiver.span.start,
+                node_text(&unit.source, receiver),
+            )
+            && owner.kind == SymbolKind::Class
+            && owner.namespace.starts_with("/deps/")
+        {
+            let member_name = node_text(&unit.source, member);
+            if let Some(reason) = package.projection.declined_method_reason(
+                &owner.namespace,
+                &owner.name,
+                member_name,
+            ) {
+                return Err(failure(
+                    &unit.source,
+                    "T0105",
+                    format!(
+                        "Rust dependency static member `{member_name}` on class `{}` is not projected: {reason}",
+                        node_text(&unit.source, receiver),
+                    ),
+                    member.span,
+                ));
+            }
+        }
+        for child in &node.children {
+            visit(package, unit, child)?;
+        }
+        Ok(())
+    }
+
+    for unit in &package.units {
+        visit(package, unit, &unit.tree.root)?;
+    }
+    Ok(())
 }
 
 pub(super) fn dependency_projection(
@@ -396,6 +450,7 @@ pub fn analyze(package: &Package) -> Result<SemanticPackage, SemanticFailure> {
     };
     validate_initializer_dependencies(&semantic)?;
     validate_references(&semantic)?;
+    validate_projected_static_declines(&semantic)?;
     analyze_types(&mut semantic)?;
     validate_error_clauses(&semantic)?;
     validate_moves(&semantic)?;

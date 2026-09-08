@@ -1,0 +1,4 @@
+package = "package-source-iterator"
+prelude = true
+[namespaces]
+app = "app"

@@ -201,44 +201,6 @@ Lower the semantic model to a small Rust-oriented IR before rendering text. The 
 
 This section contains only work that remains required by the settled version-one design. For a partially delivered milestone, its heading and exit criterion have been rewritten around the unfinished capability rather than repeating already implemented work. Requirements superseded by later language decisions are called out and excluded. Completely delivered milestones and completed portions of split milestones are retained in Appendix A.
 
-### Milestone 11 — Finish byte indexing and pin Unicode data
-
-The byte-sequence, string-view, and encoding-object slices are complete. Two contracts remain.
-
-Deliver:
-
-- settle and implement byte indexing and slicing against the collection range/index contract, including bounds failures and the exact slice result type; and
-- pin one Unicode data version through the compiler toolchain profile so grapheme segmentation and every other Unicode-dependent support component cannot drift independently through Cargo resolution.
-
-Do not silently assign string-index semantics to bytes, and do not treat the package lock as the compiler-wide Unicode contract.
-
-Exit criterion: byte indexing and slicing have accepted, boundary, and rejected conformance cases with source-oriented failures; a toolchain-profile change deterministically selects the Unicode data contract used by every affected support component; and generated crates remain reproducible under that pin.
-
-### Milestone 13 — Source-defined iterator protocol
-
-Built-in strings, bytes, ranges, and collections already use the compiler-owned iterator protocol. The remaining work is to let source objects satisfy the same structural protocol.
-
-Deliver:
-
-- semantic recognition of a source-defined advancing operation returning `iteration-step of Item`;
-- stateful, linear source iterator ownership with sticky `end`;
-- `for` dispatch through the same protocol path used by built-in iterables, without a parallel class-only lowering; and
-- source diagnostics for malformed result shape, incompatible item type, reuse after transfer, and invalid iterator state contracts.
-
-Exit criterion: a user-defined iterator drives `for`, a yielded `none` remains distinct from exhaustion, advancing after `end` does not consult the source again, and accepted and rejected cases exercise the shared semantic and lowering path.
-
-### Milestone 14 — Complete collection lifetime and identity semantics
-
-Collection construction, mutation, lookup, ordering, iteration, ranges, copy-on-write separation, and deterministic unordered storage are complete. The remaining work is the observable lifetime and identity boundary.
-
-Deliver:
-
-- deterministic release order for owned values held by collections, including replacement, removal, clearing, copy-on-write separation, and collection destruction;
-- type metadata that states whether a value is inherently identity-bearing;
-- the settled `is` behavior for ordinary collections: representation sharing is never source identity, ordinary collection values are identity-less, and only an explicit reference can create or preserve a source-visible identity; and
-- generated lowering that preserves those contracts without exposing Rust allocation or pointer identity.
-
-Exit criterion: executable cases observe deterministic release through collection-held values and prove collection `is` behavior before and after explicit references; descriptor/reflection evidence reports the identity-bearing contract; generated Rust remains deterministic and warning-free.
 
 ### Milestone 15 — Caller-supplied conversion callbacks
 
@@ -1551,6 +1513,27 @@ paths, and the reviewed `div-rem` golden contains one combined support operation
 
 Bytes literals preserve arbitrary byte values, expose byte length, iterate as `uint8`, and deliberately lack scalar display. Explicit UTF-8 byte, scalar, and grapheme views produce distinct counts for a multi-scalar grapheme. Compiler-owned UTF-8, UTF-16 little-/big-endian, and UTF-32 little-/big-endian encoding objects round-trip through generated crates, while invalid input exits through a typed `decode-error` carrying its byte offset.
 
+### Milestone 11 — Finish byte indexing and pin Unicode data
+
+The byte-sequence, string-view, and encoding-object slices are complete. Two contracts remain.
+
+Deliver:
+
+- settle and implement byte indexing and slicing against the collection range/index contract, including bounds failures and the exact slice result type; and
+- pin one Unicode data version through the compiler toolchain profile so grapheme segmentation and every other Unicode-dependent support component cannot drift independently through Cargo resolution.
+
+Do not silently assign string-index semantics to bytes, and do not treat the package lock as the compiler-wide Unicode contract.
+
+Exit criterion: byte indexing and slicing have accepted, boundary, and rejected conformance cases with source-oriented failures; a toolchain-profile change deterministically selects the Unicode data contract used by every affected support component; and generated crates remain reproducible under that pin.
+
+Status: implemented on `byte-indexing-source-iterators-collection-identity`. Evidence:
+`byte-index-and-slice` and `byte-index-type` cover scalar byte results, stepped and inclusive
+`bytes` slices, valid empty boundaries, positive and authored-negative runtime bounds failures, and
+source type diagnostics. Compiler and generated support manifests pin the single Unicode 16.0.0
+profile independently of the selected Rust installation. Compiler tests mechanically compare that
+profile with the public string- and collection-support versions, while each support crate asserts
+the Unicode version embedded by its table providers.
+
 ### Milestone 12 — String transformation and search families
 
 Deliver:
@@ -1570,13 +1553,55 @@ empty-pattern grapheme-boundary rule: `find.all` includes both ends, `split` emi
 graphemes without synthetic empties, and `replace` inserts at each boundary. Text ranges
 retain immutable source text and expose byte, scalar, and grapheme boundary views.
 
-### Completed portion of Milestone 13 — Iterator protocol foundation
+### Milestone 13 — Source-defined iterator protocol
 
-`iteration-step` is a compiler-owned typed result with distinct `item` and sticky `end` alternatives. Compiler-owned iterator values, strings, bytes, ranges, and every collection enter `for` through the same support protocol. Conformance distinguishes a yielded `none` from exhaustion and advances again after exhaustion.
+Built-in strings, bytes, ranges, and collections already use the compiler-owned iterator protocol. The remaining work is to let source objects satisfy the same structural protocol.
 
-### Completed portion of Milestone 14 — Collection values
+Deliver:
 
-Compiler-owned descriptors construct typed copy-on-write lists, insertion-ordered maps and sets, homogeneous tuples, ranges, entries, and deterministic fixed-seed unordered maps and sets. Lookup, mutation, range behavior, typed iteration/destructuring, assignment separation, and loop-region list lowering execute through conformance. Generated lowering performs bounded preallocation and one copy-on-write split around qualifying mutation regions without changing source collection semantics.
+- semantic recognition of a source-defined advancing operation returning `iteration-step of Item`;
+- stateful, linear source iterator ownership with sticky `end`;
+- `for` dispatch through the same protocol path used by built-in iterables, without a parallel class-only lowering; and
+- source diagnostics for malformed result shape, incompatible item type, reuse after transfer, and invalid iterator state contracts.
+
+Exit criterion: a user-defined iterator drives `for`, a yielded `none` remains distinct from exhaustion, advancing after `end` does not consult the source again, and accepted and rejected cases exercise the shared semantic and lowering path.
+
+Status: implemented on `byte-indexing-source-iterators-collection-identity`. Evidence:
+`source-defined-iterator` drives `for` through authored structural methods, yields `none` as an
+item, and directly observes repeated sticky exhaustion; `iterator-protocol` directly advances a
+built-in iterator repeatedly after end, and `package-source-iterator` proves the source protocol
+across namespace files. `iteration-end-is-not-none` and `source-iterator-none-item-type` prove the
+dedicated end sentinel is distinct from a genuine `none` item. Targeted malformed-protocol cases
+distinguish a missing, parameterized, or wrongly typed `next` and a mutating iterator constructor;
+`method-fallthrough` extends source control-flow diagnostics to ordinary methods, while
+`ordinary-method-wrong-return` validates their returned values before lowering and
+`optional-member-post-if-return` pins the conservative initialized-static-member proof needed by
+the existing singleton pattern. `source-iterator-reuse` and `builtin-iterator-reuse` reject linear
+iterator reuse after transfer. Their reviewed lowerings use the same loop protocol path as
+compiler-owned iterables.
+
+### Milestone 14 — Complete collection lifetime and identity semantics
+
+Collection construction, mutation, lookup, ordering, iteration, ranges, copy-on-write separation, and deterministic unordered storage are complete. The remaining work is the observable lifetime and identity boundary.
+
+Deliver:
+
+- deterministic release order for owned values held by collections, including replacement, removal, clearing, copy-on-write separation, and collection destruction;
+- type metadata that states whether a value is inherently identity-bearing;
+- the settled `is` behavior for ordinary collections: representation sharing is never source identity, ordinary collection values are identity-less, and only an explicit reference can create or preserve a source-visible identity; and
+- generated lowering that preserves those contracts without exposing Rust allocation or pointer identity.
+
+Exit criterion: executable cases observe deterministic release through collection-held values and prove collection `is` behavior before and after explicit references; descriptor/reflection evidence reports the identity-bearing contract; generated Rust remains deterministic and warning-free.
+
+Status: implemented on `byte-indexing-source-iterators-collection-identity`. Evidence:
+`collection-identity-lifetime` observes replacement, removal, list clear, copy-on-write separation,
+and ordered destruction release points; reads both the preserved original and mutated copy; proves
+identity-less collection/value behavior and same- versus different-referent `ref` behavior; and
+reflects qualified semantic identity plus `inherently-identity-bearing` on materialized type
+descriptors. `descriptor-runtime-value` exercises inline `.type` materialization, and
+`type-named-field` proves declared object members take precedence over universal reflection. Their
+canonical generated crates compile and run with warnings denied.
+
 
 ### Completed portion of Milestone 15 — Function values and closures
 
@@ -1853,8 +1878,9 @@ class through typed command and result channels; three focused rejects fix the g
 
 Phase C chain-only projection now admits concrete lifetime-bearing builder values that can retain a
 borrow from a named input and complete within one nested Terrane expression. Projection schema 20
-records root, continuing, and terminal roles; only receiver-position intermediates are legal, while
-binding, return, capture, and suspension emit `T0112`. Lowering leaves roots and continuing calls
+introduced the root, continuing, and terminal roles retained by later schemas; only
+receiver-position intermediates are legal, while binding, return, capture, and suspension emit
+`T0112`. Lowering leaves roots and continuing calls
 inside one Rust expression and applies conversion, panic/error containment, and async awaiting only
 at the owned terminal. Language-server projection details expose the non-escaping constraint.
 `rust-dependency-chain-only` executes an in-memory SQLx scalar query inside the terminal of a
@@ -2131,8 +2157,9 @@ verbatim projected name. External-network tests do not prove the contract.
 Implemented on `rust-dependency-projection`. Manifest-declared Rust packages resolve through one
 lock-derived rustdoc projection shared by compilation and editor tooling. The compiler projects
 verbatim functions, inherent methods, receiver ownership, opaque foreign values, enums, and
-`Result`; it records `Option` signatures and trait methods as declined until general `T|none`
-semantic types and receiver-first trait namespaces arrive in milestone 25.2. It generates only
+`Result`. Later work delivered arbitrary foreign-object `Option<T>` values, receiver-first trait
+namespaces, static associated members, and the wider primitive and alias surface originally staged
+for milestone 25.2. It generates only
 crossed shims, pins generated Cargo dependencies to the projected versions, and translates dependency
 failures and unwinding panics into distinct Terrane throwable completion. A projected mutable-borrow
 method makes the receiver binding mutable; while object identity remains name-only, conflicting
@@ -2255,73 +2282,36 @@ warning-free under canonical Rust validation. Conformance cases cover accepted a
 Terrane-declared collisions, inherited `this` return lowering across a colliding type name, imported
 methods on aliased classes, canonical projected-source re-export resolution, and authored function
 boundaries carrying both the async and blocking `reqwest::Response` types.
+Projection schema 24 completes that canonicalization for associated functions, convenience
+preludes, and default generic instantiations: associated functions are static members of their
+owning projected class, substantive public paths outrank paths beneath `prelude`, a single admitted
+generic instantiation keeps its readable type name, and one discovered public-path graph is reused
+for cross-dependency identities and item projection. Durable history and the representative
+classification now cover instance/static members, concrete canonical names, recorded decline
+reasons, and aggregate counts.
 
-### Milestone 25.2 — Deferred projection surface and dependency capability
+### Milestone 25.2 — Dependency build-capability grant
 
-Milestone 25 delivered a projection that declines more than it admits, deliberately: every construct it
-could not represent is recorded with a reason that reaches the author as `S2029` rather than as a rustc
-error. `docs/rust-deps.md` records each decision beside the design it defers. This milestone is where
-those deferrals are staged, so a decline recorded in a working note has a milestone that removes it
-rather than remaining a permanent shape of the language.
+The deferred projection surface originally staged here has shipped: arbitrary foreign-object
+`Option<T>`, receiver-first trait namespaces, data-free enum variants and comparison, wider
+primitives and aliases, profile-aware panic containment, portable containment reporting, residual
+foreign aliases, and durable member-level projection history all have implemented evidence below.
+Open generics and other deliberately unrepresentable shapes remain explicit declines governed by
+the projection rules rather than pending deliverables of this milestone.
 
-Nothing here reopens a settled decision. The designs in §6.3, §7.3, and §7.4 of `docs/rust-deps.md`
-stand as written; what they lack is a delivery point.
+This milestone now owns one remaining contract:
 
-Deliver:
+- **the build-capability grant and profile-based rejection.** §23.1 and `docs/rust-deps.md` A6a
+  require projection to run under the same explicit build capability as a build script. Manifest
+  profiles and dependency effects are validated, but `dependency_projection` is still invoked
+  unconditionally from semantic analysis rather than being authorized by a shared capability
+  grant. Milestone 26 applies that capability model to the remaining standard and system
+  facilities; both paths must use one model rather than growing parallel checks.
 
-- **`Option<T>` as `T|none` for projected values.** The projector currently declines every `Option`
-  parameter and result because the semantic model has optional variants only for selected built-in
-  value families, not arbitrary foreign objects. Generalising that union to a foreign object type is
-  the prerequisite, and it is a language change rather than a projector change. The decline reason and
-  its `docs/rust-deps.md` §7.4 note are removed with it;
-- **receiver-first trait namespaces.** Trait methods are declined today with an explicit deferral
-  reason. §7.3 specifies the form: a trait method projects into the trait's own canonical namespace as
-  a free function taking the receiver first, so two traits are two namespaces and a collision is not
-  representable, and choosing between them is an import rather than a heuristic. Delivering it retires
-  both the decline and the merged-inherent alternative that was rejected;
-- **enum variants, constants, and comparison.** Projected enums are opaque values today. §7.4 asks for
-  data-free enums to carry projected constants and comparison, and data-carrying enums to expose
-  whatever accessors the crate provides, with no destructuring form offered until general pattern
-  matching exists;
-- **a wider representable primitive and alias set.** `project_type` admits `bool`, `i64`, `f64`, `str`,
-  and unit, and declines everything else rather than narrowing silently. The remaining integer widths,
-  `f32`, and `char` want edge coercion with an explicit contract at the boundary, matching the rule the
-  hand-written support crates already follow. Type aliases resolve only when rustdoc supplies a
-  concrete directly representable target; the unresolved cases are declined and want the same
-  treatment;
-- **the build-capability grant and profile-based rejection.** §23.1 and `docs/rust-deps.md` A6a require
-  the projection pass to run under the same explicit build capability as a build script, and §8
-  requires a profile forbidding an effect to reject the dependency at manifest resolution rather than
-  at a call site. Neither exists: `dependency_projection` runs unconditionally from `analyze`, and
-  nothing reads a profile. Milestone 26 applies the shared capability model to the remaining standard
-  and system facilities; this milestone owns the dependency-side half, and the two must agree on one
-  model rather than growing two;
-- **containment of the generated-crate build, and a tier for platforms without `bwrap`.** Today only
-  the rustdoc pass is contained, and it is contained by requiring Linux bubblewrap outright — so
-  `[rust-dependencies]` is unusable on macOS, on Windows, and on any Linux without it. Both halves are
-  wrong in the same direction: the pass that matters most is uncontained, and the pass that is
-  contained refuses rather than degrading. §8.1 already states the rule — a platform that cannot
-  enforce containment says so — which is a declaration, not a refusal;
-- **profile-aware panic containment and a proven unwind-safety boundary.** §6.3 defers both: unwinding
-  profiles contain a crossing panic and convert it to `dependency-panic`, aborting profiles do not
-  claim containment, and the blanket `AssertUnwindSafe` at every crossing is replaced by a stated
-  contract. Build profiles must be represented by the compiler before either is expressible;
-- **unrepresented residual foreign imports.** A foreign type that has no projected item still enters a
-  generated dependency unit as a direct Rust re-export. Before widening the representable type surface,
-  those imports must use their computed aliases so same-named residual types cannot collide in the
-  generated root scope. Canonical-path deduplication remains required for repeated re-exports;
-- **durable projection history.** A lock update that removes a crossed member is diagnosed as a missing
-  member today. §9 defers distinguishing that from a member that never existed, and naming the version
-  change, until projection history has a durable, machine-independent home. The project-local cache is
-  not that home, and §23.8 says so.
-
-Exit criterion: a crate whose public surface uses `Option`, trait methods, a data-free enum, and an
-integer width outside the current set is projected and called from Terrane with no decline for those
-constructs, and the corresponding `docs/rust-deps.md` deferral notes are removed rather than reworded.
-A profile forbidding an effect rejects its dependency at manifest resolution with a Terrane diagnostic
-naming the profile and the effect. The generated crate builds contained on a platform that can enforce
-it and reports the tier it used on one that cannot, rather than refusing. A lock update that removes a
-crossed member names the member and the version change.
+Exit criterion: a profile that does not grant dependency build execution rejects projection before
+rustdoc, Cargo, or a fetched projection artifact can execute, with a Terrane diagnostic naming the
+profile and missing capability. A granting profile reaches the existing contained projection
+pipeline unchanged.
 
 Implemented evidence: arbitrary foreign-object optionals are semantic values and lower recursively;
 receiver-first trait methods, data-free enum variants, wider primitives, `char`, and transparent
@@ -2348,11 +2338,13 @@ expanded public API through rustdoc. No production projector path creates questi
 transferable artifacts honestly retain empty evidence and zero wall time rather than claiming an
 unused report was recorded.
 Concrete generic arguments and Rust type-alias substitutions now participate in projected foreign
-identity. Compiler names retain the readable short type name plus the full SHA-256 of the canonical
-instantiated path, so collision handling is deterministic and does not depend on projection order.
-Lowering emits instantiated Rust spellings as deterministic type aliases so distinct
-instantiations cannot collapse onto one semantic object. Generic declarations whose type
-parameters all have defaults now project their default concrete identity, including `Self`
+identity. A generic declaration with one admitted concrete instantiation retains its readable Rust
+type name; additional distinct instantiations use the readable short name plus the full SHA-256 of
+the canonical instantiated path. Collision handling therefore remains deterministic and
+projection-order independent without forcing the ordinary single-instantiation import through a
+hash-suffixed spelling. Lowering emits instantiated Rust spellings as deterministic type aliases so
+distinct instantiations cannot collapse onto one semantic object. Generic declarations whose type
+parameters all have defaults project their default concrete identity, including `Self`
 substitution in methods. Standard sequence, map, set, optional, and homogeneous-tuple shapes
 project recursively; map keys and set items are scalar-only. Lowering elides identity-element
 vector mapping and moves uniquely owned tuple elements without cloning or panic, while retaining
@@ -2371,12 +2363,14 @@ terminates in an async operation and therefore cannot become executable before t
 lowering contract. The probe inventory records both decisions and their exact witnesses.
 `terrane-projection.lock` format 2 provides deterministic machine-independent history, records
 projection provenance and content identity, migrates format 1 on the next successful projection,
-and rejects same-input replay drift with both hashes. `S2031` names a removed member and its
-resolved version transition. The accepted
-`rust-dependency-deferred-surface` execution case crosses a `bytes` receiver-first trait method and
-uses `serde_json`'s `Option<Number>`, `u128` edge coercion, data-free enum variants, and enum
-comparison; focused package, projection, semantic, generated-Rust, and rejection checks cover the
-remaining contracts.
+and rejects same-input replay drift with both hashes. `S2031` names a removed top-level, static, or
+instance member and its resolved version transition; `removed-rust-dependency-member` and
+`removed-rust-dependency-instance-member` pin import-time and receiver-member lookup respectively.
+Declared projected members still resolve before history, while never-present object members retain
+the ordinary `T0055` diagnostic. The accepted `rust-dependency-deferred-surface` execution case
+crosses a `bytes` receiver-first trait method and uses `serde_json`'s `Option<Number>`, `u128` edge
+coercion, data-free enum variants, and enum comparison; focused package, projection, semantic,
+generated-Rust, and rejection checks cover the remaining contracts.
 
 ### Completed portion of Milestone 25.3 — Floating-point foundation
 

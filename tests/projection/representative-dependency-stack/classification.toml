@@ -1,112 +1,177 @@
-[cost]
-observed-on = "2026-09-06"
-host = "x86_64 Linux, AMD Ryzen 9 3900XT"
-method = "target/debug/terrane check; cold removes the project .trn/dependencies workspace but retains Cargo's user cache; warm immediately repeats; generated size counts current src/main.rs and src/main.support.rs"
-cold-wall-seconds = 34.168
-warm-wall-seconds = 0.371
-generated-rust-lines = 557
-generated-rust-bytes = 18299
-
-format = 1
+reviewed-against = "projection schema 24 canonical paths, methods, and static associated members"
+format = 2
 projection-source = "local-rustdoc"
-build-toolchain = "1.93.1"
-rustdoc-toolchain = "nightly-2026-04-29"
+build-toolchain = "1.93.0"
+rustdoc-toolchain = "nightly-2026-07-06"
 rustdoc-format = 57
-pass-through-held-types = 11
-looked-inside-held-types = 5
+
+[cost]
+observed-on = "2026-09-08"
+host = "x86_64 Linux, AMD Ryzen 9 3900XT"
+method = "target/debug/terrane check; cold removes the project .trn/dependencies workspace but retains Cargo's user cache; warm immediately repeats; generated size uses terrane rust --require-canonical-rust"
+cold-wall-seconds = 35.181
+warm-wall-seconds = 0.360
+generated-rust-lines = 553
+generated-rust-bytes = 18105
 
 [[dependency]]
 name = "axum"
 version = "0.8.9"
-admitted = 60
-declined = 1052
+projected-count = 58
+declined-count = 1052
+instance-count = 68
+static-count = 2
+canonical-members = ["/deps/axum::Router"]
+instance-members = ["/deps/axum::Router.has_routes"]
+static-members = ["/deps/axum::Router::new"]
 required-gaps = ["axum::extract::WebSocketUpgrade<DefaultOnFailedUpgrade>::on_upgrade: open generic C"]
-classification = "default generic identity is reusable; callable-handler shapes still need specialization"
+classification = "default generic identity is reusable; callable-handler shapes still need closed specialization"
+declined-members = [
+  { rust-path = "axum::Router<()>::default", reason = "trait method is not declared by this dependency crate" },
+]
+
+[[dependency]]
+name = "http"
+version = "1.3.1"
+projected-count = 27
+declined-count = 835
+instance-count = 64
+static-count = 14
+canonical-members = ["/deps/http::HeaderMap"]
+instance-members = []
+static-members = []
+required-gaps = []
+classification = "direct canonical owner for status, header, request, and response types; associated constructors remain attached to those types"
+
+[[dependency]]
+name = "reqwest"
+version = "0.12.28"
+projected-count = 36
+declined-count = 526
+instance-count = 159
+static-count = 7
+canonical-members = ["/deps/reqwest::Response"]
+instance-members = ["/deps/reqwest::Response.status"]
+static-members = []
+required-gaps = []
+classification = "async lowering is implemented; direct http ownership keeps response status identity reachable"
+
+[[dependency]]
+name = "sentry"
+version = "0.46.2"
+projected-count = 3
+declined-count = 57
+instance-count = 1
+static-count = 0
+canonical-members = ["/deps/sentry::ClientInitGuard"]
+instance-members = []
+static-members = []
+required-gaps = ["sentry::init: open generic C"]
+classification = "concrete upstream configuration or a narrow optional facade is still required"
+
+[[dependency]]
+name = "sqlx"
+version = "0.8.6"
+projected-count = 0
+declined-count = 6
+instance-count = 0
+static-count = 0
+canonical-members = []
+instance-members = []
+static-members = []
+required-gaps = ["sqlx::query: item kind has no Terrane projection", "sqlx::query::Query: type has generic or lifetime parameters"]
+classification = "macro-exported construction and call-directed closed specialization remain outside the current projection gate"
+
+[[dependency]]
+name = "tokio"
+version = "1.53.1"
+projected-count = 100
+declined-count = 1226
+instance-count = 257
+static-count = 42
+canonical-members = ["/deps/tokio/io::duplex"]
+instance-members = []
+static-members = []
+required-gaps = []
+classification = "async lowering is implemented; open generic handle identities remain explicit declines"
+
+[[dependency]]
+name = "tokio-tungstenite"
+version = "0.30.0"
+projected-count = 1
+declined-count = 14
+instance-count = 0
+static-count = 0
+canonical-members = ["/deps/tokio-tungstenite::Connector"]
+instance-members = []
+static-members = []
+required-gaps = ["tokio_tungstenite::connect_async: open generic R"]
+classification = "destination-directed closed specialization is still required for the generic connector entrypoint"
 
 [[dependency]]
 name = "tower"
 version = "0.5.3"
-admitted = 18
-declined = 268
+projected-count = 15
+declined-count = 268
+instance-count = 0
+static-count = 3
+canonical-members = ["/deps/tower/limit::RateLimitLayer"]
+instance-members = []
+static-members = []
 required-gaps = ["tower::ServiceBuilder<Identity>::service: open generic S"]
 classification = "default generic identity is reusable; non-escaping builder chains still need specialization"
 
 [[dependency]]
 name = "tower-http"
 version = "0.6.11"
-admitted = 57
-declined = 539
-classification = "reusable generic identity and non-escaping builder chain"
-
-[[dependency]]
-name = "reqwest"
-version = "0.12.28"
-admitted = 43
-declined = 526
-required-gaps = ["reqwest::get: projects as async but lowering emits a synchronous shim"]
-classification = "async lowering is Phase B; direct http ownership makes response status identity reachable"
-
-[[dependency]]
-name = "http"
-version = "1.3.1"
-admitted = 41
-declined = 834
-classification = "direct canonical owner for status, header, request, and response types"
-
-[[dependency]]
-name = "tokio-tungstenite"
-version = "0.30.0"
-admitted = 1
-declined = 14
-required-gaps = ["tokio_tungstenite::connect_async: open generic R"]
-classification = "destination/call-directed closed specialization plus async lowering"
-
-[[dependency]]
-name = "sqlx"
-version = "0.8.6"
-admitted = 0
-declined = 6
-required-gaps = ["sqlx::query: item kind has no Terrane projection", "sqlx::query::Query: type has generic or lifetime parameters"]
-classification = "macro-exported constructor plus closed generic result and chain-only temporaries"
-
-[[dependency]]
-name = "utoipa"
-version = "5.5.0"
-admitted = 175
-declined = 1542
-required-gaps = ["utoipa::OpenApi: procedural derive is not represented as a callable API"]
-classification = "emit-and-consume derive with compile-time oracle validation"
-
-[[dependency]]
-name = "utoipa-swagger-ui"
-version = "9.0.2"
-admitted = 4
-declined = 100
-required-gaps = ["utoipa_swagger_ui::SwaggerUi::new: generic bound for P has no closed impl set"]
-classification = "closed generic specialization; concrete string path is the witness"
-
-[[dependency]]
-name = "tokio"
-version = "1.53.1"
-admitted = 134
-declined = 1234
-classification = "generic handle identity and async lowering/runtime work"
+projected-count = 55
+declined-count = 539
+instance-count = 2
+static-count = 2
+canonical-members = ["/deps/tower-http::LatencyUnit"]
+instance-members = []
+static-members = []
+required-gaps = []
+classification = "reusable generic identity and non-escaping builder-chain components are admitted"
 
 [[dependency]]
 name = "tracing"
 version = "0.1.44"
-admitted = 4
-declined = 83
+projected-count = 2
+declined-count = 80
+instance-count = 6
+static-count = 2
+canonical-members = ["/deps/tracing::Span"]
+instance-members = []
+static-members = []
 required-gaps = ["tracing::info: macro item has no Terrane projection"]
-classification = "replaceable by Terrane standard logging; no projection feature"
+classification = "macro-only logging entrypoints remain better served by Terrane standard logging"
 
 [[dependency]]
-name = "sentry"
-version = "0.46.2"
-admitted = 3
-declined = 57
-required-gaps = ["sentry::init: open generic C"]
-classification = "concrete upstream configuration or narrow optional facade; outside the core projection gate"
+name = "utoipa"
+version = "5.5.0"
+projected-count = 151
+declined-count = 1506
+instance-count = 43
+static-count = 60
+canonical-members = ["/deps/utoipa::Number"]
+instance-members = []
+static-members = []
+required-gaps = ["utoipa::OpenApi: procedural derive is not represented as a callable API"]
+classification = "derive-driven compile-time generation remains outside callable dependency projection"
+
+[[dependency]]
+name = "utoipa-swagger-ui"
+version = "9.0.2"
+projected-count = 5
+declined-count = 99
+instance-count = 0
+static-count = 0
+canonical-members = ["/deps/utoipa-swagger-ui::SwaggerUi"]
+instance-members = []
+static-members = []
+required-gaps = ["utoipa_swagger_ui::SwaggerUi::new: generic bound for P has no closed impl set"]
+classification = "closed specialization is required before the generic path constructor can be admitted"
 
 [[reproduction]]
 name = "generic-identity"
@@ -138,21 +203,21 @@ name = "macro-expansion"
 path = "repros/macro-expansion"
 member = "utoipa::OpenApi derive"
 
+[[reproduction]]
+name = "async-lowering"
+path = "repros/async-lowering"
+member = "reqwest::get"
+
 [[decision]]
 unit = "A8"
 outcome = "deferred"
 witness = "sqlx::Row::try_get::<String, _>"
 probe = "projection_oracle::tests::exact_sqlx_row_accessor_call_compiles_against_resolved_dependency"
 probe-answer = "yes"
-reason = "the exact call compiles against sqlx 0.8.6, including its lifetime-parameterized Decode and Type bounds; projection remains deferred because the application boundary does not require direct destination-driven specialization and an owned narrow facade is cheaper and safer"
+reason = "the exact call compiles against sqlx 0.8.6, including its lifetime-parameterized Decode and Type bounds; projection remains deferred because direct destination-driven specialization is not required by the current application boundary and an owned narrow facade is cheaper"
 
 [[decision]]
 unit = "A9"
 outcome = "deferred"
 witness = "sqlx::query(...).bind(...).execute(...)"
-reason = "the only demanding exact witness terminates in an async operation; admitting its non-escaping temporary chain before Phase B would create an unexecutable success path, while an owned narrow facade is available"
-
-[[reproduction]]
-name = "async-lowering"
-path = "repros/async-lowering"
-member = "reqwest::get"
+reason = "async lowering is available, but admitting the chain still requires call-directed specialization of its open generic and lifetime-bearing intermediate types"

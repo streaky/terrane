@@ -18,6 +18,7 @@ pub(super) fn descriptor_runtime_module() -> GeneratedModule {
                  identity: &'static str,\n\
                  name: &'static str,\n\
                  kind: &'static str,\n\
+                 inherently_identity_bearing: bool,\n\
                  fields: &'static [TerraneFieldMetadata],\n\
              }\n",
         )],
@@ -203,7 +204,10 @@ pub(super) fn package_uses_structured_errors(package: &SemanticPackage) -> bool 
     }) || package.projection.dependencies.iter().any(|dependency| {
         dependency.items.iter().any(|item| match &item.kind {
             crate::projection::ProjectedKind::Function(_) => true,
-            crate::projection::ProjectedKind::ForeignType { methods } => !methods.is_empty(),
+            crate::projection::ProjectedKind::ForeignType {
+                methods,
+                static_methods,
+            } => !methods.is_empty() || !static_methods.is_empty(),
             crate::projection::ProjectedKind::Enum { .. } => false,
         })
     })

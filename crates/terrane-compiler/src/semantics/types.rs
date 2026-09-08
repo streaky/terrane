@@ -445,6 +445,20 @@ pub(super) fn declared_value_type_with_visible_objects(
             if let Some(identity) = object_identity {
                 return Ok(construct(ElementType::new(ValueType::Object(identity))));
             }
+            if let Some(inner_name) = argument.strip_prefix("shared ref ") {
+                let inner_name = inner_name.trim();
+                let identity = visible_objects.get(inner_name).cloned().or_else(|| {
+                    unit.objects
+                        .iter()
+                        .find(|object| object.name == inner_name)
+                        .map(|object| object.identity.clone())
+                });
+                if let Some(identity) = identity {
+                    return Ok(construct(ElementType::new(ValueType::SharedReference(
+                        ElementType::new(ValueType::Object(identity)),
+                    ))));
+                }
+            }
         }
     }
     match type_name {
@@ -776,6 +790,7 @@ pub(super) fn diagnostic_value_type(objects: &[ObjectContract], value_type: &Val
         ValueType::Object(identity) => diagnostic_object_identity(objects, identity),
         ValueType::Iterator(item) => format!("iterator of {}", nested(item)),
         ValueType::IterationStep(item) => format!("iteration-step of {}", nested(item)),
+        ValueType::IterationEnd => "iteration-step.end".to_owned(),
         ValueType::AsyncIterationStep(item) => {
             format!("async-iteration-step of {}", nested(item))
         }
@@ -891,6 +906,7 @@ pub(super) fn value_types_compatible(
                     &actual_item.value_type(),
                 )
         }
+        (ValueType::IterationStep(_), ValueType::IterationEnd) => true,
         (ValueType::List(expected), ValueType::List(actual))
         | (ValueType::Set(expected), ValueType::Set(actual))
         | (ValueType::Iterator(expected), ValueType::Iterator(actual))

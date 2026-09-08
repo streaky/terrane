@@ -1,0 +1,6 @@
+namespace app
+from /app/support import counter
+function main;
+  values counter = instance counter;
+  for value in values
+    print; value

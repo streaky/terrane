@@ -1,0 +1,165 @@
+{
+  "format": 2,
+  "dependencies": [
+    {
+      "name": "bytes",
+      "version": "1.10.1",
+      "members": [
+        [
+          "/deps/bytes",
+          "Bytes"
+        ],
+        [
+          "/deps/bytes",
+          "Bytes.clear"
+        ],
+        [
+          "/deps/bytes",
+          "Bytes.is_empty"
+        ],
+        [
+          "/deps/bytes",
+          "Bytes.is_unique"
+        ],
+        [
+          "/deps/bytes",
+          "Bytes.len"
+        ],
+        [
+          "/deps/bytes",
+          "Bytes.truncate"
+        ],
+        [
+          "/deps/bytes",
+          "Bytes.try_into_mut"
+        ],
+        [
+          "/deps/bytes",
+          "BytesMut"
+        ],
+        [
+          "/deps/bytes",
+          "BytesMut.capacity"
+        ],
+        [
+          "/deps/bytes",
+          "BytesMut.clear"
+        ],
+        [
+          "/deps/bytes",
+          "BytesMut.freeze"
+        ],
+        [
+          "/deps/bytes",
+          "BytesMut.is_empty"
+        ],
+        [
+          "/deps/bytes",
+          "BytesMut.len"
+        ],
+        [
+          "/deps/bytes",
+          "BytesMut.reserve"
+        ],
+        [
+          "/deps/bytes",
+          "BytesMut.resize"
+        ],
+        [
+          "/deps/bytes",
+          "BytesMut.split"
+        ],
+        [
+          "/deps/bytes",
+          "BytesMut.split_off"
+        ],
+        [
+          "/deps/bytes",
+          "BytesMut.split_to"
+        ],
+        [
+          "/deps/bytes",
+          "BytesMut.truncate"
+        ],
+        [
+          "/deps/bytes",
+          "BytesMut.try_reclaim"
+        ],
+        [
+          "/deps/bytes",
+          "BytesMut.unsplit"
+        ],
+        [
+          "/deps/bytes",
+          "BytesMut::new"
+        ],
+        [
+          "/deps/bytes",
+          "BytesMut::with_capacity"
+        ],
+        [
+          "/deps/bytes",
+          "BytesMut::zeroed"
+        ],
+        [
+          "/deps/bytes",
+          "TryGetError"
+        ],
+        [
+          "/deps/bytes/buf",
+          "UninitSlice"
+        ],
+        [
+          "/deps/bytes/buf",
+          "UninitSlice.len"
+        ],
+        [
+          "/deps/bytes/buf",
+          "UninitSlice.write_byte"
+        ],
+        [
+          "/deps/bytes/buf",
+          "copy_to_bytes"
+        ],
+        [
+          "/deps/bytes/bufmut",
+          "chunk_mut"
+        ],
+        [
+          "/deps/bytes/bufmut",
+          "put_bytes"
+        ],
+        [
+          "/deps/bytes/bufmut",
+          "remaining_mut"
+        ]
+      ]
+    }
+  ],
+  "removed": [],
+  "cache_identity": "8be3a1caefa74946b19929f78b15fe4e39e3a9f6ff90c419ebc01c6bd4fcf1c1",
+  "source": "Local",
+  "rustdoc_format": 57,
+  "projection_schema": "24",
+  "content_hash": "91a05ffb9344ad164e7f61998184b6b6a78a6408bc92d97e209e3f9148dd1282",
+  "resolution": {
+    "outcome": "LocalRustdoc",
+    "events": [
+      {
+        "source": "BundledArtifact",
+        "status": "Skipped",
+        "reason": "bundled projection distribution is deliberately deferred until Terrane has a release artifact channel"
+      },
+      {
+        "source": "PublishedArtifact",
+        "status": "Skipped",
+        "reason": "`TERRANE_PROJECTION_ARTIFACT_URL` is not configured"
+      },
+      {
+        "source": "LocalRustdoc",
+        "status": "Generated",
+        "reason": "no reusable exact artifact was available; generated with the pinned local rustdoc toolchain"
+      }
+    ]
+  }
+}

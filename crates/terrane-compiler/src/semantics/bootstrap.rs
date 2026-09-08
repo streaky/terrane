@@ -482,6 +482,7 @@ pub(super) fn bootstrap_namespaces() -> BTreeMap<String, Namespace> {
             "/core/collections",
             [
                 "iterator",
+                "iteration-step",
                 "list",
                 "map",
                 "set",

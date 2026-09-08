@@ -1,0 +1,15 @@
+namespace app/support
+from /core/collections import iteration-step
+
+public class counter
+  current int = 0
+
+  function iterator counter;
+    return this
+
+  function next iteration-step of int;
+    if this.current >= 2
+      return iteration-step.end;
+    value int = this.current
+    this.current = this.current + 1
+    return iteration-step; value

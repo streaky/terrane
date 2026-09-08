@@ -616,12 +616,12 @@ pub fn path_components(subject: Path) -> terrane_collection_support::List<String
                         ),
                     )
                     .cloned()
-                    .ok_or(terrane_collection_support::IndexError {
-                        index: __terrane_raised(
+                    .ok_or_else(|| terrane_collection_support::IndexError::from_usize(
+                        __terrane_raised(
                             terrane_collection_support::index_from_int(&index.clone()),
                             0 /* terrane-site: core/paths.trn:16:16-16:28 */,
                         ),
-                    }),
+                    )),
                 0 /* terrane-site: core/paths.trn:16:16-16:28 */,
             );
             if part != String::from("") {
@@ -658,12 +658,12 @@ pub fn normalise_path(subject: Path) -> Path {
                     ),
                 )
                 .cloned()
-                .ok_or(terrane_collection_support::IndexError {
-                    index: __terrane_raised(
+                .ok_or_else(|| terrane_collection_support::IndexError::from_usize(
+                    __terrane_raised(
                         terrane_collection_support::index_from_int(&part_index.clone()),
                         1 /* terrane-site: core/paths.trn:32:16-32:33 */,
                     ),
-                }),
+                )),
             1 /* terrane-site: core/paths.trn:32:16-32:33 */,
         );
         if part != String::from("") && part != String::from(".") {
@@ -853,14 +853,14 @@ pub fn path_stem(subject: Path) -> String {
                     ),
                 )
                 .cloned()
-                .ok_or(terrane_collection_support::IndexError {
-                    index: __terrane_raised(
+                .ok_or_else(|| terrane_collection_support::IndexError::from_usize(
+                    __terrane_raised(
                         terrane_collection_support::index_from_int(
                             &terrane_int_support::Int::from(0_i128),
                         ),
                         8 /* terrane-site: core/paths.trn:95:31-95:40 */,
                     ),
-                }),
+                )),
             8 /* terrane-site: core/paths.trn:95:31-95:40 */,
         ) == String::from("")
     {
@@ -883,9 +883,9 @@ pub fn path_stem(subject: Path) -> String {
             terrane_scalar_support::scalar_text(&__terrane_raised(pieces
             .get(__terrane_raised(terrane_collection_support::index_from_int(&index
             .clone()), 9 /* terrane-site: core/paths.trn:102:33-102:46 */)).cloned()
-            .ok_or(terrane_collection_support::IndexError { index :
-            __terrane_raised(terrane_collection_support::index_from_int(&index.clone()),
-            9 /* terrane-site: core/paths.trn:102:33-102:46 */) }),
+            .ok_or_else(| |
+            terrane_collection_support::IndexError::from_usize(__terrane_raised(terrane_collection_support::index_from_int(&index
+            .clone()), 9 /* terrane-site: core/paths.trn:102:33-102:46 */))),
             9 /* terrane-site: core/paths.trn:102:33-102:46 */))
         );
         index = index.clone() + terrane_int_support::Int::from(1_i128);
@@ -916,14 +916,14 @@ pub fn path_extension(subject: Path) -> String {
                     ),
                 )
                 .cloned()
-                .ok_or(terrane_collection_support::IndexError {
-                    index: __terrane_raised(
+                .ok_or_else(|| terrane_collection_support::IndexError::from_usize(
+                    __terrane_raised(
                         terrane_collection_support::index_from_int(
                             &terrane_int_support::Int::from(0_i128),
                         ),
                         10 /* terrane-site: core/paths.trn:111:31-111:40 */,
                     ),
-                }),
+                )),
             10 /* terrane-site: core/paths.trn:111:31-111:40 */,
         ) == String::from("")
     {
@@ -941,15 +941,15 @@ pub fn path_extension(subject: Path) -> String {
                 ),
             )
             .cloned()
-            .ok_or(terrane_collection_support::IndexError {
-                index: __terrane_raised(
+            .ok_or_else(|| terrane_collection_support::IndexError::from_usize(
+                __terrane_raised(
                     terrane_collection_support::index_from_int(
                         &(terrane_int_support::Int::from(pieces.len() as i128)
                             - terrane_int_support::Int::from(1_i128)),
                     ),
                     11 /* terrane-site: core/paths.trn:113:12-113:37 */,
                 ),
-            }),
+            )),
         11 /* terrane-site: core/paths.trn:113:12-113:37 */,
     );
 }

@@ -82,7 +82,7 @@ fn optional_object_inner_has_member(
         || object_member_type(unit, identity, member, false).is_some()
 }
 
-pub(super) fn object_member_type(
+pub(crate) fn object_member_type(
     unit: &SemanticUnit,
     object_identity: &ObjectIdentity,
     member: &str,
@@ -158,7 +158,7 @@ pub(super) fn infer_member_value_type(
         if let Some(field) = unit
             .objects
             .iter()
-            .find(|object| object.name == *identity)
+            .find(|object| object.name == *identity || object.identity.qualified() == *identity)
             .and_then(|object| {
                 object
                     .fields
@@ -171,6 +171,7 @@ pub(super) fn infer_member_value_type(
         return match member_name {
             "name" | "kind" | "identity" => Ok(Some(ValueType::Scalar(ScalarType::String))),
             "field-count" => Ok(Some(ValueType::Scalar(ScalarType::Int))),
+            "inherently-identity-bearing" => Ok(Some(ValueType::Scalar(ScalarType::Bool))),
             "field-names" | "field-external-names" => Ok(Some(ValueType::StringList)),
             "field-defaulted" | "field-optional" | "field-secret" => Ok(Some(ValueType::List(
                 ElementType::new(ValueType::Scalar(ScalarType::Bool)),
@@ -319,6 +320,18 @@ pub(super) fn infer_member_value_type(
             )),
         };
     }
+    if let Some(ValueType::IterationStep(item)) = &receiver_type {
+        return match member_name {
+            "item" | "end" => Ok(Some(ValueType::Scalar(ScalarType::Bool))),
+            "value" => Ok(Some(ValueType::Optional(Box::new(item.value_type())))),
+            _ => Err(failure(
+                &unit.source,
+                "T0087",
+                format!("iteration step has no member `{member_name}`"),
+                member.span,
+            )),
+        };
+    }
     if let Some(ValueType::AsyncIterationStep(item)) = &receiver_type {
         return match member_name {
             "item" | "end" => Ok(Some(ValueType::Scalar(ScalarType::Bool))),
@@ -398,32 +411,51 @@ pub(super) fn infer_member_value_type(
             )),
         };
     }
+    if let Some(ValueType::Object(object_name)) = &receiver_type
+        && let Some(member_type) = object_member_type(unit, object_name, member_name, false)
+    {
+        return Ok(Some(member_type));
+    }
+    if let Some(ValueType::Object(identity)) = &receiver_type
+        && let Some(removed) = unit.removed_projected_member(identity, member_name, false)
+    {
+        return Err(failure(
+            &unit.source,
+            "S2031",
+            format!(
+                "Rust dependency member `{}.{member_name}` was projected by version {} but is absent from version {}",
+                identity.name, removed.previous_version, removed.current_version
+            ),
+            member.span,
+        ));
+    }
+    if member_name == "type" {
+        return Ok(receiver_type.map(|value_type| {
+            ValueType::Descriptor(diagnostic_value_type(&unit.objects, &value_type))
+        }));
+    }
     if let Some(ValueType::Object(object_name)) = &receiver_type {
-        return object_member_type(unit, object_name, member_name, false)
-            .map(Some)
-            .ok_or_else(|| {
-                failure(
-                    &unit.source,
-                    "T0055",
-                    format!(
-                        "`{}` has no instance member `{member_name}`",
-                        unit.objects
-                            .iter()
-                            .find(|object| object.identity == *object_name)
-                            .map_or_else(
-                                || diagnostic_object_identity(&unit.objects, object_name),
-                                |object| object.name.clone()
-                            )
-                    ),
-                    member.span,
-                )
-            });
+        return Err(failure(
+            &unit.source,
+            "T0055",
+            format!(
+                "`{}` has no instance member `{member_name}`",
+                unit.objects
+                    .iter()
+                    .find(|object| object.identity == *object_name)
+                    .map_or_else(
+                        || diagnostic_object_identity(&unit.objects, object_name),
+                        |object| object.name.clone()
+                    )
+            ),
+            member.span,
+        ));
     }
     let collection_method = matches!(
         (&receiver_type, member_name),
         (
             Some(ValueType::List(_) | ValueType::Tuple(_, _)),
-            "append" | "set" | "get"
+            "append" | "set" | "get" | "remove" | "clear"
         ) | (
             Some(ValueType::Map(_, _) | ValueType::UnorderedMap(_, _)),
             "set" | "get" | "keys" | "values" | "entries"
@@ -537,9 +569,6 @@ pub(super) fn infer_member_value_type(
             format!("`.{member_name}` requires a floating receiver"),
             receiver.span,
         ));
-    }
-    if member_name == "type" {
-        return Ok(None);
     }
     if member_name != "length" {
         return match receiver_type {

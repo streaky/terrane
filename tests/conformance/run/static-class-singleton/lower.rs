@@ -14,6 +14,7 @@ struct TerraneDescriptor {
     identity: &'static str,
     name: &'static str,
     kind: &'static str,
+    inherently_identity_bearing: bool,
     fields: &'static [TerraneFieldMetadata],
 }
 // Source: case.trn
@@ -29,9 +30,10 @@ impl Widget {
     }
     pub fn class_name(&self) -> String {
         return TerraneDescriptor {
-            identity: "widget",
+            identity: "/static-class-singleton::widget",
             name: "widget",
             kind: "class",
+            inherently_identity_bearing: false,
             fields: &[],
         }
             .name

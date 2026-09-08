@@ -1,0 +1,12 @@
+namespace source-iterator-next-parameters
+from /core/collections import iteration-step
+class cursor
+  function next iteration-step of int; count int
+    return iteration-step.end;
+class values
+  function iterator cursor;
+    return instance cursor;
+function main;
+  source values = instance values;
+  for item in source
+    print; item

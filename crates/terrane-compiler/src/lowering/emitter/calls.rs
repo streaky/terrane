@@ -339,6 +339,14 @@ impl Emitter<'_> {
                         .collect::<Vec<_>>();
                     self.float_call(receiver_type, operation, &receiver_value, &arguments, node)
                 }
+                (ValueType::Iterator(_), "next") => {
+                    let call = format!("({receiver_value}).next()");
+                    Some(if self.discarded_call == Some(node.span) {
+                        format!("{{ let _ = {call}; }}")
+                    } else {
+                        call
+                    })
+                }
                 (ValueType::List(item), "append") => Some(format!(
                     "({{ let collection = &mut ({receiver_value}); collection.append({}); collection.clone() }})",
                     self.expression_as(values[0], item.value_type())
@@ -354,6 +362,17 @@ impl Emitter<'_> {
                     Some(format!(
                         "({{ let collection = &mut ({receiver_value}); {mutation}; collection.clone() }})"
                     ))
+                }
+                (ValueType::List(_), "clear") => Some(format!(
+                    "({{ let collection = &mut ({receiver_value}); collection.clear(); collection.clone() }})"
+                )),
+                (ValueType::List(_), "remove") => {
+                    let index = self.expression_as(values[0], ValueType::Scalar(ScalarType::Int));
+                    let index = self.fallible(
+                        format!("terrane_collection_support::index_from_int(&({index}))"),
+                        node,
+                    );
+                    Some(self.fallible(format!("({receiver_value}).remove({index})"), node))
                 }
                 (ValueType::Map(key, value) | ValueType::UnorderedMap(key, value), "set") => {
                     Some(format!(
@@ -445,6 +464,32 @@ impl Emitter<'_> {
             } else {
                 self.fallible(call, node)
             };
+        }
+        if callee.kind == SyntaxKind::MemberExpression
+            && let [receiver, member] = callee.children.as_slice()
+            && self.text(member) == "end"
+            && self.is_builtin(receiver, "/core/collections::iteration-step")
+        {
+            return "terrane_collection_support::IterationStep::End".to_owned();
+        }
+        if self.is_builtin(callee, "/core/collections::iteration-step") {
+            let item_type = self
+                .value_type(node)
+                .and_then(|ty| match ty {
+                    ValueType::IterationStep(item) => Some(item),
+                    _ => None,
+                })
+                .expect("validated iteration-step constructor has an item type");
+            let argument = arguments
+                .children
+                .first()
+                .expect("validated iteration-step constructor has one argument");
+            let item = argument.children.last().unwrap_or(argument);
+            return format!(
+                "terrane_collection_support::IterationStep::<{}>::Item({})",
+                rust_element_type(self.package, item_type.clone()),
+                self.expression_as(item, item_type.value_type())
+            );
         }
         if self.is_builtin(callee, "/core/collections::iterator") {
             let item_type = self
@@ -1212,6 +1257,18 @@ impl Emitter<'_> {
                 })
                 .collect();
         }
+        let projected_static_owner = contract.as_ref().and_then(|contract| {
+            let owner = contract.owner.as_deref()?;
+            let unit = self.package.units.iter().find(|unit| {
+                unit.source.id() == contract.span.file && unit.namespace.starts_with("/deps/")
+            })?;
+            Some(
+                unit.objects
+                    .iter()
+                    .find(|object| object.identity.name == owner)
+                    .map_or(owner, |object| object.name.as_str()),
+            )
+        });
         let name = if callee.kind == SyntaxKind::ConstructionExpression {
             callee
                 .children
@@ -1227,11 +1284,15 @@ impl Emitter<'_> {
             && callee.kind == SyntaxKind::StaticMemberExpression
             && let Some(object) = self.class_designator(receiver)
         {
-            format!(
-                "{}::terrane_static_{}",
-                rust_object_type_name(self.package, &object.identity),
-                rust_name(self.text(member))
-            )
+            let rust_type = rust_object_type_name(self.package, &object.identity);
+            if let Some(owner) = projected_static_owner {
+                crate::lowering::dependencies::projected_static_shim_name(owner, self.text(member))
+            } else {
+                format!(
+                    "{rust_type}::terrane_static_{}",
+                    rust_name(self.text(member))
+                )
+            }
         } else if let Some(contract) = &contract
             && contract.owner.is_none()
         {
@@ -1266,7 +1327,7 @@ impl Emitter<'_> {
                 };
                 self.package
                     .projection
-                    .method(&identity.namespace, &identity.name, &contract.name)
+                    .method(&identity.namespace, &identity.name, &contract.name, false)
                     .and_then(|method| method.receiver)
             });
             let receiver = if contract.is_async {
@@ -1299,9 +1360,12 @@ impl Emitter<'_> {
             let ValueType::Object(identity) = self.value_type(receiver)? else {
                 return None;
             };
-            self.package
-                .projection
-                .method(&identity.namespace, &identity.name, &contract.name)
+            self.package.projection.method(
+                &identity.namespace,
+                &identity.name,
+                &contract.name,
+                false,
+            )
         });
         let chain_role = foreign_method
             .and_then(|method| method.chain_role)
@@ -1405,7 +1469,13 @@ impl Emitter<'_> {
         let function_value_call = callee.kind == SyntaxKind::Name
             && contract.is_none()
             && matches!(self.value_type(callee), Some(ValueType::Function(_, _)));
+        let dependency_contract = contract.as_ref().is_some_and(|contract| {
+            self.package.units.iter().any(|unit| {
+                unit.source.id() == contract.span.file && unit.namespace.starts_with("/deps/")
+            })
+        });
         let needs_error_mapping = contract.as_ref().is_some_and(|contract| contract.throws)
+            || dependency_contract
             || foreign_error
             || function_value_call;
         let site = if needs_error_mapping {
@@ -1413,10 +1483,11 @@ impl Emitter<'_> {
         } else {
             String::new()
         };
-        let dependency_boundary = self
-            .package
-            .resolve_name_at(self.unit, callee.span.start, self.text(callee))
-            .is_some_and(|symbol| symbol.identity.starts_with("/deps/"));
+        let dependency_boundary = dependency_contract
+            || self
+                .package
+                .resolve_name_at(self.unit, callee.span.start, self.text(callee))
+                .is_some_and(|symbol| symbol.identity.starts_with("/deps/"));
         let map_errors = |call: &str| {
             if !needs_error_mapping {
                 return call.to_owned();

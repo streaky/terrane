@@ -1,0 +1,8 @@
+65240
+👍
+65159141
+0
+141
+index
+slice
+index -1 is out of range

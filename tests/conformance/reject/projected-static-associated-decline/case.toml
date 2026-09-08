@@ -1,0 +1,5 @@
+phase = "check"
+status = "reject"
+entrypoint = "package.toml"
+code = "T0105"
+contains = "is not projected: trait method is not declared by this dependency crate"

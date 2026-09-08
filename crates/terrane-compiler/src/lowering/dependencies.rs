@@ -309,23 +309,44 @@ pub(super) fn projected_result_expression(
 pub(super) fn emit_dependency_unit(package: &SemanticPackage, unit: &SemanticUnit) -> String {
     let mut output = String::new();
     emit_dependency_imports(package, unit, &mut output);
-    for contract in unit
-        .functions
-        .iter()
-        .filter(|contract| contract.owner.is_none())
-    {
-        let Some(item) = package.projection.item(&unit.namespace, &contract.name) else {
-            continue;
-        };
-        let crate::projection::ProjectedKind::Function(projected) = &item.kind else {
-            continue;
+    for contract in &unit.functions {
+        let (item, projected, static_owner) = if let Some(owner) =
+            contract.owner.as_deref().filter(|_| contract.is_static)
+        {
+            let type_name = unit
+                .objects
+                .iter()
+                .find(|object| object.identity.name == owner)
+                .map_or(owner, |object| object.name.as_str());
+            let Some(item) = package.projection.item(&unit.namespace, type_name) else {
+                continue;
+            };
+            let crate::projection::ProjectedKind::ForeignType { static_methods, .. } = &item.kind
+            else {
+                continue;
+            };
+            let Some(projected) = static_methods
+                .iter()
+                .find(|method| method.name == contract.name)
+            else {
+                continue;
+            };
+            (item, projected, Some(type_name))
+        } else {
+            let Some(item) = package.projection.item(&unit.namespace, &contract.name) else {
+                continue;
+            };
+            let crate::projection::ProjectedKind::Function(projected) = &item.kind else {
+                continue;
+            };
+            (item, projected, None)
         };
         if projected.chain_role == Some(crate::projection::ChainRole::Root) {
             continue;
         }
         let dependency_name = package
             .projection
-            .dependency_name(&unit.namespace, &contract.name)
+            .dependency_name(&unit.namespace, &item.name)
             .unwrap_or("dependency");
         let parameters = contract
             .parameters
@@ -402,14 +423,26 @@ pub(super) fn emit_dependency_unit(package: &SemanticPackage, unit: &SemanticUni
             output,
             "pub {}fn {}({}) -> {result} {{",
             if projected.is_async { "async " } else { "" },
-            rust_name(&contract.name),
+            static_owner.map_or_else(
+                || rust_name(&contract.name),
+                |owner| projected_static_shim_name(owner, &contract.name),
+            ),
             parameters.join(", ")
         )
         .expect("writing to a string cannot fail");
         for conversion in argument_conversions {
             writeln!(output, "{conversion}").expect("writing to a string cannot fail");
         }
-        let value_path = rust_value_path(&item.rust_path);
+        let value_path = static_owner.map_or_else(
+            || rust_value_path(&item.rust_path),
+            |_| {
+                format!(
+                    "{}::{}",
+                    rust_value_path(&item.rust_path),
+                    rust_name(&projected.name)
+                )
+            },
+        );
         let call = if unit_variant {
             value_path
         } else {
@@ -463,6 +496,13 @@ pub(super) fn emit_dependency_unit(package: &SemanticPackage, unit: &SemanticUni
         output.push_str("}\n");
     }
     output
+}
+pub(super) fn projected_static_shim_name(owner: &str, method: &str) -> String {
+    format!(
+        "terrane_static_{}_{}",
+        rust_name(owner).trim_start_matches('_'),
+        rust_name(method)
+    )
 }
 fn rust_value_path(path: &str) -> String {
     if path.starts_with('<') {

@@ -160,7 +160,7 @@ fn projected_dependency_lowering_is_part_of_the_support_sidecar() {
     let support = &files[0].contents;
     let entrypoint = &files[1].contents;
 
-    assert!(support.contains("// Namespace: deps/bytes/bytes-mut"));
+    assert!(support.contains("// Namespace: deps/bytes"));
     assert!(!entrypoint.contains("// Namespace: deps/"));
     assert!(entrypoint.contains("// Namespace: app"));
 }

@@ -1729,12 +1729,12 @@ pub async fn lookup_dns(
                                 ),
                             )
                             .cloned()
-                            .ok_or(terrane_collection_support::IndexError {
-                                index: __terrane_raised(
+                            .ok_or_else(|| terrane_collection_support::IndexError::from_usize(
+                                __terrane_raised(
                                     terrane_collection_support::index_from_int(&index.clone()),
                                     0 /* terrane-site: core/networking.trn:319:28-319:49 */,
                                 ),
-                            }),
+                            )),
                         0 /* terrane-site: core/networking.trn:319:28-319:49 */,
                     ),
                 );

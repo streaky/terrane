@@ -14,6 +14,7 @@ struct TerraneDescriptor {
     identity: &'static str,
     name: &'static str,
     kind: &'static str,
+    inherently_identity_bearing: bool,
     fields: &'static [TerraneFieldMetadata],
 }
 // Source: case.trn
@@ -26,9 +27,10 @@ impl AnimalStorage {
     }
     pub fn class_name(&self) -> String {
         return TerraneDescriptor {
-            identity: "animal",
+            identity: "/inherited-static-factory::animal",
             name: "animal",
             kind: "class",
+            inherently_identity_bearing: false,
             fields: &[],
         }
             .name
@@ -62,9 +64,10 @@ impl Dog {
     }
     pub fn class_name(&self) -> String {
         return TerraneDescriptor {
-            identity: "dog",
+            identity: "/inherited-static-factory::dog",
             name: "dog",
             kind: "class",
+            inherently_identity_bearing: false,
             fields: &[],
         }
             .name

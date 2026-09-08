@@ -462,6 +462,7 @@ struct TerraneDescriptor {
     identity: &'static str,
     name: &'static str,
     kind: &'static str,
+    inherently_identity_bearing: bool,
     fields: &'static [TerraneFieldMetadata],
 }
 // Source: case.trn
@@ -485,9 +486,10 @@ impl ServiceOptions {
 }
 fn main() {
     let descriptor: TerraneDescriptor = TerraneDescriptor {
-        identity: "service-options",
+        identity: "/class-field-metadata::service-options",
         name: "service-options",
         kind: "class",
+        inherently_identity_bearing: false,
         fields: &[
             TerraneFieldMetadata {
                 name: "internal-name",
@@ -528,18 +530,16 @@ fn main() {
         "{}{}{}", terrane_scalar_support::scalar_text(&__terrane_raised(descriptor.fields
         .iter().map(| field | field.name.to_owned()).collect:: < Vec < String > > ()
         .get(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
-        0 /* terrane-site: case.trn:12:12-12:37 */)).cloned()
-        .ok_or(terrane_collection_support::IndexError { index :
-        __terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
-        0 /* terrane-site: case.trn:12:12-12:37 */) }), 0 /* terrane-site: case.trn:12:12-12:37 */)),
+        0 /* terrane-site: case.trn:12:12-12:37 */)).cloned().ok_or_else(| |
+        terrane_collection_support::IndexError::from_usize(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
+        0 /* terrane-site: case.trn:12:12-12:37 */))), 0 /* terrane-site: case.trn:12:12-12:37 */)),
         terrane_scalar_support::scalar_text(&String::from(":")),
         terrane_scalar_support::scalar_text(&__terrane_raised(descriptor.fields.iter()
         .map(| field | field.external_name.to_owned()).collect:: < Vec < String > > ()
         .get(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
-        1 /* terrane-site: case.trn:12:44-12:78 */)).cloned()
-        .ok_or(terrane_collection_support::IndexError { index :
-        __terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
-        1 /* terrane-site: case.trn:12:44-12:78 */) }), 1 /* terrane-site: case.trn:12:44-12:78 */))
+        1 /* terrane-site: case.trn:12:44-12:78 */)).cloned().ok_or_else(| |
+        terrane_collection_support::IndexError::from_usize(__terrane_raised(terrane_collection_support::index_from_int(&terrane_int_support::Int::from(0_i128)),
+        1 /* terrane-site: case.trn:12:44-12:78 */))), 1 /* terrane-site: case.trn:12:44-12:78 */))
     );
     println!(
         "{}{}{}",

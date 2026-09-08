@@ -37,6 +37,10 @@ pub use semantics::{
 };
 pub use source::{SourceFile, Span};
 pub use types::{DescriptorSchema, ScalarType, TypeCategory};
+/// Unicode Character Database version selected by the compiler toolchain profile.
+pub const UNICODE_DATA_VERSION: &str = "16.0.0";
+#[cfg(test)]
+const UNICODE_DATA_VERSION_COMPONENTS: (u64, u64, u64) = (16, 0, 0);
 
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 pub const BUILD_TOOLCHAIN: &str = "1.93.1";
@@ -78,5 +82,26 @@ mod manifest_tests {
         assert!(!with_features.contains("[features]"));
         assert!(!with_features.contains("rcgen"));
         assert!(without_following_section.contains("base64 = \"0.22\""));
+    }
+
+    #[test]
+    fn compiler_and_runtime_unicode_profiles_match() {
+        assert_eq!(
+            super::UNICODE_DATA_VERSION_COMPONENTS,
+            terrane_string_support::UNICODE_DATA_VERSION
+        );
+        assert_eq!(
+            super::UNICODE_DATA_VERSION_COMPONENTS,
+            terrane_collection_support::UNICODE_DATA_VERSION
+        );
+        assert_eq!(
+            super::UNICODE_DATA_VERSION,
+            format!(
+                "{}.{}.{}",
+                super::UNICODE_DATA_VERSION_COMPONENTS.0,
+                super::UNICODE_DATA_VERSION_COMPONENTS.1,
+                super::UNICODE_DATA_VERSION_COMPONENTS.2
+            )
+        );
     }
 }

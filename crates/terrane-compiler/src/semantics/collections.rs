@@ -318,22 +318,63 @@ pub(super) fn infer_collection_call_type(
     }
     if callee.kind == SyntaxKind::MemberExpression
         && let [receiver, member] = callee.children.as_slice()
+        && node_text(&unit.source, member) == "end"
+        && resolved_compiler_object_identity(unit, receiver)
+            == Some("/core/collections::iteration-step")
+    {
+        if !arguments.children.is_empty() {
+            return Err(failure(
+                &unit.source,
+                "T0045",
+                "`iteration-step.end` accepts no arguments",
+                arguments.span,
+            ));
+        }
+        return Ok(Some(ValueType::IterationEnd));
+    }
+    if callee.kind == SyntaxKind::MemberExpression
+        && let [receiver, member] = callee.children.as_slice()
+        && node_text(&unit.source, member) == "next"
+        && let Some(ValueType::Iterator(item)) =
+            infer_receiver_value_type(unit, receiver, bindings)?
+    {
+        if !arguments.children.is_empty() {
+            return Err(failure(
+                &unit.source,
+                "T0045",
+                "iterator `.next` accepts no arguments",
+                arguments.span,
+            ));
+        }
+        return Ok(Some(ValueType::IterationStep(item)));
+    }
+    if callee.kind == SyntaxKind::MemberExpression
+        && let [receiver, member] = callee.children.as_slice()
         && matches!(
             node_text(&unit.source, member),
-            "append" | "set" | "add" | "contains" | "remove" | "keys" | "values" | "entries"
+            "append"
+                | "set"
+                | "clear"
+                | "add"
+                | "contains"
+                | "remove"
+                | "keys"
+                | "values"
+                | "entries"
         )
         && let Some(receiver_type) = infer_receiver_value_type(unit, receiver, bindings)?
     {
         let member = node_text(&unit.source, member);
         return Ok(match (receiver_type, member) {
-            (ValueType::List(item), "append" | "set") => Some(ValueType::List(item)),
+            (ValueType::List(item), "append" | "set" | "clear") => Some(ValueType::List(item)),
+            (ValueType::List(item), "remove") => Some(item.value_type()),
             (ValueType::Map(key, value), "set") => Some(ValueType::Map(key, value)),
             (ValueType::UnorderedMap(key, value), "set") => {
                 Some(ValueType::UnorderedMap(key, value))
             }
             (ValueType::Set(item), "add") => Some(ValueType::Set(item)),
             (ValueType::UnorderedSet(item), "add") => Some(ValueType::UnorderedSet(item)),
-            (ValueType::Tuple(_, _), "append" | "set" | "add" | "remove") => {
+            (ValueType::Tuple(_, _), "append" | "set" | "clear" | "add" | "remove") => {
                 return Err(failure(
                     &unit.source,
                     "T0048",
@@ -479,6 +520,21 @@ pub(super) fn infer_collection_call_type(
             } else {
                 ValueType::UnorderedMap(key, value)
             }
+        }
+        "iteration-step" => {
+            let [argument] = arguments.children.as_slice() else {
+                return Err(failure(
+                    &unit.source,
+                    "T0045",
+                    "`iteration-step` requires exactly one item",
+                    arguments.span,
+                ));
+            };
+            ValueType::IterationStep(element_type(
+                unit,
+                argument.children.last().unwrap_or(argument),
+                bindings,
+            )?)
         }
         "range" => ValueType::Range,
         _ => return Ok(None),

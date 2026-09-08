@@ -126,6 +126,21 @@ from /deps/reqwest import get as reqwest-get
 foo = await reqwest-get; >https://httpbin.org/ip
 ```
 
+Projection follows the Rust crate's canonical public surface rather than exposing private defining
+modules or convenience preludes as competing namespaces. A substantive re-export wins over a path
+beneath `prelude`; among otherwise equivalent public paths, the shortest path wins and lexical
+ordering breaks ties. Associated Rust functions stay attached to their projected class:
+
+```terrane
+from /deps/bytes import BytesMut
+
+function reserve-buffer BytesMut;
+    return BytesMut::with_capacity; 4096
+```
+
+`with_capacity` is therefore a static member of `BytesMut`, not an independent function imported
+from `/deps/bytes`.
+
 ## 6. The boundary rules
 
 ### 6.1 Free
@@ -233,6 +248,12 @@ The native Rust body remains the escape hatch for everything below.
 - anything returning a borrow that cannot be cloned at the edge;
 - macro-only APIs.
 
+Current recorded example: projection schema 24 deliberately declines
+`numr::autograd::NoOpHook::on_leaf_grad_ready` because
+`impl<R: Runtime> BackwardHook<R> for NoOpHook` leaves `R` unbounded and the method exposes
+`Tensor<R>` in its parameter contract. The earlier benchmark lock entry was not lowerable; its
+removal is a representability correction, not a missing trait namespace.
+
 ## 7. The projection
 
 Input: the lock-resolved package, its enabled features, the target, and rustdoc JSON for those exact
@@ -240,7 +261,7 @@ versions. No package code is executed. Output: a namespace model.
 
 Mechanical rules:
 
-- module paths become namespace paths under `/deps/<crate>`;
+- the selected canonical public path becomes the namespace under `/deps/<crate>`: substantive paths outrank convenience paths beneath `prelude`, then shortest depth and lexical ordering break ties;
 - `async fn` projects as an async Terrane function; the existing async model applies, with tokio
   already in the generated crate;
 - **bound-driven monomorphisation**: for a generic parameter with a closed, inspectable bound, the
@@ -406,8 +427,8 @@ compiler compute the same model or neither does.
 The project-local cache retains the current projection and at most three prior projection artifacts.
 This bounded history avoids repeated rustdoc work during ordinary lockfile rollback and editor churn
 without allowing one project directory to grow indefinitely. Durable, machine-independent
-`terrane-projection.lock` history records projected namespace/member pairs by resolved dependency
-version.
+`terrane-projection.lock` history records top-level projected members plus instance members as
+`Type.member` and static members as `Type::member`, keyed by resolved dependency version.
 
 The projection pass and generated-crate compilation use the build capability policy: fetch may run
 online, then rustdoc and compilation run offline and frozen inside `bwrap` where available. A platform

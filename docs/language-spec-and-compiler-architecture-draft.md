@@ -2133,7 +2133,7 @@ The following values carry source-visible identity without requiring a new `ref`
 - uniquely owned resource objects, such as device handles, capabilities, and guards;
 - canonical semantic descriptor objects whose contract defines one identity, including type, namespace, package, and declared-function descriptors.
 
-Other ordinary values—including scalars, strings, collections, non-resource-owning class instances, closures, and bound methods—have no source-visible identity merely because an implementation boxes, interns, caches, or shares them. Their type may expose identity only through `ref` or by carrying an inherently identity-bearing resource/descriptor contract. Whether a type is inherently identity-bearing is reflected in its public type metadata and cannot vary secretly by representation or instance.
+Other ordinary values—including scalars, strings, collections, non-resource-owning class instances, closures, and bound methods—have no source-visible identity merely because an implementation boxes, interns, caches, or shares them. Their type may expose identity only through `ref` or by carrying an inherently identity-bearing resource/descriptor contract. The boolean descriptor member `inherently-identity-bearing` reports that type contract and cannot vary secretly by representation or instance. A `ref T` or `shared ref T` descriptor therefore reports true, while `T` and `list of T` report false unless those types themselves carry an inherent resource/descriptor identity contract.
 
 Exact runtime type is expressed through the value’s `type` descriptor. Requiring both exact type and value equality remains an explicit conjunction:
 
@@ -2739,6 +2739,8 @@ else
 No trailing colon or parentheses are required.
 A direct presence guard narrows a named `T|none` binding to `T` within the guarded block. The recognized guard forms are `value != none`, `none != value`, and `not (value is a none)`, with parentheses permitted around the complete test or its operands. Narrowing is structural rather than inferred from arbitrary Boolean equivalence: combining a presence test with another condition using `and` or `or` does not establish narrowing. The subject must be a name binding: repeated member, index, and call expressions are not narrowed because their value may change between evaluations. Bind such an expression once, then guard and use that stable name. The fact is scoped to the guarded block and its nested scopes; assigning that name within the block invalidates the fact from that assignment onward.
 
+A separate conservative return postcondition applies only to a declared static member of type `T|none`; it is not ordinary in-block narrowing. A concrete function or method declared to return `T` may return that exact static member after a preceding sibling `if member == none` or `if none == member` when the `if` has no `else`, its body contains exactly one direct assignment of a value compatible with `T` to the same textual member target, no other statement in that body writes the target, and no intervening sibling statement writes it before the return. Under precisely those conditions the return validator treats the member as `T`. Any other member, guard shape, branch shape, assignment count, incompatible value, `else`, or intervening write retains `T|none` and is rejected normally when the destination requires `T`.
+
 ### 14.2 `while`
 
 ```terrane
@@ -3144,6 +3146,13 @@ maybe = mapping.get.checked; key     # V|none
 first = items[0]                     # throws index-error when out of range
 ```
 
+Byte sequences use this same index contract without acquiring string semantics. An integer index
+selects one `uint8`; a range index selects a new `bytes` value. Range slicing visits the range's
+integer indices in order, including its authored step and inclusive/half-open choice. A negative,
+unrepresentable, or out-of-bounds selected index throws `index-error`. An empty range at a valid
+boundary returns empty bytes, and slicing never decodes or validates the selected octets as text.
+
+
 Absence is always the `checked` spelling. No lookup returns absence by default, and there is no separately named required-lookup operation: a default that throws and a child that does not is the same shape used by `coerce` and the arithmetic families, and introducing a second mechanism for one container would make the convention unreliable everywhere else.
 
 ### 16.6 Slices and ranges
@@ -3164,15 +3173,31 @@ inclusive = range.through; 0, 10     # 0 through 10
 
 The step defaults to `1` and must be non-zero. A step whose direction is inconsistent with the endpoints yields an empty range rather than an error or an unbounded sequence, so a computed step cannot accidentally produce a non-terminating loop.
 
-Slicing should use range objects rather than accumulating multiple special colon grammars:
+Slicing uses range objects rather than accumulating multiple special colon grammars:
 
 ```terrane
 part = items[range; 10, 20]
+packet = encoded[range.through; 4, 7]
 ```
 
 ### 16.7 Collection contracts
 
 These contracts apply across the collection types above.
+
+Replacement releases the displaced logical element before the mutating operation returns, once no
+other owner retains that element. Copy-on-write separation preserves the unmutated collection and
+does not turn shared backing storage into shared source identity. Removal instead transfers the
+removed element to the caller; its lifetime continues until that returned value is released (or
+ends immediately when the result is discarded). Clearing releases elements in collection iteration
+order before returning. Destruction of an ordered collection releases its remaining elements in
+collection iteration order. These points are source-observable through element destructors and are
+not left to unspecified behavior of the generated backing container.
+
+A collection remains identity-less even when copy-on-write storage is shared or its elements are
+identity-bearing. Reference values stored in a collection preserve their referent identities:
+`is` is true exactly when both reference operands denote the same referent, including a weak/strong
+pair, and false for distinct referents. Releasing a stored shared reference releases that owner;
+the referent is destroyed only after its final owner is released.
 
 **Ordering.** Maps and sets preserve insertion order, and that order is an observable part of their contract rather than an implementation accident. Iteration, rendering, and serialisation are therefore reproducible without the program sorting defensively.
 
@@ -3188,13 +3213,26 @@ A separate unordered map and set type exists for cases where the index-map layou
 
 ### 16.8 Iteration protocol
 
-`for ... in ...` invokes the iteration protocol.
+`for ... in ...` invokes the iteration protocol. An iterable object satisfies the protocol
+structurally when it has a non-throwing, non-async, zero-argument `iterator` method that does not
+mutate its receiver. That method returns either `iterator of Item` or an iterator object with a
+non-throwing, non-async, zero-argument `next` method returning `iteration-step of Item`. No
+inheritance declaration or named-interface annotation is required.
 
-An iterator's advancing operation returns a dedicated finite result, `iteration-step of Item`, with `item of Item` and `end` alternatives. The item may itself be a tuple or destructurable object.
+An iterator's advancing operation returns a dedicated finite result, `iteration-step of Item`, with
+`item of Item` and `end` alternatives. Source constructs those alternatives with
+`iteration-step; value` and `iteration-step.end;`. The item may itself be a tuple or destructurable
+object.
 
-Exhaustion is `end`, never `none`, because `none` may be a legitimate item. Iterators are stateful linear objects; `end` is sticky, and advancing after `end` returns `end` without consulting the source again. `for` desugars through this protocol and neither exposes nor synthesises a sentinel value.
+Exhaustion is `end`, never `none`, because `none` may be a legitimate item. Iterator objects are
+stateful linear values: transferring a named iterator into `for` makes that binding unavailable.
+An implementation must retain exhaustion so `end` is sticky, and advancing after `end` returns
+`end` without consulting the source again. `for` desugars through this protocol and neither exposes
+nor synthesises a sentinel value.
 
-The compiler may statically lower standard iterators to native Rust iterator chains.
+The compiler may statically lower standard iterators to native Rust iterator chains. Source-defined
+iterators lower through their authored `iterator` and `next` methods; the compiler does not replace
+their state machine with a collection-specific loop.
 
 ### 16.9 String iteration
 
@@ -3231,6 +3269,12 @@ Non-empty literal search compares the stored Unicode scalar sequence and is not 
 `trim` removes Unicode whitespace from both ends by default; `trim.start` and `trim.end` select one logical end. When supplied a literal argument, the selected operation removes exactly one matching prefix or suffix and otherwise returns the receiver unchanged.
 
 `upper` and `lower` are locale-independent Unicode mappings. Their `first` children change the first cased scalar, and `upper.words` changes the first cased scalar in each Unicode word-boundary segment. Locale-sensitive casing requires an explicit policy object and never consults process locale. `case-fold` is the explicitly named locale-independent Unicode case-folding operation; search has no hidden case-insensitive child. `normalise.nfc`, `.nfd`, `.nfkc`, and `.nfkd` apply the named Unicode normalization form.
+
+Version one pins case folding, normalization, Unicode word and grapheme segmentation, and every
+other compiler-owned Unicode table to Unicode 16.0.0 as one toolchain profile. The generated
+manifest records that data version. Switching between the pinned and explicitly requested system
+Rust toolchains does not change the Unicode contract; changing the Unicode profile is a compiler
+toolchain change that must update every affected support component together.
 
 `split` and `replace` use literal patterns and return new values. A non-empty pattern is matched left to right and the next search begins after the complete preceding match, so matches do not overlap. An empty `split` pattern returns one string per extended grapheme cluster, with no synthetic empty elements. An empty `replace` pattern inserts the replacement at every extended-grapheme boundary, including both ends. These grapheme-boundary rules prevent decomposed text from being split inside a user-perceived character.
 
@@ -4220,7 +4264,7 @@ A Rust crate dependency is declared in `package.toml` with its package name, ver
 reqwest = { version = "0.12", default-features = false, features = ["blocking", "rustls-tls-webpki-roots"] }
 ```
 
-Resolution and Cargo's lockfile determine the exact package interface. The build runs rustdoc for that resolved graph and produces one projection artifact shared by compiler and language server. Rust module paths become `/deps/<manifest-name>/...` namespaces; public names remain verbatim. The projection admits directly representable functions, inherent methods, receiver-first trait functions, opaque foreign types, and data-free or data-carrying enums. It records a reason for every public item it declines.
+Resolution and Cargo's lockfile determine the exact package interface. The build runs rustdoc for that resolved graph and produces one projection artifact shared by compiler and language server. Each item's selected canonical public path becomes its `/deps/<manifest-name>/...` namespace; substantive paths outrank paths beneath `prelude`, then shortest depth and lexical ordering break ties. Public names remain verbatim. The projection admits directly representable functions, inherent methods, static associated functions, receiver-first trait functions, opaque foreign types, and data-free or data-carrying enums. It records a reason for every public item it declines.
 
 The projector deserializes the complete rustdoc document through the version-matched
 `rustdoc-types` schema before traversing it. It does not infer item kinds or type shapes from
@@ -4233,11 +4277,14 @@ Projected foreign identity includes every concrete generic argument. Two instant
 generic declaration are distinct Terrane object identities; one may not be passed where the other
 is expected. The projector renders a deterministic full Rust type spelling, applies generic
 arguments through Rust type aliases, and assigns each instantiated spelling a stable compiler-owned
-Terrane name. A generic foreign type whose every type parameter has a default is projected at that
-default instantiation, and `Self` in its methods resolves to that concrete identity. Generated
-dependency modules lower instantiated spellings as Rust type aliases rather than invalid `use`
-paths. Lifetime-parameterized types and generic parameters without defaults remain explicit
-declines until a call-directed or non-escaping-chain rule proves a concrete use.
+Terrane name. A generic declaration with one admitted concrete instantiation retains its readable
+Rust name; if multiple concrete instantiations are admitted, their canonical identities must receive
+distinct projected names or projection fails explicitly before namespace construction. A generic
+foreign type whose every type parameter has a default is projected at that default instantiation,
+and `Self` in its methods resolves to that concrete identity. Generated dependency modules lower
+instantiated spellings as Rust type aliases rather than invalid `use` paths.
+Lifetime-parameterized types and generic parameters without defaults remain explicit declines until
+a call-directed or non-escaping-chain rule proves a concrete use.
 
 A concrete Rust callback bound projects when its complete callable contract is monomorphic.
 `Fn`, `FnMut`, and `FnOnce` parenthesized bounds supply parameter and result types; a callback
@@ -4288,13 +4335,18 @@ admit or decline members; transferable projections currently record an empty pro
 probe wall time. A future consumer must serialize the reports it actually uses.
 
 Projected type identity follows the Rust item rather than the importing module alone. Public path
-selection is deterministic: prefer the shortest reachable path, then lexical order for equal-depth
-re-exports. A public re-export is resolved through that rule before the Terrane namespace and object
-identity are recorded, so importing a type through its re-export and through its defining module
-does not create two Terrane types. Concrete instantiations append the complete lowercase SHA-256
-of their canonical instantiated Rust path to the readable short name; no truncated hash or
-order-dependent suffix is used. Distinct same-named sibling types and distinct instantiations
-therefore remain distinct.
+selection is deterministic: prefer reachable substantive paths over paths beneath a `prelude`
+module, then choose the shortest path and lexical order at equal depth. A prelude path remains
+available when it is the item's only public path. A public re-export is resolved through that rule
+before the Terrane namespace and object identity are recorded, so importing a type through its
+re-export and through its defining module does not create two Terrane types. A projected Rust
+associated function belongs to that projected type and is called with Terrane static-member syntax,
+`Class::function`; it is not independently imported as a namespace function. A generic declaration
+with one admitted concrete instantiation retains its readable short type name. When multiple
+concrete instantiations of that declaration are admitted, their names append the complete lowercase
+SHA-256 of each canonical instantiated Rust path; no truncated hash or order-dependent suffix is
+used. Distinct same-named sibling types and distinct instantiations therefore remain distinct
+without burdening the ordinary single-instantiation import.
 A signature type owned by an undeclared transitive crate is not projected as a memberless
 lookalike: the member declines with an actionable reason naming the owning crate and its
 lock-resolved version. Declaring that owner
@@ -4376,15 +4428,16 @@ must produce an ordinary owned projected value.
 Lowering emits the root and continuing receiver calls as one Rust expression. Argument conversion,
 panic containment, asynchronous awaiting, dependency-error mapping, and result conversion occur at
 the terminal boundary rather than wrapping each intermediate separately. Projection schema 20
-records root, continuing, and terminal roles explicitly. Completion, signature help, and hover mark
-these values as chain-only and non-escaping. Methods that cannot continue the same concrete
+introduced the explicit root, continuing, and terminal roles retained by later schemas.
+Completion, signature help, and hover mark these values as chain-only and non-escaping. Methods
+that cannot continue the same concrete
 intermediate or terminate in an owned representable result remain declined. This rule does not
 claim that an open generic such as SQLx's `Query<'q, DB, A>` projects directly: a concrete declared
 adapter may itself retain a borrow and execute the generic SQLx operation inside its terminal.
 
 Cargo and rustc remain authoritative. Projection and editor information are advisory and derived from the resolved package rather than predefined by Terrane. The language server uses the shared artifact for completion, signature help, hover, exact Rust paths, and declined-item reasons. Projection executes under the build-script capability policy.
 
-The generated dependency crate graph preserves the manifest's selected features and default-feature policy, compiles offline and frozen after an online fetch, and records whether containment was enforced. Platforms with `bwrap` contain rustdoc and generated-crate compilation; platforms without it report the unavailable tier and continue under the declared host policy. Its cache identity covers the manifest, lock checksum, selected features, target triple, Rust toolchain, package source checksums, and sandbox tier. The project-local cache retains the current projection and at most three prior projection artifacts for ordinary rollback and editor churn. Machine-independent `terrane-projection.lock` history records projected members by resolved dependency version; a lock update that removes a crossed member produces `S2031` at the Terrane import with the member and version change.
+The generated dependency crate graph preserves the manifest's selected features and default-feature policy, compiles offline and frozen after an online fetch, and records whether containment was enforced. Platforms with `bwrap` contain rustdoc and generated-crate compilation; platforms without it report the unavailable tier and continue under the declared host policy. Its cache identity covers the manifest, lock checksum, selected features, target triple, Rust toolchain, package source checksums, and sandbox tier. The project-local cache retains the current projection and at most three prior projection artifacts for ordinary rollback and editor churn. Machine-independent `terrane-projection.lock` history records projected top-level names, static members as `Type::member`, and instance members as `Type.member` by resolved dependency version. After declared-member resolution fails, matching removal history produces `S2031` at the Terrane import or member selection with the member and version change; a name absent from both the current declaration and history retains the ordinary never-present diagnostic.
 
 ### 23.9 System and C libraries
 

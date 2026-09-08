@@ -608,12 +608,12 @@ pub fn arguments() -> terrane_collection_support::List<NativeString> {
                                     ),
                                 )
                                 .cloned()
-                                .ok_or(terrane_collection_support::IndexError {
-                                    index: __terrane_raised(
+                                .ok_or_else(|| terrane_collection_support::IndexError::from_usize(
+                                    __terrane_raised(
                                         terrane_collection_support::index_from_int(&index.clone()),
                                         0 /* terrane-site: core/process.trn:44:49-44:63 */,
                                     ),
-                                }),
+                                )),
                             0 /* terrane-site: core/process.trn:44:49-44:63 */,
                         ),
                     ),
@@ -644,12 +644,12 @@ pub fn environment() -> terrane_collection_support::List<EnvironmentEntry> {
                             ),
                         )
                         .cloned()
-                        .ok_or(terrane_collection_support::IndexError {
-                            index: __terrane_raised(
+                        .ok_or_else(|| terrane_collection_support::IndexError::from_usize(
+                            __terrane_raised(
                                 terrane_collection_support::index_from_int(&index.clone()),
                                 1 /* terrane-site: core/process.trn:53:40-53:54 */,
                             ),
-                        }),
+                        )),
                     1 /* terrane-site: core/process.trn:53:40-53:54 */,
                 ),
             );
@@ -665,14 +665,14 @@ pub fn environment() -> terrane_collection_support::List<EnvironmentEntry> {
                             ),
                         )
                         .cloned()
-                        .ok_or(terrane_collection_support::IndexError {
-                            index: __terrane_raised(
+                        .ok_or_else(|| terrane_collection_support::IndexError::from_usize(
+                            __terrane_raised(
                                 terrane_collection_support::index_from_int(
                                     &(index.clone() + terrane_int_support::Int::from(1_i128)),
                                 ),
                                 2 /* terrane-site: core/process.trn:54:41-54:59 */,
                             ),
-                        }),
+                        )),
                     2 /* terrane-site: core/process.trn:54:41-54:59 */,
                 ),
             );

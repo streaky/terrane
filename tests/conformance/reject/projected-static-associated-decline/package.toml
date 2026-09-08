@@ -1,0 +1,5 @@
+package = "projected-static-associated-decline"
+[namespaces]
+app = "src"
+[rust-dependencies.bytes]
+version = "=1.10.1"

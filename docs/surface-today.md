@@ -78,6 +78,7 @@ Terrane package
 │   │   │   └── utf32-be                       encoding object
 │   │   ├── /core/collections
 │   │   │   ├── iterator                       typed linear iterator constructor
+│   │   │   ├── iteration-step                 typed item/end result constructor; `.end` constructs exhaustion
 │   │   │   ├── list                           insertion-ordered sequence constructor
 │   │   │   ├── map                            insertion-ordered key/value constructor
 │   │   │   ├── set                            insertion-ordered unique-value constructor
@@ -512,12 +513,10 @@ none value
 ### `bytes`
 
 `bytes` is an implemented sequence value with `b'...'` literals and `.length`. It has no
-blanket scalar-display implementation, so raw bytes cannot reach `print`. `.decode;
-encoding` validates input and reports `decode-error` with its canonical encoding and byte
-offset. The canonical `utf8`, `utf16-le`, `utf16-be`, `utf32-le`, and `utf32-be` encoding
-objects are compiler-owned values; string `.encode` is total for each one. Built-in `for`
-iteration yields `uint8` values. General bytes indexing and slicing remain deferred until
-the range/index contract is implemented.
+scalar display. Integer indexing yields `uint8`; range indexing yields new `bytes` while honoring
+half-open or inclusive endpoints and authored steps. Invalid selected indices throw
+`index-error` with the authored adaptive integer retained in its message. Iteration yields
+`uint8` values.
 
 ### Collection types
 
@@ -543,6 +542,8 @@ boundaries.
 Iteration takes a value snapshot of its source collection. Mutating or replacing the source binding
 inside a `for` does not change the items remaining in that traversal; copy-on-write separates the
 mutated value while the iterator retains the original shared storage.
+Only lists currently expose `.clear`; map and set mutation intentionally use their documented
+member sets rather than inheriting a speculative uniform clear operation.
 
 ## Type descriptor objects
 
@@ -582,7 +583,13 @@ value is a D
 
 For an ordinary typed scalar, both forms compare its resolved canonical Terrane type with `D`. For a numeric constant, `value is a D` tests whether the constant is exactly admissible by `D`; for a numeric union binding, it tests the current runtime arm. The right-hand descriptor is resolved statically, and an unresolvable name fails with `T0001`. Scalar values themselves are identity-less: `is` between ordinary scalar values is false even when their values and types are equal. Operand expressions are still evaluated for their effects.
 
-Descriptor names remain compile-time identities in ordinary type positions. When reflection or dynamic descriptor observation requires a value, the compiler materializes the canonical descriptor object; source bindings may retain and print that object, and `.name` exposes its canonical source spelling. An explicit import or constant alias retains the same descriptor identity rather than creating a new descriptor.
+Descriptor names remain compile-time identities in ordinary type positions. When reflection or
+dynamic descriptor observation requires a value, the compiler materializes the canonical
+descriptor object, including for an inline `.type` expression. Source-declared object descriptors
+retain namespace-qualified identity. A declared object field or method named `type` takes
+precedence over the universal reflection property. Every materialized descriptor exposes
+`inherently-identity-bearing`: it is true for reference and resource-owning type contracts and
+false for ordinary value types, including collections.
 
 Source-declared class instance fields accept one trailing `metadata (...)` clause. The implemented
 metadata names are string `external-name` and boolean `secret`; declared initializers and `T|none`
@@ -662,6 +669,12 @@ the current instance in instance methods; late-bound `self` denotes the effectiv
 and static methods, including inherited static factories using `instance self;`. Instance state is
 independent for every constructed value. Static state is shared by one effective class but separate
 between a base class and each subclass; nested member writes mutate that shared storage directly.
+Return validation recognizes one static-only postcondition used by lazy initialization: an exact
+`T|none` static member returned as `T` is proven present only after a preceding sibling absence
+guard with no `else`, exactly one direct compatible assignment to that same textual target, no
+other branch write, and no intervening write. This does not narrow the member inside the block,
+does not apply to instance members, and falls back to the ordinary optional-type diagnostic when
+any precondition is absent.
 Destruction is ordered from the most-derived class toward the root base. Value separation copies
 class and interface-typed state into a fresh lifecycle lineage, while compiler-introduced Rust
 clones remain within one lineage and cannot multiply the hook. Subclass values retain inherited and
@@ -807,13 +820,15 @@ change the generated manifest.
 | `string` | `.encode; encoding` | method | encoded `bytes` |
 | `bytes` | `.length` | property | byte count |
 | `bytes` | `.decode; encoding` | method | validated `string` or deterministic decode error |
-| collection iterator | `.next` (compiler protocol) | method | typed `item` or sticky `end` step |
+| `bytes` | `[index]`, `[range]` | lookup/slice | `uint8` or new `bytes`; invalid selected index throws `index-error` |
+| collection iterator | `.next` (compiler protocol) | method | typed item or dedicated sticky `end` step, distinct from `none` |
+| source-defined iterable | `.iterator`, iterator `.next` | structural protocol | authored typed `iteration-step` state machine with targeted malformed-contract diagnostics |
 | list / tuple | `[index]` | lookup | value or `index-error`; `.get.checked; index` returns value or `none` |
 | map / unordered map | `[key]` | lookup | value or `missing-key`; `.get.checked; key` returns value or `none` |
 | list / map / set / tuple / unordered variants | `.length` | property | adaptive `int` count |
-| list | `.append`, `.set` | methods | copy-on-write mutation |
-| map / unordered map | `.set`, `.keys`, `.values`, `.entries` | methods | deterministic mutation/views |
-| set / unordered set | `.contains`, `.add`, `.remove` | methods | deterministic membership/mutation |
+| list | `.append`, `.set`, `.remove`, `.clear` | methods | copy-on-write mutation with observable release points; `.clear` is intentionally list-only |
+| map / unordered map | `.set`, `.keys`, `.values`, `.entries` | methods | deterministic mutation/views; no `.clear` in the current surface |
+| set / unordered set | `.contains`, `.add`, `.remove` | methods | deterministic membership/mutation; no `.clear` in the current surface |
 | entry | `.key`, `.value` | properties | cloned key/value |
 | byte reader | `.read`, `.read-exact`, `.read-all`, `.read-async` | methods | partial/exact/bounded/async byte read results |
 | byte writer | `.write`, `.write-all`, `.resume`, `.write-async` | methods | partial/complete/resumed/async byte write results |
@@ -863,9 +878,12 @@ stable toolchain; `system` explicitly opts into the caller's active Rust toolcha
 effect is rejected during manifest resolution.
 
 Declared crates are projected from typed rustdoc metadata into reserved
-`/deps/<manifest-name>/...` namespaces. The shared projection records verbatim public names,
-canonical Rust paths, documentation, representable free and inherent methods, receiver-first trait
-functions, receiver ownership, opaque foreign types, data-free enum variant constructors, directly
+`/deps/<manifest-name>/...` namespaces. Canonical public-path selection prefers substantive paths
+over convenience paths beneath `prelude`, then shortest depth and lexical ordering. The shared
+projection records verbatim public names, canonical Rust paths, documentation, representable free
+functions, associated functions as `Class::function` static members, inherent instance methods,
+receiver-first trait functions, receiver ownership, opaque foreign types, data-free enum variant
+constructors, directly
 representable `Result` returns, arbitrary projected `Option<T>` values, all Rust integer widths,
 `f32`, `char`, concrete representable type aliases, recursive standard sequence, map, set, and
 homogeneous tuple shapes, monomorphic concrete `Fn`, `FnMut`, `FnOnce`, and future-returning
@@ -878,9 +896,10 @@ Async producers and sinks are
 resource-owning linear endpoints: borrowed operations must be awaited directly, preserve protocol
 failure and task cancellation separately, and reborrow the endpoint for one suspension; consuming
 `close` or `split` makes later use of the transferred endpoint a source ownership error.
-Projection schema 20 also records concrete lifetime-bearing builders as chain-only roots,
-continuations, and terminals. Their intermediates may retain a borrow from a named input but may
-appear only as receiver subtrees inside one nested expression; binding, return, capture, argument
+Projection schema 20 introduced explicit root, continuation, and terminal roles for concrete
+lifetime-bearing builders represented as chain-only values. Their intermediates may retain
+a borrow from a named input but may appear only as receiver subtrees inside one nested expression;
+binding, return, capture, argument
 escape, and suspension are rejected before lowering. The terminal must return an owned projectable
 value, and tooling marks the root as chain-only and non-escaping. The accepted SQLx witness projects
 a concrete borrow-retaining adapter that runs SQLx inside its terminal; open `sqlx::Query` remains
@@ -902,11 +921,13 @@ use `ref`, or require `move` according to their Rust receiver.
 Unwinding dependency panics enter the compiler-owned `dependency-panic` throwable path; abort
 profiles omit containment and generate Cargo `panic = "abort"`. Projection and generated-crate
 compilation use `bwrap` containment where available and report the host tier otherwise.
-`terrane-projection.lock` format 2 retains machine-independent member/version history plus source,
-rustdoc format, projection schema, exact cache identity, content hash, and resolution events. `S2031`
-names removed members and their version change; a changed payload under one exact cache identity is
-rejected as replay drift. Completion, signature help, and hover remain advisory; Cargo and rustc are
-authoritative.
+`terrane-projection.lock` format 2 retains machine-independent top-level members, instance members
+as `Type.member`, static members as `Type::member`, dependency versions, source, rustdoc format,
+projection schema, exact cache identity, content hash, and resolution events. A single admitted
+concrete generic instantiation keeps its readable Rust type name; hash suffixes are reserved for
+multiple admitted instantiations. `S2031` names removed members and their version change; a changed
+payload under one exact cache identity is rejected as replay drift. Completion, signature help, and
+hover remain advisory; Cargo and rustc are authoritative.
 
 ## Major planned surface absent today
 

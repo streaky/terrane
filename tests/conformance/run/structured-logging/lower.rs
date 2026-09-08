@@ -1770,6 +1770,7 @@ struct TerraneDescriptor {
     identity: &'static str,
     name: &'static str,
     kind: &'static str,
+    inherently_identity_bearing: bool,
     fields: &'static [TerraneFieldMetadata],
 }
 // Source: case.trn
@@ -1864,9 +1865,10 @@ fn main() {
             "case.trn:35:19".to_owned(),
         );
         let descriptor: TerraneDescriptor = TerraneDescriptor {
-            identity: "request-data",
+            identity: "/structured-logging::request-data",
             name: "request-data",
             kind: "class",
+            inherently_identity_bearing: false,
             fields: &[
                 TerraneFieldMetadata {
                     name: "token",

@@ -66,7 +66,7 @@ pub(crate) use bindings::{
 };
 pub(crate) use contracts::{descriptor_expression_category, descriptor_expression_type};
 pub(crate) use diagnostics::{binding_span_is_mutated, warnings};
-pub(crate) use member_inference::string_call_selection;
+pub(crate) use member_inference::{object_member_type, string_call_selection};
 pub use model::{
     ArithmeticFamily, BOOTSTRAP_VERSION, BoundMethod, ElementType, EvaluationKind, EvaluationStep,
     FunctionContract, MemberFamily, Namespace, ObjectContract, ObjectField, ObjectFieldMetadata,

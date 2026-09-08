@@ -10,7 +10,7 @@ fn channel_item_descriptor_type(unit: &SemanticUnit, name: &str) -> Option<Value
     }
     unit.objects
         .iter()
-        .find(|object| object.name == name)
+        .find(|object| object.name == name || object.identity.qualified() == name)
         .map(|object| ValueType::Object(object.identity.clone()))
 }
 
@@ -100,8 +100,8 @@ pub(super) fn infer_value_type(
         }) {
             return Ok(Some(ValueType::Descriptor(scalar.source_name().to_owned())));
         }
-        if unit.objects.iter().any(|object| object.name == name) {
-            return Ok(Some(ValueType::Descriptor(name.to_owned())));
+        if let Some(object) = unit.objects.iter().find(|object| object.name == name) {
+            return Ok(Some(ValueType::Descriptor(object.identity.qualified())));
         }
         if let Some(binding) = bindings.iter().rev().find(|binding| {
             binding.name == name && binding.is_visible_at(unit.source.id(), node.span.start)
@@ -190,15 +190,35 @@ pub(super) fn infer_value_type(
         ));
     }
     if node.kind == SyntaxKind::IndexExpression {
-        let Some(receiver) = node.children.first() else {
+        let [receiver, index] = node.children.as_slice() else {
             return Ok(None);
         };
-        return match infer_receiver_value_type(unit, receiver, bindings)? {
+        let receiver_type = infer_receiver_value_type(unit, receiver, bindings)?;
+        let index_type = infer_value_type(unit, index, bindings)?;
+        return match receiver_type {
             Some(ValueType::List(item) | ValueType::Tuple(item, _)) => Ok(Some(item.value_type())),
             Some(ValueType::StringList) => Ok(Some(ValueType::Scalar(ScalarType::String))),
             Some(ValueType::Map(_, value) | ValueType::UnorderedMap(_, value)) => {
                 Ok(Some(value.value_type()))
             }
+            Some(ValueType::Scalar(ScalarType::Bytes)) => match index_type {
+                Some(ValueType::Scalar(index)) if index.is_integer() => {
+                    Ok(Some(ValueType::Scalar(ScalarType::Uint8)))
+                }
+                Some(ValueType::Range) => Ok(Some(ValueType::Scalar(ScalarType::Bytes))),
+                Some(other) => Err(failure(
+                    &unit.source,
+                    "T0050",
+                    format!("bytes require an integer index or range, found `{other}`"),
+                    index.span,
+                )),
+                None => Err(failure(
+                    &unit.source,
+                    "T0050",
+                    "byte indexing requires a statically known integer index or range",
+                    index.span,
+                )),
+            },
             Some(ValueType::Scalar(ScalarType::String)) => Err(failure(
                 &unit.source,
                 "T0050",
@@ -236,18 +256,7 @@ pub(super) fn infer_value_type(
         })?;
         return object_member_type(unit, &identity, node_text(&unit.source, member), true)
             .map(Some)
-            .ok_or_else(|| {
-                failure(
-                    &unit.source,
-                    "T0105",
-                    format!(
-                        "class `{}` has no static member `{}`",
-                        identity.name,
-                        node_text(&unit.source, member)
-                    ),
-                    member.span,
-                )
-            });
+            .ok_or_else(|| missing_static_member_failure(unit, &identity, member));
     }
     if node.kind == SyntaxKind::CallExpression {
         if let Some(value_type) = infer_typed_document_decode(unit, node, bindings)? {
@@ -293,18 +302,7 @@ pub(super) fn infer_value_type(
                 })?;
                 let member_type =
                     object_member_type(unit, &identity, node_text(&unit.source, member), true)
-                        .ok_or_else(|| {
-                            failure(
-                                &unit.source,
-                                "T0105",
-                                format!(
-                                    "class `{}` has no static member `{}`",
-                                    identity.name,
-                                    node_text(&unit.source, member)
-                                ),
-                                member.span,
-                            )
-                        })?;
+                        .ok_or_else(|| missing_static_member_failure(unit, &identity, member))?;
                 return match member_type {
                     ValueType::Function(_, result) => {
                         let result = result.value_type();
@@ -948,4 +946,31 @@ pub(super) fn infer_value_type(
         return Ok(None);
     }
     Ok(None)
+}
+fn missing_static_member_failure(
+    unit: &SemanticUnit,
+    identity: &ObjectIdentity,
+    member: &SyntaxNode,
+) -> SemanticFailure {
+    let member_name = node_text(&unit.source, member);
+    if let Some(removed) = unit.removed_projected_member(identity, member_name, true) {
+        return failure(
+            &unit.source,
+            "S2031",
+            format!(
+                "Rust dependency member `{}::{member_name}` was projected by version {} but is absent from version {}",
+                identity.name, removed.previous_version, removed.current_version
+            ),
+            member.span,
+        );
+    }
+    failure(
+        &unit.source,
+        "T0105",
+        format!(
+            "class `{}` has no static member `{member_name}`",
+            identity.name
+        ),
+        member.span,
+    )
 }

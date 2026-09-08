@@ -7,47 +7,131 @@
       "members": [
         [
           "/deps/bytes",
-          "TryGetError"
-        ],
-        [
-          "/deps/bytes/buf/buf-impl/buf",
-          "copy_to_bytes"
-        ],
-        [
-          "/deps/bytes/buf/buf-mut/bufmut",
-          "chunk_mut"
-        ],
-        [
-          "/deps/bytes/buf/buf-mut/bufmut",
-          "put_bytes"
-        ],
-        [
-          "/deps/bytes/buf/buf-mut/bufmut",
-          "remaining_mut"
-        ],
-        [
-          "/deps/bytes/buf/uninit-slice",
-          "UninitSlice"
-        ],
-        [
-          "/deps/bytes/bytes",
           "Bytes"
         ],
         [
-          "/deps/bytes/bytes-mut",
+          "/deps/bytes",
+          "Bytes.clear"
+        ],
+        [
+          "/deps/bytes",
+          "Bytes.is_empty"
+        ],
+        [
+          "/deps/bytes",
+          "Bytes.is_unique"
+        ],
+        [
+          "/deps/bytes",
+          "Bytes.len"
+        ],
+        [
+          "/deps/bytes",
+          "Bytes.truncate"
+        ],
+        [
+          "/deps/bytes",
+          "Bytes.try_into_mut"
+        ],
+        [
+          "/deps/bytes",
           "BytesMut"
         ],
         [
-          "/deps/bytes/bytes-mut",
-          "new"
+          "/deps/bytes",
+          "BytesMut.capacity"
         ],
         [
-          "/deps/bytes/bytes-mut",
-          "with_capacity"
+          "/deps/bytes",
+          "BytesMut.clear"
         ],
         [
-          "/deps/bytes/bytes-mut",
-          "zeroed"
+          "/deps/bytes",
+          "BytesMut.freeze"
+        ],
+        [
+          "/deps/bytes",
+          "BytesMut.is_empty"
+        ],
+        [
+          "/deps/bytes",
+          "BytesMut.len"
+        ],
+        [
+          "/deps/bytes",
+          "BytesMut.reserve"
+        ],
+        [
+          "/deps/bytes",
+          "BytesMut.resize"
+        ],
+        [
+          "/deps/bytes",
+          "BytesMut.split"
+        ],
+        [
+          "/deps/bytes",
+          "BytesMut.split_off"
+        ],
+        [
+          "/deps/bytes",
+          "BytesMut.split_to"
+        ],
+        [
+          "/deps/bytes",
+          "BytesMut.truncate"
+        ],
+        [
+          "/deps/bytes",
+          "BytesMut.try_reclaim"
+        ],
+        [
+          "/deps/bytes",
+          "BytesMut.unsplit"
+        ],
+        [
+          "/deps/bytes",
+          "BytesMut::new"
+        ],
+        [
+          "/deps/bytes",
+          "BytesMut::with_capacity"
+        ],
+        [
+          "/deps/bytes",
+          "BytesMut::zeroed"
+        ],
+        [
+          "/deps/bytes",
+          "TryGetError"
+        ],
+        [
+          "/deps/bytes/buf",
+          "UninitSlice"
+        ],
+        [
+          "/deps/bytes/buf",
+          "UninitSlice.len"
+        ],
+        [
+          "/deps/bytes/buf",
+          "UninitSlice.write_byte"
+        ],
+        [
+          "/deps/bytes/buf",
+          "copy_to_bytes"
+        ],
+        [
+          "/deps/bytes/bufmut",
+          "chunk_mut"
+        ],
+        [
+          "/deps/bytes/bufmut",
+          "put_bytes"
+        ],
+        [
+          "/deps/bytes/bufmut",
+          "remaining_mut"
         ]
       ]
     },
@@ -56,12 +140,96 @@
       "version": "1.0.143",
       "members": [
         [
-          "/deps/serde-json/error",
-          "Category"
+          "/deps/serde-json",
+          "Error"
+        ],
+        [
+          "/deps/serde-json",
+          "Error.classify"
+        ],
+        [
+          "/deps/serde-json",
+          "Error.column"
+        ],
+        [
+          "/deps/serde-json",
+          "Error.io_error_kind"
+        ],
+        [
+          "/deps/serde-json",
+          "Error.is_data"
+        ],
+        [
+          "/deps/serde-json",
+          "Error.is_eof"
+        ],
+        [
+          "/deps/serde-json",
+          "Error.is_io"
+        ],
+        [
+          "/deps/serde-json",
+          "Error.is_syntax"
+        ],
+        [
+          "/deps/serde-json",
+          "Error.line"
+        ],
+        [
+          "/deps/serde-json",
+          "Number"
+        ],
+        [
+          "/deps/serde-json",
+          "Number.as_f64"
+        ],
+        [
+          "/deps/serde-json",
+          "Number.as_i128"
+        ],
+        [
+          "/deps/serde-json",
+          "Number.as_i64"
+        ],
+        [
+          "/deps/serde-json",
+          "Number.as_u128"
+        ],
+        [
+          "/deps/serde-json",
+          "Number.as_u64"
+        ],
+        [
+          "/deps/serde-json",
+          "Number.is_f64"
+        ],
+        [
+          "/deps/serde-json",
+          "Number.is_i64"
+        ],
+        [
+          "/deps/serde-json",
+          "Number.is_u64"
+        ],
+        [
+          "/deps/serde-json",
+          "Number::from_f64"
+        ],
+        [
+          "/deps/serde-json",
+          "Number::from_i128"
+        ],
+        [
+          "/deps/serde-json",
+          "Number::from_u128"
+        ],
+        [
+          "/deps/serde-json",
+          "Value"
         ],
         [
           "/deps/serde-json/error",
-          "Error"
+          "Category"
         ],
         [
           "/deps/serde-json/error/category",
@@ -88,22 +256,6 @@
           "IntoValues"
         ],
         [
-          "/deps/serde-json/number",
-          "Number"
-        ],
-        [
-          "/deps/serde-json/number",
-          "from_f64"
-        ],
-        [
-          "/deps/serde-json/number",
-          "from_i128"
-        ],
-        [
-          "/deps/serde-json/number",
-          "from_u128"
-        ],
-        [
           "/deps/serde-json/read",
           "Position"
         ],
@@ -117,7 +269,7 @@
         ],
         [
           "/deps/serde-json/value",
-          "Value"
+          "Serializer"
         ],
         [
           "/deps/serde-json/value/ser",
@@ -134,20 +286,16 @@
         [
           "/deps/serde-json/value/ser",
           "SerializeVec"
-        ],
-        [
-          "/deps/serde-json/value/ser",
-          "Serializer"
         ]
       ]
     }
   ],
   "removed": [],
-  "cache_identity": "19e0d71646474cbd280605f76094c91dda694af1808aeafcf67ac74b54e3a240",
+  "cache_identity": "563be48f1df5c6dd0caaae63c04a1fb398eed12d901ae1f2711669e68216bcb0",
   "source": "Local",
   "rustdoc_format": 57,
-  "projection_schema": "20",
-  "content_hash": "6db73cff8704b4f06ffa79120e0d048010cc1f8f84f98416bf933aae4d0077f4",
+  "projection_schema": "24",
+  "content_hash": "bcda1d760f74cfd4f32472aba40d72b484eb46b79f9d28b721290d0faa627881",
   "resolution": {
     "outcome": "LocalRustdoc",
     "events": [
