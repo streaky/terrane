@@ -418,6 +418,14 @@ framework does not add parameterized-test syntax, decorators, automatic retries,
 mock generation, or a second matcher DSL. Those can be considered only after real suites show that
 functions, loops, callbacks, `try`/`finally`, and the core assertions are insufficient.
 
+Terrane currently lacks a concise expression for a short-lived heterogeneous object with named
+members. While building the framework and its first real suites, record every case where a class is
+introduced solely to bundle one-off fixture or intermediate values, along with why a tuple, map,
+document value, or named class was inadequate. This is design evidence, not a commitment to
+anonymous objects: the eventual answer may be anonymous compiler-generated classes, lightweight
+named records, better fixture construction, or no new construct if the pressure is weak. Revisit the
+question after the milestone's representative unit, integration, and end-to-end suites exist.
+
 #### Isolation, reporting, and command behavior
 
 Deliver:
