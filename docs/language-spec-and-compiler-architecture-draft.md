@@ -1831,7 +1831,7 @@ cpu int
 result task-struct|none
 ```
 
-An initialized typed binding is immediately available. A typed declaration without `=` creates a binding with no value; it does not construct a default value, contain `none`, zero storage, or invoke the type. Every control-flow path must definitely assign a compatible value before any read, reference creation, move, member access, argument passing, or capture of that binding. Failure is a compile-time error.
+An initialized typed binding is immediately available. Outside class field declarations, a typed declaration without `=` creates a binding with no value; it does not construct a default value, contain `none`, zero storage, or invoke the type. Every control-flow path must definitely assign a compatible value before any read, reference creation, move, member access, argument passing, or capture of that binding. Failure is a compile-time error. Class fields instead follow the canonical-default rule in §18.1 because every fresh instance begins with complete field state.
 
 A declaration's initializer resolves names against the scope as it stands immediately before that declaration. The name being declared is therefore not in scope from its own initializer. Where nothing else binds that name, reading it — directly, or indirectly through a called function — is a compile-time error naming the absent binding, rather than a read of uninitialized storage. Namespace binding initialization dependencies, including dependencies reached through called functions and later namespace-level assignments folded into initialization, must be acyclic. The compiler rejects a statically provable cycle before lowering; it must not defer the cycle to backend initialization machinery.
 
@@ -3515,6 +3515,33 @@ class request
   path string = '/'
   body bytes|none = none
 ```
+A typed class field may omit its initializer when its declared type has a canonical default:
+
+```terrane
+class connection-options
+  host string
+  port uint16
+  secure bool
+```
+
+The canonical defaults are `false` for `bool`, typed zero for every integer and floating type, `''`
+for `string`, empty bytes for `bytes`, `none` for `T|none`, and an empty value for `list`, `map`,
+`set`, `unordered-map`, and `unordered-set`. An omitted initializer requests exactly that value; it
+does not infer the field type, invoke an arbitrary constructor, or place hidden `none` in a
+non-optional field. A field whose type has no canonical default, including a source-declared class,
+must provide an initializer. An explicit initializer always supplies the default instead:
+
+```terrane
+class connection-options
+  host string
+  port uint16 = 443
+  secure bool = true
+```
+
+Both implicit canonical defaults and explicit initializers are field defaults for descriptor
+reflection and document decoding. Constructor execution begins after those defaults exist and may
+replace them through ordinary assignment.
+
 
 Fields are public by default and may be narrowed:
 
@@ -3539,10 +3566,11 @@ external name. Unknown names, malformed values, metadata on static or non-field 
 conflicting external names are source errors.
 
 This is the single field-metadata mechanism used by document mapping, logging redaction, and
-reflection. A field default remains its ordinary initializer rather than a second metadata value,
-and optionality remains expressed by `T|none`; the resolved field descriptor records both derived
-facts alongside the external name and secrecy policy. Reflection on a class descriptor exposes the
-instance-field inventory through `field-count`, `field-names`, `field-external-names`,
+reflection. A field default remains its canonical type default or ordinary initializer rather than
+a second metadata value, and optionality remains expressed by `T|none`; the resolved field
+descriptor records both derived facts alongside the external name and secrecy policy. Reflection
+on a class descriptor exposes the instance-field inventory through `field-count`, `field-names`,
+`field-external-names`,
 `field-defaulted`, `field-optional`, and `field-secret`. The parallel lists use declaration order
 after inherited-field replacement, retain semantic field names separately from external names, and
 do not expose generated Rust identifiers.

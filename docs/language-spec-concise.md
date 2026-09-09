@@ -755,12 +755,17 @@ encoding: explicit utf8/utf16-le/utf16-be/utf32-le/utf32-be; encode total; decod
   compiler-owned, per-operation `LazyLock<Mutex<...>>` strategy as mutable globals: reads copy the
   Terrane value, poisoning is an internal runtime failure, and this implementation detail neither
   makes source operation sequences atomic nor replaces explicit concurrency objects.
+- A typed class field may omit its initializer only when its declared type has a canonical default:
+  `bool` -> `false`; numeric -> typed zero; `string` -> `''`; `bytes` -> empty bytes; `T|none` ->
+  `none`; `list`/`map`/`set`/`unordered-map`/`unordered-set` -> empty collection. This never infers
+  the type, invokes an arbitrary constructor, or hides `none` in plain `T`; nondefaultable fields
+  require an explicit initializer. Explicit initializers override the canonical default.
 - Field metadata has one trailing clause:
   `field T = value metadata (external-name = 'wireName', secret = true)`.
   It is valid only on instance fields. `external-name` is a string, `secret` is a boolean, names
-  cannot repeat, and effective external names are unique per class. Defaults remain ordinary
-  initializers and optionality remains `T|none`; resolved field descriptors derive `defaulted` and
-  `optional` rather than duplicating either policy.
+  cannot repeat, and effective external names are unique per class. Canonical or explicit defaults
+  and `T|none` optionality derive the resolved field descriptor's `defaulted` and `optional` flags
+  rather than duplicating either policy.
 - Class descriptor reflection exposes parallel declaration-ordered `field-names`,
   `field-external-names`, `field-defaulted`, `field-optional`, and `field-secret` lists plus
   `field-count`. Document mapping and redaction consume this same metadata; no facility-specific
@@ -806,7 +811,7 @@ arguments: source string, concrete class descriptor, matching parser options, ex
 result: document-decode-outcome of T; concrete initialized T value + typed list of every diagnostic; failed iff diagnostics nonempty
 fields: scalar | nested opted class | list | homogeneous tuple | map of string,V; all nested values decodable
 numeric: integers exact/range-checked; decimal/integer to float rounds to nearest finite destination value, ties-to-even; out-of-finite-range diagnoses
-absence: ordinary initializer is default; T|none may be absent; every other absent field diagnoses
+absence: canonical type default or explicit initializer is retained; T|none may be absent; every other absent field diagnoses
 names: one OBJ field metadata record supplies semantic name, external-name, defaulted, optional, secret
 unknowns: rejected or recursively ignored only by explicit call policy
 diagnostic: deterministic path, expected, actual-kind, reason, message, decode-call source, field source

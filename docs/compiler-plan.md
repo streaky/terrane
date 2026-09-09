@@ -209,6 +209,13 @@ The source-object portion is delivered: classes, interfaces, and traits use
 and structural protocol lookup consume that source contract. Iteration and `truth` now resolve
 required members through the same recursive protocol-member query, including members inherited
 from a base or supplied by trait/interface composition.
+Typed class fields whose scalar, optional, bytes, or collection descriptors provide a canonical
+default now omit redundant initializers. Semantic field metadata records implicit and explicit
+defaults identically, and lowering emits the exact typed zero, false, empty, or absent value before
+constructor execution. `implicit-class-field-defaults` covers runtime values, explicit override,
+static storage, collections, and reflected default status; `nondefaultable-class-field` preserves
+T0061 for source-object fields without an initializer.
+
 
 Remaining work:
 
@@ -809,7 +816,7 @@ The type-analysis additions through milestones 15–19 reserve and register thes
 stable diagnostics:
 
 ```text
-T0052 untyped stored-function parameter   T0061 class field missing initializer
+T0052 untyped stored-function parameter   T0061 field type has no canonical default
 T0053 missing object declaration name     T0062 missing interface member
 T0054 invalid object-clause target         T0063 conflicting reused trait member
 T0055 unknown object member               T0064 invalid non-owning ref source
@@ -1466,7 +1473,7 @@ in the category schema. `/core/types` exports category descriptors as explicit-o
 and rejected conformance cases cover abstract membership and descriptor misuse.
 
 Phase D extended that same semantic descriptor model with one trailing class-field metadata clause.
-Resolved instance fields retain semantic and external names, initializer-derived default status,
+Resolved instance fields retain semantic and external names, canonical-or-explicit default status,
 `T|none` optionality, and a secrecy bit in one extensible record. Descriptor reflection exposes the
 same ordered facts; duplicate, malformed, static-field, and colliding external-name declarations
 fail at source spans. `class-field-metadata` proves the complete reflected contract without adding

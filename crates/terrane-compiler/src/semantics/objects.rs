@@ -1,4 +1,16 @@
 use super::prelude::*;
+fn has_canonical_field_default(value_type: &ValueType) -> bool {
+    matches!(
+        value_type,
+        ValueType::Scalar(_)
+            | ValueType::Optional(_)
+            | ValueType::List(_)
+            | ValueType::Map(_, _)
+            | ValueType::Set(_)
+            | ValueType::UnorderedMap(_, _)
+            | ValueType::UnorderedSet(_)
+    )
+}
 
 fn field_metadata(
     unit: &SemanticUnit,
@@ -205,8 +217,12 @@ pub(super) fn analyze_descriptor_contracts(
                         field.span,
                     ));
                 };
+                let canonical_default = kind == ObjectKind::Class
+                    && initializer.is_none()
+                    && has_canonical_field_default(&value_type);
                 if kind == ObjectKind::Class
                     && initializer.is_none()
+                    && !canonical_default
                     && !matches!(
                         value_type,
                         ValueType::PlatformStreamHandle
@@ -218,7 +234,7 @@ pub(super) fn analyze_descriptor_contracts(
                         &unit.source,
                         "T0061",
                         format!(
-                            "class field `{}` requires an initializer",
+                            "class field `{}` has no canonical default and requires an initializer",
                             node_text(&unit.source, field_name)
                         ),
                         field.span,
@@ -234,7 +250,7 @@ pub(super) fn analyze_descriptor_contracts(
                     field,
                     &field_name,
                     &value_type,
-                    initializer.is_some(),
+                    initializer.is_some() || canonical_default,
                     is_static,
                 )?;
                 fields.push(ObjectField {

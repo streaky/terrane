@@ -18,8 +18,79 @@ fn forwarded_method_return_type(
             .map(|result| rust_value_type(package, result))
     }
 }
+fn canonical_field_default(package: &SemanticPackage, value_type: &ValueType) -> Option<String> {
+    match value_type {
+        ValueType::Scalar(ScalarType::Bool) => Some("false".to_owned()),
+        ValueType::Scalar(ScalarType::Int) => {
+            Some("terrane_int_support::Int::from(0_i128)".to_owned())
+        }
+        ValueType::Scalar(
+            ScalarType::Int8
+            | ScalarType::Int16
+            | ScalarType::Int32
+            | ScalarType::Int64
+            | ScalarType::Int128
+            | ScalarType::Uint8
+            | ScalarType::Uint16
+            | ScalarType::Uint32
+            | ScalarType::Uint64
+            | ScalarType::Uint128,
+        ) => Some("0".to_owned()),
+        ValueType::Scalar(ScalarType::Float32) => Some("0.0_f32".to_owned()),
+        ValueType::Scalar(ScalarType::Float64) => Some("0.0_f64".to_owned()),
+        ValueType::Scalar(ScalarType::String) => Some("String::new()".to_owned()),
+        ValueType::Scalar(ScalarType::Bytes) => Some("Vec::new()".to_owned()),
+        ValueType::Scalar(ScalarType::None) => Some("()".to_owned()),
+        ValueType::Optional(_) => Some("None".to_owned()),
+        ValueType::List(item) => Some(format!(
+            "terrane_collection_support::List::<{}>::new(Vec::new())",
+            rust_element_type(package, item.clone())
+        )),
+        ValueType::Map(key, value) => Some(format!(
+            "terrane_collection_support::Map::<{}, {}>::new(Vec::new())",
+            rust_element_type(package, key.clone()),
+            rust_element_type(package, value.clone())
+        )),
+        ValueType::Set(item) => Some(format!(
+            "terrane_collection_support::Set::<{}>::new(Vec::new())",
+            rust_element_type(package, item.clone())
+        )),
+        ValueType::UnorderedMap(key, value) => Some(format!(
+            "terrane_collection_support::UnorderedMap::<{}, {}>::new(Vec::new())",
+            rust_element_type(package, key.clone()),
+            rust_element_type(package, value.clone())
+        )),
+        ValueType::UnorderedSet(item) => Some(format!(
+            "terrane_collection_support::UnorderedSet::<{}>::new(Vec::new())",
+            rust_element_type(package, item.clone())
+        )),
+        _ => None,
+    }
+}
 
 impl Emitter<'_> {
+    fn field_initial_value(&mut self, field: &ObjectField) -> String {
+        let initializer = find_node_by_span(&self.unit.tree.root, field.span).and_then(|binding| {
+            binding
+                .children
+                .iter()
+                .position(|child| child.kind == SyntaxKind::Name)
+                .and_then(|index| binding_initializer(binding, index))
+        });
+        if let Some(initializer) = initializer {
+            return self.expression_as(initializer, field.value_type.clone());
+        }
+        if let Some(value) = canonical_field_default(self.package, &field.value_type) {
+            return value;
+        }
+        match field.value_type {
+            ValueType::PlatformStreamHandle
+            | ValueType::PlatformResourceHandle
+            | ValueType::FilesystemAuthority => "Default::default()".to_owned(),
+            _ => unreachable!("semantic analysis requires a class field initializer"),
+        }
+    }
+
     pub(super) fn global_storage(&self, node: &SyntaxNode) -> Option<String> {
         (node.kind == SyntaxKind::Name)
             .then(|| {
@@ -490,18 +561,7 @@ impl Emitter<'_> {
 
                 let previous_object = self.current_object.replace(object.identity.clone());
                 for field in &static_fields {
-                    let initializer = find_node_by_span(&self.unit.tree.root, field.span)
-                        .and_then(|binding| {
-                            binding
-                                .children
-                                .iter()
-                                .position(|child| child.kind == SyntaxKind::Name)
-                                .and_then(|index| binding_initializer(binding, index))
-                        })
-                        .map_or_else(
-                            || "panic!(\"static object field was not initialized\")".to_owned(),
-                            |value| self.expression_as(value, field.value_type.clone()),
-                        );
+                    let initializer = self.field_initial_value(field);
                     self.line(&format!(
                         "pub static {}: std::sync::LazyLock<std::sync::Mutex<{}>> = std::sync::LazyLock::new(|| std::sync::Mutex::new({initializer}));",
                         rust_static_field_name(self.package, &object.identity, &field.name),
@@ -554,23 +614,7 @@ impl Emitter<'_> {
                     self.line("let mut value = Self {");
                     self.indent += 1;
                     for field in &instance_fields {
-                        let initializer = find_node_by_span(&self.unit.tree.root, field.span)
-                            .and_then(|binding| {
-                                binding
-                                    .children
-                                    .iter()
-                                    .position(|child| child.kind == SyntaxKind::Name)
-                                    .and_then(|index| binding_initializer(binding, index))
-                            });
-                        let value = initializer.map_or_else(
-                            || match field.value_type {
-                                ValueType::PlatformStreamHandle
-                                | ValueType::PlatformResourceHandle
-                                | ValueType::FilesystemAuthority => "Default::default()".to_owned(),
-                                _ => "panic!(\"object field was not initialized\")".to_owned(),
-                            },
-                            |initializer| self.expression_as(initializer, field.value_type.clone()),
-                        );
+                        let value = self.field_initial_value(field);
                         self.line(&format!("{}: {value},", rust_name(&field.name)));
                     }
                     if has_destructor && !object.resource_owning {
@@ -601,23 +645,7 @@ impl Emitter<'_> {
                     self.line("Self {");
                     self.indent += 1;
                     for field in &instance_fields {
-                        let initializer = find_node_by_span(&self.unit.tree.root, field.span)
-                            .and_then(|binding| {
-                                binding
-                                    .children
-                                    .iter()
-                                    .position(|child| child.kind == SyntaxKind::Name)
-                                    .and_then(|index| binding_initializer(binding, index))
-                            });
-                        let value = initializer.map_or_else(
-                            || match field.value_type {
-                                ValueType::PlatformStreamHandle
-                                | ValueType::PlatformResourceHandle
-                                | ValueType::FilesystemAuthority => "Default::default()".to_owned(),
-                                _ => "panic!(\"object field was not initialized\")".to_owned(),
-                            },
-                            |initializer| self.expression_as(initializer, field.value_type.clone()),
-                        );
+                        let value = self.field_initial_value(field);
                         self.line(&format!("{}: {value},", rust_name(&field.name)));
                     }
                     if has_destructor && !object.resource_owning {

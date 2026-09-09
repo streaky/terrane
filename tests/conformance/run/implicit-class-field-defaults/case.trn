@@ -1,0 +1,38 @@
+namespace implicit-class-field-defaults
+from /core/collections import list, map, set, unordered-map, unordered-set
+
+class defaults
+  message string
+  path string
+  id int
+  active bool
+  something int8
+  ratio float32
+  data bytes
+  note string|none
+  items list of int
+  names map of string, int
+  tags set of string
+  unordered-names unordered-map of string, int
+  unordered-tags unordered-set of string
+  explicit int = 7
+  static shared int
+
+  function construct; message string
+    this.message = message
+
+
+class plain
+  count int
+  text string
+
+
+function main;
+  value defaults = instance defaults; 'ready'
+  print; value.message, ':', value.path, ':', value.id, ':', value.active, ':', value.something, ':', value.ratio
+  print; value.data.length, ':', value.items.length, ':', value.names.length, ':', value.tags.length, ':', value.unordered-names.length, ':', value.unordered-tags.length
+  print; value.note == none, ':', value.explicit, ':', defaults::shared
+  descriptor = defaults
+  plain-value plain = instance plain;
+  print; plain-value.count, ':', plain-value.text
+  print; descriptor.field-count, ':', descriptor.field-defaulted[0], ':', descriptor.field-defaulted[13]
