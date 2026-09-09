@@ -576,11 +576,17 @@ An attached `>` in an expression-start position begins a **tail string**. Every 
 project-kind = >native executable
 message = >Hello! From, "Terrane"! >>
 send; recipient, >Error: file not found!
+
+function status string;
+  return >ok
 ```
 
 The second value is exactly `Hello! From, "Terrane"! >>`. Quotes, commas, operators, comment markers, and further `>` characters have no grammatical meaning after the opening marker. Whitespace is preserved exactly, including whitespace immediately after `>` and trailing horizontal whitespace. An attached `>` with no following content is the empty string.
 
-The marker must begin an expression and must be lexically attached to the expression position; its content begins with the very next character, which may be whitespace. This keeps it distinct from infix comparison:
+The marker must begin an expression and must be lexically attached to the expression position. An
+initializer, call argument, or value-bearing `return` therefore admits it directly; its content
+begins with the very next character, which may be whitespace. This keeps it distinct from infix
+comparison:
 
 ```terrane
 is-larger = left > right
@@ -597,6 +603,11 @@ message = >>
 
   Everything in this block is text.
   # This is content, not a comment.
+
+function explanation string;
+  return >>
+    First line
+    Second line
 ```
 
 If `>>` is followed by any same-line content, including horizontal whitespace, the construct is invalid; it is not reinterpreted as a tail string beginning with `>`.

@@ -883,7 +883,8 @@ fn expression_start(tokens: &[Token]) -> bool {
                 | TokenKind::OpenBracket
                 | TokenKind::OpenBrace
                 | TokenKind::Operator
-        )
+        ) || token.kind == TokenKind::Identifier
+            && matches!(token.text.as_str(), "return" | "throw")
     })
 }
 

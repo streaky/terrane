@@ -89,7 +89,7 @@ Text literals:
   common structural indentation removed
 ```
 
-`>`/`>>` text is valid only in expression-start position. Tail/block text cannot be a non-final ungrouped subexpression. Preserve content exactly per full spec §6.7.
+`>`/`>>` text is valid only in expression-start position, including directly after a value-bearing `return`. Tail/block text cannot be a non-final ungrouped subexpression. Preserve content exactly per full spec §6.7.
 
 ## NAMESPACE
 

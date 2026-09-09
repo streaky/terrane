@@ -116,16 +116,16 @@ features:
   - docs/language-spec-concise.md#LEX
   - docs/compiler-plan.md#Milestone 2
 - id: text-blocks
-  name: Head and tail text blocks
+  name: Tail and block text literals
   category: syntax
   status: done
   completion: 100
   milestone: '2'
   reference:
-    state: planned
+    state: documented
     paths:
     - manual/reference/records/language/lexical-structure/text-blocks.yaml
-  notes: Indented head text and expression-tail text preserve authored content under the specified placement rules.
+  notes: Indented block text and expression-tail text preserve authored content in bindings, arguments, and direct return expressions under the specified placement rules.
   sources:
   - docs/language-spec-concise.md#LEX
   - docs/compiler-plan.md#Milestone 2
