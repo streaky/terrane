@@ -96,19 +96,8 @@ pub(super) fn analyze_binding_node(
                     | SyntaxKind::TypeExpression
             )
     });
-    if let Some(initializer) = initializer
-        && let Some((receiver_type, member, span)) =
-            escaped_invocation_only_member(unit, initializer, bindings)?
-    {
-        return Err(failure(
-            &unit.source,
-            "T0018",
-            format!(
-                "{receiver_type} methods are not storable values before bound methods exist; \
-                 method `.{member}` must be invoked with `;`"
-            ),
-            span,
-        ));
+    if let Some(initializer) = initializer {
+        validate_invocation_only_member_expression(unit, initializer, bindings)?;
     }
 
     if node.kind == SyntaxKind::Assignment

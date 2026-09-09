@@ -536,3 +536,27 @@ pub(crate) fn escaped_invocation_only_member(
     }
     Ok(None)
 }
+
+pub(crate) fn validate_invocation_only_member_expression(
+    unit: &SemanticUnit,
+    node: &SyntaxNode,
+    bindings: &[TypedBinding],
+) -> Result<(), SemanticFailure> {
+    let Some((receiver_type, member, span)) = escaped_invocation_only_member(unit, node, bindings)?
+    else {
+        return Ok(());
+    };
+    Err(failure(
+        &unit.source,
+        "T0018",
+        format!(
+            "{receiver_type} methods are not storable values before bound methods exist; \
+             method `.{member}` must be invoked with `;`"
+        ),
+        span,
+    ))
+}
+
+pub(crate) fn validate_invocation_only_members(unit: &SemanticUnit) -> Result<(), SemanticFailure> {
+    validate_invocation_only_member_expression(unit, &unit.tree.root, &unit.typed_bindings)
+}

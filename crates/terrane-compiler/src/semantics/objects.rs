@@ -1385,6 +1385,9 @@ pub(super) fn analyze_types(package: &mut SemanticPackage) -> Result<(), Semanti
         )?;
         package.units[index].typed_bindings = bindings;
     }
+    for unit in &package.units {
+        validate_invocation_only_members(unit)?;
+    }
     validate_resource_collection_types(package)?;
     infer_receiver_consumption(package);
     validate_object_conformance(package)?;
