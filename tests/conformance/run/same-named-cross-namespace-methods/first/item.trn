@@ -1,0 +1,4 @@
+namespace first
+class duplicate
+  function value int;
+    return 1

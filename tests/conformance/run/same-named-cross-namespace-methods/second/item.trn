@@ -1,0 +1,4 @@
+namespace second
+class duplicate
+  function value int;
+    return 2

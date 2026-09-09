@@ -439,15 +439,20 @@ pub(super) fn analyze_function_contract(
     let exported = node.children.iter().any(|child| {
         child.kind == SyntaxKind::Visibility && node_text(&unit.source, child) == "public"
     });
+    let owner = (node.kind == SyntaxKind::FunctionDeclaration)
+        .then(|| object_name_containing(unit, node.span))
+        .flatten();
+    let owner_identity = owner
+        .as_ref()
+        .map(|owner| ObjectIdentity::new(&unit.namespace, owner));
     Ok(FunctionContract {
         name: name_node.map_or_else(
             || format!("closure@{}", node.span.start),
             |name| node_text(&unit.source, name).to_owned(),
         ),
         span: node.span,
-        owner: (node.kind == SyntaxKind::FunctionDeclaration)
-            .then(|| object_name_containing(unit, node.span))
-            .flatten(),
+        owner,
+        owner_identity,
         parameters,
         captures: Vec::new(),
         return_type,
@@ -963,7 +968,7 @@ pub(super) fn infer_throwing_effects(package: &mut SemanticPackage) -> Result<()
                 unit.functions
                     .iter()
                     .find(|contract| {
-                        contract.owner.as_deref() == Some(object.name.as_str())
+                        contract.owner_identity.as_ref() == Some(&object)
                             && contract.name == member_name
                     })
                     .and_then(|contract| inferred.get(&key(contract.span)))

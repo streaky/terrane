@@ -1,0 +1,2 @@
+function from int to int
+string|none

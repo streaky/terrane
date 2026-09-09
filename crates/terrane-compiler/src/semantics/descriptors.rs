@@ -15,141 +15,142 @@ fn members(names: &[&str]) -> BTreeSet<String> {
     names.iter().map(|name| (*name).to_owned()).collect()
 }
 
+fn add_integer_members(result: &mut BTreeSet<String>, scalar: ScalarType) {
+    result.extend(
+        [
+            "add",
+            "subtract",
+            "multiply",
+            "divide",
+            "remainder",
+            "div-rem",
+            "shift-left",
+            "shift-right",
+            "coerce",
+            "coerce.checked",
+            "coerce.wrap",
+            "coerce.saturate",
+            "radix",
+        ]
+        .into_iter()
+        .map(str::to_owned),
+    );
+    let unsigned = scalar.conforms_to(TypeCategory::UnsignedFixedInteger);
+    if !unsigned {
+        result.insert("negate".to_owned());
+    }
+    if scalar == ScalarType::Int {
+        result.extend(
+            ["divide.checked", "remainder.checked", "div-rem.checked"]
+                .into_iter()
+                .map(str::to_owned),
+        );
+        return;
+    }
+    for family in [
+        "add",
+        "subtract",
+        "multiply",
+        "divide",
+        "remainder",
+        "negate",
+        "shift-left",
+        "shift-right",
+    ] {
+        if family != "negate" || !unsigned {
+            result.insert(format!("{family}.checked"));
+            result.insert(format!("{family}.wrap"));
+        }
+        if !matches!(family, "shift-left" | "shift-right") && (family != "negate" || !unsigned) {
+            result.insert(format!("{family}.saturate"));
+            result.insert(format!("{family}.overflowing"));
+        }
+    }
+    result.insert("div-rem.checked".to_owned());
+}
+
+fn add_float_members(result: &mut BTreeSet<String>) {
+    result.extend(
+        [
+            "coerce",
+            "coerce.checked",
+            "coerce.wrap",
+            "coerce.saturate",
+            "finite",
+            "infinite",
+            "not-a-number",
+            "square-root",
+            "sine",
+            "cosine",
+            "sine-cosine",
+            "natural-log",
+            "exponential",
+            "absolute",
+            "round",
+            "floor",
+            "ceiling",
+            "truncate",
+            "minimum",
+            "maximum",
+            "multiply-add",
+        ]
+        .into_iter()
+        .map(str::to_owned),
+    );
+}
+
+fn add_scalar_family_members(result: &mut BTreeSet<String>, scalar: ScalarType) {
+    let names: &[&str] = match scalar {
+        ScalarType::Bool => &["truth"],
+        ScalarType::String => &[
+            "iterator",
+            "length",
+            "bytes",
+            "scalars",
+            "graphemes",
+            "trim",
+            "trim.start",
+            "trim.end",
+            "contains",
+            "contains.start",
+            "contains.end",
+            "find",
+            "find.all",
+            "find.count",
+            "upper",
+            "upper.first",
+            "upper.words",
+            "lower",
+            "lower.first",
+            "normalise.nfc",
+            "normalise.nfd",
+            "normalise.nfkc",
+            "normalise.nfkd",
+            "case-fold",
+            "split",
+            "replace",
+            "encode",
+            "concat",
+            "join",
+            "parse",
+            "parse.checked",
+            "radix",
+        ],
+        ScalarType::Bytes => &["iterator", "length", "decode", "concat"],
+        _ => &[],
+    };
+    result.extend(names.iter().map(|name| (*name).to_owned()));
+}
+
 fn scalar_members(scalar: ScalarType) -> BTreeSet<String> {
     let mut result = members(&["type"]);
     if scalar.is_integer() {
-        result.extend(
-            [
-                "add",
-                "subtract",
-                "multiply",
-                "divide",
-                "remainder",
-                "div-rem",
-                "shift-left",
-                "shift-right",
-                "coerce",
-                "coerce.checked",
-                "coerce.wrap",
-                "coerce.saturate",
-                "radix",
-            ]
-            .into_iter()
-            .map(str::to_owned),
-        );
-        if !scalar.conforms_to(TypeCategory::UnsignedFixedInteger) {
-            result.insert("negate".to_owned());
-        }
-        if scalar == ScalarType::Int {
-            result.extend(
-                ["divide.checked", "remainder.checked", "div-rem.checked"]
-                    .into_iter()
-                    .map(str::to_owned),
-            );
-        } else {
-            for family in [
-                "add",
-                "subtract",
-                "multiply",
-                "divide",
-                "remainder",
-                "negate",
-                "shift-left",
-                "shift-right",
-            ] {
-                if family != "negate" || !scalar.conforms_to(TypeCategory::UnsignedFixedInteger) {
-                    result.insert(format!("{family}.checked"));
-                    result.insert(format!("{family}.wrap"));
-                }
-                if !matches!(family, "shift-left" | "shift-right")
-                    && (family != "negate"
-                        || !scalar.conforms_to(TypeCategory::UnsignedFixedInteger))
-                {
-                    result.insert(format!("{family}.saturate"));
-                    result.insert(format!("{family}.overflowing"));
-                }
-            }
-            result.insert("div-rem.checked".to_owned());
-        }
+        add_integer_members(&mut result, scalar);
     }
     if matches!(scalar, ScalarType::Float32 | ScalarType::Float64) {
-        result.extend(
-            [
-                "coerce",
-                "coerce.checked",
-                "coerce.wrap",
-                "coerce.saturate",
-                "finite",
-                "infinite",
-                "not-a-number",
-                "square-root",
-                "sine",
-                "cosine",
-                "sine-cosine",
-                "natural-log",
-                "exponential",
-                "absolute",
-                "round",
-                "floor",
-                "ceiling",
-                "truncate",
-                "minimum",
-                "maximum",
-                "multiply-add",
-            ]
-            .into_iter()
-            .map(str::to_owned),
-        );
+        add_float_members(&mut result);
     }
-    match scalar {
-        ScalarType::Bool => {
-            result.insert("truth".to_owned());
-        }
-        ScalarType::String => result.extend(
-            [
-                "iterator",
-                "length",
-                "bytes",
-                "scalars",
-                "graphemes",
-                "trim",
-                "trim.start",
-                "trim.end",
-                "contains",
-                "contains.start",
-                "contains.end",
-                "find",
-                "find.all",
-                "find.count",
-                "upper",
-                "upper.first",
-                "upper.words",
-                "lower",
-                "lower.first",
-                "normalise.nfc",
-                "normalise.nfd",
-                "normalise.nfkc",
-                "normalise.nfkd",
-                "case-fold",
-                "split",
-                "replace",
-                "encode",
-                "concat",
-                "join",
-                "parse",
-                "parse.checked",
-                "radix",
-            ]
-            .into_iter()
-            .map(str::to_owned),
-        ),
-        ScalarType::Bytes => result.extend(
-            ["iterator", "length", "decode", "concat"]
-                .into_iter()
-                .map(str::to_owned),
-        ),
-        _ => {}
-    }
+    add_scalar_family_members(&mut result, scalar);
     result
 }
 fn collection_members(kind: BuiltinDescriptor) -> BTreeSet<String> {
@@ -190,7 +191,6 @@ fn collection_members(kind: BuiltinDescriptor) -> BTreeSet<String> {
 }
 
 fn contract(
-    file: u32,
     namespace: &str,
     name: &str,
     builtin: BuiltinDescriptor,
@@ -207,7 +207,7 @@ fn contract(
         .filter(|member| {
             !matches!(
                 *member,
-                "type" | "length" | "bytes" | "scalars" | "graphemes" | "key" | "value"
+                "type" | "length" | "bytes" | "scalars" | "graphemes" | "key" | "value" | "end"
             )
         })
         .map(str::to_owned)
@@ -269,7 +269,7 @@ fn contract(
     DescriptorContract {
         name: name.to_owned(),
         identity: identity(namespace, name),
-        span: Span::new(file, 0, 0),
+        span: Span::new(0, 0, 0),
         kind: ObjectKind::Type,
         resource_owning: false,
         builtin: Some(builtin),
@@ -287,12 +287,11 @@ fn contract(
     }
 }
 
-pub(super) fn builtin_descriptor_contracts(file: u32) -> Vec<DescriptorContract> {
+fn build_builtin_descriptor_contracts() -> Vec<DescriptorContract> {
     let mut contracts = ScalarType::ALL
         .into_iter()
         .map(|scalar| {
             contract(
-                file,
                 "/core/types",
                 scalar.source_name(),
                 BuiltinDescriptor::Scalar(scalar),
@@ -303,7 +302,6 @@ pub(super) fn builtin_descriptor_contracts(file: u32) -> Vec<DescriptorContract>
         .collect::<Vec<_>>();
     for (name, category) in TypeCategory::ABSTRACT_SOURCE_NAMES {
         contracts.push(contract(
-            file,
             "/core/types",
             name,
             BuiltinDescriptor::Category(category),
@@ -312,12 +310,18 @@ pub(super) fn builtin_descriptor_contracts(file: u32) -> Vec<DescriptorContract>
         ));
     }
     contracts.push(contract(
-        file,
         "/core/types",
         "value",
         BuiltinDescriptor::Value,
         vec![TypeCategory::Value, TypeCategory::Object],
         members(&["type"]),
+    ));
+    contracts.push(contract(
+        "/core/types",
+        "string-view",
+        BuiltinDescriptor::StringView,
+        vec![TypeCategory::Value, TypeCategory::Object],
+        members(&["type", "iterator", "length"]),
     ));
     for (name, builtin) in [
         ("encoding", BuiltinDescriptor::Encoding),
@@ -325,7 +329,6 @@ pub(super) fn builtin_descriptor_contracts(file: u32) -> Vec<DescriptorContract>
         ("div-rem-result", BuiltinDescriptor::DivRemResult),
     ] {
         contracts.push(contract(
-            file,
             "/core/types",
             name,
             builtin,
@@ -346,7 +349,6 @@ pub(super) fn builtin_descriptor_contracts(file: u32) -> Vec<DescriptorContract>
         ("unordered-set", BuiltinDescriptor::UnorderedSet),
     ] {
         contracts.push(contract(
-            file,
             "/core/collections",
             name,
             builtin,
@@ -357,28 +359,55 @@ pub(super) fn builtin_descriptor_contracts(file: u32) -> Vec<DescriptorContract>
     contracts
 }
 
-fn builtin_for_value_type(value_type: &ValueType) -> Option<BuiltinDescriptor> {
+pub(super) fn builtin_descriptor_contracts() -> std::sync::Arc<[DescriptorContract]> {
+    static CONTRACTS: std::sync::LazyLock<std::sync::Arc<[DescriptorContract]>> =
+        std::sync::LazyLock::new(|| build_builtin_descriptor_contracts().into());
+    CONTRACTS.clone()
+}
+
+fn builtin_for_value_type(value_type: &ValueType) -> BuiltinDescriptor {
     match value_type {
-        ValueType::Scalar(scalar) => Some(BuiltinDescriptor::Scalar(*scalar)),
-        ValueType::Encoding => Some(BuiltinDescriptor::Encoding),
-        ValueType::OverflowResult(_) => Some(BuiltinDescriptor::OverflowResult),
-        ValueType::DivRemResult(_) => Some(BuiltinDescriptor::DivRemResult),
-        ValueType::Iterator(_) => Some(BuiltinDescriptor::Iterator),
-        ValueType::IterationStep(_) | ValueType::IterationEnd => {
-            Some(BuiltinDescriptor::IterationStep)
-        }
+        ValueType::Scalar(scalar) => BuiltinDescriptor::Scalar(*scalar),
+        ValueType::Encoding => BuiltinDescriptor::Encoding,
+        ValueType::StringView(_) => BuiltinDescriptor::StringView,
+        ValueType::OverflowResult(_) => BuiltinDescriptor::OverflowResult,
+        ValueType::DivRemResult(_) => BuiltinDescriptor::DivRemResult,
+        ValueType::Iterator(_) => BuiltinDescriptor::Iterator,
+        ValueType::IterationStep(_) | ValueType::IterationEnd => BuiltinDescriptor::IterationStep,
         ValueType::StringList | ValueType::TextRangeList | ValueType::List(_) => {
-            Some(BuiltinDescriptor::List)
+            BuiltinDescriptor::List
         }
-        ValueType::Map(_, _) => Some(BuiltinDescriptor::Map),
-        ValueType::Set(_) => Some(BuiltinDescriptor::Set),
-        ValueType::Tuple(_, _) => Some(BuiltinDescriptor::Tuple),
-        ValueType::Range => Some(BuiltinDescriptor::Range),
-        ValueType::Entry(_, _) => Some(BuiltinDescriptor::Entry),
-        ValueType::UnorderedMap(_, _) => Some(BuiltinDescriptor::UnorderedMap),
-        ValueType::UnorderedSet(_) => Some(BuiltinDescriptor::UnorderedSet),
-        _ => Some(BuiltinDescriptor::Value),
+        ValueType::Map(_, _) => BuiltinDescriptor::Map,
+        ValueType::Set(_) => BuiltinDescriptor::Set,
+        ValueType::Tuple(_, _) => BuiltinDescriptor::Tuple,
+        ValueType::Range => BuiltinDescriptor::Range,
+        ValueType::Entry(_, _) => BuiltinDescriptor::Entry,
+        ValueType::UnorderedMap(_, _) => BuiltinDescriptor::UnorderedMap,
+        ValueType::UnorderedSet(_) => BuiltinDescriptor::UnorderedSet,
+        _ => BuiltinDescriptor::Value,
     }
+}
+
+fn builtin_is_collection(builtin: BuiltinDescriptor) -> bool {
+    matches!(
+        builtin,
+        BuiltinDescriptor::Iterator
+            | BuiltinDescriptor::IterationStep
+            | BuiltinDescriptor::List
+            | BuiltinDescriptor::Map
+            | BuiltinDescriptor::Set
+            | BuiltinDescriptor::Tuple
+            | BuiltinDescriptor::Range
+            | BuiltinDescriptor::Entry
+            | BuiltinDescriptor::UnorderedMap
+            | BuiltinDescriptor::UnorderedSet
+    )
+}
+
+pub(crate) fn descriptor_is_collection(unit: &SemanticUnit, value_type: &ValueType) -> bool {
+    descriptor_contract_for_value(unit, value_type)
+        .and_then(|contract| contract.builtin)
+        .is_some_and(builtin_is_collection)
 }
 
 pub(crate) fn descriptor_contract_for_value<'a>(
@@ -391,8 +420,8 @@ pub(crate) fn descriptor_contract_for_value<'a>(
             .iter()
             .find(|contract| contract.identity == *identity);
     }
-    let builtin = builtin_for_value_type(value_type)?;
-    unit.descriptors
+    let builtin = builtin_for_value_type(value_type);
+    unit.builtin_descriptors
         .iter()
         .find(|contract| contract.builtin == Some(builtin))
 }
@@ -425,6 +454,17 @@ pub(crate) fn materialized_descriptor<'a>(
             name: contract.name.clone(),
         });
     }
+    if matches!(
+        contract.builtin,
+        Some(BuiltinDescriptor::Value | BuiltinDescriptor::StringView)
+    ) {
+        let name = value_type.to_string();
+        return Some(MaterializedDescriptor {
+            contract,
+            identity: name.clone(),
+            name,
+        });
+    }
     let name = value_type.to_string();
     Some(MaterializedDescriptor {
         contract,
@@ -446,11 +486,11 @@ pub(crate) fn descriptor_contract_by_identity<'a>(
         .rsplit_once("::")
         .map_or(descriptor_identity, |(_, name)| name);
     let family = name.split_once(" of ").map_or(name, |(family, _)| family);
-    unit.descriptors
+    unit.builtin_descriptors
         .iter()
-        .find(|contract| contract.builtin.is_some() && contract.name == family)
+        .find(|contract| contract.name == family)
         .or_else(|| {
-            unit.descriptors
+            unit.builtin_descriptors
                 .iter()
                 .find(|contract| contract.builtin == Some(BuiltinDescriptor::Value))
         })

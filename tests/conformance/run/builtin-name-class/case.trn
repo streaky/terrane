@@ -1,0 +1,6 @@
+namespace builtin-name-class
+class list
+  value int = 7
+function main;
+  item = instance list;
+  print; item.value

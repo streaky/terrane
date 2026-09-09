@@ -58,6 +58,8 @@ function main;
   reference-type = left-reference.type
   collection-type = references.type
   print; marker-type.identity
+  print; reference-type.identity
+  print; collection-type.identity
   print; marker-type.inherently-identity-bearing
   print; reference-type.inherently-identity-bearing
   print; collection-type.inherently-identity-bearing

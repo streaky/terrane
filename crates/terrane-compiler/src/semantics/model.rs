@@ -132,10 +132,14 @@ pub(super) fn iterable_item_type(
         return Err(("collection iteration requires an iterable value", None));
     }
     match value_type {
-        ValueType::Scalar(ScalarType::String) | ValueType::StringList => {
+        ValueType::Scalar(ScalarType::String)
+        | ValueType::StringList
+        | ValueType::StringView(TextUnit::Scalars | TextUnit::Graphemes) => {
             Ok(ValueType::Scalar(ScalarType::String))
         }
-        ValueType::Scalar(ScalarType::Bytes) => Ok(ValueType::Scalar(ScalarType::Uint8)),
+        ValueType::Scalar(ScalarType::Bytes) | ValueType::StringView(TextUnit::Bytes) => {
+            Ok(ValueType::Scalar(ScalarType::Uint8))
+        }
         ValueType::Iterator(item)
         | ValueType::List(item)
         | ValueType::Set(item)
@@ -856,6 +860,7 @@ pub enum ObjectKind {
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) enum BuiltinDescriptor {
     Value,
+    StringView,
     Scalar(ScalarType),
     Category(TypeCategory),
     Encoding,
@@ -931,6 +936,8 @@ pub struct FunctionContract {
     pub name: String,
     pub span: Span,
     pub owner: Option<String>,
+    /// Canonical owner identity for methods; aliases never rewrite it.
+    pub(crate) owner_identity: Option<ObjectIdentity>,
     pub captures: Vec<String>,
     pub parameters: Vec<ParameterContract>,
     pub return_type: Option<ValueType>,
@@ -999,6 +1006,7 @@ pub struct SemanticUnit {
     /// Function contracts declared by every source unit in this unit's namespace.
     pub functions: Vec<FunctionContract>,
     pub descriptors: Vec<DescriptorContract>,
+    pub(crate) builtin_descriptors: std::sync::Arc<[DescriptorContract]>,
     pub(super) comparable_foreign_objects: BTreeSet<ObjectIdentity>,
     pub(super) function_aliases: BTreeMap<String, FunctionContract>,
     pub(super) function_contracts_by_span: BTreeMap<(u32, usize, usize), FunctionContract>,

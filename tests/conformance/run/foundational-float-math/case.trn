@@ -82,3 +82,5 @@ function main;
   unfused32 float32 = multiplicand32 * multiplier32 + addend32
   print; fused32 == 0.000000000000014210855
   print; unfused32 == 0.0
+  print; (low32.minimum; 0.0) == 0.0, (low32.maximum; 7.0) == 7.0
+  print; (low64.minimum; 0.0) == 0.0, (low64.maximum; 7.0) == 7.0

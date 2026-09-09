@@ -19,6 +19,8 @@ true
 false
 true
 /collection-identity-lifetime::marker
+shared ref marker
+/core/collections::list of shared ref marker
 false
 true
 false

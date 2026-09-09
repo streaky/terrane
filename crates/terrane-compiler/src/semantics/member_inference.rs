@@ -50,7 +50,7 @@ pub(super) fn object_method_contract<'a>(
         } else {
             object.methods.contains(member)
         }) && let Some(method) = unit.functions.iter().find(|function| {
-            function.owner.as_deref() == Some(object.identity.name.as_str())
+            function.owner_identity.as_ref() == Some(&object.identity)
                 && function.name == member
                 && function.is_static == is_static
         }) {
@@ -195,14 +195,8 @@ pub(super) fn infer_member_value_type(
     let member_name = node_text(&unit.source, member);
     let receiver_type = infer_receiver_value_type(unit, receiver, bindings)?;
     if let Some(ValueType::Descriptor(identity)) = &receiver_type {
-        let descriptor = descriptor_contract_by_identity(unit, identity).ok_or_else(|| {
-            failure(
-                &unit.source,
-                "T0071",
-                format!("descriptor `{identity}` has no canonical contract"),
-                receiver.span,
-            )
-        })?;
+        let descriptor = descriptor_contract_by_identity(unit, identity)
+            .expect("descriptor value types always retain a canonical contract");
         if let Some(field) = descriptor
             .fields
             .iter()

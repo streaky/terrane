@@ -376,65 +376,9 @@ mod __terrane_trace {
         pub end_line: u32,
         pub end_column: u32,
     }
-    pub static FILES: [&str; 1] = ["case.trn"];
-    pub static FUNCTIONS: [&str; 1] = ["/bytes-views-encoding::main"];
-    pub static SITES: [Site; 5] = [
-        {
-            /* terrane-site-row: site 0: /bytes-views-encoding::main (case.trn:19:20-19:40) */
-            Site {
-                function: 0,
-                file: 0,
-                line: 19,
-                column: 20,
-                end_line: 19,
-                end_column: 40,
-            }
-        },
-        {
-            /* terrane-site-row: site 1: /bytes-views-encoding::main (case.trn:21:25-21:65) */
-            Site {
-                function: 0,
-                file: 0,
-                line: 21,
-                column: 25,
-                end_line: 21,
-                end_column: 65,
-            }
-        },
-        {
-            /* terrane-site-row: site 2: /bytes-views-encoding::main (case.trn:22:25-22:65) */
-            Site {
-                function: 0,
-                file: 0,
-                line: 22,
-                column: 25,
-                end_line: 22,
-                end_column: 65,
-            }
-        },
-        {
-            /* terrane-site-row: site 3: /bytes-views-encoding::main (case.trn:23:25-23:65) */
-            Site {
-                function: 0,
-                file: 0,
-                line: 23,
-                column: 25,
-                end_line: 23,
-                end_column: 65,
-            }
-        },
-        {
-            /* terrane-site-row: site 4: /bytes-views-encoding::main (case.trn:24:25-24:65) */
-            Site {
-                function: 0,
-                file: 0,
-                line: 24,
-                column: 25,
-                end_line: 24,
-                end_column: 65,
-            }
-        },
-    ];
+    pub static FILES: [&str; 0] = [];
+    pub static FUNCTIONS: [&str; 0] = [];
+    pub static SITES: [Site; 0] = [];
     #[cold]
     #[inline(never)]
     pub fn render(site: u32) -> String {
@@ -447,120 +391,47 @@ mod __terrane_trace {
         )
     }
 }
+#[allow(dead_code)]
+#[derive(Clone, Copy)]
+struct TerraneFieldMetadata {
+    name: &'static str,
+    external_name: &'static str,
+    defaulted: bool,
+    optional: bool,
+    secret: bool,
+}
+#[allow(dead_code)]
+#[derive(Clone, Copy)]
+struct TerraneDescriptor {
+    identity: &'static str,
+    name: &'static str,
+    kind: &'static str,
+    inherently_identity_bearing: bool,
+    fields: &'static [TerraneFieldMetadata],
+}
 // Source: case.trn
-// Namespace: bytes-views-encoding
+// Namespace: composed-descriptor-identities
+fn increment(value: terrane_int_support::Int) -> terrane_int_support::Int {
+    return value.clone() + terrane_int_support::Int::from(1_i128);
+}
 fn main() {
-    let text: String = String::from("e\u{301}");
+    let callback: std::sync::Arc<
+        dyn Fn(
+            terrane_int_support::Int,
+        ) -> Result<terrane_int_support::Int, TerraneError> + Send + Sync,
+    > = std::sync::Arc::new(move |argument_0: terrane_int_support::Int| Ok(
+        increment(argument_0),
+    ));
+    let optional: Option<String> = Some(String::from("value"));
     println!(
-        "{}{}{}{}",
-        terrane_scalar_support::scalar_text(&(terrane_string_support::length(&text) as
-        i128)), terrane_scalar_support::scalar_text(&(text.len() as i128)),
-        terrane_scalar_support::scalar_text(&(text.chars().count() as i128)),
-        terrane_scalar_support::scalar_text(&(terrane_string_support::length(&text) as
-        i128))
+        "{}", terrane_scalar_support::scalar_text(&{ let _ = &callback; TerraneDescriptor
+        { identity : "function from int to int", name : "function from int to int", kind
+        : "type", inherently_identity_bearing : false, fields : &[] } } .identity
+        .to_owned())
     );
-    let mut byte_count: terrane_int_support::Int = terrane_int_support::Int::from(
-        0_i128,
-    );
-    let mut __terrane_iterator_0 = terrane_collection_support::bytes_iterator(
-        &text.as_bytes().to_vec(),
-    );
-    loop {
-        let byte = match __terrane_iterator_0.next() {
-            terrane_collection_support::IterationStep::Item(item) => item,
-            terrane_collection_support::IterationStep::End => break,
-        };
-        if byte == byte {
-            byte_count = byte_count.clone() + terrane_int_support::Int::from(1_i128);
-        }
-    }
-    let mut scalar_count: terrane_int_support::Int = terrane_int_support::Int::from(
-        0_i128,
-    );
-    let mut __terrane_iterator_1 = terrane_collection_support::Iterator::new(
-        text.chars().map(|value| value.to_string()).collect::<Vec<_>>(),
-    );
-    loop {
-        let scalar = match __terrane_iterator_1.next() {
-            terrane_collection_support::IterationStep::Item(item) => item,
-            terrane_collection_support::IterationStep::End => break,
-        };
-        if scalar == scalar {
-            scalar_count = scalar_count.clone() + terrane_int_support::Int::from(1_i128);
-        }
-    }
-    let mut grapheme_count: terrane_int_support::Int = terrane_int_support::Int::from(
-        0_i128,
-    );
-    let mut __terrane_iterator_2 = terrane_collection_support::Iterator::new(
-        terrane_string_support::graphemes(&text).collect::<Vec<_>>(),
-    );
-    loop {
-        let grapheme = match __terrane_iterator_2.next() {
-            terrane_collection_support::IterationStep::Item(item) => item,
-            terrane_collection_support::IterationStep::End => break,
-        };
-        if grapheme == grapheme {
-            grapheme_count = grapheme_count.clone()
-                + terrane_int_support::Int::from(1_i128);
-        }
-    }
     println!(
-        "{}{}{}", terrane_scalar_support::scalar_text(&byte_count),
-        terrane_scalar_support::scalar_text(&scalar_count),
-        terrane_scalar_support::scalar_text(&grapheme_count)
+        "{}", terrane_scalar_support::scalar_text(&{ let _ = &optional; TerraneDescriptor
+        { identity : "string|none", name : "string|none", kind : "type",
+        inherently_identity_bearing : false, fields : &[] } } .identity.to_owned())
     );
-    let encoded: Vec<u8> = terrane_string_support::encode(
-        &text,
-        terrane_string_support::Encoding::Utf8,
-    );
-    let decoded: String = __terrane_raised(
-        terrane_string_support::decode(&encoded, terrane_string_support::Encoding::Utf8),
-        0 /* terrane-site: case.trn:19:20-19:40 */,
-    );
-    println!("{}", terrane_scalar_support::scalar_text(&decoded));
-    let utf16le_text: String = __terrane_raised(
-        terrane_string_support::decode(
-            &terrane_string_support::encode(
-                &text,
-                terrane_string_support::Encoding::Utf16Le,
-            ),
-            terrane_string_support::Encoding::Utf16Le,
-        ),
-        1 /* terrane-site: case.trn:21:25-21:65 */,
-    );
-    let utf16be_text: String = __terrane_raised(
-        terrane_string_support::decode(
-            &terrane_string_support::encode(
-                &text,
-                terrane_string_support::Encoding::Utf16Be,
-            ),
-            terrane_string_support::Encoding::Utf16Be,
-        ),
-        2 /* terrane-site: case.trn:22:25-22:65 */,
-    );
-    let utf32le_text: String = __terrane_raised(
-        terrane_string_support::decode(
-            &terrane_string_support::encode(
-                &text,
-                terrane_string_support::Encoding::Utf32Le,
-            ),
-            terrane_string_support::Encoding::Utf32Le,
-        ),
-        3 /* terrane-site: case.trn:23:25-23:65 */,
-    );
-    let utf32be_text: String = __terrane_raised(
-        terrane_string_support::decode(
-            &terrane_string_support::encode(
-                &text,
-                terrane_string_support::Encoding::Utf32Be,
-            ),
-            terrane_string_support::Encoding::Utf32Be,
-        ),
-        4 /* terrane-site: case.trn:24:25-24:65 */,
-    );
-    println!("{}", terrane_scalar_support::scalar_text(&utf16le_text));
-    println!("{}", terrane_scalar_support::scalar_text(&utf16be_text));
-    println!("{}", terrane_scalar_support::scalar_text(&utf32le_text));
-    println!("{}", terrane_scalar_support::scalar_text(&utf32be_text));
 }

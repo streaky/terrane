@@ -352,7 +352,7 @@ pub(super) fn infer_collection_call_type(
     if callee.kind == SyntaxKind::MemberExpression
         && let [receiver, member] = callee.children.as_slice()
         && let Some(receiver_type) = infer_receiver_value_type(unit, receiver, bindings)?
-        && descriptor_operation(unit, &receiver_type, "type") == Some("collection.type")
+        && descriptor_is_collection(unit, &receiver_type)
     {
         let member = node_text(&unit.source, member);
         let operation = descriptor_operation(unit, &receiver_type, member);

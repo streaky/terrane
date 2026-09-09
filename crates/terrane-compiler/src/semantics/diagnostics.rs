@@ -281,22 +281,21 @@ pub(super) fn object_method_mutates(
     object_identity: &ObjectIdentity,
     method_name: &str,
 ) -> bool {
-    fn contract_mutates(unit: &SemanticUnit, object_name: &str, method_name: &str) -> bool {
+    fn contract_mutates(
+        unit: &SemanticUnit,
+        object_identity: &ObjectIdentity,
+        method_name: &str,
+    ) -> bool {
         if let Some(method) = unit.functions.iter().find(|method| {
-            method.owner.as_deref() == Some(object_name) && method.name == method_name
+            method.owner_identity.as_ref() == Some(object_identity) && method.name == method_name
         }) {
             return method.mutates_receiver;
         }
         unit.descriptors
             .iter()
-            .find(|object| object.name == object_name)
+            .find(|object| object.identity == *object_identity)
             .and_then(|object| object.base.as_ref())
-            .and_then(|base| {
-                unit.descriptors
-                    .iter()
-                    .find(|object| object.identity == *base)
-            })
-            .is_some_and(|base| contract_mutates(unit, &base.name, method_name))
+            .is_some_and(|base| contract_mutates(unit, base, method_name))
     }
 
     if package.units.iter().any(|candidate| {
@@ -304,7 +303,7 @@ pub(super) fn object_method_mutates(
             .descriptors
             .iter()
             .find(|object| object.identity == *object_identity)
-            .is_some_and(|object| contract_mutates(candidate, &object.name, method_name))
+            .is_some_and(|object| contract_mutates(candidate, &object.identity, method_name))
     }) {
         return true;
     }
