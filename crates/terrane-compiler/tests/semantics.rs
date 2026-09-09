@@ -53,6 +53,30 @@ fn assembles_namespaces_symmetrically_before_import_resolution() {
 }
 
 #[test]
+fn implicit_script_namespace_has_an_unspellable_identity() {
+    let implicit = analyze(&package(
+        false,
+        &[(
+            "script",
+            "#!/usr/bin/env terrane\nconstant message = >hello\n",
+        )],
+    ))
+    .unwrap();
+    let authored = analyze(&package(
+        false,
+        &[(
+            "authored.trn",
+            "namespace implicit-script\nconstant message = >hello\n",
+        )],
+    ))
+    .unwrap();
+
+    assert_eq!(implicit.units[0].namespace, "/<implicit-script>");
+    assert_eq!(authored.units[0].namespace, "/implicit-script");
+    assert_ne!(implicit.units[0].namespace, authored.units[0].namespace);
+}
+
+#[test]
 fn namespace_diagnostics_use_source_spelling() {
     let failure = analyze(&package(
         false,

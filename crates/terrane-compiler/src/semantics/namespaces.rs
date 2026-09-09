@@ -1,5 +1,7 @@
 use super::prelude::*;
 
+const IMPLICIT_SCRIPT_NAMESPACE: &str = "/<implicit-script>";
+
 pub(super) fn declared_namespace(
     source: &SourceFile,
     tree: &SyntaxTree,
@@ -12,7 +14,7 @@ pub(super) fn declared_namespace(
         .filter(|node| node.kind == SyntaxKind::NamespaceDeclaration)
         .collect::<Vec<_>>();
     if declarations.is_empty() && allow_implicit_script_namespace {
-        return Ok("script".to_owned());
+        return Ok(IMPLICIT_SCRIPT_NAMESPACE.to_owned());
     }
     if declarations.is_empty() {
         return Err(Diagnostic::error(

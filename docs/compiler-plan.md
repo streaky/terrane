@@ -786,8 +786,9 @@ Implementation note: milestone zero names the intended pipeline boundaries, but 
 
 Follow-on executable-script support keeps this pipeline singular: a byte-zero shebang lets only an
 implicit single-file package omit its authored namespace, in which case the compiler supplies an
-implementation-owned namespace for that unit. Manifest sources retain namespace correspondence,
-and every executable retains the parameterless top-level `main` contract.
+implementation-owned identity outside the authored namespace grammar for that unit. Manifest
+sources retain namespace correspondence, and every executable retains the parameterless top-level
+`main` contract.
 The CLI treats a bare source path as `run`, forwards its remaining arguments, and reuses ordinary
 build caching. `executable-shebang-script`, `shebang-script-without-main`,
 `manifest-shebang-missing-namespace`, CLI dispatch tests, and a Unix test that executes a chmodded

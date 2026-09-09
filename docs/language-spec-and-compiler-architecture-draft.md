@@ -784,8 +784,9 @@ Correspondence is directory-level, not file-level. A namespace spans as many sou
 An implicit single-file package whose first two bytes are `#!` is an executable script. The shebang
 line is retained as ordinary comment trivia. Such a script may omit an authored namespace, in which
 case the compiler assigns an implementation-owned implicit namespace scoped to that single-file
-package; this internal identity does not reserve an authored namespace spelling. An explicit
-declaration remains valid. This exemption applies only to direct single-file input. A
+package. Its identity contains a form excluded by the authored namespace grammar, so no source
+namespace can collide with it or reserve its spelling. An explicit declaration remains valid. This
+exemption applies only to direct single-file input. A
 manifest-discovered source must declare the namespace mapped from its directory even when its first
 line is a shebang.
 
