@@ -124,6 +124,51 @@ fn executable_shebang_script_runs_through_implicit_command() {
 }
 
 #[test]
+fn bare_existing_source_and_package_paths_dispatch_to_run() {
+    let binary = env!("CARGO_BIN_EXE_terrane");
+    let directory = TemporaryDirectory::new("implicit-paths");
+    fs::create_dir_all(directory.path()).unwrap();
+
+    let script = directory.path().join("script");
+    fs::write(
+        &script,
+        "#!/usr/bin/env terrane\nfunction main;\n  print; >source\n",
+    )
+    .unwrap();
+    let source = Command::new(binary).arg(&script).output().unwrap();
+    assert!(source.status.success(), "{source:?}");
+    assert_eq!(source.stdout, b"source\n");
+
+    let package_root = directory.path().join("package");
+    fs::create_dir_all(package_root.join("src")).unwrap();
+    fs::write(
+        package_root.join("package.toml"),
+        "package = \"implicit-package\"\n\n[namespaces]\napp = \"src\"\n",
+    )
+    .unwrap();
+    fs::write(
+        package_root.join("src/main.trn"),
+        "namespace app\nfunction main;\n  print; >package\n",
+    )
+    .unwrap();
+    let package = Command::new(binary)
+        .arg(package_root.join("package.toml"))
+        .output()
+        .unwrap();
+    assert!(package.status.success(), "{package:?}");
+    assert_eq!(package.stdout, b"package\n");
+
+    let directory_argument = Command::new(binary).arg(&package_root).output().unwrap();
+    assert_eq!(directory_argument.status.code(), Some(2));
+    assert!(directory_argument.stdout.is_empty());
+    assert!(
+        String::from_utf8(directory_argument.stderr)
+            .unwrap()
+            .starts_with("usage: terrane ")
+    );
+}
+
+#[test]
 fn rust_output_writes_clean_authored_lowering_and_support_sidecar() {
     let binary = env!("CARGO_BIN_EXE_terrane");
     let directory = TemporaryDirectory::new("rust-output");

@@ -57,6 +57,32 @@ impl CliFailure {
     }
 }
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum CliCommand {
+    Check,
+    Rust,
+    Build,
+    Run,
+    Toolchains,
+    Help,
+    Version,
+}
+
+impl CliCommand {
+    fn parse(argument: &OsString) -> Option<Self> {
+        match argument.to_str()? {
+            "check" => Some(Self::Check),
+            "rust" => Some(Self::Rust),
+            "build" => Some(Self::Build),
+            "run" => Some(Self::Run),
+            "toolchains" => Some(Self::Toolchains),
+            "--help" | "-h" => Some(Self::Help),
+            "--version" | "-V" => Some(Self::Version),
+            _ => None,
+        }
+    }
+}
+
 fn main() -> ExitCode {
     match run(&std::env::args_os().skip(1).collect::<Vec<_>>()) {
         Ok(code) => code,
@@ -69,20 +95,7 @@ fn main() -> ExitCode {
 
 fn implicit_run_arguments(arguments: &[OsString]) -> Option<Vec<OsString>> {
     let first = arguments.first()?;
-    if first.to_str().is_some_and(|argument| {
-        matches!(
-            argument,
-            "check"
-                | "rust"
-                | "build"
-                | "run"
-                | "toolchains"
-                | "--help"
-                | "-h"
-                | "--version"
-                | "-V"
-        )
-    }) {
+    if CliCommand::parse(first).is_some() {
         return None;
     }
     let path = Path::new(first);
@@ -110,36 +123,41 @@ fn implicit_run_arguments(arguments: &[OsString]) -> Option<Vec<OsString>> {
 )]
 fn run(arguments: &[OsString]) -> Result<ExitCode, CliFailure> {
     let normalized = implicit_run_arguments(arguments);
+    let implicit_path = normalized.is_some();
     let arguments = normalized.as_deref().unwrap_or(arguments);
-    let Some(command) = arguments.first().and_then(|value| value.to_str()) else {
+    let Some(command) = arguments.first().and_then(CliCommand::parse) else {
         return Err(CliFailure::usage());
     };
-    if command == "--version" || command == "-V" {
-        println!(
-            "terrane {} (build rust {}, projection rustdoc {})",
-            terrane_compiler::VERSION,
-            terrane_compiler::BUILD_TOOLCHAIN,
-            terrane_compiler::RUSTDOC_TOOLCHAIN
-        );
-        return Ok(ExitCode::SUCCESS);
-    }
-    if command == "toolchains" {
-        report_toolchains();
-        return Ok(ExitCode::SUCCESS);
-    }
-    if command == "--help" || command == "-h" {
-        println!("{}", usage());
-        return Ok(ExitCode::SUCCESS);
-    }
-    if !matches!(command, "check" | "rust" | "build" | "run") {
-        return Err(CliFailure::usage());
+    match command {
+        CliCommand::Version => {
+            println!(
+                "terrane {} (build rust {}, projection rustdoc {})",
+                terrane_compiler::VERSION,
+                terrane_compiler::BUILD_TOOLCHAIN,
+                terrane_compiler::RUSTDOC_TOOLCHAIN
+            );
+            return Ok(ExitCode::SUCCESS);
+        }
+        CliCommand::Toolchains => {
+            report_toolchains();
+            return Ok(ExitCode::SUCCESS);
+        }
+        CliCommand::Help => {
+            println!("{}", usage());
+            return Ok(ExitCode::SUCCESS);
+        }
+        CliCommand::Check | CliCommand::Rust | CliCommand::Build | CliCommand::Run => {}
     }
     let (input_path, output_path, require_canonical_rust, lint_name_style, release) =
         parse_input(arguments, command)?;
-    let package = if input_path
+    let source_input = input_path
         .extension()
         .is_some_and(|extension| extension == "trn")
-    {
+        || implicit_path
+            && input_path
+                .extension()
+                .is_none_or(|extension| extension != "toml");
+    let package = if source_input {
         let source_text = fs::read_to_string(&input_path).map_err(|error| {
             CliFailure::diagnostic(input_path.clone(), "S0000", error.to_string(), 3)
         })?;
@@ -164,7 +182,7 @@ fn run(arguments: &[OsString]) -> Result<ExitCode, CliFailure> {
         Err(failure) => return Err(CliFailure::compilation(failure)),
     };
     emit_warnings(&compilation);
-    if command == "rust" && output_path.is_none() {
+    if command == CliCommand::Rust && output_path.is_none() {
         print_rust(&compilation);
         return Ok(ExitCode::SUCCESS);
     }
@@ -174,7 +192,7 @@ fn run(arguments: &[OsString]) -> Result<ExitCode, CliFailure> {
     let rust_files = compilation
         .rust_files_for(rust_entrypoint)
         .map_err(CliFailure::rust_artifact)?;
-    if command == "rust" {
+    if command == CliCommand::Rust {
         write_rust(&rust_files)?;
         return Ok(ExitCode::SUCCESS);
     }
@@ -213,11 +231,11 @@ fn run(arguments: &[OsString]) -> Result<ExitCode, CliFailure> {
         compilation.dependency_containment,
         release,
     )?;
-    if command == "check" {
+    if command == CliCommand::Check {
         return Ok(ExitCode::SUCCESS);
     }
     let executable = executable.expect("build and run prepare an executable");
-    if command == "build" {
+    if command == CliCommand::Build {
         println!("{}", executable.display());
         return Ok(ExitCode::SUCCESS);
     }
@@ -236,7 +254,7 @@ fn run(arguments: &[OsString]) -> Result<ExitCode, CliFailure> {
 
 fn parse_input(
     arguments: &[OsString],
-    command: &str,
+    command: CliCommand,
 ) -> Result<(PathBuf, Option<PathBuf>, bool, bool, bool), CliFailure> {
     let mut input_index = 1;
     let mut output_path = None;
@@ -248,7 +266,7 @@ fn parse_input(
             "--require-canonical-rust" => require_canonical_rust = true,
             "--lint-name-style" => lint_name_style = true,
             "--release" => release = true,
-            "-o" | "--output" if command == "rust" && output_path.is_none() => {
+            "-o" | "--output" if command == CliCommand::Rust && output_path.is_none() => {
                 input_index += 1;
                 output_path = Some(
                     arguments
@@ -261,10 +279,10 @@ fn parse_input(
         }
         input_index += 1;
     }
-    if release && !matches!(command, "build" | "run") {
+    if release && !matches!(command, CliCommand::Build | CliCommand::Run) {
         return Err(CliFailure::usage());
     }
-    let has_valid_arity = if command == "run" {
+    let has_valid_arity = if command == CliCommand::Run {
         arguments.len() == input_index + 1
             || (arguments.len() >= input_index + 2 && arguments[input_index + 1] == "--")
     } else {
@@ -306,7 +324,7 @@ fn emit_warnings(compilation: &terrane_compiler::Compilation) {
     reason = "artifact preparation forwards one complete Cargo build context without hidden state"
 )]
 fn prepare_artifact(
-    command: &str,
+    command: CliCommand,
     crate_dir: &Path,
     target_dir: &Path,
     rust_files: &[terrane_compiler::rust_ir::RenderedFile],
@@ -315,7 +333,7 @@ fn prepare_artifact(
     containment: terrane_compiler::projection::Containment,
     release: bool,
 ) -> Result<Option<PathBuf>, CliFailure> {
-    if command == "check" {
+    if command == CliCommand::Check {
         let stamp = crate_dir.join("artifacts/check-success");
         if !stamp.is_file() {
             run_cargo(
@@ -1082,7 +1100,22 @@ mod tests {
                 OsString::from("--flag"),
             ])
         );
-        assert!(implicit_run_arguments(&[OsString::from("run")]).is_none());
+        for command in [
+            "check",
+            "rust",
+            "build",
+            "run",
+            "toolchains",
+            "--help",
+            "-h",
+            "--version",
+            "-V",
+        ] {
+            assert!(
+                implicit_run_arguments(&[OsString::from(command)]).is_none(),
+                "{command}"
+            );
+        }
         assert_eq!(
             implicit_run_arguments(&[
                 OsString::from("thing.trn"),
@@ -1106,7 +1139,8 @@ mod tests {
             OsString::from("package.toml"),
         ];
         assert_eq!(
-            parse_input(&build, "build").unwrap_or_else(|_| panic!("release build should parse")),
+            parse_input(&build, CliCommand::Build)
+                .unwrap_or_else(|_| panic!("release build should parse")),
             (PathBuf::from("package.toml"), None, false, false, true)
         );
 
@@ -1115,7 +1149,7 @@ mod tests {
             OsString::from("--release"),
             OsString::from("package.toml"),
         ];
-        assert!(parse_input(&check, "check").is_err());
+        assert!(parse_input(&check, CliCommand::Check).is_err());
     }
 
     #[test]
