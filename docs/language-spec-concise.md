@@ -363,6 +363,7 @@ function_type: 'function from A, B to R'; associates right
 - Ordinary scalars/strings/collections are identity-less: `is` is false even for `x is x` and `42 is 42`. Explicit refs, linear resources, and canonical descriptors carry identity; ref/shared-ref pairs compare true exactly when both denote the same referent. Descriptor metadata exposes the boolean `inherently-identity-bearing`; it is true for ref types/resources/descriptors and false for ordinary values and collections. Exact-type-and-value comparison is `left == right and left.type is right.type`.
 - Type descriptors are language constructs backed by canonical compiler-owned objects, not independently instantiated values.
 - Class, interface, and trait identity is nominal and namespace-qualified: `(declaring namespace, declared name)`. Import aliases change spelling, not identity; same-named declarations in different namespaces are unrelated types, and diagnostics qualify them when the short form is ambiguous.
+- Built-in descriptor identity is namespace-qualified too: scalar descriptors use `/core/types::<name>` and instantiated collection descriptors use `/core/collections::<family> of <arguments>`. Alias spellings never replace that canonical identity.
 
 ```yaml
 binding: REJECTED - 'd = int8' would store a type in a value slot; a construct is not a value to bind

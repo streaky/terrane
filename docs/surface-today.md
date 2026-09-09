@@ -12,13 +12,14 @@ Status labels:
 - **source-declared** — supplied by a Terrane program rather than the prelude.
 
 Source-declared and projected class, interface, and trait types have namespace-qualified nominal identity. Import aliases preserve that identity; same-named types from different namespaces remain distinct.
-Source-declared object member lookup, nominal relations, interface conformance, dispatch, and
-reflection use `DescriptorContract` records. Structural protocol queries recursively resolve
-required members from those source contracts, including base, trait, and interface composition.
-The implemented non-iteration example is `truth`: a source class with a synchronous, non-throwing,
+Built-ins and source-declared class, interface, and trait types share `DescriptorContract`.
+Canonical contracts carry identity, kind, category conformance, members, stable operation IDs,
+and reflection data. Member lookup, nominal relations, compatibility, dispatch, reflection, and
+structural protocols query those contracts for both built-in and source-declared receivers.
+Structural source protocols recursively include base, trait, and interface composition. The
+implemented non-iteration example is `truth`: a source class with a synchronous, non-throwing,
 non-mutating, parameterless `truth bool` method may be used directly as an `if` or `while`
-condition. Built-in scalar, string-family, and collection-family dispatch still uses separate
-compiler tables and switches; canonical descriptor unification is therefore partial.
+condition.
 
 Every `/core/types` descriptor is available as an implicit language construct. Operational core
 tooling is not implicit: authored and bundled source must import an individual object or use

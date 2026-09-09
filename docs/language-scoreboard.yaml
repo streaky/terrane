@@ -968,21 +968,22 @@ features:
   notes: Method contracts distinguish receiver mutation and enforce compatibility.
   sources:
   - docs/language-spec-concise.md#OBJECT_MODEL
-  - docs/compiler-plan.md#Completed portion of Milestone 16
+  - docs/compiler-plan.md#Milestone 16
 - id: canonical-object-descriptors
   name: Canonical descriptor unification
   category: objects
-  status: partial
-  completion: 40
+  status: done
+  completion: 100
   milestone: '16'
   reference:
-    state: partial
+    state: documented
     paths:
     - manual/reference/records/language/types/descriptors.yaml
     - manual/reference/records/language/classes/protocols.yaml
-  notes: Source class, interface, and trait contracts plus composed structural protocols use DescriptorContract; built-in scalar aliases and numeric, string, and collection family dispatch remain separate.
+  notes: Built-in and source-declared types share DescriptorContract identity, conformance, member inventories, stable operation IDs, reflection data, and structural protocol queries.
   sources:
   - docs/compiler-plan.md#Milestone 16
+  - tests/conformance/run/builtin-descriptor-contracts/case.trn
 - id: value-copy-semantics
   name: Value copying and COW
   category: objects
