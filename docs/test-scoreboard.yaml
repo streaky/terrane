@@ -1,0 +1,103 @@
+format: 1
+title: Terrane test timing scoreboard
+metadata:
+  description: Serial wall-clock measurements from stable Rust libtest. Durations include small runner
+    and output overhead and are intended for relative development feedback.
+  timing_mode: cargo test with --test-threads=1; elapsed time between result events
+  history_limit: 8
+runs:
+- measured_at: '2026-09-09T00:19:57Z'
+  command:
+  - cargo
+  - test
+  - -p
+  - terrane-compiler
+  - first_difference_handles_changed_and_appended_text
+  - --
+  - --test-threads=1
+  exit_code: 0
+  cargo_seconds: 2.653226
+  test_seconds: 0.00022
+  measured_tests: 1
+  passed: 1
+  failed: 0
+  ignored: 0
+- measured_at: '2026-09-09T00:20:40Z'
+  command:
+  - cargo
+  - test
+  - -p
+  - terrane-compiler
+  - first_difference_handles_changed_and_appended_text
+  - --
+  - --test-threads=1
+  exit_code: 0
+  cargo_seconds: 0.086495
+  test_seconds: 0.000163
+  measured_tests: 1
+  passed: 1
+  failed: 0
+  ignored: 0
+- measured_at: '2026-09-09T00:22:35Z'
+  command:
+  - cargo
+  - test
+  - -p
+  - terrane-compiler
+  - first_difference_handles_changed_and_appended_text
+  - --
+  - --test-threads=1
+  environment:
+    host: server
+    platform: Linux-6.18.48-1-cachyos-lts-x86_64-with-glibc2.44
+    rustc: rustc 1.93.0 (254b59607 2026-01-19)
+    revision: db13cf3
+  exit_code: 0
+  cargo_seconds: 0.109731
+  test_seconds: 0.000105
+  measured_tests: 1
+  passed: 1
+  failed: 0
+  ignored: 0
+- measured_at: '2026-09-09T00:23:02Z'
+  command:
+  - cargo
+  - test
+  - -p
+  - terrane-compiler
+  - first_difference_handles_changed_and_appended_text
+  - --
+  - --test-threads=1
+  environment:
+    host: server
+    platform: Linux-6.18.48-1-cachyos-lts-x86_64-with-glibc2.44
+    rustc: rustc 1.93.0 (254b59607 2026-01-19)
+    revision: db13cf3
+  exit_code: 0
+  cargo_seconds: 0.085511
+  test_seconds: 0.000148
+  measured_tests: 1
+  passed: 1
+  failed: 0
+  ignored: 0
+tests:
+- id: unittests src/lib.rs [terrane_compiler]::compiler::tests::first_difference_handles_changed_and_appended_text
+  target: unittests src/lib.rs [terrane_compiler]
+  name: compiler::tests::first_difference_handles_changed_and_appended_text
+  status: passed
+  seconds: 0.000148
+  previous_seconds: 0.000105
+  measured_at: '2026-09-09T00:23:02Z'
+  history:
+  - measured_at: '2026-09-09T00:19:57Z'
+    seconds: 0.00022
+    status: passed
+  - measured_at: '2026-09-09T00:20:40Z'
+    seconds: 0.000163
+    status: passed
+  - measured_at: '2026-09-09T00:22:35Z'
+    seconds: 0.000105
+    status: passed
+  - measured_at: '2026-09-09T00:23:02Z'
+    seconds: 0.000148
+    status: passed

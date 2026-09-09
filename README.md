@@ -91,6 +91,20 @@ identity changes, and newly declined members therefore require an explicit revie
 
 Cargo retains downloaded registry indexes and crate archives in `CARGO_HOME`, so repeated toolchain and conformance builds do not download unchanged dependencies again. The conformance runner additionally reuses one generated Cargo workspace for all accepted cases in a corpus run. With explicit opt-in, `sccache` provides further reuse across separate runs and branches.
 
+Stable Rust libtest does not expose a per-test timing callback or its nightly JSON event stream.
+For periodic profiling, `python docs/measure-test-times.py -- --workspace` therefore runs the same
+Cargo tests with one test thread, streams their normal output, and measures elapsed wall time
+between completion events. Serial execution makes individual measurements attributable and
+portable to the pinned stable toolchain, but it can be slower and can behave differently from the
+normal parallel suite, so it supplements rather than replaces `cargo test --workspace`.
+
+The collector merges bounded timing history into `docs/test-scoreboard.yaml` and regenerates the
+self-contained `docs/test-scoreboard.html`. Pass ordinary Cargo selection arguments after `--` for
+a focused sample, for example
+`python docs/measure-test-times.py -- -p terrane-compiler first_difference`. Regenerate the visual
+view without running tests with `python docs/generate-test-scoreboard.py`, or verify that it is
+current with `python docs/generate-test-scoreboard.py --check`.
+
 Generated Rust is returned exactly as Terrane lowering emits it. Compiler work can pass
 `--require-canonical-rust` after any CLI command name to compare that untouched output with the
 compiler-bundled formatter. A mismatch fails as compiler defect `S9004`; the formatter never
