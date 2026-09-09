@@ -94,10 +94,15 @@ Cargo retains downloaded registry indexes and crate archives in `CARGO_HOME`, so
 ### Profiling the full test suite
 
 Stable Rust libtest does not expose a per-test timing callback or its nightly JSON event stream.
-The repository timing collector therefore runs the same suite serially, streams each normal
-libtest completion line as it arrives, and measures the wall time between completion events.
+The repository timing collector therefore runs the suite serially, streams each normal libtest
+completion line as it arrives, and measures the wall time between completion events. Compiler-
+owned aggregate drivers may additionally write nested timing records to the collector-provided
+`TERRANE_TEST_TIMING_FILE`: the conformance driver uses this channel to report every manifest case
+separately. When nested records are present, the scoreboard removes the enclosing
+`every_manifest_drives_a_conformance_case` measurement instead of displaying one opaque total.
 
-From the repository root, run the complete workspace suite and record every observed test with:
+From the repository root, run the complete workspace suite and record every ordinary test and
+every conformance case with:
 
 ```sh
 python docs/measure-test-times.py -- --workspace
@@ -105,10 +110,10 @@ python docs/measure-test-times.py -- --workspace
 
 Do not run another Cargo build or test process at the same time: competing work makes the timings
 less useful. The command returns Cargo's exit status, merges bounded timing history into
-`docs/test-scoreboard.yaml`, and regenerates the self-contained
-`docs/test-scoreboard.html`. The YAML retains the command, revision, Rust version, host, platform,
-whole Cargo duration, summed serial test duration, and the latest eight measurements per test.
-Commit both scoreboard files together after reviewing the run.
+`docs/test-scoreboard.yaml`, and regenerates the self-contained `docs/test-scoreboard.html`. The
+YAML retains the command, revision, Rust version, host, platform, whole Cargo duration, summed
+serial test/case duration, and the latest eight measurements per entry. Commit both scoreboard
+files together after reviewing the run.
 
 Serial execution makes individual measurements attributable on the pinned stable toolchain, but
 it can be slower and can behave differently from the normal parallel suite. It is a periodic

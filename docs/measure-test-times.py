@@ -6,10 +6,12 @@ from __future__ import annotations
 import argparse
 import datetime as dt
 import platform
+import os
 import re
 import subprocess
 import sys
 import time
+import tempfile
 from pathlib import Path
 from typing import Any
 
@@ -24,6 +26,7 @@ RUNNING_RE = re.compile(
 DOCTEST_RE = re.compile(r"^\s*Doc-tests (\S+)\s*$")
 COUNT_RE = re.compile(r"^running \d+ tests?$")
 RESULT_RE = re.compile(r"^test (.+) \.\.\. (ok|FAILED|ignored)$")
+TIMING_RECORD_PREFIX = "terrane-test-timing-v1"
 HISTORY_LIMIT = 8
 RUN_LIMIT = 12
 
@@ -51,10 +54,13 @@ def base_scoreboard() -> dict[str, Any]:
         "title": "Terrane test timing scoreboard",
         "metadata": {
             "description": (
-                "Serial wall-clock measurements from stable Rust libtest. Durations include small "
-                "runner and output overhead and are intended for relative development feedback."
+                "Serial wall-clock measurements from stable Rust libtest plus compiler-owned "
+                "nested case timings. Durations include small runner and output overhead and are "
+                "intended for relative development feedback."
             ),
-            "timing_mode": "cargo test with --test-threads=1; elapsed time between result events",
+            "timing_mode": (
+                "cargo test with --test-threads=1; libtest completion deltas plus nested timing records"
+            ),
             "history_limit": HISTORY_LIMIT,
         },
         "runs": [],
@@ -77,52 +83,96 @@ def normalized_target(description: str, executable: str | None = None) -> str:
     return description
 
 
+def nested_timings(path: Path) -> list[dict[str, Any]]:
+    measured: list[dict[str, Any]] = []
+    for line in path.read_text(encoding="utf-8").splitlines():
+        fields = line.split("\t")
+        if len(fields) != 5 or fields[0] != TIMING_RECORD_PREFIX:
+            continue
+        _, kind, name, status, seconds = fields
+        if kind != "conformance" or status not in {"passed", "failed", "ignored"}:
+            continue
+        measured.append(
+            {
+                "id": f"conformance cases [terrane_compiler]::{name}",
+                "target": "conformance cases [terrane_compiler]",
+                "name": name,
+                "kind": "nested",
+                "status": status,
+                "seconds": round(float(seconds), 6),
+            }
+        )
+    return measured
+
+
 def run_tests(cargo_args: list[str]) -> tuple[int, float, list[dict[str, Any]], list[str]]:
     command = ["cargo", "test", *(cargo_args or ["--workspace"]), "--", "--test-threads=1"]
+    timing_file = tempfile.NamedTemporaryFile(prefix="terrane-test-timings-", delete=False)
+    timing_path = Path(timing_file.name)
+    timing_file.close()
+    environment = os.environ.copy()
+    environment["TERRANE_TEST_TIMING_FILE"] = str(timing_path)
     started = time.monotonic()
-    process = subprocess.Popen(
-        command,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.STDOUT,
-        text=True,
-        bufsize=1,
-    )
-    assert process.stdout is not None
-    target = "unknown test binary"
-    previous_event = started
     measured: list[dict[str, Any]] = []
-    for line in process.stdout:
-        print(line, end="", flush=True)
-        text = line.rstrip("\n")
-        running = RUNNING_RE.match(text)
-        if running:
-            target = normalized_target(running.group(1), running.group(2))
-            previous_event = time.monotonic()
-            continue
-        doctest = DOCTEST_RE.match(text)
-        if doctest:
-            target = f"doc tests [{doctest.group(1)}]"
-            previous_event = time.monotonic()
-            continue
-        if COUNT_RE.match(text):
-            previous_event = time.monotonic()
-            continue
-        result = RESULT_RE.match(text)
-        if result:
-            now = time.monotonic()
-            status = {"ok": "passed", "FAILED": "failed", "ignored": "ignored"}[result.group(2)]
-            name = result.group(1)
-            measured.append(
-                {
-                    "id": f"{target}::{name}",
-                    "target": target,
-                    "name": name,
-                    "status": status,
-                    "seconds": round(max(0.0, now - previous_event), 6),
-                }
-            )
-            previous_event = now
-    return process.wait(), time.monotonic() - started, measured, command
+    try:
+        process = subprocess.Popen(
+            command,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            text=True,
+            bufsize=1,
+            env=environment,
+        )
+        assert process.stdout is not None
+        target = "unknown test binary"
+        previous_event = started
+        for line in process.stdout:
+            print(line, end="", flush=True)
+            text = line.rstrip("\n")
+            running = RUNNING_RE.match(text)
+            if running:
+                target = normalized_target(running.group(1), running.group(2))
+                previous_event = time.monotonic()
+                continue
+            doctest = DOCTEST_RE.match(text)
+            if doctest:
+                target = f"doc tests [{doctest.group(1)}]"
+                previous_event = time.monotonic()
+                continue
+            if COUNT_RE.match(text):
+                previous_event = time.monotonic()
+                continue
+            result = RESULT_RE.match(text)
+            if result:
+                now = time.monotonic()
+                status = {
+                    "ok": "passed",
+                    "FAILED": "failed",
+                    "ignored": "ignored",
+                }[result.group(2)]
+                name = result.group(1)
+                measured.append(
+                    {
+                        "id": f"{target}::{name}",
+                        "target": target,
+                        "name": name,
+                        "kind": "libtest",
+                        "status": status,
+                        "seconds": round(max(0.0, now - previous_event), 6),
+                    }
+                )
+                previous_event = now
+        exit_code = process.wait()
+        measured.extend(nested_timings(timing_path))
+    finally:
+        timing_path.unlink(missing_ok=True)
+    if any(test.get("kind") == "nested" for test in measured):
+        measured = [
+            test
+            for test in measured
+            if test["name"] != "every_manifest_drives_a_conformance_case"
+        ]
+    return exit_code, time.monotonic() - started, measured, command
 
 
 def command_text(command: list[str]) -> str:
@@ -133,8 +183,18 @@ def command_text(command: list[str]) -> str:
 def update_scoreboard(
     data: dict[str, Any], measured: list[dict[str, Any]], command: list[str], elapsed: float, exit_code: int
 ) -> dict[str, Any]:
+    data["metadata"] = base_scoreboard()["metadata"]
     measured_at = dt.datetime.now(dt.UTC).replace(microsecond=0).isoformat().replace("+00:00", "Z")
-    prior = {test["id"]: test for test in data.get("tests", []) if isinstance(test, dict)}
+    replacing_aggregate = any(result.get("kind") == "nested" for result in measured)
+    prior = {
+        test["id"]: test
+        for test in data.get("tests", [])
+        if isinstance(test, dict)
+        and not (
+            replacing_aggregate
+            and test.get("name") == "every_manifest_drives_a_conformance_case"
+        )
+    }
     for result in measured:
         old = prior.get(result["id"], {})
         history = [

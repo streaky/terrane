@@ -75,6 +75,54 @@ impl Drop for ConformanceBuild {
     }
 }
 
+struct CaseTiming {
+    output: Option<PathBuf>,
+    name: String,
+    started: std::time::Instant,
+    passed: bool,
+}
+
+impl CaseTiming {
+    fn new(case: &Path) -> Self {
+        Self {
+            output: std::env::var_os("TERRANE_TEST_TIMING_FILE").map(PathBuf::from),
+            name: case
+                .strip_prefix(corpus())
+                .unwrap_or(case)
+                .to_string_lossy()
+                .replace('\\', "/"),
+            started: std::time::Instant::now(),
+            passed: false,
+        }
+    }
+
+    fn pass(&mut self) {
+        self.passed = true;
+    }
+}
+
+impl Drop for CaseTiming {
+    fn drop(&mut self) {
+        let Some(output) = &self.output else {
+            return;
+        };
+        let Ok(mut output) = fs::OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open(output)
+        else {
+            return;
+        };
+        let status = if self.passed { "passed" } else { "failed" };
+        let _ = writeln!(
+            output,
+            "terrane-test-timing-v1\tconformance\t{}\t{status}\t{:.6}",
+            self.name,
+            self.started.elapsed().as_secs_f64()
+        );
+    }
+}
+
 fn copy_package_fixture(source: &Path, destination: &Path) {
     fs::create_dir_all(destination).unwrap();
     for entry in fs::read_dir(source).unwrap() {
@@ -166,6 +214,7 @@ fn every_manifest_drives_a_conformance_case() {
     assert!(!manifests.is_empty());
     for manifest_path in manifests {
         let case = manifest_path.parent().unwrap();
+        let mut timing = CaseTiming::new(case);
         let manifest = fs::read_to_string(&manifest_path).unwrap();
         let phase = field(&manifest, "phase").unwrap();
         let status = field(&manifest, "status").unwrap();
@@ -236,6 +285,7 @@ fn every_manifest_drives_a_conformance_case() {
                 manifest_path.display()
             ),
         }
+        timing.pass();
     }
 }
 
