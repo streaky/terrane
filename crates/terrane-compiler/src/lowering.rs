@@ -33,10 +33,17 @@ mod prelude {
         syntax::{SyntaxKind, SyntaxNode},
     };
 
+    pub(super) use super::LoweringFailure;
     pub(super) use super::dependencies::*;
     pub(super) use super::emitter::*;
     pub(super) use super::helpers::*;
     pub(super) use super::runtime_support::*;
+}
+
+#[derive(Clone, Debug)]
+pub(crate) struct LoweringFailure {
+    pub(crate) span: crate::Span,
+    pub(crate) message: String,
 }
 
 pub(crate) use emitter::pipeline::lower;

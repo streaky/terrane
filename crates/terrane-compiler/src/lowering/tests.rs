@@ -44,3 +44,32 @@ fn lowering_registry_reuses_identical_semantic_sites() {
     assert_eq!(first, second);
     assert_eq!(registry.sites.borrow().len(), 1);
 }
+
+#[test]
+fn unsupported_reference_address_shape_returns_a_lowering_failure() {
+    fn replace_reference_operand(node: &mut crate::syntax::SyntaxNode) -> bool {
+        if node.kind == crate::syntax::SyntaxKind::UnaryExpression
+            && let Some(operand) = node.children.last_mut()
+        {
+            operand.kind = crate::syntax::SyntaxKind::Literal;
+            return true;
+        }
+        node.children.iter_mut().any(replace_reference_operand)
+    }
+
+    let package = crate::Package::implicit(
+        PathBuf::from("case.trn"),
+        "namespace case\nfunction main;\n  value = 1\n  observer ref int = ref value\n  print; observer\n"
+            .to_owned(),
+    );
+    let mut semantic = crate::semantics::analyze(&package).expect("source must pass semantics");
+    assert!(replace_reference_operand(&mut semantic.units[0].tree.root));
+
+    let Err(failure) = super::lower(&semantic) else {
+        panic!("unsupported address lowering must not produce a program");
+    };
+    assert_eq!(
+        failure.message,
+        "validated reference expression `value` has no native address lowering"
+    );
+}

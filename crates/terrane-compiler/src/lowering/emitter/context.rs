@@ -820,7 +820,15 @@ impl Emitter<'_> {
                 operand,
             );
         }
-        unreachable!("validated reference provenance has a lowerable owner path")
+        let message = format!(
+            "validated reference expression `{}` has no native address lowering",
+            self.text(operand)
+        );
+        self.failure.get_or_insert(LoweringFailure {
+            span: operand.span,
+            message,
+        });
+        "{ compile_error!(\"internal reference-address lowering failure\") }".to_owned()
     }
 
     pub(super) fn reference_backed_name(&self, node: &SyntaxNode) -> Option<&TypedBinding> {

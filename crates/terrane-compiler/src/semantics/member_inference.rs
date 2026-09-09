@@ -25,7 +25,6 @@ pub(super) fn descriptor_protocol_method<'a>(
     identity: &ObjectIdentity,
     member: &str,
 ) -> Option<&'a FunctionContract> {
-    descriptor_contract(unit, identity)?;
     object_method_contract(unit, identity, member, false)
 }
 

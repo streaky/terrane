@@ -1107,7 +1107,7 @@ pub(super) fn validate_referenced_replacements(
                 &unit.source,
                 "T0059",
                 format!(
-                    "reference to owner `{owner_name}`{path} remains in use after this mutation, move, or replacement"
+                    "reference to owner `{owner_name}{path}` remains in use after this mutation, move, or replacement"
                 ),
                 lifetime_end,
             ));
