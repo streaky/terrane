@@ -199,6 +199,7 @@ impl Package {
         };
         let root = manifest_path
             .parent()
+            .filter(|parent| !parent.as_os_str().is_empty())
             .unwrap_or_else(|| Path::new("."))
             .to_path_buf();
         let text = fs::read_to_string(&manifest_path).map_err(|error| {

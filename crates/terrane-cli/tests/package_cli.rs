@@ -93,6 +93,17 @@ fn manifest_file_and_package_directory_use_the_shared_cli_pipeline() {
         .find(|path| path.file_name().is_some_and(|name| name == ".trn"))
         .unwrap();
     assert_eq!(build_root.parent(), Some(package.0.as_path()));
+
+    let relative_manifest_build = Command::new(executable)
+        .current_dir(&package.0)
+        .args(["build", "package.toml"])
+        .output()
+        .unwrap();
+    assert!(
+        relative_manifest_build.status.success(),
+        "{}",
+        String::from_utf8_lossy(&relative_manifest_build.stderr)
+    );
     let generated_project = fs::read_dir(build_root.join("build"))
         .unwrap()
         .next()
