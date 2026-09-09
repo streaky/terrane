@@ -18,6 +18,7 @@ fn forwarded_method_return_type(
             .map(|result| rust_value_type(package, result))
     }
 }
+
 fn canonical_field_default(package: &SemanticPackage, value_type: &ValueType) -> Option<String> {
     match canonical_default(value_type)? {
         CanonicalDefault::BoolFalse => Some("false".to_owned()),
