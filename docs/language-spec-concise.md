@@ -21,6 +21,7 @@ SELF_HEAL_RULE: when this reference is missing or unclear and SOURCE_OF_TRUTH re
 | classes/protocols | `OBJECT_MODEL` | §§9, 18 |
 | packages/interop | `PACKAGE`, `RUST`, `FOREIGN` | §§23–24 |
 | async/targets | `ASYNC`, `TARGET` | §§21–22 |
+| application testing | `TESTING` | §31.5 |
 | compiler work | `COMPILER` | §§26–33, 36, 38 |
 | unsettled/deferred | `OPEN`, `DEFERRED` | §§40, 42 |
 | constitutional rules | `INVARIANT` | §41 |
@@ -931,6 +932,29 @@ prelude = true            # optional; defaults true
 - Package import does not imply runtime mutation.
 - Dependency graph/order deterministic.
 - Separate compilation honors published representation/ABI; downstream cannot silently respecialize upstream public layout.
+
+## TESTING
+
+```yaml
+command: terrane test [package-or-source]
+implementation: public framework/case execution/reporting in bundled Terrane /core/testing; compiler owns discovery, typed registry generation, shared lowering, and narrow host isolation/capture
+discovery: conventional tests/unit | tests/integration | tests/end-to-end roots; optional manifest overrides; top-level zero-parameter test-* functions; sync/async/throwing
+order: tier, logical path, source order, function name; filters change execution only, never compilation
+unit: package source set; ordinary namespace-private access only in the declaring namespace
+integration: external consumer view; public package surface only
+end_to_end: drive actual built artifact through explicit lossless args/env/input/deadline and bounded stdout/stderr process fixture
+test_profile: explicit manifest selection; defaults to ordinary package profile; testing never grants omitted capabilities
+entrypoint: generated runner main is compiler-owned; ordinary programs/scripts still require authored parameterless main
+isolation: one fresh working directory and process per selected case by default; crash/exit/timeout cannot suppress later cases
+assertions: assert | deny | fail | typed equal/not-equal | optional present/none | float near with tolerance | typed assert-throws | skip
+assertion_invariants: operands evaluated once; exact source retained; concrete types stay static; no universal boxed test value; rendering honors explicit display/test-value and secrecy contracts
+reporting: deterministic human plus versioned machine report; pass/fail/skip/timeout/crash/compile/infrastructure states; bounded captured output
+non_goals_initial: new test declaration grammar, decorators, parameterized-test syntax, automatic retry, snapshot rewriting, mock generation, matcher DSL
+host_boundary: no Cargo test target, Rust #[test], or libtest semantics; Rust only for compiler CLI and irreducible process/filesystem/clock ABI
+```
+
+The compiler's own conformance, compile-fail, lowering-golden, diagnostic, and host implementation
+tests remain distinct. `/core/testing` is the first-party framework for code authored in Terrane.
 
 ## CORE LIBRARY PRINCIPLE
 

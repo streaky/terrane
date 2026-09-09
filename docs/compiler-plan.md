@@ -43,12 +43,12 @@ Version one still does not need universal dynamic values, source-declared generi
 1. **Tests define implemented behavior.** The design draft informs the implementation, but an executable conformance case is required before a feature is considered supported.
 2. **No dependency on `demos/`.** CI must neither compile nor parse files from `demos/` unless a future, explicitly named demo-specific job is introduced.
 3. **Vertical slices before breadth.** Establish `source -> Rust -> Cargo -> executable` early, then expand the language through end-to-end slices.
-4. **One semantic path.** `check`, `run`, `build`, and `rust` share the same frontend and semantic pipeline. Commands must not grow separate parsers or validators.
+4. **One semantic path.** `check`, `run`, `build`, and `rust` — and `test` when delivered — share the same frontend and semantic pipeline. Commands must not grow separate parsers or validators.
 5. **No silent repair.** Invalid Terrane is rejected at its source span. The compiler must not reinterpret failed syntax as a nearby construct merely to continue.
 6. **Deterministic output.** The same source, compiler version, target, and declared inputs produce byte-identical generated source and manifests.
 7. **Readable lowering.** Generated Rust is a public debugging surface, not opaque compiler debris.
 8. **Narrow runtime.** Statically known fixed-width scalars and functions lower directly to Rust types and calls where Rust preserves the complete Terrane contract; core `int` uses the narrowest exact representation required by its adaptive semantics. The first compiler must not introduce a universal boxed `Value` as a shortcut.
-9. **Standard facilities are written in Terrane.** The Rust core stays deliberately minimal. Document formats, networking protocols, compression framing, date and time arithmetic, paths, CLI parsing, and logging are Terrane packages over that core, not Rust support crates. A Rust support crate is permanently opaque to the compiler, so implementing a facility in Rust forecloses inlining, specialisation, and whole-program analysis for it forever; it also loses the readable Terrane frames the diagnostics contract requires. The boundary runs per layer rather than per facility: Rust owns the layer that is a syscall or ABI boundary, carries a guarantee the optimiser would destroy, is a large audited security-critical implementation, or is generated data — and a layer claiming to be Rust states which of the four applies. Everything above it is Terrane. Core libraries reach Rust through the ordinary dependency mechanism, so they carry no privileged path and double as worked examples. Two consequences are load-bearing rather than incidental: package-level artifact caching, because a source-form standard library would otherwise be recompiled by every build, and capability profiles expressed as which packages are present rather than which crates were compiled in.
+9. **Standard facilities are written in Terrane.** The Rust core stays deliberately minimal. Document formats, networking protocols, compression framing, date and time arithmetic, paths, CLI parsing, logging, and application testing are Terrane packages over that core, not Rust support crates. A Rust support crate is permanently opaque to the compiler, so implementing a facility in Rust forecloses inlining, specialisation, and whole-program analysis for it forever; it also loses the readable Terrane frames the diagnostics contract requires. The boundary runs per layer rather than per facility: Rust owns the layer that is a syscall or ABI boundary, carries a guarantee the optimiser would destroy, is a large audited security-critical implementation, or is generated data — and a language-visible facility uses that minimum layer from ordinary Terrane source. Every layer implemented in Rust must state which justification applies. “Performance” alone is insufficient without a measurement proving the Terrane implementation cannot lower equivalently.
 
 ## 4. Proposed repository layout
 
@@ -350,6 +350,105 @@ site or `?`; reflection distinguishes the written bound from the inferred concre
 accepted forms have deterministic canonical formatting, generated-Rust goldens, compiled crates,
 and runtime evidence.
 
+### Milestone 27.1 — Terrane-native testing framework
+
+Terrane programs need a first-party way to test Terrane behavior without translating their
+contracts into Rust tests or depending on Rust's `libtest` harness. This milestone builds one
+`terrane test` path over the ordinary compiler pipeline. The public framework and case execution
+logic are bundled Terrane source under `/core/testing`; Rust remains limited to the compiler CLI,
+process isolation/capture, clocks, and host filesystem operations that cannot be expressed above
+the existing platform ABI.
+
+Milestone 26.2 precedes this work because `assert-throws` and throwing test callbacks must retain an
+exact callable throwable bound. Milestones 19, 22, and 26 already provide the async, filesystem,
+process, profile, and system foundations needed by isolated integration and end-to-end tests.
+
+#### Test discovery and tiers
+
+Deliver:
+
+- `terrane test [package-or-source]` using the same package loading, semantic analysis, Rust IR,
+  Cargo generation, cache, warning policy, and source diagnostics as `check`, `build`, and `run`;
+- conventional `tests/unit`, `tests/integration`, and `tests/end-to-end` roots, with optional
+  manifest overrides that remain bounded package inputs and enter the build/cache identity;
+- discovery of top-level zero-parameter `test-*` functions in those roots, including `async`
+  functions, in deterministic tier, logical-path, source-order, and function-name order;
+- a compiler-generated test registry and native runner entrypoint. Test units do not author a
+  second `main`; ordinary programs and executable scripts retain their required parameterless
+  top-level `main`;
+- unit tests compiled with the package source set and namespace-private access only when they
+  declare the namespace that owns that state; integration tests compiled as external consumers of
+  public package surfaces; and end-to-end tests driving the built application artifact through an
+  explicit process fixture;
+- a source-oriented diagnostic for an invalid test signature, duplicate fully qualified test
+  identity, test-only dependency leak into production, or inaccessible unit/integration boundary.
+
+Discovery is compiler-owned metadata, not a new declaration grammar or annotation system. A test is
+an ordinary Terrane function that can also be called by another Terrane function. Filtering changes
+which valid tests execute, never which test sources are compiled and checked.
+
+#### Terrane testing surface
+
+Provide the main framework as bundled Terrane source in `/core/testing`:
+
+- `test-failure` and `test-skip` throwable classes carrying message, assertion source, and bounded
+  structured details;
+- boolean `assert` and `deny`, explicit `fail`, equality/inequality assertions, optional
+  present/none assertions, floating near-equality with an explicit tolerance, and
+  `assert-throws` over a typed callback and expected throwable descriptor;
+- assertion forms that evaluate every supplied expression exactly once and report the authored
+  assertion site. Equality remains the language's typed equality rather than string comparison;
+  concrete operand types stay statically known and must not be routed through a universal boxed
+  value merely to make the API generic;
+- useful failure rendering for values that implement ordinary display or the
+  `/core/testing::test-value` protocol, with type and source information retained when a value is
+  intentionally not renderable. Secret/redacted values must never be revealed by a failed assertion;
+- `skip; reason`, per-test timeout/deadline access, a unique temporary directory, controlled
+  environment and argument fixtures, and deterministic pseudo-random seed access;
+- end-to-end process fixtures that take an artifact, lossless arguments/environment, optional
+  standard input, and deadline, then return exact exit status plus captured stdout and stderr.
+  The host spawn/capture primitive is a narrow audited adapter; orchestration and assertions remain
+  Terrane;
+- a named test profile selected through the manifest, defaulting to the package's ordinary profile
+  without silently adding capabilities. Temporary directories and child-process fixtures require
+  the same explicit filesystem/process grants as ordinary Terrane code;
+
+Ordinary Terrane control flow supplies table-driven tests and local setup/cleanup. The initial
+framework does not add parameterized-test syntax, decorators, automatic retries, snapshot rewriting,
+mock generation, or a second matcher DSL. Those can be considered only after real suites show that
+functions, loops, callbacks, `try`/`finally`, and the core assertions are insufficient.
+
+#### Isolation, reporting, and command behavior
+
+Deliver:
+
+- compile each tier once, then execute every selected case in an isolated process by default so an
+  explicit exit, panic, timeout, leaked global state, or malformed end-to-end child cannot prevent
+  later cases from running;
+- a fresh working directory and test context per case, bounded stdout/stderr capture, deterministic
+  ordering of the final report, and explicit cleanup even when a case fails or times out;
+- bounded parallel execution through `--jobs`, stable substring filtering, `--list`, `--fail-fast`,
+  and an explicit per-case timeout; scheduling may vary but report order and identities may not;
+- concise human output by default, captured output on failure with an opt-in successful-output view,
+  and a versioned machine-readable report containing case identity, tier, status, duration, source,
+  structured failure/cause, stdout, and stderr;
+- distinct passed, failed, skipped, timed-out, crashed, compile-failed, and infrastructure-failed
+  states. Zero exit means every selected executable case passed or explicitly skipped; assertion,
+  uncaught throwable, timeout, crash, and unexpected process result are test failures, while
+  compiler and infrastructure failures retain their existing distinct CLI exit classes;
+- no dependency on Cargo's test target model, Rust `#[test]`, or `libtest`. Generated Rust may use
+  ordinary native functions and executables, but Rust testing infrastructure is not the semantic
+  runner for Terrane code.
+
+Exit criterion: one purpose-built package runs unit, integration, asynchronous, and end-to-end tests
+written entirely in Terrane; demonstrates every initial assertion category, skip, failure, timeout,
+temporary-directory isolation, argument/environment control, stdout/stderr capture, and deterministic
+filter/report behavior; proves private unit access and public-only integration access; and shows that
+one crashing or exiting test does not suppress later results. The framework's own behavioral suite
+must be Terrane tests run by `terrane test`, while compiler discovery/lowering and the narrow host
+adapter retain focused Rust implementation tests. Generated runners compile with warnings denied,
+and accepted framework cases carry canonical generated-Rust evidence.
+
 ### Milestone 28 — First-version hardening and release gate
 
 Deliver:
@@ -568,6 +667,7 @@ Section 7 is the authoritative remaining-work list. In milestone order, the open
 - finish the foundational floating-point member set (milestone 25.3);
 - implement destination-directed specialization of closed projected results (milestone 25.4);
 - add throwable bounds to function types (milestone 26.2);
+- deliver the Terrane-native unit, integration, and end-to-end testing framework (milestone 27.1);
 - complete the release hardening gate (milestone 28); and
 - turn projection artifact resolution into a release-owned bundled, relocatable, and offline
   distribution channel (milestone 28.1).

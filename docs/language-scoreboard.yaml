@@ -1441,6 +1441,20 @@ features:
   sources:
   - docs/language-spec-concise.md#LOGGING
   - docs/compiler-plan.md#Milestone 27
+- id: terrane-testing-framework
+  name: Terrane-native testing framework
+  category: stdlib
+  status: planned
+  completion: 0
+  milestone: '27.1'
+  reference:
+    state: planned
+    paths:
+    - manual/reference/records/standard-library/testing.yaml
+  notes: Will provide Terrane-authored unit, integration, and end-to-end testing with typed assertions, deterministic discovery/reporting, and process-isolated execution through terrane test rather than Rust libtest.
+  sources:
+  - docs/language-spec-concise.md#TESTING
+  - docs/compiler-plan.md#Milestone 27.1
 - id: rust-lowering
   name: Deterministic readable Rust lowering
   category: interop

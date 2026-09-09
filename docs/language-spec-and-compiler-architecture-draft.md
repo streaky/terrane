@@ -5656,9 +5656,44 @@ Docs should identify whether an API is implemented in source, generated Rust, ha
 
 ### 31.5 Testing
 
-Testing is ordinary source code plus a standard test object/framework.
+Terrane application tests are ordinary Terrane source plus the bundled `/core/testing` framework;
+they do not require Rust `#[test]`, Cargo test targets, or the `libtest` harness. The public assertion,
+fixture, outcome, and reporting behavior is written in Terrane. The compiler and CLI own only
+test-root discovery, typed registry generation, native process isolation/capture, and the same
+source-to-Rust build pipeline used by ordinary commands.
 
-The compiler should also support compile-pass and compile-fail tests with expected source diagnostics.
+`terrane test` discovers top-level zero-parameter `test-*` functions from declared unit,
+integration, and end-to-end roots. Test functions may be synchronous, asynchronous, or throwing.
+They remain ordinary callable functions rather than a new declaration kind. The generated test
+runner supplies its own compiler-owned entrypoint; this does not relax the authored `main`
+requirement for ordinary programs or executable scripts.
+
+Unit tests join the package source set and receive only the namespace-private access their declared
+namespace ordinarily permits. Integration tests consume the package through its public surface.
+End-to-end tests drive the built application artifact through an explicit process fixture with
+lossless arguments and environment, optional input, deadline, exit status, and bounded stdout/stderr
+capture. Each selected case runs in a fresh working directory and isolated process by default.
+
+The initial framework provides boolean assertion and denial, explicit failure, typed equality and
+inequality, optional present/none checks, floating near-equality with explicit tolerance, typed
+throwable assertions, explicit skip, per-case timeout/deadline state, temporary directories,
+controlled environment/arguments, and deterministic pseudo-random seeds. Assertions evaluate each
+operand exactly once, preserve the authored source site, retain statically known operand types, and
+never introduce a universal boxed value merely for testing. Failure rendering follows ordinary
+display or the explicit `/core/testing::test-value` protocol and preserves secrecy/redaction.
+
+Test targets use an explicitly selected manifest profile and never gain filesystem, process, network,
+clock, entropy, or concurrency capabilities merely because they are tests.
+
+Discovery and final reporting are deterministic by tier, logical path, source order, and test name.
+Filtering never hides compile errors in otherwise unselected test source. Human and versioned
+machine-readable reports distinguish pass, assertion failure, uncaught throwable, skip, timeout,
+crash, compile failure, and harness infrastructure failure. A zero command exit means every selected
+executable case passed or explicitly skipped.
+
+The compiler also retains its lower-level compile-pass, compile-fail, generated-Rust, diagnostic,
+and host implementation tests. The Terrane framework is the application-facing test system, not a
+claim that compiler implementation verification itself must be expressed through compiled Terrane.
 
 ### 31.6 Conformance suite
 
