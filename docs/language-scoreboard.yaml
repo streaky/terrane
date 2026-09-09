@@ -980,10 +980,13 @@ features:
     paths:
     - manual/reference/records/language/types/descriptors.yaml
     - manual/reference/records/language/classes/protocols.yaml
-  notes: Built-in and source-declared types share DescriptorContract identity, conformance, member inventories, stable operation IDs, reflection data, and structural protocol queries.
+  notes: Shared built-in templates and per-unit source contracts use DescriptorContract identity, conformance, member inventories, stable operation IDs, reflection data, canonical method ownership, and structural protocol queries.
   sources:
   - docs/compiler-plan.md#Milestone 16
   - tests/conformance/run/builtin-descriptor-contracts/case.trn
+  - tests/conformance/run/builtin-name-class/case.trn
+  - tests/conformance/run/composed-descriptor-identities/case.trn
+  - tests/conformance/run/same-named-cross-namespace-methods/package.toml
 - id: value-copy-semantics
   name: Value copying and COW
   category: objects

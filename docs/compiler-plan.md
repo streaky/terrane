@@ -202,8 +202,6 @@ Lower the semantic model to a small Rust-oriented IR before rendering text. The 
 
 This section contains only work that remains required by the settled version-one design. For a partially delivered milestone, its heading and exit criterion have been rewritten around the unfinished capability rather than repeating already implemented work. Requirements superseded by later language decisions are called out and excluded. Completely delivered milestones and completed portions of split milestones are retained in Appendix A.
 
-
-
 ### Milestone 25.3 — Finish the foundational floating-point surface
 
 The first two increments delivered square root, sine, cosine, sine-cosine, natural logarithm, exponential, absolute value, finite/infinite/NaN classification, minimum, maximum, and fused multiply-add for both floating widths. Complete the remaining non-scientific scalar surface.
@@ -1732,9 +1730,10 @@ canonical generated crates compile and run with warnings denied.
 ### Milestone 16 — Canonical descriptor unification
 
 Built-ins and source-declared classes, interfaces, and traits now inhabit `DescriptorContract`.
-Each semantic unit installs canonical scalar, numeric-category, string, collection, result, and
-generic built-in templates alongside source contracts. Those contracts own canonical identity,
-kind, category conformance, member inventory, stable operation IDs, and reflection metadata.
+The package shares one immutable canonical scalar, numeric-category, string, collection, result,
+and generic built-in template registry; semantic units retain only their mutable source contracts.
+Those contracts own canonical identity, kind, category conformance, member inventory, stable
+operation IDs, and reflection metadata.
 Descriptor aliases retain canonical identities rather than a second scalar-only representation.
 
 Member availability, numeric compatibility, string and collection operation selection, built-in

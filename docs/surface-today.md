@@ -11,11 +11,15 @@ Status labels:
 - **name only** — reserved in the compiler-owned namespace, but has no implemented value semantics or operations yet.
 - **source-declared** — supplied by a Terrane program rather than the prelude.
 
-Source-declared and projected class, interface, and trait types have namespace-qualified nominal identity. Import aliases preserve that identity; same-named types from different namespaces remain distinct.
-Built-ins and source-declared class, interface, and trait types share `DescriptorContract`.
-Canonical contracts carry identity, kind, category conformance, members, stable operation IDs,
-and reflection data. Member lookup, nominal relations, compatibility, dispatch, reflection, and
-structural protocols query those contracts for both built-in and source-declared receivers.
+Source-declared and projected class, interface, and trait types have namespace-qualified nominal
+identity. Named built-ins use canonical `/core` identities; synthesized composed descriptors such
+as references, callables, optionals, and unions retain canonical source-shaped spelling. Import
+aliases preserve identity, and same-named types from different namespaces remain distinct.
+Built-ins and source declarations share `DescriptorContract`, with immutable built-in templates
+kept separate from per-unit source contracts. Canonical contracts carry identity, kind, category
+conformance, members, stable operation IDs, and reflection data. Member lookup, nominal relations,
+compatibility, dispatch, reflection, and structural protocols query those contracts for both
+built-in and source-declared receivers.
 Structural source protocols recursively include base, trait, and interface composition. The
 implemented non-iteration example is `truth`: a source class with a synchronous, non-throwing,
 non-mutating, parameterless `truth bool` method may be used directly as an `if` or `while`
