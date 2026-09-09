@@ -785,8 +785,9 @@ Exit criterion: one purpose-built Terrane file produces a real executable and ex
 Implementation note: milestone zero names the intended pipeline boundaries, but its bootstrap frontend is deliberately not yet structurally separated. Its `lex` stage records logical lines rather than tokens, import and binding forms are recognized as exact supported lines, unresolved-object detection remains parser-local, and the current resolve/lower boundaries mostly transfer fields. Milestone one therefore builds the real tokenizing lexer rather than extending a complete lexer, and later milestones make resolution and typed lowering substantive.
 
 Follow-on executable-script support keeps this pipeline singular: a byte-zero shebang lets only an
-implicit single-file package use compiler-owned namespace `script`, while manifest sources retain
-namespace correspondence and every executable retains the parameterless top-level `main` contract.
+implicit single-file package omit its authored namespace, in which case the compiler supplies an
+implementation-owned namespace for that unit. Manifest sources retain namespace correspondence,
+and every executable retains the parameterless top-level `main` contract.
 The CLI treats a bare source path as `run`, forwards its remaining arguments, and reuses ordinary
 build caching. `executable-shebang-script`, `shebang-script-without-main`,
 `manifest-shebang-missing-namespace`, CLI dispatch tests, and a Unix test that executes a chmodded
