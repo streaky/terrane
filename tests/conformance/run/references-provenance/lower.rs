@@ -431,7 +431,7 @@ fn main() {
     > = values.clone();
     let observer: std::sync::Weak<
         std::sync::Mutex<terrane_collection_support::List<terrane_int_support::Int>>,
-    > = std::sync::Arc::downgrade(&values);
+    > = std::sync::Arc::downgrade(&values.clone());
     owner
         .lock()
         .expect("shared reference lock poisoned")

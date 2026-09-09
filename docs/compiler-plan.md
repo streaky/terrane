@@ -202,51 +202,28 @@ Lower the semantic model to a small Rust-oriented IR before rendering text. The 
 This section contains only work that remains required by the settled version-one design. For a partially delivered milestone, its heading and exit criterion have been rewritten around the unfinished capability rather than repeating already implemented work. Requirements superseded by later language decisions are called out and excluded. Completely delivered milestones and completed portions of split milestones are retained in Appendix A.
 
 
-### Milestone 15 — Caller-supplied conversion callbacks
+### Milestone 16 — Finish canonical descriptor unification
 
-First-class synchronous function values, closures, throwing callable values, and stored bound methods are complete. The only remaining milestone-15 surface is conversion for a source/destination pair that no descriptor declares.
+The source-object portion is delivered: classes, interfaces, and traits use
+`DescriptorContract`; their member lookup, nominal relations, conformance, dispatch, reflection,
+and structural protocol lookup consume that source contract. Iteration and `truth` now resolve
+required members through the same recursive protocol-member query, including members inherited
+from a base or supplied by trait/interface composition.
 
-Deliver:
+Remaining work:
 
-- settle the source form that supplies a typed conversion callback to the existing conversion protocol;
-- require an exact callable input and declared result compatible with the requested destination;
-- evaluate the source value and callback exactly once, preserving the callback's throwable contract;
-- lower through the existing statically typed callable ABI without a universal boxed value; and
-- reject ambiguous, incompatible, or unavailable callbacks at the source boundary rather than turning an undeclared pair into a runtime lookup failure.
+- replace the separate built-in scalar descriptor aliases, numeric contracts, string-family
+  tables, collection-family tables, and other receiver-specific dispatch with the same canonical
+  descriptor representation;
+- make built-in reflection and source-object reflection query that representation rather than
+  parallel special cases; and
+- delete the residual per-family method switches only after equivalent descriptor-driven
+  conformance and generated-Rust coverage exists.
 
-Exit criterion: accepted cases convert an otherwise undeclared pair through named, closure, and bound-method callbacks; rejected cases cover input, result, effect, and ambiguity boundaries; generated Rust proves single evaluation and uses the ordinary callable protocol.
-
-### Milestone 16 — Unify objects with the descriptor model
-
-Classes, inheritance, explicitly declared nominal interfaces, traits, lifecycle methods, and typed dynamic dispatch are complete, and the settled nominal/structural split — class, interface, and trait types nominal, protocols structural — supersedes the earlier plan’s “structural named interfaces” wording rather than remaining work.
-
-What remains is this milestone’s fourth original requirement, dispatch and compatibility over the descriptor model rather than a parallel class table, which did not ship alongside the class work. Source objects are described by a compiler-owned object contract table that semantic analysis and lowering read directly at every member, conformance, dispatch, and emission site. The descriptor model it was meant to defer to admits only the built-in `/core/types` descriptors and nothing declared in source, and structural satisfaction exists only as per-protocol special cases such as the iteration check. The canonical model therefore has to be built before object semantics can be routed through it; this is a deferred design constraint being paid back, not new source-visible capability beyond general protocol satisfaction.
-
-Deliver:
-
-- a canonical descriptor representation for source-declared classes, interfaces, and traits, admitting declared objects into the same model that today holds only built-in descriptors;
-- structural protocol satisfaction as a general query over that model, with the existing iteration protocol re-expressed as one instance of it rather than a hardcoded result-shape check;
-- member lookup, type compatibility, interface conformance, dispatch metadata, and reflection answered from the canonical model, retiring the compiler-owned object contract table from semantic analysis and lowering rather than maintaining it alongside them; and
-- namespace-qualified nominal identity, inherited dynamic state, receiver mutability, lifecycle composition, and explicit trait conflict resolution preserved across the cutover.
-
-Exit criterion: a source class satisfies a structural protocol other than iteration without declaring an interface; no parallel object contract table decides source semantics; existing class/interface/trait conformance remains executable unchanged; protocol satisfaction and descriptor reflection answer from the same canonical contracts; rejected cases retain source-oriented diagnostics.
-
-### Milestone 17 — Complete references, provenance, and lowering
-
-The source forms `ref`, `shared ref`, and `move`, replacement invalidation, explicit ownership transfer, reference-backed storage, and directly provable async-local ownership are complete. The remaining work is whole-path provenance and the intended cost model, neither of which exists yet in partial form.
-
-Provenance has no representation today: a reference type carries its pointee type and nothing about where it came from. In place of a proof, `ref` is admitted only where provenance is trivial — a plain name bound to a local binding — and every other origin is refused, as is every returned reference. The narrow accepted set is not a partial analysis to extend but a stand-in for the analysis, so the proof has to be introduced before the constructs below can be admitted at all. The representation is likewise provisional rather than incomplete: `ref` and `shared ref` lower uniformly to weak and strong reference-counted handles under a mutex, every read upgrades, locks, and clones the owner, and an expired reference panics at run time where the language promises a source-level rejection.
-
-Deliver:
-
-- a provenance representation in the semantic model, recording each non-owning reference’s originating owner and the operations that end its lifetime;
-- admission of derived references as that proof covers them — through parameters, returns, fields, member access, indexing, iteration, destructuring, calls, capture, and async suspension — replacing the present blanket refusal of every origin other than a local named binding;
-- release and escape diagnosed at the originating owner and the lifetime-ending operation, moving expiry from a runtime panic to a source-level rejection;
-- the settled target-aware shared-cycle rule: reject provable ownership cycles where the target contract requires it, never mistake ordinary `ref` back-edges for ownership cycles, and diagnose or document runtime-created uncollectable shared cycles according to the selected target; and
-- borrow-oriented or target-specific non-owning handles wherever provenance proves them sound, retiring the uniform reference counting, locking, and clone-per-read rather than only declining to add more, and without silently promoting `ref` to shared ownership.
-
-Exit criterion: references derived from fields, elements, and call results are accepted under a complete owner proof, and returned references are decided by that proof rather than uniformly refused; every escape and post-release use is rejected in source terms instead of panicking at run time; async crossings are accepted only with a complete lender proof; cycle cases match the target contract; reviewed generated Rust reads a bounded reference without upgrading, locking, or cloning its owner.
-
+Exit criterion: built-ins and source-declared classes/interfaces/traits inhabit one canonical
+descriptor model; member lookup, compatibility, reflection, dispatch, and structural protocols
+consume that model; iteration plus `truth` prove direct, inherited, and composed protocol
+satisfaction; generated Rust remains deterministic and warning-free.
 ### Milestone 25.3 — Finish the foundational floating-point surface
 
 The first two increments delivered square root, sine, cosine, sine-cosine, natural logarithm, exponential, absolute value, finite/infinite/NaN classification, minimum, maximum, and fused multiply-add for both floating widths. Complete the remaining non-scientific scalar surface.
@@ -611,6 +588,51 @@ The first-version compiler is done only when:
 ## Appendix A. Completed milestone record
 
 This appendix keeps delivered milestone contracts and evidence out of the active roadmap. Full milestone records below are preserved as completed implementation history. Entries titled “Completed portion” contain only the delivered side of a milestone whose remaining work appears in section 7; superseded requirements are recorded as such rather than carried forward.
+
+### Milestone 17 — Complete references, provenance, and lowering
+
+Every ordinary reference now has a compiler-owned `ReferenceProvenance` record containing its
+originating owner, external-lender parameter, ordered field/element/call-result projections, and
+first lifetime-ending operation. That proof flows through parentheses, reference bindings,
+parameters, calls and returns, member and supported list/map/unordered-map index derivation,
+borrowed collection iteration, closure captures, and async liveness. Reference-return lender
+contracts are inferred from actual return flow to exactly one reference parameter and propagated
+to a fixed point through calls; parameter arity never selects a lender. Local or by-value parameter
+return, ambiguous lender flow, unsupported indexed borrow, owner invalidation followed by observer
+use, and non-owning-to-shared promotion are rejected in source terms.
+
+Native lowering emits a proved bounded reference as a Rust borrow. Selected lender contracts become
+explicit Rust lifetimes on reference-returning functions. Field and element derivation and borrowed
+list iteration preserve that borrow, so ordinary reads do not upgrade, lock, or clone the owner.
+Explicit `shared ref` continues to use synchronized reference-counted ownership, with a weak
+non-owning observer only when an ordinary reference intentionally observes that shared identity.
+The native target rejects statically provable strong `shared ref` cycles in descriptor field graphs,
+including through collection element types, while admitting acyclic shared fields. Ordinary
+reference back-edges do not create ownership edges; later mutation-created cycles outside the
+descriptor proof are non-collecting and must be broken explicitly.
+
+Evidence: `references-derived-provenance` covers direct field, element, capture, returned-call-
+result, and borrowed-iteration paths; `reference-return-selected-lender` proves a two-hop selected
+lender and its generated Rust lifetime; `reference-group-map` covers grouped list, map, and
+unordered-map element borrows; and `reference-shared-acyclic` proves an admitted acyclic shared
+field. Rejection cases cover call-result and same-type owner invalidation, map mutation, by-value
+parameter escape, unsupported indexing, non-owning promotion, and a descriptor-level shared cycle.
+Every accepted case carries canonical generated Rust.
+
+### Milestone 15 — Caller-supplied conversion callbacks
+
+Bare `value.coerce; Destination, converter` now admits an otherwise undeclared pair through one
+ordinary synchronous callable value with the exact source parameter and destination result.
+Named functions, closures, stored bound methods, and throwing function values share the existing
+typed callable ABI; the receiver and callback each evaluate once. Callback throwables participate
+in the same fixed-point inference as an ordinary call, so an undeclared `wrap` function that calls
+a throwing converter lowers to the raised-result ABI and its caller can catch the error.
+Semantic rejection assigns distinct diagnostics to arity, policy-child use, named arguments,
+non-callable values, asynchronous callbacks, source mismatch, and result mismatch.
+
+Evidence: `coercion-callback` runs named, closure, stored-bound-method, inferred-throwing wrapper,
+and single-evaluation paths with canonical generated Rust. The `coercion-callback-*` rejection
+cases cover every callback boundary above, including named and non-callable arguments.
 
 ### Milestone 0 — Toolchain skeleton and executable corpus
 
@@ -1608,41 +1630,6 @@ descriptors. `descriptor-runtime-value` exercises inline `.type` materialization
 `type-named-field` proves declared object members take precedence over universal reflection. Their
 canonical generated crates compile and run with warnings denied.
 
-
-### Completed portion of Milestone 15 — Function values and closures
-
-Typed synchronous function values cross binding and parameter boundaries; anonymous functions capture resolver-selected outer values once; stored bound methods capture their receiver once. Throwing and non-throwing callables use one statically typed result-bearing ABI, with `Arc<dyn Fn>` only at erased callable boundaries rather than a universal runtime value. Conformance executes closures, bound methods, and a named throwing function passed through a higher-order function.
-
-### Completed portion of Milestone 16 — Classes, nominal interfaces, and traits
-
-Source classes implement typed instance/static fields and methods, explicit construction, independently stored state, lifecycle hooks, mutating and immutable receivers, deep single inheritance, late-bound `self`, inherited interface conformance, declared nominal interfaces, typed dispatch wrappers, and trait reuse with explicit conflicts. Value copies create fresh lifecycle lineages while transfers preserve one lineage. The settled specification supersedes the original “structural named interfaces” phrase: named class/interface/trait identity is nominal and namespace-qualified; structural satisfaction belongs to protocols.
-
-Construct/destruct contract:
-
-```markdown
-Ordinary declared methods with compiler-recognized lifecycle roles. That preserves the object model while still letting the compiler guarantee invocation at the right times.
-
-`construct`
-
-- called only by the explicit `instance class; arguments` operation;
-- may take parameters (though it does not have to);
-- runs after storage exists but before the instance becomes externally observable;
-- if it throws, partially initialized state is cleaned up deterministically.
-
-`destruct`
-
-- zero-argument;
-- invoked exactly once for an owned instance when its lifetime ends;
-- is not invoked automatically on a value whose ownership was moved away;
-- cannot throw in version one, because destruction during an active error path must not replace or obscure that error.
-
-`construct` / `destruct` are ordinary declared methods with compiler-recognized lifecycle roles.
-The paired Terrane terminology is retained instead of Rust's `drop`.
-```
-
-### Completed portion of Milestone 17 — Reference and ownership foundation
-
-The typed pipeline exposes non-owning `ref T`, owning `shared ref T`, and explicit `move`. Conformance covers local-owner references, scalar/member access, shared mutation, ownership transfer, temporary and parameter-source rejection, return escape, replacement invalidation, shared-owner survival after replacement, and reference-backed collection storage. Direct async-local owners are accepted when they remain in the task frame without replacement or transfer. The current clone-per-read representation is a correctness foundation, not the final cost model.
 
 ### Milestone 18 — Callable contracts, errors, and reflection
 

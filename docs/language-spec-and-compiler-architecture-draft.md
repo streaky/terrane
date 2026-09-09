@@ -1908,13 +1908,15 @@ Floating values expose the zero-argument methods `round`, `floor`, `ceiling`, an
 
 No floating-to-integer pair is declared on `coerce`, because choosing an integer for a fractional value requires a rounding mode and `coerce` never takes one. `ratio.coerce; int` is therefore absent from the type, while `count int = ratio` is admitted under §17.7 and `ratio.round;` invokes the chosen policy. This is the one place where a destination admits a conversion the written family does not offer, and it is deliberate: the destination rule is exact-or-throw and needs no mode, whereas any written alternative would have to name one.
 
-Conversions are declared rather than universal. A descriptor declares the source/destination pairs it supports, and `coerce` attaches exactly where a declaration exists, so an undeclared pair is absent from the type rather than a runtime failure. Declaration coherence — what happens when two protocols declare the same pair, and whether a declaration may be added for a type the author does not own — is part of the conversion-protocol contract. A caller-supplied conversion callback is admitted for pairs no descriptor declares, and therefore cannot precede first-class function values.
+Conversions are declared rather than universal. A descriptor declares the source/destination pairs it supports, and `coerce` attaches exactly where a declaration exists, so an undeclared pair is absent from the type rather than a runtime failure. Declaration coherence — what happens when two protocols declare the same pair, and whether a declaration may be added for a type the author does not own — is part of the conversion-protocol contract.
+
+An undeclared pair may instead use the explicit caller-supplied form `value.coerce; Destination, converter`. Both arguments are positional. `converter` is an ordinary synchronous callable value whose type must be exactly `function from Source to Destination`: it accepts one parameter compatible with the receiver's static type and returns a value compatible with the concrete destination descriptor. An asynchronous callable, a mismatched parameter or result, a named argument, or more than one callback is rejected statically. The callback form belongs only to bare `coerce`; policy children describe compiler-declared conversions and cannot be combined with it. The receiver evaluates once, the callback is invoked once, and a callback's declared throwable behavior propagates exactly as it does at an ordinary call site. This form depends on first-class function values.
 
 `bool` converts to integer destinations as a declared, total, lossless conversion: `false` is `0` and `true` is `1`. The reverse is not a conversion at all. Integer-to-`bool` is a predicate choice rather than a change of representation, and must be written as an explicit comparison.
 
 Neither the default child nor `checked` substitutes a value for a failure: an unrepresentable, unparseable, or undeclared conversion throws under the default child and returns `none` under `checked`. A total conversion that yields a fixed value on failure — `0` for an unparseable string, in the style of PHP's `intval` — is permitted only as a separately named lenient child, so the substitution is visible at the call site rather than inherited by every plain `coerce`. Such a child is optional and unspecified in version one; if it is added, its name must state that it substitutes.
 
-Parsing coercion from `string` to a numeric destination accepts the canonical text-display spelling of that destination and throws `coercion-error` when parsing fails. `coerce` takes no argument beyond its destination and must never acquire a radix or format option: acquiring one would absorb the interpretation role that belongs to `parse`, and the separation between the two would collapse. This is an invariant of the design rather than a description of the current surface.
+Parsing coercion from `string` to a numeric destination accepts the canonical text-display spelling of that destination and throws `coercion-error` when parsing fails. The compiler-declared form of `coerce` takes no argument beyond its destination and must never acquire a radix or format option: acquiring one would absorb the interpretation role that belongs to `parse`, and the separation between the two would collapse. The second argument in the caller-supplied form is solely the complete typed conversion callback, not an option interpreted by `coerce`. This is an invariant of the design rather than a description of the current surface.
 
 Interpretation in a base other than ten is a distinct operation attached by receiver: `text.radix; 16` interprets base-sixteen text and yields an adaptive `int`, while `value.radix; 16` renders a number in that base as `string`. Narrowing after interpretation is ordinary coercion and follows the call-extent rule, as in `(text.radix; 16).coerce; int8`.
 
@@ -1986,6 +1988,15 @@ Alongside the concrete descriptors, `/core/types` exports abstract category desc
 These are interface and category contracts used for member attachment, compatibility, reflection, and finite-union reasoning. None of them is a storage supertype. Like the concrete fixed-width descriptors, they are descriptor constructs available without import rather than prelude bindings: the default prelude's ordinary bindings are unchanged, and a construct name is usable in construct position directly while explicit import remains available for rebinding, aliasing, and shadowing. In particular, fixed-width integers are not subclasses of `int`: an exact destination conversion does not change the source value's concrete type or the differing arithmetic result contracts.
 
 Type objects are canonical compiler-owned descriptors with stable type identity. They are semantic objects rather than ordinary values: the backing object is real — `.type` returns it, `is a` compares it, canonical identity survives rebinding under another name, and reflection exposes it — but it is never independently constructed by source and never occupies an ordinary variable slot. Source-observable behavior must remain the same as naming the descriptor directly: `.type`, identity, compatibility queries, and operations such as `coerce` all consult the same canonical descriptor. Version one does not accept an arbitrary runtime value as a type expression or coercion destination; the value must resolve to a finite, compiler-known descriptor alternative so lowering remains statically representable.
+
+The settled version-one architecture requires built-in and source-declared descriptors to use one compiler-owned contract representation. A source
+class, interface, or trait enters that model under its namespace-qualified nominal identity; the
+same contract answers member lookup, nominal compatibility and conformance, dispatch metadata,
+reflection, and structural protocol queries. Structural protocols are requirements over descriptor
+members rather than hidden nominal interfaces. Iteration and `truth` are instances of the same
+query mechanism: a class may satisfy either from its member shape without declaring an interface.
+The compiler must not maintain a second class/object contract table whose answers can diverge from
+descriptor reflection or protocol satisfaction.
 
 ### 11.8 Union and parameterised types
 
@@ -2257,6 +2268,23 @@ observed by `alias`. Rebinding or destroying `copy` ends that identity's lifetim
 retain it. The compiler rejects any later direct use of `alias` and identifies the originating
 binding and lifetime-ending operation.
 
+The compiler represents that proof as one whole-path provenance record: the originating owner,
+whether the path reaches a reference parameter supplied by the caller, ordered field, collection-
+element, and call-result projections, and the first later operation that can end the path's
+lifetime. Parentheses preserve the same path. List, map, and unordered-map element borrows are
+admitted because their storage access has a lowering with a stable borrow for the proven lifetime;
+an index form without such a contract is rejected rather than copied or reinterpreted. Mutating a
+collection through an ordinary owner can invalidate its element paths and ends those borrows.
+Binding, passing, returning, closure capture, borrowed iteration, and an allowed async suspension
+copy or narrow the proof; none may widen it.
+
+A reference-returning callable has a lender contract derived from its body, not from parameter
+count. Its return flow must select exactly one reference parameter, including through another
+reference-returning call; analysis reaches a fixed point across such calls. A by-value parameter,
+local value, or branch that can select more than one lender cannot supply a returned reference.
+Native lowering assigns the selected parameter lifetime to the result and leaves unrelated
+reference parameters independent.
+
 `ref` aliases a logical value identity, not a lexical binding slot. Rebinding `a` does not retarget
 an existing reference to the replacement value. Binding-slot aliases are deliberately not part of
 the core language because they complicate closures, concurrency, and source reasoning.
@@ -2271,6 +2299,14 @@ b = shared ref a
 remains alive until its final ordinary or shared owner is released. This lifetime extension, and
 the possibility of shared-ownership cycles, is why `shared` appears at the construction site
 rather than being implicit in `ref`.
+
+For the current native target, `shared ref` uses reference-counted synchronized ownership. The
+compiler rejects a descriptor field graph containing a statically provable strong `shared ref`
+cycle, including a cycle through collection element types, and reports the field that closes the
+cycle. An acyclic shared field remains valid. A cycle assembled later through authored mutation
+that is not visible in the descriptor graph is not traced or collected automatically and may retain
+its members until process exit; applications must break such a cycle explicitly. Ordinary `ref`
+projections and back-edges are non-owning and are excluded from ownership-cycle edges.
 
 ### 12.5 Reference type contracts
 

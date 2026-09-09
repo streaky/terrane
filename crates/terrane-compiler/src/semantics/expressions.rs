@@ -8,7 +8,7 @@ fn channel_item_descriptor_type(unit: &SemanticUnit, name: &str) -> Option<Value
         return channel_item_descriptor_type(unit, item)
             .map(|item| ValueType::List(ElementType::new(item)));
     }
-    unit.objects
+    unit.descriptors
         .iter()
         .find(|object| object.name == name || object.identity.qualified() == name)
         .map(|object| ValueType::Object(object.identity.clone()))
@@ -100,7 +100,7 @@ pub(super) fn infer_value_type(
         }) {
             return Ok(Some(ValueType::Descriptor(scalar.source_name().to_owned())));
         }
-        if let Some(object) = unit.objects.iter().find(|object| object.name == name) {
+        if let Some(object) = unit.descriptors.iter().find(|object| object.name == name) {
             return Ok(Some(ValueType::Descriptor(object.identity.qualified())));
         }
         if let Some(binding) = bindings.iter().rev().find(|binding| {
@@ -702,7 +702,7 @@ pub(super) fn infer_value_type(
                         })?;
                         validate_value_destination(
                             &unit.source,
-                            &unit.objects,
+                            &unit.descriptors,
                             "channel-sender.send",
                             item.value_type(),
                             actual,
@@ -901,7 +901,7 @@ pub(super) fn infer_value_type(
         {
             let name = node_text(&unit.source, callee);
             if unit
-                .objects
+                .descriptors
                 .iter()
                 .any(|object| object.name == name && object.kind == ObjectKind::Class)
             {

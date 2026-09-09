@@ -1,0 +1,7 @@
+namespace coercion-callback-policy
+
+function render string; _value int
+  return 'value'
+
+function main;
+  converted = 7.coerce.checked; string, render

@@ -1,0 +1,7 @@
+namespace coercion-callback-result
+
+function convert bool; value int
+  return true
+
+function main;
+  converted = 7.coerce; string, convert

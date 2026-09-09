@@ -376,7 +376,7 @@ pub(super) fn analyze_function_contract(
                     })?;
                 validate_value_destination(
                     &unit.source,
-                    &unit.objects,
+                    &unit.descriptors,
                     node_text(&unit.source, parameter_name),
                     expected,
                     actual,
@@ -882,6 +882,46 @@ pub(super) fn infer_throwing_effects(package: &mut SemanticPackage) -> Result<()
         }
         errors
     }
+    fn callable_expression_errors(
+        unit: &SemanticUnit,
+        callable: &SyntaxNode,
+        inferred: &BTreeMap<FunctionKey, BTreeSet<String>>,
+    ) -> BTreeSet<String> {
+        if callable.kind == SyntaxKind::Name
+            && let Some(contract) = resolved_function_contract(
+                unit,
+                node_text(&unit.source, callable),
+                callable.span.start,
+            )
+        {
+            return inferred
+                .get(&key(contract.span))
+                .cloned()
+                .unwrap_or_else(|| contract.escaping_throwables.clone());
+        }
+        if callable.kind == SyntaxKind::MemberExpression
+            && let [receiver, member] = callable.children.as_slice()
+            && let Ok(Some(ValueType::Object(identity))) =
+                infer_receiver_value_type(unit, receiver, &unit.typed_bindings)
+            && let Some(contract) =
+                object_method_contract(unit, &identity, node_text(&unit.source, member), false)
+        {
+            return inferred
+                .get(&key(contract.span))
+                .cloned()
+                .unwrap_or_else(|| contract.escaping_throwables.clone());
+        }
+        if matches!(
+            infer_value_type(unit, callable, &unit.typed_bindings),
+            Ok(Some(
+                ValueType::Function(_, _) | ValueType::AsyncFunction(_, _, _)
+            ))
+        ) {
+            return BTreeSet::from(["/core/errors::throwable".to_owned()]);
+        }
+        BTreeSet::new()
+    }
+
     fn escaping_errors(
         package: &SemanticPackage,
         unit: &SemanticUnit,
@@ -921,6 +961,16 @@ pub(super) fn infer_throwing_effects(package: &mut SemanticPackage) -> Result<()
             } else {
                 BTreeSet::new()
             };
+            if member_name == "coerce"
+                && let Some(arguments) = node.children.get(1)
+                && arguments.children.len() == 2
+                && let Some(callback) = arguments.children[1]
+                    .children
+                    .last()
+                    .or(Some(&arguments.children[1]))
+            {
+                errors.extend(callable_expression_errors(unit, callback, inferred));
+            }
             errors.extend(local_errors);
             errors.extend(
                 node.children

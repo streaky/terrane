@@ -91,6 +91,45 @@ identity changes, and newly declined members therefore require an explicit revie
 
 Cargo retains downloaded registry indexes and crate archives in `CARGO_HOME`, so repeated toolchain and conformance builds do not download unchanged dependencies again. The conformance runner additionally reuses one generated Cargo workspace for all accepted cases in a corpus run. With explicit opt-in, `sccache` provides further reuse across separate runs and branches.
 
+### Profiling the full test suite
+
+Stable Rust libtest does not expose a per-test timing callback or its nightly JSON event stream.
+The repository timing collector therefore runs the suite serially, streams each normal libtest
+completion line as it arrives, and measures the wall time between completion events. Compiler-
+owned aggregate drivers may additionally write nested timing records to the collector-provided
+`TERRANE_TEST_TIMING_FILE`: the conformance driver uses this channel to report every manifest case
+separately. When nested records are present, the scoreboard removes the enclosing
+`every_manifest_drives_a_conformance_case` measurement instead of displaying one opaque total.
+
+From the repository root, run the complete workspace suite and record every ordinary test and
+every conformance case with:
+
+```sh
+python docs/measure-test-times.py -- --workspace
+```
+
+Do not run another Cargo build or test process at the same time: competing work makes the timings
+less useful. The command returns Cargo's exit status, merges bounded timing history into
+`docs/test-scoreboard.yaml`, and regenerates the self-contained `docs/test-scoreboard.html`. The
+YAML retains the command, revision, Rust version, host, platform, whole Cargo duration, summed
+serial test/case duration, and the latest eight measurements per entry. Commit both scoreboard
+files together after reviewing the run.
+
+Serial execution makes individual measurements attributable on the pinned stable toolchain, but
+it can be slower and can behave differently from the normal parallel suite. It is a periodic
+profiling and full-verification command, not a replacement for fast focused tests during editing.
+For focused measurement, pass ordinary Cargo selection arguments after `--`, for example:
+
+```sh
+python docs/measure-test-times.py -- \
+  -p terrane-compiler \
+  first_difference_handles_changed_and_appended_text
+```
+
+Regenerate the visual view without running tests with
+`python docs/generate-test-scoreboard.py`, or verify that it is current with
+`python docs/generate-test-scoreboard.py --check`.
+
 Generated Rust is returned exactly as Terrane lowering emits it. Compiler work can pass
 `--require-canonical-rust` after any CLI command name to compare that untouched output with the
 compiler-bundled formatter. A mismatch fails as compiler defect `S9004`; the formatter never

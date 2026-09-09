@@ -98,15 +98,15 @@ fn field_metadata(
 
 #[expect(
     clippy::too_many_lines,
-    reason = "object analysis assembles one complete declaration contract"
+    reason = "descriptor analysis assembles one complete source declaration contract"
 )]
-pub(super) fn analyze_object_contracts(
+pub(super) fn analyze_descriptor_contracts(
     unit: &SemanticUnit,
     aliases: &BTreeMap<String, Vec<DescriptorAlias>>,
     visible_objects: &BTreeMap<String, ObjectIdentity>,
-) -> Result<Vec<ObjectContract>, SemanticFailure> {
+) -> Result<Vec<DescriptorContract>, SemanticFailure> {
     let visible = visible_descriptor_aliases(aliases, unit.source.id(), 0);
-    let mut objects = Vec::new();
+    let mut descriptors = Vec::new();
     for node in &unit.tree.root.children {
         let kind = match node.kind {
             SyntaxKind::ClassDeclaration => ObjectKind::Class,
@@ -267,7 +267,7 @@ pub(super) fn analyze_object_contracts(
                     ValueType::PlatformStreamHandle | ValueType::PlatformResourceHandle
                 )
             });
-        objects.push(ObjectContract {
+        descriptors.push(DescriptorContract {
             identity: ObjectIdentity::new(&unit.namespace, &name),
             name,
             span: node.span,
@@ -279,9 +279,9 @@ pub(super) fn analyze_object_contracts(
             fields,
         });
     }
-    for object in &objects {
+    for object in &descriptors {
         let require_kind = |identity: &ObjectIdentity, expected: ObjectKind, role: &str| {
-            let local = objects
+            let local = descriptors
                 .iter()
                 .find(|candidate| candidate.identity == *identity);
             let valid = (expected == ObjectKind::Interface
@@ -294,7 +294,7 @@ pub(super) fn analyze_object_contracts(
                     "T0054",
                     format!(
                         "`{}` does not resolve to a {role}",
-                        diagnostic_object_identity(&objects, identity)
+                        diagnostic_object_identity(&descriptors, identity)
                     ),
                     object.span,
                 )
@@ -310,7 +310,7 @@ pub(super) fn analyze_object_contracts(
             require_kind(used_trait, ObjectKind::Trait, "trait")?;
         }
     }
-    Ok(objects)
+    Ok(descriptors)
 }
 
 pub(super) fn value_type_owns_resource(
@@ -373,7 +373,7 @@ pub(super) fn propagate_resource_ownership(
             .units
             .iter()
             .flat_map(|unit| {
-                unit.objects
+                unit.descriptors
                     .iter()
                     .filter(|object| object.resource_owning)
                     .filter_map(|object| {
@@ -385,7 +385,7 @@ pub(super) fn propagate_resource_ownership(
             .collect::<BTreeSet<_>>();
         let mut newly_resource_owning = Vec::new();
         for (unit_index, unit) in package.units.iter().enumerate() {
-            for (object_index, object) in unit.objects.iter().enumerate() {
+            for (object_index, object) in unit.descriptors.iter().enumerate() {
                 if object.kind != ObjectKind::Class || object.resource_owning {
                     continue;
                 }
@@ -406,7 +406,7 @@ pub(super) fn propagate_resource_ownership(
             break;
         }
         for (unit_index, object_index) in newly_resource_owning {
-            package.units[unit_index].objects[object_index].resource_owning = true;
+            package.units[unit_index].descriptors[object_index].resource_owning = true;
         }
     }
 
@@ -414,7 +414,7 @@ pub(super) fn propagate_resource_ownership(
         .units
         .iter()
         .flat_map(|unit| {
-            unit.objects
+            unit.descriptors
                 .iter()
                 .filter(|object| object.resource_owning)
                 .filter_map(|object| {
@@ -426,7 +426,7 @@ pub(super) fn propagate_resource_ownership(
         .collect::<BTreeSet<_>>();
 
     for unit in &package.units {
-        for object in &unit.objects {
+        for object in &unit.descriptors {
             if object.resource_owning
                 && (object.base.is_some()
                     || !object.interfaces.is_empty()
@@ -460,7 +460,7 @@ pub(super) fn validate_resource_collection_types(
         .units
         .iter()
         .flat_map(|unit| {
-            unit.objects
+            unit.descriptors
                 .iter()
                 .filter(|object| object.resource_owning)
                 .filter_map(|object| {
@@ -535,7 +535,7 @@ pub(super) fn validate_object_conformance(
 
     fn effective_method<'a>(
         unit: &'a SemanticUnit,
-        object: &'a ObjectContract,
+        object: &'a DescriptorContract,
         name: &str,
     ) -> Option<&'a FunctionContract> {
         unit.functions
@@ -546,7 +546,7 @@ pub(super) fn validate_object_conformance(
                     .base
                     .as_ref()
                     .and_then(|base| {
-                        unit.objects
+                        unit.descriptors
                             .iter()
                             .find(|candidate| candidate.identity == *base)
                     })
@@ -556,7 +556,7 @@ pub(super) fn validate_object_conformance(
 
     for unit in &package.units {
         for object in unit
-            .objects
+            .descriptors
             .iter()
             .filter(|object| object.kind == ObjectKind::Class)
         {
@@ -566,7 +566,7 @@ pub(super) fn validate_object_conformance(
                 .find(|candidate| candidate.source.id() == object.span.file)
                 .expect("object declaration source must belong to the semantic package");
             let object = declaration_unit
-                .objects
+                .descriptors
                 .iter()
                 .find(|candidate| candidate.identity == object.identity)
                 .expect("object identity must resolve in its declaration unit");
@@ -580,7 +580,7 @@ pub(super) fn validate_object_conformance(
                         format!(
                             "interface `{}` implemented by `{}` does not resolve",
                             diagnostic_object_identity(
-                                &declaration_unit.objects,
+                                &declaration_unit.descriptors,
                                 interface_identity
                             ),
                             object.name
@@ -651,14 +651,14 @@ pub(super) fn validate_object_conformance(
                     .iter()
                     .find(|candidate| {
                         candidate.namespace == resolved_interface.namespace
-                            && candidate.objects.iter().any(|candidate| {
+                            && candidate.descriptors.iter().any(|candidate| {
                                 candidate.name == resolved_interface.name
                                     && candidate.kind == ObjectKind::Interface
                             })
                     })
                     .expect("resolved interface must have a semantic declaration");
                 let interface = interface_unit
-                    .objects
+                    .descriptors
                     .iter()
                     .find(|candidate| candidate.name == resolved_interface.name)
                     .expect("resolved interface must have an object contract");
@@ -707,7 +707,7 @@ pub(super) fn validate_object_conformance(
             let mut providers = BTreeMap::<&str, Vec<&str>>::new();
             for trait_name in &object.traits {
                 let used_trait = declaration_unit
-                    .objects
+                    .descriptors
                     .iter()
                     .find(|candidate| candidate.identity == *trait_name)
                     .expect("object-kind validation must resolve used traits");
@@ -752,7 +752,7 @@ pub(super) fn validate_object_conformance(
 pub(super) fn propagate_interface_receiver_mutability(package: &mut SemanticPackage) {
     fn effective_method<'a>(
         unit: &'a SemanticUnit,
-        object: &'a ObjectContract,
+        object: &'a DescriptorContract,
         name: &str,
     ) -> Option<&'a FunctionContract> {
         unit.functions
@@ -763,7 +763,7 @@ pub(super) fn propagate_interface_receiver_mutability(package: &mut SemanticPack
                     .base
                     .as_ref()
                     .and_then(|base| {
-                        unit.objects
+                        unit.descriptors
                             .iter()
                             .find(|candidate| candidate.identity == *base)
                     })
@@ -771,7 +771,7 @@ pub(super) fn propagate_interface_receiver_mutability(package: &mut SemanticPack
             })
             .or_else(|| {
                 object.traits.iter().find_map(|used_trait| {
-                    unit.objects
+                    unit.descriptors
                         .iter()
                         .find(|candidate| candidate.identity == *used_trait)
                         .and_then(|used_trait| effective_method(unit, used_trait, name))
@@ -782,13 +782,13 @@ pub(super) fn propagate_interface_receiver_mutability(package: &mut SemanticPack
     let mut mutating = BTreeSet::<(u32, usize, usize, String)>::new();
     for unit in &package.units {
         for class in unit
-            .objects
+            .descriptors
             .iter()
             .filter(|object| object.kind == ObjectKind::Class)
         {
             for interface_name in &class.interfaces {
                 let Some(interface) = unit
-                    .objects
+                    .descriptors
                     .iter()
                     .find(|candidate| candidate.identity == *interface_name)
                 else {
@@ -820,7 +820,7 @@ pub(super) fn propagate_interface_receiver_mutability(package: &mut SemanticPack
                 continue;
             };
             let Some(interface) = unit
-                .objects
+                .descriptors
                 .iter()
                 .find(|object| object.kind == ObjectKind::Interface && object.name == owner)
             else {
@@ -850,7 +850,7 @@ pub(super) fn infer_receiver_consumption(package: &mut SemanticPackage) {
                     package
                         .units
                         .iter()
-                        .flat_map(|candidate| &candidate.objects)
+                        .flat_map(|candidate| &candidate.descriptors)
                         .find(|object| object.span == span)
                 })
                 .is_some_and(|object| object.resource_owning),
@@ -869,11 +869,15 @@ pub(super) fn infer_receiver_consumption(package: &mut SemanticPackage) {
                 method.owner.as_deref() == Some(object_name) && method.name == method_name
             })
             .or_else(|| {
-                unit.objects
+                unit.descriptors
                     .iter()
                     .find(|object| object.name == object_name)
                     .and_then(|object| object.base.as_ref())
-                    .and_then(|base| unit.objects.iter().find(|object| object.identity == *base))
+                    .and_then(|base| {
+                        unit.descriptors
+                            .iter()
+                            .find(|object| object.identity == *base)
+                    })
                     .and_then(|base| effective_method(unit, &base.name, method_name))
             })
     }
@@ -886,7 +890,7 @@ pub(super) fn infer_receiver_consumption(package: &mut SemanticPackage) {
     ) -> bool {
         if expression.kind == SyntaxKind::Name && node_text(&unit.source, expression) == "this" {
             return contract.owner.as_deref().is_some_and(|owner| {
-                unit.objects
+                unit.descriptors
                     .iter()
                     .find(|object| object.name == owner)
                     .is_some_and(|object| object.resource_owning)
@@ -905,7 +909,7 @@ pub(super) fn infer_receiver_consumption(package: &mut SemanticPackage) {
             return false;
         }
         contract.owner.as_deref().is_some_and(|owner| {
-            unit.objects
+            unit.descriptors
                 .iter()
                 .find(|object| object.name == owner)
                 .and_then(|object| {
@@ -934,7 +938,7 @@ pub(super) fn infer_receiver_consumption(package: &mut SemanticPackage) {
             let object = package
                 .units
                 .iter()
-                .flat_map(|candidate| &candidate.objects)
+                .flat_map(|candidate| &candidate.descriptors)
                 .find(|object| object.span == declaration)?;
             return package
                 .units
@@ -1060,12 +1064,12 @@ pub(super) fn infer_receiver_consumption(package: &mut SemanticPackage) {
     let mut consuming_interfaces = BTreeSet::<((u32, usize, usize), String)>::new();
     for unit in &package.units {
         for class in unit
-            .objects
+            .descriptors
             .iter()
             .filter(|object| object.kind == ObjectKind::Class)
         {
             for interface_name in &class.interfaces {
-                let Some(interface) = unit.objects.iter().find(|object| {
+                let Some(interface) = unit.descriptors.iter().find(|object| {
                     object.kind == ObjectKind::Interface && object.identity == *interface_name
                 }) else {
                     continue;
@@ -1094,7 +1098,7 @@ pub(super) fn infer_receiver_consumption(package: &mut SemanticPackage) {
     for unit in &mut package.units {
         for method in &mut unit.functions {
             if method.owner.as_deref().is_some_and(|owner| {
-                unit.objects
+                unit.descriptors
                     .iter()
                     .find(|object| object.kind == ObjectKind::Interface && object.name == owner)
                     .is_some_and(|interface| {
@@ -1116,7 +1120,7 @@ pub(super) fn infer_receiver_consumption(package: &mut SemanticPackage) {
 
 pub(super) fn analyze_types(package: &mut SemanticPackage) -> Result<(), SemanticFailure> {
     for index in 0..package.units.len() {
-        let objects = {
+        let descriptors = {
             let unit = &package.units[index];
             let alias_history = descriptor_construct_alias_history(package, unit);
             let visible_objects = package
@@ -1137,13 +1141,13 @@ pub(super) fn analyze_types(package: &mut SemanticPackage) -> Result<(), Semanti
                     )
                 })
                 .collect::<BTreeMap<_, _>>();
-            analyze_object_contracts(unit, &alias_history, &visible_objects)?
+            analyze_descriptor_contracts(unit, &alias_history, &visible_objects)?
         };
-        package.units[index].objects = objects;
+        package.units[index].descriptors = descriptors;
     }
     populate_object_aliases(package);
     for unit in &mut package.units {
-        for object in &mut unit.objects {
+        for object in &mut unit.descriptors {
             if package
                 .projection
                 .foreign_owns_resource(&object.identity.namespace, &object.identity.name)

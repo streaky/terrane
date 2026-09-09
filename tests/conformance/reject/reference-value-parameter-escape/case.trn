@@ -1,0 +1,7 @@
+namespace reference-value-parameter-escape
+
+function bad ref int; value int
+  return ref value
+
+function main;
+  escaped ref int = bad; 1

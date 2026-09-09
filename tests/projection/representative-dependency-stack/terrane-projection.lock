@@ -4814,11 +4814,11 @@
     }
   ],
   "removed": [],
-  "cache_identity": "c43a51fdbd0f99715349396056904304fbc5fe4f3f923f3d80321b92e834a013",
+  "cache_identity": "e378d08ffc1712ead24077c14e52462f0d7d2264e6d12d1d290c1ffd82231348",
   "source": "Local",
   "rustdoc_format": 57,
   "projection_schema": "24",
-  "content_hash": "6ff0fe06c3fd8bbd16feee0430f90e678996ce3ca8b43a147a57e990848a8995",
+  "content_hash": "8a0b52f928618311648871706a13af2e74ad507c2721ae7c7969cf0438869502",
   "resolution": {
     "outcome": "LocalRustdoc",
     "events": [

@@ -647,24 +647,17 @@ impl Emitter<'_> {
         let storage_type = binding
             .and_then(|binding| binding.storage_type)
             .filter(|_| !reference_backed)
+            .filter(|_| binding.is_none_or(|binding| !self.binding_is_reference_owner(binding)))
             .filter(|_| !binding_span_is_mutated(self.package, self.unit, node.span, true));
+        let initializer = binding_initializer(node, name_index);
         let ty = binding
             .filter(|binding| !matches!(binding.value_type, ValueType::Task(_, _)))
-            .map(|binding| {
-                let value_type = if !binding.destination_arms.is_empty() {
-                    union_type_name(binding)
-                } else if let Some(storage_type) = storage_type {
-                    rust_type(storage_type).to_owned()
-                } else {
-                    rust_value_type(self.package, binding.value_type.clone())
-                };
-                if reference_backed {
-                    format!("std::sync::Arc<std::sync::Mutex<{value_type}>>")
-                } else {
-                    value_type
-                }
-            });
-        let initializer = binding_initializer(node, name_index);
+            .filter(|_| {
+                initializer.is_none_or(|initializer| {
+                    !self.anonymous_function_captures_borrowed_reference(initializer)
+                })
+            })
+            .map(|binding| self.binding_rust_type(binding, storage_type, reference_backed));
         assert!(
             initializer.is_some() || !self.text(node).contains('='),
             "analyzed initialized value binding must have a selected initializer"
@@ -718,6 +711,67 @@ impl Emitter<'_> {
             let borrow = if mutable { "&mut " } else { "&" };
             self.line(&format!("let _ = {borrow}{name};"));
         }
+    }
+
+    fn binding_rust_type(
+        &self,
+        binding: &TypedBinding,
+        storage_type: Option<ScalarType>,
+        reference_backed: bool,
+    ) -> String {
+        let value_type = if let ValueType::Reference(item) = &binding.value_type
+            && self
+                .unit
+                .reference_provenance
+                .get(&(binding.span.start, binding.span.end))
+                .is_some_and(|provenance| {
+                    self.reference_owner_uses_shared_storage(provenance.owner)
+                }) {
+            format!(
+                "std::sync::Weak<std::sync::Mutex<{}>>",
+                rust_element_type(self.package, item.clone())
+            )
+        } else if !binding.destination_arms.is_empty() {
+            union_type_name(binding)
+        } else if let Some(storage_type) = storage_type {
+            rust_type(storage_type).to_owned()
+        } else {
+            rust_value_type(self.package, binding.value_type.clone())
+        };
+        if reference_backed {
+            format!("std::sync::Arc<std::sync::Mutex<{value_type}>>")
+        } else {
+            value_type
+        }
+    }
+
+    fn anonymous_function_captures_borrowed_reference(&self, node: &SyntaxNode) -> bool {
+        if node.kind != SyntaxKind::AnonymousFunction {
+            return false;
+        }
+        let Some(contract) = self.unit.function_contract_at(node) else {
+            return false;
+        };
+        contract.captures.iter().any(|capture| {
+            self.unit
+                .typed_bindings
+                .iter()
+                .rev()
+                .find(|binding| {
+                    binding.name == *capture
+                        && binding.is_visible_at(self.source.id(), node.span.start)
+                })
+                .is_some_and(|binding| {
+                    matches!(binding.value_type, ValueType::Reference(_))
+                        && self
+                            .unit
+                            .reference_provenance
+                            .get(&(binding.span.start, binding.span.end))
+                            .is_some_and(|provenance| {
+                                !self.reference_owner_uses_shared_storage(provenance.owner)
+                            })
+                })
+        })
     }
 
     pub(super) fn postfix(&mut self, node: &SyntaxNode) {
@@ -932,6 +986,14 @@ impl Emitter<'_> {
                         format!("terrane_collection_support::bytes_iterator(&({collection}))")
                     }
                     Some(ValueType::Iterator(_)) => format!("&mut ({collection})"),
+                    Some(ValueType::Reference(item))
+                        if matches!(
+                            item.value_type(),
+                            ValueType::List(_) | ValueType::Tuple(_, _)
+                        ) =>
+                    {
+                        format!("({collection}).terrane_borrowing_iterator()")
+                    }
                     Some(
                         ValueType::List(_)
                         | ValueType::Map(_, _)

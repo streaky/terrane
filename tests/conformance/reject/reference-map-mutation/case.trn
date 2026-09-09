@@ -1,0 +1,8 @@
+namespace reference-map-mutation
+from /core/collections import map
+
+function main;
+  values = map; answer=42
+  observer ref int = ref values['answer']
+  values.set; 'other', 1
+  print; observer

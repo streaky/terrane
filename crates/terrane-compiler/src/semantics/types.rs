@@ -218,7 +218,7 @@ pub(super) fn analyze_binding_node(
             if let (Some(inferred), Some(initializer)) = (inferred.clone(), initializer) {
                 validate_value_destination(
                     &unit.source,
-                    &unit.objects,
+                    &unit.descriptors,
                     &name,
                     value_type.clone(),
                     inferred,
@@ -393,7 +393,7 @@ pub(super) fn declared_value_type_with_visible_objects(
     let object_identity = lexical_identity
         .or_else(|| visible_objects.get(type_name).cloned())
         .or_else(|| {
-            unit.objects
+            unit.descriptors
                 .iter()
                 .find(|object| object.name == type_name)
                 .map(|object| object.identity.clone())
@@ -437,7 +437,7 @@ pub(super) fn declared_value_type_with_visible_objects(
             let object_identity = lexical_identity
                 .or_else(|| visible_objects.get(argument).cloned())
                 .or_else(|| {
-                    unit.objects
+                    unit.descriptors
                         .iter()
                         .find(|object| object.name == argument)
                         .map(|object| object.identity.clone())
@@ -448,7 +448,7 @@ pub(super) fn declared_value_type_with_visible_objects(
             if let Some(inner_name) = argument.strip_prefix("shared ref ") {
                 let inner_name = inner_name.trim();
                 let identity = visible_objects.get(inner_name).cloned().or_else(|| {
-                    unit.objects
+                    unit.descriptors
                         .iter()
                         .find(|object| object.name == inner_name)
                         .map(|object| object.identity.clone())
@@ -766,7 +766,7 @@ pub(super) fn validate_numeric_destination(
 }
 
 pub(super) fn diagnostic_object_identity(
-    objects: &[ObjectContract],
+    objects: &[DescriptorContract],
     identity: &ObjectIdentity,
 ) -> String {
     let identities = objects
@@ -781,7 +781,10 @@ pub(super) fn diagnostic_object_identity(
     }
 }
 
-pub(super) fn diagnostic_value_type(objects: &[ObjectContract], value_type: &ValueType) -> String {
+pub(super) fn diagnostic_value_type(
+    objects: &[DescriptorContract],
+    value_type: &ValueType,
+) -> String {
     let nested = |item: &ElementType| diagnostic_value_type(objects, &item.value_type());
     match value_type {
         ValueType::Optional(inner) => {
@@ -829,7 +832,7 @@ pub(super) fn diagnostic_value_type(objects: &[ObjectContract], value_type: &Val
 
 pub(super) fn validate_value_destination(
     source: &SourceFile,
-    objects: &[ObjectContract],
+    objects: &[DescriptorContract],
     name: &str,
     expected: ValueType,
     actual: ValueType,
@@ -880,7 +883,7 @@ pub(super) fn validate_value_destination(
 }
 
 pub(super) fn value_types_compatible(
-    objects: &[ObjectContract],
+    objects: &[DescriptorContract],
     expected: &ValueType,
     actual: &ValueType,
 ) -> bool {

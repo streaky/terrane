@@ -10,35 +10,67 @@ pub(super) fn text_range_member_type(member_name: &str) -> Option<ValueType> {
     }
 }
 
-pub(super) fn object_contract<'a>(
+pub(super) fn descriptor_contract<'a>(
     unit: &'a SemanticUnit,
     identity: &ObjectIdentity,
-) -> Option<&'a ObjectContract> {
-    unit.objects
+) -> Option<&'a DescriptorContract> {
+    unit.descriptors
         .iter()
         .find(|object| object.identity == *identity)
 }
 
+/// Resolves one structural protocol member through the canonical descriptor contract.
+pub(super) fn descriptor_protocol_method<'a>(
+    unit: &'a SemanticUnit,
+    identity: &ObjectIdentity,
+    member: &str,
+) -> Option<&'a FunctionContract> {
+    object_method_contract(unit, identity, member, false)
+}
+
 pub(super) fn object_method_contract<'a>(
     unit: &'a SemanticUnit,
-    object_identity: &ObjectIdentity,
+    identity: &ObjectIdentity,
     member: &str,
     is_static: bool,
 ) -> Option<&'a FunctionContract> {
-    let object = object_contract(unit, object_identity)?;
-    unit.functions
-        .iter()
-        .find(|function| {
+    fn resolve<'a>(
+        unit: &'a SemanticUnit,
+        identity: &ObjectIdentity,
+        member: &str,
+        is_static: bool,
+        visited: &mut BTreeSet<ObjectIdentity>,
+    ) -> Option<&'a FunctionContract> {
+        if !visited.insert(identity.clone()) {
+            return None;
+        }
+        let object = descriptor_contract(unit, identity)?;
+        if let Some(method) = unit.functions.iter().find(|function| {
             function.owner.as_deref() == Some(object.identity.name.as_str())
                 && function.name == member
                 && function.is_static == is_static
-        })
-        .or_else(|| {
-            object
-                .base
-                .as_ref()
-                .and_then(|base| object_method_contract(unit, base, member, is_static))
-        })
+        }) {
+            return Some(method);
+        }
+        object
+            .traits
+            .iter()
+            .find_map(|used_trait| resolve(unit, used_trait, member, is_static, visited))
+            .or_else(|| {
+                object
+                    .base
+                    .as_ref()
+                    .and_then(|base| resolve(unit, base, member, is_static, visited))
+            })
+            .or_else(|| {
+                object
+                    .interfaces
+                    .iter()
+                    .find_map(|interface| resolve(unit, interface, member, is_static, visited))
+            })
+    }
+
+    resolve(unit, identity, member, is_static, &mut BTreeSet::new())
 }
 
 pub(super) fn object_field_type(
@@ -47,7 +79,7 @@ pub(super) fn object_field_type(
     member: &str,
     is_static: bool,
 ) -> Option<ValueType> {
-    let object = object_contract(unit, object_identity)?;
+    let object = descriptor_contract(unit, object_identity)?;
     if let Some(field) = object
         .fields
         .iter()
@@ -88,7 +120,7 @@ pub(crate) fn object_member_type(
     member: &str,
     is_static: bool,
 ) -> Option<ValueType> {
-    let object = object_contract(unit, object_identity)?;
+    let object = descriptor_contract(unit, object_identity)?;
     if let Some(field_type) = object_field_type(unit, object_identity, member, is_static) {
         return Some(field_type);
     }
@@ -111,7 +143,7 @@ pub(crate) fn object_member_type(
         });
     }
     for used_trait in &object.traits {
-        if let Some(trait_object) = unit.objects.iter().find(|candidate| {
+        if let Some(trait_object) = unit.descriptors.iter().find(|candidate| {
             candidate.identity == *used_trait && candidate.kind == ObjectKind::Trait
         }) && let Some(found) =
             object_member_type(unit, &trait_object.identity, member, is_static)
@@ -120,7 +152,7 @@ pub(crate) fn object_member_type(
         }
     }
     object.base.as_ref().and_then(|base| {
-        unit.objects
+        unit.descriptors
             .iter()
             .find(|candidate| candidate.identity == *base)
             .and_then(|base| object_member_type(unit, &base.identity, member, is_static))
@@ -156,7 +188,7 @@ pub(super) fn infer_member_value_type(
     let receiver_type = infer_receiver_value_type(unit, receiver, bindings)?;
     if let Some(ValueType::Descriptor(identity)) = &receiver_type {
         if let Some(field) = unit
-            .objects
+            .descriptors
             .iter()
             .find(|object| object.name == *identity || object.identity.qualified() == *identity)
             .and_then(|object| {
@@ -431,7 +463,7 @@ pub(super) fn infer_member_value_type(
     }
     if member_name == "type" {
         return Ok(receiver_type.map(|value_type| {
-            ValueType::Descriptor(diagnostic_value_type(&unit.objects, &value_type))
+            ValueType::Descriptor(diagnostic_value_type(&unit.descriptors, &value_type))
         }));
     }
     if let Some(ValueType::Object(object_name)) = &receiver_type {
@@ -440,11 +472,11 @@ pub(super) fn infer_member_value_type(
             "T0055",
             format!(
                 "`{}` has no instance member `{member_name}`",
-                unit.objects
+                unit.descriptors
                     .iter()
                     .find(|object| object.identity == *object_name)
                     .map_or_else(
-                        || diagnostic_object_identity(&unit.objects, object_name),
+                        || diagnostic_object_identity(&unit.descriptors, object_name),
                         |object| object.name.clone()
                     )
             ),
@@ -662,7 +694,7 @@ pub(super) fn infer_float_call_type(
         if let Some(actual) = infer_value_type(unit, value, bindings)? {
             validate_value_destination(
                 &unit.source,
-                &unit.objects,
+                &unit.descriptors,
                 "floating operation argument",
                 ValueType::Scalar(receiver),
                 actual,
@@ -826,6 +858,13 @@ pub(super) fn infer_unary_type(
                 format!("operator `{operator}` requires a value operand"),
             ));
         };
+        if operator == "shared ref" && matches!(operand, ValueType::Reference(_)) {
+            return Err(operator_failure(
+                unit,
+                node,
+                "`shared ref` cannot promote a non-owning reference to shared ownership",
+            ));
+        }
         return Ok(match operator.as_str() {
             "ref" => match operand {
                 ValueType::Reference(item) | ValueType::SharedReference(item) => {
@@ -834,9 +873,7 @@ pub(super) fn infer_unary_type(
                 value_type => ValueType::Reference(ElementType::new(value_type)),
             },
             "shared ref" => match operand {
-                ValueType::Reference(item) | ValueType::SharedReference(item) => {
-                    ValueType::SharedReference(item)
-                }
+                ValueType::SharedReference(item) => ValueType::SharedReference(item),
                 value_type => ValueType::SharedReference(ElementType::new(value_type)),
             },
             "move" => operand,

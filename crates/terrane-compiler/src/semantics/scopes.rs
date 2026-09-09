@@ -777,16 +777,38 @@ pub(super) fn validate_bool_condition(
     condition: &SyntaxNode,
     bindings: &[TypedBinding],
 ) -> Result<(), SemanticFailure> {
-    if matches!(
-        infer_value_type(unit, condition, bindings)?,
-        Some(ValueType::Scalar(ScalarType::Bool))
-    ) {
-        return Ok(());
+    match infer_value_type(unit, condition, bindings)? {
+        Some(ValueType::Scalar(ScalarType::Bool)) => return Ok(()),
+        Some(ValueType::Object(identity)) => {
+            let Some(truth) = descriptor_protocol_method(unit, &identity, "truth") else {
+                return Err(failure(
+                    &unit.source,
+                    "T0014",
+                    "control-flow object must define a non-static `truth` method",
+                    condition.span,
+                ));
+            };
+            if truth.is_async
+                || truth.throws
+                || truth.mutates_receiver
+                || !truth.parameters.is_empty()
+                || truth.return_type != Some(ValueType::Scalar(ScalarType::Bool))
+            {
+                return Err(failure(
+                    &unit.source,
+                    "T0014",
+                    "truth protocol requires a synchronous, non-throwing, non-mutating, parameterless method returning `bool`",
+                    truth.span,
+                ));
+            }
+            return Ok(());
+        }
+        _ => {}
     }
     Err(failure(
         &unit.source,
         "T0014",
-        "control-flow condition must have type `bool`",
+        "control-flow condition must have type `bool` or satisfy the truth protocol",
         condition.span,
     ))
 }
@@ -965,7 +987,7 @@ fn post_if_initialized_member_type(
         let Some(assigned_type) = infer_value_type(unit, value, bindings)? else {
             continue;
         };
-        if super::types::value_types_compatible(&unit.objects, inner, &assigned_type) {
+        if super::types::value_types_compatible(&unit.descriptors, inner, &assigned_type) {
             return Ok(Some(inner.as_ref().clone()));
         }
     }
@@ -993,7 +1015,7 @@ pub(super) fn validate_return(
             format!(
                 "function `{}` must return `{}`",
                 contract.name,
-                diagnostic_value_type(&unit.objects, &expected)
+                diagnostic_value_type(&unit.descriptors, &expected)
             ),
             statement.span,
         )),
@@ -1014,7 +1036,7 @@ pub(super) fn validate_return(
                     format!(
                         "function `{}` must return `{}`",
                         contract.name,
-                        diagnostic_value_type(&unit.objects, &expected)
+                        diagnostic_value_type(&unit.descriptors, &expected)
                     ),
                     value.span,
                 ));
@@ -1023,7 +1045,7 @@ pub(super) fn validate_return(
                 post_if_initialized_member_type(unit, value, &actual, bindings)?.unwrap_or(actual);
             validate_value_destination(
                 &unit.source,
-                &unit.objects,
+                &unit.descriptors,
                 &contract.name,
                 expected,
                 actual,

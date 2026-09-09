@@ -6,10 +6,10 @@ impl Emitter<'_> {
         let object = match value_type {
             ValueType::Object(identity) => self
                 .unit
-                .objects
+                .descriptors
                 .iter()
                 .find(|object| object.identity == *identity),
-            ValueType::Descriptor(identity) => self.unit.objects.iter().find(|object| {
+            ValueType::Descriptor(identity) => self.unit.descriptors.iter().find(|object| {
                 object.name == *identity || object.identity.qualified() == *identity
             }),
             _ => None,
@@ -144,13 +144,8 @@ impl Emitter<'_> {
                 let source_operator = self.unary_operator(node).unwrap_or_default();
                 if source_operator == "ref" {
                     return match self.value_type(operand) {
-                        Some(ValueType::Reference(_)) => {
-                            format!("({}).clone()", self.expression(operand))
-                        }
-                        _ => format!(
-                            "std::sync::Arc::downgrade(&{})",
-                            self.reference_storage_expression(operand)
-                        ),
+                        Some(ValueType::Reference(_)) => self.expression(operand),
+                        _ => self.reference_address_expression(operand),
                     };
                 }
                 if source_operator == "shared ref" {
@@ -158,9 +153,8 @@ impl Emitter<'_> {
                         Some(ValueType::SharedReference(_)) => {
                             format!("({}).clone()", self.expression(operand))
                         }
-                        Some(ValueType::Reference(_)) => format!(
-                            "{}.upgrade().expect(\"reference expired\")",
-                            self.expression(operand)
+                        Some(ValueType::Reference(_)) => unreachable!(
+                            "semantic analysis rejects promoting a non-owning ref to shared ownership"
                         ),
                         _ => self.reference_storage_expression(operand),
                     };
@@ -335,19 +329,39 @@ impl Emitter<'_> {
         {
             return self.expression(node);
         }
-        if matches!(
-            value_type,
-            ValueType::Reference(_) | ValueType::SharedReference(_)
-        ) && self.value_type(node) == Some(value_type.clone())
+        if matches!(value_type, ValueType::Reference(_))
+            && self.value_type(node) == Some(value_type.clone())
         {
-            return format!("({}).clone()", self.expression(node));
+            return self.expression(node);
+        }
+        if matches!(value_type, ValueType::SharedReference(_)) {
+            if node.kind == SyntaxKind::UnaryExpression {
+                return self.expression(node);
+            }
+            let existing_storage = match node.kind {
+                SyntaxKind::Name
+                | SyntaxKind::MemberExpression
+                | SyntaxKind::StaticMemberExpression
+                | SyntaxKind::IndexExpression
+                | SyntaxKind::CallExpression => self.value_type(node) == Some(value_type.clone()),
+                SyntaxKind::GroupExpression => node
+                    .children
+                    .first()
+                    .is_some_and(|child| self.value_type(child) == Some(value_type.clone())),
+                _ => false,
+            };
+            return if existing_storage {
+                format!("({}).clone()", self.expression(node))
+            } else {
+                self.reference_storage_expression(node)
+            };
         }
         if let ValueType::Object(expected) = &value_type
             && self.text(node) == "this"
             && let Some(actual) = &self.current_object
             && let Some(destination) = self
                 .unit
-                .objects
+                .descriptors
                 .iter()
                 .find(|object| object.identity == *expected)
         {
@@ -378,7 +392,7 @@ impl Emitter<'_> {
             && actual != *expected
             && let Some(destination) = self
                 .unit
-                .objects
+                .descriptors
                 .iter()
                 .find(|object| object.identity == *expected)
                 .or_else(|| {
@@ -390,7 +404,7 @@ impl Emitter<'_> {
                                 .iter()
                                 .find(|unit| unit.namespace == symbol.namespace)
                                 .and_then(|unit| {
-                                    unit.objects
+                                    unit.descriptors
                                         .iter()
                                         .find(|object| object.name == symbol.name)
                                 })
@@ -398,7 +412,7 @@ impl Emitter<'_> {
                 })
                 .or_else(|| {
                     self.package.units.iter().find_map(|unit| {
-                        unit.objects.iter().find(|object| {
+                        unit.descriptors.iter().find(|object| {
                             object.identity == *expected && object.kind == ObjectKind::Interface
                         })
                     })
@@ -960,12 +974,20 @@ impl Emitter<'_> {
                 let left_expression = self.expression(left);
                 let right_expression = self.expression(right);
                 let left_pointer = if matches!(left_type, Some(ValueType::Reference(_))) {
-                    "std::sync::Weak::as_ptr(__terrane_identity_left)"
+                    if self.reference_uses_shared_storage(left) {
+                        "std::sync::Weak::as_ptr(__terrane_identity_left)"
+                    } else {
+                        "std::ptr::from_ref(*__terrane_identity_left)"
+                    }
                 } else {
                     "std::sync::Arc::as_ptr(__terrane_identity_left)"
                 };
                 let right_pointer = if matches!(right_type, Some(ValueType::Reference(_))) {
-                    "std::sync::Weak::as_ptr(__terrane_identity_right)"
+                    if self.reference_uses_shared_storage(right) {
+                        "std::sync::Weak::as_ptr(__terrane_identity_right)"
+                    } else {
+                        "std::ptr::from_ref(*__terrane_identity_right)"
+                    }
                 } else {
                     "std::sync::Arc::as_ptr(__terrane_identity_right)"
                 };

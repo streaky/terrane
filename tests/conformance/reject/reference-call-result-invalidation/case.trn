@@ -1,0 +1,16 @@
+namespace reference-call-result-invalidation
+
+function choose ref int; left ref int, right ref int
+  return left
+
+function relay ref int; left ref int, right ref int
+  return choose; left, right
+
+function main;
+  left = 1
+  right = 2
+  left-ref ref int = ref left
+  right-ref ref int = ref right
+  chosen ref int = relay; left-ref, right-ref
+  left = 3
+  print; chosen

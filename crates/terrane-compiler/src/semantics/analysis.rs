@@ -59,7 +59,9 @@ pub(super) fn parse_unit(
         scopes: Vec::new(),
         typed_bindings: Vec::new(),
         functions: Vec::new(),
-        objects: Vec::new(),
+        reference_provenance: BTreeMap::new(),
+        reference_return_lenders: BTreeMap::new(),
+        descriptors: Vec::new(),
         comparable_foreign_objects: BTreeSet::new(),
         function_aliases: BTreeMap::new(),
         function_contracts_by_span: BTreeMap::new(),
@@ -176,7 +178,7 @@ pub(super) fn apply_projected_method_contracts(
             };
             contract.throws = true;
             let type_name = unit
-                .objects
+                .descriptors
                 .iter()
                 .find(|object| object.identity.name == owner)
                 .map_or(owner, |object| object.name.as_str());
@@ -452,9 +454,10 @@ pub fn analyze(package: &Package) -> Result<SemanticPackage, SemanticFailure> {
     validate_references(&semantic)?;
     validate_projected_static_declines(&semantic)?;
     analyze_types(&mut semantic)?;
+    validate_shared_ownership_cycles(&semantic)?;
     validate_error_clauses(&semantic)?;
     validate_moves(&semantic)?;
-    validate_reference_origins(&semantic)?;
+    analyze_reference_provenance(&mut semantic)?;
     validate_referenced_replacements(&semantic)?;
     infer_throwing_effects(&mut semantic)?;
     validate_constant_reassignment(&semantic)?;
@@ -477,7 +480,7 @@ pub fn analyze(package: &Package) -> Result<SemanticPackage, SemanticFailure> {
     Ok(semantic)
 }
 
-pub(super) fn object_implements_identity(object: &ObjectContract, target: &str) -> bool {
+pub(super) fn object_implements_identity(object: &DescriptorContract, target: &str) -> bool {
     object
         .interfaces
         .iter()
@@ -486,7 +489,7 @@ pub(super) fn object_implements_identity(object: &ObjectContract, target: &str) 
 
 pub(super) fn identity_implements(package: &SemanticPackage, identity: &str, target: &str) -> bool {
     package.units.iter().any(|unit| {
-        unit.objects.iter().any(|object| {
+        unit.descriptors.iter().any(|object| {
             package
                 .namespaces
                 .values()
@@ -664,7 +667,7 @@ pub(super) fn populate_object_aliases(package: &mut SemanticPackage) {
     let contracts = package
         .units
         .iter()
-        .flat_map(|unit| unit.objects.iter())
+        .flat_map(|unit| unit.descriptors.iter())
         .map(|contract| {
             (
                 (contract.span.file, contract.span.start, contract.span.end),
@@ -701,11 +704,11 @@ pub(super) fn populate_object_aliases(package: &mut SemanticPackage) {
             .collect::<Vec<_>>();
         aliases.retain(|alias| {
             !unit
-                .objects
+                .descriptors
                 .iter()
                 .any(|contract| contract.name == alias.name)
         });
-        unit.objects.extend(aliases);
+        unit.descriptors.extend(aliases);
     }
 }
 
@@ -790,7 +793,7 @@ pub(super) fn populate_function_type_dependencies(package: &mut SemanticPackage)
     let objects = package
         .units
         .iter()
-        .flat_map(|unit| unit.objects.iter())
+        .flat_map(|unit| unit.descriptors.iter())
         .map(|object| (object.identity.clone(), object.clone()))
         .collect::<BTreeMap<_, _>>();
     let methods = package
@@ -820,7 +823,7 @@ pub(super) fn populate_function_type_dependencies(package: &mut SemanticPackage)
                 _ => None,
             })
             .chain(
-                unit.objects
+                unit.descriptors
                     .iter()
                     .filter(|object| {
                         object.name != object.identity.name
@@ -857,11 +860,11 @@ pub(super) fn populate_function_type_dependencies(package: &mut SemanticPackage)
                 }
             }
             if !unit
-                .objects
+                .descriptors
                 .iter()
                 .any(|candidate| candidate.name == object.name)
             {
-                unit.objects.push(object.clone());
+                unit.descriptors.push(object.clone());
             }
             for method in object_methods {
                 if !unit

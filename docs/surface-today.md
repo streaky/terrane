@@ -12,6 +12,13 @@ Status labels:
 - **source-declared** — supplied by a Terrane program rather than the prelude.
 
 Source-declared and projected class, interface, and trait types have namespace-qualified nominal identity. Import aliases preserve that identity; same-named types from different namespaces remain distinct.
+Source-declared object member lookup, nominal relations, interface conformance, dispatch, and
+reflection use `DescriptorContract` records. Structural protocol queries recursively resolve
+required members from those source contracts, including base, trait, and interface composition.
+The implemented non-iteration example is `truth`: a source class with a synchronous, non-throwing,
+non-mutating, parameterless `truth bool` method may be used directly as an `if` or `while`
+condition. Built-in scalar, string-family, and collection-family dispatch still uses separate
+compiler tables and switches; canonical descriptor unification is therefore partial.
 
 Every `/core/types` descriptor is available as an implicit language construct. Operational core
 tooling is not implicit: authored and bundled source must import an individual object or use
@@ -325,7 +332,8 @@ int value
 │   └── int >= int -> bool
 ├── coercion family
 │   ├── .coerce; Destination -> Destination
-│   └── .coerce.checked; Destination -> Destination or none
+│   ├── .coerce.checked; Destination -> Destination or none
+│   └── .coerce; Destination, function from int to Destination -> Destination
 └── descriptor relation
     └── value is an int -> bool
 ```
@@ -378,7 +386,8 @@ fixed-width integer value T
 │   ├── .coerce; Destination -> Destination
 │   ├── .coerce.checked; Destination -> Destination or none
 │   ├── .coerce.wrap; Destination -> Destination
-│   └── .coerce.saturate; Destination -> Destination
+│   ├── .coerce.saturate; Destination -> Destination
+│   └── .coerce; Destination, function from T to Destination -> Destination
 └── descriptor relation
     └── value is a descriptor T -> bool
 ```
@@ -392,6 +401,13 @@ and `--` remain statement-only spellings of the default add/subtract policy.
 
 
 Declared numeric binding, assignment, parameter-default, argument, and return destinations admit numeric values exactly or fail with `integer-conversion-overflow`. Range-contained fixed-width widening emits only a representation change; other typed numeric pairs retain a runtime representability check. Integer values of different concrete types promote to the smallest implemented integer type containing both source ranges, or to `int`. Local adaptive-`int` bindings proven to remain in `int64` range lower directly to `i64`; conversion to the erased adaptive ABI occurs only where an operation or call requires it.
+
+Any statically typed source value may use bare `.coerce; Destination, converter` when the
+compiler declares no conversion for that source/destination pair. The second positional argument
+must be one synchronous function from the source's exact static type to the concrete destination;
+it is invoked once after the source evaluates once. Named or multiple callbacks, signature
+mismatches, asynchronous callbacks, and callback use on a policy child are rejected. A callback's
+declared throwables propagate through the ordinary call ABI.
 
 Checked fixed-width integer-to-floating arrivals use allocation-free native magnitude and bit
 checks before the primitive conversion. Only adaptive `int` enters the arbitrary-precision
@@ -686,25 +702,29 @@ interfaces check complete method signatures, infer required receiver mutability 
 implementations, and lower as typed dispatch contracts. Traits reuse declared fields and methods,
 with unresolved multi-trait member conflicts rejected.
 
-`ref T` values are non-owning aliases backed by synchronized weak storage; member use and scalar
-consumers such as `print` transparently observe the referenced value, upgrading the target or
-failing deterministically if it has expired. `shared ref T` values are cloneable shared owners
-backed by synchronized strong storage and have the same transparent observation behavior. Prefix
-`ref`, `shared ref`, and `move` construct those respective ownership forms. Transparent observation
-does not convert the reference at assignment, parameter, or return boundaries; those positions
-continue to distinguish `T`, `ref T`, and `shared ref T`. A `ref` currently requires a local named
-binding with reference-backed storage; parameters and temporary values are
-rejected because the compiler does not yet prove their owner lifetimes. Move provenance
-rejects later reads until the binding is rebound, including conditional paths and loop back-edges;
-a declaration inside the loop body initializes a fresh binding value for each iteration.
-Replacing a binding ends the old identity's lifetime: a later non-owning-reference use is rejected, while a `shared ref`
-continues to own and observe the old identity.
+`ref T` values carry compiler-owned whole-path provenance: their originating owner, selected
+external-lender parameter, field/element/call-result projections, and first lifetime-ending
+mutation, move, or replacement. Parentheses, member access, supported list/map/unordered-map
+indexing, uniquely selected lender calls and returns, reference bindings, borrowed collection
+iteration, captures, and async liveness preserve or narrow that proof. Lender selection follows
+actual return flow through calls to a fixed point; parameter count never chooses it. Returning a
+reference is accepted only when it reaches exactly one reference parameter. Local or by-value
+parameter return, ambiguous lender flow, unsupported indexed borrow, and post-lifetime-end use are
+rejected in source terms.
 
-The source interface now matches the settled version-one ownership vocabulary. Milestone 17 remains
-open for compile-time lifetime and escape analysis, including proof across async suspension,
-release invalidation, shared-ownership cycle analysis, and the remaining provenance paths; runtime
-expiry checking is still the implemented fallback where a non-owning reference's validity is not
-statically proven.
+A provenance-bounded native `ref T` lowers to a Rust borrow, including explicit result lifetimes
+for reference-returning functions. Reads do not upgrade, lock, or clone the owner. `shared ref T`
+remains explicit synchronized reference-counted ownership; an ordinary observer of that same
+explicitly shared identity uses a non-owning weak handle. Prefix `ref`, `shared ref`, and `move`
+construct those respective ownership forms, and an ordinary reference cannot be promoted into
+shared ownership. Transparent observation does not erase the distinction among `T`, `ref T`, and
+`shared ref T` at storage, parameter, or return boundaries.
+
+The native target rejects statically provable strong `shared ref` cycles in descriptor fields,
+including through collection element types, while admitting acyclic shared fields. Later cycles
+assembled outside that descriptor proof are not traced and must be broken explicitly; ordinary
+`ref` back-edges are excluded from ownership edges. References may cross async suspension only
+while the owner proof remains complete.
 
 ## Callable contracts and reflection
 

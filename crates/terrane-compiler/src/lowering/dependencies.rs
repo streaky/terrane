@@ -6,7 +6,7 @@ pub(super) fn emit_dependency_imports(
     output: &mut String,
 ) {
     let mut imported = BTreeSet::new();
-    for object in &unit.objects {
+    for object in &unit.descriptors {
         if object.identity.namespace != unit.namespace {
             continue;
         }
@@ -314,7 +314,7 @@ pub(super) fn emit_dependency_unit(package: &SemanticPackage, unit: &SemanticUni
             contract.owner.as_deref().filter(|_| contract.is_static)
         {
             let type_name = unit
-                .objects
+                .descriptors
                 .iter()
                 .find(|object| object.identity.name == owner)
                 .map_or(owner, |object| object.name.as_str());

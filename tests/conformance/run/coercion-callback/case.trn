@@ -1,0 +1,33 @@
+namespace coercion-callback
+from /core/errors import coercion-error
+
+function source int;
+  print; 'source'
+  return 7
+
+function render string; _value int
+  return 'converted'
+
+
+class renderer
+  function render string; _value int
+    return 'bound'
+
+function fail string throws coercion-error; _value int
+  throw coercion-error
+
+function wrap string;
+  return (7.coerce; string, fail)
+
+function main;
+  print; ((source;).coerce; string, render)
+  closure = function string; _value int
+    return 'closure'
+  service renderer = instance renderer;
+  bound function from int to string = service.render
+  print; (8.coerce; string, closure)
+  print; (9.coerce; string, bound)
+  try
+    print; (wrap;)
+  catch coercion-error
+    print; 'caught'

@@ -1,0 +1,7 @@
+namespace coercion-callback-source
+
+function convert string; value float64
+  return 'wrong source'
+
+function main;
+  converted = 7.coerce; string, convert

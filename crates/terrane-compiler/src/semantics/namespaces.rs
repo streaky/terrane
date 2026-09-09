@@ -602,7 +602,7 @@ pub(super) fn resolved_object_span(
     package
         .units
         .iter()
-        .flat_map(|unit| &unit.objects)
+        .flat_map(|unit| &unit.descriptors)
         .find(|object| object.identity == *identity)
         .map(|object| object.span)
 }
@@ -665,12 +665,12 @@ pub(super) fn class_designator_identity(
             .owner
             .as_deref()?;
         return unit
-            .objects
+            .descriptors
             .iter()
             .find(|object| object.name == owner && object.kind == ObjectKind::Class)
             .map(|object| object.identity.clone());
     }
-    unit.objects
+    unit.descriptors
         .iter()
         .find(|object| object.name == name && object.kind == ObjectKind::Class)
         .map(|object| object.identity.clone())
@@ -696,18 +696,22 @@ pub(super) fn method_contract<'a>(
                     && method.is_static == is_static
             })
             .or_else(|| {
-                unit.objects
+                unit.descriptors
                     .iter()
                     .find(|object| object.name == object_name)
                     .and_then(|object| object.base.as_ref())
-                    .and_then(|base| unit.objects.iter().find(|object| object.identity == *base))
+                    .and_then(|base| {
+                        unit.descriptors
+                            .iter()
+                            .find(|object| object.identity == *base)
+                    })
                     .and_then(|base| contract(unit, &base.name, method_name, is_static))
             })
     }
     let object = package
         .units
         .iter()
-        .flat_map(|candidate| &candidate.objects)
+        .flat_map(|candidate| &candidate.descriptors)
         .find(|object| object.identity == *object_identity)?;
     package
         .units

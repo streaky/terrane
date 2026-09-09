@@ -1,0 +1,15 @@
+namespace reference-return-selected-lender
+
+function choose ref int; left ref int, right ref int
+  return left
+
+function relay ref int; left ref int, right ref int
+  return choose; left, right
+
+function main;
+  left-value = 1
+  right-value = 2
+  left ref int = ref left-value
+  right ref int = ref right-value
+  chosen ref int = relay; left, right
+  print; chosen

@@ -1,0 +1,7 @@
+namespace reference-same-type-replacement
+
+function main;
+  owner = 1
+  observer ref int = ref owner
+  owner = 2
+  print; observer

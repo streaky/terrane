@@ -1,0 +1,7 @@
+namespace coercion-callback-named
+
+function render string; _value int
+  return 'value'
+
+function main;
+  converted = 7.coerce; destination = string, converter = render

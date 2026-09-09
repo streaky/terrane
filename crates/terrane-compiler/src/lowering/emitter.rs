@@ -16,6 +16,7 @@ use num_bigint::BigInt;
 
 use crate::{
     SourceFile,
+    lowering::LoweringFailure,
     semantics::{ObjectIdentity, SemanticPackage, SemanticUnit, ValueType},
 };
 
@@ -123,6 +124,7 @@ pub(super) struct Emitter<'a> {
     unit: &'a SemanticUnit,
     source: &'a SourceFile,
     output: String,
+    failure: Option<LoweringFailure>,
     indent: usize,
     continue_label: Option<String>,
     break_label: Option<String>,
@@ -158,6 +160,7 @@ impl<'a> Emitter<'a> {
             unit,
             source: &unit.source,
             output: String::new(),
+            failure: None,
             indent: 0,
             continue_label: None,
             break_label: None,

@@ -108,6 +108,28 @@ pub fn compile_package(package: &Package) -> Result<Compilation, CompilationFail
     compile_package_with_options(package, CompilerOptions::default())
 }
 
+fn lowering_failure(
+    semantic: &semantics::SemanticPackage,
+    failure: crate::lowering::LoweringFailure,
+) -> CompilationFailure {
+    let source = semantic
+        .units
+        .iter()
+        .find(|unit| unit.source.id() == failure.span.file)
+        .map_or_else(
+            || semantic.units[0].source.clone(),
+            |unit| unit.source.clone(),
+        );
+    CompilationFailure {
+        source,
+        diagnostics: vec![
+            Diagnostic::error("S9005", failure.message, failure.span).with_help(
+                "this is an internal compiler defect; report the source program and compiler version",
+            ),
+        ],
+    }
+}
+
 /// Compiles every manifest-discovered source unit with explicit
 /// compiler-development options.
 ///
@@ -176,7 +198,8 @@ pub fn compile_package_with_options(
         .map(|unit| unit.source.clone())
         .collect();
     let warnings = semantics::warnings(&semantic, options.lint_name_style);
-    let rust_ir = crate::lowering::lower(&semantic);
+    let rust_ir = crate::lowering::lower(&semantic)
+        .map_err(|failure| lowering_failure(&semantic, failure))?;
     let rendered_rust = rust_ir.rendered();
     let standalone_file = rendered_rust.standalone_file("<stdout>");
     let rust = standalone_file.contents.clone();

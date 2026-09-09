@@ -439,68 +439,38 @@ mod __terrane_trace {
 // Source: case.trn
 // Namespace: scalar-reference-transparency
 fn main() {
-    let text: std::sync::Arc<std::sync::Mutex<String>> = std::sync::Arc::new(
-        std::sync::Mutex::new(String::from("abc")),
-    );
-    let seen: std::sync::Weak<std::sync::Mutex<String>> = std::sync::Arc::downgrade(
-        &text,
-    );
+    let text: String = String::from("abc");
+    let seen: &String = &text;
     println!(
-        "{}", terrane_scalar_support::scalar_text(&(terrane_string_support::length(&{ let
-        __terrane_owner = seen.upgrade().expect("reference expired"); let __terrane_value
-        = __terrane_owner.lock().expect("reference lock poisoned").clone();
-        __terrane_value }) as i128))
+        "{}", terrane_scalar_support::scalar_text(&(terrane_string_support::length(&seen
+        .clone()) as i128))
     );
-    println!(
-        "{}", terrane_scalar_support::scalar_text(&{ let __terrane_owner = seen.upgrade()
-        .expect("reference expired"); let __terrane_value = __terrane_owner.lock()
-        .expect("reference lock poisoned").clone(); __terrane_value })
-    );
+    println!("{}", terrane_scalar_support::scalar_text(&seen.clone()));
     println!(
         "{}", terrane_scalar_support::scalar_text(&format!("{}{}",
-        terrane_scalar_support::scalar_text(&{ let __terrane_owner = seen.upgrade()
-        .expect("reference expired"); let __terrane_value = __terrane_owner.lock()
-        .expect("reference lock poisoned").clone(); __terrane_value }),
+        terrane_scalar_support::scalar_text(&seen.clone()),
         terrane_scalar_support::scalar_text(&String::from("!"))))
     );
     println!(
         "{}",
         terrane_scalar_support::scalar_text(&vec![terrane_scalar_support::scalar_text(&String::from("x")),
-        terrane_scalar_support::scalar_text(&String::from("y"))] .join(&{ let
-        __terrane_owner = seen.upgrade().expect("reference expired"); let __terrane_value
-        = __terrane_owner.lock().expect("reference lock poisoned").clone();
-        __terrane_value }))
+        terrane_scalar_support::scalar_text(&String::from("y"))] .join(&seen.clone()))
     );
-    let encoded: std::sync::Arc<std::sync::Mutex<Vec<u8>>> = std::sync::Arc::new(
-        std::sync::Mutex::new(
-            terrane_string_support::encode(
-                &{
-                    let __terrane_value = text
-                        .lock()
-                        .expect("reference lock poisoned")
-                        .clone();
-                    __terrane_value
-                },
-                terrane_string_support::Encoding::Utf8,
-            ),
-        ),
+    let encoded: Vec<u8> = terrane_string_support::encode(
+        &text,
+        terrane_string_support::Encoding::Utf8,
     );
-    let decoded: std::sync::Weak<std::sync::Mutex<Vec<u8>>> = std::sync::Arc::downgrade(
-        &encoded,
-    );
+    let decoded: &Vec<u8> = &encoded;
     println!(
         "{}",
-        terrane_scalar_support::scalar_text(&__terrane_raised(terrane_string_support::decode(&{
-        let __terrane_owner = decoded.upgrade().expect("reference expired"); let
-        __terrane_value = __terrane_owner.lock().expect("reference lock poisoned")
-        .clone(); __terrane_value }, terrane_string_support::Encoding::Utf8),
-        0 /* terrane-site: case.trn:13:13-13:33 */))
+        terrane_scalar_support::scalar_text(&__terrane_raised(terrane_string_support::decode(&decoded
+        .clone(), terrane_string_support::Encoding::Utf8), 0 /* terrane-site: case.trn:13:13-13:33 */))
     );
     let number: std::sync::Arc<std::sync::Mutex<i8>> = std::sync::Arc::new(
         std::sync::Mutex::new(7),
     );
     let observed: std::sync::Weak<std::sync::Mutex<i8>> = std::sync::Arc::downgrade(
-        &number,
+        &number.clone(),
     );
     println!(
         "{}", terrane_scalar_support::scalar_text(&{ let __terrane_owner = observed

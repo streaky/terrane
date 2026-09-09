@@ -1,0 +1,5 @@
+namespace reference-unsupported-index
+
+function main;
+  data bytes = b'abc'
+  byte = ref data[0]

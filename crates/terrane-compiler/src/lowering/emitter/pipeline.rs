@@ -32,7 +32,7 @@ fn package_uses_descriptor_runtime(package: &SemanticPackage) -> bool {
     clippy::too_many_lines,
     reason = "package lowering assembles one deterministic generated-crate prelude and unit set"
 )]
-pub(crate) fn lower(package: &SemanticPackage) -> Program {
+pub(crate) fn lower(package: &SemanticPackage) -> Result<Program, LoweringFailure> {
     debug_assert!(
         package.execution_requirements.is_consistent(),
         "semantic execution requirements must form a coherent strategy request"
@@ -73,7 +73,7 @@ pub(crate) fn lower(package: &SemanticPackage) -> Program {
     let native_cancellation = package_uses_task_scope(package) && has_async_entry;
     let has_custom_throwable = has_dependency
         || package.units.iter().any(|unit| {
-            unit.objects.iter().any(|object| {
+            unit.descriptors.iter().any(|object| {
                 object.interfaces.iter().any(|interface| {
                     interface.namespace == "/core/errors" && interface.name == "throwable"
                 })
@@ -347,12 +347,12 @@ pub(crate) fn lower(package: &SemanticPackage) -> Program {
         .map(|unit| {
             if unit.bundled && unit.namespace.starts_with("/deps/") {
                 let rust = emit_dependency_unit(package, unit);
-                return Module {
+                return Ok(Module {
                     source_path: unit.source_path.clone(),
                     namespace: unit.namespace.clone(),
                     destination: module_destination(unit),
                     items: vec![Item::generated(&rust)],
-                };
+                });
             }
             let mut emitter = Emitter::new(&registry, package, unit);
             emitter.emit_union_types();
@@ -377,14 +377,17 @@ pub(crate) fn lower(package: &SemanticPackage) -> Program {
                     emitter.output.clear();
                 }
             }
-            Module {
+            if let Some(failure) = emitter.failure {
+                return Err(failure);
+            }
+            Ok(Module {
                 source_path: unit.source_path.clone(),
                 namespace: unit.namespace.clone(),
                 destination: module_destination(unit),
                 items,
-            }
+            })
         })
-        .collect();
+        .collect::<Result<Vec<_>, LoweringFailure>>()?;
     if uses_errors || !registry.sites.borrow().is_empty() {
         let mut support = String::new();
         emit_error_support(
@@ -402,7 +405,7 @@ pub(crate) fn lower(package: &SemanticPackage) -> Program {
             },
         );
     }
-    Program {
+    Ok(Program {
         version: crate::VERSION,
         requires_platform_support,
         requires_async_runtime: has_async_entry,
@@ -412,5 +415,5 @@ pub(crate) fn lower(package: &SemanticPackage) -> Program {
             .into_iter()
             .collect(),
         modules,
-    }
+    })
 }

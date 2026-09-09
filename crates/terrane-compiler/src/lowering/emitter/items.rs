@@ -191,7 +191,7 @@ impl Emitter<'_> {
     )]
     fn object_document_decoder(
         &mut self,
-        object: &ObjectContract,
+        object: &DescriptorContract,
         class_type: &str,
         fields: &[&ObjectField],
     ) {
@@ -349,7 +349,7 @@ impl Emitter<'_> {
     pub(super) fn object(&mut self, node: &SyntaxNode) {
         let object = self
             .unit
-            .objects
+            .descriptors
             .iter()
             .find(|object| object.span == node.span)
             .expect("analyzed object declaration must have a semantic contract");
@@ -868,7 +868,7 @@ impl Emitter<'_> {
                         for descendant in &descendants {
                             let descendant_type =
                                 rust_object_type_name(self.package, &descendant.identity);
-                            if self.unit.objects.iter().any(|candidate| {
+                            if self.unit.descriptors.iter().any(|candidate| {
                                 candidate.base.as_ref() == Some(&descendant.identity)
                             }) {
                                 self.line(&format!(
@@ -894,7 +894,7 @@ impl Emitter<'_> {
                         for descendant in &descendants {
                             let descendant_type =
                                 rust_object_type_name(self.package, &descendant.identity);
-                            if self.unit.objects.iter().any(|candidate| {
+                            if self.unit.descriptors.iter().any(|candidate| {
                                 candidate.base.as_ref() == Some(&descendant.identity)
                             }) {
                                 self.line(&format!(
@@ -927,7 +927,7 @@ impl Emitter<'_> {
                         .find(|candidate| candidate.namespace == interface_identity.namespace)
                         .expect("resolved interface namespace");
                     let interface = interface_unit
-                        .objects
+                        .descriptors
                         .iter()
                         .find(|candidate| candidate.identity == *interface_identity)
                         .expect("validated interface contract");
@@ -1116,6 +1116,11 @@ impl Emitter<'_> {
                 return_type
             }
         });
+        let reference_lender = self
+            .unit
+            .reference_return_lenders
+            .get(&(contract.span.file, contract.span.start, contract.span.end))
+            .copied();
         if receiver.is_none()
             && contract.owner.is_none()
             && contract.name != "main"
@@ -1130,7 +1135,7 @@ impl Emitter<'_> {
         let async_main = contract.is_async && contract.name == "main" && receiver.is_none();
         write!(
             self.output,
-            "{}{}fn {name}(",
+            "{}{}fn {name}{}(",
             if contract.owner.is_some() || (receiver.is_none() && self.unit.bundled) {
                 "pub "
             } else {
@@ -1140,7 +1145,12 @@ impl Emitter<'_> {
                 "async "
             } else {
                 ""
-            }
+            },
+            if reference_lender.is_some() {
+                "<'a>"
+            } else {
+                ""
+            },
         )
         .unwrap();
         if let Some(receiver) = receiver {
@@ -1150,10 +1160,15 @@ impl Emitter<'_> {
             if receiver.is_some() || index != 0 {
                 self.output.push_str(", ");
             }
-            let ty = parameter.value_type.clone().map_or_else(
-                || "i128".to_owned(),
-                |value_type| rust_value_type(self.package, value_type),
-            );
+            let ty = match (&parameter.value_type, reference_lender == Some(index)) {
+                (Some(ValueType::Reference(item)), true) => {
+                    format!("&'a {}", rust_element_type(self.package, item.clone()))
+                }
+                _ => parameter.value_type.clone().map_or_else(
+                    || "i128".to_owned(),
+                    |value_type| rust_value_type(self.package, value_type),
+                ),
+            };
             let mutable = if parameter.mutable { "mut " } else { "" };
             write!(self.output, "{mutable}{}: {ty}", rust_name(&parameter.name)).unwrap();
         }
@@ -1162,18 +1177,24 @@ impl Emitter<'_> {
         if function_errors {
             let result = return_type.clone().map_or_else(
                 || "()".to_owned(),
-                |value_type| rust_value_type(self.package, value_type),
+                |value_type| match value_type {
+                    ValueType::Reference(item) if reference_lender.is_some() => {
+                        format!("&'a {}", rust_element_type(self.package, item))
+                    }
+                    value_type => rust_value_type(self.package, value_type),
+                },
             );
             write!(self.output, " -> Result<{result}, TerraneError>").unwrap();
         } else if let Some(return_type) = return_type.clone()
             && return_type != ValueType::Scalar(ScalarType::None)
         {
-            write!(
-                self.output,
-                " -> {}",
-                rust_value_type(self.package, return_type)
-            )
-            .unwrap();
+            let return_type = match return_type {
+                ValueType::Reference(item) if reference_lender.is_some() => {
+                    format!("&'a {}", rust_element_type(self.package, item))
+                }
+                return_type => rust_value_type(self.package, return_type),
+            };
+            write!(self.output, " -> {return_type}").unwrap();
         }
         let block = node
             .children
@@ -1360,25 +1381,35 @@ impl Emitter<'_> {
         for capture in &contract.captures {
             let name = rust_name(capture);
             let source = if capture == "this" { "self" } else { &name };
-            let transfer = self
-                .unit
-                .typed_bindings
-                .iter()
-                .rev()
-                .find(|binding| {
-                    binding.name == *capture
-                        && binding.is_visible_at(self.source.id(), node.span.start)
-                })
-                .is_some_and(|binding| self.value_type_owns_resource(&binding.value_type));
-            if transfer {
+            let binding = self.unit.typed_bindings.iter().rev().find(|binding| {
+                binding.name == *capture && binding.is_visible_at(self.source.id(), node.span.start)
+            });
+            let transfer =
+                binding.is_some_and(|binding| self.value_type_owns_resource(&binding.value_type));
+            let borrowed = binding.is_some_and(|binding| {
+                matches!(binding.value_type, ValueType::Reference(_))
+                    && self
+                        .unit
+                        .reference_provenance
+                        .get(&(binding.span.start, binding.span.end))
+                        .is_some_and(|provenance| {
+                            !self.reference_owner_uses_shared_storage(provenance.owner)
+                        })
+            });
+            if transfer || borrowed {
                 write!(captures, "let {name} = {source}; ")
                     .expect("writing to a String cannot fail");
             } else {
                 write!(captures, "let {name} = {source}.clone(); ")
                     .expect("writing to a String cannot fail");
             }
-            write!(invocation_captures, "let {name} = {name}.clone(); ")
-                .expect("writing to a String cannot fail");
+            if borrowed {
+                write!(invocation_captures, "let {name} = {name}; ")
+                    .expect("writing to a String cannot fail");
+            } else {
+                write!(invocation_captures, "let {name} = {name}.clone(); ")
+                    .expect("writing to a String cannot fail");
+            }
         }
         (captures, invocation_captures)
     }

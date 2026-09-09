@@ -1,0 +1,7 @@
+namespace coercion-callback-async
+
+async function convert string; value int
+  return 'async'
+
+function main;
+  converted = 7.coerce; string, convert

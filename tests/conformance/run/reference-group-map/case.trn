@@ -1,0 +1,11 @@
+namespace reference-group-map
+from /core/collections import list, map, unordered-map
+
+function main;
+  values = list; 7
+  grouped ref int = ref (values[0])
+  ordered = map; answer=42
+  ordered-value ref int = ref ordered['answer']
+  unordered = unordered-map; answer=43
+  unordered-value ref int = ref unordered['answer']
+  print; grouped, ordered-value, unordered-value

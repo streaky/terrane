@@ -1,0 +1,4 @@
+namespace coercion-callback-noncallable
+
+function main;
+  converted = 7.coerce; string, 42
