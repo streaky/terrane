@@ -124,7 +124,7 @@ fn executable_shebang_script_runs_through_implicit_command() {
 }
 
 #[test]
-fn bare_existing_source_and_package_paths_dispatch_to_run() {
+fn extensionless_source_and_package_paths_dispatch_consistently() {
     let binary = env!("CARGO_BIN_EXE_terrane");
     let directory = TemporaryDirectory::new("implicit-paths");
     fs::create_dir_all(directory.path()).unwrap();
@@ -138,6 +138,18 @@ fn bare_existing_source_and_package_paths_dispatch_to_run() {
     let source = Command::new(binary).arg(&script).output().unwrap();
     assert!(source.status.success(), "{source:?}");
     assert_eq!(source.stdout, b"source\n");
+
+    for command in ["check", "rust", "build", "run"] {
+        let explicit = Command::new(binary)
+            .arg(command)
+            .arg(&script)
+            .output()
+            .unwrap();
+        assert!(explicit.status.success(), "{command}: {explicit:?}");
+        if command == "run" {
+            assert_eq!(explicit.stdout, source.stdout);
+        }
+    }
 
     let package_root = directory.path().join("package");
     fs::create_dir_all(package_root.join("src")).unwrap();

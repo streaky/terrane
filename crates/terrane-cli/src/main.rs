@@ -123,7 +123,6 @@ fn implicit_run_arguments(arguments: &[OsString]) -> Option<Vec<OsString>> {
 )]
 fn run(arguments: &[OsString]) -> Result<ExitCode, CliFailure> {
     let normalized = implicit_run_arguments(arguments);
-    let implicit_path = normalized.is_some();
     let arguments = normalized.as_deref().unwrap_or(arguments);
     let Some(command) = arguments.first().and_then(CliCommand::parse) else {
         return Err(CliFailure::usage());
@@ -150,13 +149,10 @@ fn run(arguments: &[OsString]) -> Result<ExitCode, CliFailure> {
     }
     let (input_path, output_path, require_canonical_rust, lint_name_style, release) =
         parse_input(arguments, command)?;
-    let source_input = input_path
-        .extension()
-        .is_some_and(|extension| extension == "trn")
-        || implicit_path
-            && input_path
-                .extension()
-                .is_none_or(|extension| extension != "toml");
+    let source_input = !input_path.is_dir()
+        && input_path
+            .extension()
+            .is_none_or(|extension| extension != "toml");
     let package = if source_input {
         let source_text = fs::read_to_string(&input_path).map_err(|error| {
             CliFailure::diagnostic(input_path.clone(), "S0000", error.to_string(), 3)
