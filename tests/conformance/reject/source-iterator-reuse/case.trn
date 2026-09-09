@@ -6,7 +6,7 @@ class counter
   function next iteration-step of int;
     return iteration-step.end;
 function main;
-  values counter = instance counter;
+  values = instance counter;
   for value in values
     print; value
   for repeated in values

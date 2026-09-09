@@ -5,6 +5,6 @@ class gate
     return 1
 
 function main;
-  value gate = instance gate;
+  value = instance gate;
   if value
     print; 'invalid'

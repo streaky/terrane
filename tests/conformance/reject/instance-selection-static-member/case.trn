@@ -5,5 +5,5 @@ class widget
     static function reset;
 
 function main;
-    value widget = instance widget;
+    value = instance widget;
     value.reset;

@@ -7,7 +7,7 @@ class holder
     this.value = amount
 
 function main;
-  owner holder = instance holder; 1
+  owner = instance holder; 1
   observer ref int = ref owner.value
   owner = instance holder; 2
   print; observer

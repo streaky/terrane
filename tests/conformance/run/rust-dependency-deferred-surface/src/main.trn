@@ -5,11 +5,11 @@ from /deps/serde-json import Number
 from /deps/serde-json/error import Category
 from /deps/serde-json/error/category import Data, Io
 function main;
-    buffer BytesMut = BytesMut::with_capacity; 8
-    remaining int = remaining_mut; buffer
-    candidate Number|none = Number::from_u128; 42
-    data Category = Data;
-    io Category = Io;
+    buffer = BytesMut::with_capacity; 8
+    remaining = remaining_mut; buffer
+    candidate = Number::from_u128; 42
+    data = Data;
+    io = Io;
     print; remaining > 0
     print; candidate != none
     print; data != io

@@ -39,11 +39,11 @@ class none-once
 
 
 function main;
-  values counter = instance counter; 3
+  values = instance counter; 3
   for value in values
     print; value
 
-  probe counter = instance counter; 3
+  probe = instance counter; 3
   probe.next;
   probe.next;
   probe.next;

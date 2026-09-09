@@ -8,8 +8,8 @@ class counter
         return this.value
 
 function main;
-    first counter = instance counter;
-    second counter = instance counter;
+    first = instance counter;
+    second = instance counter;
     first-value int = first.increase;
     second-value int = second.increase;
     next-first int = first.increase;

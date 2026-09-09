@@ -28,11 +28,11 @@ class plain
 
 
 function main;
-  value defaults = instance defaults; 'ready'
+  value = instance defaults; 'ready'
   print; value.message, ':', value.path, ':', value.id, ':', value.active, ':', value.something, ':', value.ratio
   print; value.data.length, ':', value.items.length, ':', value.names.length, ':', value.tags.length, ':', value.unordered-names.length, ':', value.unordered-tags.length
   print; value.note == none, ':', value.explicit, ':', defaults::shared
   descriptor = defaults
-  plain-value plain = instance plain;
+  plain-value = instance plain;
   print; plain-value.count, ':', plain-value.text
   print; descriptor.field-count, ':', descriptor.field-defaulted[0], ':', descriptor.field-defaulted[13]

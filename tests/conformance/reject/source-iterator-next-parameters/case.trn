@@ -7,6 +7,6 @@ class values
   function iterator cursor;
     return instance cursor;
 function main;
-  source values = instance values;
+  source = instance values;
   for item in source
     print; item

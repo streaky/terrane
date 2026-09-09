@@ -10,6 +10,6 @@ class widget
         return this.value
 
 function main;
-    direct widget = instance widget;
+    direct = instance widget;
     factory widget = widget::create;
     print; (direct.read;), (factory.read;)
