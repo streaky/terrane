@@ -15,6 +15,7 @@ The first version is complete when a user can:
 ```text
 terrane check path/to/program.trn
 terrane run path/to/program.trn -- program-arguments
+terrane path/to/script.trn -- program-arguments
 terrane build path/to/program.trn
 terrane rust path/to/program.trn
 ```
@@ -666,6 +667,14 @@ At this milestone the frontend may support only the exact constructs needed by `
 Exit criterion: one purpose-built Terrane file produces a real executable and exact expected output; malformed input fails through the diagnostic framework.
 
 Implementation note: milestone zero names the intended pipeline boundaries, but its bootstrap frontend is deliberately not yet structurally separated. Its `lex` stage records logical lines rather than tokens, import and binding forms are recognized as exact supported lines, unresolved-object detection remains parser-local, and the current resolve/lower boundaries mostly transfer fields. Milestone one therefore builds the real tokenizing lexer rather than extending a complete lexer, and later milestones make resolution and typed lowering substantive.
+
+Follow-on executable-script support keeps this pipeline singular: a byte-zero shebang lets only an
+implicit single-file package use compiler-owned namespace `script`, while manifest sources retain
+namespace correspondence and every executable retains the parameterless top-level `main` contract.
+The CLI treats a bare source path as `run`, forwards its remaining arguments, and reuses ordinary
+build caching. `executable-shebang-script`, `shebang-script-without-main`,
+`manifest-shebang-missing-namespace`, CLI dispatch tests, and a Unix test that executes a chmodded
+`#!/usr/bin/env terrane` file provide end-to-end evidence.
 
 ### Milestone 1 — Lexer and indentation correctness
 

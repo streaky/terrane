@@ -1557,6 +1557,20 @@ features:
     retention policy.
   sources:
   - docs/compiler-plan.md#Milestone 28.1
+- id: executable-scripts
+  name: Executable single-file scripts
+  category: interop
+  status: done
+  completion: 100
+  milestone: '0'
+  reference:
+    state: documented
+    paths:
+    - manual/reference/records/packages/command-line.yaml
+  notes: Byte-zero shebang scripts may omit an authored namespace, run directly through the ordinary cached CLI pipeline, forward arguments, and retain the parameterless main contract.
+  sources:
+  - docs/language-spec-concise.md#PACKAGE
+  - docs/compiler-plan.md#Milestone 0
 - id: editor-support
   name: Language server and editor integration
   category: interop

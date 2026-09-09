@@ -925,7 +925,7 @@ prelude = true            # optional; defaults true
 - Authored manifest filename: `package.toml`; syntax is TOML; unknown fields rejected.
 - `namespaces`: canonical namespace-root keys mapped to distinct, relative directory roots; no absolute/parent paths. Source discovery recursively includes `.trn` files only, resolves overlapping mappings by longest namespace prefix, and assigns stable file IDs in sorted package-relative path order.
 - Every discovered declaration must equal the namespace derived from its mapping and relative parent directory. Duplicate mapped directories and mapped roots containing no `.trn` files are manifest-load errors.
-- A direct `.trn` CLI input is implicit package `single-file`, one unit, default prelude, and is exempt from directory correspondence.
+- A direct `.trn` CLI input is implicit package `single-file`, one unit, default prelude, and exempt from directory correspondence. If byte zero begins `#!`, the shebang is comment trivia and the script may omit an authored namespace; the compiler assigns private namespace `script`. Manifest-discovered sources never receive this exemption. `terrane <file>` is implicit `terrane run <file>`, forwards remaining arguments (with an optional leading `--`), and uses the same compilation/cache/execution pipeline. A parameterless top-level `main` remains mandatory.
 - Compiler-bundled support source is copied content-addressably into generated builds and referenced only by generated-project-relative Cargo paths; no registry, network, or installation absolute path enters reproducible output. Apply the same vendoring mechanism to admitted authored third-party dependencies.
 
 - Package import does not imply runtime mutation.

@@ -780,6 +780,19 @@ Expansion is bounded to declared roots and sorted by package-relative path. The 
 
 Correspondence is directory-level, not file-level. A namespace spans as many source units as it likes, so every `.trn` file in one directory belongs to that directory's namespace; there is no file-per-declaration rule. For a discovered file, the longest directory mapping determines the namespace root and its relative parent directory supplies any suffix. A differing source declaration is an error with the expected namespace. A direct single-file CLI input has no manifest directory contract and is therefore exempt.
 
+An implicit single-file package whose first two bytes are `#!` is an executable script. The shebang
+line is retained as ordinary comment trivia. Such a script may omit an authored namespace, in which
+case the compiler assigns the private namespace `script`; an explicit declaration remains valid.
+This exemption applies only to direct single-file input. A manifest-discovered source must declare
+the namespace mapped from its directory even when its first line is a shebang.
+
+When the first CLI argument is an existing file or a path ending in `.trn`, `terrane <path>` is
+exactly an implicit `terrane run <path>`. Remaining arguments are passed to the generated program;
+one leading `--` separator is accepted but unnecessary in the implicit form. This permits the
+portable shebang `#!/usr/bin/env terrane` to invoke the ordinary compile, cache, and execution
+pipeline without a command-specific compiler path. Executable scripts retain the ordinary program
+entrypoint contract: they must declare one parameterless top-level `main`.
+
 ### Namespace segment grammar
 
 A namespace segment is:

@@ -3,6 +3,7 @@ use super::prelude::*;
 pub(super) fn declared_namespace(
     source: &SourceFile,
     tree: &SyntaxTree,
+    allow_implicit_script_namespace: bool,
 ) -> Result<String, Diagnostic> {
     let declarations = tree
         .root
@@ -10,6 +11,9 @@ pub(super) fn declared_namespace(
         .iter()
         .filter(|node| node.kind == SyntaxKind::NamespaceDeclaration)
         .collect::<Vec<_>>();
+    if declarations.is_empty() && allow_implicit_script_namespace {
+        return Ok("script".to_owned());
+    }
     if declarations.is_empty() {
         return Err(Diagnostic::error(
             "S2002",

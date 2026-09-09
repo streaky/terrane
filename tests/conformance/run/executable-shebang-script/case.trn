@@ -1,0 +1,3 @@
+#!/usr/bin/env terrane
+function main;
+  print; >hello

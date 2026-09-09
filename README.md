@@ -52,12 +52,34 @@ Terrane compiles at development and build boundaries, not at execution boundarie
 
 Terrane is still in design, but the compiler has progressed well beyond the prototype-parser stage. The language document describes the proposed full contract; the implemented subset is intentionally smaller.
 
-The working `terrane` CLI can check, lower, build, and run manifest-backed programs through deterministic generated Rust and Cargo. One shared pipeline now covers the lexer and lossless parser, packages and namespaces, typed semantics, explicit Rust IR, Cargo build caching, structured Terrane errors, and compiler-owned member families. The implemented language surface includes native scalars, exact adaptive integers, fixed-width arithmetic policies and named results, typed bindings and calls, control flow, descriptors, strings and grapheme iteration, immutable bytes, explicit Unicode text views and encodings, the version-one string transformation and search families, and linear async tasks on a selected wake-driven runtime. Native task scopes interleave child futures on that runtime, projected dependency futures execute in its context, and compiler-owned asynchronous stream, TCP, UDP, DNS, and TLS operations delegate unavoidable blocking host calls without occupying executor workers. A manifest-driven conformance corpus exercises accepted, rejected, generated-Rust, and runtime contracts; later collections, general iterator protocols, deeper ownership coverage, and broader platform capabilities remain planned rather than implemented.
+The working `terrane` CLI can check, lower, build, and run manifest-backed programs and individual source files through deterministic generated Rust and Cargo. One shared pipeline now covers the lexer and lossless parser, packages and namespaces, typed semantics, explicit Rust IR, Cargo build caching, structured Terrane errors, and compiler-owned member families. The implemented language surface includes native scalars, exact adaptive integers, fixed-width arithmetic policies and named results, typed bindings and calls, control flow, descriptors, strings and grapheme iteration, immutable bytes, explicit Unicode text views and encodings, the version-one string transformation and search families, and linear async tasks on a selected wake-driven runtime. Native task scopes interleave child work, propagate cancellation and deadlines, and reject unconsumed tasks. The compiler-owned filesystem and process substrates expose capability-gated paths, files, byte streams, lossless native arguments and environment, host-name lookup, CLI parsing, and explicit exit status. Filesystem paths use one platform-native representation; display conversion is explicit and fallible. Author-declared Rust dependencies are lock-resolved, projected into `/deps/<manifest-name>/...`, and called through generated typed shims, with checked numeric, optional, aggregate, callback, async, error, and panic boundaries.
 
 The implemented standard-library surface also includes capability-gated structured logging with
 explicit loggers, deterministic memory capture, console and failure-witness sinks, lazy typed
 fields, source-preserving redaction, typed-channel transport, and an explicit bridge for projected
 dependencies that emit through Rust's `log` or `tracing` facades.
+
+### Executable scripts
+
+A standalone Terrane source file can be executable:
+
+```terrane
+#!/usr/bin/env terrane
+function main;
+  print; >hello
+```
+
+With `terrane` on `PATH`, mark the file executable once and run it directly:
+
+```sh
+chmod +x thing.trn
+./thing.trn
+```
+
+The CLI recognizes the source path as an implicit `run`, compiles through the ordinary deterministic
+pipeline, reuses its generated-Cargo cache, and forwards trailing command-line arguments to the
+program. A shebang-bearing single-file script may omit `namespace`; it receives the compiler-owned
+namespace `script`. It must still declare a parameterless top-level `main`.
 
 ## Developing Terrane
 

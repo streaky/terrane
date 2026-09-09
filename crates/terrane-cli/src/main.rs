@@ -67,11 +67,50 @@ fn main() -> ExitCode {
     }
 }
 
+fn implicit_run_arguments(arguments: &[OsString]) -> Option<Vec<OsString>> {
+    let first = arguments.first()?;
+    if first.to_str().is_some_and(|argument| {
+        matches!(
+            argument,
+            "check"
+                | "rust"
+                | "build"
+                | "run"
+                | "toolchains"
+                | "--help"
+                | "-h"
+                | "--version"
+                | "-V"
+        )
+    }) {
+        return None;
+    }
+    let path = Path::new(first);
+    if !path.is_file() && path.extension().is_none_or(|extension| extension != "trn") {
+        return None;
+    }
+    let mut normalized = Vec::with_capacity(arguments.len() + 1);
+    normalized.push(OsString::from("run"));
+    normalized.push(first.clone());
+    if arguments.len() > 1 {
+        normalized.push(OsString::from("--"));
+        let remaining = if arguments.get(1).is_some_and(|argument| argument == "--") {
+            &arguments[2..]
+        } else {
+            &arguments[1..]
+        };
+        normalized.extend_from_slice(remaining);
+    }
+    Some(normalized)
+}
+
 #[expect(
     clippy::too_many_lines,
     reason = "the shared CLI pipeline keeps command phase ordering explicit"
 )]
 fn run(arguments: &[OsString]) -> Result<ExitCode, CliFailure> {
+    let normalized = implicit_run_arguments(arguments);
+    let arguments = normalized.as_deref().unwrap_or(arguments);
     let Some(command) = arguments.first().and_then(|value| value.to_str()) else {
         return Err(CliFailure::usage());
     };
@@ -1006,6 +1045,7 @@ fn report_toolchains() {
 fn usage() -> String {
     "usage: terrane <check|rust|build|run> [--require-canonical-rust] [--lint-name-style] \
      [--release] [--output <file>] <source.trn> [-- program arguments]\n\
+     terrane <source.trn> [program arguments]\n\
      terrane toolchains\n\
      options:\n  --require-canonical-rust  fail unless lowering emits bundled-formatter output\n  \
      --lint-name-style  warn when authored declarations are not kebab-case\n  \
@@ -1024,6 +1064,39 @@ mod tests {
         SourceFile, SourceUnit, Span,
         rust_ir::{RenderedFile, SourceAssociation},
     };
+
+    #[test]
+    fn source_path_dispatches_to_run_and_forwards_arguments() {
+        let arguments = [
+            OsString::from("thing.trn"),
+            OsString::from("first"),
+            OsString::from("--flag"),
+        ];
+        assert_eq!(
+            implicit_run_arguments(&arguments),
+            Some(vec![
+                OsString::from("run"),
+                OsString::from("thing.trn"),
+                OsString::from("--"),
+                OsString::from("first"),
+                OsString::from("--flag"),
+            ])
+        );
+        assert!(implicit_run_arguments(&[OsString::from("run")]).is_none());
+        assert_eq!(
+            implicit_run_arguments(&[
+                OsString::from("thing.trn"),
+                OsString::from("--"),
+                OsString::from("first"),
+            ]),
+            Some(vec![
+                OsString::from("run"),
+                OsString::from("thing.trn"),
+                OsString::from("--"),
+                OsString::from("first"),
+            ])
+        );
+    }
 
     #[test]
     fn release_is_available_only_for_native_build_and_run() {

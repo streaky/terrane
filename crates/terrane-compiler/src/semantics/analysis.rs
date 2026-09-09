@@ -18,11 +18,15 @@ pub(super) fn parse_unit(
             diagnostics: parsed.diagnostics,
         });
     }
-    let namespace =
-        declared_namespace(source, &parsed.tree).map_err(|diagnostic| SemanticFailure {
-            source: source.clone(),
-            diagnostics: vec![diagnostic],
-        })?;
+    let namespace = declared_namespace(
+        source,
+        &parsed.tree,
+        expected_namespace.is_none() && source.text().starts_with("#!"),
+    )
+    .map_err(|diagnostic| SemanticFailure {
+        source: source.clone(),
+        diagnostics: vec![diagnostic],
+    })?;
     if let Some(expected) = expected_namespace
         && namespace != expected
     {

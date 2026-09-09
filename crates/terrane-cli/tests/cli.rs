@@ -91,6 +91,38 @@ fn all_commands_share_the_hello_pipeline() {
     );
 }
 
+#[cfg(unix)]
+#[test]
+fn executable_shebang_script_runs_through_implicit_command() {
+    use std::os::unix::fs::PermissionsExt as _;
+
+    let binary = PathBuf::from(env!("CARGO_BIN_EXE_terrane"));
+    let directory = TemporaryDirectory::new("executable-script");
+    fs::create_dir_all(directory.path()).unwrap();
+    let script = directory.path().join("thing.trn");
+    fs::write(
+        &script,
+        "#!/usr/bin/env terrane\nfunction main;\n  print; >hello\n",
+    )
+    .unwrap();
+    let mut permissions = fs::metadata(&script).unwrap().permissions();
+    permissions.set_mode(0o755);
+    fs::set_permissions(&script, permissions).unwrap();
+
+    let mut path_entries = vec![binary.parent().unwrap().to_path_buf()];
+    if let Some(path) = std::env::var_os("PATH") {
+        path_entries.extend(std::env::split_paths(&path));
+    }
+    let output = Command::new(&script)
+        .env("PATH", std::env::join_paths(path_entries).unwrap())
+        .output()
+        .unwrap();
+
+    assert!(output.status.success(), "{output:?}");
+    assert_eq!(output.stdout, b"hello\n");
+    assert!(output.stderr.is_empty(), "{output:?}");
+}
+
 #[test]
 fn rust_output_writes_clean_authored_lowering_and_support_sidecar() {
     let binary = env!("CARGO_BIN_EXE_terrane");
