@@ -3,7 +3,9 @@
 docs/dump/
 docs/diagrams/
 
+# Local agent bootstrap and living project memory.
 AGENTS.md
+docs/MEMORY.md
 
 # Rust and Terrane build artifacts
 /target/
