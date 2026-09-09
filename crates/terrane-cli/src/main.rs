@@ -1062,8 +1062,8 @@ fn report_toolchains() {
 
 fn usage() -> String {
     "usage: terrane <check|rust|build|run> [--require-canonical-rust] [--lint-name-style] \
-     [--release] [--output <file>] <source.trn> [-- program arguments]\n\
-     terrane <source.trn> [program arguments]\n\
+     [--release] [--output <file>] <file-or-manifest> [-- program arguments]\n\
+     terrane <file-or-manifest> [program arguments]\n\
      terrane toolchains\n\
      options:\n  --require-canonical-rust  fail unless lowering emits bundled-formatter output\n  \
      --lint-name-style  warn when authored declarations are not kebab-case\n  \

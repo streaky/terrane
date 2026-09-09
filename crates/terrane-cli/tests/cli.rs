@@ -246,11 +246,10 @@ fn help_succeeds_and_extra_arguments_are_rejected() {
     let binary = env!("CARGO_BIN_EXE_terrane");
     let help = Command::new(binary).arg("--help").output().unwrap();
     assert!(help.status.success());
-    assert!(
-        String::from_utf8(help.stdout)
-            .unwrap()
-            .contains("commands:")
-    );
+    let help = String::from_utf8(help.stdout).unwrap();
+    assert!(help.contains("commands:"));
+    assert!(help.contains("<file-or-manifest>"));
+    assert!(!help.contains("<source.trn>"));
 
     let extra = Command::new(binary)
         .args(["check", hello().to_str().unwrap(), "unexpected"])
