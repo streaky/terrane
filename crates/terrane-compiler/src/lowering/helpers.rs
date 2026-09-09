@@ -161,46 +161,6 @@ pub(super) fn unescape(value: &str) -> String {
     output
 }
 
-pub(super) fn effective_object_fields<'a>(
-    unit: &'a SemanticUnit,
-    object: &'a DescriptorContract,
-) -> Vec<&'a ObjectField> {
-    fn collect<'a>(
-        unit: &'a SemanticUnit,
-        object: &'a DescriptorContract,
-        fields: &mut Vec<&'a ObjectField>,
-    ) {
-        if let Some(base) = object.base.as_ref().and_then(|identity| {
-            unit.descriptors
-                .iter()
-                .find(|object| object.identity == *identity)
-        }) {
-            collect(unit, base, fields);
-        }
-        for reused in &object.traits {
-            if let Some(reused) = unit
-                .descriptors
-                .iter()
-                .find(|candidate| candidate.identity == *reused)
-            {
-                collect(unit, reused, fields);
-            }
-        }
-        for field in &object.fields {
-            if let Some(index) = fields.iter().position(|existing| {
-                existing.name == field.name && existing.is_static == field.is_static
-            }) {
-                fields[index] = field;
-            } else {
-                fields.push(field);
-            }
-        }
-    }
-    let mut fields = Vec::new();
-    collect(unit, object, &mut fields);
-    fields
-}
-
 pub(super) fn object_descendants<'a>(
     unit: &'a SemanticUnit,
     object: &DescriptorContract,
@@ -370,6 +330,41 @@ pub(super) const fn rust_value_is_copy(ty: &ValueType) -> bool {
 )]
 pub(super) fn rust_element_type(package: &SemanticPackage, ty: ElementType) -> String {
     rust_value_type(package, ty.value_type())
+}
+
+pub(super) fn rust_empty_collection(
+    package: &SemanticPackage,
+    value_type: &ValueType,
+) -> Option<String> {
+    match value_type {
+        ValueType::List(item) => Some(format!(
+            "terrane_collection_support::List::<{}>::new(Vec::new())",
+            rust_element_type(package, item.clone())
+        )),
+        ValueType::Tuple(item, _) => Some(format!(
+            "terrane_collection_support::Tuple::<{}>::new(Vec::new())",
+            rust_element_type(package, item.clone())
+        )),
+        ValueType::Set(item) => Some(format!(
+            "terrane_collection_support::Set::<{}>::new(Vec::new())",
+            rust_element_type(package, item.clone())
+        )),
+        ValueType::UnorderedSet(item) => Some(format!(
+            "terrane_collection_support::UnorderedSet::<{}>::new(Vec::new())",
+            rust_element_type(package, item.clone())
+        )),
+        ValueType::Map(key, value) => Some(format!(
+            "terrane_collection_support::Map::<{}, {}>::new(Vec::new())",
+            rust_element_type(package, key.clone()),
+            rust_element_type(package, value.clone())
+        )),
+        ValueType::UnorderedMap(key, value) => Some(format!(
+            "terrane_collection_support::UnorderedMap::<{}, {}>::new(Vec::new())",
+            rust_element_type(package, key.clone()),
+            rust_element_type(package, value.clone())
+        )),
+        _ => None,
+    }
 }
 
 #[expect(

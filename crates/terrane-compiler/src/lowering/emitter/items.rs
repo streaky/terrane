@@ -19,66 +19,41 @@ fn forwarded_method_return_type(
     }
 }
 fn canonical_field_default(package: &SemanticPackage, value_type: &ValueType) -> Option<String> {
-    match value_type {
-        ValueType::Scalar(ScalarType::Bool) => Some("false".to_owned()),
-        ValueType::Scalar(ScalarType::Int) => {
+    match canonical_default(value_type)? {
+        CanonicalDefault::BoolFalse => Some("false".to_owned()),
+        CanonicalDefault::AdaptiveIntegerZero => {
             Some("terrane_int_support::Int::from(0_i128)".to_owned())
         }
-        ValueType::Scalar(
-            ScalarType::Int8
-            | ScalarType::Int16
-            | ScalarType::Int32
-            | ScalarType::Int64
-            | ScalarType::Int128
-            | ScalarType::Uint8
-            | ScalarType::Uint16
-            | ScalarType::Uint32
-            | ScalarType::Uint64
-            | ScalarType::Uint128,
-        ) => Some("0".to_owned()),
-        ValueType::Scalar(ScalarType::Float32) => Some("0.0_f32".to_owned()),
-        ValueType::Scalar(ScalarType::Float64) => Some("0.0_f64".to_owned()),
-        ValueType::Scalar(ScalarType::String) => Some("String::new()".to_owned()),
-        ValueType::Scalar(ScalarType::Bytes) => Some("Vec::new()".to_owned()),
-        ValueType::Scalar(ScalarType::None) => Some("()".to_owned()),
-        ValueType::Optional(_) => Some("None".to_owned()),
-        ValueType::List(item) => Some(format!(
-            "terrane_collection_support::List::<{}>::new(Vec::new())",
-            rust_element_type(package, item.clone())
-        )),
-        ValueType::Map(key, value) => Some(format!(
-            "terrane_collection_support::Map::<{}, {}>::new(Vec::new())",
-            rust_element_type(package, key.clone()),
-            rust_element_type(package, value.clone())
-        )),
-        ValueType::Set(item) => Some(format!(
-            "terrane_collection_support::Set::<{}>::new(Vec::new())",
-            rust_element_type(package, item.clone())
-        )),
-        ValueType::UnorderedMap(key, value) => Some(format!(
-            "terrane_collection_support::UnorderedMap::<{}, {}>::new(Vec::new())",
-            rust_element_type(package, key.clone()),
-            rust_element_type(package, value.clone())
-        )),
-        ValueType::UnorderedSet(item) => Some(format!(
-            "terrane_collection_support::UnorderedSet::<{}>::new(Vec::new())",
-            rust_element_type(package, item.clone())
-        )),
-        _ => None,
+        CanonicalDefault::FixedIntegerZero => Some("0".to_owned()),
+        CanonicalDefault::Float32Zero => Some("0.0_f32".to_owned()),
+        CanonicalDefault::Float64Zero => Some("0.0_f64".to_owned()),
+        CanonicalDefault::EmptyString => Some("String::new()".to_owned()),
+        CanonicalDefault::EmptyBytes => Some("Vec::new()".to_owned()),
+        CanonicalDefault::AbsentOptional => Some("None".to_owned()),
+        CanonicalDefault::EmptyList
+        | CanonicalDefault::EmptyMap
+        | CanonicalDefault::EmptySet
+        | CanonicalDefault::EmptyUnorderedMap
+        | CanonicalDefault::EmptyUnorderedSet => rust_empty_collection(package, value_type),
     }
 }
 
-impl Emitter<'_> {
-    fn field_initial_value(&mut self, field: &ObjectField) -> String {
-        let initializer = find_node_by_span(&self.unit.tree.root, field.span).and_then(|binding| {
-            binding
-                .children
-                .iter()
-                .position(|child| child.kind == SyntaxKind::Name)
-                .and_then(|index| binding_initializer(binding, index))
-        });
-        if let Some(initializer) = initializer {
-            return self.expression_as(initializer, field.value_type.clone());
+impl<'a> Emitter<'a> {
+    fn field_initial_value(&mut self, effective: EffectiveObjectField<'a>) -> String {
+        let field = effective.field;
+        if let Some(initializer_span) = field.initializer_span {
+            let initializer = find_node_by_span(&effective.unit.tree.root, initializer_span)
+                .expect("semantic field initializer span must resolve in its declaration unit");
+            let previous_unit = std::mem::replace(&mut self.unit, effective.unit);
+            let previous_source = std::mem::replace(&mut self.source, &effective.unit.source);
+            let previous_object = self
+                .current_object
+                .replace(effective.owner.identity.clone());
+            let value = self.expression_as(initializer, field.value_type.clone());
+            self.current_object = previous_object;
+            self.source = previous_source;
+            self.unit = previous_unit;
+            return value;
         }
         if let Some(value) = canonical_field_default(self.package, &field.value_type) {
             return value;
@@ -264,7 +239,7 @@ impl Emitter<'_> {
         &mut self,
         object: &DescriptorContract,
         class_type: &str,
-        fields: &[&ObjectField],
+        fields: &[EffectiveObjectField<'_>],
     ) {
         let (class_line, class_column) = self.source.line_column(object.span.start);
         let class_source = format!("{}:{class_line}:{class_column}", self.unit.source_path);
@@ -327,8 +302,8 @@ impl Emitter<'_> {
             let rust_field = rust_name(&field.name);
             let rust_type = rust_value_type(self.package, field.value_type.clone());
             let external = &field.metadata.external_name;
-            let (field_line, field_column) = self.source.line_column(field.span.start);
-            let field_source = format!("{}:{field_line}:{field_column}", self.unit.source_path);
+            let (field_line, field_column) = field.unit.source.line_column(field.span.start);
+            let field_source = format!("{}:{field_line}:{field_column}", field.unit.source_path);
             self.line("{");
             self.indent += 1;
             self.line(&format!(
@@ -528,16 +503,16 @@ impl Emitter<'_> {
             }
             ObjectKind::Trait => {}
             ObjectKind::Class => {
-                let fields = effective_object_fields(self.unit, object);
+                let fields = effective_object_fields(self.package, object);
                 let instance_fields = fields
                     .iter()
                     .copied()
-                    .filter(|field| !field.is_static)
+                    .filter(|field| !field.field.is_static)
                     .collect::<Vec<_>>();
                 let static_fields = fields
                     .iter()
                     .copied()
-                    .filter(|field| field.is_static)
+                    .filter(|field| field.field.is_static)
                     .collect::<Vec<_>>();
                 let descendants = object_descendants(self.unit, object);
                 let class_type = rust_object_type_name(self.package, &object.identity);
@@ -561,11 +536,11 @@ impl Emitter<'_> {
 
                 let previous_object = self.current_object.replace(object.identity.clone());
                 for field in &static_fields {
-                    let initializer = self.field_initial_value(field);
+                    let initializer = self.field_initial_value(*field);
                     self.line(&format!(
                         "pub static {}: std::sync::LazyLock<std::sync::Mutex<{}>> = std::sync::LazyLock::new(|| std::sync::Mutex::new({initializer}));",
-                        rust_static_field_name(self.package, &object.identity, &field.name),
-                        rust_value_type(self.package, field.value_type.clone())
+                        rust_static_field_name(self.package, &object.identity, &field.field.name),
+                        rust_value_type(self.package, field.field.value_type.clone())
                     ));
                 }
                 self.current_object = previous_object;
@@ -584,8 +559,8 @@ impl Emitter<'_> {
                 for field in &instance_fields {
                     self.line(&format!(
                         "pub {}: {},",
-                        rust_name(&field.name),
-                        rust_value_type(self.package, field.value_type.clone())
+                        rust_name(&field.field.name),
+                        rust_value_type(self.package, field.field.value_type.clone())
                     ));
                 }
                 self.indent -= 1;
@@ -614,8 +589,8 @@ impl Emitter<'_> {
                     self.line("let mut value = Self {");
                     self.indent += 1;
                     for field in &instance_fields {
-                        let value = self.field_initial_value(field);
-                        self.line(&format!("{}: {value},", rust_name(&field.name)));
+                        let value = self.field_initial_value(*field);
+                        self.line(&format!("{}: {value},", rust_name(&field.field.name)));
                     }
                     if has_destructor && !object.resource_owning {
                         self.line("__terrane_lifetime: std::sync::Arc::new(()),");
@@ -645,8 +620,8 @@ impl Emitter<'_> {
                     self.line("Self {");
                     self.indent += 1;
                     for field in &instance_fields {
-                        let value = self.field_initial_value(field);
-                        self.line(&format!("{}: {value},", rust_name(&field.name)));
+                        let value = self.field_initial_value(*field);
+                        self.line(&format!("{}: {value},", rust_name(&field.field.name)));
                     }
                     if has_destructor && !object.resource_owning {
                         self.line("__terrane_lifetime: std::sync::Arc::new(()),");

@@ -1,0 +1,12 @@
+namespace nondefaultable-trait-field
+
+class payload
+  value int
+
+trait carrier
+  slot payload
+
+class user uses carrier
+
+function main;
+  value = instance user;

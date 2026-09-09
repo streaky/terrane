@@ -1,0 +1,6 @@
+package = "cross-unit-inherited-initializer"
+prelude = true
+
+[namespaces]
+app = "app"
+models = "models"

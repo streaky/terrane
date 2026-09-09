@@ -895,7 +895,7 @@ features:
     state: partial
     paths:
     - manual/reference/records/language/classes/fields.yaml
-  notes: Classes implement typed state, methods, explicit construction, independent instances, and canonical scalar, optional, bytes, and collection field defaults when an initializer is omitted.
+  notes: Classes implement typed state, methods, explicit construction, independent instances, and semantically shared canonical defaults across own, inherited, and trait-contributed scalar, optional, bytes, and collection fields.
   sources:
   - docs/language-spec-concise.md#OBJECT_MODEL
   - docs/compiler-plan.md#Completed portion of Milestone 16

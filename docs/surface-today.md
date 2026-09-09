@@ -607,14 +607,17 @@ precedence over the universal reflection property. Every materialized descriptor
 `inherently-identity-bearing`: it is true for reference and resource-owning type contracts and
 false for ordinary value types, including collections.
 
-Source-declared class fields with declared scalar, optional, bytes, or collection types may omit
-their initializer and receive the type's canonical false, typed-zero, empty, or absent value.
-Nondefaultable types still require an explicit initializer. Instance fields also accept one
-trailing `metadata (...)` clause. The implemented metadata names are string `external-name` and
-boolean `secret`; canonical and explicit defaults plus `T|none` derive the same field descriptor's
-`defaulted` and `optional` flags. Class descriptors expose declaration-ordered field names,
-external names, and all three flags as parallel reflected lists. Malformed, duplicate,
-static-field, non-field, and externally conflicting metadata is rejected.
+Source-declared class and trait fields with declared scalar, optional, bytes, or collection types
+may omit their initializer and receive the type's canonical false, typed-zero, empty, or absent
+value. Plain `none`, tuples, source objects, references, callables, resources, and other runtime
+contracts are nondefaultable. Every effective class field must receive either its canonical default
+or an explicit initializer from the class, a base, or a reused trait; inherited initializers retain
+their declaring source/object context. Instance fields also accept one trailing `metadata (...)`
+clause. The implemented metadata names are string `external-name` and boolean `secret`; inherited
+canonical and explicit defaults plus `T|none` derive the effective field descriptor's `defaulted`
+and `optional` flags. Class descriptors expose declaration-ordered field names, external names, and
+all three flags as parallel reflected lists. Malformed, duplicate, static-field, non-field, and
+externally conflicting metadata is rejected.
 
 ## Functions
 

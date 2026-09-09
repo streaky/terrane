@@ -756,17 +756,20 @@ encoding: explicit utf8/utf16-le/utf16-be/utf32-le/utf32-be; encode total; decod
   compiler-owned, per-operation `LazyLock<Mutex<...>>` strategy as mutable globals: reads copy the
   Terrane value, poisoning is an internal runtime failure, and this implementation detail neither
   makes source operation sequences atomic nor replaces explicit concurrency objects.
-- A typed class field may omit its initializer only when its declared type has a canonical default:
-  `bool` -> `false`; numeric -> typed zero; `string` -> `''`; `bytes` -> empty bytes; `T|none` ->
-  `none`; `list`/`map`/`set`/`unordered-map`/`unordered-set` -> empty collection. This never infers
-  the type, invokes an arbitrary constructor, or hides `none` in plain `T`; nondefaultable fields
-  require an explicit initializer. Explicit initializers override the canonical default.
+- A typed class or trait field may omit its initializer only when its declared type has a canonical
+  default: `bool` -> `false`; numeric -> typed zero; `string` -> `''`; `bytes` -> empty bytes;
+  `T|none` -> `none`; `list`/`map`/`set`/`unordered-map`/`unordered-set` -> empty collection.
+  Plain `none`, tuples, source objects, references, callables, resources, and other runtime
+  contracts are nondefaultable. This never infers the type, invokes an arbitrary constructor, or
+  hides `none` in plain `T`; nondefaultable effective class fields require an explicit initializer.
+  A trait may supply it or the using class may override the field. Effective inherited fields are
+  validated before lowering, and explicit initializers use their declaring source/object context.
 - Field metadata has one trailing clause:
   `field T = value metadata (external-name = 'wireName', secret = true)`.
   It is valid only on instance fields. `external-name` is a string, `secret` is a boolean, names
-  cannot repeat, and effective external names are unique per class. Canonical or explicit defaults
-  and `T|none` optionality derive the resolved field descriptor's `defaulted` and `optional` flags
-  rather than duplicating either policy.
+  cannot repeat, and effective external names are unique per class. Canonical or explicit defaults,
+  including trait/base contributions, plus `T|none` optionality derive the resolved field
+  descriptor's `defaulted` and `optional` flags rather than duplicating either policy.
 - Class descriptor reflection exposes parallel declaration-ordered `field-names`,
   `field-external-names`, `field-defaulted`, `field-optional`, and `field-secret` lists plus
   `field-count`. Document mapping and redaction consume this same metadata; no facility-specific

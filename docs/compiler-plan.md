@@ -209,13 +209,21 @@ The source-object portion is delivered: classes, interfaces, and traits use
 `DescriptorContract`; their member lookup, nominal relations, conformance, dispatch, reflection,
 and structural protocol lookup consume that source contract. Iteration and `truth` now resolve
 required members through the same recursive protocol-member query, including members inherited
-from a base or supplied by trait/interface composition.
-Typed class fields whose scalar, optional, bytes, or collection descriptors provide a canonical
-default now omit redundant initializers. Semantic field metadata records implicit and explicit
-defaults identically, and lowering emits the exact typed zero, false, empty, or absent value before
-constructor execution. `implicit-class-field-defaults` covers runtime values, explicit override,
-static storage, collections, and reflected default status; `nondefaultable-class-field` preserves
-T0061 for source-object fields without an initializer.
+from bases and reused traits.
+
+Typed class and reusable trait fields whose scalar, optional, bytes, or collection descriptors
+provide a canonical default now omit redundant initializers. One exhaustive semantic contract
+classifies defaults; tuple, plain-`none`, source-object, reference, callable, and resource fields
+remain nondefaultable. Fully composed class fields are validated before lowering, so a
+nondefaultable trait field must be initialized by the trait or overridden with an initializer by
+the class. Semantic field metadata records implicit, explicit, inherited, and trait-contributed
+defaults consistently. Lowering evaluates inherited explicit initializers in their declaring source
+and object context and shares empty-collection construction with ordinary collection expressions.
+`implicit-class-field-defaults`, `trait-field-defaults`, and
+`cross-unit-inherited-initializer` cover runtime values, overrides, static storage, collections,
+reflection, trait reuse, and cross-unit inheritance. `nondefaultable-class-field`,
+`nondefaultable-trait-field`, and `nondefaultable-tuple-field` preserve T0061 at every effective
+class boundary.
 
 
 Remaining work:

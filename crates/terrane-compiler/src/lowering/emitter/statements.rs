@@ -164,7 +164,7 @@ impl Emitter<'_> {
             };
             let object = self.class_designator(class)?;
             let field_name = self.text(field);
-            effective_object_fields(self.unit, object)
+            effective_object_fields(self.package, object)
                 .iter()
                 .any(|candidate| candidate.is_static && candidate.name == field_name)
                 .then(|| {

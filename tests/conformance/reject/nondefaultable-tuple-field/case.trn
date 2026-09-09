@@ -1,0 +1,8 @@
+namespace nondefaultable-tuple-field
+from /core/collections import tuple
+
+class holder
+  values tuple of int
+
+function main;
+  value = instance holder;

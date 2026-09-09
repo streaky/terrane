@@ -3550,10 +3550,12 @@ class connection-options
 
 The canonical defaults are `false` for `bool`, typed zero for every integer and floating type, `''`
 for `string`, empty bytes for `bytes`, `none` for `T|none`, and an empty value for `list`, `map`,
-`set`, `unordered-map`, and `unordered-set`. An omitted initializer requests exactly that value; it
+`set`, `unordered-map`, and `unordered-set`. Plain `none`, tuples (including open-length tuples),
+source-declared objects, references, callables, resources, and other runtime contracts do not have
+canonical field defaults. An omitted initializer requests exactly the declared canonical value; it
 does not infer the field type, invoke an arbitrary constructor, or place hidden `none` in a
-non-optional field. A field whose type has no canonical default, including a source-declared class,
-must provide an initializer. An explicit initializer always supplies the default instead:
+non-optional field. A field whose type has no canonical default must provide an initializer.
+An explicit initializer always supplies the default instead:
 
 ```terrane
 class connection-options
@@ -3562,9 +3564,10 @@ class connection-options
   secure bool = true
 ```
 
-Both implicit canonical defaults and explicit initializers are field defaults for descriptor
-reflection and document decoding. Constructor execution begins after those defaults exist and may
-replace them through ordinary assignment.
+Both implicit canonical defaults and explicit initializers are effective field defaults for
+descriptor reflection and document decoding, including when inherited from a base class or
+contributed by a trait. Constructor execution begins after those defaults exist and may replace them
+through ordinary assignment.
 
 
 Fields are public by default and may be narrowed:
@@ -3653,6 +3656,13 @@ class record uses timestamped
 ```
 
 Trait conflicts must be resolved explicitly. No silent “last one wins” rule is permitted.
+
+A trait field contributes its initializer or canonical type default to every class that uses it.
+The class may override the field and provide a different initializer. If the effective field type
+has no canonical default, either the trait must initialize it or the using class must override it
+with an initializer; otherwise class validation fails with `T0061`. This validation applies to the
+fully composed field set before lowering, including traits and base classes declared in other source
+units. Explicit inherited initializers are evaluated in their declaring source and object context.
 
 These mechanisms occupy distinct layers of one object-contract model. A **protocol** is a structural semantic operation understood by the language or libraries; any object may satisfy it without a declaration. An **interface** is a named type object collecting required protocols and method signatures for annotations and dynamic dispatch. A **trait** is reusable field/method implementation copied into a class with explicit conflict resolution; using a trait can satisfy protocols or interfaces but is not itself subtyping. **Class inheritance** extends one concrete class, preserving its state and substitutability. The iteration protocol is therefore implementable by any user class directly or through a trait, and an interface may name that requirement when a typed boundary needs it.
 

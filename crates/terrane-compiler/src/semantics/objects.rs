@@ -1,15 +1,80 @@
 use super::prelude::*;
-fn has_canonical_field_default(value_type: &ValueType) -> bool {
-    matches!(
-        value_type,
-        ValueType::Scalar(_)
-            | ValueType::Optional(_)
-            | ValueType::List(_)
-            | ValueType::Map(_, _)
-            | ValueType::Set(_)
-            | ValueType::UnorderedMap(_, _)
-            | ValueType::UnorderedSet(_)
-    )
+
+#[derive(Clone, Copy)]
+pub(crate) struct EffectiveObjectField<'a> {
+    pub(crate) unit: &'a SemanticUnit,
+    pub(crate) owner: &'a DescriptorContract,
+    pub(crate) field: &'a ObjectField,
+}
+
+impl std::ops::Deref for EffectiveObjectField<'_> {
+    type Target = ObjectField;
+
+    fn deref(&self) -> &Self::Target {
+        self.field
+    }
+}
+
+fn descriptor_declaration<'a>(
+    package: &'a SemanticPackage,
+    identity: &ObjectIdentity,
+) -> Option<(&'a SemanticUnit, &'a DescriptorContract)> {
+    package.units.iter().find_map(|unit| {
+        unit.descriptors
+            .iter()
+            .find(|candidate| {
+                candidate.identity == *identity && candidate.span.file == unit.source.id()
+            })
+            .map(|object| (unit, object))
+    })
+}
+
+pub(crate) fn effective_object_fields<'a>(
+    package: &'a SemanticPackage,
+    object: &'a DescriptorContract,
+) -> Vec<EffectiveObjectField<'a>> {
+    fn collect<'a>(
+        package: &'a SemanticPackage,
+        unit: &'a SemanticUnit,
+        object: &'a DescriptorContract,
+        fields: &mut Vec<EffectiveObjectField<'a>>,
+    ) {
+        if let Some((base_unit, base)) = object
+            .base
+            .as_ref()
+            .and_then(|identity| descriptor_declaration(package, identity))
+        {
+            collect(package, base_unit, base, fields);
+        }
+        for reused in &object.traits {
+            if let Some((trait_unit, reused)) = descriptor_declaration(package, reused) {
+                collect(package, trait_unit, reused, fields);
+            }
+        }
+        for field in &object.fields {
+            let effective = EffectiveObjectField {
+                unit,
+                owner: object,
+                field,
+            };
+            if let Some(index) = fields.iter().position(|existing| {
+                existing.field.name == field.name && existing.field.is_static == field.is_static
+            }) {
+                fields[index] = effective;
+            } else {
+                fields.push(effective);
+            }
+        }
+    }
+
+    let unit = package
+        .units
+        .iter()
+        .find(|unit| unit.source.id() == object.span.file)
+        .expect("object declaration source must belong to the semantic package");
+    let mut fields = Vec::new();
+    collect(package, unit, object, &mut fields);
+    fields
 }
 
 fn field_metadata(
@@ -217,29 +282,9 @@ pub(super) fn analyze_descriptor_contracts(
                         field.span,
                     ));
                 };
-                let canonical_default = kind == ObjectKind::Class
+                let uses_canonical_default = matches!(kind, ObjectKind::Class | ObjectKind::Trait)
                     && initializer.is_none()
-                    && has_canonical_field_default(&value_type);
-                if kind == ObjectKind::Class
-                    && initializer.is_none()
-                    && !canonical_default
-                    && !matches!(
-                        value_type,
-                        ValueType::PlatformStreamHandle
-                            | ValueType::PlatformResourceHandle
-                            | ValueType::FilesystemAuthority
-                    )
-                {
-                    return Err(failure(
-                        &unit.source,
-                        "T0061",
-                        format!(
-                            "class field `{}` has no canonical default and requires an initializer",
-                            node_text(&unit.source, field_name)
-                        ),
-                        field.span,
-                    ));
-                }
+                    && canonical_default(&value_type).is_some();
                 let field_name = node_text(&unit.source, field_name).to_owned();
                 let is_static = field.children.iter().any(|child| {
                     child.kind == SyntaxKind::DeclarationQualifier
@@ -250,13 +295,14 @@ pub(super) fn analyze_descriptor_contracts(
                     field,
                     &field_name,
                     &value_type,
-                    initializer.is_some() || canonical_default,
+                    initializer.is_some() || uses_canonical_default,
                     is_static,
                 )?;
                 fields.push(ObjectField {
                     name: field_name,
                     span: field.span,
                     value_type,
+                    initializer_span: initializer.map(|initializer| initializer.span),
                     is_static,
                     metadata,
                 });
@@ -765,6 +811,42 @@ pub(super) fn validate_object_conformance(
     Ok(())
 }
 
+pub(super) fn validate_class_field_initializers(
+    package: &SemanticPackage,
+) -> Result<(), SemanticFailure> {
+    for object in package
+        .units
+        .iter()
+        .flat_map(|unit| &unit.descriptors)
+        .filter(|object| object.kind == ObjectKind::Class)
+    {
+        for effective in effective_object_fields(package, object) {
+            let field = effective.field;
+            if field.initializer_span.is_some()
+                || canonical_default(&field.value_type).is_some()
+                || matches!(
+                    field.value_type,
+                    ValueType::PlatformStreamHandle
+                        | ValueType::PlatformResourceHandle
+                        | ValueType::FilesystemAuthority
+                )
+            {
+                continue;
+            }
+            return Err(failure(
+                &effective.unit.source,
+                "T0061",
+                format!(
+                    "class field `{}` contributed to `{}` has no canonical default and requires an initializer",
+                    field.name, object.name
+                ),
+                field.span,
+            ));
+        }
+    }
+    Ok(())
+}
+
 pub(super) fn propagate_interface_receiver_mutability(package: &mut SemanticPackage) {
     fn effective_method<'a>(
         unit: &'a SemanticUnit,
@@ -1209,6 +1291,7 @@ pub(super) fn analyze_types(package: &mut SemanticPackage) -> Result<(), Semanti
     validate_resource_collection_types(package)?;
     infer_receiver_consumption(package);
     validate_object_conformance(package)?;
+    validate_class_field_initializers(package)?;
     populate_closure_captures(package);
     Ok(())
 }

@@ -208,7 +208,7 @@ impl Emitter<'_> {
             return String::new();
         };
         let member_name = self.text(member);
-        if effective_object_fields(self.unit, object)
+        if effective_object_fields(self.package, object)
             .iter()
             .any(|field| field.is_static && field.name == member_name)
         {
