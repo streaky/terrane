@@ -1,0 +1,4 @@
+namespace throw-tail-string-rejected
+
+function main;
+  throw >not a throwable

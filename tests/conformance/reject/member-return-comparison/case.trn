@@ -1,0 +1,8 @@
+namespace member-return-comparison
+
+class outcome
+  value int
+
+function main;
+  result = instance outcome;
+  print; result.return > 0

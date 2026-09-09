@@ -584,9 +584,10 @@ function status string;
 The second value is exactly `Hello! From, "Terrane"! >>`. Quotes, commas, operators, comment markers, and further `>` characters have no grammatical meaning after the opening marker. Whitespace is preserved exactly, including whitespace immediately after `>` and trailing horizontal whitespace. An attached `>` with no following content is the empty string.
 
 The marker must begin an expression and must be lexically attached to the expression position. An
-initializer, call argument, or value-bearing `return` therefore admits it directly; its content
-begins with the very next character, which may be whitespace. This keeps it distinct from infix
-comparison:
+initializer, call argument, or value-bearing `return` statement therefore admits it directly; for
+the latter, `return` must itself begin a logical line or block statement rather than being a member
+name. `throw` does not open tail text. Content begins with the very next character, which may be
+whitespace. This keeps the marker distinct from infix comparison:
 
 ```terrane
 is-larger = left > right

@@ -803,7 +803,7 @@ Deliver:
 - `#`, `//`, and `/* ... */` comments;
 - quoted, tail, and indented block strings plus numeric literals;
 - identifiers with operator-bearing joiners, including `<` and `>`, while a terminal joiner followed by a digits-only unit is rejected;
-- comparison and shift operators using `<`, `>`, `<<`, and `>>`, with `>` and `>>` additionally opening tail and block strings in expression-start position, including after value-bearing `return`; these tokens never delimit generic arguments;
+- comparison and shift operators using `<`, `>`, `<<`, and `>>`, with `>` and `>>` additionally opening tail and block strings in expression-start position, including after a value-bearing `return` that starts a logical statement but never after a `.return` member name or `throw`; these tokens never delimit generic arguments;
 - structural punctuation and spacing-sensitive operator attachment, including `++`/`--` as declared postfix tokens;
 - lexical diagnostics for mixed tab/space indentation styles, invalid characters, unterminated strings/comments, inconsistent dedents, illegal attached operators, and attached joiner-plus-digits forms such as `count-1` with a spaced-expression fix.
 

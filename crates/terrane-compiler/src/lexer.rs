@@ -884,7 +884,13 @@ fn expression_start(tokens: &[Token]) -> bool {
                 | TokenKind::OpenBrace
                 | TokenKind::Operator
         ) || token.kind == TokenKind::Identifier
-            && matches!(token.text.as_str(), "return" | "throw")
+            && token.text == "return"
+            && tokens[..tokens.len() - 1].last().is_none_or(|previous| {
+                matches!(
+                    previous.kind,
+                    TokenKind::Newline | TokenKind::Indent | TokenKind::Dedent
+                )
+            })
     })
 }
 
