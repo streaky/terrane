@@ -39,21 +39,10 @@ impl Symbol {
         self.lowering_identity.as_deref().unwrap_or(&self.identity)
     }
 
-    /// Returns the compiler-owned scalar represented by this canonical type descriptor.
+    /// Returns this symbol's canonical descriptor identity when it denotes a descriptor.
     #[must_use]
-    pub fn descriptor_type(&self) -> Option<ScalarType> {
-        (self.kind == SymbolKind::TypeDescriptor)
-            .then(|| self.identity.strip_prefix("/core/types::"))
-            .flatten()
-            .and_then(ScalarType::from_source_name)
-    }
-
-    #[must_use]
-    pub fn descriptor_category(&self) -> Option<TypeCategory> {
-        (self.kind == SymbolKind::TypeDescriptor)
-            .then(|| self.identity.strip_prefix("/core/types::"))
-            .flatten()
-            .and_then(TypeCategory::from_source_name)
+    pub fn descriptor_identity(&self) -> Option<&str> {
+        (self.kind == SymbolKind::TypeDescriptor).then_some(self.identity.as_str())
     }
 
     #[must_use]
@@ -137,6 +126,11 @@ pub(super) fn iterable_item_type(
     unit: &SemanticUnit,
     value_type: ValueType,
 ) -> Result<ValueType, (&'static str, Option<Span>)> {
+    if !matches!(value_type, ValueType::Object(_) | ValueType::Reference(_))
+        && !descriptor_has_member(unit, &value_type, "iterator")
+    {
+        return Err(("collection iteration requires an iterable value", None));
+    }
     match value_type {
         ValueType::Scalar(ScalarType::String) | ValueType::StringList => {
             Ok(ValueType::Scalar(ScalarType::String))
@@ -844,11 +838,11 @@ impl TypedBinding {
     }
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub(super) struct DescriptorAlias {
     pub(super) visible_from: usize,
     pub(super) scope: Option<Span>,
-    pub(super) value_type: ScalarType,
+    pub(super) identity: String,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -856,6 +850,27 @@ pub enum ObjectKind {
     Class,
     Interface,
     Trait,
+    Type,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) enum BuiltinDescriptor {
+    Value,
+    Scalar(ScalarType),
+    Category(TypeCategory),
+    Encoding,
+    OverflowResult,
+    DivRemResult,
+    Iterator,
+    IterationStep,
+    List,
+    Map,
+    Set,
+    Tuple,
+    Range,
+    Entry,
+    UnorderedMap,
+    UnorderedSet,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -885,6 +900,22 @@ pub struct DescriptorContract {
     pub span: Span,
     pub kind: ObjectKind,
     pub resource_owning: bool,
+    /// Compiler-owned built-in template represented by this same canonical contract.
+    pub(crate) builtin: Option<BuiltinDescriptor>,
+    /// Nominal category contracts implemented by values of this descriptor.
+    pub(crate) categories: Vec<TypeCategory>,
+    /// Stable operation identifier selected for each canonical instance-member path.
+    pub(crate) operations: BTreeMap<String, String>,
+    /// Canonical instance-member paths, including family children such as `trim.start`.
+    pub(crate) members: BTreeSet<String>,
+    /// Canonical subset of `members` that denotes invocable instance members.
+    pub(crate) methods: BTreeSet<String>,
+    /// Methods whose family selections cannot yet be stored as bound values.
+    pub(crate) invocation_only_methods: BTreeSet<String>,
+    /// Canonical static-member names declared by this descriptor.
+    pub(crate) static_members: BTreeSet<String>,
+    /// Canonical subset of `static_members` that denotes invocable members.
+    pub(crate) static_methods: BTreeSet<String>,
     pub base: Option<ObjectIdentity>,
     pub interfaces: Vec<ObjectIdentity>,
     pub traits: Vec<ObjectIdentity>,
@@ -991,14 +1022,20 @@ impl SemanticUnit {
             .get(&(node.span.file, node.span.start, node.span.end))
     }
 
-    pub(super) fn descriptor_alias_at(&self, name: &str, position: usize) -> Option<ScalarType> {
+    pub(super) fn descriptor_alias_identity(&self, name: &str, position: usize) -> Option<&str> {
         self.descriptor_aliases.get(name).and_then(|history| {
             history
                 .iter()
                 .rev()
                 .find(|alias| alias.is_visible_at(self.source.id(), position))
-                .map(|alias| alias.value_type)
+                .map(|alias| alias.identity.as_str())
         })
+    }
+
+    pub(super) fn descriptor_alias_at(&self, name: &str, position: usize) -> Option<ScalarType> {
+        self.descriptor_alias_identity(name, position)?
+            .strip_prefix("/core/types::")
+            .and_then(ScalarType::from_source_name)
     }
     pub(super) fn removed_projected_member(
         &self,
@@ -1031,11 +1068,15 @@ pub(super) fn visible_descriptor_aliases(
     aliases
         .iter()
         .filter_map(|(name, history)| {
-            history
+            let alias = history
                 .iter()
                 .rev()
-                .find(|alias| alias.is_visible_at(file, position))
-                .map(|alias| (name.clone(), alias.value_type))
+                .find(|alias| alias.is_visible_at(file, position))?;
+            let scalar = alias
+                .identity
+                .strip_prefix("/core/types::")
+                .and_then(ScalarType::from_source_name)?;
+            Some((name.clone(), scalar))
         })
         .collect()
 }

@@ -586,25 +586,22 @@ pub(super) fn descriptor_construct_alias_history(
     let mut aliases = package
         .descriptor_constructs
         .iter()
-        .filter_map(|(name, symbol)| Some((name.clone(), symbol.descriptor_type()?)))
+        .filter_map(|(name, symbol)| Some((name.clone(), symbol.descriptor_identity()?.to_owned())))
         .collect::<BTreeMap<_, _>>();
     if let Some(namespace) = package.namespaces.get(&unit.namespace) {
-        aliases.extend(
-            namespace
-                .symbols
-                .iter()
-                .filter_map(|(name, symbol)| Some((name.clone(), symbol.descriptor_type()?))),
-        );
+        aliases.extend(namespace.symbols.iter().filter_map(|(name, symbol)| {
+            Some((name.clone(), symbol.descriptor_identity()?.to_owned()))
+        }));
     }
     aliases
         .into_iter()
-        .map(|(name, value_type)| {
+        .map(|(name, identity)| {
             (
                 name,
                 vec![DescriptorAlias {
                     visible_from: 0,
                     scope: None,
-                    value_type,
+                    identity,
                 }],
             )
         })

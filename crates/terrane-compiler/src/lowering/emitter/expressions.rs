@@ -2,47 +2,24 @@ use super::super::prelude::*;
 
 impl Emitter<'_> {
     pub(super) fn descriptor_expression(&self, value_type: &ValueType) -> String {
-        let source_name = value_type.to_string();
-        let object = match value_type {
-            ValueType::Object(identity) => self
-                .unit
-                .descriptors
-                .iter()
-                .find(|object| object.identity == *identity),
-            ValueType::Descriptor(identity) => self.unit.descriptors.iter().find(|object| {
-                object.name == *identity || object.identity.qualified() == *identity
-            }),
-            _ => None,
-        };
-        let identity = match value_type {
-            ValueType::Object(identity) => identity.qualified(),
-            ValueType::Descriptor(identity) => {
-                object.map_or_else(|| identity.clone(), |object| object.identity.qualified())
-            }
-            _ => source_name.clone(),
-        };
-        let name = object.map_or_else(
-            || match value_type {
-                ValueType::Descriptor(identity) => identity
-                    .rsplit_once("::")
-                    .map_or(identity.as_str(), |(_, name)| name)
-                    .to_owned(),
-                _ => source_name.clone(),
-            },
-            |object| object.name.clone(),
-        );
-        let kind = object.map_or("type", |object| match object.kind {
+        let descriptor = crate::semantics::materialized_descriptor(self.unit, value_type)
+            .expect("every source-visible descriptor must have one canonical contract");
+        let contract = descriptor.contract;
+        let kind = match contract.kind {
             ObjectKind::Class => "class",
             ObjectKind::Interface => "interface",
             ObjectKind::Trait => "trait",
-        });
-        let inherently_identity_bearing = object.is_some_and(|object| object.resource_owning)
+            ObjectKind::Type => "type",
+        };
+        let inherently_identity_bearing = contract.resource_owning
             || matches!(
                 value_type,
                 ValueType::Reference(_) | ValueType::SharedReference(_)
             );
-        let fields = object.map_or_else(String::new, |object| {
-            effective_object_fields(self.package, object)
+        let fields = if contract.builtin.is_some() {
+            String::new()
+        } else {
+            effective_object_fields(self.package, contract)
                 .into_iter()
                 .filter(|field| !field.is_static)
                 .map(|field| {
@@ -57,9 +34,10 @@ impl Emitter<'_> {
                 })
                 .collect::<Vec<_>>()
                 .join(", ")
-        });
+        };
         format!(
-            "TerraneDescriptor {{ identity: {identity:?}, name: {name:?}, kind: {kind:?}, inherently_identity_bearing: {inherently_identity_bearing}, fields: &[{fields}] }}"
+            "TerraneDescriptor {{ identity: {:?}, name: {:?}, kind: {kind:?}, inherently_identity_bearing: {inherently_identity_bearing}, fields: &[{fields}] }}",
+            descriptor.identity, descriptor.name
         )
     }
 
@@ -1102,7 +1080,13 @@ impl Emitter<'_> {
                 .destination_arms
                 .iter()
                 .enumerate()
-                .filter(|(_, arm)| arm.conforms_to(category))
+                .filter(|(_, arm)| {
+                    crate::semantics::descriptor_conforms_to(
+                        self.unit,
+                        &ValueType::Scalar(**arm),
+                        category,
+                    )
+                })
                 .map(|(index, _)| format!("{union_name}::Arm{index}(_)"))
                 .collect::<Vec<_>>();
             return if matching.is_empty() {
@@ -1174,23 +1158,16 @@ impl Emitter<'_> {
         };
         if let Some(inner) = optional_inner {
             let value = self.expression(node);
-            let conforms = match inner {
-                ValueType::Scalar(scalar) => scalar.conforms_to(category),
-                ValueType::Object(_) => {
-                    matches!(category, TypeCategory::Value | TypeCategory::Object)
-                }
-                _ => false,
-            };
+            let conforms = crate::semantics::descriptor_conforms_to(self.unit, &inner, category);
             return if conforms {
                 format!("({value}).is_some()")
             } else {
                 format!("{{ let _ = {value}; false }}")
             };
         }
-        let result = matches!(
-            value_type,
-            Some(ValueType::Scalar(value)) if value.conforms_to(category)
-        );
+        let result = value_type.as_ref().is_some_and(|value_type| {
+            crate::semantics::descriptor_conforms_to(self.unit, value_type, category)
+        });
         let effect = if node.kind == SyntaxKind::Name {
             let expression = Self::unwrapped_expression(self.expression(node));
             format!("let _ = &{expression};")

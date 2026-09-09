@@ -730,7 +730,7 @@ fn main() {
     let reference_type: TerraneDescriptor = {
         let _ = &left_reference;
         TerraneDescriptor {
-            identity: "shared ref marker",
+            identity: "/core/types::shared ref marker",
             name: "shared ref marker",
             kind: "type",
             inherently_identity_bearing: true,
@@ -746,7 +746,7 @@ fn main() {
             __terrane_value
         };
         TerraneDescriptor {
-            identity: "list of shared ref marker",
+            identity: "/core/collections::list of shared ref marker",
             name: "list of shared ref marker",
             kind: "type",
             inherently_identity_bearing: false,

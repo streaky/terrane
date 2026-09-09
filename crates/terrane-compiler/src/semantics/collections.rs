@@ -293,6 +293,7 @@ pub(super) fn infer_collection_call_type(
         && let [receiver, member] = family.children.as_slice()
         && node_text(&unit.source, member) == "get"
         && let Some(receiver_type) = infer_receiver_value_type(unit, receiver, bindings)?
+        && descriptor_has_member(unit, &receiver_type, "get.checked")
     {
         return Ok(match receiver_type {
             ValueType::List(item) | ValueType::Tuple(item, _) => {
@@ -350,31 +351,15 @@ pub(super) fn infer_collection_call_type(
     }
     if callee.kind == SyntaxKind::MemberExpression
         && let [receiver, member] = callee.children.as_slice()
-        && matches!(
-            node_text(&unit.source, member),
-            "append"
-                | "set"
-                | "clear"
-                | "add"
-                | "contains"
-                | "remove"
-                | "keys"
-                | "values"
-                | "entries"
-        )
         && let Some(receiver_type) = infer_receiver_value_type(unit, receiver, bindings)?
+        && descriptor_operation(unit, &receiver_type, "type") == Some("collection.type")
     {
         let member = node_text(&unit.source, member);
-        return Ok(match (receiver_type, member) {
-            (ValueType::List(item), "append" | "set" | "clear") => Some(ValueType::List(item)),
-            (ValueType::List(item), "remove") => Some(item.value_type()),
-            (ValueType::Map(key, value), "set") => Some(ValueType::Map(key, value)),
-            (ValueType::UnorderedMap(key, value), "set") => {
-                Some(ValueType::UnorderedMap(key, value))
-            }
-            (ValueType::Set(item), "add") => Some(ValueType::Set(item)),
-            (ValueType::UnorderedSet(item), "add") => Some(ValueType::UnorderedSet(item)),
-            (ValueType::Tuple(_, _), "append" | "set" | "clear" | "add" | "remove") => {
+        let operation = descriptor_operation(unit, &receiver_type, member);
+        if operation.is_none() {
+            if matches!(receiver_type, ValueType::Tuple(_, _))
+                && matches!(member, "append" | "set" | "clear" | "add" | "remove")
+            {
                 return Err(failure(
                     &unit.source,
                     "T0048",
@@ -382,20 +367,43 @@ pub(super) fn infer_collection_call_type(
                     callee.span,
                 ));
             }
-            (ValueType::Set(_) | ValueType::UnorderedSet(_), "contains" | "remove") => {
-                Some(ValueType::Scalar(ScalarType::Bool))
-            }
-            (ValueType::Map(key, _) | ValueType::UnorderedMap(key, _), "keys") => {
-                Some(ValueType::List(key))
-            }
-            (ValueType::Map(_, value) | ValueType::UnorderedMap(_, value), "values") => {
-                Some(ValueType::List(value))
-            }
-            (ValueType::Map(key, value) | ValueType::UnorderedMap(key, value), "entries") => Some(
-                ValueType::List(ElementType::new(ValueType::Entry(key, value))),
-            ),
-            _ => None,
-        });
+            return Ok(None);
+        }
+        return Ok(
+            match (receiver_type, operation.expect("validated operation")) {
+                (
+                    ValueType::List(item),
+                    "collection.append" | "collection.set" | "collection.clear",
+                ) => Some(ValueType::List(item)),
+                (ValueType::List(item), "collection.remove") => Some(item.value_type()),
+                (ValueType::Map(key, value), "collection.set") => Some(ValueType::Map(key, value)),
+                (ValueType::UnorderedMap(key, value), "collection.set") => {
+                    Some(ValueType::UnorderedMap(key, value))
+                }
+                (ValueType::Set(item), "collection.add") => Some(ValueType::Set(item)),
+                (ValueType::UnorderedSet(item), "collection.add") => {
+                    Some(ValueType::UnorderedSet(item))
+                }
+                (
+                    ValueType::Set(_) | ValueType::UnorderedSet(_),
+                    "collection.contains" | "collection.remove",
+                ) => Some(ValueType::Scalar(ScalarType::Bool)),
+                (ValueType::Map(key, _) | ValueType::UnorderedMap(key, _), "collection.keys") => {
+                    Some(ValueType::List(key))
+                }
+                (
+                    ValueType::Map(_, value) | ValueType::UnorderedMap(_, value),
+                    "collection.values",
+                ) => Some(ValueType::List(value)),
+                (
+                    ValueType::Map(key, value) | ValueType::UnorderedMap(key, value),
+                    "collection.entries",
+                ) => Some(ValueType::List(ElementType::new(ValueType::Entry(
+                    key, value,
+                )))),
+                _ => None,
+            },
+        );
     }
     let identity = resolved_compiler_object_identity(unit, callee);
     let source_name = node_text(&unit.source, callee);

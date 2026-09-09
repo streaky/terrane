@@ -1,20 +1,39 @@
 use super::prelude::*;
 
+fn descriptor_expression_contract<'a>(
+    package: &SemanticPackage,
+    unit: &'a SemanticUnit,
+    node: &SyntaxNode,
+) -> Option<&'a DescriptorContract> {
+    let name = node_text(&unit.source, node).trim();
+    match node.kind {
+        SyntaxKind::Name | SyntaxKind::TypeExpression => {
+            let identity = unit
+                .descriptor_alias_identity(name, node.span.start)
+                .or_else(|| {
+                    package
+                        .resolve_name_at(unit, node.span.start, name)
+                        .and_then(Symbol::descriptor_identity)
+                });
+            identity
+                .and_then(|identity| descriptor_contract_by_identity(unit, identity))
+                .or_else(|| {
+                    node.children
+                        .first()
+                        .and_then(|child| descriptor_expression_contract(package, unit, child))
+                })
+        }
+        _ => None,
+    }
+}
+
 pub(crate) fn descriptor_expression_type(
     package: &SemanticPackage,
     unit: &SemanticUnit,
     node: &SyntaxNode,
 ) -> Option<ScalarType> {
-    let name = node_text(&unit.source, node).trim();
-    match node.kind {
-        SyntaxKind::Name | SyntaxKind::TypeExpression => unit
-            .descriptor_alias_at(name, node.span.start)
-            .or_else(|| package.descriptor_constructs.get(name)?.descriptor_type())
-            .or_else(|| {
-                node.children
-                    .first()
-                    .and_then(|child| descriptor_expression_type(package, unit, child))
-            }),
+    match descriptor_expression_contract(package, unit, node)?.builtin {
+        Some(BuiltinDescriptor::Scalar(scalar)) => Some(scalar),
         _ => None,
     }
 }
@@ -24,16 +43,8 @@ pub(crate) fn descriptor_expression_category(
     unit: &SemanticUnit,
     node: &SyntaxNode,
 ) -> Option<TypeCategory> {
-    let name = node_text(&unit.source, node).trim();
-    match node.kind {
-        SyntaxKind::Name | SyntaxKind::TypeExpression => package
-            .resolve_name_at(unit, node.span.start, name)
-            .and_then(Symbol::descriptor_category)
-            .or_else(|| {
-                node.children
-                    .first()
-                    .and_then(|child| descriptor_expression_category(package, unit, child))
-            }),
+    match descriptor_expression_contract(package, unit, node)?.builtin {
+        Some(BuiltinDescriptor::Category(category)) => Some(category),
         _ => None,
     }
 }
@@ -82,12 +93,14 @@ pub(super) fn descriptor_alias(
     if descriptor_name == "none" {
         return None;
     }
-    let value_type = match initializer.kind {
-        SyntaxKind::Name => {
-            visible_descriptor_aliases(aliases, unit.source.id(), initializer.span.start)
-                .get(descriptor_name)
-                .copied()
-        }
+    let identity = match initializer.kind {
+        SyntaxKind::Name => aliases.get(descriptor_name).and_then(|history| {
+            history
+                .iter()
+                .rev()
+                .find(|alias| alias.is_visible_at(unit.source.id(), initializer.span.start))
+                .map(|alias| alias.identity.clone())
+        }),
         _ => None,
     }?;
     Some((
@@ -95,7 +108,7 @@ pub(super) fn descriptor_alias(
         DescriptorAlias {
             visible_from: node.span.end,
             scope,
-            value_type,
+            identity,
         },
     ))
 }

@@ -1,0 +1,4 @@
+/core/types::int8int8type
+/core/types::stringstringtype
+/core/collections::list of int8list of int8type
+000

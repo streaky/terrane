@@ -96,6 +96,20 @@ pub(super) fn analyze_binding_node(
                     | SyntaxKind::TypeExpression
             )
     });
+    if let Some(initializer) = initializer
+        && let Some((receiver_type, member, span)) =
+            escaped_invocation_only_member(unit, initializer, bindings)?
+    {
+        return Err(failure(
+            &unit.source,
+            "T0018",
+            format!(
+                "{receiver_type} methods are not storable values before bound methods exist; \
+                 method `.{member}` must be invoked with `;`"
+            ),
+            span,
+        ));
+    }
 
     if node.kind == SyntaxKind::Assignment
         && declared.is_none()
@@ -395,7 +409,7 @@ pub(super) fn declared_value_type_with_visible_objects(
         .or_else(|| {
             unit.descriptors
                 .iter()
-                .find(|object| object.name == type_name)
+                .find(|object| object.builtin.is_none() && object.name == type_name)
                 .map(|object| object.identity.clone())
         });
     if let Some(identity) = object_identity {
@@ -439,7 +453,7 @@ pub(super) fn declared_value_type_with_visible_objects(
                 .or_else(|| {
                     unit.descriptors
                         .iter()
-                        .find(|object| object.name == argument)
+                        .find(|object| object.builtin.is_none() && object.name == argument)
                         .map(|object| object.identity.clone())
                 });
             if let Some(identity) = object_identity {
@@ -450,7 +464,7 @@ pub(super) fn declared_value_type_with_visible_objects(
                 let identity = visible_objects.get(inner_name).cloned().or_else(|| {
                     unit.descriptors
                         .iter()
-                        .find(|object| object.name == inner_name)
+                        .find(|object| object.builtin.is_none() && object.name == inner_name)
                         .map(|object| object.identity.clone())
                 });
                 if let Some(identity) = identity {

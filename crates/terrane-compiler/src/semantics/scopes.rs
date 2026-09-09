@@ -778,7 +778,11 @@ pub(super) fn validate_bool_condition(
     bindings: &[TypedBinding],
 ) -> Result<(), SemanticFailure> {
     match infer_value_type(unit, condition, bindings)? {
-        Some(ValueType::Scalar(ScalarType::Bool)) => return Ok(()),
+        Some(value_type)
+            if descriptor_operation(unit, &value_type, "truth") == Some("value.truth") =>
+        {
+            return Ok(());
+        }
         Some(ValueType::Object(identity)) => {
             let Some(truth) = descriptor_protocol_method(unit, &identity, "truth") else {
                 return Err(failure(

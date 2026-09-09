@@ -329,12 +329,49 @@ pub(super) fn analyze_descriptor_contracts(
                     ValueType::PlatformStreamHandle | ValueType::PlatformResourceHandle
                 )
             });
+        let methods = unit
+            .functions
+            .iter()
+            .filter(|function| {
+                function.owner.as_deref() == Some(name.as_str()) && !function.is_static
+            })
+            .map(|function| function.name.clone())
+            .collect::<BTreeSet<_>>();
+        let static_methods = unit
+            .functions
+            .iter()
+            .filter(|function| {
+                function.owner.as_deref() == Some(name.as_str()) && function.is_static
+            })
+            .map(|function| function.name.clone())
+            .collect::<BTreeSet<_>>();
+        let mut members = fields
+            .iter()
+            .filter(|field| !field.is_static)
+            .map(|field| field.name.clone())
+            .collect::<BTreeSet<_>>();
+        members.extend(methods.iter().cloned());
+        members.insert("type".to_owned());
+        let mut static_members = fields
+            .iter()
+            .filter(|field| field.is_static)
+            .map(|field| field.name.clone())
+            .collect::<BTreeSet<_>>();
+        static_members.extend(static_methods.iter().cloned());
         descriptors.push(DescriptorContract {
             identity: ObjectIdentity::new(&unit.namespace, &name),
             name,
             span: node.span,
             kind,
             resource_owning,
+            builtin: None,
+            categories: vec![TypeCategory::Value, TypeCategory::Object],
+            operations: BTreeMap::new(),
+            members,
+            methods,
+            invocation_only_methods: BTreeSet::new(),
+            static_members,
+            static_methods,
             base,
             interfaces,
             traits,
@@ -409,6 +446,59 @@ pub(super) fn value_type_owns_resource(
                 || value_type_owns_resource(&value.value_type(), resource_identities)
         }
         _ => false,
+    }
+}
+pub(super) fn refresh_source_descriptor_members(units: &mut [SemanticUnit]) {
+    for unit in units {
+        for descriptor in unit
+            .descriptors
+            .iter_mut()
+            .filter(|descriptor| descriptor.builtin.is_none())
+        {
+            descriptor.methods = unit
+                .functions
+                .iter()
+                .filter(|function| {
+                    function.owner.as_deref() == Some(descriptor.identity.name.as_str())
+                        && !function.is_static
+                })
+                .map(|function| function.name.clone())
+                .collect();
+            descriptor.static_methods = unit
+                .functions
+                .iter()
+                .filter(|function| {
+                    function.owner.as_deref() == Some(descriptor.identity.name.as_str())
+                        && function.is_static
+                })
+                .map(|function| function.name.clone())
+                .collect();
+            descriptor.members = descriptor
+                .fields
+                .iter()
+                .filter(|field| !field.is_static)
+                .map(|field| field.name.clone())
+                .chain(descriptor.methods.iter().cloned())
+                .chain(std::iter::once("type".to_owned()))
+                .collect();
+            descriptor.operations = descriptor
+                .members
+                .iter()
+                .map(|member| {
+                    (
+                        member.clone(),
+                        format!("source.{}.{}", descriptor.identity.qualified(), member),
+                    )
+                })
+                .collect();
+            descriptor.static_members = descriptor
+                .fields
+                .iter()
+                .filter(|field| field.is_static)
+                .map(|field| field.name.clone())
+                .chain(descriptor.static_methods.iter().cloned())
+                .collect();
+        }
     }
 }
 
@@ -1239,7 +1329,13 @@ pub(super) fn analyze_types(package: &mut SemanticPackage) -> Result<(), Semanti
                     )
                 })
                 .collect::<BTreeMap<_, _>>();
-            analyze_descriptor_contracts(unit, &alias_history, &visible_objects)?
+            let mut descriptors = builtin_descriptor_contracts(unit.source.id());
+            descriptors.extend(analyze_descriptor_contracts(
+                unit,
+                &alias_history,
+                &visible_objects,
+            )?);
+            descriptors
         };
         package.units[index].descriptors = descriptors;
     }
@@ -1272,6 +1368,7 @@ pub(super) fn analyze_types(package: &mut SemanticPackage) -> Result<(), Semanti
     populate_namespace_function_contracts(package);
     populate_function_aliases(package);
     populate_function_type_dependencies(package);
+    refresh_source_descriptor_members(&mut package.units);
     propagate_interface_receiver_mutability(package);
     validate_descriptor_value_uses(package)?;
 

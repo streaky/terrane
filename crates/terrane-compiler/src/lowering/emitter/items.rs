@@ -503,6 +503,9 @@ impl<'a> Emitter<'a> {
                 self.line("}");
             }
             ObjectKind::Trait => {}
+            ObjectKind::Type => {
+                unreachable!("compiler-owned descriptor templates have no source declaration")
+            }
             ObjectKind::Class => {
                 let fields = effective_object_fields(self.package, object);
                 let instance_fields = fields

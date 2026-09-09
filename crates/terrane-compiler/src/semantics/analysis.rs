@@ -65,7 +65,7 @@ pub(super) fn parse_unit(
         functions: Vec::new(),
         reference_provenance: BTreeMap::new(),
         reference_return_lenders: BTreeMap::new(),
-        descriptors: Vec::new(),
+        descriptors: builtin_descriptor_contracts(source.id()),
         comparable_foreign_objects: BTreeSet::new(),
         function_aliases: BTreeMap::new(),
         function_contracts_by_span: BTreeMap::new(),

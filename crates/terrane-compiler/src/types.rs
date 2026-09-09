@@ -52,11 +52,6 @@ impl TypeCategory {
     }
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub struct DescriptorSchema {
-    pub categories: &'static [TypeCategory],
-}
-
 const VALUE_CATEGORIES: &[TypeCategory] = &[TypeCategory::Value, TypeCategory::Object];
 const INTEGER_CATEGORIES: &[TypeCategory] = &[
     TypeCategory::Value,
@@ -194,8 +189,8 @@ impl ScalarType {
     }
 
     #[must_use]
-    pub const fn descriptor_schema(self) -> DescriptorSchema {
-        let categories = match self {
+    pub(crate) const fn builtin_categories(self) -> &'static [TypeCategory] {
+        match self {
             Self::Int => INTEGER_CATEGORIES,
             Self::Int8 | Self::Int16 | Self::Int32 | Self::Int64 | Self::Int128 => {
                 SIGNED_FIXED_CATEGORIES
@@ -205,8 +200,7 @@ impl ScalarType {
             }
             Self::Float32 | Self::Float64 => FLOATING_CATEGORIES,
             Self::Bool | Self::String | Self::Bytes | Self::None => VALUE_CATEGORIES,
-        };
-        DescriptorSchema { categories }
+        }
     }
 
     #[must_use]
@@ -216,7 +210,7 @@ impl ScalarType {
 
     #[must_use]
     pub const fn conforms_to(self, category: TypeCategory) -> bool {
-        let categories = self.descriptor_schema().categories;
+        let categories = self.builtin_categories();
         let mut index = 0;
         while index < categories.len() {
             if categories[index] as u8 == category as u8 {
