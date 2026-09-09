@@ -23,7 +23,7 @@ function main;
   print; ((source;).coerce; string, render)
   closure = function string; _value int
     return 'closure'
-  service renderer = instance renderer;
+  service = instance renderer;
   bound function from int to string = service.render
   print; (8.coerce; string, closure)
   print; (9.coerce; string, bound)

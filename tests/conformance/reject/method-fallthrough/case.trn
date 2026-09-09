@@ -4,4 +4,4 @@ class incomplete
     if enabled
       return 1
 function main;
-  item incomplete = instance incomplete;
+  item = instance incomplete;

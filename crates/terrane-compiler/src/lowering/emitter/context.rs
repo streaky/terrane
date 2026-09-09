@@ -645,7 +645,7 @@ impl Emitter<'_> {
             .iter()
             .find(|object| object.identity == identity)
             .is_some_and(|object| {
-                effective_object_fields(self.unit, object)
+                effective_object_fields(self.package, object)
                     .iter()
                     .any(|field| field.name == name)
             })
@@ -666,7 +666,7 @@ impl Emitter<'_> {
                     .iter()
                     .flat_map(|unit| &unit.functions)
                     .any(|method| method.owner.is_some() && method.name == name)
-                    && effective_object_fields(self.unit, object)
+                    && effective_object_fields(self.package, object)
                         .iter()
                         .any(|field| {
                             field.name == name
@@ -689,7 +689,7 @@ impl Emitter<'_> {
         };
         !(object_descendants(self.unit, object).is_empty()
             || self.text(receiver) == "this" && self.current_object.is_some())
-            && effective_object_fields(self.unit, object)
+            && effective_object_fields(self.package, object)
                 .iter()
                 .any(|field| field.name == name)
     }

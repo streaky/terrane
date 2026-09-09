@@ -422,58 +422,58 @@ mod __terrane_trace {
     pub static FUNCTIONS: [&str; 1] = ["/app::main"];
     pub static SITES: [Site; 5] = [
         {
-            /* terrane-site-row: site 0: /app::main (src/main.trn:8:23-8:49) */
+            /* terrane-site-row: site 0: /app::main (src/main.trn:8:14-8:40) */
             Site {
                 function: 0,
                 file: 0,
                 line: 8,
-                column: 23,
+                column: 14,
                 end_line: 8,
-                end_column: 49,
+                end_column: 40,
             }
         },
         {
-            /* terrane-site-row: site 1: /app::main (src/main.trn:9:21-9:42) */
+            /* terrane-site-row: site 1: /app::main (src/main.trn:9:17-9:38) */
             Site {
                 function: 0,
                 file: 0,
                 line: 9,
-                column: 21,
+                column: 17,
                 end_line: 9,
-                end_column: 42,
+                end_column: 38,
             }
         },
         {
-            /* terrane-site-row: site 2: /app::main (src/main.trn:10:29-10:50) */
+            /* terrane-site-row: site 2: /app::main (src/main.trn:10:17-10:38) */
             Site {
                 function: 0,
                 file: 0,
                 line: 10,
-                column: 29,
+                column: 17,
                 end_line: 10,
-                end_column: 50,
+                end_column: 38,
             }
         },
         {
-            /* terrane-site-row: site 3: /app::main (src/main.trn:11:21-11:26) */
+            /* terrane-site-row: site 3: /app::main (src/main.trn:11:12-11:17) */
             Site {
                 function: 0,
                 file: 0,
                 line: 11,
-                column: 21,
+                column: 12,
                 end_line: 11,
-                end_column: 26,
+                end_column: 17,
             }
         },
         {
-            /* terrane-site-row: site 4: /app::main (src/main.trn:12:19-12:22) */
+            /* terrane-site-row: site 4: /app::main (src/main.trn:12:10-12:13) */
             Site {
                 function: 0,
                 file: 0,
                 line: 12,
-                column: 19,
+                column: 10,
                 end_line: 12,
-                end_column: 22,
+                end_column: 13,
             }
         },
     ];
@@ -496,25 +496,25 @@ fn main() {
         terrane_static_trn_42797465734d7574_with_capacity(
             terrane_int_support::Int::from(8_i128),
         ),
-        0 /* terrane-site: src/main.trn:8:23-8:49 */,
+        0 /* terrane-site: src/main.trn:8:14-8:40 */,
     );
     let remaining: terrane_int_support::Int = __terrane_raised(
         remaining_mut(&buffer),
-        1 /* terrane-site: src/main.trn:9:21-9:42 */,
+        1 /* terrane-site: src/main.trn:9:17-9:38 */,
     );
     let candidate: Option<Number> = __terrane_raised(
         terrane_static_trn_4e756d626572_from_u128(
             terrane_int_support::Int::from(42_i128),
         ),
-        2 /* terrane-site: src/main.trn:10:29-10:50 */,
+        2 /* terrane-site: src/main.trn:10:17-10:38 */,
     );
     let data: Category = __terrane_raised(
         __trn_44617461(),
-        3 /* terrane-site: src/main.trn:11:21-11:26 */,
+        3 /* terrane-site: src/main.trn:11:12-11:17 */,
     );
     let io: Category = __terrane_raised(
         __trn_496f(),
-        4 /* terrane-site: src/main.trn:12:19-12:22 */,
+        4 /* terrane-site: src/main.trn:12:10-12:13 */,
     );
     println!(
         "{}", terrane_scalar_support::scalar_text(&(remaining.clone() >

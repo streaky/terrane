@@ -8,8 +8,8 @@ from /core/compression import gzip, zlib, deflate-raw, zstd, compression-options
 from /core/random/uuid import parse-uuid, random-uuid, time-uuid
 
 function main;
-    first pseudo-random = instance pseudo-random; (chacha20;), b'seed'
-    second pseudo-random = instance pseudo-random; (chacha20;), b'seed'
+    first = instance pseudo-random; (chacha20;), b'seed'
+    second = instance pseudo-random; (chacha20;), b'seed'
     hash = sha256;
     gzip-codec = gzip;
     left = pseudo-bytes; first, 32

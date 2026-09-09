@@ -5,6 +5,6 @@ class broken-iterator
   function next int;
     return 1
 function main;
-  values broken-iterator = instance broken-iterator;
+  values = instance broken-iterator;
   for value in values
     print; value

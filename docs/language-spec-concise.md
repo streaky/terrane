@@ -21,6 +21,7 @@ SELF_HEAL_RULE: when this reference is missing or unclear and SOURCE_OF_TRUTH re
 | classes/protocols | `OBJECT_MODEL` | §§9, 18 |
 | packages/interop | `PACKAGE`, `RUST`, `FOREIGN` | §§23–24 |
 | async/targets | `ASYNC`, `TARGET` | §§21–22 |
+| application testing | `TESTING` | §31.5 |
 | compiler work | `COMPILER` | §§26–33, 36, 38 |
 | unsettled/deferred | `OPEN`, `DEFERRED` | §§40, 42 |
 | constitutional rules | `INVARIANT` | §41 |
@@ -89,7 +90,7 @@ Text literals:
   common structural indentation removed
 ```
 
-`>`/`>>` text is valid only in expression-start position. Tail/block text cannot be a non-final ungrouped subexpression. Preserve content exactly per full spec §6.7.
+`>`/`>>` text is valid only in expression-start position, including directly after a value-bearing `return` whose keyword starts a logical line/block statement. Member names such as `.return` and `throw` do not trigger text lexing. Tail/block text cannot be a non-final ungrouped subexpression. Preserve content exactly per full spec §6.7.
 
 ## NAMESPACE
 
@@ -755,12 +756,20 @@ encoding: explicit utf8/utf16-le/utf16-be/utf32-le/utf32-be; encode total; decod
   compiler-owned, per-operation `LazyLock<Mutex<...>>` strategy as mutable globals: reads copy the
   Terrane value, poisoning is an internal runtime failure, and this implementation detail neither
   makes source operation sequences atomic nor replaces explicit concurrency objects.
+- A typed class or trait field may omit its initializer only when its declared type has a canonical
+  default: `bool` -> `false`; numeric -> typed zero; `string` -> `''`; `bytes` -> empty bytes;
+  `T|none` -> `none`; `list`/`map`/`set`/`unordered-map`/`unordered-set` -> empty collection.
+  Plain `none`, tuples, source objects, references, callables, resources, and other runtime
+  contracts are nondefaultable. This never infers the type, invokes an arbitrary constructor, or
+  hides `none` in plain `T`; nondefaultable effective class fields require an explicit initializer.
+  A trait may supply it or the using class may override the field. Effective inherited fields are
+  validated before lowering, and explicit initializers use their declaring source/object context.
 - Field metadata has one trailing clause:
   `field T = value metadata (external-name = 'wireName', secret = true)`.
   It is valid only on instance fields. `external-name` is a string, `secret` is a boolean, names
-  cannot repeat, and effective external names are unique per class. Defaults remain ordinary
-  initializers and optionality remains `T|none`; resolved field descriptors derive `defaulted` and
-  `optional` rather than duplicating either policy.
+  cannot repeat, and effective external names are unique per class. Canonical or explicit defaults,
+  including trait/base contributions, plus `T|none` optionality derive the resolved field
+  descriptor's `defaulted` and `optional` flags rather than duplicating either policy.
 - Class descriptor reflection exposes parallel declaration-ordered `field-names`,
   `field-external-names`, `field-defaulted`, `field-optional`, and `field-secret` lists plus
   `field-count`. Document mapping and redaction consume this same metadata; no facility-specific
@@ -806,7 +815,7 @@ arguments: source string, concrete class descriptor, matching parser options, ex
 result: document-decode-outcome of T; concrete initialized T value + typed list of every diagnostic; failed iff diagnostics nonempty
 fields: scalar | nested opted class | list | homogeneous tuple | map of string,V; all nested values decodable
 numeric: integers exact/range-checked; decimal/integer to float rounds to nearest finite destination value, ties-to-even; out-of-finite-range diagnoses
-absence: ordinary initializer is default; T|none may be absent; every other absent field diagnoses
+absence: canonical type default or explicit initializer is retained; T|none may be absent; every other absent field diagnoses
 names: one OBJ field metadata record supplies semantic name, external-name, defaulted, optional, secret
 unknowns: rejected or recursively ignored only by explicit call policy
 diagnostic: deterministic path, expected, actual-kind, reason, message, decode-call source, field source
@@ -920,12 +929,35 @@ prelude = true            # optional; defaults true
 - Authored manifest filename: `package.toml`; syntax is TOML; unknown fields rejected.
 - `namespaces`: canonical namespace-root keys mapped to distinct, relative directory roots; no absolute/parent paths. Source discovery recursively includes `.trn` files only, resolves overlapping mappings by longest namespace prefix, and assigns stable file IDs in sorted package-relative path order.
 - Every discovered declaration must equal the namespace derived from its mapping and relative parent directory. Duplicate mapped directories and mapped roots containing no `.trn` files are manifest-load errors.
-- A direct `.trn` CLI input is implicit package `single-file`, one unit, default prelude, and is exempt from directory correspondence.
+- A direct source CLI input (an existing non-manifest file or a path ending in `.trn`) is implicit package `single-file`, one unit, default prelude, and exempt from directory correspondence. If byte zero begins `#!`, the shebang is comment trivia and the script may omit an authored namespace; the compiler supplies an implementation-owned identity outside the authored namespace grammar, making source collision impossible. Manifest-discovered sources never receive this exemption. `terrane <file-or-manifest>` is implicit `terrane run <file-or-manifest>`, forwards remaining arguments (with an optional leading `--`), and uses the same compilation/cache/execution pipeline. A parameterless top-level `main` remains mandatory.
 - Compiler-bundled support source is copied content-addressably into generated builds and referenced only by generated-project-relative Cargo paths; no registry, network, or installation absolute path enters reproducible output. Apply the same vendoring mechanism to admitted authored third-party dependencies.
 
 - Package import does not imply runtime mutation.
 - Dependency graph/order deterministic.
 - Separate compilation honors published representation/ABI; downstream cannot silently respecialize upstream public layout.
+
+## TESTING
+
+```yaml
+command: terrane test [package-or-source]
+implementation: public framework/case execution/reporting in bundled Terrane /core/testing; compiler owns discovery, typed registry generation, shared lowering, and narrow host isolation/capture
+discovery: conventional tests/unit | tests/integration | tests/end-to-end roots; optional manifest overrides; top-level zero-parameter test-* functions; sync/async/throwing
+order: tier, logical path, source order, function name; filters change execution only, never compilation
+unit: package source set; ordinary namespace-private access only in the declaring namespace
+integration: external consumer view; public package surface only
+end_to_end: drive actual built artifact through explicit lossless args/env/input/deadline and bounded stdout/stderr process fixture
+test_profile: explicit manifest selection; defaults to ordinary package profile; testing never grants omitted capabilities
+entrypoint: generated runner main is compiler-owned; ordinary programs/scripts still require authored parameterless main
+isolation: one fresh working directory and process per selected case by default; crash/exit/timeout cannot suppress later cases
+assertions: assert | deny | fail | typed equal/not-equal | optional present/none | float near with tolerance | typed assert-throws | skip
+assertion_invariants: operands evaluated once; exact source retained; concrete types stay static; no universal boxed test value; rendering honors explicit display/test-value and secrecy contracts
+reporting: deterministic human plus versioned machine report; pass/fail/skip/timeout/crash/compile/infrastructure states; bounded captured output
+non_goals_initial: new test declaration grammar, decorators, parameterized-test syntax, automatic retry, snapshot rewriting, mock generation, matcher DSL
+host_boundary: no Cargo test target, Rust #[test], or libtest semantics; Rust only for compiler CLI and irreducible process/filesystem/clock ABI
+```
+
+The compiler's own conformance, compile-fail, lowering-golden, diagnostic, and host implementation
+tests remain distinct. `/core/testing` is the first-party framework for code authored in Terrane.
 
 ## CORE LIBRARY PRINCIPLE
 

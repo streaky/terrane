@@ -8,6 +8,6 @@ class cursor
   function next iteration-step of int;
     return iteration-step.end;
 function main;
-  source cursor = instance cursor;
+  source = instance cursor;
   for item in source
     print; item

@@ -91,6 +91,95 @@ fn all_commands_share_the_hello_pipeline() {
     );
 }
 
+#[cfg(unix)]
+#[test]
+fn executable_shebang_script_runs_through_implicit_command() {
+    use std::os::unix::fs::PermissionsExt as _;
+
+    let binary = PathBuf::from(env!("CARGO_BIN_EXE_terrane"));
+    let directory = TemporaryDirectory::new("executable-script");
+    fs::create_dir_all(directory.path()).unwrap();
+    let script = directory.path().join("thing.trn");
+    fs::write(
+        &script,
+        "#!/usr/bin/env terrane\nfunction main;\n  print; >hello\n",
+    )
+    .unwrap();
+    let mut permissions = fs::metadata(&script).unwrap().permissions();
+    permissions.set_mode(0o755);
+    fs::set_permissions(&script, permissions).unwrap();
+
+    let mut path_entries = vec![binary.parent().unwrap().to_path_buf()];
+    if let Some(path) = std::env::var_os("PATH") {
+        path_entries.extend(std::env::split_paths(&path));
+    }
+    let output = Command::new(&script)
+        .env("PATH", std::env::join_paths(path_entries).unwrap())
+        .output()
+        .unwrap();
+
+    assert!(output.status.success(), "{output:?}");
+    assert_eq!(output.stdout, b"hello\n");
+    assert!(output.stderr.is_empty(), "{output:?}");
+}
+
+#[test]
+fn extensionless_source_and_package_paths_dispatch_consistently() {
+    let binary = env!("CARGO_BIN_EXE_terrane");
+    let directory = TemporaryDirectory::new("implicit-paths");
+    fs::create_dir_all(directory.path()).unwrap();
+
+    let script = directory.path().join("script");
+    fs::write(
+        &script,
+        "#!/usr/bin/env terrane\nfunction main;\n  print; >source\n",
+    )
+    .unwrap();
+    let source = Command::new(binary).arg(&script).output().unwrap();
+    assert!(source.status.success(), "{source:?}");
+    assert_eq!(source.stdout, b"source\n");
+
+    for command in ["check", "rust", "build", "run"] {
+        let explicit = Command::new(binary)
+            .arg(command)
+            .arg(&script)
+            .output()
+            .unwrap();
+        assert!(explicit.status.success(), "{command}: {explicit:?}");
+        if command == "run" {
+            assert_eq!(explicit.stdout, source.stdout);
+        }
+    }
+
+    let package_root = directory.path().join("package");
+    fs::create_dir_all(package_root.join("src")).unwrap();
+    fs::write(
+        package_root.join("package.toml"),
+        "package = \"implicit-package\"\n\n[namespaces]\napp = \"src\"\n",
+    )
+    .unwrap();
+    fs::write(
+        package_root.join("src/main.trn"),
+        "namespace app\nfunction main;\n  print; >package\n",
+    )
+    .unwrap();
+    let package = Command::new(binary)
+        .arg(package_root.join("package.toml"))
+        .output()
+        .unwrap();
+    assert!(package.status.success(), "{package:?}");
+    assert_eq!(package.stdout, b"package\n");
+
+    let directory_argument = Command::new(binary).arg(&package_root).output().unwrap();
+    assert_eq!(directory_argument.status.code(), Some(2));
+    assert!(directory_argument.stdout.is_empty());
+    assert!(
+        String::from_utf8(directory_argument.stderr)
+            .unwrap()
+            .starts_with("usage: terrane ")
+    );
+}
+
 #[test]
 fn rust_output_writes_clean_authored_lowering_and_support_sidecar() {
     let binary = env!("CARGO_BIN_EXE_terrane");
@@ -169,11 +258,10 @@ fn help_succeeds_and_extra_arguments_are_rejected() {
     let binary = env!("CARGO_BIN_EXE_terrane");
     let help = Command::new(binary).arg("--help").output().unwrap();
     assert!(help.status.success());
-    assert!(
-        String::from_utf8(help.stdout)
-            .unwrap()
-            .contains("commands:")
-    );
+    let help = String::from_utf8(help.stdout).unwrap();
+    assert!(help.contains("commands:"));
+    assert!(help.contains("<file-or-manifest>"));
+    assert!(!help.contains("<source.trn>"));
 
     let extra = Command::new(binary)
         .args(["check", hello().to_str().unwrap(), "unexpected"])

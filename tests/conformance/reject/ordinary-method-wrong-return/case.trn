@@ -3,4 +3,4 @@ class broken
   function value int;
     return 'text'
 function main;
-  item broken = instance broken;
+  item = instance broken;

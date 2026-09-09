@@ -75,7 +75,9 @@ pub use model::{
     ValueType, Visibility,
 };
 pub(crate) use model::{
-    CoercionPolicy, ContextualConstant, FloatMemberOperation, StringFamily, float_member_contract,
+    CanonicalDefault, CoercionPolicy, ContextualConstant, FloatMemberOperation, StringFamily,
+    canonical_default, float_member_contract,
 };
 pub(crate) use numeric::{bound_method, contextual_constant, promoted_integer_type};
+pub(crate) use objects::{EffectiveObjectField, effective_object_fields};
 pub(crate) use types::{is_numeric, narrowed_optional_type, narrowed_value_type};

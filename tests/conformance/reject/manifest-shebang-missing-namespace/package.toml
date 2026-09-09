@@ -1,0 +1,5 @@
+package = "manifest-shebang-missing-namespace"
+prelude = true
+
+[namespaces]
+app = "src"

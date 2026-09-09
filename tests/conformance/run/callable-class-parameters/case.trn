@@ -28,10 +28,10 @@ class child-holder extends base-holder
 
 function main;
   operation function from int to int = increment
-  direct direct-holder = instance direct-holder; operation
+  direct = instance direct-holder; operation
   print; (direct.apply; operation, 4)
   print; (direct.ignore; operation, 9)
-  base base-holder = instance base-holder; operation
+  base = instance base-holder; operation
   print; (base.apply; operation, 5)
-  child child-holder = instance child-holder; operation
+  child = instance child-holder; operation
   print; (child.apply; operation, 6)

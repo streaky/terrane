@@ -42,7 +42,7 @@ impl Emitter<'_> {
                 ValueType::Reference(_) | ValueType::SharedReference(_)
             );
         let fields = object.map_or_else(String::new, |object| {
-            effective_object_fields(self.unit, object)
+            effective_object_fields(self.package, object)
                 .into_iter()
                 .filter(|field| !field.is_static)
                 .map(|field| {
@@ -504,61 +504,47 @@ impl Emitter<'_> {
             {
                 format!("({}).clone()", self.expression(node))
             }
-            ValueType::List(item)
+            value_type @ ValueType::List(_)
                 if node.kind == SyntaxKind::Name
                     && self.is_builtin(node, "/core/collections::list") =>
             {
-                format!(
-                    "terrane_collection_support::List::<{}>::new(Vec::new())",
-                    rust_element_type(self.package, item)
-                )
+                rust_empty_collection(self.package, &value_type)
+                    .expect("list is an empty collection constructor")
             }
-            ValueType::Tuple(item, _)
+            value_type @ ValueType::Tuple(_, _)
                 if node.kind == SyntaxKind::Name
                     && self.is_builtin(node, "/core/collections::tuple") =>
             {
-                format!(
-                    "terrane_collection_support::Tuple::<{}>::new(Vec::new())",
-                    rust_element_type(self.package, item)
-                )
+                rust_empty_collection(self.package, &value_type)
+                    .expect("tuple is an empty collection constructor")
             }
-            ValueType::Set(item)
+            value_type @ ValueType::Set(_)
                 if node.kind == SyntaxKind::Name
                     && self.is_builtin(node, "/core/collections::set") =>
             {
-                format!(
-                    "terrane_collection_support::Set::<{}>::new(Vec::new())",
-                    rust_element_type(self.package, item)
-                )
+                rust_empty_collection(self.package, &value_type)
+                    .expect("set is an empty collection constructor")
             }
-            ValueType::UnorderedSet(item)
+            value_type @ ValueType::UnorderedSet(_)
                 if node.kind == SyntaxKind::Name
                     && self.is_builtin(node, "/core/collections::unordered-set") =>
             {
-                format!(
-                    "terrane_collection_support::UnorderedSet::<{}>::new(Vec::new())",
-                    rust_element_type(self.package, item)
-                )
+                rust_empty_collection(self.package, &value_type)
+                    .expect("unordered set is an empty collection constructor")
             }
-            ValueType::Map(key, value)
+            value_type @ ValueType::Map(_, _)
                 if node.kind == SyntaxKind::Name
                     && self.is_builtin(node, "/core/collections::map") =>
             {
-                format!(
-                    "terrane_collection_support::Map::<{}, {}>::new(Vec::new())",
-                    rust_element_type(self.package, key),
-                    rust_element_type(self.package, value)
-                )
+                rust_empty_collection(self.package, &value_type)
+                    .expect("map is an empty collection constructor")
             }
-            ValueType::UnorderedMap(key, value)
+            value_type @ ValueType::UnorderedMap(_, _)
                 if node.kind == SyntaxKind::Name
                     && self.is_builtin(node, "/core/collections::unordered-map") =>
             {
-                format!(
-                    "terrane_collection_support::UnorderedMap::<{}, {}>::new(Vec::new())",
-                    rust_element_type(self.package, key),
-                    rust_element_type(self.package, value)
-                )
+                rust_empty_collection(self.package, &value_type)
+                    .expect("unordered map is an empty collection constructor")
             }
             ValueType::PlatformStreamHandle if node.kind == SyntaxKind::MemberExpression => {
                 format!("({}).clone()", self.expression(node))

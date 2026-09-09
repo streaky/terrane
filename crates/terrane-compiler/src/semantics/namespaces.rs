@@ -1,8 +1,11 @@
 use super::prelude::*;
 
+const IMPLICIT_SCRIPT_NAMESPACE: &str = "/<implicit-script>";
+
 pub(super) fn declared_namespace(
     source: &SourceFile,
     tree: &SyntaxTree,
+    allow_implicit_script_namespace: bool,
 ) -> Result<String, Diagnostic> {
     let declarations = tree
         .root
@@ -10,6 +13,9 @@ pub(super) fn declared_namespace(
         .iter()
         .filter(|node| node.kind == SyntaxKind::NamespaceDeclaration)
         .collect::<Vec<_>>();
+    if declarations.is_empty() && allow_implicit_script_namespace {
+        return Ok(IMPLICIT_SCRIPT_NAMESPACE.to_owned());
+    }
     if declarations.is_empty() {
         return Err(Diagnostic::error(
             "S2002",

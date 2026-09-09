@@ -1,0 +1,16 @@
+namespace return-tail-block-strings
+from /core/errors import coercion-error
+
+function render string throws coercion-error; value int
+  if value < 0
+    throw coercion-error
+  return >ok
+
+function render-lines string;
+  return >>
+    first line
+    second line
+
+function main;
+  print; (render; 1)
+  print; (render-lines;)

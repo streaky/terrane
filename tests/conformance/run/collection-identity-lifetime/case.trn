@@ -38,7 +38,7 @@ function release-order;
 function main;
   release-order;
 
-  left marker = instance marker; 'left'
+  left = instance marker; 'left'
   right marker = left
   print; left is left, left is right
 

@@ -1,0 +1,10 @@
+namespace nondefaultable-class-field
+
+class child
+  value int
+
+class parent
+  child child
+
+function main;
+  value = instance parent;

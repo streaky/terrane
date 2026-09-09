@@ -85,13 +85,14 @@ fn serves_semantic_tokens_for_an_open_document() {
                     "uri": "file:///tmp/editor.trn",
                     "languageId": "terrane",
                     "version": 1,
-                    "text": "function main;\n  value = >hello\n"
+                    "text": "function inline string;\n  return >hello\n\nfunction block string;\n  return >>\n    first\n    second\n"
                 }
             }
         }),
     );
     let diagnostics = receive_notification(&mut stdout, "textDocument/publishDiagnostics");
     assert_eq!(diagnostics["params"]["version"], 1);
+    assert_eq!(diagnostics["params"]["diagnostics"], json!([]));
     send(
         &mut stdin,
         &json!({
@@ -106,6 +107,12 @@ fn serves_semantic_tokens_for_an_open_document() {
     assert!(!data.is_empty());
     assert_eq!(data.len() % 5, 0);
     assert_eq!(tokens["result"]["resultId"], "1");
+    assert_eq!(
+        data.chunks(5)
+            .filter(|token| token[3].as_u64() == Some(3))
+            .count(),
+        4
+    );
 
     send(
         &mut stdin,

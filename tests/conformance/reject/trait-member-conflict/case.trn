@@ -12,4 +12,4 @@ class combined uses left, right
     value int = 1
 
 function main;
-    value combined = instance combined;
+    value = instance combined;

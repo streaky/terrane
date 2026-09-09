@@ -5,5 +5,5 @@ class sample
   type string = 'declared-field'
 
 function main;
-  value sample = instance sample;
+  value = instance sample;
   print; value.type

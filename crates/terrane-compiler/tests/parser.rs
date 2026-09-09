@@ -44,6 +44,15 @@ fn contains(node: &terrane_compiler::syntax::SyntaxNode, kind: SyntaxKind) -> bo
     node.kind == kind || node.children.iter().any(|child| contains(child, kind))
 }
 
+fn count(node: &terrane_compiler::syntax::SyntaxNode, kind: SyntaxKind) -> usize {
+    usize::from(node.kind == kind)
+        + node
+            .children
+            .iter()
+            .map(|child| count(child, kind))
+            .sum::<usize>()
+}
+
 #[test]
 fn parses_lossless_declarations_and_legal_empty_blocks() {
     let text = "namespace example/app\npublic constant count int = 1\npublic async function empty throws throwable; value int\nfunction main;\n  count = count + 1\n";
@@ -227,6 +236,15 @@ fn tail_strings_remain_literals_while_comparisons_and_shifts_parse_as_operators(
         tree.root.children[2].children.last().unwrap().kind,
         SyntaxKind::BinaryExpression
     );
+}
+
+#[test]
+fn return_accepts_tail_and_block_string_literals() {
+    let tree = parse_source(
+        "function inline string;\n  return >ok\nfunction block string;\n  return >>\n    first\n    second\n",
+    );
+    assert_eq!(count(&tree.root, SyntaxKind::ReturnStatement), 2);
+    assert_eq!(count(&tree.root, SyntaxKind::Literal), 2);
 }
 
 #[test]

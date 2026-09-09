@@ -50,6 +50,27 @@ fn classifies_real_lexical_and_syntax_constructs() {
 }
 
 #[test]
+fn highlights_tail_and_block_strings_returned_directly() {
+    let source = concat!(
+        "function inline string;\n",
+        "  return >ok\n",
+        "function block string;\n",
+        "  return >>\n",
+        "    first\n",
+        "    second\n",
+    );
+    let file = SourceFile::new(0, "returns.trn".into(), source.to_owned());
+    let output = highlight(&file);
+
+    assert!(output.diagnostics.is_empty(), "{:#?}", output.diagnostics);
+    for text in [">ok", ">>\n    first\n    second"] {
+        assert!(output.highlights.iter().any(|item| {
+            item.kind == HighlightKind::String && &source[item.span.start..item.span.end] == text
+        }));
+    }
+}
+
+#[test]
 fn classifies_object_and_ownership_contextual_keywords() {
     let keywords = [
         "interface",

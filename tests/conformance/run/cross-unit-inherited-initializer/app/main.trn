@@ -1,0 +1,9 @@
+namespace app
+from /models import item
+
+class fancy extends item
+  extra int = 3
+
+function main;
+  value = instance fancy;
+  print; value.value, ':', value.extra

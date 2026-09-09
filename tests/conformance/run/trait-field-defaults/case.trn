@@ -1,0 +1,17 @@
+namespace trait-field-defaults
+
+class payload
+  value int = 9
+
+trait carrier
+  slot int
+  payload payload
+
+class user uses carrier
+  payload payload = instance payload;
+
+function main;
+  value = instance user;
+  print; value.slot, ':', value.payload.value
+  descriptor = user
+  print; descriptor.field-count, ':', descriptor.field-defaulted[0], ':', descriptor.field-defaulted[1]

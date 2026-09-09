@@ -10,8 +10,8 @@ class gate
     return this.open
 
 function main;
-  enabled gate = instance gate; true
-  disabled gate = instance gate; false
+  enabled = instance gate; true
+  disabled = instance gate; false
   if enabled
     print; 'enabled'
   if disabled

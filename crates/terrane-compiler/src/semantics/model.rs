@@ -347,6 +347,99 @@ pub enum ValueType {
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) enum CanonicalDefault {
+    BoolFalse,
+    AdaptiveIntegerZero,
+    FixedIntegerZero,
+    Float32Zero,
+    Float64Zero,
+    EmptyString,
+    EmptyBytes,
+    AbsentOptional,
+    EmptyList,
+    EmptyMap,
+    EmptySet,
+    EmptyUnorderedMap,
+    EmptyUnorderedSet,
+}
+
+pub(crate) fn canonical_default(value_type: &ValueType) -> Option<CanonicalDefault> {
+    match value_type {
+        ValueType::Scalar(scalar) => match scalar {
+            ScalarType::Bool => Some(CanonicalDefault::BoolFalse),
+            ScalarType::Int => Some(CanonicalDefault::AdaptiveIntegerZero),
+            ScalarType::Int8
+            | ScalarType::Int16
+            | ScalarType::Int32
+            | ScalarType::Int64
+            | ScalarType::Int128
+            | ScalarType::Uint8
+            | ScalarType::Uint16
+            | ScalarType::Uint32
+            | ScalarType::Uint64
+            | ScalarType::Uint128 => Some(CanonicalDefault::FixedIntegerZero),
+            ScalarType::Float32 => Some(CanonicalDefault::Float32Zero),
+            ScalarType::Float64 => Some(CanonicalDefault::Float64Zero),
+            ScalarType::String => Some(CanonicalDefault::EmptyString),
+            ScalarType::Bytes => Some(CanonicalDefault::EmptyBytes),
+            ScalarType::None => None,
+        },
+        ValueType::Optional(_) => Some(CanonicalDefault::AbsentOptional),
+        ValueType::List(_) => Some(CanonicalDefault::EmptyList),
+        ValueType::Map(_, _) => Some(CanonicalDefault::EmptyMap),
+        ValueType::Set(_) => Some(CanonicalDefault::EmptySet),
+        ValueType::UnorderedMap(_, _) => Some(CanonicalDefault::EmptyUnorderedMap),
+        ValueType::UnorderedSet(_) => Some(CanonicalDefault::EmptyUnorderedSet),
+        ValueType::OverflowResult(_)
+        | ValueType::DivRemResult(_)
+        | ValueType::StringView(_)
+        | ValueType::StringList
+        | ValueType::TextRange
+        | ValueType::TextRangeView(_)
+        | ValueType::TextRangeList
+        | ValueType::Iterator(_)
+        | ValueType::IterationStep(_)
+        | ValueType::IterationEnd
+        | ValueType::AsyncIterationStep(_)
+        | ValueType::AsyncSinkOutcome
+        | ValueType::ChannelPair(_)
+        | ValueType::ChannelSender(_)
+        | ValueType::ChannelReceiver(_)
+        | ValueType::ChannelSendOutcome(_)
+        | ValueType::ChannelReceiveOutcome(_)
+        | ValueType::ChannelOverflowPolicy
+        | ValueType::DocumentDecodeOutcome(_)
+        | ValueType::DocumentDiagnostic
+        | ValueType::Tuple(_, _)
+        | ValueType::Range
+        | ValueType::Entry(_, _)
+        | ValueType::Encoding
+        | ValueType::Function(_, _)
+        | ValueType::AsyncFunction(_, _, _)
+        | ValueType::Descriptor(_)
+        | ValueType::Task(_, _)
+        | ValueType::ScopedTask(_, _)
+        | ValueType::TaskScope
+        | ValueType::TaskOutcome(_)
+        | ValueType::FilesystemAuthority
+        | ValueType::PlatformFilesystemResult
+        | ValueType::PlatformStreamHandle
+        | ValueType::PlatformOpenResult
+        | ValueType::PlatformReadResult
+        | ValueType::PlatformWriteResult
+        | ValueType::PlatformUnitResult
+        | ValueType::PlatformDataResult
+        | ValueType::PlatformUrlResult
+        | ValueType::PlatformCapability
+        | ValueType::PlatformResourceHandle
+        | ValueType::PlatformResult
+        | ValueType::Object(_)
+        | ValueType::Reference(_)
+        | ValueType::SharedReference(_) => None,
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum TextUnit {
     Bytes,
     Scalars,
@@ -778,6 +871,7 @@ pub struct ObjectField {
     pub name: String,
     pub span: Span,
     pub value_type: ValueType,
+    pub initializer_span: Option<Span>,
     pub is_static: bool,
     pub metadata: ObjectFieldMetadata,
 }

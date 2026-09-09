@@ -18,10 +18,10 @@ class values
     return instance cursor;
 
 function main;
-  value gate = instance gate;
+  value = instance gate;
   if value
     print; 'truth'
-  source values = instance values;
+  source = instance values;
   for item in source
     print; item
   print; 'end'

@@ -1306,6 +1306,36 @@ installed only into a selected sink, preserves foreign event, key-value, span, t
 line provenance without inventing Terrane source, and exposes its subscriber layer for optional
 single-subscriber composition.
 
+### 13.11 Testing
+
+```text
+/core/testing                               bundled Terrane package; test targets only
++-- test-failure / test-skip                structured assertion failure and explicit skip
++-- test-value                              bounded, secrecy-aware failure rendering protocol
++-- assert / deny / fail                    boolean condition, inverse condition, unconditional failure
++-- assert-equal / assert-not-equal         statically specialized typed equality; operands evaluated once
++-- assert-none / assert-present             optional-state assertions
++-- assert-near                             float value, expected value, explicit tolerance
++-- assert-throws                           expected throwable descriptor, typed callback
++-- skip                                    explicit reason
++-- test-context
+|   +-- identity / tier / source / deadline / seed
+|   +-- temporary-directory / arguments / environment
++-- test-process-fixture
+|   +-- run-artifact                        artifact, args, environment, input, deadline -> process-result
++-- process-result                          exit status, bounded stdout/stderr, timeout/crash state
++-- test-case-result / test-run-result       deterministic structured report values
+```
+
+The package's assertion, fixture, case-execution, and reporting behavior is authored in Terrane.
+Compiler support discovers ordinary top-level zero-parameter `test-*` functions, injects their exact
+source metadata, specializes typed assertion boundaries without boxing, and generates one native
+registry/runner. Unit tests join the owning package and retain ordinary namespace visibility;
+integration tests see only its public surface; end-to-end tests drive the actual built artifact.
+Each case is process-isolated with a fresh working directory by default. Testing never grants a
+capability omitted by the selected test profile, and failed rendering never bypasses secrecy.
+Cargo test targets, Rust `#[test]`, and `libtest` are not part of this source contract.
+
 ## 14. Packages and native adapters
 
 One principle governs every ecosystem below, and each entry is a specialisation of it:

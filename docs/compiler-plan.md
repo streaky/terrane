@@ -15,6 +15,7 @@ The first version is complete when a user can:
 ```text
 terrane check path/to/program.trn
 terrane run path/to/program.trn -- program-arguments
+terrane path/to/script.trn -- program-arguments
 terrane build path/to/program.trn
 terrane rust path/to/program.trn
 ```
@@ -42,12 +43,12 @@ Version one still does not need universal dynamic values, source-declared generi
 1. **Tests define implemented behavior.** The design draft informs the implementation, but an executable conformance case is required before a feature is considered supported.
 2. **No dependency on `demos/`.** CI must neither compile nor parse files from `demos/` unless a future, explicitly named demo-specific job is introduced.
 3. **Vertical slices before breadth.** Establish `source -> Rust -> Cargo -> executable` early, then expand the language through end-to-end slices.
-4. **One semantic path.** `check`, `run`, `build`, and `rust` share the same frontend and semantic pipeline. Commands must not grow separate parsers or validators.
+4. **One semantic path.** `check`, `run`, `build`, and `rust` — and `test` when delivered — share the same frontend and semantic pipeline. Commands must not grow separate parsers or validators.
 5. **No silent repair.** Invalid Terrane is rejected at its source span. The compiler must not reinterpret failed syntax as a nearby construct merely to continue.
 6. **Deterministic output.** The same source, compiler version, target, and declared inputs produce byte-identical generated source and manifests.
 7. **Readable lowering.** Generated Rust is a public debugging surface, not opaque compiler debris.
 8. **Narrow runtime.** Statically known fixed-width scalars and functions lower directly to Rust types and calls where Rust preserves the complete Terrane contract; core `int` uses the narrowest exact representation required by its adaptive semantics. The first compiler must not introduce a universal boxed `Value` as a shortcut.
-9. **Standard facilities are written in Terrane.** The Rust core stays deliberately minimal. Document formats, networking protocols, compression framing, date and time arithmetic, paths, CLI parsing, and logging are Terrane packages over that core, not Rust support crates. A Rust support crate is permanently opaque to the compiler, so implementing a facility in Rust forecloses inlining, specialisation, and whole-program analysis for it forever; it also loses the readable Terrane frames the diagnostics contract requires. The boundary runs per layer rather than per facility: Rust owns the layer that is a syscall or ABI boundary, carries a guarantee the optimiser would destroy, is a large audited security-critical implementation, or is generated data — and a layer claiming to be Rust states which of the four applies. Everything above it is Terrane. Core libraries reach Rust through the ordinary dependency mechanism, so they carry no privileged path and double as worked examples. Two consequences are load-bearing rather than incidental: package-level artifact caching, because a source-form standard library would otherwise be recompiled by every build, and capability profiles expressed as which packages are present rather than which crates were compiled in.
+9. **Standard facilities are written in Terrane.** The Rust core stays deliberately minimal. Document formats, networking protocols, compression framing, date and time arithmetic, paths, CLI parsing, logging, and application testing are Terrane packages over that core, not Rust support crates. A Rust support crate is permanently opaque to the compiler, so implementing a facility in Rust forecloses inlining, specialisation, and whole-program analysis for it forever; it also loses the readable Terrane frames the diagnostics contract requires. The boundary runs per layer rather than per facility: Rust owns the layer that is a syscall or ABI boundary, carries a guarantee the optimiser would destroy, is a large audited security-critical implementation, or is generated data — and a language-visible facility uses that minimum layer from ordinary Terrane source. Every layer implemented in Rust must state which justification applies. “Performance” alone is insufficient without a measurement proving the Terrane implementation cannot lower equivalently.
 
 ## 4. Proposed repository layout
 
@@ -208,7 +209,22 @@ The source-object portion is delivered: classes, interfaces, and traits use
 `DescriptorContract`; their member lookup, nominal relations, conformance, dispatch, reflection,
 and structural protocol lookup consume that source contract. Iteration and `truth` now resolve
 required members through the same recursive protocol-member query, including members inherited
-from a base or supplied by trait/interface composition.
+from bases and reused traits.
+
+Typed class and reusable trait fields whose scalar, optional, bytes, or collection descriptors
+provide a canonical default now omit redundant initializers. One exhaustive semantic contract
+classifies defaults; tuple, plain-`none`, source-object, reference, callable, and resource fields
+remain nondefaultable. Fully composed class fields are validated before lowering, so a
+nondefaultable trait field must be initialized by the trait or overridden with an initializer by
+the class. Semantic field metadata records implicit, explicit, inherited, and trait-contributed
+defaults consistently. Lowering evaluates inherited explicit initializers in their declaring source
+and object context and shares empty-collection construction with ordinary collection expressions.
+`implicit-class-field-defaults`, `trait-field-defaults`, and
+`cross-unit-inherited-initializer` cover runtime values, overrides, static storage, collections,
+reflection, trait reuse, and cross-unit inheritance. `nondefaultable-class-field`,
+`nondefaultable-trait-field`, and `nondefaultable-tuple-field` preserve T0061 at every effective
+class boundary.
+
 
 Remaining work:
 
@@ -341,6 +357,113 @@ the compatibility boundary; a provably infallible callable-value invocation lowe
 site or `?`; reflection distinguishes the written bound from the inferred concrete set; and all
 accepted forms have deterministic canonical formatting, generated-Rust goldens, compiled crates,
 and runtime evidence.
+
+### Milestone 27.1 — Terrane-native testing framework
+
+Terrane programs need a first-party way to test Terrane behavior without translating their
+contracts into Rust tests or depending on Rust's `libtest` harness. This milestone builds one
+`terrane test` path over the ordinary compiler pipeline. The public framework and case execution
+logic are bundled Terrane source under `/core/testing`; Rust remains limited to the compiler CLI,
+process isolation/capture, clocks, and host filesystem operations that cannot be expressed above
+the existing platform ABI.
+
+Milestone 26.2 precedes this work because `assert-throws` and throwing test callbacks must retain an
+exact callable throwable bound. Milestones 19, 22, and 26 already provide the async, filesystem,
+process, profile, and system foundations needed by isolated integration and end-to-end tests.
+
+#### Test discovery and tiers
+
+Deliver:
+
+- `terrane test [package-or-source]` using the same package loading, semantic analysis, Rust IR,
+  Cargo generation, cache, warning policy, and source diagnostics as `check`, `build`, and `run`;
+- conventional `tests/unit`, `tests/integration`, and `tests/end-to-end` roots, with optional
+  manifest overrides that remain bounded package inputs and enter the build/cache identity;
+- discovery of top-level zero-parameter `test-*` functions in those roots, including `async`
+  functions, in deterministic tier, logical-path, source-order, and function-name order;
+- a compiler-generated test registry and native runner entrypoint. Test units do not author a
+  second `main`; ordinary programs and executable scripts retain their required parameterless
+  top-level `main`;
+- unit tests compiled with the package source set and namespace-private access only when they
+  declare the namespace that owns that state; integration tests compiled as external consumers of
+  public package surfaces; and end-to-end tests driving the built application artifact through an
+  explicit process fixture;
+- a source-oriented diagnostic for an invalid test signature, duplicate fully qualified test
+  identity, test-only dependency leak into production, or inaccessible unit/integration boundary.
+
+Discovery is compiler-owned metadata, not a new declaration grammar or annotation system. A test is
+an ordinary Terrane function that can also be called by another Terrane function. Filtering changes
+which valid tests execute, never which test sources are compiled and checked.
+
+#### Terrane testing surface
+
+Provide the main framework as bundled Terrane source in `/core/testing`:
+
+- `test-failure` and `test-skip` throwable classes carrying message, assertion source, and bounded
+  structured details;
+- boolean `assert` and `deny`, explicit `fail`, equality/inequality assertions, optional
+  present/none assertions, floating near-equality with an explicit tolerance, and
+  `assert-throws` over a typed callback and expected throwable descriptor;
+- assertion forms that evaluate every supplied expression exactly once and report the authored
+  assertion site. Equality remains the language's typed equality rather than string comparison;
+  concrete operand types stay statically known and must not be routed through a universal boxed
+  value merely to make the API generic;
+- useful failure rendering for values that implement ordinary display or the
+  `/core/testing::test-value` protocol, with type and source information retained when a value is
+  intentionally not renderable. Secret/redacted values must never be revealed by a failed assertion;
+- `skip; reason`, per-test timeout/deadline access, a unique temporary directory, controlled
+  environment and argument fixtures, and deterministic pseudo-random seed access;
+- end-to-end process fixtures that take an artifact, lossless arguments/environment, optional
+  standard input, and deadline, then return exact exit status plus captured stdout and stderr.
+  The host spawn/capture primitive is a narrow audited adapter; orchestration and assertions remain
+  Terrane;
+- a named test profile selected through the manifest, defaulting to the package's ordinary profile
+  without silently adding capabilities. Temporary directories and child-process fixtures require
+  the same explicit filesystem/process grants as ordinary Terrane code;
+
+Ordinary Terrane control flow supplies table-driven tests and local setup/cleanup. The initial
+framework does not add parameterized-test syntax, decorators, automatic retries, snapshot rewriting,
+mock generation, or a second matcher DSL. Those can be considered only after real suites show that
+functions, loops, callbacks, `try`/`finally`, and the core assertions are insufficient.
+
+Terrane currently lacks a concise expression for a short-lived heterogeneous object with named
+members. While building the framework and its first real suites, record every case where a class is
+introduced solely to bundle one-off fixture or intermediate values, along with why a tuple, map,
+document value, or named class was inadequate. This is design evidence, not a commitment to
+anonymous objects: the eventual answer may be anonymous compiler-generated classes, lightweight
+named records, better fixture construction, or no new construct if the pressure is weak. Revisit the
+question after the milestone's representative unit, integration, and end-to-end suites exist.
+
+#### Isolation, reporting, and command behavior
+
+Deliver:
+
+- compile each tier once, then execute every selected case in an isolated process by default so an
+  explicit exit, panic, timeout, leaked global state, or malformed end-to-end child cannot prevent
+  later cases from running;
+- a fresh working directory and test context per case, bounded stdout/stderr capture, deterministic
+  ordering of the final report, and explicit cleanup even when a case fails or times out;
+- bounded parallel execution through `--jobs`, stable substring filtering, `--list`, `--fail-fast`,
+  and an explicit per-case timeout; scheduling may vary but report order and identities may not;
+- concise human output by default, captured output on failure with an opt-in successful-output view,
+  and a versioned machine-readable report containing case identity, tier, status, duration, source,
+  structured failure/cause, stdout, and stderr;
+- distinct passed, failed, skipped, timed-out, crashed, compile-failed, and infrastructure-failed
+  states. Zero exit means every selected executable case passed or explicitly skipped; assertion,
+  uncaught throwable, timeout, crash, and unexpected process result are test failures, while
+  compiler and infrastructure failures retain their existing distinct CLI exit classes;
+- no dependency on Cargo's test target model, Rust `#[test]`, or `libtest`. Generated Rust may use
+  ordinary native functions and executables, but Rust testing infrastructure is not the semantic
+  runner for Terrane code.
+
+Exit criterion: one purpose-built package runs unit, integration, asynchronous, and end-to-end tests
+written entirely in Terrane; demonstrates every initial assertion category, skip, failure, timeout,
+temporary-directory isolation, argument/environment control, stdout/stderr capture, and deterministic
+filter/report behavior; proves private unit access and public-only integration access; and shows that
+one crashing or exiting test does not suppress later results. The framework's own behavioral suite
+must be Terrane tests run by `terrane test`, while compiler discovery/lowering and the narrow host
+adapter retain focused Rust implementation tests. Generated runners compile with warnings denied,
+and accepted framework cases carry canonical generated-Rust evidence.
 
 ### Milestone 28 — First-version hardening and release gate
 
@@ -560,6 +683,7 @@ Section 7 is the authoritative remaining-work list. In milestone order, the open
 - finish the foundational floating-point member set (milestone 25.3);
 - implement destination-directed specialization of closed projected results (milestone 25.4);
 - add throwable bounds to function types (milestone 26.2);
+- deliver the Terrane-native unit, integration, and end-to-end testing framework (milestone 27.1);
 - complete the release hardening gate (milestone 28); and
 - turn projection artifact resolution into a release-owned bundled, relocatable, and offline
   distribution channel (milestone 28.1).
@@ -660,6 +784,16 @@ Exit criterion: one purpose-built Terrane file produces a real executable and ex
 
 Implementation note: milestone zero names the intended pipeline boundaries, but its bootstrap frontend is deliberately not yet structurally separated. Its `lex` stage records logical lines rather than tokens, import and binding forms are recognized as exact supported lines, unresolved-object detection remains parser-local, and the current resolve/lower boundaries mostly transfer fields. Milestone one therefore builds the real tokenizing lexer rather than extending a complete lexer, and later milestones make resolution and typed lowering substantive.
 
+Follow-on executable-script support keeps this pipeline singular: a byte-zero shebang lets only an
+implicit single-file package omit its authored namespace, in which case the compiler supplies an
+implementation-owned identity outside the authored namespace grammar for that unit. Manifest
+sources retain namespace correspondence, and every executable retains the parameterless top-level
+`main` contract.
+The CLI treats a bare source path as `run`, forwards its remaining arguments, and reuses ordinary
+build caching. `executable-shebang-script`, `shebang-script-without-main`,
+`manifest-shebang-missing-namespace`, CLI dispatch tests, and a Unix test that executes a chmodded
+`#!/usr/bin/env terrane` file provide end-to-end evidence.
+
 ### Milestone 1 — Lexer and indentation correctness
 
 Deliver:
@@ -671,7 +805,7 @@ Deliver:
 - `#`, `//`, and `/* ... */` comments;
 - quoted, tail, and indented block strings plus numeric literals;
 - identifiers with operator-bearing joiners, including `<` and `>`, while a terminal joiner followed by a digits-only unit is rejected;
-- comparison and shift operators using `<`, `>`, `<<`, and `>>`, with `>` and `>>` additionally opening tail and block strings in expression-start position; these tokens never delimit generic arguments;
+- comparison and shift operators using `<`, `>`, `<<`, and `>>`, with `>` and `>>` additionally opening tail and block strings in expression-start position, including after a value-bearing `return` that starts a logical statement but never after a `.return` member name or `throw`; these tokens never delimit generic arguments;
 - structural punctuation and spacing-sensitive operator attachment, including `++`/`--` as declared postfix tokens;
 - lexical diagnostics for mixed tab/space indentation styles, invalid characters, unterminated strings/comments, inconsistent dedents, illegal attached operators, and attached joiner-plus-digits forms such as `count-1` with a spaced-expression fix.
 
@@ -706,7 +840,7 @@ Implementation status (completed on the `indentation-lexer` capability branch):
 - tokens, trivia, and indentation transitions cover every source byte exactly once: a block string token spans its marker and body, and one terminator ends the statement it completes;
 - only lines carrying source outside comments participate in indentation, so blank lines, comment-only lines, and multiline comment terminators never open or close a block; physical newlines and indentation inside a parenthesized continuation are non-structural until its matching `)`;
 - §6.8 numeric literals, `&`/`^`/`~`, and the identifier joiner set are lexed as declared, and a malformed literal is reported across its whole run instead of splitting into a name;
-- lexer contracts cover every token class, each required boundary spelling, all four indentation cases, and byte-accurate diagnostics including multibyte input;
+- lexer contracts cover every token class, each required boundary spelling, return-position tail and block strings, all four indentation cases, and byte-accurate diagnostics including multibyte input;
 - the milestone-zero logical-line parser remains only as a temporary semantic projection for the runnable hello slice; milestone 2 replaces it as the authoritative syntax parser.
 
 Lexical diagnostics own the `L` code range and are the sole reporter of every condition listed here; the bootstrap parser keeps the `S` range for the value-level rules it still owns:
@@ -809,7 +943,7 @@ The type-analysis additions through milestones 15–19 reserve and register thes
 stable diagnostics:
 
 ```text
-T0052 untyped stored-function parameter   T0061 class field missing initializer
+T0052 untyped stored-function parameter   T0061 field type has no canonical default
 T0053 missing object declaration name     T0062 missing interface member
 T0054 invalid object-clause target         T0063 conflicting reused trait member
 T0055 unknown object member               T0064 invalid non-owning ref source
@@ -1466,7 +1600,7 @@ in the category schema. `/core/types` exports category descriptors as explicit-o
 and rejected conformance cases cover abstract membership and descriptor misuse.
 
 Phase D extended that same semantic descriptor model with one trailing class-field metadata clause.
-Resolved instance fields retain semantic and external names, initializer-derived default status,
+Resolved instance fields retain semantic and external names, canonical-or-explicit default status,
 `T|none` optionality, and a secrecy bit in one extensible record. Descriptor reflection exposes the
 same ordered facts; duplicate, malformed, static-field, and colliding external-name declarations
 fail at source spans. `class-field-metadata` proves the complete reflected contract without adding

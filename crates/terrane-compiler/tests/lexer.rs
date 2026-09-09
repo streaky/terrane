@@ -128,6 +128,25 @@ fn punctuation_comparisons_and_shifts_are_deterministic() {
 }
 
 #[test]
+fn return_opens_text_only_from_statement_position() {
+    assert_eq!(significant("return >ok")[1].0, TokenKind::TailString);
+    assert_eq!(
+        significant("return >>\n  first\n  second")[1].0,
+        TokenKind::BlockString
+    );
+    for source in ["value.return > other", "throw > other"] {
+        assert_eq!(
+            significant(source)
+                .iter()
+                .find(|(_, text, _)| text == ">")
+                .map(|(kind, _, _)| *kind),
+            Some(TokenKind::Operator),
+            "{source}"
+        );
+    }
+}
+
+#[test]
 fn bitwise_operators_and_numeric_forms_are_single_tokens() {
     for source in ["a & b", "a ^ b", "~value"] {
         assert!(

@@ -576,11 +576,18 @@ An attached `>` in an expression-start position begins a **tail string**. Every 
 project-kind = >native executable
 message = >Hello! From, "Terrane"! >>
 send; recipient, >Error: file not found!
+
+function status string;
+  return >ok
 ```
 
 The second value is exactly `Hello! From, "Terrane"! >>`. Quotes, commas, operators, comment markers, and further `>` characters have no grammatical meaning after the opening marker. Whitespace is preserved exactly, including whitespace immediately after `>` and trailing horizontal whitespace. An attached `>` with no following content is the empty string.
 
-The marker must begin an expression and must be lexically attached to the expression position; its content begins with the very next character, which may be whitespace. This keeps it distinct from infix comparison:
+The marker must begin an expression and must be lexically attached to the expression position. An
+initializer, call argument, or value-bearing `return` statement therefore admits it directly; for
+the latter, `return` must itself begin a logical line or block statement rather than being a member
+name. `throw` does not open tail text. Content begins with the very next character, which may be
+whitespace. This keeps the marker distinct from infix comparison:
 
 ```terrane
 is-larger = left > right
@@ -597,6 +604,11 @@ message = >>
 
   Everything in this block is text.
   # This is content, not a comment.
+
+function explanation string;
+  return >>
+    First line
+    Second line
 ```
 
 If `>>` is followed by any same-line content, including horizontal whitespace, the construct is invalid; it is not reinterpreted as a tail string beginning with `>`.
@@ -768,6 +780,22 @@ The manifest maps canonical namespace roots to relative directory roots:
 Expansion is bounded to declared roots and sorted by package-relative path. The compiler records the resolved source set in build metadata, so a build remains auditable and reproducible even though the manifest declares roots rather than listing every file.
 
 Correspondence is directory-level, not file-level. A namespace spans as many source units as it likes, so every `.trn` file in one directory belongs to that directory's namespace; there is no file-per-declaration rule. For a discovered file, the longest directory mapping determines the namespace root and its relative parent directory supplies any suffix. A differing source declaration is an error with the expected namespace. A direct single-file CLI input has no manifest directory contract and is therefore exempt.
+
+An implicit single-file package whose first two bytes are `#!` is an executable script. The shebang
+line is retained as ordinary comment trivia. Such a script may omit an authored namespace, in which
+case the compiler assigns an implementation-owned implicit namespace scoped to that single-file
+package. Its identity contains a form excluded by the authored namespace grammar, so no source
+namespace can collide with it or reserve its spelling. An explicit declaration remains valid. This
+exemption applies only to direct single-file input. A
+manifest-discovered source must declare the namespace mapped from its directory even when its first
+line is a shebang.
+
+When the first CLI argument is an existing file or a path ending in `.trn`, `terrane <path>` is
+exactly an implicit `terrane run <path>`. Remaining arguments are passed to the generated program;
+one leading `--` separator is accepted but unnecessary in the implicit form. This permits the
+portable shebang `#!/usr/bin/env terrane` to invoke the ordinary compile, cache, and execution
+pipeline without a command-specific compiler path. Executable scripts retain the ordinary program
+entrypoint contract: they must declare one parameterless top-level `main`.
 
 ### Namespace segment grammar
 
@@ -1831,7 +1859,7 @@ cpu int
 result task-struct|none
 ```
 
-An initialized typed binding is immediately available. A typed declaration without `=` creates a binding with no value; it does not construct a default value, contain `none`, zero storage, or invoke the type. Every control-flow path must definitely assign a compatible value before any read, reference creation, move, member access, argument passing, or capture of that binding. Failure is a compile-time error.
+An initialized typed binding is immediately available. Outside class field declarations, a typed declaration without `=` creates a binding with no value; it does not construct a default value, contain `none`, zero storage, or invoke the type. Every control-flow path must definitely assign a compatible value before any read, reference creation, move, member access, argument passing, or capture of that binding. Failure is a compile-time error. Class fields instead follow the canonical-default rule in §18.1 because every fresh instance begins with complete field state.
 
 A declaration's initializer resolves names against the scope as it stands immediately before that declaration. The name being declared is therefore not in scope from its own initializer. Where nothing else binds that name, reading it — directly, or indirectly through a called function — is a compile-time error naming the absent binding, rather than a read of uninitialized storage. Namespace binding initialization dependencies, including dependencies reached through called functions and later namespace-level assignments folded into initialization, must be acyclic. The compiler rejects a statically provable cycle before lowering; it must not defer the cycle to backend initialization machinery.
 
@@ -3515,6 +3543,36 @@ class request
   path string = '/'
   body bytes|none = none
 ```
+A typed class field may omit its initializer when its declared type has a canonical default:
+
+```terrane
+class connection-options
+  host string
+  port uint16
+  secure bool
+```
+
+The canonical defaults are `false` for `bool`, typed zero for every integer and floating type, `''`
+for `string`, empty bytes for `bytes`, `none` for `T|none`, and an empty value for `list`, `map`,
+`set`, `unordered-map`, and `unordered-set`. Plain `none`, tuples (including open-length tuples),
+source-declared objects, references, callables, resources, and other runtime contracts do not have
+canonical field defaults. An omitted initializer requests exactly the declared canonical value; it
+does not infer the field type, invoke an arbitrary constructor, or place hidden `none` in a
+non-optional field. A field whose type has no canonical default must provide an initializer.
+An explicit initializer always supplies the default instead:
+
+```terrane
+class connection-options
+  host string
+  port uint16 = 443
+  secure bool = true
+```
+
+Both implicit canonical defaults and explicit initializers are effective field defaults for
+descriptor reflection and document decoding, including when inherited from a base class or
+contributed by a trait. Constructor execution begins after those defaults exist and may replace them
+through ordinary assignment.
+
 
 Fields are public by default and may be narrowed:
 
@@ -3539,10 +3597,11 @@ external name. Unknown names, malformed values, metadata on static or non-field 
 conflicting external names are source errors.
 
 This is the single field-metadata mechanism used by document mapping, logging redaction, and
-reflection. A field default remains its ordinary initializer rather than a second metadata value,
-and optionality remains expressed by `T|none`; the resolved field descriptor records both derived
-facts alongside the external name and secrecy policy. Reflection on a class descriptor exposes the
-instance-field inventory through `field-count`, `field-names`, `field-external-names`,
+reflection. A field default remains its canonical type default or ordinary initializer rather than
+a second metadata value, and optionality remains expressed by `T|none`; the resolved field
+descriptor records both derived facts alongside the external name and secrecy policy. Reflection
+on a class descriptor exposes the instance-field inventory through `field-count`, `field-names`,
+`field-external-names`,
 `field-defaulted`, `field-optional`, and `field-secret`. The parallel lists use declaration order
 after inherited-field replacement, retain semantic field names separately from external names, and
 do not expose generated Rust identifiers.
@@ -3601,6 +3660,13 @@ class record uses timestamped
 ```
 
 Trait conflicts must be resolved explicitly. No silent “last one wins” rule is permitted.
+
+A trait field contributes its initializer or canonical type default to every class that uses it.
+The class may override the field and provide a different initializer. If the effective field type
+has no canonical default, either the trait must initialize it or the using class must override it
+with an initializer; otherwise class validation fails with `T0061`. This validation applies to the
+fully composed field set before lowering, including traits and base classes declared in other source
+units. Explicit inherited initializers are evaluated in their declaring source and object context.
 
 These mechanisms occupy distinct layers of one object-contract model. A **protocol** is a structural semantic operation understood by the language or libraries; any object may satisfy it without a declaration. An **interface** is a named type object collecting required protocols and method signatures for annotations and dynamic dispatch. A **trait** is reusable field/method implementation copied into a class with explicit conflict resolution; using a trait can satisfy protocols or interfaces but is not itself subtyping. **Class inheritance** extends one concrete class, preserving its state and substitutability. The iteration protocol is therefore implementable by any user class directly or through a trait, and an interface may name that requirement when a typed boundary needs it.
 
@@ -5604,9 +5670,44 @@ Docs should identify whether an API is implemented in source, generated Rust, ha
 
 ### 31.5 Testing
 
-Testing is ordinary source code plus a standard test object/framework.
+Terrane application tests are ordinary Terrane source plus the bundled `/core/testing` framework;
+they do not require Rust `#[test]`, Cargo test targets, or the `libtest` harness. The public assertion,
+fixture, outcome, and reporting behavior is written in Terrane. The compiler and CLI own only
+test-root discovery, typed registry generation, native process isolation/capture, and the same
+source-to-Rust build pipeline used by ordinary commands.
 
-The compiler should also support compile-pass and compile-fail tests with expected source diagnostics.
+`terrane test` discovers top-level zero-parameter `test-*` functions from declared unit,
+integration, and end-to-end roots. Test functions may be synchronous, asynchronous, or throwing.
+They remain ordinary callable functions rather than a new declaration kind. The generated test
+runner supplies its own compiler-owned entrypoint; this does not relax the authored `main`
+requirement for ordinary programs or executable scripts.
+
+Unit tests join the package source set and receive only the namespace-private access their declared
+namespace ordinarily permits. Integration tests consume the package through its public surface.
+End-to-end tests drive the built application artifact through an explicit process fixture with
+lossless arguments and environment, optional input, deadline, exit status, and bounded stdout/stderr
+capture. Each selected case runs in a fresh working directory and isolated process by default.
+
+The initial framework provides boolean assertion and denial, explicit failure, typed equality and
+inequality, optional present/none checks, floating near-equality with explicit tolerance, typed
+throwable assertions, explicit skip, per-case timeout/deadline state, temporary directories,
+controlled environment/arguments, and deterministic pseudo-random seeds. Assertions evaluate each
+operand exactly once, preserve the authored source site, retain statically known operand types, and
+never introduce a universal boxed value merely for testing. Failure rendering follows ordinary
+display or the explicit `/core/testing::test-value` protocol and preserves secrecy/redaction.
+
+Test targets use an explicitly selected manifest profile and never gain filesystem, process, network,
+clock, entropy, or concurrency capabilities merely because they are tests.
+
+Discovery and final reporting are deterministic by tier, logical path, source order, and test name.
+Filtering never hides compile errors in otherwise unselected test source. Human and versioned
+machine-readable reports distinguish pass, assertion failure, uncaught throwable, skip, timeout,
+crash, compile failure, and harness infrastructure failure. A zero command exit means every selected
+executable case passed or explicitly skipped.
+
+The compiler also retains its lower-level compile-pass, compile-fail, generated-Rust, diagnostic,
+and host implementation tests. The Terrane framework is the application-facing test system, not a
+claim that compiler implementation verification itself must be expressed through compiled Terrane.
 
 ### 31.6 Conformance suite
 

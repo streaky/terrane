@@ -428,14 +428,14 @@ mod __terrane_trace {
             }
         },
         {
-            /* terrane-site-row: site 4: /callable-class-parameters::main (case.trn:31:26-31:59) */
+            /* terrane-site-row: site 4: /callable-class-parameters::main (case.trn:31:12-31:45) */
             Site {
                 function: 2,
                 file: 0,
                 line: 31,
-                column: 26,
+                column: 12,
                 end_line: 31,
-                end_column: 59,
+                end_column: 45,
             }
         },
         {
@@ -450,14 +450,14 @@ mod __terrane_trace {
             }
         },
         {
-            /* terrane-site-row: site 6: /callable-class-parameters::main (case.trn:34:22-34:53) */
+            /* terrane-site-row: site 6: /callable-class-parameters::main (case.trn:34:10-34:41) */
             Site {
                 function: 2,
                 file: 0,
                 line: 34,
-                column: 22,
+                column: 10,
                 end_line: 34,
-                end_column: 53,
+                end_column: 41,
             }
         },
         {
@@ -472,14 +472,14 @@ mod __terrane_trace {
             }
         },
         {
-            /* terrane-site-row: site 8: /callable-class-parameters::main (case.trn:36:24-36:56) */
+            /* terrane-site-row: site 8: /callable-class-parameters::main (case.trn:36:11-36:43) */
             Site {
                 function: 2,
                 file: 0,
                 line: 36,
-                column: 24,
+                column: 11,
                 end_line: 36,
-                end_column: 56,
+                end_column: 43,
             }
         },
         {
@@ -722,7 +722,7 @@ fn main() {
     ));
     let direct: DirectHolder = __terrane_traced(
         DirectHolder::terrane_construct(operation.clone()),
-        4 /* terrane-site: case.trn:31:26-31:59 */,
+        4 /* terrane-site: case.trn:31:12-31:45 */,
     );
     println!(
         "{}", terrane_scalar_support::scalar_text(&__terrane_traced(direct
@@ -735,7 +735,7 @@ fn main() {
     );
     let base: BaseHolder = __terrane_traced(
         BaseHolder::terrane_construct(operation.clone()),
-        6 /* terrane-site: case.trn:34:22-34:53 */,
+        6 /* terrane-site: case.trn:34:10-34:41 */,
     );
     println!(
         "{}", terrane_scalar_support::scalar_text(&__terrane_traced(base.apply(operation
@@ -743,7 +743,7 @@ fn main() {
     );
     let child: ChildHolder = __terrane_traced(
         ChildHolder::terrane_construct(operation.clone()),
-        8 /* terrane-site: case.trn:36:24-36:56 */,
+        8 /* terrane-site: case.trn:36:11-36:43 */,
     );
     println!(
         "{}", terrane_scalar_support::scalar_text(&__terrane_traced(child.apply(operation
