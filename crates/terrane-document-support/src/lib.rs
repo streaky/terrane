@@ -512,15 +512,11 @@ fn normalize_number(value: &str) -> Result<String, String> {
     let (negative, unsigned) = value
         .strip_prefix('-')
         .map_or((false, value), |unsigned| (true, unsigned));
-    let (mantissa, exponent_text) = unsigned
-        .split_once(['e', 'E'])
-        .map_or((unsigned, "0"), |parts| parts);
+    let (mantissa, exponent_text) = unsigned.split_once(['e', 'E']).unwrap_or((unsigned, "0"));
     let exponent = exponent_text
         .parse::<i64>()
         .map_err(|_| "JSON number exponent is outside the supported exact range".to_owned())?;
-    let (whole, fraction) = mantissa
-        .split_once('.')
-        .map_or((mantissa, ""), |parts| parts);
+    let (whole, fraction) = mantissa.split_once('.').unwrap_or((mantissa, ""));
     let mut digits = format!("{whole}{fraction}");
     let first_nonzero = digits.find(|character| character != '0');
     let Some(first_nonzero) = first_nonzero else {
@@ -645,9 +641,7 @@ fn decimal_parts(value: &str) -> (String, i64) {
         .map_or((value, 0), |(mantissa, exponent)| {
             (mantissa, exponent.parse::<i64>().unwrap_or(0))
         });
-    let (whole, fraction) = mantissa
-        .split_once('.')
-        .map_or((mantissa, ""), |parts| parts);
+    let (whole, fraction) = mantissa.split_once('.').unwrap_or((mantissa, ""));
     let coefficient = format!("{whole}{fraction}");
     let exponent = scientific_exponent - i64::try_from(fraction.len()).unwrap_or(i64::MAX);
     (coefficient, exponent)

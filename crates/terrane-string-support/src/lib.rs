@@ -176,14 +176,14 @@ pub fn decode(value: &[u8], encoding: Encoding) -> Result<String, DecodeError> {
                 byte_offset: error.valid_up_to(),
             }),
         Encoding::Utf16Le | Encoding::Utf16Be => {
-            let chunks = value.chunks_exact(2);
-            if !chunks.remainder().is_empty() {
+            let (chunks, remainder) = value.as_chunks::<2>();
+            if !remainder.is_empty() {
                 return Err(DecodeError {
                     encoding,
                     byte_offset: value.len() - 1,
                 });
             }
-            let units = chunks.map(|chunk| match encoding {
+            let units = chunks.iter().map(|chunk| match encoding {
                 Encoding::Utf16Le => u16::from_le_bytes([chunk[0], chunk[1]]),
                 Encoding::Utf16Be => u16::from_be_bytes([chunk[0], chunk[1]]),
                 _ => unreachable!(),
@@ -203,15 +203,15 @@ pub fn decode(value: &[u8], encoding: Encoding) -> Result<String, DecodeError> {
             Ok(result)
         }
         Encoding::Utf32Le | Encoding::Utf32Be => {
-            let chunks = value.chunks_exact(4);
-            if !chunks.remainder().is_empty() {
+            let (chunks, remainder) = value.as_chunks::<4>();
+            if !remainder.is_empty() {
                 return Err(DecodeError {
                     encoding,
-                    byte_offset: value.len() - chunks.remainder().len(),
+                    byte_offset: value.len() - remainder.len(),
                 });
             }
             let mut result = String::new();
-            for (index, chunk) in chunks.enumerate() {
+            for (index, chunk) in chunks.iter().enumerate() {
                 let scalar = match encoding {
                     Encoding::Utf32Le => {
                         u32::from_le_bytes([chunk[0], chunk[1], chunk[2], chunk[3]])

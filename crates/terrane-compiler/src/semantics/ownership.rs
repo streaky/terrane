@@ -94,15 +94,15 @@ pub(super) fn validate_moves(package: &SemanticPackage) -> Result<(), SemanticFa
             && operand.kind == SyntaxKind::Name
         {
             let name = node_text(&unit.source, operand);
-            if let Some(binding) = binding_at(unit, name, operand.span.start) {
-                if !moved.insert(binding) {
-                    return Err(failure(
-                        &unit.source,
-                        "T0058",
-                        format!("`{name}` was already moved and is unavailable until rebound"),
-                        operand.span,
-                    ));
-                }
+            if let Some(binding) = binding_at(unit, name, operand.span.start)
+                && !moved.insert(binding)
+            {
+                return Err(failure(
+                    &unit.source,
+                    "T0058",
+                    format!("`{name}` was already moved and is unavailable until rebound"),
+                    operand.span,
+                ));
             }
             return Ok(());
         }

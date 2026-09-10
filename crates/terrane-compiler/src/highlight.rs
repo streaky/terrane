@@ -170,10 +170,10 @@ fn classify_node(
             }
         }
         SyntaxKind::CallExpression => {
-            if let Some(callee) = node.children.first() {
-                if let Some(index) = last_name_token(callee, tokens) {
-                    classified[index] = Some((HighlightKind::Function, false));
-                }
+            if let Some(callee) = node.children.first()
+                && let Some(index) = last_name_token(callee, tokens)
+            {
+                classified[index] = Some((HighlightKind::Function, false));
             }
         }
         _ => {}

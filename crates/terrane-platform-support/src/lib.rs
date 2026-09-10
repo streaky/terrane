@@ -765,7 +765,7 @@ pub fn hex_encode(data: &[u8]) -> String {
 }
 
 pub fn hex_decode(text: &str) -> ResultValue {
-    if text.len() % 2 != 0
+    if !text.len().is_multiple_of(2)
         || !text
             .bytes()
             .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
