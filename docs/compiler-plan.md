@@ -2360,10 +2360,11 @@ An optional trusted HTTPS projection-artifact lookup verifies the complete depen
 toolchain, rustdoc-format, projection-schema, and SHA-256 payload identity before admission.
 Verified results enter the ordinary offline cache. Every current cache, published, bundled, and
 local attempt reports its hit, miss, rejection, skip, generation, or fallback reason and final
-outcome. History format 2 persists stable content-origin provenance and reasons, rustdoc format,
-projection schema, cache identity, and content hash; an exact cache hit does not rewrite that
-origin. Bundled artifacts are explicitly deferred until Terrane has a release artifact channel,
-and appear as a recorded skipped source rather than an accidentally absent branch.
+outcome. History format 3 persists stable content-origin provenance and reasons, rustdoc format,
+projection schema, cache identity, content hash, and any exact bound-owner dependency added to the
+generated graph; an exact cache hit does not rewrite that origin. Bundled artifacts are explicitly
+deferred until Terrane has a release artifact channel and appear as a recorded skipped source rather
+than an accidentally absent branch.
 The projection layer owns infrastructure for deterministic contained compile-time questions that
 typed metadata cannot answer. Bound and exact-call probes require positive compiler-artifact
 evidence for `yes`, preserve probe-local bound errors as `no`, classify every other failure as
@@ -2477,18 +2478,20 @@ already does.
 Status: implemented on `destination-directed-projected-results`. Projection schema 25 retains one
 result-only generic template and complete rendered bounds; semantic analysis selects it only from a
 written binding, argument, field, or return destination and records exact cached oracle evidence.
-`projected-serde-json-result` exercises `serde_json::from_str` with an argument-bearing `int64`
-destination and a lock-pinned transitive `serde_core` bound. `projected-destination-results`
-exercises a higher-ranked lifetime-bound receiver method and nonempty scalar, optional, bytes, list,
-map, and set conversion with canonical generated Rust.
-`projected-result-without-destination`, `projected-result-conflicting-destinations`,
-`projected-result-unsatisfied-bound`,
-`projected-result-unknown-bound`, and `projected-result-borrowed` cover the destination, proof, and
-ownership declines; `projected-result-source-object` fixes the source-object decision, while the
-existing `projected-async-sink-suspended-borrow` case retains the suspension borrow boundary.
+Projection-history format 3 also records any exact, lock-resolved crates.io bound-owner dependency
+added to the generated graph. `projected-serde-json-result` exercises `serde_json::from_str` with an
+argument-bearing `int64` destination and a lock-pinned transitive `serde_core` bound.
+`projected-destination-results` exercises a renamed higher-ranked lifetime-bound owner, a nested
+`BTreeMap<String, T>` template, and nonempty scalar, optional, bytes, list, map, and set conversion
+with canonical generated Rust. `projected-result-without-destination`,
+`projected-result-incompatible-template`, `projected-result-conflicting-destinations`,
+`projected-result-unsatisfied-bound`, `projected-result-unknown-bound`, and
+`projected-result-borrowed` cover the destination, proof, and ownership declines;
+`projected-result-source-object` fixes the source-object decision, while the existing
+`projected-async-sink-suspended-borrow` case retains the suspension borrow boundary.
 Source-declared object destinations are explicitly declined because no dependency-authored
-conversion contract exists; this decision has no structural dependency on a
-serialization crate. Rust-style source generic arguments remain absent.
+conversion contract exists; this decision has no structural dependency on a serialization crate.
+Rust-style source generic arguments remain absent.
 
 ### Milestone 25.3 — Foundational floating-point surface
 

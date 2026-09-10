@@ -304,10 +304,13 @@ unsatisfied or unknown proofs, borrowed results, and source-declared object dest
 source-oriented errors. Scalars, strings, bytes, optionals, sequences, mappings, sets, homogeneous
 tuples, and projected foreign objects recurse when their components are representable.
 
-Bound paths are the paths rustc will actually see. If rustdoc names a public trait through a
-transitive crates.io package, Terrane pins that package at the lock-resolved version and adds it to the
-generated manifest; ambiguous or otherwise unnameable bound owners decline. This is why a call such
-as `serde_json::from_str` can use an `int64` destination even though rustdoc spells its bound through
+Bound paths are the paths rustc will actually see, including higher-ranked or nested occurrences
+rewritten to a manifest alias. If rustdoc names a public trait through a transitive crates.io package,
+Terrane pins that package at the lock-resolved version and adds a featureless,
+`default-features = false` direct edge to the generated manifest. The existing transitive edges keep
+the already-resolved feature set; the injected edge cannot widen it. Projection-history format 3
+records the added edge beside the projected members. This is why a call such as
+`serde_json::from_str` can use an `int64` destination even though rustdoc spells its bound through
 `serde_core`. Generated lowering names the selected Rust type explicitly and performs ordinary owned
 result conversion.
 

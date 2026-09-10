@@ -434,7 +434,7 @@ features:
     state: documented
     paths:
     - manual/reference/records/packages/rust-dependencies.yaml
-  notes: One written Terrane result destination selects a closed owned Rust representation after exact oracle-backed bound proof; argument-bearing serde_json and nonempty recursive aggregate witnesses pass, while source-object and borrowed destinations remain explicit declines.
+  notes: One written Terrane result destination selects a closed owned Rust representation after exact oracle-backed bound proof; renamed higher-ranked bounds, a nested BTreeMap template, argument-bearing serde_json, and nonempty recursive aggregates pass, while source-object and borrowed destinations remain explicit declines.
   sources:
   - docs/compiler-plan.md#Milestone 25.4
   - docs/language-spec-concise.md#DEPENDENCY PRINCIPLE
@@ -1537,7 +1537,7 @@ features:
     paths:
     - manual/reference/records/packages/rust-dependencies.yaml
     - manual/reference/records/internals/projection-resolution.yaml
-  notes: Production destination-directed specialization batches exact bound questions through the contained cached oracle, pins nameable transitive crates.io bound owners from the lock, and rejects no, unknown, or missing answers.
+  notes: Production destination-directed specialization batches exact bound questions through the contained cached oracle, records featureless exact transitive bound-owner edges in projection-history format 3, preserves the resolved feature set, and rejects no, unknown, or missing answers.
   sources:
   - docs/language-spec-concise.md#DEPENDENCY PRINCIPLE
   - docs/compiler-plan.md#Milestone 25.4
@@ -1552,8 +1552,7 @@ features:
     state: documented
     paths:
     - manual/reference/records/internals/projection-resolution.yaml
-  notes: Verified cache, published lookup, lock provenance, and local-rustdoc fallback work; bundled and vendored
-    offline distribution remain.
+  notes: Verified cache, published lookup, format-3 lock provenance including injected bound-owner edges, and local-rustdoc fallback work; bundled and vendored offline distribution remain.
   sources:
   - docs/language-spec-concise.md#DEPENDENCY PRINCIPLE
   - docs/compiler-plan.md#Completed portion of Milestone 32.1

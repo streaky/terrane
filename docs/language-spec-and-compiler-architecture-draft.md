@@ -4464,9 +4464,10 @@ resolution events and fall back to the exact local pinned-nightly path; they nev
 A verified published result enters the ordinary project-local cache, so later offline compilation
 does not contact the service or require the nightly projector. The returned projection metadata
 records the current resolution outcome, ordered source attempts, and fallback reasons.
-`terrane-projection.lock` records the content-origin outcome and reasons together with provenance,
-rustdoc format, projection schema, cache identity, and verified content hash; resolving the same
-content from its exact cache does not rewrite that origin history.
+`terrane-projection.lock` format 3 records the content-origin outcome and reasons together with
+provenance, rustdoc format, projection schema, cache identity, verified content hash, and any exact
+bound-owner dependencies added to the generated graph; resolving the same content from its exact
+cache does not rewrite that origin history.
 
 A bundled artifact source is deliberately deferred until Terrane has a release artifact channel
 that can ship and update the corresponding envelopes. Resolution records that source as skipped
@@ -4487,10 +4488,13 @@ against the already resolved dependency workspace. Questions are batched and ans
 probe-local trait-bound failure is `no`; resolution, toolchain, containment, spanless, and unrelated
 compiler failures are `unknown`. Only `yes` admits the call. Exact reports are cached under
 projection identity, and the evidence plus wall time enter the shared projection artifact. Public
-bound traits owned by a transitive crates.io package are pinned from the resolved lock and added as a
-direct generated-crate dependency so rustdoc's path is nameable without widening its version.
-Unnameable or ambiguously versioned owners decline explicitly. Macro and exact-call probes retain
-their existing infrastructure contract.
+bound traits owned by a transitive crates.io package are pinned from the resolved lock, recorded in
+projection history, and added as featureless, default-disabled direct generated-crate dependencies.
+The original transitive edges retain the already-resolved features, so the injected edge makes the
+rustdoc path nameable without widening either its version or feature set. Higher-ranked and nested
+bound paths are rewritten at each Rust path-root occurrence when the dependency uses a manifest
+alias. Unnameable or ambiguously versioned owners decline explicitly. Macro and exact-call probes
+retain their existing infrastructure contract.
 
 Lowering emits the selected concrete Rust type explicitly and performs the ordinary recursive owned
 result conversion. No borrowed value may escape the dependency boundary, and no boxed universal
@@ -4599,7 +4603,7 @@ adapter may itself retain a borrow and execute the generic SQLx operation inside
 
 Cargo and rustc remain authoritative. Projection and editor information are advisory and derived from the resolved package rather than predefined by Terrane. The language server uses the shared artifact for completion, signature help, hover, exact Rust paths, and declined-item reasons. Projection executes under the build-script capability policy.
 
-The generated dependency crate graph preserves the manifest's selected features and default-feature policy, compiles offline and frozen after an online fetch, and records whether containment was enforced. Platforms with `bwrap` contain rustdoc and generated-crate compilation; platforms without it report the unavailable tier and continue under the declared host policy. Its cache identity covers the manifest, lock checksum, selected features, target triple, Rust toolchain, package source checksums, and sandbox tier. The project-local cache retains the current projection and at most three prior projection artifacts for ordinary rollback and editor churn. Machine-independent `terrane-projection.lock` history records projected top-level names, static members as `Type::member`, and instance members as `Type.member` by resolved dependency version. After declared-member resolution fails, matching removal history produces `S2031` at the Terrane import or member selection with the member and version change; a name absent from both the current declaration and history retains the ordinary never-present diagnostic.
+The generated dependency crate graph preserves the manifest's selected features and default-feature policy, compiles offline and frozen after an online fetch, and records whether containment was enforced. A lock-resolved bound owner may add a featureless, default-disabled direct edge solely to make its Rust path nameable. Because that deliberate manifest rewrite cannot run under Cargo's `--locked` mode, its fetch resolves offline; graph integrity at that step comes from the pre-injection manifest and lock in the projection identity plus the exact, content-hashed bound-dependency list rather than from a mutable network resolution. Platforms with `bwrap` contain rustdoc and generated-crate compilation; platforms without it report the unavailable tier and continue under the declared host policy. Its cache identity covers the manifest, lock checksum, selected features, target triple, Rust toolchain, package source checksums, and sandbox tier. The project-local cache retains the current projection and at most three prior projection artifacts for ordinary rollback and editor churn. Machine-independent `terrane-projection.lock` history format 3 records projected top-level names, static members as `Type::member`, instance members as `Type.member`, and injected exact bound-owner dependencies by resolved dependency version. After declared-member resolution fails, matching removal history produces `S2031` at the Terrane import or member selection with the member and version change; a name absent from both the current declaration and history retains the ordinary never-present diagnostic.
 
 ### 23.9 System and C libraries
 
