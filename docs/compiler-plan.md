@@ -344,7 +344,7 @@ must be Terrane tests run by `terrane test`, while compiler discovery/lowering a
 adapter retain focused Rust implementation tests. Generated runners compile with warnings denied,
 and accepted framework cases carry canonical generated-Rust evidence.
 
-### Milestone 28 — First-version hardening and release gate
+### Milestone 32 — First-version hardening and release gate
 
 Deliver:
 
@@ -362,7 +362,7 @@ Deliver:
 
 Exit criterion: the clean-checkout release scenario below passes on supported platforms and the implemented-subset document agrees with executable conformance tests.
 
-### Milestone 28.1 — Finish projection artifact distribution
+### Milestone 32.1 — Finish projection artifact distribution
 
 The exact artifact envelope, content hash, exact-match acceptance, cache and local-rustdoc sources, optional published lookup, resolution events, and lock provenance are complete. The remaining work turns that foundation into a release-owned, offline distribution channel.
 
