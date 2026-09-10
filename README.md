@@ -83,11 +83,14 @@ implementation-owned namespace for that unit. It must still declare a parameterl
 
 ## Developing Terrane
 
-Terrane-generated crates pin the exact stable Rust release the compiler supports, currently 1.93.1,
-and rustup installs that pin when it is first needed. `terrane --version` reports both the stable
-build toolchain and the pinned rustdoc nightly. A package can explicitly set
-`rust-toolchain = "system"` to use its ambient compiler instead. `terrane toolchains` reports only
-pins Terrane has previously requested; it never removes toolchains or recommends removal.
+Each Terrane version selects one stable Rust release, currently 1.98.1. The compiler workspace pins
+that release in `rust-toolchain.toml` and declares it in `rust-version`; generated crates repeat it
+in their manifests and toolchain files. Rustup installs the selected release when first needed.
+`terrane --version` reports both this build toolchain and the separately pinned rustdoc nightly.
+A package can explicitly set `rust-toolchain = "system"` to use an ambient compiler of at least the
+selected version instead.
+`terrane toolchains` reports only pins Terrane has previously requested; it never removes
+toolchains or recommends removal.
 
 Compiler-owned Cargo invocations use [`sccache`](https://github.com/mozilla/sccache) only when
 `TERRANE_SCCACHE=1` explicitly opts in. An unavailable cache is not an error, and repository checks

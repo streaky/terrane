@@ -698,7 +698,7 @@ fn record_and_prune_generated_crates(active: &Path) -> Result<(), CliFailure> {
             Some((used, entry.path()))
         })
         .collect::<Vec<_>>();
-    inactive.sort_by(|left, right| right.0.cmp(&left.0));
+    inactive.sort_by_key(|entry| std::cmp::Reverse(entry.0));
     for (_, path) in inactive.into_iter().skip(MAX_GENERATED_CRATES - 1) {
         fs::remove_dir_all(&path).map_err(|error| {
             CliFailure::backend(format!(
@@ -941,9 +941,9 @@ fn ensure_rust_toolchain(
             format!(
                 "Cargo with Rust {} is required to compile generated Rust: {error}",
                 if build_toolchain == terrane_compiler::BuildToolchain::Pinned {
-                    terrane_compiler::BUILD_TOOLCHAIN
+                    terrane_compiler::BUILD_TOOLCHAIN.to_owned()
                 } else {
-                    "1.93.1 or newer"
+                    format!("{} or newer", terrane_compiler::BUILD_TOOLCHAIN)
                 }
             ),
             4,
@@ -1253,7 +1253,10 @@ mod tests {
             manifest
                 .contains("[profile.release]\nopt-level = 3\nlto = \"fat\"\ncodegen-units = 1\n")
         );
-        assert!(manifest.contains("rust-version = \"1.93.1\""));
+        assert!(manifest.contains(&format!(
+            "rust-version = \"{}\"",
+            terrane_compiler::BUILD_TOOLCHAIN
+        )));
         assert!(manifest.contains("unicode-data-version = \"16.0.0\""));
         assert!(manifest.contains(
             "tokio = { version = \"=1.53.0\", features = [\"macros\", \"rt\", \"rt-multi-thread\", \"time\"] }"
@@ -1267,7 +1270,10 @@ mod tests {
         assert!(string_support.contains("unicode-segmentation = \"=1.12.0\""));
         assert!(directory.join("rust-toolchain.toml").is_file());
         let metadata = fs::read_to_string(directory.join("terrane-build.toml")).unwrap();
-        assert!(metadata.contains("rust-toolchain = \"1.93.1\""));
+        assert!(metadata.contains(&format!(
+            "rust-toolchain = \"{}\"",
+            terrane_compiler::BUILD_TOOLCHAIN
+        )));
 
         assert!(
             write_generated_crate(

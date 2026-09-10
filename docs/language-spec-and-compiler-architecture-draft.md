@@ -4380,12 +4380,14 @@ Users may inspect the generated `Cargo.toml`.
 
 They should not normally need to maintain it separately unless a project deliberately takes ownership of the Rust layer.
 
-Generated crates declare the exact stable Rust release supported by this Terrane compiler in both
-`rust-version` and a generated `rust-toolchain.toml`. This pin is the default for `check`, `build`,
-and `run`, makes ambient toolchain updates irrelevant to unchanged Terrane projects, and remains in
-the generated directory for direct Cargo debugging. A package may explicitly set
-`rust-toolchain = "system"` to use its invoking environment instead; the build metadata records that
-escape hatch, and the selected compiler must still meet Terrane's declared minimum.
+Each Terrane version selects one stable Rust release. The compiler workspace pins that release in
+`rust-toolchain.toml` and declares it as its `rust-version`; `BUILD_TOOLCHAIN` and generated crates
+repeat the same release in both `rust-version` and a generated `rust-toolchain.toml`. This pin is
+the default for `check`, `build`, and `run`, makes ambient toolchain updates irrelevant to unchanged
+Terrane projects, and remains in the generated directory for direct Cargo debugging. A package may
+explicitly set `rust-toolchain = "system"` to use its invoking environment instead; the build
+metadata records that escape hatch, and the selected compiler must still meet Terrane's declared
+version.
 
 User builds preserve inherited warning policy rather than appending a blanket `-Dwarnings`.
 Generated manifests declare the stable lint contracts lowering guarantees, while the compiler's

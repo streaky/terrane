@@ -1064,7 +1064,7 @@ async_closure: 'value = async function R; args' => async function value; each in
 tooling: completion/signature/hover and declined reasons are ADVISORY; Cargo/rustc remain authoritative
 execution: Rust inspection and generated-crate compilation use the build capability policy; fetch may be online, then compilation is offline/frozen
 cache_identity: manifest + lock checksum + features/default-feature policy + effective target (CARGO_BUILD_TARGET, then Cargo build.target, then pinned-stable host) + toolchain + package source checksums + sandbox tier; project-local cache keeps current + at most 3 prior projections
-build_toolchain: generated crate pins exact stable 1.93.1 in rust-toolchain.toml and rust-version; package rust-toolchain = "system" explicitly opts out and is recorded
+build_toolchain: each Terrane version selects one stable Rust release (currently 1.98.1), shared by the compiler workspace rust-toolchain.toml/rust-version and BUILD_TOOLCHAIN/generated-crate rust-version/rust-toolchain.toml; package rust-toolchain = "system" uses a compatible ambient compiler and is recorded
 lint_policy: user builds inherit RUSTFLAGS and generated manifests forbid only compiler-guaranteed unsafe_code; conformance denies all warnings
 cargo_cache_wrapper: sccache only when TERRANE_SCCACHE=1; choice participates in generated-crate cache identity
 toolchain_report: terrane toolchains lists only stable pins Terrane requested; reports current/not-current use, never removes or says safe

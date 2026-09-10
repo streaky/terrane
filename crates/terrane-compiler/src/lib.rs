@@ -43,7 +43,7 @@ pub const UNICODE_DATA_VERSION: &str = "16.0.0";
 const UNICODE_DATA_VERSION_COMPONENTS: (u64, u64, u64) = (16, 0, 0);
 
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
-pub const BUILD_TOOLCHAIN: &str = "1.93.1";
+pub const BUILD_TOOLCHAIN: &str = "1.98.1";
 pub const RUSTDOC_TOOLCHAIN: &str = "nightly-2026-04-29";
 
 #[must_use]
@@ -70,6 +70,10 @@ fn platform_support_manifest_from(source: &str) -> String {
 mod manifest_tests {
     use super::platform_support_manifest_from;
 
+    #[test]
+    fn workspace_and_generated_build_toolchains_match() {
+        assert_eq!(super::BUILD_TOOLCHAIN, env!("CARGO_PKG_RUST_VERSION"));
+    }
     #[test]
     fn dependency_extraction_stops_at_any_following_section() {
         let with_features = "[dependencies]\nbase64 = \"0.22\"\n\n[features]\ndefault = []\n\n[dev-dependencies]\nrcgen = \"0.14\"\n";
