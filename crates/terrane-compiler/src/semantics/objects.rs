@@ -1511,24 +1511,17 @@ fn specialize_projected_results(package: &mut SemanticPackage) -> Result<(), Sem
             specialization.span.start,
             specialization.span.end,
         );
-        let selected = ProjectedCallSpecialization {
-            parameter: specialization.parameter,
-            rust_type: specialization.rust_type,
-            projected_result: specialization.projected_result,
-            value_type: specialization.value_type,
-        };
-        if let Some(previous) = package.units[specialization.unit]
+        package.units[specialization.unit]
             .projected_call_specializations
-            .insert(key, selected.clone())
-            && previous != selected
-        {
-            return Err(failure(
-                &package.units[specialization.unit].source,
-                "T0117",
-                "projected call has conflicting written result destinations",
-                specialization.span,
-            ));
-        }
+            .insert(
+                key,
+                ProjectedCallSpecialization {
+                    parameter: specialization.parameter,
+                    rust_type: specialization.rust_type,
+                    projected_result: specialization.projected_result,
+                    value_type: specialization.value_type,
+                },
+            );
     }
     Ok(())
 }
@@ -1595,7 +1588,7 @@ fn collect_projected_destinations(
             failure(
                 &unit.source,
                 "T0117",
-                "projected call has conflicting written result destinations",
+                "projected result template repeats its generic parameter with incompatible destination types",
                 node.span,
             )
         })?
@@ -1912,6 +1905,7 @@ fn select_projected_generic_destination(
                     collect(template, parameter, expected, destinations)
                 })
             }
+            (template, expected) if template == expected => true,
             _ => false,
         }
     }

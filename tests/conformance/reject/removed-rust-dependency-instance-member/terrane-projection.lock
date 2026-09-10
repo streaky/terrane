@@ -23,7 +23,7 @@
       "version": "1.0.3"
     }
   ],
-  "format": 2,
+  "format": 3,
   "projection_schema": "25",
   "removed": [
     {

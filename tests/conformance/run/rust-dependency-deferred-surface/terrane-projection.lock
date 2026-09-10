@@ -1,4 +1,11 @@
 {
+  "bound_dependencies": [
+    {
+      "name": "serde_core",
+      "package": "serde_core",
+      "version": "=1.0.229"
+    }
+  ],
   "dependencies": [
     {
       "members": [
@@ -297,7 +304,7 @@
       "version": "1.0.143"
     }
   ],
-  "format": 2,
+  "format": 3,
   "projection_schema": "25",
   "removed": [],
   "resolution": {

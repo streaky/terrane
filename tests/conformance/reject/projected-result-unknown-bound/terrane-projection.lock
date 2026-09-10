@@ -11,7 +11,7 @@
       "version": "0.1.2"
     }
   ],
-  "format": 2,
+  "format": 3,
   "projection_schema": "25",
   "removed": [],
   "resolution": {

@@ -177,6 +177,8 @@ struct ProjectionHistory {
     #[serde(default = "projection_history_format")]
     format: u32,
     dependencies: Vec<ProjectionHistoryDependency>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    bound_dependencies: Vec<ProjectedBoundDependency>,
     #[serde(default)]
     removed: Vec<RemovedItem>,
     #[serde(default)]
@@ -1130,6 +1132,10 @@ pub fn resolve(
         projection.content_hash = projection_content_hash(&projection)?;
         return Ok(projection);
     }
+    // The declared manifest and resolved lock are hashed into the projection identity before any
+    // review-visible bound-owner edges are injected. Once such edges exist, Cargo cannot accept
+    // that deliberate manifest rewrite under `--locked`; offline resolution plus exact pins and
+    // the projection content hash preserve the already-resolved graph without network drift.
     let workspace = root.join(".trn/dependencies");
     write_workspace(&workspace, dependencies)?;
     if workspace.join("Cargo.lock").exists() {
@@ -1543,7 +1549,7 @@ fn read_projection_history(path: &Path) -> Result<Option<ProjectionHistory>, Pro
                     message: format!("invalid projection history `{}`: {error}", path.display()),
                 }
             })?;
-            if !matches!(history.format, 1 | 2) {
+            if !matches!(history.format, 1..=3) {
                 return Err(ProjectionError {
                     message: format!(
                         "unsupported projection history format {} in `{}`",
@@ -1580,8 +1586,9 @@ fn apply_projection_history(
         })
         .collect::<Vec<_>>();
     if let Some(previous) = &previous
-        && previous.format == 2
+        && matches!(previous.format, 2 | 3)
         && previous.dependencies == dependencies
+        && previous.bound_dependencies == projection.bound_dependencies
         && previous.rustdoc_format == Some(rustdoc_types::FORMAT_VERSION)
         && previous.projection_schema.as_deref() == Some(PROJECTION_SCHEMA)
         && previous.cache_identity.as_deref() == Some(&projection.cache_identity)
@@ -1639,7 +1646,8 @@ fn apply_projection_history(
     let persisted_resolution = previous
         .as_ref()
         .filter(|history| {
-            history.format == 2
+            matches!(history.format, 2 | 3)
+                && history.bound_dependencies == projection.bound_dependencies
                 && history.cache_identity.as_deref() == Some(&projection.cache_identity)
                 && history.content_hash.as_deref() == Some(&projection.content_hash)
                 && history.source == Some(projection.source)
@@ -1647,8 +1655,9 @@ fn apply_projection_history(
         .and_then(|history| history.resolution.clone())
         .unwrap_or_else(|| projection.resolution.clone());
     let history = ProjectionHistory {
-        format: 2,
+        format: 3,
         dependencies,
+        bound_dependencies: projection.bound_dependencies.clone(),
         removed,
         cache_identity: Some(projection.cache_identity.clone()),
         source: Some(projection.source),
@@ -2240,10 +2249,7 @@ fn projected_bound_dependencies(
                     ),
                 });
             };
-            if !source
-                .as_deref()
-                .is_some_and(is_crates_io_lock_source)
-            {
+            if !source.as_deref().is_some_and(is_crates_io_lock_source) {
                 return Err(ProjectionError {
                     message: format!(
                         "projected result bound root `{root}` is not a nameable registry dependency"
@@ -2258,6 +2264,28 @@ fn projected_bound_dependencies(
         })
         .collect()
 }
+fn rewrite_rust_bound_root(bound: &str, package_root: &str, dependency_root: &str) -> String {
+    let mut rendered = String::with_capacity(bound.len());
+    let mut cursor = 0;
+    while let Some(relative_start) = bound[cursor..].find(package_root) {
+        let start = cursor + relative_start;
+        let end = start + package_root.len();
+        let boundary_before = bound[..start]
+            .chars()
+            .next_back()
+            .is_none_or(|character| !(character.is_alphanumeric() || character == '_'));
+        let path_root = bound[end..].starts_with("::") || (start == 0 && end == bound.len());
+        rendered.push_str(&bound[cursor..start]);
+        if boundary_before && path_root {
+            rendered.push_str(dependency_root);
+        } else {
+            rendered.push_str(package_root);
+        }
+        cursor = end;
+    }
+    rendered.push_str(&bound[cursor..]);
+    rendered
+}
 
 fn write_workspace_with_bound_dependencies(
     workspace: &Path,
@@ -2268,6 +2296,9 @@ fn write_workspace_with_bound_dependencies(
     dependencies.extend(bound_dependencies.iter().map(|dependency| RustDependency {
         name: dependency.name.clone(),
         package: dependency.package.clone(),
+        // This edge exists only to make an already-resolved bound owner nameable. Leaving both
+        // feature lists empty prevents the injected direct edge from widening the feature set;
+        // the original transitive edges retain every feature active in the resolved lock.
         version: dependency.version.clone(),
         features: Vec::new(),
         default_features: false,
@@ -2887,19 +2918,11 @@ fn project_rustdoc(
         }
         rewrite_projected_rust_root(&mut function.result, &package_root, &dependency_root);
         if let Some(error) = &mut function.error {
-            if error == &package_root {
-                error.clone_from(&dependency_root);
-            } else if let Some(suffix) = error.strip_prefix(&format!("{package_root}::")) {
-                *error = format!("{dependency_root}::{suffix}");
-            }
+            *error = rewrite_rust_bound_root(error, &package_root, &dependency_root);
         }
         if let Some(destination) = &mut function.destination_result {
             for bound in &mut destination.rust_bounds {
-                if bound == &package_root {
-                    bound.clone_from(&dependency_root);
-                } else if let Some(suffix) = bound.strip_prefix(&format!("{package_root}::")) {
-                    *bound = format!("{dependency_root}::{suffix}");
-                }
+                *bound = rewrite_rust_bound_root(bound, &package_root, &dependency_root);
             }
             for root in &mut destination.bound_roots {
                 if root == &package_root {
@@ -3648,16 +3671,6 @@ fn render_generic_bounds(
             }
         }
     }
-    rendered.retain(|bound| {
-        bound
-            .split_once(' ')
-            .map_or(bound.as_str(), |(_, path)| path)
-            .trim_start_matches('?')
-            .trim_start_matches("~const ")
-            .rsplit("::")
-            .next()
-            != Some("Sized")
-    });
     rendered.sort();
     rendered.dedup();
     Ok(rendered)
@@ -4073,10 +4086,13 @@ fn render_resolved_path(
     paths: &HashMap<Id, ItemSummary>,
     generics: &BTreeMap<String, ProjectedType>,
 ) -> Result<String, String> {
-    let base = resolved_path_name(path, paths);
-    let base = base
-        .strip_prefix("alloc::")
-        .map_or(base.clone(), |path| format!("std::{path}"));
+    let base = match resolved_path_name(path, paths).as_str() {
+        "alloc::collections::btree::map::BTreeMap" => "std::collections::BTreeMap".to_owned(),
+        "alloc::collections::btree::set::BTreeSet" => "std::collections::BTreeSet".to_owned(),
+        path => path
+            .strip_prefix("alloc::")
+            .map_or_else(|| path.to_owned(), |path| format!("std::{path}")),
+    };
     let Some(arguments) = path.args.as_deref() else {
         return Ok(base);
     };
@@ -4532,10 +4548,10 @@ mod tests {
     use serde_json::json;
 
     use super::{
-        ArtifactDependency, CallbackKind, Containment, DeclinedItem, ProjectedDependency,
-        ProjectedFunction, ProjectedItem, ProjectedKind, ProjectedType, Projection,
-        ProjectionArtifact, ProjectionHistory, ProjectionResolution, ProjectionSource, Receiver,
-        ResolutionOutcome, apply_projection_history, enforce_transitive_reachability,
+        ArtifactDependency, CallbackKind, Containment, DeclinedItem, ProjectedBoundDependency,
+        ProjectedDependency, ProjectedFunction, ProjectedItem, ProjectedKind, ProjectedType,
+        Projection, ProjectionArtifact, ProjectionHistory, ProjectionResolution, ProjectionSource,
+        Receiver, ResolutionOutcome, apply_projection_history, enforce_transitive_reachability,
         has_type_parameters, parse_rustdoc, prefer_public_path, project_type,
         projection_content_hash, prune_projection_cache, receiver_kind, resolve, selected_target,
         validate_projection_artifact, validate_unique_projected_type_identities,
@@ -5356,7 +5372,11 @@ mod tests {
             cache_identity: "stable-identity".to_owned(),
             content_hash: String::new(),
             dependencies: Vec::new(),
-            bound_dependencies: Vec::new(),
+            bound_dependencies: vec![ProjectedBoundDependency {
+                name: "serde_core".to_owned(),
+                package: "serde_core".to_owned(),
+                version: "1.0.229".to_owned(),
+            }],
             containment: Containment::Unavailable,
             source: ProjectionSource::Local,
             probes: Vec::new(),
@@ -5375,6 +5395,8 @@ mod tests {
             serde_json::from_slice(&fs::read(directory.join("terrane-projection.lock")).unwrap())
                 .unwrap();
         assert_eq!(history.resolution, Some(generated));
+        assert_eq!(history.format, 3);
+        assert_eq!(history.bound_dependencies, projection.bound_dependencies);
         fs::remove_dir_all(directory).unwrap();
     }
 
@@ -5408,7 +5430,7 @@ mod tests {
         let migrated: ProjectionHistory =
             serde_json::from_slice(&fs::read(directory.join("terrane-projection.lock")).unwrap())
                 .unwrap();
-        assert_eq!(migrated.format, 2);
+        assert_eq!(migrated.format, 3);
         assert_eq!(migrated.source, Some(ProjectionSource::Local));
         assert_eq!(migrated.rustdoc_format, Some(rustdoc_types::FORMAT_VERSION));
         assert_eq!(

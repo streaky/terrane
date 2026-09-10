@@ -1,5 +1,5 @@
 {
-  "format": 2,
+  "format": 3,
   "dependencies": [
     {
       "name": "axum",
@@ -4853,12 +4853,19 @@
       ]
     }
   ],
+  "bound_dependencies": [
+    {
+      "name": "serde_core",
+      "package": "serde_core",
+      "version": "=1.0.229"
+    }
+  ],
   "removed": [],
-  "cache_identity": "e1951c150644eefddf19cc6b3decab00edd62b3a1682dff16cd119fd68b302b4",
+  "cache_identity": "6d260e5c101f2e7b67114b7d3e8a3c5ebfa79c46206aec3ee93819d4fa4cd4a2",
   "source": "Local",
   "rustdoc_format": 57,
   "projection_schema": "25",
-  "content_hash": "d9c33bb8eb724807da7ae745b949887875e13f35c2d5693687ac66c2d518f3bc",
+  "content_hash": "fee794e7b7e850cd07563ea2629d143ffaa28817c3e5eceeb09ab5a821825e18",
   "resolution": {
     "outcome": "LocalRustdoc",
     "events": [

@@ -425,7 +425,7 @@ mod __terrane_trace {
         "/app::make-number",
         "/app::main",
     ];
-    pub static SITES: [Site; 12] = [
+    pub static SITES: [Site; 14] = [
         {
             /* terrane-site-row: site 0: /app::load (src/main.trn:9:14-9:18) */
             Site {
@@ -537,24 +537,46 @@ mod __terrane_trace {
             }
         },
         {
-            /* terrane-site-row: site 10: /app::main (src/main.trn:29:12-29:16) */
+            /* terrane-site-row: site 10: /app::main (src/main.trn:29:31-29:43) */
             Site {
                 function: 3,
                 file: 0,
                 line: 29,
-                column: 12,
+                column: 31,
                 end_line: 29,
-                end_column: 16,
+                end_column: 43,
             }
         },
         {
-            /* terrane-site-row: site 11: /app::main (src/main.trn:30:24-30:39) */
+            /* terrane-site-row: site 11: /app::main (src/main.trn:30:20-30:40) */
             Site {
                 function: 3,
                 file: 0,
                 line: 30,
-                column: 24,
+                column: 20,
                 end_line: 30,
+                end_column: 40,
+            }
+        },
+        {
+            /* terrane-site-row: site 12: /app::main (src/main.trn:31:12-31:16) */
+            Site {
+                function: 3,
+                file: 0,
+                line: 31,
+                column: 12,
+                end_line: 31,
+                end_column: 16,
+            }
+        },
+        {
+            /* terrane-site-row: site 13: /app::main (src/main.trn:32:24-32:39) */
+            Site {
+                function: 3,
+                file: 0,
+                line: 32,
+                column: 24,
+                end_line: 32,
                 end_column: 39,
             }
         },
@@ -671,9 +693,22 @@ fn main() {
             .map(|item| item)
             .collect(),
     );
+    let rows: terrane_collection_support::Map<String, i64> = terrane_collection_support::Map::new(
+        __terrane_raised(
+                sample_rows::<i64>(),
+                10 /* terrane-site: src/main.trn:29:31-29:43 */,
+            )
+            .into_iter()
+            .map(|(key, item)| terrane_collection_support::Entry::new(key, item))
+            .collect(),
+    );
+    let renamed: String = __terrane_raised(
+        renamed_bound_value::<String>(),
+        11 /* terrane-site: src/main.trn:30:20-30:40 */,
+    );
     let source: Row = __terrane_raised(
         row(),
-        10 /* terrane-site: src/main.trn:29:12-29:16 */,
+        12 /* terrane-site: src/main.trn:31:12-31:16 */,
     );
     accept_by_argument(
         __terrane_raised(
@@ -691,7 +726,7 @@ fn main() {
                     )
                 }
             },
-            11 /* terrane-site: src/main.trn:30:24-30:39 */,
+            13 /* terrane-site: src/main.trn:32:24-32:39 */,
         ),
     );
     let returned: String = decoded_value();
@@ -700,7 +735,7 @@ fn main() {
     item.load();
     println!("{}", terrane_scalar_support::scalar_text(&item.value));
     println!(
-        "{}{}{}{}{}{}", terrane_scalar_support::scalar_text(&number),
+        "{}{}{}{}{}{}{}{}", terrane_scalar_support::scalar_text(&number),
         terrane_scalar_support::scalar_text(&optional.is_some()),
         terrane_scalar_support::scalar_text(&(data.len() as i128)),
         terrane_scalar_support::scalar_text(&terrane_int_support::Int::from(values
@@ -708,48 +743,81 @@ fn main() {
         terrane_scalar_support::scalar_text(&terrane_int_support::Int::from(names
         .length())),
         terrane_scalar_support::scalar_text(&terrane_int_support::Int::from(tags
-        .length()))
+        .length())),
+        terrane_scalar_support::scalar_text(&terrane_int_support::Int::from(rows
+        .length())), terrane_scalar_support::scalar_text(&renamed)
     );
 }
-// Source: <terrane>/projected/deps/terrane-generic-factory-witness.trn
-// Namespace: deps/terrane-generic-factory-witness
+// Source: <terrane>/projected/deps/factory.trn
+// Namespace: deps/factory
 pub fn default_value<T: core::default::Default>() -> Result<
     T,
     crate::TerraneForeignError,
 > {
     match std::panic::catch_unwind(
-        std::panic::AssertUnwindSafe(|| terrane_generic_factory_witness::default_value::<
-            T,
-        >()),
+        std::panic::AssertUnwindSafe(|| factory::default_value::<T>()),
     ) {
         Ok(value) => Ok(value),
         Err(payload) => {
             Err(
                 crate::__terrane_dependency_panic(
                     payload,
-                    "terrane-generic-factory-witness",
-                    "terrane_generic_factory_witness::default_value",
+                    "factory",
+                    "factory::default_value",
                 ),
             )
         }
     }
 }
-pub fn sample_value<T: terrane_generic_factory_witness::Sample>() -> Result<
+pub fn renamed_bound_value<T: for<'value> factory::Decode<'value>>() -> Result<
     T,
     crate::TerraneForeignError,
 > {
     match std::panic::catch_unwind(
-        std::panic::AssertUnwindSafe(|| terrane_generic_factory_witness::sample_value::<
-            T,
-        >()),
+        std::panic::AssertUnwindSafe(|| factory::renamed_bound_value::<T>()),
     ) {
         Ok(value) => Ok(value),
         Err(payload) => {
             Err(
                 crate::__terrane_dependency_panic(
                     payload,
-                    "terrane-generic-factory-witness",
-                    "terrane_generic_factory_witness::sample_value",
+                    "factory",
+                    "factory::renamed_bound_value",
+                ),
+            )
+        }
+    }
+}
+pub fn sample_rows<T: factory::Sample>() -> Result<
+    std::collections::BTreeMap<String, T>,
+    crate::TerraneForeignError,
+> {
+    match std::panic::catch_unwind(
+        std::panic::AssertUnwindSafe(|| factory::sample_rows::<T>()),
+    ) {
+        Ok(value) => Ok(value),
+        Err(payload) => {
+            Err(
+                crate::__terrane_dependency_panic(
+                    payload,
+                    "factory",
+                    "factory::sample_rows",
+                ),
+            )
+        }
+    }
+}
+pub fn sample_value<T: factory::Sample>() -> Result<T, crate::TerraneForeignError> {
+    match std::panic::catch_unwind(
+        std::panic::AssertUnwindSafe(|| factory::sample_value::<T>()),
+    ) {
+        Ok(value) => Ok(value),
+        Err(payload) => {
+            Err(
+                crate::__terrane_dependency_panic(
+                    payload,
+                    "factory",
+                    "factory::sample_value",
                 ),
             )
         }

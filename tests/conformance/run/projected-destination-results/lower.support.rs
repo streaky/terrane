@@ -424,7 +424,7 @@ mod __terrane_trace {
         "/app::make-number",
         "/app::main",
     ];
-    pub static SITES: [Site; 12] = [
+    pub static SITES: [Site; 14] = [
         {
             /* terrane-site-row: site 0: /app::load (src/main.trn:9:14-9:18) */
             Site {
@@ -481,79 +481,101 @@ mod __terrane_trace {
             }
         },
         {
-            /* terrane-site-row: site 5: /app::main (src/main.trn:24:25-24:40) */
+            /* terrane-site-row: site 5: /app::main (src/main.trn:24:25-24:38) */
             Site {
                 function: 3,
                 file: 0,
                 line: 24,
                 column: 25,
                 end_line: 24,
-                end_column: 40,
+                end_column: 38,
             }
         },
         {
-            /* terrane-site-row: site 6: /app::main (src/main.trn:25:16-25:30) */
+            /* terrane-site-row: site 6: /app::main (src/main.trn:25:16-25:29) */
             Site {
                 function: 3,
                 file: 0,
                 line: 25,
                 column: 16,
                 end_line: 25,
-                end_column: 30,
+                end_column: 29,
             }
         },
         {
-            /* terrane-site-row: site 7: /app::main (src/main.trn:26:26-26:40) */
+            /* terrane-site-row: site 7: /app::main (src/main.trn:26:26-26:39) */
             Site {
                 function: 3,
                 file: 0,
                 line: 26,
                 column: 26,
                 end_line: 26,
-                end_column: 40,
+                end_column: 39,
             }
         },
         {
-            /* terrane-site-row: site 8: /app::main (src/main.trn:27:32-27:46) */
+            /* terrane-site-row: site 8: /app::main (src/main.trn:27:32-27:45) */
             Site {
                 function: 3,
                 file: 0,
                 line: 27,
                 column: 32,
                 end_line: 27,
-                end_column: 46,
+                end_column: 45,
             }
         },
         {
-            /* terrane-site-row: site 9: /app::main (src/main.trn:28:24-28:38) */
+            /* terrane-site-row: site 9: /app::main (src/main.trn:28:24-28:37) */
             Site {
                 function: 3,
                 file: 0,
                 line: 28,
                 column: 24,
                 end_line: 28,
-                end_column: 38,
+                end_column: 37,
             }
         },
         {
-            /* terrane-site-row: site 10: /app::main (src/main.trn:29:12-29:16) */
+            /* terrane-site-row: site 10: /app::main (src/main.trn:29:31-29:43) */
             Site {
                 function: 3,
                 file: 0,
                 line: 29,
-                column: 12,
+                column: 31,
                 end_line: 29,
-                end_column: 16,
+                end_column: 43,
             }
         },
         {
-            /* terrane-site-row: site 11: /app::main (src/main.trn:30:24-30:39) */
+            /* terrane-site-row: site 11: /app::main (src/main.trn:30:20-30:40) */
             Site {
                 function: 3,
                 file: 0,
                 line: 30,
-                column: 24,
+                column: 20,
                 end_line: 30,
+                end_column: 40,
+            }
+        },
+        {
+            /* terrane-site-row: site 12: /app::main (src/main.trn:31:12-31:16) */
+            Site {
+                function: 3,
+                file: 0,
+                line: 31,
+                column: 12,
+                end_line: 31,
+                end_column: 16,
+            }
+        },
+        {
+            /* terrane-site-row: site 13: /app::main (src/main.trn:32:24-32:39) */
+            Site {
+                function: 3,
+                file: 0,
+                line: 32,
+                column: 24,
+                end_line: 32,
                 end_column: 39,
             }
         },
@@ -570,45 +592,76 @@ mod __terrane_trace {
         )
     }
 }
-// Source: <terrane>/projected/deps/terrane-generic-factory-witness.trn
-// Namespace: deps/terrane-generic-factory-witness
+// Source: <terrane>/projected/deps/factory.trn
+// Namespace: deps/factory
 pub fn default_value<T: core::default::Default>() -> Result<
     T,
     crate::TerraneForeignError,
 > {
     match std::panic::catch_unwind(
-        std::panic::AssertUnwindSafe(|| terrane_generic_factory_witness::default_value::<
-            T,
-        >()),
+        std::panic::AssertUnwindSafe(|| factory::default_value::<T>()),
     ) {
         Ok(value) => Ok(value),
         Err(payload) => {
             Err(
                 crate::__terrane_dependency_panic(
                     payload,
-                    "terrane-generic-factory-witness",
-                    "terrane_generic_factory_witness::default_value",
+                    "factory",
+                    "factory::default_value",
                 ),
             )
         }
     }
 }
-pub fn optional_value<T: core::default::Default>() -> Result<
-    Option<T>,
+pub fn renamed_bound_value<T: for<'value> factory::Decode<'value>>() -> Result<
+    T,
     crate::TerraneForeignError,
 > {
     match std::panic::catch_unwind(
-        std::panic::AssertUnwindSafe(|| terrane_generic_factory_witness::optional_value::<
-            T,
-        >()),
+        std::panic::AssertUnwindSafe(|| factory::renamed_bound_value::<T>()),
     ) {
         Ok(value) => Ok(value),
         Err(payload) => {
             Err(
                 crate::__terrane_dependency_panic(
                     payload,
-                    "terrane-generic-factory-witness",
-                    "terrane_generic_factory_witness::optional_value",
+                    "factory",
+                    "factory::renamed_bound_value",
+                ),
+            )
+        }
+    }
+}
+pub fn sample_rows<T: factory::Sample>() -> Result<
+    std::collections::BTreeMap<String, T>,
+    crate::TerraneForeignError,
+> {
+    match std::panic::catch_unwind(
+        std::panic::AssertUnwindSafe(|| factory::sample_rows::<T>()),
+    ) {
+        Ok(value) => Ok(value),
+        Err(payload) => {
+            Err(
+                crate::__terrane_dependency_panic(
+                    payload,
+                    "factory",
+                    "factory::sample_rows",
+                ),
+            )
+        }
+    }
+}
+pub fn sample_value<T: factory::Sample>() -> Result<T, crate::TerraneForeignError> {
+    match std::panic::catch_unwind(
+        std::panic::AssertUnwindSafe(|| factory::sample_value::<T>()),
+    ) {
+        Ok(value) => Ok(value),
+        Err(payload) => {
+            Err(
+                crate::__terrane_dependency_panic(
+                    payload,
+                    "factory",
+                    "factory::sample_value",
                 ),
             )
         }

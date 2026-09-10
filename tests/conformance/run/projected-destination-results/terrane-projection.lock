@@ -3,16 +3,24 @@
     {
       "members": [
         [
-          "/deps/terrane-generic-factory-witness",
+          "/deps/factory",
           "default_value"
         ],
         [
-          "/deps/terrane-generic-factory-witness",
+          "/deps/factory",
+          "renamed_bound_value"
+        ],
+        [
+          "/deps/factory",
+          "sample_rows"
+        ],
+        [
+          "/deps/factory",
           "sample_value"
         ]
       ],
-      "name": "terrane-generic-factory-witness",
-      "version": "0.1.0"
+      "name": "factory",
+      "version": "0.1.2"
     },
     {
       "members": [
@@ -33,9 +41,16 @@
       "version": "0.1.0"
     }
   ],
-  "format": 2,
+  "format": 3,
   "projection_schema": "25",
-  "removed": [],
+  "removed": [
+    {
+      "current_version": "0.1.1",
+      "name": "decoded_value",
+      "namespace": "/deps/factory",
+      "previous_version": "0.1.0"
+    }
+  ],
   "resolution": {
     "events": [
       {

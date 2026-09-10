@@ -1,7 +1,25 @@
+extern crate self as terrane_generic_factory_witness;
+
 use std::collections::{BTreeMap, BTreeSet};
 
 pub trait Sample {
     fn sample() -> Self;
+}
+pub trait Decode<'value> {
+    fn decode(value: &'value str) -> Self;
+}
+
+impl Decode<'_> for String {
+    fn decode(value: &str) -> Self {
+        value.to_owned()
+    }
+}
+
+
+impl Sample for i64 {
+    fn sample() -> Self {
+        42
+    }
 }
 
 impl Sample for Option<i64> {
@@ -40,4 +58,15 @@ pub fn default_value<T: Default>() -> T {
 
 pub fn sample_value<T: Sample>() -> T {
     T::sample()
+}
+
+pub fn sample_rows<T: Sample>() -> BTreeMap<String, T> {
+    BTreeMap::from([("row".to_owned(), T::sample())])
+}
+
+pub fn renamed_bound_value<T>() -> T
+where
+    for<'value> T: terrane_generic_factory_witness::Decode<'value>,
+{
+    T::decode("renamed bound")
 }
