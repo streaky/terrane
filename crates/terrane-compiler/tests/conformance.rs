@@ -789,15 +789,15 @@ fn platform_arguments(path: PathBuf) -> Vec<std::ffi::OsString> {
         .lines()
         .filter(|line| !line.is_empty())
         .map(|line| {
-            let bytes = line
-                .as_bytes()
-                .chunks_exact(2)
+            let (pairs, remainder) = line.as_bytes().as_chunks::<2>();
+            assert!(remainder.is_empty(), "argument hex has an odd digit");
+            let bytes = pairs
+                .iter()
                 .map(|pair| {
                     let text = std::str::from_utf8(pair).expect("argument hex is ASCII");
                     u8::from_str_radix(text, 16).expect("argument bytes use hexadecimal")
                 })
                 .collect::<Vec<_>>();
-            assert_eq!(line.len(), bytes.len() * 2, "argument hex has an odd digit");
             #[cfg(unix)]
             {
                 use std::os::unix::ffi::OsStringExt as _;

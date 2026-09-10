@@ -430,39 +430,42 @@ Implemented types are `float32` and `float64`. `float` is the default-precision 
 ```text
 floating-point value T
 ├── property
-│   └── .type -> descriptor T
+│   ├── .type -> descriptor T
+│   ├── .finite / .infinite / .not-a-number -> bool
+│   └── .negative-sign / .zero / .normal / .subnormal -> bool
 ├── unary operation
 │   └── -T -> T
-├── arithmetic
-│   ├── T + T -> T
-│   ├── T - T -> T
-│   ├── T * T -> T
-│   ├── T / T -> T
-│   └── T % T -> T
-├── comparisons
-│   ├── T == T -> bool
-│   ├── T != T -> bool
-│   ├── T < T -> bool
-│   ├── T <= T -> bool
-│   ├── T > T -> bool
-│   └── T >= T -> bool
-├── foundational mathematics
-│   ├── zero-argument methods
-│   │   ├── .square-root; -> T
-│   │   ├── .sine; -> T
-│   │   ├── .cosine; -> T
-│   │   ├── .sine-cosine; -> tuple of T, length 2
-│   │   ├── .natural-log; -> T
-│   │   ├── .exponential; -> T
-│   │   └── .absolute; -> T
-│   ├── classification properties
-│   │   ├── .finite -> bool
-│   │   ├── .infinite -> bool
-│   │   └── .not-a-number -> bool
-│   └── argument-taking methods
-│       ├── .minimum; T -> T
-│       ├── .maximum; T -> T
-│       └── .multiply-add; T, T -> T
+├── arithmetic and comparisons
+│   ├── T + T / T - T / T * T / T / T / T % T -> T
+│   └── == / != / < / <= / > / >= -> bool
+├── roots and powers
+│   ├── .square-root; / .cube-root; -> T
+│   ├── .hypotenuse; T -> T
+│   ├── .power; T -> T
+│   └── .integer-power; int32 -> T
+├── exponentials and logarithms
+│   ├── .exponential; / .binary-exponential; -> T
+│   ├── .exponential-minus-one; -> T
+│   ├── .natural-log; / .natural-log-one-plus; -> T
+│   ├── .binary-log; / .decimal-log; -> T
+│   └── .logarithm; T -> T
+├── trigonometry
+│   ├── .sine; / .cosine; / .tangent; -> T
+│   ├── .sine-cosine; -> tuple of T, length 2
+│   ├── .arc-sine; / .arc-cosine; / .arc-tangent; -> T
+│   └── .arc-tangent-two; T -> T
+├── scalar utilities
+│   ├── .absolute; / .fractional-part; -> T
+│   ├── .copy-sign; T -> T
+│   ├── .minimum; T / .maximum; T -> T
+│   ├── .clamp; T, T -> T
+│   └── .multiply-add; T, T -> T
+├── algorithm utilities
+│   ├── .next-up; / .next-down; -> T
+│   ├── .decompose; -> float-decomposition of T
+│   │   ├── .mantissa -> T
+│   │   └── .exponent -> int32
+│   └── .scale-binary; int32 -> T
 ├── integer rounding methods
 │   ├── .round; -> int          ties to even
 │   ├── .floor; -> int
@@ -473,9 +476,15 @@ floating-point value T
 │   └── .coerce.checked; FloatingDestination -> FloatingDestination or none
 └── descriptor relation
     └── value is a descriptor T -> bool
+
+floating descriptor T
+├── .radix / .significand-digits -> int
+├── .epsilon -> T
+├── .minimum-positive-normal / .minimum-positive-subnormal -> T
+└── .minimum / .maximum -> T
 ```
 
-The foundational computational methods lower directly to the corresponding Rust primitive operation, so they require no scientific library; their zero-argument arity does not make them properties. The three classification members remain properties because they observe receiver state. Floating results preserve the receiver precision. The mathematical members inherit IEEE-754 NaN, infinity, signed-zero, domain, overflow, and underflow behavior except for the explicit `minimum`, `maximum`, and fused-rounding contracts in the specification. `sine-cosine` evaluates the receiver once and returns sine followed by cosine.
+Computational members lower directly to Rust primitive operations or to the compiler-owned scalar support used for exact decomposition and binary scaling, so they require no scientific library. Classification and `negative-sign` are properties; zero-argument computations remain methods. Floating results preserve receiver precision. The operations follow the specification's IEEE NaN selection, infinity, signed-zero, domain, overflow, underflow, rounding, accuracy, and target-reproducibility contracts. `sine-cosine` evaluates the receiver once; `multiply-add` is fused; `decompose` and `scale-binary` round-trip normal and subnormal values without avoidable intermediate rounding.
 
 Floating values implement bare and checked coercion to floating destinations. Same-width coercion is identity, `float32` to `float64` is exact, and `float64` to `float32` rounds to nearest with ties to even. A finite source that rounds outside the `float32` finite range throws `coercion-error`, while `.coerce.checked` returns `none`. IEEE infinity and NaN retain their categories across written floating conversion. No floating-to-integer pair is declared on `coerce`; use `round`, `floor`, `ceiling`, or `truncate` to choose the fractional policy before an integer destination.
 

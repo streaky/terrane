@@ -70,6 +70,10 @@ impl Backend {
 }
 
 impl LanguageServer for Backend {
+    #[expect(
+        clippy::unused_async_trait_impl,
+        reason = "the language-server trait declares lifecycle handlers as async"
+    )]
     async fn initialize(&self, _: InitializeParams) -> Result<InitializeResult> {
         Ok(InitializeResult {
             capabilities: ServerCapabilities {
@@ -110,6 +114,10 @@ impl LanguageServer for Backend {
             .await;
     }
 
+    #[expect(
+        clippy::unused_async_trait_impl,
+        reason = "the language-server trait declares lifecycle handlers as async"
+    )]
     async fn shutdown(&self) -> Result<()> {
         Ok(())
     }
@@ -515,10 +523,9 @@ async fn projection_for_uri(uri: &Uri) -> Option<terrane_compiler::projection::P
             .lock()
             .expect("projection cache lock is not poisoned")
             .get(&manifest)
+            && *cached_at == modified
         {
-            if *cached_at == modified {
-                return Some(projection.clone());
-            }
+            return Some(projection.clone());
         }
         let package = terrane_compiler::Package::load(&manifest).ok()?;
         let projection =

@@ -826,6 +826,14 @@ pub(super) fn infer_value_type(
         if let Some(value_type) = infer_string_call_type(unit, node, bindings)? {
             return Ok(Some(value_type));
         }
+        if node
+            .children
+            .first()
+            .is_some_and(|callee| super::numeric::coercion_family_receiver(unit, callee))
+            && let Some(value_type) = infer_numeric_coercion_type(unit, node, bindings)?
+        {
+            return Ok(Some(value_type));
+        }
         if let Some(value_type) = infer_float_call_type(unit, node, bindings)? {
             return Ok(Some(value_type));
         }

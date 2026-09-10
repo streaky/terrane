@@ -556,25 +556,13 @@ features:
   completion: 100
   milestone: '25.3'
   reference:
-    state: planned
+    state: documented
     paths:
     - manual/reference/records/language/numerics/floating-point.yaml
-  notes: Square root, sine/cosine, log/exp, abs, min/max, fused multiply-add, and basic classification are complete.
-  sources:
-  - docs/language-spec-concise.md#FLOATING-MATH
-  - docs/compiler-plan.md#Completed portion of Milestone 25.3
-- id: floating-math-remainder
-  name: Remaining foundational floating-point surface
-  category: numerics
-  status: planned
-  completion: 0
-  milestone: '25.3'
-  reference:
-    state: planned
-    paths:
-    - manual/reference/records/language/numerics/floating-point.yaml
-  notes: Roots/powers, extended logs/trig, scalar utilities, IEEE utilities, decomposition, scaling, and descriptor
-    constants remain.
+  notes: >-
+    Both widths expose the complete foundational scalar surface: roots and powers, exponentials
+    and logarithms, trigonometry, scalar and IEEE utilities, exact decomposition and binary scaling,
+    and descriptor constants.
   sources:
   - docs/language-spec-concise.md#FLOATING-MATH
   - docs/compiler-plan.md#Milestone 25.3

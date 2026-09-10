@@ -368,40 +368,51 @@ Shifts accept a non-negative count. On a fixed-width receiver the invocation and
 ### 5.4 Foundational floating-point mathematics
 
 ```text
-floating value                                    preserves float32 or float64
-+-- square-root;  -> T                            IEEE square root
-+-- sine;         -> T                            radians
-+-- cosine;       -> T                            radians
-+-- sine-cosine;  -> tuple of T                   sine followed by cosine
-+-- natural-log;  -> T                            base-e logarithm
-+-- exponential;  -> T                            base-e exponential
-+-- absolute;     -> T                            IEEE absolute value
-+-- finite        -> bool                         finite classification property
-+-- infinite      -> bool                         infinity classification property
-+-- not-a-number  -> bool                         NaN classification property
-+-- minimum; T    -> T                            number-preferring minimum
-+-- maximum; T    -> T                            number-preferring maximum
-+-- multiply-add; T, T -> T                       fused multiply-add
+floating value T                                  preserves float32 or float64
++-- roots and powers
+|   +-- square-root; / cube-root; -> T
+|   +-- hypotenuse; T -> T
+|   +-- power; T -> T
+|   +-- integer-power; int32 -> T
++-- exponentials and logarithms
+|   +-- exponential; / binary-exponential; -> T
+|   +-- exponential-minus-one; -> T
+|   +-- natural-log; / natural-log-one-plus; -> T
+|   +-- binary-log; / decimal-log; -> T
+|   +-- logarithm; T -> T
++-- trigonometry
+|   +-- sine; / cosine; / tangent; -> T
+|   +-- sine-cosine; -> tuple of T
+|   +-- arc-sine; / arc-cosine; / arc-tangent; -> T
+|   +-- arc-tangent-two; T -> T
++-- scalar utilities
+|   +-- absolute; / fractional-part; -> T
+|   +-- copy-sign; T -> T
+|   +-- minimum; T / maximum; T -> T
+|   +-- clamp; T, T -> T
+|   +-- multiply-add; T, T -> T
++-- classification properties
+|   +-- finite / infinite / not-a-number -> bool
+|   +-- negative-sign / zero / normal / subnormal -> bool
++-- algorithm utilities
+    +-- next-up; / next-down; -> T
+    +-- decompose; -> float-decomposition of T
+    |   +-- mantissa -> T
+    |   +-- exponent -> int32
+    +-- scale-binary; int32 -> T
+
+floating descriptor T
++-- radix / significand-digits -> int
++-- epsilon -> T
++-- minimum-positive-normal / minimum-positive-subnormal -> T
++-- minimum / maximum -> T
 ```
 
-The seven transforming zero-argument members and the three argument-taking members are methods; the three classification members are properties. Member kind follows semantic role rather than arity: selecting a method yields a callable operation, so even a zero-argument method requires `;`. These members inherit the IEEE NaN, signed-zero, infinity, overflow, underflow, and rounding behavior specified by the language contract, including the stronger selection and fused-rounding rules stated there. They lower to target primitives or compiler-owned scalar support and do not imply a scientific library dependency. Special functions, probability distributions, linear algebra, and array operations remain package concerns.
+Classification and sign-bit observations are properties; every computational member is a method, including zero-argument operations. Floating domain and range conditions produce IEEE NaN, infinity, signed zero, overflow, or underflow rather than throwing. The operations preserve receiver precision, use one final rounding where promised by the language contract, and lower to target primitives or compiler-owned scalar support without a scientific dependency. The normative specification defines NaN selection, signed-zero ordering, infinity boundaries, decomposition, accuracy, and target reproducibility.
 
 ### 5.5 Numeric descriptors and properties
 
-```text
-number value
-+-- type
-
-fixed-integer value/type descriptor
-+-- bits
-+-- signed
-+-- minimum
-+-- maximum
-
-floating value/type descriptor                     float32 and float64; `float` spells float64
-+-- bits
-
-These descriptor/property names are proposals for exposing already-contractual facts; their exact reflection spelling must be settled before code depends on them. Value-level finite, infinite, and NaN classification is part of the foundational floating-point surface above and is not deferred reflection.
+The numeric descriptor surface is shown above for floating values and in the fixed-width integer map. Descriptor members expose contractual representation facts through canonical compiler-owned descriptors; aliases do not create a second descriptor.
 
 ## 6. String and bytes method attachment map
 

@@ -67,7 +67,9 @@ pub(crate) use bindings::{
     binding_read_value_is_reused, binding_store_value_is_read, descriptor_binding_is_materialized,
 };
 pub(crate) use contracts::{descriptor_expression_category, descriptor_expression_type};
-pub(crate) use descriptors::{descriptor_conforms_to, materialized_descriptor};
+pub(crate) use descriptors::{
+    descriptor_conforms_to, descriptor_contract_by_identity, materialized_descriptor,
+};
 pub(crate) use diagnostics::{binding_span_is_mutated, warnings};
 pub(crate) use member_inference::{object_member_type, string_call_selection};
 pub use model::{
@@ -78,8 +80,8 @@ pub use model::{
     ValueType, Visibility,
 };
 pub(crate) use model::{
-    CanonicalDefault, CoercionPolicy, ContextualConstant, FloatMemberOperation, StringFamily,
-    canonical_default, float_member_contract,
+    BuiltinDescriptor, CanonicalDefault, CoercionPolicy, ContextualConstant, FloatMemberArgument,
+    FloatMemberOperation, StringFamily, canonical_default, float_member_contract,
 };
 pub(crate) use numeric::{bound_method, contextual_constant, promoted_integer_type};
 pub(crate) use objects::{EffectiveObjectField, effective_object_fields};

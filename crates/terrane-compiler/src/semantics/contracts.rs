@@ -419,14 +419,13 @@ pub(super) fn analyze_function_contract(
     }
     let mut thrown_types = Vec::new();
     for child in &node.children {
-        if child.kind == SyntaxKind::EffectClause {
-            if let Some(type_node) = child
+        if child.kind == SyntaxKind::EffectClause
+            && let Some(type_node) = child
                 .children
                 .iter()
                 .find(|part| part.kind == SyntaxKind::TypeExpression)
-            {
-                thrown_types.push(declared_value_type(unit, type_node, aliases)?);
-            }
+        {
+            thrown_types.push(declared_value_type(unit, type_node, aliases)?);
         }
     }
     let is_async = node.children.iter().any(|child| {

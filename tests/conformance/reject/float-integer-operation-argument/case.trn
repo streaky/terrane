@@ -1,0 +1,5 @@
+namespace float-integer-operation-argument
+function main;
+  value float64 = 2.0
+  exponent string = 'two'
+  print; (value.integer-power; exponent)

@@ -8,19 +8,26 @@ pub(super) fn module_destination(unit: &SemanticUnit) -> ModuleDestination {
     }
 }
 fn package_uses_descriptor_runtime(package: &SemanticPackage) -> bool {
-    fn contains_type_member(unit: &SemanticUnit, node: &SyntaxNode) -> bool {
-        (node.kind == SyntaxKind::MemberExpression
-            && node.children.get(1).is_some_and(|member| {
-                &unit.source.text()[member.span.start..member.span.end] == "type"
-            }))
+    fn contains_materialized_descriptor(unit: &SemanticUnit, node: &SyntaxNode) -> bool {
+        let member_materializes_descriptor = if let [receiver, member] = node.children.as_slice() {
+            node.kind == SyntaxKind::MemberExpression
+                && (&unit.source.text()[member.span.start..member.span.end] == "type"
+                    || matches!(
+                        unit.inferred_value_type(receiver),
+                        Some(ValueType::Descriptor(_))
+                    ))
+        } else {
+            false
+        };
+        member_materializes_descriptor
             || node
                 .children
                 .iter()
-                .any(|child| contains_type_member(unit, child))
+                .any(|child| contains_materialized_descriptor(unit, child))
     }
 
     package.units.iter().any(|unit| {
-        contains_type_member(unit, &unit.tree.root)
+        contains_materialized_descriptor(unit, &unit.tree.root)
             || unit.typed_bindings.iter().any(|binding| {
                 matches!(binding.value_type, ValueType::Descriptor(_))
                     && descriptor_binding_is_materialized(package, unit, binding.span)

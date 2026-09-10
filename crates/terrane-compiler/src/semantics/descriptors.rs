@@ -79,13 +79,39 @@ fn add_float_members(result: &mut BTreeSet<String>) {
             "finite",
             "infinite",
             "not-a-number",
+            "negative-sign",
+            "zero",
+            "normal",
+            "subnormal",
             "square-root",
+            "cube-root",
+            "hypotenuse",
+            "power",
+            "integer-power",
             "sine",
             "cosine",
             "sine-cosine",
+            "tangent",
+            "arc-sine",
+            "arc-cosine",
+            "arc-tangent",
+            "arc-tangent-two",
             "natural-log",
             "exponential",
+            "binary-exponential",
+            "exponential-minus-one",
+            "natural-log-one-plus",
+            "binary-log",
+            "decimal-log",
+            "logarithm",
             "absolute",
+            "copy-sign",
+            "clamp",
+            "fractional-part",
+            "next-up",
+            "next-down",
+            "decompose",
+            "scale-binary",
             "round",
             "floor",
             "ceiling",
@@ -191,6 +217,71 @@ fn collection_members(kind: BuiltinDescriptor) -> BTreeSet<String> {
     members(names)
 }
 
+fn builtin_member_is_method(builtin: BuiltinDescriptor, member: &str) -> bool {
+    if member == "type" {
+        return false;
+    }
+    match builtin {
+        BuiltinDescriptor::Scalar(ScalarType::String) => {
+            !matches!(member, "length" | "bytes" | "scalars" | "graphemes")
+        }
+        BuiltinDescriptor::Scalar(ScalarType::Bytes)
+        | BuiltinDescriptor::List
+        | BuiltinDescriptor::ReadonlyList
+        | BuiltinDescriptor::Map
+        | BuiltinDescriptor::Set
+        | BuiltinDescriptor::Tuple
+        | BuiltinDescriptor::UnorderedMap
+        | BuiltinDescriptor::UnorderedSet => member != "length",
+        BuiltinDescriptor::Scalar(ScalarType::Float32 | ScalarType::Float64) => !matches!(
+            member,
+            "finite"
+                | "infinite"
+                | "not-a-number"
+                | "negative-sign"
+                | "zero"
+                | "normal"
+                | "subnormal"
+        ),
+        BuiltinDescriptor::Entry => !matches!(member, "key" | "value"),
+        BuiltinDescriptor::IterationStep => !matches!(member, "end" | "value"),
+        _ => true,
+    }
+}
+
+fn builtin_methods(builtin: BuiltinDescriptor, members: &BTreeSet<String>) -> BTreeSet<String> {
+    members
+        .iter()
+        .map(|member| {
+            member
+                .split_once('.')
+                .map_or(member.as_str(), |(family, _)| family)
+        })
+        .filter(|member| builtin_member_is_method(builtin, member))
+        .map(str::to_owned)
+        .collect()
+}
+
+fn builtin_operation_prefix(builtin: BuiltinDescriptor) -> &'static str {
+    match builtin {
+        BuiltinDescriptor::Scalar(ScalarType::String) => "string",
+        BuiltinDescriptor::Scalar(ScalarType::Bytes) => "bytes",
+        BuiltinDescriptor::Scalar(scalar) if scalar.conforms_to(TypeCategory::Number) => "numeric",
+        BuiltinDescriptor::List
+        | BuiltinDescriptor::ReadonlyList
+        | BuiltinDescriptor::Map
+        | BuiltinDescriptor::Set
+        | BuiltinDescriptor::Tuple
+        | BuiltinDescriptor::Range
+        | BuiltinDescriptor::Entry
+        | BuiltinDescriptor::UnorderedMap
+        | BuiltinDescriptor::UnorderedSet
+        | BuiltinDescriptor::Iterator
+        | BuiltinDescriptor::IterationStep => "collection",
+        _ => "value",
+    }
+}
+
 fn contract(
     namespace: &str,
     name: &str,
@@ -198,21 +289,7 @@ fn contract(
     categories: Vec<TypeCategory>,
     members: BTreeSet<String>,
 ) -> DescriptorContract {
-    let methods: BTreeSet<String> = members
-        .iter()
-        .map(|member| {
-            member
-                .split_once('.')
-                .map_or(member.as_str(), |(family, _)| family)
-        })
-        .filter(|member| {
-            !matches!(
-                *member,
-                "type" | "length" | "bytes" | "scalars" | "graphemes" | "key" | "value" | "end"
-            )
-        })
-        .map(str::to_owned)
-        .collect();
+    let methods = builtin_methods(builtin, &members);
     let invocation_only_methods = match builtin {
         BuiltinDescriptor::Scalar(scalar) if scalar.conforms_to(TypeCategory::Number) => methods
             .iter()
@@ -248,23 +325,7 @@ fn contract(
         | BuiltinDescriptor::UnorderedSet => methods.clone(),
         _ => BTreeSet::new(),
     };
-    let operation_prefix = match builtin {
-        BuiltinDescriptor::Scalar(ScalarType::String) => "string",
-        BuiltinDescriptor::Scalar(ScalarType::Bytes) => "bytes",
-        BuiltinDescriptor::Scalar(scalar) if scalar.conforms_to(TypeCategory::Number) => "numeric",
-        BuiltinDescriptor::List
-        | BuiltinDescriptor::ReadonlyList
-        | BuiltinDescriptor::Map
-        | BuiltinDescriptor::Set
-        | BuiltinDescriptor::Tuple
-        | BuiltinDescriptor::Range
-        | BuiltinDescriptor::Entry
-        | BuiltinDescriptor::UnorderedMap
-        | BuiltinDescriptor::UnorderedSet
-        | BuiltinDescriptor::Iterator
-        | BuiltinDescriptor::IterationStep => "collection",
-        _ => "value",
-    };
+    let operation_prefix = builtin_operation_prefix(builtin);
     let operations = members
         .iter()
         .map(|member| (member.clone(), format!("{operation_prefix}.{member}")))
@@ -290,17 +351,51 @@ fn contract(
     }
 }
 
+fn add_float_descriptor_constants(contract: &mut DescriptorContract, scalar: ScalarType) {
+    let constants = [
+        ("radix", ValueType::Scalar(ScalarType::Int)),
+        ("significand-digits", ValueType::Scalar(ScalarType::Int)),
+        ("epsilon", ValueType::Scalar(scalar)),
+        ("minimum-positive-normal", ValueType::Scalar(scalar)),
+        ("minimum-positive-subnormal", ValueType::Scalar(scalar)),
+        ("minimum", ValueType::Scalar(scalar)),
+        ("maximum", ValueType::Scalar(scalar)),
+    ];
+    contract
+        .static_members
+        .extend(constants.iter().map(|(name, _)| (*name).to_owned()));
+    contract
+        .fields
+        .extend(constants.into_iter().map(|(name, value_type)| ObjectField {
+            name: name.to_owned(),
+            span: Span::new(0, 0, 0),
+            value_type,
+            initializer_span: None,
+            is_static: true,
+            metadata: ObjectFieldMetadata {
+                external_name: name.to_owned(),
+                defaulted: false,
+                optional: false,
+                secret: false,
+            },
+        }));
+}
+
 fn build_builtin_descriptor_contracts() -> Vec<DescriptorContract> {
     let mut contracts = ScalarType::ALL
         .into_iter()
         .map(|scalar| {
-            contract(
+            let mut descriptor = contract(
                 "/core/types",
                 scalar.source_name(),
                 BuiltinDescriptor::Scalar(scalar),
                 scalar.builtin_categories().to_vec(),
                 scalar_members(scalar),
-            )
+            );
+            if matches!(scalar, ScalarType::Float32 | ScalarType::Float64) {
+                add_float_descriptor_constants(&mut descriptor, scalar);
+            }
+            descriptor
         })
         .collect::<Vec<_>>();
     for (name, category) in TypeCategory::ABSTRACT_SOURCE_NAMES {
@@ -330,13 +425,18 @@ fn build_builtin_descriptor_contracts() -> Vec<DescriptorContract> {
         ("encoding", BuiltinDescriptor::Encoding),
         ("overflow-result", BuiltinDescriptor::OverflowResult),
         ("div-rem-result", BuiltinDescriptor::DivRemResult),
+        ("float-decomposition", BuiltinDescriptor::FloatDecomposition),
     ] {
         contracts.push(contract(
             "/core/types",
             name,
             builtin,
             vec![TypeCategory::Value, TypeCategory::Object],
-            members(&["type"]),
+            if builtin == BuiltinDescriptor::FloatDecomposition {
+                members(&["type", "mantissa", "exponent"])
+            } else {
+                members(&["type"])
+            },
         ));
     }
     for (name, builtin) in [
@@ -382,6 +482,7 @@ fn builtin_for_value_type(value_type: &ValueType) -> BuiltinDescriptor {
         ValueType::StringView(_) => BuiltinDescriptor::StringView,
         ValueType::OverflowResult(_) => BuiltinDescriptor::OverflowResult,
         ValueType::DivRemResult(_) => BuiltinDescriptor::DivRemResult,
+        ValueType::FloatDecomposition(_) => BuiltinDescriptor::FloatDecomposition,
         ValueType::Iterator(_) => BuiltinDescriptor::Iterator,
         ValueType::IterationStep(_) | ValueType::IterationEnd => BuiltinDescriptor::IterationStep,
         ValueType::StringList | ValueType::TextRangeList => BuiltinDescriptor::ReadonlyList,
