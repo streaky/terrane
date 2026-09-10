@@ -169,7 +169,7 @@ fn projected_dependency_lowering_is_part_of_the_support_sidecar() {
         let destination = staged.join(relative);
         fs::copy(fixture.join(relative), destination).unwrap();
     }
-    let package = terrane_compiler::Package::load(&staged.join("package.toml")).unwrap();
+    let package = terrane_compiler::Package::load(staged.join("package.toml")).unwrap();
     let compilation = terrane_compiler::compile_package(&package).unwrap();
     let files = compilation
         .rust_files_for(Path::new("src/main.rs"))
