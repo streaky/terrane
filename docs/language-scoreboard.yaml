@@ -1,7 +1,7 @@
 format: 1
 title: Terrane language scoreboard
 metadata:
-  as_of: '2026-09-08'
+  as_of: '2026-09-10'
   description: Curated feature-level view of implemented, active, potential, deferred, and intentionally excluded
     Terrane language work.
   completion_rule: Completion measures the named feature only. Done is 100; planned, potential, deferred, and excluded
@@ -427,14 +427,14 @@ features:
 - id: generic-result-specialization
   name: Destination-directed projected generic results
   category: types
-  status: planned
-  completion: 0
+  status: done
+  completion: 100
   milestone: '25.4'
   reference:
-    state: partial
+    state: documented
     paths:
     - manual/reference/records/packages/rust-dependencies.yaml
-  notes: Planned closed monomorphization from one explicit Terrane destination with oracle-backed bound proof.
+  notes: One written Terrane result destination selects a closed owned Rust representation after exact oracle-backed bound proof; source object and borrowed destinations remain explicit declines.
   sources:
   - docs/compiler-plan.md#Milestone 25.4
 - id: exact-int
@@ -1527,16 +1527,15 @@ features:
 - id: projection-oracle
   name: Rust bound projection oracle
   category: interop
-  status: partial
-  completion: 35
+  status: done
+  completion: 100
   milestone: '25.4'
   reference:
-    state: partial
+    state: documented
     paths:
     - manual/reference/records/packages/rust-dependencies.yaml
     - manual/reference/records/internals/projection-resolution.yaml
-  notes: Contained exact probes and caching exist, but production destination-directed questions do not yet consume
-    them.
+  notes: Production destination-directed specialization batches exact bound questions through the contained cached oracle and rejects no, unknown, or missing answers.
   sources:
   - docs/language-spec-concise.md#DEPENDENCY PRINCIPLE
   - docs/compiler-plan.md#Milestone 25.4

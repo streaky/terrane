@@ -286,20 +286,8 @@ async function get response throws reqwest-error; url string
 
 and generates, for that one crossed member, a shim in the shape `platform_urls.rs` already uses.
 
-### 7.1 Caller-chosen type arguments
 
-`Response::json::<T>()` takes its type argument from the caller under a `Deserialize` bound. The
-projection supports **Terrane-native destination types only**: a Terrane `map string, string` becomes
-`HashMap<String, String>`, a list becomes `Vec<_>`, scalars map directly, and the shim names the
-concrete Rust type at the call site. A Terrane object type as the destination would mean generating a
-Rust struct with a `Deserialize` derive, which makes `serde` a structural dependency of the projector
-itself; that is deferred. Where the destination is not natively representable the member falls under
-6.5 and a native Rust body is the escape hatch.
-
-The same rule generalises past `json`: any caller-supplied type argument is admitted when the Terrane
-type has a direct Rust representation and the bound is satisfied by it, and refused otherwise.
-
-### 7.2 Naming
+### 7.1 Naming
 
 A third-party crate's naming is not Terrane's business. Projected names are **verbatim**:
 `reqwest.ClientBuilder` is `ClientBuilder`, `parse_json` is `parse_json`. The surface matches the
@@ -323,7 +311,7 @@ test of only restricting what we cannot lower. The working answer is therefore:
 Verbatim projection also removes the collision problem: Rust item names are already unique within
 their module, so no mapping can fold two of them together.
 
-### 7.3 Trait methods
+### 7.2 Trait methods
 
 Rustdoc reports inherent and trait impls separately, and merging them into one member list would need
 a collision rule. Namespacing removes the need for one, because Rust already disambiguates the same
@@ -351,7 +339,7 @@ The cost, stated deliberately: a trait method reads as `read-to-end; response` r
 ergonomic rule could permit method syntax where exactly one imported trait supplies the name and no
 inherent member competes; it is not needed for correctness.
 
-### 7.4 Enums
+### 7.3 Enums
 
 - **Data-free enums** (`Method`, `Version`) project as an opaque value with projected zero-parameter
   constructors and comparison.
