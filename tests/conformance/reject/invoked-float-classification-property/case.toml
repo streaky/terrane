@@ -1,4 +1,0 @@
-phase = "check"
-status = "reject"
-code = "T0039"
-contains = "property and cannot be invoked"

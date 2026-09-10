@@ -1,0 +1,4 @@
+namespace invalid-float-member-receiver
+function main;
+  value int64 = 8
+  print; (value.cube-root;)

@@ -1,5 +1,83 @@
 use super::super::prelude::*;
 
+fn float_target_method(operation: FloatMemberOperation) -> Option<&'static str> {
+    Some(match operation {
+        FloatMemberOperation::SquareRoot => "sqrt",
+        FloatMemberOperation::CubeRoot => "cbrt",
+        FloatMemberOperation::Sine => "sin",
+        FloatMemberOperation::Cosine => "cos",
+        FloatMemberOperation::Tangent => "tan",
+        FloatMemberOperation::ArcSine => "asin",
+        FloatMemberOperation::ArcCosine => "acos",
+        FloatMemberOperation::ArcTangent => "atan",
+        FloatMemberOperation::NaturalLog => "ln",
+        FloatMemberOperation::Exponential => "exp",
+        FloatMemberOperation::BinaryExponential => "exp2",
+        FloatMemberOperation::ExponentialMinusOne => "exp_m1",
+        FloatMemberOperation::NaturalLogOnePlus => "ln_1p",
+        FloatMemberOperation::BinaryLog => "log2",
+        FloatMemberOperation::DecimalLog => "log10",
+        FloatMemberOperation::Absolute => "abs",
+        FloatMemberOperation::NextUp => "next_up",
+        FloatMemberOperation::NextDown => "next_down",
+        FloatMemberOperation::Hypotenuse => "hypot",
+        FloatMemberOperation::Power => "powf",
+        FloatMemberOperation::IntegerPower => "powi",
+        FloatMemberOperation::ArcTangentTwo => "atan2",
+        FloatMemberOperation::Logarithm => "log",
+        FloatMemberOperation::CopySign => "copysign",
+        _ => return None,
+    })
+}
+
+fn float_clamp_call(rust_type: &str, receiver: &str, lower: &str, upper: &str) -> String {
+    format!(
+        "{{ let terrane_value: {rust_type} = {receiver}; \
+         let terrane_lower: {rust_type} = {lower}; \
+         let terrane_upper: {rust_type} = {upper}; \
+         if terrane_value.is_nan() {{ terrane_value }} \
+         else if terrane_lower.is_nan() || terrane_upper.is_nan() \
+         || terrane_lower > terrane_upper {{ {rust_type}::NAN }} \
+         else {{ \
+         let terrane_lowered = if terrane_value == 0.0 && terrane_lower == 0.0 {{ \
+         if terrane_value.is_sign_positive() || terrane_lower.is_sign_positive() \
+         {{ 0.0 }} else {{ -0.0 }} \
+         }} else {{ terrane_value.max(terrane_lower) }}; \
+         if terrane_lowered == 0.0 && terrane_upper == 0.0 {{ \
+         if terrane_lowered.is_sign_negative() || terrane_upper.is_sign_negative() \
+         {{ -0.0 }} else {{ 0.0 }} \
+         }} else {{ terrane_lowered.min(terrane_upper) }} \
+         }} }}"
+    )
+}
+
+fn float_extreme_call(
+    rust_type: &str,
+    operation: FloatMemberOperation,
+    receiver: &str,
+    other: &str,
+) -> String {
+    let (zero_selection, method) = if operation == FloatMemberOperation::Minimum {
+        (
+            "if terrane_receiver.is_sign_negative() || \
+             terrane_argument.is_sign_negative() { -0.0 } else { 0.0 }",
+            "min",
+        )
+    } else {
+        (
+            "if terrane_receiver.is_sign_positive() || \
+             terrane_argument.is_sign_positive() { 0.0 } else { -0.0 }",
+            "max",
+        )
+    };
+    format!(
+        "{{ let terrane_receiver: {rust_type} = {receiver}; \
+         let terrane_argument: {rust_type} = {other}; \
+         if terrane_receiver == 0.0 && terrane_argument == 0.0 {{ \
+         {zero_selection} }} else {{ terrane_receiver.{method}(terrane_argument) }} }}"
+    )
+}
+
 impl Emitter<'_> {
     #[expect(
         clippy::needless_pass_by_value,
@@ -301,21 +379,22 @@ impl Emitter<'_> {
             if let Some(scalar) = float_scalar {
                 let rust_type = rust_type(scalar);
                 let value = match self.text(member) {
-                    "radix" => {
-                        format!("terrane_int_support::Int::from(i128::from({rust_type}::RADIX))")
-                    }
-                    "significand-digits" => format!(
+                    "radix" => Some(format!(
+                        "terrane_int_support::Int::from(i128::from({rust_type}::RADIX))"
+                    )),
+                    "significand-digits" => Some(format!(
                         "terrane_int_support::Int::from(i128::from({rust_type}::MANTISSA_DIGITS))"
-                    ),
-                    "epsilon" => format!("{rust_type}::EPSILON"),
-                    "minimum-positive-normal" => format!("{rust_type}::MIN_POSITIVE"),
-                    "minimum-positive-subnormal" => format!("{rust_type}::from_bits(1)"),
-                    "minimum" => format!("{rust_type}::MIN"),
-                    "maximum" => format!("{rust_type}::MAX"),
-                    _ => String::new(),
+                    )),
+                    "epsilon" => Some(format!("{rust_type}::EPSILON")),
+                    "minimum-positive-normal" => Some(format!("{rust_type}::MIN_POSITIVE")),
+                    "minimum-positive-subnormal" => Some(format!("{rust_type}::from_bits(1)")),
+                    "minimum" => Some(format!("{rust_type}::MIN")),
+                    "maximum" => Some(format!("{rust_type}::MAX")),
+                    _ => None,
                 };
-                if !value.is_empty() {
-                    return value;
+                if let Some(value) = value {
+                    let receiver = self.expression(receiver);
+                    return format!("{{ let _ = &({receiver}); {value} }}");
                 }
             }
             let receiver = self.expression(receiver);
@@ -583,6 +662,13 @@ impl Emitter<'_> {
             ScalarType::Float64 => "f64",
             _ => unreachable!("float members require a float receiver"),
         };
+        if let Some(method) = float_target_method(contract.operation) {
+            return Some(if let Some(argument) = arguments.first() {
+                format!("({receiver}).{method}({argument})")
+            } else {
+                format!("({receiver}).{method}()")
+            });
+        }
         let call = match contract.operation {
             FloatMemberOperation::SineCosine => format!(
                 "{{ let terrane_sine_cosine = ({receiver}).sin_cos(); \
@@ -613,87 +699,15 @@ impl Emitter<'_> {
                     node,
                 )
             }
-            operation @ (FloatMemberOperation::SquareRoot
-            | FloatMemberOperation::CubeRoot
-            | FloatMemberOperation::Sine
-            | FloatMemberOperation::Cosine
-            | FloatMemberOperation::Tangent
-            | FloatMemberOperation::ArcSine
-            | FloatMemberOperation::ArcCosine
-            | FloatMemberOperation::ArcTangent
-            | FloatMemberOperation::NaturalLog
-            | FloatMemberOperation::Exponential
-            | FloatMemberOperation::BinaryExponential
-            | FloatMemberOperation::ExponentialMinusOne
-            | FloatMemberOperation::NaturalLogOnePlus
-            | FloatMemberOperation::BinaryLog
-            | FloatMemberOperation::DecimalLog
-            | FloatMemberOperation::Absolute
-            | FloatMemberOperation::FractionalPart
-            | FloatMemberOperation::NextUp
-            | FloatMemberOperation::NextDown) => {
-                let method = match operation {
-                    FloatMemberOperation::SquareRoot => "sqrt",
-                    FloatMemberOperation::CubeRoot => "cbrt",
-                    FloatMemberOperation::Sine => "sin",
-                    FloatMemberOperation::Cosine => "cos",
-                    FloatMemberOperation::Tangent => "tan",
-                    FloatMemberOperation::ArcSine => "asin",
-                    FloatMemberOperation::ArcCosine => "acos",
-                    FloatMemberOperation::ArcTangent => "atan",
-                    FloatMemberOperation::NaturalLog => "ln",
-                    FloatMemberOperation::Exponential => "exp",
-                    FloatMemberOperation::BinaryExponential => "exp2",
-                    FloatMemberOperation::ExponentialMinusOne => "exp_m1",
-                    FloatMemberOperation::NaturalLogOnePlus => "ln_1p",
-                    FloatMemberOperation::BinaryLog => "log2",
-                    FloatMemberOperation::DecimalLog => "log10",
-                    FloatMemberOperation::Absolute => "abs",
-                    FloatMemberOperation::FractionalPart => "fract",
-                    FloatMemberOperation::NextUp => "next_up",
-                    FloatMemberOperation::NextDown => "next_down",
-                    _ => unreachable!(),
-                };
-                format!("({receiver}).{method}()")
-            }
-            operation @ (FloatMemberOperation::Hypotenuse
-            | FloatMemberOperation::Power
-            | FloatMemberOperation::IntegerPower
-            | FloatMemberOperation::ArcTangentTwo
-            | FloatMemberOperation::Logarithm
-            | FloatMemberOperation::CopySign) => {
-                let method = match operation {
-                    FloatMemberOperation::Hypotenuse => "hypot",
-                    FloatMemberOperation::Power => "powf",
-                    FloatMemberOperation::IntegerPower => "powi",
-                    FloatMemberOperation::ArcTangentTwo => "atan2",
-                    FloatMemberOperation::Logarithm => "log",
-                    FloatMemberOperation::CopySign => "copysign",
-                    _ => unreachable!(),
-                };
-                format!("({receiver}).{method}({})", arguments[0])
-            }
+            FloatMemberOperation::FractionalPart => format!(
+                "{{ let terrane_receiver: {rust_type} = {receiver}; \
+                 let terrane_fraction = terrane_receiver.fract(); \
+                 if terrane_fraction == 0.0 {{ \
+                 0.0_{rust_type}.copysign(terrane_receiver) \
+                 }} else {{ terrane_fraction }} }}"
+            ),
             FloatMemberOperation::Clamp => {
-                let lower = &arguments[0];
-                let upper = &arguments[1];
-                format!(
-                    "{{ let terrane_value: {rust_type} = {receiver}; \
-                     let terrane_lower: {rust_type} = {lower}; \
-                     let terrane_upper: {rust_type} = {upper}; \
-                     if terrane_value.is_nan() {{ terrane_value }} \
-                     else if terrane_lower.is_nan() || terrane_upper.is_nan() \
-                     || terrane_lower > terrane_upper {{ {rust_type}::NAN }} \
-                     else {{ \
-                     let terrane_lowered = if terrane_value == 0.0 && terrane_lower == 0.0 {{ \
-                     if terrane_value.is_sign_positive() || terrane_lower.is_sign_positive() \
-                     {{ 0.0 }} else {{ -0.0 }} \
-                     }} else {{ terrane_value.max(terrane_lower) }}; \
-                     if terrane_lowered == 0.0 && terrane_upper == 0.0 {{ \
-                     if terrane_lowered.is_sign_negative() || terrane_upper.is_sign_negative() \
-                     {{ -0.0 }} else {{ 0.0 }} \
-                     }} else {{ terrane_lowered.min(terrane_upper) }} \
-                     }} }}"
-                )
+                float_clamp_call(rust_type, receiver, &arguments[0], &arguments[1])
             }
             FloatMemberOperation::Decompose => {
                 let helper = if float_type == ScalarType::Float32 {
@@ -715,25 +729,7 @@ impl Emitter<'_> {
                 )
             }
             operation @ (FloatMemberOperation::Minimum | FloatMemberOperation::Maximum) => {
-                let other = &arguments[0];
-                let zero_selection = if operation == FloatMemberOperation::Minimum {
-                    "if terrane_receiver.is_sign_negative() || \
-                     terrane_argument.is_sign_negative() { -0.0 } else { 0.0 }"
-                } else {
-                    "if terrane_receiver.is_sign_positive() || \
-                     terrane_argument.is_sign_positive() { 0.0 } else { -0.0 }"
-                };
-                let method = if operation == FloatMemberOperation::Minimum {
-                    "min"
-                } else {
-                    "max"
-                };
-                format!(
-                    "{{ let terrane_receiver: {rust_type} = {receiver}; \
-                     let terrane_argument: {rust_type} = {other}; \
-                     if terrane_receiver == 0.0 && terrane_argument == 0.0 {{ \
-                     {zero_selection} }} else {{ terrane_receiver.{method}(terrane_argument) }} }}"
-                )
+                float_extreme_call(rust_type, operation, receiver, &arguments[0])
             }
             FloatMemberOperation::MultiplyAdd => {
                 format!("({receiver}).mul_add({}, {})", arguments[0], arguments[1])
@@ -745,6 +741,7 @@ impl Emitter<'_> {
             | FloatMemberOperation::Zero
             | FloatMemberOperation::Normal
             | FloatMemberOperation::Subnormal => return None,
+            _ => unreachable!("direct floating operation bypasses structured lowering"),
         };
         Some(call)
     }

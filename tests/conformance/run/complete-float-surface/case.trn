@@ -45,6 +45,24 @@ function exercise32;
   subnormal-decomposition = (float32.minimum-positive-subnormal.decompose;)
   print; (subnormal-decomposition.mantissa.scale-binary; subnormal-decomposition.exponent) == float32.minimum-positive-subnormal
   print; (float32.maximum.scale-binary; 1).infinite, (float32.minimum-positive-subnormal.scale-binary; -1) == zero
+  wide-four float64 = 4.0
+  floating-exponent float64 = 2.0
+  print; (three.hypotenuse; wide-four) == 5.0, (one.scale-binary; floating-exponent) == four
+  print; (negative-one.fractional-part;).negative-sign
+  print; (one.clamp; two, one).not-a-number
+  nan-decomposition = (not-a-number.decompose;)
+  infinity-decomposition = (infinity.decompose;)
+  negative-zero-decomposition = (negative-zero.decompose;)
+  print; nan-decomposition.mantissa.not-a-number, nan-decomposition.exponent == 0
+  print; infinity-decomposition.mantissa.infinite, infinity-decomposition.exponent == 0
+  print; negative-zero-decomposition.mantissa.negative-sign, negative-zero-decomposition.exponent == 0
+  negative-infinity float32 = negative-one / zero
+  print; (negative-infinity.next-down;).infinite, (negative-infinity.next-down;).negative-sign
+  large-exponent float32 = 120.0
+  large float32 = (large-exponent.binary-exponential;)
+  print; (large.scale-binary; -250) == (one.scale-binary; -130)
+  descriptor = float32
+  print; descriptor.epsilon == float32.epsilon
 
 function exercise64;
   zero float64 = 0.0
@@ -91,6 +109,24 @@ function exercise64;
   subnormal-decomposition = (float64.minimum-positive-subnormal.decompose;)
   print; (subnormal-decomposition.mantissa.scale-binary; subnormal-decomposition.exponent) == float64.minimum-positive-subnormal
   print; (float64.maximum.scale-binary; 1).infinite, (float64.minimum-positive-subnormal.scale-binary; -1) == zero
+  narrow-four float32 = 4.0
+  floating-exponent float64 = 2.0
+  print; (three.hypotenuse; narrow-four) == 5.0, (one.scale-binary; floating-exponent) == four
+  print; (negative-one.fractional-part;).negative-sign
+  print; (one.clamp; two, one).not-a-number
+  nan-decomposition = (not-a-number.decompose;)
+  infinity-decomposition = (infinity.decompose;)
+  negative-zero-decomposition = (negative-zero.decompose;)
+  print; nan-decomposition.mantissa.not-a-number, nan-decomposition.exponent == 0
+  print; infinity-decomposition.mantissa.infinite, infinity-decomposition.exponent == 0
+  print; negative-zero-decomposition.mantissa.negative-sign, negative-zero-decomposition.exponent == 0
+  negative-infinity float64 = negative-one / zero
+  print; (negative-infinity.next-down;).infinite, (negative-infinity.next-down;).negative-sign
+  large-exponent float64 = 1000.0
+  large float64 = (large-exponent.binary-exponential;)
+  print; (large.scale-binary; -2000) == (one.scale-binary; -1000)
+  descriptor = float64
+  print; descriptor.epsilon == float64.epsilon
 
 function main;
   exercise32;
