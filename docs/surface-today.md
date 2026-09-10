@@ -17,9 +17,10 @@ as references, callables, optionals, and unions retain canonical source-shaped s
 aliases preserve identity, and same-named types from different namespaces remain distinct.
 Built-ins and source declarations share `DescriptorContract`, with immutable built-in templates
 kept separate from per-unit source contracts. Canonical contracts carry identity, kind, category
-conformance, members, stable operation IDs, and reflection data. Member lookup, nominal relations,
-compatibility, dispatch, reflection, and structural protocols query those contracts for both
-built-in and source-declared receivers.
+conformance, complete instance and static member inventories, their callable subsets, stable
+operation IDs, invocation-only constraints, fields, nominal bases, interfaces, traits, and
+reflection data. Member lookup, nominal relations, compatibility, dispatch, reflection, and
+structural protocols query those contracts for both built-in and source-declared receivers.
 Structural source protocols recursively include base, trait, and interface composition. The
 implemented non-iteration example is `truth`: a source class with a synchronous, non-throwing,
 non-mutating, parameterless `truth bool` method may be used directly as an `if` or `while`
@@ -493,11 +494,11 @@ string value
 │   ├── .trim[.start|.end]; pattern? -> string
 │   ├── .contains[.start|.end]; pattern -> bool
 │   ├── .find; pattern -> text-range or none
-│   ├── .find.all; pattern -> list of text-range
+│   ├── .find.all; pattern -> iterable read-only list of text-range
 │   ├── .find.count; pattern -> int
 │   ├── .upper[.first|.words]; / .lower[.first]; / .case-fold; -> string
 │   ├── .normalise.nfc|nfd|nfkc|nfkd; -> string
-│   ├── .split; pattern -> list of string
+│   ├── .split; pattern -> iterable read-only list of string
 │   └── .replace; pattern, replacement -> string
 ├── encoding
 │   └── .encode; encoding -> bytes
@@ -517,7 +518,7 @@ string value
     └── value is a string -> bool
 ```
 
-`.concat` accepts zero or more values, converts each through Terrane's canonical scalar display, and appends them without a separator. `.join` accepts the same values but interleaves the receiver as the separator; an empty call yields the empty string and a singleton call adds no separator. String transformation, search, normalization, and case folding lower through the pinned support runtime. Empty-pattern search, split, and replacement use logical extended-grapheme boundaries: `find.all` includes both ends, `split` returns the graphemes without synthetic empty strings, and `replace` inserts at every boundary. The compiler-owned `list of string` and `list of text-range` results currently expose `.length` only; they are not indexable or iterable until the range/index and general iterator milestones. The current `for` lowering is specifically string-grapheme iteration; there is no general iterable protocol yet.
+`.concat` accepts zero or more values, converts each through Terrane's canonical scalar display, and appends them without a separator. `.join` accepts the same values but interleaves the receiver as the separator; an empty call yields the empty string and a singleton call adds no separator. String transformation, search, normalization, and case folding lower through the pinned support runtime. Empty-pattern search, split, and replacement use logical extended-grapheme boundaries: `find.all` includes both ends, `split` returns the graphemes without synthetic empty strings, and `replace` inserts at every boundary. The compiler-owned read-only lists returned by `split` and `find.all` expose `.length` and support `for` iteration; `split` results additionally support indexing.
 
 ### `none`
 

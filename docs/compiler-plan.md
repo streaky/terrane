@@ -1742,8 +1742,10 @@ semantic and lowering matches remain only after the descriptor has selected an o
 former receiver-family availability tables and switches no longer decide dispatch. Materialized
 built-in descriptors read identity, name, kind, and fields from the selected canonical contract,
 including instantiated collection-family names. `builtin-descriptor-contracts` exercises scalar,
-string, and parameterized collection reflection, while the numeric, text, collection, truth, and
-iterator conformance corpus guards descriptor-driven availability and signature constraints.
+string, and parameterized collection reflection; `string-result-list-iteration` and
+`string-result-list-mutation` prove the iterable, read-only contract of compiler-produced string
+operation results. The numeric, text, collection, truth, and iterator conformance corpus guards
+descriptor-driven availability and signature constraints.
 
 Canonical class and trait field defaults share the same model. Scalar, optional, bytes, and
 collection fields may omit redundant initializers; tuple, plain-`none`, source-object, reference,
