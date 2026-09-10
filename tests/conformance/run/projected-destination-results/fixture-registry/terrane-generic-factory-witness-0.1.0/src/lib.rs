@@ -63,6 +63,10 @@ pub fn sample_value<T: Sample>() -> T {
 pub fn sample_rows<T: Sample>() -> BTreeMap<String, T> {
     BTreeMap::from([("row".to_owned(), T::sample())])
 }
+pub fn sample_numeric_rows<T: Sample>() -> BTreeMap<i64, T> {
+    BTreeMap::from([(1, T::sample())])
+}
+
 
 pub fn renamed_bound_value<T>() -> T
 where

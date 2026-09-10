@@ -424,7 +424,7 @@ mod __terrane_trace {
         "/app::make-number",
         "/app::main",
     ];
-    pub static SITES: [Site; 14] = [
+    pub static SITES: [Site; 15] = [
         {
             /* terrane-site-row: site 0: /app::load (src/main.trn:9:14-9:18) */
             Site {
@@ -547,35 +547,46 @@ mod __terrane_trace {
             }
         },
         {
-            /* terrane-site-row: site 11: /app::main (src/main.trn:30:20-30:40) */
+            /* terrane-site-row: site 11: /app::main (src/main.trn:30:38-30:58) */
             Site {
                 function: 3,
                 file: 0,
                 line: 30,
-                column: 20,
+                column: 38,
                 end_line: 30,
-                end_column: 40,
+                end_column: 58,
             }
         },
         {
-            /* terrane-site-row: site 12: /app::main (src/main.trn:31:12-31:16) */
+            /* terrane-site-row: site 12: /app::main (src/main.trn:31:20-31:40) */
             Site {
                 function: 3,
                 file: 0,
                 line: 31,
-                column: 12,
+                column: 20,
                 end_line: 31,
-                end_column: 16,
+                end_column: 40,
             }
         },
         {
-            /* terrane-site-row: site 13: /app::main (src/main.trn:32:24-32:39) */
+            /* terrane-site-row: site 13: /app::main (src/main.trn:32:12-32:16) */
             Site {
                 function: 3,
                 file: 0,
                 line: 32,
-                column: 24,
+                column: 12,
                 end_line: 32,
+                end_column: 16,
+            }
+        },
+        {
+            /* terrane-site-row: site 14: /app::main (src/main.trn:33:24-33:39) */
+            Site {
+                function: 3,
+                file: 0,
+                line: 33,
+                column: 24,
+                end_line: 33,
                 end_column: 39,
             }
         },
@@ -627,6 +638,25 @@ pub fn renamed_bound_value<T: for<'value> factory::Decode<'value>>() -> Result<
                     payload,
                     "factory",
                     "factory::renamed_bound_value",
+                ),
+            )
+        }
+    }
+}
+pub fn sample_numeric_rows<T: factory::Sample>() -> Result<
+    std::collections::BTreeMap<i64, T>,
+    crate::TerraneForeignError,
+> {
+    match std::panic::catch_unwind(
+        std::panic::AssertUnwindSafe(|| factory::sample_numeric_rows::<T>()),
+    ) {
+        Ok(value) => Ok(value),
+        Err(payload) => {
+            Err(
+                crate::__terrane_dependency_panic(
+                    payload,
+                    "factory",
+                    "factory::sample_numeric_rows",
                 ),
             )
         }

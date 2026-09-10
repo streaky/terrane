@@ -1603,10 +1603,13 @@ fn collect_projected_destinations(
                 node.span,
             )
         })?;
-        let projected_result = substitute_projected_generic(
-            &function.result,
-            &destination_result.parameter,
-            &projected_destination,
+        let projected_result = align_projected_result_representation(
+            &substitute_projected_generic(
+                &function.result,
+                &destination_result.parameter,
+                &projected_destination,
+            ),
+            &expected_projected,
         );
         pending.push(PendingProjectedSpecialization {
             unit: unit_index,
@@ -1857,6 +1860,26 @@ fn destination_projected_type(
     })
 }
 
+fn projected_types_share_concrete_rust_representation(
+    left: &crate::projection::ProjectedType,
+    right: &crate::projection::ProjectedType,
+) -> bool {
+    use crate::projection::ProjectedType;
+
+    fn integer_rust_type(projected: &ProjectedType) -> Option<&str> {
+        match projected {
+            ProjectedType::Int => Some("i64"),
+            ProjectedType::FixedInt(name) | ProjectedType::RustInt(name) => Some(name),
+            _ => None,
+        }
+    }
+
+    left == right
+        || integer_rust_type(left)
+            .zip(integer_rust_type(right))
+            .is_some_and(|(left, right)| left == right)
+}
+
 fn select_projected_generic_destination(
     template: &crate::projection::ProjectedType,
     parameter: &str,
@@ -1905,7 +1928,11 @@ fn select_projected_generic_destination(
                     collect(template, parameter, expected, destinations)
                 })
             }
-            (template, expected) if template == expected => true,
+            (template, expected)
+                if projected_types_share_concrete_rust_representation(template, expected) =>
+            {
+                true
+            }
             _ => false,
         }
     }
@@ -1920,6 +1947,95 @@ fn select_projected_generic_destination(
         Ok(Some(first))
     } else {
         Err(())
+    }
+}
+
+fn align_projected_result_representation(
+    projected: &crate::projection::ProjectedType,
+    expected: &crate::projection::ProjectedType,
+) -> crate::projection::ProjectedType {
+    use crate::projection::ProjectedType;
+
+    match (projected, expected) {
+        (
+            ProjectedType::Sequence { rust_path, item },
+            ProjectedType::Sequence {
+                item: expected_item,
+                ..
+            },
+        ) => {
+            let item = align_projected_result_representation(item, expected_item);
+            ProjectedType::Sequence {
+                rust_path: instantiate_projected_container(rust_path, &[item.rust_type()]),
+                item: Box::new(item),
+            }
+        }
+        (
+            ProjectedType::Mapping {
+                rust_path,
+                key,
+                value,
+                ordered,
+            },
+            ProjectedType::Mapping {
+                key: expected_key,
+                value: expected_value,
+                ..
+            },
+        ) => {
+            let key = align_projected_result_representation(key, expected_key);
+            let value = align_projected_result_representation(value, expected_value);
+            ProjectedType::Mapping {
+                rust_path: instantiate_projected_container(
+                    rust_path,
+                    &[key.rust_type(), value.rust_type()],
+                ),
+                key: Box::new(key),
+                value: Box::new(value),
+                ordered: *ordered,
+            }
+        }
+        (
+            ProjectedType::Set {
+                rust_path,
+                item,
+                ordered,
+            },
+            ProjectedType::Set {
+                item: expected_item,
+                ..
+            },
+        ) => {
+            let item = align_projected_result_representation(item, expected_item);
+            ProjectedType::Set {
+                rust_path: instantiate_projected_container(rust_path, &[item.rust_type()]),
+                item: Box::new(item),
+                ordered: *ordered,
+            }
+        }
+        (ProjectedType::Tuple(items), ProjectedType::Tuple(expected_items))
+            if items.len() == expected_items.len() =>
+        {
+            ProjectedType::Tuple(
+                items
+                    .iter()
+                    .zip(expected_items)
+                    .map(|(item, expected)| align_projected_result_representation(item, expected))
+                    .collect(),
+            )
+        }
+        (ProjectedType::Optional(inner), ProjectedType::Optional(expected_inner)) => {
+            ProjectedType::Optional(Box::new(align_projected_result_representation(
+                inner,
+                expected_inner,
+            )))
+        }
+        (projected, expected)
+            if projected_types_share_concrete_rust_representation(projected, expected) =>
+        {
+            expected.clone()
+        }
+        (projected, _) => projected.clone(),
     }
 }
 

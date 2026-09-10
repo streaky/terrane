@@ -2270,10 +2270,9 @@ fn rewrite_rust_bound_root(bound: &str, package_root: &str, dependency_root: &st
     while let Some(relative_start) = bound[cursor..].find(package_root) {
         let start = cursor + relative_start;
         let end = start + package_root.len();
-        let boundary_before = bound[..start]
-            .chars()
-            .next_back()
-            .is_none_or(|character| !(character.is_alphanumeric() || character == '_'));
+        let boundary_before = bound[..start].chars().next_back().is_none_or(|character| {
+            !(character.is_alphanumeric() || matches!(character, '_' | ':'))
+        });
         let path_root = bound[end..].starts_with("::") || (start == 0 && end == bound.len());
         rendered.push_str(&bound[cursor..start]);
         if boundary_before && path_root {
@@ -4553,8 +4552,9 @@ mod tests {
         Projection, ProjectionArtifact, ProjectionHistory, ProjectionResolution, ProjectionSource,
         Receiver, ResolutionOutcome, apply_projection_history, enforce_transitive_reachability,
         has_type_parameters, parse_rustdoc, prefer_public_path, project_type,
-        projection_content_hash, prune_projection_cache, receiver_kind, resolve, selected_target,
-        validate_projection_artifact, validate_unique_projected_type_identities,
+        projection_content_hash, prune_projection_cache, receiver_kind, resolve,
+        rewrite_rust_bound_root, selected_target, validate_projection_artifact,
+        validate_unique_projected_type_identities,
     };
     use crate::RustDependency;
 
@@ -4573,6 +4573,18 @@ mod tests {
             "wasm32-unknown-unknown"
         );
         fs::remove_dir_all(directory).unwrap();
+    }
+
+    #[test]
+    fn bound_alias_rewrite_only_changes_path_roots() {
+        assert_eq!(
+            rewrite_rust_bound_root(
+                "for<'value> factory::Decode<'value> + outer::factory::Marker",
+                "factory",
+                "renamed",
+            ),
+            "for<'value> renamed::Decode<'value> + outer::factory::Marker"
+        );
     }
 
     #[test]

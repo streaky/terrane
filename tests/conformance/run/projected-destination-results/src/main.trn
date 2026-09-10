@@ -1,5 +1,5 @@
 namespace app
-from /deps/factory import default_value, renamed_bound_value, sample_rows, sample_value
+from /deps/factory import default_value, renamed_bound_value, sample_numeric_rows, sample_rows, sample_value
 from /deps/terrane-generic-row-witness import row
 from /core/output import print
 
@@ -27,6 +27,7 @@ function main;
   names map of string, int64 = sample_value;
   tags set of string = sample_value;
   rows map of string, int64 = sample_rows;
+  numeric-rows map of int64, int64 = sample_numeric_rows;
   renamed string = renamed_bound_value;
   source = row;
   accept-by-argument; (source.decoded;)
@@ -35,4 +36,4 @@ function main;
   item = instance record;
   item.load;
   print; item.value
-  print; number, optional != none, data.length, values.length, names.length, tags.length, rows.length, renamed
+  print; number, optional != none, data.length, values.length, names.length, tags.length, rows.length, numeric-rows.length, renamed
