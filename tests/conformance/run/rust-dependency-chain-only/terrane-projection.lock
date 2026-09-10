@@ -1,10 +1,11 @@
 {
-  "format": 2,
   "dependencies": [
     {
-      "name": "sqlx-core",
-      "version": "0.8.6",
       "members": [
+        [
+          "/deps/sqlx-core",
+          "Error"
+        ],
         [
           "/deps/sqlx-core/connection",
           "LogSettings"
@@ -20,10 +21,6 @@
         [
           "/deps/sqlx-core/encode/isnull",
           "Yes"
-        ],
-        [
-          "/deps/sqlx-core/error",
-          "Error"
         ],
         [
           "/deps/sqlx-core/error",
@@ -67,6 +64,10 @@
         ],
         [
           "/deps/sqlx-core/fs",
+          "ReadDir.next"
+        ],
+        [
+          "/deps/sqlx-core/fs",
           "read_dir"
         ],
         [
@@ -74,48 +75,76 @@
           "parse_query_summary"
         ],
         [
-          "/deps/sqlx-core/migrate/error",
-          "MigrateError"
-        ],
-        [
-          "/deps/sqlx-core/migrate/migration",
+          "/deps/sqlx-core/migrate",
           "AppliedMigration"
         ],
         [
-          "/deps/sqlx-core/migrate/migration",
+          "/deps/sqlx-core/migrate",
+          "MigrateError"
+        ],
+        [
+          "/deps/sqlx-core/migrate",
           "Migration"
         ],
         [
-          "/deps/sqlx-core/migrate/migration-type",
+          "/deps/sqlx-core/migrate",
           "MigrationType"
         ],
         [
-          "/deps/sqlx-core/migrate/migration-type/migrationtype",
+          "/deps/sqlx-core/migrate",
+          "Migrator"
+        ],
+        [
+          "/deps/sqlx-core/migrate",
+          "Migrator.iter"
+        ],
+        [
+          "/deps/sqlx-core/migrate",
+          "Migrator.version_exists"
+        ],
+        [
+          "/deps/sqlx-core/migrate/migrationtype",
           "ReversibleDown"
         ],
         [
-          "/deps/sqlx-core/migrate/migration-type/migrationtype",
+          "/deps/sqlx-core/migrate/migrationtype",
           "ReversibleUp"
         ],
         [
-          "/deps/sqlx-core/migrate/migration-type/migrationtype",
+          "/deps/sqlx-core/migrate/migrationtype",
           "Simple"
-        ],
-        [
-          "/deps/sqlx-core/migrate/migrator",
-          "Migrator"
         ],
         [
           "/deps/sqlx-core/migrate/source",
           "ResolveError"
         ],
         [
-          "/deps/sqlx-core/net/socket",
+          "/deps/sqlx-core/net",
           "SocketIntoBox"
         ],
         [
-          "/deps/sqlx-core/net/socket/buffered",
+          "/deps/sqlx-core/net",
           "WriteBuffer"
+        ],
+        [
+          "/deps/sqlx-core/net",
+          "WriteBuffer.advance"
+        ],
+        [
+          "/deps/sqlx-core/net",
+          "WriteBuffer.buf_mut"
+        ],
+        [
+          "/deps/sqlx-core/net",
+          "WriteBuffer.is_empty"
+        ],
+        [
+          "/deps/sqlx-core/net",
+          "WriteBuffer.is_full"
+        ],
+        [
+          "/deps/sqlx-core/net",
+          "WriteBuffer.shrink"
         ],
         [
           "/deps/sqlx-core/net/tls",
@@ -134,7 +163,7 @@
           "CloseEvent"
         ],
         [
-          "/deps/sqlx-core/pool/options",
+          "/deps/sqlx-core/pool",
           "PoolConnectionMetadata"
         ],
         [
@@ -162,8 +191,28 @@
           "AsyncSemaphore"
         ],
         [
+          "/deps/sqlx-core/sync",
+          "AsyncSemaphore.acquire"
+        ],
+        [
+          "/deps/sqlx-core/sync",
+          "AsyncSemaphore.permits"
+        ],
+        [
+          "/deps/sqlx-core/sync",
+          "AsyncSemaphore.release"
+        ],
+        [
+          "/deps/sqlx-core/sync",
+          "AsyncSemaphore.try_acquire"
+        ],
+        [
           "/deps/sqlx-core/testing",
           "TestArgs"
+        ],
+        [
+          "/deps/sqlx-core/testing",
+          "TestArgs.migrator"
         ],
         [
           "/deps/sqlx-core/testing",
@@ -197,11 +246,11 @@
           "/deps/sqlx-core/type-checking/paramchecking",
           "Weak"
         ]
-      ]
+      ],
+      "name": "sqlx-core",
+      "version": "0.8.6"
     },
     {
-      "name": "terrane-chain-witness",
-      "version": "0.1.0",
       "members": [
         [
           "/deps/terrane-chain-witness",
@@ -213,7 +262,31 @@
         ],
         [
           "/deps/terrane-chain-witness",
+          "LineBuilder-4238ef823949cfa637c551f98e17d5a5f719d9922de4352bd033e0d10027d69f.finish"
+        ],
+        [
+          "/deps/terrane-chain-witness",
+          "LineBuilder-4238ef823949cfa637c551f98e17d5a5f719d9922de4352bd033e0d10027d69f.number"
+        ],
+        [
+          "/deps/terrane-chain-witness",
+          "LineBuilder-4238ef823949cfa637c551f98e17d5a5f719d9922de4352bd033e0d10027d69f.pause"
+        ],
+        [
+          "/deps/terrane-chain-witness",
           "ScalarQuery-b49daed6afc0d0674747dcee4bcef8e0297fff3ff34e4dfa1a1fda2cb9c3bdad"
+        ],
+        [
+          "/deps/terrane-chain-witness",
+          "ScalarQuery-b49daed6afc0d0674747dcee4bcef8e0297fff3ff34e4dfa1a1fda2cb9c3bdad.bind"
+        ],
+        [
+          "/deps/terrane-chain-witness",
+          "ScalarQuery-b49daed6afc0d0674747dcee4bcef8e0297fff3ff34e4dfa1a1fda2cb9c3bdad.fetch_one"
+        ],
+        [
+          "/deps/terrane-chain-witness",
+          "ScalarQuery-b49daed6afc0d0674747dcee4bcef8e0297fff3ff34e4dfa1a1fda2cb9c3bdad.pause"
         ],
         [
           "/deps/terrane-chain-witness",
@@ -227,33 +300,34 @@
           "/deps/terrane-chain-witness",
           "query_scalar"
         ]
-      ]
+      ],
+      "name": "terrane-chain-witness",
+      "version": "0.1.0"
     }
   ],
+  "format": 2,
+  "projection_schema": "24",
   "removed": [],
-  "cache_identity": "0a2b55dd1768ef8ca4cc26cf01622e8fbd0f60f9f6ba9356a02364114c00bcc4",
-  "source": "Local",
-  "rustdoc_format": 57,
-  "projection_schema": "20",
-  "content_hash": "638c1de124782a13cdc20788d28960e001badc3ede756abf5d8ec139d011b2f6",
   "resolution": {
-    "outcome": "LocalRustdoc",
     "events": [
       {
+        "reason": "bundled projection distribution is deliberately deferred until Terrane has a release artifact channel",
         "source": "BundledArtifact",
-        "status": "Skipped",
-        "reason": "bundled projection distribution is deliberately deferred until Terrane has a release artifact channel"
+        "status": "Skipped"
       },
       {
+        "reason": "`TERRANE_PROJECTION_ARTIFACT_URL` is not configured",
         "source": "PublishedArtifact",
-        "status": "Skipped",
-        "reason": "`TERRANE_PROJECTION_ARTIFACT_URL` is not configured"
+        "status": "Skipped"
       },
       {
+        "reason": "no reusable exact artifact was available; generated with the pinned local rustdoc toolchain",
         "source": "LocalRustdoc",
-        "status": "Generated",
-        "reason": "no reusable exact artifact was available; generated with the pinned local rustdoc toolchain"
+        "status": "Generated"
       }
-    ]
-  }
+    ],
+    "outcome": "LocalRustdoc"
+  },
+  "rustdoc_format": 57,
+  "source": "Local"
 }

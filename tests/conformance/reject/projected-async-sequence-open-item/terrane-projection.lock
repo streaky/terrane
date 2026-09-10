@@ -1,9 +1,6 @@
 {
-  "format": 2,
   "dependencies": [
     {
-      "name": "terrane-sequence-witness",
-      "version": "0.1.0",
       "members": [
         [
           "/deps/terrane-sequence-witness",
@@ -11,7 +8,19 @@
         ],
         [
           "/deps/terrane-sequence-witness",
+          "BorrowedSequence.close"
+        ],
+        [
+          "/deps/terrane-sequence-witness",
           "QueueSequence"
+        ],
+        [
+          "/deps/terrane-sequence-witness",
+          "QueueSequence.close"
+        ],
+        [
+          "/deps/terrane-sequence-witness",
+          "QueueSequence.next"
         ],
         [
           "/deps/terrane-sequence-witness",
@@ -19,7 +28,27 @@
         ],
         [
           "/deps/terrane-sequence-witness",
+          "TcpSequence"
+        ],
+        [
+          "/deps/terrane-sequence-witness",
+          "TcpSequence.close"
+        ],
+        [
+          "/deps/terrane-sequence-witness",
+          "TcpSequence.next"
+        ],
+        [
+          "/deps/terrane-sequence-witness",
           "TokioSequence"
+        ],
+        [
+          "/deps/terrane-sequence-witness",
+          "TokioSequence.close"
+        ],
+        [
+          "/deps/terrane-sequence-witness",
+          "TokioSequence.next"
         ],
         [
           "/deps/terrane-sequence-witness",
@@ -27,7 +56,15 @@
         ],
         [
           "/deps/terrane-sequence-witness",
+          "make_failing_queue_sequence"
+        ],
+        [
+          "/deps/terrane-sequence-witness",
           "make_failing_tokio_sequence"
+        ],
+        [
+          "/deps/terrane-sequence-witness",
+          "make_pending_queue_sequence"
         ],
         [
           "/deps/terrane-sequence-witness",
@@ -39,35 +76,40 @@
         ],
         [
           "/deps/terrane-sequence-witness",
+          "make_tcp_sequence"
+        ],
+        [
+          "/deps/terrane-sequence-witness",
           "make_tokio_sequence"
         ]
-      ]
+      ],
+      "name": "terrane-sequence-witness",
+      "version": "0.1.0"
     }
   ],
+  "format": 2,
+  "projection_schema": "24",
   "removed": [],
-  "cache_identity": "c123fa3803c017b2653eec564f151392eeb90994a6a5c3987fab56cdec0455d1",
-  "source": "Local",
-  "rustdoc_format": 57,
-  "projection_schema": "17",
-  "content_hash": "18255a965ce4e69596db0194224521591da3f96a7804b4b8a972b3a6033bca8b",
   "resolution": {
-    "outcome": "LocalRustdoc",
     "events": [
       {
+        "reason": "bundled projection distribution is deliberately deferred until Terrane has a release artifact channel",
         "source": "BundledArtifact",
-        "status": "Skipped",
-        "reason": "bundled projection distribution is deliberately deferred until Terrane has a release artifact channel"
+        "status": "Skipped"
       },
       {
+        "reason": "`TERRANE_PROJECTION_ARTIFACT_URL` is not configured",
         "source": "PublishedArtifact",
-        "status": "Skipped",
-        "reason": "`TERRANE_PROJECTION_ARTIFACT_URL` is not configured"
+        "status": "Skipped"
       },
       {
+        "reason": "no reusable exact artifact was available; generated with the pinned local rustdoc toolchain",
         "source": "LocalRustdoc",
-        "status": "Generated",
-        "reason": "no reusable exact artifact was available; generated with the pinned local rustdoc toolchain"
+        "status": "Generated"
       }
-    ]
-  }
+    ],
+    "outcome": "LocalRustdoc"
+  },
+  "rustdoc_format": 57,
+  "source": "Local"
 }

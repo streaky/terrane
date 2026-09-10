@@ -1,9 +1,6 @@
 {
-  "format": 2,
   "dependencies": [
     {
-      "name": "terrane-sink-witness",
-      "version": "0.1.0",
       "members": [
         [
           "/deps/terrane-sink-witness",
@@ -11,7 +8,19 @@
         ],
         [
           "/deps/terrane-sink-witness",
+          "Duplex.split"
+        ],
+        [
+          "/deps/terrane-sink-witness",
           "Incoming"
+        ],
+        [
+          "/deps/terrane-sink-witness",
+          "Incoming.close"
+        ],
+        [
+          "/deps/terrane-sink-witness",
+          "Incoming.next"
         ],
         [
           "/deps/terrane-sink-witness",
@@ -19,7 +28,31 @@
         ],
         [
           "/deps/terrane-sink-witness",
+          "Outgoing.close"
+        ],
+        [
+          "/deps/terrane-sink-witness",
+          "Outgoing.flush"
+        ],
+        [
+          "/deps/terrane-sink-witness",
+          "Outgoing.send"
+        ],
+        [
+          "/deps/terrane-sink-witness",
           "QueueSink"
+        ],
+        [
+          "/deps/terrane-sink-witness",
+          "QueueSink.close"
+        ],
+        [
+          "/deps/terrane-sink-witness",
+          "QueueSink.flush"
+        ],
+        [
+          "/deps/terrane-sink-witness",
+          "QueueSink.send"
         ],
         [
           "/deps/terrane-sink-witness",
@@ -28,6 +61,14 @@
         [
           "/deps/terrane-sink-witness",
           "SplitEndpoints"
+        ],
+        [
+          "/deps/terrane-sink-witness",
+          "SplitEndpoints.take_incoming"
+        ],
+        [
+          "/deps/terrane-sink-witness",
+          "SplitEndpoints.take_outgoing"
         ],
         [
           "/deps/terrane-sink-witness",
@@ -49,33 +90,34 @@
           "/deps/terrane-sink-witness",
           "remotely_closed_sink"
         ]
-      ]
+      ],
+      "name": "terrane-sink-witness",
+      "version": "0.1.0"
     }
   ],
+  "format": 2,
+  "projection_schema": "24",
   "removed": [],
-  "cache_identity": "81c5b79078d1f1ec4c9a2a16cefb3c2b9f55033e159cee3a197b2272cdf4836f",
-  "source": "Local",
-  "rustdoc_format": 57,
-  "projection_schema": "19",
-  "content_hash": "c9f5d656293429ce17875a18f2c836059cd9248c1d701c871e6eca7445060577",
   "resolution": {
-    "outcome": "LocalRustdoc",
     "events": [
       {
+        "reason": "bundled projection distribution is deliberately deferred until Terrane has a release artifact channel",
         "source": "BundledArtifact",
-        "status": "Skipped",
-        "reason": "bundled projection distribution is deliberately deferred until Terrane has a release artifact channel"
+        "status": "Skipped"
       },
       {
+        "reason": "`TERRANE_PROJECTION_ARTIFACT_URL` is not configured",
         "source": "PublishedArtifact",
-        "status": "Skipped",
-        "reason": "`TERRANE_PROJECTION_ARTIFACT_URL` is not configured"
+        "status": "Skipped"
       },
       {
+        "reason": "no reusable exact artifact was available; generated with the pinned local rustdoc toolchain",
         "source": "LocalRustdoc",
-        "status": "Generated",
-        "reason": "no reusable exact artifact was available; generated with the pinned local rustdoc toolchain"
+        "status": "Generated"
       }
-    ]
-  }
+    ],
+    "outcome": "LocalRustdoc"
+  },
+  "rustdoc_format": 57,
+  "source": "Local"
 }

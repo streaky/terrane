@@ -1,9 +1,6 @@
 {
-  "format": 2,
   "dependencies": [
     {
-      "name": "httpdate",
-      "version": "1.0.3",
       "members": [
         [
           "/deps/httpdate",
@@ -21,40 +18,41 @@
           "/deps/httpdate",
           "parse_http_date"
         ]
-      ]
+      ],
+      "name": "httpdate",
+      "version": "1.0.3"
     }
   ],
+  "format": 2,
+  "projection_schema": "24",
   "removed": [
     {
-      "namespace": "/deps/httpdate",
+      "current_version": "1.0.3",
       "name": "SystemTime.legacy_elapsed",
-      "previous_version": "1.0.2",
-      "current_version": "1.0.3"
+      "namespace": "/deps/httpdate",
+      "previous_version": "1.0.2"
     }
   ],
-  "cache_identity": "3a4cd3221b61a6ce47b28916275ac9c94654365cbd43298f5b897a92e009ad4c",
-  "source": "Local",
-  "rustdoc_format": 57,
-  "projection_schema": "24",
-  "content_hash": "8b55eb3f3cfaa20105e9545244cbd0c8af5a1280d83df78efef82b9da32a303b",
   "resolution": {
-    "outcome": "LocalRustdoc",
     "events": [
       {
+        "reason": "bundled projection distribution is deliberately deferred until Terrane has a release artifact channel",
         "source": "BundledArtifact",
-        "status": "Skipped",
-        "reason": "bundled projection distribution is deliberately deferred until Terrane has a release artifact channel"
+        "status": "Skipped"
       },
       {
+        "reason": "`TERRANE_PROJECTION_ARTIFACT_URL` is not configured",
         "source": "PublishedArtifact",
-        "status": "Skipped",
-        "reason": "`TERRANE_PROJECTION_ARTIFACT_URL` is not configured"
+        "status": "Skipped"
       },
       {
+        "reason": "no reusable exact artifact was available; generated with the pinned local rustdoc toolchain",
         "source": "LocalRustdoc",
-        "status": "Generated",
-        "reason": "no reusable exact artifact was available; generated with the pinned local rustdoc toolchain"
+        "status": "Generated"
       }
-    ]
-  }
+    ],
+    "outcome": "LocalRustdoc"
+  },
+  "rustdoc_format": 57,
+  "source": "Local"
 }

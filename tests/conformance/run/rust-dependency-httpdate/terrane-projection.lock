@@ -1,13 +1,14 @@
 {
-  "format": 1,
   "dependencies": [
     {
-      "name": "date-codec",
-      "version": "1.0.3",
       "members": [
         [
           "/deps/date-codec",
           "Error"
+        ],
+        [
+          "/deps/date-codec",
+          "HttpDate"
         ],
         [
           "/deps/date-codec",
@@ -16,13 +17,35 @@
         [
           "/deps/date-codec",
           "parse_http_date"
-        ],
-        [
-          "/deps/date-codec/date",
-          "HttpDate"
         ]
-      ]
+      ],
+      "name": "date-codec",
+      "version": "1.0.3"
     }
   ],
-  "removed": []
+  "format": 2,
+  "projection_schema": "24",
+  "removed": [],
+  "resolution": {
+    "events": [
+      {
+        "reason": "bundled projection distribution is deliberately deferred until Terrane has a release artifact channel",
+        "source": "BundledArtifact",
+        "status": "Skipped"
+      },
+      {
+        "reason": "`TERRANE_PROJECTION_ARTIFACT_URL` is not configured",
+        "source": "PublishedArtifact",
+        "status": "Skipped"
+      },
+      {
+        "reason": "no reusable exact artifact was available; generated with the pinned local rustdoc toolchain",
+        "source": "LocalRustdoc",
+        "status": "Generated"
+      }
+    ],
+    "outcome": "LocalRustdoc"
+  },
+  "rustdoc_format": 57,
+  "source": "Local"
 }
