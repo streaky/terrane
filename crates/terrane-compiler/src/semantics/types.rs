@@ -976,6 +976,53 @@ pub(super) fn validate_value_destination(
     ))
 }
 
+fn callable_types_compatible(
+    objects: &[DescriptorContract],
+    expected_parameters: &[ElementType],
+    expected_result: &ElementType,
+    expected_effects: &CallableEffects,
+    actual_parameters: &[ElementType],
+    actual_result: &ElementType,
+    actual_effects: &CallableEffects,
+) -> bool {
+    expected_parameters == actual_parameters
+        && expected_result == actual_result
+        && callable_effects_compatible(objects, expected_effects, actual_effects)
+}
+
+fn object_types_compatible(
+    objects: &[DescriptorContract],
+    expected: &ObjectIdentity,
+    actual: &ObjectIdentity,
+) -> bool {
+    if expected == actual
+        || (expected == &ObjectIdentity::new("/core/errors", "throwable")
+            && actual.namespace == "/core/errors")
+    {
+        return true;
+    }
+    objects
+        .iter()
+        .find(|object| object.identity == *actual)
+        .is_some_and(|object| {
+            if object.interfaces.contains(expected) {
+                return true;
+            }
+            let mut base = object.base.as_ref();
+            while let Some(identity) = base {
+                let Some(base_object) = objects.iter().find(|object| object.identity == *identity)
+                else {
+                    break;
+                };
+                if base_object.identity == *expected || base_object.interfaces.contains(expected) {
+                    return true;
+                }
+                base = base_object.base.as_ref();
+            }
+            false
+        })
+}
+
 pub(super) fn value_types_compatible(
     objects: &[DescriptorContract],
     expected: &ValueType,
@@ -1036,11 +1083,15 @@ pub(super) fn value_types_compatible(
         (
             ValueType::Function(expected_parameters, expected_result, expected_effects),
             ValueType::Function(actual_parameters, actual_result, actual_effects),
-        ) => {
-            expected_parameters == actual_parameters
-                && expected_result == actual_result
-                && callable_effects_compatible(objects, expected_effects, actual_effects)
-        }
+        ) => callable_types_compatible(
+            objects,
+            expected_parameters,
+            expected_result,
+            expected_effects,
+            actual_parameters,
+            actual_result,
+            actual_effects,
+        ),
         (
             ValueType::AsyncFunction(
                 expected_parameters,
@@ -1055,38 +1106,19 @@ pub(super) fn value_types_compatible(
                 actual_effects,
             ),
         ) => {
-            expected_parameters == actual_parameters
-                && expected_result == actual_result
-                && expected_transferability == actual_transferability
-                && callable_effects_compatible(objects, expected_effects, actual_effects)
+            expected_transferability == actual_transferability
+                && callable_types_compatible(
+                    objects,
+                    expected_parameters,
+                    expected_result,
+                    expected_effects,
+                    actual_parameters,
+                    actual_result,
+                    actual_effects,
+                )
         }
         (ValueType::Object(expected), ValueType::Object(actual)) => {
-            expected == actual
-                || (expected == &ObjectIdentity::new("/core/errors", "throwable")
-                    && actual.namespace == "/core/errors")
-                || objects
-                    .iter()
-                    .find(|object| object.identity == *actual)
-                    .is_some_and(|object| {
-                        if object.interfaces.contains(expected) {
-                            return true;
-                        }
-                        let mut base = object.base.as_ref();
-                        while let Some(identity) = base {
-                            let Some(base_object) =
-                                objects.iter().find(|object| object.identity == *identity)
-                            else {
-                                break;
-                            };
-                            if base_object.identity == *expected
-                                || base_object.interfaces.contains(expected)
-                            {
-                                return true;
-                            }
-                            base = base_object.base.as_ref();
-                        }
-                        false
-                    })
+            object_types_compatible(objects, expected, actual)
         }
         _ => expected == actual,
     }

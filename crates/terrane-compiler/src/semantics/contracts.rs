@@ -955,8 +955,9 @@ pub(super) fn infer_throwing_effects(package: &mut SemanticPackage) -> Result<()
                     .unwrap_or_else(|| contract.escaping_throwables.clone());
             }
             match infer_value_type(unit, callable, &unit.typed_bindings) {
-                Ok(Some(ValueType::Function(_, _, effects)))
-                | Ok(Some(ValueType::AsyncFunction(_, _, _, effects))) => effects.escaping,
+                Ok(Some(
+                    ValueType::Function(_, _, effects) | ValueType::AsyncFunction(_, _, _, effects),
+                )) => effects.escaping,
                 _ => BTreeSet::new(),
             }
         }

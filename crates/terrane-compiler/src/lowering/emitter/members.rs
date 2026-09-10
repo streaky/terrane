@@ -433,10 +433,11 @@ impl Emitter<'_> {
             self.text(member),
             "contracts" | "throwable-contract" | "escaping-throwables"
         ) {
-            let effects = match receiver_type.as_ref() {
-                Some(ValueType::Function(_, _, effects))
-                | Some(ValueType::AsyncFunction(_, _, _, effects)) => effects,
-                _ => unreachable!("callable reflection requires callable effects"),
+            let Some(
+                ValueType::Function(_, _, effects) | ValueType::AsyncFunction(_, _, _, effects),
+            ) = receiver_type.as_ref()
+            else {
+                unreachable!("callable reflection requires callable effects");
             };
             let reflected = match self.text(member) {
                 "escaping-throwables" => effects
