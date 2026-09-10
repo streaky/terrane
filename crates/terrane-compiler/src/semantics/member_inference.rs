@@ -566,6 +566,9 @@ pub(super) fn infer_member_value_type(
         }
         _ => {}
     }
+    if super::numeric::coercion_family_receiver(unit, node) {
+        return Ok(None);
+    }
     if let Some(contract) = float_member_contract(member_name) {
         if let Some(ValueType::Scalar(receiver)) = receiver_type.clone()
             && descriptor_has_member(unit, &ValueType::Scalar(receiver), member_name)

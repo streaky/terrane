@@ -826,6 +826,9 @@ pub(super) fn infer_value_type(
         if let Some(value_type) = infer_string_call_type(unit, node, bindings)? {
             return Ok(Some(value_type));
         }
+        if let Some(value_type) = infer_numeric_coercion_type(unit, node, bindings)? {
+            return Ok(Some(value_type));
+        }
         if let Some(value_type) = infer_float_call_type(unit, node, bindings)? {
             return Ok(Some(value_type));
         }
@@ -833,9 +836,6 @@ pub(super) fn infer_value_type(
             return Ok(Some(value_type));
         }
         if let Some(value_type) = infer_parse_or_radix_type(unit, node, bindings)? {
-            return Ok(Some(value_type));
-        }
-        if let Some(value_type) = infer_numeric_coercion_type(unit, node, bindings)? {
             return Ok(Some(value_type));
         }
         if let Some(callee) = node.children.first()
