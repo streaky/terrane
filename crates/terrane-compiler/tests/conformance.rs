@@ -26,16 +26,16 @@ impl ConformanceBuild {
         Self { root, target }
     }
 
-    fn write_manifest(&self, binary_name: &str, dependencies: &[terrane_compiler::RustDependency]) {
+    fn write_manifest(
+        &self,
+        binary_names: &[&str],
+        dependencies: &[terrane_compiler::RustDependency],
+    ) {
         let mut manifest = r#"[package]
 name = "terrane_conformance_harness"
 version = "0.0.0"
 edition = "2024"
 autobins = false
-
-[[bin]]
-name = "{binary_name}"
-path = "src/{binary_name}.rs"
 
 [dependencies]
 terrane-int-support = { path = "support/terrane-int-support" }
@@ -47,7 +47,7 @@ terrane-stream-abi = { path = "support/terrane-stream-abi" }
 terrane-platform-support = { path = "support/terrane-platform-support" }
 tokio = { version = "=1.53.0", features = ["rt", "rt-multi-thread", "time"] }
 "#
-        .replace("{binary_name}", binary_name);
+        .to_owned();
         for dependency in dependencies
             .iter()
             .filter(|dependency| dependency.cargo_manifest_table() == "dependencies")
@@ -68,6 +68,13 @@ tokio = { version = "=1.53.0", features = ["rt", "rt-multi-thread", "time"] }
                 manifest.push_str(&dependency.cargo_dependency_spec());
             }
         }
+        for binary_name in binary_names {
+            write!(
+                manifest,
+                "\n[[bin]]\nname = \"{binary_name}\"\npath = \"src/{binary_name}.rs\"\n"
+            )
+            .unwrap();
+        }
         manifest.push_str("\n[workspace]\n");
         fs::write(self.root.join("Cargo.toml"), manifest).unwrap();
     }
@@ -82,7 +89,8 @@ impl Drop for ConformanceBuild {
 struct CaseTiming {
     output: Option<PathBuf>,
     name: String,
-    started: std::time::Instant,
+    elapsed: std::time::Duration,
+    started: Option<std::time::Instant>,
     passed: bool,
 }
 
@@ -95,18 +103,35 @@ impl CaseTiming {
                 .unwrap_or(case)
                 .to_string_lossy()
                 .replace('\\', "/"),
-            started: std::time::Instant::now(),
+            elapsed: std::time::Duration::ZERO,
+            started: Some(std::time::Instant::now()),
             passed: false,
         }
     }
 
+    fn pause(&mut self) {
+        if let Some(started) = self.started.take() {
+            self.elapsed += started.elapsed();
+        }
+    }
+
+    fn resume(&mut self) {
+        assert!(self.started.replace(std::time::Instant::now()).is_none());
+    }
+
+    fn add_elapsed(&mut self, elapsed: std::time::Duration) {
+        self.elapsed += elapsed;
+    }
+
     fn pass(&mut self) {
+        self.pause();
         self.passed = true;
     }
 }
 
 impl Drop for CaseTiming {
     fn drop(&mut self) {
+        self.pause();
         let Some(output) = &self.output else {
             return;
         };
@@ -122,9 +147,17 @@ impl Drop for CaseTiming {
             output,
             "terrane-test-timing-v1\tconformance\t{}\t{status}\t{:.6}",
             self.name,
-            self.started.elapsed().as_secs_f64()
+            self.elapsed.as_secs_f64()
         );
     }
+}
+
+struct DeferredGeneratedCase {
+    binary_name: String,
+    case: PathBuf,
+    phase: String,
+    manifest: String,
+    timing: CaseTiming,
 }
 
 fn copy_package_fixture(source: &Path, destination: &Path) {
@@ -215,6 +248,7 @@ fn assert_expected_warnings(
 fn every_manifest_drives_a_conformance_case() {
     let manifests = manifests_below(&corpus());
     let build = ConformanceBuild::new();
+    let mut deferred_generated_cases = Vec::new();
     assert!(!manifests.is_empty());
     for (case_index, manifest_path) in manifests.into_iter().enumerate() {
         let binary_name = format!("terrane_conformance_case_{case_index}");
@@ -256,6 +290,26 @@ fn every_manifest_drives_a_conformance_case() {
                 } else {
                     assert_eq!(normalized, expected, "{}", case.display());
                 }
+                // Cargo can schedule independent generated binaries in parallel. Dependency-bearing
+                // cases retain isolated manifests because their dependency graphs may conflict.
+                if dependencies.is_empty() && field(&manifest, "dependency-panic-test").is_none() {
+                    stage_generated_binary(
+                        &binary_name,
+                        case,
+                        &manifest,
+                        &compilation.rust,
+                        &build,
+                    );
+                    timing.pause();
+                    deferred_generated_cases.push(DeferredGeneratedCase {
+                        binary_name,
+                        case: case.to_owned(),
+                        phase: phase.to_owned(),
+                        manifest,
+                        timing,
+                    });
+                    continue;
+                }
                 compile_and_maybe_run(
                     &binary_name,
                     case,
@@ -294,6 +348,95 @@ fn every_manifest_drives_a_conformance_case() {
         }
         timing.pass();
     }
+    compile_and_run_deferred_cases(&mut deferred_generated_cases, &build);
+}
+
+fn stage_generated_binary(
+    binary_name: &str,
+    case: &Path,
+    manifest: &str,
+    rust: &str,
+    build: &ConformanceBuild,
+) {
+    let fixture_registry = case.join("fixture-registry");
+    if fixture_registry.is_dir() {
+        copy_package_fixture(&fixture_registry, &build.root.join("fixture-registry"));
+        copy_package_fixture(&case.join(".cargo"), &build.root.join(".cargo"));
+    }
+    let rust = if let Some(test_path) = field(manifest, "dependency-panic-test") {
+        format!(
+            "{rust}\n{}",
+            fs::read_to_string(case.join(test_path)).unwrap_or_else(|error| panic!(
+                "cannot read {}: {error}",
+                case.join(test_path).display()
+            ))
+        )
+    } else {
+        rust.to_owned()
+    };
+    fs::write(build.root.join(format!("src/{binary_name}.rs")), rust).unwrap();
+}
+
+fn build_generated_binaries(
+    binary_names: &[&str],
+    dependencies: &[terrane_compiler::RustDependency],
+    build: &ConformanceBuild,
+) -> std::process::Output {
+    build.write_manifest(binary_names, dependencies);
+    Command::new("cargo")
+        .arg(format!("+{}", terrane_compiler::BUILD_TOOLCHAIN))
+        .args(["build", "--quiet", "--bins", "--manifest-path"])
+        .arg(build.root.join("Cargo.toml"))
+        .env("CARGO_TARGET_DIR", &build.target)
+        .env("RUSTFLAGS", "-Dwarnings")
+        .current_dir(&build.root)
+        .output()
+        .unwrap()
+}
+
+fn binary_path(binary_name: &str, build: &ConformanceBuild) -> PathBuf {
+    let mut path = build.target.join("debug").join(binary_name);
+    path.set_extension(std::env::consts::EXE_EXTENSION);
+    path
+}
+
+fn compile_and_run_deferred_cases(cases: &mut [DeferredGeneratedCase], build: &ConformanceBuild) {
+    if cases.is_empty() {
+        return;
+    }
+    let binary_names = cases
+        .iter()
+        .map(|case| case.binary_name.as_str())
+        .collect::<Vec<_>>();
+    let started = std::time::Instant::now();
+    let output = build_generated_binaries(&binary_names, &[], build);
+    let build_elapsed = started.elapsed();
+    assert!(
+        output.status.success(),
+        "batched generated Rust failed to compile:\n{}\n\nbinary-to-case mapping:\n{}",
+        String::from_utf8_lossy(&output.stderr),
+        cases
+            .iter()
+            .map(|case| format!("{}: {}", case.binary_name, case.case.display()))
+            .collect::<Vec<_>>()
+            .join("\n")
+    );
+    // Preserve the scoreboard's aggregate duration while avoiding a misleading wall-clock span
+    // from when each deferred case was staged until the shared Cargo invocation completed.
+    let elapsed_per_case = build_elapsed / u32::try_from(cases.len()).unwrap();
+    for case in cases {
+        case.timing.add_elapsed(elapsed_per_case);
+        case.timing.resume();
+        if case.phase == "run" {
+            run_case(
+                &binary_path(&case.binary_name, build),
+                &build.root,
+                &case.case,
+                &case.manifest,
+            );
+        }
+        case.timing.pass();
+    }
 }
 
 fn compile_and_maybe_run(
@@ -305,51 +448,22 @@ fn compile_and_maybe_run(
     dependencies: &[terrane_compiler::RustDependency],
     build: &ConformanceBuild,
 ) {
-    let fixture_registry = case.join("fixture-registry");
-    if fixture_registry.is_dir() {
-        copy_package_fixture(&fixture_registry, &build.root.join("fixture-registry"));
-        copy_package_fixture(&case.join(".cargo"), &build.root.join(".cargo"));
-    }
-    build.write_manifest(binary_name, dependencies);
-    let build_dir = &build.root;
-    let dependency_panic_test = field(manifest, "dependency-panic-test");
-    let rust = if let Some(test_path) = dependency_panic_test {
-        format!(
-            "{rust}\n{}",
-            fs::read_to_string(case.join(test_path)).unwrap_or_else(|error| panic!(
-                "cannot read {}: {error}",
-                case.join(test_path).display()
-            ))
-        )
-    } else {
-        rust.to_owned()
-    };
-    fs::write(build_dir.join(format!("src/{binary_name}.rs")), rust).unwrap();
-    let output = Command::new("cargo")
-        .arg(format!("+{}", terrane_compiler::BUILD_TOOLCHAIN))
-        .args(["build", "--quiet", "--manifest-path"])
-        .arg(build_dir.join("Cargo.toml"))
-        .env("CARGO_TARGET_DIR", &build.target)
-        .env("RUSTFLAGS", "-Dwarnings")
-        .current_dir(build_dir)
-        .output()
-        .unwrap();
-    let mut binary_path = build.target.join("debug").join(binary_name);
-    binary_path.set_extension(std::env::consts::EXE_EXTENSION);
+    stage_generated_binary(binary_name, case, manifest, rust, build);
+    let output = build_generated_binaries(&[binary_name], dependencies, build);
     assert!(
         output.status.success(),
         "{} generated Rust failed to compile:\n{}",
         case.display(),
         String::from_utf8_lossy(&output.stderr)
     );
-    if dependency_panic_test.is_some() {
+    if field(manifest, "dependency-panic-test").is_some() {
         let output = Command::new("cargo")
             .arg(format!("+{}", terrane_compiler::BUILD_TOOLCHAIN))
             .args(["test", "--quiet", "--manifest-path"])
-            .arg(build_dir.join("Cargo.toml"))
+            .arg(build.root.join("Cargo.toml"))
             .env("CARGO_TARGET_DIR", &build.target)
             .env("RUSTFLAGS", "-Dwarnings")
-            .current_dir(build_dir)
+            .current_dir(&build.root)
             .output()
             .unwrap();
         assert!(
@@ -361,7 +475,12 @@ fn compile_and_maybe_run(
     }
 
     if phase == "run" {
-        run_case(&binary_path, build_dir, case, manifest);
+        run_case(
+            &binary_path(binary_name, build),
+            &build.root,
+            case,
+            manifest,
+        );
     }
 }
 fn verify_reviewed_projection(case: &Path, source_path: &Path) {
