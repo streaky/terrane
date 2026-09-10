@@ -457,7 +457,7 @@ floating-point value T
 ├── scalar utilities
 │   ├── .absolute; / .fractional-part; -> T
 │   ├── .copy-sign; T -> T
-│   ├── .minimum; / .maximum; -> T
+│   ├── .minimum; T / .maximum; T -> T
 │   ├── .clamp; T, T -> T
 │   └── .multiply-add; T, T -> T
 ├── algorithm utilities

@@ -388,7 +388,7 @@ floating value T                                  preserves float32 or float64
 +-- scalar utilities
 |   +-- absolute; / fractional-part; -> T
 |   +-- copy-sign; T -> T
-|   +-- minimum; / maximum; -> T
+|   +-- minimum; T / maximum; T -> T
 |   +-- clamp; T, T -> T
 |   +-- multiply-add; T, T -> T
 +-- classification properties
