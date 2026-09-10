@@ -26,12 +26,16 @@ impl ConformanceBuild {
         Self { root, target }
     }
 
-    fn write_manifest(&self, dependencies: &[terrane_compiler::RustDependency]) {
-        let mut manifest = String::from(
-            r#"[package]
-name = "terrane_conformance_program"
+    fn write_manifest(&self, binary_name: &str, dependencies: &[terrane_compiler::RustDependency]) {
+        let mut manifest = r#"[package]
+name = "terrane_conformance_harness"
 version = "0.0.0"
 edition = "2024"
+autobins = false
+
+[[bin]]
+name = "{binary_name}"
+path = "src/{binary_name}.rs"
 
 [dependencies]
 terrane-int-support = { path = "support/terrane-int-support" }
@@ -42,8 +46,8 @@ terrane-document-support = { path = "support/terrane-document-support" }
 terrane-stream-abi = { path = "support/terrane-stream-abi" }
 terrane-platform-support = { path = "support/terrane-platform-support" }
 tokio = { version = "=1.53.0", features = ["rt", "rt-multi-thread", "time"] }
-"#,
-        );
+"#
+        .replace("{binary_name}", binary_name);
         for dependency in dependencies
             .iter()
             .filter(|dependency| dependency.cargo_manifest_table() == "dependencies")
@@ -212,7 +216,8 @@ fn every_manifest_drives_a_conformance_case() {
     let manifests = manifests_below(&corpus());
     let build = ConformanceBuild::new();
     assert!(!manifests.is_empty());
-    for manifest_path in manifests {
+    for (case_index, manifest_path) in manifests.into_iter().enumerate() {
+        let binary_name = format!("terrane_conformance_case_{case_index}");
         let case = manifest_path.parent().unwrap();
         let mut timing = CaseTiming::new(case);
         let manifest = fs::read_to_string(&manifest_path).unwrap();
@@ -233,6 +238,7 @@ fn every_manifest_drives_a_conformance_case() {
                     let package = terrane_compiler::Package::load(&source_path).unwrap();
                     let compilation =
                         terrane_compiler::compile_package_with_options(&package, options).unwrap();
+                    verify_reviewed_projection(case, &source_path);
                     (compilation, package.rust_dependencies)
                 } else {
                     let source = fs::read_to_string(&source_path).unwrap();
@@ -251,6 +257,7 @@ fn every_manifest_drives_a_conformance_case() {
                     assert_eq!(normalized, expected, "{}", case.display());
                 }
                 compile_and_maybe_run(
+                    &binary_name,
                     case,
                     phase,
                     &manifest,
@@ -263,9 +270,9 @@ fn every_manifest_drives_a_conformance_case() {
                 let code = field(&manifest, "code").unwrap();
                 let diagnostics = if package_case {
                     let package = terrane_compiler::Package::load(&source_path).unwrap();
-                    terrane_compiler::compile_package(&package)
-                        .unwrap_err()
-                        .diagnostics
+                    let result = terrane_compiler::compile_package(&package);
+                    verify_reviewed_projection(case, &source_path);
+                    result.unwrap_err().diagnostics
                 } else {
                     let source = fs::read_to_string(&source_path).unwrap();
                     terrane_compiler::compile(&source_path, source)
@@ -290,6 +297,7 @@ fn every_manifest_drives_a_conformance_case() {
 }
 
 fn compile_and_maybe_run(
+    binary_name: &str,
     case: &Path,
     phase: &str,
     manifest: &str,
@@ -302,7 +310,7 @@ fn compile_and_maybe_run(
         copy_package_fixture(&fixture_registry, &build.root.join("fixture-registry"));
         copy_package_fixture(&case.join(".cargo"), &build.root.join(".cargo"));
     }
-    build.write_manifest(dependencies);
+    build.write_manifest(binary_name, dependencies);
     let build_dir = &build.root;
     let dependency_panic_test = field(manifest, "dependency-panic-test");
     let rust = if let Some(test_path) = dependency_panic_test {
@@ -316,7 +324,7 @@ fn compile_and_maybe_run(
     } else {
         rust.to_owned()
     };
-    fs::write(build_dir.join("src/main.rs"), rust).unwrap();
+    fs::write(build_dir.join(format!("src/{binary_name}.rs")), rust).unwrap();
     let output = Command::new("cargo")
         .arg(format!("+{}", terrane_compiler::BUILD_TOOLCHAIN))
         .args(["build", "--quiet", "--manifest-path"])
@@ -326,7 +334,7 @@ fn compile_and_maybe_run(
         .current_dir(build_dir)
         .output()
         .unwrap();
-    let mut binary_path = build.target.join("debug/terrane_conformance_program");
+    let mut binary_path = build.target.join("debug").join(binary_name);
     binary_path.set_extension(std::env::consts::EXE_EXTENSION);
     assert!(
         output.status.success(),
@@ -355,6 +363,46 @@ fn compile_and_maybe_run(
     if phase == "run" {
         run_case(&binary_path, build_dir, case, manifest);
     }
+}
+fn verify_reviewed_projection(case: &Path, source_path: &Path) {
+    let reviewed_path = case.join("terrane-projection.lock");
+    if !reviewed_path.is_file() {
+        return;
+    }
+    let staged_path = source_path
+        .parent()
+        .expect("package entrypoint must have a parent")
+        .join("terrane-projection.lock");
+    let staged = stable_projection_history(&staged_path);
+    if std::env::var_os("TERRANE_UPDATE_GOLDENS").is_some() {
+        let mut reviewed = serde_json::to_string_pretty(&staged).unwrap();
+        reviewed.push('\n');
+        fs::write(reviewed_path, reviewed).unwrap();
+        return;
+    }
+    assert_eq!(
+        staged,
+        stable_projection_history(&reviewed_path),
+        "{} changed its reviewed projection semantics",
+        case.display()
+    );
+}
+
+fn stable_projection_history(path: &Path) -> serde_json::Value {
+    let bytes = fs::read(path).unwrap_or_else(|error| {
+        panic!(
+            "cannot read reviewed projection {}: {error}",
+            path.display()
+        )
+    });
+    let mut history = serde_json::from_slice::<serde_json::Value>(&bytes)
+        .unwrap_or_else(|error| panic!("cannot decode projection {}: {error}", path.display()));
+    let object = history
+        .as_object_mut()
+        .unwrap_or_else(|| panic!("projection {} must contain a JSON object", path.display()));
+    object.remove("cache_identity");
+    object.remove("content_hash");
+    history
 }
 
 fn run_case(binary_path: &Path, build_dir: &Path, case: &Path, manifest: &str) {
