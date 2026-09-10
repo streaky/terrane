@@ -458,6 +458,10 @@ fn binary_path(binary_name: &str, build: &ConformanceBuild) -> PathBuf {
     path
 }
 
+fn stderr_mentions_binary(stderr: &str, binary_name: &str) -> bool {
+    stderr.contains(&format!("{binary_name}.rs"))
+}
+
 fn compile_and_run_deferred_cases(cases: &mut [DeferredGeneratedCase], build: &ConformanceBuild) {
     if cases.is_empty() {
         return;
@@ -476,7 +480,7 @@ fn compile_and_run_deferred_cases(cases: &mut [DeferredGeneratedCase], build: &C
         let stderr = String::from_utf8_lossy(&output.stderr);
         let mut mapping = Vec::new();
         for case in &mut *cases {
-            if stderr.contains(&case.binary_name) {
+            if stderr_mentions_binary(&stderr, &case.binary_name) {
                 case.timing.fail();
                 mapping.push(format!("{}: {}", case.binary_name, case.case.display()));
             }
@@ -881,4 +885,18 @@ fn deferred_timing_does_not_report_an_unrelated_failure() {
         "{record:?}"
     );
     fs::remove_file(output).unwrap();
+}
+
+#[test]
+fn compile_failure_attribution_distinguishes_binary_name_prefixes() {
+    let stderr = " --> src/terrane_conformance_case_12.rs:1:26\n\
+                  error: could not compile `probe` (bin \"terrane_conformance_case_12\")";
+    assert!(!stderr_mentions_binary(
+        stderr,
+        "terrane_conformance_case_1"
+    ));
+    assert!(stderr_mentions_binary(
+        stderr,
+        "terrane_conformance_case_12"
+    ));
 }
