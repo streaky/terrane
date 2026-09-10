@@ -1,6 +1,15 @@
 namespace callable-throwable-contracts
 from /core/errors import coercion-error, throwable
 
+class local-error implements throwable
+  message string = 'local failure'
+  function render string;
+    return this.message
+
+class unrelated
+  function render string; value int
+    return 'method'
+
 class formatter
   function render string throws coercion-error; value int
     if value < 0
@@ -19,9 +28,20 @@ function safe-render string throws coercion-error; value int
 function invoke-infallible string; operation function from int to string, value int
   return operation; value
 
+function loud-render string; value int
+  return 'loud'
+
+function custom-render string throws local-error; value int
+  if value < 0
+    throw instance local-error;
+  return 'custom'
+
 class operation-holder
   operation function from int to string throws throwable = safe-render
 
+
+class callable-holder
+  render function from int to string = safe-render
 async function async-render string throws coercion-error; value int
   if value < 0
     throw coercion-error
@@ -74,10 +94,17 @@ async function main;
   print; alias.escaping-throwables
   print; async-operation.throwable-contract
   print; async-operation.escaping-throwables
+  custom function from int to string throws local-error = custom-render
+  print; custom.throwable-contract
+  print; custom.escaping-throwables
   print; (invoke; alias, 1)
   print; (invoke; broad, 1)
   print; (invoke; closure, 1)
   print; await invoke-async; async-operation, 1
+  try
+    print; await invoke-async; async-operation, -1
+  catch coercion-error
+    print; 'async-caught'
   print; (invoke; broad-closure, 1)
   print; await invoke-async; broad-async, 1
   print; (safe-operation; 1)
@@ -87,4 +114,11 @@ async function main;
   print; await async-safe-operation; 1
   holder = instance operation-holder;
   print; (holder.operation; 1)
+  callable = instance callable-holder;
+  callable.render = loud-render
+  print; (callable.render; 1)
+  try
+    print; (invoke; custom, -1)
+  catch local-error
+    print; 'custom-caught'
   print; (invoke-field; holder)

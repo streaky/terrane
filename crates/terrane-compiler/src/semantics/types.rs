@@ -33,6 +33,7 @@ pub(super) fn analyze_binding_node(
                 member.span,
             ));
         }
+        return Ok(());
     }
     if node.kind == SyntaxKind::Assignment
         && let [target, value] = node.children.as_slice()
@@ -235,9 +236,13 @@ pub(super) fn analyze_binding_node(
         } else {
             return Ok(());
         };
-    let value_type = inferred.as_ref().map_or(value_type.clone(), |actual| {
-        merge_callable_destination_effects(value_type, actual)
-    });
+    let value_type = if declared.is_none() {
+        inferred.as_ref().map_or(value_type.clone(), |actual| {
+            merge_callable_destination_effects(value_type, actual)
+        })
+    } else {
+        value_type
+    };
     let destination_arms = if matches!(value_type, ValueType::Optional(_)) {
         Vec::new()
     } else {
@@ -997,7 +1002,8 @@ fn object_types_compatible(
 ) -> bool {
     if expected == actual
         || (expected == &ObjectIdentity::new("/core/errors", "throwable")
-            && actual.namespace == "/core/errors")
+            && actual.namespace == "/core/errors"
+            && is_builtin_error_type(&actual.name))
     {
         return true;
     }

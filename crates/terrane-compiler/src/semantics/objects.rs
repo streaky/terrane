@@ -1411,7 +1411,7 @@ pub(super) fn analyze_types(package: &mut SemanticPackage) -> Result<(), Semanti
     propagate_interface_receiver_mutability(package);
     validate_descriptor_value_uses(package)?;
 
-    refresh_typed_bindings(package)?;
+    collect_initial_typed_bindings(package)?;
     specialize_projected_results(package)?;
     for unit in &package.units {
         validate_invocation_only_members(unit)?;
@@ -1419,11 +1419,22 @@ pub(super) fn analyze_types(package: &mut SemanticPackage) -> Result<(), Semanti
     validate_resource_collection_types(package)?;
     infer_receiver_consumption(package);
     validate_object_conformance(package)?;
-    validate_class_field_initializers(package)?;
     populate_closure_captures(package);
     Ok(())
 }
-pub(super) fn refresh_typed_bindings(package: &mut SemanticPackage) -> Result<(), SemanticFailure> {
+pub(super) fn collect_initial_typed_bindings(
+    package: &mut SemanticPackage,
+) -> Result<(), SemanticFailure> {
+    rebuild_typed_bindings(package)
+}
+
+pub(super) fn refresh_typed_bindings_after_effect_inference(
+    package: &mut SemanticPackage,
+) -> Result<(), SemanticFailure> {
+    rebuild_typed_bindings(package)
+}
+
+fn rebuild_typed_bindings(package: &mut SemanticPackage) -> Result<(), SemanticFailure> {
     for index in 0..package.units.len() {
         let unit = &package.units[index];
         let mut visible_bindings = Vec::new();

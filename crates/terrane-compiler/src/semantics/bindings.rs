@@ -1417,12 +1417,6 @@ fn validate_projected_callback_contract(
         unreachable!("callback validation requires callback metadata");
     };
     let reject = |code, message| Err(failure(&unit.source, code, message, value.span));
-    if contract.throws {
-        return reject(
-            "T0080",
-            "projected Rust callback cannot receive a callable with an escaping throwable",
-        );
-    }
     if *send && contract.task_transferability == TaskTransferability::Local {
         return reject(
             "T0081",

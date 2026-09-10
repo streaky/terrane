@@ -1,0 +1,5 @@
+namespace callable-throws-repeated-bound
+from /core/errors import coercion-error, throwable
+
+function render string throws coercion-error throws throwable; value int
+  return 'rendered'

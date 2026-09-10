@@ -655,24 +655,27 @@ impl Emitter<'_> {
         let Some(ValueType::Object(identity)) = self.receiver_value_type(receiver) else {
             return false;
         };
-        self.unit
-            .descriptors
+        let has_method = self
+            .package
+            .units
             .iter()
-            .find(|object| object.identity == identity)
-            .is_some_and(|object| {
-                !self
-                    .package
-                    .units
-                    .iter()
-                    .flat_map(|unit| &unit.functions)
-                    .any(|method| method.owner.is_some() && method.name == name)
-                    && effective_object_fields(self.package, object)
+            .flat_map(|unit| &unit.functions)
+            .any(|method| method.owner_identity.as_ref() == Some(&identity) && method.name == name);
+        !has_method
+            && self
+                .package
+                .units
+                .iter()
+                .flat_map(|unit| &unit.descriptors)
+                .find(|object| object.identity == identity)
+                .is_some_and(|object| {
+                    effective_object_fields(self.package, object)
                         .iter()
                         .any(|field| {
                             field.name == name
                                 && matches!(field.value_type, ValueType::Function(..))
                         })
-            })
+                })
     }
 
     pub(super) fn wrapped_object_field(&self, receiver: &SyntaxNode, name: &str) -> bool {

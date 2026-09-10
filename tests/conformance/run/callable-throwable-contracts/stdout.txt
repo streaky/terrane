@@ -3,15 +3,18 @@ coercion-error
 coercion-error
 coercion-error
 throwable
-coercion-error
+throwable
 coercion-error
 coercion-error
 throwable
-coercion-error
+throwable
+local-error
+local-error
 bound
 bound
 closure
 async
+async-caught
 wide-closure
 wide-async
 safe
@@ -20,4 +23,6 @@ bound
 safe
 async-safe
 safe
+loud
+custom-caught
 safe

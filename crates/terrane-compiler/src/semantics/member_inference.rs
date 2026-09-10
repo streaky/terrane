@@ -272,7 +272,7 @@ pub(super) fn infer_member_value_type(
             "render" => Ok(Some(ValueType::Function(
                 Vec::new(),
                 ElementType::new(ValueType::Scalar(ScalarType::String)),
-                CallableEffects::default(),
+                CallableEffects::infallible(),
             ))),
             _ => Err(failure(
                 &unit.source,
@@ -300,12 +300,12 @@ pub(super) fn infer_member_value_type(
                 vec![item.clone()],
                 ElementType::new(ValueType::ChannelSendOutcome(item.clone())),
                 TaskTransferability::Local,
-                CallableEffects::default(),
+                CallableEffects::infallible(),
             ))),
             "close" => Ok(Some(ValueType::Function(
                 Vec::new(),
                 ElementType::new(ValueType::Scalar(ScalarType::None)),
-                CallableEffects::default(),
+                CallableEffects::infallible(),
             ))),
             _ => Err(failure(
                 &unit.source,
@@ -321,12 +321,12 @@ pub(super) fn infer_member_value_type(
                 Vec::new(),
                 ElementType::new(ValueType::ChannelReceiveOutcome(item.clone())),
                 TaskTransferability::Local,
-                CallableEffects::default(),
+                CallableEffects::infallible(),
             ))),
             "close" => Ok(Some(ValueType::Function(
                 Vec::new(),
                 ElementType::new(ValueType::List(item.clone())),
-                CallableEffects::default(),
+                CallableEffects::infallible(),
             ))),
             _ => Err(failure(
                 &unit.source,

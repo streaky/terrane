@@ -283,16 +283,28 @@ impl std::fmt::Display for ObjectIdentity {
     }
 }
 
-#[derive(Clone, Debug, Default, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct CallableEffects {
     pub upper_bound: Option<Box<ValueType>>,
     pub escaping: BTreeSet<String>,
 }
 
 impl CallableEffects {
-    pub(crate) fn from_contract(contract: &FunctionContract) -> Self {
+    pub(crate) fn infallible() -> Self {
         Self {
-            upper_bound: contract.thrown_types.first().cloned().map(Box::new),
+            upper_bound: None,
+            escaping: BTreeSet::new(),
+        }
+    }
+
+    pub(crate) fn from_contract(contract: &FunctionContract) -> Self {
+        let upper_bound = match contract.thrown_types.as_slice() {
+            [] => None,
+            [bound] => Some(Box::new(bound.clone())),
+            _ => unreachable!("function declarations admit at most one throwable upper bound"),
+        };
+        Self {
+            upper_bound,
             escaping: contract.escaping_throwables.clone(),
         }
     }
@@ -904,7 +916,7 @@ impl FloatMemberContract {
                     })
                     .collect(),
                 ElementType::new(result),
-                CallableEffects::default(),
+                CallableEffects::infallible(),
             )
         })
     }
