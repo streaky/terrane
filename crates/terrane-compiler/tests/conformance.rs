@@ -68,6 +68,8 @@ tokio = { version = "=1.53.0", features = ["rt", "rt-multi-thread", "time"] }
                 manifest.push_str(&dependency.cargo_dependency_spec());
             }
         }
+        // Binary tables must follow every dependency table so they do not terminate a
+        // target-specific dependency section.
         for binary_name in binary_names {
             write!(
                 manifest,
@@ -86,26 +88,56 @@ impl Drop for ConformanceBuild {
     }
 }
 
+#[derive(Clone, Copy)]
+enum TimingStatus {
+    Failed,
+    Ignored,
+    Passed,
+}
+
+impl TimingStatus {
+    fn as_str(self) -> &'static str {
+        match self {
+            Self::Failed => "failed",
+            Self::Ignored => "ignored",
+            Self::Passed => "passed",
+        }
+    }
+}
+
 struct CaseTiming {
     output: Option<PathBuf>,
     name: String,
     elapsed: std::time::Duration,
     started: Option<std::time::Instant>,
-    passed: bool,
+    status: TimingStatus,
 }
 
 impl CaseTiming {
     fn new(case: &Path) -> Self {
-        Self {
-            output: std::env::var_os("TERRANE_TEST_TIMING_FILE").map(PathBuf::from),
-            name: case
-                .strip_prefix(corpus())
+        Self::with_output(
+            case.strip_prefix(corpus())
                 .unwrap_or(case)
                 .to_string_lossy()
                 .replace('\\', "/"),
+            std::env::var_os("TERRANE_TEST_TIMING_FILE").map(PathBuf::from),
+        )
+    }
+
+    fn named(name: &str) -> Self {
+        Self::with_output(
+            name.to_owned(),
+            std::env::var_os("TERRANE_TEST_TIMING_FILE").map(PathBuf::from),
+        )
+    }
+
+    fn with_output(name: String, output: Option<PathBuf>) -> Self {
+        Self {
+            output,
+            name,
             elapsed: std::time::Duration::ZERO,
             started: Some(std::time::Instant::now()),
-            passed: false,
+            status: TimingStatus::Failed,
         }
     }
 
@@ -115,17 +147,25 @@ impl CaseTiming {
         }
     }
 
-    fn resume(&mut self) {
-        assert!(self.started.replace(std::time::Instant::now()).is_none());
+    fn defer(&mut self) {
+        self.pause();
+        self.status = TimingStatus::Ignored;
     }
 
-    fn add_elapsed(&mut self, elapsed: std::time::Duration) {
-        self.elapsed += elapsed;
+    fn begin_pending_work(&mut self) {
+        let previous = self.started.replace(std::time::Instant::now());
+        assert!(previous.is_none());
+        self.status = TimingStatus::Failed;
+    }
+
+    fn fail(&mut self) {
+        self.pause();
+        self.status = TimingStatus::Failed;
     }
 
     fn pass(&mut self) {
         self.pause();
-        self.passed = true;
+        self.status = TimingStatus::Passed;
     }
 }
 
@@ -142,7 +182,7 @@ impl Drop for CaseTiming {
         else {
             return;
         };
-        let status = if self.passed { "passed" } else { "failed" };
+        let status = self.status.as_str();
         let _ = writeln!(
             output,
             "terrane-test-timing-v1\tconformance\t{}\t{status}\t{:.6}",
@@ -155,9 +195,28 @@ impl Drop for CaseTiming {
 struct DeferredGeneratedCase {
     binary_name: String,
     case: PathBuf,
-    phase: String,
-    manifest: String,
+    should_run: bool,
+    run_manifest: Option<String>,
     timing: CaseTiming,
+}
+
+impl DeferredGeneratedCase {
+    fn new(
+        binary_name: String,
+        case: &Path,
+        should_run: bool,
+        manifest: String,
+        mut timing: CaseTiming,
+    ) -> Self {
+        timing.defer();
+        Self {
+            binary_name,
+            case: case.to_owned(),
+            should_run,
+            run_manifest: should_run.then_some(manifest),
+            timing,
+        }
+    }
 }
 
 fn copy_package_fixture(source: &Path, destination: &Path) {
@@ -290,8 +349,7 @@ fn every_manifest_drives_a_conformance_case() {
                 } else {
                     assert_eq!(normalized, expected, "{}", case.display());
                 }
-                // Cargo can schedule independent generated binaries in parallel. Dependency-bearing
-                // cases retain isolated manifests because their dependency graphs may conflict.
+                // Only dependency-free binaries can safely share one Cargo manifest and build.
                 if dependencies.is_empty() && field(&manifest, "dependency-panic-test").is_none() {
                     stage_generated_binary(
                         &binary_name,
@@ -300,14 +358,14 @@ fn every_manifest_drives_a_conformance_case() {
                         &compilation.rust,
                         &build,
                     );
-                    timing.pause();
-                    deferred_generated_cases.push(DeferredGeneratedCase {
+                    let should_run = phase == "run";
+                    deferred_generated_cases.push(DeferredGeneratedCase::new(
                         binary_name,
-                        case: case.to_owned(),
-                        phase: phase.to_owned(),
+                        case,
+                        should_run,
                         manifest,
                         timing,
-                    });
+                    ));
                     continue;
                 }
                 compile_and_maybe_run(
@@ -385,7 +443,7 @@ fn build_generated_binaries(
     build.write_manifest(binary_names, dependencies);
     Command::new("cargo")
         .arg(format!("+{}", terrane_compiler::BUILD_TOOLCHAIN))
-        .args(["build", "--quiet", "--bins", "--manifest-path"])
+        .args(["build", "--quiet", "--manifest-path"])
         .arg(build.root.join("Cargo.toml"))
         .env("CARGO_TARGET_DIR", &build.target)
         .env("RUSTFLAGS", "-Dwarnings")
@@ -404,35 +462,45 @@ fn compile_and_run_deferred_cases(cases: &mut [DeferredGeneratedCase], build: &C
     if cases.is_empty() {
         return;
     }
+    let cargo_configuration = build.root.join(".cargo");
+    if cargo_configuration.exists() {
+        fs::remove_dir_all(cargo_configuration).unwrap();
+    }
     let binary_names = cases
         .iter()
         .map(|case| case.binary_name.as_str())
         .collect::<Vec<_>>();
-    let started = std::time::Instant::now();
+    let mut build_timing = CaseTiming::named("generated-rust/batched-dependency-free-build");
     let output = build_generated_binaries(&binary_names, &[], build);
-    let build_elapsed = started.elapsed();
-    assert!(
-        output.status.success(),
-        "batched generated Rust failed to compile:\n{}\n\nbinary-to-case mapping:\n{}",
-        String::from_utf8_lossy(&output.stderr),
-        cases
-            .iter()
-            .map(|case| format!("{}: {}", case.binary_name, case.case.display()))
-            .collect::<Vec<_>>()
-            .join("\n")
-    );
-    // Preserve the scoreboard's aggregate duration while avoiding a misleading wall-clock span
-    // from when each deferred case was staged until the shared Cargo invocation completed.
-    let elapsed_per_case = build_elapsed / u32::try_from(cases.len()).unwrap();
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        let mut mapping = Vec::new();
+        for case in &mut *cases {
+            if stderr.contains(&case.binary_name) {
+                case.timing.fail();
+                mapping.push(format!("{}: {}", case.binary_name, case.case.display()));
+            }
+        }
+        let mapping = if mapping.is_empty() {
+            "Cargo did not identify a case-specific binary".to_owned()
+        } else {
+            mapping.join("\n")
+        };
+        panic!(
+            "batched generated Rust failed to compile:\n{stderr}\n\nimplicated cases:\n{mapping}"
+        );
+    }
+    build_timing.pass();
     for case in cases {
-        case.timing.add_elapsed(elapsed_per_case);
-        case.timing.resume();
-        if case.phase == "run" {
+        if case.should_run {
+            case.timing.begin_pending_work();
             run_case(
                 &binary_path(&case.binary_name, build),
                 &build.root,
                 &case.case,
-                &case.manifest,
+                case.run_manifest
+                    .as_deref()
+                    .expect("run cases retain their manifest"),
             );
         }
         case.timing.pass();
@@ -794,4 +862,23 @@ fn canonical_rust_manifest_expectation_is_opt_in() {
         Some(true)
     );
     assert_eq!(boolean_field("phase = \"run\"\n", "canonical-rust"), None);
+}
+
+#[test]
+fn deferred_timing_does_not_report_an_unrelated_failure() {
+    let output = std::env::temp_dir().join(format!(
+        "terrane-deferred-timing-{}.txt",
+        std::process::id()
+    ));
+    {
+        let _ = fs::remove_file(&output);
+        let mut timing = CaseTiming::with_output("deferred-case".to_owned(), Some(output.clone()));
+        timing.defer();
+    }
+    let record = fs::read_to_string(&output).unwrap();
+    assert!(
+        record.starts_with("terrane-test-timing-v1\tconformance\tdeferred-case\tignored\t"),
+        "{record:?}"
+    );
+    fs::remove_file(output).unwrap();
 }

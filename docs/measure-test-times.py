@@ -55,9 +55,9 @@ def base_scoreboard() -> dict[str, Any]:
         "metadata": {
             "description": (
                 "Serial wall-clock measurements from stable Rust libtest plus compiler-owned "
-                "nested case timings. Shared conformance build time is amortized across its cases; "
-                "durations include small runner and output overhead and are intended for relative "
-                "development feedback."
+                "nested case timings. Dependency-free generated-crate compilation has its own "
+                "shared timing row instead of being estimated per case; durations include small "
+                "runner and output overhead and are intended for relative development feedback."
             ),
             "timing_mode": (
                 "cargo test with --test-threads=1; libtest completion deltas plus nested timing records"
