@@ -17,7 +17,7 @@ use sha2::{Digest, Sha256};
 use crate::RustDependency;
 
 pub use crate::RUSTDOC_TOOLCHAIN;
-const PROJECTION_SCHEMA: &str = "24";
+const PROJECTION_SCHEMA: &str = "28";
 const MAX_PROJECTION_CACHE_RECORDS: usize = 4;
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
@@ -230,6 +230,8 @@ pub struct ProjectedFunction {
     pub name: String,
     pub parameters: Vec<ProjectedParameter>,
     pub result: ProjectedType,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub destination_result: Option<ProjectedDestinationResult>,
     pub error: Option<String>,
     pub is_async: bool,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -237,6 +239,12 @@ pub struct ProjectedFunction {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub chain_role: Option<ChainRole>,
     pub receiver: Option<Receiver>,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+pub struct ProjectedDestinationResult {
+    pub parameter: String,
+    pub rust_bounds: Vec<String>,
 }
 
 #[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
@@ -278,8 +286,10 @@ pub enum CallbackKind {
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub enum ProjectedType {
     None,
+    Generic(String),
     Bool,
     Int,
+    FixedInt(String),
     RustInt(String),
     Float,
     Float32,
@@ -330,8 +340,10 @@ impl ProjectedType {
         matches!(
             self,
             Self::None
+                | Self::Generic(_)
                 | Self::Bool
                 | Self::Int
+                | Self::FixedInt(_)
                 | Self::RustInt(_)
                 | Self::Float
                 | Self::Float32
@@ -346,7 +358,7 @@ impl ProjectedType {
             Self::None => "()".to_owned(),
             Self::Bool | Self::AsyncSinkOutcome => "bool".to_owned(),
             Self::Int => "i64".to_owned(),
-            Self::RustInt(name) => name.clone(),
+            Self::Generic(name) | Self::FixedInt(name) | Self::RustInt(name) => name.clone(),
             Self::Float => "f64".to_owned(),
             Self::Float32 => "f32".to_owned(),
             Self::Char => "char".to_owned(),
@@ -380,6 +392,20 @@ impl ProjectedType {
             Self::None => "none".to_owned(),
             Self::Bool => "bool".to_owned(),
             Self::Int | Self::RustInt(_) => "int".to_owned(),
+            Self::FixedInt(name) => match name.as_str() {
+                "i8" => "int8",
+                "i16" => "int16",
+                "i32" => "int32",
+                "i64" => "int64",
+                "i128" => "int128",
+                "u8" => "uint8",
+                "u16" => "uint16",
+                "u32" => "uint32",
+                "u64" => "uint64",
+                "u128" => "uint128",
+                _ => name,
+            }
+            .to_owned(),
             Self::Float => "float64".to_owned(),
             Self::Float32 => "float32".to_owned(),
             Self::Char | Self::String => "string".to_owned(),
@@ -405,7 +431,7 @@ impl ProjectedType {
                 format!("tuple of {}", items[0].terrane_name())
             }
             Self::Tuple(_) => "heterogeneous tuple".to_owned(),
-            Self::Foreign { name, .. } => name.clone(),
+            Self::Generic(name) | Self::Foreign { name, .. } => name.clone(),
             Self::Callback {
                 parameters,
                 result,
@@ -941,7 +967,7 @@ fn render_function(
         function.name
     )
     .expect("writing to a string cannot fail");
-    if function.result != ProjectedType::None {
+    if function.result != ProjectedType::None && function.destination_result.is_none() {
         write!(
             output,
             " {}",
@@ -2377,6 +2403,7 @@ fn project_rustdoc(
                                         base_rust_path: rust_path.clone(),
                                         arguments: Vec::new(),
                                     },
+                                    destination_result: None,
                                     error: None,
                                     is_async: false,
                                     execution_requirements: None,
@@ -2502,6 +2529,33 @@ fn project_rustdoc(
                             .to_owned(),
                     }),
             );
+        }
+    }
+    let package_root = dependency.package.replace('-', "_");
+    let dependency_root = dependency.name.replace('-', "_");
+    let normalize = |function: &mut ProjectedFunction| {
+        if let Some(destination) = &mut function.destination_result {
+            for bound in &mut destination.rust_bounds {
+                if bound == &package_root {
+                    bound.clone_from(&dependency_root);
+                } else if let Some(suffix) = bound.strip_prefix(&format!("{package_root}::")) {
+                    *bound = format!("{dependency_root}::{suffix}");
+                }
+            }
+        }
+    };
+    for item in &mut items {
+        match &mut item.kind {
+            ProjectedKind::Function(function) => normalize(function),
+            ProjectedKind::ForeignType {
+                methods,
+                static_methods,
+            } => {
+                for method in methods.iter_mut().chain(static_methods) {
+                    normalize(method);
+                }
+            }
+            ProjectedKind::Enum { .. } => {}
         }
     }
     items.sort_by(|left, right| {
@@ -2833,7 +2887,16 @@ fn project_function_inner(
     if function.header.is_unsafe {
         return Err("unsafe function".to_owned());
     }
-    let generic_types = generic_monomorphisations(function, index, paths, supplied_generics)?;
+    let (generic_types, destination_result) =
+        generic_monomorphisations(function, index, paths, supplied_generics)?;
+    if destination_result.is_some()
+        && function.sig.output.as_ref().is_some_and(|output| {
+            render_rust_type(output, index, paths, &generic_types)
+                .is_ok_and(|rendered| rendered.contains('&'))
+        })
+    {
+        return Err("borrowed result values cannot cross a projected boundary".to_owned());
+    }
     let mut parameters = Vec::new();
     let mut receiver = None;
     for (name, ty) in &function.sig.inputs {
@@ -2891,6 +2954,7 @@ fn project_function_inner(
         name: method_name.unwrap_or_default().to_owned(),
         parameters,
         result,
+        destination_result,
         error,
         is_async: function.header.is_async,
         execution_requirements: function.header.is_async.then_some(
@@ -3116,13 +3180,166 @@ fn is_callback_future_parameter(name: &str, function: &Function) -> bool {
     })
 }
 
+fn type_mentions_generic(ty: &Type, generic: &str) -> bool {
+    match ty {
+        Type::Generic(name) => name == generic,
+        Type::ResolvedPath(path) => path
+            .args
+            .as_deref()
+            .is_some_and(|arguments| generic_args_mention(arguments, generic)),
+        Type::BorrowedRef { type_, .. }
+        | Type::RawPointer { type_, .. }
+        | Type::Slice(type_)
+        | Type::Array { type_, .. }
+        | Type::Pat { type_, .. } => type_mentions_generic(type_, generic),
+        Type::Tuple(types) => types
+            .iter()
+            .any(|item| type_mentions_generic(item, generic)),
+        _ => false,
+    }
+}
+
+fn generic_args_mention(arguments: &GenericArgs, generic: &str) -> bool {
+    match arguments {
+        GenericArgs::AngleBracketed { args, constraints } => {
+            args.iter().any(|argument| {
+                matches!(argument, GenericArg::Type(ty) if type_mentions_generic(ty, generic))
+            }) || constraints.iter().any(|constraint| match &constraint.binding {
+                AssocItemConstraintKind::Equality(Term::Type(ty)) => {
+                    type_mentions_generic(ty, generic)
+                }
+                AssocItemConstraintKind::Constraint(bounds) => bounds
+                    .iter()
+                    .any(|bound| generic_bound_mentions(bound, generic)),
+                AssocItemConstraintKind::Equality(Term::Constant(_)) => false,
+            })
+        }
+        GenericArgs::Parenthesized { inputs, output } => {
+            inputs
+                .iter()
+                .any(|input| type_mentions_generic(input, generic))
+                || output
+                    .as_ref()
+                    .is_some_and(|output| type_mentions_generic(output, generic))
+        }
+        GenericArgs::ReturnTypeNotation => false,
+    }
+}
+
+fn generic_bound_mentions(bound: &GenericBound, generic: &str) -> bool {
+    matches!(
+        bound,
+        GenericBound::TraitBound { trait_, .. }
+            if trait_
+                .args
+                .as_deref()
+                .is_some_and(|arguments| generic_args_mention(arguments, generic))
+    )
+}
+
+fn render_generic_bounds(
+    parameter: &GenericParamDef,
+    function: &Function,
+    index: &HashMap<Id, Item>,
+    paths: &HashMap<Id, ItemSummary>,
+    generics: &BTreeMap<String, ProjectedType>,
+) -> Result<Vec<String>, String> {
+    let mut rendered = Vec::new();
+    if let GenericParamDefKind::Type { bounds, .. } = &parameter.kind {
+        for bound in bounds {
+            rendered.push(render_generic_bound(bound, &[], index, paths, generics)?);
+        }
+    }
+    for predicate in &function.generics.where_predicates {
+        let WherePredicate::BoundPredicate {
+            type_: Type::Generic(name),
+            bounds,
+            generic_params,
+        } = predicate
+        else {
+            continue;
+        };
+        if name == &parameter.name {
+            for bound in bounds {
+                rendered.push(render_generic_bound(
+                    bound,
+                    generic_params,
+                    index,
+                    paths,
+                    generics,
+                )?);
+            }
+        }
+    }
+    rendered.retain(|bound| bound != "Sized");
+    rendered.sort();
+    rendered.dedup();
+    Ok(rendered)
+}
+
+fn render_generic_bound(
+    bound: &GenericBound,
+    outer_generic_params: &[GenericParamDef],
+    index: &HashMap<Id, Item>,
+    paths: &HashMap<Id, ItemSummary>,
+    generics: &BTreeMap<String, ProjectedType>,
+) -> Result<String, String> {
+    match bound {
+        GenericBound::TraitBound {
+            trait_,
+            generic_params,
+            modifier,
+        } => {
+            let mut quantified = outer_generic_params
+                .iter()
+                .chain(generic_params)
+                .filter_map(|parameter| {
+                    matches!(parameter.kind, GenericParamDefKind::Lifetime { .. })
+                        .then_some(parameter.name.as_str())
+                })
+                .collect::<Vec<_>>();
+            quantified.sort_unstable();
+            quantified.dedup();
+            let higher_ranked = if quantified.is_empty() {
+                String::new()
+            } else {
+                format!("for<{}> ", quantified.join(", "))
+            };
+            let modifier = match modifier {
+                rustdoc_types::TraitBoundModifier::None => "",
+                rustdoc_types::TraitBoundModifier::Maybe => "?",
+                rustdoc_types::TraitBoundModifier::MaybeConst => "~const ",
+            };
+            Ok(format!(
+                "{higher_ranked}{modifier}{}",
+                render_resolved_path(trait_, index, paths, generics)?
+            ))
+        }
+        GenericBound::Outlives(lifetime) => Ok(lifetime.clone()),
+        GenericBound::Use(_) => {
+            Err("precise-capturing generic bound has no stable projection".to_owned())
+        }
+    }
+}
+
+#[expect(
+    clippy::too_many_lines,
+    reason = "generic selection handles callbacks, destination results, and closed impls in order"
+)]
 fn generic_monomorphisations(
     function: &Function,
     index: &HashMap<Id, Item>,
     paths: &HashMap<Id, ItemSummary>,
     supplied: &BTreeMap<String, ProjectedType>,
-) -> Result<BTreeMap<String, ProjectedType>, String> {
+) -> Result<
+    (
+        BTreeMap<String, ProjectedType>,
+        Option<ProjectedDestinationResult>,
+    ),
+    String,
+> {
     let mut result = supplied.clone();
+    let mut destination_result = None;
     // Resolve callable parameters before unrelated generic parameters. A callback whose
     // signature mentions an open `T` must decline; it must not inherit a guessed closed
     // implementation selected while monomorphising `T`.
@@ -3147,6 +3364,37 @@ fn generic_monomorphisations(
         let GenericParamDefKind::Type { bounds, .. } = &parameter.kind else {
             continue;
         };
+        let caller_chosen_result = function
+            .sig
+            .output
+            .as_ref()
+            .is_some_and(|output| type_mentions_generic(output, &parameter.name))
+            && !function
+                .sig
+                .inputs
+                .iter()
+                .any(|(_, ty)| type_mentions_generic(ty, &parameter.name));
+        if caller_chosen_result {
+            if destination_result.is_some() {
+                return Err("projected result depends on multiple caller-chosen types".to_owned());
+            }
+            let mut rendering_generics = result.clone();
+            rendering_generics.insert(
+                parameter.name.clone(),
+                ProjectedType::Generic(parameter.name.clone()),
+            );
+            let rust_bounds =
+                render_generic_bounds(parameter, function, index, paths, &rendering_generics)?;
+            result.insert(
+                parameter.name.clone(),
+                ProjectedType::Generic(parameter.name.clone()),
+            );
+            destination_result = Some(ProjectedDestinationResult {
+                parameter: parameter.name.clone(),
+                rust_bounds,
+            });
+            continue;
+        }
         let Some(GenericBound::TraitBound { trait_, .. }) = bounds.first() else {
             return Err(format!("open generic `{}`", parameter.name));
         };
@@ -3207,7 +3455,7 @@ fn generic_monomorphisations(
         };
         result.insert(parameter.name.clone(), chosen.clone());
     }
-    Ok(result)
+    Ok((result, destination_result))
 }
 
 fn project_type(
@@ -3371,6 +3619,49 @@ fn project_resolved_type(
         arguments,
     })
 }
+fn render_generic_arguments(
+    arguments: &GenericArgs,
+    index: &HashMap<Id, Item>,
+    paths: &HashMap<Id, ItemSummary>,
+    generics: &BTreeMap<String, ProjectedType>,
+) -> Result<String, String> {
+    match arguments {
+        GenericArgs::AngleBracketed { args, constraints } => {
+            if !constraints.is_empty() {
+                return Err(
+                    "nested associated generic constraints have no stable projection".to_owned(),
+                );
+            }
+            let rendered = args
+                .iter()
+                .map(|argument| match argument {
+                    GenericArg::Lifetime(lifetime) => Ok(lifetime.clone()),
+                    GenericArg::Type(ty) => render_rust_type(ty, index, paths, generics),
+                    GenericArg::Const(constant) => Ok(constant.expr.clone()),
+                    GenericArg::Infer => {
+                        Err("inferred generic argument has no stable projection".to_owned())
+                    }
+                })
+                .collect::<Result<Vec<_>, _>>()?;
+            Ok(format!("<{}>", rendered.join(", ")))
+        }
+        GenericArgs::Parenthesized { inputs, output } => {
+            let inputs = inputs
+                .iter()
+                .map(|ty| render_rust_type(ty, index, paths, generics))
+                .collect::<Result<Vec<_>, _>>()?;
+            let output = output
+                .as_ref()
+                .map(|ty| render_rust_type(ty, index, paths, generics))
+                .transpose()?
+                .map_or_else(String::new, |ty| format!(" -> {ty}"));
+            Ok(format!("({}){output}", inputs.join(", ")))
+        }
+        GenericArgs::ReturnTypeNotation => {
+            Err("return-type notation has no stable projection".to_owned())
+        }
+    }
+}
 
 fn render_resolved_path(
     path: &RustdocPath,
@@ -3384,10 +3675,7 @@ fn render_resolved_path(
     };
     match arguments {
         GenericArgs::AngleBracketed { args, constraints } => {
-            if !constraints.is_empty() {
-                return Err("associated generic constraints have no stable projection".to_owned());
-            }
-            let rendered = args
+            let mut rendered = args
                 .iter()
                 .map(|argument| match argument {
                     GenericArg::Lifetime(lifetime) => Ok(lifetime.clone()),
@@ -3398,6 +3686,30 @@ fn render_resolved_path(
                     }
                 })
                 .collect::<Result<Vec<_>, _>>()?;
+            for constraint in constraints {
+                let arguments = constraint
+                    .args
+                    .as_deref()
+                    .map(|arguments| render_generic_arguments(arguments, index, paths, generics))
+                    .transpose()?
+                    .unwrap_or_default();
+                let binding = match &constraint.binding {
+                    AssocItemConstraintKind::Equality(Term::Type(ty)) => {
+                        format!(" = {}", render_rust_type(ty, index, paths, generics)?)
+                    }
+                    AssocItemConstraintKind::Equality(Term::Constant(constant)) => {
+                        format!(" = {}", constant.expr)
+                    }
+                    AssocItemConstraintKind::Constraint(bounds) => {
+                        let bounds = bounds
+                            .iter()
+                            .map(|bound| render_generic_bound(bound, &[], index, paths, generics))
+                            .collect::<Result<Vec<_>, _>>()?;
+                        format!(": {}", bounds.join(" + "))
+                    }
+                };
+                rendered.push(format!("{}{arguments}{binding}", constraint.name));
+            }
             Ok(format!("{base}<{}>", rendered.join(", ")))
         }
         GenericArgs::Parenthesized { inputs, output } => {
@@ -4203,6 +4515,7 @@ mod tests {
                         base_rust_path: "http::StatusCode".to_owned(),
                         arguments: Vec::new(),
                     },
+                    destination_result: None,
                     error: None,
                     is_async: false,
                     execution_requirements: None,
@@ -4538,6 +4851,7 @@ mod tests {
                     name: "read".to_owned(),
                     parameters: Vec::new(),
                     result: ProjectedType::None,
+                    destination_result: None,
                     error: None,
                     is_async: false,
                     execution_requirements: None,
@@ -4548,6 +4862,7 @@ mod tests {
                     name: "create".to_owned(),
                     parameters: Vec::new(),
                     result: ProjectedType::None,
+                    destination_result: None,
                     error: None,
                     is_async: false,
                     execution_requirements: None,

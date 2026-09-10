@@ -1,0 +1,8 @@
+package = "projected-result-unsatisfied-bound"
+
+[namespaces]
+app = "src"
+
+[rust-dependencies.witness]
+package = "terrane-bound-witness"
+version = "=0.1.0"

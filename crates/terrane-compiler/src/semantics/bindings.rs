@@ -1639,7 +1639,7 @@ fn collect_chain_receivers(
     }
 }
 
-fn projected_function_for_call<'a>(
+pub(super) fn projected_function_for_call<'a>(
     package: &'a SemanticPackage,
     unit: &SemanticUnit,
     callee: &SyntaxNode,

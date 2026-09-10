@@ -1,0 +1,36 @@
+namespace app
+from /deps/terrane-generic-factory-witness import default_value, optional_value
+from /deps/terrane-generic-row-witness import row
+from /core/output import print
+
+class record
+  value string = ''
+  function load;
+    source = row;
+    this.value = source.decoded;
+
+function decoded-value string;
+  source = row;
+  return source.decoded;
+
+function make-number int64;
+  return default_value;
+
+function accept-by-argument; value string
+  print; value
+
+function main;
+  number int64 = make-number;
+  optional int64|none = optional_value;
+  data bytes = default_value;
+  values list of int64 = default_value;
+  names map of string, int64 = default_value;
+  tags set of string = default_value;
+  source = row;
+  accept-by-argument; (source.decoded;)
+  returned string = decoded-value;
+  print; returned
+  item = instance record;
+  item.load;
+  print; item.value
+  print; number, optional != none, data.length, values.length, names.length, tags.length

@@ -1,0 +1,8 @@
+package = "projected-result-without-destination"
+
+[namespaces]
+app = "src"
+
+[rust-dependencies.witness]
+package = "terrane-result-witness"
+version = "=0.1.0"

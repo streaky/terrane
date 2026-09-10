@@ -49,6 +49,7 @@ fn projected_type_is_identity(ty: &crate::projection::ProjectedType) -> bool {
         crate::projection::ProjectedType::Optional(inner) => projected_type_is_identity(inner),
         crate::projection::ProjectedType::None
         | crate::projection::ProjectedType::Bool
+        | crate::projection::ProjectedType::FixedInt(_)
         | crate::projection::ProjectedType::Float
         | crate::projection::ProjectedType::Float32
         | crate::projection::ProjectedType::String
@@ -404,12 +405,21 @@ pub(super) fn emit_dependency_unit(package: &SemanticPackage, unit: &SemanticUni
             });
         }
         let arguments = arguments.join(", ");
-        let value = contract.return_type.clone().map_or_else(
-            || "()".to_owned(),
-            |value_type| rust_value_type(package, value_type),
+        let value = projected.destination_result.as_ref().map_or_else(
+            || {
+                contract.return_type.clone().map_or_else(
+                    || "()".to_owned(),
+                    |value_type| rust_value_type(package, value_type),
+                )
+            },
+            |_| projected.result.rust_type(),
         );
         let result = format!("Result<{value}, crate::TerraneForeignError>");
-        let converted_value = projected_result_expression("value", &projected.result);
+        let converted_value = if projected.destination_result.is_some() {
+            "value".to_owned()
+        } else {
+            projected_result_expression("value", &projected.result)
+        };
         let unit_variant = package.projection.is_unit_variant(item);
         if unit_variant {
             writeln!(
@@ -419,9 +429,24 @@ pub(super) fn emit_dependency_unit(package: &SemanticPackage, unit: &SemanticUni
             )
             .expect("writing to a string cannot fail");
         }
+        let generic_declaration =
+            projected
+                .destination_result
+                .as_ref()
+                .map_or_else(String::new, |destination| {
+                    if destination.rust_bounds.is_empty() {
+                        format!("<{}>", destination.parameter)
+                    } else {
+                        format!(
+                            "<{}: {}>",
+                            destination.parameter,
+                            destination.rust_bounds.join(" + ")
+                        )
+                    }
+                });
         writeln!(
             output,
-            "pub {}fn {}({}) -> {result} {{",
+            "pub {}fn {}{generic_declaration}({}) -> {result} {{",
             if projected.is_async { "async " } else { "" },
             static_owner.map_or_else(
                 || rust_name(&contract.name),
@@ -446,7 +471,13 @@ pub(super) fn emit_dependency_unit(package: &SemanticPackage, unit: &SemanticUni
         let call = if unit_variant {
             value_path
         } else {
-            format!("{value_path}({arguments})")
+            let generic_arguments = projected
+                .destination_result
+                .as_ref()
+                .map_or_else(String::new, |destination| {
+                    format!("::<{}>", destination.parameter)
+                });
+            format!("{value_path}{generic_arguments}({arguments})")
         };
         let invocation = if projected.is_async {
             format!("{call}.await")

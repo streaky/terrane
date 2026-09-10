@@ -1,0 +1,8 @@
+package = "projected-result-unknown-bound"
+
+[namespaces]
+app = "src"
+
+[rust-dependencies.witness]
+package = "terrane-unknown-witness"
+version = "=0.1.0"

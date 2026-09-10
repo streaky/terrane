@@ -1,0 +1,61 @@
+{
+  "dependencies": [
+    {
+      "members": [
+        [
+          "/deps/terrane-generic-factory-witness",
+          "default_value"
+        ],
+        [
+          "/deps/terrane-generic-factory-witness",
+          "optional_value"
+        ]
+      ],
+      "name": "terrane-generic-factory-witness",
+      "version": "0.1.0"
+    },
+    {
+      "members": [
+        [
+          "/deps/terrane-generic-row-witness",
+          "Row"
+        ],
+        [
+          "/deps/terrane-generic-row-witness",
+          "Row.decoded"
+        ],
+        [
+          "/deps/terrane-generic-row-witness",
+          "row"
+        ]
+      ],
+      "name": "terrane-generic-row-witness",
+      "version": "0.1.0"
+    }
+  ],
+  "format": 2,
+  "projection_schema": "28",
+  "removed": [],
+  "resolution": {
+    "events": [
+      {
+        "reason": "bundled projection distribution is deliberately deferred until Terrane has a release artifact channel",
+        "source": "BundledArtifact",
+        "status": "Skipped"
+      },
+      {
+        "reason": "`TERRANE_PROJECTION_ARTIFACT_URL` is not configured",
+        "source": "PublishedArtifact",
+        "status": "Skipped"
+      },
+      {
+        "reason": "no reusable exact artifact was available; generated with the pinned local rustdoc toolchain",
+        "source": "LocalRustdoc",
+        "status": "Generated"
+      }
+    ],
+    "outcome": "LocalRustdoc"
+  },
+  "rustdoc_format": 57,
+  "source": "Local"
+}

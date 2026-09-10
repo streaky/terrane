@@ -1,0 +1,5 @@
+namespace app
+from /deps/witness import number_value
+
+function main;
+  value string = number_value;

@@ -1,0 +1,8 @@
+namespace app
+from /deps/witness import default_value
+
+class local-record
+  value string = ''
+
+function main;
+  value local-record = default_value;

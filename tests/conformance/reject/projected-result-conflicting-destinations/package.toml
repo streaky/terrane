@@ -1,0 +1,8 @@
+package = "projected-result-conflicting-destinations"
+
+[namespaces]
+app = "src"
+
+[rust-dependencies.witness]
+package = "terrane-conflict-witness"
+version = "=0.1.0"

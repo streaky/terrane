@@ -1380,6 +1380,7 @@ pub(super) fn analyze_types(package: &mut SemanticPackage) -> Result<(), Semanti
         )?;
         package.units[index].typed_bindings = bindings;
     }
+    specialize_projected_results(package)?;
     for unit in &package.units {
         validate_invocation_only_members(unit)?;
     }
@@ -1390,6 +1391,569 @@ pub(super) fn analyze_types(package: &mut SemanticPackage) -> Result<(), Semanti
     populate_closure_captures(package);
     Ok(())
 }
+#[derive(Clone)]
+struct PendingProjectedSpecialization {
+    unit: usize,
+    span: Span,
+    parameter: String,
+    rust_type: String,
+    projected_result: crate::projection::ProjectedType,
+    value_type: ValueType,
+    bounds: Vec<String>,
+}
+
+#[expect(
+    clippy::too_many_lines,
+    reason = "oracle proof and specialization installation remain one atomic semantic step"
+)]
+fn specialize_projected_results(package: &mut SemanticPackage) -> Result<(), SemanticFailure> {
+    let mut pending = Vec::new();
+    for (unit_index, unit) in package.units.iter().enumerate() {
+        collect_projected_destinations(
+            package,
+            unit,
+            &unit.tree.root,
+            None,
+            None,
+            unit_index,
+            &mut pending,
+        )?;
+    }
+    let questions = pending
+        .iter()
+        .flat_map(|specialization| {
+            specialization
+                .bounds
+                .iter()
+                .map(|rust_bound| crate::BoundQuestion {
+                    rust_type: specialization.rust_type.clone(),
+                    rust_bound: rust_bound.clone(),
+                })
+        })
+        .collect::<Vec<_>>();
+    let workspace = package.root.join(".trn/dependencies");
+    let report = crate::ProjectionOracle::new(
+        &workspace,
+        &package.projection.cache_identity,
+        package.projection.containment,
+    )
+    .prove_bounds(&questions)
+    .map_err(|error| {
+        let first = pending
+            .first()
+            .expect("an oracle failure requires at least one destination-bound question");
+        failure(
+            &package.units[first.unit].source,
+            "T0117",
+            format!(
+                "projected result destination could not be proven: {}",
+                error.message
+            ),
+            first.span,
+        )
+    })?;
+    let answers = report
+        .evidence
+        .iter()
+        .map(|evidence| (evidence.question.clone(), evidence.answer.clone()))
+        .collect::<BTreeMap<_, _>>();
+    package.projection.probes.extend(report.evidence);
+    package.projection.probe_wall_time_ms = package
+        .projection
+        .probe_wall_time_ms
+        .saturating_add(report.wall_time_ms);
+    for specialization in pending {
+        for rust_bound in &specialization.bounds {
+            let question = crate::BoundQuestion {
+                rust_type: specialization.rust_type.clone(),
+                rust_bound: rust_bound.clone(),
+            };
+            match answers.get(&question) {
+                Some(crate::ProbeAnswer::Yes) => {}
+                Some(crate::ProbeAnswer::No) => {
+                    return Err(failure(
+                        &package.units[specialization.unit].source,
+                        "T0117",
+                        format!(
+                            "projected result destination `{}` does not satisfy `{rust_bound}`",
+                            specialization.value_type
+                        ),
+                        specialization.span,
+                    ));
+                }
+                Some(crate::ProbeAnswer::Unknown { reason }) => {
+                    return Err(failure(
+                        &package.units[specialization.unit].source,
+                        "T0117",
+                        format!(
+                            "projected result destination `{}` could not be proven against `{rust_bound}`: {reason}",
+                            specialization.value_type
+                        ),
+                        specialization.span,
+                    ));
+                }
+                None => {
+                    return Err(failure(
+                        &package.units[specialization.unit].source,
+                        "T0117",
+                        format!(
+                            "projection oracle returned no answer for destination `{}` against `{rust_bound}`",
+                            specialization.value_type
+                        ),
+                        specialization.span,
+                    ));
+                }
+            }
+        }
+        let key = (
+            specialization.span.file,
+            specialization.span.start,
+            specialization.span.end,
+        );
+        let selected = ProjectedCallSpecialization {
+            parameter: specialization.parameter,
+            rust_type: specialization.rust_type,
+            projected_result: specialization.projected_result,
+            value_type: specialization.value_type,
+        };
+        if let Some(previous) = package.units[specialization.unit]
+            .projected_call_specializations
+            .insert(key, selected.clone())
+            && previous != selected
+        {
+            return Err(failure(
+                &package.units[specialization.unit].source,
+                "T0117",
+                "projected call has conflicting written result destinations",
+                specialization.span,
+            ));
+        }
+    }
+    Ok(())
+}
+
+#[expect(
+    clippy::too_many_lines,
+    reason = "one syntax walk makes every permitted destination context explicit"
+)]
+fn collect_projected_destinations(
+    package: &SemanticPackage,
+    unit: &SemanticUnit,
+    node: &SyntaxNode,
+    expected: Option<&ValueType>,
+    function_return: Option<&ValueType>,
+    unit_index: usize,
+    pending: &mut Vec<PendingProjectedSpecialization>,
+) -> Result<(), SemanticFailure> {
+    if node.kind == SyntaxKind::CallExpression
+        && let Some(callee) = node.children.first()
+        && let Some(function) = projected_function_for_call(package, unit, callee)
+        && let Some(destination_result) = &function.destination_result
+    {
+        let destination = expected.cloned().ok_or_else(|| {
+            failure(
+                &unit.source,
+                "T0117",
+                "projected generic result requires one explicit destination type",
+                node.span,
+            )
+        })?;
+        let expected_projected =
+            destination_projected_type(package, &destination).map_err(|reason| {
+                failure(
+                    &unit.source,
+                    "T0117",
+                    format!(
+                        "projected result destination `{destination}` is not supported: {reason}"
+                    ),
+                    node.span,
+                )
+            })?;
+        let projected_destination = select_projected_generic_destination(
+            &function.result,
+            &destination_result.parameter,
+            &expected_projected,
+        )
+        .map_err(|()| {
+            failure(
+                &unit.source,
+                "T0117",
+                "projected call has conflicting written result destinations",
+                node.span,
+            )
+        })?
+        .ok_or_else(|| {
+            failure(
+                &unit.source,
+                "T0117",
+                format!(
+                    "projected result shape `{}` conflicts with destination `{destination}`",
+                    function.result.terrane_name()
+                ),
+                node.span,
+            )
+        })?;
+        let projected_result = substitute_projected_generic(
+            &function.result,
+            &destination_result.parameter,
+            &projected_destination,
+        );
+        pending.push(PendingProjectedSpecialization {
+            unit: unit_index,
+            span: node.span,
+            parameter: destination_result.parameter.clone(),
+            rust_type: projected_destination.rust_type(),
+            projected_result,
+            value_type: destination,
+            bounds: destination_result.rust_bounds.clone(),
+        });
+    }
+
+    if is_function_node(node) {
+        let return_type = unit
+            .functions
+            .iter()
+            .find(|contract| contract.span == node.span)
+            .and_then(|contract| contract.return_type.clone());
+        for child in &node.children {
+            collect_projected_destinations(
+                package,
+                unit,
+                child,
+                None,
+                return_type.as_ref(),
+                unit_index,
+                pending,
+            )?;
+        }
+        return Ok(());
+    }
+    if node.kind == SyntaxKind::ReturnStatement {
+        for child in &node.children {
+            collect_projected_destinations(
+                package,
+                unit,
+                child,
+                function_return,
+                function_return,
+                unit_index,
+                pending,
+            )?;
+        }
+        return Ok(());
+    }
+    if matches!(node.kind, SyntaxKind::Binding | SyntaxKind::Assignment) {
+        let initializer = node.children.iter().rev().find(|child| {
+            !matches!(
+                child.kind,
+                SyntaxKind::Name
+                    | SyntaxKind::Visibility
+                    | SyntaxKind::DeclarationQualifier
+                    | SyntaxKind::TypeExpression
+            )
+        });
+        let written_destination = node
+            .children
+            .iter()
+            .any(|child| child.kind == SyntaxKind::TypeExpression)
+            .then(|| {
+                unit.typed_bindings
+                    .iter()
+                    .rev()
+                    .find(|binding| binding.span == node.span)
+                    .map(|binding| binding.value_type.clone())
+            })
+            .flatten()
+            .or_else(|| {
+                (node.kind == SyntaxKind::Assignment)
+                    .then(|| node.children.first())
+                    .flatten()
+                    .filter(|target| target.kind == SyntaxKind::MemberExpression)
+                    .and_then(|target| {
+                        infer_member_value_type(unit, target, &unit.typed_bindings)
+                            .ok()
+                            .flatten()
+                    })
+            });
+        for child in &node.children {
+            collect_projected_destinations(
+                package,
+                unit,
+                child,
+                if Some(child) == initializer {
+                    written_destination.as_ref()
+                } else {
+                    None
+                },
+                function_return,
+                unit_index,
+                pending,
+            )?;
+        }
+        return Ok(());
+    }
+    if node.kind == SyntaxKind::CallExpression
+        && let [callee, arguments] = node.children.as_slice()
+    {
+        collect_projected_destinations(
+            package,
+            unit,
+            callee,
+            None,
+            function_return,
+            unit_index,
+            pending,
+        )?;
+        let parameter_types = match infer_value_type(unit, callee, &unit.typed_bindings)? {
+            Some(
+                ValueType::Function(parameters, _) | ValueType::AsyncFunction(parameters, _, _),
+            ) => parameters,
+            _ => Vec::new(),
+        };
+        for (index, argument) in arguments.children.iter().enumerate() {
+            let value = argument.children.last().unwrap_or(argument);
+            collect_projected_destinations(
+                package,
+                unit,
+                value,
+                parameter_types.get(index).map(ElementType::value_type_ref),
+                function_return,
+                unit_index,
+                pending,
+            )?;
+        }
+        return Ok(());
+    }
+    let transparent_destination = matches!(node.kind, SyntaxKind::GroupExpression)
+        || (node.kind == SyntaxKind::UnaryExpression
+            && node_text(&unit.source, node)
+                .trim_start()
+                .starts_with("await "));
+    for child in &node.children {
+        collect_projected_destinations(
+            package,
+            unit,
+            child,
+            transparent_destination.then_some(expected).flatten(),
+            function_return,
+            unit_index,
+            pending,
+        )?;
+    }
+    Ok(())
+}
+
+fn destination_projected_type(
+    package: &SemanticPackage,
+    value_type: &ValueType,
+) -> Result<crate::projection::ProjectedType, &'static str> {
+    use crate::projection::ProjectedType;
+    Ok(match value_type {
+        ValueType::Scalar(ScalarType::None) => ProjectedType::None,
+        ValueType::Scalar(ScalarType::Bool) => ProjectedType::Bool,
+        ValueType::Scalar(ScalarType::Int) => ProjectedType::Int,
+        ValueType::Scalar(
+            scalar @ (ScalarType::Int8
+            | ScalarType::Int16
+            | ScalarType::Int32
+            | ScalarType::Int64
+            | ScalarType::Int128
+            | ScalarType::Uint8
+            | ScalarType::Uint16
+            | ScalarType::Uint32
+            | ScalarType::Uint64
+            | ScalarType::Uint128),
+        ) => ProjectedType::FixedInt(
+            scalar
+                .rust_type()
+                .expect("fixed-width integer has a native Rust representation")
+                .to_owned(),
+        ),
+        ValueType::Scalar(ScalarType::Float32) => ProjectedType::Float32,
+        ValueType::Scalar(ScalarType::Float64) => ProjectedType::Float,
+        ValueType::Scalar(ScalarType::String) => ProjectedType::String,
+        ValueType::Scalar(ScalarType::Bytes) => ProjectedType::Bytes,
+        ValueType::Optional(inner) => {
+            ProjectedType::Optional(Box::new(destination_projected_type(package, inner)?))
+        }
+        ValueType::List(item) => {
+            let item = destination_projected_type(package, item.value_type_ref())?;
+            ProjectedType::Sequence {
+                rust_path: format!("Vec<{}>", item.rust_type()),
+                item: Box::new(item),
+            }
+        }
+        ValueType::Map(key, value) | ValueType::UnorderedMap(key, value) => {
+            let ordered = matches!(value_type, ValueType::Map(_, _));
+            let key = destination_projected_type(package, key.value_type_ref())?;
+            let value = destination_projected_type(package, value.value_type_ref())?;
+            ProjectedType::Mapping {
+                rust_path: format!(
+                    "std::collections::{}<{}, {}>",
+                    if ordered { "BTreeMap" } else { "HashMap" },
+                    key.rust_type(),
+                    value.rust_type()
+                ),
+                key: Box::new(key),
+                value: Box::new(value),
+                ordered,
+            }
+        }
+        ValueType::Set(item) | ValueType::UnorderedSet(item) => {
+            let ordered = matches!(value_type, ValueType::Set(_));
+            let item = destination_projected_type(package, item.value_type_ref())?;
+            ProjectedType::Set {
+                rust_path: format!(
+                    "std::collections::{}<{}>",
+                    if ordered { "BTreeSet" } else { "HashSet" },
+                    item.rust_type()
+                ),
+                item: Box::new(item),
+                ordered,
+            }
+        }
+        ValueType::Tuple(item, Some(length)) => {
+            let item = destination_projected_type(package, item.value_type_ref())?;
+            ProjectedType::Tuple(vec![item; *length])
+        }
+        ValueType::Object(identity) => {
+            let item = package
+                .projection
+                .item(&identity.namespace, &identity.name)
+                .filter(|item| {
+                    matches!(
+                        item.kind,
+                        crate::projection::ProjectedKind::ForeignType { .. }
+                            | crate::projection::ProjectedKind::Enum { .. }
+                    )
+                })
+                .ok_or(
+                    "source-declared object destinations have no dependency conversion contract",
+                )?;
+            ProjectedType::Foreign {
+                rust_path: item.rust_path.clone(),
+                name: item.name.clone(),
+                base_rust_path: item.rust_path.clone(),
+                arguments: Vec::new(),
+            }
+        }
+        ValueType::Reference(_) | ValueType::SharedReference(_) => {
+            return Err("borrowed results cannot escape a projected call");
+        }
+        _ => return Err("the destination is outside the closed projected result set"),
+    })
+}
+
+fn select_projected_generic_destination(
+    template: &crate::projection::ProjectedType,
+    parameter: &str,
+    expected: &crate::projection::ProjectedType,
+) -> Result<Option<crate::projection::ProjectedType>, ()> {
+    fn collect(
+        template: &crate::projection::ProjectedType,
+        parameter: &str,
+        expected: &crate::projection::ProjectedType,
+        destinations: &mut Vec<crate::projection::ProjectedType>,
+    ) -> bool {
+        use crate::projection::ProjectedType;
+        match (template, expected) {
+            (ProjectedType::Generic(name), expected) if name == parameter => {
+                destinations.push(expected.clone());
+                true
+            }
+            (ProjectedType::Optional(template), ProjectedType::Optional(expected))
+            | (
+                ProjectedType::Sequence { item: template, .. },
+                ProjectedType::Sequence { item: expected, .. },
+            )
+            | (
+                ProjectedType::Set { item: template, .. },
+                ProjectedType::Set { item: expected, .. },
+            ) => collect(template, parameter, expected, destinations),
+            (
+                ProjectedType::Mapping {
+                    key: template_key,
+                    value: template_value,
+                    ..
+                },
+                ProjectedType::Mapping {
+                    key: expected_key,
+                    value: expected_value,
+                    ..
+                },
+            ) => {
+                collect(template_key, parameter, expected_key, destinations)
+                    && collect(template_value, parameter, expected_value, destinations)
+            }
+            (ProjectedType::Tuple(template), ProjectedType::Tuple(expected))
+                if template.len() == expected.len() =>
+            {
+                template.iter().zip(expected).all(|(template, expected)| {
+                    collect(template, parameter, expected, destinations)
+                })
+            }
+            _ => false,
+        }
+    }
+    let mut destinations = Vec::new();
+    if !collect(template, parameter, expected, &mut destinations) {
+        return Ok(None);
+    }
+    let Some(first) = destinations.first().cloned() else {
+        return Ok(None);
+    };
+    if destinations.iter().all(|destination| destination == &first) {
+        Ok(Some(first))
+    } else {
+        Err(())
+    }
+}
+
+fn substitute_projected_generic(
+    template: &crate::projection::ProjectedType,
+    parameter: &str,
+    destination: &crate::projection::ProjectedType,
+) -> crate::projection::ProjectedType {
+    use crate::projection::ProjectedType;
+    match template {
+        ProjectedType::Generic(name) if name == parameter => destination.clone(),
+        ProjectedType::Sequence { rust_path, item } => ProjectedType::Sequence {
+            rust_path: rust_path.replace(parameter, &destination.rust_type()),
+            item: Box::new(substitute_projected_generic(item, parameter, destination)),
+        },
+        ProjectedType::Mapping {
+            rust_path,
+            key,
+            value,
+            ordered,
+        } => ProjectedType::Mapping {
+            rust_path: rust_path.replace(parameter, &destination.rust_type()),
+            key: Box::new(substitute_projected_generic(key, parameter, destination)),
+            value: Box::new(substitute_projected_generic(value, parameter, destination)),
+            ordered: *ordered,
+        },
+        ProjectedType::Set {
+            rust_path,
+            item,
+            ordered,
+        } => ProjectedType::Set {
+            rust_path: rust_path.replace(parameter, &destination.rust_type()),
+            item: Box::new(substitute_projected_generic(item, parameter, destination)),
+            ordered: *ordered,
+        },
+        ProjectedType::Tuple(items) => ProjectedType::Tuple(
+            items
+                .iter()
+                .map(|item| substitute_projected_generic(item, parameter, destination))
+                .collect(),
+        ),
+        ProjectedType::Optional(inner) => ProjectedType::Optional(Box::new(
+            substitute_projected_generic(inner, parameter, destination),
+        )),
+        other => other.clone(),
+    }
+}
+
 pub(super) fn populate_closure_captures(package: &mut SemanticPackage) {
     fn collect(
         unit: &SemanticUnit,

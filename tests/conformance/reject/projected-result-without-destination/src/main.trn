@@ -1,0 +1,5 @@
+namespace app
+from /deps/witness import default_value
+
+function main;
+  value = default_value;

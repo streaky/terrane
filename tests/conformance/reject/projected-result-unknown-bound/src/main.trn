@@ -1,0 +1,5 @@
+namespace app
+from /deps/witness import hidden_value
+
+function main;
+  value int64 = hidden_value;

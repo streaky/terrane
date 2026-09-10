@@ -225,6 +225,14 @@
           "Value"
         ],
         [
+          "/deps/serde-json",
+          "from_str"
+        ],
+        [
+          "/deps/serde-json",
+          "from_value"
+        ],
+        [
           "/deps/serde-json/error",
           "Category"
         ],
@@ -290,7 +298,7 @@
     }
   ],
   "format": 2,
-  "projection_schema": "24",
+  "projection_schema": "28",
   "removed": [],
   "resolution": {
     "events": [
