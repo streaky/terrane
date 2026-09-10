@@ -10,8 +10,6 @@ become a direct Rust call, and an independent value assignment can use copy-on-w
 compiler emits deterministic, readable Rust as an inspectable receipt, then uses Cargo and rustc to
 produce native code.
 
-![Terrane source lowering through Rust to a native program](docs/images/source-to-native-program-flow.png)
-
 > **Project status:** Terrane is under active development and is built from source; there is not yet
 > a finalized release distribution. The compiler implements most of the planned first-version
 > language and standard-library surface, but the language, CLI, and generated-code contracts are not
