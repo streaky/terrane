@@ -137,6 +137,7 @@ pub(super) fn iterable_item_type(
         | ValueType::StringView(TextUnit::Scalars | TextUnit::Graphemes) => {
             Ok(ValueType::Scalar(ScalarType::String))
         }
+        ValueType::TextRangeList => Ok(ValueType::TextRange),
         ValueType::Scalar(ScalarType::Bytes) | ValueType::StringView(TextUnit::Bytes) => {
             Ok(ValueType::Scalar(ScalarType::Uint8))
         }
@@ -869,6 +870,7 @@ pub(crate) enum BuiltinDescriptor {
     Iterator,
     IterationStep,
     List,
+    ReadonlyList,
     Map,
     Set,
     Tuple,

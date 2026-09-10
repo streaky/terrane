@@ -181,6 +181,7 @@ fn collection_members(kind: BuiltinDescriptor) -> BTreeSet<String> {
             &["type", "iterator", "length", "add", "contains", "remove"]
         }
         BuiltinDescriptor::Tuple => &["type", "iterator", "length", "get", "get.checked"],
+        BuiltinDescriptor::ReadonlyList => &["type", "iterator", "length"],
         BuiltinDescriptor::Range => &["type", "iterator"],
         BuiltinDescriptor::Entry => &["type", "key", "value"],
         BuiltinDescriptor::Iterator => &["type", "iterator", "next"],
@@ -237,6 +238,7 @@ fn contract(
         | BuiltinDescriptor::Iterator
         | BuiltinDescriptor::IterationStep
         | BuiltinDescriptor::List
+        | BuiltinDescriptor::ReadonlyList
         | BuiltinDescriptor::Map
         | BuiltinDescriptor::Set
         | BuiltinDescriptor::Tuple
@@ -251,6 +253,7 @@ fn contract(
         BuiltinDescriptor::Scalar(ScalarType::Bytes) => "bytes",
         BuiltinDescriptor::Scalar(scalar) if scalar.conforms_to(TypeCategory::Number) => "numeric",
         BuiltinDescriptor::List
+        | BuiltinDescriptor::ReadonlyList
         | BuiltinDescriptor::Map
         | BuiltinDescriptor::Set
         | BuiltinDescriptor::Tuple
@@ -356,6 +359,13 @@ fn build_builtin_descriptor_contracts() -> Vec<DescriptorContract> {
             collection_members(builtin),
         ));
     }
+    contracts.push(contract(
+        "/core/collections",
+        "readonly-list",
+        BuiltinDescriptor::ReadonlyList,
+        vec![TypeCategory::Value, TypeCategory::Object],
+        collection_members(BuiltinDescriptor::ReadonlyList),
+    ));
     contracts
 }
 
@@ -374,9 +384,8 @@ fn builtin_for_value_type(value_type: &ValueType) -> BuiltinDescriptor {
         ValueType::DivRemResult(_) => BuiltinDescriptor::DivRemResult,
         ValueType::Iterator(_) => BuiltinDescriptor::Iterator,
         ValueType::IterationStep(_) | ValueType::IterationEnd => BuiltinDescriptor::IterationStep,
-        ValueType::StringList | ValueType::TextRangeList | ValueType::List(_) => {
-            BuiltinDescriptor::List
-        }
+        ValueType::StringList | ValueType::TextRangeList => BuiltinDescriptor::ReadonlyList,
+        ValueType::List(_) => BuiltinDescriptor::List,
         ValueType::Map(_, _) => BuiltinDescriptor::Map,
         ValueType::Set(_) => BuiltinDescriptor::Set,
         ValueType::Tuple(_, _) => BuiltinDescriptor::Tuple,
@@ -394,6 +403,7 @@ fn builtin_is_collection(builtin: BuiltinDescriptor) -> bool {
         BuiltinDescriptor::Iterator
             | BuiltinDescriptor::IterationStep
             | BuiltinDescriptor::List
+            | BuiltinDescriptor::ReadonlyList
             | BuiltinDescriptor::Map
             | BuiltinDescriptor::Set
             | BuiltinDescriptor::Tuple
