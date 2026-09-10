@@ -563,26 +563,26 @@ This appendix keeps delivered milestone contracts and evidence out of the active
 Function types now accept postfix `throws T`, with the clause binding to the callable introduced by
 the nearest `function` or `async function`; nested result callables consume their own clause before
 an outer callable clause. The written upper bound and exact inferred escaping set remain distinct
-metadata. Omitting `throws` declares an infallible callable type. A genuinely erased callable whose
-contract is unavailable retains the broad `throwable` fallback, while a named function, closure,
-bound method, or initialized callable binding retains any exact set the compiler can prove.
+metadata on source declarations and exact callable values. Omitting `throws` declares an infallible
+callable type. Named functions, closures, bound methods, and inferred callable bindings retain the
+exact set the compiler proves; an explicitly typed binding retains its written storage contract.
 
 Callable compatibility is covariant in failure: infallible and narrower implementations satisfy a
 broader destination, while broader or unrelated throwables fail at binding, argument, return, and
-class-field initializer boundaries. Invocation through a typed callable contributes its exact set
-or written bound; only unavailable erased metadata falls back to broad `throwable`. Exact infallible
-callable values lower to a
-non-`Result` callable ABI with no propagation operator or registered error site; adapters add the
-broader result-bearing ABI only when a compatible destination requires it. Synchronous and
-asynchronous callables use the same rule.
+class-field initializer boundaries. Invocation through an exact callable contributes its inferred
+set, while invocation through explicitly typed storage contributes its written bound. Exact
+infallible callable values lower to a non-`Result` callable ABI with no propagation operator or
+registered error site; adapters add the broader result-bearing ABI when a compatible written
+destination requires it. Synchronous and asynchronous callables use the same rule.
 
-Evidence: `callable-throwable-contracts` runs exact, broad-bound, infallible, nested, closure,
-bound-method, class-method, class-field, and async paths with canonical generated Rust and reflection
-output.
+Evidence: `callable-throwable-contracts` runs exact and written-bound storage, infallible, nested,
+closure, bound-method, class-method, class-field invocation and reassignment, custom throwable, and
+successful and failing async paths with canonical generated Rust and reflection output.
 `callable-throwable-broad-to-narrow`, `callable-throwable-argument-broad-to-narrow`,
-`callable-throwable-return-broad-to-narrow`, and `callable-throwable-field-broad-to-narrow` preserve
-source-oriented compatibility diagnostics. `callable-throws-missing-bound` and
-`callable-throws-nonthrowable` cover malformed contracts.
+`callable-throwable-return-broad-to-narrow`, `callable-throwable-field-broad-to-narrow`, and
+`callable-throwable-to-unbounded` preserve source-oriented compatibility diagnostics.
+`callable-throws-missing-bound`, `callable-throws-nonthrowable`, and
+`callable-throws-repeated-bound` cover malformed contracts.
 
 ### Milestone 17 — Complete references, provenance, and lowering
 

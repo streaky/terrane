@@ -3084,8 +3084,8 @@ function load config throws config-error; path string
 Callable compatibility compares the declared upper bound when one exists and the inferred escaping
 set otherwise. An implementation may expose fewer compatible throwable classes than its interface
 contract, never an incompatible one. A direct call proven to have an empty escaping set is
-non-throwing. A call through an erased callable whose throwable metadata is unavailable is rejected
-at a constrained boundary rather than optimistically assumed safe.
+non-throwing. Every source callable carries either exact inferred metadata or an explicit written
+storage contract; absence of metadata is not represented by an implicit broad fallback.
 
 Function types use the same postfix contract:
 
@@ -3096,15 +3096,17 @@ async function from request to response throws request-error
 
 The clause belongs to the callable introduced by the nearest `function`. Function results associate
 right, so `function from A to function from B to R throws Inner throws Outer` constrains the result
-callable with `Inner` and the outer callable with `Outer`. Parentheses may make either grouping
-explicit. Omitting `throws` declares an infallible callable type. Only a genuinely erased callable
-whose contract is unavailable contributes the conservative broad `throwable` fallback.
+callable with `Inner` and the outer callable with `Outer`. Parenthesized callable-type grouping is
+not part of the grammar; use a named intermediate callable type or binding when the inward-binding
+form would be unclear. Omitting `throws` declares an infallible callable type.
 
-Bindings preserve exact metadata from named functions, closures, and stored bound methods. A
-destination may widen that implementation to a compatible upper bound, but it may not narrow or
-replace the inferred set. The same compatibility check applies to bindings, arguments, returned
-callables, and class-field initializers. A callable proven infallible uses an infallible generated
-ABI; conversion to a broader result-bearing callable introduces an adapter at that destination.
+Named functions, closures, and stored bound methods preserve exact metadata. An inferred callable
+binding retains that exact contract; a binding with a written callable type instead retains the
+written contract as its storage ABI. A destination may widen an implementation to a compatible
+upper bound, but it may not narrow or replace the inferred set. The same compatibility check applies
+to bindings, arguments, returned callables, and class fields. A callable proven infallible uses an
+infallible generated ABI; conversion to a broader result-bearing callable introduces an adapter at
+that destination.
 Consequently invocation through the exact value needs neither error propagation nor a semantic
 error-site record.
 

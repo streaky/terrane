@@ -698,14 +698,15 @@ coercion-error               coercion has no compatible result outside the overf
 - Callable compatibility admits fewer compatible throwables, never an incompatible one.
 - A written callable type with `throws T` admits only implementations whose exact escaping set
   conforms to `T`. An implementation may be infallible or narrower. Omitting `throws` declares an
-  infallible callable type. Only a genuinely erased callable whose contract is unavailable uses the
-  conservative broad `throwable` fallback.
+  infallible callable type. Every source callable has either exact inferred metadata or an explicit
+  written storage contract; no implicit broad fallback is introduced.
 - Nested callable results associate right. In
   `function from A to function from B to R throws Inner throws Outer`, `Inner` constrains the result
   callable and `Outer` constrains the outer callable. `async function` uses the same postfix rule.
-- Exact named-function, closure, bound-method, and initialized-binding metadata survives callable
-  conversion. A proven empty set uses an infallible callable ABI and adds neither result propagation
-  nor an error site; widening into a broader destination inserts the result-bearing adapter there.
+- Exact named-function, closure, bound-method, and inferred-binding metadata survives callable
+  conversion. An explicitly typed binding retains its written contract as its storage ABI. A proven
+  empty set uses an infallible callable ABI and adds neither result propagation nor an error site;
+  widening into a broader written destination inserts the result-bearing adapter there.
 - Callable contracts are orthogonal, not one permission-like effect algebra:
 
 ```yaml
