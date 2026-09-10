@@ -1,0 +1,4 @@
+namespace float-clamp-argument-count
+function main;
+  value float32 = 1.0
+  print; (value.clamp; 0.0)

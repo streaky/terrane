@@ -331,11 +331,22 @@ impl Emitter<'_> {
                     ValueType::Scalar(receiver_type @ (ScalarType::Float32 | ScalarType::Float64)),
                     operation,
                 ) if float_member_contract(operation)
-                    .is_some_and(|contract| contract.arity.is_some()) =>
+                    .is_some_and(|contract| contract.parameters.is_some()) =>
                 {
+                    let contract =
+                        float_member_contract(operation).expect("validated floating operation");
                     let arguments = values
                         .iter()
-                        .map(|value| self.expression_as(value, ValueType::Scalar(receiver_type)))
+                        .zip(contract.parameters.expect("callable floating operation"))
+                        .map(|(value, parameter)| {
+                            self.expression_as(
+                                value,
+                                ValueType::Scalar(match parameter {
+                                    FloatMemberArgument::Receiver => receiver_type,
+                                    FloatMemberArgument::Int32 => ScalarType::Int32,
+                                }),
+                            )
+                        })
                         .collect::<Vec<_>>();
                     self.float_call(receiver_type, operation, &receiver_value, &arguments, node)
                 }

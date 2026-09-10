@@ -1,6 +1,6 @@
 use terrane_int_support::Int;
 use terrane_scalar_support::{
-    decompose_f32, decompose_f64, scale_binary_f32, scale_binary_f64, scalar_text,
+    decompose_f32, decompose_f64, scalar_text, scale_binary_f32, scale_binary_f64,
 };
 
 #[test]
@@ -29,13 +29,19 @@ fn decomposes_normal_subnormal_and_nonfinite_values() {
     assert_eq!(normal32.mantissa, -0.75);
     assert_eq!(normal32.exponent, 4);
     let subnormal32 = decompose_f32(f32::from_bits(1));
-    assert_eq!(scale_binary_f32(subnormal32.mantissa, subnormal32.exponent), f32::from_bits(1));
+    assert_eq!(
+        scale_binary_f32(subnormal32.mantissa, subnormal32.exponent),
+        f32::from_bits(1)
+    );
 
     let normal64 = decompose_f64(20.0);
     assert_eq!(normal64.mantissa, 0.625);
     assert_eq!(normal64.exponent, 5);
     let subnormal64 = decompose_f64(f64::from_bits(1));
-    assert_eq!(scale_binary_f64(subnormal64.mantissa, subnormal64.exponent), f64::from_bits(1));
+    assert_eq!(
+        scale_binary_f64(subnormal64.mantissa, subnormal64.exponent),
+        f64::from_bits(1)
+    );
 
     assert!(decompose_f64(f64::NAN).mantissa.is_nan());
     assert_eq!(decompose_f64(f64::INFINITY).mantissa, f64::INFINITY);

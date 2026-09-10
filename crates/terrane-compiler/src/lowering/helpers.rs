@@ -383,6 +383,12 @@ pub(super) fn rust_value_type(package: &SemanticPackage, ty: ValueType) -> Strin
         ValueType::DivRemResult(scalar) => {
             format!("terrane_int_support::DivRemResult<{}>", rust_type(scalar))
         }
+        ValueType::FloatDecomposition(scalar) => {
+            format!(
+                "terrane_scalar_support::FloatDecomposition<{}>",
+                rust_type(scalar)
+            )
+        }
         ValueType::StringView(crate::semantics::TextUnit::Bytes) => "Vec<u8>".to_owned(),
         ValueType::StringView(_) | ValueType::TextRangeView(_) => "String".to_owned(),
         ValueType::StringList => "Vec<String>".to_owned(),

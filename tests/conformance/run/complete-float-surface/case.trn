@@ -1,0 +1,97 @@
+namespace complete-float-surface
+
+function exercise32;
+  zero float32 = 0.0
+  negative-zero float32 = -0.0
+  one float32 = 1.0
+  two float32 = 2.0
+  three float32 = 3.0
+  four float32 = 4.0
+  negative-one float32 = -1.0
+  negative-two float32 = -2.0
+  negative-quarter float32 = -0.25
+  fractional float32 = -1.25
+  twelve float32 = 12.0
+  thousand float32 = 1000.0
+  overflow-input float32 = 128.0
+  underflow-input float32 = -150.0
+  eight float32 = 8.0
+  print; (eight.cube-root;) == two, (three.hypotenuse; four) == 5.0
+  print; (four.power; 0.5) == two, (two.integer-power; 10) == 1024.0
+  print; (three.binary-exponential;) == eight, (zero.exponential-minus-one;) == zero
+  print; (zero.natural-log-one-plus;) == zero, (eight.binary-log;) == three
+  print; (thousand.decimal-log;) == three, (eight.logarithm; two) == three
+  print; (zero.tangent;) == zero, (zero.arc-sine;) == zero, (one.arc-cosine;) == zero
+  print; (zero.arc-tangent;) == zero, (zero.arc-tangent-two; negative-one) > three
+  print; (one.copy-sign; negative-zero) == negative-one, negative-zero.negative-sign
+  print; (two.clamp; 3.0, 4.0) == three, (fractional.fractional-part;) == negative-quarter
+  print; zero.zero, negative-zero.zero, one.normal, float32.minimum-positive-subnormal.subnormal
+  print; (zero.next-up;) == float32.minimum-positive-subnormal
+  print; (zero.next-down;) == (negative-one * float32.minimum-positive-subnormal)
+  decomposition = (twelve.decompose;)
+  print; decomposition.mantissa == 0.75, decomposition.exponent == 4
+  print; (decomposition.mantissa.scale-binary; decomposition.exponent) == twelve
+  print; float32.radix == 2, float32.significand-digits == 24
+  print; float32.epsilon > zero, float32.minimum-positive-normal.normal
+  print; float32.minimum-positive-subnormal > zero, float32.minimum < zero, float32.maximum > zero
+  print; (two.arc-sine;).not-a-number, (negative-two.power; 0.5).not-a-number
+  print; (overflow-input.binary-exponential;).infinite, (underflow-input.binary-exponential;) == zero
+  not-a-number float32 = (two.arc-sine;)
+  infinity float32 = one / zero
+  clamped-zero float32 = (negative-zero.clamp; zero, one)
+  print; one / clamped-zero > zero
+  print; (not-a-number.clamp; zero, one).not-a-number, (one.clamp; not-a-number, one).not-a-number
+  print; (not-a-number.hypotenuse; infinity).infinite, (infinity.next-up;).infinite
+  subnormal-decomposition = (float32.minimum-positive-subnormal.decompose;)
+  print; (subnormal-decomposition.mantissa.scale-binary; subnormal-decomposition.exponent) == float32.minimum-positive-subnormal
+  print; (float32.maximum.scale-binary; 1).infinite, (float32.minimum-positive-subnormal.scale-binary; -1) == zero
+
+function exercise64;
+  zero float64 = 0.0
+  negative-zero float64 = -0.0
+  one float64 = 1.0
+  two float64 = 2.0
+  three float64 = 3.0
+  four float64 = 4.0
+  eight float64 = 8.0
+  print; (eight.cube-root;) == two, (three.hypotenuse; four) == 5.0
+  negative-one float64 = -1.0
+  negative-two float64 = -2.0
+  negative-quarter float64 = -0.25
+  fractional float64 = -1.25
+  twelve float64 = 12.0
+  thousand float64 = 1000.0
+  overflow-input float64 = 1024.0
+  underflow-input float64 = -1075.0
+  print; (four.power; 0.5) == two, (two.integer-power; 10) == 1024.0
+  print; (three.binary-exponential;) == eight, (zero.exponential-minus-one;) == zero
+  print; (zero.natural-log-one-plus;) == zero, (eight.binary-log;) == three
+  print; (thousand.decimal-log;) == three, (eight.logarithm; two) == three
+  print; (zero.tangent;) == zero, (zero.arc-sine;) == zero, (one.arc-cosine;) == zero
+  print; (zero.arc-tangent;) == zero, (zero.arc-tangent-two; negative-one) > three
+  print; (one.copy-sign; negative-zero) == negative-one, negative-zero.negative-sign
+  print; (two.clamp; 3.0, 4.0) == three, (fractional.fractional-part;) == negative-quarter
+  print; zero.zero, negative-zero.zero, one.normal, float64.minimum-positive-subnormal.subnormal
+  print; (zero.next-up;) == float64.minimum-positive-subnormal
+  print; (zero.next-down;) == (negative-one * float64.minimum-positive-subnormal)
+  decomposition = (twelve.decompose;)
+  print; decomposition.mantissa == 0.75, decomposition.exponent == 4
+  print; (decomposition.mantissa.scale-binary; decomposition.exponent) == twelve
+  print; float64.radix == 2, float64.significand-digits == 53
+  print; float64.epsilon > zero, float64.minimum-positive-normal.normal
+  print; float64.minimum-positive-subnormal > zero, float64.minimum < zero, float64.maximum > zero
+  print; (two.arc-sine;).not-a-number, (negative-two.power; 0.5).not-a-number
+  print; (overflow-input.binary-exponential;).infinite, (underflow-input.binary-exponential;) == zero
+  not-a-number float64 = (two.arc-sine;)
+  infinity float64 = one / zero
+  clamped-zero float64 = (negative-zero.clamp; zero, one)
+  print; one / clamped-zero > zero
+  print; (not-a-number.clamp; zero, one).not-a-number, (one.clamp; not-a-number, one).not-a-number
+  print; (not-a-number.hypotenuse; infinity).infinite, (infinity.next-up;).infinite
+  subnormal-decomposition = (float64.minimum-positive-subnormal.decompose;)
+  print; (subnormal-decomposition.mantissa.scale-binary; subnormal-decomposition.exponent) == float64.minimum-positive-subnormal
+  print; (float64.maximum.scale-binary; 1).infinite, (float64.minimum-positive-subnormal.scale-binary; -1) == zero
+
+function main;
+  exercise32;
+  exercise64;

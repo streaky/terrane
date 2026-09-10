@@ -1,0 +1,4 @@
+namespace invoked-float-classification-property
+function main;
+  value float64 = 1.0
+  value.normal;

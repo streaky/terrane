@@ -294,6 +294,7 @@ pub enum ValueType {
     Optional(Box<ValueType>),
     OverflowResult(ScalarType),
     DivRemResult(ScalarType),
+    FloatDecomposition(ScalarType),
     StringView(TextUnit),
     StringList,
     TextRange,
@@ -391,6 +392,7 @@ pub(crate) fn canonical_default(value_type: &ValueType) -> Option<CanonicalDefau
         ValueType::UnorderedSet(_) => Some(CanonicalDefault::EmptyUnorderedSet),
         ValueType::OverflowResult(_)
         | ValueType::DivRemResult(_)
+        | ValueType::FloatDecomposition(_)
         | ValueType::StringView(_)
         | ValueType::StringList
         | ValueType::TextRange
@@ -519,6 +521,9 @@ impl std::fmt::Display for ValueType {
             Self::Optional(inner) => write!(formatter, "{inner}|none"),
             Self::OverflowResult(ty) => write!(formatter, "overflow-result of {ty}"),
             Self::DivRemResult(ty) => write!(formatter, "div-rem-result of {ty}"),
+            Self::FloatDecomposition(ty) => {
+                write!(formatter, "float-decomposition of {ty}")
+            }
             Self::StringView(TextUnit::Bytes) => formatter.write_str("string.bytes"),
             Self::StringView(TextUnit::Scalars) => formatter.write_str("string.scalars"),
             Self::StringView(TextUnit::Graphemes) => formatter.write_str("string.graphemes"),
@@ -677,13 +682,39 @@ pub(crate) enum FloatMemberOperation {
     Finite,
     Infinite,
     NotANumber,
+    NegativeSign,
+    Zero,
+    Normal,
+    Subnormal,
     SquareRoot,
+    CubeRoot,
+    Hypotenuse,
+    Power,
+    IntegerPower,
     Sine,
     Cosine,
     SineCosine,
+    Tangent,
+    ArcSine,
+    ArcCosine,
+    ArcTangent,
+    ArcTangentTwo,
     NaturalLog,
     Exponential,
+    BinaryExponential,
+    ExponentialMinusOne,
+    NaturalLogOnePlus,
+    BinaryLog,
+    DecimalLog,
+    Logarithm,
     Absolute,
+    CopySign,
+    Clamp,
+    FractionalPart,
+    NextUp,
+    NextDown,
+    Decompose,
+    ScaleBinary,
     Round,
     Floor,
     Ceiling,
@@ -694,64 +725,125 @@ pub(crate) enum FloatMemberOperation {
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) enum FloatMemberArgument {
+    Receiver,
+    Int32,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) enum FloatMemberResult {
     Receiver,
     Integer,
     Boolean,
     ReceiverPair,
+    Decomposition,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) struct FloatMemberContract {
     pub operation: FloatMemberOperation,
-    pub arity: Option<usize>,
+    pub parameters: Option<&'static [FloatMemberArgument]>,
     pub result: FloatMemberResult,
 }
 
 pub(crate) fn float_member_contract(name: &str) -> Option<FloatMemberContract> {
+    use FloatMemberArgument::{Int32, Receiver};
+    use FloatMemberOperation as Operation;
+    use FloatMemberResult as Result;
+
     let operation = match name {
-        "finite" => FloatMemberOperation::Finite,
-        "infinite" => FloatMemberOperation::Infinite,
-        "not-a-number" => FloatMemberOperation::NotANumber,
-        "square-root" => FloatMemberOperation::SquareRoot,
-        "sine" => FloatMemberOperation::Sine,
-        "cosine" => FloatMemberOperation::Cosine,
-        "sine-cosine" => FloatMemberOperation::SineCosine,
-        "natural-log" => FloatMemberOperation::NaturalLog,
-        "exponential" => FloatMemberOperation::Exponential,
-        "absolute" => FloatMemberOperation::Absolute,
-        "round" => FloatMemberOperation::Round,
-        "floor" => FloatMemberOperation::Floor,
-        "ceiling" => FloatMemberOperation::Ceiling,
-        "truncate" => FloatMemberOperation::Truncate,
-        "minimum" => FloatMemberOperation::Minimum,
-        "maximum" => FloatMemberOperation::Maximum,
-        "multiply-add" => FloatMemberOperation::MultiplyAdd,
+        "finite" => Operation::Finite,
+        "infinite" => Operation::Infinite,
+        "not-a-number" => Operation::NotANumber,
+        "negative-sign" => Operation::NegativeSign,
+        "zero" => Operation::Zero,
+        "normal" => Operation::Normal,
+        "subnormal" => Operation::Subnormal,
+        "square-root" => Operation::SquareRoot,
+        "cube-root" => Operation::CubeRoot,
+        "hypotenuse" => Operation::Hypotenuse,
+        "power" => Operation::Power,
+        "integer-power" => Operation::IntegerPower,
+        "sine" => Operation::Sine,
+        "cosine" => Operation::Cosine,
+        "sine-cosine" => Operation::SineCosine,
+        "tangent" => Operation::Tangent,
+        "arc-sine" => Operation::ArcSine,
+        "arc-cosine" => Operation::ArcCosine,
+        "arc-tangent" => Operation::ArcTangent,
+        "arc-tangent-two" => Operation::ArcTangentTwo,
+        "natural-log" => Operation::NaturalLog,
+        "exponential" => Operation::Exponential,
+        "binary-exponential" => Operation::BinaryExponential,
+        "exponential-minus-one" => Operation::ExponentialMinusOne,
+        "natural-log-one-plus" => Operation::NaturalLogOnePlus,
+        "binary-log" => Operation::BinaryLog,
+        "decimal-log" => Operation::DecimalLog,
+        "logarithm" => Operation::Logarithm,
+        "absolute" => Operation::Absolute,
+        "copy-sign" => Operation::CopySign,
+        "clamp" => Operation::Clamp,
+        "fractional-part" => Operation::FractionalPart,
+        "next-up" => Operation::NextUp,
+        "next-down" => Operation::NextDown,
+        "decompose" => Operation::Decompose,
+        "scale-binary" => Operation::ScaleBinary,
+        "round" => Operation::Round,
+        "floor" => Operation::Floor,
+        "ceiling" => Operation::Ceiling,
+        "truncate" => Operation::Truncate,
+        "minimum" => Operation::Minimum,
+        "maximum" => Operation::Maximum,
+        "multiply-add" => Operation::MultiplyAdd,
         _ => return None,
     };
-    let (arity, result) = match operation {
-        FloatMemberOperation::Finite
-        | FloatMemberOperation::Infinite
-        | FloatMemberOperation::NotANumber => (None, FloatMemberResult::Boolean),
-        FloatMemberOperation::SineCosine => (Some(0), FloatMemberResult::ReceiverPair),
-        FloatMemberOperation::Round
-        | FloatMemberOperation::Floor
-        | FloatMemberOperation::Ceiling
-        | FloatMemberOperation::Truncate => (Some(0), FloatMemberResult::Integer),
-        FloatMemberOperation::Minimum | FloatMemberOperation::Maximum => {
-            (Some(1), FloatMemberResult::Receiver)
+    let (parameters, result): (Option<&'static [_]>, _) = match operation {
+        Operation::Finite
+        | Operation::Infinite
+        | Operation::NotANumber
+        | Operation::NegativeSign
+        | Operation::Zero
+        | Operation::Normal
+        | Operation::Subnormal => (None, Result::Boolean),
+        Operation::SineCosine => (Some(&[]), Result::ReceiverPair),
+        Operation::Decompose => (Some(&[]), Result::Decomposition),
+        Operation::Round | Operation::Floor | Operation::Ceiling | Operation::Truncate => {
+            (Some(&[]), Result::Integer)
         }
-        FloatMemberOperation::MultiplyAdd => (Some(2), FloatMemberResult::Receiver),
-        FloatMemberOperation::SquareRoot
-        | FloatMemberOperation::Sine
-        | FloatMemberOperation::Cosine
-        | FloatMemberOperation::NaturalLog
-        | FloatMemberOperation::Exponential
-        | FloatMemberOperation::Absolute => (Some(0), FloatMemberResult::Receiver),
+        Operation::Hypotenuse
+        | Operation::Power
+        | Operation::ArcTangentTwo
+        | Operation::Logarithm
+        | Operation::CopySign
+        | Operation::Minimum
+        | Operation::Maximum => (Some(&[Receiver]), Result::Receiver),
+        Operation::Clamp | Operation::MultiplyAdd => {
+            (Some(&[Receiver, Receiver]), Result::Receiver)
+        }
+        Operation::IntegerPower | Operation::ScaleBinary => (Some(&[Int32]), Result::Receiver),
+        Operation::SquareRoot
+        | Operation::CubeRoot
+        | Operation::Sine
+        | Operation::Cosine
+        | Operation::Tangent
+        | Operation::ArcSine
+        | Operation::ArcCosine
+        | Operation::ArcTangent
+        | Operation::NaturalLog
+        | Operation::Exponential
+        | Operation::BinaryExponential
+        | Operation::ExponentialMinusOne
+        | Operation::NaturalLogOnePlus
+        | Operation::BinaryLog
+        | Operation::DecimalLog
+        | Operation::Absolute
+        | Operation::FractionalPart
+        | Operation::NextUp
+        | Operation::NextDown => (Some(&[]), Result::Receiver),
     };
     Some(FloatMemberContract {
         operation,
-        arity,
+        parameters,
         result,
     })
 }
@@ -765,14 +857,23 @@ impl FloatMemberContract {
             FloatMemberResult::ReceiverPair => {
                 ValueType::Tuple(ElementType::new(ValueType::Scalar(receiver)), Some(2))
             }
+            FloatMemberResult::Decomposition => ValueType::FloatDecomposition(receiver),
         }
     }
 
     pub(super) fn member_type(self, receiver: ScalarType) -> ValueType {
         let result = self.result_type(receiver);
-        self.arity.map_or(result.clone(), |arity| {
+        self.parameters.map_or(result.clone(), |parameters| {
             ValueType::Function(
-                vec![ElementType::new(ValueType::Scalar(receiver)); arity],
+                parameters
+                    .iter()
+                    .map(|parameter| {
+                        ElementType::new(ValueType::Scalar(match parameter {
+                            FloatMemberArgument::Receiver => receiver,
+                            FloatMemberArgument::Int32 => ScalarType::Int32,
+                        }))
+                    })
+                    .collect(),
                 ElementType::new(result),
             )
         })
@@ -867,6 +968,7 @@ pub(crate) enum BuiltinDescriptor {
     Encoding,
     OverflowResult,
     DivRemResult,
+    FloatDecomposition,
     Iterator,
     IterationStep,
     List,

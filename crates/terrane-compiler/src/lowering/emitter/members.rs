@@ -288,7 +288,36 @@ impl Emitter<'_> {
             let receiver = self.expression(receiver);
             return format!("{{ let _ = &({receiver}); {descriptor} }}");
         }
-        if let Some(ValueType::Descriptor(_)) = &receiver_type {
+        if let Some(ValueType::Descriptor(identity)) = &receiver_type {
+            let float_scalar =
+                descriptor_contract_by_identity(self.unit, identity).and_then(|contract| {
+                    match contract.builtin {
+                        Some(BuiltinDescriptor::Scalar(
+                            scalar @ (ScalarType::Float32 | ScalarType::Float64),
+                        )) => Some(scalar),
+                        _ => None,
+                    }
+                });
+            if let Some(scalar) = float_scalar {
+                let rust_type = rust_type(scalar);
+                let value = match self.text(member) {
+                    "radix" => {
+                        format!("terrane_int_support::Int::from(i128::from({rust_type}::RADIX))")
+                    }
+                    "significand-digits" => format!(
+                        "terrane_int_support::Int::from(i128::from({rust_type}::MANTISSA_DIGITS))"
+                    ),
+                    "epsilon" => format!("{rust_type}::EPSILON"),
+                    "minimum-positive-normal" => format!("{rust_type}::MIN_POSITIVE"),
+                    "minimum-positive-subnormal" => format!("{rust_type}::from_bits(1)"),
+                    "minimum" => format!("{rust_type}::MIN"),
+                    "maximum" => format!("{rust_type}::MAX"),
+                    _ => String::new(),
+                };
+                if !value.is_empty() {
+                    return value;
+                }
+            }
             let receiver = self.expression(receiver);
             return match self.text(member) {
                 "name" => format!("({receiver}).name.to_owned()"),
@@ -505,22 +534,32 @@ impl Emitter<'_> {
             "value" if matches!(receiver_type, Some(ValueType::Entry(_, _))) => {
                 format!("({receiver}).value.clone()")
             }
+            name @ ("mantissa" | "exponent")
+                if matches!(receiver_type, Some(ValueType::FloatDecomposition(_))) =>
+            {
+                format!("({receiver}).{name}")
+            }
             name if matches!(
                 receiver_type,
                 Some(ValueType::Scalar(ScalarType::Float32 | ScalarType::Float64))
             ) && float_member_contract(name)
-                .is_some_and(|contract| contract.arity.is_none()) =>
+                .is_some_and(|contract| contract.parameters.is_none()) =>
             {
                 let operation = float_member_contract(name)
                     .expect("validated floating property")
                     .operation;
-                let method = match operation {
-                    FloatMemberOperation::Finite => "is_finite",
-                    FloatMemberOperation::Infinite => "is_infinite",
-                    FloatMemberOperation::NotANumber => "is_nan",
+                match operation {
+                    FloatMemberOperation::Finite => format!("({receiver}).is_finite()"),
+                    FloatMemberOperation::Infinite => format!("({receiver}).is_infinite()"),
+                    FloatMemberOperation::NotANumber => format!("({receiver}).is_nan()"),
+                    FloatMemberOperation::NegativeSign => {
+                        format!("({receiver}).is_sign_negative()")
+                    }
+                    FloatMemberOperation::Zero => format!("({receiver}) == 0.0"),
+                    FloatMemberOperation::Normal => format!("({receiver}).is_normal()"),
+                    FloatMemberOperation::Subnormal => format!("({receiver}).is_subnormal()"),
                     _ => unreachable!("callable floating member used as a property"),
-                };
-                format!("({receiver}).{method}()")
+                }
             }
             name if wrapped_field => {
                 format!("({receiver}).terrane_field_{}().clone()", rust_name(name))
@@ -538,7 +577,7 @@ impl Emitter<'_> {
         node: &SyntaxNode,
     ) -> Option<String> {
         let contract = float_member_contract(operation)?;
-        (contract.arity == Some(arguments.len())).then_some(())?;
+        (contract.parameters?.len() == arguments.len()).then_some(())?;
         let rust_type = match float_type {
             ScalarType::Float32 => "f32",
             ScalarType::Float64 => "f64",
@@ -575,21 +614,105 @@ impl Emitter<'_> {
                 )
             }
             operation @ (FloatMemberOperation::SquareRoot
+            | FloatMemberOperation::CubeRoot
             | FloatMemberOperation::Sine
             | FloatMemberOperation::Cosine
+            | FloatMemberOperation::Tangent
+            | FloatMemberOperation::ArcSine
+            | FloatMemberOperation::ArcCosine
+            | FloatMemberOperation::ArcTangent
             | FloatMemberOperation::NaturalLog
             | FloatMemberOperation::Exponential
-            | FloatMemberOperation::Absolute) => {
+            | FloatMemberOperation::BinaryExponential
+            | FloatMemberOperation::ExponentialMinusOne
+            | FloatMemberOperation::NaturalLogOnePlus
+            | FloatMemberOperation::BinaryLog
+            | FloatMemberOperation::DecimalLog
+            | FloatMemberOperation::Absolute
+            | FloatMemberOperation::FractionalPart
+            | FloatMemberOperation::NextUp
+            | FloatMemberOperation::NextDown) => {
                 let method = match operation {
                     FloatMemberOperation::SquareRoot => "sqrt",
+                    FloatMemberOperation::CubeRoot => "cbrt",
                     FloatMemberOperation::Sine => "sin",
                     FloatMemberOperation::Cosine => "cos",
+                    FloatMemberOperation::Tangent => "tan",
+                    FloatMemberOperation::ArcSine => "asin",
+                    FloatMemberOperation::ArcCosine => "acos",
+                    FloatMemberOperation::ArcTangent => "atan",
                     FloatMemberOperation::NaturalLog => "ln",
                     FloatMemberOperation::Exponential => "exp",
+                    FloatMemberOperation::BinaryExponential => "exp2",
+                    FloatMemberOperation::ExponentialMinusOne => "exp_m1",
+                    FloatMemberOperation::NaturalLogOnePlus => "ln_1p",
+                    FloatMemberOperation::BinaryLog => "log2",
+                    FloatMemberOperation::DecimalLog => "log10",
                     FloatMemberOperation::Absolute => "abs",
+                    FloatMemberOperation::FractionalPart => "fract",
+                    FloatMemberOperation::NextUp => "next_up",
+                    FloatMemberOperation::NextDown => "next_down",
                     _ => unreachable!(),
                 };
                 format!("({receiver}).{method}()")
+            }
+            operation @ (FloatMemberOperation::Hypotenuse
+            | FloatMemberOperation::Power
+            | FloatMemberOperation::IntegerPower
+            | FloatMemberOperation::ArcTangentTwo
+            | FloatMemberOperation::Logarithm
+            | FloatMemberOperation::CopySign) => {
+                let method = match operation {
+                    FloatMemberOperation::Hypotenuse => "hypot",
+                    FloatMemberOperation::Power => "powf",
+                    FloatMemberOperation::IntegerPower => "powi",
+                    FloatMemberOperation::ArcTangentTwo => "atan2",
+                    FloatMemberOperation::Logarithm => "log",
+                    FloatMemberOperation::CopySign => "copysign",
+                    _ => unreachable!(),
+                };
+                format!("({receiver}).{method}({})", arguments[0])
+            }
+            FloatMemberOperation::Clamp => {
+                let lower = &arguments[0];
+                let upper = &arguments[1];
+                format!(
+                    "{{ let terrane_value: {rust_type} = {receiver}; \
+                     let terrane_lower: {rust_type} = {lower}; \
+                     let terrane_upper: {rust_type} = {upper}; \
+                     if terrane_value.is_nan() {{ terrane_value }} \
+                     else if terrane_lower.is_nan() || terrane_upper.is_nan() \
+                     || terrane_lower > terrane_upper {{ {rust_type}::NAN }} \
+                     else {{ \
+                     let terrane_lowered = if terrane_value == 0.0 && terrane_lower == 0.0 {{ \
+                     if terrane_value.is_sign_positive() || terrane_lower.is_sign_positive() \
+                     {{ 0.0 }} else {{ -0.0 }} \
+                     }} else {{ terrane_value.max(terrane_lower) }}; \
+                     if terrane_lowered == 0.0 && terrane_upper == 0.0 {{ \
+                     if terrane_lowered.is_sign_negative() || terrane_upper.is_sign_negative() \
+                     {{ -0.0 }} else {{ 0.0 }} \
+                     }} else {{ terrane_lowered.min(terrane_upper) }} \
+                     }} }}"
+                )
+            }
+            FloatMemberOperation::Decompose => {
+                let helper = if float_type == ScalarType::Float32 {
+                    "decompose_f32"
+                } else {
+                    "decompose_f64"
+                };
+                format!("terrane_scalar_support::{helper}({receiver})")
+            }
+            FloatMemberOperation::ScaleBinary => {
+                let helper = if float_type == ScalarType::Float32 {
+                    "scale_binary_f32"
+                } else {
+                    "scale_binary_f64"
+                };
+                format!(
+                    "terrane_scalar_support::{helper}({receiver}, {})",
+                    arguments[0]
+                )
             }
             operation @ (FloatMemberOperation::Minimum | FloatMemberOperation::Maximum) => {
                 let other = &arguments[0];
@@ -617,7 +740,11 @@ impl Emitter<'_> {
             }
             FloatMemberOperation::Finite
             | FloatMemberOperation::Infinite
-            | FloatMemberOperation::NotANumber => return None,
+            | FloatMemberOperation::NotANumber
+            | FloatMemberOperation::NegativeSign
+            | FloatMemberOperation::Zero
+            | FloatMemberOperation::Normal
+            | FloatMemberOperation::Subnormal => return None,
         };
         Some(call)
     }

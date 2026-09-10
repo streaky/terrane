@@ -539,13 +539,24 @@ pub(super) fn infer_member_value_type(
     }
     match (receiver_type.clone(), member_name) {
         (Some(ValueType::OverflowResult(ty)), "value")
-        | (Some(ValueType::DivRemResult(ty)), "quotient" | "remainder") => {
+        | (Some(ValueType::DivRemResult(ty)), "quotient" | "remainder")
+        | (Some(ValueType::FloatDecomposition(ty)), "mantissa") => {
             return Ok(Some(ValueType::Scalar(ty)));
+        }
+        (Some(ValueType::FloatDecomposition(_)), "exponent") => {
+            return Ok(Some(ValueType::Scalar(ScalarType::Int32)));
         }
         (Some(ValueType::OverflowResult(_)), "overflowed") => {
             return Ok(Some(ValueType::Scalar(ScalarType::Bool)));
         }
-        (Some(ValueType::OverflowResult(_) | ValueType::DivRemResult(_)), _) => {
+        (
+            Some(
+                ValueType::OverflowResult(_)
+                | ValueType::DivRemResult(_)
+                | ValueType::FloatDecomposition(_),
+            ),
+            _,
+        ) => {
             return Err(failure(
                 &unit.source,
                 "T0031",
@@ -628,7 +639,7 @@ pub(super) fn infer_float_call_type(
     let Some(contract) = float_member_contract(member_name) else {
         return Ok(None);
     };
-    let Some(expected) = contract.arity else {
+    let Some(parameters) = contract.parameters else {
         return Ok(None);
     };
     let receiver_type = infer_receiver_value_type(unit, receiver, bindings)?;
@@ -644,25 +655,30 @@ pub(super) fn infer_float_call_type(
     };
     let arguments = node.children.get(1);
     let arguments = arguments.map_or(&[][..], |arguments| arguments.children.as_slice());
-    if arguments.len() != expected {
+    if arguments.len() != parameters.len() {
         return Err(failure(
             &unit.source,
             "T0023",
             format!(
-                "`.{member_name}` requires exactly {expected} argument{}",
-                if expected == 1 { "" } else { "s" }
+                "`.{member_name}` requires exactly {} argument{}",
+                parameters.len(),
+                if parameters.len() == 1 { "" } else { "s" }
             ),
             node.span,
         ));
     }
-    for argument in arguments {
+    for (argument, parameter) in arguments.iter().zip(parameters) {
         let value = argument.children.last().unwrap_or(argument);
         if let Some(actual) = infer_value_type(unit, value, bindings)? {
+            let expected = match parameter {
+                FloatMemberArgument::Receiver => ValueType::Scalar(receiver),
+                FloatMemberArgument::Int32 => ValueType::Scalar(ScalarType::Int32),
+            };
             validate_value_destination(
                 &unit.source,
                 &unit.descriptors,
                 "floating operation argument",
-                ValueType::Scalar(receiver),
+                expected,
                 actual,
                 value,
                 "T0013",
