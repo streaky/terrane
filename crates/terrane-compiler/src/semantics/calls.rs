@@ -419,6 +419,12 @@ pub(super) fn resolved_call_type(
             .first()
             .and_then(|child| resolved_call_type(package, unit, child, contracts));
     }
+    if let Some(specialization) =
+        unit.projected_call_specializations
+            .get(&(node.span.file, node.span.start, node.span.end))
+    {
+        return Some(specialization.value_type.clone());
+    }
     let [callee, _arguments] = node.children.as_slice() else {
         return None;
     };

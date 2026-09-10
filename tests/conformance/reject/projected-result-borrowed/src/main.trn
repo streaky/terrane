@@ -1,0 +1,5 @@
+namespace app
+from /deps/witness import borrowed_value
+
+function main;
+  value int64 = borrowed_value;

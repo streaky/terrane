@@ -1,0 +1,5 @@
+namespace app
+from /deps/witness import same_mapping
+
+function main;
+  values unordered-map of string, int64 = same_mapping;

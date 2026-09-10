@@ -14,6 +14,54 @@ fn channel_item_descriptor_type(unit: &SemanticUnit, name: &str) -> Option<Value
         .map(|object| ValueType::Object(object.identity.clone()))
 }
 
+fn is_destination_directed_projected_call(
+    unit: &SemanticUnit,
+    node: &SyntaxNode,
+    bindings: &[TypedBinding],
+) -> Result<bool, SemanticFailure> {
+    let [callee, _] = node.children.as_slice() else {
+        return Ok(false);
+    };
+    let identity = if callee.kind == SyntaxKind::Name {
+        let name = node_text(&unit.source, callee);
+        lexical_scope_chain(unit, callee.span.start)
+            .find_map(|scope| {
+                scope.symbols.get(name)?.iter().rev().find(|symbol| {
+                    symbol
+                        .declaration_span
+                        .is_none_or(|span| span.end <= callee.span.start)
+                })
+            })
+            .map(|symbol| symbol.identity.clone())
+    } else if callee.kind == SyntaxKind::MemberExpression {
+        let [receiver, member] = callee.children.as_slice() else {
+            return Ok(false);
+        };
+        match infer_value_type(unit, receiver, bindings)? {
+            Some(ValueType::Object(identity)) => Some(format!(
+                "{}.{}",
+                identity.qualified(),
+                node_text(&unit.source, member)
+            )),
+            _ => None,
+        }
+    } else if callee.kind == SyntaxKind::StaticMemberExpression {
+        let [receiver, member] = callee.children.as_slice() else {
+            return Ok(false);
+        };
+        class_designator_identity(unit, receiver).map(|identity| {
+            format!(
+                "{}.{}",
+                identity.qualified(),
+                node_text(&unit.source, member)
+            )
+        })
+    } else {
+        None
+    };
+    Ok(identity.is_some_and(|identity| unit.projected_destination_functions.contains(&identity)))
+}
+
 #[expect(
     clippy::too_many_lines,
     reason = "value inference centralizes the precedence among syntax forms and typed member families"
@@ -255,6 +303,16 @@ pub(super) fn infer_value_type(
             .ok_or_else(|| missing_static_member_failure(unit, &identity, member));
     }
     if node.kind == SyntaxKind::CallExpression {
+        if let Some(specialization) = unit.projected_call_specializations.get(&(
+            node.span.file,
+            node.span.start,
+            node.span.end,
+        )) {
+            return Ok(Some(specialization.value_type.clone()));
+        }
+        if is_destination_directed_projected_call(unit, node, bindings)? {
+            return Ok(None);
+        }
         if let Some(value_type) = infer_typed_document_decode(unit, node, bindings)? {
             return Ok(Some(value_type));
         }

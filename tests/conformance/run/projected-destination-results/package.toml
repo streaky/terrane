@@ -1,0 +1,11 @@
+package = "projected-destination-results"
+
+[namespaces]
+app = "src"
+
+[rust-dependencies.factory]
+package = "terrane-generic-factory-witness"
+version = "=0.1.3"
+
+[rust-dependencies.terrane-generic-row-witness]
+version = "=0.1.0"

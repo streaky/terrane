@@ -72,12 +72,18 @@ pub(super) fn parse_unit(
         function_contracts_by_span: BTreeMap::new(),
         descriptor_aliases: BTreeMap::new(),
         projected_removals: Vec::new(),
+        projected_destination_functions: BTreeSet::new(),
+        projected_call_specializations: BTreeMap::new(),
         enclosing_function_spans,
         unreachable_spans: Vec::new(),
         evaluation_steps: Vec::new(),
     })
 }
 
+#[expect(
+    clippy::too_many_lines,
+    reason = "unit parsing applies projection removals and destination metadata atomically"
+)]
 pub(super) fn parse_units(
     package: &Package,
     projection: &crate::projection::Projection,
@@ -164,8 +170,36 @@ pub(super) fn parse_units(
         }
         index += 1;
     }
+    let mut destination_functions = BTreeSet::new();
+    for dependency in &projection.dependencies {
+        for item in &dependency.items {
+            match &item.kind {
+                crate::projection::ProjectedKind::Function(function)
+                    if function.destination_result.is_some() =>
+                {
+                    destination_functions.insert(format!("{}::{}", item.namespace, item.name));
+                }
+                crate::projection::ProjectedKind::ForeignType {
+                    methods,
+                    static_methods,
+                } => {
+                    for method in methods.iter().chain(static_methods) {
+                        if method.destination_result.is_some() {
+                            destination_functions.insert(format!(
+                                "{}::{}.{}",
+                                item.namespace, item.name, method.name
+                            ));
+                        }
+                    }
+                }
+                _ => {}
+            }
+        }
+    }
     for unit in &mut units {
         unit.projected_removals.clone_from(&projection.removed);
+        unit.projected_destination_functions
+            .clone_from(&destination_functions);
     }
     Ok(units)
 }
@@ -444,6 +478,7 @@ pub fn analyze(package: &Package) -> Result<SemanticPackage, SemanticFailure> {
         execution_strategy: crate::execution::ExecutionStrategy::from_profile(package.executor),
         execution_requirements: crate::execution::ExecutionRequirements::default(),
         profile: package.profile.clone(),
+        root: package.root.clone(),
         namespaces,
         globals,
         prelude_bindings,

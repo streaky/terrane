@@ -242,7 +242,7 @@ Items the projector cannot render must be **visibly absent with a reason attache
 "not projected: unbounded generic — use a native Rust body" rather than leaving the author guessing.
 The native Rust body remains the escape hatch for everything below.
 
-- unbounded or open generic parameters;
+- unbounded or open generic parameters, except for the single result-only destination-directed case below;
 - trait objects and trait-generic APIs;
 - lifetime-parametric types;
 - anything returning a borrow that cannot be cloned at the edge;
@@ -286,18 +286,33 @@ async function get response throws reqwest-error; url string
 
 and generates, for that one crossed member, a shim in the shape `platform_urls.rs` already uses.
 
-### 7.1 Caller-chosen type arguments
+### 7.1 Caller-chosen projected results
 
-`Response::json::<T>()` takes its type argument from the caller under a `Deserialize` bound. The
-projection supports **Terrane-native destination types only**: a Terrane `map string, string` becomes
-`HashMap<String, String>`, a list becomes `Vec<_>`, scalars map directly, and the shim names the
-concrete Rust type at the call site. A Terrane object type as the destination would mean generating a
-Rust struct with a `Deserialize` derive, which makes `serde` a structural dependency of the projector
-itself; that is deferred. Where the destination is not natively representable the member falls under
-6.5 and a native Rust body is the escape hatch.
+A projected function or method may retain one Rust type parameter that appears only in its result.
+Terrane does not expose `<...>` arguments. Instead, exactly one written destination supplies the
+concrete type:
 
-The same rule generalises past `json`: any caller-supplied type argument is admitted when the Terrane
-type has a direct Rust representation and the bound is satisfied by it, and refused otherwise.
+- an explicitly typed binding;
+- a typed argument position;
+- a declared class field receiving an assignment; or
+- a declared function return.
+
+The result template is unified structurally with that destination, every occurrence must select the
+same concrete type, and the compiler asks the contained projection oracle to compile the exact Rust
+bound. Only `yes` admits the call. Missing or incompatible destinations, conflicting occurrences,
+unsatisfied or unknown proofs, borrowed results, and source-declared object destinations are
+source-oriented errors. Scalars, strings, bytes, optionals, sequences, mappings, sets, homogeneous
+tuples, and projected foreign objects recurse when their components are representable.
+
+Bound paths are the paths rustc will actually see, including higher-ranked or nested occurrences
+rewritten to a manifest alias. If rustdoc names a public trait through a transitive crates.io package,
+Terrane pins that package at the lock-resolved version and adds a featureless,
+`default-features = false` direct edge to the generated manifest. The existing transitive edges keep
+the already-resolved feature set; the injected edge cannot widen it. Projection-history format 3
+records the added edge beside the projected members. This is why a call such as
+`serde_json::from_str` can use an `int64` destination even though rustdoc spells its bound through
+`serde_core`. Generated lowering names the selected Rust type explicitly and performs ordinary owned
+result conversion.
 
 ### 7.2 Naming
 

@@ -1268,6 +1268,11 @@ impl Emitter<'_> {
                 })
                 .collect();
         }
+        let specialization = self.unit.projected_call_specializations.get(&(
+            node.span.file,
+            node.span.start,
+            node.span.end,
+        ));
         let projected_static_owner = contract.as_ref().and_then(|contract| {
             let owner = contract.owner.as_deref()?;
             let unit = self.package.units.iter().find(|unit| {
@@ -1363,6 +1368,15 @@ impl Emitter<'_> {
         } else {
             self.expression(callee)
         };
+        // Destination specializations only attach to projected free/static paths or projected
+        // member access. Each branch above ends in a callable Rust path/member segment, so an
+        // explicit turbofish is syntactically valid here; arbitrary callee expressions never
+        // receive a specialization record.
+        let name = if let Some(specialization) = specialization {
+            format!("{name}::<{}>", specialization.rust_type)
+        } else {
+            name
+        };
         let call = format!("{name}({})", values.join(", "));
         let foreign_method = contract.as_ref().and_then(|contract| {
             let [receiver, _member] = callee.children.as_slice() else {
@@ -1446,7 +1460,10 @@ impl Emitter<'_> {
             } else {
                 format!("std::panic::catch_unwind(|| {unwind_call})")
             };
-            let converted = projected_result_expression("value", &method.result);
+            let projected_result = specialization.map_or(&method.result, |specialization| {
+                &specialization.projected_result
+            });
+            let converted = projected_result_expression("value", projected_result);
             let mapped = if self.package.profile.panic == crate::package::PanicProfile::Abort {
                 if method.error.is_some() {
                     format!(
@@ -1457,7 +1474,7 @@ impl Emitter<'_> {
                 } else {
                     format!(
                         "Ok({})",
-                        projected_result_expression(&invocation, &method.result)
+                        projected_result_expression(&invocation, projected_result)
                     )
                 }
             } else if method.error.is_some() {
@@ -1524,12 +1541,26 @@ impl Emitter<'_> {
         {
             if foreign_error || dependency_boundary {
                 let completed = format!("__terrane_raised_err(__terrane_future.await, {site})");
+                let completed = if foreign_method.is_none()
+                    && let Some(specialization) = specialization
+                {
+                    projected_result_expression(&completed, &specialization.projected_result)
+                } else {
+                    completed
+                };
                 format!("{{ let __terrane_future = {call}; async move {{ {completed} }} }}")
             } else {
                 call
             }
         } else {
-            map_errors(&call)
+            let mapped = map_errors(&call);
+            if foreign_method.is_none()
+                && let Some(specialization) = specialization
+            {
+                projected_result_expression(&mapped, &specialization.projected_result)
+            } else {
+                mapped
+            }
         }
     }
 }

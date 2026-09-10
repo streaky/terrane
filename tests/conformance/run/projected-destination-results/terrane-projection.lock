@@ -1,0 +1,80 @@
+{
+  "dependencies": [
+    {
+      "members": [
+        [
+          "/deps/factory",
+          "default_value"
+        ],
+        [
+          "/deps/factory",
+          "renamed_bound_value"
+        ],
+        [
+          "/deps/factory",
+          "sample_numeric_rows"
+        ],
+        [
+          "/deps/factory",
+          "sample_rows"
+        ],
+        [
+          "/deps/factory",
+          "sample_value"
+        ]
+      ],
+      "name": "factory",
+      "version": "0.1.3"
+    },
+    {
+      "members": [
+        [
+          "/deps/terrane-generic-row-witness",
+          "Row"
+        ],
+        [
+          "/deps/terrane-generic-row-witness",
+          "Row.decoded"
+        ],
+        [
+          "/deps/terrane-generic-row-witness",
+          "row"
+        ]
+      ],
+      "name": "terrane-generic-row-witness",
+      "version": "0.1.0"
+    }
+  ],
+  "format": 3,
+  "projection_schema": "25",
+  "removed": [
+    {
+      "current_version": "0.1.1",
+      "name": "decoded_value",
+      "namespace": "/deps/factory",
+      "previous_version": "0.1.0"
+    }
+  ],
+  "resolution": {
+    "events": [
+      {
+        "reason": "bundled projection distribution is deliberately deferred until Terrane has a release artifact channel",
+        "source": "BundledArtifact",
+        "status": "Skipped"
+      },
+      {
+        "reason": "`TERRANE_PROJECTION_ARTIFACT_URL` is not configured",
+        "source": "PublishedArtifact",
+        "status": "Skipped"
+      },
+      {
+        "reason": "no reusable exact artifact was available; generated with the pinned local rustdoc toolchain",
+        "source": "LocalRustdoc",
+        "status": "Generated"
+      }
+    ],
+    "outcome": "LocalRustdoc"
+  },
+  "rustdoc_format": 57,
+  "source": "Local"
+}

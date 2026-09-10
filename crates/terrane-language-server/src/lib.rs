@@ -683,6 +683,7 @@ mod tests {
                 name: "wait".to_owned(),
                 parameters: Vec::new(),
                 result: ProjectedType::None,
+                destination_result: None,
                 error: None,
                 is_async: true,
                 execution_requirements: Some(ProjectedExecutionRequirements {
@@ -716,6 +717,7 @@ mod tests {
                 name: "builder".to_owned(),
                 parameters: Vec::new(),
                 result: ProjectedType::None,
+                destination_result: None,
                 error: None,
                 is_async: false,
                 execution_requirements: None,

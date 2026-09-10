@@ -203,73 +203,6 @@ Lower the semantic model to a small Rust-oriented IR before rendering text. The 
 This section contains only work that remains required by the settled version-one design. For a partially delivered milestone, its heading and exit criterion have been rewritten around the unfinished capability rather than repeating already implemented work. Requirements superseded by later language decisions are called out and excluded. Completely delivered milestones and completed portions of split milestones are retained in Appendix A.
 
 
-### Milestone 25.4 — Destination-directed specialization of closed generic results
-
-Milestone 25.2 widened the representable projected surface and milestone 25.1 gave projected objects
-namespace-qualified identity. Neither admits a dependency operation whose result type is chosen by the
-caller. Such an operation is declined today with an open-generic reason, so a Terrane program cannot
-extract an owned value from a projected container, select a concrete item type where a Rust type
-parameter is otherwise unconstrained, or construct a concrete collection argument for a projected call.
-
-The dependency-projection foundations work established that this is a cost decision rather than a
-representability one. The projection oracle compiles a generated probe against the resolved dependency
-graph and asks `rustc` whether a concrete type satisfies a bound, so bound proof does not require
-enumerating implementations from metadata and is not defeated by blanket implementations. An exact
-lifetime-parameterized accessor — a database row accessor whose decoded type is bounded over the row
-borrow and over a driver associated type — was probed against a real driver and compiles. The shape
-this plan declines as unprojectable is therefore narrower than previously recorded, and the remaining
-question is which destinations the language admits, not whether the compiler can prove them.
-
-This milestone is the general capability. It is deliberately not scoped to any application: an
-application that finds a narrow owned facade cheaper may continue to use one, and that choice must not
-determine whether the language has the capability at all.
-
-It also retires `docs/rust-deps.md` §7.1, which states the caller-chosen type-argument rule and defers
-object destinations because generating a struct carrying a deserialization derive "makes `serde` a
-structural dependency of the projector itself". That reasoning no longer holds: the compiler emits a
-derive as text, the derive is requested through the author's manifest, the package consumes the
-generated implementation, and the projector learns nothing about the serialization crate. Whether
-object destinations are admitted is therefore a scope decision for this milestone rather than a
-structural obstacle, and §7.1's deferral note is removed rather than reworded when it lands.
-
-Deliver:
-
-- **destination-directed inference.** An expected result type carried into projected call selection
-  from exactly one written Terrane destination — an explicitly typed binding, an explicitly typed
-  argument, a class field assignment, or a declared function return. An unconstrained call remains an
-  error naming the absent destination. This is not source-declared generic programming, and it must not
-  become bidirectional inference outside a projected call result;
-- **oracle-backed bound proof.** One exact monomorphization admitted by asking the projection oracle
-  whether the destination type satisfies the projected parameter's bounds, including bounds satisfied
-  only through blanket implementations and bounds carrying higher-ranked lifetimes or associated types.
-  An oracle answer of `unknown` declines; it is never read as satisfied;
-- **the closed destination set**, built recursively from the identity and aggregate surfaces already
-  delivered: scalars, strings, bytes, foreign instantiations, `T|none`, and representable sequences,
-  maps, sets, and homogeneous tuples. Each shape enters when an exercised dependency requires it;
-- **ownership and escape rules.** The chosen type's Rust representation is owned; no borrow escapes the
-  emitted expression or its monomorphic shim; a destination that would require a borrowed result is
-  declined against the owned form rather than silently cloned;
-- **projection and tooling parity.** The selected result, its errors, its ownership, and its available
-  members are exposed identically to semantic checking, completion, hover, definitions, and
-  diagnostics, from the one projection artifact;
-- **lowering.** Readable generated Rust naming the concrete type argument, with representation
-  conversion where the two statically known shapes differ, and no universal boxed value introduced to
-  adapt types already known at compile time;
-- **a settled position on object destinations**, per the §7.1 note above: either admit a declared
-  Terrane class as a destination by emitting the derive its bound requires and proving the bound
-  through the oracle, or decline object destinations with a stated reason that is not the retired
-  structural-dependency one;
-- **an explicit source-level descriptor argument only if destination context proves inadequate.**
-  Rust-style angle-bracket type arguments are not added to the language.
-
-Exit criterion: an accepted program selects owned scalar, optional, bytes, and aggregate results from
-explicit Terrane destinations and retains them beyond the source object's immediate borrow. Rejected
-cases prove unconstrained results, borrowed results, unsatisfied bounds, conflicting destinations, an
-oracle `unknown`, and a value crossing suspension with a live borrow. Two dissimilar dependencies
-witness the same destination-directed rule, one of them carrying a lifetime-parameterized bound, so
-neither crate shape defines the implementation. Generated Rust names every concrete type argument
-explicitly, compiles with warnings denied, and passes canonical validation where untouched lowering
-already does.
 
 ### Milestone 26.2 — Throwable contracts for function types
 
@@ -411,7 +344,7 @@ must be Terrane tests run by `terrane test`, while compiler discovery/lowering a
 adapter retain focused Rust implementation tests. Generated runners compile with warnings denied,
 and accepted framework cases carry canonical generated-Rust evidence.
 
-### Milestone 28 — First-version hardening and release gate
+### Milestone 32 — First-version hardening and release gate
 
 Deliver:
 
@@ -429,7 +362,7 @@ Deliver:
 
 Exit criterion: the clean-checkout release scenario below passes on supported platforms and the implemented-subset document agrees with executable conformance tests.
 
-### Milestone 28.1 — Finish projection artifact distribution
+### Milestone 32.1 — Finish projection artifact distribution
 
 The exact artifact envelope, content hash, exact-match acceptance, cache and local-rustdoc sources, optional published lookup, resolution events, and lock provenance are complete. The remaining work turns that foundation into a release-owned, offline distribution channel.
 
@@ -629,9 +562,9 @@ Section 7 is the authoritative remaining-work list. In milestone order, the open
 - implement destination-directed specialization of closed projected results (milestone 25.4);
 - add throwable bounds to function types (milestone 26.2);
 - deliver the Terrane-native unit, integration, and end-to-end testing framework (milestone 27.1);
-- complete the release hardening gate (milestone 28); and
+- complete the release hardening gate (milestone 32); and
 - turn projection artifact resolution into a release-owned bundled, relocatable, and offline
-  distribution channel (milestone 28.1).
+  distribution channel (milestone 32.1).
 
 The active milestone text carries the exact boundaries and exit criteria. Appendix A is historical
 evidence only: a capability recorded there must not be rescheduled unless its active milestone
@@ -2427,10 +2360,11 @@ An optional trusted HTTPS projection-artifact lookup verifies the complete depen
 toolchain, rustdoc-format, projection-schema, and SHA-256 payload identity before admission.
 Verified results enter the ordinary offline cache. Every current cache, published, bundled, and
 local attempt reports its hit, miss, rejection, skip, generation, or fallback reason and final
-outcome. History format 2 persists stable content-origin provenance and reasons, rustdoc format,
-projection schema, cache identity, and content hash; an exact cache hit does not rewrite that
-origin. Bundled artifacts are explicitly deferred until Terrane has a release artifact channel,
-and appear as a recorded skipped source rather than an accidentally absent branch.
+outcome. History format 3 persists stable content-origin provenance and reasons, rustdoc format,
+projection schema, cache identity, content hash, and any exact bound-owner dependency added to the
+generated graph; an exact cache hit does not rewrite that origin. Bundled artifacts are explicitly
+deferred until Terrane has a release artifact channel and appear as a recorded skipped source rather
+than an accidentally absent branch.
 The projection layer owns infrastructure for deterministic contained compile-time questions that
 typed metadata cannot answer. Bound and exact-call probes require positive compiler-artifact
 evidence for `yes`, preserve probe-local bound errors as `no`, classify every other failure as
@@ -2472,6 +2406,92 @@ the ordinary `T0055` diagnostic. The accepted `rust-dependency-deferred-surface`
 crosses a `bytes` receiver-first trait method and uses `serde_json`'s `Option<Number>`, `u128` edge
 coercion, data-free enum variants, and enum comparison; focused package, projection, semantic,
 generated-Rust, and rejection checks cover the remaining contracts.
+
+### Milestone 25.4 — Destination-directed specialization of closed generic results
+
+Milestone 25.2 widened the representable projected surface and milestone 25.1 gave projected objects
+namespace-qualified identity. Neither admits a dependency operation whose result type is chosen by the
+caller. Such an operation is declined today with an open-generic reason, so a Terrane program cannot
+extract an owned value from a projected container, select a concrete item type where a Rust type
+parameter is otherwise unconstrained, or construct a concrete collection argument for a projected call.
+
+The dependency-projection foundations work established that this is a cost decision rather than a
+representability one. The projection oracle compiles a generated probe against the resolved dependency
+graph and asks `rustc` whether a concrete type satisfies a bound, so bound proof does not require
+enumerating implementations from metadata and is not defeated by blanket implementations. An exact
+lifetime-parameterized accessor — a database row accessor whose decoded type is bounded over the row
+borrow and over a driver associated type — was probed against a real driver and compiles. The shape
+this plan declines as unprojectable is therefore narrower than previously recorded, and the remaining
+question is which destinations the language admits, not whether the compiler can prove them.
+
+This milestone is the general capability. It is deliberately not scoped to any application: an
+application that finds a narrow owned facade cheaper may continue to use one, and that choice must not
+determine whether the language has the capability at all.
+
+It also retires `docs/rust-deps.md` §7.1, which states the caller-chosen type-argument rule and defers
+object destinations because generating a struct carrying a deserialization derive "makes `serde` a
+structural dependency of the projector itself". That reasoning no longer holds: the compiler emits a
+derive as text, the derive is requested through the author's manifest, the package consumes the
+generated implementation, and the projector learns nothing about the serialization crate. Whether
+object destinations are admitted is therefore a scope decision for this milestone rather than a
+structural obstacle, and §7.1's deferral note is removed rather than reworded when it lands.
+
+Deliver:
+
+- **destination-directed inference.** An expected result type carried into projected call selection
+  from exactly one written Terrane destination — an explicitly typed binding, an explicitly typed
+  argument, a class field assignment, or a declared function return. An unconstrained call remains an
+  error naming the absent destination. This is not source-declared generic programming, and it must not
+  become bidirectional inference outside a projected call result;
+- **oracle-backed bound proof.** One exact monomorphization admitted by asking the projection oracle
+  whether the destination type satisfies the projected parameter's bounds, including bounds satisfied
+  only through blanket implementations and bounds carrying higher-ranked lifetimes or associated types.
+  An oracle answer of `unknown` declines; it is never read as satisfied;
+- **the closed destination set**, built recursively from the identity and aggregate surfaces already
+  delivered: scalars, strings, bytes, foreign instantiations, `T|none`, and representable sequences,
+  maps, sets, and homogeneous tuples. Each shape enters when an exercised dependency requires it;
+- **ownership and escape rules.** The chosen type's Rust representation is owned; no borrow escapes the
+  emitted expression or its monomorphic shim; a destination that would require a borrowed result is
+  declined against the owned form rather than silently cloned;
+- **projection and tooling parity.** The selected result, its errors, its ownership, and its available
+  members are exposed identically to semantic checking, completion, hover, definitions, and
+  diagnostics, from the one projection artifact;
+- **lowering.** Readable generated Rust naming the concrete type argument, with representation
+  conversion where the two statically known shapes differ, and no universal boxed value introduced to
+  adapt types already known at compile time;
+- **a settled position on object destinations**, per the §7.1 note above: either admit a declared
+  Terrane class as a destination by emitting the derive its bound requires and proving the bound
+  through the oracle, or decline object destinations with a stated reason that is not the retired
+  structural-dependency one;
+- **an explicit source-level descriptor argument only if destination context proves inadequate.**
+  Rust-style angle-bracket type arguments are not added to the language.
+
+Exit criterion: an accepted program selects owned scalar, optional, bytes, and aggregate results from
+explicit Terrane destinations and retains them beyond the source object's immediate borrow. Rejected
+cases prove unconstrained results, borrowed results, unsatisfied bounds, conflicting destinations, an
+oracle `unknown`, and a value crossing suspension with a live borrow. Two dissimilar dependencies
+witness the same destination-directed rule, one of them carrying a lifetime-parameterized bound, so
+neither crate shape defines the implementation. Generated Rust names every concrete type argument
+explicitly, compiles with warnings denied, and passes canonical validation where untouched lowering
+already does.
+
+Status: implemented on `destination-directed-projected-results`. Projection schema 25 retains one
+result-only generic template and complete rendered bounds; semantic analysis selects it only from a
+written binding, argument, field, or return destination and records exact cached oracle evidence.
+Projection-history format 3 also records any exact, lock-resolved crates.io bound-owner dependency
+added to the generated graph. `projected-serde-json-result` exercises `serde_json::from_str` with an
+argument-bearing `int64` destination and a lock-pinned transitive `serde_core` bound.
+`projected-destination-results` exercises a renamed higher-ranked lifetime-bound owner, a nested
+`BTreeMap<String, T>` template, and nonempty scalar, optional, bytes, list, map, and set conversion
+with canonical generated Rust. `projected-result-without-destination`,
+`projected-result-incompatible-template`, `projected-result-conflicting-destinations`,
+`projected-result-unsatisfied-bound`, `projected-result-unknown-bound`, and
+`projected-result-borrowed` cover the destination, proof, and ownership declines;
+`projected-result-source-object` fixes the source-object decision, while the existing
+`projected-async-sink-suspended-borrow` case retains the suspension borrow boundary.
+Source-declared object destinations are explicitly declined because no dependency-authored
+conversion contract exists; this decision has no structural dependency on a serialization crate.
+Rust-style source generic arguments remain absent.
 
 ### Milestone 25.3 — Foundational floating-point surface
 
@@ -2601,6 +2621,6 @@ available before global registration so an optional remote-reporting layer can s
 absent integration adds no layer or work. The generated crate names only the exact projected
 adapter dependency it calls directly. `logging-capability` proves profile denial.
 
-### Completed portion of Milestone 28.1 — Projection artifact foundation
+### Completed portion of Milestone 32.1 — Projection artifact foundation
 
 Projection artifacts have an exact identity envelope, SHA-256 payload validation, exact-match acceptance, and a resolution chain covering cache, optional trusted-HTTPS publication, bundled-source skip, and local rustdoc fallback. Every source attempt and result is recorded in `terrane-projection.lock` with stable origin, rustdoc format, projection schema, cache identity, content hash, and explicit failure reasons. Local rustdoc remains the ground-truth fallback.

@@ -129,6 +129,12 @@ The conformance corpus under `tests/conformance/` is the executable authority fo
 language behavior. Accepted cases exercise checking, lowering, generated-Rust compilation, and—when
 behavior matters—execution. Rejected cases pin source diagnostics and malformed boundaries.
 
+Manual CLI debugging of a package-shaped conformance fixture can rewrite its tracked
+`terrane-projection.lock`, including changing recorded projection provenance on a cache hit. Run
+such experiments from a disposable copy of the entire case directory (including `.cargo` and
+`fixture-registry`), or restore the lock immediately afterwards. Ordinary corpus runs are safe:
+the conformance harness stages package cases before invoking the compiler.
+
 ## Documentation map
 
 - [Concise language reference](docs/language-spec-concise.md) — the best first stop for syntax and

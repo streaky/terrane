@@ -1,5 +1,5 @@
 {
-  "format": 2,
+  "format": 3,
   "dependencies": [
     {
       "name": "axum",
@@ -11,11 +11,23 @@
         ],
         [
           "/deps/axum",
+          "Router.as_service"
+        ],
+        [
+          "/deps/axum",
           "Router.has_routes"
         ],
         [
           "/deps/axum",
           "Router.into_make_service"
+        ],
+        [
+          "/deps/axum",
+          "Router.into_make_service_with_connect_info"
+        ],
+        [
+          "/deps/axum",
+          "Router.into_service"
         ],
         [
           "/deps/axum",
@@ -28,6 +40,10 @@
         [
           "/deps/axum",
           "Router.route"
+        ],
+        [
+          "/deps/axum",
+          "Router.with_state"
         ],
         [
           "/deps/axum",
@@ -430,6 +446,10 @@
           "ResponseAxumBodyLayer"
         ],
         [
+          "/deps/axum/middleware",
+          "from_extractor"
+        ],
+        [
           "/deps/axum/middleware/future",
           "FromFnResponseFuture"
         ],
@@ -495,7 +515,15 @@
         ],
         [
           "/deps/axum/routing",
+          "MethodRouter.into_make_service_with_connect_info"
+        ],
+        [
+          "/deps/axum/routing",
           "MethodRouter.merge"
+        ],
+        [
+          "/deps/axum/routing",
+          "MethodRouter.with_state"
         ],
         [
           "/deps/axum/routing",
@@ -542,6 +570,10 @@
         [
           "/deps/http",
           "Extensions.len"
+        ],
+        [
+          "/deps/http",
+          "Extensions.remove"
         ],
         [
           "/deps/http",
@@ -1335,6 +1367,10 @@
         ],
         [
           "/deps/reqwest",
+          "Response.json"
+        ],
+        [
+          "/deps/reqwest",
           "Response.remote_addr"
         ],
         [
@@ -1668,6 +1704,10 @@
         [
           "/deps/reqwest/blocking",
           "Response.headers_mut"
+        ],
+        [
+          "/deps/reqwest/blocking",
+          "Response.json"
         ],
         [
           "/deps/reqwest/blocking",
@@ -4813,10 +4853,19 @@
       ]
     }
   ],
+  "bound_dependencies": [
+    {
+      "name": "serde_core",
+      "package": "serde_core",
+      "version": "=1.0.229"
+    }
+  ],
   "removed": [],
+  "cache_identity": "6d260e5c101f2e7b67114b7d3e8a3c5ebfa79c46206aec3ee93819d4fa4cd4a2",
   "source": "Local",
   "rustdoc_format": 57,
-  "projection_schema": "24",
+  "projection_schema": "25",
+  "content_hash": "fee794e7b7e850cd07563ea2629d143ffaa28817c3e5eceeb09ab5a821825e18",
   "resolution": {
     "outcome": "LocalRustdoc",
     "events": [

@@ -1,0 +1,7 @@
+namespace app
+from /deps/serde-json import from_str
+from /core/output import print
+
+function main;
+  value int64 = from_str; '17'
+  print; value

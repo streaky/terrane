@@ -1,7 +1,7 @@
 format: 1
 title: Terrane language scoreboard
 metadata:
-  as_of: '2026-09-08'
+  as_of: '2026-09-10'
   description: Curated feature-level view of implemented, active, potential, deferred, and intentionally excluded
     Terrane language work.
   completion_rule: Completion measures the named feature only. Done is 100; planned, potential, deferred, and excluded
@@ -427,16 +427,18 @@ features:
 - id: generic-result-specialization
   name: Destination-directed projected generic results
   category: types
-  status: planned
-  completion: 0
+  status: done
+  completion: 100
   milestone: '25.4'
   reference:
-    state: partial
+    state: documented
     paths:
     - manual/reference/records/packages/rust-dependencies.yaml
-  notes: Planned closed monomorphization from one explicit Terrane destination with oracle-backed bound proof.
+  notes: One written Terrane result destination selects a closed owned Rust representation after exact oracle-backed bound proof; renamed higher-ranked bounds, a nested BTreeMap template, argument-bearing serde_json, and nonempty recursive aggregates pass, while source-object and borrowed destinations remain explicit declines.
   sources:
   - docs/compiler-plan.md#Milestone 25.4
+  - docs/language-spec-concise.md#DEPENDENCY PRINCIPLE
+  - docs/language-spec-and-compiler-architecture-draft.md#Source generic declarations
 - id: exact-int
   name: Adaptive exact signed integer
   category: numerics
@@ -1527,41 +1529,40 @@ features:
 - id: projection-oracle
   name: Rust bound projection oracle
   category: interop
-  status: partial
-  completion: 35
+  status: done
+  completion: 100
   milestone: '25.4'
   reference:
-    state: partial
+    state: documented
     paths:
     - manual/reference/records/packages/rust-dependencies.yaml
     - manual/reference/records/internals/projection-resolution.yaml
-  notes: Contained exact probes and caching exist, but production destination-directed questions do not yet consume
-    them.
+  notes: Production destination-directed specialization batches exact bound questions through the contained cached oracle, records featureless exact transitive bound-owner edges in projection-history format 3, preserves the resolved feature set, and rejects no, unknown, or missing answers.
   sources:
   - docs/language-spec-concise.md#DEPENDENCY PRINCIPLE
   - docs/compiler-plan.md#Milestone 25.4
+  - docs/language-spec-and-compiler-architecture-draft.md#Rust crates and generated projection
 - id: projection-artifacts
   name: Projection artifact resolution
   category: interop
   status: partial
   completion: 70
-  milestone: '28.1'
+  milestone: '32.1'
   reference:
     state: documented
     paths:
     - manual/reference/records/internals/projection-resolution.yaml
-  notes: Verified cache, published lookup, lock provenance, and local-rustdoc fallback work; bundled and vendored
-    offline distribution remain.
+  notes: Verified cache, published lookup, format-3 lock provenance including injected bound-owner edges, and local-rustdoc fallback work; bundled and vendored offline distribution remain.
   sources:
   - docs/language-spec-concise.md#DEPENDENCY PRINCIPLE
-  - docs/compiler-plan.md#Completed portion of Milestone 28.1
-  - docs/compiler-plan.md#Milestone 28.1
+  - docs/compiler-plan.md#Completed portion of Milestone 32.1
+  - docs/compiler-plan.md#Milestone 32.1
 - id: artifact-distribution
   name: Offline projection artifact distribution
   category: interop
   status: planned
   completion: 0
-  milestone: '28.1'
+  milestone: '32.1'
   reference:
     state: documented
     paths:
@@ -1569,7 +1570,7 @@ features:
   notes: Will add bundled release artifacts, relocatable stores, vendoring, network disablement, hash pins, and
     retention policy.
   sources:
-  - docs/compiler-plan.md#Milestone 28.1
+  - docs/compiler-plan.md#Milestone 32.1
 - id: executable-scripts
   name: Executable single-file scripts
   category: interop
@@ -1654,7 +1655,7 @@ features:
   notes: Core CLI and deterministic pipeline exist; release gate still needs complete help/exit contracts, cross-platform
     cleanup, fuzzing, baselines, examples, and subset manifest.
   sources:
-  - docs/compiler-plan.md#Milestone 28
+  - docs/compiler-plan.md#Milestone 32
 - id: call-shorthand
   name: Zero-argument call shorthand
   category: future

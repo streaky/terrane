@@ -1,0 +1,39 @@
+namespace app
+from /deps/factory import default_value, renamed_bound_value, sample_numeric_rows, sample_rows, sample_value
+from /deps/terrane-generic-row-witness import row
+from /core/output import print
+
+class record
+  value string = ''
+  function load;
+    source = row;
+    this.value = source.decoded;
+
+function decoded-value string;
+  source = row;
+  return source.decoded;
+
+function make-number int64;
+  return default_value;
+
+function accept-by-argument; value string
+  print; value
+
+function main;
+  number int64 = make-number;
+  optional int64|none = sample_value;
+  data bytes = sample_value;
+  values list of int64 = sample_value;
+  names map of string, int64 = sample_value;
+  tags set of string = sample_value;
+  rows map of string, int64 = sample_rows;
+  numeric-rows map of int64, int64 = sample_numeric_rows;
+  renamed string = renamed_bound_value;
+  source = row;
+  accept-by-argument; (source.decoded;)
+  returned string = decoded-value;
+  print; returned
+  item = instance record;
+  item.load;
+  print; item.value
+  print; number, optional != none, data.length, values.length, names.length, tags.length, rows.length, numeric-rows.length, renamed

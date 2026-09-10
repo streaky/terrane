@@ -1,0 +1,198 @@
+{
+  "bound_dependencies": [
+    {
+      "name": "serde_core",
+      "package": "serde_core",
+      "version": "=1.0.229"
+    }
+  ],
+  "dependencies": [
+    {
+      "members": [
+        [
+          "/deps/serde-json",
+          "Error"
+        ],
+        [
+          "/deps/serde-json",
+          "Error.classify"
+        ],
+        [
+          "/deps/serde-json",
+          "Error.column"
+        ],
+        [
+          "/deps/serde-json",
+          "Error.io_error_kind"
+        ],
+        [
+          "/deps/serde-json",
+          "Error.is_data"
+        ],
+        [
+          "/deps/serde-json",
+          "Error.is_eof"
+        ],
+        [
+          "/deps/serde-json",
+          "Error.is_io"
+        ],
+        [
+          "/deps/serde-json",
+          "Error.is_syntax"
+        ],
+        [
+          "/deps/serde-json",
+          "Error.line"
+        ],
+        [
+          "/deps/serde-json",
+          "Number"
+        ],
+        [
+          "/deps/serde-json",
+          "Number.as_f64"
+        ],
+        [
+          "/deps/serde-json",
+          "Number.as_i128"
+        ],
+        [
+          "/deps/serde-json",
+          "Number.as_i64"
+        ],
+        [
+          "/deps/serde-json",
+          "Number.as_u128"
+        ],
+        [
+          "/deps/serde-json",
+          "Number.as_u64"
+        ],
+        [
+          "/deps/serde-json",
+          "Number.is_f64"
+        ],
+        [
+          "/deps/serde-json",
+          "Number.is_i64"
+        ],
+        [
+          "/deps/serde-json",
+          "Number.is_u64"
+        ],
+        [
+          "/deps/serde-json",
+          "Number::from_f64"
+        ],
+        [
+          "/deps/serde-json",
+          "Number::from_i128"
+        ],
+        [
+          "/deps/serde-json",
+          "Number::from_u128"
+        ],
+        [
+          "/deps/serde-json",
+          "Value"
+        ],
+        [
+          "/deps/serde-json",
+          "from_str"
+        ],
+        [
+          "/deps/serde-json",
+          "from_value"
+        ],
+        [
+          "/deps/serde-json/error",
+          "Category"
+        ],
+        [
+          "/deps/serde-json/error/category",
+          "Data"
+        ],
+        [
+          "/deps/serde-json/error/category",
+          "Eof"
+        ],
+        [
+          "/deps/serde-json/error/category",
+          "Io"
+        ],
+        [
+          "/deps/serde-json/error/category",
+          "Syntax"
+        ],
+        [
+          "/deps/serde-json/map",
+          "IntoIter"
+        ],
+        [
+          "/deps/serde-json/map",
+          "IntoValues"
+        ],
+        [
+          "/deps/serde-json/read",
+          "Position"
+        ],
+        [
+          "/deps/serde-json/ser",
+          "CharEscape"
+        ],
+        [
+          "/deps/serde-json/ser",
+          "CompactFormatter"
+        ],
+        [
+          "/deps/serde-json/value",
+          "Serializer"
+        ],
+        [
+          "/deps/serde-json/value/ser",
+          "SerializeMap"
+        ],
+        [
+          "/deps/serde-json/value/ser",
+          "SerializeStructVariant"
+        ],
+        [
+          "/deps/serde-json/value/ser",
+          "SerializeTupleVariant"
+        ],
+        [
+          "/deps/serde-json/value/ser",
+          "SerializeVec"
+        ]
+      ],
+      "name": "serde-json",
+      "version": "1.0.145"
+    }
+  ],
+  "format": 3,
+  "projection_schema": "25",
+  "removed": [],
+  "resolution": {
+    "events": [
+      {
+        "reason": "bundled projection distribution is deliberately deferred until Terrane has a release artifact channel",
+        "source": "BundledArtifact",
+        "status": "Skipped"
+      },
+      {
+        "reason": "`TERRANE_PROJECTION_ARTIFACT_URL` is not configured",
+        "source": "PublishedArtifact",
+        "status": "Skipped"
+      },
+      {
+        "reason": "no reusable exact artifact was available; generated with the pinned local rustdoc toolchain",
+        "source": "LocalRustdoc",
+        "status": "Generated"
+      }
+    ],
+    "outcome": "LocalRustdoc"
+  },
+  "rustdoc_format": 57,
+  "source": "Local"
+}

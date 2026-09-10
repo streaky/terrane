@@ -1,0 +1,8 @@
+package = "projected-serde-json-result"
+
+[namespaces]
+app = "src"
+
+[rust-dependencies.serde-json]
+package = "serde_json"
+version = "=1.0.145"

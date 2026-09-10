@@ -1,4 +1,11 @@
 {
+  "bound_dependencies": [
+    {
+      "name": "serde_core",
+      "package": "serde_core",
+      "version": "=1.0.229"
+    }
+  ],
   "dependencies": [
     {
       "members": [
@@ -225,6 +232,14 @@
           "Value"
         ],
         [
+          "/deps/serde-json",
+          "from_str"
+        ],
+        [
+          "/deps/serde-json",
+          "from_value"
+        ],
+        [
           "/deps/serde-json/error",
           "Category"
         ],
@@ -289,8 +304,8 @@
       "version": "1.0.143"
     }
   ],
-  "format": 2,
-  "projection_schema": "24",
+  "format": 3,
+  "projection_schema": "25",
   "removed": [],
   "resolution": {
     "events": [

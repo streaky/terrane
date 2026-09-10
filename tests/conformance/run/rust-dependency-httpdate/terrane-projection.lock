@@ -23,8 +23,8 @@
       "version": "1.0.3"
     }
   ],
-  "format": 2,
-  "projection_schema": "24",
+  "format": 3,
+  "projection_schema": "25",
   "removed": [],
   "resolution": {
     "events": [

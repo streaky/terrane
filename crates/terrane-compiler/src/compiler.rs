@@ -130,6 +130,42 @@ fn lowering_failure(
     }
 }
 
+fn compilation_rust_dependencies(
+    package: &Package,
+    projection: &crate::projection::Projection,
+) -> Vec<RustDependency> {
+    let mut dependencies = package
+        .rust_dependencies
+        .iter()
+        .map(|dependency| {
+            let mut dependency = dependency.clone();
+            if let Some(projected) = projection
+                .dependencies
+                .iter()
+                .find(|projected| projected.name == dependency.name)
+            {
+                dependency.version = format!("={}", projected.version);
+            }
+            dependency
+        })
+        .collect::<Vec<_>>();
+    dependencies.extend(
+        projection
+            .bound_dependencies
+            .iter()
+            .map(|dependency| RustDependency {
+                name: dependency.name.clone(),
+                package: dependency.package.clone(),
+                version: dependency.version.clone(),
+                features: Vec::new(),
+                default_features: false,
+                target: None,
+                effects: Vec::new(),
+            }),
+    );
+    dependencies
+}
+
 /// Compiles every manifest-discovered source unit with explicit
 /// compiler-development options.
 ///
@@ -203,22 +239,7 @@ pub fn compile_package_with_options(
     let rendered_rust = rust_ir.rendered();
     let standalone_file = rendered_rust.standalone_file("<stdout>");
     let rust = standalone_file.contents.clone();
-    let rust_dependencies = package
-        .rust_dependencies
-        .iter()
-        .map(|dependency| {
-            let mut dependency = dependency.clone();
-            if let Some(projected) = semantic
-                .projection
-                .dependencies
-                .iter()
-                .find(|projected| projected.name == dependency.name)
-            {
-                dependency.version = format!("={}", projected.version);
-            }
-            dependency
-        })
-        .collect();
+    let rust_dependencies = compilation_rust_dependencies(package, &semantic.projection);
     if options.require_canonical_rust {
         validate_canonical_rust(&[standalone_file], &sources, source, entry_span)?;
     }

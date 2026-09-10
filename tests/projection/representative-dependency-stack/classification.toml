@@ -1,4 +1,4 @@
-reviewed-against = "projection schema 24 canonical paths, methods, and static associated members"
+reviewed-against = "projection schema 25 destination-directed generic results"
 format = 2
 projection-source = "local-rustdoc"
 build-toolchain = "1.93.0"
@@ -17,15 +17,15 @@ generated-rust-bytes = 18105
 [[dependency]]
 name = "axum"
 version = "0.8.9"
-projected-count = 58
-declined-count = 1052
-instance-count = 68
+projected-count = 59
+declined-count = 1045
+instance-count = 74
 static-count = 2
 canonical-members = ["/deps/axum::Router"]
 instance-members = ["/deps/axum::Router.has_routes"]
 static-members = ["/deps/axum::Router::new"]
 required-gaps = ["axum::extract::WebSocketUpgrade<DefaultOnFailedUpgrade>::on_upgrade: open generic C"]
-classification = "default generic identity is reusable; callable-handler shapes still need closed specialization"
+classification = "default generic identity is reusable; destination-directed state and service results are admitted while callable-handler shapes still need closed specialization"
 declined-members = [
   { rust-path = "axum::Router<()>::default", reason = "trait method is not declared by this dependency crate" },
 ]
@@ -34,27 +34,27 @@ declined-members = [
 name = "http"
 version = "1.3.1"
 projected-count = 27
-declined-count = 835
-instance-count = 64
+declined-count = 834
+instance-count = 65
 static-count = 14
 canonical-members = ["/deps/http::HeaderMap"]
 instance-members = []
 static-members = []
 required-gaps = []
-classification = "direct canonical owner for status, header, request, and response types; associated constructors remain attached to those types"
+classification = "direct canonical owner for status, header, request, and response types; destination-directed extension removal and associated constructors remain attached to those types"
 
 [[dependency]]
 name = "reqwest"
 version = "0.12.28"
 projected-count = 36
-declined-count = 526
-instance-count = 159
+declined-count = 524
+instance-count = 161
 static-count = 7
 canonical-members = ["/deps/reqwest::Response"]
 instance-members = ["/deps/reqwest::Response.status"]
 static-members = []
 required-gaps = []
-classification = "async lowering is implemented; direct http ownership keeps response status identity reachable"
+classification = "async lowering and destination-directed JSON results are implemented; direct http ownership keeps response status identity reachable"
 
 [[dependency]]
 name = "sentry"
