@@ -539,6 +539,11 @@ impl Emitter<'_> {
     ) -> Option<String> {
         let contract = float_member_contract(operation)?;
         (contract.arity == Some(arguments.len())).then_some(())?;
+        let rust_type = match float_type {
+            ScalarType::Float32 => "f32",
+            ScalarType::Float64 => "f64",
+            _ => unreachable!("float members require a float receiver"),
+        };
         let call = match contract.operation {
             FloatMemberOperation::SineCosine => format!(
                 "{{ let terrane_sine_cosine = ({receiver}).sin_cos(); \
@@ -601,7 +606,8 @@ impl Emitter<'_> {
                     "max"
                 };
                 format!(
-                    "{{ let terrane_receiver = {receiver}; let terrane_argument = {other}; \
+                    "{{ let terrane_receiver: {rust_type} = {receiver}; \
+                     let terrane_argument: {rust_type} = {other}; \
                      if terrane_receiver == 0.0 && terrane_argument == 0.0 {{ \
                      {zero_selection} }} else {{ terrane_receiver.{method}(terrane_argument) }} }}"
                 )

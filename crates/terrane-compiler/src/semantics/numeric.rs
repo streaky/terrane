@@ -29,29 +29,15 @@ pub(super) fn infer_arithmetic_family_type(
             receiver.span,
         ));
     };
-    if !receiver_type.is_integer() {
+    if !descriptor_conforms_to(
+        unit,
+        &ValueType::Scalar(receiver_type),
+        TypeCategory::Integer,
+    ) {
         return Err(failure(
             &unit.source,
             "T0036",
             format!("`.{}` requires an integer receiver", family.source_name()),
-            receiver.span,
-        ));
-    }
-    if family == ArithmeticFamily::Negate
-        && !matches!(
-            receiver_type,
-            ScalarType::Int
-                | ScalarType::Int8
-                | ScalarType::Int16
-                | ScalarType::Int32
-                | ScalarType::Int64
-                | ScalarType::Int128
-        )
-    {
-        return Err(failure(
-            &unit.source,
-            "T0037",
-            "`.negate` is not available on unsigned integers",
             receiver.span,
         ));
     }
@@ -94,31 +80,26 @@ pub(super) fn infer_arithmetic_family_type(
             ));
         }
     }
-    let fixed = receiver_type != ScalarType::Int;
-    let child_allowed = match method.child {
-        "default" => true,
-        "checked" => {
-            fixed
-                || matches!(
-                    family,
-                    ArithmeticFamily::Divide
-                        | ArithmeticFamily::Remainder
-                        | ArithmeticFamily::DivRem
-                )
-        }
-        "wrap" => fixed && family != ArithmeticFamily::DivRem,
-        "saturate" | "overflowing" => {
-            fixed
-                && !matches!(
-                    family,
-                    ArithmeticFamily::DivRem
-                        | ArithmeticFamily::ShiftLeft
-                        | ArithmeticFamily::ShiftRight
-                )
-        }
-        _ => false,
+    if family == ArithmeticFamily::Negate
+        && descriptor_conforms_to(
+            unit,
+            &ValueType::Scalar(receiver_type),
+            TypeCategory::UnsignedFixedInteger,
+        )
+    {
+        return Err(failure(
+            &unit.source,
+            "T0037",
+            "unsigned integers do not support `.negate`",
+            receiver.span,
+        ));
+    }
+    let member_path = if method.child == "default" {
+        family.source_name().to_owned()
+    } else {
+        format!("{}.{}", family.source_name(), method.child)
     };
-    if !child_allowed {
+    if !descriptor_has_member(unit, &ValueType::Scalar(receiver_type), &member_path) {
         return Err(failure(
             &unit.source,
             "T0029",
@@ -508,36 +489,6 @@ pub(super) fn coercion_family_receiver(unit: &SemanticUnit, node: &SyntaxNode) -
     };
     node.kind == SyntaxKind::MemberExpression
         && (node_text(&unit.source, member) == "coerce" || coercion_family_receiver(unit, receiver))
-}
-
-pub(super) fn member_family_receiver(unit: &SemanticUnit, node: &SyntaxNode) -> bool {
-    let [receiver, member] = node.children.as_slice() else {
-        return false;
-    };
-    if node_text(&unit.source, member) == "remainder"
-        && matches!(
-            infer_value_type(unit, receiver, &unit.typed_bindings),
-            Ok(Some(ValueType::DivRemResult(_)))
-        )
-    {
-        return false;
-    }
-    node.kind == SyntaxKind::MemberExpression
-        && matches!(
-            node_text(&unit.source, member),
-            "coerce"
-                | "parse"
-                | "radix"
-                | "add"
-                | "subtract"
-                | "multiply"
-                | "divide"
-                | "remainder"
-                | "div-rem"
-                | "negate"
-                | "shift-left"
-                | "shift-right"
-        )
 }
 
 pub(super) fn obsolete_integer_coercion_member<'a>(

@@ -202,44 +202,6 @@ Lower the semantic model to a small Rust-oriented IR before rendering text. The 
 
 This section contains only work that remains required by the settled version-one design. For a partially delivered milestone, its heading and exit criterion have been rewritten around the unfinished capability rather than repeating already implemented work. Requirements superseded by later language decisions are called out and excluded. Completely delivered milestones and completed portions of split milestones are retained in Appendix A.
 
-
-### Milestone 16 — Finish canonical descriptor unification
-
-The source-object portion is delivered: classes, interfaces, and traits use
-`DescriptorContract`; their member lookup, nominal relations, conformance, dispatch, reflection,
-and structural protocol lookup consume that source contract. Iteration and `truth` now resolve
-required members through the same recursive protocol-member query, including members inherited
-from bases and reused traits.
-
-Typed class and reusable trait fields whose scalar, optional, bytes, or collection descriptors
-provide a canonical default now omit redundant initializers. One exhaustive semantic contract
-classifies defaults; tuple, plain-`none`, source-object, reference, callable, and resource fields
-remain nondefaultable. Fully composed class fields are validated before lowering, so a
-nondefaultable trait field must be initialized by the trait or overridden with an initializer by
-the class. Semantic field metadata records implicit, explicit, inherited, and trait-contributed
-defaults consistently. Lowering evaluates inherited explicit initializers in their declaring source
-and object context and shares empty-collection construction with ordinary collection expressions.
-`implicit-class-field-defaults`, `trait-field-defaults`, and
-`cross-unit-inherited-initializer` cover runtime values, overrides, static storage, collections,
-reflection, trait reuse, and cross-unit inheritance. `nondefaultable-class-field`,
-`nondefaultable-trait-field`, and `nondefaultable-tuple-field` preserve T0061 at every effective
-class boundary.
-
-
-Remaining work:
-
-- replace the separate built-in scalar descriptor aliases, numeric contracts, string-family
-  tables, collection-family tables, and other receiver-specific dispatch with the same canonical
-  descriptor representation;
-- make built-in reflection and source-object reflection query that representation rather than
-  parallel special cases; and
-- delete the residual per-family method switches only after equivalent descriptor-driven
-  conformance and generated-Rust coverage exists.
-
-Exit criterion: built-ins and source-declared classes/interfaces/traits inhabit one canonical
-descriptor model; member lookup, compatibility, reflection, dispatch, and structural protocols
-consume that model; iteration plus `truth` prove direct, inherited, and composed protocol
-satisfaction; generated Rust remains deterministic and warning-free.
 ### Milestone 25.3 — Finish the foundational floating-point surface
 
 The first two increments delivered square root, sine, cosine, sine-cosine, natural logarithm, exponential, absolute value, finite/infinite/NaN classification, minimum, maximum, and fused multiply-add for both floating widths. Complete the remaining non-scientific scalar surface.
@@ -1764,6 +1726,35 @@ descriptors. `descriptor-runtime-value` exercises inline `.type` materialization
 `type-named-field` proves declared object members take precedence over universal reflection. Their
 canonical generated crates compile and run with warnings denied.
 
+
+### Milestone 16 — Canonical descriptor unification
+
+Built-ins and source-declared classes, interfaces, and traits now inhabit `DescriptorContract`.
+The package shares one immutable canonical scalar, numeric-category, string, collection, result,
+and generic built-in template registry; semantic units retain only their mutable source contracts.
+Those contracts own canonical identity, kind, category conformance, member inventory, stable
+operation IDs, and reflection metadata.
+Descriptor aliases retain canonical identities rather than a second scalar-only representation.
+
+Member availability, numeric compatibility, string and collection operation selection, built-in
+truth and iteration protocols, and descriptor reflection query that model. Operation-specific
+semantic and lowering matches remain only after the descriptor has selected an operation; the
+former receiver-family availability tables and switches no longer decide dispatch. Materialized
+built-in descriptors read identity, name, kind, and fields from the selected canonical contract,
+including instantiated collection-family names. `builtin-descriptor-contracts` exercises scalar,
+string, and parameterized collection reflection; `string-result-list-iteration` and
+`string-result-list-mutation` prove the iterable, read-only contract of compiler-produced string
+operation results. The numeric, text, collection, truth, and iterator conformance corpus guards
+descriptor-driven availability and signature constraints.
+
+Canonical class and trait field defaults share the same model. Scalar, optional, bytes, and
+collection fields may omit redundant initializers; tuple, plain-`none`, source-object, reference,
+callable, and resource fields remain nondefaultable. Fully composed class fields are validated
+before lowering, including inherited and trait-contributed defaults. The
+`implicit-class-field-defaults`, `trait-field-defaults`, and
+`cross-unit-inherited-initializer` cases cover runtime values, overrides, static storage,
+collections, reflection, trait reuse, and cross-unit inheritance. The matching rejected cases
+preserve T0061 at every effective class boundary.
 
 ### Milestone 18 — Callable contracts, errors, and reflection
 

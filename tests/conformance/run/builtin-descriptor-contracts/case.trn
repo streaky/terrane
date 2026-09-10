@@ -1,0 +1,15 @@
+namespace builtin-descriptor-contracts
+from /core/collections import list
+from /core/types import int8, string
+
+function main;
+  number int8 = 7
+  text string = 'terrane'
+  numbers list of int8 = list; number
+  number-descriptor = number.type
+  text-descriptor = text.type
+  list-descriptor = numbers.type
+  print; number-descriptor.identity, number-descriptor.name, number-descriptor.kind
+  print; text-descriptor.identity, text-descriptor.name, text-descriptor.kind
+  print; list-descriptor.identity, list-descriptor.name, list-descriptor.kind
+  print; number-descriptor.field-count, text-descriptor.field-count, list-descriptor.field-count

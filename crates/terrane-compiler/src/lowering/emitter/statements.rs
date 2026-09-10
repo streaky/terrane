@@ -982,8 +982,17 @@ impl Emitter<'_> {
                 let iterator = format!("__terrane_iterator_{loop_index}");
                 self.loop_counter += 1;
                 let constructor = match collection_type {
-                    Some(ValueType::Scalar(ScalarType::Bytes)) => {
+                    Some(
+                        ValueType::Scalar(ScalarType::Bytes)
+                        | ValueType::StringView(crate::semantics::TextUnit::Bytes),
+                    ) => {
                         format!("terrane_collection_support::bytes_iterator(&({collection}))")
+                    }
+                    Some(ValueType::StringView(
+                        crate::semantics::TextUnit::Scalars | crate::semantics::TextUnit::Graphemes,
+                    )) => format!("terrane_collection_support::Iterator::new({collection})"),
+                    Some(ValueType::StringList | ValueType::TextRangeList) => {
+                        format!("terrane_collection_support::slice_iterator(&({collection}))")
                     }
                     Some(ValueType::Iterator(_)) => format!("&mut ({collection})"),
                     Some(ValueType::Reference(item))

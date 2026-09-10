@@ -810,10 +810,12 @@ features:
     state: planned
     paths:
     - manual/reference/records/language/text/transformation.yaml
-  notes: Trim, case, normalization, split, replace, concat, and join operate on specified grapheme boundaries.
+  notes: Trim, case, normalization, split, replace, concat, and join operate on specified grapheme boundaries; split results are iterable read-only lists.
   sources:
   - docs/language-spec-concise.md#COLLECTION / TEXT
   - docs/compiler-plan.md#Milestone 12
+  - tests/conformance/run/string-result-list-iteration/case.trn
+  - tests/conformance/reject/string-result-list-mutation/case.trn
 - id: string-search
   name: String search families
   category: text-data
@@ -824,10 +826,12 @@ features:
     state: planned
     paths:
     - manual/reference/records/language/text/search.yaml
-  notes: Contains and find families return booleans, ranges, all matches, and counts with empty-pattern rules.
+  notes: Contains and find families return booleans, ranges, iterable read-only match lists, and counts with empty-pattern rules.
   sources:
   - docs/language-spec-concise.md#COLLECTION / TEXT
   - docs/compiler-plan.md#Milestone 12
+  - tests/conformance/run/string-result-list-iteration/case.trn
+  - tests/conformance/reject/string-result-list-mutation/case.trn
 - id: collection-values
   name: List map set tuple and range
   category: text-data
@@ -838,10 +842,12 @@ features:
     state: documented
     paths:
     - manual/reference/records/language/collections.yaml
-  notes: Typed value collections provide deterministic construction, lookup, mutation, ordering, and iteration.
+  notes: Typed value collections and compiler-produced read-only result lists provide deterministic construction, lookup, mutation where supported, ordering, and iteration.
   sources:
   - docs/language-spec-concise.md#COLLECTION / TEXT
   - docs/compiler-plan.md#Milestone 14
+  - tests/conformance/run/string-result-list-iteration/case.trn
+  - tests/conformance/reject/string-result-list-mutation/case.trn
 - id: unordered-collections
   name: Deterministic unordered collections
   category: text-data
@@ -881,10 +887,11 @@ features:
     state: documented
     paths:
     - manual/reference/records/language/collections.yaml
-  notes: Built-ins and source objects use the same stateful linear iterator/iteration-step protocol.
+  notes: Built-ins, compiler-produced result lists, and source objects use the same stateful linear iterator/iteration-step protocol.
   sources:
   - docs/language-spec-concise.md#COLLECTION / TEXT
   - docs/compiler-plan.md#Milestone 13
+  - tests/conformance/run/string-result-list-iteration/case.trn
 - id: classes
   name: Classes and construction
   category: objects
@@ -968,21 +975,25 @@ features:
   notes: Method contracts distinguish receiver mutation and enforce compatibility.
   sources:
   - docs/language-spec-concise.md#OBJECT_MODEL
-  - docs/compiler-plan.md#Completed portion of Milestone 16
+  - docs/compiler-plan.md#Milestone 16
 - id: canonical-object-descriptors
   name: Canonical descriptor unification
   category: objects
-  status: partial
-  completion: 40
+  status: done
+  completion: 100
   milestone: '16'
   reference:
-    state: partial
+    state: documented
     paths:
     - manual/reference/records/language/types/descriptors.yaml
     - manual/reference/records/language/classes/protocols.yaml
-  notes: Source class, interface, and trait contracts plus composed structural protocols use DescriptorContract; built-in scalar aliases and numeric, string, and collection family dispatch remain separate.
+  notes: Shared built-in templates and per-unit source contracts use DescriptorContract identity, conformance, member inventories, stable operation IDs, reflection data, canonical method ownership, and structural protocol queries.
   sources:
   - docs/compiler-plan.md#Milestone 16
+  - tests/conformance/run/builtin-descriptor-contracts/case.trn
+  - tests/conformance/run/builtin-name-class/case.trn
+  - tests/conformance/run/composed-descriptor-identities/case.trn
+  - tests/conformance/run/same-named-cross-namespace-methods/package.toml
 - id: value-copy-semantics
   name: Value copying and COW
   category: objects

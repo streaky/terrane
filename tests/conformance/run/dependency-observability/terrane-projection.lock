@@ -1,9 +1,6 @@
 {
-  "format": 2,
   "dependencies": [
     {
-      "name": "observability-witness",
-      "version": "0.1.1",
       "members": [
         [
           "/deps/observability-witness",
@@ -13,33 +10,34 @@
           "/deps/observability-witness",
           "emit_tracing_event"
         ]
-      ]
+      ],
+      "name": "observability-witness",
+      "version": "0.1.1"
     }
   ],
+  "format": 2,
+  "projection_schema": "24",
   "removed": [],
-  "cache_identity": "9bcb5f80dd7d21289fc35a616a2fc9a666bd14aa71acc2f8ac96863e056c8f1a",
-  "source": "Local",
-  "rustdoc_format": 57,
-  "projection_schema": "20",
-  "content_hash": "2f3cb5db2f72f7d71e4c921ad01d696edabe0e906c92d7279d3c74dc2134c40f",
   "resolution": {
-    "outcome": "LocalRustdoc",
     "events": [
       {
+        "reason": "bundled projection distribution is deliberately deferred until Terrane has a release artifact channel",
         "source": "BundledArtifact",
-        "status": "Skipped",
-        "reason": "bundled projection distribution is deliberately deferred until Terrane has a release artifact channel"
+        "status": "Skipped"
       },
       {
+        "reason": "`TERRANE_PROJECTION_ARTIFACT_URL` is not configured",
         "source": "PublishedArtifact",
-        "status": "Skipped",
-        "reason": "`TERRANE_PROJECTION_ARTIFACT_URL` is not configured"
+        "status": "Skipped"
       },
       {
+        "reason": "no reusable exact artifact was available; generated with the pinned local rustdoc toolchain",
         "source": "LocalRustdoc",
-        "status": "Generated",
-        "reason": "no reusable exact artifact was available; generated with the pinned local rustdoc toolchain"
+        "status": "Generated"
       }
-    ]
-  }
+    ],
+    "outcome": "LocalRustdoc"
+  },
+  "rustdoc_format": 57,
+  "source": "Local"
 }

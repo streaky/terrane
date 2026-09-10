@@ -1,9 +1,6 @@
 {
-  "format": 2,
   "dependencies": [
     {
-      "name": "bytes",
-      "version": "1.10.1",
       "members": [
         [
           "/deps/bytes",
@@ -133,11 +130,11 @@
           "/deps/bytes/bufmut",
           "remaining_mut"
         ]
-      ]
+      ],
+      "name": "bytes",
+      "version": "1.10.1"
     },
     {
-      "name": "serde-json",
-      "version": "1.0.143",
       "members": [
         [
           "/deps/serde-json",
@@ -287,33 +284,34 @@
           "/deps/serde-json/value/ser",
           "SerializeVec"
         ]
-      ]
+      ],
+      "name": "serde-json",
+      "version": "1.0.143"
     }
   ],
-  "removed": [],
-  "cache_identity": "563be48f1df5c6dd0caaae63c04a1fb398eed12d901ae1f2711669e68216bcb0",
-  "source": "Local",
-  "rustdoc_format": 57,
+  "format": 2,
   "projection_schema": "24",
-  "content_hash": "bcda1d760f74cfd4f32472aba40d72b484eb46b79f9d28b721290d0faa627881",
+  "removed": [],
   "resolution": {
-    "outcome": "LocalRustdoc",
     "events": [
       {
+        "reason": "bundled projection distribution is deliberately deferred until Terrane has a release artifact channel",
         "source": "BundledArtifact",
-        "status": "Skipped",
-        "reason": "bundled projection distribution is deliberately deferred until Terrane has a release artifact channel"
+        "status": "Skipped"
       },
       {
+        "reason": "`TERRANE_PROJECTION_ARTIFACT_URL` is not configured",
         "source": "PublishedArtifact",
-        "status": "Skipped",
-        "reason": "`TERRANE_PROJECTION_ARTIFACT_URL` is not configured"
+        "status": "Skipped"
       },
       {
+        "reason": "no reusable exact artifact was available; generated with the pinned local rustdoc toolchain",
         "source": "LocalRustdoc",
-        "status": "Generated",
-        "reason": "no reusable exact artifact was available; generated with the pinned local rustdoc toolchain"
+        "status": "Generated"
       }
-    ]
-  }
+    ],
+    "outcome": "LocalRustdoc"
+  },
+  "rustdoc_format": 57,
+  "source": "Local"
 }

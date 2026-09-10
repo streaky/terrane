@@ -147,7 +147,8 @@ pub(super) fn infer_typed_document_decode(
     if object.base.is_some()
         || object.resource_owning
         || unit.functions.iter().any(|function| {
-            function.owner.as_deref() == Some(object.name.as_str()) && function.name == "construct"
+            function.owner_identity.as_ref() == Some(&object.identity)
+                && function.name == "construct"
         })
     {
         return Err(failure(

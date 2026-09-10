@@ -1,0 +1,7 @@
+package = "same-named-cross-namespace-methods"
+prelude = true
+
+[namespaces]
+app = "app"
+first = "first"
+second = "second"

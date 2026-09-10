@@ -1,0 +1,4 @@
+namespace uninvoked-method-return
+function produce string;
+  value string = 'terrane'
+  return value.upper

@@ -690,28 +690,23 @@ pub(super) fn method_contract<'a>(
 ) -> Option<&'a FunctionContract> {
     fn contract<'a>(
         unit: &'a SemanticUnit,
-        object_name: &str,
+        object_identity: &ObjectIdentity,
         method_name: &str,
         is_static: bool,
     ) -> Option<&'a FunctionContract> {
         unit.functions
             .iter()
             .find(|method| {
-                method.owner.as_deref() == Some(object_name)
+                method.owner_identity.as_ref() == Some(object_identity)
                     && method.name == method_name
                     && method.is_static == is_static
             })
             .or_else(|| {
                 unit.descriptors
                     .iter()
-                    .find(|object| object.name == object_name)
+                    .find(|object| object.identity == *object_identity)
                     .and_then(|object| object.base.as_ref())
-                    .and_then(|base| {
-                        unit.descriptors
-                            .iter()
-                            .find(|object| object.identity == *base)
-                    })
-                    .and_then(|base| contract(unit, &base.name, method_name, is_static))
+                    .and_then(|base| contract(unit, base, method_name, is_static))
             })
     }
     let object = package
@@ -723,7 +718,7 @@ pub(super) fn method_contract<'a>(
         .units
         .iter()
         .find(|candidate| candidate.source.id() == object.span.file)
-        .and_then(|candidate| contract(candidate, &object.name, method_name, is_static))
+        .and_then(|candidate| contract(candidate, &object.identity, method_name, is_static))
 }
 
 pub(super) fn construction_contract<'a>(

@@ -1,9 +1,6 @@
 {
-  "format": 2,
   "dependencies": [
     {
-      "name": "reqwest",
-      "version": "0.12.23",
       "members": [
         [
           "/deps/reqwest",
@@ -669,33 +666,34 @@
           "/deps/reqwest/tls",
           "Version"
         ]
-      ]
+      ],
+      "name": "reqwest",
+      "version": "0.12.23"
     }
   ],
-  "removed": [],
-  "cache_identity": "bed812609f72d1b1847b76bb7e28397bde04b04c5126071ac979ccb18aa2b7e9",
-  "source": "Local",
-  "rustdoc_format": 57,
+  "format": 2,
   "projection_schema": "24",
-  "content_hash": "80e24dc7d38439b67d4251c79ee13aa8e130f21fc69538ab4613b18c2776f90e",
+  "removed": [],
   "resolution": {
-    "outcome": "LocalRustdoc",
     "events": [
       {
+        "reason": "bundled projection distribution is deliberately deferred until Terrane has a release artifact channel",
         "source": "BundledArtifact",
-        "status": "Skipped",
-        "reason": "bundled projection distribution is deliberately deferred until Terrane has a release artifact channel"
+        "status": "Skipped"
       },
       {
+        "reason": "`TERRANE_PROJECTION_ARTIFACT_URL` is not configured",
         "source": "PublishedArtifact",
-        "status": "Skipped",
-        "reason": "`TERRANE_PROJECTION_ARTIFACT_URL` is not configured"
+        "status": "Skipped"
       },
       {
+        "reason": "no reusable exact artifact was available; generated with the pinned local rustdoc toolchain",
         "source": "LocalRustdoc",
-        "status": "Generated",
-        "reason": "no reusable exact artifact was available; generated with the pinned local rustdoc toolchain"
+        "status": "Generated"
       }
-    ]
-  }
+    ],
+    "outcome": "LocalRustdoc"
+  },
+  "rustdoc_format": 57,
+  "source": "Local"
 }

@@ -11,6 +11,7 @@ mod scopes;
 mod calls;
 mod collections;
 mod contracts;
+mod descriptors;
 mod documents;
 mod expressions;
 mod logging;
@@ -46,6 +47,7 @@ mod prelude {
     pub(super) use super::calls::*;
     pub(super) use super::collections::*;
     pub(super) use super::contracts::*;
+    pub(super) use super::descriptors::*;
     pub(super) use super::diagnostics::*;
     pub(super) use super::documents::*;
     pub(super) use super::expressions::*;
@@ -65,6 +67,7 @@ pub(crate) use bindings::{
     binding_read_value_is_reused, binding_store_value_is_read, descriptor_binding_is_materialized,
 };
 pub(crate) use contracts::{descriptor_expression_category, descriptor_expression_type};
+pub(crate) use descriptors::{descriptor_conforms_to, materialized_descriptor};
 pub(crate) use diagnostics::{binding_span_is_mutated, warnings};
 pub(crate) use member_inference::{object_member_type, string_call_selection};
 pub use model::{

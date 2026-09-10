@@ -1,9 +1,6 @@
 {
-  "format": 2,
   "dependencies": [
     {
-      "name": "async-witness",
-      "version": "0.1.0",
       "members": [
         [
           "/deps/async-witness",
@@ -19,7 +16,19 @@
         ],
         [
           "/deps/async-witness",
+          "operation_drop_count"
+        ],
+        [
+          "/deps/async-witness",
           "ready_after_yield"
+        ],
+        [
+          "/deps/async-witness",
+          "reset_operation_state"
+        ],
+        [
+          "/deps/async-witness",
+          "signal_sibling"
         ],
         [
           "/deps/async-witness",
@@ -28,34 +37,47 @@
         [
           "/deps/async-witness",
           "timer_poll_count"
+        ],
+        [
+          "/deps/async-witness",
+          "wait_for_sibling"
+        ],
+        [
+          "/deps/async-witness",
+          "wait_forever"
+        ],
+        [
+          "/deps/async-witness",
+          "wait_until_operation_started"
         ]
-      ]
+      ],
+      "name": "async-witness",
+      "version": "0.1.0"
     }
   ],
+  "format": 2,
+  "projection_schema": "24",
   "removed": [],
-  "cache_identity": "ba9364246453e65523426583a98448873b113c944ca7dc6ebe976d64f12b31ae",
-  "source": "Local",
-  "rustdoc_format": 57,
-  "projection_schema": "16",
-  "content_hash": "f86c34b110cf7ba56176e0eccf804804bb8e5ae8b5931c733b16654bad467762",
   "resolution": {
-    "outcome": "LocalRustdoc",
     "events": [
       {
+        "reason": "bundled projection distribution is deliberately deferred until Terrane has a release artifact channel",
         "source": "BundledArtifact",
-        "status": "Skipped",
-        "reason": "bundled projection distribution is deliberately deferred until Terrane has a release artifact channel"
+        "status": "Skipped"
       },
       {
+        "reason": "`TERRANE_PROJECTION_ARTIFACT_URL` is not configured",
         "source": "PublishedArtifact",
-        "status": "Skipped",
-        "reason": "`TERRANE_PROJECTION_ARTIFACT_URL` is not configured"
+        "status": "Skipped"
       },
       {
+        "reason": "no reusable exact artifact was available; generated with the pinned local rustdoc toolchain",
         "source": "LocalRustdoc",
-        "status": "Generated",
-        "reason": "no reusable exact artifact was available; generated with the pinned local rustdoc toolchain"
+        "status": "Generated"
       }
-    ]
-  }
+    ],
+    "outcome": "LocalRustdoc"
+  },
+  "rustdoc_format": 57,
+  "source": "Local"
 }

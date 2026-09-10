@@ -100,7 +100,11 @@ pub(super) fn infer_value_type(
         }) {
             return Ok(Some(ValueType::Descriptor(scalar.source_name().to_owned())));
         }
-        if let Some(object) = unit.descriptors.iter().find(|object| object.name == name) {
+        if let Some(object) = unit
+            .descriptors
+            .iter()
+            .find(|object| object.builtin.is_none() && object.name == name)
+        {
             return Ok(Some(ValueType::Descriptor(object.identity.qualified())));
         }
         if let Some(binding) = bindings.iter().rev().find(|binding| {
@@ -180,14 +184,6 @@ pub(super) fn infer_value_type(
                     )
             });
         return Ok(resolved_encoding.then_some(ValueType::Encoding));
-    }
-    if member_family_receiver(unit, node) {
-        return Err(failure(
-            &unit.source,
-            "T0018",
-            "member-family selections must be invoked in the same expression",
-            node.span,
-        ));
     }
     if node.kind == SyntaxKind::IndexExpression {
         let [receiver, index] = node.children.as_slice() else {

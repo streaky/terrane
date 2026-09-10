@@ -2,6 +2,19 @@ namespace bytes-views-encoding
 function main;
   text string = 'é'
   print; text.length, text.bytes.length, text.scalars.length, text.graphemes.length
+  byte-count = 0
+  for byte in text.bytes
+    if byte == byte
+      byte-count = byte-count + 1
+  scalar-count = 0
+  for scalar in text.scalars
+    if scalar == scalar
+      scalar-count = scalar-count + 1
+  grapheme-count = 0
+  for grapheme in text.graphemes
+    if grapheme == grapheme
+      grapheme-count = grapheme-count + 1
+  print; byte-count, scalar-count, grapheme-count
   encoded bytes = text.encode; utf8
   decoded string = encoded.decode; utf8
   print; decoded

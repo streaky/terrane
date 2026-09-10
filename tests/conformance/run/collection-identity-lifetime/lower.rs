@@ -746,7 +746,7 @@ fn main() {
             __terrane_value
         };
         TerraneDescriptor {
-            identity: "list of shared ref marker",
+            identity: "/core/collections::list of shared ref marker",
             name: "list of shared ref marker",
             kind: "type",
             inherently_identity_bearing: false,
@@ -755,6 +755,12 @@ fn main() {
     };
     println!(
         "{}", terrane_scalar_support::scalar_text(&marker_type.identity.to_owned())
+    );
+    println!(
+        "{}", terrane_scalar_support::scalar_text(&reference_type.identity.to_owned())
+    );
+    println!(
+        "{}", terrane_scalar_support::scalar_text(&collection_type.identity.to_owned())
     );
     println!(
         "{}", terrane_scalar_support::scalar_text(&marker_type

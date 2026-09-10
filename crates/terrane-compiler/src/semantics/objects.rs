@@ -329,12 +329,49 @@ pub(super) fn analyze_descriptor_contracts(
                     ValueType::PlatformStreamHandle | ValueType::PlatformResourceHandle
                 )
             });
+        let methods = unit
+            .functions
+            .iter()
+            .filter(|function| {
+                function.owner.as_deref() == Some(name.as_str()) && !function.is_static
+            })
+            .map(|function| function.name.clone())
+            .collect::<BTreeSet<_>>();
+        let static_methods = unit
+            .functions
+            .iter()
+            .filter(|function| {
+                function.owner.as_deref() == Some(name.as_str()) && function.is_static
+            })
+            .map(|function| function.name.clone())
+            .collect::<BTreeSet<_>>();
+        let mut members = fields
+            .iter()
+            .filter(|field| !field.is_static)
+            .map(|field| field.name.clone())
+            .collect::<BTreeSet<_>>();
+        members.extend(methods.iter().cloned());
+        members.insert("type".to_owned());
+        let mut static_members = fields
+            .iter()
+            .filter(|field| field.is_static)
+            .map(|field| field.name.clone())
+            .collect::<BTreeSet<_>>();
+        static_members.extend(static_methods.iter().cloned());
         descriptors.push(DescriptorContract {
             identity: ObjectIdentity::new(&unit.namespace, &name),
             name,
             span: node.span,
             kind,
             resource_owning,
+            builtin: None,
+            categories: vec![TypeCategory::Value, TypeCategory::Object],
+            operations: BTreeMap::new(),
+            members,
+            methods,
+            invocation_only_methods: BTreeSet::new(),
+            static_members,
+            static_methods,
             base,
             interfaces,
             traits,
@@ -409,6 +446,59 @@ pub(super) fn value_type_owns_resource(
                 || value_type_owns_resource(&value.value_type(), resource_identities)
         }
         _ => false,
+    }
+}
+pub(super) fn refresh_source_descriptor_members(units: &mut [SemanticUnit]) {
+    for unit in units {
+        for descriptor in unit
+            .descriptors
+            .iter_mut()
+            .filter(|descriptor| descriptor.builtin.is_none())
+        {
+            descriptor.methods = unit
+                .functions
+                .iter()
+                .filter(|function| {
+                    function.owner_identity.as_ref() == Some(&descriptor.identity)
+                        && !function.is_static
+                })
+                .map(|function| function.name.clone())
+                .collect();
+            descriptor.static_methods = unit
+                .functions
+                .iter()
+                .filter(|function| {
+                    function.owner_identity.as_ref() == Some(&descriptor.identity)
+                        && function.is_static
+                })
+                .map(|function| function.name.clone())
+                .collect();
+            descriptor.members = descriptor
+                .fields
+                .iter()
+                .filter(|field| !field.is_static)
+                .map(|field| field.name.clone())
+                .chain(descriptor.methods.iter().cloned())
+                .chain(std::iter::once("type".to_owned()))
+                .collect();
+            descriptor.operations = descriptor
+                .members
+                .iter()
+                .map(|member| {
+                    (
+                        member.clone(),
+                        format!("source.{}.{}", descriptor.identity.qualified(), member),
+                    )
+                })
+                .collect();
+            descriptor.static_members = descriptor
+                .fields
+                .iter()
+                .filter(|field| field.is_static)
+                .map(|field| field.name.clone())
+                .chain(descriptor.static_methods.iter().cloned())
+                .collect();
+        }
     }
 }
 
@@ -602,7 +692,9 @@ pub(super) fn validate_object_conformance(
     ) -> Option<&'a FunctionContract> {
         unit.functions
             .iter()
-            .find(|method| method.owner.as_deref() == Some(&object.name) && method.name == name)
+            .find(|method| {
+                method.owner_identity.as_ref() == Some(&object.identity) && method.name == name
+            })
             .or_else(|| {
                 object
                     .base
@@ -681,6 +773,7 @@ pub(super) fn validate_object_conformance(
                         name: "render".to_owned(),
                         span: object.span,
                         owner: Some("/core/errors::throwable".to_owned()),
+                        owner_identity: Some(ObjectIdentity::new("/core/errors", "throwable")),
                         captures: Vec::new(),
                         parameters: Vec::new(),
                         is_static: false,
@@ -727,7 +820,7 @@ pub(super) fn validate_object_conformance(
                 for required in interface_unit
                     .functions
                     .iter()
-                    .filter(|method| method.owner.as_deref() == Some(&interface.name))
+                    .filter(|method| method.owner_identity.as_ref() == Some(&interface.identity))
                 {
                     let Some(actual) = effective_method(declaration_unit, object, &required.name)
                     else {
@@ -758,7 +851,7 @@ pub(super) fn validate_object_conformance(
             let own_methods = declaration_unit
                 .functions
                 .iter()
-                .filter(|method| method.owner.as_deref() == Some(&object.name))
+                .filter(|method| method.owner_identity.as_ref() == Some(&object.identity))
                 .map(|method| method.name.as_str())
                 .collect::<BTreeSet<_>>();
             let own_fields = object
@@ -855,7 +948,9 @@ pub(super) fn propagate_interface_receiver_mutability(package: &mut SemanticPack
     ) -> Option<&'a FunctionContract> {
         unit.functions
             .iter()
-            .find(|method| method.owner.as_deref() == Some(&object.name) && method.name == name)
+            .find(|method| {
+                method.owner_identity.as_ref() == Some(&object.identity) && method.name == name
+            })
             .or_else(|| {
                 object
                     .base
@@ -895,7 +990,7 @@ pub(super) fn propagate_interface_receiver_mutability(package: &mut SemanticPack
                 for required in unit
                     .functions
                     .iter()
-                    .filter(|method| method.owner.as_deref() == Some(&interface.name))
+                    .filter(|method| method.owner_identity.as_ref() == Some(&interface.identity))
                 {
                     if effective_method(unit, class, &required.name)
                         .is_some_and(|actual| actual.mutates_receiver)
@@ -955,28 +1050,23 @@ pub(super) fn infer_receiver_consumption(package: &mut SemanticPackage) {
             _ => false,
         }
     }
-
     fn effective_method<'a>(
         unit: &'a SemanticUnit,
-        object_name: &str,
+        object_identity: &ObjectIdentity,
         method_name: &str,
     ) -> Option<&'a FunctionContract> {
         unit.functions
             .iter()
             .find(|method| {
-                method.owner.as_deref() == Some(object_name) && method.name == method_name
+                method.owner_identity.as_ref() == Some(object_identity)
+                    && method.name == method_name
             })
             .or_else(|| {
                 unit.descriptors
                     .iter()
-                    .find(|object| object.name == object_name)
+                    .find(|object| object.identity == *object_identity)
                     .and_then(|object| object.base.as_ref())
-                    .and_then(|base| {
-                        unit.descriptors
-                            .iter()
-                            .find(|object| object.identity == *base)
-                    })
-                    .and_then(|base| effective_method(unit, &base.name, method_name))
+                    .and_then(|base| effective_method(unit, base, method_name))
             })
     }
 
@@ -1043,7 +1133,8 @@ pub(super) fn infer_receiver_consumption(package: &mut SemanticPackage) {
                 .iter()
                 .flat_map(|candidate| &candidate.functions)
                 .find(|function| {
-                    function.owner.as_deref() == Some(&object.name) && function.name == "construct"
+                    function.owner_identity.as_ref() == Some(&object.identity)
+                        && function.name == "construct"
                 })
                 .map(|function| function.parameters.as_slice());
         }
@@ -1110,7 +1201,7 @@ pub(super) fn infer_receiver_consumption(package: &mut SemanticPackage) {
                     Ok(Some(ValueType::Object(object_name)))
                         if effective_method(
                             unit,
-                            &object_name.name,
+                            &object_name,
                             node_text(&unit.source, member)
                         )
                         .is_some_and(|method| method.consumes_receiver)
@@ -1175,9 +1266,9 @@ pub(super) fn infer_receiver_consumption(package: &mut SemanticPackage) {
                 for required in unit
                     .functions
                     .iter()
-                    .filter(|method| method.owner.as_deref() == Some(&interface.name))
+                    .filter(|method| method.owner_identity.as_ref() == Some(&interface.identity))
                 {
-                    if effective_method(unit, &class.name, &required.name)
+                    if effective_method(unit, &class.identity, &required.name)
                         .is_some_and(|actual| actual.consumes_receiver)
                     {
                         consuming_interfaces.insert((
@@ -1272,6 +1363,7 @@ pub(super) fn analyze_types(package: &mut SemanticPackage) -> Result<(), Semanti
     populate_namespace_function_contracts(package);
     populate_function_aliases(package);
     populate_function_type_dependencies(package);
+    refresh_source_descriptor_members(&mut package.units);
     propagate_interface_receiver_mutability(package);
     validate_descriptor_value_uses(package)?;
 
@@ -1287,6 +1379,9 @@ pub(super) fn analyze_types(package: &mut SemanticPackage) -> Result<(), Semanti
             None,
         )?;
         package.units[index].typed_bindings = bindings;
+    }
+    for unit in &package.units {
+        validate_invocation_only_members(unit)?;
     }
     validate_resource_collection_types(package)?;
     infer_receiver_consumption(package);

@@ -45,8 +45,12 @@ pub(super) fn object_method_contract<'a>(
             return None;
         }
         let object = descriptor_contract(unit, identity)?;
-        if let Some(method) = unit.functions.iter().find(|function| {
-            function.owner.as_deref() == Some(object.identity.name.as_str())
+        if (if is_static {
+            object.static_methods.contains(member)
+        } else {
+            object.methods.contains(member)
+        }) && let Some(method) = unit.functions.iter().find(|function| {
+            function.owner_identity.as_ref() == Some(&object.identity)
                 && function.name == member
                 && function.is_static == is_static
         }) {
@@ -80,7 +84,11 @@ pub(super) fn object_field_type(
     is_static: bool,
 ) -> Option<ValueType> {
     let object = descriptor_contract(unit, object_identity)?;
-    if let Some(field) = object
+    if (if is_static {
+        object.static_members.contains(member)
+    } else {
+        object.members.contains(member)
+    }) && let Some(field) = object
         .fields
         .iter()
         .find(|field| field.name == member && field.is_static == is_static)
@@ -187,16 +195,12 @@ pub(super) fn infer_member_value_type(
     let member_name = node_text(&unit.source, member);
     let receiver_type = infer_receiver_value_type(unit, receiver, bindings)?;
     if let Some(ValueType::Descriptor(identity)) = &receiver_type {
-        if let Some(field) = unit
-            .descriptors
+        let descriptor = descriptor_contract_by_identity(unit, identity)
+            .expect("descriptor value types always retain a canonical contract");
+        if let Some(field) = descriptor
+            .fields
             .iter()
-            .find(|object| object.name == *identity || object.identity.qualified() == *identity)
-            .and_then(|object| {
-                object
-                    .fields
-                    .iter()
-                    .find(|field| field.is_static && field.name == member_name)
-            })
+            .find(|field| field.is_static && field.name == member_name)
         {
             return Ok(Some(field.value_type.clone()));
         }
@@ -463,7 +467,7 @@ pub(super) fn infer_member_value_type(
     }
     if member_name == "type" {
         return Ok(receiver_type.map(|value_type| {
-            ValueType::Descriptor(diagnostic_value_type(&unit.descriptors, &value_type))
+            ValueType::Descriptor(canonical_descriptor_identity(unit, &value_type))
         }));
     }
     if let Some(ValueType::Object(object_name)) = &receiver_type {
@@ -483,53 +487,15 @@ pub(super) fn infer_member_value_type(
             member.span,
         ));
     }
-    let collection_method = matches!(
-        (&receiver_type, member_name),
-        (
-            Some(ValueType::List(_) | ValueType::Tuple(_, _)),
-            "append" | "set" | "get" | "remove" | "clear"
-        ) | (
-            Some(ValueType::Map(_, _) | ValueType::UnorderedMap(_, _)),
-            "set" | "get" | "keys" | "values" | "entries"
-        ) | (
-            Some(ValueType::Set(_) | ValueType::UnorderedSet(_)),
-            "add" | "contains" | "remove"
-        )
-    );
-    let string_method = matches!(&receiver_type, Some(ValueType::Scalar(ScalarType::String)))
-        && (StringFamily::from_source_name(member_name).is_some()
-            || matches!(member_name, "concat" | "join"));
-    let bytes_method = matches!(&receiver_type, Some(ValueType::Scalar(ScalarType::Bytes)))
-        && matches!(member_name, "decode" | "concat");
-    if collection_method || string_method || bytes_method {
-        let family = if string_method {
-            "string methods"
-        } else if bytes_method {
-            "bytes methods"
-        } else {
-            "collection methods"
-        };
-        return Err(failure(
-            &unit.source,
-            "T0018",
-            format!(
-                "{family} are not storable values before bound methods exist; \
-                 method `.{member_name}` must be invoked with `;`"
-            ),
-            node.span,
-        ));
+    if receiver_type.as_ref().is_some_and(|value_type| {
+        descriptor_method_requires_invocation(unit, value_type, member_name)
+    }) {
+        return Ok(None);
     }
-    if matches!(
-        receiver_type,
-        Some(
-            ValueType::List(_)
-                | ValueType::Map(_, _)
-                | ValueType::Set(_)
-                | ValueType::Tuple(_, _)
-                | ValueType::UnorderedMap(_, _)
-                | ValueType::UnorderedSet(_)
-        )
-    ) && member_name == "length"
+    if member_name == "length"
+        && receiver_type
+            .as_ref()
+            .is_some_and(|value_type| descriptor_has_member(unit, value_type, member_name))
     {
         return Ok(Some(ValueType::Scalar(ScalarType::Int)));
     }
@@ -590,8 +556,8 @@ pub(super) fn infer_member_value_type(
         _ => {}
     }
     if let Some(contract) = float_member_contract(member_name) {
-        if let Some(ValueType::Scalar(receiver @ (ScalarType::Float32 | ScalarType::Float64))) =
-            receiver_type.clone()
+        if let Some(ValueType::Scalar(receiver)) = receiver_type.clone()
+            && descriptor_has_member(unit, &ValueType::Scalar(receiver), member_name)
         {
             return Ok(Some(contract.member_type(receiver)));
         }
@@ -758,10 +724,14 @@ pub(super) fn infer_string_call_type(
     if matches!(subject_type, Some(ValueType::Object(_))) {
         return Ok(None);
     }
-    let receiver_valid = match family {
-        "decode" => subject_type == Some(ValueType::Scalar(ScalarType::Bytes)),
-        _ => subject_type == Some(ValueType::Scalar(ScalarType::String)),
+    let member_path = if child == "default" {
+        family.to_owned()
+    } else {
+        format!("{family}.{child}")
     };
+    let receiver_valid = subject_type
+        .as_ref()
+        .is_some_and(|value_type| descriptor_has_method(unit, value_type, family));
     if !receiver_valid {
         return Err(failure(
             &unit.source,
@@ -770,14 +740,36 @@ pub(super) fn infer_string_call_type(
             subject.span,
         ));
     }
+    let Some(operation) = descriptor_operation(
+        unit,
+        subject_type.as_ref().expect("validated receiver"),
+        &member_path,
+    ) else {
+        return Err(failure(
+            &unit.source,
+            "T0034",
+            format!("`.{family}.{child}` is not available"),
+            node.span,
+        ));
+    };
     let arguments = node
         .children
         .get(1)
         .map_or(&[][..], |arguments| arguments.children.as_slice());
-    let (minimum, maximum) = match (family, child) {
-        ("trim", "default") | ("upper" | "lower" | "normalise" | "case-fold", _) => (0, 0),
-        ("trim", "start" | "end") => (0, 1),
-        ("replace", _) => (2, 2),
+    let (minimum, maximum) = match operation {
+        "string.trim"
+        | "string.upper"
+        | "string.upper.first"
+        | "string.upper.words"
+        | "string.lower"
+        | "string.lower.first"
+        | "string.normalise.nfc"
+        | "string.normalise.nfd"
+        | "string.normalise.nfkc"
+        | "string.normalise.nfkd"
+        | "string.case-fold" => (0, 0),
+        "string.trim.start" | "string.trim.end" => (0, 1),
+        "string.replace" => (2, 2),
         _ => (1, 1),
     };
     if arguments.len() < minimum || arguments.len() > maximum {
@@ -790,7 +782,7 @@ pub(super) fn infer_string_call_type(
     }
     for argument in arguments {
         let argument = argument.children.last().unwrap_or(argument);
-        let expected = if matches!(family, "encode" | "decode") {
+        let expected = if matches!(operation, "string.encode" | "bytes.decode") {
             ValueType::Encoding
         } else {
             ValueType::Scalar(ScalarType::String)
@@ -804,26 +796,31 @@ pub(super) fn infer_string_call_type(
             ));
         }
     }
-    let result = match (family, child) {
-        ("contains", "default" | "start" | "end") => ValueType::Scalar(ScalarType::Bool),
-        ("find", "default") => ValueType::Optional(Box::new(ValueType::TextRange)),
-        ("find", "all") => ValueType::TextRangeList,
-        ("find", "count") => ValueType::Scalar(ScalarType::Int),
-        ("split", "default") => ValueType::StringList,
-        ("encode", "default") => ValueType::Scalar(ScalarType::Bytes),
-        ("decode" | "case-fold" | "replace", "default")
-        | ("trim", "default" | "start" | "end")
-        | ("upper", "default" | "first" | "words")
-        | ("lower", "default" | "first")
-        | ("normalise", "nfc" | "nfd" | "nfkc" | "nfkd") => ValueType::Scalar(ScalarType::String),
-        _ => {
-            return Err(failure(
-                &unit.source,
-                "T0034",
-                format!("`.{family}.{child}` is not available"),
-                node.span,
-            ));
+    let result = match operation {
+        "string.contains" | "string.contains.start" | "string.contains.end" => {
+            ValueType::Scalar(ScalarType::Bool)
         }
+        "string.find" => ValueType::Optional(Box::new(ValueType::TextRange)),
+        "string.find.all" => ValueType::TextRangeList,
+        "string.find.count" => ValueType::Scalar(ScalarType::Int),
+        "string.split" => ValueType::StringList,
+        "string.encode" => ValueType::Scalar(ScalarType::Bytes),
+        "bytes.decode"
+        | "string.case-fold"
+        | "string.replace"
+        | "string.trim"
+        | "string.trim.start"
+        | "string.trim.end"
+        | "string.upper"
+        | "string.upper.first"
+        | "string.upper.words"
+        | "string.lower"
+        | "string.lower.first"
+        | "string.normalise.nfc"
+        | "string.normalise.nfd"
+        | "string.normalise.nfkc"
+        | "string.normalise.nfkd" => ValueType::Scalar(ScalarType::String),
+        _ => return Ok(None),
     };
     Ok(Some(result))
 }

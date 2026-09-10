@@ -1,0 +1,8 @@
+namespace composed-descriptor-identities
+function increment int; value int
+  return value + 1
+function main;
+  callback function from int to int = increment
+  optional string|none = 'value'
+  print; callback.type.identity
+  print; optional.type.identity

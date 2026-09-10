@@ -222,12 +222,13 @@ fn prelude_has_exact_ordinary_bindings_and_can_be_disabled() {
             .descriptor_constructs
             .get(ty.source_name())
             .unwrap();
-        assert_eq!(construct.descriptor_type(), Some(ty));
+        let identity = format!("/core/types::{}", ty.source_name());
+        assert_eq!(construct.descriptor_identity(), Some(identity.as_str()));
         assert_eq!(
             disabled
                 .resolve_name(&disabled.units[0].namespace, ty.source_name())
-                .and_then(terrane_compiler::Symbol::descriptor_type),
-            Some(ty)
+                .and_then(terrane_compiler::Symbol::descriptor_identity),
+            Some(identity.as_str())
         );
     }
     assert_eq!(
@@ -837,8 +838,8 @@ fn imported_fixed_width_objects_remain_canonical_type_descriptors() {
         assert_eq!(descriptor.kind, SymbolKind::TypeDescriptor);
         assert_eq!(descriptor.identity, format!("/core/types::{name}"));
         assert_eq!(
-            descriptor.descriptor_type(),
-            ScalarType::from_source_name(name)
+            descriptor.descriptor_identity(),
+            Some(descriptor.identity.as_str())
         );
     }
 }

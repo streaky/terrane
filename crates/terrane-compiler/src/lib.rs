@@ -36,7 +36,7 @@ pub use semantics::{
     TypedBinding, ValueType, Visibility, analyze,
 };
 pub use source::{SourceFile, Span};
-pub use types::{DescriptorSchema, ScalarType, TypeCategory};
+pub use types::{ScalarType, TypeCategory};
 /// Unicode Character Database version selected by the compiler toolchain profile.
 pub const UNICODE_DATA_VERSION: &str = "16.0.0";
 #[cfg(test)]

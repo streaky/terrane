@@ -1,0 +1,5 @@
+namespace string-result-list-mutation
+
+function main;
+  parts = 'red,green'.split; ','
+  parts.append; 'blue'

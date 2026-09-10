@@ -2023,6 +2023,11 @@ same contract answers member lookup, nominal compatibility and conformance, disp
 reflection, and structural protocol queries. Structural protocols are requirements over descriptor
 members rather than hidden nominal interfaces. Iteration and `truth` are instances of the same
 query mechanism: a class may satisfy either from its member shape without declaring an interface.
+Named built-in descriptors use namespace-qualified canonical identities: scalar descriptors use
+`/core/types::<name>`, while instantiated collection descriptors use
+`/core/collections::<family> of <arguments>`. Synthesized composed descriptors such as references,
+callables, optionals, and unions retain their canonical source-shaped spelling unless their family
+is assigned a named namespace identity. Import and local aliases never replace canonical identity.
 The compiler must not maintain a second class/object contract table whose answers can diverge from
 descriptor reflection or protocol satisfaction.
 
