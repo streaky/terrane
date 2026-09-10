@@ -303,6 +303,16 @@ fn assert_expected_warnings(
     assert_eq!(actual, expected, "{} warnings", case.display());
 }
 
+fn with_compilation_dependencies(
+    compilation: terrane_compiler::Compilation,
+) -> (
+    terrane_compiler::Compilation,
+    Vec<terrane_compiler::RustDependency>,
+) {
+    let dependencies = compilation.rust_dependencies.clone();
+    (compilation, dependencies)
+}
+
 #[test]
 fn every_manifest_drives_a_conformance_case() {
     let manifests = manifests_below(&corpus());
@@ -332,7 +342,7 @@ fn every_manifest_drives_a_conformance_case() {
                     let compilation =
                         terrane_compiler::compile_package_with_options(&package, options).unwrap();
                     verify_reviewed_projection(case, &source_path);
-                    (compilation, package.rust_dependencies)
+                    with_compilation_dependencies(compilation)
                 } else {
                     let source = fs::read_to_string(&source_path).unwrap();
                     let compilation =

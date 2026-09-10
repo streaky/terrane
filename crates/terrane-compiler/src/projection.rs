@@ -17,7 +17,7 @@ use sha2::{Digest, Sha256};
 use crate::RustDependency;
 
 pub use crate::RUSTDOC_TOOLCHAIN;
-const PROJECTION_SCHEMA: &str = "28";
+const PROJECTION_SCHEMA: &str = "25";
 const MAX_PROJECTION_CACHE_RECORDS: usize = 4;
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
@@ -26,6 +26,8 @@ pub struct Projection {
     #[serde(default)]
     pub content_hash: String,
     pub dependencies: Vec<ProjectedDependency>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub bound_dependencies: Vec<ProjectedBoundDependency>,
     pub containment: Containment,
     #[serde(default)]
     pub source: ProjectionSource,
@@ -37,6 +39,13 @@ pub struct Projection {
     pub resolution: ProjectionResolution,
     #[serde(default)]
     pub removed: Vec<RemovedItem>,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+pub struct ProjectedBoundDependency {
+    pub name: String,
+    pub package: String,
+    pub version: String,
 }
 
 #[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
@@ -244,6 +253,8 @@ pub struct ProjectedFunction {
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub struct ProjectedDestinationResult {
     pub parameter: String,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub bound_roots: Vec<String>,
     pub rust_bounds: Vec<String>,
 }
 
@@ -1107,6 +1118,7 @@ pub fn resolve(
             source: ProjectionSource::Local,
             dependencies: Vec::new(),
             probes: Vec::new(),
+            bound_dependencies: Vec::new(),
             probe_wall_time_ms: 0,
             resolution: ProjectionResolution {
                 outcome: ResolutionOutcome::NoDependencies,
@@ -1123,7 +1135,7 @@ pub fn resolve(
     if workspace.join("Cargo.lock").exists() {
         run_cargo(
             &workspace,
-            &["fetch", "--locked"],
+            &["fetch", "--offline"],
             CargoToolchain::Default,
             CargoExecution::Host,
         )?;
@@ -1164,6 +1176,11 @@ pub fn resolve(
                 reason: format!("matched projection identity `{identity}`"),
             }],
         };
+        write_workspace_with_bound_dependencies(
+            &workspace,
+            dependencies,
+            &cached.bound_dependencies,
+        )?;
         apply_projection_history(root, &mut cached)?;
         prune_projection_cache(&workspace, &cache_path)?;
         return Ok(cached);
@@ -1188,6 +1205,11 @@ pub fn resolve(
                 outcome: ResolutionOutcome::PublishedArtifact,
                 events: resolution_events,
             };
+            write_workspace_with_bound_dependencies(
+                &workspace,
+                dependencies,
+                &projection.bound_dependencies,
+            )?;
             let bytes =
                 serde_json::to_vec_pretty(&projection).map_err(|error| ProjectionError {
                     message: format!("cannot serialize published dependency projection: {error}"),
@@ -1272,11 +1294,14 @@ pub fn resolve(
         status: ResolutionStatus::Generated,
         reason: "no reusable exact artifact was available; generated with the pinned local rustdoc toolchain".to_owned(),
     });
+    decline_unnameable_bound_owners(&mut projected, dependencies, &workspace)?;
+    let bound_dependencies = projected_bound_dependencies(&projected, dependencies, &workspace)?;
     let mut projection = Projection {
         cache_identity: identity,
         content_hash: String::new(),
         source: ProjectionSource::Local,
         dependencies: projected,
+        bound_dependencies,
         containment: sandbox,
         probes: Vec::new(),
         probe_wall_time_ms: 0,
@@ -1286,6 +1311,11 @@ pub fn resolve(
         },
         removed: Vec::new(),
     };
+    write_workspace_with_bound_dependencies(
+        &workspace,
+        dependencies,
+        &projection.bound_dependencies,
+    )?;
     projection.content_hash = projection_content_hash(&projection)?;
     let bytes = serde_json::to_vec_pretty(&projection).map_err(|error| ProjectionError {
         message: format!("cannot serialize dependency projection: {error}"),
@@ -2036,6 +2066,225 @@ fn resolved_package_versions(
     }
     Ok(versions)
 }
+fn is_crates_io_lock_source(source: &str) -> bool {
+    source == "registry+https://github.com/rust-lang/crates.io-index"
+}
+
+fn decline_unnameable_bound_owners(
+    projected: &mut [ProjectedDependency],
+    declared: &[RustDependency],
+    workspace: &Path,
+) -> Result<(), ProjectionError> {
+    let declared = declared
+        .iter()
+        .map(|dependency| dependency.name.replace('-', "_"))
+        .collect::<BTreeSet<_>>();
+    let text = fs::read_to_string(workspace.join("Cargo.lock"))
+        .map_err(io_error("read dependency projection lockfile"))?;
+    let lock = text
+        .parse::<toml::Value>()
+        .map_err(|error| ProjectionError {
+            message: format!("invalid dependency projection lockfile: {error}"),
+        })?;
+    let packages = lock
+        .get("package")
+        .and_then(toml::Value::as_array)
+        .into_iter()
+        .flatten()
+        .filter_map(|package| {
+            Some((
+                package.get("name")?.as_str()?.to_owned(),
+                package.get("version")?.as_str()?.to_owned(),
+                package
+                    .get("source")
+                    .and_then(toml::Value::as_str)
+                    .map(str::to_owned),
+            ))
+        })
+        .collect::<Vec<_>>();
+    let reason = |function: &ProjectedFunction| {
+        let destination = function.destination_result.as_ref()?;
+        destination.bound_roots.iter().find_map(|root| {
+            if declared.contains(root)
+                || matches!(root.as_str(), "std" | "core" | "alloc" | "self" | "crate")
+            {
+                return None;
+            }
+            let matches = packages
+                .iter()
+                .filter(|(package, _, _)| package.replace('-', "_") == *root)
+                .collect::<Vec<_>>();
+            match matches.as_slice() {
+                [] => Some(format!(
+                    "destination-result bound owner `{root}` is not a resolved package"
+                )),
+                [(_, _, Some(source))] if is_crates_io_lock_source(source) => None,
+                [(_, version, _)] => Some(format!(
+                    "destination-result bound owner `{root}` at `{version}` is not a nameable registry dependency"
+                )),
+                _ => Some(format!(
+                    "destination-result bound owner `{root}` resolves to multiple package versions"
+                )),
+            }
+        })
+    };
+    for dependency in projected {
+        let mut retained = Vec::new();
+        for mut item in std::mem::take(&mut dependency.items) {
+            match &mut item.kind {
+                ProjectedKind::Function(function) => {
+                    if let Some(reason) = reason(function) {
+                        dependency.declined.push(DeclinedItem {
+                            rust_path: item.rust_path,
+                            reason,
+                        });
+                        continue;
+                    }
+                }
+                ProjectedKind::ForeignType {
+                    methods,
+                    static_methods,
+                } => {
+                    for method_list in [methods, static_methods] {
+                        let mut kept = Vec::new();
+                        for method in std::mem::take(method_list) {
+                            if let Some(reason) = reason(&method) {
+                                dependency.declined.push(DeclinedItem {
+                                    rust_path: format!("{}::{}", item.rust_path, method.name),
+                                    reason,
+                                });
+                            } else {
+                                kept.push(method);
+                            }
+                        }
+                        *method_list = kept;
+                    }
+                }
+                ProjectedKind::Enum { .. } => {}
+            }
+            retained.push(item);
+        }
+        dependency.items = retained;
+        dependency
+            .declined
+            .sort_by(|left, right| left.rust_path.cmp(&right.rust_path));
+    }
+    Ok(())
+}
+
+fn projected_bound_dependencies(
+    projected: &[ProjectedDependency],
+    declared: &[RustDependency],
+    workspace: &Path,
+) -> Result<Vec<ProjectedBoundDependency>, ProjectionError> {
+    let declared = declared
+        .iter()
+        .map(|dependency| dependency.name.replace('-', "_"))
+        .collect::<BTreeSet<_>>();
+    let required = projected
+        .iter()
+        .flat_map(|dependency| &dependency.items)
+        .flat_map(|item| match &item.kind {
+            ProjectedKind::Function(function) => vec![function],
+            ProjectedKind::ForeignType {
+                methods,
+                static_methods,
+            } => methods.iter().chain(static_methods).collect(),
+            ProjectedKind::Enum { .. } => Vec::new(),
+        })
+        .filter_map(|function| function.destination_result.as_ref())
+        .flat_map(|destination| &destination.bound_roots)
+        .filter(|root| {
+            !declared.contains(*root)
+                && !matches!(root.as_str(), "std" | "core" | "alloc" | "self" | "crate")
+        })
+        .cloned()
+        .collect::<BTreeSet<_>>();
+    if required.is_empty() {
+        return Ok(Vec::new());
+    }
+    let text = fs::read_to_string(workspace.join("Cargo.lock"))
+        .map_err(io_error("read dependency projection lockfile"))?;
+    let lock = text
+        .parse::<toml::Value>()
+        .map_err(|error| ProjectionError {
+            message: format!("invalid dependency projection lockfile: {error}"),
+        })?;
+    let packages = lock
+        .get("package")
+        .and_then(toml::Value::as_array)
+        .into_iter()
+        .flatten()
+        .filter_map(|package| {
+            Some((
+                package.get("name")?.as_str()?.to_owned(),
+                package.get("version")?.as_str()?.to_owned(),
+                package
+                    .get("source")
+                    .and_then(toml::Value::as_str)
+                    .map(str::to_owned),
+            ))
+        })
+        .collect::<Vec<_>>();
+    required
+        .into_iter()
+        .map(|root| {
+            let matches = packages
+                .iter()
+                .filter(|(package, _, _)| package.replace('-', "_") == root)
+                .collect::<Vec<_>>();
+            let [(package, version, source)] = matches.as_slice() else {
+                return Err(ProjectionError {
+                    message: format!(
+                        "projected result bound root `{root}` is not a unique resolved package"
+                    ),
+                });
+            };
+            if !source
+                .as_deref()
+                .is_some_and(is_crates_io_lock_source)
+            {
+                return Err(ProjectionError {
+                    message: format!(
+                        "projected result bound root `{root}` is not a nameable registry dependency"
+                    ),
+                });
+            }
+            Ok(ProjectedBoundDependency {
+                name: root,
+                package: package.clone(),
+                version: format!("={version}"),
+            })
+        })
+        .collect()
+}
+
+fn write_workspace_with_bound_dependencies(
+    workspace: &Path,
+    dependencies: &[RustDependency],
+    bound_dependencies: &[ProjectedBoundDependency],
+) -> Result<(), ProjectionError> {
+    let mut dependencies = dependencies.to_vec();
+    dependencies.extend(bound_dependencies.iter().map(|dependency| RustDependency {
+        name: dependency.name.clone(),
+        package: dependency.package.clone(),
+        version: dependency.version.clone(),
+        features: Vec::new(),
+        default_features: false,
+        target: None,
+        effects: Vec::new(),
+    }));
+    write_workspace(workspace, &dependencies)?;
+    if bound_dependencies.is_empty() {
+        return Ok(());
+    }
+    run_cargo(
+        workspace,
+        &["fetch", "--offline"],
+        CargoToolchain::Default,
+        CargoExecution::Host,
+    )
+}
 
 fn item_undeclared_owner<'a>(
     item: &'a ProjectedItem,
@@ -2223,6 +2472,105 @@ fn rustdoc_public_paths(document: &RustdocCrate) -> BTreeMap<Id, String> {
         );
     }
     public_paths
+}
+
+fn rewrite_projected_rust_root(ty: &mut ProjectedType, package_root: &str, dependency_root: &str) {
+    let rewrite = |path: &str| {
+        if path == package_root {
+            dependency_root.to_owned()
+        } else if let Some(suffix) = path.strip_prefix(&format!("{package_root}::")) {
+            format!("{dependency_root}::{suffix}")
+        } else {
+            path.to_owned()
+        }
+    };
+    match ty {
+        ProjectedType::Sequence { rust_path, item } => {
+            rewrite_projected_rust_root(item, package_root, dependency_root);
+            let constructor = rust_path
+                .split_once('<')
+                .map_or(rust_path.as_str(), |(constructor, _)| constructor);
+            *rust_path = format!("{}<{}>", rewrite(constructor), item.rust_type());
+        }
+        ProjectedType::Mapping {
+            rust_path,
+            key,
+            value,
+            ..
+        } => {
+            rewrite_projected_rust_root(key, package_root, dependency_root);
+            rewrite_projected_rust_root(value, package_root, dependency_root);
+            let constructor = rust_path
+                .split_once('<')
+                .map_or(rust_path.as_str(), |(constructor, _)| constructor);
+            *rust_path = format!(
+                "{}<{}, {}>",
+                rewrite(constructor),
+                key.rust_type(),
+                value.rust_type()
+            );
+        }
+        ProjectedType::Set {
+            rust_path, item, ..
+        } => {
+            rewrite_projected_rust_root(item, package_root, dependency_root);
+            let constructor = rust_path
+                .split_once('<')
+                .map_or(rust_path.as_str(), |(constructor, _)| constructor);
+            *rust_path = format!("{}<{}>", rewrite(constructor), item.rust_type());
+        }
+        ProjectedType::Tuple(items) => {
+            for item in items {
+                rewrite_projected_rust_root(item, package_root, dependency_root);
+            }
+        }
+        ProjectedType::AsyncIterationStep(item) | ProjectedType::Optional(item) => {
+            rewrite_projected_rust_root(item, package_root, dependency_root);
+        }
+        ProjectedType::Foreign {
+            rust_path,
+            base_rust_path,
+            arguments,
+            ..
+        } => {
+            for argument in arguments.iter_mut() {
+                rewrite_projected_rust_root(argument, package_root, dependency_root);
+            }
+            *base_rust_path = rewrite(base_rust_path);
+            *rust_path = if arguments.is_empty() {
+                base_rust_path.clone()
+            } else {
+                format!(
+                    "{base_rust_path}<{}>",
+                    arguments
+                        .iter()
+                        .map(ProjectedType::rust_type)
+                        .collect::<Vec<_>>()
+                        .join(", ")
+                )
+            };
+        }
+        ProjectedType::Callback {
+            parameters, result, ..
+        } => {
+            for parameter in parameters {
+                rewrite_projected_rust_root(parameter, package_root, dependency_root);
+            }
+            rewrite_projected_rust_root(result, package_root, dependency_root);
+        }
+        ProjectedType::None
+        | ProjectedType::Generic(_)
+        | ProjectedType::Bool
+        | ProjectedType::Int
+        | ProjectedType::FixedInt(_)
+        | ProjectedType::RustInt(_)
+        | ProjectedType::Float
+        | ProjectedType::Float32
+        | ProjectedType::Char
+        | ProjectedType::String
+        | ProjectedType::Bytes
+        | ProjectedType::AsyncSinkOutcome => {}
+    }
 }
 
 #[expect(
@@ -2534,12 +2882,28 @@ fn project_rustdoc(
     let package_root = dependency.package.replace('-', "_");
     let dependency_root = dependency.name.replace('-', "_");
     let normalize = |function: &mut ProjectedFunction| {
+        for parameter in &mut function.parameters {
+            rewrite_projected_rust_root(&mut parameter.ty, &package_root, &dependency_root);
+        }
+        rewrite_projected_rust_root(&mut function.result, &package_root, &dependency_root);
+        if let Some(error) = &mut function.error {
+            if error == &package_root {
+                error.clone_from(&dependency_root);
+            } else if let Some(suffix) = error.strip_prefix(&format!("{package_root}::")) {
+                *error = format!("{dependency_root}::{suffix}");
+            }
+        }
         if let Some(destination) = &mut function.destination_result {
             for bound in &mut destination.rust_bounds {
                 if bound == &package_root {
                     bound.clone_from(&dependency_root);
                 } else if let Some(suffix) = bound.strip_prefix(&format!("{package_root}::")) {
                     *bound = format!("{dependency_root}::{suffix}");
+                }
+            }
+            for root in &mut destination.bound_roots {
+                if root == &package_root {
+                    root.clone_from(&dependency_root);
                 }
             }
         }
@@ -3247,7 +3611,13 @@ fn render_generic_bounds(
     let mut rendered = Vec::new();
     if let GenericParamDefKind::Type { bounds, .. } = &parameter.kind {
         for bound in bounds {
-            rendered.push(render_generic_bound(bound, &[], index, paths, generics)?);
+            rendered.push(render_generic_bound(
+                bound,
+                &function.generics.params,
+                index,
+                paths,
+                generics,
+            )?);
         }
     }
     for predicate in &function.generics.where_predicates {
@@ -3260,10 +3630,17 @@ fn render_generic_bounds(
             continue;
         };
         if name == &parameter.name {
+            let outer_generic_params = function
+                .generics
+                .params
+                .iter()
+                .chain(generic_params)
+                .cloned()
+                .collect::<Vec<_>>();
             for bound in bounds {
                 rendered.push(render_generic_bound(
                     bound,
-                    generic_params,
+                    &outer_generic_params,
                     index,
                     paths,
                     generics,
@@ -3271,7 +3648,16 @@ fn render_generic_bounds(
             }
         }
     }
-    rendered.retain(|bound| bound != "Sized");
+    rendered.retain(|bound| {
+        bound
+            .split_once(' ')
+            .map_or(bound.as_str(), |(_, path)| path)
+            .trim_start_matches('?')
+            .trim_start_matches("~const ")
+            .rsplit("::")
+            .next()
+            != Some("Sized")
+    });
     rendered.sort();
     rendered.dedup();
     Ok(rendered)
@@ -3391,6 +3777,10 @@ fn generic_monomorphisations(
             );
             destination_result = Some(ProjectedDestinationResult {
                 parameter: parameter.name.clone(),
+                bound_roots: rust_bounds
+                    .iter()
+                    .flat_map(|bound| rust_bound_roots(bound))
+                    .collect(),
                 rust_bounds,
             });
             continue;
@@ -3456,6 +3846,20 @@ fn generic_monomorphisations(
         result.insert(parameter.name.clone(), chosen.clone());
     }
     Ok((result, destination_result))
+}
+fn rust_bound_roots(bound: &str) -> BTreeSet<String> {
+    bound
+        .split(['<', '>', ',', '=', '+', '(', ')'])
+        .filter_map(|fragment| {
+            let fragment = fragment
+                .trim()
+                .trim_start_matches('?')
+                .trim_start_matches("~const ");
+            let (root, _) = fragment.split_once("::")?;
+            let root = root.split_whitespace().last().unwrap_or(root);
+            (!root.starts_with('\'') && !root.is_empty()).then(|| root.to_owned())
+        })
+        .collect()
 }
 
 fn project_type(
@@ -3670,6 +4074,9 @@ fn render_resolved_path(
     generics: &BTreeMap<String, ProjectedType>,
 ) -> Result<String, String> {
     let base = resolved_path_name(path, paths);
+    let base = base
+        .strip_prefix("alloc::")
+        .map_or(base.clone(), |path| format!("std::{path}"));
     let Some(arguments) = path.args.as_deref() else {
         return Ok(base);
     };
@@ -3932,6 +4339,27 @@ fn safe_parameter_name(name: &str) -> String {
     }
 }
 
+fn projection_lock_identity(lock: &[u8]) -> Result<Vec<u8>, ProjectionError> {
+    let Ok(text) = std::str::from_utf8(lock) else {
+        return Ok(lock.to_vec());
+    };
+    let mut parsed = text
+        .parse::<toml::Value>()
+        .map_err(|error| ProjectionError {
+            message: format!("invalid dependency projection lockfile: {error}"),
+        })?;
+    if let Some(packages) = parsed
+        .get_mut("package")
+        .and_then(toml::Value::as_array_mut)
+    {
+        packages.retain(|package| {
+            package.get("name").and_then(toml::Value::as_str)
+                != Some("terrane_dependency_projection")
+        });
+    }
+    Ok(parsed.to_string().into_bytes())
+}
+
 fn cache_identity(
     root: &Path,
     workspace: &Path,
@@ -3942,6 +4370,7 @@ fn cache_identity(
     let lock = fs::read(workspace.join("Cargo.lock"))
         .or_else(|_| fs::read(root.join("Cargo.lock")))
         .unwrap_or_default();
+    let lock = projection_lock_identity(&lock)?;
     let build_selector = format!("+{}", crate::BUILD_TOOLCHAIN);
     let rustc_verbose = tool_version("rustc", &[&build_selector, "-vV"])?;
     let target = selected_target(workspace, &rustc_verbose)?;
@@ -4738,6 +5167,7 @@ mod tests {
             cache_identity: "exact".to_owned(),
             content_hash: String::new(),
             dependencies: Vec::new(),
+            bound_dependencies: Vec::new(),
             containment: Containment::Enforced,
             source: ProjectionSource::Local,
             probes: Vec::new(),
@@ -4875,6 +5305,7 @@ mod tests {
             cache_identity: "old".to_owned(),
             content_hash: String::new(),
             dependencies: vec![dependency("1.0.0", vec![item])],
+            bound_dependencies: Vec::new(),
             containment: Containment::Unavailable,
             source: ProjectionSource::Local,
             probes: Vec::new(),
@@ -4888,6 +5319,7 @@ mod tests {
             cache_identity: "current".to_owned(),
             content_hash: String::new(),
             dependencies: vec![dependency("2.0.0", Vec::new())],
+            bound_dependencies: Vec::new(),
             containment: Containment::Unavailable,
             source: ProjectionSource::Local,
             probes: Vec::new(),
@@ -4924,6 +5356,7 @@ mod tests {
             cache_identity: "stable-identity".to_owned(),
             content_hash: String::new(),
             dependencies: Vec::new(),
+            bound_dependencies: Vec::new(),
             containment: Containment::Unavailable,
             source: ProjectionSource::Local,
             probes: Vec::new(),
@@ -4961,6 +5394,7 @@ mod tests {
             cache_identity: "stable-identity".to_owned(),
             content_hash: String::new(),
             dependencies: Vec::new(),
+            bound_dependencies: Vec::new(),
             containment: Containment::Unavailable,
             source: ProjectionSource::Local,
             probes: Vec::new(),

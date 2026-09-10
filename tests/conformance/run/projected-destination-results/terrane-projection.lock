@@ -8,7 +8,7 @@
         ],
         [
           "/deps/terrane-generic-factory-witness",
-          "optional_value"
+          "sample_value"
         ]
       ],
       "name": "terrane-generic-factory-witness",
@@ -34,7 +34,7 @@
     }
   ],
   "format": 2,
-  "projection_schema": "28",
+  "projection_schema": "25",
   "removed": [],
   "resolution": {
     "events": [

@@ -1444,10 +1444,10 @@ fn specialize_projected_results(package: &mut SemanticPackage) -> Result<(), Sem
             .expect("an oracle failure requires at least one destination-bound question");
         failure(
             &package.units[first.unit].source,
-            "T0117",
+            "T0119",
             format!(
-                "projected result destination could not be proven: {}",
-                error.message
+                "projected result proof could not run: {}",
+                oracle_diagnostic_summary(&error.message)
             ),
             first.span,
         )
@@ -1473,7 +1473,7 @@ fn specialize_projected_results(package: &mut SemanticPackage) -> Result<(), Sem
                 Some(crate::ProbeAnswer::No) => {
                     return Err(failure(
                         &package.units[specialization.unit].source,
-                        "T0117",
+                        "T0119",
                         format!(
                             "projected result destination `{}` does not satisfy `{rust_bound}`",
                             specialization.value_type
@@ -1484,10 +1484,11 @@ fn specialize_projected_results(package: &mut SemanticPackage) -> Result<(), Sem
                 Some(crate::ProbeAnswer::Unknown { reason }) => {
                     return Err(failure(
                         &package.units[specialization.unit].source,
-                        "T0117",
+                        "T0119",
                         format!(
-                            "projected result destination `{}` could not be proven against `{rust_bound}`: {reason}",
-                            specialization.value_type
+                            "projected result destination `{}` could not be proven against `{rust_bound}`: {}",
+                            specialization.value_type,
+                            oracle_diagnostic_summary(reason)
                         ),
                         specialization.span,
                     ));
@@ -1495,7 +1496,7 @@ fn specialize_projected_results(package: &mut SemanticPackage) -> Result<(), Sem
                 None => {
                     return Err(failure(
                         &package.units[specialization.unit].source,
-                        "T0117",
+                        "T0119",
                         format!(
                             "projection oracle returned no answer for destination `{}` against `{rust_bound}`",
                             specialization.value_type
@@ -1531,6 +1532,22 @@ fn specialize_projected_results(package: &mut SemanticPackage) -> Result<(), Sem
     }
     Ok(())
 }
+fn oracle_diagnostic_summary(message: &str) -> String {
+    const LIMIT: usize = 240;
+    let summary = message
+        .lines()
+        .find(|line| line.trim_start().starts_with("error"))
+        .or_else(|| message.lines().find(|line| !line.trim().is_empty()))
+        .unwrap_or("projection proof failed")
+        .trim();
+    let mut characters = summary.chars();
+    let concise = characters.by_ref().take(LIMIT).collect::<String>();
+    if characters.next().is_some() {
+        format!("{concise}…")
+    } else {
+        concise
+    }
+}
 
 #[expect(
     clippy::too_many_lines,
@@ -1562,7 +1579,7 @@ fn collect_projected_destinations(
             destination_projected_type(package, &destination).map_err(|reason| {
                 failure(
                     &unit.source,
-                    "T0117",
+                    "T0118",
                     format!(
                         "projected result destination `{destination}` is not supported: {reason}"
                     ),
@@ -1587,7 +1604,7 @@ fn collect_projected_destinations(
                 &unit.source,
                 "T0117",
                 format!(
-                    "projected result shape `{}` conflicts with destination `{destination}`",
+                    "projected result template `{}` cannot produce the required destination `{destination}`",
                     function.result.terrane_name()
                 ),
                 node.span,
@@ -1643,13 +1660,16 @@ fn collect_projected_destinations(
         return Ok(());
     }
     if matches!(node.kind, SyntaxKind::Binding | SyntaxKind::Assignment) {
-        let initializer = node.children.iter().rev().find(|child| {
+        // The parser appends an initializer as the final binding/assignment child.
+        // Declaration metadata is otherwise final, so exclude those non-value kinds explicitly.
+        let initializer = node.children.last().filter(|child| {
             !matches!(
                 child.kind,
                 SyntaxKind::Name
                     | SyntaxKind::Visibility
                     | SyntaxKind::DeclarationQualifier
                     | SyntaxKind::TypeExpression
+                    | SyntaxKind::FieldMetadata
             )
         });
         let written_destination = node
@@ -1917,30 +1937,43 @@ fn substitute_projected_generic(
     use crate::projection::ProjectedType;
     match template {
         ProjectedType::Generic(name) if name == parameter => destination.clone(),
-        ProjectedType::Sequence { rust_path, item } => ProjectedType::Sequence {
-            rust_path: rust_path.replace(parameter, &destination.rust_type()),
-            item: Box::new(substitute_projected_generic(item, parameter, destination)),
-        },
+        ProjectedType::Sequence { rust_path, item } => {
+            let item = substitute_projected_generic(item, parameter, destination);
+            ProjectedType::Sequence {
+                rust_path: instantiate_projected_container(rust_path, &[item.rust_type()]),
+                item: Box::new(item),
+            }
+        }
         ProjectedType::Mapping {
             rust_path,
             key,
             value,
             ordered,
-        } => ProjectedType::Mapping {
-            rust_path: rust_path.replace(parameter, &destination.rust_type()),
-            key: Box::new(substitute_projected_generic(key, parameter, destination)),
-            value: Box::new(substitute_projected_generic(value, parameter, destination)),
-            ordered: *ordered,
-        },
+        } => {
+            let key = substitute_projected_generic(key, parameter, destination);
+            let value = substitute_projected_generic(value, parameter, destination);
+            ProjectedType::Mapping {
+                rust_path: instantiate_projected_container(
+                    rust_path,
+                    &[key.rust_type(), value.rust_type()],
+                ),
+                key: Box::new(key),
+                value: Box::new(value),
+                ordered: *ordered,
+            }
+        }
         ProjectedType::Set {
             rust_path,
             item,
             ordered,
-        } => ProjectedType::Set {
-            rust_path: rust_path.replace(parameter, &destination.rust_type()),
-            item: Box::new(substitute_projected_generic(item, parameter, destination)),
-            ordered: *ordered,
-        },
+        } => {
+            let item = substitute_projected_generic(item, parameter, destination);
+            ProjectedType::Set {
+                rust_path: instantiate_projected_container(rust_path, &[item.rust_type()]),
+                item: Box::new(item),
+                ordered: *ordered,
+            }
+        }
         ProjectedType::Tuple(items) => ProjectedType::Tuple(
             items
                 .iter()
@@ -1950,8 +1983,43 @@ fn substitute_projected_generic(
         ProjectedType::Optional(inner) => ProjectedType::Optional(Box::new(
             substitute_projected_generic(inner, parameter, destination),
         )),
+        ProjectedType::Foreign {
+            name,
+            base_rust_path,
+            arguments,
+            ..
+        } => {
+            let arguments = arguments
+                .iter()
+                .map(|argument| substitute_projected_generic(argument, parameter, destination))
+                .collect::<Vec<_>>();
+            ProjectedType::Foreign {
+                rust_path: if arguments.is_empty() {
+                    base_rust_path.clone()
+                } else {
+                    format!(
+                        "{base_rust_path}<{}>",
+                        arguments
+                            .iter()
+                            .map(ProjectedType::rust_type)
+                            .collect::<Vec<_>>()
+                            .join(", ")
+                    )
+                },
+                name: name.clone(),
+                base_rust_path: base_rust_path.clone(),
+                arguments,
+            }
+        }
         other => other.clone(),
     }
+}
+
+fn instantiate_projected_container(template: &str, arguments: &[String]) -> String {
+    let constructor = template
+        .split_once('<')
+        .map_or(template, |(constructor, _)| constructor);
+    format!("{constructor}<{}>", arguments.join(", "))
 }
 
 pub(super) fn populate_closure_captures(package: &mut SemanticPackage) {

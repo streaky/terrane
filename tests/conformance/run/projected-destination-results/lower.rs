@@ -482,58 +482,58 @@ mod __terrane_trace {
             }
         },
         {
-            /* terrane-site-row: site 5: /app::main (src/main.trn:24:25-24:40) */
+            /* terrane-site-row: site 5: /app::main (src/main.trn:24:25-24:38) */
             Site {
                 function: 3,
                 file: 0,
                 line: 24,
                 column: 25,
                 end_line: 24,
-                end_column: 40,
+                end_column: 38,
             }
         },
         {
-            /* terrane-site-row: site 6: /app::main (src/main.trn:25:16-25:30) */
+            /* terrane-site-row: site 6: /app::main (src/main.trn:25:16-25:29) */
             Site {
                 function: 3,
                 file: 0,
                 line: 25,
                 column: 16,
                 end_line: 25,
-                end_column: 30,
+                end_column: 29,
             }
         },
         {
-            /* terrane-site-row: site 7: /app::main (src/main.trn:26:26-26:40) */
+            /* terrane-site-row: site 7: /app::main (src/main.trn:26:26-26:39) */
             Site {
                 function: 3,
                 file: 0,
                 line: 26,
                 column: 26,
                 end_line: 26,
-                end_column: 40,
+                end_column: 39,
             }
         },
         {
-            /* terrane-site-row: site 8: /app::main (src/main.trn:27:32-27:46) */
+            /* terrane-site-row: site 8: /app::main (src/main.trn:27:32-27:45) */
             Site {
                 function: 3,
                 file: 0,
                 line: 27,
                 column: 32,
                 end_line: 27,
-                end_column: 46,
+                end_column: 45,
             }
         },
         {
-            /* terrane-site-row: site 9: /app::main (src/main.trn:28:24-28:38) */
+            /* terrane-site-row: site 9: /app::main (src/main.trn:28:24-28:37) */
             Site {
                 function: 3,
                 file: 0,
                 line: 28,
                 column: 24,
                 end_line: 28,
-                end_column: 38,
+                end_column: 37,
             }
         },
         {
@@ -640,23 +640,23 @@ fn accept_by_argument(value: String) {
 fn main() {
     let number: i64 = make_number();
     let optional: Option<i64> = __terrane_raised(
-        optional_value::<i64>(),
-        5 /* terrane-site: src/main.trn:24:25-24:40 */,
+        sample_value::<Option<i64>>(),
+        5 /* terrane-site: src/main.trn:24:25-24:38 */,
     );
     let data: Vec<u8> = __terrane_raised(
-        default_value::<Vec<u8>>(),
-        6 /* terrane-site: src/main.trn:25:16-25:30 */,
+        sample_value::<Vec<u8>>(),
+        6 /* terrane-site: src/main.trn:25:16-25:29 */,
     );
     let values: terrane_collection_support::List<i64> = terrane_collection_support::List::new(
         __terrane_raised(
-            default_value::<Vec<i64>>(),
-            7 /* terrane-site: src/main.trn:26:26-26:40 */,
+            sample_value::<Vec<i64>>(),
+            7 /* terrane-site: src/main.trn:26:26-26:39 */,
         ),
     );
     let names: terrane_collection_support::Map<String, i64> = terrane_collection_support::Map::new(
         __terrane_raised(
-                default_value::<std::collections::BTreeMap<String, i64>>(),
-                8 /* terrane-site: src/main.trn:27:32-27:46 */,
+                sample_value::<std::collections::BTreeMap<String, i64>>(),
+                8 /* terrane-site: src/main.trn:27:32-27:45 */,
             )
             .into_iter()
             .map(|(key, item)| terrane_collection_support::Entry::new(key, item))
@@ -664,8 +664,8 @@ fn main() {
     );
     let tags: terrane_collection_support::Set<String> = terrane_collection_support::Set::new(
         __terrane_raised(
-                default_value::<std::collections::BTreeSet<String>>(),
-                9 /* terrane-site: src/main.trn:28:24-28:38 */,
+                sample_value::<std::collections::BTreeSet<String>>(),
+                9 /* terrane-site: src/main.trn:28:24-28:37 */,
             )
             .into_iter()
             .map(|item| item)
@@ -734,12 +734,12 @@ pub fn default_value<T: core::default::Default>() -> Result<
         }
     }
 }
-pub fn optional_value<T: core::default::Default>() -> Result<
-    Option<T>,
+pub fn sample_value<T: terrane_generic_factory_witness::Sample>() -> Result<
+    T,
     crate::TerraneForeignError,
 > {
     match std::panic::catch_unwind(
-        std::panic::AssertUnwindSafe(|| terrane_generic_factory_witness::optional_value::<
+        std::panic::AssertUnwindSafe(|| terrane_generic_factory_witness::sample_value::<
             T,
         >()),
     ) {
@@ -749,7 +749,7 @@ pub fn optional_value<T: core::default::Default>() -> Result<
                 crate::__terrane_dependency_panic(
                     payload,
                     "terrane-generic-factory-witness",
-                    "terrane_generic_factory_witness::optional_value",
+                    "terrane_generic_factory_witness::sample_value",
                 ),
             )
         }

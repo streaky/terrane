@@ -1,5 +1,5 @@
 namespace app
-from /deps/terrane-generic-factory-witness import default_value, optional_value
+from /deps/terrane-generic-factory-witness import default_value, sample_value
 from /deps/terrane-generic-row-witness import row
 from /core/output import print
 
@@ -21,11 +21,11 @@ function accept-by-argument; value string
 
 function main;
   number int64 = make-number;
-  optional int64|none = optional_value;
-  data bytes = default_value;
-  values list of int64 = default_value;
-  names map of string, int64 = default_value;
-  tags set of string = default_value;
+  optional int64|none = sample_value;
+  data bytes = sample_value;
+  values list of int64 = sample_value;
+  names map of string, int64 = sample_value;
+  tags set of string = sample_value;
   source = row;
   accept-by-argument; (source.decoded;)
   returned string = decoded-value;

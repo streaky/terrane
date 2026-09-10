@@ -1368,9 +1368,15 @@ impl Emitter<'_> {
         } else {
             self.expression(callee)
         };
-        let name = specialization.map_or(name.clone(), |specialization| {
+        // Destination specializations only attach to projected free/static paths or projected
+        // member access. Each branch above ends in a callable Rust path/member segment, so an
+        // explicit turbofish is syntactically valid here; arbitrary callee expressions never
+        // receive a specialization record.
+        let name = if let Some(specialization) = specialization {
             format!("{name}::<{}>", specialization.rust_type)
-        });
+        } else {
+            name
+        };
         let call = format!("{name}({})", values.join(", "));
         let foreign_method = contract.as_ref().and_then(|contract| {
             let [receiver, _member] = callee.children.as_slice() else {
@@ -1535,10 +1541,10 @@ impl Emitter<'_> {
         {
             if foreign_error || dependency_boundary {
                 let completed = format!("__terrane_raised_err(__terrane_future.await, {site})");
-                let completed = if foreign_method.is_none() {
-                    specialization.map_or(completed.clone(), |specialization| {
-                        projected_result_expression(&completed, &specialization.projected_result)
-                    })
+                let completed = if foreign_method.is_none()
+                    && let Some(specialization) = specialization
+                {
+                    projected_result_expression(&completed, &specialization.projected_result)
                 } else {
                     completed
                 };
@@ -1548,10 +1554,10 @@ impl Emitter<'_> {
             }
         } else {
             let mapped = map_errors(&call);
-            if foreign_method.is_none() {
-                specialization.map_or(mapped.clone(), |specialization| {
-                    projected_result_expression(&mapped, &specialization.projected_result)
-                })
+            if foreign_method.is_none()
+                && let Some(specialization) = specialization
+            {
+                projected_result_expression(&mapped, &specialization.projected_result)
             } else {
                 mapped
             }

@@ -1,0 +1,5 @@
+namespace app
+from /deps/witness import optional_value
+
+function main;
+  value int64 = optional_value;

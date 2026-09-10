@@ -8,11 +8,11 @@
         ]
       ],
       "name": "witness",
-      "version": "0.1.0"
+      "version": "0.1.2"
     }
   ],
   "format": 2,
-  "projection_schema": "28",
+  "projection_schema": "25",
   "removed": [],
   "resolution": {
     "events": [

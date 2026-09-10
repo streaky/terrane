@@ -1,0 +1,8 @@
+package = "projected-result-incompatible-template"
+
+[namespaces]
+app = "src"
+
+[rust-dependencies.witness]
+package = "terrane-template-witness"
+version = "=0.1.0"
