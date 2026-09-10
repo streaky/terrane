@@ -460,6 +460,7 @@ fn binary_path(binary_name: &str, build: &ConformanceBuild) -> PathBuf {
 
 fn stderr_mentions_binary(stderr: &str, binary_name: &str) -> bool {
     stderr.contains(&format!("{binary_name}.rs"))
+        || stderr.contains(&format!("(bin \"{binary_name}\")"))
 }
 
 fn compile_and_run_deferred_cases(cases: &mut [DeferredGeneratedCase], build: &ConformanceBuild) {
@@ -889,14 +890,18 @@ fn deferred_timing_does_not_report_an_unrelated_failure() {
 
 #[test]
 fn compile_failure_attribution_distinguishes_binary_name_prefixes() {
-    let stderr = " --> src/terrane_conformance_case_12.rs:1:26\n\
-                  error: could not compile `probe` (bin \"terrane_conformance_case_12\")";
-    assert!(!stderr_mentions_binary(
-        stderr,
-        "terrane_conformance_case_1"
-    ));
-    assert!(stderr_mentions_binary(
-        stderr,
-        "terrane_conformance_case_12"
-    ));
+    let rustc_stderr = " --> src/terrane_conformance_case_12.rs:1:26\n\
+                        error: could not compile `probe` (bin \"terrane_conformance_case_12\")";
+    let linker_stderr = "error: linking with `cc` failed: exit status: 1\n\
+                         error: could not compile `probe` (bin \"terrane_conformance_case_12\")";
+    for stderr in [rustc_stderr, linker_stderr] {
+        assert!(!stderr_mentions_binary(
+            stderr,
+            "terrane_conformance_case_1"
+        ));
+        assert!(stderr_mentions_binary(
+            stderr,
+            "terrane_conformance_case_12"
+        ));
+    }
 }
