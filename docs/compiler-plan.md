@@ -562,9 +562,9 @@ Section 7 is the authoritative remaining-work list. In milestone order, the open
 - implement destination-directed specialization of closed projected results (milestone 25.4);
 - add throwable bounds to function types (milestone 26.2);
 - deliver the Terrane-native unit, integration, and end-to-end testing framework (milestone 27.1);
-- complete the release hardening gate (milestone 28); and
+- complete the release hardening gate (milestone 32); and
 - turn projection artifact resolution into a release-owned bundled, relocatable, and offline
-  distribution channel (milestone 28.1).
+  distribution channel (milestone 32.1).
 
 The active milestone text carries the exact boundaries and exit criteria. Appendix A is historical
 evidence only: a capability recorded there must not be rescheduled unless its active milestone
@@ -2474,13 +2474,15 @@ neither crate shape defines the implementation. Generated Rust names every concr
 explicitly, compiles with warnings denied, and passes canonical validation where untouched lowering
 already does.
 
-Status: implemented on `destination-directed-projected-results`. Projection schema 28 retains one
+Status: implemented on `destination-directed-projected-results`. Projection schema 25 retains one
 result-only generic template and complete rendered bounds; semantic analysis selects it only from a
 written binding, argument, field, or return destination and records exact cached oracle evidence.
-`projected-destination-results` exercises two dependency shapes, including a higher-ranked
-lifetime-bound receiver method whose owned result outlives the receiver, and covers scalar, optional,
-bytes, list, map, and set conversion with canonical generated Rust. `projected-result-without-
-destination`, `projected-result-conflicting-destinations`, `projected-result-unsatisfied-bound`,
+`projected-serde-json-result` exercises `serde_json::from_str` with an argument-bearing `int64`
+destination and a lock-pinned transitive `serde_core` bound. `projected-destination-results`
+exercises a higher-ranked lifetime-bound receiver method and nonempty scalar, optional, bytes, list,
+map, and set conversion with canonical generated Rust.
+`projected-result-without-destination`, `projected-result-conflicting-destinations`,
+`projected-result-unsatisfied-bound`,
 `projected-result-unknown-bound`, and `projected-result-borrowed` cover the destination, proof, and
 ownership declines; `projected-result-source-object` fixes the source-object decision, while the
 existing `projected-async-sink-suspended-borrow` case retains the suspension borrow boundary.
@@ -2616,6 +2618,6 @@ available before global registration so an optional remote-reporting layer can s
 absent integration adds no layer or work. The generated crate names only the exact projected
 adapter dependency it calls directly. `logging-capability` proves profile denial.
 
-### Completed portion of Milestone 28.1 — Projection artifact foundation
+### Completed portion of Milestone 32.1 — Projection artifact foundation
 
 Projection artifacts have an exact identity envelope, SHA-256 payload validation, exact-match acceptance, and a resolution chain covering cache, optional trusted-HTTPS publication, bundled-source skip, and local rustdoc fallback. Every source attempt and result is recorded in `terrane-projection.lock` with stable origin, rustdoc format, projection schema, cache identity, content hash, and explicit failure reasons. Local rustdoc remains the ground-truth fallback.

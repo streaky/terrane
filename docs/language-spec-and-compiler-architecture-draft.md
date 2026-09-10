@@ -2115,7 +2115,7 @@ array of function from int to boolean, 16
 Type constructors and function types remain human-facing and compositional. Compilers, formatters, documentation, and generated bindings must render these canonical forms rather than leaking Rust, C++, or adapter-specific generic notation.
 ### 11.9 Source generic declarations
 
-The first core language deliberately does not declare source type parameters. `list of string` applies a constructor supplied by the language or a package; it does not imply that users can declare `T`. Generic Rust APIs may be exposed only when an adapter can erase them behind a concrete object/interface contract or generate named concrete instantiations. Otherwise they require a wrapper and are not directly representable.
+The first core language deliberately does not declare source type parameters. `list of string` applies a constructor supplied by the language or a package; it does not imply that users can declare `T`. Generic Rust APIs may be exposed through a concrete object/interface contract, generated named instantiations, or the dependency projection's destination-directed result rule. In that rule Terrane still writes no generic syntax: one result-only Rust parameter is selected from an explicit concrete binding, argument, class-field, or declared-return destination after exact bound proof. Other open generics require an adapter or wrapper and are not directly representable.
 
 Strict code uses concrete types, unions, interfaces, or generated concrete declarations. It must not fall back to dynamic typing merely to simulate a missing type parameter. Source-declared generics remain a future language change requiring syntax, constraint rules, inference, dispatch, reflection, and code-generation semantics; no implementation may invent private syntax meanwhile.
 ### 11.10 Strict typing scopes
@@ -4473,16 +4473,28 @@ that can ship and update the corresponding envelopes. Resolution records that so
 rather than silently omitting it; current source order is exact local cache, published artifact,
 then local rustdoc.
 
-When typed metadata cannot prove a concrete Rust bound or reveal an emit-and-consume macro result,
-the projection compile-time oracle can generate a deterministic minimal crate against the already
-resolved dependency workspace. Bound and exact-call questions are batched and answer `yes`, `no`,
-or `unknown`: `yes` requires Cargo to emit the probe target's compiler artifact; only rustc's
+When a projected function or method leaves one Rust generic parameter only in its result, semantic
+analysis may select that parameter from exactly one explicit binding, argument, class-field, or
+declared-return destination. The recursive result template must agree at every occurrence. Closed
+owned scalar, string, bytes, optional, sequence, mapping, set, homogeneous-tuple, and projected
+foreign-object destinations are eligible; source objects, borrows, missing destinations,
+incompatible templates, and conflicts are rejected before lowering. Rust generic arguments never
+become Terrane source syntax.
+
+Every selected concrete Rust representation is submitted to the projection compile-time oracle
+against the already resolved dependency workspace. Questions are batched and answer `yes`, `no`, or
+`unknown`: `yes` requires Cargo to emit the probe target's compiler artifact; only rustc's
 probe-local trait-bound failure is `no`; resolution, toolchain, containment, spanless, and unrelated
-compiler failures are `unknown`. Macro probes run rustdoc over the generated invocation and return
-its expanded public API. The infrastructure caches exact reports under projection identity, but the
-current projector has no production question source and therefore does not use probe answers to
-admit or decline members; transferable projections currently record an empty probe list and zero
-probe wall time. A future consumer must serialize the reports it actually uses.
+compiler failures are `unknown`. Only `yes` admits the call. Exact reports are cached under
+projection identity, and the evidence plus wall time enter the shared projection artifact. Public
+bound traits owned by a transitive crates.io package are pinned from the resolved lock and added as a
+direct generated-crate dependency so rustdoc's path is nameable without widening its version.
+Unnameable or ambiguously versioned owners decline explicitly. Macro and exact-call probes retain
+their existing infrastructure contract.
+
+Lowering emits the selected concrete Rust type explicitly and performs the ordinary recursive owned
+result conversion. No borrowed value may escape the dependency boundary, and no boxed universal
+value or speculative implementation enumeration participates in selection.
 
 Projected type identity follows the Rust item rather than the importing module alone. Public path
 selection is deterministic: prefer reachable substantive paths over paths beneath a `prelude`

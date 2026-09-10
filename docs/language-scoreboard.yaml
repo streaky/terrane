@@ -434,9 +434,11 @@ features:
     state: documented
     paths:
     - manual/reference/records/packages/rust-dependencies.yaml
-  notes: One written Terrane result destination selects a closed owned Rust representation after exact oracle-backed bound proof; source object and borrowed destinations remain explicit declines.
+  notes: One written Terrane result destination selects a closed owned Rust representation after exact oracle-backed bound proof; argument-bearing serde_json and nonempty recursive aggregate witnesses pass, while source-object and borrowed destinations remain explicit declines.
   sources:
   - docs/compiler-plan.md#Milestone 25.4
+  - docs/language-spec-concise.md#DEPENDENCY PRINCIPLE
+  - docs/language-spec-and-compiler-architecture-draft.md#Source generic declarations
 - id: exact-int
   name: Adaptive exact signed integer
   category: numerics
@@ -1535,16 +1537,17 @@ features:
     paths:
     - manual/reference/records/packages/rust-dependencies.yaml
     - manual/reference/records/internals/projection-resolution.yaml
-  notes: Production destination-directed specialization batches exact bound questions through the contained cached oracle and rejects no, unknown, or missing answers.
+  notes: Production destination-directed specialization batches exact bound questions through the contained cached oracle, pins nameable transitive crates.io bound owners from the lock, and rejects no, unknown, or missing answers.
   sources:
   - docs/language-spec-concise.md#DEPENDENCY PRINCIPLE
   - docs/compiler-plan.md#Milestone 25.4
+  - docs/language-spec-and-compiler-architecture-draft.md#Rust crates and generated projection
 - id: projection-artifacts
   name: Projection artifact resolution
   category: interop
   status: partial
   completion: 70
-  milestone: '28.1'
+  milestone: '32.1'
   reference:
     state: documented
     paths:
@@ -1553,14 +1556,14 @@ features:
     offline distribution remain.
   sources:
   - docs/language-spec-concise.md#DEPENDENCY PRINCIPLE
-  - docs/compiler-plan.md#Completed portion of Milestone 28.1
-  - docs/compiler-plan.md#Milestone 28.1
+  - docs/compiler-plan.md#Completed portion of Milestone 32.1
+  - docs/compiler-plan.md#Milestone 32.1
 - id: artifact-distribution
   name: Offline projection artifact distribution
   category: interop
   status: planned
   completion: 0
-  milestone: '28.1'
+  milestone: '32.1'
   reference:
     state: documented
     paths:
@@ -1568,7 +1571,7 @@ features:
   notes: Will add bundled release artifacts, relocatable stores, vendoring, network disablement, hash pins, and
     retention policy.
   sources:
-  - docs/compiler-plan.md#Milestone 28.1
+  - docs/compiler-plan.md#Milestone 32.1
 - id: executable-scripts
   name: Executable single-file scripts
   category: interop
@@ -1653,7 +1656,7 @@ features:
   notes: Core CLI and deterministic pipeline exist; release gate still needs complete help/exit contracts, cross-platform
     cleanup, fuzzing, baselines, examples, and subset manifest.
   sources:
-  - docs/compiler-plan.md#Milestone 28
+  - docs/compiler-plan.md#Milestone 32
 - id: call-shorthand
   name: Zero-argument call shorthand
   category: future

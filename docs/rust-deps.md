@@ -242,7 +242,7 @@ Items the projector cannot render must be **visibly absent with a reason attache
 "not projected: unbounded generic — use a native Rust body" rather than leaving the author guessing.
 The native Rust body remains the escape hatch for everything below.
 
-- unbounded or open generic parameters;
+- unbounded or open generic parameters, except for the single result-only destination-directed case below;
 - trait objects and trait-generic APIs;
 - lifetime-parametric types;
 - anything returning a borrow that cannot be cloned at the edge;
@@ -286,8 +286,32 @@ async function get response throws reqwest-error; url string
 
 and generates, for that one crossed member, a shim in the shape `platform_urls.rs` already uses.
 
+### 7.1 Caller-chosen projected results
 
-### 7.1 Naming
+A projected function or method may retain one Rust type parameter that appears only in its result.
+Terrane does not expose `<...>` arguments. Instead, exactly one written destination supplies the
+concrete type:
+
+- an explicitly typed binding;
+- a typed argument position;
+- a declared class field receiving an assignment; or
+- a declared function return.
+
+The result template is unified structurally with that destination, every occurrence must select the
+same concrete type, and the compiler asks the contained projection oracle to compile the exact Rust
+bound. Only `yes` admits the call. Missing or incompatible destinations, conflicting occurrences,
+unsatisfied or unknown proofs, borrowed results, and source-declared object destinations are
+source-oriented errors. Scalars, strings, bytes, optionals, sequences, mappings, sets, homogeneous
+tuples, and projected foreign objects recurse when their components are representable.
+
+Bound paths are the paths rustc will actually see. If rustdoc names a public trait through a
+transitive crates.io package, Terrane pins that package at the lock-resolved version and adds it to the
+generated manifest; ambiguous or otherwise unnameable bound owners decline. This is why a call such
+as `serde_json::from_str` can use an `int64` destination even though rustdoc spells its bound through
+`serde_core`. Generated lowering names the selected Rust type explicitly and performs ordinary owned
+result conversion.
+
+### 7.2 Naming
 
 A third-party crate's naming is not Terrane's business. Projected names are **verbatim**:
 `reqwest.ClientBuilder` is `ClientBuilder`, `parse_json` is `parse_json`. The surface matches the
@@ -311,7 +335,7 @@ test of only restricting what we cannot lower. The working answer is therefore:
 Verbatim projection also removes the collision problem: Rust item names are already unique within
 their module, so no mapping can fold two of them together.
 
-### 7.2 Trait methods
+### 7.3 Trait methods
 
 Rustdoc reports inherent and trait impls separately, and merging them into one member list would need
 a collision rule. Namespacing removes the need for one, because Rust already disambiguates the same
@@ -339,7 +363,7 @@ The cost, stated deliberately: a trait method reads as `read-to-end; response` r
 ergonomic rule could permit method syntax where exactly one imported trait supplies the name and no
 inherent member competes; it is not needed for correctness.
 
-### 7.3 Enums
+### 7.4 Enums
 
 - **Data-free enums** (`Method`, `Version`) project as an opaque value with projected zero-parameter
   constructors and comparison.
