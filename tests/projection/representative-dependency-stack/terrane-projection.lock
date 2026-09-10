@@ -4814,11 +4814,9 @@
     }
   ],
   "removed": [],
-  "cache_identity": "e378d08ffc1712ead24077c14e52462f0d7d2264e6d12d1d290c1ffd82231348",
   "source": "Local",
   "rustdoc_format": 57,
   "projection_schema": "24",
-  "content_hash": "8a0b52f928618311648871706a13af2e74ad507c2721ae7c7969cf0438869502",
   "resolution": {
     "outcome": "LocalRustdoc",
     "events": [

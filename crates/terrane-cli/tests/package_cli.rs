@@ -202,7 +202,7 @@ fn projected_reqwest_runs_against_a_loopback_server() {
 }
 
 #[test]
-fn representative_dependency_projection_matches_reviewed_lock() {
+fn representative_dependency_projection_matches_reviewed_semantics() {
     let serial = NEXT_TEMP.fetch_add(1, Ordering::Relaxed);
     let package = TempPackage(std::env::temp_dir().join(format!(
         "terrane-cli-projection-{}-{serial}",
