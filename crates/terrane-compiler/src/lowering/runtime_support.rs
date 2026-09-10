@@ -132,8 +132,8 @@ fn value_type_contains_throwable(value_type: &ValueType) -> bool {
             value_type_contains_throwable(key.value_type_ref())
                 || value_type_contains_throwable(value.value_type_ref())
         }
-        ValueType::Function(parameters, result)
-        | ValueType::AsyncFunction(parameters, result, _) => {
+        ValueType::Function(parameters, result, _)
+        | ValueType::AsyncFunction(parameters, result, _, _) => {
             parameters
                 .iter()
                 .any(|parameter| value_type_contains_throwable(parameter.value_type_ref()))

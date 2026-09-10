@@ -1318,19 +1318,18 @@ impl<'a> Emitter<'a> {
             .return_type
             .clone()
             .unwrap_or(ValueType::Scalar(ScalarType::None));
-        let result_type = if contract.is_async {
-            rust_value_type(self.package, result.clone())
-        } else {
+        let result_type = if contract.throws {
             format!(
                 "Result<{}, TerraneError>",
                 rust_value_type(self.package, result.clone())
             )
+        } else {
+            rust_value_type(self.package, result.clone())
         };
         let outer_output = std::mem::take(&mut self.output);
         let outer_indent = self.indent;
         let outer_return_type = self.return_type.replace(result.clone());
-        let outer_function_errors =
-            std::mem::replace(&mut self.function_errors, !contract.is_async);
+        let outer_function_errors = std::mem::replace(&mut self.function_errors, contract.throws);
         let outer_propagation = std::mem::replace(&mut self.propagate_errors, contract.throws);
         let outer_parameter_types = std::mem::replace(
             &mut self.parameter_types,
@@ -1354,7 +1353,7 @@ impl<'a> Emitter<'a> {
         {
             self.block(block);
             if result == ValueType::Scalar(ScalarType::None) && block_may_fall_through(block) {
-                self.line("Ok(())");
+                self.line(if contract.throws { "Ok(())" } else { "()" });
             }
         }
         self.closure_depth -= 1;

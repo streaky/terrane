@@ -377,8 +377,15 @@ impl Emitter<'_> {
                 .value_type(callback)
                 .expect("validated conversion callback has a static function type");
             let source = self.expression_as(receiver, source_type);
+            let callback_throws = matches!(
+                &callback_type,
+                ValueType::Function(_, _, effects) if !effects.escaping.is_empty()
+            );
             let callback_expression = self.expression_as(callback, callback_type);
             let invocation = format!("({callback_expression})({source})");
+            if !callback_throws {
+                return invocation;
+            }
             let site = self.error_site(callee);
             return if self.try_completion {
                 format!("__terrane_traced_completion!({invocation}, {site})")

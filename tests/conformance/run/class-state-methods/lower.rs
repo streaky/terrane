@@ -376,21 +376,9 @@ mod __terrane_trace {
         pub end_line: u32,
         pub end_column: u32,
     }
-    pub static FILES: [&str; 1] = ["case.trn"];
-    pub static FUNCTIONS: [&str; 1] = ["/class-state-methods::main"];
-    pub static SITES: [Site; 1] = [
-        {
-            /* terrane-site-row: site 0: /class-state-methods::main (case.trn:25:13-25:21) */
-            Site {
-                function: 0,
-                file: 0,
-                line: 25,
-                column: 13,
-                end_line: 25,
-                end_column: 21,
-            }
-        },
-    ];
+    pub static FILES: [&str; 0] = [];
+    pub static FUNCTIONS: [&str; 0] = [];
+    pub static SITES: [Site; 0] = [];
     #[cold]
     #[inline(never)]
     pub fn render(site: u32) -> String {
@@ -454,14 +442,12 @@ fn main() {
     );
     let mut second: Counter = first.terrane_separate();
     let shift: std::sync::Arc<
-        dyn Fn(
-            terrane_int_support::Int,
-        ) -> Result<terrane_int_support::Int, TerraneError> + Send + Sync,
+        dyn Fn(terrane_int_support::Int) -> terrane_int_support::Int + Send + Sync,
     > = {
         let receiver = first.terrane_separate();
-        std::sync::Arc::new(move |argument_0: terrane_int_support::Int| Ok(
-            receiver.shifted(argument_0),
-        ))
+        std::sync::Arc::new(move |argument_0: terrane_int_support::Int| {
+            receiver.shifted(argument_0)
+        })
     };
     println!(
         "{}", terrane_scalar_support::scalar_text(&first
@@ -473,7 +459,6 @@ fn main() {
     );
     println!(
         "{}",
-        terrane_scalar_support::scalar_text(&__terrane_traced(shift(terrane_int_support::Int::from(3_i128)),
-        0 /* terrane-site: case.trn:25:13-25:21 */))
+        terrane_scalar_support::scalar_text(&shift(terrane_int_support::Int::from(3_i128)))
     );
 }

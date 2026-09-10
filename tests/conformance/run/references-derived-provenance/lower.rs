@@ -378,20 +378,9 @@ mod __terrane_trace {
     }
     pub static FILES: [&str; 1] = ["case.trn"];
     pub static FUNCTIONS: [&str; 1] = ["/references-derived-provenance::main"];
-    pub static SITES: [Site; 2] = [
+    pub static SITES: [Site; 1] = [
         {
-            /* terrane-site-row: site 0: /references-derived-provenance::main (case.trn:21:3-21:14) */
-            Site {
-                function: 0,
-                file: 0,
-                line: 21,
-                column: 3,
-                end_line: 21,
-                end_column: 14,
-            }
-        },
-        {
-            /* terrane-site-row: site 1: /references-derived-provenance::main (case.trn:23:25-23:34) */
+            /* terrane-site-row: site 0: /references-derived-provenance::main (case.trn:23:25-23:34) */
             Site {
                 function: 0,
                 file: 0,
@@ -443,17 +432,17 @@ fn main() {
         terrane_int_support::Int::from(41_i128),
     );
     let field: &terrane_int_support::Int = &owner.value;
-    let show_field: std::sync::Arc<dyn Fn() -> Result<(), TerraneError> + Send + Sync> = {
+    let show_field: std::sync::Arc<dyn Fn() -> () + Send + Sync> = {
         let field = field;
-        std::sync::Arc::new(move || -> Result<(), TerraneError> {
+        std::sync::Arc::new(move || -> () {
             consume(field);
             println!(
                 "{}", terrane_scalar_support::scalar_text(&String::from("captured"))
             );
-            Ok(())
+            ()
         })
     };
-    __terrane_traced(show_field(), 0 /* terrane-site: case.trn:21:3-21:14 */);
+    show_field();
     let values: terrane_collection_support::List<terrane_int_support::Int> = terrane_collection_support::List::<
         terrane_int_support::Int,
     >::new(
@@ -467,7 +456,7 @@ fn main() {
             terrane_collection_support::index_from_int(
                 &terrane_int_support::Int::from(1_i128),
             ),
-            1 /* terrane-site: case.trn:23:25-23:34 */,
+            0 /* terrane-site: case.trn:23:25-23:34 */,
         );
         __terrane_raised(
             values
@@ -475,7 +464,7 @@ fn main() {
                 .ok_or_else(|| terrane_collection_support::IndexError::from_usize(
                     __terrane_index,
                 )),
-            1 /* terrane-site: case.trn:23:25-23:34 */,
+            0 /* terrane-site: case.trn:23:25-23:34 */,
         )
     };
     let returned: &terrane_int_support::Int = pass(element);

@@ -155,7 +155,7 @@ pub(super) fn validate_call_nodes<'a>(
             binding.name == node_text(&unit.source, callee)
                 && binding.is_visible_at(unit.source.id(), callee.span.start)
         })
-        && let ValueType::Function(parameters, _) = &binding.value_type
+        && let ValueType::Function(parameters, _, _) = &binding.value_type
     {
         if arguments.children.len() != parameters.len() {
             return Err(failure(

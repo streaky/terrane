@@ -376,35 +376,9 @@ mod __terrane_trace {
         pub end_line: u32,
         pub end_column: u32,
     }
-    pub static FILES: [&str; 1] = ["case.trn"];
-    pub static FUNCTIONS: [&str; 2] = [
-        "/function-values-closures::apply",
-        "/function-values-closures::main",
-    ];
-    pub static SITES: [Site; 2] = [
-        {
-            /* terrane-site-row: site 0: /function-values-closures::apply (case.trn:4:10-4:25) */
-            Site {
-                function: 0,
-                file: 0,
-                line: 4,
-                column: 10,
-                end_line: 4,
-                end_column: 25,
-            }
-        },
-        {
-            /* terrane-site-row: site 1: /function-values-closures::main (case.trn:10:16-10:29) */
-            Site {
-                function: 1,
-                file: 0,
-                line: 10,
-                column: 16,
-                end_line: 10,
-                end_column: 29,
-            }
-        },
-    ];
+    pub static FILES: [&str; 0] = [];
+    pub static FUNCTIONS: [&str; 0] = [];
+    pub static SITES: [Site; 0] = [];
     #[cold]
     #[inline(never)]
     pub fn render(site: u32) -> String {
@@ -421,36 +395,27 @@ mod __terrane_trace {
 // Namespace: function-values-closures
 fn apply(
     callback: std::sync::Arc<
-        dyn Fn(
-            terrane_int_support::Int,
-        ) -> Result<terrane_int_support::Int, TerraneError> + Send + Sync,
+        dyn Fn(terrane_int_support::Int) -> terrane_int_support::Int + Send + Sync,
     >,
     value: terrane_int_support::Int,
-) -> Result<terrane_int_support::Int, TerraneError> {
-    return Ok(
-        __terrane_traced_err(
-            callback(value.clone()),
-            0 /* terrane-site: case.trn:4:10-4:25 */,
-        )?,
-    );
+) -> terrane_int_support::Int {
+    return callback(value.clone());
 }
 fn main() {
     let base: i64 = 10;
     let add: std::sync::Arc<
-        dyn Fn(
-            terrane_int_support::Int,
-        ) -> Result<terrane_int_support::Int, TerraneError> + Send + Sync,
+        dyn Fn(terrane_int_support::Int) -> terrane_int_support::Int + Send + Sync,
     > = {
         let base = base.clone();
         std::sync::Arc::new(move |
             value: terrane_int_support::Int,
-        | -> Result<terrane_int_support::Int, TerraneError> {
-            return Ok(terrane_int_support::Int::from(base as i128) + value.clone());
+        | -> terrane_int_support::Int {
+            return terrane_int_support::Int::from(base as i128) + value.clone();
         })
     };
-    let result: terrane_int_support::Int = __terrane_traced(
-        apply(add.clone(), terrane_int_support::Int::from(5_i128)),
-        1 /* terrane-site: case.trn:10:16-10:29 */,
+    let result: terrane_int_support::Int = apply(
+        add.clone(),
+        terrane_int_support::Int::from(5_i128),
     );
     println!("{}", terrane_scalar_support::scalar_text(&base));
     println!("{}", terrane_scalar_support::scalar_text(&result));

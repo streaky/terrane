@@ -1046,20 +1046,17 @@ fn main() {
         println!(
             "{}",
             terrane_scalar_support::scalar_text(&__terrane_raised(apply_shared(terrane_int_support::Int::from(40_i128),
-            std::sync::Arc::new(move | argument_0 : terrane_int_support::Int |
-            Ok(add_two(argument_0)))), 2 /* terrane-site: src/main.trn:34:13-34:38 */))
+            std::sync::Arc::new(add_two)), 2 /* terrane-site: src/main.trn:34:13-34:38 */))
         );
         println!(
             "{}",
             terrane_scalar_support::scalar_text(&__terrane_raised(apply_mutable(terrane_int_support::Int::from(10_i128),
-            std::sync::Arc::new(move | argument_0 : terrane_int_support::Int |
-            Ok(add_two(argument_0)))), 3 /* terrane-site: src/main.trn:35:13-35:39 */))
+            std::sync::Arc::new(add_two)), 3 /* terrane-site: src/main.trn:35:13-35:39 */))
         );
         println!(
             "{}",
             terrane_scalar_support::scalar_text(&__terrane_raised(apply_once(String::from("HELLO"),
-            std::sync::Arc::new(move | argument_0 : String |
-            Ok(keep_string(argument_0)))), 4 /* terrane-site: src/main.trn:36:13-36:45 */))
+            std::sync::Arc::new(keep_string)), 4 /* terrane-site: src/main.trn:36:13-36:45 */))
         );
         let changed: String = __terrane_traced(
             __terrane_await({
@@ -1133,26 +1130,23 @@ fn main() {
             ::TerraneForeignError(crate ::TerraneRaised::raised(error, crate
             ::TERRANE_NO_SITE))) ?) } () { Ok(value) => value, Err(error) =>
             std::panic::panic_any(error) }, match | | -> Result < _, crate
-            ::TerraneForeignError > { Ok({ let callback = std::sync::Arc::new(move |
-            argument_0 : terrane_int_support::Int | Ok(add_two(argument_0))).clone();
-            move | callback_argument_0 : i64 | { match | | -> Result < _, crate
+            ::TerraneForeignError > { Ok({ let callback = std::sync::Arc::new(add_two)
+            .clone(); move | callback_argument_0 : i64 | { match | | -> Result < _, crate
             ::TerraneForeignError > { let callback_value =
-            callback(terrane_int_support::Int::from(i128::from(callback_argument_0)))
-            .map_err(crate ::TerraneForeignError) ?; Ok(terrane_int_support::coerce:: <
-            i64 > (&callback_value).map_err(| error | crate ::TerraneForeignError(crate
-            ::TerraneRaised::raised(error, crate ::TERRANE_NO_SITE))) ?) } () { Ok(value)
-            => value, Err(error) => std::panic::panic_any(error.0) } } }) } () {
-            Ok(value) => value, Err(error) => std::panic::panic_any(error) }))) {
-            Ok(value) => Ok(terrane_int_support::Int::from(i128::from(value))),
-            Err(payload) => Err(crate ::__terrane_dependency_panic(payload,
-            "terrane_callback_witness", "terrane_callback_witness::Registrar::apply")) },
-            8 /* terrane-site: src/main.trn:45:13-45:48 */))
+            callback(terrane_int_support::Int::from(i128::from(callback_argument_0)));
+            Ok(terrane_int_support::coerce:: < i64 > (&callback_value).map_err(| error |
+            crate ::TerraneForeignError(crate ::TerraneRaised::raised(error, crate
+            ::TERRANE_NO_SITE))) ?) } () { Ok(value) => value, Err(error) =>
+            std::panic::panic_any(error.0) } } }) } () { Ok(value) => value, Err(error)
+            => std::panic::panic_any(error) }))) { Ok(value) =>
+            Ok(terrane_int_support::Int::from(i128::from(value))), Err(payload) =>
+            Err(crate ::__terrane_dependency_panic(payload, "terrane_callback_witness",
+            "terrane_callback_witness::Registrar::apply")) }, 8 /* terrane-site: src/main.trn:45:13-45:48 */))
         );
         println!(
             "{}",
             terrane_scalar_support::scalar_text(&__terrane_raised(dispatch(String::from("dissimilar"),
-            true, std::sync::Arc::new(move | argument_0 : String, argument_1 : bool |
-            Ok(render(argument_0, argument_1)))), 9 /* terrane-site: src/main.trn:47:13-47:49 */))
+            true, std::sync::Arc::new(render)), 9 /* terrane-site: src/main.trn:47:13-47:49 */))
         );
         let retained_scope: TerraneTaskScope = TerraneTaskScope::new(None);
         let retained_child: TerraneScopedTask<terrane_int_support::Int> = {
@@ -1329,9 +1323,7 @@ pub async fn apply_async_concurrently(
 pub fn apply_mutable(
     value: terrane_int_support::Int,
     callback: std::sync::Arc<
-        dyn Fn(
-            terrane_int_support::Int,
-        ) -> Result<terrane_int_support::Int, TerraneError> + Send + Sync,
+        dyn Fn(terrane_int_support::Int) -> terrane_int_support::Int + Send + Sync,
     >,
 ) -> Result<terrane_int_support::Int, crate::TerraneForeignError> {
     let value = terrane_int_support::coerce::<i64>(&value)
@@ -1343,9 +1335,8 @@ pub fn apply_mutable(
         move |callback_argument_0: i64| {
             match || -> Result<_, crate::TerraneForeignError> {
                 let callback_value = callback(
-                        terrane_int_support::Int::from(i128::from(callback_argument_0)),
-                    )
-                    .map_err(crate::TerraneForeignError)?;
+                    terrane_int_support::Int::from(i128::from(callback_argument_0)),
+                );
                 Ok(
                     terrane_int_support::coerce::<i64>(&callback_value)
                         .map_err(|error| crate::TerraneForeignError(
@@ -1378,17 +1369,14 @@ pub fn apply_mutable(
 }
 pub fn apply_once(
     value: String,
-    callback: std::sync::Arc<
-        dyn Fn(String) -> Result<String, TerraneError> + Send + Sync,
-    >,
+    callback: std::sync::Arc<dyn Fn(String) -> String + Send + Sync>,
 ) -> Result<String, crate::TerraneForeignError> {
     let value = value;
     let callback = {
         let callback = callback.clone();
         move |callback_argument_0: String| {
             match || -> Result<_, crate::TerraneForeignError> {
-                let callback_value = callback(callback_argument_0)
-                    .map_err(crate::TerraneForeignError)?;
+                let callback_value = callback(callback_argument_0);
                 Ok(callback_value)
             }() {
                 Ok(value) => value,
@@ -1417,9 +1405,7 @@ pub fn apply_once(
 pub fn apply_shared(
     value: terrane_int_support::Int,
     callback: std::sync::Arc<
-        dyn Fn(
-            terrane_int_support::Int,
-        ) -> Result<terrane_int_support::Int, TerraneError> + Send + Sync,
+        dyn Fn(terrane_int_support::Int) -> terrane_int_support::Int + Send + Sync,
     >,
 ) -> Result<terrane_int_support::Int, crate::TerraneForeignError> {
     let value = terrane_int_support::coerce::<i64>(&value)
@@ -1431,9 +1417,8 @@ pub fn apply_shared(
         move |callback_argument_0: i64| {
             match || -> Result<_, crate::TerraneForeignError> {
                 let callback_value = callback(
-                        terrane_int_support::Int::from(i128::from(callback_argument_0)),
-                    )
-                    .map_err(crate::TerraneForeignError)?;
+                    terrane_int_support::Int::from(i128::from(callback_argument_0)),
+                );
                 Ok(
                     terrane_int_support::coerce::<i64>(&callback_value)
                         .map_err(|error| crate::TerraneForeignError(
@@ -1586,9 +1571,7 @@ pub async fn wait_until_retained_invocation_active() -> Result<
 pub fn dispatch(
     label_: String,
     enabled: bool,
-    callback: std::sync::Arc<
-        dyn Fn(String, bool) -> Result<String, TerraneError> + Send + Sync,
-    >,
+    callback: std::sync::Arc<dyn Fn(String, bool) -> String + Send + Sync>,
 ) -> Result<String, crate::TerraneForeignError> {
     let label_ = label_;
     let enabled = enabled;
@@ -1596,8 +1579,7 @@ pub fn dispatch(
         let callback = callback.clone();
         move |callback_argument_0: String, callback_argument_1: bool| {
             match || -> Result<_, crate::TerraneForeignError> {
-                let callback_value = callback(callback_argument_0, callback_argument_1)
-                    .map_err(crate::TerraneForeignError)?;
+                let callback_value = callback(callback_argument_0, callback_argument_1);
                 Ok(callback_value)
             }() {
                 Ok(value) => value,

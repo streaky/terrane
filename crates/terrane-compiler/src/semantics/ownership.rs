@@ -1154,8 +1154,8 @@ fn shared_object_targets(
             shared_object_targets(&key.value_type(), inside_shared, targets);
             shared_object_targets(&value.value_type(), inside_shared, targets);
         }
-        ValueType::Function(parameters, result)
-        | ValueType::AsyncFunction(parameters, result, _) => {
+        ValueType::Function(parameters, result, _)
+        | ValueType::AsyncFunction(parameters, result, _, _) => {
             for parameter in parameters {
                 shared_object_targets(&parameter.value_type(), inside_shared, targets);
             }

@@ -500,6 +500,8 @@ pub fn analyze(package: &Package) -> Result<SemanticPackage, SemanticFailure> {
     analyze_reference_provenance(&mut semantic)?;
     validate_referenced_replacements(&semantic)?;
     infer_throwing_effects(&mut semantic)?;
+    refresh_typed_bindings(&mut semantic)?;
+    validate_class_field_initializers(&semantic)?;
     validate_constant_reassignment(&semantic)?;
     validate_global_definite_assignment(&semantic)?;
     record_binding_mutability(&mut semantic);

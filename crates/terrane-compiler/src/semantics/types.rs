@@ -235,6 +235,9 @@ pub(super) fn analyze_binding_node(
         } else {
             return Ok(());
         };
+    let value_type = inferred.as_ref().map_or(value_type.clone(), |actual| {
+        merge_callable_destination_effects(value_type, actual)
+    });
     let destination_arms = if matches!(value_type, ValueType::Optional(_)) {
         Vec::new()
     } else {
@@ -306,7 +309,12 @@ pub(super) fn declared_value_type_with_visible_objects(
     }
     if shape.kind == SyntaxKind::FunctionType {
         let function = shape;
-        let Some((result, parameters)) = function.children.split_last() else {
+        let mut signature = function
+            .children
+            .iter()
+            .filter(|child| child.kind != SyntaxKind::EffectClause)
+            .collect::<Vec<_>>();
+        let Some(result) = signature.pop() else {
             return Err(failure(
                 &unit.source,
                 "T0001",
@@ -314,8 +322,8 @@ pub(super) fn declared_value_type_with_visible_objects(
                 type_node.span,
             ));
         };
-        let parameters = parameters
-            .iter()
+        let parameters = signature
+            .into_iter()
             .map(|parameter| {
                 declared_value_type_with_visible_objects(unit, parameter, aliases, visible_objects)
                     .map(ElementType::new)
@@ -327,10 +335,43 @@ pub(super) fn declared_value_type_with_visible_objects(
             aliases,
             visible_objects,
         )?);
+        let upper_bound = function
+            .children
+            .iter()
+            .find(|child| child.kind == SyntaxKind::EffectClause)
+            .and_then(|effect| effect.children.first())
+            .map(|bound| {
+                declared_value_type_with_visible_objects(unit, bound, aliases, visible_objects)
+            })
+            .transpose()?;
+        let mut effects = CallableEffects {
+            upper_bound: upper_bound.clone().map(Box::new),
+            escaping: BTreeSet::new(),
+        };
+        if let Some(bound) = &upper_bound {
+            let throwable = ValueType::Object(ObjectIdentity::new("/core/errors", "throwable"));
+            if !value_types_compatible(&unit.descriptors, &throwable, bound) {
+                return Err(failure(
+                    &unit.source,
+                    "T0027",
+                    "callable `throws` upper bound must be a throwable object type",
+                    type_node.span,
+                ));
+            }
+            let ValueType::Object(identity) = bound else {
+                unreachable!("throwable-compatible callable bound must be an object");
+            };
+            effects.escaping.insert(identity.qualified());
+        }
         return Ok(if node_text(&unit.source, function).starts_with("async") {
-            ValueType::AsyncFunction(parameters, result, TaskTransferability::Transferable)
+            ValueType::AsyncFunction(
+                parameters,
+                result,
+                TaskTransferability::Transferable,
+                effects,
+            )
         } else {
-            ValueType::Function(parameters, result)
+            ValueType::Function(parameters, result, effects)
         });
     }
     if let Some(union) = type_node
@@ -809,8 +850,8 @@ pub(super) fn diagnostic_value_type(
             format!("unordered-map of {}, {}", nested(key), nested(value))
         }
         ValueType::UnorderedSet(item) => format!("unordered-set of {}", nested(item)),
-        ValueType::Function(parameters, result)
-        | ValueType::AsyncFunction(parameters, result, _) => {
+        ValueType::Function(parameters, result, effects)
+        | ValueType::AsyncFunction(parameters, result, _, effects) => {
             let prefix = if matches!(value_type, ValueType::AsyncFunction(..)) {
                 "async function"
             } else {
@@ -822,7 +863,13 @@ pub(super) fn diagnostic_value_type(
             } else {
                 format!(" from {parameters}")
             };
-            format!("{prefix}{from} to {}", nested(result))
+            let throws = effects
+                .upper_bound
+                .as_deref()
+                .map_or_else(String::new, |bound| {
+                    format!(" throws {}", diagnostic_value_type(objects, bound))
+                });
+            format!("{prefix}{from} to {}{throws}", nested(result))
         }
         ValueType::Task(result, _) => format!("task of {}", nested(result)),
         ValueType::ScopedTask(result, _) => format!("scoped task of {}", nested(result)),
@@ -831,6 +878,50 @@ pub(super) fn diagnostic_value_type(
         ValueType::SharedReference(item) => format!("shared ref {}", nested(item)),
         _ => value_type.to_string(),
     }
+}
+
+fn merge_callable_destination_effects(expected: ValueType, actual: &ValueType) -> ValueType {
+    match (expected, actual) {
+        (
+            ValueType::Function(parameters, result, mut effects),
+            ValueType::Function(_, _, actual_effects),
+        ) => {
+            effects.escaping.clone_from(&actual_effects.escaping);
+            ValueType::Function(parameters, result, effects)
+        }
+        (
+            ValueType::AsyncFunction(parameters, result, transferability, mut effects),
+            ValueType::AsyncFunction(_, _, _, actual_effects),
+        ) => {
+            effects.escaping.clone_from(&actual_effects.escaping);
+            ValueType::AsyncFunction(parameters, result, transferability, effects)
+        }
+        (expected, _) => expected,
+    }
+}
+
+fn throwable_identity_type(identity: &str) -> Option<ValueType> {
+    let (namespace, name) = identity.rsplit_once("::")?;
+    Some(ValueType::Object(ObjectIdentity::new(namespace, name)))
+}
+
+fn callable_effects_compatible(
+    objects: &[DescriptorContract],
+    expected: &CallableEffects,
+    actual: &CallableEffects,
+) -> bool {
+    actual.escaping.iter().all(|identity| {
+        throwable_identity_type(identity).is_some_and(|actual| {
+            expected
+                .upper_bound
+                .as_deref()
+                .is_some_and(|bound| value_types_compatible(objects, bound, &actual))
+                || expected.escaping.iter().any(|bound| {
+                    throwable_identity_type(bound)
+                        .is_some_and(|bound| value_types_compatible(objects, &bound, &actual))
+                })
+        })
+    })
 }
 
 pub(super) fn validate_value_destination(
@@ -942,8 +1033,37 @@ pub(super) fn value_types_compatible(
                 &actual_value.value_type(),
             )
         }
+        (
+            ValueType::Function(expected_parameters, expected_result, expected_effects),
+            ValueType::Function(actual_parameters, actual_result, actual_effects),
+        ) => {
+            expected_parameters == actual_parameters
+                && expected_result == actual_result
+                && callable_effects_compatible(objects, expected_effects, actual_effects)
+        }
+        (
+            ValueType::AsyncFunction(
+                expected_parameters,
+                expected_result,
+                expected_transferability,
+                expected_effects,
+            ),
+            ValueType::AsyncFunction(
+                actual_parameters,
+                actual_result,
+                actual_transferability,
+                actual_effects,
+            ),
+        ) => {
+            expected_parameters == actual_parameters
+                && expected_result == actual_result
+                && expected_transferability == actual_transferability
+                && callable_effects_compatible(objects, expected_effects, actual_effects)
+        }
         (ValueType::Object(expected), ValueType::Object(actual)) => {
             expected == actual
+                || (expected == &ObjectIdentity::new("/core/errors", "throwable")
+                    && actual.namespace == "/core/errors")
                 || objects
                     .iter()
                     .find(|object| object.identity == *actual)

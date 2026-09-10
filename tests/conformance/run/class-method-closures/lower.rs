@@ -376,21 +376,9 @@ mod __terrane_trace {
         pub end_line: u32,
         pub end_column: u32,
     }
-    pub static FILES: [&str; 1] = ["case.trn"];
-    pub static FUNCTIONS: [&str; 1] = ["/class-method-closures::main"];
-    pub static SITES: [Site; 1] = [
-        {
-            /* terrane-site-row: site 0: /class-method-closures::main (case.trn:12:16-12:22) */
-            Site {
-                function: 0,
-                file: 0,
-                line: 12,
-                column: 16,
-                end_line: 12,
-                end_column: 22,
-            }
-        },
-    ];
+    pub static FILES: [&str; 0] = [];
+    pub static FUNCTIONS: [&str; 0] = [];
+    pub static SITES: [Site; 0] = [];
     #[cold]
     #[inline(never)]
     pub fn render(site: u32) -> String {
@@ -418,16 +406,14 @@ impl Maker {
     pub fn offset(
         &self,
     ) -> std::sync::Arc<
-        dyn Fn(
-            terrane_int_support::Int,
-        ) -> Result<terrane_int_support::Int, TerraneError> + Send + Sync,
+        dyn Fn(terrane_int_support::Int) -> terrane_int_support::Int + Send + Sync,
     > {
         return {
             let this = self.clone();
             std::sync::Arc::new(move |
                 value: terrane_int_support::Int,
-            | -> Result<terrane_int_support::Int, TerraneError> {
-                return Ok(this.base.clone() + value.clone());
+            | -> terrane_int_support::Int {
+                return this.base.clone() + value.clone();
             })
         };
     }
@@ -435,13 +421,8 @@ impl Maker {
 fn main() {
     let value: Maker = Maker::terrane_construct();
     let add: std::sync::Arc<
-        dyn Fn(
-            terrane_int_support::Int,
-        ) -> Result<terrane_int_support::Int, TerraneError> + Send + Sync,
+        dyn Fn(terrane_int_support::Int) -> terrane_int_support::Int + Send + Sync,
     > = value.offset();
-    let result: terrane_int_support::Int = __terrane_traced(
-        add(terrane_int_support::Int::from(5_i128)),
-        0 /* terrane-site: case.trn:12:16-12:22 */,
-    );
+    let result: terrane_int_support::Int = add(terrane_int_support::Int::from(5_i128));
     println!("{}", terrane_scalar_support::scalar_text(&result));
 }

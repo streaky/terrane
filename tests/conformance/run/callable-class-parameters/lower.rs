@@ -376,124 +376,9 @@ mod __terrane_trace {
         pub end_line: u32,
         pub end_column: u32,
     }
-    pub static FILES: [&str; 1] = ["case.trn"];
-    pub static FUNCTIONS: [&str; 3] = [
-        "/callable-class-parameters::construct",
-        "/callable-class-parameters::apply",
-        "/callable-class-parameters::main",
-    ];
-    pub static SITES: [Site; 10] = [
-        {
-            /* terrane-site-row: site 0: /callable-class-parameters::construct (case.trn:10:19-10:31) */
-            Site {
-                function: 0,
-                file: 0,
-                line: 10,
-                column: 19,
-                end_line: 10,
-                end_column: 31,
-            }
-        },
-        {
-            /* terrane-site-row: site 1: /callable-class-parameters::apply (case.trn:13:12-13:42) */
-            Site {
-                function: 1,
-                file: 0,
-                line: 13,
-                column: 12,
-                end_line: 13,
-                end_column: 42,
-            }
-        },
-        {
-            /* terrane-site-row: site 2: /callable-class-parameters::construct (case.trn:22:19-22:31) */
-            Site {
-                function: 0,
-                file: 0,
-                line: 22,
-                column: 19,
-                end_line: 22,
-                end_column: 31,
-            }
-        },
-        {
-            /* terrane-site-row: site 3: /callable-class-parameters::apply (case.trn:25:12-25:42) */
-            Site {
-                function: 1,
-                file: 0,
-                line: 25,
-                column: 12,
-                end_line: 25,
-                end_column: 42,
-            }
-        },
-        {
-            /* terrane-site-row: site 4: /callable-class-parameters::main (case.trn:31:12-31:45) */
-            Site {
-                function: 2,
-                file: 0,
-                line: 31,
-                column: 12,
-                end_line: 31,
-                end_column: 45,
-            }
-        },
-        {
-            /* terrane-site-row: site 5: /callable-class-parameters::main (case.trn:32:11-32:37) */
-            Site {
-                function: 2,
-                file: 0,
-                line: 32,
-                column: 11,
-                end_line: 32,
-                end_column: 37,
-            }
-        },
-        {
-            /* terrane-site-row: site 6: /callable-class-parameters::main (case.trn:34:10-34:41) */
-            Site {
-                function: 2,
-                file: 0,
-                line: 34,
-                column: 10,
-                end_line: 34,
-                end_column: 41,
-            }
-        },
-        {
-            /* terrane-site-row: site 7: /callable-class-parameters::main (case.trn:35:11-35:35) */
-            Site {
-                function: 2,
-                file: 0,
-                line: 35,
-                column: 11,
-                end_line: 35,
-                end_column: 35,
-            }
-        },
-        {
-            /* terrane-site-row: site 8: /callable-class-parameters::main (case.trn:36:11-36:43) */
-            Site {
-                function: 2,
-                file: 0,
-                line: 36,
-                column: 11,
-                end_line: 36,
-                end_column: 43,
-            }
-        },
-        {
-            /* terrane-site-row: site 9: /callable-class-parameters::main (case.trn:37:11-37:36) */
-            Site {
-                function: 2,
-                file: 0,
-                line: 37,
-                column: 11,
-                end_line: 37,
-                end_column: 36,
-            }
-        },
-    ];
+    pub static FILES: [&str; 0] = [];
+    pub static FUNCTIONS: [&str; 0] = [];
+    pub static SITES: [Site; 0] = [];
     #[cold]
     #[inline(never)]
     pub fn render(site: u32) -> String {
@@ -518,53 +403,36 @@ pub struct DirectHolder {
 impl DirectHolder {
     pub fn terrane_construct(
         operation: std::sync::Arc<
-            dyn Fn(
-                terrane_int_support::Int,
-            ) -> Result<terrane_int_support::Int, TerraneError> + Send + Sync,
+            dyn Fn(terrane_int_support::Int) -> terrane_int_support::Int + Send + Sync,
         >,
-    ) -> Result<Self, TerraneError> {
+    ) -> Self {
         let mut value = Self {
             stored: terrane_int_support::Int::from(0_i128),
         };
-        value.construct(operation)?;
-        Ok(value)
+        value.construct(operation);
+        value
     }
     pub fn construct(
         &mut self,
         operation: std::sync::Arc<
-            dyn Fn(
-                terrane_int_support::Int,
-            ) -> Result<terrane_int_support::Int, TerraneError> + Send + Sync,
+            dyn Fn(terrane_int_support::Int) -> terrane_int_support::Int + Send + Sync,
         >,
-    ) -> Result<(), TerraneError> {
-        self.stored = __terrane_traced_err(
-            operation(terrane_int_support::Int::from(1_i128)),
-            0 /* terrane-site: case.trn:10:19-10:31 */,
-        )?;
-        Ok(())
+    ) {
+        self.stored = operation(terrane_int_support::Int::from(1_i128));
     }
     pub fn apply(
         &self,
         operation: std::sync::Arc<
-            dyn Fn(
-                terrane_int_support::Int,
-            ) -> Result<terrane_int_support::Int, TerraneError> + Send + Sync,
+            dyn Fn(terrane_int_support::Int) -> terrane_int_support::Int + Send + Sync,
         >,
         value: terrane_int_support::Int,
-    ) -> Result<terrane_int_support::Int, TerraneError> {
-        return Ok(
-            __terrane_traced_err(
-                operation(self.stored.clone() + value.clone()),
-                1 /* terrane-site: case.trn:13:12-13:42 */,
-            )?,
-        );
+    ) -> terrane_int_support::Int {
+        return operation(self.stored.clone() + value.clone());
     }
     pub fn ignore(
         &self,
         operation: std::sync::Arc<
-            dyn Fn(
-                terrane_int_support::Int,
-            ) -> Result<terrane_int_support::Int, TerraneError> + Send + Sync,
+            dyn Fn(terrane_int_support::Int) -> terrane_int_support::Int + Send + Sync,
         >,
         value: terrane_int_support::Int,
     ) -> terrane_int_support::Int {
@@ -579,46 +447,31 @@ pub struct BaseHolderStorage {
 impl BaseHolderStorage {
     pub fn terrane_construct(
         operation: std::sync::Arc<
-            dyn Fn(
-                terrane_int_support::Int,
-            ) -> Result<terrane_int_support::Int, TerraneError> + Send + Sync,
+            dyn Fn(terrane_int_support::Int) -> terrane_int_support::Int + Send + Sync,
         >,
-    ) -> Result<Self, TerraneError> {
+    ) -> Self {
         let mut value = Self {
             stored: terrane_int_support::Int::from(0_i128),
         };
-        value.construct(operation)?;
-        Ok(value)
+        value.construct(operation);
+        value
     }
     pub fn construct(
         &mut self,
         operation: std::sync::Arc<
-            dyn Fn(
-                terrane_int_support::Int,
-            ) -> Result<terrane_int_support::Int, TerraneError> + Send + Sync,
+            dyn Fn(terrane_int_support::Int) -> terrane_int_support::Int + Send + Sync,
         >,
-    ) -> Result<(), TerraneError> {
-        self.stored = __terrane_traced_err(
-            operation(terrane_int_support::Int::from(1_i128)),
-            2 /* terrane-site: case.trn:22:19-22:31 */,
-        )?;
-        Ok(())
+    ) {
+        self.stored = operation(terrane_int_support::Int::from(1_i128));
     }
     pub fn apply(
         &self,
         operation: std::sync::Arc<
-            dyn Fn(
-                terrane_int_support::Int,
-            ) -> Result<terrane_int_support::Int, TerraneError> + Send + Sync,
+            dyn Fn(terrane_int_support::Int) -> terrane_int_support::Int + Send + Sync,
         >,
         value: terrane_int_support::Int,
-    ) -> Result<terrane_int_support::Int, TerraneError> {
-        return Ok(
-            __terrane_traced_err(
-                operation(self.stored.clone() + value.clone()),
-                3 /* terrane-site: case.trn:25:12-25:42 */,
-            )?,
-        );
+    ) -> terrane_int_support::Int {
+        return operation(self.stored.clone() + value.clone());
     }
 }
 #[derive(Clone)]
@@ -629,22 +482,18 @@ pub enum BaseHolder {
 impl BaseHolder {
     pub fn terrane_construct(
         operation: std::sync::Arc<
-            dyn Fn(
-                terrane_int_support::Int,
-            ) -> Result<terrane_int_support::Int, TerraneError> + Send + Sync,
+            dyn Fn(terrane_int_support::Int) -> terrane_int_support::Int + Send + Sync,
         >,
-    ) -> Result<Self, TerraneError> {
-        Ok(Self::Own(BaseHolderStorage::terrane_construct(operation)?))
+    ) -> Self {
+        Self::Own(BaseHolderStorage::terrane_construct(operation))
     }
     pub fn apply(
         &self,
         operation: std::sync::Arc<
-            dyn Fn(
-                terrane_int_support::Int,
-            ) -> Result<terrane_int_support::Int, TerraneError> + Send + Sync,
+            dyn Fn(terrane_int_support::Int) -> terrane_int_support::Int + Send + Sync,
         >,
         value: terrane_int_support::Int,
-    ) -> Result<terrane_int_support::Int, TerraneError> {
+    ) -> terrane_int_support::Int {
         match self {
             Self::Own(value_) => value_.apply(operation, value),
             Self::ChildHolder(value_) => value_.apply(operation, value),
@@ -670,83 +519,54 @@ pub struct ChildHolder {
 impl ChildHolder {
     pub fn terrane_construct(
         operation: std::sync::Arc<
-            dyn Fn(
-                terrane_int_support::Int,
-            ) -> Result<terrane_int_support::Int, TerraneError> + Send + Sync,
+            dyn Fn(terrane_int_support::Int) -> terrane_int_support::Int + Send + Sync,
         >,
-    ) -> Result<Self, TerraneError> {
+    ) -> Self {
         let mut value = Self {
             stored: terrane_int_support::Int::from(0_i128),
         };
-        value.construct(operation)?;
-        Ok(value)
+        value.construct(operation);
+        value
     }
     pub fn construct(
         &mut self,
         operation: std::sync::Arc<
-            dyn Fn(
-                terrane_int_support::Int,
-            ) -> Result<terrane_int_support::Int, TerraneError> + Send + Sync,
+            dyn Fn(terrane_int_support::Int) -> terrane_int_support::Int + Send + Sync,
         >,
-    ) -> Result<(), TerraneError> {
-        self.stored = __terrane_traced_err(
-            operation(terrane_int_support::Int::from(1_i128)),
-            2 /* terrane-site: case.trn:22:19-22:31 */,
-        )?;
-        Ok(())
+    ) {
+        self.stored = operation(terrane_int_support::Int::from(1_i128));
     }
     pub fn apply(
         &self,
         operation: std::sync::Arc<
-            dyn Fn(
-                terrane_int_support::Int,
-            ) -> Result<terrane_int_support::Int, TerraneError> + Send + Sync,
+            dyn Fn(terrane_int_support::Int) -> terrane_int_support::Int + Send + Sync,
         >,
         value: terrane_int_support::Int,
-    ) -> Result<terrane_int_support::Int, TerraneError> {
-        return Ok(
-            __terrane_traced_err(
-                operation(self.stored.clone() + value.clone()),
-                3 /* terrane-site: case.trn:25:12-25:42 */,
-            )?,
-        );
+    ) -> terrane_int_support::Int {
+        return operation(self.stored.clone() + value.clone());
     }
 }
 fn main() {
     let operation: std::sync::Arc<
-        dyn Fn(
-            terrane_int_support::Int,
-        ) -> Result<terrane_int_support::Int, TerraneError> + Send + Sync,
-    > = std::sync::Arc::new(move |argument_0: terrane_int_support::Int| Ok(
-        increment(argument_0),
-    ));
-    let direct: DirectHolder = __terrane_traced(
-        DirectHolder::terrane_construct(operation.clone()),
-        4 /* terrane-site: case.trn:31:12-31:45 */,
-    );
+        dyn Fn(terrane_int_support::Int) -> terrane_int_support::Int + Send + Sync,
+    > = std::sync::Arc::new(increment);
+    let direct: DirectHolder = DirectHolder::terrane_construct(operation.clone());
     println!(
-        "{}", terrane_scalar_support::scalar_text(&__terrane_traced(direct
-        .apply(operation.clone(), terrane_int_support::Int::from(4_i128)),
-        5 /* terrane-site: case.trn:32:11-32:37 */))
+        "{}", terrane_scalar_support::scalar_text(&direct.apply(operation.clone(),
+        terrane_int_support::Int::from(4_i128)))
     );
     println!(
         "{}", terrane_scalar_support::scalar_text(&direct.ignore(operation.clone(),
         terrane_int_support::Int::from(9_i128)))
     );
-    let base: BaseHolder = __terrane_traced(
-        BaseHolder::terrane_construct(operation.clone()),
-        6 /* terrane-site: case.trn:34:10-34:41 */,
-    );
+    let base: BaseHolder = BaseHolder::terrane_construct(operation.clone());
     println!(
-        "{}", terrane_scalar_support::scalar_text(&__terrane_traced(base.apply(operation
-        .clone(), terrane_int_support::Int::from(5_i128)), 7 /* terrane-site: case.trn:35:11-35:35 */))
+        "{}", terrane_scalar_support::scalar_text(&base.apply(operation.clone(),
+        terrane_int_support::Int::from(5_i128)))
     );
-    let child: ChildHolder = __terrane_traced(
-        ChildHolder::terrane_construct(operation.clone()),
-        8 /* terrane-site: case.trn:36:11-36:43 */,
-    );
+    let child: ChildHolder = ChildHolder::terrane_construct(operation.clone());
     println!(
-        "{}", terrane_scalar_support::scalar_text(&__terrane_traced(child.apply(operation
-        .clone(), terrane_int_support::Int::from(6_i128)), 9 /* terrane-site: case.trn:37:11-37:36 */))
+        "{}", terrane_scalar_support::scalar_text(&child.apply(operation.clone(),
+        terrane_int_support::Int::from(6_i128)))
     );
 }

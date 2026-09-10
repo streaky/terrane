@@ -670,7 +670,7 @@ impl Emitter<'_> {
                         .iter()
                         .any(|field| {
                             field.name == name
-                                && matches!(field.value_type, ValueType::Function(_, _))
+                                && matches!(field.value_type, ValueType::Function(..))
                         })
             })
     }

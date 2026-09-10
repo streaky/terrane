@@ -1,0 +1,90 @@
+namespace callable-throwable-contracts
+from /core/errors import coercion-error, throwable
+
+class formatter
+  function render string throws coercion-error; value int
+    if value < 0
+      throw coercion-error
+    return 'bound'
+
+  function invoke string throws throwable; operation function from int to string throws throwable, value int
+    return operation; value
+
+function invoke string; operation function from int to string throws throwable, value int
+  return operation; value
+
+function safe-render string throws coercion-error; value int
+  return 'safe'
+
+function invoke-infallible string; operation function from int to string, value int
+  return operation; value
+
+class operation-holder
+  operation function from int to string throws throwable = safe-render
+
+async function async-render string throws coercion-error; value int
+  if value < 0
+    throw coercion-error
+  return 'async'
+
+function make-render function from int to string throws coercion-error; value int
+  service = instance formatter;
+  return service.render
+
+async function async-safe-render string throws coercion-error; value int
+  return 'async-safe'
+
+function invoke-field string; holder operation-holder
+  return holder.operation; 1
+
+function invoke-maker string throws throwable; maker function from int to function from int to string throws coercion-error throws throwable, value int
+  operation = maker; value
+  return operation; value
+
+async function invoke-async string; operation async function from int to string throws throwable, value int
+  return await operation; value
+
+async function main;
+  service = instance formatter;
+  bound function from int to string throws coercion-error = service.render
+  closure function from int to string throws coercion-error = function string; value int
+    if value < 0
+      throw coercion-error
+    return 'closure'
+  broad-closure function from int to string throws throwable = function string; value int
+    if value < 0
+      return 'negative'
+    return 'wide-closure'
+  broad-async async function from int to string throws throwable = async function string; value int
+    if value < 0
+      return 'negative'
+    return 'wide-async'
+  alias = bound
+  broad function from int to string throws throwable = bound
+  async-operation async function from int to string throws throwable = async-render
+  safe-operation = safe-render
+  async-safe-operation = async-safe-render
+  print; bound.throwable-contract
+  print; bound.escaping-throwables
+  print; closure.throwable-contract
+  print; closure.escaping-throwables
+  print; broad.throwable-contract
+  print; broad.escaping-throwables
+  print; alias.throwable-contract
+  print; alias.escaping-throwables
+  print; async-operation.throwable-contract
+  print; async-operation.escaping-throwables
+  print; (invoke; alias, 1)
+  print; (invoke; broad, 1)
+  print; (invoke; closure, 1)
+  print; await invoke-async; async-operation, 1
+  print; (invoke; broad-closure, 1)
+  print; await invoke-async; broad-async, 1
+  print; (safe-operation; 1)
+  print; (invoke-maker; make-render, 1)
+  print; (service.invoke; bound, 1)
+  print; (invoke-infallible; safe-operation, 1)
+  print; await async-safe-operation; 1
+  holder = instance operation-holder;
+  print; (holder.operation; 1)
+  print; (invoke-field; holder)

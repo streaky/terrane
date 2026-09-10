@@ -1,4 +1,3 @@
-// Generated deterministically by Terrane <version>.
 type TerraneSite = u32;
 const TERRANE_NO_SITE: TerraneSite = u32::MAX;
 #[allow(dead_code, reason = "custom descriptors are absent from some lowered programs")]
@@ -377,53 +376,211 @@ mod __terrane_trace {
         pub end_column: u32,
     }
     pub static FILES: [&str; 1] = ["case.trn"];
-    pub static FUNCTIONS: [&str; 3] = [
-        "/throwable-function-value::render",
-        "/throwable-function-value::apply",
-        "/throwable-function-value::main",
+    pub static FUNCTIONS: [&str; 7] = [
+        "/callable-throwable-contracts::render",
+        "/callable-throwable-contracts::invoke",
+        "/callable-throwable-contracts::async-render",
+        "/callable-throwable-contracts::invoke-field",
+        "/callable-throwable-contracts::invoke-maker",
+        "/callable-throwable-contracts::invoke-async",
+        "/callable-throwable-contracts::main",
     ];
-    pub static SITES: [Site; 4] = [
+    pub static SITES: [Site; 18] = [
         {
-            /* terrane-site-row: site 0: /throwable-function-value::render (case.trn:6:5-6:25) */
+            /* terrane-site-row: site 0: /callable-throwable-contracts::render (case.trn:7:7-7:27) */
             Site {
                 function: 0,
                 file: 0,
-                line: 6,
-                column: 5,
-                end_line: 6,
-                end_column: 25,
+                line: 7,
+                column: 7,
+                end_line: 7,
+                end_column: 27,
             }
         },
         {
-            /* terrane-site-row: site 1: /throwable-function-value::apply (case.trn:10:10-10:26) */
+            /* terrane-site-row: site 1: /callable-throwable-contracts::invoke (case.trn:11:12-11:28) */
             Site {
                 function: 1,
                 file: 0,
-                line: 10,
+                line: 11,
+                column: 12,
+                end_line: 11,
+                end_column: 28,
+            }
+        },
+        {
+            /* terrane-site-row: site 2: /callable-throwable-contracts::invoke (case.trn:14:10-14:26) */
+            Site {
+                function: 1,
+                file: 0,
+                line: 14,
                 column: 10,
-                end_line: 10,
+                end_line: 14,
                 end_column: 26,
             }
         },
         {
-            /* terrane-site-row: site 2: /throwable-function-value::main (case.trn:18:13-18:33) */
+            /* terrane-site-row: site 3: /callable-throwable-contracts::async-render (case.trn:27:5-27:25) */
             Site {
                 function: 2,
                 file: 0,
-                line: 18,
-                column: 13,
-                end_line: 18,
-                end_column: 33,
+                line: 27,
+                column: 5,
+                end_line: 27,
+                end_column: 25,
             }
         },
         {
-            /* terrane-site-row: site 3: /throwable-function-value::main (case.trn:21:11-21:30) */
+            /* terrane-site-row: site 4: /callable-throwable-contracts::invoke-field (case.trn:38:10-38:29) */
             Site {
-                function: 2,
+                function: 3,
                 file: 0,
-                line: 21,
+                line: 38,
+                column: 10,
+                end_line: 38,
+                end_column: 29,
+            }
+        },
+        {
+            /* terrane-site-row: site 5: /callable-throwable-contracts::invoke-maker (case.trn:41:15-41:27) */
+            Site {
+                function: 4,
+                file: 0,
+                line: 41,
+                column: 15,
+                end_line: 41,
+                end_column: 27,
+            }
+        },
+        {
+            /* terrane-site-row: site 6: /callable-throwable-contracts::invoke-maker (case.trn:42:10-42:26) */
+            Site {
+                function: 4,
+                file: 0,
+                line: 42,
+                column: 10,
+                end_line: 42,
+                end_column: 26,
+            }
+        },
+        {
+            /* terrane-site-row: site 7: /callable-throwable-contracts::invoke-async (case.trn:45:16-45:32) */
+            Site {
+                function: 5,
+                file: 0,
+                line: 45,
+                column: 16,
+                end_line: 45,
+                end_column: 32,
+            }
+        },
+        {
+            /* terrane-site-row: site 8: /callable-throwable-contracts::main (case.trn:52:7-52:27) */
+            Site {
+                function: 6,
+                file: 0,
+                line: 52,
+                column: 7,
+                end_line: 52,
+                end_column: 27,
+            }
+        },
+        {
+            /* terrane-site-row: site 9: /callable-throwable-contracts::main (case.trn:77:11-77:27) */
+            Site {
+                function: 6,
+                file: 0,
+                line: 77,
                 column: 11,
-                end_line: 21,
+                end_line: 77,
+                end_column: 27,
+            }
+        },
+        {
+            /* terrane-site-row: site 10: /callable-throwable-contracts::main (case.trn:78:11-78:27) */
+            Site {
+                function: 6,
+                file: 0,
+                line: 78,
+                column: 11,
+                end_line: 78,
+                end_column: 27,
+            }
+        },
+        {
+            /* terrane-site-row: site 11: /callable-throwable-contracts::main (case.trn:79:11-79:29) */
+            Site {
+                function: 6,
+                file: 0,
+                line: 79,
+                column: 11,
+                end_line: 79,
+                end_column: 29,
+            }
+        },
+        {
+            /* terrane-site-row: site 12: /callable-throwable-contracts::main (case.trn:80:16-80:48) */
+            Site {
+                function: 6,
+                file: 0,
+                line: 80,
+                column: 16,
+                end_line: 80,
+                end_column: 48,
+            }
+        },
+        {
+            /* terrane-site-row: site 13: /callable-throwable-contracts::main (case.trn:81:11-81:35) */
+            Site {
+                function: 6,
+                file: 0,
+                line: 81,
+                column: 11,
+                end_line: 81,
+                end_column: 35,
+            }
+        },
+        {
+            /* terrane-site-row: site 14: /callable-throwable-contracts::main (case.trn:82:16-82:44) */
+            Site {
+                function: 6,
+                file: 0,
+                line: 82,
+                column: 16,
+                end_line: 82,
+                end_column: 44,
+            }
+        },
+        {
+            /* terrane-site-row: site 15: /callable-throwable-contracts::main (case.trn:84:11-84:39) */
+            Site {
+                function: 6,
+                file: 0,
+                line: 84,
+                column: 11,
+                end_line: 84,
+                end_column: 39,
+            }
+        },
+        {
+            /* terrane-site-row: site 16: /callable-throwable-contracts::main (case.trn:85:11-85:35) */
+            Site {
+                function: 6,
+                file: 0,
+                line: 85,
+                column: 11,
+                end_line: 85,
+                end_column: 35,
+            }
+        },
+        {
+            /* terrane-site-row: site 17: /callable-throwable-contracts::main (case.trn:89:11-89:30) */
+            Site {
+                function: 6,
+                file: 0,
+                line: 89,
+                column: 11,
+                end_line: 89,
                 end_column: 30,
             }
         },
@@ -440,91 +597,32 @@ mod __terrane_trace {
         )
     }
 }
-// Source: case.trn
-// Namespace: throwable-function-value
-fn render(value: terrane_int_support::Int) -> Result<String, TerraneError> {
-    if value.clone() < terrane_int_support::Int::from(0_i128) {
-        return Err(
-            TerraneError::raised(
-                TerraneErrorKind::CoercionError,
-                0 /* terrane-site: case.trn:6:5-6:25 */,
-            ),
-        );
-    }
-    return Ok(String::from("ok"));
-}
-fn apply(
-    operation: std::sync::Arc<
-        dyn Fn(terrane_int_support::Int) -> Result<String, TerraneError> + Send + Sync,
-    >,
-    value: terrane_int_support::Int,
-) -> Result<String, TerraneError> {
-    return Ok(
-        __terrane_traced_err(
-            operation(value.clone()),
-            1 /* terrane-site: case.trn:10:10-10:26 */,
-        )?,
-    );
-}
-fn main() {
-    let operation: std::sync::Arc<
-        dyn Fn(terrane_int_support::Int) -> Result<String, TerraneError> + Send + Sync,
-    > = std::sync::Arc::new(render);
-    println!(
-        "{}", terrane_scalar_support::scalar_text(&{ let _ = operation; "throws"
-        .to_owned() })
-    );
-    println!(
-        "{}", terrane_scalar_support::scalar_text(&{ let _ = operation; "coercion-error"
-        .to_owned() })
-    );
-    println!(
-        "{}", terrane_scalar_support::scalar_text(&{ let _ = operation; "coercion-error"
-        .to_owned() })
-    );
-    let __terrane_completion_0: TerraneCompletion<()> = (|| {
-        let __terrane_try_0: TerraneCompletion<()> = (|| {
-            println!(
-                "{}",
-                terrane_scalar_support::scalar_text(&__terrane_traced_completion!(apply(operation
-                .clone(), terrane_int_support::Int::from(- 1_i128)),
-                2 /* terrane-site: case.trn:18:13-18:33 */))
-            );
-            TerraneCompletion::Normal
-        })();
-        match __terrane_try_0 {
-            TerraneCompletion::Return(value) => return TerraneCompletion::Return(value),
-            TerraneCompletion::Break => return TerraneCompletion::Break,
-            TerraneCompletion::Continue => return TerraneCompletion::Continue,
-            TerraneCompletion::Normal => {}
-            TerraneCompletion::Error(__terrane_error_0) => {
-                let mut __terrane_handled_0 = false;
-                if !__terrane_handled_0
-                    && __terrane_error_0.kind == TerraneErrorKind::CoercionError
-                {
-                    __terrane_handled_0 = true;
-                    println!(
-                        "{}",
-                        terrane_scalar_support::scalar_text(&String::from("caught"))
-                    );
-                }
-                if !__terrane_handled_0 {
-                    return TerraneCompletion::Error(__terrane_error_0);
-                }
+async fn __terrane_await<F: Future>(future: F) -> F::Output {
+    struct YieldOnce(bool);
+    impl Future for YieldOnce {
+        type Output = ();
+        fn poll(
+            mut self: std::pin::Pin<&mut Self>,
+            context: &mut std::task::Context<'_>,
+        ) -> std::task::Poll<Self::Output> {
+            if self.0 {
+                std::task::Poll::Ready(())
+            } else {
+                self.0 = true;
+                context.waker().wake_by_ref();
+                std::task::Poll::Pending
             }
         }
-        TerraneCompletion::Normal
-    })();
-    match __terrane_completion_0 {
-        TerraneCompletion::Normal => {}
-        TerraneCompletion::Return(value) => return value,
-        TerraneCompletion::Error(error) => __terrane_uncaught(error),
-        TerraneCompletion::Break | TerraneCompletion::Continue => {
-            __terrane_generated_defect("loop control escaped a non-loop try")
-        }
     }
-    println!(
-        "{}", terrane_scalar_support::scalar_text(&__terrane_traced(apply(operation
-        .clone(), terrane_int_support::Int::from(4_i128)), 3 /* terrane-site: case.trn:21:11-21:30 */))
-    );
+    YieldOnce(false).await;
+    let output = future.await;
+    YieldOnce(false).await;
+    output
+}
+fn __terrane_run<F: Future>(future: F) -> F::Output {
+    tokio::runtime::Builder::new_multi_thread()
+        .enable_all()
+        .build()
+        .expect("Terrane async runtime must initialize")
+        .block_on(future)
 }

@@ -1255,7 +1255,10 @@ impl Emitter<'_> {
             }
             self.append_defaults(contract, &mut ordered);
             values = ordered.into_iter().flatten().collect();
-        } else if let Some(ValueType::Function(parameters, _)) = self.value_type(callee) {
+        } else if let Some(
+            ValueType::Function(parameters, _, _) | ValueType::AsyncFunction(parameters, _, _, _),
+        ) = self.value_type(callee)
+        {
             values = arguments
                 .children
                 .iter()
@@ -1330,6 +1333,14 @@ impl Emitter<'_> {
                     || function_name(self.package, contract),
                     |item| item.rust_path.clone(),
                 )
+        } else if let [receiver, member] = callee.children.as_slice()
+            && self.callable_object_field(receiver, self.text(member))
+        {
+            format!(
+                "({}.{})",
+                self.expression(receiver),
+                rust_name(self.text(member))
+            )
         } else if contract
             .as_ref()
             .is_some_and(|contract| contract.owner.is_some())
@@ -1494,9 +1505,17 @@ impl Emitter<'_> {
         } else {
             call
         };
-        let function_value_call = callee.kind == SyntaxKind::Name
-            && contract.is_none()
-            && matches!(self.value_type(callee), Some(ValueType::Function(_, _)));
+        let function_value_call = contract.is_none()
+            && matches!(
+                self.value_type(callee),
+                Some(ValueType::Function(_, _, effects)) if !effects.escaping.is_empty()
+            )
+            && (callee.kind == SyntaxKind::Name
+                || matches!(
+                    callee.children.as_slice(),
+                    [receiver, member]
+                        if self.callable_object_field(receiver, self.text(member))
+                ));
         let dependency_contract = contract.as_ref().is_some_and(|contract| {
             self.package.units.iter().any(|unit| {
                 unit.source.id() == contract.span.file && unit.namespace.starts_with("/deps/")

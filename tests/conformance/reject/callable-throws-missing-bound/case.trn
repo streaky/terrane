@@ -1,0 +1,4 @@
+namespace callable-throws-missing-bound
+
+function main;
+  operation function from int to string throws = none
