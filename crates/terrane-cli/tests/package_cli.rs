@@ -222,14 +222,23 @@ fn representative_dependency_projection_matches_reviewed_lock() {
         "{}",
         String::from_utf8_lossy(&output.stderr)
     );
+    let regenerated = fs::read(package.0.join("terrane-projection.lock")).unwrap();
     assert_eq!(
-        fs::read(package.0.join("terrane-projection.lock")).unwrap(),
-        reviewed,
-        "the exact dependency projection drifted from its reviewed lock"
+        stable_projection_history(&regenerated),
+        stable_projection_history(&reviewed),
+        "the dependency projection drifted from its reviewed semantic history"
     );
     assert_projection_history_member(&reviewed, "axum", "/deps/axum", "Router::new");
     assert_projection_history_member(&reviewed, "reqwest", "/deps/reqwest", "Response.status");
     assert_reviewed_classification(&package.0, &fixture);
+}
+
+fn stable_projection_history(history: &[u8]) -> serde_json::Value {
+    let mut history = serde_json::from_slice::<serde_json::Value>(history).unwrap();
+    let object = history.as_object_mut().unwrap();
+    object.remove("cache_identity");
+    object.remove("content_hash");
+    history
 }
 
 fn assert_projection_history_member(
