@@ -4,7 +4,12 @@ function main;
   parts = 'red,green,blue'.split; ','
   for part in parts
     print; part
+  print; parts.length
+
+  for part in parts
+    print; part
 
   matches = 'banana'.find.all; 'an'
   for found in matches
     print; found.text
+  print; matches.length

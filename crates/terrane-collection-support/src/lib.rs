@@ -182,6 +182,18 @@ impl<T: Clone> IndexedIteration for Arc<Vec<T>> {
     }
 }
 
+#[must_use]
+pub fn slice_iterator<T: Clone>(items: &[T]) -> CollectionIterator<&[T]> {
+    CollectionIterator::new(items)
+}
+
+impl<T: Clone> IndexedIteration for &[T] {
+    type Item = T;
+    fn item_at(&self, index: usize) -> Option<T> {
+        self.get(index).cloned()
+    }
+}
+
 pub trait Iterable {
     type Item: Clone + 'static;
     type Iter;

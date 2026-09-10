@@ -988,14 +988,12 @@ impl Emitter<'_> {
                     ) => {
                         format!("terrane_collection_support::bytes_iterator(&({collection}))")
                     }
-                    Some(
-                        ValueType::StringView(
-                            crate::semantics::TextUnit::Scalars
-                            | crate::semantics::TextUnit::Graphemes,
-                        )
-                        | ValueType::StringList
-                        | ValueType::TextRangeList,
-                    ) => format!("terrane_collection_support::Iterator::new({collection})"),
+                    Some(ValueType::StringView(
+                        crate::semantics::TextUnit::Scalars | crate::semantics::TextUnit::Graphemes,
+                    )) => format!("terrane_collection_support::Iterator::new({collection})"),
+                    Some(ValueType::StringList | ValueType::TextRangeList) => {
+                        format!("terrane_collection_support::slice_iterator(&({collection}))")
+                    }
                     Some(ValueType::Iterator(_)) => format!("&mut ({collection})"),
                     Some(ValueType::Reference(item))
                         if matches!(

@@ -1,5 +1,10 @@
 red
 green
 blue
+3
+red
+green
+blue
 an
 an
+2
