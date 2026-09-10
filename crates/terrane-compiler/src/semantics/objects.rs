@@ -1704,11 +1704,11 @@ fn collect_projected_destinations(
             unit_index,
             pending,
         )?;
-        let parameter_types = match infer_value_type(unit, callee, &unit.typed_bindings)? {
-            Some(
+        let parameter_types = match infer_value_type(unit, callee, &unit.typed_bindings) {
+            Ok(Some(
                 ValueType::Function(parameters, _) | ValueType::AsyncFunction(parameters, _, _),
-            ) => parameters,
-            _ => Vec::new(),
+            )) => parameters,
+            Ok(_) | Err(_) => Vec::new(),
         };
         for (index, argument) in arguments.children.iter().enumerate() {
             let value = argument.children.last().unwrap_or(argument);
