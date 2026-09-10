@@ -204,38 +204,6 @@ This section contains only work that remains required by the settled version-one
 
 
 
-### Milestone 26.2 — Throwable contracts for function types
-
-Milestone 15 established one sound result-bearing ABI for synchronous callable values but
-deliberately erased their precise throwable sets. Milestone 26.1 establishes stable structured-error
-identity and propagation. This milestone joins those contracts at the language surface; it does not
-weaken the broad `throwable` fallback for a callable whose contract is genuinely unavailable.
-
-Deliver:
-
-- settle and implement function-type syntax for a declared throwable upper bound, including its
-  association and grouping within nested `function from ... to ...` types and its interaction with
-  `async`;
-- retain the written upper bound and inferred concrete escaping set as distinct callable-type
-  metadata, consistent with ordinary function declarations and reflection;
-- make callable compatibility accept an infallible or narrower implementation and reject an
-  incompatible or broader implementation at the assignment, argument, return, or object-member
-  boundary;
-- make invocation through a typed callable value contribute its declared bound instead of the broad
-  `throwable` set, while an unbounded erased callable remains broad;
-- preserve exact throwable metadata for named functions, closures, and bound-method values, removing
-  result propagation and error-site registration where the selected callable contract proves the
-  invocation infallible;
-- add accepted and rejected conformance for nonthrowing, exact-bound, narrower-bound, broader-bound,
-  nested-function, bound-method, and async callable types before documenting a canonical spelling.
-
-Exit criterion: a higher-order function can state the throwable contract required of its callback;
-passing and invoking callbacks preserves that contract across binding, parameter, return, member,
-closure, and bound-method boundaries; incompatible effects receive a source-oriented diagnostic at
-the compatibility boundary; a provably infallible callable-value invocation lowers without an error
-site or `?`; reflection distinguishes the written bound from the inferred concrete set; and all
-accepted forms have deterministic canonical formatting, generated-Rust goldens, compiled crates,
-and runtime evidence.
 
 ### Milestone 27.1 — Terrane-native testing framework
 
@@ -246,8 +214,8 @@ logic are bundled Terrane source under `/core/testing`; Rust remains limited to 
 process isolation/capture, clocks, and host filesystem operations that cannot be expressed above
 the existing platform ABI.
 
-Milestone 26.2 precedes this work because `assert-throws` and throwing test callbacks must retain an
-exact callable throwable bound. Milestones 19, 22, and 26 already provide the async, filesystem,
+Milestone 26.2 provides the exact callable throwable bounds needed by `assert-throws` and throwing
+test callbacks. Milestones 19, 22, and 26 already provide the async, filesystem,
 process, profile, and system foundations needed by isolated integration and end-to-end tests.
 
 #### Test discovery and tiers
@@ -560,7 +528,6 @@ Section 7 is the authoritative remaining-work list. In milestone order, the open
 - complete reference provenance, target-aware cycle handling, and borrow-oriented lowering
   (milestone 17);
 - implement destination-directed specialization of closed projected results (milestone 25.4);
-- add throwable bounds to function types (milestone 26.2);
 - deliver the Terrane-native unit, integration, and end-to-end testing framework (milestone 27.1);
 - complete the release hardening gate (milestone 32); and
 - turn projection artifact resolution into a release-owned bundled, relocatable, and offline
@@ -590,6 +557,32 @@ The first-version compiler is done only when:
 ## Appendix A. Completed milestone record
 
 This appendix keeps delivered milestone contracts and evidence out of the active roadmap. Full milestone records below are preserved as completed implementation history. Entries titled “Completed portion” contain only the delivered side of a milestone whose remaining work appears in section 7; superseded requirements are recorded as such rather than carried forward.
+
+### Milestone 26.2 — Throwable contracts for function types
+
+Function types now accept postfix `throws T`, with the clause binding to the callable introduced by
+the nearest `function` or `async function`; nested result callables consume their own clause before
+an outer callable clause. The written upper bound and exact inferred escaping set remain distinct
+metadata. Omitting `throws` declares an infallible callable type. A genuinely erased callable whose
+contract is unavailable retains the broad `throwable` fallback, while a named function, closure,
+bound method, or initialized callable binding retains any exact set the compiler can prove.
+
+Callable compatibility is covariant in failure: infallible and narrower implementations satisfy a
+broader destination, while broader or unrelated throwables fail at binding, argument, return, and
+class-field initializer boundaries. Invocation through a typed callable contributes its exact set
+or written bound; only unavailable erased metadata falls back to broad `throwable`. Exact infallible
+callable values lower to a
+non-`Result` callable ABI with no propagation operator or registered error site; adapters add the
+broader result-bearing ABI only when a compatible destination requires it. Synchronous and
+asynchronous callables use the same rule.
+
+Evidence: `callable-throwable-contracts` runs exact, broad-bound, infallible, nested, closure,
+bound-method, class-method, class-field, and async paths with canonical generated Rust and reflection
+output.
+`callable-throwable-broad-to-narrow`, `callable-throwable-argument-broad-to-narrow`,
+`callable-throwable-return-broad-to-narrow`, and `callable-throwable-field-broad-to-narrow` preserve
+source-oriented compatibility diagnostics. `callable-throws-missing-bound` and
+`callable-throws-nonthrowable` cover malformed contracts.
 
 ### Milestone 17 — Complete references, provenance, and lowering
 

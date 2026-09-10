@@ -3087,6 +3087,27 @@ contract, never an incompatible one. A direct call proven to have an empty escap
 non-throwing. A call through an erased callable whose throwable metadata is unavailable is rejected
 at a constrained boundary rather than optimistically assumed safe.
 
+Function types use the same postfix contract:
+
+```terrane
+function from request to response throws request-error
+async function from request to response throws request-error
+```
+
+The clause belongs to the callable introduced by the nearest `function`. Function results associate
+right, so `function from A to function from B to R throws Inner throws Outer` constrains the result
+callable with `Inner` and the outer callable with `Outer`. Parentheses may make either grouping
+explicit. Omitting `throws` declares an infallible callable type. Only a genuinely erased callable
+whose contract is unavailable contributes the conservative broad `throwable` fallback.
+
+Bindings preserve exact metadata from named functions, closures, and stored bound methods. A
+destination may widen that implementation to a compatible upper bound, but it may not narrow or
+replace the inferred set. The same compatibility check applies to bindings, arguments, returned
+callables, and class-field initializers. A callable proven infallible uses an infallible generated
+ABI; conversion to a broader result-bearing callable introduces an adapter at that destination.
+Consequently invocation through the exact value needs neither error propagation nor a semantic
+error-site record.
+
 Reflection preserves two distinct facts: `throwable-contract`, containing the optional written
 upper bound, and `escaping-throwables`, containing the compiler-inferred concrete set for the current
 implementation. Documentation and tooling can therefore answer both “what does this API promise?”

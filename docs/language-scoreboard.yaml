@@ -696,16 +696,17 @@ features:
 - id: callable-throwable-types
   name: Throwable contracts on function types
   category: callables
-  status: planned
-  completion: 0
+  status: done
+  completion: 100
   milestone: '26.2'
   reference:
-    state: planned
+    state: documented
     paths:
     - manual/reference/records/language/functions/callable-types.yaml
-    - manual/reference/records/language/errors/contracts.yaml
-  notes: Will preserve precise declared throwable bounds across higher-order compatibility and invocation.
+  notes: Postfix bounds associate with the nearest sync or async function type; exact inferred sets survive named functions, closures, bound methods, and initialized aliases, while genuinely erased unbounded callables remain broad. Compatibility admits infallible and narrower implementations across bindings, arguments, returns, and class fields, and exact infallible invocation has no Result propagation or error site.
   sources:
+  - docs/language-spec-concise.md#ERROR / CALLABLE
+  - docs/language-spec-and-compiler-architecture-draft.md#Inference, optional contracts, and lowering
   - docs/compiler-plan.md#Milestone 26.2
 - id: match-expression
   name: Pattern matching

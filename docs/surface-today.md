@@ -674,11 +674,13 @@ callable value
     └── captures resolver-selected outer bindings once when the closure is created
 ```
 
-Function values use `function from ... to ...` annotations and may cross bindings, parameters,
-and return boundaries. Anonymous functions use ordinary `function` syntax without a declaration
-name. The compiler checks duplicate, unknown, missing, and excess arguments, and rejects positional
-arguments after named arguments. Variadic functions, overloads, and generic functions are not
-implemented.
+Function values use `function from ... to ... [throws T]` annotations and may cross bindings,
+parameters, returns, and object-member boundaries. `throws T` is a callable upper bound; nested
+function results associate right and each postfix clause binds to its nearest function type.
+Anonymous functions use ordinary `function` syntax without a declaration name. The compiler checks
+duplicate, unknown, missing, and excess arguments, rejects positional arguments after named
+arguments, and checks callable throwable compatibility at every typed destination. Variadic
+functions, overloads, and generic functions are not implemented.
 
 ## Source object and name model
 
@@ -750,13 +752,18 @@ while the owner proof remains complete.
 ## Callable contracts and reflection
 
 Callable contracts are modelled by the rule each one enforces rather than as permissions from one
-generic effect system. The compiler infers exact escaping throwable alternatives and receiver
-mutation, distinguishes sync and async callable types, and validates suspension through explicit
-`await`. `awaits`, `mutating`, `mutates`, `unsafe`, and bare `foreign` are not function qualifiers.
-Concrete unsafe Rust and foreign interoperability belong to explicit Rust, runtime, adapter,
-import, or ABI constructs. Callable reflection exposes retained `.contracts`,
-`.throwable-contract`, and `.escaping-throwables` metadata; descriptor values retain canonical
-identity and `.name`.
+generic effect system. The compiler retains a callable type's written throwable upper bound
+separately from its exact escaping set. Infallible and narrower implementations satisfy a broader
+destination; broader or unrelated sets are rejected. Omitting `throws` declares an infallible
+callable type. Named functions, closures, bound methods, and initialized aliases keep exact
+metadata; only a genuinely erased callable with unavailable metadata falls back to broad
+`throwable`. Exact infallible callable values use an infallible generated ABI with no result
+propagation or registered error site. The compiler also infers receiver mutation, distinguishes
+sync and async callable types, and validates suspension through explicit `await`. `awaits`,
+`mutating`, `mutates`, `unsafe`, and bare `foreign` are not function qualifiers. Concrete unsafe
+Rust and foreign interoperability belong to explicit Rust, runtime, adapter, import, or ABI
+constructs. Callable reflection exposes retained `.contracts`, `.throwable-contract`, and
+`.escaping-throwables` metadata; descriptor values retain canonical identity and `.name`.
 
 I/O and blocking are not source qualifiers, ordinary operations require no compiler-issued
 capability value, and manifests do not inject authority into entrypoints. `pure` is not a function
