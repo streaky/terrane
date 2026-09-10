@@ -488,6 +488,7 @@ edge_contracts:
   nan: unary target operations preserve NaN category; payload/sign are unspecified except copy-sign, next-up/down, decompose, and receiver-NaN clamp retain the input bits
   hypotenuse: infinity wins over NaN
   clamp: receiver NaN is retained; an invalid bound pair produces canonical NaN
+  fractional-part: NaN or either infinity produces NaN
   next: NaN and the outward infinity are unchanged; moving inward from infinity yields the corresponding finite extreme
   decompose: signed zero and non-finite receivers are returned unchanged with exponent zero
 rounding: every operation runs at receiver precision; scale-binary has one ties-to-even rounding; only multiply-add is fused

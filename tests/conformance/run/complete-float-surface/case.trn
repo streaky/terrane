@@ -57,6 +57,7 @@ function exercise32;
   print; infinity-decomposition.mantissa.infinite, infinity-decomposition.exponent == 0
   print; negative-zero-decomposition.mantissa.negative-sign, negative-zero-decomposition.exponent == 0
   negative-infinity float32 = negative-one / zero
+  print; (infinity.fractional-part;).not-a-number, (negative-infinity.fractional-part;).not-a-number
   print; (negative-infinity.next-down;).infinite, (negative-infinity.next-down;).negative-sign
   large-exponent float32 = 120.0
   large float32 = (large-exponent.binary-exponential;)
@@ -121,6 +122,7 @@ function exercise64;
   print; infinity-decomposition.mantissa.infinite, infinity-decomposition.exponent == 0
   print; negative-zero-decomposition.mantissa.negative-sign, negative-zero-decomposition.exponent == 0
   negative-infinity float64 = negative-one / zero
+  print; (infinity.fractional-part;).not-a-number, (negative-infinity.fractional-part;).not-a-number
   print; (negative-infinity.next-down;).infinite, (negative-infinity.next-down;).negative-sign
   large-exponent float64 = 1000.0
   large float64 = (large-exponent.binary-exponential;)

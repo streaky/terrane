@@ -405,13 +405,13 @@ mod __terrane_trace {
             }
         },
         {
-            /* terrane-site-row: site 2: /complete-float-surface::exercise64 (case.trn:114:69-114:86) */
+            /* terrane-site-row: site 2: /complete-float-surface::exercise64 (case.trn:115:69-115:86) */
             Site {
                 function: 1,
                 file: 0,
-                line: 114,
+                line: 115,
                 column: 69,
-                end_line: 114,
+                end_line: 115,
                 end_column: 86,
             }
         },
@@ -729,6 +729,15 @@ fn exercise32() {
     );
     let negative_infinity: f32 = negative_one / zero;
     println!(
+        "{}{}", terrane_scalar_support::scalar_text(&{ let terrane_receiver : f32 =
+        infinity; let terrane_fraction = terrane_receiver.fract(); if terrane_fraction ==
+        0.0 { 0.0_f32.copysign(terrane_receiver) } else { terrane_fraction } }
+        .is_nan()), terrane_scalar_support::scalar_text(&{ let terrane_receiver : f32 =
+        negative_infinity; let terrane_fraction = terrane_receiver.fract(); if
+        terrane_fraction == 0.0 { 0.0_f32.copysign(terrane_receiver) } else {
+        terrane_fraction } } .is_nan())
+    );
+    println!(
         "{}{}", terrane_scalar_support::scalar_text(&negative_infinity.next_down()
         .is_infinite()), terrane_scalar_support::scalar_text(&negative_infinity
         .next_down().is_sign_negative())
@@ -984,7 +993,7 @@ fn exercise64() {
         5.0)),
         terrane_scalar_support::scalar_text(&(terrane_scalar_support::scale_binary_f64(one,
         __terrane_raised(terrane_int_support::exact_from_f64:: < i32 >
-        (floating_exponent), 2 /* terrane-site: case.trn:114:69-114:86 */)) == four))
+        (floating_exponent), 2 /* terrane-site: case.trn:115:69-115:86 */)) == four))
     );
     println!(
         "{}", terrane_scalar_support::scalar_text(&{ let terrane_receiver : f64 =
@@ -1029,6 +1038,15 @@ fn exercise64() {
         terrane_scalar_support::scalar_text(&(negative_zero_decomposition.exponent == 0))
     );
     let negative_infinity: f64 = negative_one / zero;
+    println!(
+        "{}{}", terrane_scalar_support::scalar_text(&{ let terrane_receiver : f64 =
+        infinity; let terrane_fraction = terrane_receiver.fract(); if terrane_fraction ==
+        0.0 { 0.0_f64.copysign(terrane_receiver) } else { terrane_fraction } }
+        .is_nan()), terrane_scalar_support::scalar_text(&{ let terrane_receiver : f64 =
+        negative_infinity; let terrane_fraction = terrane_receiver.fract(); if
+        terrane_fraction == 0.0 { 0.0_f64.copysign(terrane_receiver) } else {
+        terrane_fraction } } .is_nan())
+    );
     println!(
         "{}{}", terrane_scalar_support::scalar_text(&negative_infinity.next_down()
         .is_infinite()), terrane_scalar_support::scalar_text(&negative_infinity
