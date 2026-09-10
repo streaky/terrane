@@ -487,9 +487,9 @@ string value
 │   ├── .length -> int        Unicode extended grapheme-cluster count
 │   └── .type -> string
 ├── views
-│   ├── .bytes -> byte sequence
-│   ├── .scalars -> list of scalar strings
-│   └── .graphemes -> list of grapheme strings
+│   ├── .bytes -> iterable byte sequence
+│   ├── .scalars -> iterable list of scalar strings
+│   └── .graphemes -> iterable list of grapheme strings
 ├── transformation and search families
 │   ├── .trim[.start|.end]; pattern? -> string
 │   ├── .contains[.start|.end]; pattern -> bool
