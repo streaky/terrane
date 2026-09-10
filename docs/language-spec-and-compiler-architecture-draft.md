@@ -1809,29 +1809,70 @@ Outside every destination and operand context, a whole-number constant expressio
 
 ### 11.3 Foundational floating-point mathematics
 
-`float32` and `float64` provide the scalar operations needed to build ordinary numerical algorithms without importing a scientific package:
+`float32` and `float64` provide the scalar operations needed to build ordinary numerical algorithms without importing a scientific package. Every floating result preserves the receiver width.
 
 | Member | Result | Contract |
 |---|---|---|
-| `value.square-root;` | receiver type | IEEE square root; a negative finite operand produces NaN, either zero preserves its sign, and positive infinity remains infinite |
-| `value.sine;` | receiver type | sine in radians |
-| `value.cosine;` | receiver type | cosine in radians |
-| `value.sine-cosine;` | tuple of receiver type | the sine followed by the cosine, computed as one combined operation when the target provides one |
-| `value.natural-log;` | receiver type | natural logarithm; positive zero produces negative infinity, a negative finite operand produces NaN, and positive infinity remains infinite |
-| `value.exponential;` | receiver type | base-$e$ exponential; negative infinity produces positive zero and positive infinity remains infinite |
-| `value.absolute;` | receiver type | IEEE absolute value; negative zero becomes positive zero and infinity remains infinite |
-| `value.finite` | `bool` | true exactly when the receiver is neither infinite nor NaN |
-| `value.infinite` | `bool` | true exactly for positive or negative infinity |
-| `value.not-a-number` | `bool` | true exactly when the receiver is NaN |
-| `value.minimum; other` | receiver type | the lesser operand; if exactly one operand is NaN, return the numeric operand; negative zero is less than positive zero |
-| `value.maximum; other` | receiver type | the greater operand; if exactly one operand is NaN, return the numeric operand; positive zero is greater than negative zero |
-| `value.multiply-add; multiplier, addend` | receiver type | compute `value * multiplier + addend` as one fused operation with a single final rounding |
+| `value.square-root;` | receiver type | IEEE square root |
+| `value.cube-root;` | receiver type | real cube root, preserving either signed zero |
+| `value.hypotenuse; other` | receiver type | $\sqrt{value^2 + other^2}$ without avoidable intermediate overflow or underflow; infinity wins over NaN |
+| `value.power; exponent` | receiver type | floating-exponent power |
+| `value.integer-power; exponent` | receiver type | integral power; `exponent` admits `int32` |
+| `value.exponential;` | receiver type | base-$e$ exponential |
+| `value.binary-exponential;` | receiver type | base-two exponential |
+| `value.exponential-minus-one;` | receiver type | $e^{value}-1$ without cancellation near zero |
+| `value.natural-log;` | receiver type | base-$e$ logarithm |
+| `value.natural-log-one-plus;` | receiver type | $\ln(1+value)$ without cancellation near zero |
+| `value.binary-log;` | receiver type | base-two logarithm |
+| `value.decimal-log;` | receiver type | base-ten logarithm |
+| `value.logarithm; base` | receiver type | logarithm in the supplied floating base |
+| `value.sine;` / `value.cosine;` / `value.tangent;` | receiver type | trigonometric result in radians |
+| `value.sine-cosine;` | tuple of receiver type | sine followed by cosine, computed as one combined operation when available |
+| `value.arc-sine;` / `value.arc-cosine;` / `value.arc-tangent;` | receiver type | inverse trigonometric result in radians |
+| `y.arc-tangent-two; x` | receiver type | quadrant-aware angle of the point $(x,y)$ in radians |
+| `value.absolute;` | receiver type | clear the IEEE sign bit |
+| `magnitude.copy-sign; sign-source` | receiver type | retain the magnitude bits and replace exactly the sign bit |
+| `value.minimum; other` / `value.maximum; other` | receiver type | number-preferring IEEE selection with negative zero ordered below positive zero |
+| `value.clamp; lower, upper` | receiver type | ordered maximum with `lower`, then ordered minimum with `upper` |
+| `value.fractional-part;` | receiver type | `value` minus truncation toward zero, retaining the receiver's zero sign |
+| `value.multiply-add; multiplier, addend` | receiver type | `value * multiplier + addend` fused with one final rounding |
+| `value.next-up;` / `value.next-down;` | receiver type | adjacent representable value toward positive or negative infinity |
+| `value.decompose;` | decomposition object | exact mantissa and `int32` exponent such that a finite non-zero receiver equals `mantissa * 2^exponent` and $0.5 \leq |\mathrm{mantissa}| < 1$ |
+| `value.scale-binary; exponent` | receiver type | exact multiplication by $2^\text{exponent}$ followed by one receiver-precision rounding; `exponent` admits `int32` |
 
-`finite`, `infinite`, and `not-a-number` are classification properties: selecting one immediately observes receiver state. `square-root`, `sine`, `cosine`, `sine-cosine`, `natural-log`, `exponential`, and `absolute` are zero-argument methods because they compute or transform a value; selecting one produces a bound callable and `;` invokes it. This distinction follows the object model rather than parameter count. `minimum` and `maximum` take exactly one argument of the receiver type, and `multiply-add` takes exactly two; calls use the parenthesized member-call form when embedded in a larger expression. All members preserve `float32` or `float64` where they return a floating value. The mathematical operations follow the target's IEEE-754 behavior for NaN, infinity, signed zero, domain, overflow, underflow, and rounding except where the table states a stronger selection or rounding contract. They do not throw for a floating-point domain or range condition.
+The classification observations are properties:
 
-The language specifies correctly rounded results where the target primitive provides that guarantee. Otherwise the implementation must document a bounded error and keep results deterministic for one compiler version, target, and floating-point mode. Cross-target bit identity is not required for these transcendental operations. Compile-time evaluation, when offered, must use the same observable contract as runtime evaluation and must not introduce a second approximation policy.
+| Property | Contract |
+|---|---|
+| `value.finite` | true exactly when the receiver is neither infinity nor NaN |
+| `value.infinite` | true exactly for positive or negative infinity |
+| `value.not-a-number` | true exactly for NaN |
+| `value.negative-sign` | the IEEE sign bit, including negative zero and a signed NaN |
+| `value.zero` | true for either signed zero |
+| `value.normal` | true for a finite non-zero value with a full-precision significand |
+| `value.subnormal` | true for a finite non-zero value below the minimum positive normal |
 
-These foundational members do not include Bessel functions, incomplete gamma functions, probability distributions, linear algebra, or array operations. Such algorithms belong in reviewed standard or scientific packages built on this scalar substrate.
+Selecting a property observes receiver state immediately and invoking it is an error. Every computational member is a method, including a zero-argument method: selection produces a bound callable and `;` invokes it. Same-floating arguments admit the receiver type through ordinary destination rules. `integer-power` and `scale-binary` instead admit `int32`; their fixed exponent width is part of the operation contract and maps without a hidden target-width conversion. `decompose` returns a compiler-owned object with `.mantissa` of the receiver type and `.exponent` of `int32`.
+
+The floating descriptors retain these constants:
+
+| Descriptor member | `float32` | `float64` |
+|---|---:|---:|
+| `.radix` | 2 | 2 |
+| `.significand-digits` | 24 | 53 |
+| `.epsilon` | distance from 1 to its successor | distance from 1 to its successor |
+| `.minimum-positive-normal` | least positive normal binary32 value | least positive normal binary64 value |
+| `.minimum-positive-subnormal` | least positive binary32 value | least positive binary64 value |
+| `.minimum` | least finite binary32 value | least finite binary64 value |
+| `.maximum` | greatest finite binary32 value | greatest finite binary64 value |
+
+Floating domain and range conditions do not throw. They produce the IEEE category selected by the operation: for example, an out-of-domain root, logarithm, inverse trigonometric call, or negative finite base with a non-integral floating exponent produces NaN; exponential overflow produces positive infinity; and underflow rounds through subnormal values to signed zero. Zero and infinity behavior follows the target primitive except where this section states stronger selection. `hypotenuse` returns infinity when one operand is infinite even if the other is NaN. `minimum` and `maximum` return the numeric operand when exactly one operand is NaN and NaN when both are NaN. `clamp` retains a receiver NaN, returns canonical NaN when either bound is NaN or `lower > upper`, and otherwise uses the same signed-zero ordering as `minimum` and `maximum`. Unary target operations need preserve only NaN category; payload and sign are unspecified except that `copy-sign`, `next-up`, `next-down`, `decompose`, and receiver-NaN `clamp` retain the input bits required by their definitions.
+
+`next-up` leaves NaN and positive infinity unchanged, turns negative infinity into `.minimum`, and crosses either signed zero to `.minimum-positive-subnormal`. `next-down` is symmetric. `decompose` returns a signed-zero or non-finite receiver unchanged with exponent zero. `scale-binary` performs one final round-to-nearest, ties-to-even at the receiver width, including gradual underflow; it does not expose multiplication's avoidable double rounding. Every other operation runs entirely at the receiver width. Only `multiply-add` has fused arithmetic semantics.
+
+Bit classification, sign manipulation, adjacent-value traversal, decomposition, descriptor constants, and exact results named above are bit-exact. Square root and fused multiply-add are correctly rounded where the target primitive guarantees that property. The remaining elementary and transcendental operations use the target primitive's documented result and deliberately promise no cross-target ULP bound: this compiler does not silently introduce a scientific implementation merely to normalize host libraries. Results are deterministic for one compiler version, target, standard library, and floating-point mode; cross-target bit identity is not required. Compile-time evaluation, if offered, must use this same contract and approximation policy.
+
+These members lower to direct target primitives or the smallest compiler-owned scalar support routine. They add no scientific dependency. Bessel functions, incomplete gamma functions, probability distributions, linear algebra, and array operations remain package concerns.
 
 ### 11.4 Dynamic bindings
 

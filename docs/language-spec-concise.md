@@ -429,30 +429,78 @@ postfix_policy: they select the default add/subtract child only; other policies 
 
 ```yaml
 receivers: float32 | float64
-method_shape: zero-argument computational methods; floating results preserve receiver type
-square-root: 'value.square-root;' -> IEEE square root; negative finite -> NaN; signed zero preserved; +infinity -> +infinity
-sine: 'value.sine;' -> radians
-cosine: 'value.cosine;' -> radians
-sine-cosine: 'value.sine-cosine;' -> tuple [sine, cosine], combined target operation when available
-natural-log: 'value.natural-log;' -> +0 -> -infinity; negative finite -> NaN; +infinity -> +infinity
-exponential: 'value.exponential;' -> -infinity -> +0; +infinity -> +infinity
-absolute: 'value.absolute;' -> IEEE absolute value; -0 -> +0
-finite: property -> bool; neither infinity nor NaN
-infinite: property -> bool; either infinity
-not-a-number: property -> bool; NaN
-minimum: one same-type argument -> receiver type; numeric operand wins over one NaN; -0 is less than +0
-maximum: one same-type argument -> receiver type; numeric operand wins over one NaN; +0 is greater than -0
-multiply-add: two same-type arguments -> receiver type; receiver * multiplier + addend fused with one final rounding
-errors: no throw for floating domain/range; inherit IEEE NaN, signed-zero, infinity, overflow, underflow, rounding
-accuracy: correctly rounded where target guarantees it; otherwise documented bounded error
-reproducibility: deterministic for one compiler version/target/float mode; cross-target bit identity not required
+method_shape: computational members are methods; floating results preserve receiver type
+properties:
+  finite: neither infinity nor NaN
+  infinite: either infinity
+  not-a-number: NaN
+  negative-sign: IEEE sign bit, including negative zero and signed NaN
+  zero: either signed zero
+  normal: finite non-zero value with a full-precision significand
+  subnormal: finite non-zero value below minimum-positive-normal
+roots_powers:
+  square-root: 'value.square-root;'
+  cube-root: 'value.cube-root;'
+  hypotenuse: 'value.hypotenuse; other'
+  power: 'value.power; exponent' -> same floating type
+  integer-power: 'value.integer-power; exponent int32'
+exponentials_logs:
+  exponential: base e
+  binary-exponential: base 2
+  exponential-minus-one: exp(value)-1 without near-zero cancellation
+  natural-log: base e
+  natural-log-one-plus: ln(1+value) without near-zero cancellation
+  binary-log: base 2
+  decimal-log: base 10
+  logarithm: 'value.logarithm; base'
+trigonometry:
+  sine: radians
+  cosine: radians
+  sine-cosine: tuple [sine, cosine], combined target operation when available
+  tangent: radians
+  arc-sine: radians
+  arc-cosine: radians
+  arc-tangent: radians
+  arc-tangent-two: 'y.arc-tangent-two; x' -> quadrant-aware angle
+scalar:
+  absolute: clears the sign bit
+  copy-sign: 'magnitude.copy-sign; sign-source' -> magnitude bits with source sign bit
+  minimum: number-preferring minimum; -0 precedes +0
+  maximum: number-preferring maximum; +0 follows -0
+  clamp: 'value.clamp; lower, upper' -> ordered minimum/maximum; NaN bound or lower > upper produces canonical NaN
+  fractional-part: value minus truncation; signed zero follows receiver
+  multiply-add: 'value.multiply-add; multiplier, addend' -> one fused final rounding
+algorithm:
+  next-up: next representable value toward +infinity
+  next-down: next representable value toward -infinity
+  decompose: 'value.decompose;' -> object with mantissa Receiver and exponent int32; finite non-zero value = mantissa * 2^exponent and 0.5 <= abs(mantissa) < 1
+  scale-binary: 'value.scale-binary; exponent int32' -> value * 2^exponent with one destination-precision rounding
+descriptor_constants:
+  radix: int value 2
+  significand-digits: int value 24 for float32, 53 for float64
+  epsilon: distance from 1 to the next larger value
+  minimum-positive-normal: least positive normal
+  minimum-positive-subnormal: least positive representable value
+  minimum: least finite value
+  maximum: greatest finite value
+edge_contracts:
+  no_throw: floating domain/range conditions produce IEEE NaN, infinity, signed zero, overflow, or underflow
+  nan: unary target operations preserve NaN category; payload/sign are unspecified except copy-sign, next-up/down, decompose, and receiver-NaN clamp retain the input bits
+  hypotenuse: infinity wins over NaN
+  clamp: receiver NaN is retained; an invalid bound pair produces canonical NaN
+  next: NaN and the outward infinity are unchanged; moving inward from infinity yields the corresponding finite extreme
+  decompose: signed zero and non-finite receivers are returned unchanged with exponent zero
+rounding: every operation runs at receiver precision; scale-binary has one ties-to-even rounding; only multiply-add is fused
+accuracy: exact bit operations and classification are exact; elementary/transcendental operations use the target primitive's documented result with no portable ULP guarantee
+reproducibility: deterministic for one compiler version, target, standard library, and float mode; cross-target bit identity is not required
 lowering: direct target primitive or smallest compiler-owned scalar support routine; no scientific dependency
 excluded: Bessel, incomplete gamma, distributions, linear algebra, arrays
 ```
 
-- Property spellings are the classification observations `value.finite`, `value.infinite`, and `value.not-a-number`.
-- Zero-argument computational method spellings are `value.square-root;`, `value.sine;`, `value.cosine;`, `value.sine-cosine;`, `value.natural-log;`, `value.exponential;`, and `value.absolute;`. Selection without `;` yields the bound operation rather than its result. Argument-taking operation spellings are `value.minimum; other`, `value.maximum; other`, and `value.multiply-add; multiplier, addend`. In larger expressions, use the ordinary parenthesized member-call form.
-- `minimum` and `maximum` return NaN when both operands are NaN. All operation arguments must have the receiver's floating type.
+- Classification and `negative-sign` are properties and cannot be invoked. Every other member above is a method, including zero-argument methods.
+- Same-floating arguments must admit the receiver type. `integer-power` and `scale-binary` require an `int32` destination-compatible argument. `decompose.exponent` is `int32`.
+- `minimum` and `maximum` return the numeric operand when exactly one input is NaN and return NaN when both are NaN.
+- `power`, logarithms, inverse trigonometry, roots, and exponentials inherit the stated target primitive's IEEE special-value selection. A negative finite base with a non-integral floating exponent and an out-of-domain logarithm or inverse trigonometric input produce NaN.
 - Compile-time evaluation, if provided, must match the runtime contract and approximation policy.
 
 ## COERCION

@@ -202,22 +202,6 @@ Lower the semantic model to a small Rust-oriented IR before rendering text. The 
 
 This section contains only work that remains required by the settled version-one design. For a partially delivered milestone, its heading and exit criterion have been rewritten around the unfinished capability rather than repeating already implemented work. Requirements superseded by later language decisions are called out and excluded. Completely delivered milestones and completed portions of split milestones are retained in Appendix A.
 
-### Milestone 25.3 — Finish the foundational floating-point surface
-
-The first two increments delivered square root, sine, cosine, sine-cosine, natural logarithm, exponential, absolute value, finite/infinite/NaN classification, minimum, maximum, and fused multiply-add for both floating widths. Complete the remaining non-scientific scalar surface.
-
-Deliver:
-
-- roots and powers: cube root, hypotenuse, floating power, and integer-exponent power;
-- exponentials and logarithms: base-two exponential, near-zero exponential-minus-one, near-one natural logarithm, and base-two, base-ten, and arbitrary-base logarithms;
-- trigonometry: tangent, inverse sine/cosine/tangent, and two-argument arctangent;
-- scalar utilities: copied sign, sign-bit query, clamp, and fractional-part extraction;
-- IEEE classification: zero, normal, and subnormal;
-- algorithm utilities: next representable value upward/downward, mantissa/exponent decomposition, and exact scaling by an integral power of two;
-- descriptor constants for radix, significand precision, epsilon, minimum positive normal and subnormal values, and finite minimum and maximum; and
-- settled NaN-selection, signed-zero, infinity, domain, overflow, underflow, rounding, accuracy, and target-reproducibility contracts for every member.
-
-Exit criterion: accepted cases exercise every remaining member on `float32` and `float64`, including representative IEEE boundaries; rejected cases prove receiver, member-kind, arity, and argument contracts; generated Rust uses direct target operations or compiler-owned scalar support, compiles warning-free, and needs no scientific dependency.
 
 ### Milestone 25.4 — Destination-directed specialization of closed generic results
 
@@ -642,7 +626,6 @@ Section 7 is the authoritative remaining-work list. In milestone order, the open
   (milestone 16);
 - complete reference provenance, target-aware cycle handling, and borrow-oriented lowering
   (milestone 17);
-- finish the foundational floating-point member set (milestone 25.3);
 - implement destination-directed specialization of closed projected results (milestone 25.4);
 - add throwable bounds to function types (milestone 26.2);
 - deliver the Terrane-native unit, integration, and end-to-end testing framework (milestone 27.1);
@@ -2490,9 +2473,9 @@ crosses a `bytes` receiver-first trait method and uses `serde_json`'s `Option<Nu
 coercion, data-free enum variants, and enum comparison; focused package, projection, semantic,
 generated-Rust, and rejection checks cover the remaining contracts.
 
-### Completed portion of Milestone 25.3 — Floating-point foundation
+### Milestone 25.3 — Foundational floating-point surface
 
-Both floating widths expose square root, sine, cosine, sine-cosine, natural logarithm, exponential, absolute value, finite/infinite/NaN classification, minimum, maximum, and fused multiply-add. Members preserve receiver precision and lower directly to Rust primitive operations. Canonical, warning-free conformance covers bound methods, explicit zero-argument calls, IEEE edge categories, and fused-versus-unfused rounding; scientific benchmark paths use the delivered primitives without a scientific dependency.
+Both floating widths expose the complete non-scientific scalar surface: roots and powers; cancellation-resistant exponentials and logarithms; direct and inverse trigonometry; sign, clamp, fractional, classification, adjacent-value, decomposition, and exact binary-scaling utilities; and canonical descriptor constants. Floating results preserve receiver precision. Direct target operations and compiler-owned bit-exact scalar support implement the settled NaN-selection, signed-zero, infinity, domain, overflow, underflow, rounding, accuracy, and target-reproducibility contracts without a scientific dependency. Canonical, warning-free accepted conformance exercises every member and representative IEEE boundaries on `float32` and `float64`; rejected cases cover receiver, property/method kind, arity, and same-floating versus integral argument contracts.
 
 ### Milestone 26 — Remaining concurrency and system adapters
 
