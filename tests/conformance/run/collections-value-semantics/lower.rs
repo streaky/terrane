@@ -379,149 +379,32 @@ mod __terrane_trace {
     pub static FILES: [&str; 1] = ["case.trn"];
     pub static FUNCTIONS: [&str; 1] = ["/collections-value-semantics::main"];
     pub static SITES: [Site; 13] = [
-        {
-            /* terrane-site-row: site 0: /collections-value-semantics::main (case.trn:8:3-8:21) */
-            Site {
-                function: 0,
-                file: 0,
-                line: 8,
-                column: 3,
-                end_line: 8,
-                end_column: 21,
-            }
-        },
-        {
-            /* terrane-site-row: site 1: /collections-value-semantics::main (case.trn:9:47-9:61) */
-            Site {
-                function: 0,
-                file: 0,
-                line: 9,
-                column: 47,
-                end_line: 9,
-                end_column: 61,
-            }
-        },
-        {
-            /* terrane-site-row: site 2: /collections-value-semantics::main (case.trn:9:63-9:77) */
-            Site {
-                function: 0,
-                file: 0,
-                line: 9,
-                column: 63,
-                end_line: 9,
-                end_column: 77,
-            }
-        },
-        {
-            /* terrane-site-row: site 3: /collections-value-semantics::main (case.trn:15:10-15:27) */
-            Site {
-                function: 0,
-                file: 0,
-                line: 15,
-                column: 10,
-                end_line: 15,
-                end_column: 27,
-            }
-        },
-        {
-            /* terrane-site-row: site 4: /collections-value-semantics::main (case.trn:21:23-21:30) */
-            Site {
-                function: 0,
-                file: 0,
-                line: 21,
-                column: 23,
-                end_line: 21,
-                end_column: 30,
-            }
-        },
-        {
-            /* terrane-site-row: site 5: /collections-value-semantics::main (case.trn:24:13-24:24) */
-            Site {
-                function: 0,
-                file: 0,
-                line: 24,
-                column: 13,
-                end_line: 24,
-                end_column: 24,
-            }
-        },
-        {
-            /* terrane-site-row: site 6: /collections-value-semantics::main (case.trn:27:15-27:38) */
-            Site {
-                function: 0,
-                file: 0,
-                line: 27,
-                column: 15,
-                end_line: 27,
-                end_column: 38,
-            }
-        },
-        {
-            /* terrane-site-row: site 7: /collections-value-semantics::main (case.trn:31:11-31:26) */
-            Site {
-                function: 0,
-                file: 0,
-                line: 31,
-                column: 11,
-                end_line: 31,
-                end_column: 26,
-            }
-        },
-        {
-            /* terrane-site-row: site 8: /collections-value-semantics::main (case.trn:36:5-36:19) */
-            Site {
-                function: 0,
-                file: 0,
-                line: 36,
-                column: 5,
-                end_line: 36,
-                end_column: 19,
-            }
-        },
-        {
-            /* terrane-site-row: site 9: /collections-value-semantics::main (case.trn:41:36-41:63) */
-            Site {
-                function: 0,
-                file: 0,
-                line: 41,
-                column: 36,
-                end_line: 41,
-                end_column: 63,
-            }
-        },
-        {
-            /* terrane-site-row: site 10: /collections-value-semantics::main (case.trn:56:29-56:41) */
-            Site {
-                function: 0,
-                file: 0,
-                line: 56,
-                column: 29,
-                end_line: 56,
-                end_column: 41,
-            }
-        },
-        {
-            /* terrane-site-row: site 11: /collections-value-semantics::main (case.trn:58:10-58:22) */
-            Site {
-                function: 0,
-                file: 0,
-                line: 58,
-                column: 10,
-                end_line: 58,
-                end_column: 22,
-            }
-        },
-        {
-            /* terrane-site-row: site 12: /collections-value-semantics::main (case.trn:58:24-58:36) */
-            Site {
-                function: 0,
-                file: 0,
-                line: 58,
-                column: 24,
-                end_line: 58,
-                end_column: 36,
-            }
-        },
+        /* terrane-site-row: site 0: /collections-value-semantics::main (case.trn:8:3-8:21) */
+        { Site { function: 0, file: 0, line: 8, column: 3, end_line: 8, end_column: 21 } },
+        /* terrane-site-row: site 1: /collections-value-semantics::main (case.trn:9:47-9:61) */
+        { Site { function: 0, file: 0, line: 9, column: 47, end_line: 9, end_column: 61 } },
+        /* terrane-site-row: site 2: /collections-value-semantics::main (case.trn:9:63-9:77) */
+        { Site { function: 0, file: 0, line: 9, column: 63, end_line: 9, end_column: 77 } },
+        /* terrane-site-row: site 3: /collections-value-semantics::main (case.trn:15:10-15:27) */
+        { Site { function: 0, file: 0, line: 15, column: 10, end_line: 15, end_column: 27 } },
+        /* terrane-site-row: site 4: /collections-value-semantics::main (case.trn:21:23-21:30) */
+        { Site { function: 0, file: 0, line: 21, column: 23, end_line: 21, end_column: 30 } },
+        /* terrane-site-row: site 5: /collections-value-semantics::main (case.trn:24:13-24:24) */
+        { Site { function: 0, file: 0, line: 24, column: 13, end_line: 24, end_column: 24 } },
+        /* terrane-site-row: site 6: /collections-value-semantics::main (case.trn:27:15-27:38) */
+        { Site { function: 0, file: 0, line: 27, column: 15, end_line: 27, end_column: 38 } },
+        /* terrane-site-row: site 7: /collections-value-semantics::main (case.trn:31:11-31:26) */
+        { Site { function: 0, file: 0, line: 31, column: 11, end_line: 31, end_column: 26 } },
+        /* terrane-site-row: site 8: /collections-value-semantics::main (case.trn:36:5-36:19) */
+        { Site { function: 0, file: 0, line: 36, column: 5, end_line: 36, end_column: 19 } },
+        /* terrane-site-row: site 9: /collections-value-semantics::main (case.trn:41:36-41:63) */
+        { Site { function: 0, file: 0, line: 41, column: 36, end_line: 41, end_column: 63 } },
+        /* terrane-site-row: site 10: /collections-value-semantics::main (case.trn:56:29-56:41) */
+        { Site { function: 0, file: 0, line: 56, column: 29, end_line: 56, end_column: 41 } },
+        /* terrane-site-row: site 11: /collections-value-semantics::main (case.trn:58:10-58:22) */
+        { Site { function: 0, file: 0, line: 58, column: 10, end_line: 58, end_column: 22 } },
+        /* terrane-site-row: site 12: /collections-value-semantics::main (case.trn:58:24-58:36) */
+        { Site { function: 0, file: 0, line: 58, column: 24, end_line: 58, end_column: 36 } },
     ];
     #[cold]
     #[inline(never)]

@@ -379,28 +379,10 @@ mod __terrane_trace {
     pub static FILES: [&str; 1] = ["case.trn"];
     pub static FUNCTIONS: [&str; 1] = ["/mixed-width-arithmetic::main"];
     pub static SITES: [Site; 2] = [
-        {
-            /* terrane-site-row: site 0: /mixed-width-arithmetic::main (case.trn:7:17-7:29) */
-            Site {
-                function: 0,
-                file: 0,
-                line: 7,
-                column: 17,
-                end_line: 7,
-                end_column: 29,
-            }
-        },
-        {
-            /* terrane-site-row: site 1: /mixed-width-arithmetic::main (case.trn:8:20-8:35) */
-            Site {
-                function: 0,
-                file: 0,
-                line: 8,
-                column: 20,
-                end_line: 8,
-                end_column: 35,
-            }
-        },
+        /* terrane-site-row: site 0: /mixed-width-arithmetic::main (case.trn:7:17-7:29) */
+        { Site { function: 0, file: 0, line: 7, column: 17, end_line: 7, end_column: 29 } },
+        /* terrane-site-row: site 1: /mixed-width-arithmetic::main (case.trn:8:20-8:35) */
+        { Site { function: 0, file: 0, line: 8, column: 20, end_line: 8, end_column: 35 } },
     ];
     #[cold]
     #[inline(never)]

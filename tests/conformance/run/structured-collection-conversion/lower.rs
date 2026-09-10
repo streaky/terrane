@@ -383,72 +383,18 @@ mod __terrane_trace {
         "/structured-collection-conversion::main",
     ];
     pub static SITES: [Site; 6] = [
-        {
-            /* terrane-site-row: site 0: /structured-collection-conversion::build (case.trn:5:16-5:20) */
-            Site {
-                function: 0,
-                file: 0,
-                line: 5,
-                column: 16,
-                end_line: 5,
-                end_column: 20,
-            }
-        },
-        {
-            /* terrane-site-row: site 1: /structured-collection-conversion::append-value (case.trn:8:25-8:29) */
-            Site {
-                function: 1,
-                file: 0,
-                line: 8,
-                column: 25,
-                end_line: 8,
-                end_column: 29,
-            }
-        },
-        {
-            /* terrane-site-row: site 2: /structured-collection-conversion::main (case.trn:12:13-12:24) */
-            Site {
-                function: 2,
-                file: 0,
-                line: 12,
-                column: 13,
-                end_line: 12,
-                end_column: 24,
-            }
-        },
-        {
-            /* terrane-site-row: site 3: /structured-collection-conversion::main (case.trn:12:12-12:28) */
-            Site {
-                function: 2,
-                file: 0,
-                line: 12,
-                column: 12,
-                end_line: 12,
-                end_column: 28,
-            }
-        },
-        {
-            /* terrane-site-row: site 4: /structured-collection-conversion::main (case.trn:16:13-16:31) */
-            Site {
-                function: 2,
-                file: 0,
-                line: 16,
-                column: 13,
-                end_line: 16,
-                end_column: 31,
-            }
-        },
-        {
-            /* terrane-site-row: site 5: /structured-collection-conversion::main (case.trn:16:12-16:35) */
-            Site {
-                function: 2,
-                file: 0,
-                line: 16,
-                column: 12,
-                end_line: 16,
-                end_column: 35,
-            }
-        },
+        /* terrane-site-row: site 0: /structured-collection-conversion::build (case.trn:5:16-5:20) */
+        { Site { function: 0, file: 0, line: 5, column: 16, end_line: 5, end_column: 20 } },
+        /* terrane-site-row: site 1: /structured-collection-conversion::append-value (case.trn:8:25-8:29) */
+        { Site { function: 1, file: 0, line: 8, column: 25, end_line: 8, end_column: 29 } },
+        /* terrane-site-row: site 2: /structured-collection-conversion::main (case.trn:12:13-12:24) */
+        { Site { function: 2, file: 0, line: 12, column: 13, end_line: 12, end_column: 24 } },
+        /* terrane-site-row: site 3: /structured-collection-conversion::main (case.trn:12:12-12:28) */
+        { Site { function: 2, file: 0, line: 12, column: 12, end_line: 12, end_column: 28 } },
+        /* terrane-site-row: site 4: /structured-collection-conversion::main (case.trn:16:13-16:31) */
+        { Site { function: 2, file: 0, line: 16, column: 13, end_line: 16, end_column: 31 } },
+        /* terrane-site-row: site 5: /structured-collection-conversion::main (case.trn:16:12-16:35) */
+        { Site { function: 2, file: 0, line: 16, column: 12, end_line: 16, end_column: 35 } },
     ];
     #[cold]
     #[inline(never)]

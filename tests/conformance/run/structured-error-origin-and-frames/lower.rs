@@ -383,39 +383,12 @@ mod __terrane_trace {
         "/structured-error-origin-and-frames::main",
     ];
     pub static SITES: [Site; 3] = [
-        {
-            /* terrane-site-row: site 0: /structured-error-origin-and-frames::leaf (case.trn:5:3-5:25) */
-            Site {
-                function: 0,
-                file: 0,
-                line: 5,
-                column: 3,
-                end_line: 5,
-                end_column: 25,
-            }
-        },
-        {
-            /* terrane-site-row: site 1: /structured-error-origin-and-frames::middle (case.trn:8:3-8:8) */
-            Site {
-                function: 1,
-                file: 0,
-                line: 8,
-                column: 3,
-                end_line: 8,
-                end_column: 8,
-            }
-        },
-        {
-            /* terrane-site-row: site 2: /structured-error-origin-and-frames::main (case.trn:11:3-11:10) */
-            Site {
-                function: 2,
-                file: 0,
-                line: 11,
-                column: 3,
-                end_line: 11,
-                end_column: 10,
-            }
-        },
+        /* terrane-site-row: site 0: /structured-error-origin-and-frames::leaf (case.trn:5:3-5:25) */
+        { Site { function: 0, file: 0, line: 5, column: 3, end_line: 5, end_column: 25 } },
+        /* terrane-site-row: site 1: /structured-error-origin-and-frames::middle (case.trn:8:3-8:8) */
+        { Site { function: 1, file: 0, line: 8, column: 3, end_line: 8, end_column: 8 } },
+        /* terrane-site-row: site 2: /structured-error-origin-and-frames::main (case.trn:11:3-11:10) */
+        { Site { function: 2, file: 0, line: 11, column: 3, end_line: 11, end_column: 10 } },
     ];
     #[cold]
     #[inline(never)]

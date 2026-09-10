@@ -382,28 +382,10 @@ mod __terrane_trace {
         "/catch-finally-lexical-scopes::catch-all",
     ];
     pub static SITES: [Site; 2] = [
-        {
-            /* terrane-site-row: site 0: /catch-finally-lexical-scopes::typed-catch (case.trn:6:5-6:30) */
-            Site {
-                function: 0,
-                file: 0,
-                line: 6,
-                column: 5,
-                end_line: 6,
-                end_column: 30,
-            }
-        },
-        {
-            /* terrane-site-row: site 1: /catch-finally-lexical-scopes::catch-all (case.trn:16:5-16:25) */
-            Site {
-                function: 1,
-                file: 0,
-                line: 16,
-                column: 5,
-                end_line: 16,
-                end_column: 25,
-            }
-        },
+        /* terrane-site-row: site 0: /catch-finally-lexical-scopes::typed-catch (case.trn:6:5-6:30) */
+        { Site { function: 0, file: 0, line: 6, column: 5, end_line: 6, end_column: 30 } },
+        /* terrane-site-row: site 1: /catch-finally-lexical-scopes::catch-all (case.trn:16:5-16:25) */
+        { Site { function: 1, file: 0, line: 16, column: 5, end_line: 16, end_column: 25 } },
     ];
     #[cold]
     #[inline(never)]

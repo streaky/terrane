@@ -386,149 +386,32 @@ mod __terrane_trace {
         "/collection-boundary-contextual-typing::main",
     ];
     pub static SITES: [Site; 13] = [
-        {
-            /* terrane-site-row: site 0: /collection-boundary-contextual-typing::take (case.trn:5:10-5:19) */
-            Site {
-                function: 0,
-                file: 0,
-                line: 5,
-                column: 10,
-                end_line: 5,
-                end_column: 19,
-            }
-        },
-        {
-            /* terrane-site-row: site 1: /collection-boundary-contextual-typing::take-entry-map (case.trn:9:10-9:21) */
-            Site {
-                function: 1,
-                file: 0,
-                line: 9,
-                column: 10,
-                end_line: 9,
-                end_column: 21,
-            }
-        },
-        {
-            /* terrane-site-row: site 2: /collection-boundary-contextual-typing::take-entry-map (case.trn:9:27-9:38) */
-            Site {
-                function: 1,
-                file: 0,
-                line: 9,
-                column: 27,
-                end_line: 9,
-                end_column: 38,
-            }
-        },
-        {
-            /* terrane-site-row: site 3: /collection-boundary-contextual-typing::take-nested-map (case.trn:13:10-13:21) */
-            Site {
-                function: 2,
-                file: 0,
-                line: 13,
-                column: 10,
-                end_line: 13,
-                end_column: 21,
-            }
-        },
-        {
-            /* terrane-site-row: site 4: /collection-boundary-contextual-typing::take-nested-map (case.trn:13:10-13:26) */
-            Site {
-                function: 2,
-                file: 0,
-                line: 13,
-                column: 10,
-                end_line: 13,
-                end_column: 26,
-            }
-        },
-        {
-            /* terrane-site-row: site 5: /collection-boundary-contextual-typing::take-nested-list (case.trn:15:10-15:19) */
-            Site {
-                function: 3,
-                file: 0,
-                line: 15,
-                column: 10,
-                end_line: 15,
-                end_column: 19,
-            }
-        },
-        {
-            /* terrane-site-row: site 6: /collection-boundary-contextual-typing::take-nested-list (case.trn:15:10-15:22) */
-            Site {
-                function: 3,
-                file: 0,
-                line: 15,
-                column: 10,
-                end_line: 15,
-                end_column: 22,
-            }
-        },
-        {
-            /* terrane-site-row: site 7: /collection-boundary-contextual-typing::take-map-list (case.trn:17:10-17:21) */
-            Site {
-                function: 4,
-                file: 0,
-                line: 17,
-                column: 10,
-                end_line: 17,
-                end_column: 21,
-            }
-        },
-        {
-            /* terrane-site-row: site 8: /collection-boundary-contextual-typing::take-map-list (case.trn:17:10-17:24) */
-            Site {
-                function: 4,
-                file: 0,
-                line: 17,
-                column: 10,
-                end_line: 17,
-                end_column: 24,
-            }
-        },
-        {
-            /* terrane-site-row: site 9: /collection-boundary-contextual-typing::main (case.trn:28:22-28:30) */
-            Site {
-                function: 5,
-                file: 0,
-                line: 28,
-                column: 22,
-                end_line: 28,
-                end_column: 30,
-            }
-        },
-        {
-            /* terrane-site-row: site 10: /collection-boundary-contextual-typing::main (case.trn:28:32-28:39) */
-            Site {
-                function: 5,
-                file: 0,
-                line: 28,
-                column: 32,
-                end_line: 28,
-                end_column: 39,
-            }
-        },
-        {
-            /* terrane-site-row: site 11: /collection-boundary-contextual-typing::main (case.trn:28:41-28:58) */
-            Site {
-                function: 5,
-                file: 0,
-                line: 28,
-                column: 41,
-                end_line: 28,
-                end_column: 58,
-            }
-        },
-        {
-            /* terrane-site-row: site 12: /collection-boundary-contextual-typing::main (case.trn:28:64-28:81) */
-            Site {
-                function: 5,
-                file: 0,
-                line: 28,
-                column: 64,
-                end_line: 28,
-                end_column: 81,
-            }
-        },
+        /* terrane-site-row: site 0: /collection-boundary-contextual-typing::take (case.trn:5:10-5:19) */
+        { Site { function: 0, file: 0, line: 5, column: 10, end_line: 5, end_column: 19 } },
+        /* terrane-site-row: site 1: /collection-boundary-contextual-typing::take-entry-map (case.trn:9:10-9:21) */
+        { Site { function: 1, file: 0, line: 9, column: 10, end_line: 9, end_column: 21 } },
+        /* terrane-site-row: site 2: /collection-boundary-contextual-typing::take-entry-map (case.trn:9:27-9:38) */
+        { Site { function: 1, file: 0, line: 9, column: 27, end_line: 9, end_column: 38 } },
+        /* terrane-site-row: site 3: /collection-boundary-contextual-typing::take-nested-map (case.trn:13:10-13:21) */
+        { Site { function: 2, file: 0, line: 13, column: 10, end_line: 13, end_column: 21 } },
+        /* terrane-site-row: site 4: /collection-boundary-contextual-typing::take-nested-map (case.trn:13:10-13:26) */
+        { Site { function: 2, file: 0, line: 13, column: 10, end_line: 13, end_column: 26 } },
+        /* terrane-site-row: site 5: /collection-boundary-contextual-typing::take-nested-list (case.trn:15:10-15:19) */
+        { Site { function: 3, file: 0, line: 15, column: 10, end_line: 15, end_column: 19 } },
+        /* terrane-site-row: site 6: /collection-boundary-contextual-typing::take-nested-list (case.trn:15:10-15:22) */
+        { Site { function: 3, file: 0, line: 15, column: 10, end_line: 15, end_column: 22 } },
+        /* terrane-site-row: site 7: /collection-boundary-contextual-typing::take-map-list (case.trn:17:10-17:21) */
+        { Site { function: 4, file: 0, line: 17, column: 10, end_line: 17, end_column: 21 } },
+        /* terrane-site-row: site 8: /collection-boundary-contextual-typing::take-map-list (case.trn:17:10-17:24) */
+        { Site { function: 4, file: 0, line: 17, column: 10, end_line: 17, end_column: 24 } },
+        /* terrane-site-row: site 9: /collection-boundary-contextual-typing::main (case.trn:28:22-28:30) */
+        { Site { function: 5, file: 0, line: 28, column: 22, end_line: 28, end_column: 30 } },
+        /* terrane-site-row: site 10: /collection-boundary-contextual-typing::main (case.trn:28:32-28:39) */
+        { Site { function: 5, file: 0, line: 28, column: 32, end_line: 28, end_column: 39 } },
+        /* terrane-site-row: site 11: /collection-boundary-contextual-typing::main (case.trn:28:41-28:58) */
+        { Site { function: 5, file: 0, line: 28, column: 41, end_line: 28, end_column: 58 } },
+        /* terrane-site-row: site 12: /collection-boundary-contextual-typing::main (case.trn:28:64-28:81) */
+        { Site { function: 5, file: 0, line: 28, column: 64, end_line: 28, end_column: 81 } },
     ];
     #[cold]
     #[inline(never)]

@@ -379,28 +379,10 @@ mod __terrane_trace {
     pub static FILES: [&str; 1] = ["case.trn"];
     pub static FUNCTIONS: [&str; 1] = ["/contextual-constant-arithmetic::main"];
     pub static SITES: [Site; 2] = [
-        {
-            /* terrane-site-row: site 0: /contextual-constant-arithmetic::main (case.trn:14:17-14:29) */
-            Site {
-                function: 0,
-                file: 0,
-                line: 14,
-                column: 17,
-                end_line: 14,
-                end_column: 29,
-            }
-        },
-        {
-            /* terrane-site-row: site 1: /contextual-constant-arithmetic::main (case.trn:23:11-23:17) */
-            Site {
-                function: 0,
-                file: 0,
-                line: 23,
-                column: 11,
-                end_line: 23,
-                end_column: 17,
-            }
-        },
+        /* terrane-site-row: site 0: /contextual-constant-arithmetic::main (case.trn:14:17-14:29) */
+        { Site { function: 0, file: 0, line: 14, column: 17, end_line: 14, end_column: 29 } },
+        /* terrane-site-row: site 1: /contextual-constant-arithmetic::main (case.trn:23:11-23:17) */
+        { Site { function: 0, file: 0, line: 23, column: 11, end_line: 23, end_column: 17 } },
     ];
     #[cold]
     #[inline(never)]

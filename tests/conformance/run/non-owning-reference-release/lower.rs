@@ -379,17 +379,8 @@ mod __terrane_trace {
     pub static FILES: [&str; 1] = ["case.trn"];
     pub static FUNCTIONS: [&str; 1] = ["/non-owning-reference-release::main"];
     pub static SITES: [Site; 1] = [
-        {
-            /* terrane-site-row: site 0: /non-owning-reference-release::main (case.trn:8:12-8:23) */
-            Site {
-                function: 0,
-                file: 0,
-                line: 8,
-                column: 12,
-                end_line: 8,
-                end_column: 23,
-            }
-        },
+        /* terrane-site-row: site 0: /non-owning-reference-release::main (case.trn:8:12-8:23) */
+        { Site { function: 0, file: 0, line: 8, column: 12, end_line: 8, end_column: 23 } },
     ];
     #[cold]
     #[inline(never)]

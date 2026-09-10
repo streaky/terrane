@@ -384,303 +384,60 @@ mod __terrane_trace {
         "/core/documents::decode-document",
     ];
     pub static SITES: [Site; 27] = [
-        {
-            /* terrane-site-row: site 0: /structured-logging::main (case.trn:37:8-37:34) */
-            Site {
-                function: 0,
-                file: 0,
-                line: 37,
-                column: 8,
-                end_line: 37,
-                end_column: 34,
-            }
-        },
-        {
-            /* terrane-site-row: site 1: /structured-logging::main (case.trn:48:13-48:23) */
-            Site {
-                function: 0,
-                file: 0,
-                line: 48,
-                column: 13,
-                end_line: 48,
-                end_column: 23,
-            }
-        },
-        {
-            /* terrane-site-row: site 2: /structured-logging::main (case.trn:48:56-48:66) */
-            Site {
-                function: 0,
-                file: 0,
-                line: 48,
-                column: 56,
-                end_line: 48,
-                end_column: 66,
-            }
-        },
-        {
-            /* terrane-site-row: site 3: /structured-logging::main (case.trn:48:95-48:105) */
-            Site {
-                function: 0,
-                file: 0,
-                line: 48,
-                column: 95,
-                end_line: 48,
-                end_column: 105,
-            }
-        },
-        {
-            /* terrane-site-row: site 4: /structured-logging::main (case.trn:49:13-49:23) */
-            Site {
-                function: 0,
-                file: 0,
-                line: 49,
-                column: 13,
-                end_line: 49,
-                end_column: 23,
-            }
-        },
-        {
-            /* terrane-site-row: site 5: /structured-logging::main (case.trn:49:65-49:75) */
-            Site {
-                function: 0,
-                file: 0,
-                line: 49,
-                column: 65,
-                end_line: 49,
-                end_column: 75,
-            }
-        },
-        {
-            /* terrane-site-row: site 6: /structured-logging::main (case.trn:49:111-49:121) */
-            Site {
-                function: 0,
-                file: 0,
-                line: 49,
-                column: 111,
-                end_line: 49,
-                end_column: 121,
-            }
-        },
-        {
-            /* terrane-site-row: site 7: /structured-logging::main (case.trn:50:13-50:23) */
-            Site {
-                function: 0,
-                file: 0,
-                line: 50,
-                column: 13,
-                end_line: 50,
-                end_column: 23,
-            }
-        },
-        {
-            /* terrane-site-row: site 8: /structured-logging::main (case.trn:50:49-50:59) */
-            Site {
-                function: 0,
-                file: 0,
-                line: 50,
-                column: 49,
-                end_line: 50,
-                end_column: 59,
-            }
-        },
-        {
-            /* terrane-site-row: site 9: /structured-logging::main (case.trn:50:88-50:98) */
-            Site {
-                function: 0,
-                file: 0,
-                line: 50,
-                column: 88,
-                end_line: 50,
-                end_column: 98,
-            }
-        },
-        {
-            /* terrane-site-row: site 10: /structured-logging::main (case.trn:51:13-51:23) */
-            Site {
-                function: 0,
-                file: 0,
-                line: 51,
-                column: 13,
-                end_line: 51,
-                end_column: 23,
-            }
-        },
-        {
-            /* terrane-site-row: site 11: /structured-logging::main (case.trn:51:48-51:58) */
-            Site {
-                function: 0,
-                file: 0,
-                line: 51,
-                column: 48,
-                end_line: 51,
-                end_column: 58,
-            }
-        },
-        {
-            /* terrane-site-row: site 12: /structured-logging::main (case.trn:61:9-61:29) */
-            Site {
-                function: 0,
-                file: 0,
-                line: 61,
-                column: 9,
-                end_line: 61,
-                end_column: 29,
-            }
-        },
-        {
-            /* terrane-site-row: site 13: /structured-logging::main (case.trn:66:59-66:75) */
-            Site {
-                function: 0,
-                file: 0,
-                line: 66,
-                column: 59,
-                end_line: 66,
-                end_column: 75,
-            }
-        },
-        {
-            /* terrane-site-row: site 14: /structured-logging::main (case.trn:72:51-72:62) */
-            Site {
-                function: 0,
-                file: 0,
-                line: 72,
-                column: 51,
-                end_line: 72,
-                end_column: 62,
-            }
-        },
-        {
-            /* terrane-site-row: site 15: /structured-logging::main (case.trn:102:41-102:63) */
-            Site {
-                function: 0,
-                file: 0,
-                line: 102,
-                column: 41,
-                end_line: 102,
-                end_column: 63,
-            }
-        },
-        {
-            /* terrane-site-row: site 16: /structured-logging::main (case.trn:102:107-102:129) */
-            Site {
-                function: 0,
-                file: 0,
-                line: 102,
-                column: 107,
-                end_line: 102,
-                end_column: 129,
-            }
-        },
-        {
-            /* terrane-site-row: site 17: /structured-logging::main (case.trn:116:36-116:53) */
-            Site {
-                function: 0,
-                file: 0,
-                line: 116,
-                column: 36,
-                end_line: 116,
-                end_column: 53,
-            }
-        },
-        {
-            /* terrane-site-row: site 18: /core/documents::make-document-list (core/documents.trn:140:47-140:60) */
-            Site {
-                function: 1,
-                file: 1,
-                line: 140,
-                column: 47,
-                end_line: 140,
-                end_column: 60,
-            }
-        },
-        {
-            /* terrane-site-row: site 19: /core/documents::mapping-required-fields (core/documents.trn:153:17-153:30) */
-            Site {
-                function: 2,
-                file: 1,
-                line: 153,
-                column: 17,
-                end_line: 153,
-                end_column: 30,
-            }
-        },
-        {
-            /* terrane-site-row: site 20: /core/documents::mapping-required-fields (core/documents.trn:157:16-157:47) */
-            Site {
-                function: 2,
-                file: 1,
-                line: 157,
-                column: 16,
-                end_line: 157,
-                end_column: 47,
-            }
-        },
-        {
-            /* terrane-site-row: site 21: /core/documents::mapping-required-fields (core/documents.trn:163:16-163:45) */
-            Site {
-                function: 2,
-                file: 1,
-                line: 163,
-                column: 16,
-                end_line: 163,
-                end_column: 45,
-            }
-        },
-        {
-            /* terrane-site-row: site 22: /core/documents::decode-document (core/documents.trn:176:12-176:44) */
-            Site {
-                function: 3,
-                file: 1,
-                line: 176,
-                column: 12,
-                end_line: 176,
-                end_column: 44,
-            }
-        },
-        {
-            /* terrane-site-row: site 23: /core/documents::decode-document (core/documents.trn:177:37-177:69) */
-            Site {
-                function: 3,
-                file: 1,
-                line: 177,
-                column: 37,
-                end_line: 177,
-                end_column: 69,
-            }
-        },
-        {
-            /* terrane-site-row: site 24: /core/documents::decode-document (core/documents.trn:183:12-183:49) */
-            Site {
-                function: 3,
-                file: 1,
-                line: 183,
-                column: 12,
-                end_line: 183,
-                end_column: 49,
-            }
-        },
-        {
-            /* terrane-site-row: site 25: /core/documents::decode-document (core/documents.trn:184:36-184:73) */
-            Site {
-                function: 3,
-                file: 1,
-                line: 184,
-                column: 36,
-                end_line: 184,
-                end_column: 73,
-            }
-        },
-        {
-            /* terrane-site-row: site 26: /core/documents::decode-document (core/documents.trn:185:36-185:73) */
-            Site {
-                function: 3,
-                file: 1,
-                line: 185,
-                column: 36,
-                end_line: 185,
-                end_column: 73,
-            }
-        },
+        /* terrane-site-row: site 0: /structured-logging::main (case.trn:37:8-37:34) */
+        { Site { function: 0, file: 0, line: 37, column: 8, end_line: 37, end_column: 34 } },
+        /* terrane-site-row: site 1: /structured-logging::main (case.trn:48:13-48:23) */
+        { Site { function: 0, file: 0, line: 48, column: 13, end_line: 48, end_column: 23 } },
+        /* terrane-site-row: site 2: /structured-logging::main (case.trn:48:56-48:66) */
+        { Site { function: 0, file: 0, line: 48, column: 56, end_line: 48, end_column: 66 } },
+        /* terrane-site-row: site 3: /structured-logging::main (case.trn:48:95-48:105) */
+        { Site { function: 0, file: 0, line: 48, column: 95, end_line: 48, end_column: 105 } },
+        /* terrane-site-row: site 4: /structured-logging::main (case.trn:49:13-49:23) */
+        { Site { function: 0, file: 0, line: 49, column: 13, end_line: 49, end_column: 23 } },
+        /* terrane-site-row: site 5: /structured-logging::main (case.trn:49:65-49:75) */
+        { Site { function: 0, file: 0, line: 49, column: 65, end_line: 49, end_column: 75 } },
+        /* terrane-site-row: site 6: /structured-logging::main (case.trn:49:111-49:121) */
+        { Site { function: 0, file: 0, line: 49, column: 111, end_line: 49, end_column: 121 } },
+        /* terrane-site-row: site 7: /structured-logging::main (case.trn:50:13-50:23) */
+        { Site { function: 0, file: 0, line: 50, column: 13, end_line: 50, end_column: 23 } },
+        /* terrane-site-row: site 8: /structured-logging::main (case.trn:50:49-50:59) */
+        { Site { function: 0, file: 0, line: 50, column: 49, end_line: 50, end_column: 59 } },
+        /* terrane-site-row: site 9: /structured-logging::main (case.trn:50:88-50:98) */
+        { Site { function: 0, file: 0, line: 50, column: 88, end_line: 50, end_column: 98 } },
+        /* terrane-site-row: site 10: /structured-logging::main (case.trn:51:13-51:23) */
+        { Site { function: 0, file: 0, line: 51, column: 13, end_line: 51, end_column: 23 } },
+        /* terrane-site-row: site 11: /structured-logging::main (case.trn:51:48-51:58) */
+        { Site { function: 0, file: 0, line: 51, column: 48, end_line: 51, end_column: 58 } },
+        /* terrane-site-row: site 12: /structured-logging::main (case.trn:61:9-61:29) */
+        { Site { function: 0, file: 0, line: 61, column: 9, end_line: 61, end_column: 29 } },
+        /* terrane-site-row: site 13: /structured-logging::main (case.trn:66:59-66:75) */
+        { Site { function: 0, file: 0, line: 66, column: 59, end_line: 66, end_column: 75 } },
+        /* terrane-site-row: site 14: /structured-logging::main (case.trn:72:51-72:62) */
+        { Site { function: 0, file: 0, line: 72, column: 51, end_line: 72, end_column: 62 } },
+        /* terrane-site-row: site 15: /structured-logging::main (case.trn:102:41-102:63) */
+        { Site { function: 0, file: 0, line: 102, column: 41, end_line: 102, end_column: 63 } },
+        /* terrane-site-row: site 16: /structured-logging::main (case.trn:102:107-102:129) */
+        { Site { function: 0, file: 0, line: 102, column: 107, end_line: 102, end_column: 129 } },
+        /* terrane-site-row: site 17: /structured-logging::main (case.trn:116:36-116:53) */
+        { Site { function: 0, file: 0, line: 116, column: 36, end_line: 116, end_column: 53 } },
+        /* terrane-site-row: site 18: /core/documents::make-document-list (core/documents.trn:140:47-140:60) */
+        { Site { function: 1, file: 1, line: 140, column: 47, end_line: 140, end_column: 60 } },
+        /* terrane-site-row: site 19: /core/documents::mapping-required-fields (core/documents.trn:153:17-153:30) */
+        { Site { function: 2, file: 1, line: 153, column: 17, end_line: 153, end_column: 30 } },
+        /* terrane-site-row: site 20: /core/documents::mapping-required-fields (core/documents.trn:157:16-157:47) */
+        { Site { function: 2, file: 1, line: 157, column: 16, end_line: 157, end_column: 47 } },
+        /* terrane-site-row: site 21: /core/documents::mapping-required-fields (core/documents.trn:163:16-163:45) */
+        { Site { function: 2, file: 1, line: 163, column: 16, end_line: 163, end_column: 45 } },
+        /* terrane-site-row: site 22: /core/documents::decode-document (core/documents.trn:176:12-176:44) */
+        { Site { function: 3, file: 1, line: 176, column: 12, end_line: 176, end_column: 44 } },
+        /* terrane-site-row: site 23: /core/documents::decode-document (core/documents.trn:177:37-177:69) */
+        { Site { function: 3, file: 1, line: 177, column: 37, end_line: 177, end_column: 69 } },
+        /* terrane-site-row: site 24: /core/documents::decode-document (core/documents.trn:183:12-183:49) */
+        { Site { function: 3, file: 1, line: 183, column: 12, end_line: 183, end_column: 49 } },
+        /* terrane-site-row: site 25: /core/documents::decode-document (core/documents.trn:184:36-184:73) */
+        { Site { function: 3, file: 1, line: 184, column: 36, end_line: 184, end_column: 73 } },
+        /* terrane-site-row: site 26: /core/documents::decode-document (core/documents.trn:185:36-185:73) */
+        { Site { function: 3, file: 1, line: 185, column: 36, end_line: 185, end_column: 73 } },
     ];
     #[cold]
     #[inline(never)]

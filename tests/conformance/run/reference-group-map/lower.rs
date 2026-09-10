@@ -379,39 +379,12 @@ mod __terrane_trace {
     pub static FILES: [&str; 1] = ["case.trn"];
     pub static FUNCTIONS: [&str; 1] = ["/reference-group-map::main"];
     pub static SITES: [Site; 3] = [
-        {
-            /* terrane-site-row: site 0: /reference-group-map::main (case.trn:6:26-6:35) */
-            Site {
-                function: 0,
-                file: 0,
-                line: 6,
-                column: 26,
-                end_line: 6,
-                end_column: 35,
-            }
-        },
-        {
-            /* terrane-site-row: site 1: /reference-group-map::main (case.trn:8:31-8:48) */
-            Site {
-                function: 0,
-                file: 0,
-                line: 8,
-                column: 31,
-                end_line: 8,
-                end_column: 48,
-            }
-        },
-        {
-            /* terrane-site-row: site 2: /reference-group-map::main (case.trn:10:33-10:52) */
-            Site {
-                function: 0,
-                file: 0,
-                line: 10,
-                column: 33,
-                end_line: 10,
-                end_column: 52,
-            }
-        },
+        /* terrane-site-row: site 0: /reference-group-map::main (case.trn:6:26-6:35) */
+        { Site { function: 0, file: 0, line: 6, column: 26, end_line: 6, end_column: 35 } },
+        /* terrane-site-row: site 1: /reference-group-map::main (case.trn:8:31-8:48) */
+        { Site { function: 0, file: 0, line: 8, column: 31, end_line: 8, end_column: 48 } },
+        /* terrane-site-row: site 2: /reference-group-map::main (case.trn:10:33-10:52) */
+        { Site { function: 0, file: 0, line: 10, column: 33, end_line: 10, end_column: 52 } },
     ];
     #[cold]
     #[inline(never)]

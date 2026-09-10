@@ -379,17 +379,8 @@ mod __terrane_trace {
     pub static FILES: [&str; 1] = ["case.trn"];
     pub static FUNCTIONS: [&str; 1] = ["/references-derived-provenance::main"];
     pub static SITES: [Site; 1] = [
-        {
-            /* terrane-site-row: site 0: /references-derived-provenance::main (case.trn:23:25-23:34) */
-            Site {
-                function: 0,
-                file: 0,
-                line: 23,
-                column: 25,
-                end_line: 23,
-                end_column: 34,
-            }
-        },
+        /* terrane-site-row: site 0: /references-derived-provenance::main (case.trn:23:25-23:34) */
+        { Site { function: 0, file: 0, line: 23, column: 25, end_line: 23, end_column: 34 } },
     ];
     #[cold]
     #[inline(never)]

@@ -379,61 +379,16 @@ mod __terrane_trace {
     pub static FILES: [&str; 1] = ["case.trn"];
     pub static FUNCTIONS: [&str; 1] = ["/typed-catch-bindings::main"];
     pub static SITES: [Site; 5] = [
-        {
-            /* terrane-site-row: site 0: /typed-catch-bindings::main (case.trn:7:7-7:27) */
-            Site {
-                function: 0,
-                file: 0,
-                line: 7,
-                column: 7,
-                end_line: 7,
-                end_column: 27,
-            }
-        },
-        {
-            /* terrane-site-row: site 1: /typed-catch-bindings::main (case.trn:11:7-11:32) */
-            Site {
-                function: 0,
-                file: 0,
-                line: 11,
-                column: 7,
-                end_line: 11,
-                end_column: 32,
-            }
-        },
-        {
-            /* terrane-site-row: site 2: /typed-catch-bindings::main (case.trn:17:7-17:27) */
-            Site {
-                function: 0,
-                file: 0,
-                line: 17,
-                column: 7,
-                end_line: 17,
-                end_column: 27,
-            }
-        },
-        {
-            /* terrane-site-row: site 3: /typed-catch-bindings::main (case.trn:19:7-19:19) */
-            Site {
-                function: 0,
-                file: 0,
-                line: 19,
-                column: 7,
-                end_line: 19,
-                end_column: 19,
-            }
-        },
-        {
-            /* terrane-site-row: site 4: /typed-catch-bindings::main (case.trn:24:5-24:30) */
-            Site {
-                function: 0,
-                file: 0,
-                line: 24,
-                column: 5,
-                end_line: 24,
-                end_column: 30,
-            }
-        },
+        /* terrane-site-row: site 0: /typed-catch-bindings::main (case.trn:7:7-7:27) */
+        { Site { function: 0, file: 0, line: 7, column: 7, end_line: 7, end_column: 27 } },
+        /* terrane-site-row: site 1: /typed-catch-bindings::main (case.trn:11:7-11:32) */
+        { Site { function: 0, file: 0, line: 11, column: 7, end_line: 11, end_column: 32 } },
+        /* terrane-site-row: site 2: /typed-catch-bindings::main (case.trn:17:7-17:27) */
+        { Site { function: 0, file: 0, line: 17, column: 7, end_line: 17, end_column: 27 } },
+        /* terrane-site-row: site 3: /typed-catch-bindings::main (case.trn:19:7-19:19) */
+        { Site { function: 0, file: 0, line: 19, column: 7, end_line: 19, end_column: 19 } },
+        /* terrane-site-row: site 4: /typed-catch-bindings::main (case.trn:24:5-24:30) */
+        { Site { function: 0, file: 0, line: 24, column: 5, end_line: 24, end_column: 30 } },
     ];
     #[cold]
     #[inline(never)]

@@ -379,17 +379,8 @@ mod __terrane_trace {
     pub static FILES: [&str; 1] = ["case.trn"];
     pub static FUNCTIONS: [&str; 1] = ["/decode-error-offset::main"];
     pub static SITES: [Site; 1] = [
-        {
-            /* terrane-site-row: site 0: /decode-error-offset::main (case.trn:4:11-4:31) */
-            Site {
-                function: 0,
-                file: 0,
-                line: 4,
-                column: 11,
-                end_line: 4,
-                end_column: 31,
-            }
-        },
+        /* terrane-site-row: site 0: /decode-error-offset::main (case.trn:4:11-4:31) */
+        { Site { function: 0, file: 0, line: 4, column: 11, end_line: 4, end_column: 31 } },
     ];
     #[cold]
     #[inline(never)]

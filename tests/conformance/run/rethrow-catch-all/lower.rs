@@ -379,28 +379,10 @@ mod __terrane_trace {
     pub static FILES: [&str; 1] = ["case.trn"];
     pub static FUNCTIONS: [&str; 1] = ["/rethrow-catch-all::main"];
     pub static SITES: [Site; 2] = [
-        {
-            /* terrane-site-row: site 0: /rethrow-catch-all::main (case.trn:6:7-6:32) */
-            Site {
-                function: 0,
-                file: 0,
-                line: 6,
-                column: 7,
-                end_line: 6,
-                end_column: 32,
-            }
-        },
-        {
-            /* terrane-site-row: site 1: /rethrow-catch-all::main (case.trn:8:7-8:12) */
-            Site {
-                function: 0,
-                file: 0,
-                line: 8,
-                column: 7,
-                end_line: 8,
-                end_column: 12,
-            }
-        },
+        /* terrane-site-row: site 0: /rethrow-catch-all::main (case.trn:6:7-6:32) */
+        { Site { function: 0, file: 0, line: 6, column: 7, end_line: 6, end_column: 32 } },
+        /* terrane-site-row: site 1: /rethrow-catch-all::main (case.trn:8:7-8:12) */
+        { Site { function: 0, file: 0, line: 8, column: 7, end_line: 8, end_column: 12 } },
     ];
     #[cold]
     #[inline(never)]

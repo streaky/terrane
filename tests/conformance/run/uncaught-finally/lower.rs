@@ -379,17 +379,8 @@ mod __terrane_trace {
     pub static FILES: [&str; 1] = ["case.trn"];
     pub static FUNCTIONS: [&str; 1] = ["/uncaught-finally::main"];
     pub static SITES: [Site; 1] = [
-        {
-            /* terrane-site-row: site 0: /uncaught-finally::main (case.trn:5:5-5:30) */
-            Site {
-                function: 0,
-                file: 0,
-                line: 5,
-                column: 5,
-                end_line: 5,
-                end_column: 30,
-            }
-        },
+        /* terrane-site-row: site 0: /uncaught-finally::main (case.trn:5:5-5:30) */
+        { Site { function: 0, file: 0, line: 5, column: 5, end_line: 5, end_column: 30 } },
     ];
     #[cold]
     #[inline(never)]

@@ -383,50 +383,14 @@ mod __terrane_trace {
         "/throwable-function-value::main",
     ];
     pub static SITES: [Site; 4] = [
-        {
-            /* terrane-site-row: site 0: /throwable-function-value::render (case.trn:6:5-6:25) */
-            Site {
-                function: 0,
-                file: 0,
-                line: 6,
-                column: 5,
-                end_line: 6,
-                end_column: 25,
-            }
-        },
-        {
-            /* terrane-site-row: site 1: /throwable-function-value::apply (case.trn:10:10-10:26) */
-            Site {
-                function: 1,
-                file: 0,
-                line: 10,
-                column: 10,
-                end_line: 10,
-                end_column: 26,
-            }
-        },
-        {
-            /* terrane-site-row: site 2: /throwable-function-value::main (case.trn:18:13-18:33) */
-            Site {
-                function: 2,
-                file: 0,
-                line: 18,
-                column: 13,
-                end_line: 18,
-                end_column: 33,
-            }
-        },
-        {
-            /* terrane-site-row: site 3: /throwable-function-value::main (case.trn:21:11-21:30) */
-            Site {
-                function: 2,
-                file: 0,
-                line: 21,
-                column: 11,
-                end_line: 21,
-                end_column: 30,
-            }
-        },
+        /* terrane-site-row: site 0: /throwable-function-value::render (case.trn:6:5-6:25) */
+        { Site { function: 0, file: 0, line: 6, column: 5, end_line: 6, end_column: 25 } },
+        /* terrane-site-row: site 1: /throwable-function-value::apply (case.trn:10:10-10:26) */
+        { Site { function: 1, file: 0, line: 10, column: 10, end_line: 10, end_column: 26 } },
+        /* terrane-site-row: site 2: /throwable-function-value::main (case.trn:18:13-18:33) */
+        { Site { function: 2, file: 0, line: 18, column: 13, end_line: 18, end_column: 33 } },
+        /* terrane-site-row: site 3: /throwable-function-value::main (case.trn:21:11-21:30) */
+        { Site { function: 2, file: 0, line: 21, column: 11, end_line: 21, end_column: 30 } },
     ];
     #[cold]
     #[inline(never)]

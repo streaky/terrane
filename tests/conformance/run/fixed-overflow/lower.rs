@@ -379,17 +379,8 @@ mod __terrane_trace {
     pub static FILES: [&str; 1] = ["case.trn"];
     pub static FUNCTIONS: [&str; 1] = ["/fixed-overflow::main"];
     pub static SITES: [Site; 1] = [
-        {
-            /* terrane-site-row: site 0: /fixed-overflow::main (case.trn:5:11-5:23) */
-            Site {
-                function: 0,
-                file: 0,
-                line: 5,
-                column: 11,
-                end_line: 5,
-                end_column: 23,
-            }
-        },
+        /* terrane-site-row: site 0: /fixed-overflow::main (case.trn:5:11-5:23) */
+        { Site { function: 0, file: 0, line: 5, column: 11, end_line: 5, end_column: 23 } },
     ];
     #[cold]
     #[inline(never)]

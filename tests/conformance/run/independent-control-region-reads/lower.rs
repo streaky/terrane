@@ -379,17 +379,8 @@ mod __terrane_trace {
     pub static FILES: [&str; 1] = ["case.trn"];
     pub static FUNCTIONS: [&str; 1] = ["/independent-control-region-reads::main"];
     pub static SITES: [Site; 1] = [
-        {
-            /* terrane-site-row: site 0: /independent-control-region-reads::main (case.trn:17:5-17:30) */
-            Site {
-                function: 0,
-                file: 0,
-                line: 17,
-                column: 5,
-                end_line: 17,
-                end_column: 30,
-            }
-        },
+        /* terrane-site-row: site 0: /independent-control-region-reads::main (case.trn:17:5-17:30) */
+        { Site { function: 0, file: 0, line: 17, column: 5, end_line: 17, end_column: 30 } },
     ];
     #[cold]
     #[inline(never)]

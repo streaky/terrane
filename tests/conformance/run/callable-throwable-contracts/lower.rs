@@ -402,237 +402,48 @@ mod __terrane_trace {
         "/callable-throwable-contracts::main",
     ];
     pub static SITES: [Site; 21] = [
-        {
-            /* terrane-site-row: site 0: /callable-throwable-contracts::render (case.trn:16:7-16:27) */
-            Site {
-                function: 0,
-                file: 0,
-                line: 16,
-                column: 7,
-                end_line: 16,
-                end_column: 27,
-            }
-        },
-        {
-            /* terrane-site-row: site 1: /callable-throwable-contracts::invoke (case.trn:20:12-20:28) */
-            Site {
-                function: 1,
-                file: 0,
-                line: 20,
-                column: 12,
-                end_line: 20,
-                end_column: 28,
-            }
-        },
-        {
-            /* terrane-site-row: site 2: /callable-throwable-contracts::invoke (case.trn:23:10-23:26) */
-            Site {
-                function: 1,
-                file: 0,
-                line: 23,
-                column: 10,
-                end_line: 23,
-                end_column: 26,
-            }
-        },
-        {
-            /* terrane-site-row: site 3: /callable-throwable-contracts::custom-render (case.trn:36:5-36:32) */
-            Site {
-                function: 2,
-                file: 0,
-                line: 36,
-                column: 5,
-                end_line: 36,
-                end_column: 32,
-            }
-        },
-        {
-            /* terrane-site-row: site 4: /callable-throwable-contracts::async-render (case.trn:47:5-47:25) */
-            Site {
-                function: 3,
-                file: 0,
-                line: 47,
-                column: 5,
-                end_line: 47,
-                end_column: 25,
-            }
-        },
-        {
-            /* terrane-site-row: site 5: /callable-throwable-contracts::invoke-field (case.trn:58:10-58:29) */
-            Site {
-                function: 4,
-                file: 0,
-                line: 58,
-                column: 10,
-                end_line: 58,
-                end_column: 29,
-            }
-        },
-        {
-            /* terrane-site-row: site 6: /callable-throwable-contracts::invoke-maker (case.trn:61:15-61:27) */
-            Site {
-                function: 5,
-                file: 0,
-                line: 61,
-                column: 15,
-                end_line: 61,
-                end_column: 27,
-            }
-        },
-        {
-            /* terrane-site-row: site 7: /callable-throwable-contracts::invoke-maker (case.trn:62:10-62:26) */
-            Site {
-                function: 5,
-                file: 0,
-                line: 62,
-                column: 10,
-                end_line: 62,
-                end_column: 26,
-            }
-        },
-        {
-            /* terrane-site-row: site 8: /callable-throwable-contracts::invoke-async (case.trn:65:16-65:32) */
-            Site {
-                function: 6,
-                file: 0,
-                line: 65,
-                column: 16,
-                end_line: 65,
-                end_column: 32,
-            }
-        },
-        {
-            /* terrane-site-row: site 9: /callable-throwable-contracts::main (case.trn:72:7-72:27) */
-            Site {
-                function: 7,
-                file: 0,
-                line: 72,
-                column: 7,
-                end_line: 72,
-                end_column: 27,
-            }
-        },
-        {
-            /* terrane-site-row: site 10: /callable-throwable-contracts::main (case.trn:100:11-100:27) */
-            Site {
-                function: 7,
-                file: 0,
-                line: 100,
-                column: 11,
-                end_line: 100,
-                end_column: 27,
-            }
-        },
-        {
-            /* terrane-site-row: site 11: /callable-throwable-contracts::main (case.trn:101:11-101:27) */
-            Site {
-                function: 7,
-                file: 0,
-                line: 101,
-                column: 11,
-                end_line: 101,
-                end_column: 27,
-            }
-        },
-        {
-            /* terrane-site-row: site 12: /callable-throwable-contracts::main (case.trn:102:11-102:29) */
-            Site {
-                function: 7,
-                file: 0,
-                line: 102,
-                column: 11,
-                end_line: 102,
-                end_column: 29,
-            }
-        },
-        {
-            /* terrane-site-row: site 13: /callable-throwable-contracts::main (case.trn:103:16-103:48) */
-            Site {
-                function: 7,
-                file: 0,
-                line: 103,
-                column: 16,
-                end_line: 103,
-                end_column: 48,
-            }
-        },
-        {
-            /* terrane-site-row: site 14: /callable-throwable-contracts::main (case.trn:105:18-105:51) */
-            Site {
-                function: 7,
-                file: 0,
-                line: 105,
-                column: 18,
-                end_line: 105,
-                end_column: 51,
-            }
-        },
-        {
-            /* terrane-site-row: site 15: /callable-throwable-contracts::main (case.trn:108:11-108:35) */
-            Site {
-                function: 7,
-                file: 0,
-                line: 108,
-                column: 11,
-                end_line: 108,
-                end_column: 35,
-            }
-        },
-        {
-            /* terrane-site-row: site 16: /callable-throwable-contracts::main (case.trn:109:16-109:44) */
-            Site {
-                function: 7,
-                file: 0,
-                line: 109,
-                column: 16,
-                end_line: 109,
-                end_column: 44,
-            }
-        },
-        {
-            /* terrane-site-row: site 17: /callable-throwable-contracts::main (case.trn:111:11-111:39) */
-            Site {
-                function: 7,
-                file: 0,
-                line: 111,
-                column: 11,
-                end_line: 111,
-                end_column: 39,
-            }
-        },
-        {
-            /* terrane-site-row: site 18: /callable-throwable-contracts::main (case.trn:112:11-112:35) */
-            Site {
-                function: 7,
-                file: 0,
-                line: 112,
-                column: 11,
-                end_line: 112,
-                end_column: 35,
-            }
-        },
-        {
-            /* terrane-site-row: site 19: /callable-throwable-contracts::main (case.trn:116:11-116:30) */
-            Site {
-                function: 7,
-                file: 0,
-                line: 116,
-                column: 11,
-                end_line: 116,
-                end_column: 30,
-            }
-        },
-        {
-            /* terrane-site-row: site 20: /callable-throwable-contracts::main (case.trn:121:13-121:31) */
-            Site {
-                function: 7,
-                file: 0,
-                line: 121,
-                column: 13,
-                end_line: 121,
-                end_column: 31,
-            }
-        },
+        /* terrane-site-row: site 0: /callable-throwable-contracts::render (case.trn:16:7-16:27) */
+        { Site { function: 0, file: 0, line: 16, column: 7, end_line: 16, end_column: 27 } },
+        /* terrane-site-row: site 1: /callable-throwable-contracts::invoke (case.trn:20:12-20:28) */
+        { Site { function: 1, file: 0, line: 20, column: 12, end_line: 20, end_column: 28 } },
+        /* terrane-site-row: site 2: /callable-throwable-contracts::invoke (case.trn:23:10-23:26) */
+        { Site { function: 1, file: 0, line: 23, column: 10, end_line: 23, end_column: 26 } },
+        /* terrane-site-row: site 3: /callable-throwable-contracts::custom-render (case.trn:36:5-36:32) */
+        { Site { function: 2, file: 0, line: 36, column: 5, end_line: 36, end_column: 32 } },
+        /* terrane-site-row: site 4: /callable-throwable-contracts::async-render (case.trn:47:5-47:25) */
+        { Site { function: 3, file: 0, line: 47, column: 5, end_line: 47, end_column: 25 } },
+        /* terrane-site-row: site 5: /callable-throwable-contracts::invoke-field (case.trn:58:10-58:29) */
+        { Site { function: 4, file: 0, line: 58, column: 10, end_line: 58, end_column: 29 } },
+        /* terrane-site-row: site 6: /callable-throwable-contracts::invoke-maker (case.trn:61:15-61:27) */
+        { Site { function: 5, file: 0, line: 61, column: 15, end_line: 61, end_column: 27 } },
+        /* terrane-site-row: site 7: /callable-throwable-contracts::invoke-maker (case.trn:62:10-62:26) */
+        { Site { function: 5, file: 0, line: 62, column: 10, end_line: 62, end_column: 26 } },
+        /* terrane-site-row: site 8: /callable-throwable-contracts::invoke-async (case.trn:65:16-65:32) */
+        { Site { function: 6, file: 0, line: 65, column: 16, end_line: 65, end_column: 32 } },
+        /* terrane-site-row: site 9: /callable-throwable-contracts::main (case.trn:72:7-72:27) */
+        { Site { function: 7, file: 0, line: 72, column: 7, end_line: 72, end_column: 27 } },
+        /* terrane-site-row: site 10: /callable-throwable-contracts::main (case.trn:100:11-100:27) */
+        { Site { function: 7, file: 0, line: 100, column: 11, end_line: 100, end_column: 27 } },
+        /* terrane-site-row: site 11: /callable-throwable-contracts::main (case.trn:101:11-101:27) */
+        { Site { function: 7, file: 0, line: 101, column: 11, end_line: 101, end_column: 27 } },
+        /* terrane-site-row: site 12: /callable-throwable-contracts::main (case.trn:102:11-102:29) */
+        { Site { function: 7, file: 0, line: 102, column: 11, end_line: 102, end_column: 29 } },
+        /* terrane-site-row: site 13: /callable-throwable-contracts::main (case.trn:103:16-103:48) */
+        { Site { function: 7, file: 0, line: 103, column: 16, end_line: 103, end_column: 48 } },
+        /* terrane-site-row: site 14: /callable-throwable-contracts::main (case.trn:105:18-105:51) */
+        { Site { function: 7, file: 0, line: 105, column: 18, end_line: 105, end_column: 51 } },
+        /* terrane-site-row: site 15: /callable-throwable-contracts::main (case.trn:108:11-108:35) */
+        { Site { function: 7, file: 0, line: 108, column: 11, end_line: 108, end_column: 35 } },
+        /* terrane-site-row: site 16: /callable-throwable-contracts::main (case.trn:109:16-109:44) */
+        { Site { function: 7, file: 0, line: 109, column: 16, end_line: 109, end_column: 44 } },
+        /* terrane-site-row: site 17: /callable-throwable-contracts::main (case.trn:111:11-111:39) */
+        { Site { function: 7, file: 0, line: 111, column: 11, end_line: 111, end_column: 39 } },
+        /* terrane-site-row: site 18: /callable-throwable-contracts::main (case.trn:112:11-112:35) */
+        { Site { function: 7, file: 0, line: 112, column: 11, end_line: 112, end_column: 35 } },
+        /* terrane-site-row: site 19: /callable-throwable-contracts::main (case.trn:116:11-116:30) */
+        { Site { function: 7, file: 0, line: 116, column: 11, end_line: 116, end_column: 30 } },
+        /* terrane-site-row: site 20: /callable-throwable-contracts::main (case.trn:121:13-121:31) */
+        { Site { function: 7, file: 0, line: 121, column: 13, end_line: 121, end_column: 31 } },
     ];
     #[cold]
     #[inline(never)]

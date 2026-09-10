@@ -383,39 +383,12 @@ mod __terrane_trace {
         "/coercion-callback::main",
     ];
     pub static SITES: [Site; 3] = [
-        {
-            /* terrane-site-row: site 0: /coercion-callback::fail (case.trn:17:3-17:23) */
-            Site {
-                function: 0,
-                file: 0,
-                line: 17,
-                column: 3,
-                end_line: 17,
-                end_column: 23,
-            }
-        },
-        {
-            /* terrane-site-row: site 1: /coercion-callback::wrap (case.trn:20:11-20:19) */
-            Site {
-                function: 1,
-                file: 0,
-                line: 20,
-                column: 11,
-                end_line: 20,
-                end_column: 19,
-            }
-        },
-        {
-            /* terrane-site-row: site 2: /coercion-callback::main (case.trn:31:13-31:18) */
-            Site {
-                function: 2,
-                file: 0,
-                line: 31,
-                column: 13,
-                end_line: 31,
-                end_column: 18,
-            }
-        },
+        /* terrane-site-row: site 0: /coercion-callback::fail (case.trn:17:3-17:23) */
+        { Site { function: 0, file: 0, line: 17, column: 3, end_line: 17, end_column: 23 } },
+        /* terrane-site-row: site 1: /coercion-callback::wrap (case.trn:20:11-20:19) */
+        { Site { function: 1, file: 0, line: 20, column: 11, end_line: 20, end_column: 19 } },
+        /* terrane-site-row: site 2: /coercion-callback::main (case.trn:31:13-31:18) */
+        { Site { function: 2, file: 0, line: 31, column: 13, end_line: 31, end_column: 18 } },
     ];
     #[cold]
     #[inline(never)]

@@ -379,28 +379,10 @@ mod __terrane_trace {
     pub static FILES: [&str; 1] = ["case.trn"];
     pub static FUNCTIONS: [&str; 1] = ["/throwable-value-flow::main"];
     pub static SITES: [Site; 2] = [
-        {
-            /* terrane-site-row: site 0: /throwable-value-flow::main (case.trn:13:7-13:27) */
-            Site {
-                function: 0,
-                file: 0,
-                line: 13,
-                column: 7,
-                end_line: 13,
-                end_column: 27,
-            }
-        },
-        {
-            /* terrane-site-row: site 1: /throwable-value-flow::main (case.trn:17:7-17:32) */
-            Site {
-                function: 0,
-                file: 0,
-                line: 17,
-                column: 7,
-                end_line: 17,
-                end_column: 32,
-            }
-        },
+        /* terrane-site-row: site 0: /throwable-value-flow::main (case.trn:13:7-13:27) */
+        { Site { function: 0, file: 0, line: 13, column: 7, end_line: 13, end_column: 27 } },
+        /* terrane-site-row: site 1: /throwable-value-flow::main (case.trn:17:7-17:32) */
+        { Site { function: 0, file: 0, line: 17, column: 7, end_line: 17, end_column: 32 } },
     ];
     #[cold]
     #[inline(never)]

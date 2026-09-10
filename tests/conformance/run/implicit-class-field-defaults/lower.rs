@@ -379,28 +379,10 @@ mod __terrane_trace {
     pub static FILES: [&str; 1] = ["case.trn"];
     pub static FUNCTIONS: [&str; 1] = ["/implicit-class-field-defaults::main"];
     pub static SITES: [Site; 2] = [
-        {
-            /* terrane-site-row: site 0: /implicit-class-field-defaults::main (case.trn:38:39-38:68) */
-            Site {
-                function: 0,
-                file: 0,
-                line: 38,
-                column: 39,
-                end_line: 38,
-                end_column: 68,
-            }
-        },
-        {
-            /* terrane-site-row: site 1: /implicit-class-field-defaults::main (case.trn:38:75-38:105) */
-            Site {
-                function: 0,
-                file: 0,
-                line: 38,
-                column: 75,
-                end_line: 38,
-                end_column: 105,
-            }
-        },
+        /* terrane-site-row: site 0: /implicit-class-field-defaults::main (case.trn:38:39-38:68) */
+        { Site { function: 0, file: 0, line: 38, column: 39, end_line: 38, end_column: 68 } },
+        /* terrane-site-row: site 1: /implicit-class-field-defaults::main (case.trn:38:75-38:105) */
+        { Site { function: 0, file: 0, line: 38, column: 75, end_line: 38, end_column: 105 } },
     ];
     #[cold]
     #[inline(never)]

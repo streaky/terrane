@@ -383,39 +383,12 @@ mod __terrane_trace {
         "/parse-radix-families::main",
     ];
     pub static SITES: [Site; 3] = [
-        {
-            /* terrane-site-row: site 0: /parse-radix-families::from-hex (case.trn:4:10-4:26) */
-            Site {
-                function: 0,
-                file: 0,
-                line: 4,
-                column: 10,
-                end_line: 4,
-                end_column: 26,
-            }
-        },
-        {
-            /* terrane-site-row: site 1: /parse-radix-families::fail (case.trn:7:3-7:23) */
-            Site {
-                function: 1,
-                file: 0,
-                line: 7,
-                column: 3,
-                end_line: 7,
-                end_column: 23,
-            }
-        },
-        {
-            /* terrane-site-row: site 2: /parse-radix-families::main (case.trn:13:11-13:26) */
-            Site {
-                function: 2,
-                file: 0,
-                line: 13,
-                column: 11,
-                end_line: 13,
-                end_column: 26,
-            }
-        },
+        /* terrane-site-row: site 0: /parse-radix-families::from-hex (case.trn:4:10-4:26) */
+        { Site { function: 0, file: 0, line: 4, column: 10, end_line: 4, end_column: 26 } },
+        /* terrane-site-row: site 1: /parse-radix-families::fail (case.trn:7:3-7:23) */
+        { Site { function: 1, file: 0, line: 7, column: 3, end_line: 7, end_column: 23 } },
+        /* terrane-site-row: site 2: /parse-radix-families::main (case.trn:13:11-13:26) */
+        { Site { function: 2, file: 0, line: 13, column: 11, end_line: 13, end_column: 26 } },
     ];
     #[cold]
     #[inline(never)]

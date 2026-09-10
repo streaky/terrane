@@ -379,17 +379,8 @@ mod __terrane_trace {
     pub static FILES: [&str; 1] = ["case.trn"];
     pub static FUNCTIONS: [&str; 1] = ["/catch-coercion-error::main"];
     pub static SITES: [Site; 1] = [
-        {
-            /* terrane-site-row: site 0: /catch-coercion-error::main (case.trn:6:19-6:24) */
-            Site {
-                function: 0,
-                file: 0,
-                line: 6,
-                column: 19,
-                end_line: 6,
-                end_column: 24,
-            }
-        },
+        /* terrane-site-row: site 0: /catch-coercion-error::main (case.trn:6:19-6:24) */
+        { Site { function: 0, file: 0, line: 6, column: 19, end_line: 6, end_column: 24 } },
     ];
     #[cold]
     #[inline(never)]

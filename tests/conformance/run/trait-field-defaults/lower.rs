@@ -379,28 +379,10 @@ mod __terrane_trace {
     pub static FILES: [&str; 1] = ["case.trn"];
     pub static FUNCTIONS: [&str; 1] = ["/trait-field-defaults::main"];
     pub static SITES: [Site; 2] = [
-        {
-            /* terrane-site-row: site 0: /trait-field-defaults::main (case.trn:17:39-17:68) */
-            Site {
-                function: 0,
-                file: 0,
-                line: 17,
-                column: 39,
-                end_line: 17,
-                end_column: 68,
-            }
-        },
-        {
-            /* terrane-site-row: site 1: /trait-field-defaults::main (case.trn:17:75-17:104) */
-            Site {
-                function: 0,
-                file: 0,
-                line: 17,
-                column: 75,
-                end_line: 17,
-                end_column: 104,
-            }
-        },
+        /* terrane-site-row: site 0: /trait-field-defaults::main (case.trn:17:39-17:68) */
+        { Site { function: 0, file: 0, line: 17, column: 39, end_line: 17, end_column: 68 } },
+        /* terrane-site-row: site 1: /trait-field-defaults::main (case.trn:17:75-17:104) */
+        { Site { function: 0, file: 0, line: 17, column: 75, end_line: 17, end_column: 104 } },
     ];
     #[cold]
     #[inline(never)]

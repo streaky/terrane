@@ -379,61 +379,16 @@ mod __terrane_trace {
     pub static FILES: [&str; 1] = ["case.trn"];
     pub static FUNCTIONS: [&str; 1] = ["/class-field-metadata::main"];
     pub static SITES: [Site; 5] = [
-        {
-            /* terrane-site-row: site 0: /class-field-metadata::main (case.trn:12:12-12:37) */
-            Site {
-                function: 0,
-                file: 0,
-                line: 12,
-                column: 12,
-                end_line: 12,
-                end_column: 37,
-            }
-        },
-        {
-            /* terrane-site-row: site 1: /class-field-metadata::main (case.trn:12:44-12:78) */
-            Site {
-                function: 0,
-                file: 0,
-                line: 12,
-                column: 44,
-                end_line: 12,
-                end_column: 78,
-            }
-        },
-        {
-            /* terrane-site-row: site 2: /class-field-metadata::main (case.trn:13:12-13:41) */
-            Site {
-                function: 0,
-                file: 0,
-                line: 13,
-                column: 12,
-                end_line: 13,
-                end_column: 41,
-            }
-        },
-        {
-            /* terrane-site-row: site 3: /class-field-metadata::main (case.trn:13:43-13:71) */
-            Site {
-                function: 0,
-                file: 0,
-                line: 13,
-                column: 43,
-                end_line: 13,
-                end_column: 71,
-            }
-        },
-        {
-            /* terrane-site-row: site 4: /class-field-metadata::main (case.trn:13:73-13:99) */
-            Site {
-                function: 0,
-                file: 0,
-                line: 13,
-                column: 73,
-                end_line: 13,
-                end_column: 99,
-            }
-        },
+        /* terrane-site-row: site 0: /class-field-metadata::main (case.trn:12:12-12:37) */
+        { Site { function: 0, file: 0, line: 12, column: 12, end_line: 12, end_column: 37 } },
+        /* terrane-site-row: site 1: /class-field-metadata::main (case.trn:12:44-12:78) */
+        { Site { function: 0, file: 0, line: 12, column: 44, end_line: 12, end_column: 78 } },
+        /* terrane-site-row: site 2: /class-field-metadata::main (case.trn:13:12-13:41) */
+        { Site { function: 0, file: 0, line: 13, column: 12, end_line: 13, end_column: 41 } },
+        /* terrane-site-row: site 3: /class-field-metadata::main (case.trn:13:43-13:71) */
+        { Site { function: 0, file: 0, line: 13, column: 43, end_line: 13, end_column: 71 } },
+        /* terrane-site-row: site 4: /class-field-metadata::main (case.trn:13:73-13:99) */
+        { Site { function: 0, file: 0, line: 13, column: 73, end_line: 13, end_column: 99 } },
     ];
     #[cold]
     #[inline(never)]

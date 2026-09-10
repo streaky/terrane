@@ -379,28 +379,10 @@ mod __terrane_trace {
     pub static FILES: [&str; 1] = ["case.trn"];
     pub static FUNCTIONS: [&str; 1] = ["/codec-class-methods::main"];
     pub static SITES: [Site; 2] = [
-        {
-            /* terrane-site-row: site 0: /codec-class-methods::main (case.trn:9:13-9:43) */
-            Site {
-                function: 0,
-                file: 0,
-                line: 9,
-                column: 13,
-                end_line: 9,
-                end_column: 43,
-            }
-        },
-        {
-            /* terrane-site-row: site 1: /codec-class-methods::main (case.trn:14:13-14:46) */
-            Site {
-                function: 0,
-                file: 0,
-                line: 14,
-                column: 13,
-                end_line: 14,
-                end_column: 46,
-            }
-        },
+        /* terrane-site-row: site 0: /codec-class-methods::main (case.trn:9:13-9:43) */
+        { Site { function: 0, file: 0, line: 9, column: 13, end_line: 9, end_column: 43 } },
+        /* terrane-site-row: site 1: /codec-class-methods::main (case.trn:14:13-14:46) */
+        { Site { function: 0, file: 0, line: 14, column: 13, end_line: 14, end_column: 46 } },
     ];
     #[cold]
     #[inline(never)]

@@ -379,50 +379,14 @@ mod __terrane_trace {
     pub static FILES: [&str; 1] = ["case.trn"];
     pub static FUNCTIONS: [&str; 1] = ["/scalar-reference-transparency::main"];
     pub static SITES: [Site; 4] = [
-        {
-            /* terrane-site-row: site 0: /scalar-reference-transparency::main (case.trn:13:13-13:33) */
-            Site {
-                function: 0,
-                file: 0,
-                line: 13,
-                column: 13,
-                end_line: 13,
-                end_column: 33,
-            }
-        },
-        {
-            /* terrane-site-row: site 1: /scalar-reference-transparency::main (case.trn:18:13-18:28) */
-            Site {
-                function: 0,
-                file: 0,
-                line: 18,
-                column: 13,
-                end_line: 18,
-                end_column: 28,
-            }
-        },
-        {
-            /* terrane-site-row: site 2: /scalar-reference-transparency::main (case.trn:19:12-19:24) */
-            Site {
-                function: 0,
-                file: 0,
-                line: 19,
-                column: 12,
-                end_line: 19,
-                end_column: 24,
-            }
-        },
-        {
-            /* terrane-site-row: site 3: /scalar-reference-transparency::main (case.trn:23:12-23:21) */
-            Site {
-                function: 0,
-                file: 0,
-                line: 23,
-                column: 12,
-                end_line: 23,
-                end_column: 21,
-            }
-        },
+        /* terrane-site-row: site 0: /scalar-reference-transparency::main (case.trn:13:13-13:33) */
+        { Site { function: 0, file: 0, line: 13, column: 13, end_line: 13, end_column: 33 } },
+        /* terrane-site-row: site 1: /scalar-reference-transparency::main (case.trn:18:13-18:28) */
+        { Site { function: 0, file: 0, line: 18, column: 13, end_line: 18, end_column: 28 } },
+        /* terrane-site-row: site 2: /scalar-reference-transparency::main (case.trn:19:12-19:24) */
+        { Site { function: 0, file: 0, line: 19, column: 12, end_line: 19, end_column: 24 } },
+        /* terrane-site-row: site 3: /scalar-reference-transparency::main (case.trn:23:12-23:21) */
+        { Site { function: 0, file: 0, line: 23, column: 12, end_line: 23, end_column: 21 } },
     ];
     #[cold]
     #[inline(never)]

@@ -386,138 +386,30 @@ mod __terrane_trace {
         "/core/filesystem/paths::path-extension",
     ];
     pub static SITES: [Site; 12] = [
-        {
-            /* terrane-site-row: site 0: /core/filesystem/paths::path-components (core/paths.trn:16:16-16:28) */
-            Site {
-                function: 0,
-                file: 0,
-                line: 16,
-                column: 16,
-                end_line: 16,
-                end_column: 28,
-            }
-        },
-        {
-            /* terrane-site-row: site 1: /core/filesystem/paths::normalise-path (core/paths.trn:32:16-32:33) */
-            Site {
-                function: 1,
-                file: 0,
-                line: 32,
-                column: 16,
-                end_line: 32,
-                end_column: 33,
-            }
-        },
-        {
-            /* terrane-site-row: site 2: /core/filesystem/paths::normalise-path (core/paths.trn:35:34-35:49) */
-            Site {
-                function: 1,
-                file: 0,
-                line: 35,
-                column: 34,
-                end_line: 35,
-                end_column: 49,
-            }
-        },
-        {
-            /* terrane-site-row: site 3: /core/filesystem/paths::normalise-path (core/paths.trn:40:29-40:50) */
-            Site {
-                function: 1,
-                file: 0,
-                line: 40,
-                column: 29,
-                end_line: 40,
-                end_column: 50,
-            }
-        },
-        {
-            /* terrane-site-row: site 4: /core/filesystem/paths::normalise-path (core/paths.trn:46:21-46:42) */
-            Site {
-                function: 1,
-                file: 0,
-                line: 46,
-                column: 21,
-                end_line: 46,
-                end_column: 42,
-            }
-        },
-        {
-            /* terrane-site-row: site 5: /core/filesystem/paths::normalise-path (core/paths.trn:56:33-56:44) */
-            Site {
-                function: 1,
-                file: 0,
-                line: 56,
-                column: 33,
-                end_line: 56,
-                end_column: 44,
-            }
-        },
-        {
-            /* terrane-site-row: site 6: /core/filesystem/paths::path-name (core/paths.trn:69:12-69:35) */
-            Site {
-                function: 2,
-                file: 0,
-                line: 69,
-                column: 12,
-                end_line: 69,
-                end_column: 35,
-            }
-        },
-        {
-            /* terrane-site-row: site 7: /core/filesystem/paths::path-parent (core/paths.trn:83:33-83:45) */
-            Site {
-                function: 3,
-                file: 0,
-                line: 83,
-                column: 33,
-                end_line: 83,
-                end_column: 45,
-            }
-        },
-        {
-            /* terrane-site-row: site 8: /core/filesystem/paths::path-stem (core/paths.trn:95:31-95:40) */
-            Site {
-                function: 4,
-                file: 0,
-                line: 95,
-                column: 31,
-                end_line: 95,
-                end_column: 40,
-            }
-        },
-        {
-            /* terrane-site-row: site 9: /core/filesystem/paths::path-stem (core/paths.trn:102:33-102:46) */
-            Site {
-                function: 4,
-                file: 0,
-                line: 102,
-                column: 33,
-                end_line: 102,
-                end_column: 46,
-            }
-        },
-        {
-            /* terrane-site-row: site 10: /core/filesystem/paths::path-extension (core/paths.trn:111:31-111:40) */
-            Site {
-                function: 5,
-                file: 0,
-                line: 111,
-                column: 31,
-                end_line: 111,
-                end_column: 40,
-            }
-        },
-        {
-            /* terrane-site-row: site 11: /core/filesystem/paths::path-extension (core/paths.trn:113:12-113:37) */
-            Site {
-                function: 5,
-                file: 0,
-                line: 113,
-                column: 12,
-                end_line: 113,
-                end_column: 37,
-            }
-        },
+        /* terrane-site-row: site 0: /core/filesystem/paths::path-components (core/paths.trn:16:16-16:28) */
+        { Site { function: 0, file: 0, line: 16, column: 16, end_line: 16, end_column: 28 } },
+        /* terrane-site-row: site 1: /core/filesystem/paths::normalise-path (core/paths.trn:32:16-32:33) */
+        { Site { function: 1, file: 0, line: 32, column: 16, end_line: 32, end_column: 33 } },
+        /* terrane-site-row: site 2: /core/filesystem/paths::normalise-path (core/paths.trn:35:34-35:49) */
+        { Site { function: 1, file: 0, line: 35, column: 34, end_line: 35, end_column: 49 } },
+        /* terrane-site-row: site 3: /core/filesystem/paths::normalise-path (core/paths.trn:40:29-40:50) */
+        { Site { function: 1, file: 0, line: 40, column: 29, end_line: 40, end_column: 50 } },
+        /* terrane-site-row: site 4: /core/filesystem/paths::normalise-path (core/paths.trn:46:21-46:42) */
+        { Site { function: 1, file: 0, line: 46, column: 21, end_line: 46, end_column: 42 } },
+        /* terrane-site-row: site 5: /core/filesystem/paths::normalise-path (core/paths.trn:56:33-56:44) */
+        { Site { function: 1, file: 0, line: 56, column: 33, end_line: 56, end_column: 44 } },
+        /* terrane-site-row: site 6: /core/filesystem/paths::path-name (core/paths.trn:69:12-69:35) */
+        { Site { function: 2, file: 0, line: 69, column: 12, end_line: 69, end_column: 35 } },
+        /* terrane-site-row: site 7: /core/filesystem/paths::path-parent (core/paths.trn:83:33-83:45) */
+        { Site { function: 3, file: 0, line: 83, column: 33, end_line: 83, end_column: 45 } },
+        /* terrane-site-row: site 8: /core/filesystem/paths::path-stem (core/paths.trn:95:31-95:40) */
+        { Site { function: 4, file: 0, line: 95, column: 31, end_line: 95, end_column: 40 } },
+        /* terrane-site-row: site 9: /core/filesystem/paths::path-stem (core/paths.trn:102:33-102:46) */
+        { Site { function: 4, file: 0, line: 102, column: 33, end_line: 102, end_column: 46 } },
+        /* terrane-site-row: site 10: /core/filesystem/paths::path-extension (core/paths.trn:111:31-111:40) */
+        { Site { function: 5, file: 0, line: 111, column: 31, end_line: 111, end_column: 40 } },
+        /* terrane-site-row: site 11: /core/filesystem/paths::path-extension (core/paths.trn:113:12-113:37) */
+        { Site { function: 5, file: 0, line: 113, column: 12, end_line: 113, end_column: 37 } },
     ];
     #[cold]
     #[inline(never)]

@@ -379,17 +379,8 @@ mod __terrane_trace {
     pub static FILES: [&str; 1] = ["case.trn"];
     pub static FUNCTIONS: [&str; 1] = ["/throwable-type-annotation::main"];
     pub static SITES: [Site; 1] = [
-        {
-            /* terrane-site-row: site 0: /throwable-type-annotation::main (case.trn:10:5-10:25) */
-            Site {
-                function: 0,
-                file: 0,
-                line: 10,
-                column: 5,
-                end_line: 10,
-                end_column: 25,
-            }
-        },
+        /* terrane-site-row: site 0: /throwable-type-annotation::main (case.trn:10:5-10:25) */
+        { Site { function: 0, file: 0, line: 10, column: 5, end_line: 10, end_column: 25 } },
     ];
     #[cold]
     #[inline(never)]

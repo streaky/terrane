@@ -379,94 +379,22 @@ mod __terrane_trace {
     pub static FILES: [&str; 1] = ["case.trn"];
     pub static FUNCTIONS: [&str; 1] = ["/fixed-integer-float-destination::main"];
     pub static SITES: [Site; 8] = [
-        {
-            /* terrane-site-row: site 0: /fixed-integer-float-destination::main (case.trn:6:28-6:36) */
-            Site {
-                function: 0,
-                file: 0,
-                line: 6,
-                column: 28,
-                end_line: 6,
-                end_column: 36,
-            }
-        },
-        {
-            /* terrane-site-row: site 1: /fixed-integer-float-destination::main (case.trn:8:30-8:40) */
-            Site {
-                function: 0,
-                file: 0,
-                line: 8,
-                column: 30,
-                end_line: 8,
-                end_column: 40,
-            }
-        },
-        {
-            /* terrane-site-row: site 2: /fixed-integer-float-destination::main (case.trn:10:29-10:38) */
-            Site {
-                function: 0,
-                file: 0,
-                line: 10,
-                column: 29,
-                end_line: 10,
-                end_column: 38,
-            }
-        },
-        {
-            /* terrane-site-row: site 3: /fixed-integer-float-destination::main (case.trn:12:31-12:42) */
-            Site {
-                function: 0,
-                file: 0,
-                line: 12,
-                column: 31,
-                end_line: 12,
-                end_column: 42,
-            }
-        },
-        {
-            /* terrane-site-row: site 4: /fixed-integer-float-destination::main (case.trn:14:28-14:36) */
-            Site {
-                function: 0,
-                file: 0,
-                line: 14,
-                column: 28,
-                end_line: 14,
-                end_column: 36,
-            }
-        },
-        {
-            /* terrane-site-row: site 5: /fixed-integer-float-destination::main (case.trn:16:29-16:52) */
-            Site {
-                function: 0,
-                file: 0,
-                line: 16,
-                column: 29,
-                end_line: 16,
-                end_column: 52,
-            }
-        },
-        {
-            /* terrane-site-row: site 6: /fixed-integer-float-destination::main (case.trn:27:26-27:35) */
-            Site {
-                function: 0,
-                file: 0,
-                line: 27,
-                column: 26,
-                end_line: 27,
-                end_column: 35,
-            }
-        },
-        {
-            /* terrane-site-row: site 7: /fixed-integer-float-destination::main (case.trn:34:26-34:35) */
-            Site {
-                function: 0,
-                file: 0,
-                line: 34,
-                column: 26,
-                end_line: 34,
-                end_column: 35,
-            }
-        },
+        /* terrane-site-row: site 0: /fixed-integer-float-destination::main (case.trn:6:28-6:36) */
+        { Site { function: 0, file: 0, line: 6, column: 28, end_line: 6, end_column: 36 } },
+        /* terrane-site-row: site 1: /fixed-integer-float-destination::main (case.trn:8:30-8:40) */
+        { Site { function: 0, file: 0, line: 8, column: 30, end_line: 8, end_column: 40 } },
+        /* terrane-site-row: site 2: /fixed-integer-float-destination::main (case.trn:10:29-10:38) */
+        { Site { function: 0, file: 0, line: 10, column: 29, end_line: 10, end_column: 38 } },
+        /* terrane-site-row: site 3: /fixed-integer-float-destination::main (case.trn:12:31-12:42) */
+        { Site { function: 0, file: 0, line: 12, column: 31, end_line: 12, end_column: 42 } },
+        /* terrane-site-row: site 4: /fixed-integer-float-destination::main (case.trn:14:28-14:36) */
+        { Site { function: 0, file: 0, line: 14, column: 28, end_line: 14, end_column: 36 } },
+        /* terrane-site-row: site 5: /fixed-integer-float-destination::main (case.trn:16:29-16:52) */
+        { Site { function: 0, file: 0, line: 16, column: 29, end_line: 16, end_column: 52 } },
+        /* terrane-site-row: site 6: /fixed-integer-float-destination::main (case.trn:27:26-27:35) */
+        { Site { function: 0, file: 0, line: 27, column: 26, end_line: 27, end_column: 35 } },
+        /* terrane-site-row: site 7: /fixed-integer-float-destination::main (case.trn:34:26-34:35) */
+        { Site { function: 0, file: 0, line: 34, column: 26, end_line: 34, end_column: 35 } },
     ];
     #[cold]
     #[inline(never)]

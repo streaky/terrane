@@ -379,50 +379,14 @@ mod __terrane_trace {
     pub static FILES: [&str; 1] = ["case.trn"];
     pub static FUNCTIONS: [&str; 1] = ["/foundational-float-math::main"];
     pub static SITES: [Site; 4] = [
-        {
-            /* terrane-site-row: site 0: /foundational-float-math::main (case.trn:13:30-13:39) */
-            Site {
-                function: 0,
-                file: 0,
-                line: 13,
-                column: 30,
-                end_line: 13,
-                end_column: 39,
-            }
-        },
-        {
-            /* terrane-site-row: site 1: /foundational-float-math::main (case.trn:13:48-13:57) */
-            Site {
-                function: 0,
-                file: 0,
-                line: 13,
-                column: 48,
-                end_line: 13,
-                end_column: 57,
-            }
-        },
-        {
-            /* terrane-site-row: site 2: /foundational-float-math::main (case.trn:24:30-24:39) */
-            Site {
-                function: 0,
-                file: 0,
-                line: 24,
-                column: 30,
-                end_line: 24,
-                end_column: 39,
-            }
-        },
-        {
-            /* terrane-site-row: site 3: /foundational-float-math::main (case.trn:24:48-24:57) */
-            Site {
-                function: 0,
-                file: 0,
-                line: 24,
-                column: 48,
-                end_line: 24,
-                end_column: 57,
-            }
-        },
+        /* terrane-site-row: site 0: /foundational-float-math::main (case.trn:13:30-13:39) */
+        { Site { function: 0, file: 0, line: 13, column: 30, end_line: 13, end_column: 39 } },
+        /* terrane-site-row: site 1: /foundational-float-math::main (case.trn:13:48-13:57) */
+        { Site { function: 0, file: 0, line: 13, column: 48, end_line: 13, end_column: 57 } },
+        /* terrane-site-row: site 2: /foundational-float-math::main (case.trn:24:30-24:39) */
+        { Site { function: 0, file: 0, line: 24, column: 30, end_line: 24, end_column: 39 } },
+        /* terrane-site-row: site 3: /foundational-float-math::main (case.trn:24:48-24:57) */
+        { Site { function: 0, file: 0, line: 24, column: 48, end_line: 24, end_column: 57 } },
     ];
     #[cold]
     #[inline(never)]

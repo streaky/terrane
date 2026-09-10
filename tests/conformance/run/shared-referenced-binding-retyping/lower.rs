@@ -379,28 +379,10 @@ mod __terrane_trace {
     pub static FILES: [&str; 1] = ["case.trn"];
     pub static FUNCTIONS: [&str; 1] = ["/shared-referenced-binding-retyping::main"];
     pub static SITES: [Site; 2] = [
-        {
-            /* terrane-site-row: site 0: /shared-referenced-binding-retyping::main (case.trn:9:12-9:20) */
-            Site {
-                function: 0,
-                file: 0,
-                line: 9,
-                column: 12,
-                end_line: 9,
-                end_column: 20,
-            }
-        },
-        {
-            /* terrane-site-row: site 1: /shared-referenced-binding-retyping::main (case.trn:9:22-9:30) */
-            Site {
-                function: 0,
-                file: 0,
-                line: 9,
-                column: 22,
-                end_line: 9,
-                end_column: 30,
-            }
-        },
+        /* terrane-site-row: site 0: /shared-referenced-binding-retyping::main (case.trn:9:12-9:20) */
+        { Site { function: 0, file: 0, line: 9, column: 12, end_line: 9, end_column: 20 } },
+        /* terrane-site-row: site 1: /shared-referenced-binding-retyping::main (case.trn:9:22-9:30) */
+        { Site { function: 0, file: 0, line: 9, column: 22, end_line: 9, end_column: 30 } },
     ];
     #[cold]
     #[inline(never)]

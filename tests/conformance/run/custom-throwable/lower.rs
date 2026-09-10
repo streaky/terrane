@@ -396,28 +396,10 @@ mod __terrane_trace {
         "/custom-throwable::main",
     ];
     pub static SITES: [Site; 2] = [
-        {
-            /* terrane-site-row: site 0: /custom-throwable::load (case.trn:14:3-14:63) */
-            Site {
-                function: 0,
-                file: 0,
-                line: 14,
-                column: 3,
-                end_line: 14,
-                end_column: 63,
-            }
-        },
-        {
-            /* terrane-site-row: site 1: /custom-throwable::main (case.trn:18:5-18:25) */
-            Site {
-                function: 1,
-                file: 0,
-                line: 18,
-                column: 5,
-                end_line: 18,
-                end_column: 25,
-            }
-        },
+        /* terrane-site-row: site 0: /custom-throwable::load (case.trn:14:3-14:63) */
+        { Site { function: 0, file: 0, line: 14, column: 3, end_line: 14, end_column: 63 } },
+        /* terrane-site-row: site 1: /custom-throwable::main (case.trn:18:5-18:25) */
+        { Site { function: 1, file: 0, line: 18, column: 5, end_line: 18, end_column: 25 } },
     ];
     #[cold]
     #[inline(never)]

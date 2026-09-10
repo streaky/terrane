@@ -388,83 +388,20 @@ mod __terrane_trace {
     pub static FILES: [&str; 1] = ["case.trn"];
     pub static FUNCTIONS: [&str; 1] = ["/explicit-numeric-coercions::main"];
     pub static SITES: [Site; 7] = [
-        {
-            /* terrane-site-row: site 0: /explicit-numeric-coercions::main (case.trn:11:23-11:38) */
-            Site {
-                function: 0,
-                file: 0,
-                line: 11,
-                column: 23,
-                end_line: 11,
-                end_column: 38,
-            }
-        },
-        {
-            /* terrane-site-row: site 1: /explicit-numeric-coercions::main (case.trn:12:23-12:38) */
-            Site {
-                function: 0,
-                file: 0,
-                line: 12,
-                column: 23,
-                end_line: 12,
-                end_column: 38,
-            }
-        },
-        {
-            /* terrane-site-row: site 2: /explicit-numeric-coercions::main (case.trn:24:22-24:36) */
-            Site {
-                function: 0,
-                file: 0,
-                line: 24,
-                column: 22,
-                end_line: 24,
-                end_column: 36,
-            }
-        },
-        {
-            /* terrane-site-row: site 3: /explicit-numeric-coercions::main (case.trn:30:24-30:41) */
-            Site {
-                function: 0,
-                file: 0,
-                line: 30,
-                column: 24,
-                end_line: 30,
-                end_column: 41,
-            }
-        },
-        {
-            /* terrane-site-row: site 4: /explicit-numeric-coercions::main (case.trn:32:19-32:31) */
-            Site {
-                function: 0,
-                file: 0,
-                line: 32,
-                column: 19,
-                end_line: 32,
-                end_column: 31,
-            }
-        },
-        {
-            /* terrane-site-row: site 5: /explicit-numeric-coercions::main (case.trn:45:26-45:40) */
-            Site {
-                function: 0,
-                file: 0,
-                line: 45,
-                column: 26,
-                end_line: 45,
-                end_column: 40,
-            }
-        },
-        {
-            /* terrane-site-row: site 6: /explicit-numeric-coercions::main (case.trn:51:26-51:42) */
-            Site {
-                function: 0,
-                file: 0,
-                line: 51,
-                column: 26,
-                end_line: 51,
-                end_column: 42,
-            }
-        },
+        /* terrane-site-row: site 0: /explicit-numeric-coercions::main (case.trn:11:23-11:38) */
+        { Site { function: 0, file: 0, line: 11, column: 23, end_line: 11, end_column: 38 } },
+        /* terrane-site-row: site 1: /explicit-numeric-coercions::main (case.trn:12:23-12:38) */
+        { Site { function: 0, file: 0, line: 12, column: 23, end_line: 12, end_column: 38 } },
+        /* terrane-site-row: site 2: /explicit-numeric-coercions::main (case.trn:24:22-24:36) */
+        { Site { function: 0, file: 0, line: 24, column: 22, end_line: 24, end_column: 36 } },
+        /* terrane-site-row: site 3: /explicit-numeric-coercions::main (case.trn:30:24-30:41) */
+        { Site { function: 0, file: 0, line: 30, column: 24, end_line: 30, end_column: 41 } },
+        /* terrane-site-row: site 4: /explicit-numeric-coercions::main (case.trn:32:19-32:31) */
+        { Site { function: 0, file: 0, line: 32, column: 19, end_line: 32, end_column: 31 } },
+        /* terrane-site-row: site 5: /explicit-numeric-coercions::main (case.trn:45:26-45:40) */
+        { Site { function: 0, file: 0, line: 45, column: 26, end_line: 45, end_column: 40 } },
+        /* terrane-site-row: site 6: /explicit-numeric-coercions::main (case.trn:51:26-51:42) */
+        { Site { function: 0, file: 0, line: 51, column: 26, end_line: 51, end_column: 42 } },
     ];
     #[cold]
     #[inline(never)]

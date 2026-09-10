@@ -390,72 +390,18 @@ mod __terrane_trace {
         "/core/streams::read-async",
     ];
     pub static SITES: [Site; 6] = [
-        {
-            /* terrane-site-row: site 0: /app::main (case.trn:44:13-44:39) */
-            Site {
-                function: 0,
-                file: 0,
-                line: 44,
-                column: 13,
-                end_line: 44,
-                end_column: 39,
-            }
-        },
-        {
-            /* terrane-site-row: site 1: /core/networking::lookup-dns (core/networking.trn:319:28-319:49) */
-            Site {
-                function: 1,
-                file: 1,
-                line: 319,
-                column: 28,
-                end_line: 319,
-                end_column: 49,
-            }
-        },
-        {
-            /* terrane-site-row: site 2: /core/streams::read (core/streams.trn:188:23-188:50) */
-            Site {
-                function: 2,
-                file: 2,
-                line: 188,
-                column: 23,
-                end_line: 188,
-                end_column: 50,
-            }
-        },
-        {
-            /* terrane-site-row: site 3: /core/streams::read-exact (core/streams.trn:210:23-210:46) */
-            Site {
-                function: 3,
-                file: 2,
-                line: 210,
-                column: 23,
-                end_line: 210,
-                end_column: 46,
-            }
-        },
-        {
-            /* terrane-site-row: site 4: /core/streams::read-all (core/streams.trn:229:23-229:46) */
-            Site {
-                function: 4,
-                file: 2,
-                line: 229,
-                column: 23,
-                end_line: 229,
-                end_column: 46,
-            }
-        },
-        {
-            /* terrane-site-row: site 5: /core/streams::read-async (core/streams.trn:234:23-234:50) */
-            Site {
-                function: 5,
-                file: 2,
-                line: 234,
-                column: 23,
-                end_line: 234,
-                end_column: 50,
-            }
-        },
+        /* terrane-site-row: site 0: /app::main (case.trn:44:13-44:39) */
+        { Site { function: 0, file: 0, line: 44, column: 13, end_line: 44, end_column: 39 } },
+        /* terrane-site-row: site 1: /core/networking::lookup-dns (core/networking.trn:319:28-319:49) */
+        { Site { function: 1, file: 1, line: 319, column: 28, end_line: 319, end_column: 49 } },
+        /* terrane-site-row: site 2: /core/streams::read (core/streams.trn:188:23-188:50) */
+        { Site { function: 2, file: 2, line: 188, column: 23, end_line: 188, end_column: 50 } },
+        /* terrane-site-row: site 3: /core/streams::read-exact (core/streams.trn:210:23-210:46) */
+        { Site { function: 3, file: 2, line: 210, column: 23, end_line: 210, end_column: 46 } },
+        /* terrane-site-row: site 4: /core/streams::read-all (core/streams.trn:229:23-229:46) */
+        { Site { function: 4, file: 2, line: 229, column: 23, end_line: 229, end_column: 46 } },
+        /* terrane-site-row: site 5: /core/streams::read-async (core/streams.trn:234:23-234:50) */
+        { Site { function: 5, file: 2, line: 234, column: 23, end_line: 234, end_column: 50 } },
     ];
     #[cold]
     #[inline(never)]

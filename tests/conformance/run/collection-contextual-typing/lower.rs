@@ -379,17 +379,8 @@ mod __terrane_trace {
     pub static FILES: [&str; 1] = ["case.trn"];
     pub static FUNCTIONS: [&str; 1] = ["/collection-contextual-typing::main"];
     pub static SITES: [Site; 1] = [
-        {
-            /* terrane-site-row: site 0: /collection-contextual-typing::main (case.trn:8:10-8:19) */
-            Site {
-                function: 0,
-                file: 0,
-                line: 8,
-                column: 10,
-                end_line: 8,
-                end_column: 19,
-            }
-        },
+        /* terrane-site-row: site 0: /collection-contextual-typing::main (case.trn:8:10-8:19) */
+        { Site { function: 0, file: 0, line: 8, column: 10, end_line: 8, end_column: 19 } },
     ];
     #[cold]
     #[inline(never)]

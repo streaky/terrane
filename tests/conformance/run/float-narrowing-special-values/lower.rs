@@ -379,50 +379,14 @@ mod __terrane_trace {
     pub static FILES: [&str; 1] = ["case.trn"];
     pub static FUNCTIONS: [&str; 1] = ["/float-narrowing-special-values::main"];
     pub static SITES: [Site; 4] = [
-        {
-            /* terrane-site-row: site 0: /float-narrowing-special-values::main (case.trn:10:27-10:40) */
-            Site {
-                function: 0,
-                file: 0,
-                line: 10,
-                column: 27,
-                end_line: 10,
-                end_column: 40,
-            }
-        },
-        {
-            /* terrane-site-row: site 1: /float-narrowing-special-values::main (case.trn:11:31-11:48) */
-            Site {
-                function: 0,
-                file: 0,
-                line: 11,
-                column: 31,
-                end_line: 11,
-                end_column: 48,
-            }
-        },
-        {
-            /* terrane-site-row: site 2: /float-narrowing-special-values::main (case.trn:12:31-12:48) */
-            Site {
-                function: 0,
-                file: 0,
-                line: 12,
-                column: 31,
-                end_line: 12,
-                end_column: 48,
-            }
-        },
-        {
-            /* terrane-site-row: site 3: /float-narrowing-special-values::main (case.trn:13:30-13:37) */
-            Site {
-                function: 0,
-                file: 0,
-                line: 13,
-                column: 30,
-                end_line: 13,
-                end_column: 37,
-            }
-        },
+        /* terrane-site-row: site 0: /float-narrowing-special-values::main (case.trn:10:27-10:40) */
+        { Site { function: 0, file: 0, line: 10, column: 27, end_line: 10, end_column: 40 } },
+        /* terrane-site-row: site 1: /float-narrowing-special-values::main (case.trn:11:31-11:48) */
+        { Site { function: 0, file: 0, line: 11, column: 31, end_line: 11, end_column: 48 } },
+        /* terrane-site-row: site 2: /float-narrowing-special-values::main (case.trn:12:31-12:48) */
+        { Site { function: 0, file: 0, line: 12, column: 31, end_line: 12, end_column: 48 } },
+        /* terrane-site-row: site 3: /float-narrowing-special-values::main (case.trn:13:30-13:37) */
+        { Site { function: 0, file: 0, line: 13, column: 30, end_line: 13, end_column: 37 } },
     ];
     #[cold]
     #[inline(never)]

@@ -379,28 +379,10 @@ mod __terrane_trace {
     pub static FILES: [&str; 1] = ["case.trn"];
     pub static FUNCTIONS: [&str; 1] = ["/nested-collection-contextual-typing::main"];
     pub static SITES: [Site; 2] = [
-        {
-            /* terrane-site-row: site 0: /nested-collection-contextual-typing::main (case.trn:6:10-6:18) */
-            Site {
-                function: 0,
-                file: 0,
-                line: 6,
-                column: 10,
-                end_line: 6,
-                end_column: 18,
-            }
-        },
-        {
-            /* terrane-site-row: site 1: /nested-collection-contextual-typing::main (case.trn:6:10-6:21) */
-            Site {
-                function: 0,
-                file: 0,
-                line: 6,
-                column: 10,
-                end_line: 6,
-                end_column: 21,
-            }
-        },
+        /* terrane-site-row: site 0: /nested-collection-contextual-typing::main (case.trn:6:10-6:18) */
+        { Site { function: 0, file: 0, line: 6, column: 10, end_line: 6, end_column: 18 } },
+        /* terrane-site-row: site 1: /nested-collection-contextual-typing::main (case.trn:6:10-6:21) */
+        { Site { function: 0, file: 0, line: 6, column: 10, end_line: 6, end_column: 21 } },
     ];
     #[cold]
     #[inline(never)]
