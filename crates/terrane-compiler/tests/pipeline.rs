@@ -1,4 +1,8 @@
-use std::path::{Path, PathBuf};
+use std::{
+    fs,
+    path::{Path, PathBuf},
+    time::{SystemTime, UNIX_EPOCH},
+};
 
 const HELLO: &str = include_str!("../../../tests/conformance/run/hello/case.trn");
 const ASYNC_AWAIT: &str = include_str!("../../../tests/conformance/run/async-await/case.trn");
@@ -150,9 +154,22 @@ fn bundled_core_lowering_is_part_of_the_support_sidecar() {
 
 #[test]
 fn projected_dependency_lowering_is_part_of_the_support_sidecar() {
-    let manifest = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("../../tests/conformance/run/rust-dependency-deferred-surface/package.toml");
-    let package = terrane_compiler::Package::load(&manifest).unwrap();
+    let fixture = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("../../tests/conformance/run/rust-dependency-deferred-surface");
+    let staged = std::env::temp_dir().join(format!(
+        "terrane-projected-pipeline-{}-{}",
+        std::process::id(),
+        SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_nanos()
+    ));
+    fs::create_dir_all(staged.join("src")).unwrap();
+    for relative in ["package.toml", "src/main.trn", "terrane-projection.lock"] {
+        let destination = staged.join(relative);
+        fs::copy(fixture.join(relative), destination).unwrap();
+    }
+    let package = terrane_compiler::Package::load(&staged.join("package.toml")).unwrap();
     let compilation = terrane_compiler::compile_package(&package).unwrap();
     let files = compilation
         .rust_files_for(Path::new("src/main.rs"))
@@ -163,6 +180,7 @@ fn projected_dependency_lowering_is_part_of_the_support_sidecar() {
     assert!(support.contains("// Namespace: deps/bytes"));
     assert!(!entrypoint.contains("// Namespace: deps/"));
     assert!(entrypoint.contains("// Namespace: app"));
+    fs::remove_dir_all(staged).unwrap();
 }
 #[test]
 fn split_lowering_uses_the_requested_entrypoint_name() {
