@@ -3694,7 +3694,7 @@ Inheritance, interface satisfaction, trait use, and superclass conversion resolv
 
 ### 18.3 Interfaces
 
-Interfaces describe required object protocols:
+Interfaces are named nominal contracts whose declarations collect required operation shapes:
 
 ```terrane
 interface serializable
@@ -3702,17 +3702,19 @@ interface serializable
   function serialize bytes;
 ```
 
-A class declares implementation:
+A class opts into that nominal contract with `implements`:
 
 ```terrane
 class message implements serializable
 ```
 
-Interfaces are type objects and can be used in annotations.
+An interface is a type object and may be used in annotations and dynamic dispatch. Matching method
+spelling alone does not make an unrelated class an implementation; the `implements` relationship is
+part of the type identity and is checked against the interface's required signatures.
 
 ### 18.4 Traits
 
-Traits provide reusable behaviour:
+Traits provide reusable source implementation:
 
 ```terrane
 trait timestamped
@@ -3729,7 +3731,8 @@ A class may use traits:
 class record uses timestamped
 ```
 
-Trait conflicts must be resolved explicitly. No silent “last one wins” rule is permitted.
+Trait conflicts must be resolved explicitly. No silent “last one wins” rule is permitted. A trait
+is neither a type nor a dispatch contract, and `uses` does not introduce subtyping.
 
 A trait field contributes its initializer or canonical type default to every class that uses it.
 The class may override the field and provide a different initializer. If the effective field type
@@ -3738,7 +3741,17 @@ with an initializer; otherwise class validation fails with `T0061`. This validat
 fully composed field set before lowering, including traits and base classes declared in other source
 units. Explicit inherited initializers are evaluated in their declaring source and object context.
 
-These mechanisms occupy distinct layers of one object-contract model. A **protocol** is a structural semantic operation understood by the language or libraries; any object may satisfy it without a declaration. An **interface** is a named type object collecting required protocols and method signatures for annotations and dynamic dispatch. A **trait** is reusable field/method implementation copied into a class with explicit conflict resolution; using a trait can satisfy protocols or interfaces but is not itself subtyping. **Class inheritance** extends one concrete class, preserving its state and substitutability. The iteration protocol is therefore implementable by any user class directly or through a trait, and an interface may name that requirement when a typed boundary needs it.
+These mechanisms occupy distinct layers of one object-contract model. A **protocol** is an unnamed
+structural operation shape understood by the language or libraries; any object may satisfy it
+without a declaration. It is not a source declaration, nominal type, or dispatch object. An
+**interface** is a named nominal type and dispatch contract adopted with `implements`. A **trait**
+is source field/method implementation composed into a class with `uses`; unlike a Rust trait, a
+Terrane trait is not the named contract a foreign implementation satisfies. Compiler descriptor
+operations are internal lookup/reflection machinery rather than a fourth public source construct.
+Using a trait can make a class satisfy a protocol or an explicitly implemented interface, but trait
+use is not itself subtyping. The iteration protocol is therefore available to any class with the
+required operation shape, while an interface names a contract only when nominal conformance and
+dispatch are required.
 
 ### 18.5 Protected visibility
 
@@ -3760,12 +3773,16 @@ A multimethod/generic-dispatch facility may be supplied as a library or later la
 
 Ordinary object fields may be mutated unless the object/type contract forbids it.
 
-The compiler infers whether a concrete method requires mutable access to `this`; source code does
-not repeat that fact with a qualifier. Receiver access remains semantic metadata for interface and
-callable compatibility and is derived while implementations are checked. Reflection and tooling
-may report that a callable mutates its receiver. A stricter API lint may later require authors to
-acknowledge inferred receiver mutation, but such a lint does not alter the callable contract and is
-not part of the default language.
+Every callable has one written invocation mode and one exact mode inferred from its body. An
+unqualified `function` is shared, `mutable function` may update its receiver or captured
+environment, and `consuming function` may transfer from that environment and is callable once.
+`async` and `throws` compose independently, with canonical ordering such as
+`mutable async function ... throws T`. A body may use less authority than its written mode but never
+more. Shared callables satisfy shared, mutable, or consuming destinations; mutable callables satisfy
+mutable or consuming destinations; consuming callables satisfy only consuming destinations.
+Interface requirements state their mode directly and implementations must be compatible; the
+compiler never infers an interface requirement by observing whichever classes happen to implement
+it. Reflection exposes `invocation-mode` and `exact-invocation-mode` separately.
 
 ### 19.2 No hidden global mutation
 
@@ -4462,14 +4479,17 @@ a call-directed or non-escaping-chain rule proves a concrete use.
 
 A concrete Rust callback bound projects when its complete callable contract is monomorphic.
 `Fn`, `FnMut`, and `FnOnce` parenthesized bounds supply parameter and result types; a callback
-returning a bounded `Future` projects as a Terrane `async function`. The projection records call
-multiplicity, whether the dependency may retain the callback, and required `Send`/`Sync` bounds.
-Generated shims construct the exact Rust closure type at free-function or projected-method call
-boundaries, convert arguments and results there, and preserve captured Terrane state per invocation.
-`FnMut` records repeated mutable invocation by Rust; it does not introduce a mutable Terrane
-closure-capture cell. Version-one anonymous functions capture ordinary values by value, so mutation
-of aliased captured state remains rejected and stateful coordination uses an existing explicit
-owner such as an owner task with typed channels.
+returning a bounded `Future` projects as a Terrane `async function`. Projection maps those Rust
+contracts to shared, mutable, and consuming invocation modes respectively, while retaining
+retention and required `Send`/`Sync` as independent boundary facts. Generated shims construct the
+exact Rust closure type at free-function or projected-method call boundaries and convert arguments
+and results there. A projected Rust trait is likewise a named contract, so its source-side
+projection target is an interface rather than a Terrane trait: Terrane traits compose source
+implementation and do not represent foreign nominal conformance.
+
+Mutable Terrane callables own repeatable state and value separation copies the current environment
+rather than aliasing it. Consuming callbacks transfer their environment into the one-shot Rust
+closure. Async and throwable contracts remain orthogonal to that invocation mode.
 
 Retention never weakens Terrane ownership. A retained callback may not capture a non-owning
 reference or borrowed object receiver, and a transferable callback may capture only transferable

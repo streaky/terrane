@@ -59,7 +59,7 @@ categories:
   description: Text processing, encodings, collection behavior, and iteration.
 - id: objects
   label: Objects, ownership, and lifetime
-  description: Classes, protocols, traits, references, movement, and lifecycle.
+  description: Classes, interfaces, traits, structural protocols, references, movement, and lifecycle.
 - id: async
   label: Async and concurrency
   description: Tasks, cancellation, streams, channels, and synchronized state.
@@ -406,7 +406,7 @@ features:
     state: documented
     paths:
     - manual/reference/records/language/functions/declarations.yaml
-  notes: Typed function values cross bindings, parameters, returns, and members through one statically typed ABI.
+  notes: Typed function values carry written and exact invocation modes alongside orthogonal throwable contracts.
   sources:
   - docs/language-spec-concise.md#ERROR / CALLABLE
   - docs/compiler-plan.md#Completed portion of Milestone 15
@@ -424,6 +424,20 @@ features:
   sources:
   - docs/language-spec-concise.md#ASYNC
   - docs/compiler-plan.md#Milestone 19
+- id: callable-invocation-modes
+  name: Shared, mutable, and consuming callables
+  category: callables
+  status: done
+  completion: 100
+  milestone: '28'
+  reference:
+    state: documented
+    paths:
+    - manual/reference/records/language/functions/declarations.yaml
+  notes: One written/exact mode model governs declarations, types, closures, bound methods, interfaces, lifecycle, reflection, and projected callbacks.
+  sources:
+  - docs/language-spec-concise.md#ERROR / CALLABLE
+  - docs/compiler-plan.md#Milestone 28
 - id: generic-result-specialization
   name: Destination-directed projected generic results
   category: types
@@ -620,7 +634,7 @@ features:
     state: documented
     paths:
     - manual/reference/records/language/functions/declarations.yaml
-  notes: Closures capture resolver-selected values once and remain statically typed.
+  notes: Closures capture resolver-selected values once; mutable environments separate independently and consuming environments move once.
   sources:
   - docs/language-spec-concise.md#ERROR / CALLABLE
   - docs/compiler-plan.md#Completed portion of Milestone 15
@@ -634,7 +648,7 @@ features:
     state: documented
     paths:
     - manual/reference/records/language/functions/declarations.yaml
-  notes: Selection captures the receiver exactly once through the ordinary callable protocol.
+  notes: Selection captures the receiver once while retaining its shared, mutable, or consuming callable contract.
   sources:
   - docs/language-spec-concise.md#CALL
   - docs/compiler-plan.md#Completed portion of Milestone 15

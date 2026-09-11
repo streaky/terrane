@@ -202,42 +202,6 @@ Lower the semantic model to a small Rust-oriented IR before rendering text. The 
 
 This section contains only work that remains required by the settled version-one design. For a partially delivered milestone, its heading and exit criterion have been rewritten around the unfinished capability rather than repeating already implemented work. Requirements superseded by later language decisions are called out and excluded. Completely delivered milestones and completed portions of split milestones are retained in Appendix A.
 
-### Milestone 28 — Exact callable and object contracts for projected conformance
-
-Projected Rust traits must enter Terrane through its existing object model rather than importing
-Rust's vocabulary as a parallel source model. An admissible Rust trait therefore projects as a
-Terrane `interface`: it has nominal identity, may be used as a type, and is satisfied explicitly
-through `implements`. Terrane `trait` remains source implementation composition through `uses`, and
-an unnamed structural `protocol` remains implicitly satisfied from a descriptor's operation shape.
-The detailed rationale and implementation inventory remain in
-`docs/dump/trait-projection.md`; this milestone family is the authoritative delivery contract.
-
-Before emitting a foreign implementation, make those boundaries exact throughout the language and
-give callable receivers the source contract that projected methods need:
-
-- normalize the full and concise specifications, surface documents, scoreboard, and manual around
-  four distinct terms: structural protocol, nominal interface, implementation-composing trait, and
-  compiler-owned descriptor operation. Remove prose implying a source `protocol` declaration or a
-  structural named interface; no user-declared protocol feature is added;
-- support shared, mutable, and consuming invocation modes wherever a function declaration or type
-  appears. Plain `function` remains the shared form; `mutable function` and `consuming function`
-  state exclusive-repeatable and one-shot invocation respectively, and compose with `async` and
-  `throws`;
-- retain the written invocation mode separately from the exact mode inferred from the body and
-  captures. Enforce it through receiver checking, capture analysis, callable compatibility,
-  storage, invocation, interface conformance, trait composition, ownership, and reflection;
-- normalize projected `Fn`, `FnMut`, and `FnOnce` callback contracts onto those three ordinary
-  Terrane modes, removing their separate semantic multiplicity path while retaining the existing
-  call-site adapters and boundary conversions; and
-- make `destruct` a fixed consuming lifecycle operation without changing the established
-  one-lineage destruction contract.
-
-Exit criterion: either language specification answers the protocol/interface/trait distinction
-without inference; Terrane source declares, stores, invokes, and reflects all three callable modes
-without a Rust dependency; all compatibility directions, mutation and move restrictions,
-use-after-consumption, async/throwable composition, and receiver modes have focused accepted and
-rejected evidence; and every existing projected callback maps to the common callable model without
-weakening its retention, transfer, or thread contracts.
 
 ### Milestone 28.1 — Concrete projected interfaces and class implementations
 
@@ -680,6 +644,43 @@ The first-version compiler is done only when:
 ## Appendix A. Completed milestone record
 
 This appendix keeps delivered milestone contracts and evidence out of the active roadmap. Full milestone records below are preserved as completed implementation history. Entries titled “Completed portion” contain only the delivered side of a milestone whose remaining work appears in section 7; superseded requirements are recorded as such rather than carried forward.
+
+### Milestone 28 — Exact callable and object contracts for projected conformance
+
+Projected Rust traits must enter Terrane through its existing object model rather than importing
+Rust's vocabulary as a parallel source model. An admissible Rust trait therefore projects as a
+Terrane `interface`: it has nominal identity, may be used as a type, and is satisfied explicitly
+through `implements`. Terrane `trait` remains source implementation composition through `uses`, and
+an unnamed structural `protocol` remains implicitly satisfied from a descriptor's operation shape.
+The detailed rationale and implementation inventory remain in
+`docs/dump/trait-projection.md`; this milestone family is the authoritative delivery contract.
+
+Before emitting a foreign implementation, make those boundaries exact throughout the language and
+give callable receivers the source contract that projected methods need:
+
+- normalize the full and concise specifications, surface documents, scoreboard, and manual around
+  four distinct terms: structural protocol, nominal interface, implementation-composing trait, and
+  compiler-owned descriptor operation. Remove prose implying a source `protocol` declaration or a
+  structural named interface; no user-declared protocol feature is added;
+- support shared, mutable, and consuming invocation modes wherever a function declaration or type
+  appears. Plain `function` remains the shared form; `mutable function` and `consuming function`
+  state exclusive-repeatable and one-shot invocation respectively, and compose with `async` and
+  `throws`;
+- retain the written invocation mode separately from the exact mode inferred from the body and
+  captures. Enforce it through receiver checking, capture analysis, callable compatibility,
+  storage, invocation, interface conformance, trait composition, ownership, and reflection;
+- normalize projected `Fn`, `FnMut`, and `FnOnce` callback contracts onto those three ordinary
+  Terrane modes, removing their separate semantic multiplicity path while retaining the existing
+  call-site adapters and boundary conversions; and
+- make `destruct` a fixed consuming lifecycle operation without changing the established
+  one-lineage destruction contract.
+
+Exit criterion: either language specification answers the protocol/interface/trait distinction
+without inference; Terrane source declares, stores, invokes, and reflects all three callable modes
+without a Rust dependency; all compatibility directions, mutation and move restrictions,
+use-after-consumption, async/throwable composition, and receiver modes have focused accepted and
+rejected evidence; and every existing projected callback maps to the common callable model without
+weakening its retention, transfer, or thread contracts.
 
 ### Milestone 26.2 — Throwable contracts for function types
 
