@@ -4488,9 +4488,18 @@ returning a bounded `Future` projects as a Terrane `async function`. Projection 
 contracts to shared, mutable, and consuming invocation modes respectively, while retaining
 retention and required `Send`/`Sync` as independent boundary facts. Generated shims construct the
 exact Rust closure type at free-function or projected-method call boundaries and convert arguments
-and results there. A projected Rust trait is likewise a named contract, so its source-side
-projection target is an interface rather than a Terrane trait: Terrane traits compose source
-implementation and do not represent foreign nominal conformance.
+and results there.
+
+An eligible fixed-signature Rust trait projects as a named Terrane interface, never as a Terrane
+trait: Rust traits and Terrane interfaces are named conformance contracts, while Terrane traits
+compose reusable source implementation through `uses`. Rust `&self`, `&mut self`, and `self`
+receivers become shared, mutable, and consuming interface requirements. Required methods demand a
+matching class method; provided methods are callable, overridable interface defaults. A local class
+adopts the projected identity with ordinary `implements`, and lowering emits one foreign Rust impl
+that delegates into its Terrane methods. Immediate concrete generic and `impl Trait` inputs may
+specialize from the written class argument. Static requirements, generic methods, unresolved
+associated types, higher-ranked lifetimes, and unprojectable member types decline with stable
+artifact reasons rather than being erased.
 
 Mutable Terrane callables own repeatable state and value separation copies the current environment
 rather than aliasing it. Consuming callbacks transfer their environment into the one-shot Rust

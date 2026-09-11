@@ -949,8 +949,8 @@ Declared crates are projected from typed rustdoc metadata into reserved
 over convenience paths beneath `prelude`, then shortest depth and lexical ordering. The shared
 projection records verbatim public names, canonical Rust paths, documentation, representable free
 functions, associated functions as `Class::function` static members, inherent instance methods,
-receiver-first trait functions, receiver ownership, opaque foreign types, data-free enum variant
-constructors, directly
+eligible fixed-signature Rust traits as nominal Terrane interfaces, receiver ownership, opaque
+foreign types, data-free enum variant constructors, directly
 representable `Result` returns, arbitrary projected `Option<T>` values, all Rust integer widths,
 `f32`, `char`, concrete representable type aliases, recursive standard sequence, map, set, and
 homogeneous tuple shapes, monomorphic concrete `Fn`, `FnMut`, `FnOnce`, and future-returning
@@ -960,11 +960,17 @@ owned asynchronous sinks with accepted/close outcomes. Callback metadata maps `F
 `Send`/`Sync` independently. Generated shims cover free-function and projected-method arguments.
 Mutable callback state is repeatable and independently copied at value separation; consuming
 callbacks transfer once.
+Projected interfaces preserve shared, mutable, and consuming receivers plus required/provided
+membership. Local classes adopt them with ordinary `implements`; generated Rust impls delegate
+required methods to Terrane bodies and preserve callable, overridable Rust defaults. Immediate
+concrete generic or `impl Trait` inputs specialize from the written class argument. Static and
+generic trait methods, unresolved associated types, higher-ranked lifetimes, and unprojectable
+members remain explicit stable declines.
 Async producers and sinks are
 resource-owning linear endpoints: borrowed operations must be awaited directly, preserve protocol
 failure and task cancellation separately, and reborrow the endpoint for one suspension; consuming
 `close` or `split` makes later use of the transferred endpoint a source ownership error.
-Projection schema 20 introduced explicit root, continuation, and terminal roles for concrete
+Projection schema 33 retains these contracts alongside explicit root, continuation, and terminal
 lifetime-bearing builders represented as chain-only values. Their intermediates may retain
 a borrow from a named input but may appear only as receiver subtrees inside one nested expression;
 binding, return, capture, argument

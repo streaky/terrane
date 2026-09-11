@@ -1530,16 +1530,19 @@ features:
 - id: projected-interface-conformance
   name: Projected Rust trait conformance
   category: interop
-  status: planned
-  completion: 0
-  milestone: 28-28.3
+  status: partial
+  completion: 34
+  milestone: 28.2-28.3
   reference:
     state: partial
     paths:
     - manual/reference/records/packages/rust-dependencies.yaml
-  notes: Admissible Rust traits will project as nominal Terrane interfaces that local classes can implement, including exact receiver modes, retained and asynchronous entry, one explicit closed associated type, and implementable supertrait chains.
+  notes: Fixed-signature Rust traits now project as nominal Terrane interfaces with exact receiver
+    modes and provided defaults; local classes implement them and cross immediate concrete generic
+    bounds. Retained/erased implementations, closed associated types, implementable supertrait
+    chains, and asynchronous foreign entry remain later milestones.
   sources:
-  - docs/compiler-plan.md#Milestone 28
+  - docs/compiler-plan.md#Milestone 28.1
 - id: projection-identity
   name: Namespace-qualified projected identity
   category: interop

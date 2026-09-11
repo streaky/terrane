@@ -203,37 +203,6 @@ Lower the semantic model to a small Rust-oriented IR before rendering text. The 
 This section contains only work that remains required by the settled version-one design. For a partially delivered milestone, its heading and exit criterion have been rewritten around the unfinished capability rather than repeating already implemented work. Requirements superseded by later language decisions are called out and excluded. Completely delivered milestones and completed portions of split milestones are retained in Appendix A.
 
 
-### Milestone 28.1 — Concrete projected interfaces and class implementations
-
-Project a representable Rust trait as an imported Terrane interface with no new declaration kind or
-conformance clause. The projection artifact records the trait's canonical identity, required and
-provided methods, receiver modes, signatures, throwable/result shapes, transfer and thread
-obligations, documentation, and a stable reason for every declined trait or member. Default methods
-are provided interface members: callable and overridable, but not required from every implementor.
-
-`implements` admits source-declared, compiler-owned, and projected interface identities through one
-descriptor rule. Conformance reads requirements from the descriptor, checks each matching class
-method after type projection, permits unrelated inherent class methods, and diagnoses receiver,
-signature, throwable, lifetime, and ownership mismatches at Terrane source spans. Generic methods,
-higher-ranked lifetimes, unresolved associated types, static requirements, and unprojectable method
-types remain precise declines.
-
-Lower each accepted class-interface pair to one readable `impl ForeignTrait for LocalClass` whose
-methods delegate to the lowered Terrane bodies through the existing callback conversion layer.
-Extend the projection oracle with an impl-shaped question and prove the complete generated
-implementation against the resolved dependency. Admit immediate concrete generic or `impl Trait`
-input calls by selecting the exact generated class from one written argument and proving the
-substituted call; borrowed calls are accepted only when the borrow cannot escape. Rust dyn
-compatibility is checked only at a boundary that actually asks for a Rust trait object. A foreign
-type cannot be named as the implementor.
-
-Exit criterion: two deliberately dissimilar projected crates require no package-specific projector
-logic; Terrane classes implement their fixed-signature traits, use the projected identities as
-ordinary Terrane interface annotations, cross immediate concrete Rust bounds, call required and
-provided methods, and produce deterministic warning-free canonical Rust. Focused rejects cover
-every unsupported trait shape and conformance mismatch, and every public trait omitted from
-projection has a tooling-visible reason.
-
 ### Milestone 28.2 — Owned, erased, and asynchronous dependency entry
 
 Make projected conformance usable at framework and plugin boundaries after the registering call has
@@ -644,6 +613,44 @@ The first-version compiler is done only when:
 ## Appendix A. Completed milestone record
 
 This appendix keeps delivered milestone contracts and evidence out of the active roadmap. Full milestone records below are preserved as completed implementation history. Entries titled “Completed portion” contain only the delivered side of a milestone whose remaining work appears in section 7; superseded requirements are recorded as such rather than carried forward.
+
+### Milestone 28.1 — Concrete projected interfaces and class implementations
+
+Project a representable Rust trait as an imported Terrane interface with no new declaration kind or
+conformance clause. The projection artifact records the trait's canonical identity, required and
+provided methods, receiver modes, signatures, throwable/result shapes, transfer and thread
+obligations, documentation, and a stable reason for every declined trait or member. Default methods
+are provided interface members: callable and overridable, but not required from every implementor.
+
+`implements` admits source-declared, compiler-owned, and projected interface identities through one
+descriptor rule. Conformance reads requirements from the descriptor, checks each matching class
+method after type projection, permits unrelated inherent class methods, and diagnoses receiver,
+signature, throwable, lifetime, and ownership mismatches at Terrane source spans. Generic methods,
+higher-ranked lifetimes, unresolved associated types, static requirements, and unprojectable method
+types remain precise declines.
+
+Lower each accepted class-interface pair to one readable `impl ForeignTrait for LocalClass` whose
+methods delegate to the lowered Terrane bodies through the existing callback conversion layer.
+Extend the projection oracle with an impl-shaped question and prove the complete generated
+implementation against the resolved dependency. Admit immediate concrete generic or `impl Trait`
+input calls by selecting the exact generated class from one written argument and proving the
+substituted call; borrowed calls are accepted only when the borrow cannot escape. Rust dyn
+compatibility is checked only at a boundary that actually asks for a Rust trait object. A foreign
+type cannot be named as the implementor.
+
+Exit criterion: two deliberately dissimilar projected crates require no package-specific projector
+logic; Terrane classes implement their fixed-signature traits, use the projected identities as
+ordinary Terrane interface annotations, cross immediate concrete Rust bounds, call required and
+provided methods, and produce deterministic warning-free canonical Rust. Focused rejects cover
+every unsupported trait shape and conformance mismatch, and every public trait omitted from
+projection has a tooling-visible reason.
+
+Evidence: `rust-dependency-callbacks` uses two deliberately dissimilar local witness crates. A
+Terrane class implements their mutable and shared projected interfaces, calls required and provided
+methods through interface values, and crosses an immediate generic bound. The projection artifact
+retains canonical trait identity, receiver authority, provided-member metadata, and stable declines;
+the impl-shaped projection oracle compiles complete witness implementations against the resolved
+dependency graph.
 
 ### Milestone 28 — Exact callable and object contracts for projected conformance
 
