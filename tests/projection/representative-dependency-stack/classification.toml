@@ -1,4 +1,4 @@
-reviewed-against = "projection schema 38 projected Rust interface admission"
+reviewed-against = "projection schema 38; trait admission limited to self/&self/&mut self, declining wrapped receivers and reducing tokio/tower-http instance/static totals"
 format = 2
 projection-source = "local-rustdoc"
 build-toolchain = "1.93.0"

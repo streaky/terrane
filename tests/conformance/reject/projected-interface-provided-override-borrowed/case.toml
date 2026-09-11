@@ -1,0 +1,5 @@
+phase = "check"
+status = "reject"
+entrypoint = "package.toml"
+code = "T0067"
+contains = "provided member `Labelled.shout` cannot be overridden: borrowed parameters are deferred"

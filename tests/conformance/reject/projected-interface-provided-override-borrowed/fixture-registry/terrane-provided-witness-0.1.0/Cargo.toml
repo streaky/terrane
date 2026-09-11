@@ -1,5 +1,5 @@
 [package]
-name = "terrane-render-witness"
+name = "terrane-provided-witness"
 version = "0.1.0"
 edition = "2024"
 publish = false

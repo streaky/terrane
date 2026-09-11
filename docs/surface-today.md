@@ -962,15 +962,17 @@ Mutable callback state is repeatable and independently copied at value separatio
 callbacks transfer once.
 Projected interfaces preserve shared, mutable, and consuming receivers plus required/provided
 membership. Local classes adopt them with ordinary `implements`; generated Rust impls delegate
-required methods to Terrane bodies and preserve callable, overridable Rust defaults. Immediate
-concrete generic or `impl Trait` inputs specialize from the written class argument. Static and
-generic trait methods, unresolved associated types, higher-ranked lifetimes, and unprojectable
-members remain explicit stable declines.
+required methods to Terrane bodies. Rust defaults remain callable; Terrane overrides are currently
+limited to owned, non-`Result` signatures. Required borrowed parameters, required `Result` methods,
+wrapped receivers such as `Arc<Self>`, `Box<Self>`, and `Pin<&mut Self>`, static and generic
+methods, unresolved associated types, higher-ranked lifetimes, and unprojectable members remain
+explicit stable declines. Immediate concrete generic or `impl Trait` inputs specialize from the
+written class argument.
 Async producers and sinks are
 resource-owning linear endpoints: borrowed operations must be awaited directly, preserve protocol
 failure and task cancellation separately, and reborrow the endpoint for one suspension; consuming
 `close` or `split` makes later use of the transferred endpoint a source ownership error.
-Projection schema 36 retains these contracts alongside explicit root, continuation, and terminal
+Projection schema 38 retains these contracts alongside explicit root, continuation, and terminal
 lifetime-bearing builders represented as chain-only values. Their intermediates may retain
 a borrow from a named input but may appear only as receiver subtrees inside one nested expression;
 binding, return, capture, argument

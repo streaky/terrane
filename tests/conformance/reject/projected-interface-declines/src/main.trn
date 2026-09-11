@@ -1,6 +1,0 @@
-namespace app
-from /deps/terrane-render-witness import StaticFactory
-from /deps/terrane-render-witness import AssociatedValue
-from /deps/terrane-render-witness import GenericMethod
-from /deps/terrane-render-witness import HigherRanked
-from /deps/terrane-render-witness import UnprojectableMember

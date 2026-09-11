@@ -46,6 +46,9 @@ class projected-counter implements adjustable
     function current int;
         return this.total
 
+class projected-counter-holder
+    inner projected-counter = instance projected-counter;
+
 async function main;
     print; (apply_shared; 40, add-two)
     print; (apply_mutable; 10, add-two)
@@ -78,3 +81,5 @@ async function main;
     print; (render_impl; impl-message, 'opaque')
     counter = instance projected-counter;
     print; (adjust_value; counter, 7)
+    holder = instance projected-counter-holder;
+    print; (adjust_value; holder.inner, 9)

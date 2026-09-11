@@ -852,6 +852,39 @@ pub(super) fn validate_object_conformance(
                             object.span,
                         ));
                     };
+                    if let Some(reason) = package
+                        .projection
+                        .interface_method(
+                            &interface.identity.namespace,
+                            &interface.identity.name,
+                            &required.name,
+                        )
+                        .filter(|method| method.provided)
+                        .and_then(|method| {
+                            if method
+                                .function
+                                .parameters
+                                .iter()
+                                .any(|parameter| parameter.borrowed)
+                            {
+                                Some("borrowed parameters are deferred")
+                            } else if method.function.error.is_some() {
+                                Some("Result-returning methods are deferred")
+                            } else {
+                                None
+                            }
+                        })
+                    {
+                        return Err(failure(
+                            &declaration_unit.source,
+                            "T0067",
+                            format!(
+                                "provided member `{}.{}` cannot be overridden: {reason}",
+                                interface.name, required.name
+                            ),
+                            actual.span,
+                        ));
+                    }
                     if !implementation_satisfies_requirement(required, actual) {
                         return Err(failure(
                             &declaration_unit.source,

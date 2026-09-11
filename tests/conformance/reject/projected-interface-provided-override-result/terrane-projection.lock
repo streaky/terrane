@@ -1,8 +1,13 @@
 {
   "dependencies": [
     {
-      "members": [],
-      "name": "terrane-render-witness",
+      "members": [
+        [
+          "/deps/terrane-provided-witness",
+          "Parser"
+        ]
+      ],
+      "name": "terrane-provided-witness",
       "version": "0.1.0"
     }
   ],

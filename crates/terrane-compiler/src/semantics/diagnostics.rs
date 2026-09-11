@@ -375,6 +375,16 @@ fn projected_call_mutates_binding(
     call: &SyntaxNode,
     target_span: Span,
 ) -> bool {
+    fn root_name(node: &SyntaxNode) -> Option<&SyntaxNode> {
+        match node.kind {
+            SyntaxKind::Name => Some(node),
+            SyntaxKind::MemberExpression
+            | SyntaxKind::IndexExpression
+            | SyntaxKind::GroupExpression => node.children.first().and_then(root_name),
+            _ => node.children.last().and_then(root_name),
+        }
+    }
+
     let [callee, arguments] = call.children.as_slice() else {
         return false;
     };
@@ -411,14 +421,11 @@ fn projected_call_mutates_binding(
         .any(|(argument, parameter)| {
             parameter.generic_parameter.is_some()
                 && parameter.mutable_borrow
-                && argument.children.last().unwrap_or(argument).kind == SyntaxKind::Name
-                && package
-                    .resolve_name_at(
-                        unit,
-                        argument.span.start,
-                        node_text(&unit.source, argument.children.last().unwrap_or(argument)),
-                    )
-                    .is_some_and(|symbol| symbol.declaration_span == Some(target_span))
+                && root_name(argument).is_some_and(|root| {
+                    package
+                        .resolve_name_at(unit, root.span.start, node_text(&unit.source, root))
+                        .is_some_and(|symbol| symbol.declaration_span == Some(target_span))
+                })
         })
 }
 

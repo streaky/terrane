@@ -4492,14 +4492,20 @@ and results there.
 
 An eligible fixed-signature Rust trait projects as a named Terrane interface, never as a Terrane
 trait: Rust traits and Terrane interfaces are named conformance contracts, while Terrane traits
-compose reusable source implementation through `uses`. Rust `&self`, `&mut self`, and `self`
-receivers become shared, mutable, and consuming interface requirements. Required methods demand a
-matching class method; provided methods are callable, overridable interface defaults. A local class
-adopts the projected identity with ordinary `implements`, and lowering emits one foreign Rust impl
-that delegates into its Terrane methods. Immediate concrete generic and `impl Trait` inputs may
-specialize from the written class argument. Static requirements, generic methods, unresolved
-associated types, higher-ranked lifetimes, and unprojectable member types decline with stable
-artifact reasons rather than being erased.
+compose reusable source implementation through `uses`. Plain Rust `&self`, `&mut self`, and `self`
+receivers become shared, mutable, and consuming interface requirements; wrapped receivers such as
+`Arc<Self>`, `Box<Self>`, and `Pin<&mut Self>` decline. Required methods demand a matching class
+method. Provided methods remain callable defaults and may be overridden only when their foreign
+signature uses supported owned, non-`Result` parameters and results. Required borrowed parameters,
+required `Result` methods, static requirements, generic methods, unresolved associated types,
+higher-ranked lifetimes, and unprojectable member types decline with stable artifact reasons
+rather than being erased.
+
+A local class adopts the projected identity with ordinary `implements`, and lowering emits one
+foreign Rust impl that delegates into its Terrane methods. Immediate concrete generic and
+`impl Trait` inputs may specialize from the written class argument. Projected error metadata
+contributes the callable's throwable contract, so foreign methods participate in the same
+throwable protocol eligibility and conformance checks as source callables.
 
 Mutable Terrane callables own repeatable state and value separation copies the current environment
 rather than aliasing it. Consuming callbacks transfer their environment into the one-shot Rust

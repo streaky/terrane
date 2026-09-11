@@ -212,6 +212,9 @@ returned or dropped. Extend argument-directed specialization to retained generic
 `Box<dyn Trait>` inputs, and the exact generated Terrane interface wrapper when erased delegation is
 coherent and oracle-proven. Other owning containers require their own projected construction path.
 
+Milestone 28.2 also enforces projected interface `Send` and `Sync` obligations against the complete
+field graph of each Terrane implementor before lowering.
+
 Each retained method adapter is a later-entry boundary carrying only owned state. Check the actual
 `'static`, `Send`, `Sync`, unwind, runtime, and destruction obligations and reject borrowed escape or
 unavailable execution context. Canonical Rust `Drop` maps to Terrane `destruct` as a lifecycle
@@ -620,14 +623,17 @@ Project a representable Rust trait as an imported Terrane interface with no new 
 conformance clause. The projection artifact records the trait's canonical identity, required and
 provided methods, receiver modes, signatures, throwable/result shapes, transfer and thread
 obligations, documentation, and a stable reason for every declined trait or member. Default methods
-are provided interface members: callable and overridable, but not required from every implementor.
+are provided interface members: always callable; overridable only when their foreign signature uses
+the currently supported owned, non-`Result` shape.
 
 `implements` admits source-declared, compiler-owned, and projected interface identities through one
 descriptor rule. Conformance reads requirements from the descriptor, checks each matching class
 method after type projection, permits unrelated inherent class methods, and diagnoses receiver,
 signature, throwable, lifetime, and ownership mismatches at Terrane source spans. Generic methods,
-higher-ranked lifetimes, unresolved associated types, required `Result` methods at this milestone,
-static requirements, and unprojectable method types remain precise declines.
+higher-ranked lifetimes, unresolved associated types, required borrowed parameters, required
+`Result` methods at this milestone, static requirements, and unprojectable method types remain
+precise declines. Provided methods with borrowed parameters or `Result` returns remain callable
+through their Rust defaults but cannot yet be overridden by a Terrane class.
 
 For each candidate projected interface, first extend the projection oracle with an impl-shaped
 question for the complete generated witness and compile it against the resolved dependency. Only
@@ -643,26 +649,38 @@ use non-escaping Rust borrows at the foreign boundary. Rust dyn compatibility is
 boundary that actually asks for a Rust trait object. A foreign type cannot be named as the
 implementor.
 
+Trait admission is intentionally narrower than ordinary projected-method admission: only plain
+`self`, `&self`, and `&mut self` receivers participate. Methods using `Box<Self>`, `Arc<Self>`,
+`Pin<&mut Self>`, or another wrapped receiver decline. On the representative stack this removes
+tokio's owned semaphore/notification and sleep-reset methods, `asyncbufread::consume`, and two
+tower-http methods from the instance/static projection totals; the classification records that
+breadth change explicitly.
+
 Exit criterion: two deliberately dissimilar projected crates require no package-specific projector
 logic; Terrane classes implement their fixed-signature traits, use the projected identities as
 ordinary Terrane interface annotations, cross immediate concrete Rust bounds, call required and
 provided methods, and produce deterministic warning-free canonical Rust. Focused rejects cover
 missing methods, receiver-mode mismatches, parameter/result mismatches, throwable mismatches,
-interface-typed generic arguments, non-immediate or ambiguous generic bounds, foreign implementors,
-and every unsupported trait shape. A focused oracle-failure regression proves that one failed
-witness declines only that candidate interface, and every public trait or member omitted from
-projection has a tooling-visible reason.
+unsupported provided overrides, interface-typed generic arguments, non-immediate or ambiguous
+generic bounds, foreign implementors, and every unsupported trait shape. A focused oracle-failure
+regression proves that one failed witness declines only that candidate interface, and every public
+trait or member omitted from projection has a tooling-visible reason. Enforcing projected
+interface `Send`/`Sync` obligations against arbitrary Terrane class fields is deferred to 28.2;
+rustc remains the final guard until that semantic check lands.
 
 Evidence: `rust-dependency-callbacks` uses two deliberately dissimilar local witness crates. A
 Terrane class implements their mutable and shared projected interfaces, calls required and
 provided/default methods through interface values, passes a borrowed projected parameter, and
-crosses an immediate generic bound. `projected-interface-missing-member`,
-`projected-interface-receiver-mismatch`, `projected-interface-signature-mismatch`,
-`projected-interface-throwable-mismatch`, `projected-generic-interface-argument`, and
-`projected-generic-non-immediate-bound` provide the matching conformance rejects. The projection
-artifact retains canonical trait identity, receiver authority, provided-member metadata, and
-stable declines; the impl-shaped projection oracle gates interface admission with complete witness
-implementations compiled against the resolved dependency graph.
+crosses an immediate generic bound, including a mutable member-expression argument.
+`projected-interface-missing-member`, `projected-interface-receiver-mismatch`,
+`projected-interface-signature-mismatch`, `projected-interface-throwable-mismatch`,
+`projected-interface-provided-override-borrowed`, `projected-interface-provided-override-result`,
+`projected-generic-interface-argument`, and `projected-generic-non-immediate-bound` provide the
+matching conformance rejects.
+
+The projection artifact retains canonical trait identity, receiver authority, provided-member
+metadata, and stable declines; the impl-shaped projection oracle gates interface admission with
+complete witness implementations compiled against the resolved dependency graph.
 
 ### Milestone 28 — Exact callable and object contracts for projected conformance
 
