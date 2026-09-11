@@ -17,7 +17,7 @@ use sha2::{Digest, Sha256};
 use crate::{InvocationMode, RustDependency};
 
 pub use crate::RUSTDOC_TOOLCHAIN;
-const PROJECTION_SCHEMA: &str = "33";
+const PROJECTION_SCHEMA: &str = "36";
 const MAX_PROJECTION_CACHE_RECORDS: usize = 4;
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
@@ -2777,6 +2777,9 @@ fn project_interface(
     if !declaration.generics.params.is_empty() {
         return Err("trait has generic or lifetime parameters".to_owned());
     }
+    if !declaration.generics.where_predicates.is_empty() {
+        return Err("trait has unsupported where predicates".to_owned());
+    }
     let mut send = false;
     let mut sync = false;
     for bound in &declaration.bounds {
@@ -3577,8 +3580,14 @@ fn project_function_inner(
     let mut receiver = None;
     for (name, ty) in &function.sig.inputs {
         if name == "self" {
-            receiver = Some(receiver_kind(ty));
+            receiver = Some(receiver_kind(ty)?);
             continue;
+        }
+        if !matches!(ty, Type::BorrowedRef { .. })
+            && render_rust_type(ty, index, paths, &generic_types)
+                .is_ok_and(|rendered| rendered.contains('&'))
+        {
+            return Err("nested borrowed parameter cannot cross a projected boundary".to_owned());
         }
         let projected_type = project_type(ty, index, paths, &generic_types)?;
         let (borrowed, mutable_borrow) = match ty {
@@ -4543,13 +4552,19 @@ fn instantiated_type_name(short: &str, rust_path: &str) -> String {
     format!("{short}-{:x}", Sha256::digest(rust_path.as_bytes()))
 }
 
-fn receiver_kind(ty: &Type) -> Receiver {
+fn receiver_kind(ty: &Type) -> Result<Receiver, String> {
     match ty {
+        Type::Generic(name) if name == "Self" => Ok(Receiver::Move),
         Type::BorrowedRef {
-            is_mutable: true, ..
-        } => Receiver::MutableBorrow,
-        Type::BorrowedRef { .. } => Receiver::Borrow,
-        _ => Receiver::Move,
+            is_mutable, type_, ..
+        } if matches!(type_.as_ref(), Type::Generic(name) if name == "Self") => {
+            Ok(if *is_mutable {
+                Receiver::MutableBorrow
+            } else {
+                Receiver::Borrow
+            })
+        }
+        _ => Err("receiver is not plain `self`, `&self`, or `&mut self`".to_owned()),
     }
 }
 
@@ -5053,18 +5068,22 @@ mod tests {
     }
 
     #[test]
-    fn receiver_kind_preserves_mutable_borrows() {
+    fn receiver_kind_preserves_only_plain_self_receivers() {
         let borrowed = |is_mutable| Type::BorrowedRef {
             lifetime: None,
             is_mutable,
-            type_: Box::new(Type::Primitive("str".to_owned())),
+            type_: Box::new(Type::Generic("Self".to_owned())),
         };
-        assert_eq!(receiver_kind(&borrowed(true)), Receiver::MutableBorrow);
-        assert_eq!(receiver_kind(&borrowed(false)), Receiver::Borrow);
         assert_eq!(
-            receiver_kind(&Type::Primitive("str".to_owned())),
+            receiver_kind(&borrowed(true)).unwrap(),
+            Receiver::MutableBorrow
+        );
+        assert_eq!(receiver_kind(&borrowed(false)).unwrap(), Receiver::Borrow);
+        assert_eq!(
+            receiver_kind(&Type::Generic("Self".to_owned())).unwrap(),
             Receiver::Move
         );
+        assert!(receiver_kind(&Type::Primitive("str".to_owned())).is_err());
     }
 
     #[test]

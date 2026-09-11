@@ -1267,6 +1267,18 @@
         ],
         [
           "/deps/reqwest",
+          "Proxy::all"
+        ],
+        [
+          "/deps/reqwest",
+          "Proxy::http"
+        ],
+        [
+          "/deps/reqwest",
+          "Proxy::https"
+        ],
+        [
+          "/deps/reqwest",
           "Request"
         ],
         [
@@ -2061,10 +2073,6 @@
         [
           "/deps/tokio/io",
           "sink"
-        ],
-        [
-          "/deps/tokio/io/asyncbufread",
-          "consume"
         ],
         [
           "/deps/tokio/io/unix",
@@ -3016,10 +3024,6 @@
         ],
         [
           "/deps/tokio/sync",
-          "Notify.notified_owned"
-        ],
-        [
-          "/deps/tokio/sync",
           "Notify.notify_last"
         ],
         [
@@ -3068,14 +3072,6 @@
         ],
         [
           "/deps/tokio/sync",
-          "Semaphore.acquire_many_owned"
-        ],
-        [
-          "/deps/tokio/sync",
-          "Semaphore.acquire_owned"
-        ],
-        [
-          "/deps/tokio/sync",
           "Semaphore.add_permits"
         ],
         [
@@ -3104,14 +3100,6 @@
         ],
         [
           "/deps/tokio/sync",
-          "Semaphore.try_acquire_many_owned"
-        ],
-        [
-          "/deps/tokio/sync",
-          "Semaphore.try_acquire_owned"
-        ],
-        [
-          "/deps/tokio/sync",
           "TryAcquireError"
         ],
         [
@@ -3129,10 +3117,6 @@
         [
           "/deps/tokio/sync/futures",
           "OwnedNotified"
-        ],
-        [
-          "/deps/tokio/sync/futures",
-          "OwnedNotified.enable"
         ],
         [
           "/deps/tokio/sync/mpsc/error",
@@ -3364,10 +3348,6 @@
         ],
         [
           "/deps/tokio/time",
-          "Sleep.reset"
-        ],
-        [
-          "/deps/tokio/time",
           "interval"
         ],
         [
@@ -3476,6 +3456,10 @@
         ],
         [
           "/deps/tower/retry/budget",
+          "Budget"
+        ],
+        [
+          "/deps/tower/retry/budget",
           "TpsBudget"
         ],
         [
@@ -3509,6 +3493,10 @@
         [
           "/deps/tower/util/rng",
           "HasherRng::with_hasher"
+        ],
+        [
+          "/deps/tower/util/rng",
+          "Rng"
         ],
         [
           "/deps/tower/util/rng/rng",
@@ -3559,10 +3547,6 @@
         [
           "/deps/tower-http/classify",
           "StatusInRangeFailureClass"
-        ],
-        [
-          "/deps/tower-http/classify/classifyeos",
-          "classify_eos"
         ],
         [
           "/deps/tower-http/classify/grpccode",
@@ -3751,10 +3735,6 @@
         [
           "/deps/tower-http/trace",
           "DefaultOnResponse"
-        ],
-        [
-          "/deps/tower-http/trace/oneos",
-          "on_eos"
         ]
       ]
     },
@@ -3808,6 +3788,10 @@
       "name": "utoipa",
       "version": "5.5.0",
       "members": [
+        [
+          "/deps/utoipa",
+          "Modify"
+        ],
         [
           "/deps/utoipa",
           "Number"
@@ -4861,11 +4845,11 @@
     }
   ],
   "removed": [],
-  "cache_identity": "481d8d3d599084c222f63589caebc1408b8468d7c83899c00793a52716f8cf24",
+  "cache_identity": "2ea8030bdd9b2ed499903a6b594a1fc86a49d210292146e302c95b65a129539d",
   "source": "Local",
   "rustdoc_format": 57,
-  "projection_schema": "26",
-  "content_hash": "1d8cfe720b2737a93f40a8121542d945e558b37229121b8aa70b7c4af129ccf2",
+  "projection_schema": "36",
+  "content_hash": "1778d57763f273b7891b7f55531557779a85bba06f10af8e9677c9be4ecfbd1b",
   "resolution": {
     "outcome": "LocalRustdoc",
     "events": [
