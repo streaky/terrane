@@ -1,7 +1,7 @@
 format: 1
 title: Terrane language scoreboard
 metadata:
-  as_of: '2026-09-10'
+  as_of: '2026-09-11'
   description: Curated feature-level view of implemented, active, potential, deferred, and intentionally excluded
     Terrane language work.
   completion_rule: Completion measures the named feature only. Done is 100; planned, potential, deferred, and excluded
@@ -1513,6 +1513,19 @@ features:
   sources:
   - docs/language-spec-concise.md#DEPENDENCY PRINCIPLE
   - docs/compiler-plan.md#Milestone 25
+- id: projected-interface-conformance
+  name: Projected Rust trait conformance
+  category: interop
+  status: planned
+  completion: 0
+  milestone: 28-28.3
+  reference:
+    state: partial
+    paths:
+    - manual/reference/records/packages/rust-dependencies.yaml
+  notes: Admissible Rust traits will project as nominal Terrane interfaces that local classes can implement, including exact receiver modes, retained and asynchronous entry, one explicit closed associated type, and implementable supertrait chains.
+  sources:
+  - docs/compiler-plan.md#Milestone 28
 - id: projection-identity
   name: Namespace-qualified projected identity
   category: interop
